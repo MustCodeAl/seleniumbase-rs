@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::scenario::{run_scenario, Scenario};
+use seleniumbase_rs::console_scripts::*;
 use seleniumbase_rs::{BaseCase, Browser, BrowserConfig, DriverMode};
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
@@ -337,6 +338,15 @@ enum Commands {
         css: String,
         #[arg(long)]
         text: String,
+    },
+    Install,
+    Mkdir {
+        #[arg(long)]
+        dir: String,
+    },
+    Mkfile {
+        #[arg(long)]
+        file: String,
     },
     RunScenario {
         #[arg(long)]
@@ -855,6 +865,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.uc_type(&css, &text).await?;
             println!("UC typed into '{}'", css);
+        }
+        Commands::Install => {
+            sb_install::install_drivers();
+        }
+        Commands::Mkdir { dir } => {
+            sb_mkdir::create_test_dir(&dir);
+        }
+        Commands::Mkfile { file } => {
+            sb_mkfile::create_test_file(&file);
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

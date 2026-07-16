@@ -1,3 +1,8 @@
+pub mod behave;
+pub mod common;
+pub mod console_scripts;
+pub mod extensions;
+pub mod plugins;
 pub mod artifacts;
 pub mod cdp;
 pub mod config;
