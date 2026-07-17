@@ -1,0 +1,29 @@
+[package]
+name = "seleniumbase-rs"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
+repository = "https://github.com/MustCodeAl/SeleniumBase"
+
+[lib]
+name = "seleniumbase_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sbase"
+path = "src/bin/sbase.rs"
+
+[dependencies]
+clap = { version = "4.6.2", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+thiserror = "2.0.18"
+thirtyfour = "0.35.0"
+tokio = { version = "1.52.4", features = ["macros", "rt-multi-thread", "time"] }
+regex = "1.13.1"
+rand = "0.8.5"
+base64 = "0.22.1"
+
+[dev-dependencies]
+tempfile = "3.27.0"
