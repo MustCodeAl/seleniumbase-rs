@@ -40,6 +40,8 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - **Commander TUI**: Terminal UI for browsing and running tests (`sbase commander`).
 - **Recorder CLI**: Capture interactions and generate Rust tests (`sbase recorder`).
 - **Cloud Integrations**: Upload artifacts to S3, Azure Blob Storage, or Google Cloud Storage behind feature flags (`--features s3/azure/gcp`).
+- **MCP Server**: Expose browser automation tools to trusted MCP clients over
+  stdio with the optional `mcp-server` feature.
 - **CI/CD & Docker**: Ready-to-use GitHub Actions workflows and a `Dockerfile`.
 - **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
 - **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
@@ -47,6 +49,9 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal with `--headless`, `--mobile`, `--proxy`, `--proxy-pac-url`, `--user-data-dir`, `--extension-dir`, `--reuse-session`, and `-n` threads.
 
 ## Documentation
+
+- [Developer Guide](./docs/DEVELOPER_GUIDE.md)
+- [Extended Documentation](./DOCS.md)
 
 ### Tutorials
 
@@ -265,6 +270,46 @@ cargo run --example playwright_mode --features playwright
 ```
 
 If the driver download fails, use the default CDP or UC modes instead.
+
+### MCP server (optional feature)
+
+Build the stdio MCP server:
+
+```bash
+cargo build --release --bin seleniumbase-mcp --features mcp-server
+```
+
+Configure an MCP client with the absolute path to the built binary:
+
+```json
+{
+  "mcpServers": {
+    "seleniumbase": {
+      "command": "/absolute/path/to/target/release/seleniumbase-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+The browser starts lazily when the first browser tool runs, so clients can list
+tools without a running WebDriver. The default configuration connects to the
+WebDriver endpoint at `http://localhost:4444`.
+
+| Tool | Purpose |
+|------|---------|
+| `open_url` | Open a URL |
+| `get_title` | Read the page title |
+| `get_url` | Read the current URL |
+| `click` | Click a CSS selector |
+| `type_text` | Enter text into a CSS selector |
+| `get_text` | Read visible element text |
+| `assert_text` | Check element text |
+| `execute_script` | Execute JavaScript in the page |
+| `quit` | Close the browser session |
+
+Only connect trusted MCP clients. The server can control the browser and
+execute JavaScript in the active page.
 
 ### Commander TUI
 

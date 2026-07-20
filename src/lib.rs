@@ -41,6 +41,7 @@ pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};
 pub use api::gui::Gui;
 pub use api::tour::TourTheme;
+pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;
-pub use error::SeleniumBaseError;
+pub use error::{Result, SeleniumBaseError};

@@ -13,6 +13,8 @@ Welcome to the official documentation for **SeleniumBase Rust**, a high-performa
    - [Smart Waits](#smart-waits)
 4. [Low-Code Scenarios](#low-code-scenarios)
 5. [Command Line Interface (CLI)](#command-line-interface-cli)
+6. [MCP Server](#mcp-server)
+7. [Developer Documentation](#developer-documentation)
 
 ---
 
@@ -290,5 +292,30 @@ sbase mkrec my_test.rs
 sbase recorder
 ```
 
----
-*For more detailed API references, you can run `cargo doc --open` inside your project directory to view the generated Rustdocs.*
+## MCP Server
+
+The optional `seleniumbase-mcp` binary exposes browser actions to trusted MCP
+clients over stdio:
+
+```bash
+cargo build --release --bin seleniumbase-mcp --features mcp-server
+```
+
+The tool catalog can be queried before WebDriver is available because the
+browser session starts on the first browser tool call. Available tools cover
+navigation, page metadata, element interaction, text assertions, JavaScript
+execution, and session shutdown. See the
+[README MCP server section](./README.md#mcp-server-optional-feature) for client
+configuration and the complete tool list.
+
+## Developer Documentation
+
+The [Developer Guide](./docs/DEVELOPER_GUIDE.md) explains the crate layout,
+`BaseCase` implementation modules, capability traits, error handling, feature
+flags, testing, and the publishing workflow.
+
+For generated API documentation, run:
+
+```bash
+cargo doc --open
+```

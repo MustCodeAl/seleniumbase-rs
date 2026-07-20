@@ -16,6 +16,7 @@ pub mod presentation;
 pub mod recorder;
 pub mod scenario;
 pub mod tour;
+pub mod traits;
 
 #[cfg(feature = "playwright")]
 pub mod playwright;

@@ -1,5 +1,8 @@
 use thiserror::Error;
 
+/// Shorthand result type used throughout the crate.
+pub type Result<T> = std::result::Result<T, SeleniumBaseError>;
+
 /// Errors that can occur when using SeleniumBase.
 #[derive(Debug, Error)]
 pub enum SeleniumBaseError {
