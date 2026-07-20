@@ -40,8 +40,12 @@ pub mod utils;
 pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};
 pub use api::gui::Gui;
+pub use api::runner::{run_browser_test, BrowserTestFuture};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;
 pub use error::{Result, SeleniumBaseError};
+pub use utilities::python_importer::{
+    import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
+};

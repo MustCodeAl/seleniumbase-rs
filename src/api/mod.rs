@@ -14,6 +14,7 @@ pub mod master_qa;
 pub mod pdf;
 pub mod presentation;
 pub mod recorder;
+pub mod runner;
 pub mod scenario;
 pub mod tour;
 pub mod traits;

@@ -82,3 +82,38 @@ Example `scenario.json`:
 ./target/debug/sbase mkpres MyPresentation
 ./target/debug/sbase mkchart MyChart
 ```
+
+## Import Python tests
+
+Convert a SeleniumBase or Selenium WebDriver Python file:
+
+```bash
+./target/debug/sbase import-python ./tests/login_test.py \
+  --output ./tests/login_test.rs
+```
+
+Use `--source selenium-base` or `--source selenium` to override automatic
+detection. Use `--test-name user_can_log_in` to choose the generated function
+name. Unsupported statements are retained as `TODO` comments and diagnostics.
+Review generated code before compiling or running it.
+
+## Install shell completions
+
+The supported values are `bash`, `elvish`, `fish`, `powershell`, and `zsh`.
+
+```bash
+# Bash
+./target/debug/sbase completions bash \
+  > "${BASH_COMPLETION_USER_DIR:-$HOME/.local/share/bash-completion/completions}/sbase"
+
+# Zsh
+mkdir -p "$HOME/.zfunc"
+./target/debug/sbase completions zsh > "$HOME/.zfunc/_sbase"
+
+# Fish
+./target/debug/sbase completions fish \
+  > "$HOME/.config/fish/completions/sbase.fish"
+```
+
+Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
+`fpath` before running `compinit`.

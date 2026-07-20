@@ -42,6 +42,12 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - **Cloud Integrations**: Upload artifacts to S3, Azure Blob Storage, or Google Cloud Storage behind feature flags (`--features s3/azure/gcp`).
 - **MCP Server**: Expose browser automation tools to trusted MCP clients over
   stdio with the optional `mcp-server` feature.
+- **Python Migration**: Convert common SeleniumBase and Selenium Python tests
+  into reviewable Rust with `sbase import-python`.
+- **Rust Test Lifecycle**: `run_browser_test` integrates with `#[tokio::test]`
+  and always attempts asynchronous browser cleanup.
+- **Shell Completions**: Generate Bash, Zsh, Fish, Elvish, or PowerShell
+  completion scripts with `sbase completions`.
 - **CI/CD & Docker**: Ready-to-use GitHub Actions workflows and a `Dockerfile`.
 - **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
 - **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
@@ -52,6 +58,10 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 
 - [Developer Guide](./docs/DEVELOPER_GUIDE.md)
 - [Extended Documentation](./DOCS.md)
+- [Rust Book Source](./docs/README.md)
+- [Why Rust?](./docs/why-rust.md)
+- [Python Migration](./docs/python-migration.md)
+- [Rust Test Tooling](./docs/rust-test-tooling.md)
 
 ### Tutorials
 
@@ -123,10 +133,47 @@ cargo run --bin sbase -- --uc open https://seleniumbase.io
 | Behave / Gherkin | `cargo run --example behave_feature` |
 | Settings config | `cargo run --example settings_config` |
 | Selenium IDE parsing | `cargo run --example selenium_ide` |
+| Browser test lifecycle | `cargo run --example browser_test_runner` |
 
 
 The command expects a running WebDriver endpoint at `http://localhost:4444`.
 Override it with `--webdriver` when needed.
+
+### Why use the Rust crate?
+
+Rust provides compile-time type checking, explicit error handling, controlled
+concurrency, and native CLI distribution. Those properties can make large test
+harnesses easier to refactor and operate reliably. Browser and network work
+still dominate many end-to-end tests, so the project does not claim universal
+speedups over Python or JavaScript. See [Why Rust?](./docs/why-rust.md) for the
+tradeoffs and measurement guidance.
+
+### Import Python tests
+
+```bash
+cargo run --bin sbase -- import-python tests/login_test.py \
+  --output tests/login_test.rs
+```
+
+The static importer handles common SeleniumBase and Selenium WebDriver calls.
+Unsupported or dynamic Python remains visible as diagnostics and `TODO`
+comments for manual review.
+
+### Generate shell completions
+
+```bash
+cargo run --bin sbase -- completions bash > sbase.bash
+cargo run --bin sbase -- completions zsh > _sbase
+```
+
+See [CLI Usage](./docs/tutorials/cli_usage.md) for installation locations.
+
+### Build the documentation book
+
+```bash
+cargo install mdbook
+mdbook serve --open
+```
 
 ### Smoke test with assertion
 

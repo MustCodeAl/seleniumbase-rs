@@ -11,18 +11,24 @@ assert!(inspection.is_clean(), "{inspection:?}");
 
 ## Checks performed
 
+- Missing document language or title.
 - Missing `alt` attributes on images.
-- Empty links (`<a></a>` or `<a href="#"></a>`).
+- Links and buttons without a static accessible name.
+- Form controls without a label, `aria-label`, or valid
+  `aria-labelledby` reference.
 - Duplicate element IDs.
-- Skipped heading levels.
-- Missing landmark regions (`main`, `nav`, `header`, `footer`).
+- Skipped heading levels after the first heading.
+- Missing `main` landmark.
 
 ## Access results
 
 ```rust
 let issues = inspection.issues;
 for issue in issues {
-    println!("{issue:?}");
+    println!(
+        "{:?} {} at {:?}: {}",
+        issue.severity, issue.rule, issue.selector, issue.message
+    );
 }
 ```
 
@@ -39,3 +45,14 @@ if !inspection.is_clean() {
 ## Why it matters
 
 Clean HTML improves accessibility, SEO, and test reliability.
+
+## Scope and limitations
+
+The inspector uses an HTML5 parser and deterministic static rules. Stable rule
+IDs and best-effort element selectors make findings suitable for CI allowlists.
+It does not execute JavaScript, compute styles or contrast, test keyboard
+behavior, or inspect the browser accessibility tree.
+
+Use it as an early check alongside browser-based accessibility testing such as
+axe-core and manual keyboard and assistive-technology review. A clean result is
+not a claim of WCAG conformance.

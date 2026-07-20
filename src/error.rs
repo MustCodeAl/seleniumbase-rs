@@ -30,4 +30,6 @@ pub enum SeleniumBaseError {
     Playwright(String),
     #[error("test skipped: {0}")]
     Skipped(String),
+    #[error("browser test lifecycle failed: {0}")]
+    TestLifecycle(String),
 }

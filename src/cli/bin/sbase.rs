@@ -1,12 +1,17 @@
 #![allow(deprecated)]
 
-use clap::{Parser, Subcommand, ValueEnum};
+use std::io::Write;
+
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::{generate, Shell};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 use seleniumbase_rs::cli::scripts::*;
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::config::settings::Settings;
-use seleniumbase_rs::{BaseCase, Browser, DriverMode};
+use seleniumbase_rs::{
+    import_python, BaseCase, Browser, DriverMode, ImportOptions, ImportSeverity, PythonSource,
+};
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
@@ -16,6 +21,13 @@ enum BrowserArg {
     Chromium,
     Edge,
     Firefox,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum ImportSourceArg {
+    Auto,
+    SeleniumBase,
+    Selenium,
 }
 
 impl From<BrowserArg> for Browser {
@@ -397,11 +409,85 @@ enum Commands {
         #[arg(long)]
         dashboard: Option<String>,
     },
+    /// Generate a completion script for a supported shell.
+    Completions {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
+    /// Convert common SeleniumBase or Selenium Python code into a Rust test.
+    ImportPython {
+        /// Python source file to convert.
+        file: String,
+        /// Write generated Rust to this path instead of stdout.
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Override source API detection.
+        #[arg(long, value_enum, default_value_t = ImportSourceArg::Auto)]
+        source: ImportSourceArg,
+        /// Generated Rust test function name.
+        #[arg(long)]
+        test_name: Option<String>,
+    },
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
+
+    match &args.command {
+        Commands::Completions { shell } => {
+            let mut command = Cli::command();
+            let name = command.get_name().to_owned();
+            let mut completion = Vec::new();
+            generate(*shell, &mut command, name, &mut completion);
+            std::io::stdout().write_all(&completion)?;
+            return Ok(());
+        }
+        Commands::ImportPython {
+            file,
+            output,
+            source,
+            test_name,
+        } => {
+            let python = std::fs::read_to_string(file)?;
+            let default_name = std::path::Path::new(file)
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("imported_python_test");
+            let result = import_python(
+                &python,
+                &ImportOptions {
+                    source: match source {
+                        ImportSourceArg::Auto => PythonSource::Auto,
+                        ImportSourceArg::SeleniumBase => PythonSource::SeleniumBase,
+                        ImportSourceArg::Selenium => PythonSource::Selenium,
+                    },
+                    test_name: test_name.as_deref().unwrap_or(default_name).to_owned(),
+                },
+            );
+            if let Some(path) = output {
+                std::fs::write(path, &result.rust)?;
+            } else {
+                print!("{}", result.rust);
+            }
+            for diagnostic in &result.diagnostics {
+                eprintln!(
+                    "{:?} at line {}: {}",
+                    diagnostic.severity, diagnostic.line, diagnostic.message
+                );
+            }
+            if result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == ImportSeverity::Error)
+            {
+                return Err("Python import completed with errors; review generated TODOs.".into());
+            }
+            return Ok(());
+        }
+        _ => {}
+    }
+
     if args.cdp && args.uc {
         return Err("Choose either --cdp or --uc, not both.".into());
     }
@@ -1049,6 +1135,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Recording json: {}", json_file.display());
             println!("Recording script: {}", rust_file.display());
             sb.quit().await?;
+        }
+        Commands::Completions { .. } | Commands::ImportPython { .. } => {
+            unreachable!("pure CLI commands return before browser configuration")
         }
     }
 

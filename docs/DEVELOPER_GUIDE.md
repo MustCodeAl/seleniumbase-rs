@@ -34,6 +34,7 @@ rust-port/
 │   │   ├── recorder.rs     # Action recorder
 │   │   ├── html.rs         # BeautifulSoup-style HTML parsing
 │   │   ├── pdf.rs          # PDF helpers
+│   │   ├── runner.rs       # Async browser test lifecycle
 │   │   ├── traits.rs       # Capability traits (BrowserApi, ElementApi, ...)
 │   │   └── ...
 │   ├── browser/            # Browser launch, session, and configuration
@@ -52,7 +53,7 @@ rust-port/
 │   ├── core/               # Logging, reporting, download/session helpers
 │   ├── js_code/            # JavaScript snippets injected into pages
 │   ├── plugins/            # Cloud/logging plugin interfaces
-│   ├── utilities/          # Selenium IDE parser, Selenium Grid helpers
+│   ├── utilities/          # Selenium IDE, Grid, and Python migration
 │   ├── utils/              # Selectors, shadow DOM, translations, extensions
 │   └── bin/                # Additional binary targets (MCP server, ...)
 └── tests/                  # Integration tests
@@ -187,6 +188,11 @@ Use these through `BaseCase::activate_cdp_mode(url)` or by setting
   `#[ignore]` or place them under `tests/`.
 - Use `BaseCase::without_session(config)` to construct a `BaseCase` for testing
   helpers that do not touch the browser.
+- Use `run_browser_test` for async browser tests so cleanup is awaited after
+  either success or failure. `Drop` cannot perform async WebDriver cleanup.
+- The default nextest profile sets retries to zero. Add retries only around a
+  measured, transient, and idempotent operation rather than masking a flaky
+  test.
 - Run the full verification matrix before pushing:
 
 ```bash
@@ -199,6 +205,22 @@ cargo test --features s3,azure,gcp,playwright,mcp-server
 cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings
 cargo publish --dry-run
 ```
+
+## Python importer architecture
+
+`utilities::python_importer` is a conservative static converter for common
+SeleniumBase and Selenium WebDriver Python statements. It uses a balanced
+statement and argument scanner plus targeted patterns. It deliberately avoids
+executing Python or guessing dynamic values.
+
+The importer separates parsing from rendering through typed actions and
+locators. Unsupported statements produce source-located diagnostics and
+compiling `TODO` comments. Keep that behavior when adding mappings: uncertain
+conversion must remain visible rather than silently changing test semantics.
+
+Add unit tests for both SeleniumBase and Selenium forms when introducing a new
+mapping. Generated tests should use `run_browser_test` and remain valid Rust
+even when diagnostics are present.
 
 ## MCP server
 
