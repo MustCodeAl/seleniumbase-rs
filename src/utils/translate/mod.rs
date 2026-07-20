@@ -1,0 +1,12 @@
+pub mod chinese;
+pub mod dutch;
+pub mod english;
+pub mod french;
+pub mod italian;
+pub mod japanese;
+pub mod korean;
+pub mod master_dict;
+pub mod portuguese;
+pub mod russian;
+pub mod spanish;
+pub mod translator;

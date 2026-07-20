@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Chrome and chromedriver (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable chromium-chromedriver
+          google-chrome --version
+          chromedriver --version
+
+      - name: Install Chrome and chromedriver (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install --cask google-chrome
+          brew install chromedriver
+          /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+          chromedriver --version
+
+      - name: Install Chrome and chromedriver (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $chromeUrl = "https://dl.google.com/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
+          Invoke-WebRequest -Uri $chromeUrl -OutFile "$env:TEMP\chrome.msi"
+          Start-Process msiexec.exe -ArgumentList "/i","$env:TEMP\chrome.msi","/qn" -Wait
+          choco install chromedriver -y
+          & "C:\Program Files\Google\Chrome\Application\chrome.exe" --version
+          chromedriver --version
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check

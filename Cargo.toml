@@ -1,0 +1,63 @@
+[package]
+name = "seleniumbase-rs"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
+repository = "https://github.com/MustCodeAl/SeleniumBase"
+
+[lib]
+name = "seleniumbase_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sbase"
+path = "src/cli/bin/sbase.rs"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+ratatui = "0.29"
+crossterm = "0.28"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+thirtyfour = "0.37"
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "time"] }
+regex = "1.13"
+rand = "0.10"
+base64 = "0.22"
+reqwest = { version = "0.13", features = ["blocking", "json"] }
+url = "2.5"
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+chrono = "0.4"
+enigo = "0.3"
+ring = "0.17"
+zip = "8.6"
+flate2 = "1.1"
+tar = "0.4"
+dirs = "6.0"
+pdf-extract = "0.8"
+scraper = "0.23"
+rfd = "0.15"
+toml = "0.8"
+tempfile = "3.27.0"
+which = "7.0"
+# Optional Playwright integration via the actively-maintained `playwright-rs`
+# bindings. Disabled by default because it downloads the Playwright driver
+# during the build; enable only when the driver can be fetched/installed.
+playwright-rs = { git = "https://github.com/padamson/playwright-rust", optional = true }
+rust-s3 = { version = "0.37", features = ["tokio-native-tls"], optional = true }
+azure_storage_blob = { version = "1.0", optional = true }
+azure_core = { version = "1.0", optional = true }
+
+[features]
+default = []
+playwright = ["dep:playwright-rs"]
+s3 = ["dep:rust-s3"]
+azure = ["dep:azure_storage_blob", "dep:azure_core"]
+gcp = []
+
+[dev-dependencies]
+printpdf = "0.7"
+syn = { version = "2", features = ["full"] }
