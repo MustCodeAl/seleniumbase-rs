@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profile Manager</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <h1>🧤 Profile Manager</h1>
+      <p>Isolated browser profiles backed by Docker + seleniumbase-rs.</p>
+      <p id="api-base" class="muted"></p>
+
+      <section class="card">
+        <h2>Create profile</h2>
+        <form id="profile-form" class="stack">
+          <input id="profile-name" placeholder="Profile name" required />
+          <input id="container-url" placeholder="WebDriver URL (e.g. http://localhost:4444)" required />
+          <input id="user-agent" placeholder="User agent (optional)" />
+          <input id="proxy" placeholder="Proxy (optional)" />
+          <input id="locale" placeholder="Locale (optional, e.g. en-US)" />
+          <div class="row-inputs">
+            <input id="latitude" type="number" step="any" placeholder="Latitude (optional)" />
+            <input id="longitude" type="number" step="any" placeholder="Longitude (optional)" />
+            <input id="accuracy" type="number" step="any" placeholder="Accuracy m (optional)" />
+          </div>
+          <label><input id="headless" type="checkbox" /> Headless</label>
+          <button type="submit">Create profile</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Profiles</h2>
+        <ul id="profile-list"></ul>
+        <button id="refresh-profiles">Refresh</button>
+      </section>
+
+      <section class="card">
+        <h2>Active sessions</h2>
+        <ul id="session-list"></ul>
+        <button id="refresh-sessions">Refresh</button>
+      </section>
+
+      <section class="card">
+        <h2>Tags & Folders</h2>
+        <div class="row-inputs">
+          <input id="new-tag" placeholder="New tag name" />
+          <input id="new-folder" placeholder="New folder name" />
+        </div>
+        <div class="actions">
+          <button id="add-tag">Add tag</button>
+          <button id="add-folder">Add folder</button>
+          <button id="refresh-tags">Refresh</button>
+        </div>
+        <h3>Tags</h3>
+        <ul id="tag-list"></ul>
+        <h3>Folders</h3>
+        <ul id="folder-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Profile tools</h2>
+
+        <h3>Clone profile</h3>
+        <div class="row-inputs">
+          <input id="clone-source-id" placeholder="Source profile ID" />
+          <input id="clone-new-name" placeholder="New profile name" />
+          <button id="clone-profile">Clone</button>
+        </div>
+
+        <h3>Export / Import profile JSON</h3>
+        <div class="row-inputs">
+          <input id="export-profile-id" placeholder="Profile ID to export" />
+          <button id="export-profile">Export</button>
+        </div>
+        <textarea id="import-profile-json" rows="5" placeholder="Paste profile JSON here"></textarea>
+        <button id="import-profile">Import</button>
+
+        <h3>Import external profile JSON</h3>
+        <p class="muted">Paste a full external profile <code>POST /profile/create</code> payload (name, browser_type, os_type, parameters, ...).</p>
+        <textarea id="import-profile-json" rows="8" placeholder='{"name":"Profile_name","browser_type":"chrome","folder_id":"...","os_type":"windows","parameters":{"flags":{...},"fingerprint":{...},"storage":{...}}}'></textarea>
+        <button id="import-profile">Import external profile JSON</button>
+
+        <h3>Proxy validation</h3>
+        <div class="row-inputs">
+          <select id="proxy-type">
+            <option value="http">http</option>
+            <option value="https">https</option>
+            <option value="socks5">socks5</option>
+          </select>
+          <input id="proxy-host" placeholder="Host" />
+          <input id="proxy-port" type="number" placeholder="Port" />
+          <input id="proxy-username" placeholder="Username (optional)" />
+          <input id="proxy-password" type="password" placeholder="Password (optional)" />
+          <button id="validate-proxy">Validate</button>
+        </div>
+        <pre id="proxy-result" class="muted"></pre>
+
+        <h3>Cookies</h3>
+        <div class="row-inputs">
+          <input id="cookie-profile-id" placeholder="Profile ID" />
+          <button id="export-cookies">Export cookies</button>
+        </div>
+        <textarea id="import-cookies-json" rows="4" placeholder='[{&quot;name&quot;:&quot;session&quot;,&quot;value&quot;:&quot;abc&quot;,&quot;domain&quot;:&quot;.example.com&quot;}]'></textarea>
+        <button id="import-cookies">Import cookies</button>
+        <pre id="cookie-result" class="muted"></pre>
+      </section>
+
+      <p id="status"></p>
+    </main>
+  </body>
+</html>

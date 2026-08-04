@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+.github
+
+# Rust build artifacts
+target/
+Cargo.lock.bak
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation and examples (not needed at runtime)
+docs/
+examples/
+*.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*.log

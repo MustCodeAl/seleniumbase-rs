@@ -1,0 +1,42 @@
+services:
+  browser-a:
+    image: selenium/standalone-chrome:latest
+    container_name: profile-browser-a
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+    environment:
+      - SE_OPTS=--log-level INFO
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=720
+    shm_size: 2g
+    volumes:
+      - ./data/a:/home/seluser/profile
+
+  browser-b:
+    image: selenium/standalone-chrome:latest
+    container_name: profile-browser-b
+    ports:
+      - "4445:4444"
+      - "7901:7900"
+    environment:
+      - SE_OPTS=--log-level INFO
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=720
+    shm_size: 2g
+    volumes:
+      - ./data/b:/home/seluser/profile
+
+  browser-c:
+    image: selenium/standalone-chrome:latest
+    container_name: profile-browser-c
+    ports:
+      - "4446:4444"
+      - "7902:7900"
+    environment:
+      - SE_OPTS=--log-level INFO
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=720
+    shm_size: 2g
+    volumes:
+      - ./data/c:/home/seluser/profile

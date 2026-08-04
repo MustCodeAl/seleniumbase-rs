@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    paths: ['rust-port/**']
+  pull_request:
+    branches: [main, master]
+    paths: ['rust-port/**']
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: rust-port
+
+jobs:
+  check:
+    name: Check (${{ matrix.os }}, features=${{ matrix.features || 'default' }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        features: ["", "s3,azure,gcp", "playwright"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-port
+
+      - name: Install Chrome and chromedriver
+        if: matrix.features != 'playwright'
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable chromium-chromedriver
+            google-chrome --version
+            chromedriver --version
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install --cask google-chrome
+            brew install chromedriver
+            /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+            chromedriver --version
+          fi
+
+      - name: Install Python for playwright feature
+        if: matrix.features == 'playwright'
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          tools: python@3.14
+
+      - name: Set Python library path
+        if: matrix.features == 'playwright'
+        run: |
+          PY_PREFIX=$($HOME/.local/share/mise/shims/python3 -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))')
+          echo "PY_LIB_DIR=$PY_PREFIX/lib" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo build --features "${{ matrix.features }}"
+          else
+            cargo build
+          fi
+
+      - name: Run tests
+        env:
+          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo test --features "${{ matrix.features }}"
+          else
+            cargo test
+          fi
+
+      - name: Run Clippy
+        env:
+          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo clippy --all-targets --features "${{ matrix.features }}" -- -D warnings
+          else
+            cargo clippy --all-targets -- -D warnings
+          fi
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check

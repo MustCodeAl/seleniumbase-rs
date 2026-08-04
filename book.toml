@@ -1,0 +1,12 @@
+[book]
+authors = ["SeleniumBase Rust contributors"]
+language = "en"
+src = "docs"
+title = "SeleniumBase for Rust"
+
+[build]
+build-dir = "book"
+
+[output.html]
+git-repository-url = "https://github.com/MustCodeAl/SeleniumBase"
+preferred-dark-theme = "ayu"
