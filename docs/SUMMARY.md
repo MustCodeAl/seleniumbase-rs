@@ -29,5 +29,7 @@
 - [Tracing and Logging](tutorials/tracing.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
 - [ABI & API Stability](ABI_API.md)
+- [Architecture Decision Records](adr/001-stealth-architecture.md)
+  - [Multi-Driver & Playwright](adr/002-multi-driver-and-playwright.md)
 - [Contributing](CONTRIBUTING.md)
 

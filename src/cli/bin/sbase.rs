@@ -1,10 +1,17 @@
 #![allow(deprecated)]
 
 use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate, Shell};
+use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
+use seleniumbase_rs::cli::commands::{
+    blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
+    looks_like_pdf, parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
+};
 use seleniumbase_rs::cli::scripts::*;
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
@@ -17,6 +24,8 @@ use seleniumbase_rs::{
 };
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
+
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("CARGO_PKG_NAME"), ")");
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum BrowserArg {
@@ -45,7 +54,7 @@ impl From<BrowserArg> for Browser {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "sbase", version, about = "SeleniumBase Rust CLI")]
+#[command(name = "sbase", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.")]
 struct Cli {
     #[arg(
         long,
@@ -502,6 +511,11 @@ enum Commands {
         #[arg(long, help = "File path to create")]
         file: String,
     },
+    /// Scaffold a new Rust test file from a template.
+    New {
+        /// File path for the generated test (e.g. `tests/login.rs`).
+        file: String,
+    },
     /// Launch the interactive commander GUI.
     Commander,
     /// Generate case plans.
@@ -556,11 +570,170 @@ enum Commands {
         #[arg(long, help = "Name of the generated test function")]
         test_name: Option<String>,
     },
+
+    /// Download a file from a URL (browser download with an HTTP fallback).
+    DownloadFile {
+        #[arg(help = "URL of the file to download")]
+        url: String,
+        #[arg(
+            short,
+            long,
+            help = "Output file path (defaults to the URL file name in the current directory)"
+        )]
+        output: Option<String>,
+        #[arg(
+            long,
+            default_value_t = 30,
+            help = "Seconds to wait for the browser download before falling back to HTTP"
+        )]
+        timeout: u64,
+    },
+    /// Print a page to PDF and save it to disk.
+    PrintPdf {
+        #[arg(help = "URL to render as a PDF")]
+        url: String,
+        #[arg(short, long, default_value = "page.pdf", help = "Output PDF file path")]
+        output: String,
+    },
+    /// Print the text extracted from a page or PDF URL.
+    PdfText {
+        #[arg(help = "URL of the page or PDF to extract text from")]
+        url: String,
+        #[arg(long, help = "Also keep the intermediate PDF at this path")]
+        save_pdf: Option<String>,
+    },
+    /// Assert that a page or PDF URL contains the expected text.
+    AssertPdfText {
+        #[arg(help = "URL of the page or PDF to check")]
+        url: String,
+        #[arg(long, help = "Text that must appear in the PDF")]
+        text: String,
+        #[arg(long, help = "Also keep the intermediate PDF at this path")]
+        save_pdf: Option<String>,
+    },
+    /// Upload a local file into a file input.
+    ChooseFile {
+        #[arg(help = "CSS selector of the <input type=file> element")]
+        selector: String,
+        #[arg(help = "Local file to upload")]
+        file: String,
+        #[arg(
+            long,
+            help = "Page to open first (defaults to a generated blank upload page)"
+        )]
+        url: Option<String>,
+    },
+    /// Run several assertions, then report every failure at once.
+    Deferred {
+        #[arg(long, help = "URL to open before running the assertions")]
+        url: Option<String>,
+        #[arg(
+            long = "assert",
+            value_name = "SPEC",
+            help = "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>"
+        )]
+        asserts: Vec<String>,
+        #[arg(long, help = "JSON file containing an array of assertion specs")]
+        spec: Option<String>,
+    },
+    /// Record browser interactions into a replayable action file.
+    Record {
+        #[arg(help = "URL to open and record")]
+        url: String,
+        #[arg(
+            short,
+            long,
+            default_value = "actions.json",
+            help = "Output action file (.json or .yaml)"
+        )]
+        output: String,
+        #[arg(
+            long,
+            help = "Stop recording after this many seconds (default: run until Ctrl-C)"
+        )]
+        duration: Option<u64>,
+    },
+    /// Replay a recorded action file against a fresh browser session.
+    Replay {
+        #[arg(help = "JSON action file produced by `sbase record`")]
+        file: String,
+    },
+}
+
+/// Return the on-disk path a URL-ish argument points at, when it is local.
+fn local_path_for(url: &str) -> Option<PathBuf> {
+    let candidate = match url.strip_prefix("file://") {
+        Some(rest) => PathBuf::from(rest),
+        None if url.contains("://") => return None,
+        None => PathBuf::from(url),
+    };
+    candidate.exists().then_some(candidate)
+}
+
+/// Turn a local path or URL into something a browser can navigate to.
+fn navigable_url(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    match local_path_for(url) {
+        Some(path) if !url.starts_with("file://") => {
+            let absolute = std::fs::canonicalize(&path)?;
+            Ok(format!("file://{}", absolute.display()))
+        }
+        _ => Ok(url.to_string()),
+    }
+}
+
+/// Download `url` to `dest` over plain HTTP. Returns the number of bytes written.
+async fn http_download(url: &str, dest: &Path) -> Result<u64, Box<dyn std::error::Error>> {
+    let bytes = reqwest::get(url).await?.error_for_status()?.bytes().await?;
+    if let Some(parent) = dest.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    std::fs::write(dest, &bytes)?;
+    Ok(bytes.len() as u64)
+}
+
+/// Resolve `url` to a PDF on disk, rendering the page when it is not already a PDF.
+///
+/// Returns the PDF path plus an optional scratch directory that must outlive it.
+async fn resolve_pdf(
+    sb: &mut BaseCase,
+    url: &str,
+    save_pdf: Option<&str>,
+) -> Result<(PathBuf, Option<tempfile::TempDir>), Box<dyn std::error::Error>> {
+    if let Some(path) = local_path_for(url) {
+        if looks_like_pdf(url) {
+            return Ok((path, None));
+        }
+    } else if looks_like_pdf(url) && !url.contains("://") {
+        return Err(format!("PDF file not found: {url}").into());
+    }
+
+    let (holder, path) = match save_pdf {
+        Some(target) => (None, PathBuf::from(target)),
+        None => {
+            let dir = tempfile::tempdir()?;
+            let path = dir.path().join("page.pdf");
+            (Some(dir), path)
+        }
+    };
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let target = path.to_str().ok_or("PDF output path is not valid UTF-8")?;
+
+    if looks_like_pdf(url) {
+        http_download(url, &path).await?;
+    } else {
+        sb.open(&navigable_url(url)?).await?;
+        sb.print_to_pdf(target).await?;
+    }
+    Ok((path, holder))
 }
 
 async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
-    use std::path::PathBuf;
-
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
 
@@ -1329,6 +1502,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Mkfile { file } => {
             sb_mkfile::create_test_file(&file);
         }
+        Commands::New { file } => {
+            sb_mkfile::create_test_file(&file);
+        }
         Commands::Commander => {
             if let Err(e) = sb_commander::run_commander() {
                 eprintln!("Failed to run commander: {}", e);
@@ -1397,6 +1573,214 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Recording json: {}", json_file.display());
             println!("Recording script: {}", rust_file.display());
             sb.quit().await?;
+        }
+        Commands::DownloadFile {
+            url,
+            output,
+            timeout,
+        } => {
+            let dest = match output.as_deref() {
+                Some(path) => PathBuf::from(path),
+                None => std::env::current_dir()?.join(download_file_name(&url)),
+            };
+            let browser_name = dest
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("download")
+                .to_string();
+
+            let mut sb = BaseCase::new(config).await?;
+            let downloaded = match sb.download_file(&url, &browser_name, timeout).await {
+                Ok(path) => {
+                    if path != dest {
+                        if let Some(parent) = dest.parent() {
+                            if !parent.as_os_str().is_empty() {
+                                std::fs::create_dir_all(parent)?;
+                            }
+                        }
+                        std::fs::copy(&path, &dest)?;
+                    }
+                    true
+                }
+                Err(err) => {
+                    eprintln!("Browser download unavailable ({err}); falling back to HTTP.");
+                    false
+                }
+            };
+            sb.quit().await?;
+            if !downloaded {
+                http_download(&url, &dest).await?;
+            }
+            let size = std::fs::metadata(&dest).map(|meta| meta.len()).unwrap_or(0);
+            println!("Saved {} ({size} bytes)", dest.display());
+        }
+        Commands::PrintPdf { url, output } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.open(&navigable_url(&url)?).await?;
+            if let Some(parent) = Path::new(&output).parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent)?;
+                }
+            }
+            sb.print_to_pdf(&output).await?;
+            sb.quit().await?;
+            let size = std::fs::metadata(&output)
+                .map(|meta| meta.len())
+                .unwrap_or(0);
+            println!("Saved PDF: {output} ({size} bytes)");
+        }
+        Commands::PdfText { url, save_pdf } => {
+            let mut sb = BaseCase::new(config).await?;
+            let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
+            let target = path.to_str().ok_or("PDF path is not valid UTF-8")?;
+            let text = sb.get_pdf_text(target)?;
+            sb.quit().await?;
+            println!("{text}");
+        }
+        Commands::AssertPdfText {
+            url,
+            text,
+            save_pdf,
+        } => {
+            let mut sb = BaseCase::new(config).await?;
+            let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
+            let target = path.to_str().ok_or("PDF path is not valid UTF-8")?;
+            let outcome = sb.assert_pdf_text(target, &text);
+            sb.quit().await?;
+            outcome?;
+            println!("Assertion passed: PDF contains '{text}'");
+        }
+        Commands::ChooseFile {
+            selector,
+            file,
+            url,
+        } => {
+            let page = match url.as_deref() {
+                Some(target) => navigable_url(target)?,
+                None => html_data_url(&blank_file_input_page(&selector)),
+            };
+            let mut sb = BaseCase::new(config).await?;
+            sb.open(&page).await?;
+            let outcome = sb.choose_file(&selector, &file).await;
+            let value = match outcome {
+                Ok(()) => sb.get_value(&selector).await.unwrap_or_default(),
+                Err(err) => {
+                    sb.quit().await?;
+                    return Err(err.into());
+                }
+            };
+            sb.quit().await?;
+            println!("Uploaded '{file}' into '{selector}'");
+            if !value.is_empty() {
+                println!("Input value: {value}");
+            }
+        }
+        Commands::Deferred { url, asserts, spec } => {
+            let mut specs = parse_deferred_specs(&asserts)?;
+            if let Some(path) = spec.as_deref() {
+                let raw = std::fs::read_to_string(path)?;
+                specs.extend(parse_deferred_spec_json(&raw)?);
+            }
+            if specs.is_empty() {
+                return Err("no assertions provided: pass --assert or --spec".into());
+            }
+
+            let mut sb = BaseCase::new(config).await?;
+            if let Some(target) = url.as_deref() {
+                sb.open(&navigable_url(target)?).await?;
+            }
+            let mut results = Vec::with_capacity(specs.len());
+            for entry in &specs {
+                let outcome = match entry {
+                    DeferredSpec::Element(selector) => sb.assert_element(selector).await,
+                    DeferredSpec::Text(selector, expected) => {
+                        sb.assert_text(selector, expected).await
+                    }
+                    DeferredSpec::Title(expected) => sb.assert_title_contains(expected).await,
+                    DeferredSpec::Url(expected) => sb.assert_url_contains(expected).await,
+                };
+                results.push(DeferredResult {
+                    description: entry.describe(),
+                    error: outcome.err().map(|err| err.to_string()),
+                });
+            }
+            sb.quit().await?;
+
+            print!("{}", format_deferred_summary(&results));
+            if results.iter().any(|result| !result.passed()) {
+                std::process::exit(1);
+            }
+        }
+        Commands::Record {
+            url,
+            output,
+            duration,
+        } => {
+            let mut sb = BaseCase::new(config).await?;
+            let mut session = RecorderSession::new();
+            session.goto(&mut sb, &navigable_url(&url)?).await?;
+            session.install(&sb).await?;
+
+            match duration {
+                Some(secs) => println!("Recording for {secs}s (Ctrl-C to stop early)..."),
+                None => println!("Recording... press Ctrl-C to stop."),
+            }
+            let deadline = duration.map(|secs| Instant::now() + Duration::from_secs(secs));
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        println!("\nStopping recorder.");
+                        break;
+                    }
+                    _ = tokio::time::sleep(Duration::from_millis(500)) => {}
+                }
+                if sb.get_current_url().await.is_err() {
+                    println!("Browser session ended; stopping recorder.");
+                    break;
+                }
+                let captured = session.drain(&mut sb).await.unwrap_or(0);
+                if captured > 0 {
+                    println!("Captured {captured} action(s) ({} total)", session.len());
+                }
+                if deadline.is_some_and(|end| Instant::now() >= end) {
+                    println!("Duration elapsed; stopping recorder.");
+                    break;
+                }
+            }
+            let _ = session.drain(&mut sb).await;
+            let saved = session.save(Path::new(&output))?;
+            println!(
+                "Recorded {} action(s) -> {}",
+                session.len(),
+                saved.display()
+            );
+            let _ = sb.quit().await;
+        }
+        Commands::Replay { file } => {
+            let actions: Vec<RecordedAction> = RecorderSession::load_json(Path::new(&file))?;
+            if actions.is_empty() {
+                return Err(format!("no actions found in '{file}'").into());
+            }
+            let mut sb = BaseCase::new(config).await?;
+            let report = RecorderSession::replay(&mut sb, &actions).await?;
+            sb.quit().await?;
+
+            for step in &report.steps {
+                match &step.error {
+                    Some(err) => println!("FAIL  {} -> {err}", step.description),
+                    None => println!("ok    {}", step.description),
+                }
+            }
+            println!(
+                "Replayed {} step(s): {} passed, {} failed, {} skipped",
+                report.steps.len(),
+                report.passed(),
+                report.failed(),
+                report.skipped
+            );
+            if !report.is_success() {
+                std::process::exit(1);
+            }
         }
         Commands::Completions { .. } | Commands::ImportPython { .. } => {
             unreachable!("pure CLI commands return before browser configuration")

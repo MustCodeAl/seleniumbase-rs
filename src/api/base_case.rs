@@ -13,7 +13,7 @@ use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
-use crate::api::recorder::{ActionRecorder, RecordedAction};
+use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
 use crate::api::tour::{Tour, TourTheme};
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::BrowserConfig;
@@ -33,6 +33,8 @@ pub struct BaseCase {
     session: BrowserSession,
     config: BrowserConfig,
     recorder: Arc<Mutex<ActionRecorder>>,
+    /// Index into the recorder marking where the active recording window began.
+    recording_start: Option<usize>,
     tour: Option<Tour>,
     deferred: DeferredAsserts,
     presentation: Option<Presentation>,
@@ -65,6 +67,7 @@ impl BaseCase {
             session,
             config,
             recorder: Arc::new(Mutex::new(ActionRecorder::default())),
+            recording_start: None,
             tour: None,
             deferred: DeferredAsserts::default(),
             presentation: None,
@@ -932,6 +935,60 @@ impl BaseCase {
             .lock()
             .map_err(|_| SeleniumBaseError::Unsupported("recorder mutex poisoned".to_owned()))?;
         Ok(recorder.actions.clone())
+    }
+
+    /// Starts a new recording window.
+    ///
+    /// Actions performed after this call are captured by
+    /// [`stop_recording`](Self::stop_recording). Calling it again resets the
+    /// window to the current point in the action log.
+    ///
+    /// ```no_run
+    /// # use seleniumbase_rs::{BaseCase, BrowserConfig};
+    /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut sb = BaseCase::new(BrowserConfig::default()).await?;
+    /// sb.start_recording();
+    /// sb.open("https://seleniumbase.io/demo_page").await?;
+    /// let actions = sb.stop_recording()?;
+    /// assert_eq!(actions.len(), 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn start_recording(&mut self) {
+        let start = self
+            .recorder
+            .lock()
+            .map(|recorder| recorder.actions.len())
+            .unwrap_or(0);
+        self.recording_start = Some(start);
+    }
+
+    /// Returns `true` when [`start_recording`](Self::start_recording) is active.
+    pub fn is_recording(&self) -> bool {
+        self.recording_start.is_some()
+    }
+
+    /// Returns the actions captured since [`start_recording`](Self::start_recording).
+    ///
+    /// When recording was never started, every recorded action is returned.
+    pub fn stop_recording(&self) -> Result<Vec<RecordedAction>, SeleniumBaseError> {
+        let actions = self.recorded_actions()?;
+        let start = self.recording_start.unwrap_or(0).min(actions.len());
+        Ok(actions[start..].to_vec())
+    }
+
+    /// Returns the current recording window as a [`RecorderSession`], ready to
+    /// be serialized to JSON/YAML or replayed.
+    pub fn recorder_session(&self) -> Result<RecorderSession, SeleniumBaseError> {
+        Ok(RecorderSession::from_actions(self.stop_recording()?))
+    }
+
+    /// Replays a list of recorded actions against this test case.
+    pub async fn replay_actions(
+        &mut self,
+        actions: &[RecordedAction],
+    ) -> Result<crate::api::recorder::ReplayReport, SeleniumBaseError> {
+        RecorderSession::replay(self, actions).await
     }
 
     /// Executes the `export_recording_as_rust` action.

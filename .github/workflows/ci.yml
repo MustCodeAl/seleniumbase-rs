@@ -7,9 +7,15 @@ on:
   pull_request:
     branches: [main, master]
     paths: ['rust-port/**']
+  schedule:
+    - cron: '0 6 * * *'
 
 env:
   CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
 
 defaults:
   run:
@@ -22,8 +28,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        features: ["", "s3,azure,gcp", "playwright"]
+        include:
+          - os: ubuntu-latest
+            features: ""
+          - os: ubuntu-latest
+            features: "s3,azure,gcp"
+          - os: ubuntu-latest
+            features: "playwright"
+          - os: macos-latest
+            features: ""
+          - os: macos-latest
+            features: "s3,azure,gcp"
+          - os: macos-latest
+            features: "playwright"
+          - os: windows-latest
+            features: ""
+          - os: windows-latest
+            features: "s3,azure,gcp"
+          - os: windows-latest
+            features: "playwright"
 
     steps:
       - name: Checkout repository
@@ -39,20 +62,29 @@ jobs:
         with:
           workspaces: rust-port
 
-      - name: Install Chrome and chromedriver
-        if: matrix.features != 'playwright'
+      - name: Install Chrome and chromedriver (Linux)
+        if: runner.os == 'Linux' && matrix.features != 'playwright'
         run: |
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            sudo apt-get update
-            sudo apt-get install -y google-chrome-stable chromium-chromedriver
-            google-chrome --version
-            chromedriver --version
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            brew install --cask google-chrome
-            brew install chromedriver
-            /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
-            chromedriver --version
-          fi
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable chromium-chromedriver
+          google-chrome --version
+          chromedriver --version
+
+      - name: Install Chrome and chromedriver (macOS)
+        if: runner.os == 'macOS' && matrix.features != 'playwright'
+        run: |
+          brew install --cask google-chrome
+          brew install chromedriver
+          /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+          chromedriver --version
+
+      - name: Install Chrome and chromedriver (Windows)
+        if: runner.os == 'Windows' && matrix.features != 'playwright'
+        shell: pwsh
+        run: |
+          choco install googlechrome chromedriver -y
+          & "C:\Program Files\Google\Chrome\Application\chrome.exe" --version
+          chromedriver --version
 
       - name: Install Python for playwright feature
         if: matrix.features == 'playwright'
@@ -61,44 +93,88 @@ jobs:
           install: true
           tools: python@3.14
 
-      - name: Set Python library path
-        if: matrix.features == 'playwright'
+      - name: Set Python library path (Unix)
+        if: matrix.features == 'playwright' && runner.os != 'Windows'
         run: |
           PY_PREFIX=$($HOME/.local/share/mise/shims/python3 -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))')
           echo "PY_LIB_DIR=$PY_PREFIX/lib" >> "$GITHUB_ENV"
+
+      - name: Set Python library path (Windows)
+        if: matrix.features == 'playwright' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $py = & "$env:USERPROFILE\.local\share\mise\shims\python3.exe" -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))'
+          echo "PY_LIB_DIR=$py\lib" | Out-File -FilePath "$env:GITHUB_ENV" -Append
 
       - name: Build
         env:
           DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
           LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
         run: |
-          if [ -n "${{ matrix.features }}" ]; then
+          if ("${{ matrix.features }}" -ne "") {
             cargo build --features "${{ matrix.features }}"
-          else
+          } else {
             cargo build
-          fi
+          }
+        shell: pwsh
 
       - name: Run tests
         env:
           DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
           LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
         run: |
-          if [ -n "${{ matrix.features }}" ]; then
+          if ("${{ matrix.features }}" -ne "") {
             cargo test --features "${{ matrix.features }}"
-          else
+          } else {
             cargo test
-          fi
+          }
+        shell: pwsh
 
       - name: Run Clippy
         env:
           DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
           LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
         run: |
-          if [ -n "${{ matrix.features }}" ]; then
+          if ("${{ matrix.features }}" -ne "") {
             cargo clippy --all-targets --features "${{ matrix.features }}" -- -D warnings
-          else
+          } else {
             cargo clippy --all-targets -- -D warnings
-          fi
+          }
+        shell: pwsh
 
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+  docs:
+    name: Build and publish docs
+    runs-on: ubuntu-latest
+    needs: check
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-port
+
+      - name: Install mdbook
+        run: cargo install mdbook
+
+      - name: Build docs
+        run: mdbook build
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: rust-port/book
+
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        uses: actions/deploy-pages@v4

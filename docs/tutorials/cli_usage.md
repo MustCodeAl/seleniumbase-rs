@@ -18,15 +18,20 @@ cd rust-port
 cargo build --bin sbase
 ```
 
-## Help
+A `justfile` and `Makefile` provide common shortcuts such as `just lint`,
+`just test-all`, `just docs`, and `just completions`.
+
+## Help and version
 
 ```bash
 ./target/debug/sbase --help
+./target/debug/sbase --version
 ./target/debug/sbase <COMMAND> --help
 ```
 
 Every top-level option and subcommand argument includes a description, so
-`--help` shows what each flag does.
+`--help` shows what each flag does. `--version` prints the crate name and
+version.
 
 ## Open a page
 
@@ -106,6 +111,7 @@ Example `scenario.json`:
 ## Generate files
 
 ```bash
+./target/debug/sbase new tests/MyTest.rs
 ./target/debug/sbase mkfile MyTest.rs
 ./target/debug/sbase mkdir my_tests
 ./target/debug/sbase mkpres MyPresentation

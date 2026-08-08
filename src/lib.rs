@@ -77,4 +77,5 @@ pub use tracing_util::{
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };
+pub use utilities::retry::RetryPolicy;
 pub use utils::selectors::Selector;
