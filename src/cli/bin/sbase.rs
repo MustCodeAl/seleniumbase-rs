@@ -517,6 +517,7 @@ enum Commands {
         file: String,
     },
     /// Launch the interactive commander GUI.
+    #[cfg(feature = "tui")]
     Commander,
     /// Generate case plans.
     Caseplans,
@@ -1505,6 +1506,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::New { file } => {
             sb_mkfile::create_test_file(&file);
         }
+        #[cfg(feature = "tui")]
         Commands::Commander => {
             if let Err(e) = sb_commander::run_commander() {
                 eprintln!("Failed to run commander: {}", e);

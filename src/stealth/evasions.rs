@@ -447,4 +447,68 @@ mod tests {
         assert_eq!(meta.get("model").and_then(|v| v.as_str()), Some("iPhone"));
         assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(true));
     }
+
+    #[test]
+    fn android_mobile_emits_cdp_mobile_overrides() {
+        let mut fp = Fingerprint::android_mobile();
+        fp.flags.native_spoofing = true;
+        let map = cdp_overrides(&fp);
+
+        let metrics = map
+            .get("Emulation.setDeviceMetricsOverride")
+            .expect("device metrics override");
+        assert_eq!(metrics.get("width").and_then(|v| v.as_u64()), Some(412));
+        assert_eq!(metrics.get("height").and_then(|v| v.as_u64()), Some(915));
+        assert_eq!(metrics.get("mobile").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            metrics.get("deviceScaleFactor").and_then(|v| v.as_f64()),
+            Some(3.0)
+        );
+
+        let ua = map
+            .get("Network.setUserAgentOverride")
+            .expect("UA override");
+        let ua_str = ua.get("userAgent").and_then(|v| v.as_str()).unwrap_or("");
+        assert!(ua_str.contains("Android 14"));
+        let meta = ua.get("userAgentMetadata").expect("userAgentMetadata");
+        assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            meta.get("platform").and_then(|v| v.as_str()),
+            Some("Linux armv8l")
+        );
+    }
+
+    #[test]
+    fn windows_desktop_native_spoofing_emits_full_cdp_stack() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.native_spoofing = true;
+        let map = cdp_overrides(&fp);
+
+        let metrics = map
+            .get("Emulation.setDeviceMetricsOverride")
+            .expect("device metrics override");
+        assert_eq!(metrics.get("mobile").and_then(|v| v.as_bool()), Some(false));
+
+        let ua = map
+            .get("Network.setUserAgentOverride")
+            .expect("UA override");
+        let meta = ua.get("userAgentMetadata").expect("userAgentMetadata");
+        assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(meta.get("platform").and_then(|v| v.as_str()), Some("Win32"));
+
+        assert!(map.contains_key("Emulation.setTimezoneOverride"));
+        assert!(map.contains_key("Emulation.setLocaleOverride"));
+    }
+
+    #[test]
+    fn desktop_native_spoofing_drops_mobile_only_js_patches() {
+        let mut fp = Fingerprint::linux_desktop();
+        fp.flags.native_spoofing = true;
+        let script = bootstrap_script(&fp);
+        // Desktop personas must not claim touch support.
+        assert!(!script.contains("maxTouchPoints = 5"));
+        // CDP covers UA, platform, screen, timezone, locale.
+        assert!(!script.contains("navigator.userAgent"));
+        assert!(!script.contains("window.Screen.prototype, 'width'"));
+    }
 }

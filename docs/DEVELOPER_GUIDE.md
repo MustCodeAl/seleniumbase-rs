@@ -226,19 +226,31 @@ full backtrace at construction time.
 
 ## Feature flags
 
-The crate uses Cargo features to keep heavy or optional dependencies off by
-default:
+The crate uses Cargo features to keep heavy or optional dependencies
+contained:
 
-| Feature | Purpose |
-|---|---|
-| `playwright` | Enables `padamson/playwright-rust` integration. |
-| `s3` | Enables AWS S3 artifact uploads. |
-| `azure` | Enables Azure Blob Storage artifact uploads. |
-| `gcp` | Placeholder for Google Cloud integrations. |
-| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
-| `full-tracing` | Verbose `tracing` span events for debugging. |
-| `json-logs` | Structured JSON log output. |
-| `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
+| Feature | Default | Purpose |
+|---|---|---|
+| `tui` | on | Interactive Commander TUI (`sbase commander`). Pulls `ratatui`/`crossterm`. |
+| `gui` | on | Native OS dialogs and GUI automation. Pulls `rfd`/`enigo`. Disable for headless-only or library-only consumers. |
+| `playwright` | off | Enables the `rustwright`-based Playwright-compatible engine. |
+| `s3` | off | Enables AWS S3 artifact uploads. |
+| `azure` | off | Enables Azure Blob Storage artifact uploads. |
+| `gcp` | off | Placeholder for Google Cloud integrations. |
+| `mcp-server` | off | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+| `full-tracing` | off | Verbose `tracing` span events for debugging. |
+| `json-logs` | off | Structured JSON log output. |
+| `error-backtrace` | off | Backtraces attached to `SeleniumBaseError`. |
+
+Library consumers can drop the GUI/TUI stacks entirely:
+
+```toml
+seleniumbase-rs = { path = "rust-port", default-features = false }
+```
+
+The default build includes `tui` and `gui` so the `sbase` CLI works out of the
+box. The crate compiles cleanly with `--no-default-features` and with
+`--all-features`; keep both green when touching feature-gated code.
 
 When adding a feature-gated API, use `#[cfg(feature = "...")]` and declare the
 dependency as `optional = true` in `Cargo.toml`. Prefer `#[cfg(feature = "...")]`
@@ -565,6 +577,24 @@ synchronous test.
 Place browser-backed tests in `examples/` or under `tests/` and gate them with a
 feature flag. Do not add retries to unit tests unless the operation is measured
 to be transient and idempotent.
+
+### Real-browser integration tests
+
+`tests/browser_smoke.rs` exercises the end-to-end path against a real Chrome
+instance: navigation, assertions, typing, screenshots, and deferred asserts.
+The tests are `#[ignore]`d by default and serialized with a shared lock so
+parallel test threads do not race to bind chromedriver's port.
+
+```bash
+# Locally, with Chrome and chromedriver installed:
+cargo test --test browser_smoke -- --ignored
+
+# Against a remote grid instead of the auto-started local chromedriver:
+SB_WEBDRIVER_URL=http://grid:4444 cargo test --test browser_smoke -- --ignored
+```
+
+The `browser-smoke` job in `.github/workflows/ci.yml` runs this suite on every
+push using the Chrome/chromedriver preinstalled on GitHub-hosted runners.
 
 ## Performance considerations
 

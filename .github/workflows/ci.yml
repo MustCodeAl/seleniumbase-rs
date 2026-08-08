@@ -22,6 +22,29 @@ defaults:
     working-directory: rust-port
 
 jobs:
+  browser-smoke:
+    name: Browser smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Verify Chrome and chromedriver are available
+        # GitHub-hosted runners ship Chrome + chromedriver preinstalled.
+        run: |
+          google-chrome --version
+          chromedriver --version
+
+      - name: Run real-browser smoke tests
+        working-directory: rust-port
+        run: cargo test --test browser_smoke -- --ignored
+
   check:
     name: Check (${{ matrix.os }}, features=${{ matrix.features || 'default' }})
     runs-on: ${{ matrix.os }}

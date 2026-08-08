@@ -45,6 +45,7 @@ pub struct BaseCase {
     time_limit_secs: Option<u64>,
     /// Default implicit wait timeout used by [`wait_for_element_visible_default`].
     timeout_secs: u64,
+    #[cfg(feature = "gui")]
     gui_held: Option<(i32, i32)>,
     /// Additional browser sessions created by [`BaseCase::get_new_driver`].
     extra_sessions: Vec<BrowserSession>,
@@ -77,6 +78,7 @@ impl BaseCase {
             playwright_session: None,
             time_limit_secs: None,
             timeout_secs: 10,
+            #[cfg(feature = "gui")]
             gui_held: None,
             extra_sessions: Vec::new(),
         }
@@ -1399,6 +1401,11 @@ impl BaseCase {
 
     /// Executes the `get_value` action.
     pub async fn get_value(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+        // The live `value` property reflects typed input; the HTML `value`
+        // attribute only reflects the initial markup.
+        if let Some(value) = self.get_property(css, "value").await? {
+            return Ok(value);
+        }
         Ok(self.get_attribute(css, "value").await?.unwrap_or_default())
     }
 
@@ -2435,6 +2442,7 @@ include!("base_case_impls/base_case_impl_extra.rs");
 include!("base_case_impls/base_case_impl_cdp_page.rs");
 include!("base_case_impls/base_case_impl_dialog_inspector.rs");
 include!("base_case_impls/base_case_impl_shadow.rs");
+#[cfg(feature = "gui")]
 include!("base_case_impls/base_case_impl_gui.rs");
 include!("base_case_impls/base_case_impl_masterqa.rs");
 include!("base_case_impls/base_case_impl_common.rs");

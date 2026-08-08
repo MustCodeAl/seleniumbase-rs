@@ -92,6 +92,36 @@ impl RetryPolicy {
     }
 }
 
+/// Polls `op` until it returns `Some` or the deadline passes.
+///
+/// Uses [`RetryPolicy`] backoff between attempts, capped so polling stays
+/// responsive. Returns `None` when the timeout elapses.
+pub async fn poll_until<T, F, Fut>(timeout: Duration, policy: RetryPolicy, mut op: F) -> Option<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Option<T>>,
+{
+    let deadline = std::time::Instant::now() + timeout;
+    let mut attempt = 0usize;
+    loop {
+        attempt += 1;
+        if let Some(value) = op().await {
+            return Some(value);
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
+        }
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let delay = policy
+            .delay_for_attempt(attempt + 1)
+            .min(Duration::from_millis(500))
+            .min(remaining);
+        if delay > Duration::ZERO {
+            tokio::time::sleep(delay).await;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
