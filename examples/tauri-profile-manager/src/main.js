@@ -1,162 +1,185 @@
 const { invoke } = window.__TAURI__.core;
 
-const statusEl = document.querySelector("#status");
+const $ = (sel) => document.querySelector(sel);
+const statusEl = $("#status");
 
 function setStatus(msg) {
   statusEl.textContent = msg;
 }
 
-async function refreshProfiles() {
-  const profiles = await invoke("list_profiles");
-  const list = document.querySelector("#profile-list");
-  list.innerHTML = "";
-  for (const p of profiles) {
-    const li = document.createElement("li");
-    const geo = p.latitude != null && p.longitude != null
-      ? `📍 ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
-      : "";
-    const mlBadge = p.external_profile ? `<span class="tag external">external</span>` : "";
-    li.innerHTML = `
-      <div class="profile-row">
-        <strong>${p.name}</strong>
-        <span class="muted">${p.container_url}</span>
-        <span class="tag">${p.mode || "webdriver"}</span>
-        ${mlBadge}
-        <span class="muted">${geo}</span>
-      </div>
-      <div class="actions">
-        <input type="text" class="start-url" placeholder="Start URL" />
-        <button class="launch">Launch</button>
-        <button class="delete">Delete</button>
-        <button class="clone">Clone</button>
-        <button class="export">Export</button>
-      </div>
-    `;
-    li.querySelector(".launch").addEventListener("click", async () => {
-      const url = li.querySelector(".start-url").value || undefined;
-      setStatus(`Launching ${p.name}...`);
+function el(tag, { className, text, attrs } = {}) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  if (attrs) {
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  }
+  return node;
+}
+
+// ---------------- State ----------------
+
+let profiles = [];
+let tags = [];
+let folders = [];
+let selectedProfileIds = new Set();
+
+async function apiBase() {
+  return invoke("get_api_base");
+}
+
+async function api(path, options = {}) {
+  const base = await apiBase();
+  const res = await fetch(`${base}${path}`, {
+    headers: { "content-type": "application/json" },
+    ...options,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || (body.status && body.status.error_code)) {
+    const msg = body.status?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return body.data;
+}
+
+// ---------------- Rendering ----------------
+
+function folderName(id) {
+  const folder = folders.find((f) => f.id === id);
+  return folder ? folder.name : "Default";
+}
+
+function tagById(id) {
+  return tags.find((t) => t.id === id || t.name === id);
+}
+
+function passesFilters(p) {
+  const query = $("#profile-search").value.trim().toLowerCase();
+  const folderId = $("#folder-filter").value;
+  const tagId = $("#tag-filter").value;
+  if (query && !p.name.toLowerCase().includes(query) && !p.container_url.toLowerCase().includes(query)) {
+    return false;
+  }
+  if (folderId && p.folder_id !== folderId) return false;
+  if (tagId && !(p.tags || []).includes(tagId)) return false;
+  return true;
+}
+
+function renderProfiles() {
+  const list = $("#profile-list");
+  list.textContent = "";
+  const visible = profiles.filter(passesFilters);
+  $("#profiles-empty").hidden = visible.length > 0;
+
+  for (const p of visible) {
+    const card = el("li", { className: "profile-card" });
+
+    const head = el("header");
+    const checkbox = el("input", { className: "select-profile", attrs: { type: "checkbox" } });
+    checkbox.checked = selectedProfileIds.has(p.id);
+    checkbox.setAttribute("aria-label", `Select profile ${p.name}`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) selectedProfileIds.add(p.id);
+      else selectedProfileIds.delete(p.id);
+    });
+
+    const titleWrap = el("div");
+    titleWrap.appendChild(el("strong", { text: p.name }));
+    const meta = el("div", { className: "muted", text: `${p.container_url} · ${folderName(p.folder_id)}` });
+    titleWrap.appendChild(meta);
+    head.append(checkbox, titleWrap);
+    card.appendChild(head);
+
+    const badges = el("div", { className: "badges" });
+    badges.appendChild(el("span", { className: "tag", text: p.browser || "Chrome" }));
+    badges.appendChild(el("span", { className: "tag", text: p.mode || "WebDriver" }));
+    if (p.headless) badges.appendChild(el("span", { className: "tag", text: "headless" }));
+    if (p.external_profile) badges.appendChild(el("span", { className: "tag external", text: "external" }));
+    if (p.fingerprint) badges.appendChild(el("span", { className: "tag external", text: "masked" }));
+    if (p.latitude != null && p.longitude != null) {
+      badges.appendChild(el("span", { className: "tag", text: `${p.latitude.toFixed(2)}, ${p.longitude.toFixed(2)}` }));
+    }
+    for (const tagId of p.tags || []) {
+      const tag = tagById(tagId);
+      if (tag) badges.appendChild(el("span", { className: "tag", text: tag.name }));
+    }
+    card.appendChild(badges);
+
+    const launchRow = el("div", { className: "actions" });
+    const urlInput = el("input", { attrs: { type: "url", placeholder: "Start URL (optional)", "aria-label": `Start URL for ${p.name}` } });
+    const launchBtn = el("button", { text: "Launch" });
+    launchBtn.addEventListener("click", async () => {
+      setStatus(`Launching ${p.name}…`);
       try {
-        const info = await invoke("launch_profile", { id: p.id, startUrl: url });
+        const info = await invoke("launch_profile", { id: p.id, startUrl: urlInput.value || undefined });
         setStatus(`Launched ${info.profile_name} → ${info.session_id}`);
         refreshSessions();
       } catch (e) {
         setStatus(`Launch failed: ${e}`);
       }
     });
-    li.querySelector(".delete").addEventListener("click", async () => {
-      await invoke("delete_profile", { id: p.id });
-      refreshProfiles();
-    });
-    li.querySelector(".clone").addEventListener("click", async () => {
-      const base = await apiBase();
-      setStatus(`Cloning ${p.name}...`);
-      try {
-        const res = await fetch(`${base}/api/v1/profiles/${p.id}/clone`, { method: "POST" });
-        const body = await res.json();
-        const cloneId = body.data.id;
-        const newName = `${p.name} (clone)`;
-        await fetch(`${base}/api/v1/profiles/${cloneId}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ name: newName }),
-        });
-        setStatus(`Cloned as ${newName}`);
-        refreshProfiles();
-      } catch (e) {
-        setStatus(`Clone failed: ${e}`);
-      }
-    });
-    li.querySelector(".export").addEventListener("click", async () => {
-      const base = await apiBase();
-      try {
-        const res = await fetch(`${base}/api/v1/profiles/${p.id}/export`);
-        const body = await res.json();
-        const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: "application/json" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `${p.name}-profile.json`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        setStatus(`Exported ${p.name}`);
-      } catch (e) {
-        setStatus(`Export failed: ${e}`);
-      }
-    });
-    list.appendChild(li);
+    launchRow.append(urlInput, launchBtn);
+    card.appendChild(launchRow);
+
+    const manageRow = el("div", { className: "actions" });
+    const editBtn = el("button", { className: "secondary", text: "Edit" });
+    editBtn.addEventListener("click", () => openProfileDialog(p));
+    const cloneBtn = el("button", { className: "secondary", text: "Clone" });
+    cloneBtn.addEventListener("click", () => cloneProfile(p));
+    const exportBtn = el("button", { className: "secondary", text: "Export" });
+    exportBtn.addEventListener("click", () => exportProfile(p));
+    const deleteBtn = el("button", { className: "danger", text: "Delete" });
+    deleteBtn.addEventListener("click", () => confirmDeleteProfile(p));
+    manageRow.append(editBtn, cloneBtn, exportBtn, deleteBtn);
+    card.appendChild(manageRow);
+
+    list.appendChild(card);
   }
 }
 
-async function apiBase() {
-  return invoke("get_api_base");
-}
-
-async function refreshTags() {
-  const base = await apiBase();
+async function refreshProfiles() {
   try {
-    const [tagsRes, foldersRes] = await Promise.all([
-      fetch(`${base}/api/v1/tags`),
-      fetch(`${base}/api/v1/folders`),
-    ]);
-    const tagsBody = await tagsRes.json();
-    const foldersBody = await foldersRes.json();
-
-    const tagList = document.querySelector("#tag-list");
-    tagList.innerHTML = "";
-    for (const t of tagsBody.data || []) {
-      const li = document.createElement("li");
-      li.textContent = `${t.name} (${t.color})`;
-      tagList.appendChild(li);
-    }
-
-    const folderList = document.querySelector("#folder-list");
-    folderList.innerHTML = "";
-    for (const f of foldersBody.data || []) {
-      const li = document.createElement("li");
-      li.textContent = f.name;
-      folderList.appendChild(li);
-    }
+    profiles = await invoke("list_profiles");
+    renderProfiles();
   } catch (e) {
-    setStatus(`Tags refresh failed: ${e}`);
+    setStatus(`Profile refresh failed: ${e}`);
   }
 }
 
 async function refreshSessions() {
-  const sessions = await invoke("list_sessions");
-  const list = document.querySelector("#session-list");
-  list.innerHTML = "";
+  const list = $("#session-list");
+  list.textContent = "";
+  let sessions = [];
+  try {
+    sessions = await invoke("list_sessions");
+  } catch (e) {
+    setStatus(`Session refresh failed: ${e}`);
+  }
+  $("#sessions-empty").hidden = sessions.length > 0;
+
   for (const s of sessions) {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      <div class="session-row">
-        <strong>${s.profile_name}</strong>
-        <span class="muted">${s.container_url}</span>
-      </div>
-      <div class="actions">
-        <input type="text" class="nav-url" placeholder="Navigate to URL" />
-        <button class="navigate">Go</button>
-        <button class="screenshot">Screenshot</button>
-      </div>
-      <div class="actions">
-        <input type="number" step="any" class="lat" placeholder="Lat" />
-        <input type="number" step="any" class="lon" placeholder="Lon" />
-        <input type="number" step="any" class="acc" placeholder="Accuracy m" />
-        <button class="set-geo">Set Geo</button>
-        <button class="close">Close</button>
-      </div>
-    `;
-    li.querySelector(".navigate").addEventListener("click", async () => {
-      const url = li.querySelector(".nav-url").value;
-      if (!url) return;
-      setStatus(`Navigating ${s.session_id}...`);
+    const li = el("li");
+    const head = el("div", { className: "actions" });
+    head.append(el("strong", { text: s.profile_name }));
+    head.append(el("span", { className: "muted", text: s.container_url }));
+    li.appendChild(head);
+
+    const navRow = el("div", { className: "actions" });
+    const navInput = el("input", { attrs: { type: "url", placeholder: "Navigate to URL", "aria-label": `Navigate session for ${s.profile_name}` } });
+    const navBtn = el("button", { text: "Go" });
+    navBtn.addEventListener("click", async () => {
+      if (!navInput.value) return;
+      setStatus("Navigating…");
       try {
-        await invoke("navigate_session", { sessionId: s.session_id, url });
+        await invoke("navigate_session", { sessionId: s.session_id, url: navInput.value });
         setStatus("Navigation complete");
       } catch (e) {
         setStatus(`Navigation failed: ${e}`);
       }
     });
-    li.querySelector(".screenshot").addEventListener("click", async () => {
-      setStatus("Taking screenshot...");
+    const shotBtn = el("button", { className: "secondary", text: "Screenshot" });
+    shotBtn.addEventListener("click", async () => {
+      setStatus("Taking screenshot…");
       try {
         const path = await invoke("take_screenshot", { sessionId: s.session_id });
         setStatus(`Screenshot saved: ${path}`);
@@ -164,208 +187,422 @@ async function refreshSessions() {
         setStatus(`Screenshot failed: ${e}`);
       }
     });
-    li.querySelector(".set-geo").addEventListener("click", async () => {
-      const lat = Number(li.querySelector(".lat").value);
-      const lon = Number(li.querySelector(".lon").value);
-      const acc = li.querySelector(".acc").value;
-      if (Number.isNaN(lat) || Number.isNaN(lon)) {
-        setStatus("Enter valid latitude and longitude");
+    navRow.append(navInput, navBtn, shotBtn);
+    li.appendChild(navRow);
+
+    const geoRow = el("div", { className: "actions" });
+    const lat = el("input", { attrs: { type: "number", step: "any", placeholder: "Lat", "aria-label": "Latitude" } });
+    const lon = el("input", { attrs: { type: "number", step: "any", placeholder: "Lon", "aria-label": "Longitude" } });
+    const acc = el("input", { attrs: { type: "number", step: "any", placeholder: "Accuracy m", "aria-label": "Accuracy in meters" } });
+    const geoBtn = el("button", { className: "secondary", text: "Set geolocation" });
+    geoBtn.addEventListener("click", async () => {
+      const latNum = Number(lat.value);
+      const lonNum = Number(lon.value);
+      if (Number.isNaN(latNum) || Number.isNaN(lonNum)) {
+        setStatus("Enter a valid latitude and longitude");
         return;
       }
-      setStatus(`Setting geolocation ${lat}, ${lon}...`);
       try {
         await invoke("set_session_geolocation", {
           sessionId: s.session_id,
-          latitude: lat,
-          longitude: lon,
-          accuracy: acc ? Number(acc) : undefined,
+          latitude: latNum,
+          longitude: lonNum,
+          accuracy: acc.value ? Number(acc.value) : undefined,
         });
         setStatus("Geolocation updated");
       } catch (e) {
         setStatus(`Geolocation failed: ${e}`);
       }
     });
-    li.querySelector(".close").addEventListener("click", async () => {
+    const closeBtn = el("button", { className: "danger", text: "Close session" });
+    closeBtn.addEventListener("click", async () => {
       await invoke("close_session", { sessionId: s.session_id });
       refreshSessions();
     });
+    geoRow.append(lat, lon, acc, geoBtn, closeBtn);
+    li.appendChild(geoRow);
+
     list.appendChild(li);
   }
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
-  document.querySelector("#profile-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const parseNum = (id) => {
-      const el = document.querySelector(id);
-      const v = el.value.trim();
-      return v ? Number(v) : undefined;
-    };
-    const newProfile = {
-      name: document.querySelector("#profile-name").value,
-      containerUrl: document.querySelector("#container-url").value,
-      userAgent: document.querySelector("#user-agent").value || undefined,
-      proxy: document.querySelector("#proxy").value || undefined,
-      locale: document.querySelector("#locale").value || undefined,
-      latitude: parseNum("#latitude"),
-      longitude: parseNum("#longitude"),
-      accuracy: parseNum("#accuracy"),
-      headless: document.querySelector("#headless").checked,
-    };
-    await invoke("create_profile", { new: newProfile });
-    e.target.reset();
+// ---------------- Folders & tags ----------------
+
+function renderOrgLists() {
+  const folderList = $("#folder-list");
+  folderList.textContent = "";
+  for (const f of folders) {
+    const li = el("li");
+    li.appendChild(el("span", { text: f.name }));
+    const rename = el("button", { className: "chip-btn", text: "Rename", attrs: { "aria-label": `Rename folder ${f.name}` } });
+    rename.addEventListener("click", async () => {
+      const name = prompt(`Rename folder "${f.name}"`, f.name);
+      if (!name || name === f.name) return;
+      try {
+        await api(`/api/v1/folders/${f.id}`, { method: "POST", body: JSON.stringify({ name }) });
+        refreshOrg();
+      } catch (e) {
+        setStatus(`Rename failed: ${e}`);
+      }
+    });
+    const del = el("button", { className: "chip-btn", text: "Delete", attrs: { "aria-label": `Delete folder ${f.name}` } });
+    del.addEventListener("click", async () => {
+      try {
+        await api(`/api/v1/folders/${f.id}`, { method: "DELETE" });
+        refreshOrg();
+      } catch (e) {
+        setStatus(`Delete failed: ${e}`);
+      }
+    });
+    li.append(rename, del);
+    folderList.appendChild(li);
+  }
+
+  const tagList = $("#tag-list");
+  tagList.textContent = "";
+  for (const t of tags) {
+    const li = el("li");
+    li.appendChild(el("span", { text: `${t.name}` }));
+    const swatch = el("span", { attrs: { "aria-hidden": "true" } });
+    swatch.style.cssText = `display:inline-block;width:0.8em;height:0.8em;border-radius:50%;background:${t.color}`;
+    li.appendChild(swatch);
+    const rename = el("button", { className: "chip-btn", text: "Rename", attrs: { "aria-label": `Rename tag ${t.name}` } });
+    rename.addEventListener("click", async () => {
+      const name = prompt(`Rename tag "${t.name}"`, t.name);
+      if (!name || name === t.name) return;
+      try {
+        await api(`/api/v1/tags/${t.id}`, { method: "POST", body: JSON.stringify({ name }) });
+        refreshOrg();
+      } catch (e) {
+        setStatus(`Rename failed: ${e}`);
+      }
+    });
+    const del = el("button", { className: "chip-btn", text: "Delete", attrs: { "aria-label": `Delete tag ${t.name}` } });
+    del.addEventListener("click", async () => {
+      try {
+        await api(`/api/v1/tags/${t.id}`, { method: "DELETE" });
+        refreshOrg();
+      } catch (e) {
+        setStatus(`Delete failed: ${e}`);
+      }
+    });
+    li.append(rename, del);
+    tagList.appendChild(li);
+  }
+
+  const folderFilter = $("#folder-filter");
+  folderFilter.textContent = "";
+  folderFilter.appendChild(el("option", { text: "All folders", attrs: { value: "" } }));
+  for (const f of folders) {
+    folderFilter.appendChild(el("option", { text: f.name, attrs: { value: f.id } }));
+  }
+
+  const tagFilter = $("#tag-filter");
+  tagFilter.textContent = "";
+  tagFilter.appendChild(el("option", { text: "All tags", attrs: { value: "" } }));
+  for (const t of tags) {
+    tagFilter.appendChild(el("option", { text: t.name, attrs: { value: t.id } }));
+  }
+}
+
+async function refreshOrg() {
+  try {
+    const [tagData, folderData] = await Promise.all([
+      api("/api/v1/tags"),
+      api("/api/v1/folders"),
+    ]);
+    tags = tagData || [];
+    folders = folderData || [];
+    renderOrgLists();
+    renderProfiles();
+  } catch (e) {
+    setStatus(`Refresh failed: ${e}`);
+  }
+}
+
+// ---------------- Profile dialog ----------------
+
+const profileDialog = $("#profile-dialog");
+
+function fillDialogTags(selected) {
+  const wrap = $("#profile-tags");
+  wrap.textContent = "";
+  for (const t of tags) {
+    const label = el("label");
+    const box = el("input", { attrs: { type: "checkbox", value: t.id } });
+    box.checked = selected.includes(t.id);
+    label.append(box, document.createTextNode(t.name));
+    wrap.appendChild(label);
+  }
+}
+
+function fillDialogFolders(current) {
+  const sel = $("#profile-folder");
+  sel.textContent = "";
+  sel.appendChild(el("option", { text: "Default", attrs: { value: "default" } }));
+  for (const f of folders) {
+    sel.appendChild(el("option", { text: f.name, attrs: { value: f.id } }));
+  }
+  sel.value = current || "default";
+}
+
+function openProfileDialog(profile) {
+  const isEdit = Boolean(profile);
+  $("#profile-dialog-title").textContent = isEdit ? `Edit ${profile.name}` : "New profile";
+  $("#profile-id").value = isEdit ? profile.id : "";
+  $("#profile-name").value = isEdit ? profile.name : "";
+  $("#container-url").value = isEdit ? profile.container_url : "";
+  $("#profile-browser").value = isEdit ? (profile.browser || "Chrome") : "Chrome";
+  $("#profile-mode").value = isEdit ? (profile.mode || "WebDriver") : "WebDriver";
+  $("#user-agent").value = isEdit ? (profile.user_agent || "") : "";
+  $("#proxy").value = isEdit ? (profile.proxy || "") : "";
+  $("#locale").value = isEdit ? (profile.locale || "") : "";
+  $("#latitude").value = isEdit && profile.latitude != null ? profile.latitude : "";
+  $("#longitude").value = isEdit && profile.longitude != null ? profile.longitude : "";
+  $("#accuracy").value = isEdit && profile.accuracy != null ? profile.accuracy : "";
+  $("#headless").checked = isEdit ? Boolean(profile.headless) : false;
+  fillDialogFolders(isEdit ? profile.folder_id : "default");
+  fillDialogTags(isEdit ? profile.tags || [] : []);
+  fillFingerprint(isEdit ? profile.fingerprint : undefined);
+  profileDialog.showModal();
+}
+
+async function submitProfileDialog(e) {
+  e.preventDefault();
+  const parseNum = (id) => {
+    const v = $(id).value.trim();
+    return v ? Number(v) : undefined;
+  };
+  const selectedTags = [...document.querySelectorAll("#profile-tags input:checked")].map((i) => i.value);
+  const id = $("#profile-id").value;
+  const body = {
+    name: $("#profile-name").value.trim(),
+    container_url: $("#container-url").value.trim(),
+    browser: $("#profile-browser").value,
+    mode: $("#profile-mode").value,
+    user_agent: $("#user-agent").value || undefined,
+    proxy: $("#proxy").value || undefined,
+    locale: $("#locale").value || undefined,
+    latitude: parseNum("#latitude"),
+    longitude: parseNum("#longitude"),
+    accuracy: parseNum("#accuracy"),
+    headless: $("#headless").checked,
+    folder_id: $("#profile-folder").value,
+    tags: selectedTags,
+  };
+  const fingerprint = buildFingerprint();
+  if (fingerprint) body.fingerprint = fingerprint;
+  else if (id) body.fingerprint = null; // explicit clear on edit
+
+  try {
+    if (id) {
+      await api(`/api/v1/profiles/${id}`, { method: "POST", body: JSON.stringify(body) });
+      setStatus(`Updated ${body.name}`);
+    } else {
+      await invoke("create_profile", {
+        new: {
+          name: body.name,
+          containerUrl: body.container_url,
+          browser: body.browser,
+          mode: body.mode,
+          userAgent: body.user_agent,
+          proxy: body.proxy,
+          locale: body.locale,
+          latitude: body.latitude,
+          longitude: body.longitude,
+          accuracy: body.accuracy,
+          headless: body.headless,
+          folderId: body.folder_id,
+          tags: body.tags,
+          fingerprint: body.fingerprint,
+        },
+      });
+      setStatus(`Created ${body.name}`);
+    }
+    profileDialog.close();
     refreshProfiles();
-  });
+  } catch (e) {
+    setStatus(`Save failed: ${e}`);
+  }
+}
 
-  document.querySelector("#refresh-profiles").addEventListener("click", refreshProfiles);
-  document.querySelector("#refresh-sessions").addEventListener("click", refreshSessions);
-  document.querySelector("#refresh-tags").addEventListener("click", refreshTags);
+// ---------------- Confirm dialog ----------------
 
-  document.querySelector("#clone-profile").addEventListener("click", async () => {
-    const sourceId = document.querySelector("#clone-source-id").value.trim();
-    const newName = document.querySelector("#clone-new-name").value.trim();
-    if (!sourceId || !newName) {
-      setStatus("Enter source profile ID and new name");
-      return;
-    }
-    const base = await apiBase();
-    setStatus(`Cloning ${sourceId}...`);
+const confirmDialog = $("#confirm-dialog");
+let confirmAction = null;
+
+function askConfirm(message, action) {
+  $("#confirm-message").textContent = message;
+  confirmAction = action;
+  confirmDialog.showModal();
+}
+
+function confirmDeleteProfile(p) {
+  askConfirm(`Delete profile "${p.name}"? This cannot be undone.`, async () => {
     try {
-      const res = await fetch(`${base}/api/v1/profiles/${sourceId}/clone`, { method: "POST" });
-      const body = await res.json();
-      const cloneId = body.data.id;
-      await fetch(`${base}/api/v1/profiles/${cloneId}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: newName }),
-      });
-      setStatus(`Cloned to ${newName}`);
-      document.querySelector("#clone-source-id").value = "";
-      document.querySelector("#clone-new-name").value = "";
+      await invoke("delete_profile", { id: p.id });
+      setStatus(`Deleted ${p.name}`);
       refreshProfiles();
     } catch (e) {
-      setStatus(`Clone failed: ${e}`);
+      setStatus(`Delete failed: ${e}`);
     }
   });
+}
 
-  document.querySelector("#export-profile").addEventListener("click", async () => {
-    const id = document.querySelector("#export-profile-id").value.trim();
-    if (!id) {
-      setStatus("Enter a profile ID to export");
-      return;
-    }
-    const base = await apiBase();
+// ---------------- Profile actions ----------------
+
+async function cloneProfile(p) {
+  setStatus(`Cloning ${p.name}…`);
+  try {
+    const clone = await api(`/api/v1/profiles/${p.id}/clone`, { method: "POST" });
+    const newName = `${p.name} (copy)`;
+    await api(`/api/v1/profiles/${clone.id}`, { method: "POST", body: JSON.stringify({ name: newName }) });
+    setStatus(`Cloned as ${newName}`);
+    refreshProfiles();
+  } catch (e) {
+    setStatus(`Clone failed: ${e}`);
+  }
+}
+
+async function exportProfile(p) {
+  try {
+    const data = await api(`/api/v1/profiles/${p.id}/export`);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = el("a", { attrs: { download: `${p.name}-profile.json` } });
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus(`Exported ${p.name}`);
+  } catch (e) {
+    setStatus(`Export failed: ${e}`);
+  }
+}
+
+// ---------------- Wire up ----------------
+
+window.addEventListener("DOMContentLoaded", async () => {
+  fillFlagSelects();
+  $("#open-create").addEventListener("click", () => openProfileDialog(null));
+  $("#profile-form").addEventListener("submit", submitProfileDialog);
+  $("#cancel-profile").addEventListener("click", () => profileDialog.close());
+
+  $("#confirm-ok").addEventListener("click", async () => {
+    confirmDialog.close();
+    if (confirmAction) await confirmAction();
+    confirmAction = null;
+  });
+  $("#confirm-cancel").addEventListener("click", () => {
+    confirmDialog.close();
+    confirmAction = null;
+  });
+
+  $("#profile-search").addEventListener("input", renderProfiles);
+  $("#folder-filter").addEventListener("change", renderProfiles);
+  $("#tag-filter").addEventListener("change", renderProfiles);
+  $("#refresh-profiles").addEventListener("click", refreshProfiles);
+  $("#refresh-sessions").addEventListener("click", refreshSessions);
+
+  $("#folder-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("#new-folder").value.trim();
+    if (!name) return;
     try {
-      const res = await fetch(`${base}/api/v1/profiles/${id}/export`);
-      const body = await res.json();
-      const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `profile-${id}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      setStatus(`Exported profile ${id}`);
+      await api("/api/v1/folders", { method: "POST", body: JSON.stringify({ name }) });
+      $("#new-folder").value = "";
+      refreshOrg();
     } catch (e) {
-      setStatus(`Export failed: ${e}`);
+      setStatus(`Add folder failed: ${e}`);
     }
   });
 
-  document.querySelector("#import-profile").addEventListener("click", async () => {
-    const raw = document.querySelector("#import-profile-json").value.trim();
-    if (!raw) {
-      setStatus("Paste an external profile JSON to import");
-      return;
-    }
-    const base = await apiBase();
+  $("#tag-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("#new-tag").value.trim();
+    if (!name) return;
     try {
-      const res = await fetch(`${base}/api/v1/profiles/import`, {
+      await api("/api/v1/tags", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: raw,
+        body: JSON.stringify({ name, color: $("#new-tag-color").value }),
       });
-      const body = await res.json();
-      setStatus(`Imported external profile ${body.data.name}`);
-      document.querySelector("#import-profile-json").value = "";
-      refreshProfiles();
+      $("#new-tag").value = "";
+      refreshOrg();
     } catch (e) {
-      setStatus(`External profile import failed: ${e}`);
+      setStatus(`Add tag failed: ${e}`);
     }
   });
 
-  document.querySelector("#import-profile").addEventListener("click", async () => {
-    const raw = document.querySelector("#import-profile-json").value.trim();
+  $("#run-script").addEventListener("click", async () => {
+    const script = $("#run-script-body").value.trim();
+    if (!script || selectedProfileIds.size === 0) {
+      setStatus("Enter a script and select at least one profile");
+      return;
+    }
+    setStatus("Running script…");
+    try {
+      const data = await api("/api/v1/script_runner/start", {
+        method: "POST",
+        body: JSON.stringify({ profile_ids: [...selectedProfileIds], script }),
+      });
+      $("#run-script-result").textContent = JSON.stringify(data, null, 2);
+      setStatus("Script run complete");
+    } catch (e) {
+      setStatus(`Script run failed: ${e}`);
+    }
+  });
+
+  $("#import-profile").addEventListener("click", async () => {
+    const raw = $("#import-profile-json").value.trim();
     if (!raw) {
       setStatus("Paste profile JSON to import");
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/profiles/import`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: raw,
-      });
-      const body = await res.json();
-      setStatus(`Imported profile ${body.data.name}`);
-      document.querySelector("#import-profile-json").value = "";
+      const data = await api("/api/v1/profiles/import", { method: "POST", body: raw });
+      setStatus(`Imported ${data?.name || "profile"}`);
+      $("#import-profile-json").value = "";
       refreshProfiles();
     } catch (e) {
       setStatus(`Import failed: ${e}`);
     }
   });
 
-  document.querySelector("#validate-proxy").addEventListener("click", async () => {
-    const base = await apiBase();
+  $("#proxy-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
     const payload = {
-      type: document.querySelector("#proxy-type").value,
-      host: document.querySelector("#proxy-host").value.trim(),
-      port: Number(document.querySelector("#proxy-port").value),
-      username: document.querySelector("#proxy-username").value || undefined,
-      password: document.querySelector("#proxy-password").value || undefined,
+      type: $("#proxy-type").value,
+      host: $("#proxy-host").value.trim(),
+      port: Number($("#proxy-port").value),
+      username: $("#proxy-username").value || undefined,
+      password: $("#proxy-password").value || undefined,
     };
-    if (!payload.host || Number.isNaN(payload.port)) {
-      setStatus("Enter proxy host and port");
-      return;
-    }
-    setStatus("Validating proxy...");
+    setStatus("Validating proxy…");
     try {
-      const res = await fetch(`${base}/api/v1/proxy/validate`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const body = await res.json();
-      document.querySelector("#proxy-result").textContent = JSON.stringify(body.data || body.status, null, 2);
+      const data = await api("/api/v1/proxy/validate", { method: "POST", body: JSON.stringify(payload) });
+      $("#proxy-result").textContent = JSON.stringify(data, null, 2);
       setStatus("Proxy validation complete");
     } catch (e) {
       setStatus(`Proxy validation failed: ${e}`);
     }
   });
 
-  document.querySelector("#export-cookies").addEventListener("click", async () => {
-    const id = document.querySelector("#cookie-profile-id").value.trim();
+  $("#export-cookies").addEventListener("click", async () => {
+    const id = $("#cookie-profile-id").value.trim();
     if (!id) {
       setStatus("Enter a profile ID to export cookies");
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/cookie_export`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profile_id: id }),
-      });
-      const body = await res.json();
-      document.querySelector("#cookie-result").textContent = JSON.stringify(body.data || body.status, null, 2);
+      const data = await api("/api/v1/cookie_export", { method: "POST", body: JSON.stringify({ profile_id: id }) });
+      $("#cookie-result").textContent = JSON.stringify(data, null, 2);
       setStatus(`Exported cookies for ${id}`);
     } catch (e) {
       setStatus(`Cookie export failed: ${e}`);
     }
   });
 
-  document.querySelector("#import-cookies").addEventListener("click", async () => {
-    const id = document.querySelector("#cookie-profile-id").value.trim();
-    const raw = document.querySelector("#import-cookies-json").value.trim();
+  $("#import-cookies").addEventListener("click", async () => {
+    const id = $("#cookie-profile-id").value.trim();
+    const raw = $("#import-cookies-json").value.trim();
     if (!id || !raw) {
       setStatus("Enter profile ID and cookies JSON");
       return;
@@ -377,62 +614,183 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus(`Invalid cookies JSON: ${e}`);
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/cookie_import`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profile_id: id, cookies }),
-      });
-      const body = await res.json();
-      setStatus(body.status?.message || "Cookies imported");
-      document.querySelector("#import-cookies-json").value = "";
+      await api("/api/v1/cookie_import", { method: "POST", body: JSON.stringify({ profile_id: id, cookies }) });
+      setStatus("Cookies imported");
+      $("#import-cookies-json").value = "";
     } catch (e) {
       setStatus(`Cookie import failed: ${e}`);
     }
   });
 
-  document.querySelector("#add-tag").addEventListener("click", async () => {
-    const name = document.querySelector("#new-tag").value;
-    if (!name) return;
-    const base = await apiBase();
-    try {
-      await fetch(`${base}/api/v1/tags`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      document.querySelector("#new-tag").value = "";
-      refreshTags();
-    } catch (e) {
-      setStatus(`Add tag failed: ${e}`);
-    }
-  });
-
-  document.querySelector("#add-folder").addEventListener("click", async () => {
-    const name = document.querySelector("#new-folder").value;
-    if (!name) return;
-    const base = await apiBase();
-    try {
-      await fetch(`${base}/api/v1/folders`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      document.querySelector("#new-folder").value = "";
-      refreshTags();
-    } catch (e) {
-      setStatus(`Add folder failed: ${e}`);
-    }
-  });
-
   try {
-    document.querySelector("#api-base").textContent = `REST API: ${await apiBase()}/api/v1`;
+    $("#api-base").textContent = `REST API: ${await apiBase()}/api/v1`;
   } catch {
-    document.querySelector("#api-base").textContent = "REST API: unavailable";
+    $("#api-base").textContent = "REST API: unavailable";
   }
 
-  refreshProfiles();
+  refreshOrg().then(refreshProfiles);
   refreshSessions();
-  refreshTags();
 });
+
+// ---------------- Custom masking (fingerprint) ----------------
+
+const MASKING_MODES = [
+  ["", "Natural (default)"],
+  ["Natural", "Natural"],
+  ["Mask", "Mask"],
+  ["Custom", "Custom"],
+  ["Disabled", "Disabled"],
+];
+const CANVAS_MODES = [
+  ["", "Mask (default)"],
+  ["Mask", "Mask"],
+  ["Natural", "Natural"],
+  ["Disabled", "Disabled"],
+  ["Random", "Random (per session)"],
+  ["Persistent", "Persistent (per seed)"],
+  ["Low", "Low"],
+];
+const POPUP_MODES = [
+  ["", "Prompt (default)"],
+  ["Prompt", "Prompt"],
+  ["Allow", "Allow"],
+  ["Block", "Block"],
+];
+
+function fillFlagSelects() {
+  for (const sel of document.querySelectorAll("select.masking-flag")) {
+    sel.textContent = "";
+    for (const [value, label] of MASKING_MODES) {
+      sel.appendChild(el("option", { text: label, attrs: { value } }));
+    }
+  }
+  for (const sel of document.querySelectorAll("select.canvas-flag")) {
+    sel.textContent = "";
+    for (const [value, label] of CANVAS_MODES) {
+      sel.appendChild(el("option", { text: label, attrs: { value } }));
+    }
+  }
+  for (const sel of document.querySelectorAll("select.popup-flag")) {
+    sel.textContent = "";
+    for (const [value, label] of POPUP_MODES) {
+      sel.appendChild(el("option", { text: label, attrs: { value } }));
+    }
+  }
+}
+
+function fpText(id) {
+  const v = $(id).value.trim();
+  return v || undefined;
+}
+
+function fpNum(id) {
+  const v = $(id).value.trim();
+  return v ? Number(v) : undefined;
+}
+
+function buildFingerprint() {
+  if (!$("#masking-enabled").checked) return undefined;
+
+  const fp = {};
+  const os = fpText("#fp-os");
+  if (os) fp.os_type = os;
+  const platform = fpText("#fp-platform");
+  if (platform) fp.platform = platform;
+  const cores = fpNum("#fp-cores");
+  if (cores != null) fp.hardware_concurrency = cores;
+  const memory = fpNum("#fp-memory");
+  if (memory != null) fp.device_memory = memory;
+  const touch = fpNum("#fp-touch");
+  if (touch != null) fp.max_touch_points = touch;
+  const vendor = fpText("#fp-vendor");
+  if (vendor) fp.vendor = vendor;
+
+  const languages = fpText("#fp-languages");
+  if (languages) fp.languages = languages;
+  const accept = fpText("#fp-accept");
+  if (accept) fp.accept_languages = accept;
+  const timezone = fpText("#fp-timezone");
+  if (timezone) fp.timezone = timezone;
+
+  const screenW = fpNum("#fp-screen-w");
+  if (screenW != null) fp.screen_width = screenW;
+  const screenH = fpNum("#fp-screen-h");
+  if (screenH != null) fp.screen_height = screenH;
+  const pixelRatio = fpNum("#fp-pixel-ratio");
+  if (pixelRatio != null) fp.pixel_ratio = pixelRatio;
+  const colorDepth = fpNum("#fp-color-depth");
+  if (colorDepth != null) fp.color_depth = colorDepth;
+  const webglVendor = fpText("#fp-webgl-vendor");
+  if (webglVendor) fp.webgl_vendor = webglVendor;
+  const webglRenderer = fpText("#fp-webgl-renderer");
+  if (webglRenderer) fp.webgl_renderer = webglRenderer;
+
+  const audioIn = fpNum("#fp-audio-in");
+  if (audioIn != null) fp.audio_inputs = audioIn;
+  const audioOut = fpNum("#fp-audio-out");
+  if (audioOut != null) fp.audio_outputs = audioOut;
+  const videoIn = fpNum("#fp-video-in");
+  if (videoIn != null) fp.video_inputs = videoIn;
+
+  const fontsRaw = $("#fp-fonts").value.trim();
+  if (fontsRaw) {
+    fp.fonts = fontsRaw.split("\n").map((f) => f.trim()).filter(Boolean);
+  }
+
+  const webrtcPolicy = fpText("#fp-webrtc-policy");
+  if (webrtcPolicy) fp.webrtc_policy = webrtcPolicy;
+  const webrtcPublic = fpText("#fp-webrtc-public");
+  if (webrtcPublic) fp.webrtc_public_ip = webrtcPublic;
+  const webrtcLocal = fpText("#fp-webrtc-local");
+  if (webrtcLocal) fp.webrtc_local_ip = webrtcLocal;
+  const seed = fpNum("#fp-seed");
+  if (seed != null) fp.seed = seed;
+
+  const flags = {};
+  for (const sel of document.querySelectorAll("[data-flag]")) {
+    if (sel.value) flags[sel.dataset.flag] = sel.value;
+  }
+  if (Object.keys(flags).length > 0) fp.flags = flags;
+
+  return Object.keys(fp).length > 0 ? fp : undefined;
+}
+
+function setVal(id, value) {
+  $(id).value = value == null ? "" : value;
+}
+
+function fillFingerprint(fp) {
+  const enabled = Boolean(fp);
+  $("#masking-enabled").checked = enabled;
+  $("#masking-details").open = enabled;
+
+  setVal("#fp-os", fp?.os_type);
+  setVal("#fp-platform", fp?.platform);
+  setVal("#fp-cores", fp?.hardware_concurrency);
+  setVal("#fp-memory", fp?.device_memory);
+  setVal("#fp-touch", fp?.max_touch_points);
+  setVal("#fp-vendor", fp?.vendor);
+  setVal("#fp-languages", fp?.languages);
+  setVal("#fp-accept", fp?.accept_languages);
+  setVal("#fp-timezone", fp?.timezone);
+  setVal("#fp-screen-w", fp?.screen_width);
+  setVal("#fp-screen-h", fp?.screen_height);
+  setVal("#fp-pixel-ratio", fp?.pixel_ratio);
+  setVal("#fp-color-depth", fp?.color_depth);
+  setVal("#fp-webgl-vendor", fp?.webgl_vendor);
+  setVal("#fp-webgl-renderer", fp?.webgl_renderer);
+  setVal("#fp-audio-in", fp?.audio_inputs);
+  setVal("#fp-audio-out", fp?.audio_outputs);
+  setVal("#fp-video-in", fp?.video_inputs);
+  setVal("#fp-fonts", (fp?.fonts || []).join("\n"));
+  setVal("#fp-webrtc-policy", fp?.webrtc_policy);
+  setVal("#fp-webrtc-public", fp?.webrtc_public_ip);
+  setVal("#fp-webrtc-local", fp?.webrtc_local_ip);
+  setVal("#fp-seed", fp?.seed);
+
+  const flags = fp?.flags || {};
+  for (const sel of document.querySelectorAll("[data-flag]")) {
+    sel.value = flags[sel.dataset.flag] || "";
+  }
+}

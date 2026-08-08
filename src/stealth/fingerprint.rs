@@ -191,22 +191,39 @@ pub enum StartupBehavior {
 /// [`MaskingMode::Natural`] / `false` so existing callers keep their behaviour.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StealthFlags {
+    #[serde(default)]
     pub webrtc_masking: MaskingMode,
+    #[serde(default)]
     pub audio_masking: MaskingMode,
+    #[serde(default)]
     pub graphics_noise: NoiseMode,
+    #[serde(default)]
     pub geolocation_popup: PopupMode,
+    #[serde(default)]
     pub navigator_masking: MaskingMode,
+    #[serde(default)]
     pub localization_masking: MaskingMode,
+    #[serde(default)]
     pub timezone_masking: MaskingMode,
+    #[serde(default)]
     pub graphics_masking: MaskingMode,
+    #[serde(default)]
     pub fonts_masking: MaskingMode,
+    #[serde(default)]
     pub media_devices_masking: MaskingMode,
+    #[serde(default)]
     pub screen_masking: MaskingMode,
+    #[serde(default)]
     pub geolocation_masking: MaskingMode,
+    #[serde(default)]
     pub ports_masking: NoiseMode,
+    #[serde(default)]
     pub proxy_masking: ProxyMaskingMode,
+    #[serde(default)]
     pub quic_mode: QuicMode,
+    #[serde(default)]
     pub canvas_noise: CanvasNoiseMode,
+    #[serde(default)]
     pub startup_behavior: StartupBehavior,
 
     // --- Extended dimensions (appended for backward compatibility) ---
@@ -548,7 +565,9 @@ impl CoherenceReport {
 /// Complete browser fingerprint / anti-detection profile.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Fingerprint {
+    #[serde(default)]
     pub browser_type: BrowserType,
+    #[serde(default)]
     pub os_type: OsType,
     pub core_version: Option<u32>,
 
@@ -613,12 +632,14 @@ pub struct Fingerprint {
     pub accuracy: Option<f64>,
 
     // Fonts
+    #[serde(default)]
     pub fonts: Vec<String>,
 
     // Proxy
     pub proxy: Option<ProxyConfig>,
 
     // WebRTC
+    #[serde(default)]
     pub webrtc_policy: WebRtcPolicy,
     /// Public IP reported by WebRTC when the masking mode supplies one.
     #[serde(default)]
@@ -632,13 +653,17 @@ pub struct Fingerprint {
     pub ports: Vec<u16>,
 
     // Storage
+    #[serde(default)]
     pub local_storage: bool,
+    #[serde(default)]
     pub save_service_worker: bool,
 
     // Start URLs
+    #[serde(default)]
     pub custom_start_urls: Vec<String>,
 
     // Command-line params injected into the browser.
+    #[serde(default)]
     pub cmd_params: HashMap<String, String>,
 
     // --- Extended dimensions (appended for backward compatibility) ---
@@ -667,6 +692,7 @@ pub struct Fingerprint {
     pub blocked_trackers: Vec<String>,
 
     // Masking flags
+    #[serde(default)]
     pub flags: StealthFlags,
 }
 
@@ -1239,5 +1265,25 @@ mod tests {
             .blocked_trackers(vec!["example-metrics.test".to_owned()])
             .build();
         assert_eq!(custom.tracker_hosts(), vec!["example-metrics.test"]);
+    }
+
+    #[test]
+    fn partial_fingerprint_deserializes() {
+        let raw = r#"{
+            "os_type": "Windows",
+            "hardware_concurrency": 8,
+            "webgl_vendor": "Google Inc. (NVIDIA)",
+            "fonts": ["Arial", "Helvetica"],
+            "seed": 42,
+            "flags": { "navigator_masking": "Custom", "canvas_noise": "Persistent" }
+        }"#;
+        let fp: Fingerprint = serde_json::from_str(raw).unwrap();
+        assert_eq!(fp.hardware_concurrency, Some(8));
+        assert_eq!(fp.os_type, OsType::Windows);
+        assert_eq!(fp.flags.navigator_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.canvas_noise, CanvasNoiseMode::Persistent);
+        assert_eq!(fp.fonts.len(), 2);
+        assert!(fp.user_agent.is_none());
+        assert_eq!(fp.flags.webrtc_masking, MaskingMode::Natural);
     }
 }

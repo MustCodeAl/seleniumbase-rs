@@ -12,8 +12,8 @@ use serde_json::{json, Value};
 use tracing::info;
 use uuid::Uuid;
 
-use seleniumbase_rs::BaseCase;
 use seleniumbase_rs::profile_payloads::ProfileParams;
+use seleniumbase_rs::BaseCase;
 
 use crate::models::*;
 use crate::store::{apply_profile_overrides, build_config, make_session_id, set_cookies, AppState};
@@ -26,7 +26,11 @@ pub struct ApiErrorResponse {
 
 impl std::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", serde_json::to_string(&self.body).unwrap_or_default())
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(&self.body).unwrap_or_default()
+        )
     }
 }
 
@@ -118,7 +122,10 @@ pub async fn start_server(state: Arc<AppState>, addr: std::net::SocketAddr) -> s
 
 #[get("/api/v1/version")]
 async fn version() -> ApiResult {
-    ok_msg(json!({ "version": "0.1.0", "launcher": "seleniumbase-rs" }), "")
+    ok_msg(
+        json!({ "version": "0.1.0", "launcher": "seleniumbase-rs" }),
+        "",
+    )
 }
 
 #[get("/api/v1/status")]
@@ -175,6 +182,7 @@ async fn profile_create(
         },
         cookies: vec![],
         external_profile: payload.external_profile,
+        fingerprint: payload.fingerprint,
     };
     state.profiles.lock().await.push(profile.clone());
     info!(profile_id = %profile.id, name = %profile.name, "created profile via api");
@@ -182,10 +190,7 @@ async fn profile_create(
 }
 
 #[get("/api/v1/profiles/{id}")]
-async fn profile_get(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_get(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let profiles = state.profiles.lock().await;
     match profiles.iter().find(|p| p.id == id).cloned() {
@@ -212,6 +217,19 @@ async fn profile_update(
     if let Some(v) = payload.get("container_url").and_then(|v| v.as_str()) {
         profiles[idx].container_url = v.to_owned();
     }
+    if let Some(v) = payload.get("browser").and_then(|v| v.as_str()) {
+        if let Ok(browser) = serde_json::from_value::<seleniumbase_rs::Browser>(json!(v)) {
+            profiles[idx].browser = browser;
+        }
+    }
+    if let Some(v) = payload.get("mode").and_then(|v| v.as_str()) {
+        if let Ok(mode) = serde_json::from_value::<seleniumbase_rs::DriverMode>(json!(v)) {
+            profiles[idx].mode = mode;
+        }
+    }
+    if let Some(v) = payload.get("folder_id").and_then(|v| v.as_str()) {
+        profiles[idx].folder_id = v.to_owned();
+    }
     if let Some(v) = payload.get("user_agent").and_then(|v| v.as_str()) {
         profiles[idx].user_agent = Some(v.to_owned());
     }
@@ -234,7 +252,22 @@ async fn profile_update(
         profiles[idx].headless = v;
     }
     if let Some(v) = payload.get("tags").and_then(|v| v.as_array()) {
-        profiles[idx].tags = v.iter().filter_map(|x| x.as_str().map(String::from)).collect();
+        profiles[idx].tags = v
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect();
+    }
+    if let Some(v) = payload.get("fingerprint") {
+        if v.is_null() {
+            profiles[idx].fingerprint = None;
+        } else {
+            match serde_json::from_value::<seleniumbase_rs::Fingerprint>(v.clone()) {
+                Ok(fp) => profiles[idx].fingerprint = Some(fp),
+                Err(e) => {
+                    return err(400, format!("Invalid fingerprint payload: {e}"));
+                }
+            }
+        }
     }
     if payload.get("parameters").is_some() {
         match serde_json::from_value::<seleniumbase_rs::profile_payloads::ProfileParams>(
@@ -249,10 +282,7 @@ async fn profile_update(
 }
 
 #[delete("/api/v1/profiles/{id}")]
-async fn profile_delete(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut profiles = state.profiles.lock().await;
     let before = profiles.len();
@@ -279,25 +309,23 @@ async fn profile_start(
     };
 
     let config = build_config(&profile);
-    let mut sb = BaseCase::new(config).await.map_err(|e| {
-        ApiErrorResponse {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ApiResponse::err(ApiStatus::err("LAUNCH_FAILED", e.to_string())),
-        }
+    let mut sb = BaseCase::new(config).await.map_err(|e| ApiErrorResponse {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        body: ApiResponse::err(ApiStatus::err("LAUNCH_FAILED", e.to_string())),
     })?;
-    apply_profile_overrides(&mut sb, &profile).await.map_err(|e| {
-        ApiErrorResponse {
+    apply_profile_overrides(&mut sb, &profile)
+        .await
+        .map_err(|e| ApiErrorResponse {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             body: ApiResponse::err(ApiStatus::err("OVERRIDE_FAILED", e)),
-        }
-    })?;
+        })?;
     if !profile.cookies.is_empty() {
-        set_cookies(&mut sb, &profile.cookies).await.map_err(|e| {
-            ApiErrorResponse {
+        set_cookies(&mut sb, &profile.cookies)
+            .await
+            .map_err(|e| ApiErrorResponse {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
-            }
-        })?;
+            })?;
     }
     if let Some(url) = query.get("url") {
         sb.open(url).await.map_err(|e| ApiErrorResponse {
@@ -314,7 +342,11 @@ async fn profile_start(
         container_url: profile.container_url.clone(),
     };
     state.sessions.lock().await.insert(session_id.clone(), sb);
-    state.session_info.lock().await.insert(session_id.clone(), info);
+    state
+        .session_info
+        .lock()
+        .await
+        .insert(session_id.clone(), info);
     info!(session_id = %session_id, profile_id = %profile.id, "started profile via api");
 
     let port: u16 = profile
@@ -337,10 +369,7 @@ async fn profile_start(
 }
 
 #[get("/api/v1/profiles/{id}/stop")]
-async fn profile_stop(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_stop(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let session_id = {
         let infos = state.session_info.lock().await;
@@ -353,10 +382,12 @@ async fn profile_stop(
         return err(404, "No active session for profile");
     };
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions.remove(&session_id).ok_or_else(|| ApiErrorResponse {
-        status: StatusCode::NOT_FOUND,
-        body: ApiResponse::err(ApiStatus::err("NOT_FOUND", "Session not found")),
-    })?;
+    let mut sb = sessions
+        .remove(&session_id)
+        .ok_or_else(|| ApiErrorResponse {
+            status: StatusCode::NOT_FOUND,
+            body: ApiResponse::err(ApiStatus::err("NOT_FOUND", "Session not found")),
+        })?;
     sb.quit().await.map_err(|e| ApiErrorResponse {
         status: StatusCode::INTERNAL_SERVER_ERROR,
         body: ApiResponse::err(ApiStatus::err("QUIT_FAILED", e.to_string())),
@@ -367,10 +398,7 @@ async fn profile_stop(
 }
 
 #[post("/api/v1/profiles/{id}/clone")]
-async fn profile_clone(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_clone(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut profiles = state.profiles.lock().await;
     let Some(source) = profiles.iter().find(|p| p.id == id).cloned() else {
@@ -385,23 +413,20 @@ async fn profile_clone(
 }
 
 #[get("/api/v1/profiles/{id}/export")]
-async fn profile_export(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_export(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let profiles = state.profiles.lock().await;
     match profiles.iter().find(|p| p.id == id).cloned() {
-        Some(p) => ok_msg(serde_json::to_value(p).unwrap_or_default(), "Profile exported"),
+        Some(p) => ok_msg(
+            serde_json::to_value(p).unwrap_or_default(),
+            "Profile exported",
+        ),
         None => err(404, "Profile not found"),
     }
 }
 
 #[post("/api/v1/profiles/import")]
-async fn profile_import(
-    state: web::Data<Arc<AppState>>,
-    payload: web::Json<Value>,
-) -> ApiResult {
+async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Value>) -> ApiResult {
     let value = payload.into_inner();
     let profile = if value.get("container_url").is_some() {
         serde_json::from_value::<Profile>(value).map_err(|e| ApiErrorResponse {
@@ -409,10 +434,11 @@ async fn profile_import(
             body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
         })?
     } else if value.get("parameters").is_some() {
-        let params: ProfileParams = serde_json::from_value(value).map_err(|e| ApiErrorResponse {
-            status: StatusCode::BAD_REQUEST,
-            body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
-        })?;
+        let params: ProfileParams =
+            serde_json::from_value(value).map_err(|e| ApiErrorResponse {
+                status: StatusCode::BAD_REQUEST,
+                body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
+            })?;
         let geo = params.parameters.fingerprint.geolocation.as_ref();
         Profile {
             id: Uuid::new_v4().to_string(),
@@ -439,9 +465,13 @@ async fn profile_import(
             },
             cookies: vec![],
             external_profile: Some(params),
+            fingerprint: None,
         }
     } else {
-        return err(400, "Unrecognized profile JSON: expected container_url or parameters");
+        return err(
+            400,
+            "Unrecognized profile JSON: expected container_url or parameters",
+        );
     };
     let mut profiles = state.profiles.lock().await;
     profiles.push(profile.clone());
@@ -473,10 +503,12 @@ async fn cookie_import(
     if let Some(session_id) = session_id {
         let mut sessions = state.sessions.lock().await;
         if let Some(sb) = sessions.get_mut(&session_id) {
-            set_cookies(sb, &payload.cookies).await.map_err(|e| ApiErrorResponse {
-                status: StatusCode::INTERNAL_SERVER_ERROR,
-                body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
-            })?;
+            set_cookies(sb, &payload.cookies)
+                .await
+                .map_err(|e| ApiErrorResponse {
+                    status: StatusCode::INTERNAL_SERVER_ERROR,
+                    body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
+                })?;
         }
     }
 
@@ -534,8 +566,8 @@ async fn proxy_validate(payload: web::Json<ProxyValidateRequest>) -> ApiResult {
         format!("{}://{}:{}", payload.proxy_type, payload.host, payload.port)
     };
 
-    let proxy = reqwest::Proxy::all(&proxy_url)
-        .map_err(|e| bad_request(format!("Invalid proxy: {e}")))?;
+    let proxy =
+        reqwest::Proxy::all(&proxy_url).map_err(|e| bad_request(format!("Invalid proxy: {e}")))?;
 
     let client = reqwest::Client::builder()
         .proxy(proxy)
@@ -560,10 +592,18 @@ async fn proxy_validate(payload: web::Json<ProxyValidateRequest>) -> ApiResult {
     ok_msg(
         ProxyValidateData {
             ip: data.get("ip").and_then(|v| v.as_str()).unwrap_or("").into(),
-            country_code: data.get("country").and_then(|v| v.as_str()).unwrap_or("").into(),
+            country_code: data
+                .get("country")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
             latitude: lat,
             longitude: lon,
-            timezone: data.get("timezone").and_then(|v| v.as_str()).unwrap_or("").into(),
+            timezone: data
+                .get("timezone")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
         },
         "",
     )
@@ -611,10 +651,7 @@ async fn tag_update(
 }
 
 #[delete("/api/v1/tags/{id}")]
-async fn tag_delete(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn tag_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut tags = state.tags.lock().await;
     let before = tags.len();
@@ -662,10 +699,7 @@ async fn folder_update(
 }
 
 #[delete("/api/v1/folders/{id}")]
-async fn folder_delete(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn folder_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut folders = state.folders.lock().await;
     let before = folders.len();
@@ -698,7 +732,7 @@ async fn script_runner_start(
         };
         let Some(profile) = profile else { continue };
         let config = build_config(&profile);
-        let sb = match BaseCase::new(config).await {
+        let mut sb = match BaseCase::new(config).await {
             Ok(sb) => sb,
             Err(e) => {
                 results.push(json!({ "profile_id": profile_id, "error": e.to_string() }));
@@ -723,7 +757,10 @@ async fn script_runner_stop() -> ApiResult {
 
 #[get("/api/v1/browser_cores")]
 async fn browser_core_list() -> ApiResult {
-    ok_msg(json!({ "cores": ["chrome-120", "chrome-121", "chrome-122"] }), "")
+    ok_msg(
+        json!({ "cores": ["chrome-120", "chrome-121", "chrome-122"] }),
+        "",
+    )
 }
 
 #[post("/api/v1/load_browser_core")]
@@ -740,7 +777,7 @@ async fn delete_browser_core() -> ApiResult {
 async fn stop_all(state: web::Data<Arc<AppState>>) -> ApiResult {
     let ids: Vec<String> = state.sessions.lock().await.keys().cloned().collect();
     for id in ids {
-        if let Some(sb) = state.sessions.lock().await.remove(&id) {
+        if let Some(mut sb) = state.sessions.lock().await.remove(&id) {
             let _ = sb.quit().await;
         }
         state.session_info.lock().await.remove(&id);
@@ -812,7 +849,9 @@ mod tests {
         let create = test::TestRequest::post()
             .uri("/api/v1/profiles")
             .insert_header(("content-type", "application/json"))
-            .set_payload(r#"{"name":"Test","container_url":"http://localhost:4444","tags":["tag1"]}"#)
+            .set_payload(
+                r#"{"name":"Test","container_url":"http://localhost:4444","tags":["tag1"]}"#,
+            )
             .to_request();
         let create_res = test::call_service(&app, create).await;
         assert_eq!(create_res.status(), StatusCode::OK);
@@ -836,12 +875,18 @@ mod tests {
             .insert_header(("content-type", "application/json"))
             .set_payload(r#"{"name":"Updated"}"#)
             .to_request();
-        assert_eq!(test::call_service(&app, update).await.status(), StatusCode::OK);
+        assert_eq!(
+            test::call_service(&app, update).await.status(),
+            StatusCode::OK
+        );
 
         let delete = test::TestRequest::delete()
             .uri(&format!("/api/v1/profiles/{id}"))
             .to_request();
-        assert_eq!(test::call_service(&app, delete).await.status(), StatusCode::OK);
+        assert_eq!(
+            test::call_service(&app, delete).await.status(),
+            StatusCode::OK
+        );
     }
 
     #[actix_web::test]
@@ -860,7 +905,10 @@ mod tests {
             .insert_header(("content-type", "application/json"))
             .set_payload(r#"{"name":"Clients"}"#)
             .to_request();
-        assert_eq!(test::call_service(&app, folder).await.status(), StatusCode::OK);
+        assert_eq!(
+            test::call_service(&app, folder).await.status(),
+            StatusCode::OK
+        );
 
         let list = test::TestRequest::get().uri("/api/v1/tags").to_request();
         let list_res = test::call_service(&app, list).await;

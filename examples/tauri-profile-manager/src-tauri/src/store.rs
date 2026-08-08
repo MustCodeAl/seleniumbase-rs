@@ -120,6 +120,7 @@ fn default_profiles() -> Vec<Profile> {
             folder_id: "default".into(),
             cookies: vec![],
             external_profile: None,
+            fingerprint: None,
         },
         Profile {
             id: "profile-b".into(),
@@ -138,12 +139,13 @@ fn default_profiles() -> Vec<Profile> {
             folder_id: "default".into(),
             cookies: vec![],
             external_profile: None,
+            fingerprint: None,
         },
     ]
 }
 
 pub fn build_config(profile: &Profile) -> BrowserConfig {
-    if let Some(params) = profile.external_profile.as_ref() {
+    let mut config = if let Some(params) = profile.external_profile.as_ref() {
         params.to_browser_config(&profile.container_url)
     } else {
         BrowserConfig {
@@ -157,7 +159,12 @@ pub fn build_config(profile: &Profile) -> BrowserConfig {
             auto_start_driver: false,
             ..BrowserConfig::default()
         }
+    };
+    // Explicit profile fingerprint overrides the external profile payload.
+    if let Some(fingerprint) = profile.fingerprint.as_ref() {
+        config.fingerprint = Some(fingerprint.clone());
     }
+    config
 }
 
 pub async fn apply_profile_overrides(sb: &mut BaseCase, profile: &Profile) -> Result<(), String> {

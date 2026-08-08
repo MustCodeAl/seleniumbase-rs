@@ -4,112 +4,447 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Profile Manager</title>
+    <title>Profiles — SeleniumBase Profile Manager</title>
     <script type="module" src="/main.js" defer></script>
   </head>
 
   <body>
-    <main class="container">
-      <h1>🧤 Profile Manager</h1>
-      <p>Isolated browser profiles backed by Docker + seleniumbase-rs.</p>
-      <p id="api-base" class="muted"></p>
+    <a href="#maincontent" class="skip-link">Skip to main content</a>
 
-      <section class="card">
-        <h2>Create profile</h2>
-        <form id="profile-form" class="stack">
-          <input id="profile-name" placeholder="Profile name" required />
-          <input id="container-url" placeholder="WebDriver URL (e.g. http://localhost:4444)" required />
-          <input id="user-agent" placeholder="User agent (optional)" />
-          <input id="proxy" placeholder="Proxy (optional)" />
-          <input id="locale" placeholder="Locale (optional, e.g. en-US)" />
-          <div class="row-inputs">
-            <input id="latitude" type="number" step="any" placeholder="Latitude (optional)" />
-            <input id="longitude" type="number" step="any" placeholder="Longitude (optional)" />
-            <input id="accuracy" type="number" step="any" placeholder="Accuracy m (optional)" />
-          </div>
-          <label><input id="headless" type="checkbox" /> Headless</label>
-          <button type="submit">Create profile</button>
-        </form>
-      </section>
+    <header class="app-header">
+      <h1>Profile Manager</h1>
+      <p class="muted">
+        Isolated multi-profile browser automation backed by Docker and seleniumbase-rs.
+        <span id="api-base" aria-live="polite"></span>
+      </p>
+    </header>
 
-      <section class="card">
-        <h2>Profiles</h2>
-        <ul id="profile-list"></ul>
-        <button id="refresh-profiles">Refresh</button>
-      </section>
-
-      <section class="card">
-        <h2>Active sessions</h2>
-        <ul id="session-list"></ul>
-        <button id="refresh-sessions">Refresh</button>
-      </section>
-
-      <section class="card">
-        <h2>Tags & Folders</h2>
-        <div class="row-inputs">
-          <input id="new-tag" placeholder="New tag name" />
-          <input id="new-folder" placeholder="New folder name" />
-        </div>
-        <div class="actions">
-          <button id="add-tag">Add tag</button>
-          <button id="add-folder">Add folder</button>
-          <button id="refresh-tags">Refresh</button>
-        </div>
-        <h3>Tags</h3>
-        <ul id="tag-list"></ul>
-        <h3>Folders</h3>
-        <ul id="folder-list"></ul>
-      </section>
-
-      <section class="card">
-        <h2>Profile tools</h2>
-
-        <h3>Clone profile</h3>
-        <div class="row-inputs">
-          <input id="clone-source-id" placeholder="Source profile ID" />
-          <input id="clone-new-name" placeholder="New profile name" />
-          <button id="clone-profile">Clone</button>
+    <main id="maincontent" tabindex="-1">
+      <section aria-labelledby="profiles-heading">
+        <div class="section-bar">
+          <h2 id="profiles-heading">Profiles</h2>
+          <button id="open-create" class="primary" type="button">New profile</button>
         </div>
 
-        <h3>Export / Import profile JSON</h3>
-        <div class="row-inputs">
-          <input id="export-profile-id" placeholder="Profile ID to export" />
-          <button id="export-profile">Export</button>
-        </div>
-        <textarea id="import-profile-json" rows="5" placeholder="Paste profile JSON here"></textarea>
-        <button id="import-profile">Import</button>
+        <div class="toolbar" role="search">
+          <label for="profile-search" class="sr-only-label">Search profiles</label>
+          <input id="profile-search" type="search" placeholder="Search profiles…" />
 
-        <h3>Import external profile JSON</h3>
-        <p class="muted">Paste a full external profile <code>POST /profile/create</code> payload (name, browser_type, os_type, parameters, ...).</p>
-        <textarea id="import-profile-json" rows="8" placeholder='{"name":"Profile_name","browser_type":"chrome","folder_id":"...","os_type":"windows","parameters":{"flags":{...},"fingerprint":{...},"storage":{...}}}'></textarea>
-        <button id="import-profile">Import external profile JSON</button>
-
-        <h3>Proxy validation</h3>
-        <div class="row-inputs">
-          <select id="proxy-type">
-            <option value="http">http</option>
-            <option value="https">https</option>
-            <option value="socks5">socks5</option>
+          <label for="folder-filter" class="sr-only-label">Filter by folder</label>
+          <select id="folder-filter">
+            <option value="">All folders</option>
           </select>
-          <input id="proxy-host" placeholder="Host" />
-          <input id="proxy-port" type="number" placeholder="Port" />
-          <input id="proxy-username" placeholder="Username (optional)" />
-          <input id="proxy-password" type="password" placeholder="Password (optional)" />
-          <button id="validate-proxy">Validate</button>
-        </div>
-        <pre id="proxy-result" class="muted"></pre>
 
-        <h3>Cookies</h3>
-        <div class="row-inputs">
-          <input id="cookie-profile-id" placeholder="Profile ID" />
-          <button id="export-cookies">Export cookies</button>
+          <label for="tag-filter" class="sr-only-label">Filter by tag</label>
+          <select id="tag-filter">
+            <option value="">All tags</option>
+          </select>
+
+          <button id="refresh-profiles" type="button">Refresh</button>
         </div>
-        <textarea id="import-cookies-json" rows="4" placeholder='[{&quot;name&quot;:&quot;session&quot;,&quot;value&quot;:&quot;abc&quot;,&quot;domain&quot;:&quot;.example.com&quot;}]'></textarea>
-        <button id="import-cookies">Import cookies</button>
-        <pre id="cookie-result" class="muted"></pre>
+
+        <ul id="profile-list" class="profile-grid"></ul>
+        <p id="profiles-empty" class="muted" hidden>
+          No profiles yet. Use “New profile” to create one.
+        </p>
       </section>
 
-      <p id="status"></p>
+      <section aria-labelledby="sessions-heading">
+        <div class="section-bar">
+          <h2 id="sessions-heading">Active sessions</h2>
+          <button id="refresh-sessions" type="button">Refresh</button>
+        </div>
+        <ul id="session-list" class="session-list"></ul>
+        <p id="sessions-empty" class="muted" hidden>No sessions running.</p>
+      </section>
+
+      <section aria-labelledby="org-heading">
+        <h2 id="org-heading">Folders and tags</h2>
+        <div class="split">
+          <div>
+            <h3>Folders</h3>
+            <form id="folder-form" class="inline-form">
+              <label for="new-folder" class="sr-only-label">New folder name</label>
+              <input id="new-folder" placeholder="New folder name" />
+              <button type="submit">Add</button>
+            </form>
+            <ul id="folder-list" class="chip-list"></ul>
+          </div>
+          <div>
+            <h3>Tags</h3>
+            <form id="tag-form" class="inline-form">
+              <label for="new-tag" class="sr-only-label">New tag name</label>
+              <input id="new-tag" placeholder="New tag name" />
+              <label for="new-tag-color" class="sr-only-label">Tag color</label>
+              <input id="new-tag-color" type="color" value="#396cd8" />
+              <button type="submit">Add</button>
+            </form>
+            <ul id="tag-list" class="chip-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="tools-heading">
+        <h2 id="tools-heading">Tools</h2>
+
+        <details>
+          <summary><h3 class="inline">Run script on selected profiles</h3></summary>
+          <p class="muted">
+            Select profiles with the checkboxes on their cards, then paste a
+            Rust test snippet to execute against each.
+          </p>
+          <label for="run-script-body">Script body</label>
+          <textarea id="run-script-body" rows="6"
+            placeholder='sb.open("https://example.com").await?;'></textarea>
+          <button id="run-script" type="button">Run on selected</button>
+          <pre id="run-script-result" class="output" aria-live="polite"></pre>
+        </details>
+
+        <details>
+          <summary><h3 class="inline">Import / export profiles</h3></summary>
+          <label for="import-profile-json">Profile JSON</label>
+          <textarea id="import-profile-json" rows="6"
+            placeholder='{"name":"Demo","browser_type":"chrome","parameters":{"flags":{},"fingerprint":{},"storage":{}}}'></textarea>
+          <button id="import-profile" type="button">Import profile</button>
+          <p class="muted">To export, use the Export button on a profile card.</p>
+        </details>
+
+        <details>
+          <summary><h3 class="inline">Proxy validation</h3></summary>
+          <form id="proxy-form" class="grid-form">
+            <div class="field">
+              <label for="proxy-type">Type</label>
+              <select id="proxy-type">
+                <option value="http">http</option>
+                <option value="https">https</option>
+                <option value="socks5">socks5</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="proxy-host">Host</label>
+              <input id="proxy-host" required />
+            </div>
+            <div class="field">
+              <label for="proxy-port">Port</label>
+              <input id="proxy-port" type="number" required />
+            </div>
+            <div class="field">
+              <label for="proxy-username">Username (optional)</label>
+              <input id="proxy-username" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="proxy-password">Password (optional)</label>
+              <input id="proxy-password" type="password" autocomplete="off" />
+            </div>
+            <div class="field actions-end">
+              <button type="submit">Validate</button>
+            </div>
+          </form>
+          <pre id="proxy-result" class="output" aria-live="polite"></pre>
+        </details>
+
+        <details>
+          <summary><h3 class="inline">Cookies</h3></summary>
+          <div class="field">
+            <label for="cookie-profile-id">Profile ID</label>
+            <input id="cookie-profile-id" placeholder="Profile ID" />
+          </div>
+          <div class="actions">
+            <button id="export-cookies" type="button">Export cookies</button>
+          </div>
+          <label for="import-cookies-json">Cookies JSON to import</label>
+          <textarea id="import-cookies-json" rows="4"
+            placeholder='[{"name":"session","value":"abc","domain":".example.com"}]'></textarea>
+          <button id="import-cookies" type="button">Import cookies</button>
+          <pre id="cookie-result" class="output" aria-live="polite"></pre>
+        </details>
+      </section>
+
+      <p id="status" role="status" aria-live="polite"></p>
     </main>
+
+    <dialog id="profile-dialog" aria-labelledby="profile-dialog-title">
+      <form id="profile-form" method="dialog">
+        <h2 id="profile-dialog-title">New profile</h2>
+        <input type="hidden" id="profile-id" />
+
+        <div class="grid-form">
+          <div class="field">
+            <label for="profile-name">Name <span aria-hidden="true">*</span></label>
+            <input id="profile-name" required />
+          </div>
+          <div class="field">
+            <label for="container-url">WebDriver URL <span aria-hidden="true">*</span></label>
+            <input id="container-url" placeholder="http://localhost:4444" required />
+          </div>
+          <div class="field">
+            <label for="profile-browser">Browser</label>
+            <select id="profile-browser">
+              <option value="Chrome">Chrome</option>
+              <option value="Chromium">Chromium</option>
+              <option value="Edge">Edge</option>
+              <option value="Firefox">Firefox</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="profile-mode">Driver mode</label>
+            <select id="profile-mode">
+              <option value="WebDriver">WebDriver</option>
+              <option value="Uc">Undetected (UC)</option>
+              <option value="Cdp">CDP</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="user-agent">User agent (optional)</label>
+            <input id="user-agent" />
+          </div>
+          <div class="field">
+            <label for="proxy">Proxy (optional)</label>
+            <input id="proxy" placeholder="scheme://host:port" />
+          </div>
+          <div class="field">
+            <label for="locale">Locale (optional)</label>
+            <input id="locale" placeholder="en-US" />
+          </div>
+          <div class="field">
+            <label for="profile-folder">Folder</label>
+            <select id="profile-folder"></select>
+          </div>
+          <div class="field">
+            <label for="latitude">Latitude (optional)</label>
+            <input id="latitude" type="number" step="any" />
+          </div>
+          <div class="field">
+            <label for="longitude">Longitude (optional)</label>
+            <input id="longitude" type="number" step="any" />
+          </div>
+          <div class="field">
+            <label for="accuracy">Accuracy in meters (optional)</label>
+            <input id="accuracy" type="number" step="any" />
+          </div>
+          <fieldset class="field tags-field">
+            <legend>Tags</legend>
+            <div id="profile-tags" class="chip-list selectable"></div>
+          </fieldset>
+          <div class="field checkbox-field">
+            <input id="headless" type="checkbox" />
+            <label for="headless">Headless</label>
+          </div>
+        </div>
+
+        <details class="masking" id="masking-details">
+          <summary>
+            <strong>Custom masking (anti-fingerprinting)</strong>
+          </summary>
+          <div class="field checkbox-field">
+            <input id="masking-enabled" type="checkbox" />
+            <label for="masking-enabled">Enable custom masking for this profile</label>
+          </div>
+          <p class="muted">
+            Leave a field empty to keep the browser's natural value. Selects set how each
+            dimension is spoofed: “Natural” keeps the real value, “Mask” uses a generic
+            value, “Custom” uses the values entered below, “Disabled” turns the feature off.
+          </p>
+
+          <fieldset class="field tags-field">
+            <legend>Navigator &amp; hardware</legend>
+            <div class="grid-form">
+              <div class="field">
+                <label for="fp-os">OS persona</label>
+                <select id="fp-os">
+                  <option value="">Natural</option>
+                  <option value="Windows">Windows</option>
+                  <option value="Macos">macOS</option>
+                  <option value="Linux">Linux</option>
+                  <option value="Android">Android</option>
+                  <option value="ios">iOS</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="fp-platform">navigator.platform</label>
+                <input id="fp-platform" placeholder="Win32 / MacIntel / Linux x86_64" />
+              </div>
+              <div class="field">
+                <label for="fp-cores">CPU cores (hardwareConcurrency)</label>
+                <input id="fp-cores" type="number" min="1" max="128" placeholder="8" />
+              </div>
+              <div class="field">
+                <label for="fp-memory">Device memory (GB)</label>
+                <input id="fp-memory" type="number" step="0.5" min="0" placeholder="8" />
+              </div>
+              <div class="field">
+                <label for="fp-touch">Max touch points</label>
+                <input id="fp-touch" type="number" min="0" max="10" placeholder="0" />
+              </div>
+              <div class="field">
+                <label for="fp-vendor">navigator.vendor</label>
+                <input id="fp-vendor" placeholder="Google Inc." />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="field tags-field">
+            <legend>Localization &amp; timezone</legend>
+            <div class="grid-form">
+              <div class="field">
+                <label for="fp-languages">Languages (comma-separated)</label>
+                <input id="fp-languages" placeholder="en-US,en" />
+              </div>
+              <div class="field">
+                <label for="fp-accept">Accept-Language header</label>
+                <input id="fp-accept" placeholder="en-US,en;q=0.9" />
+              </div>
+              <div class="field">
+                <label for="fp-timezone">Timezone (IANA)</label>
+                <input id="fp-timezone" placeholder="America/New_York" />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="field tags-field">
+            <legend>Screen &amp; rendering</legend>
+            <div class="grid-form">
+              <div class="field">
+                <label for="fp-screen-w">Screen width</label>
+                <input id="fp-screen-w" type="number" min="0" placeholder="1920" />
+              </div>
+              <div class="field">
+                <label for="fp-screen-h">Screen height</label>
+                <input id="fp-screen-h" type="number" min="0" placeholder="1080" />
+              </div>
+              <div class="field">
+                <label for="fp-pixel-ratio">Pixel ratio</label>
+                <input id="fp-pixel-ratio" type="number" step="0.25" min="0" placeholder="1" />
+              </div>
+              <div class="field">
+                <label for="fp-color-depth">Color depth</label>
+                <input id="fp-color-depth" type="number" min="0" placeholder="24" />
+              </div>
+              <div class="field">
+                <label for="fp-webgl-vendor">WebGL vendor</label>
+                <input id="fp-webgl-vendor" placeholder="Google Inc. (NVIDIA)" />
+              </div>
+              <div class="field">
+                <label for="fp-webgl-renderer">WebGL renderer</label>
+                <input id="fp-webgl-renderer" placeholder="ANGLE (NVIDIA, …)" />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="field tags-field">
+            <legend>Media devices &amp; fonts</legend>
+            <div class="grid-form">
+              <div class="field">
+                <label for="fp-audio-in">Audio inputs</label>
+                <input id="fp-audio-in" type="number" min="0" placeholder="1" />
+              </div>
+              <div class="field">
+                <label for="fp-audio-out">Audio outputs</label>
+                <input id="fp-audio-out" type="number" min="0" placeholder="1" />
+              </div>
+              <div class="field">
+                <label for="fp-video-in">Video inputs</label>
+                <input id="fp-video-in" type="number" min="0" placeholder="1" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="fp-fonts">Font list (one per line)</label>
+              <textarea id="fp-fonts" rows="3" placeholder="Arial&#10;Helvetica&#10;Times New Roman"></textarea>
+            </div>
+          </fieldset>
+
+          <fieldset class="field tags-field">
+            <legend>WebRTC &amp; noise</legend>
+            <div class="grid-form">
+              <div class="field">
+                <label for="fp-webrtc-policy">WebRTC IP policy</label>
+                <select id="fp-webrtc-policy">
+                  <option value="">Natural</option>
+                  <option value="DisableNonProxiedUdp">Disable non-proxied UDP</option>
+                  <option value="PublicInterfaceOnly">Public interface only</option>
+                  <option value="PublicAndPrivateInterfaces">Public and private</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="fp-webrtc-public">WebRTC public IP</label>
+                <input id="fp-webrtc-public" placeholder="203.0.113.10" />
+              </div>
+              <div class="field">
+                <label for="fp-webrtc-local">WebRTC local IP</label>
+                <input id="fp-webrtc-local" placeholder="192.168.1.42" />
+              </div>
+              <div class="field">
+                <label for="fp-seed">Noise seed</label>
+                <input id="fp-seed" type="number" min="0" placeholder="Random if empty" />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="field tags-field">
+            <legend>Masking modes</legend>
+            <div class="grid-form">
+              <div class="field">
+                <label for="flag-navigator">Navigator</label>
+                <select id="flag-navigator" data-flag="navigator_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-localization">Localization</label>
+                <select id="flag-localization" data-flag="localization_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-timezone">Timezone</label>
+                <select id="flag-timezone" data-flag="timezone_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-screen">Screen</label>
+                <select id="flag-screen" data-flag="screen_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-graphics">Graphics (WebGL)</label>
+                <select id="flag-graphics" data-flag="graphics_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-canvas">Canvas noise</label>
+                <select id="flag-canvas" data-flag="canvas_noise" class="canvas-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-fonts">Fonts</label>
+                <select id="flag-fonts" data-flag="fonts_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-media">Media devices</label>
+                <select id="flag-media" data-flag="media_devices_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-webrtc">WebRTC</label>
+                <select id="flag-webrtc" data-flag="webrtc_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-geo">Geolocation</label>
+                <select id="flag-geo" data-flag="geolocation_masking" class="masking-flag"></select>
+              </div>
+              <div class="field">
+                <label for="flag-geo-popup">Geolocation popup</label>
+                <select id="flag-geo-popup" data-flag="geolocation_popup" class="popup-flag"></select>
+              </div>
+            </div>
+          </fieldset>
+        </details>
+
+        <div class="dialog-actions">
+          <button type="button" id="cancel-profile">Cancel</button>
+          <button type="submit" class="primary" id="save-profile">Save profile</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">Confirm</h2>
+      <p id="confirm-message"></p>
+      <div class="dialog-actions">
+        <button type="button" id="confirm-cancel">Cancel</button>
+        <button type="button" id="confirm-ok" class="danger">Delete</button>
+      </div>
+    </dialog>
   </body>
 </html>

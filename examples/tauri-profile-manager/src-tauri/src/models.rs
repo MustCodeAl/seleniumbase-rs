@@ -83,6 +83,9 @@ pub struct Profile {
     /// Full external profile parameters, when supplied.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_profile: Option<ProfileParams>,
+    /// Custom masking / anti-fingerprint settings for this profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<seleniumbase_rs::Fingerprint>,
 }
 
 /// Input payload for creating a profile.
@@ -109,6 +112,9 @@ pub struct NewProfile {
     /// Raw external profile parameters (flags, fingerprints, storage, proxy, ...).
     #[serde(default, rename = "parameters")]
     pub external_profile: Option<ProfileParams>,
+    /// Custom masking / anti-fingerprint settings (partial payloads allowed).
+    #[serde(default)]
+    pub fingerprint: Option<seleniumbase_rs::Fingerprint>,
 }
 
 /// Information returned after launching a profile.

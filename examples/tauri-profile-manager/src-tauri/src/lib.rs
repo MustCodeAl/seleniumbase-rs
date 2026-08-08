@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use serde_json::json;
 use seleniumbase_rs::init_tracing;
+use serde_json::json;
 use tauri::{command, generate_context, generate_handler, AppHandle, Manager, State};
 use tracing::info;
 
@@ -49,6 +49,7 @@ async fn create_profile(
         },
         cookies: vec![],
         external_profile: new.external_profile,
+        fingerprint: new.fingerprint,
     };
     {
         let mut profiles = state.profiles.lock().await;
@@ -177,7 +178,7 @@ async fn set_session_geolocation(
 #[command]
 async fn close_session(state: State<'_, Arc<AppState>>, session_id: String) -> Result<(), String> {
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions
+    let mut sb = sessions
         .remove(&session_id)
         .ok_or_else(|| "Session not found".to_string())?;
     sb.quit().await.map_err(|e| e.to_string())?;
