@@ -62,8 +62,8 @@ seleniumbase-rs/
 │   ├── cli/                # Command-line tooling (sbase binary)
 │   ├── common/             # Decorators, obfuscation, exceptions
 │   ├── config/             # Settings and proxy/ad-block lists
-│   ├── core/               # Reporting helper
-│   ├── js_code/            # JavaScript snippets injected into pages
+│   ├── core/               # Test result records, JSON/HTML report writers
+│   ├── js_code/            # `quote`: safe JavaScript string literals for built scripts
 │   ├── plugins/            # Cloud/logging plugin interfaces
 │   ├── utilities/          # Selenium IDE, Grid, and Python migration
 │   ├── utils/              # Selectors, shadow DOM, translations, extensions

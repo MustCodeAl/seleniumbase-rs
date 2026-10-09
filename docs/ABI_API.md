@@ -18,7 +18,7 @@ The crate root exposes the following modules:
 | `config` | Settings, proxy lists, and ad-block lists. |
 | `core` | Logging, reporting, download, and session helpers. |
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
-| `js_code` | JavaScript snippets injected by CDP and WebDriver. |
+| `js_code` | `quote`, which turns a Rust string into a JavaScript string literal for the scripts the crate builds. |
 | `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
 | `mcp` | MCP servers (`cdp`, `driver`, `sb`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
 | `profile_payloads` | External browser profile payload parsing and conversion. |
