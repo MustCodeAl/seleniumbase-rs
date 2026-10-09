@@ -365,52 +365,44 @@ cargo run --example playwright_mode --features playwright
 
 If Chromium download fails, use the default CDP or UC modes instead.
 
-### MCP server (optional feature)
+### MCP servers (optional feature)
 
-Build the stdio MCP server:
+`seleniumbase-mcp` serves a browser to any Model Context Protocol client over
+stdio. Pick a toolset with `--server`:
+
+| `--server` | Engine | Tools |
+|------------|--------|-------|
+| `cdp` | Pure CDP, no WebDriver | 24 |
+| `driver` | WebDriver, the `Driver()` toolset | 26 |
+| `sb` (default) | WebDriver, the `SB()` toolset, plus stealth tools | 88 + 8 |
 
 ```bash
 cargo build --release --bin seleniumbase-mcp --features mcp-server
 ```
 
-Configure an MCP client with the absolute path to the built binary:
+Configure the client with the absolute path to the binary:
 
 ```json
 {
   "mcpServers": {
     "seleniumbase": {
       "command": "/absolute/path/to/target/release/seleniumbase-mcp",
-      "args": []
+      "args": ["--server", "cdp"],
+      "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
     }
   }
 }
 ```
 
-The browser starts lazily when the first browser tool runs, so clients can list
-tools without a running WebDriver. The default configuration connects to the
-WebDriver endpoint at `http://localhost:4444`.
+Call `start_browser` first, then use the other tools, then `close_browser`.
+Files the tools write (screenshots, PDFs, cookies, downloads) stay inside
+`SB_MCP_OUTPUT_DIR` (default `./mcp_output`). The tools are the same as the
+Python `seleniumbase-mcp` project's; see the
+[MCP guide](docs/tutorials/mcp_server.md) for the tool groups, behaviour and
+security notes.
 
-| Tool | Purpose |
-|------|---------|
-| `open_url` | Open a URL |
-| `get_title` | Read the page title |
-| `get_url` | Read the current URL |
-| `click` | Click a CSS selector |
-| `type_text` | Enter text into a CSS selector |
-| `get_text` | Read visible element text |
-| `assert_text` | Check element text |
-| `execute_script` | Execute JavaScript in the page |
-| `screenshot` | Save a screenshot of the current page |
-| `patch_chromedriver` | Patch a chromedriver binary to remove automation markers |
-| `list_engine_spoofing_args` | Return Chromium flags that reduce engine-level fingerprints |
-| `list_fingerprint_presets` | Return the names of built-in fingerprint presets |
-| `build_fingerprint` | Build a `Fingerprint` from a named preset |
-| `get_stealth_bootstrap_script` | Return the JavaScript evasion bootstrap for a preset |
-| `list_macros` | Return the names of convenience macros exported by the crate |
-| `quit` | Close the browser session |
-
-Only connect trusted MCP clients. The server can control the browser and
-execute JavaScript in the active page.
+Only connect trusted MCP clients. The server can control the browser, read its
+cookies, and execute JavaScript in the active page.
 
 ## Feature flags
 

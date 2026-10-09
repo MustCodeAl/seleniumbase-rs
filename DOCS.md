@@ -301,12 +301,13 @@ clients over stdio:
 cargo build --release --bin seleniumbase-mcp --features mcp-server
 ```
 
-The tool catalog can be queried before WebDriver is available because the
-browser session starts on the first browser tool call. Available tools cover
-navigation, page metadata, element interaction, text assertions, JavaScript
-execution, and session shutdown. See the
-[README MCP server section](./README.md#mcp-server-optional-feature) for client
-configuration and the complete tool list.
+Choose a toolset with `--server cdp|driver|sb`. The browser starts when
+`start_browser` is called, so clients can list tools without a running browser.
+The toolsets cover navigation, page metadata, element interaction, waits and
+assertions, cookies and storage, tabs and windows, CAPTCHA solving, saving pages,
+and JavaScript execution. See the
+[MCP guide](./docs/tutorials/mcp_server.md) for client configuration, the tool
+groups, behaviour and security notes.
 
 ## Developer Documentation
 
