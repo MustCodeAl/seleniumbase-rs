@@ -32,6 +32,16 @@ name = "seleniumbase-mcp"
 path = "src/bin/mcp_server.rs"
 required-features = ["mcp-server"]
 
+# Timing harnesses without a framework: `cargo bench --bench cdp_latency`
+# drives a real Chrome, `cargo bench --bench cpu` needs no browser.
+[[bench]]
+name = "cdp_latency"
+harness = false
+
+[[bench]]
+name = "cpu"
+harness = false
+
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
 clap_complete = "4.6"
