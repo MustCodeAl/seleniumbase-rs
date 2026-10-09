@@ -265,21 +265,7 @@ fn log_failure(plugin: &str, hook: &str, test: &str, result: Result<()>) {
 /// A file name made from a test name: letters, digits, `-` and `_` only, so a
 /// test called `../../etc/passwd` cannot write outside the plugin's directory.
 pub(crate) fn file_stem(test: &str) -> String {
-    let mut stem: String = test
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .take(80)
-        .collect();
-    if stem.is_empty() {
-        stem.push_str("test");
-    }
-    stem
+    crate::artifacts::safe_stem(test, "test")
 }
 
 /// Writes `bytes` to a new file in `dir` named after `test`, never replacing a
@@ -290,40 +276,12 @@ pub(crate) async fn write_evidence(
     extension: &str,
     bytes: &[u8],
 ) -> Result<std::path::PathBuf> {
-    use tokio::io::AsyncWriteExt;
-
-    tokio::fs::create_dir_all(dir).await?;
     let stem = format!(
         "{}_{}",
         file_stem(test),
         chrono::Local::now().format("%Y%m%d_%H%M%S")
     );
-    for attempt in 0_u32..1000 {
-        let name = if attempt == 0 {
-            format!("{stem}.{extension}")
-        } else {
-            format!("{stem}_{attempt}.{extension}")
-        };
-        let path = dir.join(name);
-        match tokio::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .await
-        {
-            Ok(mut file) => {
-                file.write_all(bytes).await?;
-                file.flush().await?;
-                return Ok(path);
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-    Err(SeleniumBaseError::InvalidConfig(format!(
-        "more than 1000 files named like {stem}.{extension} in {}",
-        dir.display()
-    )))
+    crate::artifacts::write_new_file(dir, &stem, extension, bytes).await
 }
 
 #[cfg(test)]

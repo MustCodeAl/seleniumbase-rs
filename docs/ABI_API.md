@@ -10,7 +10,7 @@ The crate root exposes the following modules:
 | Module | Purpose |
 |---|---|
 | `api` | `BaseCase`, capability traits, tours, charts, recorder, scenario runner, CDP page/driver helpers. |
-| `artifacts` | Screenshot, page source, and log artifact paths. |
+| `artifacts` | The `latest_logs` folder, collision-free artifact names, and the check that keeps a caller-supplied file name inside it. |
 | `behave` | Gherkin/BDD parser, step registry, and runner. |
 | `browser` | `BrowserConfig`, `BrowserSession`, driver launching, and optional Playwright session. |
 | `cli` | `sbase` command-line script implementations. |

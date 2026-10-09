@@ -233,7 +233,7 @@ Deferred assertions collect failures and report them together when
 
 | Method | Description |
 |--------|-------------|
-| `save_screenshot(path)` | Writes screenshot to the logs directory. |
+| `save_screenshot(filename)` | Writes a screenshot to the logs directory. `filename` must be a plain file name (no directory part, no `..`); a file of that name is replaced. |
 | `save_screenshot_to_path(path)` | Writes screenshot to an arbitrary path. |
 | `screenshot_as_png()` | Returns the current page screenshot as PNG bytes. |
 | `check_window(name, level)` | Compares a screenshot to a stored baseline. |
@@ -268,7 +268,7 @@ Deferred assertions collect failures and report them together when
 |--------|-------------|
 | `choose_file(selector, path)` | Sets a file input value. |
 | `download_file(url, destination)` | Downloads `url` to `destination`. |
-| `save_file_as(data, filename)` | Saves raw bytes to the downloads folder. |
+| `save_file_as(data, filename)` | Saves raw bytes to the logs directory. `filename` must be a plain file name. |
 | `print_to_pdf(filename)` | Saves the current page as a PDF. |
 | `get_downloads_folder()` | Returns the default downloads directory. |
 | `get_downloaded_files()` | Returns a list of downloaded file names. |

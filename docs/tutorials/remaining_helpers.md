@@ -19,7 +19,12 @@ let screenshot = sb.save_screenshot("home.png").await?;
 let source = sb.save_page_source("home.html").await?;
 ```
 
-Both methods return a `PathBuf` pointing to the saved file in the logs directory.
+Both methods return a `PathBuf` pointing to the saved file in the logs directory
+(`latest_logs/`). The name must be a plain file name: `"../home.png"` or
+`"/tmp/home.png"` is refused with an `InvalidConfig` error instead of writing
+outside the logs directory. A file of the same name is replaced. For an exact
+path of your own, use `save_screenshot_to_path`. Files the framework names
+itself (`save_screenshot_to_logs`) never replace an earlier one.
 
 ## Window introspection
 
