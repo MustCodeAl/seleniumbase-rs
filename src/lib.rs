@@ -50,6 +50,7 @@ pub mod utils;
 
 pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};
+#[cfg(feature = "gui")]
 pub use api::gui::Gui;
 pub use api::runner::{run_browser_test, BrowserTestFuture};
 pub use api::tour::TourTheme;
@@ -77,4 +78,5 @@ pub use tracing_util::{
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };
+pub use utilities::retry::RetryPolicy;
 pub use utils::selectors::Selector;

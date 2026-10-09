@@ -1,20 +1,26 @@
 // Dialog builder and HTML Inspector wrappers for BaseCase.
 
-use crate::api::dialog::{choose_file, save_file, show_confirm, show_message, show_prompt, DialogResult};
+#[cfg(feature = "gui")]
+use crate::api::dialog::{
+    choose_file, save_file, show_confirm, show_message, show_prompt, DialogResult,
+};
 use crate::api::html_inspector::{HtmlInspection, HtmlInspector};
 
 impl BaseCase {
     /// Displays a native message dialog.
+    #[cfg(feature = "gui")]
     pub fn show_message(&self, title: &str, message: &str) {
         show_message(title, message);
     }
 
     /// Displays a native yes/no confirmation dialog and returns the choice.
+    #[cfg(feature = "gui")]
     pub fn show_confirm(&self, title: &str, message: &str) -> bool {
         show_confirm(title, message)
     }
 
     /// Displays a native prompt dialog and returns the user's input.
+    #[cfg(feature = "gui")]
     pub fn show_prompt(&self, title: &str, message: &str, default: Option<&str>) -> DialogResult {
         let text = show_prompt(title, message, default);
         DialogResult {
@@ -24,11 +30,13 @@ impl BaseCase {
     }
 
     /// Opens a native file chooser dialog.
+    #[cfg(feature = "gui")]
     pub fn choose_file_dialog(&self, title: &str) -> Option<String> {
         choose_file(title)
     }
 
     /// Opens a native save-file dialog.
+    #[cfg(feature = "gui")]
     pub fn save_file_dialog(&self, title: &str, default_name: &str) -> Option<String> {
         save_file(title, default_name)
     }

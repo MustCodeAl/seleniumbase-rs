@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
 use std::path::Path;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use serde_json::Value;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
@@ -15,6 +15,7 @@ use crate::browser::launcher::{launch_chromedriver, DriverProcess};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
+use crate::utilities::retry::{poll_until, RetryPolicy};
 
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
@@ -227,18 +228,15 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
-        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-        loop {
-            if let Ok(element) = self.driver().find(locator.clone()).await {
-                return Ok(element);
-            }
-            if Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(
-                    "timed out waiting for element".to_owned(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until(
+            Duration::from_secs(timeout_secs),
+            RetryPolicy::webdriver(),
+            || async { self.driver().find(locator.clone()).await.ok() },
+        )
+        .await
+        .ok_or_else(|| {
+            SeleniumBaseError::AssertionFailed("timed out waiting for element".to_owned())
+        })
     }
 
     /// WebDriver interaction: `get_attribute`.
@@ -267,20 +265,22 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
-        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-        loop {
-            if let Ok(element) = self.driver().find(locator.clone()).await {
-                if element.is_displayed().await.unwrap_or(false) {
-                    return Ok(element);
+        poll_until(
+            Duration::from_secs(timeout_secs),
+            RetryPolicy::webdriver(),
+            || async {
+                match self.driver().find(locator.clone()).await {
+                    Ok(element) if element.is_displayed().await.unwrap_or(false) => Some(element),
+                    _ => None,
                 }
-            }
-            if Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(
-                    "timed out waiting for element to be visible".to_owned(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+            },
+        )
+        .await
+        .ok_or_else(|| {
+            SeleniumBaseError::AssertionFailed(
+                "timed out waiting for element to be visible".to_owned(),
+            )
+        })
     }
 
     /// Waits up to `timeout` seconds for `locator` to become clickable.
@@ -289,22 +289,27 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
-        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-        loop {
-            if let Ok(element) = self.driver().find(locator.clone()).await {
-                if element.is_displayed().await.unwrap_or(false)
-                    && element.is_enabled().await.unwrap_or(false)
-                {
-                    return Ok(element);
+        poll_until(
+            Duration::from_secs(timeout_secs),
+            RetryPolicy::webdriver(),
+            || async {
+                match self.driver().find(locator.clone()).await {
+                    Ok(element)
+                        if element.is_displayed().await.unwrap_or(false)
+                            && element.is_enabled().await.unwrap_or(false) =>
+                    {
+                        Some(element)
+                    }
+                    _ => None,
                 }
-            }
-            if Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(
-                    "timed out waiting for element to be clickable".to_owned(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+            },
+        )
+        .await
+        .ok_or_else(|| {
+            SeleniumBaseError::AssertionFailed(
+                "timed out waiting for element to be clickable".to_owned(),
+            )
+        })
     }
 
     /// WebDriver interaction: `execute_async_script`.
@@ -513,20 +518,23 @@ impl BrowserSession {
         locator: By,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-        loop {
-            match self.driver().find_all(locator.clone()).await {
-                Ok(elements) if elements.is_empty() => return Ok(()),
-                Err(_) => return Ok(()),
-                _ => {}
-            }
-            if Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(
-                    "timed out waiting for element to be absent".to_owned(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until(
+            Duration::from_secs(timeout_secs),
+            RetryPolicy::webdriver(),
+            || async {
+                match self.driver().find_all(locator.clone()).await {
+                    Ok(elements) if elements.is_empty() => Some(()),
+                    Err(_) => Some(()),
+                    _ => None,
+                }
+            },
+        )
+        .await
+        .ok_or_else(|| {
+            SeleniumBaseError::AssertionFailed(
+                "timed out waiting for element to be absent".to_owned(),
+            )
+        })
     }
 
     /// WebDriver interaction: `wait_for_text`.
@@ -536,21 +544,25 @@ impl BrowserSession {
         expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
-        loop {
-            if let Ok(element) = self.driver().find(locator.clone()).await {
-                let text = element.text().await?;
-                if text.contains(expected_substring) {
-                    return Ok(());
+        poll_until(
+            Duration::from_secs(timeout_secs),
+            RetryPolicy::webdriver(),
+            || async {
+                match self.driver().find(locator.clone()).await {
+                    Ok(element) => match element.text().await {
+                        Ok(text) if text.contains(expected_substring) => Some(()),
+                        _ => None,
+                    },
+                    Err(_) => None,
                 }
-            }
-            if Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "timed out waiting for text '{expected_substring}'"
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+            },
+        )
+        .await
+        .ok_or_else(|| {
+            SeleniumBaseError::AssertionFailed(format!(
+                "timed out waiting for text '{expected_substring}'"
+            ))
+        })
     }
 
     /// Executes arbitrary JavaScript and returns the result.

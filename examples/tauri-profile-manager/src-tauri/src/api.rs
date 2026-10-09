@@ -346,6 +346,7 @@ async fn profile_create(
         },
         cookies: vec![],
         external_profile: payload.external_profile,
+        fingerprint: payload.fingerprint,
     };
     state.profiles.lock().await.push(profile.clone());
     info!(profile_id = %profile.id, name = %profile.name, "created profile via api");
@@ -380,6 +381,19 @@ async fn profile_update(
     if let Some(v) = payload.get("container_url").and_then(|v| v.as_str()) {
         profiles[idx].container_url = v.to_owned();
     }
+    if let Some(v) = payload.get("browser").and_then(|v| v.as_str()) {
+        if let Ok(browser) = serde_json::from_value::<seleniumbase_rs::Browser>(json!(v)) {
+            profiles[idx].browser = browser;
+        }
+    }
+    if let Some(v) = payload.get("mode").and_then(|v| v.as_str()) {
+        if let Ok(mode) = serde_json::from_value::<seleniumbase_rs::DriverMode>(json!(v)) {
+            profiles[idx].mode = mode;
+        }
+    }
+    if let Some(v) = payload.get("folder_id").and_then(|v| v.as_str()) {
+        profiles[idx].folder_id = v.to_owned();
+    }
     if let Some(v) = payload.get("user_agent").and_then(|v| v.as_str()) {
         profiles[idx].user_agent = Some(v.to_owned());
     }
@@ -406,6 +420,18 @@ async fn profile_update(
             .iter()
             .filter_map(|x| x.as_str().map(String::from))
             .collect();
+    }
+    if let Some(v) = payload.get("fingerprint") {
+        if v.is_null() {
+            profiles[idx].fingerprint = None;
+        } else {
+            match serde_json::from_value::<seleniumbase_rs::Fingerprint>(v.clone()) {
+                Ok(fp) => profiles[idx].fingerprint = Some(fp),
+                Err(e) => {
+                    return err(400, format!("Invalid fingerprint payload: {e}"));
+                }
+            }
+        }
     }
     if payload.get("parameters").is_some() {
         match serde_json::from_value::<seleniumbase_rs::profile_payloads::ProfileParams>(
@@ -603,6 +629,7 @@ async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Valu
             },
             cookies: vec![],
             external_profile: Some(params),
+            fingerprint: None,
         }
     } else {
         return err(

@@ -6,7 +6,9 @@ pub mod cdp_driver;
 pub mod cdp_page;
 pub mod chart;
 pub mod deferred;
+#[cfg(feature = "gui")]
 pub mod dialog;
+#[cfg(feature = "gui")]
 pub mod gui;
 pub mod html;
 pub mod html_inspector;

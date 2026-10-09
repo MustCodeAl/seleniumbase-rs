@@ -8,6 +8,7 @@ pub mod logo_helper;
 pub mod rich_helper;
 pub mod sb_behave_gui;
 pub mod sb_caseplans;
+#[cfg(feature = "tui")]
 pub mod sb_commander;
 pub mod sb_mkchart;
 pub mod sb_mkpres;

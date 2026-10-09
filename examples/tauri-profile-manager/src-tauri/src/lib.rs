@@ -49,6 +49,7 @@ async fn create_profile(
         },
         cookies: vec![],
         external_profile: new.external_profile,
+        fingerprint: new.fingerprint,
     };
     {
         let mut profiles = state.profiles.lock().await;
