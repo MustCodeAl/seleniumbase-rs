@@ -237,6 +237,15 @@ impl Browser {
         &self.inner.ws_url
     }
 
+    /// Whether the proxy this browser was launched with needs credentials,
+    /// which the browser answers through `Fetch.authRequired`.
+    pub(super) fn proxy_has_credentials(&self) -> bool {
+        self.inner
+            .options
+            .proxy()
+            .is_some_and(super::launch::Proxy::has_credentials)
+    }
+
     /// Whether the connection to the browser is still open.
     ///
     /// Turns `false` once the browser exits or the connection drops.

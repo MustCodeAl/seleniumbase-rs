@@ -13,7 +13,8 @@ use std::thread;
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{
-    Browser, BrowserPool, Cookie, LaunchOptions, Page, PoolOptions, SelectBy, State,
+    Browser, BrowserPool, Cookie, LaunchOptions, Outcome, Page, PoolOptions, Response, Rule,
+    SelectBy, State,
 };
 use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
@@ -669,4 +670,129 @@ async fn pooled_workers_are_isolated_and_can_share_a_session_in_memory() {
     bob.release().await;
 
     pool.close().await;
+}
+
+/// A server with a page, an image, a JSON API and an endpoint that echoes the
+/// request it receives.
+fn serve_routes() -> String {
+    // A 1x1 PNG.
+    const PIXEL: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    const PAGE: &str = "<!doctype html><title>start</title><img id=pic src=/logo.png>\
+        <script>fetch('/api/data').then(r=>r.json()).then(j=>{document.title=JSON.stringify(j)});\
+        fetch('/echo').then(r=>r.text()).then(t=>{window.echoed=t})</script>";
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+    let address = listener.local_addr().expect("bound address");
+    thread::spawn(move || {
+        use base64::Engine as _;
+        let pixel = base64::engine::general_purpose::STANDARD
+            .decode(PIXEL)
+            .unwrap();
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buffer = [0_u8; 4096];
+            let read = stream.read(&mut buffer).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buffer[..read]).to_lowercase();
+            let path = request.split_whitespace().nth(1).unwrap_or("/").to_owned();
+            let (kind, body): (&str, Vec<u8>) = match path.as_str() {
+                "/logo.png" => ("image/png", pixel.clone()),
+                "/api/data" => ("application/json", br#"{"real":true}"#.to_vec()),
+                "/echo" => ("text/plain", request.clone().into_bytes()),
+                _ => ("text/html", PAGE.as_bytes().to_vec()),
+            };
+            let head = format!("HTTP/1.1 200 OK\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+            let _ = stream.write_all(head.as_bytes());
+            let _ = stream.write_all(&body);
+        }
+    });
+    format!("http://{address}")
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn interception_blocks_mocks_and_rewrites_real_requests_and_stops_cleanly() {
+    let base = serve_routes();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let page = browser
+        .default_page()
+        .await
+        .unwrap()
+        .with_timeout(Duration::from_secs(5));
+
+    let interception = page
+        .intercept(vec![
+            Rule::block().url("*/logo.png"),
+            Rule::fulfill(Response::json(200, &json!({ "mocked": true }))).url("*/api/data"),
+            Rule::modify().set_header("X-Probe", "yes").url("*/echo"),
+        ])
+        .await
+        .unwrap();
+    page.goto(format!("{base}/")).await.unwrap();
+    page.wait_for_function("document.title.startsWith('{')")
+        .await
+        .unwrap();
+    page.wait_for_function("window.echoed !== undefined")
+        .await
+        .unwrap();
+
+    // The API answer is the made-up one, the image never loaded, and the
+    // server saw the header we added.
+    assert_eq!(page.title().await.unwrap(), r#"{"mocked":true}"#);
+    let blocked: bool = page
+        .evaluate_as("document.getElementById('pic').complete && document.getElementById('pic').naturalWidth === 0")
+        .await
+        .unwrap();
+    assert!(blocked, "the blocked image must not have loaded");
+    let echoed: String = page.evaluate_as("window.echoed").await.unwrap();
+    assert!(echoed.contains("x-probe: yes"), "{echoed}");
+
+    let outcomes: Vec<(String, Outcome)> = interception
+        .log()
+        .into_iter()
+        .map(|seen| {
+            (
+                seen.request
+                    .url
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned(),
+                seen.outcome,
+            )
+        })
+        .collect();
+    assert!(
+        outcomes.contains(&("logo.png".to_owned(), Outcome::Blocked)),
+        "{outcomes:?}"
+    );
+    assert!(
+        outcomes.contains(&("data".to_owned(), Outcome::Fulfilled)),
+        "{outcomes:?}"
+    );
+    assert!(
+        outcomes.contains(&("echo".to_owned(), Outcome::Modified)),
+        "{outcomes:?}"
+    );
+
+    // Stopped: the real network answers again.
+    interception.stop().await.unwrap();
+    page.goto(format!("{base}/")).await.unwrap();
+    page.wait_for_function("document.title.startsWith('{')")
+        .await
+        .unwrap();
+    assert_eq!(page.title().await.unwrap(), r#"{"real":true}"#);
+    let loaded: bool = page
+        .evaluate_as("document.getElementById('pic').naturalWidth === 1")
+        .await
+        .unwrap();
+    assert!(loaded, "without interception the image loads");
+
+    browser.close().await.unwrap();
 }

@@ -139,6 +139,43 @@ differ. It is slower than `locator.click()` by design. `Behavior::builder()
 .seed(n)` makes the randomness reproducible. The planning is a pure module,
 `stealth::behavior`, usable on its own.
 
+## Intercepting requests
+
+`page.intercept(rules)` pauses every request the page makes and answers it by
+the first matching `Rule`: block it, serve a made-up response, or send it on
+with changes. Requests no rule matches are untouched, and other tabs are never
+affected.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Page, ResourceType, Response, Rule};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let interception = page
+    .intercept(vec![
+        Rule::block().resource_type(ResourceType::Image).resource_type(ResourceType::Font),
+        Rule::fulfill(Response::json(200, &serde_json::json!({ "plan": "pro" }))).url("*/api/account"),
+        Rule::modify().set_header("X-Test-Run", "42").url("https://example.com/*"),
+    ])
+    .await?;
+
+page.goto("https://example.com").await?;
+for seen in interception.log() {
+    println!("{:?} {}", seen.outcome, seen.request.url);
+}
+interception.stop().await?; // or just drop it
+# Ok(())
+# }
+```
+
+A rule can match on a URL glob (`*` any run of characters, `?` one character),
+an HTTP method, and a resource type; conditions combine with "and". `modify`
+rules can set or remove headers, change the URL or method, and replace the body.
+`interception.log()` lists the requests seen and how each was answered.
+
+`stealth::reactor::CdpReactor` is the older, browser-wide alternative: it adds
+headers to every request from every tab. Prefer `page.intercept` unless you
+want exactly that.
+
 ## Isolated contexts
 
 `browser.new_context()` opens a `BrowserContext`: tabs that share no cookies,

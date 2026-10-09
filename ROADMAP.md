@@ -147,10 +147,14 @@ step 2.
    storage sharing. Verified on real Chrome. Still to do: a `Fingerprint` per
    lease (item 4/5), and a per-lease proxy (item 3), both of which build on
    `BrowserContext`.
-3. **CDP request interception**: per-tab proxy routing via browser contexts,
-   typed intercept rules, WebRTC/mDNS leak shielding with a self-test. Verify
-   first whether `CdpReactor` intercepts page traffic at all: it enables
-   `Fetch` on the browser-level socket.
+3. **CDP request interception (partly done).**
+   - Done: `Page::intercept` with typed `Rule`s (block, fulfil, modify) and a
+     request log, verified on real Chrome. The existing `CdpReactor` was checked
+     and does work (it adds headers to every tab's requests); it is global and
+     header-only, so `Page::intercept` is the per-page replacement.
+   - To do: per-context proxy routing (`Target.createBrowserContext` takes a
+     proxy server; credentials need a per-session `Fetch.authRequired`
+     responder) and WebRTC/mDNS leak shielding with a self-test.
 4. **Hardware and profile randomisation**: WebGL, canvas, timezone and locale,
    as `Fingerprint::randomized(os, seed)` that always passes `validate()`.
 5. **Integration**: use `Fingerprint` and `EvasionRegistry` from

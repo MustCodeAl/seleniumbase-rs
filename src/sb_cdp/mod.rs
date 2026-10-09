@@ -64,6 +64,7 @@ mod context;
 mod expect;
 mod human;
 mod input;
+mod intercept;
 mod launch;
 mod locator;
 #[cfg(any(test, feature = "test-util"))]
@@ -89,6 +90,8 @@ pub use expect::{LocatorExpect, PageExpect};
 pub use human::Human;
 #[doc(inline)]
 pub use input::{Button, Key, Keyboard, Mouse};
+#[doc(inline)]
+pub use intercept::{Interception, Outcome, Request, ResourceType, Response, Rule, Seen};
 #[doc(inline)]
 pub use launch::{LaunchOptions, LaunchOptionsBuilder, Proxy};
 #[doc(inline)]
