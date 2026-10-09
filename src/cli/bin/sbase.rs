@@ -17,6 +17,9 @@ use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
 use seleniumbase_rs::cli::scripts::sb_mkfile::TestFile;
 use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
+use seleniumbase_rs::common::shutdown::{
+    drain_cleanups, run_until_shutdown, timeout_from_env, Outcome, Shutdown,
+};
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::config::proxy_list::ProxyList;
@@ -1104,7 +1107,25 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     init_tracing_from_runtime(&runtime);
 
     let args = Cli::parse();
+    // `record` stops itself on SIGINT or SIGTERM so that it can save what it
+    // captured. A signal cancels any other command, which closes its browser.
+    let outcome = if matches!(args.command, Commands::Record { .. }) {
+        Outcome::Completed(run(args).await)
+    } else {
+        run_until_shutdown(run(args)).await?
+    };
+    // Browsers dropped on the way out are closed in the background; wait.
+    drain_cleanups(timeout_from_env()).await;
+    match outcome {
+        Outcome::Completed(result) => result,
+        Outcome::Interrupted(signal) => {
+            eprintln!("{signal} received; stopped.");
+            std::process::exit(signal.exit_code());
+        }
+    }
+}
 
+async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
             let mut command = Cli::command();
@@ -2045,6 +2066,7 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
             output,
             duration,
         } => {
+            let mut shutdown = Shutdown::install()?;
             let mut sb = BaseCase::new(config).await?;
             let mut session = RecorderSession::new();
             session.goto(&mut sb, &navigable_url(&url)?).await?;
@@ -2057,8 +2079,8 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
             let deadline = duration.map(|secs| Instant::now() + Duration::from_secs(secs));
             loop {
                 tokio::select! {
-                    _ = tokio::signal::ctrl_c() => {
-                        println!("\nStopping recorder.");
+                    signal = shutdown.recv() => {
+                        println!("\n{signal} received; stopping recorder.");
                         break;
                     }
                     _ = tokio::time::sleep(Duration::from_millis(500)) => {}

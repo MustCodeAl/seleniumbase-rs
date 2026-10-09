@@ -768,16 +768,17 @@ impl Drop for BrowserSession {
         }
         let driver = self.driver.take();
         let process = self.driver_process.take();
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(async move {
-                if let Some(driver) = driver {
-                    let _ = driver.quit().await;
-                }
-                if let Some(mut process) = process {
-                    process.kill();
-                }
-            });
-        }
+        // `drop` cannot await, so the cleanup runs in the background. It is
+        // registered so a program that exits next can wait for it with
+        // `common::shutdown::drain_cleanups`.
+        crate::common::shutdown::spawn_cleanup(async move {
+            if let Some(driver) = driver {
+                let _ = driver.quit().await;
+            }
+            if let Some(mut process) = process {
+                process.kill();
+            }
+        });
     }
 }
 
