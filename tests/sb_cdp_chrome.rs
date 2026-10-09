@@ -45,8 +45,30 @@ const FIXTURE: &str = r##"<!doctype html>
   }, 600);
 </script></body></html>"##;
 
+/// A page of frames. `srcdoc` frames share the page's origin, so they can be
+/// entered; the third frame is served from another port, so it cannot.
+const FRAMES: &str = r##"<!doctype html>
+<html><head><title>Frames</title></head>
+<body>
+<h1 id="top">Top</h1>
+<iframe id="inner" style="margin:60px 0 0 40px;width:320px;height:120px"
+  srcdoc="<button id='inside' onclick='parent.document.title=&quot;clicked-inside:&quot;+event.isTrusted'>In</button> <input id='name'> <iframe id='deep' style='width:200px;height:60px'></iframe>"></iframe>
+<iframe id="foreign" src="OTHER_ORIGIN/" style="width:200px;height:60px"></iframe>
+<script>
+  // The innermost frame is filled in from script: three levels of attribute
+  // quoting in one string would not survive.
+  window.addEventListener('load', () => {
+    const deep = document.getElementById('inner').contentDocument.getElementById('deep');
+    deep.srcdoc = '<button id="bottom">Deep</button><script>' +
+      'document.getElementById("bottom").onclick = () => { top.document.title = "clicked-deep"; };' +
+      '<\/script>';
+  });
+</script>
+</body></html>"##;
+
 /// Serves the fixture, and a page that sets a cookie, on a loopback port.
 fn serve() -> String {
+    let other = serve_other_origin();
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
     let address = listener.local_addr().expect("bound address");
     thread::spawn(move || {
@@ -60,9 +82,34 @@ fn serve() -> String {
             } else {
                 ""
             };
+            let body = if request.starts_with("GET /frames") {
+                FRAMES.replace("OTHER_ORIGIN", &other)
+            } else {
+                FIXTURE.to_owned()
+            };
             let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n{cookie}Content-Length: {}\r\nConnection: close\r\n\r\n{FIXTURE}",
-                FIXTURE.len()
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n{cookie}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = stream.write_all(response.as_bytes());
+        }
+    });
+    format!("http://{address}")
+}
+
+/// A second origin (another port) whose page has a button the first cannot reach.
+fn serve_other_origin() -> String {
+    const BODY: &str = "<!doctype html><button id='secret'>Foreign</button>";
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+    let address = listener.local_addr().expect("bound address");
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buffer = [0_u8; 1024];
+            let _ = stream.read(&mut buffer);
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{BODY}",
+                BODY.len()
             );
             let _ = stream.write_all(response.as_bytes());
         }
@@ -419,5 +466,62 @@ async fn navigation_history_and_reload_work() {
     assert!(page.url().await.unwrap().ends_with("/cookie"));
     page.reload().await.unwrap();
     assert!(page.content().await.unwrap().contains("Welcome"));
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn locators_reach_into_same_origin_frames_and_clicks_land_through_the_frame_offset() {
+    let (browser, page, base) = open().await;
+    page.goto(format!("{base}/frames")).await.unwrap();
+
+    let inner = page.locator("#inner");
+    let button = inner.locator("#inside");
+    assert_eq!(button.text().await.unwrap(), "In");
+    assert!(button.is_visible().await.unwrap());
+
+    // A trusted click, delivered at the frame's offset, reaches the right button.
+    button.click().await.unwrap();
+    assert_eq!(page.title().await.unwrap(), "clicked-inside:true");
+
+    // Typing goes to the field inside the frame.
+    inner.locator("#name").fill("framed").await.unwrap();
+    let typed: String = page
+        .evaluate_as(
+            "document.getElementById('inner').contentDocument.getElementById('name').value",
+        )
+        .await
+        .unwrap();
+    assert_eq!(typed, "framed");
+
+    // XPath works inside a frame too.
+    assert_eq!(inner.locator("//button").count().await.unwrap(), 1);
+
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn frames_nest_and_a_cross_origin_frame_is_empty_rather_than_an_error() {
+    let (browser, page, base) = open().await;
+    page.goto(format!("{base}/frames")).await.unwrap();
+
+    // A frame inside a frame: both offsets are added.
+    page.locator("#inner")
+        .locator("#deep")
+        .locator("#bottom")
+        .click()
+        .await
+        .unwrap();
+    assert_eq!(page.title().await.unwrap(), "clicked-deep");
+
+    // The foreign frame cannot be entered, so nothing matches inside it.
+    let foreign = page.locator("#foreign").locator("#secret");
+    assert_eq!(foreign.count().await.unwrap(), 0);
+    assert!(!foreign.exists().await.unwrap());
+
+    // The frame element itself is still an ordinary element.
+    assert!(page.locator("#foreign").is_visible().await.unwrap());
+
     browser.close().await.unwrap();
 }

@@ -22,30 +22,43 @@
     // may legitimately lead out of it.
     const absolute = /^\s*\(*\s*\//.test(expression);
     const out = [];
-    const snapshot = document.evaluate(
+    const owner = scope.nodeType === 9 ? scope : scope.ownerDocument;
+    const snapshot = owner.evaluate(
       expression, scope, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
     for (let i = 0; i < snapshot.snapshotLength; i++) {
       const node = snapshot.snapshotItem(i);
       if (!node || node.nodeType !== 1) continue;
-      if (absolute && scope !== document && !scope.contains(node)) continue;
+      if (absolute && scope.nodeType !== 9 && !scope.contains(node)) continue;
       out.push(node);
     }
     return out;
   }
 
+  // Where to search for a step whose scope is `scope`. A frame is searched
+  // inside its own document, which lets `locator("#frame").locator("button")`
+  // reach into it. A cross-origin frame cannot be entered; it has no matches.
+  function rootOf(scope) {
+    if (scope.nodeType === 1 && (scope.tagName === "IFRAME" || scope.tagName === "FRAME")) {
+      try { return scope.contentDocument; } catch (e) { return null; }
+    }
+    return scope;
+  }
+
   function query(selector, scope) {
+    const root = rootOf(scope);
+    if (!root) return [];
     switch (selector.kind) {
       case "css":
-        return Array.from(scope.querySelectorAll(selector.value));
+        return Array.from(root.querySelectorAll(selector.value));
       case "xpath":
-        return xpath(selector.value, scope);
+        return xpath(selector.value, root);
       case "link_text": {
         const wanted = selector.value.trim();
-        return Array.from(scope.querySelectorAll("a"))
+        return Array.from(root.querySelectorAll("a"))
           .filter((a) => (a.textContent || "").trim() === wanted);
       }
       case "partial_link_text":
-        return Array.from(scope.querySelectorAll("a"))
+        return Array.from(root.querySelectorAll("a"))
           .filter((a) => (a.textContent || "").includes(selector.value));
       default:
         throw new Error("sbcdp:bad-selector:" + selector.kind);
@@ -54,7 +67,9 @@
 
   function visible(el) {
     if (!el || !el.isConnected) return false;
-    const style = getComputedStyle(el);
+    const view = el.ownerDocument.defaultView;
+    if (!view) return false;
+    const style = view.getComputedStyle(el);
     if (style.display === "none") return false;
     if (style.visibility === "hidden" || style.visibility === "collapse") return false;
     if (parseFloat(style.opacity) === 0) return false;
@@ -120,10 +135,23 @@
     if (r.width === 0 && r.height === 0) {
       throw new Error("sbcdp:not-interactable:the element has no size");
     }
-    const x = r.left + r.width / 2;
-    const y = r.top + r.height / 2;
-    const top = document.elementFromPoint(x, y);
-    return { x, y, covered: !!top && top !== el && !el.contains(top) };
+    const localX = r.left + r.width / 2;
+    const localY = r.top + r.height / 2;
+    const top = el.ownerDocument.elementFromPoint(localX, localY);
+    const covered = !!top && top !== el && !el.contains(top);
+    // Mouse events use top-level viewport coordinates, so add the offset of
+    // every frame the element sits in.
+    let x = localX;
+    let y = localY;
+    let view = el.ownerDocument.defaultView;
+    while (view && view.frameElement) {
+      const frame = view.frameElement;
+      const f = frame.getBoundingClientRect();
+      x += f.left + frame.clientLeft;
+      y += f.top + frame.clientTop;
+      view = view.parent;
+    }
+    return { x, y, covered };
   }
 
   // Sets a value through the native setter, so controlled inputs in React and

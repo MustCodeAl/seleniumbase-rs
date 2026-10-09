@@ -24,10 +24,11 @@ Design rules that apply to everything below:
 | Area | State |
 | --- | --- |
 | Dependencies | All direct crates at their latest releases; no git sources. |
-| Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving. Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
+| Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | 24 tools, mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
 | MCP `driver` / `sb` servers | 26 and 88 tools plus 8 stealth tools; catalogue and offline behaviour tested (`tests/mcp_webdriver.rs`). |
 | `seleniumbase-mcp` binary | `--server cdp\|driver\|sb`, default `sb`. |
+| `sbase` CLI | `encrypt` and `decrypt` (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`). |
 | BaseCase | `nested_click`, `solve_captcha`, `fast_type`, `js_click_if_visible`, `get_gui_element_rect/center`, `jq_format`, `post_message`, `save_as_html_to_logs`, `save_teardown_screenshot`, `switch_to_default_driver`, `wait_for_angularjs`, `get_saved_cookies`. |
 
 ## 1. Finish the parity upgrade (next)
@@ -56,18 +57,13 @@ Design rules that apply to everything below:
    `get_google_auth_password` (composed: `get_mfa_code`), `type` (canonical:
    `type_text`), `setUp`/`tearDown`/`setUpClass`/`tearDownClass`/`main`/`run`/
    `skip`/`has_exception` (unittest harness).
-5. **`sbase` CLI gaps.** Missing: `methods`, `options`, `behave-options`,
-   `encrypt`/`decrypt`/`obfuscate`/`unobfuscate` (reversible obfuscation, not
-   security), `get`, `translate`, `convert`, `codegen`, `recorder`, `gui`,
-   `proxy`, `download server`, `grid-hub`, `grid-node`, `extract-objects`,
-   `inject-objects`, `revert-objects`. Implement the deterministic ones first.
+5. **`sbase` CLI gaps.** Still planned: `translate` (hook up `utils::translate`),
+   `grid-hub` and `grid-node` (launch Selenium Grid). The rest are mapped onto
+   existing commands or marked not applicable in `parity/api.toml`.
 6. **pytest-style options and settings.** Compare the Python `--option` list
    and `SB()`/`Driver()` kwargs with `BrowserConfig`/`RuntimeConfig`; add the
    missing ones.
-7. **Pure CDP: iframes.** `src/sb_cdp/helper.js` resolves selectors in the main
-   document only. Resolve through same-origin `iframe.contentDocument`, and add
-   the frame offsets to `center()`. Test with `srcdoc` iframes on real Chrome.
-8. **Pure CDP: verify the compositions.** Every `sb.cdp.*` method now has a
+7. **Pure CDP: verify the compositions.** Every `sb.cdp.*` method now has a
    mapping in `parity/api.toml`, checked to exist. Check that each composition
    behaves like the Python method (waits, visibility rules), with real-Chrome
    tests for the ones that matter.
