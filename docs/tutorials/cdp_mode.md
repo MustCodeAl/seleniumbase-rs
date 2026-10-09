@@ -68,6 +68,33 @@ useful when you send raw commands directly.
 | `clear_browser_cache()` | Clear the HTTP cache via CDP. |
 | `clear_browser_cookies()` | Clear cookies via CDP. |
 | `get_cookies()` | Return cookies as JSON via CDP. |
+| `cdp_fast_type(selector, text)` | Clear the field and insert text in one operation. |
+| `cdp_wait_for_element_present(selector, timeout)` | Poll until the element exists in the DOM. |
+| `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |
+
+### Typing: realistic or fast
+
+`cdp_type` sends one key event per character, which is what pages watching for
+genuine keyboard input expect. `cdp_fast_type` clears the field and inserts the
+whole string in a single operation: much quicker, but it emits no per-character
+key events, so it is the wrong choice when you are trying not to stand out.
+
+```rust,no_run
+# use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
+# use std::time::Duration;
+# async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
+// Wait for the field, then type it the way a person would.
+sb.cdp_wait_for_element_present("#search", Duration::from_secs(10)).await?;
+sb.cdp_type("#search", "seleniumbase").await?;
+
+// Or fill it as fast as possible when stealth does not matter.
+sb.cdp_fast_type("#notes", "a long block of text").await?;
+
+// Dropdowns can be chosen by text, value, or index.
+sb.cdp_select_option_by_index("#country", 2).await?;
+# Ok(())
+# }
+```
 
 ## Raw CDP commands
 

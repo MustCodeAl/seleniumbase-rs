@@ -941,6 +941,7 @@ impl ProfileParams {
             extra_args: Vec::new(),
             fingerprint: Some(self.to_fingerprint()),
             browser_binary_path: None,
+            remote_webdriver_timeout_seconds: None,
         };
 
         for extra in self.extra_args() {

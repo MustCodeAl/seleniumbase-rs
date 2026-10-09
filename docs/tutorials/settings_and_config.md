@@ -103,6 +103,7 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 | `SB_REUSE_SESSION` | `reuse_session` |
 | `SB_MOBILE` | `mobile` |
 | `SB_THREADS` | `threads` |
+| `SB_REMOTE_WEBDRIVER_TIMEOUT` | `remote_webdriver_timeout_seconds` |
 
 Boolean values accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.
 
@@ -131,6 +132,30 @@ library behavior:
 | `SB_SHUTDOWN_TIMEOUT_SECS` | `30` | Graceful shutdown timeout. |
 | `SB_CHROMEDRIVER_PORT` | `0` | Port for auto-started chromedriver (`0` = ephemeral). |
 | `SB_IMPLICIT_WAIT_SECS` | `30` | Default implicit wait timeout. |
+| `SB_REMOTE_WEBDRIVER_TIMEOUT` | unset | Client-side timeout, in seconds, for each HTTP request sent to a Remote WebDriver server. |
+
+## Remote WebDriver timeout
+
+When tests run against a Selenium Grid, a node that dies mid-session can leave a
+command waiting forever, because the WebDriver client has no reason to give up
+on a connection that never closes. `remote_webdriver_timeout_seconds` (or the
+`SB_REMOTE_WEBDRIVER_TIMEOUT` variable) puts a client-side limit on each HTTP
+request sent to the server.
+
+It is unset by default, matching SeleniumBase's `REMOTE_WEBDRIVER_TIMEOUT`, so
+the client keeps its own default until you opt in. If you set it, make it
+larger than your page-load timeout and larger than the longest a new-session
+request may wait in the grid's queue. A value below either one cuts off
+sessions that were healthy.
+
+```toml
+# sbase_config.toml
+remote_webdriver_timeout_seconds = 600
+```
+
+```bash
+export SB_REMOTE_WEBDRIVER_TIMEOUT=600
+```
 
 ## BrowserConfig in code
 

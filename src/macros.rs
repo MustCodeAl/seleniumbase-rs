@@ -13,7 +13,7 @@
 /// use seleniumbase_rs::{selector, Selector};
 ///
 /// let s = selector!(css, "#login");
-/// assert_eq!(s, Selector::Css("#login"));
+/// assert_eq!(s, Selector::auto("#login"));
 ///
 /// let s = selector!(xpath, "//button[text()='Go']");
 /// let s = selector!(link, "Click here");
@@ -23,7 +23,7 @@
 #[macro_export]
 macro_rules! selector {
     (css, $value:expr) => {
-        $crate::Selector::Css($value)
+        $crate::Selector::auto($value)
     };
     (xpath, $value:expr) => {
         $crate::Selector::XPath($value)
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn selector_macro_css() {
-        assert_eq!(selector!(css, "#id"), Selector::Css("#id"));
+        assert_eq!(selector!(css, "#id"), Selector::auto("#id"));
     }
 
     #[test]

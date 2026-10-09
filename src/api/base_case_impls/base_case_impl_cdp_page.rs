@@ -31,6 +31,35 @@ impl BaseCase {
         CdpPage::new(&self.session).type_text(selector, text).await
     }
 
+    /// Focuses the element matching `selector`, clears it, and inserts `text`
+    /// in one operation.
+    ///
+    /// Faster than [`cdp_type`][Self::cdp_type], but it emits no per-character
+    /// key events, so it is the wrong choice under stealth.
+    pub async fn cdp_fast_type(
+        &mut self,
+        selector: &str,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        CdpPage::new(&self.session).fast_type(selector, text).await
+    }
+
+    /// Waits up to `timeout` for an element matching `selector` to be present
+    /// in the DOM.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the element is still absent when `timeout` expires.
+    pub async fn cdp_wait_for_element_present(
+        &self,
+        selector: &str,
+        timeout: Duration,
+    ) -> Result<CdpNode, SeleniumBaseError> {
+        CdpPage::new(&self.session)
+            .wait_for_element_present(selector, timeout)
+            .await
+    }
+
     /// Returns the visible text of the first element matching `selector`.
     pub async fn cdp_get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         CdpPage::new(&self.session).get_text(selector).await
@@ -111,6 +140,18 @@ impl BaseCase {
     }
 
     /// Captures a PNG screenshot via CDP and writes it to `path`.
+    /// Selects the `<option>` at `index` (zero-based) inside the `<select>`
+    /// matching `selector`.
+    pub async fn cdp_select_option_by_index(
+        &mut self,
+        selector: &str,
+        index: usize,
+    ) -> Result<(), SeleniumBaseError> {
+        CdpPage::new(&self.session)
+            .select_option_by_index(selector, index)
+            .await
+    }
+
     pub async fn cdp_screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError> {
         CdpPage::new(&self.session).screenshot(path).await
     }

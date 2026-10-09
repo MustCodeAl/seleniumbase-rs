@@ -6,12 +6,16 @@
 //! events, screenshots, and JavaScript evaluation.
 
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use base64::prelude::*;
 use serde_json::{json, Value};
 
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
+
+/// How often [`CdpPage::wait_for_element_present`] re-queries the DOM.
+const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 /// A node returned by CDP DOM queries.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -108,6 +112,32 @@ impl<'a> CdpPage<'a> {
             .collect())
     }
 
+    /// Waits until an element matching `selector` is present in the DOM.
+    ///
+    /// Polls `DOM.querySelector` until the element appears or `timeout`
+    /// elapses, mirroring SeleniumBase's CDP-mode `wait_for_element_present()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::element_not_found`] if the element is
+    /// still absent when `timeout` expires.
+    pub async fn wait_for_element_present(
+        &self,
+        selector: &str,
+        timeout: Duration,
+    ) -> Result<CdpNode, SeleniumBaseError> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            if let Ok(node) = self.find_element(selector).await {
+                return Ok(node);
+            }
+            if Instant::now() >= deadline {
+                return Err(SeleniumBaseError::element_not_found(selector));
+            }
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+    }
+
     /// Clicks the center of the element matching `selector`.
     ///
     /// Uses `DOM.getBoxModel` to compute the element center and dispatches
@@ -132,19 +162,79 @@ impl<'a> CdpPage<'a> {
         Ok(())
     }
 
-    /// Focuses the element, clears its value, and inserts `text`.
+    /// Focuses the element, clears its value, and types `text` one key at a
+    /// time.
+    ///
+    /// Each character is delivered as its own `Input.dispatchKeyEvent`, which
+    /// produces the trusted key events that pages listening for real keyboard
+    /// input expect. Use [`fast_type`][Self::fast_type] when throughput
+    /// matters more than realism.
     pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.focus_and_clear(selector).await?;
+        for ch in text.chars() {
+            if ch == '\n' || ch == '\r' {
+                self.press_enter().await?;
+                continue;
+            }
+            self.execute(
+                "Input.dispatchKeyEvent",
+                json!({"type": "char", "text": ch.to_string()}),
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Focuses the element, clears its value, and inserts `text` in a single
+    /// operation.
+    ///
+    /// This mirrors SeleniumBase's CDP-mode `fast_type()`: it is the quickest
+    /// way to fill a field, but it does not emit per-character key events, so
+    /// pages that watch for realistic typing can tell the difference. Prefer
+    /// [`type_text`][Self::type_text] when running in a stealth context.
+    pub async fn fast_type(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.focus_and_clear(selector).await?;
+        let (body, trailing_newline) = match text.strip_suffix('\n') {
+            Some(stripped) => (stripped, true),
+            None => (text, false),
+        };
+        if !body.is_empty() {
+            self.execute("Input.insertText", json!({"text": body}))
+                .await?;
+        }
+        if trailing_newline {
+            self.press_enter().await?;
+        }
+        Ok(())
+    }
+
+    /// Focuses the element matching `selector` and empties its value.
+    async fn focus_and_clear(&self, selector: &str) -> Result<(), SeleniumBaseError> {
         let node = self.find_element(selector).await?;
         self.execute("DOM.focus", json!({"nodeId": node.node_id}))
             .await
             .ok();
+        let script = single_element_script(selector, "el ? (el.value = '', true) : false");
+        self.evaluate(&script).await.ok();
+        Ok(())
+    }
 
-        let escaped = selector.replace('\\', "\\\\").replace('\'', "\\'");
-        let clear_script = format!("document.querySelector('{escaped}').value = '';");
-        self.evaluate(&clear_script).await.ok();
-
-        self.execute("Input.insertText", json!({"text": text}))
+    /// Dispatches a single Enter keypress to the focused element.
+    async fn press_enter(&self) -> Result<(), SeleniumBaseError> {
+        for event_type in ["keyDown", "keyUp"] {
+            self.execute(
+                "Input.dispatchKeyEvent",
+                json!({
+                    "type": event_type,
+                    "key": "Enter",
+                    "code": "Enter",
+                    "text": "\r",
+                    "windowsVirtualKeyCode": 13,
+                    "nativeVirtualKeyCode": 13,
+                }),
+            )
             .await?;
+        }
         Ok(())
     }
 
@@ -290,6 +380,37 @@ impl<'a> CdpPage<'a> {
         if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
             return Err(SeleniumBaseError::InvalidSelector(format!(
                 "Failed to set value '{value}' on {selector}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Selects the `<option>` at `index` (zero-based) inside `<select>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] when the dropdown is
+    /// missing or has no option at `index`.
+    pub async fn select_option_by_index(
+        &self,
+        selector: &str,
+        index: usize,
+    ) -> Result<(), SeleniumBaseError> {
+        let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
+        let script = format!(
+            "(function() {{ \
+             var s = document.querySelector('{escaped_selector}'); \
+             if (!s) return false; \
+             if ({index} >= s.options.length) return false; \
+             s.selectedIndex = {index}; \
+             s.dispatchEvent(new Event('change', {{bubbles: true}})); \
+             return true; \
+             }})()"
+        );
+        let result = self.evaluate(&script).await?;
+        if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
+            return Err(SeleniumBaseError::InvalidSelector(format!(
+                "Option at index {index} not found in {selector}"
             )));
         }
         Ok(())

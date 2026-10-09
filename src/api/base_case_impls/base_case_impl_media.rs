@@ -25,7 +25,7 @@ impl BaseCase {
     ) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = dir.join(filename);
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let element = self.session.driver().find(by).await?;
         element.screenshot(&path).await.map_err(SeleniumBaseError::WebDriver)?;
         Ok(path)

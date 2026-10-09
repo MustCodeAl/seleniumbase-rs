@@ -806,24 +806,40 @@ fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError
     Ok(())
 }
 
+/// Opens a WebDriver session, honoring
+/// [`BrowserConfig::remote_webdriver_timeout_seconds`] when it is set.
+async fn connect_with_caps(
+    config: &BrowserConfig,
+    url: &str,
+    caps: impl Into<thirtyfour::Capabilities>,
+) -> Result<WebDriver, SeleniumBaseError> {
+    match config.remote_webdriver_timeout_seconds {
+        Some(seconds) => Ok(WebDriver::builder(url, caps)
+            .request_timeout(Duration::from_secs(seconds))
+            .connect()
+            .await?),
+        None => Ok(WebDriver::new(url, caps).await?),
+    }
+}
+
 async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, SeleniumBaseError> {
     match config.browser {
         Browser::Chrome | Browser::Chromium => {
             let mut caps = DesiredCapabilities::chrome();
             apply_chromium_capabilities(&mut caps, config)?;
-            Ok(WebDriver::new(url, caps).await?)
+            connect_with_caps(config, url, caps).await
         }
         Browser::Edge => {
             let mut caps = DesiredCapabilities::edge();
             apply_chromium_capabilities(&mut caps, config)?;
-            Ok(WebDriver::new(url, caps).await?)
+            connect_with_caps(config, url, caps).await
         }
         Browser::Firefox => {
             let mut caps = DesiredCapabilities::firefox();
             if config.headless {
                 caps.add_arg("-headless")?;
             }
-            Ok(WebDriver::new(url, caps).await?)
+            connect_with_caps(config, url, caps).await
         }
     }
 }

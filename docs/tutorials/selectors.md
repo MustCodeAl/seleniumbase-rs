@@ -18,13 +18,34 @@ things you can do for test maintainability.
 |--------|---------|---------|
 | `#` | ID | `#username` |
 | `.` | Class (first match) | `.btn-primary` |
-| `//` | XPath | `//div[@class='hero']` |
-| `link=` | Exact link text | `link=Log in` |
-| `partial link=` | Partial link text | `partial link=Privacy` |
+| `/`, `//`, `./`, `(` | XPath | `//div[@class='hero']` |
+| an XPath axis | XPath | `parent::div`, `following-sibling::td` |
+| `link=`, `link_text=`, `text=` | Exact link text | `link=Log in` |
+| `partial_link=`, `partial_link_text=`, `partial_text=` | Partial link text | `partial_text=Privacy` |
+| `p_link=`, `p_link_text=`, `p_text=` | Partial link text (short forms) | `p_text=Privacy` |
 | (none) | CSS selector | `input[name='email']` |
 
 Most `BaseCase` methods accept these strings directly. The library inspects the
-prefix to decide which `By` variant to use.
+selector to decide which `By` variant to use, so the same method takes CSS,
+XPath, or a prefixed link-text selector without you having to say which it is.
+
+Any of the thirteen XPath axes may lead an expression, so `parent::div` and
+`ancestor-or-self::form` are recognized as XPath. CSS pseudo-elements are not
+confused with them, because a pseudo-element never begins with an axis name:
+`div::before` and `::after` stay CSS.
+
+If you need to force a particular strategy, construct the `Selector` variant
+yourself instead of relying on detection:
+
+```rust
+use seleniumbase_rs::Selector;
+
+// Detected automatically.
+let by = Selector::auto_by("parent::div")?;
+
+// Or stated explicitly.
+let by = Selector::Css("div").to_by()?;
+```
 
 ## Examples
 

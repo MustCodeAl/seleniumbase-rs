@@ -240,7 +240,7 @@ impl BaseCase {
 
     /// Returns `true` if `css` is visible on the page.
     pub async fn is_element_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
             Err(_) => Ok(false),
@@ -249,7 +249,7 @@ impl BaseCase {
 
     /// Returns `true` if `text` is visible inside the element selected by `css`.
     pub async fn is_text_visible(&self, text: &str, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => {
                 if !elem.is_displayed().await.unwrap_or(false) {
@@ -269,7 +269,7 @@ impl BaseCase {
         timeout: u64,
     ) -> Result<(), SeleniumBaseError> {
         self.record("wait_for_element_not_visible", Some(css), None);
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let start = std::time::Instant::now();
         let timeout_dur = Duration::from_secs(self.effective_timeout(timeout));
         loop {
@@ -358,6 +358,23 @@ impl BaseCase {
         self.open_new_window().await // Essentially the same in modern browsers
     }
 
+    /// Opens a new tab, switches to it, and navigates to `url`.
+    ///
+    /// This is the SeleniumBase `open_new_tab(url)` form. As with
+    /// [`open`][Self::open], a URL without a scheme is opened over HTTPS.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the tab cannot be opened, or if `url` is empty or
+    /// cannot be made into a valid URL.
+    pub async fn open_new_tab_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        let url = crate::utils::urls::normalize_page_url(url)?;
+        self.record("open_new_tab", Some(&url), None);
+        self.open_new_tab().await?;
+        self.switch_to_newest_window().await?;
+        self.session.goto(&url).await
+    }
+
     /// Executes the `switch_to_default_window` action.
     pub async fn switch_to_default_window(&mut self) -> Result<(), SeleniumBaseError> {
         let handles = self.session.driver().windows().await?;
@@ -416,7 +433,7 @@ impl BaseCase {
         css: &str,
         timeout: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let start = std::time::Instant::now();
         let timeout_dur = Duration::from_secs(self.effective_timeout(timeout));
         loop {
@@ -434,10 +451,19 @@ impl BaseCase {
     }
 
     #[instrument(skip(self))]
+    /// Navigates to `url`.
+    ///
+    /// A URL without a scheme is opened over HTTPS, so `"seleniumbase.io"` and
+    /// `"https://seleniumbase.io"` are equivalent.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `url` is empty or cannot be made into a valid URL.
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        let url = crate::utils::urls::normalize_page_url(url)?;
         info!(%url, "opening url");
-        self.record("open", Some(url), None);
-        self.session.goto(url).await
+        self.record("open", Some(&url), None);
+        self.session.goto(&url).await
     }
 
     /// Executes the `refresh` action.
@@ -459,7 +485,7 @@ impl BaseCase {
     #[instrument(skip(self))]
     pub async fn click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         debug!(%css, "clicking element");
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("click", Some(css), None);
         self.session.click(by).await
     }
@@ -468,14 +494,14 @@ impl BaseCase {
     #[instrument(skip(self, text))]
     pub async fn type_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         debug!(%css, text_len = text.len(), "typing text");
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("type_text", Some(css), Some(text));
         self.session.type_text(by, text).await
     }
 
     /// Clears the value of the element selected by `css`.
     pub async fn clear(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("clear", Some(css), None);
         self.session.clear(by).await
     }
@@ -489,20 +515,20 @@ impl BaseCase {
 
     /// Submits the form containing the element selected by `css`.
     pub async fn submit(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("submit", Some(css), None);
         self.session.submit(by).await
     }
 
     /// Returns the visible text of the element `css`.
     pub async fn get_text(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.text(by).await
     }
 
     /// Hovers over the element selected by `css`.
     pub async fn hover(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("hover", Some(css), None);
         self.session.hover(by).await
     }
@@ -524,7 +550,7 @@ impl BaseCase {
         css: &str,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("select_option_by_text", Some(css), Some(text));
         self.session.select_option_by_text(by, text).await
     }
@@ -535,14 +561,14 @@ impl BaseCase {
         css: &str,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("select_option_by_value", Some(css), Some(value));
         self.session.select_option_by_value(by, value).await
     }
 
     /// Switches context into the frame selected by `css`.
     pub async fn switch_to_frame(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("switch_to_frame", Some(css), None);
         self.session.switch_to_frame(by).await
     }
@@ -559,15 +585,15 @@ impl BaseCase {
         source_css: &str,
         target_css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let source_by = Selector::Css(source_css).to_by()?;
-        let target_by = Selector::Css(target_css).to_by()?;
+        let source_by = Selector::auto(source_css).to_by()?;
+        let target_by = Selector::auto(target_css).to_by()?;
         self.record("drag_and_drop", Some(source_css), Some(target_css));
         self.session.drag_and_drop(source_by, target_by).await
     }
 
     /// Returns `true` if `css` exists in the DOM.
     pub async fn is_element_present(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.element_present(by).await
     }
 
@@ -674,7 +700,7 @@ impl BaseCase {
     /// Finds `css` and dispatches a CDP mouse click at its center.
     pub async fn cdp_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("cdp_click_element", Some(css), None);
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let element = self.session.find(by).await?;
         let rect = element.rect().await?;
         let center_x = rect.x + (rect.width / 2.0);
@@ -713,7 +739,7 @@ impl BaseCase {
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.wait_for_element(by, timeout_secs).await?;
         Ok(())
     }
@@ -724,7 +750,7 @@ impl BaseCase {
         css: &str,
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.get_attribute(by, attribute_name).await
     }
 
@@ -734,7 +760,7 @@ impl BaseCase {
         css: &str,
         property_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.get_property(by, property_name).await
     }
 
@@ -744,7 +770,7 @@ impl BaseCase {
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("wait_for_element_visible", Some(css), None);
         self.session
             .wait_for_element_visible(by, timeout_secs)
@@ -770,7 +796,7 @@ impl BaseCase {
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("wait_for_element_absent", Some(css), None);
         self.session.wait_for_element_absent(by, timeout_secs).await
     }
@@ -782,7 +808,7 @@ impl BaseCase {
         expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session
             .wait_for_text(by, expected_substring, timeout_secs)
             .await
@@ -806,7 +832,7 @@ impl BaseCase {
         expected: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.record("assert_text", Some(css), Some(expected));
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let text = self.session.text(by).await?;
         if text.contains(expected) {
             return Ok(());
@@ -1009,33 +1035,33 @@ impl BaseCase {
 
     /// Double-clicks the element selected by `css`.
     pub async fn double_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("double_click", Some(css), None);
         self.session.double_click(by).await
     }
 
     /// Right-clicks the element selected by `css`.
     pub async fn context_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("context_click", Some(css), None);
         self.session.context_click(by).await
     }
 
     /// Executes the `is_enabled` action.
     pub async fn is_enabled(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.is_enabled(by).await
     }
 
     /// Executes the `is_selected` action.
     pub async fn is_selected(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.is_selected(by).await
     }
 
     /// Executes the `is_displayed` action.
     pub async fn is_displayed(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.is_displayed(by).await
     }
 
@@ -1153,7 +1179,7 @@ impl BaseCase {
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         self.record("wait_for_element_clickable", Some(css), None);
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session
             .wait_for_element_clickable(by, timeout_secs)
             .await?;
@@ -1166,7 +1192,7 @@ impl BaseCase {
         css: &str,
     ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
         self.record("get_shadow_root", Some(css), None);
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let element = self.session.wait_for_element(by, 10).await?;
         element
             .get_shadow_root()
@@ -1252,7 +1278,7 @@ impl BaseCase {
         file_path: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.record("choose_file", Some(css), Some(file_path));
-        let by = thirtyfour::By::Css(css);
+        let by = Selector::auto_by(css)?;
         let element = self.session.wait_for_element(by, 10).await?;
 
         let path = std::path::Path::new(file_path);
@@ -1285,7 +1311,7 @@ impl BaseCase {
         css: &str,
     ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
         self.record("find_element", Some(css), None);
-        let by = thirtyfour::By::Css(css);
+        let by = Selector::auto_by(css)?;
         self.session.wait_for_element(by, 10).await
     }
 
@@ -1295,14 +1321,14 @@ impl BaseCase {
         css: &str,
     ) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
         self.record("find_elements", Some(css), None);
-        let by = thirtyfour::By::Css(css);
+        let by = Selector::auto_by(css)?;
         self.session.find_elements(by).await
     }
 
     /// Executes the `slow_click` action.
     pub async fn slow_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("slow_click", Some(css), None);
-        let by = thirtyfour::By::Css(css);
+        let by = Selector::auto_by(css)?;
         let element = self.session.wait_for_element_clickable(by, 10).await?;
         self.hover(css).await?;
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -1328,7 +1354,7 @@ impl BaseCase {
 
     /// Appends `text` to the element selected by `css`.
     pub async fn add_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("add_text", Some(css), Some(text));
         let elem = self.session.driver().find(by).await?;
         elem.send_keys(text).await?;
@@ -1347,7 +1373,7 @@ impl BaseCase {
 
     /// Executes the `click_visible_elements` action.
     pub async fn click_visible_elements(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let elems = self.session.driver().find_all(by).await?;
         for elem in elems {
             if elem.is_displayed().await.unwrap_or(false) {
@@ -1440,7 +1466,7 @@ impl BaseCase {
 
     /// Executes the `human_type` action, typing character by character with random delays.
     pub async fn human_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("human_type", Some(css), Some(text));
         let elem = self.session.driver().find(by).await?;
         elem.click().await?; // Focus the field
@@ -1456,7 +1482,7 @@ impl BaseCase {
 
     /// Executes the `human_click` action, adding a random pre-click delay.
     pub async fn human_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.record("human_click", Some(css), None);
         let elem = self.session.driver().find(by).await?;
 
@@ -1717,7 +1743,7 @@ impl BaseCase {
     /// Alias for `type_text` that clears the field first.
     pub async fn update_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("update_text", Some(css), Some(text));
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.type_text(by, text).await
     }
 
@@ -1938,7 +1964,7 @@ impl BaseCase {
         &mut self,
         css: &str,
     ) -> Result<Vec<String>, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let element = self.session.wait_for_element(by, 10).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         let mut options = Vec::new();
@@ -2026,7 +2052,7 @@ impl BaseCase {
 
     /// Return whether the element is clickable (visible and enabled).
     pub async fn is_element_clickable(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
                 && elem.is_enabled().await.unwrap_or(false)),
@@ -2036,7 +2062,7 @@ impl BaseCase {
 
     /// Return whether the element is enabled.
     pub async fn is_element_enabled(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.is_enabled(by).await
     }
 
@@ -2052,7 +2078,7 @@ impl BaseCase {
         text: &str,
         css: &str,
     ) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
                 && elem.text().await.unwrap_or_default() == text),
@@ -2062,7 +2088,7 @@ impl BaseCase {
 
     /// Return whether the element has any non-empty visible text.
     pub async fn is_non_empty_text_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => {
                 let text = elem.text().await.unwrap_or_default();
@@ -2127,7 +2153,7 @@ impl BaseCase {
 
     /// Return the inner text of the element.
     pub async fn get_text_content(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let elem = self.session.driver().find(by).await?;
         Ok(elem.text().await.unwrap_or_default())
     }

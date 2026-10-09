@@ -32,6 +32,14 @@ pub struct RuntimeConfig {
     pub chromedriver_port: u16,
     /// Default implicit wait timeout for element queries. Defaults to 30 s.
     pub implicit_wait: Duration,
+    /// Client-side timeout for each HTTP request sent to a Remote WebDriver
+    /// server such as a Selenium Grid.
+    ///
+    /// `None` (the default) leaves the WebDriver client's own timeout in
+    /// place. Set it higher than the page-load timeout and higher than the
+    /// time a new-session request may wait in the grid's queue; its purpose is
+    /// to stop a command blocking forever when a grid node dies mid-session.
+    pub remote_webdriver_timeout: Option<Duration>,
 }
 
 /// Supported log output formats.
@@ -55,6 +63,7 @@ impl Default for RuntimeConfig {
             shutdown_timeout: Duration::from_secs(30),
             chromedriver_port: 0,
             implicit_wait: Duration::from_secs(30),
+            remote_webdriver_timeout: None,
         }
     }
 }
@@ -87,6 +96,12 @@ impl RuntimeConfig {
         }
         if let Ok(v) = std::env::var("SB_IMPLICIT_WAIT_SECS") {
             cfg.implicit_wait = Duration::from_secs(parse_u64(&v, "SB_IMPLICIT_WAIT_SECS")?);
+        }
+        if let Ok(v) = std::env::var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
+            cfg.remote_webdriver_timeout = Some(Duration::from_secs(parse_u64(
+                &v,
+                "SB_REMOTE_WEBDRIVER_TIMEOUT",
+            )?));
         }
 
         Ok(cfg)

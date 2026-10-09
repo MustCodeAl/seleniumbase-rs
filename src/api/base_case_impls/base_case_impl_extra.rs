@@ -447,7 +447,7 @@ impl BaseCase {
         &mut self,
         css: &str,
     ) -> Result<Vec<WebElement>, SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let all = self.session.find_all(by).await?;
         let mut visible = Vec::new();
         for el in all {
@@ -761,7 +761,7 @@ impl BaseCase {
 
     /// Switches context into the frame located by `css`.
     pub async fn frame_switch(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         self.session.switch_to_frame(by).await
     }
 
@@ -1133,7 +1133,7 @@ impl BaseCase {
         y: i64,
     ) -> Result<(), SeleniumBaseError> {
         self.record("click_with_offset", Some(css), Some(&format!("{}, {}", x, y)));
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let element = self.session.find(by).await?;
         self.session
             .driver()
@@ -1153,7 +1153,7 @@ impl BaseCase {
         y: i64,
     ) -> Result<(), SeleniumBaseError> {
         self.record("double_click_with_offset", Some(css), Some(&format!("{}, {}", x, y)));
-        let by = Selector::Css(css).to_by()?;
+        let by = Selector::auto(css).to_by()?;
         let element = self.session.find(by).await?;
         self.session
             .driver()
@@ -1174,8 +1174,8 @@ impl BaseCase {
         y: i64,
     ) -> Result<(), SeleniumBaseError> {
         self.record("drag_and_drop_with_offset", Some(source_css), Some(target_css));
-        let source_by = Selector::Css(source_css).to_by()?;
-        let target_by = Selector::Css(target_css).to_by()?;
+        let source_by = Selector::auto(source_css).to_by()?;
+        let target_by = Selector::auto(target_css).to_by()?;
         let _source = self.session.find(source_by).await?;
         let target = self.session.find(target_by).await?;
         self.session
@@ -1191,7 +1191,7 @@ impl BaseCase {
     pub async fn click_chain(&mut self, css_list: &[&str]) -> Result<(), SeleniumBaseError> {
         let mut chain = self.session.driver().action_chain();
         for css in css_list {
-            let by = Selector::Css(css).to_by()?;
+            let by = Selector::auto(css).to_by()?;
             let element = self.session.find(by).await?;
             chain = chain.move_to_element_center(&element).click();
         }
@@ -1211,7 +1211,7 @@ impl BaseCase {
         let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
         loop {
             for css in css_list {
-                if let Ok(by) = Selector::Css(css).to_by() {
+                if let Ok(by) = Selector::auto(css).to_by() {
                     if let Ok(element) = self.session.driver().find(by).await {
                         return Ok(element);
                     }

@@ -55,6 +55,16 @@ pub struct BrowserConfig {
     /// field automatically before launch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub browser_binary_path: Option<PathBuf>,
+    /// Client-side timeout, in seconds, for each HTTP request sent to a Remote
+    /// WebDriver server such as a Selenium Grid.
+    ///
+    /// `None` leaves the WebDriver client's own default in place. Set it
+    /// higher than the page-load timeout and higher than the time a new-session
+    /// request may sit in the grid's queue, otherwise healthy sessions will be
+    /// cut off. Its purpose is to stop a command blocking forever when a grid
+    /// node dies mid-session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_webdriver_timeout_seconds: Option<u64>,
 }
 
 impl Default for BrowserConfig {
@@ -95,6 +105,7 @@ impl BrowserConfig {
             extra_args: Vec::new(),
             fingerprint: None,
             browser_binary_path: runtime.chrome_bin.clone(),
+            remote_webdriver_timeout_seconds: runtime.remote_webdriver_timeout.map(|d| d.as_secs()),
         }
     }
 }

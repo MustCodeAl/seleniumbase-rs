@@ -25,6 +25,10 @@ pub struct Settings {
     pub reuse_session: bool,
     pub mobile: bool,
     pub threads: Option<usize>,
+    /// Client-side timeout, in seconds, for each HTTP request sent to a Remote
+    /// WebDriver server. `None` keeps the WebDriver client's own default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_webdriver_timeout_seconds: Option<u64>,
 }
 
 impl Default for Settings {
@@ -47,6 +51,7 @@ impl Default for Settings {
             reuse_session: false,
             mobile: false,
             threads: None,
+            remote_webdriver_timeout_seconds: None,
         }
     }
 }
@@ -144,6 +149,7 @@ impl Settings {
             extra_args: Vec::new(),
             fingerprint: None,
             browser_binary_path: None,
+            remote_webdriver_timeout_seconds: self.remote_webdriver_timeout_seconds,
         }
     }
 
@@ -158,6 +164,11 @@ impl Settings {
             settings.timeout_seconds = v
                 .parse()
                 .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_TIMEOUT: {e}")))?;
+        }
+        if let Ok(v) = std::env::var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
+            settings.remote_webdriver_timeout_seconds = Some(v.parse().map_err(|e| {
+                SeleniumBaseError::InvalidConfig(format!("SB_REMOTE_WEBDRIVER_TIMEOUT: {e}"))
+            })?);
         }
         if let Ok(v) = std::env::var("SB_SCREENSHOT_DIR") {
             settings.screenshot_dir = v;
@@ -237,6 +248,42 @@ mod tests {
         assert_eq!(s.window_width, 1920);
         assert_eq!(s.window_height, 1080);
         assert!(s.proxy.is_none());
+    }
+
+    #[test]
+    fn remote_webdriver_timeout_defaults_to_unset() {
+        // SeleniumBase's REMOTE_WEBDRIVER_TIMEOUT defaults to None, leaving the
+        // client's own timeout in place.
+        assert!(Settings::default()
+            .remote_webdriver_timeout_seconds
+            .is_none());
+        assert!(Settings::default()
+            .to_browser_config()
+            .remote_webdriver_timeout_seconds
+            .is_none());
+    }
+
+    #[test]
+    fn remote_webdriver_timeout_reaches_the_browser_config() {
+        let settings = Settings {
+            remote_webdriver_timeout_seconds: Some(420),
+            ..Settings::default()
+        };
+        assert_eq!(
+            settings
+                .to_browser_config()
+                .remote_webdriver_timeout_seconds,
+            Some(420)
+        );
+    }
+
+    #[test]
+    fn remote_webdriver_timeout_round_trips_through_json() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(br#"{"remote_webdriver_timeout_seconds":600}"#)
+            .unwrap();
+        let s = Settings::from_file(tmp.path()).unwrap();
+        assert_eq!(s.remote_webdriver_timeout_seconds, Some(600));
     }
 
     #[test]

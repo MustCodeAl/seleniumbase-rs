@@ -287,6 +287,10 @@ Deferred assertions collect failures and report them together when
 | `cdp_mouse_click(x, y)` | CDP mouse click. |
 | `cdp_type_text(text)` | CDP text insert. |
 | `cdp_click_element(selector)` | CDP click at element center. |
+| `cdp_fast_type(selector, text)` | Clear and insert text in one operation (fast, not stealthy). |
+| `cdp_wait_for_element_present(selector, timeout)` | Wait for an element to appear in the DOM. |
+| `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |
+| `open_new_tab_url(url)` | Open a new tab and navigate to `url`. |
 | `clear_browser_cache()` | Clears cache. |
 | `clear_browser_cookies()` | Clears cookies. |
 | `get_cookies()` | Returns cookies as JSON. |
