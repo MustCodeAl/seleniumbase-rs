@@ -2,6 +2,7 @@
 name = "seleniumbase-rs"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.89"
 license = "MIT"
 description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
 repository = "https://github.com/MustCodeAl/SeleniumBase"
@@ -49,7 +50,7 @@ ring = "0.17"
 zip = "8.6"
 flate2 = "1.1"
 tar = "0.4"
-dirs = "6.0"
+dirs = "7.0"
 pdf-extract = "0.12"
 scraper = "0.27"
 rfd = "0.17"
@@ -61,12 +62,12 @@ async-trait = "0.1"
 # pins an old serde_json that conflicts with the Azure SDK, so we track the
 # latest git tag instead. Disabled by default because it pulls a large Chromium
 # automation core.
-rustwright = { git = "https://github.com/Skyvern-AI/rustwright", tag = "v0.2.0", optional = true }
-rustwright-core = { git = "https://github.com/Skyvern-AI/rustwright", tag = "v0.2.0", optional = true }
+rustwright = { git = "https://github.com/Skyvern-AI/rustwright", tag = "v0.2.0", version = "0.2", optional = true }
+rustwright-core = { git = "https://github.com/Skyvern-AI/rustwright", tag = "v0.2.0", version = "0.2", optional = true }
 rust-s3 = { version = "0.37", features = ["tokio-native-tls"], optional = true }
-azure_storage_blob = { version = "1.0", optional = true }
+azure_storage_blob = { version = "1.1", optional = true }
 azure_core = { version = "1.0", optional = true }
-rmcp = { version = "3.1", default-features = false, features = ["server", "transport-io"], optional = true }
+rmcp = { version = "3.3", default-features = false, features = ["server", "transport-io"], optional = true }
 
 [features]
 default = []

@@ -1,0 +1,86 @@
+# cargo-deny configuration — supply-chain gate for seleniumbase-rs.
+#
+# Run locally with `cargo deny check`. CI runs the same command, so every
+# exception below has to be written down and reviewed rather than silently
+# tolerated.
+
+[graph]
+all-features = true
+
+[advisories]
+# Each ignore needs a rationale and, where the fix is upstream, a pointer to
+# what we are waiting on.
+ignore = [
+    # RUSTSEC-2026-0194 / RUSTSEC-2026-0195: quick-xml 0.38 denial-of-service
+    # (unbounded namespace-declaration allocation, and quadratic duplicate
+    # attribute checking). Reached only through `rust-s3` and `aws-creds`,
+    # which are pulled in by the optional, off-by-default `s3` feature and
+    # still pin quick-xml 0.38 in their latest releases (rust-s3 0.37.2,
+    # aws-creds 0.39.1). The parser only ever sees XML returned by the S3
+    # endpoint the operator configured, so exploiting it requires a malicious
+    # or compromised endpoint. Drop these once upstream moves to quick-xml
+    # >= 0.41: https://github.com/durch/rust-s3
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+
+    # RUSTSEC-2025-0141: bincode 1.x unmaintained. Reached only through
+    # printpdf -> azul-layout -> hyphenation, and printpdf is a
+    # dev-dependency, so this never ships in the library or the binaries.
+    "RUSTSEC-2025-0141",
+
+    # RUSTSEC-2025-0057: fxhash unmaintained. Reached only through
+    # tracing-timing, behind the optional `full-tracing` feature. Used for
+    # histogram bookkeeping on non-adversarial input.
+    "RUSTSEC-2025-0057",
+
+    # RUSTSEC-2026-0192: ttf-parser unmaintained. Reached through
+    # pdf-extract -> lopdf for font handling while parsing PDFs. Revisit if
+    # pdf-extract stays on an unmaintained lopdf line.
+    "RUSTSEC-2026-0192",
+]
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+    "CC0-1.0",
+    "BSL-1.0",
+    "Unlicense",
+    "CDLA-Permissive-2.0",
+    # libbz2-rs-sys (via zip -> bzip2) ships under the permissive, BSD-style
+    # bzip2 license, which has no SPDX short identifier of its own.
+    "bzip2-1.0.6",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# The native CDP engine behind the optional `playwright` feature. The
+# crates.io release pins an old serde_json that conflicts with the Azure SDK,
+# so the manifest tracks a pinned upstream tag instead.
+allow-git = ["https://github.com/Skyvern-AI/rustwright"]
+
+# rustwright and rustwright-core are consumed straight from git and their
+# manifests omit the `license` field, but the repository ships a standard MIT
+# LICENSE file at its root. Clarify rather than blanket-allow unlicensed crates.
+[[licenses.clarify]]
+crate = "rustwright"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "rustwright-core"
+expression = "MIT"
+license-files = []
