@@ -1,0 +1,38 @@
+name: Upstream watch
+
+# Opens an issue when Python SeleniumBase publishes a release newer than the
+# one parity/upstream.toml is synced to.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare with the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pinned=$(python3 -I -c 'import tomllib; print(tomllib.load(open("parity/upstream.toml","rb"))["seleniumbase"]["version"])')
+          latest=$(gh api repos/seleniumbase/SeleniumBase/releases/latest --jq '.tag_name' | sed 's/^v//')
+          echo "pinned=$pinned latest=$latest"
+          newest=$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -n 1)
+          if [ "$latest" = "$pinned" ] || [ "$newest" = "$pinned" ]; then
+            echo "Up to date."
+            exit 0
+          fi
+          title="Upstream sync: SeleniumBase v$latest"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "Issue #$existing already open."
+            exit 0
+          fi
+          gh issue create --title "$title" --body "SeleniumBase v$latest is out; this crate is synced to v$pinned. Follow docs/UPSTREAM_SYNC.md."

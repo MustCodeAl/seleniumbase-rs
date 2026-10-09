@@ -1,0 +1,5532 @@
+# How each name of the upstream Python API maps onto this crate.
+#
+# status: implemented | composed | not-applicable | planned
+#   implemented     `rust` is the Rust item (Type::method, Type::field, mcp::<server>,
+#                   or `sbase <command>`)
+#   composed        the Python method is replaced by a Rust composition; `rust` is its
+#                   main item and `note` says how they differ
+#   not-applicable  `reason` says why there is nothing to port
+#   planned         not done yet; `note` says what is missing
+# `divergence` records any difference in behaviour from the Python method.
+#
+# New upstream names are added by tools/parity/seed_manifest.py; edit entries freely.
+
+[basecase."accept_alert"]
+status = "implemented"
+rust = "BaseCase::accept_alert"
+
+[basecase."activate_cdp_mode"]
+status = "implemented"
+rust = "BaseCase::activate_cdp_mode"
+
+[basecase."activate_demo_mode"]
+status = "implemented"
+rust = "BaseCase::activate_demo_mode"
+
+[basecase."activate_design_mode"]
+status = "implemented"
+rust = "BaseCase::activate_design_mode"
+
+[basecase."activate_jquery"]
+status = "implemented"
+rust = "BaseCase::activate_jquery"
+
+[basecase."activate_jquery_confirm"]
+status = "implemented"
+rust = "BaseCase::activate_jquery_confirm"
+
+[basecase."activate_messenger"]
+status = "implemented"
+rust = "BaseCase::activate_messenger"
+
+[basecase."activate_recorder"]
+status = "implemented"
+rust = "BaseCase::activate_recorder"
+
+[basecase."ad_block"]
+status = "implemented"
+rust = "BaseCase::ad_block"
+
+[basecase."add_cookie"]
+status = "implemented"
+rust = "BaseCase::add_cookie"
+
+[basecase."add_cookies"]
+status = "implemented"
+rust = "BaseCase::add_cookies"
+
+[basecase."add_css_link"]
+status = "implemented"
+rust = "BaseCase::add_css_link"
+
+[basecase."add_css_style"]
+status = "implemented"
+rust = "BaseCase::add_css_style"
+
+[basecase."add_data_point"]
+status = "implemented"
+rust = "BaseCase::add_data_point"
+
+[basecase."add_js_code"]
+status = "implemented"
+rust = "BaseCase::add_js_code"
+
+[basecase."add_js_code_from_link"]
+status = "implemented"
+rust = "BaseCase::add_js_code_from_link"
+
+[basecase."add_js_link"]
+status = "implemented"
+rust = "BaseCase::add_js_link"
+
+[basecase."add_meta_tag"]
+status = "implemented"
+rust = "BaseCase::add_meta_tag"
+
+[basecase."add_series_to_chart"]
+status = "implemented"
+rust = "BaseCase::add_series_to_chart"
+
+[basecase."add_slide"]
+status = "implemented"
+rust = "BaseCase::add_slide"
+
+[basecase."add_text"]
+status = "implemented"
+rust = "BaseCase::add_text"
+
+[basecase."add_tour_step"]
+status = "implemented"
+rust = "BaseCase::add_tour_step"
+
+[basecase."append_data_to_file"]
+status = "implemented"
+rust = "BaseCase::append_data_to_file"
+
+[basecase."append_data_to_logs"]
+status = "implemented"
+rust = "BaseCase::append_data_to_logs"
+
+[basecase."assert_any_of_elements_present"]
+status = "implemented"
+rust = "BaseCase::assert_any_of_elements_present"
+
+[basecase."assert_any_of_elements_visible"]
+status = "implemented"
+rust = "BaseCase::assert_any_of_elements_visible"
+
+[basecase."assert_attribute"]
+status = "implemented"
+rust = "BaseCase::assert_attribute"
+
+[basecase."assert_attribute_not_present"]
+status = "implemented"
+rust = "BaseCase::assert_attribute_not_present"
+
+[basecase."assert_data_in_downloaded_file"]
+status = "implemented"
+rust = "BaseCase::assert_data_in_downloaded_file"
+
+[basecase."assert_downloaded_file"]
+status = "implemented"
+rust = "BaseCase::assert_downloaded_file"
+
+[basecase."assert_downloaded_file_regex"]
+status = "implemented"
+rust = "BaseCase::assert_downloaded_file_regex"
+
+[basecase."assert_element"]
+status = "implemented"
+rust = "BaseCase::assert_element"
+
+[basecase."assert_element_absent"]
+status = "implemented"
+rust = "BaseCase::assert_element_absent"
+
+[basecase."assert_element_not_present"]
+status = "implemented"
+rust = "BaseCase::assert_element_not_present"
+
+[basecase."assert_element_not_visible"]
+status = "implemented"
+rust = "BaseCase::assert_element_not_visible"
+
+[basecase."assert_element_present"]
+status = "implemented"
+rust = "BaseCase::assert_element_present"
+
+[basecase."assert_element_visible"]
+status = "implemented"
+rust = "BaseCase::assert_element_visible"
+
+[basecase."assert_elements"]
+status = "implemented"
+rust = "BaseCase::assert_elements"
+
+[basecase."assert_elements_present"]
+status = "implemented"
+rust = "BaseCase::assert_elements_present"
+
+[basecase."assert_elements_visible"]
+status = "implemented"
+rust = "BaseCase::assert_elements_visible"
+
+[basecase."assert_equal"]
+status = "implemented"
+rust = "BaseCase::assert_equal"
+
+[basecase."assert_exact_text"]
+status = "implemented"
+rust = "BaseCase::assert_exact_text"
+
+[basecase."assert_exact_text_not_visible"]
+status = "implemented"
+rust = "BaseCase::assert_exact_text_not_visible"
+
+[basecase."assert_false"]
+status = "implemented"
+rust = "BaseCase::assert_false"
+
+[basecase."assert_in"]
+status = "implemented"
+rust = "BaseCase::assert_in"
+
+[basecase."assert_link"]
+status = "implemented"
+rust = "BaseCase::assert_link"
+
+[basecase."assert_link_status_code_is_not_404"]
+status = "implemented"
+rust = "BaseCase::assert_link_status_code_is_not_404"
+
+[basecase."assert_link_text"]
+status = "implemented"
+rust = "BaseCase::assert_link_text"
+
+[basecase."assert_no_404_errors"]
+status = "implemented"
+rust = "BaseCase::assert_no_404_errors"
+
+[basecase."assert_no_broken_links"]
+status = "implemented"
+rust = "BaseCase::assert_no_broken_links"
+
+[basecase."assert_no_js_errors"]
+status = "implemented"
+rust = "BaseCase::assert_no_js_errors"
+
+[basecase."assert_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::assert_non_empty_text"
+
+[basecase."assert_not_equal"]
+status = "implemented"
+rust = "BaseCase::assert_not_equal"
+
+[basecase."assert_not_in"]
+status = "implemented"
+rust = "BaseCase::assert_not_in"
+
+[basecase."assert_partial_link_text"]
+status = "implemented"
+rust = "BaseCase::assert_partial_link_text"
+
+[basecase."assert_pdf_text"]
+status = "implemented"
+rust = "BaseCase::assert_pdf_text"
+
+[basecase."assert_raises"]
+status = "implemented"
+rust = "BaseCase::assert_raises"
+
+[basecase."assert_text"]
+status = "implemented"
+rust = "BaseCase::assert_text"
+
+[basecase."assert_text_not_visible"]
+status = "implemented"
+rust = "BaseCase::assert_text_not_visible"
+
+[basecase."assert_text_visible"]
+status = "implemented"
+rust = "BaseCase::assert_text_visible"
+
+[basecase."assert_title"]
+status = "implemented"
+rust = "BaseCase::assert_title"
+
+[basecase."assert_title_contains"]
+status = "implemented"
+rust = "BaseCase::assert_title_contains"
+
+[basecase."assert_true"]
+status = "implemented"
+rust = "BaseCase::assert_true"
+
+[basecase."assert_url"]
+status = "implemented"
+rust = "BaseCase::assert_url"
+
+[basecase."assert_url_contains"]
+status = "implemented"
+rust = "BaseCase::assert_url_contains"
+
+[basecase."begin_presentation"]
+status = "implemented"
+rust = "BaseCase::begin_presentation"
+
+[basecase."block_ads"]
+status = "implemented"
+rust = "BaseCase::block_ads"
+
+[basecase."bring_active_window_to_front"]
+status = "implemented"
+rust = "BaseCase::bring_active_window_to_front"
+
+[basecase."bring_to_front"]
+status = "implemented"
+rust = "BaseCase::bring_to_front"
+
+[basecase."check_if_unchecked"]
+status = "implemented"
+rust = "BaseCase::check_if_unchecked"
+
+[basecase."check_window"]
+status = "implemented"
+rust = "BaseCase::check_window"
+
+[basecase."choose_file"]
+status = "implemented"
+rust = "BaseCase::choose_file"
+
+[basecase."clear"]
+status = "implemented"
+rust = "BaseCase::clear"
+
+[basecase."clear_all_cookies"]
+status = "implemented"
+rust = "BaseCase::clear_all_cookies"
+
+[basecase."clear_local_storage"]
+status = "implemented"
+rust = "BaseCase::clear_local_storage"
+
+[basecase."clear_session_storage"]
+status = "implemented"
+rust = "BaseCase::clear_session_storage"
+
+[basecase."click"]
+status = "implemented"
+rust = "BaseCase::click"
+
+[basecase."click_active_element"]
+status = "implemented"
+rust = "BaseCase::click_active_element"
+
+[basecase."click_chain"]
+status = "implemented"
+rust = "BaseCase::click_chain"
+
+[basecase."click_if_visible"]
+status = "implemented"
+rust = "BaseCase::click_if_visible"
+
+[basecase."click_link"]
+status = "implemented"
+rust = "BaseCase::click_link"
+
+[basecase."click_link_text"]
+status = "implemented"
+rust = "BaseCase::click_link_text"
+
+[basecase."click_nth_visible_element"]
+status = "implemented"
+rust = "BaseCase::click_nth_visible_element"
+
+[basecase."click_partial_link"]
+status = "implemented"
+rust = "BaseCase::click_partial_link"
+
+[basecase."click_partial_link_text"]
+status = "implemented"
+rust = "BaseCase::click_partial_link_text"
+
+[basecase."click_visible_elements"]
+status = "implemented"
+rust = "BaseCase::click_visible_elements"
+
+[basecase."click_with_offset"]
+status = "implemented"
+rust = "BaseCase::click_with_offset"
+
+[basecase."click_xpath"]
+status = "implemented"
+rust = "BaseCase::click_xpath"
+
+[basecase."console_log_script"]
+status = "implemented"
+rust = "BaseCase::console_log_script"
+
+[basecase."console_log_string"]
+status = "implemented"
+rust = "BaseCase::console_log_string"
+
+[basecase."context_click"]
+status = "implemented"
+rust = "BaseCase::context_click"
+
+[basecase."convert_css_to_xpath"]
+status = "implemented"
+rust = "BaseCase::convert_css_to_xpath"
+
+[basecase."convert_to_css_selector"]
+status = "implemented"
+rust = "BaseCase::convert_to_css_selector"
+
+[basecase."convert_xpath_to_css"]
+status = "implemented"
+rust = "BaseCase::convert_xpath_to_css"
+
+[basecase."create_area_chart"]
+status = "implemented"
+rust = "BaseCase::create_area_chart"
+
+[basecase."create_bar_chart"]
+status = "implemented"
+rust = "BaseCase::create_bar_chart"
+
+[basecase."create_bootstrap_tour"]
+status = "implemented"
+rust = "BaseCase::create_bootstrap_tour"
+
+[basecase."create_column_chart"]
+status = "implemented"
+rust = "BaseCase::create_column_chart"
+
+[basecase."create_driverjs_tour"]
+status = "implemented"
+rust = "BaseCase::create_driverjs_tour"
+
+[basecase."create_folder"]
+status = "implemented"
+rust = "BaseCase::create_folder"
+
+[basecase."create_hopscotch_tour"]
+status = "implemented"
+rust = "BaseCase::create_hopscotch_tour"
+
+[basecase."create_introjs_tour"]
+status = "implemented"
+rust = "BaseCase::create_introjs_tour"
+
+[basecase."create_line_chart"]
+status = "implemented"
+rust = "BaseCase::create_line_chart"
+
+[basecase."create_pie_chart"]
+status = "implemented"
+rust = "BaseCase::create_pie_chart"
+
+[basecase."create_presentation"]
+status = "implemented"
+rust = "BaseCase::create_presentation"
+
+[basecase."create_shepherd_tour"]
+status = "implemented"
+rust = "BaseCase::create_shepherd_tour"
+
+[basecase."create_tour"]
+status = "implemented"
+rust = "BaseCase::create_tour"
+
+[basecase."deactivate_demo_mode"]
+status = "implemented"
+rust = "BaseCase::deactivate_demo_mode"
+
+[basecase."deactivate_design_mode"]
+status = "implemented"
+rust = "BaseCase::deactivate_design_mode"
+
+[basecase."deferred_assert_element"]
+status = "implemented"
+rust = "BaseCase::deferred_assert_element"
+
+[basecase."deferred_assert_element_present"]
+status = "implemented"
+rust = "BaseCase::deferred_assert_element_present"
+
+[basecase."deferred_assert_exact_text"]
+status = "implemented"
+rust = "BaseCase::deferred_assert_exact_text"
+
+[basecase."deferred_assert_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::deferred_assert_non_empty_text"
+
+[basecase."deferred_assert_text"]
+status = "implemented"
+rust = "BaseCase::deferred_assert_text"
+
+[basecase."deferred_check_window"]
+status = "implemented"
+rust = "BaseCase::deferred_check_window"
+
+[basecase."delayed_assert_element"]
+status = "implemented"
+rust = "BaseCase::delayed_assert_element"
+
+[basecase."delayed_assert_element_present"]
+status = "implemented"
+rust = "BaseCase::delayed_assert_element_present"
+
+[basecase."delayed_assert_exact_text"]
+status = "implemented"
+rust = "BaseCase::delayed_assert_exact_text"
+
+[basecase."delayed_assert_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::delayed_assert_non_empty_text"
+
+[basecase."delayed_assert_text"]
+status = "implemented"
+rust = "BaseCase::delayed_assert_text"
+
+[basecase."delayed_check_window"]
+status = "implemented"
+rust = "BaseCase::delayed_check_window"
+
+[basecase."delete_all_cookies"]
+status = "implemented"
+rust = "BaseCase::delete_all_cookies"
+
+[basecase."delete_downloaded_file"]
+status = "implemented"
+rust = "BaseCase::delete_downloaded_file"
+
+[basecase."delete_downloaded_file_if_present"]
+status = "implemented"
+rust = "BaseCase::delete_downloaded_file_if_present"
+
+[basecase."delete_local_storage"]
+status = "implemented"
+rust = "BaseCase::delete_local_storage"
+
+[basecase."delete_saved_cookies"]
+status = "implemented"
+rust = "BaseCase::delete_saved_cookies"
+
+[basecase."delete_session_storage"]
+status = "implemented"
+rust = "BaseCase::delete_session_storage"
+
+[basecase."disable_beforeunload"]
+status = "implemented"
+rust = "BaseCase::disable_beforeunload"
+
+[basecase."dismiss_alert"]
+status = "implemented"
+rust = "BaseCase::dismiss_alert"
+
+[basecase."display_chart"]
+status = "implemented"
+rust = "BaseCase::display_chart"
+
+[basecase."double_click"]
+status = "implemented"
+rust = "BaseCase::double_click"
+
+[basecase."double_click_with_offset"]
+status = "implemented"
+rust = "BaseCase::double_click_with_offset"
+
+[basecase."download_file"]
+status = "implemented"
+rust = "BaseCase::download_file"
+
+[basecase."drag_and_drop"]
+status = "implemented"
+rust = "BaseCase::drag_and_drop"
+
+[basecase."drag_and_drop_with_offset"]
+status = "implemented"
+rust = "BaseCase::drag_and_drop_with_offset"
+
+[basecase."enter_mfa_code"]
+status = "implemented"
+rust = "BaseCase::enter_mfa_code"
+
+[basecase."enter_totp_code"]
+status = "implemented"
+rust = "BaseCase::enter_totp_code"
+
+[basecase."evaluate"]
+status = "implemented"
+rust = "BaseCase::evaluate"
+
+[basecase."execute_async_script"]
+status = "implemented"
+rust = "BaseCase::execute_async_script"
+
+[basecase."execute_cdp_cmd"]
+status = "implemented"
+rust = "BaseCase::execute_cdp_cmd"
+
+[basecase."execute_script"]
+status = "implemented"
+rust = "BaseCase::execute_script"
+
+[basecase."export_tour"]
+status = "implemented"
+rust = "BaseCase::export_tour"
+
+[basecase."extract_chart"]
+status = "implemented"
+rust = "BaseCase::extract_chart"
+
+[basecase."fail"]
+status = "implemented"
+rust = "BaseCase::fail"
+
+[basecase."fast_type"]
+status = "implemented"
+rust = "BaseCase::fast_type"
+
+[basecase."fill"]
+status = "implemented"
+rust = "BaseCase::fill"
+
+[basecase."find_element"]
+status = "implemented"
+rust = "BaseCase::find_element"
+
+[basecase."find_elements"]
+status = "implemented"
+rust = "BaseCase::find_elements"
+
+[basecase."find_exact_text"]
+status = "implemented"
+rust = "BaseCase::find_exact_text"
+
+[basecase."find_link_text"]
+status = "implemented"
+rust = "BaseCase::find_link_text"
+
+[basecase."find_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::find_non_empty_text"
+
+[basecase."find_partial_link_text"]
+status = "implemented"
+rust = "BaseCase::find_partial_link_text"
+
+[basecase."find_text"]
+status = "implemented"
+rust = "BaseCase::find_text"
+
+[basecase."find_visible_elements"]
+status = "implemented"
+rust = "BaseCase::find_visible_elements"
+
+[basecase."flash"]
+status = "implemented"
+rust = "BaseCase::flash"
+
+[basecase."focus"]
+status = "implemented"
+rust = "BaseCase::focus"
+
+[basecase."frame_switch"]
+status = "implemented"
+rust = "BaseCase::frame_switch"
+
+[basecase."generate_referral"]
+status = "implemented"
+rust = "BaseCase::generate_referral"
+
+[basecase."generate_referral_chain"]
+status = "implemented"
+rust = "BaseCase::generate_referral_chain"
+
+[basecase."generate_traffic"]
+status = "implemented"
+rust = "BaseCase::generate_traffic"
+
+[basecase."generate_traffic_chain"]
+status = "implemented"
+rust = "BaseCase::generate_traffic_chain"
+
+[basecase."get"]
+status = "implemented"
+rust = "BaseCase::get"
+
+[basecase."get_active_element_css"]
+status = "implemented"
+rust = "BaseCase::get_active_element_css"
+
+[basecase."get_attribute"]
+status = "implemented"
+rust = "BaseCase::get_attribute"
+
+[basecase."get_beautiful_soup"]
+status = "implemented"
+rust = "BaseCase::get_beautiful_soup"
+
+[basecase."get_browser_downloads_folder"]
+status = "implemented"
+rust = "BaseCase::get_browser_downloads_folder"
+
+[basecase."get_chrome_version"]
+status = "implemented"
+rust = "BaseCase::get_chrome_version"
+
+[basecase."get_chromedriver_version"]
+status = "implemented"
+rust = "BaseCase::get_chromedriver_version"
+
+[basecase."get_chromium_driver_version"]
+status = "implemented"
+rust = "BaseCase::get_chromium_driver_version"
+
+[basecase."get_chromium_version"]
+status = "implemented"
+rust = "BaseCase::get_chromium_version"
+
+[basecase."get_cookie"]
+status = "implemented"
+rust = "BaseCase::get_cookie"
+
+[basecase."get_cookie_string"]
+status = "implemented"
+rust = "BaseCase::get_cookie_string"
+
+[basecase."get_cookies"]
+status = "implemented"
+rust = "BaseCase::get_cookies"
+
+[basecase."get_current_url"]
+status = "implemented"
+rust = "BaseCase::get_current_url"
+
+[basecase."get_data_from_downloaded_file"]
+status = "implemented"
+rust = "BaseCase::get_data_from_downloaded_file"
+
+[basecase."get_domain_url"]
+status = "implemented"
+rust = "BaseCase::get_domain_url"
+
+[basecase."get_downloaded_files"]
+status = "implemented"
+rust = "BaseCase::get_downloaded_files"
+
+[basecase."get_downloads_folder"]
+status = "implemented"
+rust = "BaseCase::get_downloads_folder"
+
+[basecase."get_element"]
+status = "implemented"
+rust = "BaseCase::get_element"
+
+[basecase."get_element_at_x_y"]
+status = "implemented"
+rust = "BaseCase::get_element_at_x_y"
+
+[basecase."get_file_data"]
+status = "implemented"
+rust = "BaseCase::get_file_data"
+
+[basecase."get_google_auth_code"]
+status = "implemented"
+rust = "BaseCase::get_google_auth_code"
+
+[basecase."get_google_auth_password"]
+status = "composed"
+rust = "BaseCase::get_mfa_code"
+note = "Same TOTP computation."
+
+[basecase."get_gui_element_center"]
+status = "implemented"
+rust = "BaseCase::get_gui_element_center"
+
+[basecase."get_gui_element_rect"]
+status = "implemented"
+rust = "BaseCase::get_gui_element_rect"
+
+[basecase."get_html"]
+status = "implemented"
+rust = "BaseCase::get_html"
+
+[basecase."get_image_url"]
+status = "implemented"
+rust = "BaseCase::get_image_url"
+
+[basecase."get_jqc_button_input"]
+status = "not-applicable"
+reason = "JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm)."
+
+[basecase."get_jqc_form_inputs"]
+status = "not-applicable"
+reason = "JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm)."
+
+[basecase."get_jqc_text_input"]
+status = "not-applicable"
+reason = "JQuery-Confirm dialogs are a page UI; Rust uses native dialogs (show_prompt, show_confirm)."
+
+[basecase."get_link_attribute"]
+status = "implemented"
+rust = "BaseCase::get_link_attribute"
+
+[basecase."get_link_status_code"]
+status = "implemented"
+rust = "BaseCase::get_link_status_code"
+
+[basecase."get_link_text_attribute"]
+status = "implemented"
+rust = "BaseCase::get_link_text_attribute"
+
+[basecase."get_local_storage_item"]
+status = "implemented"
+rust = "BaseCase::get_local_storage_item"
+
+[basecase."get_local_storage_items"]
+status = "implemented"
+rust = "BaseCase::get_local_storage_items"
+
+[basecase."get_local_storage_keys"]
+status = "implemented"
+rust = "BaseCase::get_local_storage_keys"
+
+[basecase."get_locale_code"]
+status = "implemented"
+rust = "BaseCase::get_locale_code"
+
+[basecase."get_mfa_code"]
+status = "implemented"
+rust = "BaseCase::get_mfa_code"
+
+[basecase."get_new_driver"]
+status = "implemented"
+rust = "BaseCase::get_new_driver"
+
+[basecase."get_origin"]
+status = "implemented"
+rust = "BaseCase::get_origin"
+
+[basecase."get_page_source"]
+status = "implemented"
+rust = "BaseCase::get_page_source"
+
+[basecase."get_page_title"]
+status = "implemented"
+rust = "BaseCase::get_page_title"
+
+[basecase."get_parent"]
+status = "implemented"
+rust = "BaseCase::get_parent"
+
+[basecase."get_partial_link_text_attribute"]
+status = "implemented"
+rust = "BaseCase::get_partial_link_text_attribute"
+
+[basecase."get_path_of_downloaded_file"]
+status = "implemented"
+rust = "BaseCase::get_path_of_downloaded_file"
+
+[basecase."get_pdf_text"]
+status = "implemented"
+rust = "BaseCase::get_pdf_text"
+
+[basecase."get_property"]
+status = "implemented"
+rust = "BaseCase::get_property"
+
+[basecase."get_property_value"]
+status = "implemented"
+rust = "BaseCase::get_property_value"
+
+[basecase."get_recorded_console_logs"]
+status = "implemented"
+rust = "BaseCase::get_recorded_console_logs"
+
+[basecase."get_saved_cookies"]
+status = "implemented"
+rust = "BaseCase::get_saved_cookies"
+
+[basecase."get_screen_rect"]
+status = "implemented"
+rust = "BaseCase::get_screen_rect"
+
+[basecase."get_select_options"]
+status = "implemented"
+rust = "BaseCase::get_select_options"
+
+[basecase."get_session_storage_item"]
+status = "implemented"
+rust = "BaseCase::get_session_storage_item"
+
+[basecase."get_session_storage_items"]
+status = "implemented"
+rust = "BaseCase::get_session_storage_items"
+
+[basecase."get_session_storage_keys"]
+status = "implemented"
+rust = "BaseCase::get_session_storage_keys"
+
+[basecase."get_text"]
+status = "implemented"
+rust = "BaseCase::get_text"
+
+[basecase."get_text_content"]
+status = "implemented"
+rust = "BaseCase::get_text_content"
+
+[basecase."get_title"]
+status = "implemented"
+rust = "BaseCase::get_title"
+
+[basecase."get_totp_code"]
+status = "implemented"
+rust = "BaseCase::get_totp_code"
+
+[basecase."get_unique_links"]
+status = "implemented"
+rust = "BaseCase::get_unique_links"
+
+[basecase."get_user_agent"]
+status = "implemented"
+rust = "BaseCase::get_user_agent"
+
+[basecase."get_value"]
+status = "implemented"
+rust = "BaseCase::get_value"
+
+[basecase."get_window_position"]
+status = "implemented"
+rust = "BaseCase::get_window_position"
+
+[basecase."get_window_rect"]
+status = "implemented"
+rust = "BaseCase::get_window_rect"
+
+[basecase."get_window_size"]
+status = "implemented"
+rust = "BaseCase::get_window_size"
+
+[basecase."go_back"]
+status = "implemented"
+rust = "BaseCase::go_back"
+
+[basecase."go_forward"]
+status = "implemented"
+rust = "BaseCase::go_forward"
+
+[basecase."go_to"]
+status = "implemented"
+rust = "BaseCase::go_to"
+
+[basecase."goto"]
+status = "implemented"
+rust = "BaseCase::goto"
+
+[basecase."goto_if_not_url"]
+status = "implemented"
+rust = "BaseCase::goto_if_not_url"
+
+[basecase."goto_start_page"]
+status = "implemented"
+rust = "BaseCase::goto_start_page"
+
+[basecase."has_exception"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."hide_element"]
+status = "implemented"
+rust = "BaseCase::hide_element"
+
+[basecase."hide_elements"]
+status = "implemented"
+rust = "BaseCase::hide_elements"
+
+[basecase."highlight"]
+status = "implemented"
+rust = "BaseCase::highlight"
+
+[basecase."highlight_click"]
+status = "implemented"
+rust = "BaseCase::highlight_click"
+
+[basecase."highlight_elements"]
+status = "implemented"
+rust = "BaseCase::highlight_elements"
+
+[basecase."highlight_if_visible"]
+status = "implemented"
+rust = "BaseCase::highlight_if_visible"
+
+[basecase."highlight_type"]
+status = "implemented"
+rust = "BaseCase::highlight_type"
+
+[basecase."highlight_update_text"]
+status = "implemented"
+rust = "BaseCase::highlight_update_text"
+
+[basecase."hover"]
+status = "implemented"
+rust = "BaseCase::hover"
+
+[basecase."hover_and_click"]
+status = "implemented"
+rust = "BaseCase::hover_and_click"
+
+[basecase."hover_and_double_click"]
+status = "implemented"
+rust = "BaseCase::hover_and_double_click"
+
+[basecase."hover_and_js_click"]
+status = "implemented"
+rust = "BaseCase::hover_and_js_click"
+
+[basecase."hover_element"]
+status = "implemented"
+rust = "BaseCase::hover_element"
+
+[basecase."hover_on_element"]
+status = "implemented"
+rust = "BaseCase::hover_on_element"
+
+[basecase."hover_over_element"]
+status = "implemented"
+rust = "BaseCase::hover_over_element"
+
+[basecase."input"]
+status = "implemented"
+rust = "BaseCase::input"
+
+[basecase."inspect_html"]
+status = "implemented"
+rust = "BaseCase::inspect_html"
+
+[basecase."install_addon"]
+status = "implemented"
+rust = "BaseCase::install_addon"
+
+[basecase."internalize_links"]
+status = "implemented"
+rust = "BaseCase::internalize_links"
+
+[basecase."is_alert_present"]
+status = "implemented"
+rust = "BaseCase::is_alert_present"
+
+[basecase."is_attribute_present"]
+status = "implemented"
+rust = "BaseCase::is_attribute_present"
+
+[basecase."is_checked"]
+status = "implemented"
+rust = "BaseCase::is_checked"
+
+[basecase."is_chromium"]
+status = "implemented"
+rust = "BaseCase::is_chromium"
+
+[basecase."is_connected"]
+status = "implemented"
+rust = "BaseCase::is_connected"
+
+[basecase."is_downloaded_file_present"]
+status = "implemented"
+rust = "BaseCase::is_downloaded_file_present"
+
+[basecase."is_downloaded_file_regex_present"]
+status = "implemented"
+rust = "BaseCase::is_downloaded_file_regex_present"
+
+[basecase."is_element_clickable"]
+status = "implemented"
+rust = "BaseCase::is_element_clickable"
+
+[basecase."is_element_enabled"]
+status = "implemented"
+rust = "BaseCase::is_element_enabled"
+
+[basecase."is_element_in_an_iframe"]
+status = "implemented"
+rust = "BaseCase::is_element_in_an_iframe"
+
+[basecase."is_element_present"]
+status = "implemented"
+rust = "BaseCase::is_element_present"
+
+[basecase."is_element_visible"]
+status = "implemented"
+rust = "BaseCase::is_element_visible"
+
+[basecase."is_exact_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_exact_text_visible"
+
+[basecase."is_link_text_present"]
+status = "implemented"
+rust = "BaseCase::is_link_text_present"
+
+[basecase."is_link_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_link_text_visible"
+
+[basecase."is_non_empty_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_non_empty_text_visible"
+
+[basecase."is_online"]
+status = "implemented"
+rust = "BaseCase::is_online"
+
+[basecase."is_partial_link_text_present"]
+status = "implemented"
+rust = "BaseCase::is_partial_link_text_present"
+
+[basecase."is_partial_link_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_partial_link_text_visible"
+
+[basecase."is_selected"]
+status = "implemented"
+rust = "BaseCase::is_selected"
+
+[basecase."is_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_text_visible"
+
+[basecase."is_valid_url"]
+status = "implemented"
+rust = "BaseCase::is_valid_url"
+
+[basecase."jq_format"]
+status = "implemented"
+rust = "BaseCase::jq_format"
+
+[basecase."jquery_click"]
+status = "implemented"
+rust = "BaseCase::jquery_click"
+
+[basecase."jquery_click_all"]
+status = "implemented"
+rust = "BaseCase::jquery_click_all"
+
+[basecase."jquery_type"]
+status = "implemented"
+rust = "BaseCase::jquery_type"
+
+[basecase."jquery_update_text"]
+status = "implemented"
+rust = "BaseCase::jquery_update_text"
+
+[basecase."js_click"]
+status = "implemented"
+rust = "BaseCase::js_click"
+
+[basecase."js_click_all"]
+status = "implemented"
+rust = "BaseCase::js_click_all"
+
+[basecase."js_click_if_present"]
+status = "implemented"
+rust = "BaseCase::js_click_if_present"
+
+[basecase."js_click_if_visible"]
+status = "implemented"
+rust = "BaseCase::js_click_if_visible"
+
+[basecase."js_type"]
+status = "implemented"
+rust = "BaseCase::js_type"
+
+[basecase."js_update_text"]
+status = "implemented"
+rust = "BaseCase::js_update_text"
+
+[basecase."load_cookies"]
+status = "implemented"
+rust = "BaseCase::load_cookies"
+
+[basecase."load_html_file"]
+status = "implemented"
+rust = "BaseCase::load_html_file"
+
+[basecase."load_html_string"]
+status = "implemented"
+rust = "BaseCase::load_html_string"
+
+[basecase."locator"]
+status = "implemented"
+rust = "BaseCase::locator"
+
+[basecase."main"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."maximize"]
+status = "implemented"
+rust = "BaseCase::maximize"
+
+[basecase."maximize_window"]
+status = "implemented"
+rust = "BaseCase::maximize_window"
+
+[basecase."minimize"]
+status = "implemented"
+rust = "BaseCase::minimize"
+
+[basecase."minimize_window"]
+status = "implemented"
+rust = "BaseCase::minimize_window"
+
+[basecase."open"]
+status = "implemented"
+rust = "BaseCase::open"
+
+[basecase."open_html_file"]
+status = "implemented"
+rust = "BaseCase::open_html_file"
+
+[basecase."open_if_not_url"]
+status = "implemented"
+rust = "BaseCase::open_if_not_url"
+
+[basecase."open_new_tab"]
+status = "implemented"
+rust = "BaseCase::open_new_tab"
+
+[basecase."open_new_window"]
+status = "implemented"
+rust = "BaseCase::open_new_window"
+
+[basecase."open_start_page"]
+status = "implemented"
+rust = "BaseCase::open_start_page"
+
+[basecase."open_url"]
+status = "implemented"
+rust = "BaseCase::open_url"
+
+[basecase."play_tour"]
+status = "implemented"
+rust = "BaseCase::play_tour"
+
+[basecase."post_error_message"]
+status = "implemented"
+rust = "BaseCase::post_error_message"
+
+[basecase."post_message"]
+status = "implemented"
+rust = "BaseCase::post_message"
+
+[basecase."post_message_and_highlight"]
+status = "implemented"
+rust = "BaseCase::post_message_and_highlight"
+
+[basecase."post_success_message"]
+status = "implemented"
+rust = "BaseCase::post_success_message"
+
+[basecase."press_down_arrow"]
+status = "implemented"
+rust = "BaseCase::press_down_arrow"
+
+[basecase."press_keys"]
+status = "implemented"
+rust = "BaseCase::press_keys"
+
+[basecase."press_left_arrow"]
+status = "implemented"
+rust = "BaseCase::press_left_arrow"
+
+[basecase."press_right_arrow"]
+status = "implemented"
+rust = "BaseCase::press_right_arrow"
+
+[basecase."press_up_arrow"]
+status = "implemented"
+rust = "BaseCase::press_up_arrow"
+
+[basecase."print_to_pdf"]
+status = "implemented"
+rust = "BaseCase::print_to_pdf"
+
+[basecase."print_unique_links_with_status_codes"]
+status = "implemented"
+rust = "BaseCase::print_unique_links_with_status_codes"
+
+[basecase."process_deferred_asserts"]
+status = "implemented"
+rust = "BaseCase::process_deferred_asserts"
+
+[basecase."process_delayed_asserts"]
+status = "implemented"
+rust = "BaseCase::process_delayed_asserts"
+
+[basecase."quit_extra_driver"]
+status = "implemented"
+rust = "BaseCase::quit_extra_driver"
+
+[basecase."refresh"]
+status = "implemented"
+rust = "BaseCase::refresh"
+
+[basecase."refresh_page"]
+status = "implemented"
+rust = "BaseCase::refresh_page"
+
+[basecase."reload"]
+status = "implemented"
+rust = "BaseCase::reload"
+
+[basecase."reload_page"]
+status = "implemented"
+rust = "BaseCase::reload_page"
+
+[basecase."remove_attribute"]
+status = "implemented"
+rust = "BaseCase::remove_attribute"
+
+[basecase."remove_attributes"]
+status = "implemented"
+rust = "BaseCase::remove_attributes"
+
+[basecase."remove_element"]
+status = "implemented"
+rust = "BaseCase::remove_element"
+
+[basecase."remove_elements"]
+status = "implemented"
+rust = "BaseCase::remove_elements"
+
+[basecase."remove_local_storage_item"]
+status = "implemented"
+rust = "BaseCase::remove_local_storage_item"
+
+[basecase."remove_session_storage_item"]
+status = "implemented"
+rust = "BaseCase::remove_session_storage_item"
+
+[basecase."reset_default_timeout"]
+status = "implemented"
+rust = "BaseCase::reset_default_timeout"
+
+[basecase."reset_jqc_theme"]
+status = "implemented"
+rust = "BaseCase::reset_jqc_theme"
+
+[basecase."reset_window_size"]
+status = "implemented"
+rust = "BaseCase::reset_window_size"
+
+[basecase."right_click"]
+status = "implemented"
+rust = "BaseCase::right_click"
+
+[basecase."run"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."safe_execute_script"]
+status = "implemented"
+rust = "BaseCase::safe_execute_script"
+
+[basecase."save_as_html"]
+status = "implemented"
+rust = "BaseCase::save_as_html"
+
+[basecase."save_as_html_to_logs"]
+status = "implemented"
+rust = "BaseCase::save_as_html_to_logs"
+
+[basecase."save_as_pdf"]
+status = "implemented"
+rust = "BaseCase::save_as_pdf"
+
+[basecase."save_as_pdf_to_logs"]
+status = "implemented"
+rust = "BaseCase::save_as_pdf_to_logs"
+
+[basecase."save_chart"]
+status = "implemented"
+rust = "BaseCase::save_chart"
+
+[basecase."save_cookies"]
+status = "implemented"
+rust = "BaseCase::save_cookies"
+
+[basecase."save_data_as"]
+status = "implemented"
+rust = "BaseCase::save_data_as"
+
+[basecase."save_data_to_logs"]
+status = "implemented"
+rust = "BaseCase::save_data_to_logs"
+
+[basecase."save_element_as_image_file"]
+status = "implemented"
+rust = "BaseCase::save_element_as_image_file"
+
+[basecase."save_file_as"]
+status = "implemented"
+rust = "BaseCase::save_file_as"
+
+[basecase."save_page_source"]
+status = "implemented"
+rust = "BaseCase::save_page_source"
+
+[basecase."save_page_source_to_logs"]
+status = "implemented"
+rust = "BaseCase::save_page_source_to_logs"
+
+[basecase."save_presentation"]
+status = "implemented"
+rust = "BaseCase::save_presentation"
+
+[basecase."save_recorded_actions"]
+status = "implemented"
+rust = "BaseCase::save_recorded_actions"
+
+[basecase."save_screenshot"]
+status = "implemented"
+rust = "BaseCase::save_screenshot"
+
+[basecase."save_screenshot_to_logs"]
+status = "implemented"
+rust = "BaseCase::save_screenshot_to_logs"
+
+[basecase."save_teardown_screenshot"]
+status = "implemented"
+rust = "BaseCase::save_teardown_screenshot"
+
+[basecase."scroll_by_y"]
+status = "implemented"
+rust = "BaseCase::scroll_by_y"
+
+[basecase."scroll_down"]
+status = "implemented"
+rust = "BaseCase::scroll_down"
+
+[basecase."scroll_into_view"]
+status = "implemented"
+rust = "BaseCase::scroll_into_view"
+
+[basecase."scroll_to"]
+status = "implemented"
+rust = "BaseCase::scroll_to"
+
+[basecase."scroll_to_bottom"]
+status = "implemented"
+rust = "BaseCase::scroll_to_bottom"
+
+[basecase."scroll_to_element"]
+status = "implemented"
+rust = "BaseCase::scroll_to_element"
+
+[basecase."scroll_to_top"]
+status = "implemented"
+rust = "BaseCase::scroll_to_top"
+
+[basecase."scroll_to_y"]
+status = "implemented"
+rust = "BaseCase::scroll_to_y"
+
+[basecase."scroll_up"]
+status = "implemented"
+rust = "BaseCase::scroll_up"
+
+[basecase."select"]
+status = "implemented"
+rust = "BaseCase::select"
+
+[basecase."select_all"]
+status = "implemented"
+rust = "BaseCase::select_all"
+
+[basecase."select_if_unselected"]
+status = "implemented"
+rust = "BaseCase::select_if_unselected"
+
+[basecase."select_option_by_index"]
+status = "implemented"
+rust = "BaseCase::select_option_by_index"
+
+[basecase."select_option_by_text"]
+status = "implemented"
+rust = "BaseCase::select_option_by_text"
+
+[basecase."select_option_by_value"]
+status = "implemented"
+rust = "BaseCase::select_option_by_value"
+
+[basecase."send_keys"]
+status = "implemented"
+rust = "BaseCase::send_keys"
+
+[basecase."setUp"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."setUpClass"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."set_attribute"]
+status = "implemented"
+rust = "BaseCase::set_attribute"
+
+[basecase."set_attribute_all"]
+status = "implemented"
+rust = "BaseCase::set_attribute_all"
+
+[basecase."set_attributes"]
+status = "implemented"
+rust = "BaseCase::set_attributes"
+
+[basecase."set_content"]
+status = "implemented"
+rust = "BaseCase::set_content"
+
+[basecase."set_content_to_default"]
+status = "implemented"
+rust = "BaseCase::set_content_to_default"
+
+[basecase."set_content_to_default_content"]
+status = "implemented"
+rust = "BaseCase::set_content_to_default_content"
+
+[basecase."set_content_to_frame"]
+status = "implemented"
+rust = "BaseCase::set_content_to_frame"
+
+[basecase."set_content_to_parent"]
+status = "implemented"
+rust = "BaseCase::set_content_to_parent"
+
+[basecase."set_content_to_parent_frame"]
+status = "implemented"
+rust = "BaseCase::set_content_to_parent_frame"
+
+[basecase."set_default_timeout"]
+status = "implemented"
+rust = "BaseCase::set_default_timeout"
+
+[basecase."set_introjs_colors"]
+status = "implemented"
+rust = "BaseCase::set_introjs_colors"
+
+[basecase."set_jqc_theme"]
+status = "implemented"
+rust = "BaseCase::set_jqc_theme"
+
+[basecase."set_local_storage_item"]
+status = "implemented"
+rust = "BaseCase::set_local_storage_item"
+
+[basecase."set_messenger_theme"]
+status = "implemented"
+rust = "BaseCase::set_messenger_theme"
+
+[basecase."set_session_storage_item"]
+status = "implemented"
+rust = "BaseCase::set_session_storage_item"
+
+[basecase."set_text"]
+status = "implemented"
+rust = "BaseCase::set_text"
+
+[basecase."set_text_content"]
+status = "implemented"
+rust = "BaseCase::set_text_content"
+
+[basecase."set_time_limit"]
+status = "implemented"
+rust = "BaseCase::set_time_limit"
+
+[basecase."set_value"]
+status = "implemented"
+rust = "BaseCase::set_value"
+
+[basecase."set_window_position"]
+status = "implemented"
+rust = "BaseCase::set_window_position"
+
+[basecase."set_window_rect"]
+status = "implemented"
+rust = "BaseCase::set_window_rect"
+
+[basecase."set_window_size"]
+status = "implemented"
+rust = "BaseCase::set_window_size"
+
+[basecase."show_element"]
+status = "implemented"
+rust = "BaseCase::show_element"
+
+[basecase."show_elements"]
+status = "implemented"
+rust = "BaseCase::show_elements"
+
+[basecase."show_file_choosers"]
+status = "implemented"
+rust = "BaseCase::show_file_choosers"
+
+[basecase."skip"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."sleep"]
+status = "implemented"
+rust = "BaseCase::sleep"
+
+[basecase."slow_click"]
+status = "implemented"
+rust = "BaseCase::slow_click"
+
+[basecase."slow_scroll_to"]
+status = "implemented"
+rust = "BaseCase::slow_scroll_to"
+
+[basecase."slow_scroll_to_element"]
+status = "implemented"
+rust = "BaseCase::slow_scroll_to_element"
+
+[basecase."start_recording_console_logs"]
+status = "implemented"
+rust = "BaseCase::start_recording_console_logs"
+
+[basecase."start_tour"]
+status = "implemented"
+rust = "BaseCase::start_tour"
+
+[basecase."submit"]
+status = "implemented"
+rust = "BaseCase::submit"
+
+[basecase."switch_to_alert"]
+status = "implemented"
+rust = "BaseCase::switch_to_alert"
+
+[basecase."switch_to_default_content"]
+status = "implemented"
+rust = "BaseCase::switch_to_default_content"
+
+[basecase."switch_to_default_driver"]
+status = "implemented"
+rust = "BaseCase::switch_to_default_driver"
+
+[basecase."switch_to_default_tab"]
+status = "implemented"
+rust = "BaseCase::switch_to_default_tab"
+
+[basecase."switch_to_default_window"]
+status = "implemented"
+rust = "BaseCase::switch_to_default_window"
+
+[basecase."switch_to_driver"]
+status = "implemented"
+rust = "BaseCase::switch_to_driver"
+
+[basecase."switch_to_frame"]
+status = "implemented"
+rust = "BaseCase::switch_to_frame"
+
+[basecase."switch_to_frame_of_element"]
+status = "implemented"
+rust = "BaseCase::switch_to_frame_of_element"
+
+[basecase."switch_to_newest_tab"]
+status = "implemented"
+rust = "BaseCase::switch_to_newest_tab"
+
+[basecase."switch_to_newest_window"]
+status = "implemented"
+rust = "BaseCase::switch_to_newest_window"
+
+[basecase."switch_to_parent_frame"]
+status = "implemented"
+rust = "BaseCase::switch_to_parent_frame"
+
+[basecase."switch_to_tab"]
+status = "implemented"
+rust = "BaseCase::switch_to_tab"
+
+[basecase."switch_to_window"]
+status = "implemented"
+rust = "BaseCase::switch_to_window"
+
+[basecase."tearDown"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."tearDownClass"]
+status = "not-applicable"
+reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
+
+[basecase."type"]
+status = "composed"
+rust = "BaseCase::type_text"
+note = "One canonical name: Rust has type_text only."
+
+[basecase."uncheck_if_checked"]
+status = "implemented"
+rust = "BaseCase::uncheck_if_checked"
+
+[basecase."unselect_if_selected"]
+status = "implemented"
+rust = "BaseCase::unselect_if_selected"
+
+[basecase."update_text"]
+status = "implemented"
+rust = "BaseCase::update_text"
+
+[basecase."visit"]
+status = "implemented"
+rust = "BaseCase::visit"
+
+[basecase."visit_url"]
+status = "implemented"
+rust = "BaseCase::visit_url"
+
+[basecase."wait"]
+status = "implemented"
+rust = "BaseCase::wait"
+
+[basecase."wait_for_and_accept_alert"]
+status = "implemented"
+rust = "BaseCase::wait_for_and_accept_alert"
+
+[basecase."wait_for_and_dismiss_alert"]
+status = "implemented"
+rust = "BaseCase::wait_for_and_dismiss_alert"
+
+[basecase."wait_for_and_switch_to_alert"]
+status = "implemented"
+rust = "BaseCase::wait_for_and_switch_to_alert"
+
+[basecase."wait_for_angularjs"]
+status = "implemented"
+rust = "BaseCase::wait_for_angularjs"
+
+[basecase."wait_for_any_of_elements_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_any_of_elements_present"
+
+[basecase."wait_for_any_of_elements_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_any_of_elements_visible"
+
+[basecase."wait_for_attribute"]
+status = "implemented"
+rust = "BaseCase::wait_for_attribute"
+
+[basecase."wait_for_attribute_not_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_attribute_not_present"
+
+[basecase."wait_for_element"]
+status = "implemented"
+rust = "BaseCase::wait_for_element"
+
+[basecase."wait_for_element_absent"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_absent"
+
+[basecase."wait_for_element_clickable"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_clickable"
+
+[basecase."wait_for_element_not_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_not_present"
+
+[basecase."wait_for_element_not_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_not_visible"
+
+[basecase."wait_for_element_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_present"
+
+[basecase."wait_for_element_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_visible"
+
+[basecase."wait_for_exact_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_exact_text"
+
+[basecase."wait_for_exact_text_not_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_exact_text_not_visible"
+
+[basecase."wait_for_exact_text_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_exact_text_visible"
+
+[basecase."wait_for_link_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_link_text"
+
+[basecase."wait_for_link_text_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_link_text_present"
+
+[basecase."wait_for_link_text_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_link_text_visible"
+
+[basecase."wait_for_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_non_empty_text"
+
+[basecase."wait_for_non_empty_text_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_non_empty_text_visible"
+
+[basecase."wait_for_partial_link_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_partial_link_text"
+
+[basecase."wait_for_partial_link_text_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_partial_link_text_present"
+
+[basecase."wait_for_query_selector"]
+status = "implemented"
+rust = "BaseCase::wait_for_query_selector"
+
+[basecase."wait_for_ready_state_complete"]
+status = "implemented"
+rust = "BaseCase::wait_for_ready_state_complete"
+
+[basecase."wait_for_selector"]
+status = "implemented"
+rust = "BaseCase::wait_for_selector"
+
+[basecase."wait_for_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_text"
+
+[basecase."wait_for_text_not_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_text_not_visible"
+
+[basecase."wait_for_text_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_text_visible"
+
+[basecase."write"]
+status = "implemented"
+rust = "BaseCase::write"
+
+[cdp."activate_cdp_mode"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."activate_messenger"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."add_handler"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."append_data_to_logs"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_any_of_elements_present"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_any_of_elements_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_downloaded_file"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_element_absent"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_element_attribute"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_element_not_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_element_present"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_element_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_equal"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_exact_text"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_false"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_in"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_not_equal"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_not_in"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_text"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_text_not_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_title"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_title_contains"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_true"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_url"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."assert_url_contains"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."bring_active_window_to_front"]
+status = "composed"
+rust = "Page::bring_to_front"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."check_if_unchecked"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."clear"]
+status = "composed"
+rust = "Locator::clear"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."clear_cookies"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."clear_input"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click"]
+status = "composed"
+rust = "Locator::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."click_active_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_and_hold"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_captcha"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_if_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_link"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_nth_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_nth_visible_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_visible_elements"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."click_with_offset"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."close_active_tab"]
+status = "composed"
+rust = "Page::close"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."download_file"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."drag_and_drop"]
+status = "composed"
+rust = "Locator::drag_to"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."enter_mfa_code"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."evaluate"]
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."execute_script"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."fast_keys"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."fast_type"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."find_all"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."find_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."find_element_by_text"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."find_elements"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."find_elements_by_text"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."find_visible_elements"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."flash"]
+status = "composed"
+rust = "Locator::flash"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."focus"]
+status = "composed"
+rust = "Locator::focus"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get"]
+status = "composed"
+rust = "Page::goto"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_active_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_active_element_css"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_active_tab"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_all_cookies"]
+status = "composed"
+rust = "Cookies::all"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_all_urls"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_attribute"]
+status = "composed"
+rust = "Locator::attribute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_beautiful_soup"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_cookie_string"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_current_url"]
+status = "composed"
+rust = "Page::url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_document"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_element_attribute"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_element_attributes"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_element_html"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_element_position"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_element_rect"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_element_size"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_endpoint_url"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_event_loop"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_flattened_document"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_gui_element_center"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_gui_element_rect"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_html"]
+status = "composed"
+rust = "Locator::html"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_local_storage_item"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_locale_code"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_mfa_code"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_navigation_history"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_nested_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_origin"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_page_source"]
+status = "composed"
+rust = "Page::content"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_page_title"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_parent"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_path_of_downloaded_file"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_port"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_rd_host"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_rd_port"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_rd_url"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_screen_rect"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_session_storage_item"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_tabs"]
+status = "composed"
+rust = "Browser::pages"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_text"]
+status = "composed"
+rust = "Locator::text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_title"]
+status = "composed"
+rust = "Page::title"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_user_agent"]
+status = "composed"
+rust = "Page::user_agent"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_websocket_url"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_window"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_window_position"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."get_window_rect"]
+status = "composed"
+rust = "Window::bounds"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."get_window_size"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."go_back"]
+status = "composed"
+rust = "Page::back"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."go_forward"]
+status = "composed"
+rust = "Page::forward"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."goto"]
+status = "composed"
+rust = "Page::goto"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."goto_if_not_url"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."grant_all_permissions"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."grant_permissions"]
+status = "composed"
+rust = "Browser::grant_permissions"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."gui_click_and_hold"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_click_captcha"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_click_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_click_with_offset"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_click_x_y"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_drag_and_drop"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_drag_drop_points"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_hover_and_click"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_hover_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_hover_x_y"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_move_to_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_press_key"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_press_keys"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."gui_write"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."highlight"]
+status = "composed"
+rust = "Locator::flash"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."highlight_overlay"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."hover_and_click"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."hover_element"]
+status = "composed"
+rust = "Locator::hover"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."internalize_links"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."is_attribute_present"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."is_checked"]
+status = "composed"
+rust = "Locator::is_checked"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."is_element_present"]
+status = "composed"
+rust = "Locator::exists"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."is_element_visible"]
+status = "composed"
+rust = "Locator::is_visible"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."is_exact_text_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."is_online"]
+status = "composed"
+rust = "Page::is_online"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."is_selected"]
+status = "composed"
+rust = "Locator::is_selected"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."is_text_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."js_dumps"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."js_scroll_into_view"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."load_cookies"]
+status = "composed"
+rust = "Cookies::load"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."maximize"]
+status = "composed"
+rust = "Window::maximize"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."medimize"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."minimize"]
+status = "composed"
+rust = "Window::minimize"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."mouse_click"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."nested_click"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."open"]
+status = "composed"
+rust = "Page::goto"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."open_new_tab"]
+status = "composed"
+rust = "Browser::new_page"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."open_new_window"]
+status = "composed"
+rust = "Browser::new_window"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."post_message"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."press_keys"]
+status = "composed"
+rust = "Locator::press"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."print_to_pdf"]
+status = "composed"
+rust = "Page::pdf"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."quit"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."refresh"]
+status = "composed"
+rust = "Page::reload"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."reload"]
+status = "composed"
+rust = "Page::reload"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."remove_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."remove_elements"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."remove_from_dom"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."reset_permissions"]
+status = "composed"
+rust = "Browser::reset_permissions"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."reset_window_size"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_as_html"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_as_html_to_logs"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_as_pdf"]
+status = "composed"
+rust = "Page::pdf"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."save_as_pdf_to_logs"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_cookies"]
+status = "composed"
+rust = "Cookies::save"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."save_data_to_logs"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_file_as"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_page_source"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_page_source_to_logs"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."save_screenshot"]
+status = "composed"
+rust = "Page::screenshot"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."save_screenshot_to_logs"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."scroll_by_y"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."scroll_down"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."scroll_into_view"]
+status = "composed"
+rust = "Locator::scroll_into_view"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."scroll_to_bottom"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."scroll_to_top"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."scroll_to_y"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."scroll_up"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."select"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."select_all"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."select_if_unselected"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."select_option_by_index"]
+status = "composed"
+rust = "Locator::select_option"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."select_option_by_text"]
+status = "composed"
+rust = "Locator::select_option"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."select_option_by_value"]
+status = "composed"
+rust = "Locator::select_option"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."send_keys"]
+status = "composed"
+rust = "Locator::type_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."set_all_cookies"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."set_attributes"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."set_download_path"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."set_local_storage_item"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."set_locale"]
+status = "composed"
+rust = "Emulation::locale"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."set_messenger_theme"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."set_session_storage_item"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."set_value"]
+status = "composed"
+rust = "Locator::set_value"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."set_window_rect"]
+status = "composed"
+rust = "Window::set_bounds"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."sleep"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."solve_captcha"]
+status = "composed"
+rust = "Page::solve_captcha"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."stop"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."submit"]
+status = "composed"
+rust = "Locator::submit"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."switch_to_newest_tab"]
+status = "composed"
+rust = "Browser::newest_page"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."switch_to_newest_window"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."switch_to_tab"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."switch_to_window"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."tile_windows"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."type"]
+status = "composed"
+rust = "Locator::type_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+
+[cdp."uncheck_if_checked"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."unselect_if_selected"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_any_of_elements_present"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_any_of_elements_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_element"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_element_absent"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_element_not_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_element_present"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_element_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_text"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cdp."wait_for_text_not_visible"]
+status = "planned"
+note = "No Rust composition identified yet."
+
+[cli."behave-gui"]
+status = "implemented"
+rust = "sbase behave-gui"
+
+[cli."behave-options"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."case-plans"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."caseplans"]
+status = "implemented"
+rust = "sbase caseplans"
+
+[cli."codegen"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."commander"]
+status = "implemented"
+rust = "sbase commander"
+
+[cli."convert"]
+status = "implemented"
+rust = "sbase convert"
+
+[cli."decrypt"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."download"]
+status = "implemented"
+rust = "sbase download"
+
+[cli."encrypt"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."extract-objects"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."get"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."grid-hub"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."grid-node"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."gui"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."gui-behave"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."help"]
+status = "composed"
+rust = "clap"
+note = "Provided by the argument parser."
+
+[cli."inject-objects"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."install"]
+status = "implemented"
+rust = "sbase install"
+
+[cli."methods"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."mkchart"]
+status = "implemented"
+rust = "sbase mkchart"
+
+[cli."mkdir"]
+status = "implemented"
+rust = "sbase mkdir"
+
+[cli."mkfile"]
+status = "implemented"
+rust = "sbase mkfile"
+
+[cli."mkpres"]
+status = "implemented"
+rust = "sbase mkpres"
+
+[cli."mkrec"]
+status = "implemented"
+rust = "sbase mkrec"
+
+[cli."obfuscate"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."objectify"]
+status = "implemented"
+rust = "sbase objectify"
+
+[cli."options"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."print"]
+status = "implemented"
+rust = "sbase print"
+
+[cli."proxy"]
+status = "implemented"
+rust = "sbase proxy"
+
+[cli."record"]
+status = "implemented"
+rust = "sbase record"
+
+[cli."recorder"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."revert-objects"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."translate"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."unobfuscate"]
+status = "planned"
+note = "No Rust command yet."
+
+[cli."version"]
+status = "composed"
+rust = "clap"
+note = "Provided by the argument parser."
+
+[driver."add_cookie"]
+status = "implemented"
+rust = "BaseCase::add_cookie"
+
+[driver."assert_element_not_visible"]
+status = "implemented"
+rust = "BaseCase::assert_element_not_visible"
+
+[driver."assert_element_present"]
+status = "implemented"
+rust = "BaseCase::assert_element_present"
+
+[driver."assert_element_visible"]
+status = "implemented"
+rust = "BaseCase::assert_element_visible"
+
+[driver."assert_exact_text"]
+status = "implemented"
+rust = "BaseCase::assert_exact_text"
+
+[driver."assert_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::assert_non_empty_text"
+
+[driver."assert_text"]
+status = "implemented"
+rust = "BaseCase::assert_text"
+
+[driver."assert_text_not_visible"]
+status = "implemented"
+rust = "BaseCase::assert_text_not_visible"
+
+[driver."back"]
+status = "planned"
+note = "No Rust counterpart yet."
+
+[driver."click"]
+status = "implemented"
+rust = "BaseCase::click"
+
+[driver."click_active_element"]
+status = "implemented"
+rust = "BaseCase::click_active_element"
+
+[driver."click_if_visible"]
+status = "implemented"
+rust = "BaseCase::click_if_visible"
+
+[driver."click_link"]
+status = "implemented"
+rust = "BaseCase::click_link"
+
+[driver."delete_cookie"]
+status = "implemented"
+rust = "BaseCase::delete_cookie"
+
+[driver."find_element"]
+status = "implemented"
+rust = "BaseCase::find_element"
+
+[driver."find_elements"]
+status = "implemented"
+rust = "BaseCase::find_elements"
+
+[driver."forward"]
+status = "planned"
+note = "No Rust counterpart yet."
+
+[driver."get_active_element_css"]
+status = "implemented"
+rust = "BaseCase::get_active_element_css"
+
+[driver."get_attribute"]
+status = "implemented"
+rust = "BaseCase::get_attribute"
+
+[driver."get_cookie"]
+status = "implemented"
+rust = "BaseCase::get_cookie"
+
+[driver."get_cookie_string"]
+status = "implemented"
+rust = "BaseCase::get_cookie_string"
+
+[driver."get_current_url"]
+status = "implemented"
+rust = "BaseCase::get_current_url"
+
+[driver."get_locale_code"]
+status = "implemented"
+rust = "BaseCase::get_locale_code"
+
+[driver."get_origin"]
+status = "implemented"
+rust = "BaseCase::get_origin"
+
+[driver."get_page_source"]
+status = "implemented"
+rust = "BaseCase::get_page_source"
+
+[driver."get_parent"]
+status = "implemented"
+rust = "BaseCase::get_parent"
+
+[driver."get_screen_rect"]
+status = "implemented"
+rust = "BaseCase::get_screen_rect"
+
+[driver."get_text"]
+status = "implemented"
+rust = "BaseCase::get_text"
+
+[driver."get_title"]
+status = "implemented"
+rust = "BaseCase::get_title"
+
+[driver."get_user_agent"]
+status = "implemented"
+rust = "BaseCase::get_user_agent"
+
+[driver."highlight"]
+status = "implemented"
+rust = "BaseCase::highlight"
+
+[driver."highlight_click"]
+status = "implemented"
+rust = "BaseCase::highlight_click"
+
+[driver."highlight_if_visible"]
+status = "implemented"
+rust = "BaseCase::highlight_if_visible"
+
+[driver."is_alert_present"]
+status = "implemented"
+rust = "BaseCase::is_alert_present"
+
+[driver."is_attribute_present"]
+status = "implemented"
+rust = "BaseCase::is_attribute_present"
+
+[driver."is_cdp_mode_active"]
+status = "planned"
+note = "No Rust counterpart yet."
+
+[driver."is_connected"]
+status = "implemented"
+rust = "BaseCase::is_connected"
+
+[driver."is_element_present"]
+status = "implemented"
+rust = "BaseCase::is_element_present"
+
+[driver."is_element_visible"]
+status = "implemented"
+rust = "BaseCase::is_element_visible"
+
+[driver."is_exact_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_exact_text_visible"
+
+[driver."is_non_empty_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_non_empty_text_visible"
+
+[driver."is_online"]
+status = "implemented"
+rust = "BaseCase::is_online"
+
+[driver."is_text_visible"]
+status = "implemented"
+rust = "BaseCase::is_text_visible"
+
+[driver."is_uc_mode_active"]
+status = "planned"
+note = "No Rust counterpart yet."
+
+[driver."is_valid_url"]
+status = "implemented"
+rust = "BaseCase::is_valid_url"
+
+[driver."js_click"]
+status = "implemented"
+rust = "BaseCase::js_click"
+
+[driver."locator"]
+status = "implemented"
+rust = "BaseCase::locator"
+
+[driver."open_new_tab"]
+status = "implemented"
+rust = "BaseCase::open_new_tab"
+
+[driver."open_new_window"]
+status = "implemented"
+rust = "BaseCase::open_new_window"
+
+[driver."open_url"]
+status = "implemented"
+rust = "BaseCase::open_url"
+
+[driver."press_keys"]
+status = "implemented"
+rust = "BaseCase::press_keys"
+
+[driver."refresh"]
+status = "implemented"
+rust = "BaseCase::refresh"
+
+[driver."reset_window_size"]
+status = "implemented"
+rust = "BaseCase::reset_window_size"
+
+[driver."select"]
+status = "implemented"
+rust = "BaseCase::select"
+
+[driver."select_all"]
+status = "implemented"
+rust = "BaseCase::select_all"
+
+[driver."select_option_by_index"]
+status = "implemented"
+rust = "BaseCase::select_option_by_index"
+
+[driver."select_option_by_text"]
+status = "implemented"
+rust = "BaseCase::select_option_by_text"
+
+[driver."select_option_by_value"]
+status = "implemented"
+rust = "BaseCase::select_option_by_value"
+
+[driver."send_keys"]
+status = "implemented"
+rust = "BaseCase::send_keys"
+
+[driver."submit"]
+status = "implemented"
+rust = "BaseCase::submit"
+
+[driver."switch_to_default_window"]
+status = "implemented"
+rust = "BaseCase::switch_to_default_window"
+
+[driver."switch_to_frame"]
+status = "implemented"
+rust = "BaseCase::switch_to_frame"
+
+[driver."switch_to_newest_tab"]
+status = "implemented"
+rust = "BaseCase::switch_to_newest_tab"
+
+[driver."switch_to_newest_window"]
+status = "implemented"
+rust = "BaseCase::switch_to_newest_window"
+
+[driver."switch_to_tab"]
+status = "implemented"
+rust = "BaseCase::switch_to_tab"
+
+[driver."switch_to_window"]
+status = "implemented"
+rust = "BaseCase::switch_to_window"
+
+[driver."update_text"]
+status = "implemented"
+rust = "BaseCase::update_text"
+
+[driver."wait_for_and_accept_alert"]
+status = "implemented"
+rust = "BaseCase::wait_for_and_accept_alert"
+
+[driver."wait_for_and_dismiss_alert"]
+status = "implemented"
+rust = "BaseCase::wait_for_and_dismiss_alert"
+
+[driver."wait_for_element"]
+status = "implemented"
+rust = "BaseCase::wait_for_element"
+
+[driver."wait_for_element_absent"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_absent"
+
+[driver."wait_for_element_not_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_not_visible"
+
+[driver."wait_for_element_present"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_present"
+
+[driver."wait_for_element_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_element_visible"
+
+[driver."wait_for_exact_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_exact_text"
+
+[driver."wait_for_non_empty_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_non_empty_text"
+
+[driver."wait_for_selector"]
+status = "implemented"
+rust = "BaseCase::wait_for_selector"
+
+[driver."wait_for_text"]
+status = "implemented"
+rust = "BaseCase::wait_for_text"
+
+[driver."wait_for_text_not_visible"]
+status = "implemented"
+rust = "BaseCase::wait_for_text_not_visible"
+
+[mcp_cdp."assert_condition"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."check_if_condition"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."click_element"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."close_browser"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."find_elements"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."focus_element"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."get_attributes"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."get_content"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."get_page_info"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."hover_action"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."manage_cookies"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."manage_history"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."manage_storage"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."manage_tabs"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."manage_window"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."open_url"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."run_javascript"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."save_page"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."scroll_page"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."select_option"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."solve_captcha"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."start_browser"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."type_text"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_cdp."wait_for_condition"]
+status = "implemented"
+rust = "mcp::cdp"
+
+[mcp_driver."activate_cdp_mode"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."assert_element"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."assert_text"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."click_element"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."close_browser"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."execute_script"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."find_elements_count"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."get_current_url"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."get_page_source"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."get_text"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."get_title"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."go_back"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."go_forward"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."is_element_visible"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."open_url"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."refresh_page"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."save_screenshot"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."select_option_by_index"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."select_option_by_text"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."select_option_by_value"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."solve_captcha"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."start_browser"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."switch_to_default_content"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."switch_to_frame"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."type_text"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_driver."wait_for_element"]
+status = "implemented"
+rust = "mcp::driver"
+
+[mcp_sb."activate_cdp_mode"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_element"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_element_not_visible"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_element_present"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_exact_text"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_no_404_errors"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_no_js_errors"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_text"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_title"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_url"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."assert_url_contains"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."choose_file"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."clear_input"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."click_element"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."click_if_visible"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."click_link"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."click_nth_visible_element"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."click_visible_elements"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."close_browser"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."context_click"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."delete_all_cookies"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."double_click"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."download_file"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."drag_and_drop"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."enter_mfa_code"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."evaluate"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."execute_script"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."find_elements_count"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."flash"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_attribute"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_cookies"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_current_url"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_element_html"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_html_source"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_local_storage_item"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_mfa_code"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_origin"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_page_info"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_session_storage_item"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_text"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_title"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_user_agent"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."get_window_rect"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."go_back"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."go_forward"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."highlight"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."hover_and_click"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."is_element_clickable"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."is_element_present"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."is_element_visible"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."is_selected"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."is_text_visible"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."load_cookies"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."maximize_window"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."minimize_window"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."nested_click"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."open_new_tab"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."open_url"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."print_to_pdf"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."refresh_page"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."save_cookies"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."save_page_source"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."save_screenshot"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."scroll_down"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."scroll_into_view"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."scroll_to_bottom"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."scroll_to_top"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."scroll_up"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."select_option_by_index"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."select_option_by_text"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."select_option_by_value"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."set_local_storage_item"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."set_session_storage_item"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."set_value"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."sleep"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."solve_captcha"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."start_browser"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."submit"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."switch_to_default_content"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."switch_to_default_window"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."switch_to_frame"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."switch_to_newest_tab"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."type_text"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."wait_for_element"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."wait_for_element_absent"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."wait_for_element_not_visible"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."wait_for_element_present"]
+status = "implemented"
+rust = "mcp::sb"
+
+[mcp_sb."wait_for_text"]
+status = "implemented"
+rust = "mcp::sb"
+
+[options_driver."ad_block"]
+status = "implemented"
+rust = "BrowserConfig::ad_block"
+
+[options_driver."ad_block_on"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."agent"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."binary_location"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."block_images"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."browser"]
+status = "implemented"
+rust = "BrowserConfig::browser"
+
+[options_driver."cap_file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."cap_string"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."cft"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."chromium_arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."chs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."d_height"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."d_p_r"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."d_width"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."dark_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."devtools"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."disable_cookies"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."disable_csp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."disable_features"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."disable_gpu"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."disable_js"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."disable_ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."do_not_track"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."driver_version"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."enable_3d_apis"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."enable_sync"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."enable_ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."extension_dir"]
+status = "implemented"
+rust = "BrowserConfig::extension_dir"
+
+[options_driver."extension_zip"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."external_pdf"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."firefox_arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."firefox_pref"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."guest"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."guest_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."headed"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."headless"]
+status = "implemented"
+rust = "BrowserConfig::headless"
+
+[options_driver."headless1"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."headless2"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."host_resolver_rules"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."incognito"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."is_mobile"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."locale"]
+status = "implemented"
+rust = "BrowserConfig::locale"
+
+[options_driver."locale_code"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."log_cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."log_cdp_events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."mobile"]
+status = "implemented"
+rust = "BrowserConfig::mobile"
+
+[options_driver."multi_proxy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."no_sandbox"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."page_load_strategy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."pls"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."port"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."position"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."protocol"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."proxy"]
+status = "implemented"
+rust = "BrowserConfig::proxy"
+
+[options_driver."proxy_bypass_list"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."proxy_pac_url"]
+status = "implemented"
+rust = "BrowserConfig::proxy_pac_url"
+
+[options_driver."recorder_ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."remote_debug"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."server"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."servername"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."size"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."swiftshader"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."uc"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."uc_cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."uc_cdp_events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."uc_sub"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."uc_subprocess"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."undetectable"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."undetected"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."use_auto_ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."use_chromium"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."user_data_dir"]
+status = "implemented"
+rust = "BrowserConfig::user_data_dir"
+
+[options_driver."window_position"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_driver."window_size"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--account"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--ad-block"]
+status = "implemented"
+rust = "BrowserConfig::ad_block"
+
+[options_pytest."--ad_block"]
+status = "implemented"
+rust = "BrowserConfig::ad_block"
+
+[options_pytest."--adblock"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--agent"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--all-scripts"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--all_scripts"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--archive-downloads"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--archive-logs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--archive_downloads"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--archive_logs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--auto-ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--binary-location"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--binary_location"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--bl"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--block-ads"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--block-images"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--block_ads"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--block_images"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--brave"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--browser"]
+status = "implemented"
+rust = "BrowserConfig::browser"
+
+[options_pytest."--cap-file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--cap-string"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--cap_file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--cap_string"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--cft"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--check-js"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--check_js"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--chrome"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--chromium"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--chromium-arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--chromium_arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--chs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--codegen"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--comet"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--crumbs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--crx"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dark"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dark-mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dark_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dash-title"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dash_title"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dashboard"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--data"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--database-env"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--database_env"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dcsp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--demo"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--demo-mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--demo-sleep"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--demo_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--demo_sleep"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--device-metrics"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--device_metrics"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--devtools"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-beforeunload"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-cookies"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-csp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-features"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-gpu"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-js"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-web-security"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable-ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_beforeunload"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_cookies"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_csp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_features"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_gpu"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_js"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--disable_ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--do-not-track"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--do_not_track"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--driver-version"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--driver_version"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--dws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--edge"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--ee"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable-3d-apis"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable-sync"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable-web-security"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable-ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable_3d_apis"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable_sync"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--enable_ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--env"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--esc-end"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--esc_end"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--extension-dir"]
+status = "implemented"
+rust = "BrowserConfig::extension_dir"
+
+[options_pytest."--extension-zip"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--extension_dir"]
+status = "implemented"
+rust = "BrowserConfig::extension_dir"
+
+[options_pytest."--extension_zip"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--external-pdf"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--external_pdf"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--fast"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--fast-mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--fast_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--fdebug"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--final-debug"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--final-trace"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--firefox"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--firefox-arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--firefox-pref"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--firefox_arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--firefox_pref"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--ftrace"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--fullscreen"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--guest"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--guest-mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--guest_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--gui"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--headed"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--headless"]
+status = "implemented"
+rust = "BrowserConfig::headless"
+
+[options_pytest."--headless1"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--headless2"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--highlights"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--host-resolver-rules"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--host_resolver_rules"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--ie"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--incognito"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--incognito-mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--incognito_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--interval"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--is-pytest"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--is_pytest"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--lfp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--list-fail-page"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--list-fail-pages"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--locale"]
+status = "implemented"
+rust = "BrowserConfig::locale"
+
+[options_pytest."--locale-code"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--locale_code"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--log-cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--log-cdp-events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--log-path"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--log_cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--log_cdp_events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--log_path"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--maximize"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--maximize-window"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--maximize_window"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--message-duration"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--message_duration"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--metrics"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--mobile"]
+status = "implemented"
+rust = "BrowserConfig::mobile"
+
+[options_pytest."--mobile-emulator"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--mobile_emulator"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--multi-proxy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--multi_proxy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--no-csp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--no-sandbox"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--no-screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--no_csp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--no_sandbox"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--no_screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--ns"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--open-devtools"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--open_devtools"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--opera"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--pac-url"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--page-load-strategy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--page_load_strategy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--pls"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--port"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--protocol"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--proxy"]
+status = "implemented"
+rust = "BrowserConfig::proxy"
+
+[options_pytest."--proxy-bypass-list"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--proxy-driver"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--proxy-pac-url"]
+status = "implemented"
+rust = "BrowserConfig::proxy_pac_url"
+
+[options_pytest."--proxy-server"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--proxy-string"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--proxy_bypass_list"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--proxy_driver"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rcs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec-behave"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec-gherkin"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec-print"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec-sb-cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec-sb-mgr"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--rec-sleep"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--record"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--record-sleep"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--recorder"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--remote-debug"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--remote-debugger"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--remote_debug"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--remote_debugger"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--reuse-class-session"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--reuse-session"]
+status = "implemented"
+rust = "BrowserConfig::reuse_session"
+
+[options_pytest."--reuse_class_session"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--reuse_session"]
+status = "implemented"
+rust = "BrowserConfig::reuse_session"
+
+[options_pytest."--rs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--safari"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--save-screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--save_screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--server"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--settings"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--settings-file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--settings_file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--sjw"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--skip-js-waits"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--skip_js_waits"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--slow"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--slow-mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--slow_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--slowmo"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--ss"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--start-page"]
+status = "implemented"
+rust = "BrowserConfig::start_page"
+
+[options_pytest."--start_page"]
+status = "implemented"
+rust = "BrowserConfig::start_page"
+
+[options_pytest."--swiftshader"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--time-limit"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--time_limit"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--timelimit"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--timeout-multiplier"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--timeout_multiplier"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc-cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc-cdp-events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc-sub"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc-subprocess"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc_cdp_events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--uc_subprocess"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--undetectable"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--undetected"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--url"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--use-auto-ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--use-chromium"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--use_auto_ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--user-agent"]
+status = "implemented"
+rust = "BrowserConfig::user_agent"
+
+[options_pytest."--user-data-dir"]
+status = "implemented"
+rust = "BrowserConfig::user_data_dir"
+
+[options_pytest."--user_agent"]
+status = "implemented"
+rust = "BrowserConfig::user_agent"
+
+[options_pytest."--user_data_dir"]
+status = "implemented"
+rust = "BrowserConfig::user_data_dir"
+
+[options_pytest."--var1"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--var2"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--var3"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--variables"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--verify-delay"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--verify_delay"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--visual-baseline"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--visual_baseline"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--wait-for-angularjs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--wait_for_angularjs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--wfa"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--window-position"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--window-size"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--window_position"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--window_size"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-basic-test-info"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-basic_test_info"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-db-reporting"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-db_reporting"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-page-source"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-page_source"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-s3-logging"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-s3_logging"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-screen-shots"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-screen_shots"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-selenium"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-testing-base"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--with-testing_base"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--xvfb"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--xvfb-metrics"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_pytest."--xvfb_metrics"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."account"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."ad_block"]
+status = "implemented"
+rust = "BrowserConfig::ad_block"
+
+[options_sb."ad_block_on"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."agent"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."binary_location"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."block_images"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."browser"]
+status = "implemented"
+rust = "BrowserConfig::browser"
+
+[options_sb."cap_file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."cap_string"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."cft"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."chromium_arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."chs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."dark_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."data"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."demo"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."demo_sleep"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."device_metrics"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."devtools"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."disable_beforeunload"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."disable_cookies"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."disable_csp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."disable_features"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."disable_js"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."disable_ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."do_not_track"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."driver_version"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."enable_3d_apis"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."enable_sync"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."enable_ws"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."environment"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."extension_dir"]
+status = "implemented"
+rust = "BrowserConfig::extension_dir"
+
+[options_sb."extension_zip"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."external_pdf"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."fast"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."firefox_arg"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."firefox_pref"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."guest"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."guest_mode"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."headed"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."headless"]
+status = "implemented"
+rust = "BrowserConfig::headless"
+
+[options_sb."headless1"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."headless2"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."highlights"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."host_resolver_rules"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."incognito"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."interval"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."is_mobile"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."js_checking_on"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."locale"]
+status = "implemented"
+rust = "BrowserConfig::locale"
+
+[options_sb."locale_code"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."log_cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."log_cdp_events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."maximize"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."message_duration"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."mobile"]
+status = "implemented"
+rust = "BrowserConfig::mobile"
+
+[options_sb."multi_proxy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."no_screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."page_load_strategy"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."pls"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."port"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."position"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."protocol"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."proxy"]
+status = "implemented"
+rust = "BrowserConfig::proxy"
+
+[options_sb."proxy_bypass_list"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."proxy_pac_url"]
+status = "implemented"
+rust = "BrowserConfig::proxy_pac_url"
+
+[options_sb."raise_test_failure"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."rec_behave"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."rec_print"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."rec_sb_cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."rec_sb_mgr"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."record_sleep"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."recorder_ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."remote_debug"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."rtf"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."save_screenshot"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."server"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."servername"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."settings_file"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."size"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."sjw"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."skip_js_waits"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."slow"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."start_page"]
+status = "implemented"
+rust = "BrowserConfig::start_page"
+
+[options_sb."swiftshader"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."test"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."time_limit"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."timeout_multiplier"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."uc"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."uc_cdp"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."uc_cdp_events"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."uc_sub"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."uc_subprocess"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."undetectable"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."undetected"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."use_auto_ext"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."use_chromium"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."user_data_dir"]
+status = "implemented"
+rust = "BrowserConfig::user_data_dir"
+
+[options_sb."var1"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."var2"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."var3"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."variables"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."wait_for_angularjs"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."wfa"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."window_position"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."window_size"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."xvfb"]
+status = "planned"
+note = "No Rust setting yet."
+
+[options_sb."xvfb_metrics"]
+status = "planned"
+note = "No Rust setting yet."

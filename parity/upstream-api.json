@@ -1,0 +1,6557 @@
+{
+  "basecase": [
+    {
+      "name": "accept_alert",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "activate_cdp_mode",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "activate_demo_mode",
+      "params": []
+    },
+    {
+      "name": "activate_design_mode",
+      "params": []
+    },
+    {
+      "name": "activate_jquery",
+      "params": []
+    },
+    {
+      "name": "activate_jquery_confirm",
+      "params": []
+    },
+    {
+      "name": "activate_messenger",
+      "params": []
+    },
+    {
+      "name": "activate_recorder",
+      "params": []
+    },
+    {
+      "name": "ad_block",
+      "params": []
+    },
+    {
+      "name": "add_cookie",
+      "params": [
+        "cookie_dict",
+        "expiry"
+      ]
+    },
+    {
+      "name": "add_cookies",
+      "params": [
+        "cookies",
+        "expiry"
+      ]
+    },
+    {
+      "name": "add_css_link",
+      "params": [
+        "css_link"
+      ]
+    },
+    {
+      "name": "add_css_style",
+      "params": [
+        "css_style"
+      ]
+    },
+    {
+      "name": "add_data_point",
+      "params": [
+        "label",
+        "value",
+        "color",
+        "chart_name"
+      ]
+    },
+    {
+      "name": "add_js_code",
+      "params": [
+        "js_code"
+      ]
+    },
+    {
+      "name": "add_js_code_from_link",
+      "params": [
+        "js_link"
+      ]
+    },
+    {
+      "name": "add_js_link",
+      "params": [
+        "js_link"
+      ]
+    },
+    {
+      "name": "add_meta_tag",
+      "params": [
+        "http_equiv",
+        "content"
+      ]
+    },
+    {
+      "name": "add_series_to_chart",
+      "params": [
+        "data_name",
+        "chart_name"
+      ]
+    },
+    {
+      "name": "add_slide",
+      "params": [
+        "content",
+        "image",
+        "code",
+        "iframe",
+        "content2",
+        "notes",
+        "transition",
+        "name"
+      ]
+    },
+    {
+      "name": "add_text",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "add_tour_step",
+      "params": [
+        "message",
+        "selector",
+        "name",
+        "title",
+        "theme",
+        "alignment",
+        "duration"
+      ]
+    },
+    {
+      "name": "append_data_to_file",
+      "params": [
+        "data",
+        "file_name",
+        "destination_folder"
+      ]
+    },
+    {
+      "name": "append_data_to_logs",
+      "params": [
+        "data",
+        "file_name"
+      ]
+    },
+    {
+      "name": "assert_any_of_elements_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_any_of_elements_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_attribute_not_present",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_data_in_downloaded_file",
+      "params": [
+        "data",
+        "file",
+        "timeout",
+        "browser"
+      ]
+    },
+    {
+      "name": "assert_downloaded_file",
+      "params": [
+        "file",
+        "timeout",
+        "browser"
+      ]
+    },
+    {
+      "name": "assert_downloaded_file_regex",
+      "params": [
+        "regex",
+        "timeout",
+        "browser"
+      ]
+    },
+    {
+      "name": "assert_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_absent",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_not_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_not_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_elements",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_elements_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_elements_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_equal",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_exact_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_exact_text_not_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_false",
+      "params": [
+        "expr",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_in",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_link",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_link_status_code_is_not_404",
+      "params": [
+        "link"
+      ]
+    },
+    {
+      "name": "assert_link_text",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_no_404_errors",
+      "params": [
+        "multithreaded",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_no_broken_links",
+      "params": [
+        "multithreaded"
+      ]
+    },
+    {
+      "name": "assert_no_js_errors",
+      "params": [
+        "exclude"
+      ]
+    },
+    {
+      "name": "assert_non_empty_text",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_not_equal",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_not_in",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_partial_link_text",
+      "params": [
+        "partial_link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_pdf_text",
+      "params": [
+        "pdf",
+        "text",
+        "page",
+        "maxpages",
+        "password",
+        "codec",
+        "wrap",
+        "nav",
+        "override",
+        "caching"
+      ]
+    },
+    {
+      "name": "assert_raises",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_text_not_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_text_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_title",
+      "params": [
+        "title"
+      ]
+    },
+    {
+      "name": "assert_title_contains",
+      "params": [
+        "substring"
+      ]
+    },
+    {
+      "name": "assert_true",
+      "params": [
+        "expr",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "assert_url_contains",
+      "params": [
+        "substring"
+      ]
+    },
+    {
+      "name": "begin_presentation",
+      "params": [
+        "name",
+        "filename",
+        "show_notes",
+        "interval"
+      ]
+    },
+    {
+      "name": "block_ads",
+      "params": []
+    },
+    {
+      "name": "bring_active_window_to_front",
+      "params": []
+    },
+    {
+      "name": "bring_to_front",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "check_if_unchecked",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "check_window",
+      "params": [
+        "name",
+        "level",
+        "baseline",
+        "check_domain",
+        "full_diff"
+      ]
+    },
+    {
+      "name": "choose_file",
+      "params": [
+        "selector",
+        "file_path",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "clear",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "clear_all_cookies",
+      "params": []
+    },
+    {
+      "name": "clear_local_storage",
+      "params": []
+    },
+    {
+      "name": "clear_session_storage",
+      "params": []
+    },
+    {
+      "name": "click",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "delay",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_active_element",
+      "params": []
+    },
+    {
+      "name": "click_chain",
+      "params": [
+        "selectors_list",
+        "by",
+        "timeout",
+        "spacing"
+      ]
+    },
+    {
+      "name": "click_if_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_link",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "click_link_text",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "click_nth_visible_element",
+      "params": [
+        "selector",
+        "number",
+        "by",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_partial_link",
+      "params": [
+        "partial_link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "click_partial_link_text",
+      "params": [
+        "partial_link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "click_visible_elements",
+      "params": [
+        "selector",
+        "by",
+        "limit",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_with_offset",
+      "params": [
+        "selector",
+        "x",
+        "y",
+        "by",
+        "mark",
+        "timeout",
+        "center",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_xpath",
+      "params": [
+        "xpath"
+      ]
+    },
+    {
+      "name": "console_log_script",
+      "params": [
+        "script"
+      ]
+    },
+    {
+      "name": "console_log_string",
+      "params": [
+        "string"
+      ]
+    },
+    {
+      "name": "context_click",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "convert_css_to_xpath",
+      "params": [
+        "css"
+      ]
+    },
+    {
+      "name": "convert_to_css_selector",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "convert_xpath_to_css",
+      "params": [
+        "xpath"
+      ]
+    },
+    {
+      "name": "create_area_chart",
+      "params": [
+        "chart_name",
+        "title",
+        "subtitle",
+        "data_name",
+        "unit",
+        "zero",
+        "libs",
+        "labels",
+        "legend"
+      ]
+    },
+    {
+      "name": "create_bar_chart",
+      "params": [
+        "chart_name",
+        "title",
+        "subtitle",
+        "data_name",
+        "unit",
+        "libs",
+        "labels",
+        "legend"
+      ]
+    },
+    {
+      "name": "create_bootstrap_tour",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "create_column_chart",
+      "params": [
+        "chart_name",
+        "title",
+        "subtitle",
+        "data_name",
+        "unit",
+        "libs",
+        "labels",
+        "legend"
+      ]
+    },
+    {
+      "name": "create_driverjs_tour",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "create_folder",
+      "params": [
+        "folder"
+      ]
+    },
+    {
+      "name": "create_hopscotch_tour",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "create_introjs_tour",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "create_line_chart",
+      "params": [
+        "chart_name",
+        "title",
+        "subtitle",
+        "data_name",
+        "unit",
+        "zero",
+        "libs",
+        "labels",
+        "legend"
+      ]
+    },
+    {
+      "name": "create_pie_chart",
+      "params": [
+        "chart_name",
+        "title",
+        "subtitle",
+        "data_name",
+        "unit",
+        "libs",
+        "labels",
+        "legend"
+      ]
+    },
+    {
+      "name": "create_presentation",
+      "params": [
+        "name",
+        "theme",
+        "transition"
+      ]
+    },
+    {
+      "name": "create_shepherd_tour",
+      "params": [
+        "name",
+        "theme"
+      ]
+    },
+    {
+      "name": "create_tour",
+      "params": [
+        "name",
+        "theme"
+      ]
+    },
+    {
+      "name": "deactivate_demo_mode",
+      "params": []
+    },
+    {
+      "name": "deactivate_design_mode",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "deferred_assert_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "deferred_assert_element_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "deferred_assert_exact_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "deferred_assert_non_empty_text",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "deferred_assert_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "deferred_check_window",
+      "params": [
+        "name",
+        "level",
+        "baseline",
+        "check_domain",
+        "full_diff",
+        "fs"
+      ]
+    },
+    {
+      "name": "delayed_assert_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "delayed_assert_element_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "delayed_assert_exact_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "delayed_assert_non_empty_text",
+      "params": [
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "delayed_assert_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout",
+        "fs"
+      ]
+    },
+    {
+      "name": "delayed_check_window",
+      "params": [
+        "name",
+        "level",
+        "baseline",
+        "check_domain",
+        "full_diff",
+        "fs"
+      ]
+    },
+    {
+      "name": "delete_all_cookies",
+      "params": []
+    },
+    {
+      "name": "delete_downloaded_file",
+      "params": [
+        "file",
+        "browser"
+      ]
+    },
+    {
+      "name": "delete_downloaded_file_if_present",
+      "params": [
+        "file",
+        "browser"
+      ]
+    },
+    {
+      "name": "delete_local_storage",
+      "params": []
+    },
+    {
+      "name": "delete_saved_cookies",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "delete_session_storage",
+      "params": []
+    },
+    {
+      "name": "disable_beforeunload",
+      "params": []
+    },
+    {
+      "name": "dismiss_alert",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "display_chart",
+      "params": [
+        "chart_name",
+        "filename",
+        "interval"
+      ]
+    },
+    {
+      "name": "double_click",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "double_click_with_offset",
+      "params": [
+        "selector",
+        "x",
+        "y",
+        "by",
+        "mark",
+        "timeout",
+        "center",
+        "scroll"
+      ]
+    },
+    {
+      "name": "download_file",
+      "params": [
+        "file_url",
+        "destination_folder"
+      ]
+    },
+    {
+      "name": "drag_and_drop",
+      "params": [
+        "drag_selector",
+        "drop_selector",
+        "drag_by",
+        "drop_by",
+        "timeout",
+        "jquery"
+      ]
+    },
+    {
+      "name": "drag_and_drop_with_offset",
+      "params": [
+        "selector",
+        "x",
+        "y",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "enter_mfa_code",
+      "params": [
+        "selector",
+        "totp_key",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "enter_totp_code",
+      "params": [
+        "selector",
+        "totp_key",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "evaluate",
+      "params": [
+        "expression"
+      ]
+    },
+    {
+      "name": "execute_async_script",
+      "params": [
+        "script",
+        "timeout"
+      ]
+    },
+    {
+      "name": "execute_cdp_cmd",
+      "params": [
+        "script",
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "execute_script",
+      "params": [
+        "script",
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "export_tour",
+      "params": [
+        "name",
+        "filename",
+        "url"
+      ]
+    },
+    {
+      "name": "extract_chart",
+      "params": [
+        "chart_name"
+      ]
+    },
+    {
+      "name": "fail",
+      "params": [
+        "msg"
+      ]
+    },
+    {
+      "name": "fast_type",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "retry"
+      ]
+    },
+    {
+      "name": "fill",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "retry"
+      ]
+    },
+    {
+      "name": "find_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_elements",
+      "params": [
+        "selector",
+        "by",
+        "limit"
+      ]
+    },
+    {
+      "name": "find_exact_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_link_text",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_non_empty_text",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_partial_link_text",
+      "params": [
+        "partial_link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_visible_elements",
+      "params": [
+        "selector",
+        "by",
+        "limit"
+      ]
+    },
+    {
+      "name": "flash",
+      "params": [
+        "selector",
+        "duration",
+        "color",
+        "pause"
+      ]
+    },
+    {
+      "name": "focus",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "frame_switch",
+      "params": [
+        "frame",
+        "timeout"
+      ]
+    },
+    {
+      "name": "generate_referral",
+      "params": [
+        "start_page",
+        "destination_page",
+        "selector"
+      ]
+    },
+    {
+      "name": "generate_referral_chain",
+      "params": [
+        "pages"
+      ]
+    },
+    {
+      "name": "generate_traffic",
+      "params": [
+        "start_page",
+        "destination_page",
+        "loops",
+        "selector"
+      ]
+    },
+    {
+      "name": "generate_traffic_chain",
+      "params": [
+        "pages",
+        "loops"
+      ]
+    },
+    {
+      "name": "get",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "get_active_element_css",
+      "params": []
+    },
+    {
+      "name": "get_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "by",
+        "timeout",
+        "hard_fail"
+      ]
+    },
+    {
+      "name": "get_beautiful_soup",
+      "params": [
+        "source"
+      ]
+    },
+    {
+      "name": "get_browser_downloads_folder",
+      "params": []
+    },
+    {
+      "name": "get_chrome_version",
+      "params": []
+    },
+    {
+      "name": "get_chromedriver_version",
+      "params": []
+    },
+    {
+      "name": "get_chromium_driver_version",
+      "params": []
+    },
+    {
+      "name": "get_chromium_version",
+      "params": []
+    },
+    {
+      "name": "get_cookie",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "get_cookie_string",
+      "params": []
+    },
+    {
+      "name": "get_cookies",
+      "params": []
+    },
+    {
+      "name": "get_current_url",
+      "params": []
+    },
+    {
+      "name": "get_data_from_downloaded_file",
+      "params": [
+        "file",
+        "timeout",
+        "browser"
+      ]
+    },
+    {
+      "name": "get_domain_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "get_downloaded_files",
+      "params": [
+        "regex",
+        "browser"
+      ]
+    },
+    {
+      "name": "get_downloads_folder",
+      "params": []
+    },
+    {
+      "name": "get_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_element_at_x_y",
+      "params": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "get_file_data",
+      "params": [
+        "file_name",
+        "folder"
+      ]
+    },
+    {
+      "name": "get_google_auth_code",
+      "params": [
+        "totp_key"
+      ]
+    },
+    {
+      "name": "get_google_auth_password",
+      "params": [
+        "totp_key"
+      ]
+    },
+    {
+      "name": "get_gui_element_center",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "get_gui_element_rect",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "get_html",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_image_url",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_jqc_button_input",
+      "params": [
+        "message",
+        "buttons",
+        "options"
+      ]
+    },
+    {
+      "name": "get_jqc_form_inputs",
+      "params": [
+        "message",
+        "buttons",
+        "options"
+      ]
+    },
+    {
+      "name": "get_jqc_text_input",
+      "params": [
+        "message",
+        "button",
+        "options"
+      ]
+    },
+    {
+      "name": "get_link_attribute",
+      "params": [
+        "link_text",
+        "attribute",
+        "hard_fail"
+      ]
+    },
+    {
+      "name": "get_link_status_code",
+      "params": [
+        "link",
+        "allow_redirects",
+        "timeout",
+        "verify"
+      ]
+    },
+    {
+      "name": "get_link_text_attribute",
+      "params": [
+        "link_text",
+        "attribute",
+        "hard_fail"
+      ]
+    },
+    {
+      "name": "get_local_storage_item",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "get_local_storage_items",
+      "params": []
+    },
+    {
+      "name": "get_local_storage_keys",
+      "params": []
+    },
+    {
+      "name": "get_locale_code",
+      "params": []
+    },
+    {
+      "name": "get_mfa_code",
+      "params": [
+        "totp_key"
+      ]
+    },
+    {
+      "name": "get_new_driver",
+      "params": [
+        "browser",
+        "headless",
+        "locale_code",
+        "protocol",
+        "servername",
+        "port",
+        "proxy",
+        "proxy_bypass_list",
+        "proxy_pac_url",
+        "multi_proxy",
+        "agent",
+        "switch_to",
+        "cap_file",
+        "cap_string",
+        "recorder_ext",
+        "disable_cookies",
+        "disable_js",
+        "disable_csp",
+        "enable_ws",
+        "enable_sync",
+        "use_auto_ext",
+        "undetectable",
+        "uc_cdp_events",
+        "uc_subprocess",
+        "log_cdp_events",
+        "no_sandbox",
+        "disable_gpu",
+        "headless1",
+        "headless2",
+        "incognito",
+        "guest_mode",
+        "dark_mode",
+        "devtools",
+        "remote_debug",
+        "enable_3d_apis",
+        "swiftshader",
+        "ad_block_on",
+        "host_resolver_rules",
+        "block_images",
+        "do_not_track",
+        "chromium_arg",
+        "firefox_arg",
+        "firefox_pref",
+        "user_data_dir",
+        "extension_zip",
+        "extension_dir",
+        "disable_features",
+        "binary_location",
+        "driver_version",
+        "page_load_strategy",
+        "external_pdf",
+        "is_mobile",
+        "d_width",
+        "d_height",
+        "d_p_r",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_origin",
+      "params": []
+    },
+    {
+      "name": "get_page_source",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_page_title",
+      "params": []
+    },
+    {
+      "name": "get_parent",
+      "params": [
+        "element",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_partial_link_text_attribute",
+      "params": [
+        "link_text",
+        "attribute",
+        "hard_fail"
+      ]
+    },
+    {
+      "name": "get_path_of_downloaded_file",
+      "params": [
+        "file",
+        "browser"
+      ]
+    },
+    {
+      "name": "get_pdf_text",
+      "params": [
+        "pdf",
+        "page",
+        "maxpages",
+        "password",
+        "codec",
+        "wrap",
+        "nav",
+        "override",
+        "caching"
+      ]
+    },
+    {
+      "name": "get_property",
+      "params": [
+        "selector",
+        "property",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_property_value",
+      "params": [
+        "selector",
+        "property",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_recorded_console_logs",
+      "params": []
+    },
+    {
+      "name": "get_saved_cookies",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "get_screen_rect",
+      "params": []
+    },
+    {
+      "name": "get_select_options",
+      "params": [
+        "dropdown_selector",
+        "attribute",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_session_storage_item",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "get_session_storage_items",
+      "params": []
+    },
+    {
+      "name": "get_session_storage_keys",
+      "params": []
+    },
+    {
+      "name": "get_text",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_text_content",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_title",
+      "params": []
+    },
+    {
+      "name": "get_totp_code",
+      "params": [
+        "totp_key"
+      ]
+    },
+    {
+      "name": "get_unique_links",
+      "params": []
+    },
+    {
+      "name": "get_user_agent",
+      "params": []
+    },
+    {
+      "name": "get_value",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_window_position",
+      "params": []
+    },
+    {
+      "name": "get_window_rect",
+      "params": []
+    },
+    {
+      "name": "get_window_size",
+      "params": []
+    },
+    {
+      "name": "go_back",
+      "params": []
+    },
+    {
+      "name": "go_forward",
+      "params": []
+    },
+    {
+      "name": "go_to",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "goto",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "goto_if_not_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "goto_start_page",
+      "params": []
+    },
+    {
+      "name": "has_exception",
+      "params": []
+    },
+    {
+      "name": "hide_element",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "hide_elements",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "highlight",
+      "params": [
+        "selector",
+        "by",
+        "loops",
+        "scroll",
+        "timeout"
+      ]
+    },
+    {
+      "name": "highlight_click",
+      "params": [
+        "selector",
+        "by",
+        "loops",
+        "scroll",
+        "timeout"
+      ]
+    },
+    {
+      "name": "highlight_elements",
+      "params": [
+        "selector",
+        "by",
+        "loops",
+        "scroll",
+        "limit"
+      ]
+    },
+    {
+      "name": "highlight_if_visible",
+      "params": [
+        "selector",
+        "by",
+        "loops",
+        "scroll"
+      ]
+    },
+    {
+      "name": "highlight_type",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "loops",
+        "scroll",
+        "timeout"
+      ]
+    },
+    {
+      "name": "highlight_update_text",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "loops",
+        "scroll",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover_and_click",
+      "params": [
+        "hover_selector",
+        "click_selector",
+        "hover_by",
+        "click_by",
+        "timeout",
+        "js_click"
+      ]
+    },
+    {
+      "name": "hover_and_double_click",
+      "params": [
+        "hover_selector",
+        "click_selector",
+        "hover_by",
+        "click_by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover_and_js_click",
+      "params": [
+        "hover_selector",
+        "click_selector",
+        "hover_by",
+        "click_by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover_on_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover_over_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "input",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "retry"
+      ]
+    },
+    {
+      "name": "inspect_html",
+      "params": []
+    },
+    {
+      "name": "install_addon",
+      "params": [
+        "xpi_file"
+      ]
+    },
+    {
+      "name": "internalize_links",
+      "params": []
+    },
+    {
+      "name": "is_alert_present",
+      "params": []
+    },
+    {
+      "name": "is_attribute_present",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by"
+      ]
+    },
+    {
+      "name": "is_checked",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "is_chromium",
+      "params": []
+    },
+    {
+      "name": "is_connected",
+      "params": []
+    },
+    {
+      "name": "is_downloaded_file_present",
+      "params": [
+        "file",
+        "browser"
+      ]
+    },
+    {
+      "name": "is_downloaded_file_regex_present",
+      "params": [
+        "regex",
+        "browser"
+      ]
+    },
+    {
+      "name": "is_element_clickable",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_element_enabled",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_element_in_an_iframe",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_element_present",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_element_visible",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_exact_text_visible",
+      "params": [
+        "text",
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_link_text_present",
+      "params": [
+        "link_text"
+      ]
+    },
+    {
+      "name": "is_link_text_visible",
+      "params": [
+        "link_text"
+      ]
+    },
+    {
+      "name": "is_non_empty_text_visible",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_online",
+      "params": []
+    },
+    {
+      "name": "is_partial_link_text_present",
+      "params": [
+        "link_text"
+      ]
+    },
+    {
+      "name": "is_partial_link_text_visible",
+      "params": [
+        "partial_link_text"
+      ]
+    },
+    {
+      "name": "is_selected",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "is_text_visible",
+      "params": [
+        "text",
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "is_valid_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "jq_format",
+      "params": [
+        "code"
+      ]
+    },
+    {
+      "name": "jquery_click",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "jquery_click_all",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "jquery_type",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "jquery_update_text",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "js_click",
+      "params": [
+        "selector",
+        "by",
+        "all_matches",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "js_click_all",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "js_click_if_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "js_click_if_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "js_type",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "js_update_text",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "load_cookies",
+      "params": [
+        "name",
+        "expiry"
+      ]
+    },
+    {
+      "name": "load_html_file",
+      "params": [
+        "html_file",
+        "new_page"
+      ]
+    },
+    {
+      "name": "load_html_string",
+      "params": [
+        "html_string",
+        "new_page"
+      ]
+    },
+    {
+      "name": "locator",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "main",
+      "params": [
+        "name",
+        "file",
+        "*args"
+      ]
+    },
+    {
+      "name": "maximize",
+      "params": []
+    },
+    {
+      "name": "maximize_window",
+      "params": []
+    },
+    {
+      "name": "minimize",
+      "params": []
+    },
+    {
+      "name": "minimize_window",
+      "params": []
+    },
+    {
+      "name": "open",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "open_html_file",
+      "params": [
+        "html_file"
+      ]
+    },
+    {
+      "name": "open_if_not_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "open_new_tab",
+      "params": [
+        "switch_to",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "open_new_window",
+      "params": [
+        "switch_to",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "open_start_page",
+      "params": []
+    },
+    {
+      "name": "open_url",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "play_tour",
+      "params": [
+        "name",
+        "interval"
+      ]
+    },
+    {
+      "name": "post_error_message",
+      "params": [
+        "message",
+        "duration",
+        "pause"
+      ]
+    },
+    {
+      "name": "post_message",
+      "params": [
+        "message",
+        "duration",
+        "pause",
+        "style"
+      ]
+    },
+    {
+      "name": "post_message_and_highlight",
+      "params": [
+        "message",
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "post_success_message",
+      "params": [
+        "message",
+        "duration",
+        "pause"
+      ]
+    },
+    {
+      "name": "press_down_arrow",
+      "params": [
+        "selector",
+        "times",
+        "by"
+      ]
+    },
+    {
+      "name": "press_keys",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "press_left_arrow",
+      "params": [
+        "selector",
+        "times",
+        "by"
+      ]
+    },
+    {
+      "name": "press_right_arrow",
+      "params": [
+        "selector",
+        "times",
+        "by"
+      ]
+    },
+    {
+      "name": "press_up_arrow",
+      "params": [
+        "selector",
+        "times",
+        "by"
+      ]
+    },
+    {
+      "name": "print_to_pdf",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "print_unique_links_with_status_codes",
+      "params": []
+    },
+    {
+      "name": "process_deferred_asserts",
+      "params": [
+        "print_only"
+      ]
+    },
+    {
+      "name": "process_delayed_asserts",
+      "params": [
+        "print_only"
+      ]
+    },
+    {
+      "name": "quit_extra_driver",
+      "params": [
+        "driver"
+      ]
+    },
+    {
+      "name": "refresh",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "refresh_page",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "reload",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "reload_page",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "remove_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "remove_attributes",
+      "params": [
+        "selector",
+        "attribute",
+        "by"
+      ]
+    },
+    {
+      "name": "remove_element",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "remove_elements",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "remove_local_storage_item",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "remove_session_storage_item",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "reset_default_timeout",
+      "params": []
+    },
+    {
+      "name": "reset_jqc_theme",
+      "params": []
+    },
+    {
+      "name": "reset_window_size",
+      "params": []
+    },
+    {
+      "name": "right_click",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "run",
+      "params": [
+        "result"
+      ]
+    },
+    {
+      "name": "safe_execute_script",
+      "params": [
+        "script",
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "save_as_html",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "save_as_html_to_logs",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_as_pdf",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "save_as_pdf_to_logs",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_chart",
+      "params": [
+        "chart_name",
+        "filename",
+        "folder"
+      ]
+    },
+    {
+      "name": "save_cookies",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_data_as",
+      "params": [
+        "data",
+        "file_name",
+        "destination_folder"
+      ]
+    },
+    {
+      "name": "save_data_to_logs",
+      "params": [
+        "data",
+        "file_name"
+      ]
+    },
+    {
+      "name": "save_element_as_image_file",
+      "params": [
+        "selector",
+        "file_name",
+        "folder",
+        "overlay_text"
+      ]
+    },
+    {
+      "name": "save_file_as",
+      "params": [
+        "file_url",
+        "new_file_name",
+        "destination_folder"
+      ]
+    },
+    {
+      "name": "save_page_source",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "save_page_source_to_logs",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_presentation",
+      "params": [
+        "name",
+        "filename",
+        "show_notes",
+        "interval"
+      ]
+    },
+    {
+      "name": "save_recorded_actions",
+      "params": []
+    },
+    {
+      "name": "save_screenshot",
+      "params": [
+        "name",
+        "folder",
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "save_screenshot_to_logs",
+      "params": [
+        "name",
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "save_teardown_screenshot",
+      "params": []
+    },
+    {
+      "name": "scroll_by_y",
+      "params": [
+        "y"
+      ]
+    },
+    {
+      "name": "scroll_down",
+      "params": [
+        "amount"
+      ]
+    },
+    {
+      "name": "scroll_into_view",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "scroll_to",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "scroll_to_bottom",
+      "params": []
+    },
+    {
+      "name": "scroll_to_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "scroll_to_top",
+      "params": []
+    },
+    {
+      "name": "scroll_to_y",
+      "params": [
+        "y"
+      ]
+    },
+    {
+      "name": "scroll_up",
+      "params": [
+        "amount"
+      ]
+    },
+    {
+      "name": "select",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "select_all",
+      "params": [
+        "selector",
+        "by",
+        "limit"
+      ]
+    },
+    {
+      "name": "select_if_unselected",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "select_option_by_index",
+      "params": [
+        "dropdown_selector",
+        "option",
+        "dropdown_by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "select_option_by_text",
+      "params": [
+        "dropdown_selector",
+        "option",
+        "dropdown_by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "select_option_by_value",
+      "params": [
+        "dropdown_selector",
+        "option",
+        "dropdown_by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "send_keys",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "setUp",
+      "params": [
+        "masterqa_mode"
+      ]
+    },
+    {
+      "name": "setUpClass",
+      "params": []
+    },
+    {
+      "name": "set_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "set_attribute_all",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by"
+      ]
+    },
+    {
+      "name": "set_attributes",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by"
+      ]
+    },
+    {
+      "name": "set_content",
+      "params": [
+        "html_string",
+        "new_page"
+      ]
+    },
+    {
+      "name": "set_content_to_default",
+      "params": [
+        "nested"
+      ]
+    },
+    {
+      "name": "set_content_to_default_content",
+      "params": [
+        "nested"
+      ]
+    },
+    {
+      "name": "set_content_to_frame",
+      "params": [
+        "frame",
+        "timeout"
+      ]
+    },
+    {
+      "name": "set_content_to_parent",
+      "params": []
+    },
+    {
+      "name": "set_content_to_parent_frame",
+      "params": []
+    },
+    {
+      "name": "set_default_timeout",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "set_introjs_colors",
+      "params": [
+        "theme_color",
+        "hover_color"
+      ]
+    },
+    {
+      "name": "set_jqc_theme",
+      "params": [
+        "theme",
+        "color",
+        "width"
+      ]
+    },
+    {
+      "name": "set_local_storage_item",
+      "params": [
+        "key",
+        "value"
+      ]
+    },
+    {
+      "name": "set_messenger_theme",
+      "params": [
+        "theme",
+        "location",
+        "max_messages"
+      ]
+    },
+    {
+      "name": "set_session_storage_item",
+      "params": [
+        "key",
+        "value"
+      ]
+    },
+    {
+      "name": "set_text",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "set_text_content",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "set_time_limit",
+      "params": [
+        "time_limit"
+      ]
+    },
+    {
+      "name": "set_value",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "set_window_position",
+      "params": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "name": "set_window_rect",
+      "params": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ]
+    },
+    {
+      "name": "set_window_size",
+      "params": [
+        "width",
+        "height"
+      ]
+    },
+    {
+      "name": "show_element",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "show_elements",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "show_file_choosers",
+      "params": []
+    },
+    {
+      "name": "skip",
+      "params": [
+        "reason"
+      ]
+    },
+    {
+      "name": "sleep",
+      "params": [
+        "seconds"
+      ]
+    },
+    {
+      "name": "slow_click",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "slow_scroll_to",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "slow_scroll_to_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "start_recording_console_logs",
+      "params": []
+    },
+    {
+      "name": "start_tour",
+      "params": [
+        "name",
+        "interval"
+      ]
+    },
+    {
+      "name": "submit",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "switch_to_alert",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "switch_to_default_content",
+      "params": []
+    },
+    {
+      "name": "switch_to_default_driver",
+      "params": []
+    },
+    {
+      "name": "switch_to_default_tab",
+      "params": []
+    },
+    {
+      "name": "switch_to_default_window",
+      "params": []
+    },
+    {
+      "name": "switch_to_driver",
+      "params": [
+        "driver"
+      ]
+    },
+    {
+      "name": "switch_to_frame",
+      "params": [
+        "frame",
+        "timeout",
+        "invisible"
+      ]
+    },
+    {
+      "name": "switch_to_frame_of_element",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "switch_to_newest_tab",
+      "params": []
+    },
+    {
+      "name": "switch_to_newest_window",
+      "params": []
+    },
+    {
+      "name": "switch_to_parent_frame",
+      "params": []
+    },
+    {
+      "name": "switch_to_tab",
+      "params": [
+        "tab",
+        "timeout"
+      ]
+    },
+    {
+      "name": "switch_to_window",
+      "params": [
+        "window",
+        "timeout"
+      ]
+    },
+    {
+      "name": "tearDown",
+      "params": []
+    },
+    {
+      "name": "tearDownClass",
+      "params": []
+    },
+    {
+      "name": "type",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "retry"
+      ]
+    },
+    {
+      "name": "uncheck_if_checked",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "unselect_if_selected",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "update_text",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "retry"
+      ]
+    },
+    {
+      "name": "visit",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "visit_url",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait",
+      "params": [
+        "seconds"
+      ]
+    },
+    {
+      "name": "wait_for_and_accept_alert",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_and_dismiss_alert",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_and_switch_to_alert",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_angularjs",
+      "params": [
+        "timeout",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_any_of_elements_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_any_of_elements_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_attribute_not_present",
+      "params": [
+        "selector",
+        "attribute",
+        "value",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_absent",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_clickable",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_not_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_not_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_present",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_exact_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_exact_text_not_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_exact_text_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_link_text",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_link_text_present",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_link_text_visible",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_non_empty_text",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_non_empty_text_visible",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_partial_link_text",
+      "params": [
+        "partial_link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_partial_link_text_present",
+      "params": [
+        "link_text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_query_selector",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_ready_state_complete",
+      "params": [
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_selector",
+      "params": [
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_text",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_text_not_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_text_visible",
+      "params": [
+        "text",
+        "selector",
+        "by",
+        "timeout"
+      ]
+    },
+    {
+      "name": "write",
+      "params": [
+        "selector",
+        "text",
+        "by",
+        "timeout",
+        "retry"
+      ]
+    }
+  ],
+  "cdp": [
+    {
+      "name": "activate_cdp_mode",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "activate_messenger",
+      "params": []
+    },
+    {
+      "name": "add_handler",
+      "params": [
+        "event",
+        "handler"
+      ]
+    },
+    {
+      "name": "append_data_to_logs",
+      "params": [
+        "data",
+        "file_name"
+      ]
+    },
+    {
+      "name": "assert_any_of_elements_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_any_of_elements_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_downloaded_file",
+      "params": [
+        "file",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_absent",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "value"
+      ]
+    },
+    {
+      "name": "assert_element_not_visible",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_present",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_element_visible",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_equal",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_exact_text",
+      "params": [
+        "text",
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_false",
+      "params": [
+        "expression",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_in",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_not_equal",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_not_in",
+      "params": [
+        "first",
+        "second",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_text",
+      "params": [
+        "text",
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_text_not_visible",
+      "params": [
+        "text",
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "assert_title",
+      "params": [
+        "title"
+      ]
+    },
+    {
+      "name": "assert_title_contains",
+      "params": [
+        "substring"
+      ]
+    },
+    {
+      "name": "assert_true",
+      "params": [
+        "expression",
+        "msg"
+      ]
+    },
+    {
+      "name": "assert_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "assert_url_contains",
+      "params": [
+        "substring"
+      ]
+    },
+    {
+      "name": "bring_active_window_to_front",
+      "params": []
+    },
+    {
+      "name": "check_if_unchecked",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "clear",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "clear_cookies",
+      "params": []
+    },
+    {
+      "name": "clear_input",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "click",
+      "params": [
+        "selector",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_active_element",
+      "params": []
+    },
+    {
+      "name": "click_and_hold",
+      "params": [
+        "selector",
+        "timeout",
+        "scroll",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "click_captcha",
+      "params": []
+    },
+    {
+      "name": "click_if_visible",
+      "params": [
+        "selector",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_link",
+      "params": [
+        "link_text"
+      ]
+    },
+    {
+      "name": "click_nth_element",
+      "params": [
+        "selector",
+        "number",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_nth_visible_element",
+      "params": [
+        "selector",
+        "number",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_visible_elements",
+      "params": [
+        "selector",
+        "limit",
+        "scroll"
+      ]
+    },
+    {
+      "name": "click_with_offset",
+      "params": [
+        "selector",
+        "x",
+        "y",
+        "center",
+        "scroll"
+      ]
+    },
+    {
+      "name": "close_active_tab",
+      "params": []
+    },
+    {
+      "name": "download_file",
+      "params": [
+        "file_url"
+      ]
+    },
+    {
+      "name": "drag_and_drop",
+      "params": [
+        "drag_selector",
+        "drop_selector",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "enter_mfa_code",
+      "params": [
+        "selector",
+        "totp_key",
+        "timeout"
+      ]
+    },
+    {
+      "name": "evaluate",
+      "params": [
+        "expression"
+      ]
+    },
+    {
+      "name": "execute_script",
+      "params": [
+        "expression"
+      ]
+    },
+    {
+      "name": "fast_keys",
+      "params": [
+        "selector",
+        "text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "fast_type",
+      "params": [
+        "selector",
+        "text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_all",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_element",
+      "params": [
+        "selector",
+        "best_match",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_element_by_text",
+      "params": [
+        "text",
+        "tag_name",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_elements",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "find_elements_by_text",
+      "params": [
+        "text",
+        "tag_name"
+      ]
+    },
+    {
+      "name": "find_visible_elements",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "flash",
+      "params": [
+        "selector",
+        "duration",
+        "color",
+        "pause"
+      ]
+    },
+    {
+      "name": "focus",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_active_element",
+      "params": []
+    },
+    {
+      "name": "get_active_element_css",
+      "params": []
+    },
+    {
+      "name": "get_active_tab",
+      "params": []
+    },
+    {
+      "name": "get_all_cookies",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_all_urls",
+      "params": [
+        "absolute",
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_attribute",
+      "params": [
+        "selector",
+        "attribute"
+      ]
+    },
+    {
+      "name": "get_beautiful_soup",
+      "params": [
+        "source"
+      ]
+    },
+    {
+      "name": "get_cookie_string",
+      "params": []
+    },
+    {
+      "name": "get_current_url",
+      "params": []
+    },
+    {
+      "name": "get_document",
+      "params": []
+    },
+    {
+      "name": "get_element_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_element_attributes",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_element_html",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_element_position",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_element_rect",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_element_size",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_endpoint_url",
+      "params": []
+    },
+    {
+      "name": "get_event_loop",
+      "params": []
+    },
+    {
+      "name": "get_flattened_document",
+      "params": []
+    },
+    {
+      "name": "get_gui_element_center",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_gui_element_rect",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_html",
+      "params": [
+        "include_shadow_dom"
+      ]
+    },
+    {
+      "name": "get_local_storage_item",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "get_locale_code",
+      "params": []
+    },
+    {
+      "name": "get_mfa_code",
+      "params": [
+        "totp_key"
+      ]
+    },
+    {
+      "name": "get_navigation_history",
+      "params": []
+    },
+    {
+      "name": "get_nested_element",
+      "params": [
+        "parent_selector",
+        "selector"
+      ]
+    },
+    {
+      "name": "get_origin",
+      "params": []
+    },
+    {
+      "name": "get_page_source",
+      "params": [
+        "include_shadow_dom"
+      ]
+    },
+    {
+      "name": "get_page_title",
+      "params": []
+    },
+    {
+      "name": "get_parent",
+      "params": [
+        "element"
+      ]
+    },
+    {
+      "name": "get_path_of_downloaded_file",
+      "params": [
+        "file"
+      ]
+    },
+    {
+      "name": "get_port",
+      "params": []
+    },
+    {
+      "name": "get_rd_host",
+      "params": []
+    },
+    {
+      "name": "get_rd_port",
+      "params": []
+    },
+    {
+      "name": "get_rd_url",
+      "params": []
+    },
+    {
+      "name": "get_screen_rect",
+      "params": []
+    },
+    {
+      "name": "get_session_storage_item",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "get_tabs",
+      "params": []
+    },
+    {
+      "name": "get_text",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "get_title",
+      "params": []
+    },
+    {
+      "name": "get_user_agent",
+      "params": []
+    },
+    {
+      "name": "get_websocket_url",
+      "params": []
+    },
+    {
+      "name": "get_window",
+      "params": []
+    },
+    {
+      "name": "get_window_position",
+      "params": []
+    },
+    {
+      "name": "get_window_rect",
+      "params": []
+    },
+    {
+      "name": "get_window_size",
+      "params": []
+    },
+    {
+      "name": "go_back",
+      "params": []
+    },
+    {
+      "name": "go_forward",
+      "params": []
+    },
+    {
+      "name": "goto",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "goto_if_not_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "grant_all_permissions",
+      "params": []
+    },
+    {
+      "name": "grant_permissions",
+      "params": [
+        "permissions",
+        "origin"
+      ]
+    },
+    {
+      "name": "gui_click_and_hold",
+      "params": [
+        "selector",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_click_captcha",
+      "params": []
+    },
+    {
+      "name": "gui_click_element",
+      "params": [
+        "selector",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_click_with_offset",
+      "params": [
+        "selector",
+        "x",
+        "y",
+        "timeframe",
+        "center"
+      ]
+    },
+    {
+      "name": "gui_click_x_y",
+      "params": [
+        "x",
+        "y",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_drag_and_drop",
+      "params": [
+        "drag_selector",
+        "drop_selector",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_drag_drop_points",
+      "params": [
+        "x1",
+        "y1",
+        "x2",
+        "y2",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_hover_and_click",
+      "params": [
+        "hover_selector",
+        "click_selector"
+      ]
+    },
+    {
+      "name": "gui_hover_element",
+      "params": [
+        "selector",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_hover_x_y",
+      "params": [
+        "x",
+        "y",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_move_to_element",
+      "params": [
+        "selector",
+        "timeframe"
+      ]
+    },
+    {
+      "name": "gui_press_key",
+      "params": [
+        "key"
+      ]
+    },
+    {
+      "name": "gui_press_keys",
+      "params": [
+        "keys"
+      ]
+    },
+    {
+      "name": "gui_write",
+      "params": [
+        "text"
+      ]
+    },
+    {
+      "name": "highlight",
+      "params": [
+        "selector",
+        "scroll",
+        "timeout"
+      ]
+    },
+    {
+      "name": "highlight_overlay",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "hover_and_click",
+      "params": [
+        "hover_selector",
+        "click_selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "hover_element",
+      "params": [
+        "selector",
+        "timeframe",
+        "timeout"
+      ]
+    },
+    {
+      "name": "internalize_links",
+      "params": []
+    },
+    {
+      "name": "is_attribute_present",
+      "params": [
+        "selector",
+        "attribute",
+        "value"
+      ]
+    },
+    {
+      "name": "is_checked",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "is_element_present",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "is_element_visible",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "is_exact_text_visible",
+      "params": [
+        "text",
+        "selector"
+      ]
+    },
+    {
+      "name": "is_online",
+      "params": []
+    },
+    {
+      "name": "is_selected",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "is_text_visible",
+      "params": [
+        "text",
+        "selector"
+      ]
+    },
+    {
+      "name": "js_dumps",
+      "params": [
+        "obj_name"
+      ]
+    },
+    {
+      "name": "js_scroll_into_view",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "load_cookies",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "maximize",
+      "params": []
+    },
+    {
+      "name": "medimize",
+      "params": []
+    },
+    {
+      "name": "minimize",
+      "params": []
+    },
+    {
+      "name": "mouse_click",
+      "params": [
+        "selector",
+        "timeout",
+        "scroll"
+      ]
+    },
+    {
+      "name": "nested_click",
+      "params": [
+        "parent_selector",
+        "selector"
+      ]
+    },
+    {
+      "name": "open",
+      "params": [
+        "url",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "open_new_tab",
+      "params": [
+        "url",
+        "switch_to",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "open_new_window",
+      "params": [
+        "url",
+        "switch_to"
+      ]
+    },
+    {
+      "name": "post_message",
+      "params": [
+        "message",
+        "duration",
+        "pause",
+        "style"
+      ]
+    },
+    {
+      "name": "press_keys",
+      "params": [
+        "selector",
+        "text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "print_to_pdf",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "quit",
+      "params": []
+    },
+    {
+      "name": "refresh",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "reload",
+      "params": [
+        "ignore_cache",
+        "script_to_evaluate_on_load"
+      ]
+    },
+    {
+      "name": "remove_element",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "remove_elements",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "remove_from_dom",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "reset_permissions",
+      "params": []
+    },
+    {
+      "name": "reset_window_size",
+      "params": []
+    },
+    {
+      "name": "save_as_html",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "save_as_html_to_logs",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_as_pdf",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "save_as_pdf_to_logs",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_cookies",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "save_data_to_logs",
+      "params": [
+        "data",
+        "file_name"
+      ]
+    },
+    {
+      "name": "save_file_as",
+      "params": [
+        "file_url",
+        "new_file_name"
+      ]
+    },
+    {
+      "name": "save_page_source",
+      "params": [
+        "name",
+        "folder"
+      ]
+    },
+    {
+      "name": "save_page_source_to_logs",
+      "params": [
+        "name"
+      ]
+    },
+    {
+      "name": "save_screenshot",
+      "params": [
+        "name",
+        "folder",
+        "selector"
+      ]
+    },
+    {
+      "name": "save_screenshot_to_logs",
+      "params": [
+        "name",
+        "selector"
+      ]
+    },
+    {
+      "name": "scroll_by_y",
+      "params": [
+        "y"
+      ]
+    },
+    {
+      "name": "scroll_down",
+      "params": [
+        "amount"
+      ]
+    },
+    {
+      "name": "scroll_into_view",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "scroll_to_bottom",
+      "params": []
+    },
+    {
+      "name": "scroll_to_top",
+      "params": []
+    },
+    {
+      "name": "scroll_to_y",
+      "params": [
+        "y"
+      ]
+    },
+    {
+      "name": "scroll_up",
+      "params": [
+        "amount"
+      ]
+    },
+    {
+      "name": "select",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "select_all",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "select_if_unselected",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "select_option_by_index",
+      "params": [
+        "dropdown_selector",
+        "option"
+      ]
+    },
+    {
+      "name": "select_option_by_text",
+      "params": [
+        "dropdown_selector",
+        "option"
+      ]
+    },
+    {
+      "name": "select_option_by_value",
+      "params": [
+        "dropdown_selector",
+        "option"
+      ]
+    },
+    {
+      "name": "send_keys",
+      "params": [
+        "selector",
+        "text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "set_all_cookies",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "set_attributes",
+      "params": [
+        "selector",
+        "attribute",
+        "value"
+      ]
+    },
+    {
+      "name": "set_download_path",
+      "params": [
+        "path"
+      ]
+    },
+    {
+      "name": "set_local_storage_item",
+      "params": [
+        "key",
+        "value"
+      ]
+    },
+    {
+      "name": "set_locale",
+      "params": [
+        "locale"
+      ]
+    },
+    {
+      "name": "set_messenger_theme",
+      "params": [
+        "theme",
+        "location",
+        "max_messages"
+      ]
+    },
+    {
+      "name": "set_session_storage_item",
+      "params": [
+        "key",
+        "value"
+      ]
+    },
+    {
+      "name": "set_value",
+      "params": [
+        "selector",
+        "text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "set_window_rect",
+      "params": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ]
+    },
+    {
+      "name": "sleep",
+      "params": [
+        "seconds"
+      ]
+    },
+    {
+      "name": "solve_captcha",
+      "params": []
+    },
+    {
+      "name": "stop",
+      "params": []
+    },
+    {
+      "name": "submit",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "switch_to_newest_tab",
+      "params": []
+    },
+    {
+      "name": "switch_to_newest_window",
+      "params": []
+    },
+    {
+      "name": "switch_to_tab",
+      "params": [
+        "tab"
+      ]
+    },
+    {
+      "name": "switch_to_window",
+      "params": [
+        "window"
+      ]
+    },
+    {
+      "name": "tile_windows",
+      "params": [
+        "windows",
+        "max_columns"
+      ]
+    },
+    {
+      "name": "type",
+      "params": [
+        "selector",
+        "text",
+        "timeout"
+      ]
+    },
+    {
+      "name": "uncheck_if_checked",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "unselect_if_selected",
+      "params": [
+        "selector"
+      ]
+    },
+    {
+      "name": "wait_for_any_of_elements_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_any_of_elements_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element",
+      "params": [
+        "selector",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element_absent",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_not_visible",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_present",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_element_visible",
+      "params": [
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_text",
+      "params": [
+        "text",
+        "selector",
+        "timeout"
+      ]
+    },
+    {
+      "name": "wait_for_text_not_visible",
+      "params": [
+        "text",
+        "selector",
+        "timeout"
+      ]
+    }
+  ],
+  "cli": [
+    "behave-gui",
+    "behave-options",
+    "case-plans",
+    "caseplans",
+    "codegen",
+    "commander",
+    "convert",
+    "decrypt",
+    "download",
+    "encrypt",
+    "extract-objects",
+    "get",
+    "grid-hub",
+    "grid-node",
+    "gui",
+    "gui-behave",
+    "help",
+    "inject-objects",
+    "install",
+    "methods",
+    "mkchart",
+    "mkdir",
+    "mkfile",
+    "mkpres",
+    "mkrec",
+    "obfuscate",
+    "objectify",
+    "options",
+    "print",
+    "proxy",
+    "record",
+    "recorder",
+    "revert-objects",
+    "translate",
+    "unobfuscate",
+    "version"
+  ],
+  "driver": [
+    {
+      "name": "add_cookie",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_element_not_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_element_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_element_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_exact_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_non_empty_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "assert_text_not_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "back",
+      "params": []
+    },
+    {
+      "name": "click",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "click_active_element",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "click_if_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "click_link",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "delete_cookie",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "find_element",
+      "params": [
+        "by",
+        "value"
+      ]
+    },
+    {
+      "name": "find_elements",
+      "params": [
+        "by",
+        "value"
+      ]
+    },
+    {
+      "name": "forward",
+      "params": []
+    },
+    {
+      "name": "get_active_element_css",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_attribute",
+      "params": [
+        "selector",
+        "attribute",
+        "by"
+      ]
+    },
+    {
+      "name": "get_cookie",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_cookie_string",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_current_url",
+      "params": []
+    },
+    {
+      "name": "get_locale_code",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_origin",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_page_source",
+      "params": []
+    },
+    {
+      "name": "get_parent",
+      "params": [
+        "element"
+      ]
+    },
+    {
+      "name": "get_screen_rect",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "get_title",
+      "params": []
+    },
+    {
+      "name": "get_user_agent",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "highlight",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "highlight_click",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "highlight_if_visible",
+      "params": [
+        "selector",
+        "by",
+        "loops",
+        "scroll"
+      ]
+    },
+    {
+      "name": "is_alert_present",
+      "params": []
+    },
+    {
+      "name": "is_attribute_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "is_cdp_mode_active",
+      "params": []
+    },
+    {
+      "name": "is_connected",
+      "params": []
+    },
+    {
+      "name": "is_element_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "is_element_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "is_exact_text_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "is_non_empty_text_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "is_online",
+      "params": []
+    },
+    {
+      "name": "is_text_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "is_uc_mode_active",
+      "params": []
+    },
+    {
+      "name": "is_valid_url",
+      "params": [
+        "url"
+      ]
+    },
+    {
+      "name": "js_click",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "locator",
+      "params": [
+        "selector",
+        "by"
+      ]
+    },
+    {
+      "name": "open_new_tab",
+      "params": [
+        "switch_to"
+      ]
+    },
+    {
+      "name": "open_new_window",
+      "params": [
+        "switch_to"
+      ]
+    },
+    {
+      "name": "open_url",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "press_keys",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "refresh",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "reset_window_size",
+      "params": []
+    },
+    {
+      "name": "select",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "select_all",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "select_option_by_index",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "select_option_by_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "select_option_by_value",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "send_keys",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "submit",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "switch_to_default_window",
+      "params": []
+    },
+    {
+      "name": "switch_to_frame",
+      "params": [
+        "frame"
+      ]
+    },
+    {
+      "name": "switch_to_newest_tab",
+      "params": []
+    },
+    {
+      "name": "switch_to_newest_window",
+      "params": []
+    },
+    {
+      "name": "switch_to_tab",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "switch_to_window",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "update_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_and_accept_alert",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_and_dismiss_alert",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element_absent",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element_not_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element_present",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_element_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_exact_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_non_empty_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_selector",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_text",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
+      "name": "wait_for_text_not_visible",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    }
+  ],
+  "mcp": {
+    "cdp": [
+      {
+        "name": "assert_condition",
+        "params": [
+          "check",
+          "selector",
+          "expected",
+          "exact",
+          "timeout"
+        ]
+      },
+      {
+        "name": "check_if_condition",
+        "params": [
+          "check",
+          "selector",
+          "text"
+        ]
+      },
+      {
+        "name": "click_element",
+        "params": [
+          "selector",
+          "nth",
+          "all_matches",
+          "only_if_visible",
+          "parent_selector",
+          "timeout",
+          "scroll"
+        ]
+      },
+      {
+        "name": "close_browser",
+        "params": []
+      },
+      {
+        "name": "find_elements",
+        "params": [
+          "selector",
+          "timeout",
+          "include_html"
+        ]
+      },
+      {
+        "name": "focus_element",
+        "params": [
+          "selector",
+          "action",
+          "timeout"
+        ]
+      },
+      {
+        "name": "get_attributes",
+        "params": [
+          "selector",
+          "attribute",
+          "timeout"
+        ]
+      },
+      {
+        "name": "get_content",
+        "params": [
+          "selector",
+          "output_format",
+          "timeout"
+        ]
+      },
+      {
+        "name": "get_page_info",
+        "params": []
+      },
+      {
+        "name": "hover_action",
+        "params": [
+          "selector",
+          "secondary_selector",
+          "action",
+          "timeout"
+        ]
+      },
+      {
+        "name": "manage_cookies",
+        "params": [
+          "action",
+          "filename"
+        ]
+      },
+      {
+        "name": "manage_history",
+        "params": [
+          "action"
+        ]
+      },
+      {
+        "name": "manage_storage",
+        "params": [
+          "key",
+          "value",
+          "storage",
+          "action"
+        ]
+      },
+      {
+        "name": "manage_tabs",
+        "params": [
+          "action",
+          "url",
+          "tab_index",
+          "switch_to"
+        ]
+      },
+      {
+        "name": "manage_window",
+        "params": [
+          "action",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      },
+      {
+        "name": "open_url",
+        "params": [
+          "url"
+        ]
+      },
+      {
+        "name": "run_javascript",
+        "params": [
+          "expression"
+        ]
+      },
+      {
+        "name": "save_page",
+        "params": [
+          "format",
+          "filename",
+          "folder"
+        ]
+      },
+      {
+        "name": "scroll_page",
+        "params": [
+          "direction",
+          "amount"
+        ]
+      },
+      {
+        "name": "select_option",
+        "params": [
+          "dropdown_selector",
+          "value",
+          "by"
+        ]
+      },
+      {
+        "name": "solve_captcha",
+        "params": []
+      },
+      {
+        "name": "start_browser",
+        "params": [
+          "url",
+          "headless",
+          "use_chromium",
+          "browser_executable_path",
+          "incognito",
+          "guest",
+          "ad_block",
+          "proxy"
+        ]
+      },
+      {
+        "name": "type_text",
+        "params": [
+          "selector",
+          "text",
+          "mode",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_condition",
+        "params": [
+          "state",
+          "selector",
+          "text",
+          "timeout"
+        ]
+      }
+    ],
+    "driver": [
+      {
+        "name": "activate_cdp_mode",
+        "params": [
+          "url"
+        ]
+      },
+      {
+        "name": "assert_element",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "assert_text",
+        "params": [
+          "text",
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "click_element",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "close_browser",
+        "params": []
+      },
+      {
+        "name": "execute_script",
+        "params": [
+          "script"
+        ]
+      },
+      {
+        "name": "find_elements_count",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "get_current_url",
+        "params": []
+      },
+      {
+        "name": "get_page_source",
+        "params": []
+      },
+      {
+        "name": "get_text",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "get_title",
+        "params": []
+      },
+      {
+        "name": "go_back",
+        "params": []
+      },
+      {
+        "name": "go_forward",
+        "params": []
+      },
+      {
+        "name": "is_element_visible",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "open_url",
+        "params": [
+          "url"
+        ]
+      },
+      {
+        "name": "refresh_page",
+        "params": []
+      },
+      {
+        "name": "save_screenshot",
+        "params": [
+          "filename"
+        ]
+      },
+      {
+        "name": "select_option_by_index",
+        "params": [
+          "dropdown_selector",
+          "option"
+        ]
+      },
+      {
+        "name": "select_option_by_text",
+        "params": [
+          "dropdown_selector",
+          "option"
+        ]
+      },
+      {
+        "name": "select_option_by_value",
+        "params": [
+          "dropdown_selector",
+          "option"
+        ]
+      },
+      {
+        "name": "solve_captcha",
+        "params": []
+      },
+      {
+        "name": "start_browser",
+        "params": [
+          "browser",
+          "headless",
+          "uc",
+          "incognito",
+          "guest_mode",
+          "ad_block",
+          "proxy"
+        ]
+      },
+      {
+        "name": "switch_to_default_content",
+        "params": []
+      },
+      {
+        "name": "switch_to_frame",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "type_text",
+        "params": [
+          "selector",
+          "text",
+          "clear_first",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_element",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      }
+    ],
+    "sb": [
+      {
+        "name": "activate_cdp_mode",
+        "params": [
+          "url"
+        ]
+      },
+      {
+        "name": "assert_element",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "assert_element_not_visible",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "assert_element_present",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "assert_exact_text",
+        "params": [
+          "text",
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "assert_no_404_errors",
+        "params": []
+      },
+      {
+        "name": "assert_no_js_errors",
+        "params": []
+      },
+      {
+        "name": "assert_text",
+        "params": [
+          "text",
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "assert_title",
+        "params": [
+          "title"
+        ]
+      },
+      {
+        "name": "assert_url",
+        "params": [
+          "url"
+        ]
+      },
+      {
+        "name": "assert_url_contains",
+        "params": [
+          "substring"
+        ]
+      },
+      {
+        "name": "choose_file",
+        "params": [
+          "selector",
+          "file_path",
+          "timeout"
+        ]
+      },
+      {
+        "name": "clear_input",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "click_element",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "click_if_visible",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "click_link",
+        "params": [
+          "link_text"
+        ]
+      },
+      {
+        "name": "click_nth_visible_element",
+        "params": [
+          "selector",
+          "number"
+        ]
+      },
+      {
+        "name": "click_visible_elements",
+        "params": [
+          "selector",
+          "limit"
+        ]
+      },
+      {
+        "name": "close_browser",
+        "params": []
+      },
+      {
+        "name": "context_click",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "delete_all_cookies",
+        "params": []
+      },
+      {
+        "name": "double_click",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "download_file",
+        "params": [
+          "file_url",
+          "destination_folder"
+        ]
+      },
+      {
+        "name": "drag_and_drop",
+        "params": [
+          "drag_selector",
+          "drop_selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "enter_mfa_code",
+        "params": [
+          "selector",
+          "totp_key"
+        ]
+      },
+      {
+        "name": "evaluate",
+        "params": [
+          "expression"
+        ]
+      },
+      {
+        "name": "execute_script",
+        "params": [
+          "script"
+        ]
+      },
+      {
+        "name": "find_elements_count",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "flash",
+        "params": [
+          "selector",
+          "duration"
+        ]
+      },
+      {
+        "name": "get_attribute",
+        "params": [
+          "selector",
+          "attribute"
+        ]
+      },
+      {
+        "name": "get_cookies",
+        "params": []
+      },
+      {
+        "name": "get_current_url",
+        "params": []
+      },
+      {
+        "name": "get_element_html",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "get_html_source",
+        "params": []
+      },
+      {
+        "name": "get_local_storage_item",
+        "params": [
+          "key"
+        ]
+      },
+      {
+        "name": "get_mfa_code",
+        "params": [
+          "totp_key"
+        ]
+      },
+      {
+        "name": "get_origin",
+        "params": []
+      },
+      {
+        "name": "get_page_info",
+        "params": []
+      },
+      {
+        "name": "get_session_storage_item",
+        "params": [
+          "key"
+        ]
+      },
+      {
+        "name": "get_text",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "get_title",
+        "params": []
+      },
+      {
+        "name": "get_user_agent",
+        "params": []
+      },
+      {
+        "name": "get_window_rect",
+        "params": []
+      },
+      {
+        "name": "go_back",
+        "params": []
+      },
+      {
+        "name": "go_forward",
+        "params": []
+      },
+      {
+        "name": "highlight",
+        "params": [
+          "selector",
+          "loops",
+          "timeout"
+        ]
+      },
+      {
+        "name": "hover_and_click",
+        "params": [
+          "hover_selector",
+          "click_selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "is_element_clickable",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "is_element_present",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "is_element_visible",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "is_selected",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "is_text_visible",
+        "params": [
+          "text",
+          "selector"
+        ]
+      },
+      {
+        "name": "load_cookies",
+        "params": [
+          "name"
+        ]
+      },
+      {
+        "name": "maximize_window",
+        "params": []
+      },
+      {
+        "name": "minimize_window",
+        "params": []
+      },
+      {
+        "name": "nested_click",
+        "params": [
+          "parent_selector",
+          "selector"
+        ]
+      },
+      {
+        "name": "open_new_tab",
+        "params": [
+          "switch_to"
+        ]
+      },
+      {
+        "name": "open_url",
+        "params": [
+          "url"
+        ]
+      },
+      {
+        "name": "print_to_pdf",
+        "params": [
+          "name",
+          "folder"
+        ]
+      },
+      {
+        "name": "refresh_page",
+        "params": []
+      },
+      {
+        "name": "save_cookies",
+        "params": [
+          "name"
+        ]
+      },
+      {
+        "name": "save_page_source",
+        "params": [
+          "name",
+          "folder"
+        ]
+      },
+      {
+        "name": "save_screenshot",
+        "params": [
+          "name",
+          "folder"
+        ]
+      },
+      {
+        "name": "scroll_down",
+        "params": [
+          "amount"
+        ]
+      },
+      {
+        "name": "scroll_into_view",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "scroll_to_bottom",
+        "params": []
+      },
+      {
+        "name": "scroll_to_top",
+        "params": []
+      },
+      {
+        "name": "scroll_up",
+        "params": [
+          "amount"
+        ]
+      },
+      {
+        "name": "select_option_by_index",
+        "params": [
+          "dropdown_selector",
+          "option",
+          "timeout"
+        ]
+      },
+      {
+        "name": "select_option_by_text",
+        "params": [
+          "dropdown_selector",
+          "option",
+          "timeout"
+        ]
+      },
+      {
+        "name": "select_option_by_value",
+        "params": [
+          "dropdown_selector",
+          "option",
+          "timeout"
+        ]
+      },
+      {
+        "name": "set_local_storage_item",
+        "params": [
+          "key",
+          "value"
+        ]
+      },
+      {
+        "name": "set_session_storage_item",
+        "params": [
+          "key",
+          "value"
+        ]
+      },
+      {
+        "name": "set_value",
+        "params": [
+          "selector",
+          "text",
+          "timeout"
+        ]
+      },
+      {
+        "name": "sleep",
+        "params": [
+          "seconds"
+        ]
+      },
+      {
+        "name": "solve_captcha",
+        "params": []
+      },
+      {
+        "name": "start_browser",
+        "params": [
+          "browser",
+          "headless",
+          "uc",
+          "incognito",
+          "guest_mode",
+          "ad_block",
+          "proxy"
+        ]
+      },
+      {
+        "name": "submit",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "switch_to_default_content",
+        "params": []
+      },
+      {
+        "name": "switch_to_default_window",
+        "params": []
+      },
+      {
+        "name": "switch_to_frame",
+        "params": [
+          "selector"
+        ]
+      },
+      {
+        "name": "switch_to_newest_tab",
+        "params": []
+      },
+      {
+        "name": "type_text",
+        "params": [
+          "selector",
+          "text",
+          "clear_first",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_element",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_element_absent",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_element_not_visible",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_element_present",
+        "params": [
+          "selector",
+          "timeout"
+        ]
+      },
+      {
+        "name": "wait_for_text",
+        "params": [
+          "text",
+          "selector",
+          "timeout"
+        ]
+      }
+    ]
+  },
+  "options": {
+    "driver_kwargs": [
+      "ad_block",
+      "ad_block_on",
+      "agent",
+      "binary_location",
+      "block_images",
+      "browser",
+      "cap_file",
+      "cap_string",
+      "cft",
+      "chromium_arg",
+      "chs",
+      "d_height",
+      "d_p_r",
+      "d_width",
+      "dark_mode",
+      "devtools",
+      "disable_cookies",
+      "disable_csp",
+      "disable_features",
+      "disable_gpu",
+      "disable_js",
+      "disable_ws",
+      "do_not_track",
+      "driver_version",
+      "enable_3d_apis",
+      "enable_sync",
+      "enable_ws",
+      "extension_dir",
+      "extension_zip",
+      "external_pdf",
+      "firefox_arg",
+      "firefox_pref",
+      "guest",
+      "guest_mode",
+      "headed",
+      "headless",
+      "headless1",
+      "headless2",
+      "host_resolver_rules",
+      "incognito",
+      "is_mobile",
+      "locale",
+      "locale_code",
+      "log_cdp",
+      "log_cdp_events",
+      "mobile",
+      "multi_proxy",
+      "no_sandbox",
+      "page_load_strategy",
+      "pls",
+      "port",
+      "position",
+      "protocol",
+      "proxy",
+      "proxy_bypass_list",
+      "proxy_pac_url",
+      "recorder_ext",
+      "remote_debug",
+      "server",
+      "servername",
+      "size",
+      "swiftshader",
+      "uc",
+      "uc_cdp",
+      "uc_cdp_events",
+      "uc_sub",
+      "uc_subprocess",
+      "undetectable",
+      "undetected",
+      "use_auto_ext",
+      "use_chromium",
+      "user_data_dir",
+      "window_position",
+      "window_size"
+    ],
+    "pytest": [
+      "--account",
+      "--ad-block",
+      "--ad_block",
+      "--adblock",
+      "--agent",
+      "--all-scripts",
+      "--all_scripts",
+      "--archive-downloads",
+      "--archive-logs",
+      "--archive_downloads",
+      "--archive_logs",
+      "--auto-ext",
+      "--binary-location",
+      "--binary_location",
+      "--bl",
+      "--block-ads",
+      "--block-images",
+      "--block_ads",
+      "--block_images",
+      "--brave",
+      "--browser",
+      "--cap-file",
+      "--cap-string",
+      "--cap_file",
+      "--cap_string",
+      "--cft",
+      "--check-js",
+      "--check_js",
+      "--chrome",
+      "--chromium",
+      "--chromium-arg",
+      "--chromium_arg",
+      "--chs",
+      "--codegen",
+      "--comet",
+      "--crumbs",
+      "--crx",
+      "--dark",
+      "--dark-mode",
+      "--dark_mode",
+      "--dash-title",
+      "--dash_title",
+      "--dashboard",
+      "--data",
+      "--database-env",
+      "--database_env",
+      "--dcsp",
+      "--demo",
+      "--demo-mode",
+      "--demo-sleep",
+      "--demo_mode",
+      "--demo_sleep",
+      "--device-metrics",
+      "--device_metrics",
+      "--devtools",
+      "--disable-beforeunload",
+      "--disable-cookies",
+      "--disable-csp",
+      "--disable-features",
+      "--disable-gpu",
+      "--disable-js",
+      "--disable-web-security",
+      "--disable-ws",
+      "--disable_beforeunload",
+      "--disable_cookies",
+      "--disable_csp",
+      "--disable_features",
+      "--disable_gpu",
+      "--disable_js",
+      "--disable_ws",
+      "--do-not-track",
+      "--do_not_track",
+      "--driver-version",
+      "--driver_version",
+      "--dws",
+      "--edge",
+      "--ee",
+      "--enable-3d-apis",
+      "--enable-sync",
+      "--enable-web-security",
+      "--enable-ws",
+      "--enable_3d_apis",
+      "--enable_sync",
+      "--enable_ws",
+      "--env",
+      "--esc-end",
+      "--esc_end",
+      "--extension-dir",
+      "--extension-zip",
+      "--extension_dir",
+      "--extension_zip",
+      "--external-pdf",
+      "--external_pdf",
+      "--fast",
+      "--fast-mode",
+      "--fast_mode",
+      "--fdebug",
+      "--final-debug",
+      "--final-trace",
+      "--firefox",
+      "--firefox-arg",
+      "--firefox-pref",
+      "--firefox_arg",
+      "--firefox_pref",
+      "--ftrace",
+      "--fullscreen",
+      "--guest",
+      "--guest-mode",
+      "--guest_mode",
+      "--gui",
+      "--headed",
+      "--headless",
+      "--headless1",
+      "--headless2",
+      "--highlights",
+      "--host-resolver-rules",
+      "--host_resolver_rules",
+      "--ie",
+      "--incognito",
+      "--incognito-mode",
+      "--incognito_mode",
+      "--interval",
+      "--is-pytest",
+      "--is_pytest",
+      "--lfp",
+      "--list-fail-page",
+      "--list-fail-pages",
+      "--locale",
+      "--locale-code",
+      "--locale_code",
+      "--log-cdp",
+      "--log-cdp-events",
+      "--log-path",
+      "--log_cdp",
+      "--log_cdp_events",
+      "--log_path",
+      "--maximize",
+      "--maximize-window",
+      "--maximize_window",
+      "--message-duration",
+      "--message_duration",
+      "--metrics",
+      "--mobile",
+      "--mobile-emulator",
+      "--mobile_emulator",
+      "--multi-proxy",
+      "--multi_proxy",
+      "--no-csp",
+      "--no-sandbox",
+      "--no-screenshot",
+      "--no_csp",
+      "--no_sandbox",
+      "--no_screenshot",
+      "--ns",
+      "--open-devtools",
+      "--open_devtools",
+      "--opera",
+      "--pac-url",
+      "--page-load-strategy",
+      "--page_load_strategy",
+      "--pls",
+      "--port",
+      "--protocol",
+      "--proxy",
+      "--proxy-bypass-list",
+      "--proxy-driver",
+      "--proxy-pac-url",
+      "--proxy-server",
+      "--proxy-string",
+      "--proxy_bypass_list",
+      "--proxy_driver",
+      "--rcs",
+      "--rec",
+      "--rec-behave",
+      "--rec-gherkin",
+      "--rec-print",
+      "--rec-sb-cdp",
+      "--rec-sb-mgr",
+      "--rec-sleep",
+      "--record",
+      "--record-sleep",
+      "--recorder",
+      "--remote-debug",
+      "--remote-debugger",
+      "--remote_debug",
+      "--remote_debugger",
+      "--reuse-class-session",
+      "--reuse-session",
+      "--reuse_class_session",
+      "--reuse_session",
+      "--rs",
+      "--safari",
+      "--save-screenshot",
+      "--save_screenshot",
+      "--screenshot",
+      "--server",
+      "--settings",
+      "--settings-file",
+      "--settings_file",
+      "--sjw",
+      "--skip-js-waits",
+      "--skip_js_waits",
+      "--slow",
+      "--slow-mode",
+      "--slow_mode",
+      "--slowmo",
+      "--ss",
+      "--start-page",
+      "--start_page",
+      "--swiftshader",
+      "--time-limit",
+      "--time_limit",
+      "--timelimit",
+      "--timeout-multiplier",
+      "--timeout_multiplier",
+      "--uc",
+      "--uc-cdp",
+      "--uc-cdp-events",
+      "--uc-sub",
+      "--uc-subprocess",
+      "--uc_cdp_events",
+      "--uc_subprocess",
+      "--undetectable",
+      "--undetected",
+      "--url",
+      "--use-auto-ext",
+      "--use-chromium",
+      "--use_auto_ext",
+      "--user-agent",
+      "--user-data-dir",
+      "--user_agent",
+      "--user_data_dir",
+      "--var1",
+      "--var2",
+      "--var3",
+      "--variables",
+      "--verify-delay",
+      "--verify_delay",
+      "--visual-baseline",
+      "--visual_baseline",
+      "--wait-for-angularjs",
+      "--wait_for_angularjs",
+      "--wfa",
+      "--window-position",
+      "--window-size",
+      "--window_position",
+      "--window_size",
+      "--with-basic-test-info",
+      "--with-basic_test_info",
+      "--with-db-reporting",
+      "--with-db_reporting",
+      "--with-page-source",
+      "--with-page_source",
+      "--with-s3-logging",
+      "--with-s3_logging",
+      "--with-screen-shots",
+      "--with-screen_shots",
+      "--with-selenium",
+      "--with-testing-base",
+      "--with-testing_base",
+      "--xvfb",
+      "--xvfb-metrics",
+      "--xvfb_metrics"
+    ],
+    "sb_kwargs": [
+      "account",
+      "ad_block",
+      "ad_block_on",
+      "agent",
+      "binary_location",
+      "block_images",
+      "browser",
+      "cap_file",
+      "cap_string",
+      "cft",
+      "chromium_arg",
+      "chs",
+      "dark_mode",
+      "data",
+      "demo",
+      "demo_sleep",
+      "device_metrics",
+      "devtools",
+      "disable_beforeunload",
+      "disable_cookies",
+      "disable_csp",
+      "disable_features",
+      "disable_js",
+      "disable_ws",
+      "do_not_track",
+      "driver_version",
+      "enable_3d_apis",
+      "enable_sync",
+      "enable_ws",
+      "environment",
+      "extension_dir",
+      "extension_zip",
+      "external_pdf",
+      "fast",
+      "firefox_arg",
+      "firefox_pref",
+      "guest",
+      "guest_mode",
+      "headed",
+      "headless",
+      "headless1",
+      "headless2",
+      "highlights",
+      "host_resolver_rules",
+      "incognito",
+      "interval",
+      "is_mobile",
+      "js_checking_on",
+      "locale",
+      "locale_code",
+      "log_cdp",
+      "log_cdp_events",
+      "maximize",
+      "message_duration",
+      "mobile",
+      "multi_proxy",
+      "no_screenshot",
+      "page_load_strategy",
+      "pls",
+      "port",
+      "position",
+      "protocol",
+      "proxy",
+      "proxy_bypass_list",
+      "proxy_pac_url",
+      "raise_test_failure",
+      "rec_behave",
+      "rec_print",
+      "rec_sb_cdp",
+      "rec_sb_mgr",
+      "record_sleep",
+      "recorder_ext",
+      "remote_debug",
+      "rtf",
+      "save_screenshot",
+      "server",
+      "servername",
+      "settings_file",
+      "size",
+      "sjw",
+      "skip_js_waits",
+      "slow",
+      "start_page",
+      "swiftshader",
+      "test",
+      "time_limit",
+      "timeout_multiplier",
+      "uc",
+      "uc_cdp",
+      "uc_cdp_events",
+      "uc_sub",
+      "uc_subprocess",
+      "undetectable",
+      "undetected",
+      "use_auto_ext",
+      "use_chromium",
+      "user_data_dir",
+      "var1",
+      "var2",
+      "var3",
+      "variables",
+      "wait_for_angularjs",
+      "wfa",
+      "window_position",
+      "window_size",
+      "xvfb",
+      "xvfb_metrics"
+    ]
+  },
+  "seleniumbase": {
+    "commit": "5fc0c4bd5c38098be170b63470e5ea07ff3950a5",
+    "version": "4.55.2"
+  },
+  "seleniumbase_mcp": {
+    "commit": "cecbdc68f84b88d482a0de34de329a6b6a6cef0a"
+  }
+}

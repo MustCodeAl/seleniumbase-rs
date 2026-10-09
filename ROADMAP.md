@@ -2,7 +2,7 @@
 
 What is done, what is missing, and what to build next, in order. Update the
 status lines as work lands. The goal is feature parity with the latest Python
-[SeleniumBase](https://github.com/seleniumbase/SeleniumBase) (4.54.10) and
+[SeleniumBase](https://github.com/seleniumbase/SeleniumBase) (4.55.2) and
 [seleniumbase-mcp](https://github.com/seleniumbase/seleniumbase-mcp), designed
 the way a Rust library would be, not copied from Python's architecture.
 
@@ -70,24 +70,25 @@ Design rules that apply to everything below:
 8. **Pure CDP: check the 215 Python `sb.cdp.*` methods** each have a Rust
    composition (`page.locator(sel)...`). List the ones that do not and add them.
 
-## 2. Make future upstream updates cheap
+## 2. Make future upstream updates cheap (done; keep the manifest current)
 
-Build, in this order:
+Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
+`tools/parity/seed_manifest.py`, `tools/parity/render_docs.py`,
+`parity/api.toml`, `tests/parity.rs`, `docs/UPSTREAM_SYNC.md`, the generated
+`docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
+workflow (untested: Actions are billing-locked).
 
-1. `parity/upstream.toml`: the pinned upstream versions and commit SHAs, and a
-   Rust constant exposing the tracked Python version.
-2. `tools/parity/extract_api.py` (standard library only): extracts the public
-   API of BaseCase, `sb.cdp`, `Driver`, the CLI, the options, and the three MCP
-   servers from an upstream checkout into `parity/upstream-api.json`.
-3. `parity/api.toml`: one entry per upstream name with a status of
-   `implemented` (Rust path), `composed`, `not-applicable` (reason) or
-   `planned`, and a `divergence` note where behaviour differs.
-4. `tests/parity.rs`: fails on unclassified or stale names, on `implemented`
-   paths that do not exist (checked with `syn`), and on MCP tool names that
-   differ from the manifest.
-5. `docs/UPSTREAM_SYNC.md` (the playbook), a generated `docs/parity.md`,
-   `just parity-*` recipes, and a scheduled `upstream-watch` workflow that opens
-   an issue when a new upstream release appears.
+First classification of 4.55.2: BaseCase 440 of 453 matched by name and 11
+not applicable; Driver 75 of 79; all 138 MCP tools; CDP Mode 56 composed and
+159 still `planned`; CLI 17 of 36; pytest options 18 of 263. Work these
+`planned` entries down, biggest wins first:
+
+1. CDP Mode: map the 159 unmapped `sb.cdp.*` methods to a Rust composition, or
+   port them (this also covers item 8 above).
+2. CLI commands (item 5 above).
+3. Options: most pytest options are Python-test-runner settings; mark the
+   irrelevant ones `not-applicable` with a reason and port the rest into
+   `BrowserConfig`/`RuntimeConfig`.
 
 ## 3. Documentation
 

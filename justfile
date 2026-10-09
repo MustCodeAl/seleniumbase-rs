@@ -57,3 +57,20 @@ clean:
 # Prepare a release: format, lint, test, docs, dry-run publish
 release-check: fmt lint test-all docs
     cargo publish --dry-run
+
+# Extract the upstream API: just parity-extract PATH/TO/SeleniumBase PATH/TO/seleniumbase-mcp
+parity-extract seleniumbase mcp:
+    python3 -I tools/parity/extract_api.py --seleniumbase {{seleniumbase}} --mcp {{mcp}} --out parity/upstream-api.json
+
+# Add proposed entries to parity/api.toml for upstream names it does not list
+parity-seed:
+    python3 -I tools/parity/seed_manifest.py
+
+# Check that parity/api.toml agrees with the upstream API and the Rust sources
+parity-check:
+    cargo test --features mcp-server --test parity
+
+# Regenerate docs/parity.md and fail if it was out of date
+parity-docs:
+    python3 -I tools/parity/render_docs.py
+    git diff --exit-code docs/parity.md

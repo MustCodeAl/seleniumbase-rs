@@ -47,6 +47,8 @@ seleniumbase-rs/
 │   │   ├── runner.rs       # Async browser test lifecycle
 │   │   ├── traits.rs       # Capability traits (BrowserApi, ElementApi, ...)
 │   │   └── ...
+│   ├── sb_cdp/             # Pure CDP engine: Browser, Page, Locator, input, state, CAPTCHA
+│   ├── mcp/                # MCP servers: cdp, driver and sb toolsets
 │   ├── browser/            # Browser launch, session, and configuration
 │   │   ├── config.rs       # BrowserConfig, Browser, DriverMode
 │   │   ├── session.rs      # BrowserSession (WebDriver wrapper)
@@ -66,6 +68,8 @@ seleniumbase-rs/
 │   ├── utilities/          # Selenium IDE, Grid, and Python migration
 │   ├── utils/              # Selectors, shadow DOM, translations, extensions
 │   └── bin/                # Additional binary targets (MCP server, ...)
+├── parity/                 # Upstream API manifest (see docs/UPSTREAM_SYNC.md)
+├── tools/parity/           # Scripts that extract and seed the manifest
 └── tests/                  # Integration tests
 ```
 
@@ -443,20 +447,29 @@ Macros are defined in `src/macros.rs` and re-exported at the crate root via
 3. Add a unit test in the `#[cfg(test)]` module if the macro builds a value that
    can be asserted without a browser.
 4. Update `docs/tutorials/macros.md` with the macro name, signature, and example.
-5. Update the `list_macros` MCP tool catalog in `src/bin/mcp_server.rs`.
 
 ## Adding an MCP tool
 
-The `seleniumbase-mcp` binary is built when the `mcp-server` feature is enabled:
+The `seleniumbase-mcp` binary (`--server cdp|driver|sb`) is a thin wrapper over
+the `mcp` module, built with the `mcp-server` feature. A server is a
+`Host<S>`: a list of `ToolDef`s and the browser session `S` they share.
 
-1. Add a `Tool` entry to `tools()` in `src/bin/mcp_server.rs` with a JSON schema.
-2. Handle the tool name in `call_tool` and validate required arguments.
-3. Use `self.case().await?` to obtain the lazily-created `BaseCase` for any
-   browser action.
-4. Return `CallToolResult::success(...)` or `CallToolResult::error(...)`.
-5. Add a unit test in the binary's `#[cfg(test)]` module that asserts the tool
-   appears in `tools()`.
-6. Update `README.md` and `DOCS.md` with the new tool.
+1. Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
+   `src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
+   `src/mcp/webdriver.rs`).
+2. Write an `async fn(Ctx<S>, Args) -> Result<Output, ToolError>` handler. Read
+   arguments with the typed accessors on `Args` (`str`, `opt_bool`, `choice`,
+   `seconds_or`, ...), which name the argument in every error. Get the session
+   with `ctx.session().await?`. Return `Output::Text` or `Output::Json`.
+3. Register a `ToolDef::new(name, title, description, Effect, Schema, handler)`.
+   Choose the `Effect` that is true of the tool (it becomes the MCP annotation
+   hints) and describe each argument with `Prop`.
+4. Write files only through `ctx.settings().output_path(folder, name)`, which
+   keeps them inside the output directory.
+5. Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
+   browser; `tests/mcp_webdriver.rs` covers the catalogues.
+6. If the tool exists upstream, `tests/parity.rs` checks it against
+   `parity/api.toml`; see [Syncing with upstream](UPSTREAM_SYNC.md).
 
 ## Testing guidelines
 

@@ -1,0 +1,14 @@
+# The upstream releases this crate's API is synced to. Update this file in the
+# same commit that regenerates parity/upstream-api.json (see docs/UPSTREAM_SYNC.md).
+
+[seleniumbase]
+repository = "https://github.com/seleniumbase/SeleniumBase"
+version = "4.55.2"
+commit = "5fc0c4bd5c38098be170b63470e5ea07ff3950a5"
+
+[seleniumbase_mcp]
+repository = "https://github.com/seleniumbase/seleniumbase-mcp"
+commit = "cecbdc68f84b88d482a0de34de329a6b6a6cef0a"
+
+[sync]
+date = "2026-10-08"
