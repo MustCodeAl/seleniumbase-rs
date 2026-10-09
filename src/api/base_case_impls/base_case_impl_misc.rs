@@ -96,12 +96,12 @@ impl BaseCase {
 
     /// Displays a success toast message on the page.
     pub async fn post_success_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.post_message(message, "#28a745").await
+        self.post_styled_message(message, "#28a745").await
     }
 
     /// Displays an error toast message on the page.
     pub async fn post_error_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.post_message(message, "#dc3545").await
+        self.post_styled_message(message, "#dc3545").await
     }
 
     /// Displays a toast message and highlights it.
@@ -109,12 +109,12 @@ impl BaseCase {
         &self,
         message: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.post_message(message, "#ffc107").await?;
+        self.post_styled_message(message, "#ffc107").await?;
         let _ = self.highlight("#sb-toast-message").await;
         Ok(())
     }
 
-    async fn post_message(&self, message: &str, color: &str) -> Result<(), SeleniumBaseError> {
+    async fn post_styled_message(&self, message: &str, color: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var d=document.createElement('div'); d.id='sb-toast-message'; d.textContent={}; \
              d.style.cssText='position:fixed;top:10px;right:10px;padding:12px;background:{};color:#fff;z-index:999999;'; \

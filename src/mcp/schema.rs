@@ -129,3 +129,58 @@ impl Schema {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn required_arguments_are_listed_and_optional_ones_are_not() {
+        let schema = Schema::new()
+            .required("a", Prop::string("first"))
+            .optional("b", Prop::boolean("second"))
+            .to_json();
+
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["required"], json!(["a"]));
+        assert_eq!(schema["properties"]["a"]["type"], "string");
+        assert_eq!(schema["properties"]["b"]["type"], "boolean");
+        assert_eq!(schema["additionalProperties"], false);
+    }
+
+    #[test]
+    fn a_schema_without_required_arguments_omits_the_key() {
+        let schema = Schema::new()
+            .optional("x", Prop::integer("count"))
+            .to_json();
+
+        assert!(schema.get("required").is_none());
+    }
+
+    #[test]
+    fn choices_defaults_and_minimums_land_in_the_property() {
+        let schema = Schema::new()
+            .optional("mode", Prop::choice(&["a", "b"], "which").default("a"))
+            .optional("wait", Prop::number("seconds").min(0.0).default(5))
+            .to_json();
+
+        assert_eq!(schema["properties"]["mode"]["enum"], json!(["a", "b"]));
+        assert_eq!(schema["properties"]["mode"]["default"], "a");
+        assert_eq!(schema["properties"]["wait"]["minimum"], 0.0);
+        assert_eq!(schema["properties"]["wait"]["default"], 5);
+    }
+
+    #[test]
+    fn every_property_carries_its_description_for_the_model() {
+        let schema = Schema::new()
+            .required("url", Prop::string("Address to open"))
+            .to_json();
+
+        assert_eq!(
+            schema["properties"]["url"]["description"],
+            "Address to open"
+        );
+    }
+}

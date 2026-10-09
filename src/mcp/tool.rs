@@ -454,3 +454,158 @@ impl<S> ToolDef<S> {
         (self.handler)(ctx, args)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn args(v: Value) -> Args {
+        let Value::Object(map) = v else {
+            panic!("tool arguments are an object")
+        };
+        Args::new(map)
+    }
+
+    #[test]
+    fn a_required_string_names_the_argument_when_it_is_missing_or_mistyped() {
+        let a = args(json!({ "n": 3 }));
+        assert!(matches!(
+            a.str("missing"),
+            Err(ToolError::InvalidArgument { name, .. }) if name == "missing"
+        ));
+        assert!(matches!(
+            a.str("n"),
+            Err(ToolError::InvalidArgument { name, .. }) if name == "n"
+        ));
+        assert_eq!(args(json!({ "s": "x" })).str("s").unwrap(), "x");
+    }
+
+    #[test]
+    fn null_counts_as_absent_so_clients_may_send_it_for_unset_options() {
+        let a = args(json!({ "s": null, "b": null }));
+        assert_eq!(a.opt_str("s").unwrap(), None);
+        assert_eq!(a.opt_bool("b").unwrap(), None);
+        assert_eq!(a.str_or("s", "fallback").unwrap(), "fallback");
+    }
+
+    #[test]
+    fn seconds_accept_fractions_and_reject_negative_huge_and_non_numbers() {
+        assert_eq!(
+            args(json!({ "t": 0.5 })).seconds_or("t", 9.0).unwrap(),
+            Duration::from_millis(500)
+        );
+        assert_eq!(
+            args(json!({})).seconds_or("t", 2.0).unwrap(),
+            Duration::from_secs(2)
+        );
+        for bad in [
+            json!({ "t": -1 }),
+            json!({ "t": 1.0e9 }),
+            json!({ "t": "soon" }),
+        ] {
+            assert!(
+                matches!(
+                    args(bad.clone()).seconds_or("t", 1.0),
+                    Err(ToolError::InvalidArgument { .. })
+                ),
+                "{bad} should be rejected"
+            );
+        }
+        assert!(
+            args(json!({ "t": MAX_SECONDS }))
+                .seconds_or("t", 1.0)
+                .is_ok(),
+            "the limit itself is allowed"
+        );
+    }
+
+    #[test]
+    fn whole_numbers_come_from_numbers_or_numeric_strings() {
+        assert_eq!(args(json!({ "n": 4 })).opt_i64("n").unwrap(), Some(4));
+        assert_eq!(args(json!({ "n": " 7 " })).opt_i64("n").unwrap(), Some(7));
+        assert!(args(json!({ "n": "seven" })).opt_i64("n").is_err());
+        assert!(args(json!({ "n": 1.5 })).opt_i64("n").is_err());
+        assert!(
+            args(json!({ "n": -1 })).opt_usize("n").is_err(),
+            "a count cannot be negative"
+        );
+    }
+
+    #[test]
+    fn a_scalar_accepts_strings_and_numbers_but_not_structures() {
+        assert_eq!(args(json!({ "v": "2" })).scalar("v").unwrap(), "2");
+        assert_eq!(args(json!({ "v": 2 })).scalar("v").unwrap(), "2");
+        assert!(args(json!({ "v": [1] })).scalar("v").is_err());
+        assert!(args(json!({})).scalar("v").is_err());
+    }
+
+    #[test]
+    fn a_choice_falls_back_to_its_default_and_lists_the_options_on_error() {
+        let a = args(json!({ "mode": "b" }));
+        assert_eq!(a.choice("mode", &["a", "b"], "a").unwrap(), "b");
+        assert_eq!(a.choice("other", &["a", "b"], "a").unwrap(), "a");
+        let error = args(json!({ "mode": "z" }))
+            .choice("mode", &["a", "b"], "a")
+            .unwrap_err();
+        let message = error.to_string();
+        assert!(
+            message.contains("mode") && message.contains("a, b") && message.contains('z'),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn renaming_moves_a_value_and_leaves_other_arguments_alone() {
+        let mut a = args(json!({ "dropdown_selector": "#c", "option": "x" }));
+        a.rename("dropdown_selector", "selector");
+        assert_eq!(a.str("selector").unwrap(), "#c");
+        assert!(a.opt_str("dropdown_selector").unwrap().is_none());
+        assert_eq!(a.str("option").unwrap(), "x");
+        a.rename("absent", "anything");
+        assert!(a.opt_str("anything").unwrap().is_none());
+    }
+
+    #[test]
+    fn json_text_renders_bare_and_structures_render_indented() {
+        assert_eq!(Output::Json(json!("plain")).render(), "plain");
+        assert_eq!(Output::Text("t".into()).render(), "t");
+        assert_eq!(Output::Json(json!(true)).render(), "true");
+        assert!(Output::Json(json!({ "a": 1 }))
+            .render()
+            .contains("\n  \"a\": 1"));
+    }
+
+    #[test]
+    fn a_failed_browser_error_carries_its_hint_to_the_model() {
+        let failure = SeleniumBaseError::element_not_found("#nope");
+        let hint = failure.hint();
+        let message = ToolError::Failed(failure).message();
+        assert!(message.contains("#nope"), "{message}");
+        if let Some(hint) = hint {
+            assert!(message.contains(&hint), "{message}");
+        }
+    }
+
+    #[test]
+    fn effects_map_to_honest_annotations() {
+        let observe = Effect::Observe.annotations("T");
+        assert_eq!(observe.read_only_hint, Some(true));
+        assert_eq!(observe.title.as_deref(), Some("T"));
+        let overwrite = Effect::Overwrite.annotations("T");
+        assert_eq!(
+            (overwrite.read_only_hint, overwrite.destructive_hint),
+            (Some(false), Some(true))
+        );
+        let mixed = Effect::Mixed.annotations("T");
+        assert_eq!(
+            (
+                mixed.read_only_hint,
+                mixed.destructive_hint,
+                mixed.idempotent_hint
+            ),
+            (None, None, None)
+        );
+    }
+}

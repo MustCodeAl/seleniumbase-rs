@@ -489,3 +489,105 @@ fn futures_are_send(browser: &Browser, page: &Page, locator: &Locator) {
     send(locator.wait_for(State::Visible));
     send(locator.expect().to_be_visible());
 }
+
+// ----------------------------------------------------------------------
+// CAPTCHA solving and cache-bypassing reload
+// ----------------------------------------------------------------------
+
+/// The page script that finds a widget answers with its kind and box.
+fn script_captcha(mock: &MockCtrl, found: Value) {
+    mock.on("Runtime.evaluate", move |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(
+            if expression.contains("querySelectorAll(selectors[kind])") {
+                value(found.clone())
+            } else {
+                value(Value::Null)
+            },
+        )
+    });
+}
+
+#[tokio::test]
+async fn solving_a_checkbox_captcha_clicks_near_its_left_edge_at_mid_height() {
+    let (page, mock) = quick_page().await;
+    // Turnstile is the first kind; a 300x65 widget at (100, 200).
+    script_captcha(
+        &mock,
+        json!({ "kind": 0, "x": 100.0, "y": 200.0, "width": 300.0, "height": 65.0 }),
+    );
+
+    let solved = page.solve_captcha().await.unwrap();
+
+    assert_eq!(
+        solved.map(|kind| kind.to_string()),
+        Some("Cloudflare Turnstile".to_owned())
+    );
+    let events: Vec<_> = mock
+        .calls_to("Input.dispatchMouseEvent")
+        .into_iter()
+        .map(|call| {
+            (
+                call.params["type"].as_str().unwrap().to_owned(),
+                call.params["x"].as_f64().unwrap(),
+                call.params["y"].as_f64().unwrap(),
+            )
+        })
+        .collect();
+    assert!(
+        events.contains(&("mousePressed".to_owned(), 128.0, 232.5)),
+        "{events:?}"
+    );
+    assert!(
+        events.contains(&("mouseReleased".to_owned(), 128.0, 232.5)),
+        "{events:?}"
+    );
+}
+
+#[tokio::test]
+async fn solving_a_slider_captcha_drags_across_the_widget() {
+    let (page, mock) = quick_page().await;
+    // DataDome is the last kind.
+    script_captcha(
+        &mock,
+        json!({ "kind": 4, "x": 0.0, "y": 100.0, "width": 400.0, "height": 60.0 }),
+    );
+
+    page.solve_captcha().await.unwrap();
+
+    let xs: Vec<f64> = mock
+        .calls_to("Input.dispatchMouseEvent")
+        .into_iter()
+        .map(|call| call.params["x"].as_f64().unwrap())
+        .collect();
+    assert_eq!(xs.first(), Some(&30.0), "starts at the handle");
+    assert_eq!(xs.last(), Some(&370.0), "ends at the far side");
+    assert!(
+        xs.windows(2).all(|pair| pair[0] <= pair[1]),
+        "the pointer only moves forward: {xs:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_page_with_no_captcha_is_left_alone() {
+    let (page, mock) = quick_page().await;
+    script_captcha(&mock, Value::Null);
+
+    assert!(page.solve_captcha().await.unwrap().is_none());
+    assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
+}
+
+#[tokio::test]
+async fn reload_keeps_the_cache_and_hard_reload_bypasses_it() {
+    let (page, mock) = quick_page().await;
+
+    page.reload().await.unwrap();
+    page.hard_reload().await.unwrap();
+
+    let reloads: Vec<_> = mock
+        .calls_to("Page.reload")
+        .into_iter()
+        .map(|call| call.params["ignoreCache"].clone())
+        .collect();
+    assert_eq!(reloads, [json!(false), json!(true)]);
+}

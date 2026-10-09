@@ -1,0 +1,250 @@
+// Helpers that complete the BaseCase surface of the Python framework.
+
+/// Window and scroll measurements needed to turn a page position into a
+/// screen position, as `[screenX, screenY, chromeWidth, chromeHeight,
+/// scrollX, scrollY]`.
+const WINDOW_METRICS_SCRIPT: &str = "return [window.screenX, window.screenY, \
+    window.outerWidth - window.innerWidth, window.outerHeight - window.innerHeight, \
+    window.scrollX, window.scrollY];";
+
+/// An element's rectangle on the screen, given its rectangle in the document
+/// and the window measurements from [`WINDOW_METRICS_SCRIPT`].
+///
+/// The browser's toolbar sits above the page and the window frame is split
+/// evenly on both sides, so the page origin is the window origin plus half the
+/// horizontal chrome and all of the vertical chrome.
+fn screen_rect(element: crate::sb_cdp::Rect, metrics: [f64; 6]) -> crate::sb_cdp::Rect {
+    let [window_x, window_y, chrome_width, chrome_height, scroll_x, scroll_y] = metrics;
+    crate::sb_cdp::Rect {
+        x: window_x + chrome_width / 2.0 + element.x - scroll_x,
+        y: window_y + chrome_height + element.y - scroll_y,
+        ..element
+    }
+}
+
+impl BaseCase {
+    /// Replaces an input's content with `text` in one step, with no per-key
+    /// events. A trailing newline presses Enter. Corresponds to Python's
+    /// `fast_type`; use [`type_text`](Self::type_text) where the page listens
+    /// for key presses.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if the element is missing.
+    pub async fn fast_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        let (body, enter) = match text.strip_suffix('\n') {
+            Some(body) => (body, true),
+            None => (text, false),
+        };
+        self.set_value(css, body).await?;
+        if enter {
+            self.send_keys(css, "\n").await?;
+        }
+        Ok(())
+    }
+
+    /// Clicks the element with a script, only if it is visible. Does nothing
+    /// otherwise. Corresponds to Python's `js_click_if_visible`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the page script fails.
+    pub async fn js_click_if_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if self.is_element_visible(css).await? {
+            self.js_click(css).await?;
+        }
+        Ok(())
+    }
+
+    /// The element's rectangle in screen coordinates, as a desktop automation
+    /// tool such as `enigo` needs it. Corresponds to Python's
+    /// `get_gui_element_rect`.
+    ///
+    /// The browser's toolbar height is estimated from the window's outer and
+    /// inner sizes, so the result is exact for a normal window and approximate
+    /// when the toolbar and a docked panel are both open.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the element is missing or the page script fails.
+    pub async fn get_gui_element_rect(
+        &mut self,
+        css: &str,
+    ) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
+        let element = self.find_element(css).await?;
+        let rect = element.rect().await?;
+        let metrics = self.execute_script(WINDOW_METRICS_SCRIPT).await?;
+        let metrics: [f64; 6] = serde_json::from_value(metrics)?;
+        Ok(screen_rect(
+            crate::sb_cdp::Rect {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height,
+            },
+            metrics,
+        ))
+    }
+
+    /// The centre of the element in screen coordinates. Corresponds to
+    /// Python's `get_gui_element_center`; see
+    /// [`get_gui_element_rect`](Self::get_gui_element_rect).
+    ///
+    /// # Errors
+    ///
+    /// See [`get_gui_element_rect`](Self::get_gui_element_rect).
+    pub async fn get_gui_element_center(
+        &mut self,
+        css: &str,
+    ) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
+        let rect = self.get_gui_element_rect(css).await?;
+        Ok(crate::sb_cdp::Point {
+            x: rect.x + rect.width / 2.0,
+            y: rect.y + rect.height / 2.0,
+        })
+    }
+
+    /// Escapes `code` so it can sit inside a single-quoted JavaScript string.
+    /// Corresponds to Python's `jq_format`.
+    #[must_use]
+    pub fn jq_format(code: &str) -> String {
+        js_escape(code)
+    }
+
+    /// Shows `message` in the page for a few seconds. Corresponds to Python's
+    /// `post_message` with its default duration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the page script fails.
+    pub async fn post_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
+        self.post_message_for(message, 3).await
+    }
+
+    /// Saves the page's HTML as `name` in the logs folder and returns its
+    /// path. Only the last path part of `name` is used. Corresponds to
+    /// Python's `save_as_html_to_logs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be written.
+    pub async fn save_as_html_to_logs(&self, name: &str) -> Result<PathBuf, SeleniumBaseError> {
+        let file = Path::new(name).file_name().ok_or_else(|| {
+            SeleniumBaseError::invalid_config(format!("{name:?} is not a usable file name"))
+        })?;
+        let path = ensure_latest_logs_dir()?.join(file);
+        self.save_page_source_to_path(&path).await?;
+        Ok(path)
+    }
+
+    /// Saves a screenshot to the logs folder for a failed test's report.
+    /// Corresponds to Python's `save_teardown_screenshot`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the screenshot cannot be taken or written.
+    pub async fn save_teardown_screenshot(&self) -> Result<PathBuf, SeleniumBaseError> {
+        let path = artifact_path(&ensure_latest_logs_dir()?, "teardown_screenshot", "png");
+        self.save_screenshot_to_path(&path).await?;
+        Ok(path)
+    }
+
+    /// Switches back to the first browser opened by this test. Corresponds to
+    /// Python's `switch_to_default_driver`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the driver cannot be switched.
+    pub async fn switch_to_default_driver(&mut self) -> Result<(), SeleniumBaseError> {
+        self.switch_to_driver(0).await
+    }
+
+    /// Waits until the page has no AngularJS requests in flight. Returns at
+    /// once on a page that does not use AngularJS. Corresponds to Python's
+    /// `wait_for_angularjs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if requests are still
+    /// pending after `timeout_secs`.
+    pub async fn wait_for_angularjs(&self, timeout_secs: u64) -> Result<(), SeleniumBaseError> {
+        const SCRIPT: &str = "if (typeof angular === 'undefined') return true; \
+            const injector = angular.element(document.body).injector(); \
+            return !injector || injector.get('$http').pendingRequests.length === 0;";
+        let deadline = std::time::Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            if self.execute_script(SCRIPT).await?.as_bool().unwrap_or(true) {
+                return Ok(());
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(SeleniumBaseError::wait_timeout(
+                    "AngularJS requests to finish",
+                    Some(Duration::from_secs(timeout_secs)),
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+
+    /// Reads a cookie file written by [`save_cookies`](Self::save_cookies)
+    /// without loading it into the browser. Corresponds to Python's
+    /// `get_saved_cookies`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file is missing or is not valid JSON.
+    pub fn get_saved_cookies(file_path: &str) -> Result<serde_json::Value, SeleniumBaseError> {
+        let text = std::fs::read_to_string(file_path)?;
+        Ok(serde_json::from_str(&text)?)
+    }
+}
+
+#[cfg(test)]
+mod parity_tests {
+    use super::*;
+    use crate::sb_cdp::Rect;
+
+    #[test]
+    fn a_screen_rect_adds_the_window_origin_and_toolbar_and_removes_the_scroll() {
+        let element = Rect { x: 100.0, y: 500.0, width: 40.0, height: 20.0 };
+        // Window at (10, 20); 16px of side frame in total, 80px of toolbar;
+        // scrolled 300px down.
+        let screen = screen_rect(element, [10.0, 20.0, 16.0, 80.0, 0.0, 300.0]);
+        assert_eq!(screen, Rect { x: 118.0, y: 300.0, width: 40.0, height: 20.0 });
+    }
+
+    #[test]
+    fn jq_format_escapes_what_would_end_a_quoted_script_string() {
+        assert_eq!(BaseCase::jq_format("it's\na\\b"), "it\\'s\\na\\\\b");
+    }
+
+    #[test]
+    fn saved_cookies_are_read_back_without_a_browser() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cookies.txt");
+        std::fs::write(&path, r#"[{"name":"sid","value":"abc"}]"#).unwrap();
+
+        let cookies = BaseCase::get_saved_cookies(path.to_str().unwrap()).unwrap();
+
+        assert_eq!(cookies[0]["name"], "sid");
+        assert_eq!(cookies[0]["value"], "abc");
+    }
+
+    #[test]
+    fn a_missing_or_malformed_cookie_file_is_an_error_not_a_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing.txt");
+        assert!(BaseCase::get_saved_cookies(missing.to_str().unwrap()).is_err());
+
+        let bad = dir.path().join("bad.txt");
+        std::fs::write(&bad, "not json").unwrap();
+        assert!(BaseCase::get_saved_cookies(bad.to_str().unwrap()).is_err());
+    }
+
+    #[test]
+    fn a_page_scrolled_to_the_top_keeps_its_document_position_on_screen() {
+        let element = Rect { x: 8.0, y: 8.0, width: 100.0, height: 30.0 };
+        let screen = screen_rect(element, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(screen, element, "no chrome, no scroll, window at the origin");
+    }
+}
