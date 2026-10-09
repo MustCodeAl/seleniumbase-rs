@@ -20,9 +20,11 @@ The crate root exposes the following modules:
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
 | `js_code` | JavaScript snippets injected by CDP and WebDriver. |
 | `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
+| `mcp` | MCP servers (`cdp`, `driver`, `sb`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
 | `profile_payloads` | External browser profile payload parsing and conversion. |
 | `plugins` | Cloud/logging plugin interfaces. |
 | `resources` | Static assets bundled with the crate. |
+| `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, and (with `test-util`) a mock browser. |
 | `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
@@ -120,7 +122,8 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 | `s3` | Enables AWS S3 artifact uploads. | no |
 | `azure` | Enables Azure Blob Storage artifact uploads. | no |
 | `gcp` | Enables Google Cloud Storage artifact uploads. | no |
-| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. | no |
+| `mcp-server` | Enables the `mcp` module and builds the `seleniumbase-mcp` binary using `rmcp`. | no |
+| `test-util` | Exposes `sb_cdp::Browser::new_mocked` and `MockCtrl` for testing code that drives pages without Chrome. | no |
 | `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. | no |
 | `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
 
