@@ -63,6 +63,7 @@ mod client;
 mod context;
 mod expect;
 mod human;
+mod identity;
 mod input;
 mod intercept;
 mod launch;

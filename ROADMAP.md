@@ -25,6 +25,7 @@ Design rules that apply to everything below:
 | --- | --- |
 | Dependencies | All direct crates at their latest releases; no git sources. |
 | Request interception and per-context proxies | `Page::intercept` with typed rules; `ContextOptions` and `BrowserPool::acquire_with` give a lease its own proxy, with the password answered per session. Verified on real Chrome. |
+| Fingerprint on Pure CDP, shared traits | `LaunchOptionsBuilder::fingerprint`, `Page::apply_fingerprint`, `Page::js_errors`, and the four capability traits implemented for `sb_cdp::Page`. Verified on real Chrome 155. |
 | Test plugins | `plugins::observer::{Plugins, TestPlugin, PageEvidence}`, with `ScreenshotOnFailurePlugin`, `PageSourceOnFailurePlugin`, `ReportPlugin` and `ResultStorePlugin`. Hooks run around a test and see the page on failure, with `BaseCase` and `sb_cdp::Page`. Tested without a browser and through the Pure CDP mock; the `BaseCase` runner is not yet run on a real driver. |
 | Turso storage (`turso` feature) | `ResultStore` and `sbase report` for test-run history and flaky tests; `ProfileVault` for encrypted profiles. |
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
@@ -207,10 +208,28 @@ step 2.
      adding a table row shifts the draws; persist the `Fingerprint`, not the
      seed.
    - Not wired into `sb_cdp::Browser` (item 5).
-5. **Integration**: use `Fingerprint` and `EvasionRegistry` from
-   `sb_cdp::Browser`; make the `ElementApi` traits stop leaking
-   `thirtyfour::WebElement`. Everything must still build with
-   `--no-default-features` and headless.
+5. **Integration (done).**
+   - `LaunchOptionsBuilder::fingerprint(&Fingerprint)` and
+     `Page::apply_fingerprint` make tabs match a fingerprint through the
+     existing `evasions::{bootstrap_script, cdp_overrides}`. The proxy-password
+     header is never sent, permissions go to the tab's own context, and the
+     fingerprint's `cmd_params` are not passed to Chrome (flags can run
+     commands). Verified on real Chrome 155: a page reads the fingerprint's user
+     agent, platform, language, time zone, cores, screen and WebGL renderer.
+   - Found on the way: `evasions::cdp_overrides` granted `clipboardRead` and
+     `clipboardWrite`, which Chrome rejects (the name is `clipboardReadWrite`),
+     and the WebDriver path swallowed the error, so those permissions were never
+     granted. Fixed and tested against Chrome.
+   - `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi` are
+     implemented for `sb_cdp::Page`, and `ElementApi::find_element` (the
+     `thirtyfour::WebElement` leak) is removed from the trait; `BaseCase` keeps
+     its own. `Page::js_errors` and `assert_no_js_errors` back
+     `AssertionApi::assert_no_js_errors`.
+   - Still to do: a `Fingerprint` per pool lease (`ContextOptions`), wiring
+     `HumanizeConfig` through the Pure CDP `human` engine, and having the Tauri
+     example call `Page::apply_fingerprint` instead of its own copy.
+   - The `EvasionRegistry` is used through `bootstrap_script`; selecting
+     individual providers per tab is not exposed.
 
 ### Modules with no consumer (decide: wire in, keep as API, or delete)
 

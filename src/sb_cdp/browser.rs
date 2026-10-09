@@ -442,7 +442,7 @@ impl Browser {
                 .as_str()
                 .ok_or_else(|| SeleniumBaseError::cdp_driver("attach returned no sessionId"))?
                 .into();
-            self.prepare_session(&session).await?;
+            self.prepare_session(id, &session).await?;
             locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
             session
         };
@@ -458,7 +458,7 @@ impl Browser {
     }
 
     /// Enables the domains a tab needs and injects the page helpers.
-    async fn prepare_session(&self, session: &str) -> Result<(), SeleniumBaseError> {
+    async fn prepare_session(&self, target: &str, session: &str) -> Result<(), SeleniumBaseError> {
         let client = &self.inner.client;
         let send = |method: &'static str, params: Value| client.send(method, params, Some(session));
         send("Page.enable", json!({})).await?;
@@ -480,6 +480,29 @@ impl Browser {
             )
             .await?;
             send("Runtime.evaluate", json!({ "expression": shim })).await?;
+        }
+        if let Some(identity) = &self.inner.options.identity {
+            for (method, params) in identity.tab_commands() {
+                client
+                    .send(method, params.clone(), Some(session))
+                    .await
+                    .map_err(|error| super::identity::refused(method, &error))?;
+            }
+            // Permissions belong to a browser context, and which one this tab
+            // is in is only known to the browser.
+            if identity.permission_grant(None).is_some() {
+                let info = self
+                    .execute("Target.getTargetInfo", json!({ "targetId": target }))
+                    .await?;
+                let context = info["targetInfo"]["browserContextId"].as_str();
+                if let Some(grant) = identity.permission_grant(context) {
+                    self.execute("Browser.grantPermissions", grant)
+                        .await
+                        .map_err(|error| {
+                            super::identity::refused("Browser.grantPermissions", &error)
+                        })?;
+                }
+            }
         }
         if self.inner.options.ad_block {
             send("Network.enable", json!({})).await?;

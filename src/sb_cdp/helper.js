@@ -203,8 +203,21 @@
     }, millis || 800);
   }
 
+  // Uncaught errors and unhandled promise rejections in this document, oldest
+  // first. The helper is installed before any page script runs, so none are
+  // missed. A failed image or script load is not one of these: it fires on the
+  // element and does not reach `window`.
+  const errors = [];
+  window.addEventListener("error", (event) => {
+    errors.push(String(event.message || (event.error && event.error.message) || "script error"));
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason;
+    errors.push("Unhandled promise rejection: " + String((reason && reason.message) || reason));
+  });
+
   window.__sbcdp = {
     resolve, one, visible, info, center, setValue, focus, selectOption, flash,
-    textOf, rectOf, attrs,
+    textOf, rectOf, attrs, errors,
   };
 })();

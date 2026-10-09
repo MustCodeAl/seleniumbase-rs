@@ -57,14 +57,16 @@ use seleniumbase_rs::{selector, sb_test, sb_open, fingerprint};
 
 ## Capability traits
 
-The public API is organized into capability traits in `api::traits`. These
-traits are implemented by `BaseCase` and can be used to write generic helpers:
+The public API is organized into capability traits in `api::traits`. They are
+implemented by `BaseCase` (WebDriver) and by `sb_cdp::Page` (Pure CDP), and can
+be used to write helpers that run on either engine. None of their signatures
+mentions an engine's own types:
 
 | Trait | Responsibility |
 |---|---|
 | `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
-| `ElementApi` | Finding and interacting with elements: `find_element`, `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. |
-| `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text_visible`, `assert_no_js_errors`. |
+| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns a `thirtyfour::WebElement`, a `Page` offers `locator(..)`.) |
+| `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 
 Use these traits when writing helpers that should work with any type exposing

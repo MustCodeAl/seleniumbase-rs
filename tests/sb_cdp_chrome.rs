@@ -18,6 +18,7 @@ use seleniumbase_rs::sb_cdp::{
 };
 use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::{Fingerprint, OsType};
 use serde_json::json;
 
 const FIXTURE: &str = r##"<!doctype html>
@@ -74,6 +75,13 @@ const FRAMES: &str = r##"<!doctype html>
 </body></html>"##;
 
 /// Serves the fixture, and a page that sets a cookie, on a loopback port.
+/// A page that throws, rejects a promise, and fails to load an image. Only
+/// the first two are script errors.
+const ERRORS: &str = r##"<!doctype html><title>errors</title>
+<img src="/missing.png">
+<script>setTimeout(() => { throw new Error('kaboom'); }, 0);</script>
+<script>Promise.reject(new Error('rejected'));</script>"##;
+
 fn serve() -> String {
     let other = serve_other_origin();
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
@@ -91,6 +99,8 @@ fn serve() -> String {
             };
             let body = if request.starts_with("GET /frames") {
                 FRAMES.replace("OTHER_ORIGIN", &other)
+            } else if request.starts_with("GET /errors") {
+                ERRORS.to_owned()
             } else {
                 FIXTURE.to_owned()
             };
@@ -1021,4 +1031,155 @@ async fn a_running_tab_can_be_shielded_after_the_fact() {
     );
 
     browser.close().await.unwrap();
+}
+
+// ----------------------------------------------------------------------
+// Identity from a fingerprint, and script errors
+// ----------------------------------------------------------------------
+
+/// What a page can read about the browser it runs in.
+const WHAT_A_PAGE_SEES: &str = r#"(() => {
+  let renderer = null;
+  try {
+    const gl = document.createElement('canvas').getContext('webgl');
+    const info = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null;
+  } catch (e) {}
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    cores: navigator.hardwareConcurrency,
+    screenWidth: screen.width,
+    webdriver: navigator.webdriver,
+    renderer,
+  };
+})()"#;
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_browser_launched_with_a_fingerprint_shows_its_identity_to_pages() {
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
+    let base = serve();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .fingerprint(&fingerprint)
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let page = browser.default_page().await.unwrap();
+    page.goto(format!("{base}/")).await.unwrap();
+
+    let seen = page.evaluate(WHAT_A_PAGE_SEES).await.unwrap();
+    println!("page sees: {seen}");
+    browser.close().await.unwrap();
+
+    assert_eq!(
+        seen["userAgent"].as_str(),
+        fingerprint.user_agent.as_deref()
+    );
+    assert_eq!(seen["timeZone"].as_str(), fingerprint.timezone.as_deref());
+    assert_eq!(
+        seen["cores"].as_u64(),
+        fingerprint.hardware_concurrency.map(u64::from)
+    );
+    assert_eq!(seen["platform"].as_str(), fingerprint.platform.as_deref());
+    assert_eq!(
+        seen["screenWidth"].as_u64(),
+        fingerprint.screen_width.map(u64::from)
+    );
+    assert_ne!(seen["webdriver"], true, "automation is not announced");
+    if let (Some(wanted), Some(got)) = (&fingerprint.webgl_renderer, seen["renderer"].as_str()) {
+        assert_eq!(got, wanted, "the graphics card a page can read");
+    }
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_running_tab_takes_on_a_fingerprint_from_its_next_page() {
+    let fingerprint = Fingerprint::randomized(OsType::Macos, 5);
+    let (browser, page, base) = open().await;
+    let before = page.evaluate("navigator.userAgent").await.unwrap();
+
+    page.apply_fingerprint(&fingerprint).await.unwrap();
+    page.goto(format!("{base}/")).await.unwrap();
+    let after = page.evaluate("navigator.userAgent").await.unwrap();
+    browser.close().await.unwrap();
+
+    assert_ne!(before, after);
+    assert_eq!(after.as_str(), fingerprint.user_agent.as_deref());
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn script_errors_are_collected_and_a_broken_image_is_not_one() {
+    let (browser, page, base) = open().await;
+    page.assert_no_js_errors()
+        .await
+        .expect("the fixture page is clean");
+
+    page.goto(format!("{base}/errors")).await.unwrap();
+    // The thrown error is raised from a timer, so give it a moment.
+    let errors = loop {
+        let errors = page.js_errors().await.unwrap();
+        if errors.len() >= 2 {
+            break errors;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    };
+    let failure = page.assert_no_js_errors().await.unwrap_err();
+
+    assert!(errors.iter().any(|e| e.contains("kaboom")), "{errors:?}");
+    assert!(errors.iter().any(|e| e.contains("rejected")), "{errors:?}");
+    assert_eq!(
+        errors.len(),
+        2,
+        "the missing image is not a script error: {errors:?}"
+    );
+    assert!(
+        failure.to_string().contains("JS error detected"),
+        "{failure}"
+    );
+
+    page.goto(format!("{base}/")).await.unwrap();
+    assert!(
+        page.js_errors().await.unwrap().is_empty(),
+        "cleared by navigation"
+    );
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
+    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 1);
+    fingerprint.flags.grant_permissions = true;
+
+    // At launch (every tab) ...
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .fingerprint(&fingerprint)
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let launched = browser.default_page().await;
+    let second = browser.new_window(None::<&str>).await;
+    browser.close().await.unwrap();
+    launched.expect("the default tab takes the identity and its permissions");
+    second.expect("so does a second window");
+
+    // ... and on a tab that is already open.
+    let (browser, page, _) = open().await;
+    let applied = page.apply_fingerprint(&fingerprint).await;
+    browser.close().await.unwrap();
+    applied.expect("Chrome knows every permission name the fingerprint grants");
 }

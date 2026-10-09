@@ -11,7 +11,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State};
-use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::stealth::evasions::bootstrap_script;
+use seleniumbase_rs::{
+    AssertionApi, BrowserApi, ElementApi, Fingerprint, OsType, ProxyConfig, ScreenshotApi,
+    SeleniumBaseError,
+};
 use serde_json::{json, Value};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
@@ -776,4 +780,251 @@ fn shim_installs(mock: &MockCtrl) -> usize {
                 .is_some_and(|source| source.contains("iceTransportPolicy"))
         })
         .count()
+}
+
+// ----------------------------------------------------------------------
+// Making a tab match a fingerprint
+// ----------------------------------------------------------------------
+
+/// The commands sent to the tab after `skip` earlier calls, in order.
+fn tab_calls_after(mock: &MockCtrl, skip: usize) -> Vec<(String, Value)> {
+    mock.calls()
+        .into_iter()
+        .skip(skip)
+        .filter(|call| call.session_id.is_some())
+        .map(|call| (call.method, call.params))
+        .collect()
+}
+
+#[tokio::test]
+async fn a_fingerprint_is_applied_script_first_then_overrides() {
+    let (page, mock) = quick_page().await;
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 7);
+    let before = mock.calls().len();
+
+    page.apply_fingerprint(&fingerprint).await.unwrap();
+
+    let calls = tab_calls_after(&mock, before);
+    assert_eq!(calls[0].0, "Page.addScriptToEvaluateOnNewDocument");
+    assert_eq!(
+        calls[0].1["source"].as_str().unwrap(),
+        bootstrap_script(&fingerprint),
+        "the library's own script for this fingerprint"
+    );
+    assert_eq!(calls[1].0, "Network.enable");
+    let user_agent = calls
+        .iter()
+        .find(|(method, _)| method == "Network.setUserAgentOverride")
+        .expect("a user agent override");
+    assert_eq!(
+        user_agent.1["userAgent"].as_str(),
+        fingerprint.user_agent.as_deref()
+    );
+    for wanted in [
+        "Emulation.setTimezoneOverride",
+        "Emulation.setLocaleOverride",
+    ] {
+        assert!(calls.iter().any(|(method, _)| method == wanted), "{wanted}");
+    }
+}
+
+#[tokio::test]
+async fn the_proxy_password_in_a_fingerprint_is_never_sent_to_the_browser() {
+    let (page, mock) = quick_page().await;
+    let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+    fingerprint.proxy = Some(ProxyConfig {
+        r#type: "http".to_owned(),
+        host: "proxy.example.com".to_owned(),
+        port: 8080,
+        username: Some("alice".to_owned()),
+        password: Some("fake-proxy-password".to_owned()),
+        save_traffic: false,
+    });
+
+    page.apply_fingerprint(&fingerprint).await.unwrap();
+
+    assert!(mock.calls_to("Network.setExtraHTTPHeaders").is_empty());
+    let everything = format!("{:?}", mock.calls());
+    assert!(
+        !everything.contains("fake-proxy-password"),
+        "the password reached the wire"
+    );
+    assert!(!everything.contains("Proxy-Authorization"));
+}
+
+#[tokio::test]
+async fn permissions_are_granted_in_the_tabs_own_browser_context() {
+    let (page, mock) = quick_page().await;
+    mock.reply(
+        "Target.getTargetInfo",
+        json!({ "targetInfo": { "browserContextId": "CTX9" } }),
+    );
+    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
+    fingerprint.flags.grant_permissions = true;
+
+    page.apply_fingerprint(&fingerprint).await.unwrap();
+
+    let grants = mock.calls_to("Browser.grantPermissions");
+    assert_eq!(grants.len(), 1);
+    assert_eq!(grants[0].params["browserContextId"], "CTX9");
+    assert_eq!(grants[0].session_id, None, "a browser-wide command");
+}
+
+#[tokio::test]
+async fn a_refused_override_is_named_in_the_error() {
+    let (page, mock) = quick_page().await;
+    mock.fail("Emulation.setTimezoneOverride", "invalid timezone");
+    let fingerprint = Fingerprint::randomized(OsType::Macos, 11);
+
+    let error = page.apply_fingerprint(&fingerprint).await.unwrap_err();
+
+    let shown = error.to_string();
+    assert!(shown.contains("Emulation.setTimezoneOverride"), "{shown}");
+    assert!(shown.contains("invalid timezone"), "{shown}");
+}
+
+// ----------------------------------------------------------------------
+// Script errors
+// ----------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_page_without_script_errors_passes_the_assertion() {
+    let (page, mock) = quick_page().await;
+    mock.reply("Runtime.evaluate", value(json!([])));
+
+    assert_eq!(page.js_errors().await.unwrap(), Vec::<String>::new());
+    page.assert_no_js_errors().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_first_script_error_is_named_and_the_rest_counted() {
+    let (page, mock) = quick_page().await;
+    mock.reply(
+        "Runtime.evaluate",
+        value(json!([
+            "boom is not defined",
+            "Unhandled promise rejection: nope"
+        ])),
+    );
+
+    let error = page.assert_no_js_errors().await.unwrap_err();
+
+    assert!(
+        matches!(error, SeleniumBaseError::AssertionFailed(_)),
+        "{error}"
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("JS error detected: boom is not defined (and 1 more)"),
+        "{error}"
+    );
+}
+
+// ----------------------------------------------------------------------
+// The capability traits, on a CDP page
+// ----------------------------------------------------------------------
+
+/// A helper written once over the traits, so it must work on any engine.
+async fn sign_in<E>(sb: &mut E) -> Result<(), SeleniumBaseError>
+where
+    E: BrowserApi + ElementApi + AssertionApi,
+{
+    sb.open("https://example.com/login").await?;
+    sb.type_text("#user", "al").await?;
+    sb.click("#submit").await?;
+    sb.assert_title("Dashboard").await
+}
+
+fn script_title_and_locator(mock: &MockCtrl, title: &'static str) {
+    mock.on("Runtime.evaluate", move |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("document.title") {
+            value(json!(title))
+        } else if expression.contains("__sbcdp.center(") {
+            value(json!({ "x": 120.0, "y": 80.0, "covered": false }))
+        } else if expression.contains(".some(__sbcdp.visible)") {
+            value(json!(true))
+        } else if expression.contains("resolve(") && expression.contains(".length") {
+            value(json!(1))
+        } else {
+            value(Value::Null)
+        })
+    });
+}
+
+#[tokio::test]
+async fn a_helper_written_over_the_traits_runs_on_a_cdp_page() {
+    let (mut page, mock) = quick_page().await;
+    script_title_and_locator(&mock, "Dashboard");
+
+    sign_in(&mut page).await.unwrap();
+
+    let navigations = mock.calls_to("Page.navigate");
+    assert_eq!(navigations[0].params["url"], "https://example.com/login");
+    assert!(
+        mock.calls_to("Input.dispatchKeyEvent").len() >= 2,
+        "the text was typed key by key"
+    );
+    assert!(
+        mock.calls_to("Input.dispatchMouseEvent")
+            .iter()
+            .any(|c| c.params["type"] == "mousePressed"),
+        "the button was clicked"
+    );
+}
+
+#[tokio::test]
+async fn the_same_helper_fails_when_the_title_is_wrong() {
+    let (mut page, mock) = quick_page().await;
+    script_title_and_locator(&mock, "Login");
+
+    let error = sign_in(&mut page).await.unwrap_err();
+
+    assert!(
+        error.to_string().contains("Dashboard"),
+        "names what was expected: {error}"
+    );
+}
+
+#[tokio::test]
+async fn quitting_through_the_trait_closes_the_tab() {
+    let (mut page, mock) = quick_page().await;
+
+    BrowserApi::quit(&mut page).await.unwrap();
+
+    assert_eq!(mock.calls_to("Target.closeTarget").len(), 1);
+}
+
+#[tokio::test]
+async fn a_screenshot_through_the_trait_is_the_browsers_png() {
+    use base64::Engine;
+    let (page, mock) = quick_page().await;
+    let png = b"\x89PNG-test-bytes";
+    mock.reply(
+        "Page.captureScreenshot",
+        json!({ "data": base64::engine::general_purpose::STANDARD.encode(png) }),
+    );
+
+    assert_eq!(ScreenshotApi::screenshot_as_png(&page).await.unwrap(), png);
+}
+
+#[tokio::test]
+async fn a_screenshot_name_that_could_leave_the_logs_directory_is_refused() {
+    let (page, mock) = quick_page().await;
+    mock.reply("Page.captureScreenshot", json!({ "data": "" }));
+
+    for bad in ["../shot.png", "/tmp/shot.png", "a/b.png", ".."] {
+        let error = ScreenshotApi::save_screenshot(&page, bad)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)),
+            "{bad}: {error}"
+        );
+    }
+    assert!(
+        mock.calls_to("Page.captureScreenshot").is_empty(),
+        "nothing was captured for a refused name"
+    );
 }

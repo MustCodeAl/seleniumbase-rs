@@ -3,13 +3,15 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
+use super::identity::Identity;
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::WebRtcPolicy;
+use crate::stealth::fingerprint::{Fingerprint, ProxyConfig, ProxyMaskingMode, WebRtcPolicy};
 use crate::stealth::patcher::find_system_chrome;
 
 /// How long a freshly launched browser may take to publish its endpoint.
@@ -170,6 +172,8 @@ pub struct LaunchOptions {
     pub(crate) no_sandbox: bool,
     pub(crate) webrtc: Option<WebRtcPolicy>,
     pub(crate) shield_webrtc: bool,
+    /// What every tab is made to look like, if a fingerprint was given.
+    pub(crate) identity: Option<Arc<Identity>>,
     pub(crate) extra_args: Vec<String>,
     pub(crate) startup_timeout: Duration,
 }
@@ -253,6 +257,29 @@ impl LaunchOptions {
     }
 }
 
+/// A string that never prints itself, for a proxy URL that may hold a password.
+#[derive(Clone)]
+struct Redacted(String);
+
+impl fmt::Debug for Redacted {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Redacted(..)")
+    }
+}
+
+/// The proxy a fingerprint asks for, as a URL, when it asks for one.
+fn proxy_of(fingerprint: &Fingerprint) -> Option<String> {
+    matches!(
+        fingerprint.flags.proxy_masking,
+        ProxyMaskingMode::Custom
+            | ProxyMaskingMode::Socks5
+            | ProxyMaskingMode::Http
+            | ProxyMaskingMode::Https
+    )
+    .then(|| fingerprint.proxy.as_ref().map(ProxyConfig::to_url))
+    .flatten()
+}
+
 /// Builds [`LaunchOptions`]. Setters never fail; [`build`](Self::build)
 /// checks the combination.
 #[derive(Debug, Clone)]
@@ -268,7 +295,7 @@ pub struct LaunchOptionsBuilder {
     incognito: bool,
     guest: bool,
     ad_block: bool,
-    proxy: Option<String>,
+    proxy: Option<Redacted>,
     user_data_dir: Option<PathBuf>,
     user_agent: Option<String>,
     lang: Option<String>,
@@ -277,6 +304,7 @@ pub struct LaunchOptionsBuilder {
     no_sandbox: bool,
     webrtc: Option<WebRtcPolicy>,
     shield_webrtc: bool,
+    identity: Option<Arc<Identity>>,
     extra_args: Vec<String>,
     startup_timeout: Duration,
 }
@@ -300,6 +328,7 @@ impl Default for LaunchOptionsBuilder {
             no_sandbox: std::env::var_os("SB_NO_SANDBOX").is_some(),
             webrtc: None,
             shield_webrtc: false,
+            identity: None,
             extra_args: Vec::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
         }
@@ -316,6 +345,46 @@ impl LaunchOptionsBuilder {
     #[must_use]
     pub fn webrtc_policy(mut self, policy: WebRtcPolicy) -> Self {
         self.webrtc = Some(policy);
+        self
+    }
+
+    /// Makes every tab look like `fingerprint` describes.
+    ///
+    /// The user agent, language, window size, WebRTC policy and proxy it names
+    /// become launch settings, and its script and protocol overrides are applied
+    /// to every tab as it opens, before the first navigation. A setting made
+    /// before this call wins over the fingerprint's; one made after it
+    /// replaces it.
+    ///
+    /// Chrome flags listed in the fingerprint's `cmd_params` are not passed on:
+    /// a flag such as `--renderer-cmd-prefix` runs a command, and a fingerprint
+    /// often comes from a profile file. Add flags you trust with
+    /// [`arg`](Self::arg).
+    ///
+    /// See [`Page::apply_fingerprint`](super::Page::apply_fingerprint) for what
+    /// is applied and what is deliberately left out.
+    #[must_use]
+    pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Self {
+        self.identity = Some(Arc::new(Identity::of(fingerprint)));
+        if self.user_agent.is_none() {
+            self.user_agent.clone_from(&fingerprint.user_agent);
+        }
+        if self.lang.is_none() {
+            self.lang.clone_from(&fingerprint.locale);
+        }
+        if self.window_size.is_none() {
+            if let (Some(width), Some(height)) =
+                (fingerprint.screen_width, fingerprint.screen_height)
+            {
+                self.window_size = Some((width, height));
+            }
+        }
+        if self.webrtc.is_none() {
+            self.webrtc = Some(fingerprint.webrtc_policy);
+        }
+        if self.proxy.is_none() {
+            self.proxy = proxy_of(fingerprint).map(Redacted);
+        }
         self
     }
 
@@ -387,7 +456,7 @@ impl LaunchOptionsBuilder {
     /// `USER:PASS@SERVER:PORT`.
     #[must_use]
     pub fn proxy(mut self, proxy: impl Into<String>) -> Self {
-        self.proxy = Some(proxy.into());
+        self.proxy = Some(Redacted(proxy.into()));
         self
     }
 
@@ -466,7 +535,11 @@ impl LaunchOptionsBuilder {
                 "use_chromium and an explicit executable path are mutually exclusive",
             ));
         }
-        let proxy = self.proxy.as_deref().map(Proxy::parse).transpose()?;
+        let proxy = self
+            .proxy
+            .as_ref()
+            .map(|proxy| Proxy::parse(&proxy.0))
+            .transpose()?;
         Ok(self.assemble(proxy))
     }
 
@@ -499,6 +572,7 @@ impl LaunchOptionsBuilder {
             no_sandbox: self.no_sandbox,
             webrtc: self.webrtc,
             shield_webrtc: self.shield_webrtc,
+            identity: self.identity,
             extra_args: self.extra_args,
             startup_timeout: self.startup_timeout,
         }

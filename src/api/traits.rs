@@ -2,11 +2,31 @@
 //!
 //! These traits describe cross-cutting concerns of the test framework (browser
 //! control, element interaction, assertions, screenshots). They are implemented
-//! by [`crate::BaseCase`] so that callers can depend on capabilities rather
-//! than the concrete type, and so that future alternative test runners can
-//! expose the same interface.
+//! by [`crate::BaseCase`] (WebDriver) and by [`crate::sb_cdp::Page`] (Pure
+//! CDP), so a helper written once over the traits runs on either engine.
+//!
+//! None of them mentions an engine's own types. Finding an element and keeping
+//! the handle is engine-specific; [`BaseCase::find_element`] returns a
+//! `thirtyfour::WebElement` for code that wants it, and a CDP `Page` offers
+//! `locator(..)`.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};
+//!
+//! async fn sign_in<E>(sb: &mut E) -> Result<(), seleniumbase_rs::SeleniumBaseError>
+//! where
+//!     E: BrowserApi + ElementApi + AssertionApi,
+//! {
+//!     sb.open("https://example.com/login").await?;
+//!     sb.type_text("#user", "alice").await?;
+//!     sb.click("#submit").await?;
+//!     sb.assert_element("#dashboard").await
+//! }
+//! ```
 
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use async_trait::async_trait;
 
@@ -40,9 +60,6 @@ pub trait BrowserApi {
 /// Element finding and interaction operations.
 #[async_trait]
 pub trait ElementApi {
-    /// Find an element using a CSS selector.
-    async fn find_element(&mut self, css: &str) -> crate::Result<thirtyfour::WebElement>;
-
     /// Click the element matching `css`.
     async fn click(&mut self, css: &str) -> crate::Result<()>;
 
@@ -118,10 +135,6 @@ impl BrowserApi for BaseCase {
 
 #[async_trait]
 impl ElementApi for BaseCase {
-    async fn find_element(&mut self, css: &str) -> crate::Result<thirtyfour::WebElement> {
-        BaseCase::find_element(self, css).await
-    }
-
     async fn click(&mut self, css: &str) -> crate::Result<()> {
         BaseCase::click(self, css).await
     }
@@ -170,5 +183,148 @@ impl ScreenshotApi for BaseCase {
 
     async fn screenshot_as_png(&self) -> crate::Result<Vec<u8>> {
         BaseCase::screenshot_as_png(self).await
+    }
+}
+
+// ----------------------------------------------------------------------
+// Pure CDP
+// ----------------------------------------------------------------------
+
+use crate::sb_cdp::Page;
+
+#[async_trait]
+impl BrowserApi for Page {
+    async fn open(&mut self, url: &str) -> crate::Result<()> {
+        self.goto(url).await
+    }
+
+    /// Closes this tab. To close the whole browser, call
+    /// [`Browser::close`](crate::sb_cdp::Browser::close).
+    async fn quit(&mut self) -> crate::Result<()> {
+        self.close().await
+    }
+
+    async fn refresh(&self) -> crate::Result<()> {
+        self.reload().await
+    }
+
+    async fn go_back(&self) -> crate::Result<()> {
+        self.back().await
+    }
+
+    async fn go_forward(&self) -> crate::Result<()> {
+        self.forward().await
+    }
+
+    async fn get_title(&mut self) -> crate::Result<String> {
+        self.title().await
+    }
+
+    async fn get_url(&mut self) -> crate::Result<String> {
+        self.url().await
+    }
+}
+
+#[async_trait]
+impl ElementApi for Page {
+    async fn click(&mut self, css: &str) -> crate::Result<()> {
+        self.locator(css).click().await
+    }
+
+    async fn double_click(&mut self, css: &str) -> crate::Result<()> {
+        self.locator(css).double_click().await
+    }
+
+    /// Replaces what is in the field, typing one key at a time.
+    async fn type_text(&mut self, css: &str, text: &str) -> crate::Result<()> {
+        let field = self.locator(css);
+        field.clear().await?;
+        field.type_text(text).await
+    }
+
+    async fn get_text(&mut self, css: &str) -> crate::Result<String> {
+        self.locator(css).text().await
+    }
+
+    async fn get_attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>> {
+        self.locator(css).attribute(attr).await
+    }
+}
+
+#[async_trait]
+impl AssertionApi for Page {
+    async fn assert_title(&mut self, expected: &str) -> crate::Result<()> {
+        self.expect().to_have_title(expected).await
+    }
+
+    async fn assert_element(&self, css: &str) -> crate::Result<()> {
+        self.locator(css).expect().to_exist().await
+    }
+
+    async fn assert_text(&mut self, css: &str, expected: &str) -> crate::Result<()> {
+        self.locator(css).expect().to_contain_text(expected).await
+    }
+
+    async fn assert_no_js_errors(&self) -> crate::Result<()> {
+        Page::assert_no_js_errors(self).await
+    }
+}
+
+#[async_trait]
+impl ScreenshotApi for Page {
+    /// Saves into the logs directory; `filename` must be a bare file name.
+    async fn save_screenshot(&self, filename: &str) -> crate::Result<PathBuf> {
+        let name = bare_file_name(filename)?;
+        let path = crate::artifacts::ensure_latest_logs_dir()?.join(name);
+        tokio::fs::write(&path, self.screenshot().await?).await?;
+        Ok(path)
+    }
+
+    async fn screenshot_as_png(&self) -> crate::Result<Vec<u8>> {
+        self.screenshot().await
+    }
+}
+
+/// `filename` as a path, if it is one plain file name: no directory part, no
+/// `..`, not absolute, so it cannot name a file outside the logs directory.
+fn bare_file_name(filename: &str) -> crate::Result<&Path> {
+    let path = Path::new(filename);
+    let mut parts = path.components();
+    match (parts.next(), parts.next()) {
+        (Some(Component::Normal(_)), None) => Ok(path),
+        _ => Err(crate::SeleniumBaseError::invalid_config(format!(
+            "a screenshot name must be a plain file name, not {filename:?}"
+        ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_plain_file_name_is_accepted() {
+        for ok in ["shot.png", "login-failure_1.png", "no_extension"] {
+            assert!(bare_file_name(ok).is_ok(), "{ok}");
+        }
+    }
+
+    #[test]
+    fn a_name_that_could_leave_the_logs_directory_is_refused() {
+        for bad in [
+            "",
+            "..",
+            "../shot.png",
+            "a/b.png",
+            "/etc/passwd",
+            "./x.png",
+            "a\\..\\b",
+        ] {
+            // On Windows a backslash is a separator; elsewhere it is part of a name.
+            if bad.contains('\\') && !cfg!(windows) {
+                continue;
+            }
+            assert!(bare_file_name(bad).is_err(), "{bad:?}");
+        }
     }
 }

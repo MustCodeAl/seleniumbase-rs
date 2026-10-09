@@ -516,6 +516,41 @@ impl Page {
         self.string_of("navigator.userAgent").await
     }
 
+    /// The uncaught script errors and unhandled promise rejections the current
+    /// document has raised, oldest first.
+    ///
+    /// Collected from the moment the document starts, and cleared when the tab
+    /// navigates to a new one. A resource that failed to load, such as a missing
+    /// image, is not a script error and is not listed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
+    pub async fn js_errors(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        self.evaluate_as("__sbcdp.errors.slice()").await
+    }
+
+    /// Fails if the current document has raised an uncaught script error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] naming the first error
+    /// (and how many followed it), or [`SeleniumBaseError::CdpDriver`] if the
+    /// page cannot be queried.
+    pub async fn assert_no_js_errors(&self) -> Result<(), SeleniumBaseError> {
+        let errors = self.js_errors().await?;
+        match errors.as_slice() {
+            [] => Ok(()),
+            [only] => Err(SeleniumBaseError::AssertionFailed(format!(
+                "JS error detected: {only}"
+            ))),
+            [first, rest @ ..] => Err(SeleniumBaseError::AssertionFailed(format!(
+                "JS error detected: {first} (and {} more)",
+                rest.len()
+            ))),
+        }
+    }
+
     /// Whether the browser believes it has network access.
     ///
     /// # Errors

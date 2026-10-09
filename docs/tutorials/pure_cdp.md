@@ -293,6 +293,79 @@ assert!(page.webrtc_report().await?.is_clean());
   goal is for a page to learn nothing, and the flag when you only want to limit
   which addresses are offered.
 
+## Looking like another browser
+
+A `Fingerprint` says what a browser claims to be: user agent and Client Hints,
+language, time zone, screen, location and the hardware a page can probe.
+`Fingerprint::randomized(os, seed)` makes a coherent one. Hand it to the launch
+options and every tab, as it opens and before its first navigation, is made to
+match:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::{Fingerprint, OsType};
+
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
+let browser = Browser::launch(
+    LaunchOptions::builder().fingerprint(&fingerprint).build()?,
+)
+.await?;
+let page = browser.default_page().await?;
+page.goto("https://example.com").await?;
+// A page now reads a Windows user agent, a Sydney time zone, and so on.
+# Ok(())
+# }
+```
+
+`page.apply_fingerprint(&fingerprint)` does the same for one tab, for the pages
+it loads from then on (the page that is open keeps its old identity until it
+navigates). It works on a tab inside an isolated `BrowserContext` too.
+
+- A launch setting made before `.fingerprint(..)` wins over the fingerprint's
+  (user agent, language, window size, WebRTC flag, proxy); one made after it
+  replaces it.
+- A fingerprint's proxy password is never sent to the browser as a header, which
+  would give it to every site. The proxy is answered through its own challenge.
+- The fingerprint's `cmd_params` are not passed to Chrome, because a flag such
+  as `--renderer-cmd-prefix` runs a command and fingerprints often come from a
+  profile file. Add flags you trust with `.arg(..)`.
+- Checked on real Chrome 155: the page reads the fingerprint's user agent,
+  platform, language, time zone, core count, screen width and WebGL renderer,
+  and does not announce `navigator.webdriver`. The page can still tell what the
+  fingerprint does not cover; the browser's real version, for one.
+
+## Script errors
+
+`page.js_errors()` lists the uncaught errors and unhandled promise rejections
+the current document has raised, and `page.assert_no_js_errors()` fails on the
+first. They are collected from the moment the document starts and cleared when
+the tab navigates. A broken image is not a script error and is not listed.
+
+## One helper for either engine
+
+`Page` implements the same capability traits as `BaseCase` (`BrowserApi`,
+`ElementApi`, `AssertionApi`, `ScreenshotApi`), so a helper written over them
+runs on either engine:
+
+```rust,no_run
+use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};
+
+async fn sign_in<E>(sb: &mut E) -> Result<(), seleniumbase_rs::SeleniumBaseError>
+where
+    E: BrowserApi + ElementApi + AssertionApi,
+{
+    sb.open("https://example.com/login").await?;
+    sb.type_text("#user", "alice").await?;
+    sb.click("#submit").await?;
+    sb.assert_title("Dashboard").await
+}
+```
+
+On a `Page`, `quit` closes the tab, not the browser; call `Browser::close` for
+that. `ScreenshotApi::save_screenshot` takes a bare file name and refuses one
+that could leave the logs directory.
+
 ## CAPTCHAs
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,

@@ -99,6 +99,11 @@ async fn fill_email<E: ElementApi>(sb: &mut E, email: &str) -> Result<(), seleni
 }
 ```
 
+Both `BaseCase` (WebDriver) and `sb_cdp::Page` (Pure CDP) implement the traits,
+so the same helper runs on either. `ElementApi` no longer has `find_element`,
+because its `thirtyfour::WebElement` return type tied the trait to WebDriver;
+`BaseCase::find_element` is still there when you want that handle.
+
 ## Parameterized tests
 
 Rust does not have built-in parameterized tests, but you can achieve the same
