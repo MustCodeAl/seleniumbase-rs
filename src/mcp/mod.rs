@@ -89,8 +89,11 @@ async fn run<S>(host: Host<S>) -> Result<(), SeleniumBaseError>
 where
     S: Closeable,
 {
-    let failed = |error: &dyn std::fmt::Display| SeleniumBaseError::mcp(host.name(), error.to_string());
-    let running = serve_server(host.clone(), stdio()).await.map_err(|e| failed(&e))?;
+    let failed =
+        |error: &dyn std::fmt::Display| SeleniumBaseError::mcp(host.name(), error.to_string());
+    let running = serve_server(host.clone(), stdio())
+        .await
+        .map_err(|e| failed(&e))?;
     let outcome = running.waiting().await;
     host.shutdown().await;
     outcome.map(drop).map_err(|e| failed(&e))
