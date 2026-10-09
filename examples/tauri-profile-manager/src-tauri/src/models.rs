@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 use seleniumbase_rs::profile_payloads::ProfileParams;
@@ -57,7 +59,11 @@ impl<T> ApiResponse<T> {
 }
 
 /// A saved browser profile that maps to one isolated container.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+///
+/// `Debug` hides everything that can hold a secret (proxy credentials,
+/// cookies and the external or fingerprint payloads), so a profile is safe to
+/// log.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Profile {
     pub id: String,
     pub name: String,
@@ -86,6 +92,54 @@ pub struct Profile {
     /// Custom masking / anti-fingerprint settings for this profile.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<seleniumbase_rs::Fingerprint>,
+}
+
+impl fmt::Debug for Profile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Profile")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("container_url", &self.container_url)
+            .field("proxy", &self.proxy.as_ref().map(|_| "<redacted>"))
+            .field("cookies", &self.cookies.len())
+            .finish_non_exhaustive()
+    }
+}
+
+impl Profile {
+    /// Builds a profile from a creation payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns a message when the name is empty.
+    pub fn from_new(id: String, new: NewProfile) -> Result<Self, String> {
+        if new.name.trim().is_empty() {
+            return Err("A profile needs a name".to_owned());
+        }
+        Ok(Self {
+            id,
+            name: new.name,
+            container_url: new.container_url,
+            browser: new.browser,
+            mode: new.mode,
+            user_agent: new.user_agent,
+            proxy: new.proxy,
+            locale: new.locale,
+            latitude: new.latitude,
+            longitude: new.longitude,
+            accuracy: new.accuracy,
+            headless: new.headless,
+            tags: new.tags,
+            folder_id: if new.folder_id.is_empty() {
+                "default".into()
+            } else {
+                new.folder_id
+            },
+            cookies: vec![],
+            external_profile: new.external_profile,
+            fingerprint: new.fingerprint,
+        })
+    }
 }
 
 /// Input payload for creating a profile.
@@ -126,7 +180,10 @@ pub struct SessionInfo {
     pub container_url: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// A cookie as stored in a profile.
+///
+/// The value is a credential, so `Debug` hides it.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct BrowserCookie {
     pub name: String,
     pub value: String,
@@ -140,6 +197,30 @@ pub struct BrowserCookie {
     pub http_only: bool,
     #[serde(default)]
     pub same_site: String,
+}
+
+impl fmt::Debug for BrowserCookie {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BrowserCookie")
+            .field("name", &self.name)
+            .field("value", &"<redacted>")
+            .field("domain", &self.domain)
+            .field("path", &self.path)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Whether the profile store is usable, for the app window to show.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct StorageStatus {
+    /// `true` when profiles are loaded and changes are saved.
+    pub ok: bool,
+    /// Why the store could not be opened. Never contains a passphrase.
+    pub error: Option<String>,
+    /// Something worth knowing even though the store works.
+    pub warning: Option<String>,
+    /// Where the passphrase came from: `environment` or `keychain`.
+    pub passphrase_source: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -225,4 +306,69 @@ pub struct Folder {
 pub struct RunScriptRequest {
     pub profile_ids: Vec<String>,
     pub script: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const FAKE_PROXY_PASSWORD: &str = "fake-proxy-password";
+    const FAKE_COOKIE: &str = "fake-cookie-value-123";
+
+    fn profile_with_secrets() -> Profile {
+        serde_json::from_value(serde_json::json!({
+            "id": "p1",
+            "name": "Shop",
+            "container_url": "http://localhost:4444",
+            "user_agent": null,
+            "proxy": format!("http://alice:{FAKE_PROXY_PASSWORD}@proxy.example:8080"),
+            "locale": null,
+            "latitude": null,
+            "longitude": null,
+            "accuracy": null,
+            "cookies": [{
+                "name": "session",
+                "value": FAKE_COOKIE,
+                "domain": ".example.com",
+                "path": "/",
+            }],
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn debug_output_hides_proxy_passwords_and_cookie_values() {
+        let profile = profile_with_secrets();
+
+        let shown = format!("{profile:?} {:?}", profile.cookies);
+
+        assert!(!shown.contains(FAKE_PROXY_PASSWORD), "{shown}");
+        assert!(!shown.contains(FAKE_COOKIE), "{shown}");
+        assert!(shown.contains("Shop"), "the name is still shown: {shown}");
+    }
+
+    #[test]
+    fn a_profile_needs_a_name() {
+        let new: NewProfile = serde_json::from_value(serde_json::json!({
+            "name": "   ",
+            "container_url": "http://localhost:4444",
+        }))
+        .unwrap();
+
+        assert!(Profile::from_new("p".to_owned(), new).is_err());
+    }
+
+    #[test]
+    fn a_new_profile_lands_in_the_default_folder_with_no_cookies() {
+        let new: NewProfile = serde_json::from_value(serde_json::json!({
+            "name": "Shop",
+            "container_url": "http://localhost:4444",
+        }))
+        .unwrap();
+
+        let profile = Profile::from_new("p".to_owned(), new).unwrap();
+
+        assert_eq!(profile.folder_id, "default");
+        assert!(profile.cookies.is_empty());
+    }
 }

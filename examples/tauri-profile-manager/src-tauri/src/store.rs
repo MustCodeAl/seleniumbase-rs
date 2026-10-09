@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::fmt;
 
 use serde_json::json;
-use tauri::AppHandle;
-use tauri::Manager;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
-use crate::models::{BrowserCookie, Folder, Profile, SessionInfo, Tag};
+use crate::models::{BrowserCookie, Folder, Profile, SessionInfo, StorageStatus, Tag};
+use crate::storage::{ensure_default_folder, Opened, ProfileStorage, StorageError, StorageState};
 
 pub struct AppState {
     pub profiles: Mutex<Vec<Profile>>,
@@ -24,21 +23,206 @@ pub struct AppState {
     /// This token is minted fresh each run and handed to the app's own window
     /// over Tauri IPC, which a web page cannot use.
     pub api_token: String,
+    /// Where profiles, tags and folders are kept.
+    pub storage: StorageState,
+}
+
+/// Why a change could not be saved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PersistError {
+    /// The vault could not be opened at startup, so nothing is shown or saved.
+    Unavailable(String),
+    /// Writing to the vault failed.
+    Failed(String),
+}
+
+impl fmt::Display for PersistError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable(message) => f.write_str(message),
+            Self::Failed(reason) => write!(f, "Could not save to the profile vault: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for PersistError {}
+
+impl From<StorageError> for PersistError {
+    fn from(error: StorageError) -> Self {
+        Self::Failed(error.to_string())
+    }
 }
 
 impl AppState {
+    /// State that keeps nothing: every change lives in memory only.
+    #[cfg(test)]
     pub fn new() -> Self {
+        Self::from_opened(Opened {
+            state: StorageState::Ephemeral,
+            data: crate::storage::LoadedData::default(),
+        })
+    }
+
+    /// State backed by an opened store, holding what it loaded.
+    pub fn from_opened(opened: Opened) -> Self {
+        let mut folders = opened.data.folders;
+        ensure_default_folder(&mut folders);
         Self {
-            profiles: Mutex::new(Vec::new()),
+            profiles: Mutex::new(opened.data.profiles),
             sessions: Mutex::new(HashMap::new()),
             session_info: Mutex::new(HashMap::new()),
-            tags: Mutex::new(Vec::new()),
-            folders: Mutex::new(vec![Folder {
-                id: "default".into(),
-                name: "Default".into(),
-            }]),
+            tags: Mutex::new(opened.data.tags),
+            folders: Mutex::new(folders),
             api_token: generate_api_token(),
+            storage: opened.state,
         }
+    }
+
+    /// What the window shows about the store.
+    pub fn storage_status(&self) -> StorageStatus {
+        self.storage.status()
+    }
+
+    /// Fails when the vault could not be opened.
+    ///
+    /// Call this before answering from `profiles`, `tags` or `folders`: when
+    /// the vault is locked they are empty, and an empty list would be a lie.
+    pub fn ensure_storage(&self) -> Result<(), PersistError> {
+        self.writer().map(drop)
+    }
+
+    /// The store to write to; `None` for an ephemeral state.
+    fn writer(&self) -> Result<Option<&ProfileStorage>, PersistError> {
+        match &self.storage {
+            #[cfg(test)]
+            StorageState::Ephemeral => Ok(None),
+            StorageState::Ready { storage, .. } => Ok(Some(storage.as_ref())),
+            StorageState::Unavailable { message } => {
+                Err(PersistError::Unavailable(message.clone()))
+            }
+        }
+    }
+
+    // The methods below change the in-memory list and the vault together.
+    // The vault is written first, so a failed write leaves the list as it was
+    // and the two never disagree. Each holds the list's lock for the whole
+    // change, which keeps concurrent changes in order.
+
+    /// Adds a profile.
+    pub async fn add_profile(&self, profile: Profile) -> Result<(), PersistError> {
+        let storage = self.writer()?;
+        let mut profiles = self.profiles.lock().await;
+        if let Some(storage) = storage {
+            storage.put_profile(&profile).await?;
+        }
+        profiles.push(profile);
+        Ok(())
+    }
+
+    /// Replaces the profile that has the same id. `false` when there is none.
+    pub async fn update_profile(&self, profile: Profile) -> Result<bool, PersistError> {
+        let storage = self.writer()?;
+        let mut profiles = self.profiles.lock().await;
+        let Some(slot) = profiles.iter_mut().find(|p| p.id == profile.id) else {
+            return Ok(false);
+        };
+        if let Some(storage) = storage {
+            storage.put_profile(&profile).await?;
+        }
+        *slot = profile;
+        Ok(true)
+    }
+
+    /// Removes a profile. `false` when there is none.
+    pub async fn delete_profile(&self, id: &str) -> Result<bool, PersistError> {
+        let storage = self.writer()?;
+        let mut profiles = self.profiles.lock().await;
+        let Some(at) = profiles.iter().position(|p| p.id == id) else {
+            return Ok(false);
+        };
+        if let Some(storage) = storage {
+            storage.delete_profile(id).await?;
+        }
+        profiles.remove(at);
+        Ok(true)
+    }
+
+    /// Adds a tag.
+    pub async fn add_tag(&self, tag: Tag) -> Result<(), PersistError> {
+        let storage = self.writer()?;
+        let mut tags = self.tags.lock().await;
+        if let Some(storage) = storage {
+            storage.put_tag(&tag).await?;
+        }
+        tags.push(tag);
+        Ok(())
+    }
+
+    /// Replaces the tag that has the same id. `false` when there is none.
+    pub async fn update_tag(&self, tag: Tag) -> Result<bool, PersistError> {
+        let storage = self.writer()?;
+        let mut tags = self.tags.lock().await;
+        let Some(slot) = tags.iter_mut().find(|t| t.id == tag.id) else {
+            return Ok(false);
+        };
+        if let Some(storage) = storage {
+            storage.put_tag(&tag).await?;
+        }
+        *slot = tag;
+        Ok(true)
+    }
+
+    /// Removes a tag. `false` when there is none.
+    pub async fn delete_tag(&self, id: &str) -> Result<bool, PersistError> {
+        let storage = self.writer()?;
+        let mut tags = self.tags.lock().await;
+        let Some(at) = tags.iter().position(|t| t.id == id) else {
+            return Ok(false);
+        };
+        if let Some(storage) = storage {
+            storage.delete_tag(id).await?;
+        }
+        tags.remove(at);
+        Ok(true)
+    }
+
+    /// Adds a folder.
+    pub async fn add_folder(&self, folder: Folder) -> Result<(), PersistError> {
+        let storage = self.writer()?;
+        let mut folders = self.folders.lock().await;
+        if let Some(storage) = storage {
+            storage.put_folder(&folder).await?;
+        }
+        folders.push(folder);
+        Ok(())
+    }
+
+    /// Replaces the folder that has the same id. `false` when there is none.
+    pub async fn update_folder(&self, folder: Folder) -> Result<bool, PersistError> {
+        let storage = self.writer()?;
+        let mut folders = self.folders.lock().await;
+        let Some(slot) = folders.iter_mut().find(|f| f.id == folder.id) else {
+            return Ok(false);
+        };
+        if let Some(storage) = storage {
+            storage.put_folder(&folder).await?;
+        }
+        *slot = folder;
+        Ok(true)
+    }
+
+    /// Removes a folder. `false` when there is none.
+    pub async fn delete_folder(&self, id: &str) -> Result<bool, PersistError> {
+        let storage = self.writer()?;
+        let mut folders = self.folders.lock().await;
+        let Some(at) = folders.iter().position(|f| f.id == id) else {
+            return Ok(false);
+        };
+        if let Some(storage) = storage {
+            storage.delete_folder(id).await?;
+        }
+        folders.remove(at);
+        Ok(true)
     }
 }
 
@@ -50,74 +234,8 @@ fn generate_api_token() -> String {
     format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
-fn profile_path(app: &AppHandle) -> PathBuf {
-    let dir = app.path().app_data_dir().expect("app data dir");
-    std::fs::create_dir_all(&dir).ok();
-    dir.join("profiles.json")
-}
-
-fn tags_path(app: &AppHandle) -> PathBuf {
-    let dir = app.path().app_data_dir().expect("app data dir");
-    dir.join("tags.json")
-}
-
-fn folders_path(app: &AppHandle) -> PathBuf {
-    let dir = app.path().app_data_dir().expect("app data dir");
-    dir.join("folders.json")
-}
-
-pub async fn load_all(app: &AppHandle, state: &AppState) {
-    let profiles = load_json::<Vec<Profile>>(profile_path(app))
-        .await
-        .unwrap_or_else(|_| default_profiles());
-    *state.profiles.lock().await = profiles;
-
-    if let Ok(tags) = load_json::<Vec<Tag>>(tags_path(app)).await {
-        *state.tags.lock().await = tags;
-    }
-
-    if let Ok(folders) = load_json::<Vec<Folder>>(folders_path(app)).await {
-        *state.folders.lock().await = folders;
-    }
-}
-
-async fn load_json<T: serde::de::DeserializeOwned>(path: PathBuf) -> Result<T, String> {
-    if !path.exists() {
-        return Err("file not found".into());
-    }
-    let data = tokio::fs::read_to_string(&path)
-        .await
-        .map_err(|e| e.to_string())?;
-    serde_json::from_str(&data).map_err(|e| e.to_string())
-}
-
-pub async fn save_profiles(app: &AppHandle, profiles: &[Profile]) -> Result<(), String> {
-    let path = profile_path(app);
-    let data = serde_json::to_string_pretty(profiles).map_err(|e| e.to_string())?;
-    tokio::fs::write(&path, data)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[allow(dead_code)]
-pub async fn save_tags(app: &AppHandle, tags: &[Tag]) -> Result<(), String> {
-    let path = tags_path(app);
-    let data = serde_json::to_string_pretty(tags).map_err(|e| e.to_string())?;
-    tokio::fs::write(&path, data)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[allow(dead_code)]
-pub async fn save_folders(app: &AppHandle, folders: &[Folder]) -> Result<(), String> {
-    let path = folders_path(app);
-    let data = serde_json::to_string_pretty(folders).map_err(|e| e.to_string())?;
-    tokio::fs::write(&path, data)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-fn default_profiles() -> Vec<Profile> {
+/// The two sample profiles a new install starts with.
+pub(crate) fn default_profiles() -> Vec<Profile> {
     vec![
         Profile {
             id: "profile-a".into(),
@@ -249,4 +367,88 @@ pub fn next_api_port() -> u16 {
 
 pub fn make_session_id() -> String {
     Uuid::new_v4().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::NewProfile;
+    use crate::passphrase::memory::MemorySecretStore;
+    use crate::storage::{open_storage, LoadedData};
+
+    const FAKE_PASSPHRASE: &str = "fake-passphrase-for-tests";
+
+    fn new_profile(id: &str, name: &str) -> Profile {
+        let new: NewProfile = serde_json::from_value(serde_json::json!({
+            "name": name,
+            "container_url": "http://localhost:4444",
+        }))
+        .unwrap();
+        Profile::from_new(id.to_owned(), new).unwrap()
+    }
+
+    async fn vault_state(dir: &std::path::Path) -> AppState {
+        let keychain = MemorySecretStore::empty();
+        let opened = open_storage(dir, Some(FAKE_PASSPHRASE), &keychain).await;
+        assert!(matches!(opened.state, StorageState::Ready { .. }));
+        AppState::from_opened(opened)
+    }
+
+    #[tokio::test]
+    async fn the_vault_is_written_before_the_list_so_a_failed_write_changes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = vault_state(dir.path()).await;
+        let before = state.profiles.lock().await.len();
+
+        // The vault caps ids at 256 bytes.
+        let error = state
+            .add_profile(new_profile(&"x".repeat(300), "Too long"))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, PersistError::Failed(_)), "{error}");
+        assert_eq!(state.profiles.lock().await.len(), before);
+    }
+
+    #[tokio::test]
+    async fn updating_or_deleting_something_missing_reports_false_and_writes_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = vault_state(dir.path()).await;
+
+        assert!(!state
+            .update_profile(new_profile("ghost", "Ghost"))
+            .await
+            .unwrap());
+        assert!(!state.delete_profile("ghost").await.unwrap());
+        assert!(!state.delete_tag("ghost").await.unwrap());
+        assert!(!state.delete_folder("ghost").await.unwrap());
+
+        drop(state);
+        let again = vault_state(dir.path()).await;
+        assert!(again.profiles.lock().await.iter().all(|p| p.id != "ghost"));
+    }
+
+    #[tokio::test]
+    async fn an_unavailable_store_refuses_every_change() {
+        let state = AppState::from_opened(Opened {
+            state: StorageState::Unavailable {
+                message: "locked".to_owned(),
+            },
+            data: LoadedData::default(),
+        });
+
+        let unavailable = PersistError::Unavailable("locked".to_owned());
+        assert_eq!(state.ensure_storage(), Err(unavailable.clone()));
+        assert_eq!(
+            state.add_profile(new_profile("p", "P")).await,
+            Err(unavailable.clone())
+        );
+        assert_eq!(
+            state.update_profile(new_profile("p", "P")).await,
+            Err(unavailable.clone())
+        );
+        assert_eq!(state.delete_profile("p").await, Err(unavailable));
+        assert!(state.profiles.lock().await.is_empty());
+        assert!(!state.storage_status().ok);
+    }
 }

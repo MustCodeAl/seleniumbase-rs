@@ -23,7 +23,8 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-seleniumbase-rs = { path = "../../.." }
+# `turso` provides `storage::ProfileVault`, the encrypted profile store.
+seleniumbase-rs = { path = "../../..", features = ["turso"] }
 tokio = { version = "1", features = ["rt-multi-thread", "fs", "net"] }
 uuid = { version = "1", features = ["v4"] }
 actix-web = "4"
@@ -31,6 +32,19 @@ actix-cors = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# The vault passphrase lives in the operating system's keychain. Keyring 4's
+# `v1` feature is the simple API; it pulls in only the store for the target
+# platform (Keychain on macOS, Credential Manager on Windows, Secret Service on
+# other Unix systems).
+keyring = { version = "4.2", default-features = false, features = ["v1"] }
+# OS randomness for the generated vault passphrase.
+getrandom = "0.4"
+# SHA-256 of the legacy files, to recognise one that was already imported.
+ring = "0.17"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -20,7 +20,9 @@ use seleniumbase_rs::profile_payloads::ProfileParams;
 use seleniumbase_rs::BaseCase;
 
 use crate::models::*;
-use crate::store::{apply_profile_overrides, build_config, make_session_id, set_cookies, AppState};
+use crate::store::{
+    apply_profile_overrides, build_config, make_session_id, set_cookies, AppState, PersistError,
+};
 
 #[derive(Debug)]
 pub struct ApiErrorResponse {
@@ -45,6 +47,27 @@ impl ResponseError for ApiErrorResponse {
 
     fn error_response(&self) -> HttpResponse {
         HttpResponse::build(self.status).json(&self.body)
+    }
+}
+
+impl From<PersistError> for ApiErrorResponse {
+    /// A profile store that cannot be read or written is a server-side
+    /// condition, not a mistake in the request.
+    fn from(error: PersistError) -> Self {
+        let (status, code) = match error {
+            PersistError::Unavailable(_) => {
+                (StatusCode::SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE")
+            }
+            PersistError::Failed(_) => (StatusCode::INTERNAL_SERVER_ERROR, "STORAGE_FAILED"),
+        };
+        Self {
+            status,
+            body: ApiResponse::err(ApiStatus {
+                error_code: code.to_owned(),
+                http_code: status.as_u16(),
+                message: error.to_string(),
+            }),
+        }
     }
 }
 
@@ -76,6 +99,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(profile_status)
         .service(profile_search)
         .service(profile_create)
+        // `import` must come before `{id}`, or `POST /profiles/import` is taken
+        // for an update of a profile whose id is "import".
+        .service(profile_import)
         .service(profile_get)
         .service(profile_update)
         .service(profile_delete)
@@ -83,7 +109,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(profile_stop)
         .service(profile_clone)
         .service(profile_export)
-        .service(profile_import)
         .service(cookie_import)
         .service(cookie_export)
         .service(proxy_validate)
@@ -315,6 +340,7 @@ async fn profile_status(
 
 #[get("/api/v1/profiles")]
 async fn profile_search(state: web::Data<Arc<AppState>>) -> ApiResult {
+    state.ensure_storage()?;
     let profiles = state.profiles.lock().await.clone();
     ok(profiles)
 }
@@ -324,37 +350,16 @@ async fn profile_create(
     state: web::Data<Arc<AppState>>,
     payload: web::Json<NewProfile>,
 ) -> ApiResult {
-    let payload = payload.into_inner();
-    let profile = Profile {
-        id: Uuid::new_v4().to_string(),
-        name: payload.name,
-        container_url: payload.container_url,
-        browser: payload.browser,
-        mode: payload.mode,
-        user_agent: payload.user_agent,
-        proxy: payload.proxy,
-        locale: payload.locale,
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-        accuracy: payload.accuracy,
-        headless: payload.headless,
-        tags: payload.tags,
-        folder_id: if payload.folder_id.is_empty() {
-            "default".into()
-        } else {
-            payload.folder_id
-        },
-        cookies: vec![],
-        external_profile: payload.external_profile,
-        fingerprint: payload.fingerprint,
-    };
-    state.profiles.lock().await.push(profile.clone());
+    let profile =
+        Profile::from_new(Uuid::new_v4().to_string(), payload.into_inner()).map_err(bad_request)?;
+    state.add_profile(profile.clone()).await?;
     info!(profile_id = %profile.id, name = %profile.name, "created profile via api");
     ok_msg(profile, "Profile created")
 }
 
 #[get("/api/v1/profiles/{id}")]
 async fn profile_get(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
+    state.ensure_storage()?;
     let id = path.into_inner();
     let profiles = state.profiles.lock().await;
     match profiles.iter().find(|p| p.id == id).cloned() {
@@ -370,63 +375,70 @@ async fn profile_update(
     payload: web::Json<Value>,
 ) -> ApiResult {
     let id = path.into_inner();
-    let mut profiles = state.profiles.lock().await;
-    let Some(idx) = profiles.iter().position(|p| p.id == id) else {
+    state.ensure_storage()?;
+    let found = state
+        .profiles
+        .lock()
+        .await
+        .iter()
+        .find(|p| p.id == id)
+        .cloned();
+    let Some(mut profile) = found else {
         return err(404, "Profile not found");
     };
     let payload = payload.into_inner();
     if let Some(v) = payload.get("name").and_then(|v| v.as_str()) {
-        profiles[idx].name = v.to_owned();
+        profile.name = v.to_owned();
     }
     if let Some(v) = payload.get("container_url").and_then(|v| v.as_str()) {
-        profiles[idx].container_url = v.to_owned();
+        profile.container_url = v.to_owned();
     }
     if let Some(v) = payload.get("browser").and_then(|v| v.as_str()) {
         if let Ok(browser) = serde_json::from_value::<seleniumbase_rs::Browser>(json!(v)) {
-            profiles[idx].browser = browser;
+            profile.browser = browser;
         }
     }
     if let Some(v) = payload.get("mode").and_then(|v| v.as_str()) {
         if let Ok(mode) = serde_json::from_value::<seleniumbase_rs::DriverMode>(json!(v)) {
-            profiles[idx].mode = mode;
+            profile.mode = mode;
         }
     }
     if let Some(v) = payload.get("folder_id").and_then(|v| v.as_str()) {
-        profiles[idx].folder_id = v.to_owned();
+        profile.folder_id = v.to_owned();
     }
     if let Some(v) = payload.get("user_agent").and_then(|v| v.as_str()) {
-        profiles[idx].user_agent = Some(v.to_owned());
+        profile.user_agent = Some(v.to_owned());
     }
     if let Some(v) = payload.get("proxy").and_then(|v| v.as_str()) {
-        profiles[idx].proxy = Some(v.to_owned());
+        profile.proxy = Some(v.to_owned());
     }
     if let Some(v) = payload.get("locale").and_then(|v| v.as_str()) {
-        profiles[idx].locale = Some(v.to_owned());
+        profile.locale = Some(v.to_owned());
     }
     if let Some(v) = payload.get("latitude").and_then(|v| v.as_f64()) {
-        profiles[idx].latitude = Some(v);
+        profile.latitude = Some(v);
     }
     if let Some(v) = payload.get("longitude").and_then(|v| v.as_f64()) {
-        profiles[idx].longitude = Some(v);
+        profile.longitude = Some(v);
     }
     if let Some(v) = payload.get("accuracy").and_then(|v| v.as_f64()) {
-        profiles[idx].accuracy = Some(v);
+        profile.accuracy = Some(v);
     }
     if let Some(v) = payload.get("headless").and_then(|v| v.as_bool()) {
-        profiles[idx].headless = v;
+        profile.headless = v;
     }
     if let Some(v) = payload.get("tags").and_then(|v| v.as_array()) {
-        profiles[idx].tags = v
+        profile.tags = v
             .iter()
             .filter_map(|x| x.as_str().map(String::from))
             .collect();
     }
     if let Some(v) = payload.get("fingerprint") {
         if v.is_null() {
-            profiles[idx].fingerprint = None;
+            profile.fingerprint = None;
         } else {
             match serde_json::from_value::<seleniumbase_rs::Fingerprint>(v.clone()) {
-                Ok(fp) => profiles[idx].fingerprint = Some(fp),
+                Ok(fp) => profile.fingerprint = Some(fp),
                 Err(e) => {
                     return err(400, format!("Invalid fingerprint payload: {e}"));
                 }
@@ -437,21 +449,18 @@ async fn profile_update(
         match serde_json::from_value::<seleniumbase_rs::profile_payloads::ProfileParams>(
             payload.get("parameters").cloned().unwrap_or_default(),
         ) {
-            Ok(params) => profiles[idx].external_profile = Some(params),
+            Ok(params) => profile.external_profile = Some(params),
             Err(e) => return err(400, format!("Invalid parameters: {e}")),
         }
     }
-    let p = profiles[idx].clone();
-    ok(p)
+    state.update_profile(profile.clone()).await?;
+    ok(profile)
 }
 
 #[delete("/api/v1/profiles/{id}")]
 async fn profile_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
-    let mut profiles = state.profiles.lock().await;
-    let before = profiles.len();
-    profiles.retain(|p| p.id != id);
-    if profiles.len() == before {
+    if !state.delete_profile(&id).await? {
         return err(404, "Profile not found");
     }
     ok_msg(json!({ "deleted": true }), "Profile removed")
@@ -464,6 +473,7 @@ async fn profile_start(
     query: web::Query<HashMap<String, String>>,
 ) -> ApiResult {
     let id = path.into_inner();
+    state.ensure_storage()?;
     let profile = {
         let profiles = state.profiles.lock().await;
         profiles.iter().find(|p| p.id == id).cloned()
@@ -564,20 +574,27 @@ async fn profile_stop(state: web::Data<Arc<AppState>>, path: web::Path<String>) 
 #[post("/api/v1/profiles/{id}/clone")]
 async fn profile_clone(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
-    let mut profiles = state.profiles.lock().await;
-    let Some(source) = profiles.iter().find(|p| p.id == id).cloned() else {
+    state.ensure_storage()?;
+    let source = state
+        .profiles
+        .lock()
+        .await
+        .iter()
+        .find(|p| p.id == id)
+        .cloned();
+    let Some(mut clone) = source else {
         return err(404, "Profile not found");
     };
-    let mut clone = source;
     clone.id = Uuid::new_v4().to_string();
     clone.name = format!("{} (clone)", clone.name);
-    profiles.push(clone.clone());
+    state.add_profile(clone.clone()).await?;
     info!(source_id = %id, clone_id = %clone.id, "cloned profile via api");
     ok_msg(clone, "Profile cloned")
 }
 
 #[get("/api/v1/profiles/{id}/export")]
 async fn profile_export(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
+    state.ensure_storage()?;
     let id = path.into_inner();
     let profiles = state.profiles.lock().await;
     match profiles.iter().find(|p| p.id == id).cloned() {
@@ -637,8 +654,7 @@ async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Valu
             "Unrecognized profile JSON: expected container_url or parameters",
         );
     };
-    let mut profiles = state.profiles.lock().await;
-    profiles.push(profile.clone());
+    state.add_profile(profile.clone()).await?;
     ok_msg(profile, "Profile imported")
 }
 
@@ -648,11 +664,19 @@ async fn cookie_import(
     payload: web::Json<CookieImportRequest>,
 ) -> ApiResult {
     let payload = payload.into_inner();
-    let mut profiles = state.profiles.lock().await;
-    let Some(idx) = profiles.iter().position(|p| p.id == payload.profile_id) else {
+    state.ensure_storage()?;
+    let found = state
+        .profiles
+        .lock()
+        .await
+        .iter()
+        .find(|p| p.id == payload.profile_id)
+        .cloned();
+    let Some(mut profile) = found else {
         return err(404, "Profile not found");
     };
-    profiles[idx].cookies = payload.cookies.clone();
+    profile.cookies = payload.cookies.clone();
+    state.update_profile(profile).await?;
 
     // Apply to an active session for this profile, if any.
     let session_id = {
@@ -688,6 +712,7 @@ async fn cookie_export(
     payload: web::Json<CookieExportRequest>,
 ) -> ApiResult {
     let payload = payload.into_inner();
+    state.ensure_storage()?;
     let profiles = state.profiles.lock().await;
     let cookies = profiles
         .iter()
@@ -775,6 +800,7 @@ async fn proxy_validate(payload: web::Json<ProxyValidateRequest>) -> ApiResult {
 
 #[get("/api/v1/tags")]
 async fn tag_list(state: web::Data<Arc<AppState>>) -> ApiResult {
+    state.ensure_storage()?;
     ok(state.tags.lock().await.clone())
 }
 
@@ -789,7 +815,7 @@ async fn tag_create(
         name: payload.name,
         color: payload.color.unwrap_or_else(|| "#396cd8".into()),
     };
-    state.tags.lock().await.push(tag.clone());
+    state.add_tag(tag.clone()).await?;
     ok_msg(tag, "Tag created")
 }
 
@@ -800,8 +826,9 @@ async fn tag_update(
     payload: web::Json<Value>,
 ) -> ApiResult {
     let id = path.into_inner();
-    let mut tags = state.tags.lock().await;
-    let Some(tag) = tags.iter_mut().find(|t| t.id == id) else {
+    state.ensure_storage()?;
+    let found = state.tags.lock().await.iter().find(|t| t.id == id).cloned();
+    let Some(mut tag) = found else {
         return err(404, "Tag not found");
     };
     let payload = payload.into_inner();
@@ -811,16 +838,14 @@ async fn tag_update(
     if let Some(v) = payload.get("color").and_then(|v| v.as_str()) {
         tag.color = v.to_owned();
     }
-    ok(tag.clone())
+    state.update_tag(tag.clone()).await?;
+    ok(tag)
 }
 
 #[delete("/api/v1/tags/{id}")]
 async fn tag_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
-    let mut tags = state.tags.lock().await;
-    let before = tags.len();
-    tags.retain(|t| t.id != id);
-    if tags.len() == before {
+    if !state.delete_tag(&id).await? {
         return err(404, "Tag not found");
     }
     ok_msg(json!({ "deleted": true }), "Tag removed")
@@ -828,6 +853,7 @@ async fn tag_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) ->
 
 #[get("/api/v1/folders")]
 async fn folder_list(state: web::Data<Arc<AppState>>) -> ApiResult {
+    state.ensure_storage()?;
     ok(state.folders.lock().await.clone())
 }
 
@@ -841,7 +867,7 @@ async fn folder_create(
         id: Uuid::new_v4().to_string(),
         name: payload.name,
     };
-    state.folders.lock().await.push(folder.clone());
+    state.add_folder(folder.clone()).await?;
     ok_msg(folder, "Folder created")
 }
 
@@ -852,23 +878,28 @@ async fn folder_update(
     payload: web::Json<Value>,
 ) -> ApiResult {
     let id = path.into_inner();
-    let mut folders = state.folders.lock().await;
-    let Some(folder) = folders.iter_mut().find(|f| f.id == id) else {
+    state.ensure_storage()?;
+    let found = state
+        .folders
+        .lock()
+        .await
+        .iter()
+        .find(|f| f.id == id)
+        .cloned();
+    let Some(mut folder) = found else {
         return err(404, "Folder not found");
     };
     if let Some(v) = payload.into_inner().get("name").and_then(|v| v.as_str()) {
         folder.name = v.to_owned();
     }
-    ok(folder.clone())
+    state.update_folder(folder.clone()).await?;
+    ok(folder)
 }
 
 #[delete("/api/v1/folders/{id}")]
 async fn folder_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
-    let mut folders = state.folders.lock().await;
-    let before = folders.len();
-    folders.retain(|f| f.id != id);
-    if folders.len() == before {
+    if !state.delete_folder(&id).await? {
         return err(404, "Folder not found");
     }
     ok_msg(json!({ "deleted": true }), "Folder removed")
@@ -888,6 +919,7 @@ async fn script_runner_start(
     payload: web::Json<RunScriptRequest>,
 ) -> ApiResult {
     let payload = payload.into_inner();
+    state.ensure_storage()?;
     let mut results = Vec::new();
     for profile_id in &payload.profile_ids {
         let profile = {
@@ -1271,5 +1303,217 @@ mod tests {
         let list_res = test::call_service(&app, list).await;
         let body: Value = test::read_body_json(list_res).await;
         assert!(!body["data"].as_array().unwrap().is_empty());
+    }
+
+    const FAKE_PASSPHRASE: &str = "fake-passphrase-for-tests";
+    const FAKE_COOKIE: &str = "fake-cookie-value-123";
+
+    /// State backed by a real vault in `dir`.
+    async fn vault_state(dir: &std::path::Path) -> web::Data<Arc<AppState>> {
+        let keychain = crate::passphrase::memory::MemorySecretStore::empty();
+        let opened = crate::storage::open_storage(dir, Some(FAKE_PASSPHRASE), &keychain).await;
+        assert!(
+            matches!(opened.state, crate::storage::StorageState::Ready { .. }),
+            "the vault did not open: {:?}",
+            opened.state
+        );
+        web::Data::new(Arc::new(AppState::from_opened(opened)))
+    }
+
+    fn json_post(uri: &str, payload: &str) -> test::TestRequest {
+        test::TestRequest::post()
+            .uri(uri)
+            .insert_header(("content-type", "application/json"))
+            .set_payload(payload.to_owned())
+    }
+
+    #[actix_web::test]
+    async fn changes_made_through_the_api_survive_a_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = vault_state(dir.path()).await;
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+
+        let created = test::call_service(
+            &app,
+            json_post(
+                "/api/v1/profiles",
+                r#"{"name":"Persisted","container_url":"http://localhost:4444"}"#,
+            )
+            .to_request(),
+        )
+        .await;
+        assert_eq!(created.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(created).await;
+        let id = body["data"]["id"].as_str().unwrap().to_owned();
+
+        let cookies = format!(
+            r#"{{"profile_id":"{id}","cookies":[{{"name":"session","value":"{FAKE_COOKIE}","domain":".example.com","path":"/"}}]}}"#
+        );
+        let imported = test::call_service(
+            &app,
+            json_post("/api/v1/cookie_import", &cookies).to_request(),
+        )
+        .await;
+        assert_eq!(imported.status(), StatusCode::OK);
+
+        let renamed = test::call_service(
+            &app,
+            json_post(&format!("/api/v1/profiles/{id}"), r#"{"name":"Renamed"}"#).to_request(),
+        )
+        .await;
+        assert_eq!(renamed.status(), StatusCode::OK);
+        let cloned = test::call_service(
+            &app,
+            json_post(&format!("/api/v1/profiles/{id}/clone"), "{}").to_request(),
+        )
+        .await;
+        assert_eq!(cloned.status(), StatusCode::OK);
+        let tag = test::call_service(
+            &app,
+            json_post("/api/v1/tags", r#"{"name":"Work"}"#).to_request(),
+        )
+        .await;
+        assert_eq!(tag.status(), StatusCode::OK);
+        let folder = test::call_service(
+            &app,
+            json_post("/api/v1/folders", r#"{"name":"Clients"}"#).to_request(),
+        )
+        .await;
+        assert_eq!(folder.status(), StatusCode::OK);
+        let deleted = test::call_service(
+            &app,
+            test::TestRequest::delete()
+                .uri("/api/v1/profiles/profile-a")
+                .to_request(),
+        )
+        .await;
+        assert_eq!(deleted.status(), StatusCode::OK);
+
+        // Quit, then start again from the same directory.
+        drop(app);
+        drop(state);
+        let restarted = vault_state(dir.path()).await;
+
+        let profiles = restarted.profiles.lock().await;
+        let names: Vec<_> = profiles.iter().map(|p| p.name.as_str()).collect();
+        assert!(names.contains(&"Renamed"), "{names:?}");
+        assert!(names.contains(&"Renamed (clone)"), "{names:?}");
+        assert!(names.contains(&"Container B (London)"), "{names:?}");
+        assert!(
+            !names.contains(&"Container A (NYC)"),
+            "a deleted profile came back: {names:?}"
+        );
+        let renamed = profiles.iter().find(|p| p.name == "Renamed").unwrap();
+        assert_eq!(renamed.cookies.len(), 1);
+        assert_eq!(renamed.cookies[0].value, FAKE_COOKIE);
+        assert!(restarted.tags.lock().await.iter().any(|t| t.name == "Work"));
+        assert!(restarted
+            .folders
+            .lock()
+            .await
+            .iter()
+            .any(|f| f.name == "Clients"));
+    }
+
+    #[actix_web::test]
+    async fn a_locked_vault_answers_503_instead_of_an_empty_list() {
+        let message = "the profile vault could not be opened: test";
+        let state = web::Data::new(Arc::new(AppState::from_opened(crate::storage::Opened {
+            state: crate::storage::StorageState::Unavailable {
+                message: message.to_owned(),
+            },
+            data: crate::storage::LoadedData::default(),
+        })));
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+
+        let requests = [
+            test::TestRequest::get()
+                .uri("/api/v1/profiles")
+                .to_request(),
+            test::TestRequest::get().uri("/api/v1/tags").to_request(),
+            test::TestRequest::get().uri("/api/v1/folders").to_request(),
+            json_post(
+                "/api/v1/profiles",
+                r#"{"name":"Nope","container_url":"http://localhost:4444"}"#,
+            )
+            .to_request(),
+            json_post("/api/v1/tags", r#"{"name":"Nope"}"#).to_request(),
+        ];
+        for request in requests {
+            let response = test::call_service(&app, request).await;
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            let body: Value = test::read_body_json(response).await;
+            assert_eq!(body["status"]["error_code"], "STORAGE_UNAVAILABLE");
+            assert_eq!(body["status"]["message"], message);
+        }
+        assert!(state.profiles.lock().await.is_empty());
+        assert!(state.tags.lock().await.is_empty());
+    }
+
+    #[actix_web::test]
+    async fn a_profile_the_vault_refuses_is_not_kept_in_memory() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = vault_state(dir.path()).await;
+        let before = state.profiles.lock().await.len();
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+        // The vault caps ids at 256 bytes, so this write fails.
+        let payload = format!(
+            r#"{{"id":"{}","name":"Too long","container_url":"http://localhost:4444"}}"#,
+            "x".repeat(300)
+        );
+
+        let response = test::call_service(
+            &app,
+            json_post("/api/v1/profiles/import", &payload).to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body: Value = test::read_body_json(response).await;
+        assert_eq!(body["status"]["error_code"], "STORAGE_FAILED");
+        assert_eq!(
+            state.profiles.lock().await.len(),
+            before,
+            "memory must not hold a profile the vault does not"
+        );
+    }
+
+    #[actix_web::test]
+    async fn importing_a_profile_is_routed_to_import_not_to_an_update() {
+        let state = test_state();
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+        let payload =
+            r#"{"id":"imported-1","name":"Imported","container_url":"http://localhost:4444"}"#;
+
+        let response = test::call_service(
+            &app,
+            json_post("/api/v1/profiles/import", payload).to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(state
+            .profiles
+            .lock()
+            .await
+            .iter()
+            .any(|p| p.id == "imported-1"));
+    }
+
+    #[actix_web::test]
+    async fn an_empty_profile_name_is_a_bad_request() {
+        let app = test::init_service(App::new().app_data(test_state()).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            json_post(
+                "/api/v1/profiles",
+                r#"{"name":"  ","container_url":"http://localhost:4444"}"#,
+            )
+            .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }

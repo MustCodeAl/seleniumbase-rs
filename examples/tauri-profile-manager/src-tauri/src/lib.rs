@@ -3,20 +3,27 @@ use std::sync::Arc;
 
 use seleniumbase_rs::init_tracing;
 use serde_json::json;
-use tauri::{command, generate_context, generate_handler, AppHandle, Manager, State};
-use tracing::info;
+use tauri::{command, generate_context, generate_handler, Manager, State};
+use tracing::{error, info};
 
 mod api;
 mod models;
+mod passphrase;
+mod storage;
 mod store;
 
-use models::{NewProfile, Profile, SessionInfo};
-use store::{
-    apply_profile_overrides, build_config, load_all, next_api_port, save_profiles, AppState,
-};
+use models::{NewProfile, Profile, SessionInfo, StorageStatus};
+use store::{apply_profile_overrides, build_config, next_api_port, AppState};
+
+/// Whether the profile vault opened, for the window to explain when it did not.
+#[command]
+fn get_storage_status(state: State<'_, Arc<AppState>>) -> StorageStatus {
+    state.storage_status()
+}
 
 #[command]
 async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<Profile>, String> {
+    state.ensure_storage().map_err(|e| e.to_string())?;
     let profiles = state.profiles.lock().await.clone();
     info!(count = profiles.len(), "listed profiles");
     Ok(profiles)
@@ -24,55 +31,21 @@ async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<Profile>, 
 
 #[command]
 async fn create_profile(
-    app: AppHandle,
     state: State<'_, Arc<AppState>>,
     new: NewProfile,
 ) -> Result<Profile, String> {
-    let profile = Profile {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: new.name,
-        container_url: new.container_url,
-        browser: new.browser,
-        mode: new.mode,
-        user_agent: new.user_agent,
-        proxy: new.proxy,
-        locale: new.locale,
-        latitude: new.latitude,
-        longitude: new.longitude,
-        accuracy: new.accuracy,
-        headless: new.headless,
-        tags: new.tags,
-        folder_id: if new.folder_id.is_empty() {
-            "default".into()
-        } else {
-            new.folder_id
-        },
-        cookies: vec![],
-        external_profile: new.external_profile,
-        fingerprint: new.fingerprint,
-    };
-    {
-        let mut profiles = state.profiles.lock().await;
-        profiles.push(profile.clone());
-    }
-    let profiles = state.profiles.lock().await.clone();
-    save_profiles(&app, &profiles).await?;
+    let profile = Profile::from_new(uuid::Uuid::new_v4().to_string(), new)?;
+    state
+        .add_profile(profile.clone())
+        .await
+        .map_err(|e| e.to_string())?;
     info!(profile_id = %profile.id, name = %profile.name, "created profile");
     Ok(profile)
 }
 
 #[command]
-async fn delete_profile(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
-    id: String,
-) -> Result<(), String> {
-    {
-        let mut profiles = state.profiles.lock().await;
-        profiles.retain(|p| p.id != id);
-    }
-    let profiles = state.profiles.lock().await.clone();
-    save_profiles(&app, &profiles).await?;
+async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
+    state.delete_profile(&id).await.map_err(|e| e.to_string())?;
     info!(profile_id = %id, "deleted profile");
     Ok(())
 }
@@ -209,22 +182,26 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let handle = app.handle().clone();
-            let state = Arc::new(AppState::new());
+            // Open the vault before anything can ask for a profile. This takes
+            // a fraction of a second, because deriving the key is meant to be
+            // slow.
+            let data_dir = app.path().app_data_dir()?;
+            let opened = tauri::async_runtime::block_on(storage::open_default(&data_dir));
+            let state = Arc::new(AppState::from_opened(opened));
             app.manage(state.clone());
 
             std::thread::spawn(move || {
                 actix_web::rt::System::new().block_on(async move {
-                    load_all(&handle, &state).await;
                     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], next_api_port()));
-                    if let Err(e) = api::start_server(state.clone(), addr).await {
-                        eprintln!("External profile API server error: {e}");
+                    if let Err(e) = api::start_server(state, addr).await {
+                        error!(error = %e, "external profile API server stopped");
                     }
                 });
             });
             Ok(())
         })
         .invoke_handler(generate_handler![
+            get_storage_status,
             list_profiles,
             create_profile,
             delete_profile,
