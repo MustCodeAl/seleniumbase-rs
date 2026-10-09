@@ -29,6 +29,14 @@ pub struct Point {
     pub y: f64,
 }
 
+impl Point {
+    /// A point at `(x, y)`.
+    #[must_use]
+    pub const fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+}
+
 /// A snapshot of a DOM element at the moment it was queried.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ElementInfo {

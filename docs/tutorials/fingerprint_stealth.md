@@ -397,18 +397,38 @@ The MCP `validate_fingerprint` tool exposes the same report.
 
 ## Humanized input
 
-Enable `StealthFlags::humanize` (and configure `Fingerprint::humanize`) to opt
-into human-like timing. The [`humanize`](crate::stealth::humanize) module
-provides deterministic helpers:
+Detectors look for input that is too regular. The
+[`behavior`](crate::stealth::behavior) module plans input that is not: curved
+pointer paths with a bell-shaped speed profile, Fitts's-law timing, tremor and
+overshoot, and Gaussian typing with word and sentence pauses. It is pure and
+seedable:
 
 ```rust
-use seleniumbase_rs::stealth::humanize::{bezier_mouse_path, keystroke_delays, Point};
+use seleniumbase_rs::sb_cdp::Point;
+use seleniumbase_rs::stealth::behavior::{Behavior, Humanizer};
 
-let path = bezier_mouse_path(Point::new(0.0, 0.0), Point::new(200.0, 90.0), 24, 7);
-let delays = keystroke_delays("hello", 40, 180, 7);
-assert_eq!(path.len(), 24);
-assert_eq!(delays.len(), 5);
+# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let mut person = Humanizer::new(Behavior::builder().typing_wpm(70.0).seed(7).build()?);
+let path = person.mouse_path(Point::new(0.0, 0.0), Point::new(200.0, 90.0), 60.0);
+let keys = person.typing_plan("hello");
+assert_eq!(path.last().map(|step| step.at), Some(Point::new(200.0, 90.0)));
+assert_eq!(keys.len(), 5);
+# Ok(())
+# }
 ```
+
+To play a plan out on a page, use `page.human(behavior)` from the Pure CDP
+engine (see [Pure CDP](pure_cdp.md#human-paced-input)). `BaseCase::human_type`
+uses the same typing model, taking its pace from `Fingerprint::humanize` when the
+configuration has a fingerprint.
+
+`Behavior::from_config(&fingerprint.humanize)` turns a fingerprint's
+`HumanizeConfig` (its minimum and maximum keystroke delay) into the matching
+behaviour.
+
+The older [`humanize`](crate::stealth::humanize) helpers (`bezier_mouse_path`,
+`keystroke_delays`) remain, but they sample a constant-speed curve and uniform
+delays; prefer `behavior`.
 
 ## What is spoofed
 

@@ -103,6 +103,42 @@ cross-origin frame cannot be entered from page script, so it matches nothing.
 `browser.new_page`, `pages`, `newest_page` and `page.bring_to_front` manage
 tabs. Cookie values are redacted in `Debug`.
 
+## Human-paced input
+
+`page.human(behavior)` returns a `Human` whose clicks, typing and scrolling are
+paced like a person's, for pages that watch how input arrives:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::Page;
+use seleniumbase_rs::stealth::behavior::Behavior;
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let person = page.human(Behavior::builder().typing_wpm(65.0).typo_rate(0.02).build()?);
+person.type_text(&page.locator("#search"), "rust cdp").await?;
+person.click(&page.locator("button[type=submit]")).await?;
+person.scroll_by(600.0).await?;
+# Ok(())
+# }
+```
+
+- **The pointer** travels along a curve with a bell-shaped speed (slow start,
+  fast middle, gentle arrival), for as long as Fitts's law says a movement of
+  that distance to a target that size takes. It carries a faint tremor, and a
+  long movement sometimes overshoots and corrects. A click lands somewhere
+  inside the element, not on its exact centre, and the button is held for a few
+  tens of milliseconds.
+- **Typing** has Gaussian intervals around the chosen speed with a slowly
+  drifting rhythm, longer pauses after spaces, punctuation and newlines, and the
+  occasional hesitation. With a `typo_rate`, some letters are typed wrong,
+  noticed, deleted and retyped; the field always ends up with exactly your text.
+- **The pointer remembers** where it was, so successive movements start from
+  there, and clones of a `Human` share it.
+
+Everything is still trusted DevTools input; only the timing and the path
+differ. It is slower than `locator.click()` by design. `Behavior::builder()
+.seed(n)` makes the randomness reproducible. The planning is a pure module,
+`stealth::behavior`, usable on its own.
+
 ## CAPTCHAs
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,

@@ -324,28 +324,40 @@ impl Keyboard {
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn type_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
         for ch in text.as_ref().chars() {
-            match ch {
-                '\n' | '\r' => self.press(Key::Enter).await?,
-                '\t' => self.press(Key::Tab).await?,
-                _ => {
-                    let typed = ch.to_string();
-                    self.page
-                        .execute(
-                            "Input.dispatchKeyEvent",
-                            json!({ "type": "keyDown", "key": typed, "text": typed, "unmodifiedText": typed }),
-                        )
-                        .await?;
-                    self.page
-                        .execute(
-                            "Input.dispatchKeyEvent",
-                            json!({ "type": "keyUp", "key": typed }),
-                        )
-                        .await?;
-                }
-            }
+            self.type_char(ch).await?;
             tokio::time::sleep(KEY_DELAY).await;
         }
         Ok(())
+    }
+
+    /// Presses and releases the key that produces `ch`.
+    ///
+    /// A newline presses [`Key::Enter`] and a tab presses [`Key::Tab`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
+    pub async fn type_char(&self, ch: char) -> Result<(), SeleniumBaseError> {
+        match ch {
+            '\n' | '\r' => self.press(Key::Enter).await,
+            '\t' => self.press(Key::Tab).await,
+            _ => {
+                let typed = ch.to_string();
+                self.page
+                    .execute(
+                        "Input.dispatchKeyEvent",
+                        json!({ "type": "keyDown", "key": typed, "text": typed, "unmodifiedText": typed }),
+                    )
+                    .await?;
+                self.page
+                    .execute(
+                        "Input.dispatchKeyEvent",
+                        json!({ "type": "keyUp", "key": typed }),
+                    )
+                    .await?;
+                Ok(())
+            }
+        }
     }
 
     /// Inserts `text` in one step, as a paste would.

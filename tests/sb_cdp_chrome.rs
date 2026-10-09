@@ -13,6 +13,7 @@ use std::thread;
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page, SelectBy, State};
+use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::json;
 
@@ -38,6 +39,9 @@ const FIXTURE: &str = r##"<!doctype html>
 <script>
   window.keylog = [];
   document.getElementById('keys').addEventListener('keydown', e => window.keylog.push([e.key, e.isTrusted]));
+  window.keytimes = []; window.moves = 0;
+  document.getElementById('keys').addEventListener('keydown', () => window.keytimes.push(performance.now()));
+  document.addEventListener('mousemove', e => { if (e.isTrusted) window.moves++; });
   setTimeout(() => {
     const late = document.createElement('div');
     late.id = 'late'; late.textContent = 'arrived';
@@ -522,6 +526,62 @@ async fn frames_nest_and_a_cross_origin_frame_is_empty_rather_than_an_error() {
 
     // The frame element itself is still an ordinary element.
     assert!(page.locator("#foreign").is_visible().await.unwrap());
+
+    browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn human_input_is_trusted_moves_in_many_steps_and_types_with_varied_timing() {
+    let (browser, page, _) = open().await;
+    let person = page.human(
+        Behavior::builder()
+            .typing_wpm(120.0)
+            .seed(11)
+            .build()
+            .unwrap(),
+    );
+
+    // A click: many trusted mousemove events, then one trusted click.
+    person.click(&page.locator("#counter")).await.unwrap();
+    let moves: u32 = page.evaluate_as("window.moves").await.unwrap();
+    assert!(
+        moves > 10,
+        "the page should see a path of moves, saw {moves}"
+    );
+    let trusted: String = page
+        .evaluate_as("document.getElementById('counter').dataset.trusted")
+        .await
+        .unwrap();
+    assert_eq!(trusted, "true");
+    assert_eq!(page.locator("#counter").text().await.unwrap(), "1");
+
+    // Typing: the right text, every key trusted, and an uneven rhythm.
+    let text = "hello human typing";
+    person
+        .type_text(&page.locator("#keys"), text)
+        .await
+        .unwrap();
+    let typed: String = page
+        .evaluate_as("document.getElementById('keys').value")
+        .await
+        .unwrap();
+    assert_eq!(typed, text);
+    let untrusted: u32 = page
+        .evaluate_as("window.keylog.filter(k => !k[1]).length")
+        .await
+        .unwrap();
+    assert_eq!(untrusted, 0, "every key must be a trusted event");
+
+    let times: Vec<f64> = page.evaluate_as("window.keytimes").await.unwrap();
+    let gaps: Vec<f64> = times.windows(2).map(|pair| pair[1] - pair[0]).collect();
+    let mean = gaps.iter().sum::<f64>() / gaps.len() as f64;
+    let spread = (gaps.iter().map(|g| (g - mean).powi(2)).sum::<f64>() / gaps.len() as f64).sqrt();
+    assert!((50.0..300.0).contains(&mean), "mean gap {mean:.0} ms");
+    assert!(
+        spread > 10.0,
+        "the rhythm should vary, spread {spread:.1} ms"
+    );
 
     browser.close().await.unwrap();
 }

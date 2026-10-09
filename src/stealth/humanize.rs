@@ -15,18 +15,7 @@
 //! assert_eq!(path[0], Point::new(0.0, 0.0));
 //! ```
 
-/// A 2D point in CSS pixels.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Point {
-    pub x: f64,
-    pub y: f64,
-}
-
-impl Point {
-    pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
-    }
-}
+pub use crate::sb_cdp::Point;
 
 /// A small deterministic PRNG (SplitMix64) used for jitter.
 #[derive(Clone, Debug)]
@@ -57,6 +46,38 @@ impl Rng {
     /// Returns a float in `[min, max)`.
     pub fn range(&mut self, min: f64, max: f64) -> f64 {
         min + (max - min) * self.next_f64()
+    }
+
+    /// Returns `true` with probability `p` (clamped to `0.0..=1.0`).
+    pub fn chance(&mut self, p: f64) -> bool {
+        self.next_f64() < p.clamp(0.0, 1.0)
+    }
+
+    /// Returns a normally distributed float (Box–Muller transform).
+    pub fn gaussian(&mut self, mean: f64, sigma: f64) -> f64 {
+        // `1 - u` is in (0, 1], so the logarithm is finite.
+        let u1 = 1.0 - self.next_f64();
+        let u2 = self.next_f64();
+        let standard = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+        mean + sigma * standard
+    }
+
+    /// A generator seeded from the operating system's randomness.
+    ///
+    /// This is for variety, not secrecy: the stream is not suitable for keys.
+    #[must_use]
+    pub fn from_entropy() -> Self {
+        use ring::rand::SecureRandom as _;
+        let mut bytes = [0_u8; 8];
+        // If the system source fails, fall back to the clock rather than panic.
+        if ring::rand::SystemRandom::new().fill(&mut bytes).is_err() {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |elapsed| elapsed.as_nanos());
+            #[allow(clippy::cast_possible_truncation)]
+            return Self::new(nanos as u64);
+        }
+        Self::new(u64::from_le_bytes(bytes))
     }
 }
 

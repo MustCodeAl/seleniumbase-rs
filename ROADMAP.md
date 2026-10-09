@@ -24,6 +24,7 @@ Design rules that apply to everything below:
 | Area | State |
 | --- | --- |
 | Dependencies | All direct crates at their latest releases; no git sources. |
+| Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
 | Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | 24 tools, mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
 | MCP `driver` / `sb` servers | 26 and 88 tools plus 8 stealth tools; catalogue and offline behaviour tested (`tests/mcp_webdriver.rs`). |
@@ -134,9 +135,12 @@ step 2.
 
 ### Five architecture improvements
 
-1. **Behavioural stealth engine**: human-like curved mouse paths, micro-jitter,
-   Gaussian typing rhythm. Extend `stealth::humanize`; use one shared `Point`
-   type with `sb_cdp`.
+1. **Behavioural stealth engine (done).** `stealth::behavior` plans curved
+   pointer paths (Fitts's law, minimum-jerk speed, tremor, overshoot) and
+   Gaussian typing with optional typos; `Page::human` plays them on a page.
+   Still to do: a WebDriver `human_click` with a real pointer path (needs a
+   working driver to verify), and wiring `Fingerprint::humanize` through
+   `sb_cdp::Browser` once item 5 lands.
 2. **Async browser pool**: a thread-safe pool of browsers with in-memory
    session and cookie sync between workers.
 3. **CDP request interception**: per-tab proxy routing via browser contexts,

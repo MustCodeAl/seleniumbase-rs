@@ -291,7 +291,7 @@ impl Locator {
     }
 
     /// Scrolls the first match into view and returns where its centre is.
-    async fn actionable_center(&self) -> Result<Point, SeleniumBaseError> {
+    pub(super) async fn actionable_center(&self) -> Result<Point, SeleniumBaseError> {
         self.wait_actionable().await?;
         let center = self.with_element("return __sbcdp.center(el);").await?;
         Ok(Point {

@@ -2,6 +2,7 @@
 //! evasions, chromedriver patching, fingerprint profiles, and injected
 //! JavaScript helpers.
 
+pub mod behavior;
 pub mod cdp;
 pub mod dprocess;
 pub mod evasions;

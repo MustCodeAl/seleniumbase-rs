@@ -61,6 +61,7 @@ mod browser;
 mod captcha;
 mod client;
 mod expect;
+mod human;
 mod input;
 mod launch;
 mod locator;
@@ -79,6 +80,8 @@ pub use captcha::Captcha;
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
+#[doc(inline)]
+pub use human::Human;
 #[doc(inline)]
 pub use input::{Button, Key, Keyboard, Mouse};
 #[doc(inline)]

@@ -99,5 +99,7 @@ mcp-server = ["dep:rmcp"]
 test-util = []
 
 [dev-dependencies]
+# Paused clocks let tests play out human-paced input instantly.
+tokio = { version = "1.53", features = ["test-util"] }
 printpdf = "0.12"
 syn = { version = "3", features = ["full"] }

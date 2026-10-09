@@ -1542,18 +1542,32 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `human_type` action, typing character by character with random delays.
+    /// Types `text` character by character at a human rhythm.
+    ///
+    /// Intervals are Gaussian with pauses at word and sentence boundaries (see
+    /// [`stealth::behavior`](crate::stealth::behavior)). The pace comes from the
+    /// fingerprint's [`HumanizeConfig`](crate::stealth::HumanizeConfig) when the
+    /// configuration has one, and is a typical typist's otherwise. For pointer
+    /// paths as well as typing, use [`sb_cdp::Page::human`](crate::sb_cdp::Page::human).
     pub async fn human_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        use crate::stealth::behavior::{Behavior, Humanizer, KeyAction};
+
         let by = Selector::auto(css).to_by()?;
         self.record("human_type", Some(css), Some(text));
         let elem = self.session.driver().find(by).await?;
         elem.click().await?; // Focus the field
 
-        let mut rng = rand::rng();
-        for c in text.chars() {
-            elem.send_keys(&c.to_string()).await?;
-            let delay = rng.random_range(30..=120);
-            tokio::time::sleep(Duration::from_millis(delay)).await;
+        let behavior = self
+            .config
+            .fingerprint
+            .as_ref()
+            .map_or_else(Behavior::default, |fp| Behavior::from_config(&fp.humanize));
+        for key in Humanizer::new(behavior).typing_plan(text) {
+            tokio::time::sleep(key.wait).await;
+            // Typos are off here, so only characters are planned.
+            if let KeyAction::Type(c) = key.action {
+                elem.send_keys(&c.to_string()).await?;
+            }
         }
         Ok(())
     }
