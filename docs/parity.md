@@ -73,7 +73,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_elements_present` | implemented | `BaseCase::assert_elements_present` |  |
 | `assert_elements_visible` | implemented | `BaseCase::assert_elements_visible` |  |
 | `assert_equal` | implemented | `BaseCase::assert_equal` |  |
-| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` |  |
+| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Argument order is (css, expected); Python's is (text, selector). |
 | `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` |  |
 | `assert_false` | implemented | `BaseCase::assert_false` |  |
 | `assert_in` | implemented | `BaseCase::assert_in` |  |
@@ -89,7 +89,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_partial_link_text` | implemented | `BaseCase::assert_partial_link_text` |  |
 | `assert_pdf_text` | implemented | `BaseCase::assert_pdf_text` |  |
 | `assert_raises` | implemented | `BaseCase::assert_raises` |  |
-| `assert_text` | implemented | `BaseCase::assert_text` |  |
+| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Argument order is (css, expected); Python's is (text, selector). |
 | `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` |  |
 | `assert_text_visible` | implemented | `BaseCase::assert_text_visible` |  |
 | `assert_title` | implemented | `BaseCase::assert_title` |  |
@@ -108,13 +108,13 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `clear_all_cookies` | implemented | `BaseCase::clear_all_cookies` |  |
 | `clear_local_storage` | implemented | `BaseCase::clear_local_storage` |  |
 | `clear_session_storage` | implemented | `BaseCase::clear_session_storage` |  |
-| `click` | implemented | `BaseCase::click` |  |
+| `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). |
 | `click_active_element` | implemented | `BaseCase::click_active_element` |  |
 | `click_chain` | implemented | `BaseCase::click_chain` |  |
 | `click_if_visible` | implemented | `BaseCase::click_if_visible` |  |
 | `click_link` | implemented | `BaseCase::click_link` |  |
 | `click_link_text` | implemented | `BaseCase::click_link_text` |  |
-| `click_nth_visible_element` | implemented | `BaseCase::click_nth_visible_element` |  |
+| `click_nth_visible_element` | implemented | `BaseCase::click_nth_visible_element` | Differs: Counts from 0; Python counts from 1. |
 | `click_partial_link` | implemented | `BaseCase::click_partial_link` |  |
 | `click_partial_link_text` | implemented | `BaseCase::click_partial_link_text` |  |
 | `click_visible_elements` | implemented | `BaseCase::click_visible_elements` |  |
@@ -164,7 +164,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `display_chart` | implemented | `BaseCase::display_chart` |  |
 | `double_click` | implemented | `BaseCase::double_click` |  |
 | `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` |  |
-| `download_file` | implemented | `BaseCase::download_file` |  |
+| `download_file` | implemented | `BaseCase::download_file` | Differs: Opens the URL in a browser tab and waits for the browser to save it, taking a file name and timeout; Python fetches it over HTTP into a folder. |
 | `drag_and_drop` | implemented | `BaseCase::drag_and_drop` |  |
 | `drag_and_drop_with_offset` | implemented | `BaseCase::drag_and_drop_with_offset` |  |
 | `enter_mfa_code` | implemented | `BaseCase::enter_mfa_code` |  |
@@ -172,14 +172,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `evaluate` | implemented | `BaseCase::evaluate` |  |
 | `execute_async_script` | implemented | `BaseCase::execute_async_script` |  |
 | `execute_cdp_cmd` | implemented | `BaseCase::execute_cdp_cmd` |  |
-| `execute_script` | implemented | `BaseCase::execute_script` |  |
+| `execute_script` | implemented | `BaseCase::execute_script` | Differs: Takes the script only; pass values by formatting them in (see js_escape). |
 | `export_tour` | implemented | `BaseCase::export_tour` |  |
 | `extract_chart` | implemented | `BaseCase::extract_chart` |  |
 | `fail` | implemented | `BaseCase::fail` |  |
 | `fast_type` | implemented | `BaseCase::fast_type` |  |
 | `fill` | implemented | `BaseCase::fill` |  |
-| `find_element` | implemented | `BaseCase::find_element` |  |
-| `find_elements` | implemented | `BaseCase::find_elements` |  |
+| `find_element` | implemented | `BaseCase::find_element` | Differs: Returns a thirtyfour::WebElement; takes CSS or XPath only. |
+| `find_elements` | implemented | `BaseCase::find_elements` | Differs: Returns thirtyfour::WebElements; takes CSS or XPath only. |
 | `find_exact_text` | implemented | `BaseCase::find_exact_text` |  |
 | `find_link_text` | implemented | `BaseCase::find_link_text` |  |
 | `find_non_empty_text` | implemented | `BaseCase::find_non_empty_text` |  |
@@ -204,7 +204,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_chromium_version` | implemented | `BaseCase::get_chromium_version` |  |
 | `get_cookie` | implemented | `BaseCase::get_cookie` |  |
 | `get_cookie_string` | implemented | `BaseCase::get_cookie_string` |  |
-| `get_cookies` | implemented | `BaseCase::get_cookies` |  |
+| `get_cookies` | implemented | `BaseCase::get_cookies` | Differs: Returns a serde_json::Value. |
 | `get_current_url` | implemented | `BaseCase::get_current_url` |  |
 | `get_data_from_downloaded_file` | implemented | `BaseCase::get_data_from_downloaded_file` |  |
 | `get_domain_url` | implemented | `BaseCase::get_domain_url` |  |
@@ -255,7 +255,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_user_agent` | implemented | `BaseCase::get_user_agent` |  |
 | `get_value` | implemented | `BaseCase::get_value` |  |
 | `get_window_position` | implemented | `BaseCase::get_window_position` |  |
-| `get_window_rect` | implemented | `BaseCase::get_window_rect` |  |
+| `get_window_rect` | implemented | `BaseCase::get_window_rect` | Differs: Returns an (x, y, width, height) tuple; Python returns a dict. |
 | `get_window_size` | implemented | `BaseCase::get_window_size` |  |
 | `go_back` | implemented | `BaseCase::go_back` |  |
 | `go_forward` | implemented | `BaseCase::go_forward` |  |
@@ -316,7 +316,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `js_click_if_visible` | implemented | `BaseCase::js_click_if_visible` |  |
 | `js_type` | implemented | `BaseCase::js_type` |  |
 | `js_update_text` | implemented | `BaseCase::js_update_text` |  |
-| `load_cookies` | implemented | `BaseCase::load_cookies` |  |
+| `load_cookies` | implemented | `BaseCase::load_cookies` | Differs: Reads the JSON that save_cookies writes; Python reads a pickle. |
 | `load_html_file` | implemented | `BaseCase::load_html_file` |  |
 | `load_html_string` | implemented | `BaseCase::load_html_string` |  |
 | `locator` | implemented | `BaseCase::locator` |  |
@@ -328,7 +328,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `open` | implemented | `BaseCase::open` |  |
 | `open_html_file` | implemented | `BaseCase::open_html_file` |  |
 | `open_if_not_url` | implemented | `BaseCase::open_if_not_url` |  |
-| `open_new_tab` | implemented | `BaseCase::open_new_tab` |  |
+| `open_new_tab` | implemented | `BaseCase::open_new_tab` | Differs: Always switches to the new tab; Python has a switch_to option. |
 | `open_new_window` | implemented | `BaseCase::open_new_window` |  |
 | `open_start_page` | implemented | `BaseCase::open_start_page` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |
@@ -368,7 +368,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `save_as_pdf` | implemented | `BaseCase::save_as_pdf` |  |
 | `save_as_pdf_to_logs` | implemented | `BaseCase::save_as_pdf_to_logs` |  |
 | `save_chart` | implemented | `BaseCase::save_chart` |  |
-| `save_cookies` | implemented | `BaseCase::save_cookies` |  |
+| `save_cookies` | implemented | `BaseCase::save_cookies` | Differs: Writes JSON to a path you give; Python writes a pickle under saved_cookies. |
 | `save_data_as` | implemented | `BaseCase::save_data_as` |  |
 | `save_data_to_logs` | implemented | `BaseCase::save_data_to_logs` |  |
 | `save_element_as_image_file` | implemented | `BaseCase::save_element_as_image_file` |  |
@@ -381,14 +381,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `save_screenshot_to_logs` | implemented | `BaseCase::save_screenshot_to_logs` |  |
 | `save_teardown_screenshot` | implemented | `BaseCase::save_teardown_screenshot` |  |
 | `scroll_by_y` | implemented | `BaseCase::scroll_by_y` |  |
-| `scroll_down` | implemented | `BaseCase::scroll_down` |  |
+| `scroll_down` | implemented | `BaseCase::scroll_down` | Differs: Takes no amount; Python scrolls by a percentage of the window height. |
 | `scroll_into_view` | implemented | `BaseCase::scroll_into_view` |  |
 | `scroll_to` | implemented | `BaseCase::scroll_to` |  |
 | `scroll_to_bottom` | implemented | `BaseCase::scroll_to_bottom` |  |
 | `scroll_to_element` | implemented | `BaseCase::scroll_to_element` |  |
 | `scroll_to_top` | implemented | `BaseCase::scroll_to_top` |  |
 | `scroll_to_y` | implemented | `BaseCase::scroll_to_y` |  |
-| `scroll_up` | implemented | `BaseCase::scroll_up` |  |
+| `scroll_up` | implemented | `BaseCase::scroll_up` | Differs: Takes no amount; Python scrolls by a percentage of the window height. |
 | `select` | implemented | `BaseCase::select` |  |
 | `select_all` | implemented | `BaseCase::select_all` |  |
 | `select_if_unselected` | implemented | `BaseCase::select_if_unselected` |  |
@@ -418,13 +418,13 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_time_limit` | implemented | `BaseCase::set_time_limit` |  |
 | `set_value` | implemented | `BaseCase::set_value` |  |
 | `set_window_position` | implemented | `BaseCase::set_window_position` |  |
-| `set_window_rect` | implemented | `BaseCase::set_window_rect` |  |
+| `set_window_rect` | implemented | `BaseCase::set_window_rect` | Differs: Takes (x, y, width, height) with unsigned sizes. |
 | `set_window_size` | implemented | `BaseCase::set_window_size` |  |
 | `show_element` | implemented | `BaseCase::show_element` |  |
 | `show_elements` | implemented | `BaseCase::show_elements` |  |
 | `show_file_choosers` | implemented | `BaseCase::show_file_choosers` |  |
 | `skip` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
-| `sleep` | implemented | `BaseCase::sleep` |  |
+| `sleep` | implemented | `BaseCase::sleep` | Differs: Takes seconds as f64 and is async. |
 | `slow_click` | implemented | `BaseCase::slow_click` |  |
 | `slow_scroll_to` | implemented | `BaseCase::slow_scroll_to` |  |
 | `slow_scroll_to_element` | implemented | `BaseCase::slow_scroll_to_element` |  |
@@ -481,7 +481,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `wait_for_query_selector` | implemented | `BaseCase::wait_for_query_selector` |  |
 | `wait_for_ready_state_complete` | implemented | `BaseCase::wait_for_ready_state_complete` |  |
 | `wait_for_selector` | implemented | `BaseCase::wait_for_selector` |  |
-| `wait_for_text` | implemented | `BaseCase::wait_for_text` |  |
+| `wait_for_text` | implemented | `BaseCase::wait_for_text` | Differs: Argument order is (css, text, timeout); Python's is (text, selector, timeout). |
 | `wait_for_text_not_visible` | implemented | `BaseCase::wait_for_text_not_visible` |  |
 | `wait_for_text_visible` | implemented | `BaseCase::wait_for_text_visible` |  |
 | `write` | implemented | `BaseCase::write` |  |

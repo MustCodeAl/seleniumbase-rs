@@ -45,14 +45,14 @@ Design rules that apply to everything below:
    written but unrun, for the same driver-mismatch reason as item 1. Per-call
    timeout variants are still to do; the MCP layer passes its own timeout by
    waiting first.
-3. **BaseCase semantic differences to resolve or document**
-   - `click_nth_visible_element` is 0-based; Python's is 1-based.
-   - `download_file` opens the URL in a browser tab; Python downloads over HTTP
-     into a folder.
-   - `scroll_up`/`scroll_down` take no amount; Python's take a viewport
-     percentage.
-   - `open_new_tab` always switches to the new tab; Python has `switch_to`.
-   - Cookie files are JSON; Python's are pickles.
+3. **BaseCase semantic differences (documented; decide which to remove).**
+   Eighteen are recorded as `divergence` notes in `parity/api.toml` and shown
+   in `docs/parity.md`: `click_nth_visible_element` counts from 0, `scroll_up`
+   and `scroll_down` take no amount, `open_new_tab` always switches,
+   `download_file` goes through the browser, cookie files are JSON, and the
+   argument order of `assert_text`, `assert_exact_text` and `wait_for_text`
+   differs. Changing any of them shifts existing callers, so do it as a
+   deliberate breaking release, not quietly.
 4. **Python names with no Rust counterpart, to classify** (implement, or record
    as composed / not applicable with a reason):
    `get_jqc_button_input`, `get_jqc_form_inputs`, `get_jqc_text_input`

@@ -178,6 +178,7 @@ rust = "BaseCase::assert_equal"
 [basecase."assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text"
+divergence = "Argument order is (css, expected); Python's is (text, selector)."
 
 [basecase."assert_exact_text_not_visible"]
 status = "implemented"
@@ -242,6 +243,7 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
+divergence = "Argument order is (css, expected); Python's is (text, selector)."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
@@ -318,6 +320,7 @@ rust = "BaseCase::clear_session_storage"
 [basecase."click"]
 status = "implemented"
 rust = "BaseCase::click"
+divergence = "Takes CSS or XPath; there is no per-call timeout argument (use set_timeout)."
 
 [basecase."click_active_element"]
 status = "implemented"
@@ -342,6 +345,7 @@ rust = "BaseCase::click_link_text"
 [basecase."click_nth_visible_element"]
 status = "implemented"
 rust = "BaseCase::click_nth_visible_element"
+divergence = "Counts from 0; Python counts from 1."
 
 [basecase."click_partial_link"]
 status = "implemented"
@@ -542,6 +546,7 @@ rust = "BaseCase::double_click_with_offset"
 [basecase."download_file"]
 status = "implemented"
 rust = "BaseCase::download_file"
+divergence = "Opens the URL in a browser tab and waits for the browser to save it, taking a file name and timeout; Python fetches it over HTTP into a folder."
 
 [basecase."drag_and_drop"]
 status = "implemented"
@@ -574,6 +579,7 @@ rust = "BaseCase::execute_cdp_cmd"
 [basecase."execute_script"]
 status = "implemented"
 rust = "BaseCase::execute_script"
+divergence = "Takes the script only; pass values by formatting them in (see js_escape)."
 
 [basecase."export_tour"]
 status = "implemented"
@@ -598,10 +604,12 @@ rust = "BaseCase::fill"
 [basecase."find_element"]
 status = "implemented"
 rust = "BaseCase::find_element"
+divergence = "Returns a thirtyfour::WebElement; takes CSS or XPath only."
 
 [basecase."find_elements"]
 status = "implemented"
 rust = "BaseCase::find_elements"
+divergence = "Returns thirtyfour::WebElements; takes CSS or XPath only."
 
 [basecase."find_exact_text"]
 status = "implemented"
@@ -702,6 +710,7 @@ rust = "BaseCase::get_cookie_string"
 [basecase."get_cookies"]
 status = "implemented"
 rust = "BaseCase::get_cookies"
+divergence = "Returns a serde_json::Value."
 
 [basecase."get_current_url"]
 status = "implemented"
@@ -907,6 +916,7 @@ rust = "BaseCase::get_window_position"
 [basecase."get_window_rect"]
 status = "implemented"
 rust = "BaseCase::get_window_rect"
+divergence = "Returns an (x, y, width, height) tuple; Python returns a dict."
 
 [basecase."get_window_size"]
 status = "implemented"
@@ -1151,6 +1161,7 @@ rust = "BaseCase::js_update_text"
 [basecase."load_cookies"]
 status = "implemented"
 rust = "BaseCase::load_cookies"
+divergence = "Reads the JSON that save_cookies writes; Python reads a pickle."
 
 [basecase."load_html_file"]
 status = "implemented"
@@ -1199,6 +1210,7 @@ rust = "BaseCase::open_if_not_url"
 [basecase."open_new_tab"]
 status = "implemented"
 rust = "BaseCase::open_new_tab"
+divergence = "Always switches to the new tab; Python has a switch_to option."
 
 [basecase."open_new_window"]
 status = "implemented"
@@ -1359,6 +1371,7 @@ rust = "BaseCase::save_chart"
 [basecase."save_cookies"]
 status = "implemented"
 rust = "BaseCase::save_cookies"
+divergence = "Writes JSON to a path you give; Python writes a pickle under saved_cookies."
 
 [basecase."save_data_as"]
 status = "implemented"
@@ -1411,6 +1424,7 @@ rust = "BaseCase::scroll_by_y"
 [basecase."scroll_down"]
 status = "implemented"
 rust = "BaseCase::scroll_down"
+divergence = "Takes no amount; Python scrolls by a percentage of the window height."
 
 [basecase."scroll_into_view"]
 status = "implemented"
@@ -1439,6 +1453,7 @@ rust = "BaseCase::scroll_to_y"
 [basecase."scroll_up"]
 status = "implemented"
 rust = "BaseCase::scroll_up"
+divergence = "Takes no amount; Python scrolls by a percentage of the window height."
 
 [basecase."select"]
 status = "implemented"
@@ -1559,6 +1574,7 @@ rust = "BaseCase::set_window_position"
 [basecase."set_window_rect"]
 status = "implemented"
 rust = "BaseCase::set_window_rect"
+divergence = "Takes (x, y, width, height) with unsigned sizes."
 
 [basecase."set_window_size"]
 status = "implemented"
@@ -1583,6 +1599,7 @@ reason = "unittest/pytest harness plumbing; the Rust runner (api::runner) owns t
 [basecase."sleep"]
 status = "implemented"
 rust = "BaseCase::sleep"
+divergence = "Takes seconds as f64 and is async."
 
 [basecase."slow_click"]
 status = "implemented"
@@ -1812,6 +1829,7 @@ rust = "BaseCase::wait_for_selector"
 [basecase."wait_for_text"]
 status = "implemented"
 rust = "BaseCase::wait_for_text"
+divergence = "Argument order is (css, text, timeout); Python's is (text, selector, timeout)."
 
 [basecase."wait_for_text_not_visible"]
 status = "implemented"
