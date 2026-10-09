@@ -355,14 +355,21 @@ impl Page {
     pub async fn intercept(&self, rules: Vec<Rule>) -> Result<Interception, SeleniumBaseError> {
         // Listen before enabling, so no request is missed.
         let mut events = self.events();
-        self.execute(
-            "Fetch.enable",
-            json!({
-                "patterns": [{ "urlPattern": "*" }],
-                "handleAuthRequests": self.browser().proxy_has_credentials(),
-            }),
-        )
-        .await?;
+        let auth = self.browser().proxy_auth();
+        auth.set_intercepted(self.session_id(), true);
+        let enabled = self
+            .execute(
+                "Fetch.enable",
+                json!({
+                    "patterns": [{ "urlPattern": "*" }],
+                    "handleAuthRequests": auth.handles_auth(self.session_id()),
+                }),
+            )
+            .await;
+        if let Err(error) = enabled {
+            auth.set_intercepted(self.session_id(), false);
+            return Err(error);
+        }
 
         let log = Arc::new(Mutex::new(Vec::new()));
         let page = self.clone();
@@ -423,6 +430,24 @@ impl Page {
     }
 }
 
+impl Page {
+    /// Stops pausing requests, but keeps answering proxy password prompts if
+    /// this tab sits behind a proxy that needs a password.
+    async fn end_interception(&self) -> Result<(), SeleniumBaseError> {
+        let auth = self.browser().proxy_auth();
+        auth.set_intercepted(self.session_id(), false);
+        self.execute("Fetch.disable", json!({})).await?;
+        if auth.handles_auth(self.session_id()) {
+            self.execute(
+                "Fetch.enable",
+                json!({ "handleAuthRequests": true, "patterns": [{ "urlPattern": "*" }] }),
+            )
+            .await?;
+        }
+        Ok(())
+    }
+}
+
 impl Interception {
     /// Every request seen so far and how it was answered, oldest first (up to
     /// ten thousand).
@@ -440,10 +465,7 @@ impl Interception {
         if let Some(task) = self.task.take() {
             task.abort();
         }
-        self.page
-            .execute("Fetch.disable", json!({}))
-            .await
-            .map(drop)
+        self.page.end_interception().await
     }
 }
 
@@ -455,7 +477,7 @@ impl Drop for Interception {
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
             runtime.spawn(async move {
                 // The page may already be gone; there is nothing to report to.
-                let _ = page.execute("Fetch.disable", json!({})).await;
+                let _ = page.end_interception().await;
             });
         }
     }

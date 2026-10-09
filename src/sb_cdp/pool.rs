@@ -53,7 +53,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, Notify, OwnedSemaphorePermit, Semaphore};
 use tokio::time::Instant;
 
-use super::{Browser, BrowserContext, LaunchOptions, Page, Session, SessionStore};
+use super::{Browser, BrowserContext, ContextOptions, LaunchOptions, Page, Session, SessionStore};
 use crate::error::SeleniumBaseError;
 
 type LaunchFuture = Pin<Box<dyn Future<Output = Result<Browser, SeleniumBaseError>> + Send>>;
@@ -355,6 +355,17 @@ impl BrowserPool {
     /// [`SeleniumBaseError::BrowserDisconnected`] if the pool is closed, and
     /// any error from launching a browser or opening its context.
     pub async fn acquire(&self) -> Result<Lease, SeleniumBaseError> {
+        self.acquire_with(ContextOptions::default()).await
+    }
+
+    /// Like [`acquire`](Self::acquire), but the lease's context is set up as
+    /// `context` describes. Use it to give one worker its own proxy while the
+    /// others go direct.
+    ///
+    /// # Errors
+    ///
+    /// See [`acquire`](Self::acquire).
+    pub async fn acquire_with(&self, context: ContextOptions) -> Result<Lease, SeleniumBaseError> {
         let shared = &self.shared;
         let timeout = shared.options.acquire_timeout;
         let deadline = Instant::now() + timeout;
@@ -383,7 +394,7 @@ impl BrowserPool {
         };
 
         let opened = async {
-            let context = browser.new_context().await?;
+            let context = browser.new_context_with(context).await?;
             let page = context.new_page(None::<&str>).await?;
             Ok::<_, SeleniumBaseError>((context, page))
         }

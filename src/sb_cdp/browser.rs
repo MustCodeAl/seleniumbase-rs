@@ -14,6 +14,7 @@ use tokio::task::JoinHandle;
 use super::client::{Client, Events};
 use super::launch::{launch, LaunchOptions};
 use super::page::{Page, DEFAULT_TIMEOUT};
+use super::proxy_auth::{Credentials, ProxyAuth};
 use super::sync::locked;
 use super::types::{PageInfo, Permission};
 use crate::error::SeleniumBaseError;
@@ -40,6 +41,14 @@ const AD_BLOCK_PATTERNS: [&str; 14] = [
     "*://*.scorecardresearch.com/*",
     "*://*.facebook.net/*",
 ];
+
+/// Where a new tab opens when it is not in the default context.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct ContextTarget<'a> {
+    pub(super) id: &'a str,
+    /// The password of the proxy the context routes through, if it has one.
+    pub(super) credentials: Option<&'a Credentials>,
+}
 
 /// A Chrome browser driven over the DevTools Protocol, with no WebDriver.
 ///
@@ -78,6 +87,8 @@ pub(crate) struct Inner {
     /// Tab id to the protocol session attached to it.
     sessions: StdMutex<HashMap<String, Arc<str>>>,
     tasks: StdMutex<Vec<JoinHandle<()>>>,
+    /// Who answers which proxy's password prompts.
+    pub(super) auth: Arc<ProxyAuth>,
 }
 
 impl Drop for Inner {
@@ -132,7 +143,9 @@ impl Browser {
             launched.ws_url,
             options.clone(),
         );
-        browser.start_proxy_auth();
+        if browser.inner.auth.has_launch_credentials() {
+            browser.ensure_proxy_auth();
+        }
         let page = browser.default_page().await?;
         if let Some(url) = &options.url {
             page.goto(url).await?;
@@ -201,8 +214,13 @@ impl Browser {
         ws_url: String,
         options: LaunchOptions,
     ) -> Self {
+        let launch_credentials = options
+            .proxy()
+            .and_then(super::launch::Proxy::credentials)
+            .map(|(user, pass)| (user.to_owned(), pass.to_owned()));
         Self {
             inner: Arc::new(Inner {
+                auth: Arc::new(ProxyAuth::new(launch_credentials)),
                 client,
                 process: Mutex::new(process),
                 _profile: profile,
@@ -237,13 +255,9 @@ impl Browser {
         &self.inner.ws_url
     }
 
-    /// Whether the proxy this browser was launched with needs credentials,
-    /// which the browser answers through `Fetch.authRequired`.
-    pub(super) fn proxy_has_credentials(&self) -> bool {
-        self.inner
-            .options
-            .proxy()
-            .is_some_and(super::launch::Proxy::has_credentials)
+    /// Who answers this browser's proxy password prompts.
+    pub(super) fn proxy_auth(&self) -> &ProxyAuth {
+        &self.inner.auth
     }
 
     /// Whether the connection to the browser is still open.
@@ -366,21 +380,36 @@ impl Browser {
         &self,
         url: Option<&str>,
         window: bool,
-        context: Option<&str>,
+        context: Option<ContextTarget<'_>>,
     ) -> Result<Page, SeleniumBaseError> {
         // Open blank and navigate once attached. Creating the tab at the URL
         // would start loading before anything is listening, and a fresh tab's
         // blank document already reports "complete", so waiting on it can
         // return before the real navigation has begun.
         let mut params = json!({ "url": "about:blank", "newWindow": window });
-        if let Some(context) = context {
-            params["browserContextId"] = json!(context);
+        if let Some(context) = &context {
+            params["browserContextId"] = json!(context.id);
         }
         let response = self.execute("Target.createTarget", params).await?;
         let id = response["targetId"].as_str().ok_or_else(|| {
             SeleniumBaseError::cdp_driver("Target.createTarget returned no targetId")
         })?;
-        let page = self.page(id).await?;
+        let session = self.session_for(id).await?;
+        // A tab behind its own password-protected proxy needs its prompts
+        // answered from its very first request.
+        if let Some(credentials) = context.and_then(|context| context.credentials) {
+            self.inner.auth.register(&session, credentials.clone());
+            self.inner
+                .client
+                .send(
+                    "Fetch.enable",
+                    json!({ "handleAuthRequests": true, "patterns": [{ "urlPattern": "*" }] }),
+                    Some(&session),
+                )
+                .await?;
+            self.ensure_proxy_auth();
+        }
+        let page = Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT);
         if let Some(url) = url {
             page.goto(url).await?;
         }
@@ -393,6 +422,12 @@ impl Browser {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if there is no such tab.
     pub async fn page(&self, id: &str) -> Result<Page, SeleniumBaseError> {
+        let session = self.session_for(id).await?;
+        Ok(Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT))
+    }
+
+    /// The protocol session attached to a tab, attaching if needed.
+    async fn session_for(&self, id: &str) -> Result<Arc<str>, SeleniumBaseError> {
         let known = locked(&self.inner.sessions).get(id).cloned();
         let session = if let Some(session) = known {
             session
@@ -411,12 +446,15 @@ impl Browser {
             locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
             session
         };
-        Ok(Page::new(self.clone(), id.into(), session, DEFAULT_TIMEOUT))
+        Ok(session)
     }
 
     /// Forgets a closed tab's session.
     pub(crate) fn forget_page(&self, id: &str) {
-        locked(&self.inner.sessions).remove(id);
+        let removed = locked(&self.inner.sessions).remove(id);
+        if let Some(session) = removed {
+            self.inner.auth.forget(&session);
+        }
     }
 
     /// Enables the domains a tab needs and injects the page helpers.
@@ -442,12 +480,7 @@ impl Browser {
             )
             .await?;
         }
-        if self
-            .inner
-            .options
-            .proxy()
-            .is_some_and(super::launch::Proxy::has_credentials)
-        {
+        if self.inner.auth.has_launch_credentials() {
             send(
                 "Fetch.enable",
                 json!({ "handleAuthRequests": true, "patterns": [{ "urlPattern": "*" }] }),
@@ -462,16 +495,11 @@ impl Browser {
     /// Chrome ignores credentials placed in `--proxy-server`, so they have to
     /// be supplied when the proxy asks. Requests paused by `Fetch.enable` are
     /// released unchanged.
-    fn start_proxy_auth(&self) {
-        let Some((user, pass)) = self
-            .inner
-            .options
-            .proxy()
-            .and_then(super::launch::Proxy::credentials)
-            .map(|(user, pass)| (user.to_owned(), pass.to_owned()))
-        else {
+    fn ensure_proxy_auth(&self) {
+        if !self.inner.auth.claim_start() {
             return;
-        };
+        }
+        let auth = Arc::clone(&self.inner.auth);
         let client = Arc::clone(&self.inner.client);
         let mut events = client.events();
         let task = tokio::spawn(async move {
@@ -479,25 +507,8 @@ impl Browser {
                 let Some(session) = event.session_id.as_deref() else {
                     continue;
                 };
-                let request_id = event.params["requestId"].clone();
-                let reply = match event.method.as_str() {
-                    "Fetch.authRequired" => Some((
-                        "Fetch.continueWithAuth",
-                        json!({
-                            "requestId": request_id,
-                            "authChallengeResponse": {
-                                "response": "ProvideCredentials",
-                                "username": user,
-                                "password": pass,
-                            },
-                        }),
-                    )),
-                    "Fetch.requestPaused" => {
-                        Some(("Fetch.continueRequest", json!({ "requestId": request_id })))
-                    }
-                    _ => None,
-                };
-                if let Some((method, params)) = reply {
+                if let Some((method, params)) = auth.reply(session, &event.method, &event.params) {
+                    // A request that already finished has nothing to answer.
                     let _ = client.send(method, params, Some(session)).await;
                 }
             }

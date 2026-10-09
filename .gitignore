@@ -6,3 +6,4 @@
 .DS_Store
 node_modules/
 downloaded_drivers/
+__pycache__/

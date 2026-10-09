@@ -152,9 +152,10 @@ step 2.
      request log, verified on real Chrome. The existing `CdpReactor` was checked
      and does work (it adds headers to every tab's requests); it is global and
      header-only, so `Page::intercept` is the per-page replacement.
-   - To do: per-context proxy routing (`Target.createBrowserContext` takes a
-     proxy server; credentials need a per-session `Fetch.authRequired`
-     responder) and WebRTC/mDNS leak shielding with a self-test.
+   - Done: per-context proxy routing with per-session password handling
+     (`ContextOptions`, `acquire_with`), verified on real Chrome against a
+     password-protected proxy.
+   - To do: WebRTC/mDNS leak shielding with a self-test.
 4. **Hardware and profile randomisation**: WebGL, canvas, timezone and locale,
    as `Fingerprint::randomized(os, seed)` that always passes `validate()`.
 5. **Integration**: use `Fingerprint` and `EvasionRegistry` from

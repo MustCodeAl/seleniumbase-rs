@@ -87,6 +87,11 @@ impl Page {
         &self.id
     }
 
+    /// The protocol session this tab is attached through.
+    pub(super) fn session_id(&self) -> &str {
+        &self.session
+    }
+
     /// The browser this tab belongs to.
     #[must_use]
     pub fn browser(&self) -> &Browser {

@@ -13,8 +13,8 @@ use std::thread;
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{
-    Browser, BrowserPool, Cookie, LaunchOptions, Outcome, Page, PoolOptions, Response, Rule,
-    SelectBy, State,
+    Browser, BrowserPool, ContextOptions, Cookie, LaunchOptions, Outcome, Page, PoolOptions, Proxy,
+    Response, Rule, SelectBy, State,
 };
 use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
@@ -794,5 +794,121 @@ async fn interception_blocks_mocks_and_rewrites_real_requests_and_stops_cleanly(
         .unwrap();
     assert!(loaded, "without interception the image loads");
 
+    browser.close().await.unwrap();
+}
+
+/// An HTTP proxy that wants a password. It answers 407 until a request carries
+/// valid `Proxy-Authorization`, then answers every request with a page naming
+/// what it was asked for. Returns its address and the requests it served.
+fn serve_password_proxy(
+    user: &str,
+    pass: &str,
+) -> (String, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+    use base64::Engine as _;
+    let expected = format!(
+        "Basic {}",
+        base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"))
+    );
+    let served = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+    let address = listener.local_addr().expect("bound address");
+    let log = std::sync::Arc::clone(&served);
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (expected, log) = (expected.clone(), std::sync::Arc::clone(&log));
+            thread::spawn(move || {
+                let mut buffer = [0_u8; 8192];
+                let read = stream.read(&mut buffer).unwrap_or(0);
+                let request = String::from_utf8_lossy(&buffer[..read]).into_owned();
+                let first_line = request.lines().next().unwrap_or_default().to_owned();
+                let authorised = request.lines().any(|line| {
+                    line.split_once(':').is_some_and(|(name, value)| {
+                        name.eq_ignore_ascii_case("proxy-authorization") && value.trim() == expected
+                    })
+                });
+                let response = if authorised {
+                    log.lock().unwrap().push(first_line.clone());
+                    let body = format!("<title>via-proxy</title><h1 id=who>{first_line}</h1>");
+                    format!("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+                } else {
+                    "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"test\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_owned()
+                };
+                let _ = stream.write_all(response.as_bytes());
+            });
+        }
+    });
+    (address.to_string(), served)
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_context_can_have_its_own_password_protected_proxy_while_others_go_direct() {
+    let (proxy, served) = serve_password_proxy("alice", "s3cret");
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    // `target.test` cannot be resolved by anyone but the proxy.
+    let url = "http://target.test/hello";
+
+    // A context behind the proxy: the password is supplied for it automatically.
+    let behind = browser
+        .new_context_with(
+            ContextOptions::new().proxy(Proxy::parse(&format!("alice:s3cret@{proxy}")).unwrap()),
+        )
+        .await
+        .unwrap();
+    let page = behind.new_page(Some(url)).await.unwrap();
+    assert_eq!(page.title().await.unwrap(), "via-proxy");
+    let asked = page.locator("#who").text().await.unwrap();
+    assert!(
+        asked
+            .to_lowercase()
+            .contains("get http://target.test/hello"),
+        "{asked}"
+    );
+
+    // A context beside it, with no proxy, cannot reach the host at all.
+    let direct = browser.new_context().await.unwrap();
+    let error = direct.new_page(Some(url)).await.unwrap_err();
+    assert!(
+        matches!(error, seleniumbase_rs::SeleniumBaseError::Navigation { .. }),
+        "the direct context must not reach the host: {error}"
+    );
+
+    // The proxy only ever served requests that carried the password.
+    assert!(!served.lock().unwrap().is_empty());
+    behind.dispose().await.unwrap();
+    direct.dispose().await.unwrap();
+
+    // The same through a pool lease.
+    let pool = BrowserPool::new(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .build()
+            .unwrap(),
+        PoolOptions::builder()
+            .max_browsers(1)
+            .contexts_per_browser(2)
+            .build()
+            .unwrap(),
+    );
+    let lease = pool
+        .acquire_with(
+            ContextOptions::new().proxy(Proxy::parse(&format!("alice:s3cret@{proxy}")).unwrap()),
+        )
+        .await
+        .unwrap();
+    lease.page().goto(url).await.unwrap();
+    assert_eq!(lease.page().title().await.unwrap(), "via-proxy");
+    lease.release().await;
+    pool.close().await;
     browser.close().await.unwrap();
 }

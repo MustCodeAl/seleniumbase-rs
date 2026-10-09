@@ -183,6 +183,32 @@ storage or cache with anything else, like an incognito window. Open tabs in it
 with `context.new_page(url)` and throw everything away with `context.dispose()`.
 It is much cheaper than a second Chrome process.
 
+### A proxy per context
+
+Each context can have its own proxy, whatever the rest of the browser uses. A
+proxy with a username and password is answered automatically, for that
+context's tabs only:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Browser, ContextOptions, Proxy};
+
+# async fn demo(browser: Browser) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let context = browser
+    .new_context_with(
+        ContextOptions::new()
+            .proxy(Proxy::parse("alice:s3cret@proxy.example.com:8080")?)
+            .bypass("*.internal.example.com"),
+    )
+    .await?;
+let page = context.new_page(Some("https://example.com")).await?;
+# Ok(())
+# }
+```
+
+The password is never sent to Chrome except in the reply to the proxy's own
+prompt, and never appears in `Debug` output. A pool lease can have its own proxy
+too: `pool.acquire_with(ContextOptions::new().proxy(...))`.
+
 ## Many workers: the browser pool
 
 `BrowserPool` shares a few Chrome processes between many concurrent workers.

@@ -71,6 +71,7 @@ mod locator;
 mod mock;
 mod page;
 mod pool;
+mod proxy_auth;
 mod session_store;
 mod state;
 mod sync;
@@ -83,7 +84,7 @@ pub use captcha::Captcha;
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
-pub use context::BrowserContext;
+pub use context::{BrowserContext, ContextOptions};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
