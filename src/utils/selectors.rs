@@ -139,6 +139,110 @@ impl<'a> Selector<'a> {
     }
 }
 
+/// An owned element selector, the `String` to [`Selector`]'s `&str`.
+///
+/// Strings convert into a `SelectorBuf` with the same rules SeleniumBase
+/// uses, so `"#login"`, `"//form/button"` and `"link=Sign in"` all work. The
+/// kind is decided once, here, and sent to the page already tagged.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::selectors::SelectorBuf;
+///
+/// assert_eq!(SelectorBuf::from("#login"), SelectorBuf::css("#login"));
+/// assert_eq!(SelectorBuf::from("//form/button"), SelectorBuf::xpath("//form/button"));
+/// assert_eq!(SelectorBuf::from("link=Sign in"), SelectorBuf::link_text("Sign in"));
+///
+/// // Name the kind to skip the guessing.
+/// assert!(matches!(SelectorBuf::css("//not-really"), SelectorBuf::Css(_)));
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum SelectorBuf {
+    /// A CSS selector.
+    Css(String),
+    /// An XPath expression.
+    #[serde(rename = "xpath")]
+    XPath(String),
+    /// A link whose text is exactly this.
+    LinkText(String),
+    /// A link whose text contains this.
+    PartialLinkText(String),
+}
+
+impl SelectorBuf {
+    /// Creates a CSS selector, taken literally with no detection.
+    pub fn css(selector: impl Into<String>) -> Self {
+        Self::Css(selector.into())
+    }
+
+    /// Creates an XPath selector, taken literally with no detection.
+    pub fn xpath(expression: impl Into<String>) -> Self {
+        Self::XPath(expression.into())
+    }
+
+    /// Creates a selector for a link with exactly this text.
+    pub fn link_text(text: impl Into<String>) -> Self {
+        Self::LinkText(text.into())
+    }
+
+    /// Creates a selector for a link whose text contains this.
+    pub fn partial_link_text(text: impl Into<String>) -> Self {
+        Self::PartialLinkText(text.into())
+    }
+
+    /// Borrows this selector as a [`Selector`].
+    pub fn as_selector(&self) -> Selector<'_> {
+        match self {
+            Self::Css(value) => Selector::Css(value),
+            Self::XPath(value) => Selector::XPath(value),
+            Self::LinkText(value) => Selector::LinkText(value),
+            Self::PartialLinkText(value) => Selector::PartialLinkText(value),
+        }
+    }
+}
+
+impl From<Selector<'_>> for SelectorBuf {
+    fn from(selector: Selector<'_>) -> Self {
+        match selector {
+            Selector::Css(value) => Self::Css(value.to_owned()),
+            Selector::XPath(value) => Self::XPath(value.to_owned()),
+            Selector::LinkText(value) => Self::LinkText(value.to_owned()),
+            Selector::PartialLinkText(value) => Self::PartialLinkText(value.to_owned()),
+            Selector::Id(value) => Self::Css(format!("[id=\"{}\"]", value.replace('"', "\\\""))),
+        }
+    }
+}
+
+impl From<&str> for SelectorBuf {
+    fn from(selector: &str) -> Self {
+        Selector::auto(selector).into()
+    }
+}
+
+impl From<String> for SelectorBuf {
+    fn from(selector: String) -> Self {
+        Self::from(selector.as_str())
+    }
+}
+
+impl From<&String> for SelectorBuf {
+    fn from(selector: &String) -> Self {
+        Self::from(selector.as_str())
+    }
+}
+
+impl std::fmt::Display for SelectorBuf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Css(value) | Self::XPath(value) => f.write_str(value),
+            Self::LinkText(value) => write!(f, "link={value}"),
+            Self::PartialLinkText(value) => write!(f, "partial_link={value}"),
+        }
+    }
+}
+
 /// Best-effort conversion of simple XPath expressions to CSS selectors.
 pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
     let trimmed = xpath.trim();

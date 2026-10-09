@@ -1,0 +1,7 @@
+# Words that look like identifiers to `clippy::doc_markdown` but are names.
+doc-valid-idents = [
+    "DevTools", "WebSocket", "SeleniumBase", "WebDriver", "XPath", "JavaScript",
+    "TypeScript", "WebRTC", "WebGL", "OpenTelemetry", "ChromeDriver", "SQLite",
+    "GitHub", "macOS", "iOS", "mDNS", "TOTP", "CDP", "IANA", "PDF", "URL", "HTML",
+    "..",
+]
