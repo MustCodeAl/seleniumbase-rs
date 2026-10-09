@@ -216,9 +216,9 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
             "Browser.grantPermissions".to_owned(),
             serde_json::json!({
                 "permissions": [
-                    "notifications", "midi", "midiSysex", "clipboardRead",
-                    "clipboardWrite", "clipboardSanitizedWrite", "paymentHandler",
-                    "backgroundSync", "idleDetection", "webAppInstallation"
+                    "notifications", "midi", "midiSysex", "clipboardReadWrite",
+                    "clipboardSanitizedWrite", "paymentHandler", "backgroundSync",
+                    "idleDetection", "webAppInstallation"
                 ]
             }),
         );
@@ -380,6 +380,30 @@ mod tests {
         let map = cdp_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
+    }
+
+    #[test]
+    fn granted_permissions_use_names_the_protocol_knows() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.grant_permissions = true;
+
+        let map = cdp_overrides(&fp);
+
+        let names: Vec<&str> = map["Browser.grantPermissions"]["permissions"]
+            .as_array()
+            .expect("a list")
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect();
+        // Chrome rejects the whole grant if one name is unknown, and it does
+        // not know `clipboardRead` or `clipboardWrite` (only the combined one).
+        assert!(names.contains(&"clipboardReadWrite"), "{names:?}");
+        for wrong in ["clipboardRead", "clipboardWrite"] {
+            assert!(
+                !names.contains(&wrong),
+                "{wrong} is not a protocol permission"
+            );
+        }
     }
 
     #[test]
