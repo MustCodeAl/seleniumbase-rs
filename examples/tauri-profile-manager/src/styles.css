@@ -395,6 +395,23 @@ textarea {
   resize: vertical;
 }
 
+.banner {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--color-danger);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+
+.banner.warning {
+  border-color: var(--color-muted-text);
+}
+
+.banner[hidden] {
+  display: none;
+}
+
 #status {
   margin-top: 1rem;
   font-size: 0.9rem;

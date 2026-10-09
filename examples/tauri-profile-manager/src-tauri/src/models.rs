@@ -261,6 +261,27 @@ impl fmt::Debug for BrowserCookie {
     }
 }
 
+/// Body of a randomize request; every field is optional.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct RandomizeRequest {
+    /// The operating system the identity claims. Defaults to this machine's.
+    pub os: Option<seleniumbase_rs::OsType>,
+    /// Makes the identity reproducible: the same operating system and seed
+    /// give the same identity. Defaults to a fresh random seed.
+    pub seed: Option<u64>,
+}
+
+/// The identity a randomize request gave a profile.
+#[derive(Clone, Debug, Serialize)]
+pub struct Randomized {
+    /// The operating system the identity claims.
+    pub os: seleniumbase_rs::OsType,
+    /// The seed that produced it. Pass it back to get the same identity again.
+    pub seed: u64,
+    /// The profile, with its new fingerprint.
+    pub profile: Profile,
+}
+
 /// Whether the profile store is usable, for the app window to show.
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct StorageStatus {

@@ -14,9 +14,11 @@
     <header class="app-header">
       <h1>Profile Manager</h1>
       <p class="muted">
-        Isolated multi-profile browser automation backed by Docker and seleniumbase-rs.
+        Isolated multi-profile browser automation through seleniumbase-rs, with a
+        Docker WebDriver container or a Chrome launched directly (Pure CDP) for each profile.
         <span id="api-base" aria-live="polite"></span>
       </p>
+      <p id="storage-banner" class="banner" role="alert" hidden></p>
     </header>
 
     <main id="maincontent" tabindex="-1">
@@ -172,6 +174,16 @@
           <div class="field">
             <label for="profile-name">Name <span aria-hidden="true">*</span></label>
             <input id="profile-name" required />
+          </div>
+          <div class="field">
+            <label for="profile-engine">Engine</label>
+            <select id="profile-engine" aria-describedby="engine-hint">
+              <option value="WebDriver">WebDriver (Selenium container)</option>
+              <option value="PureCdp">Pure CDP (Chrome on this computer)</option>
+            </select>
+            <small id="engine-hint" class="muted">
+              Pure CDP starts Chrome itself: no Docker and no WebDriver URL.
+            </small>
           </div>
           <div class="field">
             <label for="container-url">WebDriver URL <span aria-hidden="true">*</span></label>

@@ -23,6 +23,12 @@ let profiles = [];
 let tags = [];
 let folders = [];
 let selectedProfileIds = new Set();
+// The fingerprint of the profile open in the dialog. The form shows only some of
+// its fields; the rest are kept when the profile is saved.
+let editingFingerprint;
+// Set when the profile store could not be opened: an empty list then means
+// "locked", not "no profiles".
+let storageLocked = false;
 
 async function apiBase() {
   return invoke("get_api_base");
@@ -90,7 +96,7 @@ function renderProfiles() {
   const list = $("#profile-list");
   list.textContent = "";
   const visible = profiles.filter(passesFilters);
-  $("#profiles-empty").hidden = visible.length > 0;
+  $("#profiles-empty").hidden = visible.length > 0 || storageLocked;
 
   for (const p of visible) {
     const card = el("li", { className: "profile-card" });
@@ -106,14 +112,15 @@ function renderProfiles() {
 
     const titleWrap = el("div");
     titleWrap.appendChild(el("strong", { text: p.name }));
-    const meta = el("div", { className: "muted", text: `${p.container_url} · ${folderName(p.folder_id)}` });
+    const where = p.engine === "PureCdp" ? "Chrome on this computer" : p.container_url;
+    const meta = el("div", { className: "muted", text: `${where} · ${folderName(p.folder_id)}` });
     titleWrap.appendChild(meta);
     head.append(checkbox, titleWrap);
     card.appendChild(head);
 
     const badges = el("div", { className: "badges" });
     badges.appendChild(el("span", { className: "tag", text: p.browser || "Chrome" }));
-    badges.appendChild(el("span", { className: "tag", text: p.mode || "WebDriver" }));
+    badges.appendChild(el("span", { className: "tag", text: p.engine === "PureCdp" ? "Pure CDP" : p.mode || "WebDriver" }));
     if (p.headless) badges.appendChild(el("span", { className: "tag", text: "headless" }));
     if (p.external_profile) badges.appendChild(el("span", { className: "tag external", text: "external" }));
     if (p.fingerprint) badges.appendChild(el("span", { className: "tag external", text: "masked" }));
@@ -147,11 +154,14 @@ function renderProfiles() {
     editBtn.addEventListener("click", () => openProfileDialog(p));
     const cloneBtn = el("button", { className: "secondary", text: "Clone" });
     cloneBtn.addEventListener("click", () => cloneProfile(p));
+    const randomizeBtn = el("button", { className: "secondary", text: "Randomize" });
+    randomizeBtn.setAttribute("aria-label", `Give ${p.name} a random identity`);
+    randomizeBtn.addEventListener("click", () => randomizeProfile(p));
     const exportBtn = el("button", { className: "secondary", text: "Export" });
     exportBtn.addEventListener("click", () => exportProfile(p));
     const deleteBtn = el("button", { className: "danger", text: "Delete" });
     deleteBtn.addEventListener("click", () => confirmDeleteProfile(p));
-    manageRow.append(editBtn, cloneBtn, exportBtn, deleteBtn);
+    manageRow.append(editBtn, cloneBtn, randomizeBtn, exportBtn, deleteBtn);
     card.appendChild(manageRow);
 
     list.appendChild(card);
@@ -182,7 +192,7 @@ async function refreshSessions() {
     const li = el("li");
     const head = el("div", { className: "actions" });
     head.append(el("strong", { text: s.profile_name }));
-    head.append(el("span", { className: "muted", text: s.container_url }));
+    head.append(el("span", { className: "muted", text: s.engine === "PureCdp" ? "Pure CDP" : s.container_url }));
     li.appendChild(head);
 
     const navRow = el("div", { className: "actions" });
@@ -372,7 +382,9 @@ function openProfileDialog(profile) {
   $("#profile-dialog-title").textContent = isEdit ? `Edit ${profile.name}` : "New profile";
   $("#profile-id").value = isEdit ? profile.id : "";
   $("#profile-name").value = isEdit ? profile.name : "";
+  $("#profile-engine").value = isEdit ? profile.engine || "WebDriver" : "WebDriver";
   $("#container-url").value = isEdit ? profile.container_url : "";
+  syncEngineFields();
   $("#profile-browser").value = isEdit ? (profile.browser || "Chrome") : "Chrome";
   $("#profile-mode").value = isEdit ? (profile.mode || "WebDriver") : "WebDriver";
   $("#user-agent").value = isEdit ? (profile.user_agent || "") : "";
@@ -384,8 +396,19 @@ function openProfileDialog(profile) {
   $("#headless").checked = isEdit ? Boolean(profile.headless) : false;
   fillDialogFolders(isEdit ? profile.folder_id : "default");
   fillDialogTags(isEdit ? profile.tags || [] : []);
-  fillFingerprint(isEdit ? profile.fingerprint : undefined);
+  editingFingerprint = isEdit ? profile.fingerprint : undefined;
+  fillFingerprint(editingFingerprint);
   profileDialog.showModal();
+}
+
+// A Pure CDP profile starts Chrome itself, so the fields that describe a
+// WebDriver server do not apply to it.
+function syncEngineFields() {
+  const webdriver = $("#profile-engine").value === "WebDriver";
+  $("#container-url").required = webdriver;
+  $("#container-url").disabled = !webdriver;
+  $("#profile-browser").disabled = !webdriver;
+  $("#profile-mode").disabled = !webdriver;
 }
 
 async function submitProfileDialog(e) {
@@ -398,7 +421,8 @@ async function submitProfileDialog(e) {
   const id = $("#profile-id").value;
   const body = {
     name: $("#profile-name").value.trim(),
-    container_url: $("#container-url").value.trim(),
+    engine: $("#profile-engine").value,
+    container_url: $("#profile-engine").value === "WebDriver" ? $("#container-url").value.trim() : "",
     browser: $("#profile-browser").value,
     mode: $("#profile-mode").value,
     user_agent: $("#user-agent").value || undefined,
@@ -411,7 +435,7 @@ async function submitProfileDialog(e) {
     folder_id: $("#profile-folder").value,
     tags: selectedTags,
   };
-  const fingerprint = buildFingerprint();
+  const fingerprint = buildFingerprint(editingFingerprint);
   if (fingerprint) body.fingerprint = fingerprint;
   else if (id) body.fingerprint = null; // explicit clear on edit
 
@@ -423,6 +447,7 @@ async function submitProfileDialog(e) {
       await invoke("create_profile", {
         new: {
           name: body.name,
+          engine: body.engine,
           containerUrl: body.container_url,
           browser: body.browser,
           mode: body.mode,
@@ -452,8 +477,9 @@ async function submitProfileDialog(e) {
 const confirmDialog = $("#confirm-dialog");
 let confirmAction = null;
 
-function askConfirm(message, action) {
+function askConfirm(message, action, okLabel = "Delete") {
   $("#confirm-message").textContent = message;
+  $("#confirm-ok").textContent = okLabel;
   confirmAction = action;
   confirmDialog.showModal();
 }
@@ -485,6 +511,24 @@ async function cloneProfile(p) {
   }
 }
 
+async function randomizeProfile(p) {
+  const run = async () => {
+    setStatus(`Randomizing ${p.name}…`);
+    try {
+      const result = await invoke("randomize_fingerprint", { id: p.id });
+      setStatus(`Randomized ${p.name}: ${result.os} identity, seed ${result.seed}`);
+      refreshProfiles();
+    } catch (e) {
+      setStatus(`Randomize failed: ${e}`);
+    }
+  };
+  if (p.fingerprint) {
+    askConfirm(`Replace the masking settings of "${p.name}" with a random identity?`, run, "Randomize");
+  } else {
+    await run();
+  }
+}
+
 async function exportProfile(p) {
   try {
     const data = await api(`/api/v1/profiles/${p.id}/export`);
@@ -506,6 +550,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#open-create").addEventListener("click", () => openProfileDialog(null));
   $("#profile-form").addEventListener("submit", submitProfileDialog);
   $("#cancel-profile").addEventListener("click", () => profileDialog.close());
+  $("#profile-engine").addEventListener("change", syncEngineFields);
 
   $("#confirm-ok").addEventListener("click", async () => {
     confirmDialog.close();
@@ -650,9 +695,30 @@ window.addEventListener("DOMContentLoaded", async () => {
     $("#api-base").textContent = "REST API: unavailable";
   }
 
+  showStorageStatus();
   refreshOrg().then(refreshProfiles);
   refreshSessions();
 });
+
+// Tells the user when the encrypted profile store could not be opened, so an
+// empty list is never mistaken for "no profiles".
+async function showStorageStatus() {
+  const banner = $("#storage-banner");
+  try {
+    const status = await invoke("get_storage_status");
+    const message = status.error || status.warning;
+    storageLocked = !status.ok;
+    $("#open-create").disabled = storageLocked;
+    renderProfiles();
+    banner.hidden = !message;
+    banner.textContent = message || "";
+    banner.classList.toggle("warning", status.ok);
+  } catch (e) {
+    banner.hidden = false;
+    banner.classList.remove("warning");
+    banner.textContent = `Could not check the profile store: ${e}`;
+  }
+}
 
 // ---------------- Custom masking (fingerprint) ----------------
 
@@ -710,7 +776,27 @@ function fpNum(id) {
   return v ? Number(v) : undefined;
 }
 
-function buildFingerprint() {
+// Every fingerprint field the form shows. Anything else in a stored
+// fingerprint, such as a randomized identity's user agent and client hints, is
+// kept as it is when the form is saved.
+const FORM_FINGERPRINT_KEYS = [
+  "os_type", "platform", "hardware_concurrency", "device_memory", "max_touch_points", "vendor",
+  "languages", "accept_languages", "timezone", "screen_width", "screen_height", "pixel_ratio",
+  "color_depth", "webgl_vendor", "webgl_renderer", "audio_inputs", "audio_outputs", "video_inputs",
+  "fonts", "webrtc_policy", "webrtc_public_ip", "webrtc_local_ip", "seed",
+];
+
+function withoutFormFields(existing) {
+  const kept = { ...(existing || {}) };
+  for (const key of FORM_FINGERPRINT_KEYS) delete kept[key];
+  if (kept.flags) {
+    const shown = new Set([...document.querySelectorAll("[data-flag]")].map((sel) => sel.dataset.flag));
+    kept.flags = Object.fromEntries(Object.entries(kept.flags).filter(([flag]) => !shown.has(flag)));
+  }
+  return kept;
+}
+
+function buildFingerprint(existing) {
   if (!$("#masking-enabled").checked) return undefined;
 
   const fp = {};
@@ -774,7 +860,10 @@ function buildFingerprint() {
   }
   if (Object.keys(flags).length > 0) fp.flags = flags;
 
-  return Object.keys(fp).length > 0 ? fp : undefined;
+  const kept = withoutFormFields(existing);
+  const merged = { ...kept, ...fp };
+  if (kept.flags || fp.flags) merged.flags = { ...kept.flags, ...fp.flags };
+  return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 function setVal(id, value) {

@@ -12,7 +12,8 @@ mod session;
 mod storage;
 mod store;
 
-use models::{NewProfile, Profile, SessionInfo, StorageStatus};
+use models::{NewProfile, Profile, RandomizeRequest, Randomized, SessionInfo, StorageStatus};
+use seleniumbase_rs::OsType;
 use session::Session;
 use store::{next_api_port, AppState};
 
@@ -49,6 +50,24 @@ async fn delete_profile(state: State<'_, Arc<AppState>>, id: String) -> Result<(
     state.delete_profile(&id).await.map_err(|e| e.to_string())?;
     info!(profile_id = %id, "deleted profile");
     Ok(())
+}
+
+/// Gives a profile a new randomized identity; see
+/// [`AppState::randomize_fingerprint`].
+#[command]
+async fn randomize_fingerprint(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+    os: Option<OsType>,
+    seed: Option<u64>,
+) -> Result<Randomized, String> {
+    let randomized = state
+        .randomize_fingerprint(&id, RandomizeRequest { os, seed })
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Profile not found".to_string())?;
+    info!(profile_id = %id, os = ?randomized.os, "randomized fingerprint");
+    Ok(randomized)
 }
 
 #[command]
@@ -206,6 +225,7 @@ pub fn run() {
             list_profiles,
             create_profile,
             delete_profile,
+            randomize_fingerprint,
             launch_profile,
             list_sessions,
             navigate_session,

@@ -106,6 +106,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(profile_start)
         .service(profile_stop)
         .service(profile_clone)
+        .service(profile_randomize)
         .service(profile_export)
         .service(cookie_import)
         .service(cookie_export)
@@ -605,6 +606,33 @@ async fn profile_clone(state: web::Data<Arc<AppState>>, path: web::Path<String>)
     state.add_profile(clone.clone()).await?;
     info!(source_id = %id, clone_id = %clone.id, "cloned profile via api");
     ok_msg(clone, "Profile cloned")
+}
+
+/// Gives a profile a new randomized identity.
+///
+/// The body is optional. `{"os": "Macos", "seed": 7}` picks the operating
+/// system the identity claims and makes it reproducible; either may be left
+/// out, and an empty body leaves both to the server.
+#[post("/api/v1/profiles/{id}/randomize")]
+async fn profile_randomize(
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<String>,
+    body: web::Bytes,
+) -> ApiResult {
+    let id = path.into_inner();
+    let request = if body.iter().all(u8::is_ascii_whitespace) {
+        RandomizeRequest::default()
+    } else {
+        serde_json::from_slice(&body)
+            .map_err(|e| bad_request(format!("Invalid randomize request: {e}")))?
+    };
+    match state.randomize_fingerprint(&id, request).await? {
+        Some(randomized) => {
+            info!(profile_id = %id, os = ?randomized.os, "randomized fingerprint via api");
+            ok_msg(randomized, "Fingerprint randomized")
+        }
+        None => err(404, "Profile not found"),
+    }
 }
 
 #[get("/api/v1/profiles/{id}/export")]
@@ -1692,6 +1720,140 @@ mod tests {
         assert_eq!(webdriver_port("http://localhost:4445"), 4445);
         assert_eq!(webdriver_port("http://localhost"), 4444);
         assert_eq!(webdriver_port(""), 4444);
+    }
+
+    /// A state holding one WebDriver profile, and that profile's id.
+    async fn state_with_a_profile() -> (web::Data<Arc<AppState>>, String) {
+        let state = test_state();
+        let new: NewProfile = serde_json::from_value(json!({
+            "name": "Subject",
+            "container_url": "http://localhost:4444",
+        }))
+        .unwrap();
+        let profile = Profile::from_new("subject".to_owned(), new).unwrap();
+        state.add_profile(profile).await.unwrap();
+        (state, "subject".to_owned())
+    }
+
+    #[actix_web::test]
+    async fn randomizing_sets_a_reproducible_identity_that_the_profile_keeps() {
+        let (state, id) = state_with_a_profile().await;
+        let app = test::init_service(App::new().app_data(state).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            json_post(
+                &format!("/api/v1/profiles/{id}/randomize"),
+                r#"{"os":"Macos","seed":7}"#,
+            )
+            .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(response).await;
+        assert_eq!(body["data"]["seed"], 7);
+        assert_eq!(body["data"]["os"], "Macos");
+        let user_agent = body["data"]["profile"]["fingerprint"]["user_agent"]
+            .as_str()
+            .expect("the profile has a user agent now");
+        assert!(user_agent.contains("Macintosh"), "{user_agent}");
+
+        let fetched = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri(&format!("/api/v1/profiles/{id}"))
+                .to_request(),
+        )
+        .await;
+        let fetched: Value = test::read_body_json(fetched).await;
+        assert_eq!(
+            fetched["data"]["fingerprint"],
+            body["data"]["profile"]["fingerprint"]
+        );
+    }
+
+    #[actix_web::test]
+    async fn randomizing_with_no_body_picks_the_os_and_seed_itself() {
+        let (state, id) = state_with_a_profile().await;
+        let app = test::init_service(App::new().app_data(state).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            test::TestRequest::post()
+                .uri(&format!("/api/v1/profiles/{id}/randomize"))
+                .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(response).await;
+        assert!(body["data"]["seed"].as_u64().unwrap() < 1 << 53);
+        assert!(body["data"]["os"].is_string());
+    }
+
+    #[actix_web::test]
+    async fn a_randomized_fingerprint_can_be_sent_back_whole() {
+        // The window edits a profile by posting its fingerprint back, so the
+        // generated identity has to survive that round trip unchanged.
+        let (state, id) = state_with_a_profile().await;
+        let app = test::init_service(App::new().app_data(state).configure(configure)).await;
+        let randomized = test::call_service(
+            &app,
+            json_post(
+                &format!("/api/v1/profiles/{id}/randomize"),
+                r#"{"os":"Linux","seed":3}"#,
+            )
+            .to_request(),
+        )
+        .await;
+        let randomized: Value = test::read_body_json(randomized).await;
+        let fingerprint = randomized["data"]["profile"]["fingerprint"].clone();
+
+        let saved = test::call_service(
+            &app,
+            json_post(
+                &format!("/api/v1/profiles/{id}"),
+                &json!({ "fingerprint": fingerprint }).to_string(),
+            )
+            .to_request(),
+        )
+        .await;
+
+        assert_eq!(saved.status(), StatusCode::OK);
+        let saved: Value = test::read_body_json(saved).await;
+        assert_eq!(saved["data"]["fingerprint"], fingerprint);
+    }
+
+    #[actix_web::test]
+    async fn a_bad_randomize_request_is_a_400_and_an_unknown_profile_a_404() {
+        let (state, id) = state_with_a_profile().await;
+        let app = test::init_service(App::new().app_data(state).configure(configure)).await;
+        let uri = format!("/api/v1/profiles/{id}/randomize");
+
+        for bad in [r#"{"os":"Plan9"}"#, r#"{"seed":-1}"#, "not json"] {
+            let response = test::call_service(&app, json_post(&uri, bad).to_request()).await;
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{bad}");
+        }
+        let missing = test::call_service(
+            &app,
+            json_post("/api/v1/profiles/ghost/randomize", "{}").to_request(),
+        )
+        .await;
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn randomizing_needs_the_api_token_like_everything_else() {
+        let state = test_state();
+        let app = guarded_app!(state);
+        let req = json_post("/api/v1/profiles/any/randomize", "{}")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[actix_web::test]

@@ -4,9 +4,11 @@ use std::fmt;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use seleniumbase_rs::BrowserConfig;
+use seleniumbase_rs::{BrowserConfig, Fingerprint, OsType};
 
-use crate::models::{Engine, Folder, Profile, SessionInfo, StorageStatus, Tag};
+use crate::models::{
+    Engine, Folder, Profile, RandomizeRequest, Randomized, SessionInfo, StorageStatus, Tag,
+};
 use crate::session::Session;
 use crate::storage::{ensure_default_folder, Opened, ProfileStorage, StorageError, StorageState};
 
@@ -140,6 +142,41 @@ impl AppState {
         Ok(true)
     }
 
+    /// Gives a profile a new, internally consistent identity: a randomized
+    /// fingerprint that replaces whatever it had. `None` when there is no such
+    /// profile.
+    ///
+    /// The identity claims this machine's operating system unless the request
+    /// names another, because a page can still see the real graphics stack and
+    /// fonts behind a different claim. Without a seed, a fresh one is drawn.
+    pub async fn randomize_fingerprint(
+        &self,
+        id: &str,
+        request: RandomizeRequest,
+    ) -> Result<Option<Randomized>, PersistError> {
+        self.ensure_storage()?;
+        let os = request.os.unwrap_or_else(host_os);
+        let seed = match request.seed {
+            Some(seed) => seed,
+            None => random_seed()?,
+        };
+        let found = self
+            .profiles
+            .lock()
+            .await
+            .iter()
+            .find(|p| p.id == id)
+            .cloned();
+        let Some(mut profile) = found else {
+            return Ok(None);
+        };
+        profile.fingerprint = Some(Fingerprint::randomized(os, seed));
+        if !self.update_profile(profile.clone()).await? {
+            return Ok(None);
+        }
+        Ok(Some(Randomized { os, seed, profile }))
+    }
+
     /// Removes a profile. `false` when there is none.
     pub async fn delete_profile(&self, id: &str) -> Result<bool, PersistError> {
         let storage = self.writer()?;
@@ -231,6 +268,27 @@ impl AppState {
         folders.remove(at);
         Ok(true)
     }
+}
+
+/// The operating system this machine runs.
+fn host_os() -> OsType {
+    if cfg!(target_os = "macos") {
+        OsType::Macos
+    } else if cfg!(target_os = "windows") {
+        OsType::Windows
+    } else {
+        OsType::Linux
+    }
+}
+
+/// A random seed of 53 bits, the most a JavaScript number holds exactly, so
+/// the window can show it and send it back unchanged.
+fn random_seed() -> Result<u64, PersistError> {
+    let mut bytes = [0_u8; 8];
+    getrandom::fill(&mut bytes).map_err(|_| {
+        PersistError::Failed("the operating system could not supply a random seed".to_owned())
+    })?;
+    Ok(u64::from_le_bytes(bytes) & ((1 << 53) - 1))
 }
 
 /// Mints a 256-bit API token as hex.
@@ -357,6 +415,114 @@ mod tests {
 
         assert!(matches!(error, PersistError::Failed(_)), "{error}");
         assert_eq!(state.profiles.lock().await.len(), before);
+    }
+
+    #[tokio::test]
+    async fn the_same_os_and_seed_give_the_same_coherent_identity() {
+        let state = AppState::new();
+        state.add_profile(new_profile("a", "A")).await.unwrap();
+        state.add_profile(new_profile("b", "B")).await.unwrap();
+        let request = RandomizeRequest {
+            os: Some(OsType::Macos),
+            seed: Some(7),
+        };
+
+        let first = state
+            .randomize_fingerprint("a", request.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        let second = state
+            .randomize_fingerprint("b", request)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let fingerprint = first.profile.fingerprint.as_ref().unwrap();
+        assert!(fingerprint.validate().is_coherent());
+        assert_eq!(first.profile.fingerprint, second.profile.fingerprint);
+        assert_eq!((first.os, first.seed), (OsType::Macos, 7));
+        assert_eq!(
+            state.profiles.lock().await[0].fingerprint,
+            first.profile.fingerprint,
+            "the stored profile must carry the new identity"
+        );
+    }
+
+    #[tokio::test]
+    async fn without_a_request_this_machines_os_and_a_fresh_seed_are_used() {
+        let state = AppState::new();
+        state.add_profile(new_profile("a", "A")).await.unwrap();
+
+        let first = state
+            .randomize_fingerprint("a", RandomizeRequest::default())
+            .await
+            .unwrap()
+            .unwrap();
+        let second = state
+            .randomize_fingerprint("a", RandomizeRequest::default())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(first.os, host_os());
+        assert_ne!(first.seed, second.seed, "each request draws its own seed");
+        for seed in [first.seed, second.seed] {
+            assert!(seed < 1 << 53, "{seed} would lose digits in JavaScript");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_randomized_identity_survives_the_vault() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = vault_state(dir.path()).await;
+        state.add_profile(new_profile("a", "A")).await.unwrap();
+        let randomized = state
+            .randomize_fingerprint(
+                "a",
+                RandomizeRequest {
+                    os: Some(OsType::Windows),
+                    seed: Some(99),
+                },
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        drop(state);
+
+        let reopened = vault_state(dir.path()).await;
+
+        let profiles = reopened.profiles.lock().await;
+        let stored = profiles.iter().find(|p| p.id == "a").unwrap();
+        assert_eq!(stored.fingerprint, randomized.profile.fingerprint);
+    }
+
+    #[tokio::test]
+    async fn randomizing_a_missing_profile_finds_nothing() {
+        let state = AppState::new();
+
+        let outcome = state
+            .randomize_fingerprint("ghost", RandomizeRequest::default())
+            .await;
+
+        assert_eq!(outcome.unwrap().map(|r| r.seed), None);
+    }
+
+    #[tokio::test]
+    async fn an_unavailable_store_refuses_to_randomize() {
+        let state = AppState::from_opened(Opened {
+            state: StorageState::Unavailable {
+                message: "locked".to_owned(),
+            },
+            data: LoadedData::default(),
+        });
+
+        let error = state
+            .randomize_fingerprint("a", RandomizeRequest::default())
+            .await
+            .unwrap_err();
+
+        assert_eq!(error, PersistError::Unavailable("locked".to_owned()));
     }
 
     #[tokio::test]
