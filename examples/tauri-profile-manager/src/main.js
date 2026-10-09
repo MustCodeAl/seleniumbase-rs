@@ -48,14 +48,13 @@ async function refreshProfiles() {
       refreshProfiles();
     });
     li.querySelector(".clone").addEventListener("click", async () => {
-      const base = await apiBase();
       setStatus(`Cloning ${p.name}...`);
       try {
-        const res = await fetch(`${base}/api/v1/profiles/${p.id}/clone`, { method: "POST" });
+        const res = await apiFetch(`/api/v1/profiles/${p.id}/clone`, { method: "POST" });
         const body = await res.json();
         const cloneId = body.data.id;
         const newName = `${p.name} (clone)`;
-        await fetch(`${base}/api/v1/profiles/${cloneId}`, {
+        await apiFetch(`/api/v1/profiles/${cloneId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ name: newName }),
@@ -67,9 +66,8 @@ async function refreshProfiles() {
       }
     });
     li.querySelector(".export").addEventListener("click", async () => {
-      const base = await apiBase();
       try {
-        const res = await fetch(`${base}/api/v1/profiles/${p.id}/export`);
+        const res = await apiFetch(`/api/v1/profiles/${p.id}/export`);
         const body = await res.json();
         const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
@@ -90,12 +88,36 @@ async function apiBase() {
   return invoke("get_api_base");
 }
 
+// The local API is reachable by anything running on this machine, including
+// any web page the user has open, so it requires a token that only this
+// window can obtain over Tauri IPC. Fetched once and reused.
+let apiTokenPromise = null;
+
+async function apiToken() {
+  if (!apiTokenPromise) {
+    apiTokenPromise = invoke("get_api_token").catch((err) => {
+      // Let a later call retry rather than caching the failure forever.
+      apiTokenPromise = null;
+      throw err;
+    });
+  }
+  return apiTokenPromise;
+}
+
+// Calls the local API with the token attached. `path` is relative, e.g.
+// "/api/v1/profiles".
+async function apiFetch(path, options = {}) {
+  const [base, token] = await Promise.all([apiBase(), apiToken()]);
+  const headers = new Headers(options.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${base}${path}`, { ...options, headers });
+}
+
 async function refreshTags() {
-  const base = await apiBase();
   try {
     const [tagsRes, foldersRes] = await Promise.all([
-      fetch(`${base}/api/v1/tags`),
-      fetch(`${base}/api/v1/folders`),
+      apiFetch(`/api/v1/tags`),
+      apiFetch(`/api/v1/folders`),
     ]);
     const tagsBody = await tagsRes.json();
     const foldersBody = await foldersRes.json();
@@ -228,13 +250,12 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus("Enter source profile ID and new name");
       return;
     }
-    const base = await apiBase();
     setStatus(`Cloning ${sourceId}...`);
     try {
-      const res = await fetch(`${base}/api/v1/profiles/${sourceId}/clone`, { method: "POST" });
+      const res = await apiFetch(`/api/v1/profiles/${sourceId}/clone`, { method: "POST" });
       const body = await res.json();
       const cloneId = body.data.id;
-      await fetch(`${base}/api/v1/profiles/${cloneId}`, {
+      await apiFetch(`/api/v1/profiles/${cloneId}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: newName }),
@@ -254,9 +275,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus("Enter a profile ID to export");
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/profiles/${id}/export`);
+      const res = await apiFetch(`/api/v1/profiles/${id}/export`);
       const body = await res.json();
       const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: "application/json" });
       const a = document.createElement("a");
@@ -276,9 +296,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus("Paste an external profile JSON to import");
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/profiles/import`, {
+      const res = await apiFetch(`/api/v1/profiles/import`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: raw,
@@ -298,9 +317,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus("Paste profile JSON to import");
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/profiles/import`, {
+      const res = await apiFetch(`/api/v1/profiles/import`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: raw,
@@ -315,7 +333,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   document.querySelector("#validate-proxy").addEventListener("click", async () => {
-    const base = await apiBase();
     const payload = {
       type: document.querySelector("#proxy-type").value,
       host: document.querySelector("#proxy-host").value.trim(),
@@ -329,7 +346,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     setStatus("Validating proxy...");
     try {
-      const res = await fetch(`${base}/api/v1/proxy/validate`, {
+      const res = await apiFetch(`/api/v1/proxy/validate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
@@ -348,9 +365,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus("Enter a profile ID to export cookies");
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/cookie_export`, {
+      const res = await apiFetch(`/api/v1/cookie_export`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ profile_id: id }),
@@ -377,9 +393,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       setStatus(`Invalid cookies JSON: ${e}`);
       return;
     }
-    const base = await apiBase();
     try {
-      const res = await fetch(`${base}/api/v1/cookie_import`, {
+      const res = await apiFetch(`/api/v1/cookie_import`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ profile_id: id, cookies }),
@@ -395,9 +410,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelector("#add-tag").addEventListener("click", async () => {
     const name = document.querySelector("#new-tag").value;
     if (!name) return;
-    const base = await apiBase();
     try {
-      await fetch(`${base}/api/v1/tags`, {
+      await apiFetch(`/api/v1/tags`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),
@@ -412,9 +426,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelector("#add-folder").addEventListener("click", async () => {
     const name = document.querySelector("#new-folder").value;
     if (!name) return;
-    const base = await apiBase();
     try {
-      await fetch(`${base}/api/v1/folders`, {
+      await apiFetch(`/api/v1/folders`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),

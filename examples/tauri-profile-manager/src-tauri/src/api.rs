@@ -4,16 +4,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use actix_cors::Cors;
+use actix_web::body::{BoxBody, MessageBody};
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::middleware::{from_fn, Next};
 use actix_web::{
-    delete, get, http::StatusCode, post, web, App, HttpResponse, HttpServer, ResponseError,
+    delete, get, http::header, http::StatusCode, post, web, App, HttpResponse, HttpServer,
+    ResponseError,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
 use tracing::info;
 use uuid::Uuid;
 
-use seleniumbase_rs::BaseCase;
 use seleniumbase_rs::profile_payloads::ProfileParams;
+use seleniumbase_rs::BaseCase;
 
 use crate::models::*;
 use crate::store::{apply_profile_overrides, build_config, make_session_id, set_cookies, AppState};
@@ -26,7 +30,11 @@ pub struct ApiErrorResponse {
 
 impl std::fmt::Display for ApiErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", serde_json::to_string(&self.body).unwrap_or_default())
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(&self.body).unwrap_or_default()
+        )
     }
 }
 
@@ -103,22 +111,185 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .service(twofa_enable);
 }
 
+/// Origins the app's own window is served from.
+///
+/// Tauri serves the frontend from a custom scheme rather than from the API's
+/// origin, so the window is cross-origin to this server and needs an explicit
+/// CORS allowance. Everything else is refused, which stops an ordinary web
+/// page from reading a response even though it can reach loopback.
+const ALLOWED_ORIGINS: [&str; 4] = [
+    // macOS, Linux, iOS
+    "tauri://localhost",
+    // Windows, Android
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+    // `tauri dev` with a local frontend server
+    "http://localhost:1420",
+];
+
+/// Host header values this server will answer to.
+///
+/// A name that resolves to 127.0.0.1 is not automatically trustworthy: DNS
+/// rebinding lets an attacker point their own hostname at loopback and reach
+/// this server from a page they control. Pinning the Host header to the
+/// literal loopback addresses closes that path.
+const ALLOWED_HOST_NAMES: [&str; 2] = ["127.0.0.1", "[::1]"];
+
+/// Builds the CORS policy for the local API.
+///
+/// A browser enforces CORS by hiding a response from the calling page, which
+/// protects nothing if the server has already acted on the request. So
+/// mismatched origins are blocked outright: actix-cors only does that when
+/// asked, and its default is to run the handler and merely omit the CORS
+/// headers. Requests with no `Origin` header, such as `curl` or other local
+/// tools, are not browser-originated and pass through untouched.
+fn cors_policy() -> Cors {
+    let mut cors = Cors::default()
+        .allowed_methods(["GET", "POST", "DELETE"])
+        .allowed_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
+        .block_on_origin_mismatch(true)
+        .max_age(600);
+    for origin in ALLOWED_ORIGINS {
+        cors = cors.allowed_origin(origin);
+    }
+    cors
+}
+
+/// Returns `true` when the request's Host header names a loopback address.
+fn host_is_loopback(req: &ServiceRequest) -> bool {
+    let Some(host) = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|value| value.to_str().ok())
+    else {
+        // HTTP/2 omits Host in favour of :authority, which actix surfaces
+        // through the URI instead.
+        return req
+            .uri()
+            .host()
+            .is_some_and(|host| ALLOWED_HOST_NAMES.contains(&host));
+    };
+    let name = host.rsplit_once(':').map_or(host, |(name, _port)| name);
+    ALLOWED_HOST_NAMES.contains(&name)
+}
+
+/// Reads the bearer token from the `Authorization` header.
+fn bearer_token(req: &ServiceRequest) -> Option<&str> {
+    req.headers()
+        .get(header::AUTHORIZATION)?
+        .to_str()
+        .ok()?
+        .strip_prefix("Bearer ")
+        .map(str::trim)
+}
+
+/// Compares two tokens without leaking their contents through timing.
+fn tokens_match(provided: &str, expected: &str) -> bool {
+    if provided.len() != expected.len() {
+        return false;
+    }
+    provided
+        .bytes()
+        .zip(expected.bytes())
+        .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+        == 0
+}
+
+/// Rejects any request that does not carry this run's API token, or that
+/// arrives addressed to a host other than loopback.
+///
+/// Without this, every endpoint is reachable by any page the user happens to
+/// visit: `GET /api/v1/profiles` alone would hand over saved cookies and proxy
+/// credentials, and `GET /api/v1/profiles/{id}/start` would drive a logged-in
+/// browser session to a URL of the caller's choosing.
+async fn require_api_token(
+    req: ServiceRequest,
+    next: Next<impl MessageBody + 'static>,
+) -> Result<ServiceResponse<BoxBody>, actix_web::Error> {
+    /// Builds a refusal in the same envelope the handlers use.
+    fn refuse(
+        req: ServiceRequest,
+        status: StatusCode,
+        code: &str,
+        message: &str,
+    ) -> ServiceResponse<BoxBody> {
+        let body = ApiResponse::<()>::err(ApiStatus {
+            error_code: code.to_owned(),
+            http_code: status.as_u16(),
+            message: message.to_owned(),
+        });
+        req.into_response(HttpResponse::build(status).json(body))
+    }
+
+    if !host_is_loopback(&req) {
+        return Ok(refuse(
+            req,
+            StatusCode::FORBIDDEN,
+            "FORBIDDEN_HOST",
+            "Request host is not a loopback address",
+        ));
+    }
+
+    let expected = req
+        .app_data::<web::Data<Arc<AppState>>>()
+        .map(|state| state.api_token.clone());
+    let Some(expected) = expected else {
+        return Ok(refuse(
+            req,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "NO_TOKEN",
+            "API token unavailable",
+        ));
+    };
+
+    match bearer_token(&req) {
+        Some(token) if tokens_match(token, &expected) => next
+            .call(req)
+            .await
+            .map(ServiceResponse::map_into_boxed_body),
+        _ => Ok(refuse(
+            req,
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Missing or invalid API token",
+        )),
+    }
+}
+
+/// Builds the API app with its full middleware stack.
+///
+/// A macro rather than a function because the concrete `App` type cannot be
+/// named in a signature, and one definition is what lets the tests exercise
+/// exactly what `start_server` serves.
+///
+/// Order matters. Actix applies the last `wrap` first, so CORS sits outside the
+/// token check. A browser sends its preflight `OPTIONS` request without the
+/// `Authorization` header, and that preflight has to be answered by the CORS
+/// layer before the token check would reject it.
+macro_rules! api_app {
+    ($data:expr) => {
+        App::new()
+            .app_data($data)
+            .wrap(from_fn(require_api_token))
+            .wrap(cors_policy())
+            .configure(configure)
+    };
+}
+
 pub async fn start_server(state: Arc<AppState>, addr: std::net::SocketAddr) -> std::io::Result<()> {
     info!(%addr, "starting external profile api server");
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(state.clone()))
-            .wrap(Cors::permissive())
-            .configure(configure)
-    })
-    .bind(addr)?
-    .run()
-    .await
+    HttpServer::new(move || api_app!(web::Data::new(state.clone())))
+        .bind(addr)?
+        .run()
+        .await
 }
 
 #[get("/api/v1/version")]
 async fn version() -> ApiResult {
-    ok_msg(json!({ "version": "0.1.0", "launcher": "seleniumbase-rs" }), "")
+    ok_msg(
+        json!({ "version": "0.1.0", "launcher": "seleniumbase-rs" }),
+        "",
+    )
 }
 
 #[get("/api/v1/status")]
@@ -182,10 +353,7 @@ async fn profile_create(
 }
 
 #[get("/api/v1/profiles/{id}")]
-async fn profile_get(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_get(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let profiles = state.profiles.lock().await;
     match profiles.iter().find(|p| p.id == id).cloned() {
@@ -234,7 +402,10 @@ async fn profile_update(
         profiles[idx].headless = v;
     }
     if let Some(v) = payload.get("tags").and_then(|v| v.as_array()) {
-        profiles[idx].tags = v.iter().filter_map(|x| x.as_str().map(String::from)).collect();
+        profiles[idx].tags = v
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect();
     }
     if payload.get("parameters").is_some() {
         match serde_json::from_value::<seleniumbase_rs::profile_payloads::ProfileParams>(
@@ -249,10 +420,7 @@ async fn profile_update(
 }
 
 #[delete("/api/v1/profiles/{id}")]
-async fn profile_delete(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut profiles = state.profiles.lock().await;
     let before = profiles.len();
@@ -279,25 +447,23 @@ async fn profile_start(
     };
 
     let config = build_config(&profile);
-    let mut sb = BaseCase::new(config).await.map_err(|e| {
-        ApiErrorResponse {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ApiResponse::err(ApiStatus::err("LAUNCH_FAILED", e.to_string())),
-        }
+    let mut sb = BaseCase::new(config).await.map_err(|e| ApiErrorResponse {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        body: ApiResponse::err(ApiStatus::err("LAUNCH_FAILED", e.to_string())),
     })?;
-    apply_profile_overrides(&mut sb, &profile).await.map_err(|e| {
-        ApiErrorResponse {
+    apply_profile_overrides(&mut sb, &profile)
+        .await
+        .map_err(|e| ApiErrorResponse {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             body: ApiResponse::err(ApiStatus::err("OVERRIDE_FAILED", e)),
-        }
-    })?;
+        })?;
     if !profile.cookies.is_empty() {
-        set_cookies(&mut sb, &profile.cookies).await.map_err(|e| {
-            ApiErrorResponse {
+        set_cookies(&mut sb, &profile.cookies)
+            .await
+            .map_err(|e| ApiErrorResponse {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
-            }
-        })?;
+            })?;
     }
     if let Some(url) = query.get("url") {
         sb.open(url).await.map_err(|e| ApiErrorResponse {
@@ -314,7 +480,11 @@ async fn profile_start(
         container_url: profile.container_url.clone(),
     };
     state.sessions.lock().await.insert(session_id.clone(), sb);
-    state.session_info.lock().await.insert(session_id.clone(), info);
+    state
+        .session_info
+        .lock()
+        .await
+        .insert(session_id.clone(), info);
     info!(session_id = %session_id, profile_id = %profile.id, "started profile via api");
 
     let port: u16 = profile
@@ -337,10 +507,7 @@ async fn profile_start(
 }
 
 #[get("/api/v1/profiles/{id}/stop")]
-async fn profile_stop(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_stop(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let session_id = {
         let infos = state.session_info.lock().await;
@@ -353,10 +520,12 @@ async fn profile_stop(
         return err(404, "No active session for profile");
     };
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions.remove(&session_id).ok_or_else(|| ApiErrorResponse {
-        status: StatusCode::NOT_FOUND,
-        body: ApiResponse::err(ApiStatus::err("NOT_FOUND", "Session not found")),
-    })?;
+    let mut sb = sessions
+        .remove(&session_id)
+        .ok_or_else(|| ApiErrorResponse {
+            status: StatusCode::NOT_FOUND,
+            body: ApiResponse::err(ApiStatus::err("NOT_FOUND", "Session not found")),
+        })?;
     sb.quit().await.map_err(|e| ApiErrorResponse {
         status: StatusCode::INTERNAL_SERVER_ERROR,
         body: ApiResponse::err(ApiStatus::err("QUIT_FAILED", e.to_string())),
@@ -367,10 +536,7 @@ async fn profile_stop(
 }
 
 #[post("/api/v1/profiles/{id}/clone")]
-async fn profile_clone(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_clone(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut profiles = state.profiles.lock().await;
     let Some(source) = profiles.iter().find(|p| p.id == id).cloned() else {
@@ -385,23 +551,20 @@ async fn profile_clone(
 }
 
 #[get("/api/v1/profiles/{id}/export")]
-async fn profile_export(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn profile_export(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let profiles = state.profiles.lock().await;
     match profiles.iter().find(|p| p.id == id).cloned() {
-        Some(p) => ok_msg(serde_json::to_value(p).unwrap_or_default(), "Profile exported"),
+        Some(p) => ok_msg(
+            serde_json::to_value(p).unwrap_or_default(),
+            "Profile exported",
+        ),
         None => err(404, "Profile not found"),
     }
 }
 
 #[post("/api/v1/profiles/import")]
-async fn profile_import(
-    state: web::Data<Arc<AppState>>,
-    payload: web::Json<Value>,
-) -> ApiResult {
+async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Value>) -> ApiResult {
     let value = payload.into_inner();
     let profile = if value.get("container_url").is_some() {
         serde_json::from_value::<Profile>(value).map_err(|e| ApiErrorResponse {
@@ -409,10 +572,11 @@ async fn profile_import(
             body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
         })?
     } else if value.get("parameters").is_some() {
-        let params: ProfileParams = serde_json::from_value(value).map_err(|e| ApiErrorResponse {
-            status: StatusCode::BAD_REQUEST,
-            body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
-        })?;
+        let params: ProfileParams =
+            serde_json::from_value(value).map_err(|e| ApiErrorResponse {
+                status: StatusCode::BAD_REQUEST,
+                body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
+            })?;
         let geo = params.parameters.fingerprint.geolocation.as_ref();
         Profile {
             id: Uuid::new_v4().to_string(),
@@ -441,7 +605,10 @@ async fn profile_import(
             external_profile: Some(params),
         }
     } else {
-        return err(400, "Unrecognized profile JSON: expected container_url or parameters");
+        return err(
+            400,
+            "Unrecognized profile JSON: expected container_url or parameters",
+        );
     };
     let mut profiles = state.profiles.lock().await;
     profiles.push(profile.clone());
@@ -473,10 +640,12 @@ async fn cookie_import(
     if let Some(session_id) = session_id {
         let mut sessions = state.sessions.lock().await;
         if let Some(sb) = sessions.get_mut(&session_id) {
-            set_cookies(sb, &payload.cookies).await.map_err(|e| ApiErrorResponse {
-                status: StatusCode::INTERNAL_SERVER_ERROR,
-                body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
-            })?;
+            set_cookies(sb, &payload.cookies)
+                .await
+                .map_err(|e| ApiErrorResponse {
+                    status: StatusCode::INTERNAL_SERVER_ERROR,
+                    body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
+                })?;
         }
     }
 
@@ -534,8 +703,8 @@ async fn proxy_validate(payload: web::Json<ProxyValidateRequest>) -> ApiResult {
         format!("{}://{}:{}", payload.proxy_type, payload.host, payload.port)
     };
 
-    let proxy = reqwest::Proxy::all(&proxy_url)
-        .map_err(|e| bad_request(format!("Invalid proxy: {e}")))?;
+    let proxy =
+        reqwest::Proxy::all(&proxy_url).map_err(|e| bad_request(format!("Invalid proxy: {e}")))?;
 
     let client = reqwest::Client::builder()
         .proxy(proxy)
@@ -560,10 +729,18 @@ async fn proxy_validate(payload: web::Json<ProxyValidateRequest>) -> ApiResult {
     ok_msg(
         ProxyValidateData {
             ip: data.get("ip").and_then(|v| v.as_str()).unwrap_or("").into(),
-            country_code: data.get("country").and_then(|v| v.as_str()).unwrap_or("").into(),
+            country_code: data
+                .get("country")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
             latitude: lat,
             longitude: lon,
-            timezone: data.get("timezone").and_then(|v| v.as_str()).unwrap_or("").into(),
+            timezone: data
+                .get("timezone")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .into(),
         },
         "",
     )
@@ -611,10 +788,7 @@ async fn tag_update(
 }
 
 #[delete("/api/v1/tags/{id}")]
-async fn tag_delete(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn tag_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut tags = state.tags.lock().await;
     let before = tags.len();
@@ -662,10 +836,7 @@ async fn folder_update(
 }
 
 #[delete("/api/v1/folders/{id}")]
-async fn folder_delete(
-    state: web::Data<Arc<AppState>>,
-    path: web::Path<String>,
-) -> ApiResult {
+async fn folder_delete(state: web::Data<Arc<AppState>>, path: web::Path<String>) -> ApiResult {
     let id = path.into_inner();
     let mut folders = state.folders.lock().await;
     let before = folders.len();
@@ -698,7 +869,7 @@ async fn script_runner_start(
         };
         let Some(profile) = profile else { continue };
         let config = build_config(&profile);
-        let sb = match BaseCase::new(config).await {
+        let mut sb = match BaseCase::new(config).await {
             Ok(sb) => sb,
             Err(e) => {
                 results.push(json!({ "profile_id": profile_id, "error": e.to_string() }));
@@ -723,7 +894,10 @@ async fn script_runner_stop() -> ApiResult {
 
 #[get("/api/v1/browser_cores")]
 async fn browser_core_list() -> ApiResult {
-    ok_msg(json!({ "cores": ["chrome-120", "chrome-121", "chrome-122"] }), "")
+    ok_msg(
+        json!({ "cores": ["chrome-120", "chrome-121", "chrome-122"] }),
+        "",
+    )
 }
 
 #[post("/api/v1/load_browser_core")]
@@ -740,7 +914,7 @@ async fn delete_browser_core() -> ApiResult {
 async fn stop_all(state: web::Data<Arc<AppState>>) -> ApiResult {
     let ids: Vec<String> = state.sessions.lock().await.keys().cloned().collect();
     for id in ids {
-        if let Some(sb) = state.sessions.lock().await.remove(&id) {
+        if let Some(mut sb) = state.sessions.lock().await.remove(&id) {
             let _ = sb.quit().await;
         }
         state.session_info.lock().await.remove(&id);
@@ -796,6 +970,199 @@ mod tests {
     }
 
     #[actix_web::test]
+    async fn tokens_match_rejects_wrong_and_short_tokens() {
+        assert!(tokens_match("abc123", "abc123"));
+        assert!(!tokens_match("abc124", "abc123"));
+        assert!(!tokens_match("abc", "abc123"));
+        assert!(!tokens_match("", "abc123"));
+        assert!(!tokens_match("abc1234", "abc123"));
+    }
+
+    #[actix_web::test]
+    async fn api_tokens_are_unique_per_run() {
+        let a = AppState::new().api_token;
+        let b = AppState::new().api_token;
+        assert_ne!(a, b, "each run must mint its own token");
+        assert_eq!(a.len(), 64, "expected a 256-bit token as hex");
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[actix_web::test]
+    async fn cors_allows_only_the_app_window_origins() {
+        // A page on an ordinary site must not be in the allow-list, or it
+        // could read profile cookies straight out of the API.
+        assert!(!ALLOWED_ORIGINS.contains(&"https://evil.example"));
+        assert!(!ALLOWED_ORIGINS.contains(&"http://127.0.0.1:45001"));
+        assert!(ALLOWED_ORIGINS.contains(&"tauri://localhost"));
+    }
+
+    /// Initializes the exact app `start_server` serves, CORS included.
+    macro_rules! guarded_app {
+        ($state:expr) => {
+            test::init_service(api_app!($state)).await
+        };
+    }
+
+    #[actix_web::test]
+    async fn request_without_a_token_is_rejected() {
+        let state = test_state();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[actix_web::test]
+    async fn request_with_a_wrong_token_is_rejected() {
+        let state = test_state();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .insert_header((header::AUTHORIZATION, "Bearer not-the-token"))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[actix_web::test]
+    async fn request_with_the_right_token_is_allowed() {
+        let state = test_state();
+        let token = state.api_token.clone();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .insert_header((header::AUTHORIZATION, format!("Bearer {token}")))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn rebound_host_header_is_rejected_even_with_a_valid_token() {
+        let state = test_state();
+        let token = state.api_token.clone();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "attacker.example"))
+            .insert_header((header::AUTHORIZATION, format!("Bearer {token}")))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[actix_web::test]
+    async fn preflight_from_the_app_window_is_answered_without_a_token() {
+        // The browser sends this before every authenticated call and omits the
+        // Authorization header, so the token check must not see it.
+        let state = test_state();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::default()
+            .method(actix_web::http::Method::OPTIONS)
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .insert_header((header::ORIGIN, "tauri://localhost"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_HEADERS, "authorization"))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert!(
+            res.status().is_success(),
+            "preflight was refused with {}",
+            res.status()
+        );
+        assert_eq!(
+            res.headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|v| v.to_str().ok()),
+            Some("tauri://localhost")
+        );
+    }
+
+    #[actix_web::test]
+    async fn preflight_from_another_origin_is_refused() {
+        let state = test_state();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::default()
+            .method(actix_web::http::Method::OPTIONS)
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .insert_header((header::ORIGIN, "https://evil.example"))
+            .insert_header((header::ACCESS_CONTROL_REQUEST_METHOD, "GET"))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert!(
+            !res.status().is_success(),
+            "a foreign origin's preflight was accepted"
+        );
+        assert!(res
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none());
+    }
+
+    #[actix_web::test]
+    async fn authenticated_response_to_the_app_window_carries_cors_headers() {
+        let state = test_state();
+        let token = state.api_token.clone();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .insert_header((header::ORIGIN, "tauri://localhost"))
+            .insert_header((header::AUTHORIZATION, format!("Bearer {token}")))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers()
+                .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .and_then(|v| v.to_str().ok()),
+            Some("tauri://localhost")
+        );
+    }
+
+    #[actix_web::test]
+    async fn foreign_origin_is_blocked_even_with_the_right_token() {
+        // Defence in depth: should the token ever leak, a page on another
+        // origin still cannot read responses.
+        let state = test_state();
+        let token = state.api_token.clone();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .insert_header((header::ORIGIN, "https://evil.example"))
+            .insert_header((header::AUTHORIZATION, format!("Bearer {token}")))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert!(
+            !res.status().is_success(),
+            "a foreign origin was served profile data"
+        );
+    }
+
+    #[actix_web::test]
+    async fn session_start_needs_a_token_too() {
+        // This endpoint drives a logged-in browser to a caller-supplied URL,
+        // and it is a plain GET, so an unauthenticated one would be reachable
+        // from a page with nothing more than an image tag.
+        let state = test_state();
+        let app = guarded_app!(state);
+        let req = test::TestRequest::get()
+            .uri("/api/v1/profiles/any-id/start?url=https://evil.example")
+            .insert_header((header::HOST, "127.0.0.1:45001"))
+            .to_request();
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[actix_web::test]
     async fn version_endpoint() {
         let app = test::init_service(App::new().app_data(test_state()).configure(configure)).await;
         let req = test::TestRequest::get().uri("/api/v1/version").to_request();
@@ -812,7 +1179,9 @@ mod tests {
         let create = test::TestRequest::post()
             .uri("/api/v1/profiles")
             .insert_header(("content-type", "application/json"))
-            .set_payload(r#"{"name":"Test","container_url":"http://localhost:4444","tags":["tag1"]}"#)
+            .set_payload(
+                r#"{"name":"Test","container_url":"http://localhost:4444","tags":["tag1"]}"#,
+            )
             .to_request();
         let create_res = test::call_service(&app, create).await;
         assert_eq!(create_res.status(), StatusCode::OK);
@@ -836,12 +1205,18 @@ mod tests {
             .insert_header(("content-type", "application/json"))
             .set_payload(r#"{"name":"Updated"}"#)
             .to_request();
-        assert_eq!(test::call_service(&app, update).await.status(), StatusCode::OK);
+        assert_eq!(
+            test::call_service(&app, update).await.status(),
+            StatusCode::OK
+        );
 
         let delete = test::TestRequest::delete()
             .uri(&format!("/api/v1/profiles/{id}"))
             .to_request();
-        assert_eq!(test::call_service(&app, delete).await.status(), StatusCode::OK);
+        assert_eq!(
+            test::call_service(&app, delete).await.status(),
+            StatusCode::OK
+        );
     }
 
     #[actix_web::test]
@@ -860,7 +1235,10 @@ mod tests {
             .insert_header(("content-type", "application/json"))
             .set_payload(r#"{"name":"Clients"}"#)
             .to_request();
-        assert_eq!(test::call_service(&app, folder).await.status(), StatusCode::OK);
+        assert_eq!(
+            test::call_service(&app, folder).await.status(),
+            StatusCode::OK
+        );
 
         let list = test::TestRequest::get().uri("/api/v1/tags").to_request();
         let list_res = test::call_service(&app, list).await;

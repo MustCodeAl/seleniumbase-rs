@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use serde_json::json;
 use seleniumbase_rs::init_tracing;
+use serde_json::json;
 use tauri::{command, generate_context, generate_handler, AppHandle, Manager, State};
 use tracing::info;
 
@@ -177,7 +177,7 @@ async fn set_session_geolocation(
 #[command]
 async fn close_session(state: State<'_, Arc<AppState>>, session_id: String) -> Result<(), String> {
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions
+    let mut sb = sessions
         .remove(&session_id)
         .ok_or_else(|| "Session not found".to_string())?;
     sb.quit().await.map_err(|e| e.to_string())?;
@@ -189,6 +189,16 @@ async fn close_session(state: State<'_, Arc<AppState>>, session_id: String) -> R
 #[command]
 async fn get_api_base() -> Result<String, String> {
     Ok(format!("http://127.0.0.1:{}", next_api_port()))
+}
+
+/// Hands this run's API token to the app window.
+///
+/// Reaching the token requires Tauri IPC, which is available only to the
+/// app's own frontend. A web page can send requests to the loopback API but
+/// has no way to obtain the token they must carry.
+#[command]
+async fn get_api_token(state: State<'_, Arc<AppState>>) -> Result<String, String> {
+    Ok(state.api_token.clone())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -224,6 +234,7 @@ pub fn run() {
             set_session_geolocation,
             close_session,
             get_api_base,
+            get_api_token,
         ])
         .run(generate_context!())
         .expect("error while running tauri application");

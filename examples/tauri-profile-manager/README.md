@@ -55,6 +55,40 @@ cargo tauri build
 
 The Tauri backend starts an Actix-web server on `http://127.0.0.1:45001`. The UI uses it for tags/folders and profile tools, and external tools can call it directly.
 
+### Authentication
+
+Every endpoint requires this run's API token as a bearer token:
+
+```
+Authorization: Bearer <token>
+```
+
+The token is 256 bits of OS randomness, minted fresh on each start and never
+written to disk. The app window fetches it over Tauri IPC (`get_api_token`),
+which is reachable only from the app's own frontend.
+
+This matters more than it first looks. Binding to `127.0.0.1` keeps the API off
+the network, but it does **not** keep it away from the browser: any page the
+user has open can also reach loopback. Without a token, a visited web page could
+call `GET /api/v1/profiles` and read every saved profile — cookies and proxy
+credentials included — or call `GET /api/v1/profiles/{id}/start?url=...` to
+drive a logged-in browser session to a URL of its choosing. Because that one is
+a plain GET, an `<img>` tag would be enough.
+
+Two further limits back the token up:
+
+- **CORS is restricted to the app window's own origins.** A request carrying
+  any other `Origin` header is refused by the server before it reaches a
+  handler, and a foreign page's preflight is refused too, so it cannot even
+  attach the `Authorization` header. Tools with no `Origin` header, such as
+  `curl`, are unaffected.
+- **The `Host` header must name a loopback address.** This blocks DNS
+  rebinding, where an attacker points a hostname they control at `127.0.0.1` to
+  reach the API from a page they serve.
+
+Requests failing either check are refused with `403 FORBIDDEN_HOST`, and a
+missing or wrong token with `401 UNAUTHORIZED`.
+
 Real endpoints:
 
 | Method | Endpoint | Description |
@@ -91,11 +125,36 @@ Stub endpoints (return placeholder data):
 Example:
 
 ```bash
-curl http://127.0.0.1:45001/api/v1/profiles
+# Copy the token from the app window, or read it from the running process.
+TOKEN='<token from get_api_token>'
+
+curl http://127.0.0.1:45001/api/v1/profiles \
+  -H "authorization: Bearer $TOKEN"
+
 curl -X POST http://127.0.0.1:45001/api/v1/profiles \
+  -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' \
   -d '{"name":"EU Proxy","container_url":"http://localhost:4444","proxy":"http://proxy:8080"}'
 ```
+
+Without the header the same request returns `401`:
+
+```bash
+curl -i http://127.0.0.1:45001/api/v1/profiles
+# HTTP/1.1 401 Unauthorized
+```
+
+## Known gaps
+
+This is an example, not a finished product. Before relying on it:
+
+- **Profiles are stored in clear text.** `profiles.json` in the OS app-data
+  directory holds cookies and any credentials embedded in proxy URLs. Encrypt
+  it at rest, or keep secrets in the platform keychain.
+- **The `2fa` and `user` endpoints are stubs.** They return fixed placeholder
+  values and authenticate nobody.
+- **The window runs with `"csp": null`.** Setting a real Content-Security-Policy
+  in `tauri.conf.json` limits what injected content could do.
 
 ## Adding anti-detect hardening
 

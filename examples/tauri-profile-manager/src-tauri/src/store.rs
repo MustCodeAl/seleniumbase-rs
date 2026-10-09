@@ -17,6 +17,13 @@ pub struct AppState {
     pub session_info: Mutex<HashMap<String, SessionInfo>>,
     pub tags: Mutex<Vec<Tag>>,
     pub folders: Mutex<Vec<Folder>>,
+    /// Shared secret the local REST API requires on every request.
+    ///
+    /// The API listens on loopback, but any web page the user visits can also
+    /// reach loopback, so binding there is not by itself an access control.
+    /// This token is minted fresh each run and handed to the app's own window
+    /// over Tauri IPC, which a web page cannot use.
+    pub api_token: String,
 }
 
 impl AppState {
@@ -30,8 +37,17 @@ impl AppState {
                 id: "default".into(),
                 name: "Default".into(),
             }]),
+            api_token: generate_api_token(),
         }
     }
+}
+
+/// Mints a 256-bit API token as hex.
+///
+/// Built from two v4 UUIDs, whose random bytes come from the operating
+/// system's cryptographically secure generator.
+fn generate_api_token() -> String {
+    format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
 fn profile_path(app: &AppHandle) -> PathBuf {
