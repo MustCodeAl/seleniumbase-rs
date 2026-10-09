@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use serde_json::json;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::BrowserConfig;
 
-use crate::models::{BrowserCookie, Folder, Profile, SessionInfo, StorageStatus, Tag};
+use crate::models::{Engine, Folder, Profile, SessionInfo, StorageStatus, Tag};
+use crate::session::Session;
 use crate::storage::{ensure_default_folder, Opened, ProfileStorage, StorageError, StorageState};
 
 pub struct AppState {
     pub profiles: Mutex<Vec<Profile>>,
-    pub sessions: Mutex<HashMap<String, BaseCase>>,
+    pub sessions: Mutex<HashMap<String, Session>>,
     pub session_info: Mutex<HashMap<String, SessionInfo>>,
     pub tags: Mutex<Vec<Tag>>,
     pub folders: Mutex<Vec<Folder>>,
@@ -108,10 +108,17 @@ impl AppState {
     // and the two never disagree. Each holds the list's lock for the whole
     // change, which keeps concurrent changes in order.
 
-    /// Adds a profile.
+    /// Adds a profile. Fails if one with the same id exists, because the vault
+    /// keeps one document per id and the list must not hold more.
     pub async fn add_profile(&self, profile: Profile) -> Result<(), PersistError> {
         let storage = self.writer()?;
         let mut profiles = self.profiles.lock().await;
+        if profiles.iter().any(|existing| existing.id == profile.id) {
+            return Err(PersistError::Failed(format!(
+                "a profile with the id {} already exists",
+                profile.id
+            )));
+        }
         if let Some(storage) = storage {
             storage.put_profile(&profile).await?;
         }
@@ -241,6 +248,7 @@ pub(crate) fn default_profiles() -> Vec<Profile> {
             id: "profile-a".into(),
             name: "Container A (NYC)".into(),
             container_url: "http://localhost:4444".into(),
+            engine: Engine::WebDriver,
             browser: seleniumbase_rs::Browser::Chrome,
             mode: seleniumbase_rs::DriverMode::WebDriver,
             user_agent: Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36".into()),
@@ -260,6 +268,7 @@ pub(crate) fn default_profiles() -> Vec<Profile> {
             id: "profile-b".into(),
             name: "Container B (London)".into(),
             container_url: "http://localhost:4445".into(),
+            engine: Engine::WebDriver,
             browser: seleniumbase_rs::Browser::Chrome,
             mode: seleniumbase_rs::DriverMode::WebDriver,
             user_agent: Some("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36".into()),
@@ -299,66 +308,6 @@ pub fn build_config(profile: &Profile) -> BrowserConfig {
         config.fingerprint = Some(fingerprint.clone());
     }
     config
-}
-
-pub async fn apply_profile_overrides(sb: &mut BaseCase, profile: &Profile) -> Result<(), String> {
-    // Prefer External profile-style fingerprint values when present, falling back to
-    // the flat profile fields for backward compatibility.
-    let geo = profile
-        .external_profile
-        .as_ref()
-        .and_then(|p| p.parameters.fingerprint.geolocation.as_ref())
-        .map(|g| (g.latitude, g.longitude, g.accuracy));
-
-    let (lat, lon, accuracy) = match geo {
-        Some((lat, lon, acc)) => (Some(lat), Some(lon), Some(acc)),
-        None => (profile.latitude, profile.longitude, profile.accuracy),
-    };
-
-    if let (Some(lat), Some(lon)) = (lat, lon) {
-        let params = json!({
-            "latitude": lat,
-            "longitude": lon,
-            "accuracy": accuracy.unwrap_or(100.0),
-        });
-        sb.execute_cdp_with_params("Emulation.setGeolocationOverride", params)
-            .await
-            .map_err(|e| format!("Failed to set geolocation: {e}"))?;
-    }
-
-    if let Some(screen) = profile
-        .external_profile
-        .as_ref()
-        .and_then(|p| p.parameters.fingerprint.screen.as_ref())
-    {
-        sb.set_window_size(screen.width, screen.height)
-            .await
-            .map_err(|e| format!("Failed to set screen size: {e}"))?;
-    }
-
-    Ok(())
-}
-
-pub async fn set_cookies(sb: &mut BaseCase, cookies: &[BrowserCookie]) -> Result<(), String> {
-    let cdp_cookies: Vec<serde_json::Value> = cookies
-        .iter()
-        .map(|c| {
-            json!({
-                "name": c.name,
-                "value": c.value,
-                "domain": c.domain,
-                "path": c.path,
-                "secure": c.secure,
-                "httpOnly": c.http_only,
-                "sameSite": c.same_site,
-                "expires": c.expires,
-            })
-        })
-        .collect();
-    sb.execute_cdp_with_params("Network.setCookies", json!({ "cookies": cdp_cookies }))
-        .await
-        .map(|_| ())
-        .map_err(|e| e.to_string())
 }
 
 pub fn next_api_port() -> u16 {
@@ -408,6 +357,25 @@ mod tests {
 
         assert!(matches!(error, PersistError::Failed(_)), "{error}");
         assert_eq!(state.profiles.lock().await.len(), before);
+    }
+
+    #[tokio::test]
+    async fn a_second_profile_with_the_same_id_is_refused() {
+        let state = AppState::new();
+        state
+            .add_profile(new_profile("same", "First"))
+            .await
+            .unwrap();
+
+        let error = state
+            .add_profile(new_profile("same", "Second"))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, PersistError::Failed(_)), "{error}");
+        let profiles = state.profiles.lock().await;
+        assert_eq!(profiles.len(), 1);
+        assert_eq!(profiles[0].name, "First");
     }
 
     #[tokio::test]

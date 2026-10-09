@@ -58,7 +58,30 @@ impl<T> ApiResponse<T> {
     }
 }
 
-/// A saved browser profile that maps to one isolated container.
+/// What drives the browser for a profile.
+///
+/// Profiles saved before this existed have no engine and keep using
+/// WebDriver, so nothing about an existing profile changes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Engine {
+    /// A WebDriver server, normally a `selenium/standalone-chrome` container.
+    #[default]
+    WebDriver,
+    /// Chrome launched directly and driven over the DevTools Protocol, with no
+    /// Docker and no WebDriver. Each launch gets its own isolated browser
+    /// context.
+    #[serde(alias = "pure_cdp")]
+    PureCdp,
+}
+
+impl Engine {
+    /// Whether the engine needs the URL of a WebDriver server.
+    pub fn needs_container(self) -> bool {
+        self == Self::WebDriver
+    }
+}
+
+/// A saved browser profile: one isolated browser identity.
 ///
 /// `Debug` hides everything that can hold a secret (proxy credentials,
 /// cookies and the external or fingerprint payloads), so a profile is safe to
@@ -67,7 +90,13 @@ impl<T> ApiResponse<T> {
 pub struct Profile {
     pub id: String,
     pub name: String,
+    /// WebDriver URL. Empty for a Pure CDP profile, which needs none.
+    #[serde(default)]
     pub container_url: String,
+    /// Which engine drives the browser. Absent in profiles saved by older
+    /// versions, which are WebDriver profiles.
+    #[serde(default)]
+    pub engine: Engine,
     #[serde(default)]
     pub browser: Browser,
     #[serde(default)]
@@ -99,6 +128,7 @@ impl fmt::Debug for Profile {
         f.debug_struct("Profile")
             .field("id", &self.id)
             .field("name", &self.name)
+            .field("engine", &self.engine)
             .field("container_url", &self.container_url)
             .field("proxy", &self.proxy.as_ref().map(|_| "<redacted>"))
             .field("cookies", &self.cookies.len())
@@ -111,15 +141,13 @@ impl Profile {
     ///
     /// # Errors
     ///
-    /// Returns a message when the name is empty.
+    /// See [`validate`](Self::validate).
     pub fn from_new(id: String, new: NewProfile) -> Result<Self, String> {
-        if new.name.trim().is_empty() {
-            return Err("A profile needs a name".to_owned());
-        }
-        Ok(Self {
+        let profile = Self {
             id,
             name: new.name,
             container_url: new.container_url,
+            engine: new.engine,
             browser: new.browser,
             mode: new.mode,
             user_agent: new.user_agent,
@@ -138,7 +166,25 @@ impl Profile {
             cookies: vec![],
             external_profile: new.external_profile,
             fingerprint: new.fingerprint,
-        })
+        };
+        profile.validate()?;
+        Ok(profile)
+    }
+
+    /// Checks that the profile can be launched.
+    ///
+    /// # Errors
+    ///
+    /// Returns a message when the name is empty, or when a WebDriver profile
+    /// has no WebDriver URL. A Pure CDP profile needs no URL.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.name.trim().is_empty() {
+            return Err("A profile needs a name".to_owned());
+        }
+        if self.engine.needs_container() && self.container_url.trim().is_empty() {
+            return Err("A WebDriver profile needs a WebDriver URL".to_owned());
+        }
+        Ok(())
     }
 }
 
@@ -146,7 +192,11 @@ impl Profile {
 #[derive(Clone, Debug, Deserialize)]
 pub struct NewProfile {
     pub name: String,
+    /// WebDriver URL; may be left out for a Pure CDP profile.
+    #[serde(default)]
     pub container_url: String,
+    #[serde(default)]
+    pub engine: Engine,
     #[serde(default)]
     pub browser: Browser,
     #[serde(default)]
@@ -178,6 +228,7 @@ pub struct SessionInfo {
     pub profile_id: String,
     pub profile_name: String,
     pub container_url: String,
+    pub engine: Engine,
 }
 
 /// A cookie as stored in a profile.
@@ -345,6 +396,54 @@ mod tests {
         assert!(!shown.contains(FAKE_PROXY_PASSWORD), "{shown}");
         assert!(!shown.contains(FAKE_COOKIE), "{shown}");
         assert!(shown.contains("Shop"), "the name is still shown: {shown}");
+    }
+
+    #[test]
+    fn a_profile_saved_before_engines_existed_is_a_webdriver_profile() {
+        let profile = profile_with_secrets();
+
+        assert_eq!(profile.engine, Engine::WebDriver);
+        assert!(profile.validate().is_ok());
+    }
+
+    #[test]
+    fn the_engine_accepts_both_spellings_and_round_trips() {
+        for spelling in ["PureCdp", "pure_cdp"] {
+            let engine: Engine = serde_json::from_value(serde_json::json!(spelling)).unwrap();
+            assert_eq!(engine, Engine::PureCdp, "{spelling}");
+        }
+        let json = serde_json::to_value(Engine::PureCdp).unwrap();
+        assert_eq!(
+            serde_json::from_value::<Engine>(json).unwrap(),
+            Engine::PureCdp
+        );
+        assert!(serde_json::from_value::<Engine>(serde_json::json!("Telnet")).is_err());
+    }
+
+    #[test]
+    fn a_pure_cdp_profile_needs_no_webdriver_url() {
+        let new: NewProfile = serde_json::from_value(serde_json::json!({
+            "name": "Direct",
+            "engine": "PureCdp",
+        }))
+        .unwrap();
+
+        let profile = Profile::from_new("p".to_owned(), new).unwrap();
+
+        assert_eq!(profile.engine, Engine::PureCdp);
+        assert!(profile.container_url.is_empty());
+    }
+
+    #[test]
+    fn a_webdriver_profile_without_a_url_is_refused() {
+        let new: NewProfile = serde_json::from_value(serde_json::json!({
+            "name": "Needs a server",
+        }))
+        .unwrap();
+
+        let error = Profile::from_new("p".to_owned(), new).unwrap_err();
+
+        assert!(error.contains("WebDriver URL"), "{error}");
     }
 
     #[test]

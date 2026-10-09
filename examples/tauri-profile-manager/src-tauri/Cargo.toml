@@ -43,6 +43,9 @@ getrandom = "0.4"
 ring = "0.17"
 
 [dev-dependencies]
+# `test-util` adds `sb_cdp::Browser::new_mocked`, so Pure CDP sessions can be
+# tested without launching Chrome.
+seleniumbase-rs = { path = "../../..", features = ["turso", "test-util"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros"] }
 

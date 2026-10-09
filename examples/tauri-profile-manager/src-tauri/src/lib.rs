@@ -2,18 +2,19 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use seleniumbase_rs::init_tracing;
-use serde_json::json;
 use tauri::{command, generate_context, generate_handler, Manager, State};
 use tracing::{error, info};
 
 mod api;
 mod models;
 mod passphrase;
+mod session;
 mod storage;
 mod store;
 
 use models::{NewProfile, Profile, SessionInfo, StorageStatus};
-use store::{apply_profile_overrides, build_config, next_api_port, AppState};
+use session::Session;
+use store::{next_api_port, AppState};
 
 /// Whether the profile vault opened, for the window to explain when it did not.
 #[command]
@@ -65,15 +66,9 @@ async fn launch_profile(
             .ok_or_else(|| "Profile not found".to_string())?
     };
 
-    let config = build_config(&profile);
-    let mut sb = seleniumbase_rs::BaseCase::new(config)
+    let session = Session::launch(&profile, start_url.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    apply_profile_overrides(&mut sb, &profile).await?;
-
-    if let Some(url) = start_url {
-        sb.open(&url).await.map_err(|e| e.to_string())?;
-    }
 
     let session_id = store::make_session_id();
     let info = SessionInfo {
@@ -81,15 +76,25 @@ async fn launch_profile(
         profile_id: profile.id,
         profile_name: profile.name,
         container_url: profile.container_url,
+        engine: profile.engine,
     };
 
-    state.sessions.lock().await.insert(session_id.clone(), sb);
+    state
+        .sessions
+        .lock()
+        .await
+        .insert(session_id.clone(), session);
     state
         .session_info
         .lock()
         .await
         .insert(session_id, info.clone());
-    info!(session_id = %info.session_id, profile_id = %info.profile_id, "launched profile");
+    info!(
+        session_id = %info.session_id,
+        profile_id = %info.profile_id,
+        engine = ?info.engine,
+        "launched profile"
+    );
     Ok(info)
 }
 
@@ -105,10 +110,10 @@ async fn navigate_session(
     url: String,
 ) -> Result<(), String> {
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions
+    let session = sessions
         .get_mut(&session_id)
         .ok_or_else(|| "Session not found".to_string())?;
-    sb.open(&url).await.map_err(|e| e.to_string())
+    session.open(&url).await
 }
 
 #[command]
@@ -117,12 +122,10 @@ async fn take_screenshot(
     session_id: String,
 ) -> Result<PathBuf, String> {
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions
+    let session = sessions
         .get_mut(&session_id)
         .ok_or_else(|| "Session not found".to_string())?;
-    sb.save_screenshot_to_logs()
-        .await
-        .map_err(|e| e.to_string())
+    session.screenshot().await
 }
 
 #[command]
@@ -134,28 +137,26 @@ async fn set_session_geolocation(
     accuracy: Option<f64>,
 ) -> Result<(), String> {
     let mut sessions = state.sessions.lock().await;
-    let sb = sessions
+    let session = sessions
         .get_mut(&session_id)
         .ok_or_else(|| "Session not found".to_string())?;
-    let params = json!({
-        "latitude": latitude,
-        "longitude": longitude,
-        "accuracy": accuracy.unwrap_or(100.0),
-    });
-    sb.execute_cdp_with_params("Emulation.setGeolocationOverride", params)
+    session
+        .set_geolocation(latitude, longitude, accuracy.unwrap_or(100.0))
         .await
-        .map(|_| ())
-        .map_err(|e| e.to_string())
 }
 
 #[command]
 async fn close_session(state: State<'_, Arc<AppState>>, session_id: String) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().await;
-    let mut sb = sessions
+    // Take the session out first, so closing a slow browser does not hold up
+    // every other session.
+    let mut session = state
+        .sessions
+        .lock()
+        .await
         .remove(&session_id)
         .ok_or_else(|| "Session not found".to_string())?;
-    sb.quit().await.map_err(|e| e.to_string())?;
     state.session_info.lock().await.remove(&session_id);
+    session.quit().await?;
     info!(session_id = %session_id, "closed session");
     Ok(())
 }

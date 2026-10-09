@@ -17,12 +17,10 @@ use tracing::info;
 use uuid::Uuid;
 
 use seleniumbase_rs::profile_payloads::ProfileParams;
-use seleniumbase_rs::BaseCase;
 
 use crate::models::*;
-use crate::store::{
-    apply_profile_overrides, build_config, make_session_id, set_cookies, AppState, PersistError,
-};
+use crate::session::{LaunchError, Session};
+use crate::store::{make_session_id, AppState, PersistError};
 
 #[derive(Debug)]
 pub struct ApiErrorResponse {
@@ -393,6 +391,14 @@ async fn profile_update(
     if let Some(v) = payload.get("container_url").and_then(|v| v.as_str()) {
         profile.container_url = v.to_owned();
     }
+    if let Some(v) = payload.get("engine") {
+        match serde_json::from_value::<Engine>(v.clone()) {
+            Ok(engine) => profile.engine = engine,
+            Err(_) => {
+                return err(400, "Invalid engine: expected \"WebDriver\" or \"PureCdp\"");
+            }
+        }
+    }
     if let Some(v) = payload.get("browser").and_then(|v| v.as_str()) {
         if let Ok(browser) = serde_json::from_value::<seleniumbase_rs::Browser>(json!(v)) {
             profile.browser = browser;
@@ -453,6 +459,9 @@ async fn profile_update(
             Err(e) => return err(400, format!("Invalid parameters: {e}")),
         }
     }
+    if let Err(message) = profile.validate() {
+        return err(400, message);
+    }
     state.update_profile(profile.clone()).await?;
     ok(profile)
 }
@@ -482,31 +491,17 @@ async fn profile_start(
         return err(404, "Profile not found");
     };
 
-    let config = build_config(&profile);
-    let mut sb = BaseCase::new(config).await.map_err(|e| ApiErrorResponse {
-        status: StatusCode::INTERNAL_SERVER_ERROR,
-        body: ApiResponse::err(ApiStatus::err("LAUNCH_FAILED", e.to_string())),
-    })?;
-    apply_profile_overrides(&mut sb, &profile)
+    let session = Session::launch(&profile, query.get("url").map(String::as_str))
         .await
-        .map_err(|e| ApiErrorResponse {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ApiResponse::err(ApiStatus::err("OVERRIDE_FAILED", e)),
-        })?;
-    if !profile.cookies.is_empty() {
-        set_cookies(&mut sb, &profile.cookies)
-            .await
-            .map_err(|e| ApiErrorResponse {
-                status: StatusCode::INTERNAL_SERVER_ERROR,
-                body: ApiResponse::err(ApiStatus::err("COOKIE_FAILED", e)),
-            })?;
-    }
-    if let Some(url) = query.get("url") {
-        sb.open(url).await.map_err(|e| ApiErrorResponse {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ApiResponse::err(ApiStatus::err("OPEN_FAILED", e.to_string())),
-        })?;
-    }
+        .map_err(launch_failed)?;
+    // A Pure CDP session has a DevTools endpoint of its own; a WebDriver one
+    // is reached at its server's address.
+    let (port, ws_endpoint) = session.debug_endpoint().unwrap_or_else(|| {
+        (
+            webdriver_port(&profile.container_url),
+            profile.container_url.clone(),
+        )
+    });
 
     let session_id = make_session_id();
     let info = SessionInfo {
@@ -514,32 +509,52 @@ async fn profile_start(
         profile_id: profile.id.clone(),
         profile_name: profile.name.clone(),
         container_url: profile.container_url.clone(),
+        engine: profile.engine,
     };
-    state.sessions.lock().await.insert(session_id.clone(), sb);
+    state
+        .sessions
+        .lock()
+        .await
+        .insert(session_id.clone(), session);
     state
         .session_info
         .lock()
         .await
         .insert(session_id.clone(), info);
-    info!(session_id = %session_id, profile_id = %profile.id, "started profile via api");
-
-    let port: u16 = profile
-        .container_url
-        .rsplit(':')
-        .next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(4444);
+    info!(
+        session_id = %session_id,
+        profile_id = %profile.id,
+        engine = ?profile.engine,
+        "started profile via api"
+    );
 
     ok_msg(
         StartProfileData {
             profile_id: profile.id,
             session_id,
             port,
-            ws_endpoint: profile.container_url.clone(),
+            ws_endpoint,
             message: "Profile started".into(),
         },
         "Profile started",
     )
+}
+
+/// Reports a session that could not be started, naming the step that failed.
+fn launch_failed(error: LaunchError) -> ApiErrorResponse {
+    ApiErrorResponse {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        body: ApiResponse::err(ApiStatus::err(error.stage.code(), error.message)),
+    }
+}
+
+/// The port of a WebDriver server's address, or Selenium's default.
+fn webdriver_port(container_url: &str) -> u16 {
+    container_url
+        .rsplit(':')
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(4444)
 }
 
 #[get("/api/v1/profiles/{id}/stop")]
@@ -555,18 +570,18 @@ async fn profile_stop(state: web::Data<Arc<AppState>>, path: web::Path<String>) 
     let Some(session_id) = session_id else {
         return err(404, "No active session for profile");
     };
-    let mut sessions = state.sessions.lock().await;
-    let mut sb = sessions
-        .remove(&session_id)
-        .ok_or_else(|| ApiErrorResponse {
-            status: StatusCode::NOT_FOUND,
-            body: ApiResponse::err(ApiStatus::err("NOT_FOUND", "Session not found")),
-        })?;
-    sb.quit().await.map_err(|e| ApiErrorResponse {
-        status: StatusCode::INTERNAL_SERVER_ERROR,
-        body: ApiResponse::err(ApiStatus::err("QUIT_FAILED", e.to_string())),
-    })?;
+    // Take the session out before closing it, so closing a slow browser does
+    // not hold up every other session.
+    let session = state.sessions.lock().await.remove(&session_id);
     state.session_info.lock().await.remove(&session_id);
+    let mut session = session.ok_or_else(|| ApiErrorResponse {
+        status: StatusCode::NOT_FOUND,
+        body: ApiResponse::err(ApiStatus::err("NOT_FOUND", "Session not found")),
+    })?;
+    session.quit().await.map_err(|e| ApiErrorResponse {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        body: ApiResponse::err(ApiStatus::err("QUIT_FAILED", e)),
+    })?;
     info!(session_id = %session_id, "stopped profile via api");
     ok_msg(json!({ "stopped": true }), "Profile stopped")
 }
@@ -609,7 +624,7 @@ async fn profile_export(state: web::Data<Arc<AppState>>, path: web::Path<String>
 #[post("/api/v1/profiles/import")]
 async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Value>) -> ApiResult {
     let value = payload.into_inner();
-    let profile = if value.get("container_url").is_some() {
+    let mut profile = if value.get("container_url").is_some() || value.get("engine").is_some() {
         serde_json::from_value::<Profile>(value).map_err(|e| ApiErrorResponse {
             status: StatusCode::BAD_REQUEST,
             body: ApiResponse::err(ApiStatus::err("BAD_REQUEST", e.to_string())),
@@ -625,6 +640,7 @@ async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Valu
             id: Uuid::new_v4().to_string(),
             name: params.name.clone(),
             container_url: "http://localhost:4444".into(),
+            engine: Engine::WebDriver,
             browser: params.browser(),
             mode: if matches!(params.browser_type.as_str(), "firefox" | "stealthfox") {
                 seleniumbase_rs::DriverMode::WebDriver
@@ -654,6 +670,18 @@ async fn profile_import(state: web::Data<Arc<AppState>>, payload: web::Json<Valu
             "Unrecognized profile JSON: expected container_url or parameters",
         );
     };
+    profile.validate().map_err(bad_request)?;
+    // An import is a new profile. Keeping an id that is already taken would
+    // leave two profiles in the list and one in the vault.
+    let taken = state
+        .profiles
+        .lock()
+        .await
+        .iter()
+        .any(|existing| existing.id == profile.id);
+    if taken {
+        profile.id = Uuid::new_v4().to_string();
+    }
     state.add_profile(profile.clone()).await?;
     ok_msg(profile, "Profile imported")
 }
@@ -690,8 +718,9 @@ async fn cookie_import(
     };
     if let Some(session_id) = session_id {
         let mut sessions = state.sessions.lock().await;
-        if let Some(sb) = sessions.get_mut(&session_id) {
-            set_cookies(sb, &payload.cookies)
+        if let Some(session) = sessions.get_mut(&session_id) {
+            session
+                .set_cookies(&payload.cookies)
                 .await
                 .map_err(|e| ApiErrorResponse {
                     status: StatusCode::INTERNAL_SERVER_ERROR,
@@ -927,21 +956,19 @@ async fn script_runner_start(
             profiles.iter().find(|p| p.id == *profile_id).cloned()
         };
         let Some(profile) = profile else { continue };
-        let config = build_config(&profile);
-        let mut sb = match BaseCase::new(config).await {
-            Ok(sb) => sb,
+        let mut session = match Session::launch(&profile, None).await {
+            Ok(session) => session,
             Err(e) => {
                 results.push(json!({ "profile_id": profile_id, "error": e.to_string() }));
                 continue;
             }
         };
-        let result = sb
+        let result = session
             .execute_script(&payload.script)
             .await
-            .map(|v| v.to_string())
-            .unwrap_or_else(|e| e.to_string());
+            .unwrap_or_else(|e| e);
         results.push(json!({ "profile_id": profile_id, "result": result }));
-        let _ = sb.quit().await;
+        let _ = session.quit().await;
     }
     ok_msg(json!({ "results": results }), "Script runner started")
 }
@@ -973,8 +1000,11 @@ async fn delete_browser_core() -> ApiResult {
 async fn stop_all(state: web::Data<Arc<AppState>>) -> ApiResult {
     let ids: Vec<String> = state.sessions.lock().await.keys().cloned().collect();
     for id in ids {
-        if let Some(mut sb) = state.sessions.lock().await.remove(&id) {
-            let _ = sb.quit().await;
+        // Close each session without holding the lock, so one slow browser
+        // does not block the rest.
+        let session = state.sessions.lock().await.remove(&id);
+        if let Some(mut session) = session {
+            let _ = session.quit().await;
         }
         state.session_info.lock().await.remove(&id);
     }
@@ -1498,6 +1528,170 @@ mod tests {
             .await
             .iter()
             .any(|p| p.id == "imported-1"));
+    }
+
+    #[actix_web::test]
+    async fn importing_the_same_profile_twice_keeps_two_profiles_with_different_ids() {
+        let state = test_state();
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+        let payload = r#"{"id":"same","name":"Imported","container_url":"http://localhost:4444"}"#;
+
+        for _ in 0..2 {
+            let response = test::call_service(
+                &app,
+                json_post("/api/v1/profiles/import", payload).to_request(),
+            )
+            .await;
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+
+        let profiles = state.profiles.lock().await;
+        assert_eq!(profiles.len(), 2);
+        assert_ne!(profiles[0].id, profiles[1].id);
+    }
+
+    #[actix_web::test]
+    async fn a_pure_cdp_profile_is_created_without_a_webdriver_url() {
+        let state = test_state();
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            json_post(
+                "/api/v1/profiles",
+                r#"{"name":"Direct","engine":"PureCdp","headless":true}"#,
+            )
+            .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(response).await;
+        assert_eq!(body["data"]["engine"], "PureCdp");
+        assert_eq!(body["data"]["container_url"], "");
+    }
+
+    #[actix_web::test]
+    async fn a_webdriver_profile_without_a_url_is_a_bad_request() {
+        let app = test::init_service(App::new().app_data(test_state()).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            json_post("/api/v1/profiles", r#"{"name":"Needs a server"}"#).to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    async fn the_engine_can_be_changed_but_not_to_something_unknown() {
+        let state = test_state();
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+        let created = test::call_service(
+            &app,
+            json_post(
+                "/api/v1/profiles",
+                r#"{"name":"Switch","container_url":"http://localhost:4444"}"#,
+            )
+            .to_request(),
+        )
+        .await;
+        let body: Value = test::read_body_json(created).await;
+        let id = body["data"]["id"].as_str().unwrap().to_owned();
+        let uri = format!("/api/v1/profiles/{id}");
+
+        let switched = test::call_service(
+            &app,
+            json_post(&uri, r#"{"engine":"pure_cdp"}"#).to_request(),
+        )
+        .await;
+        assert_eq!(switched.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(switched).await;
+        assert_eq!(body["data"]["engine"], "PureCdp");
+
+        let unknown =
+            test::call_service(&app, json_post(&uri, r#"{"engine":"Telnet"}"#).to_request()).await;
+        assert_eq!(unknown.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(state.profiles.lock().await[0].engine, Engine::PureCdp);
+    }
+
+    #[actix_web::test]
+    async fn a_webdriver_profile_cannot_have_its_url_removed() {
+        let state = test_state();
+        let app = test::init_service(App::new().app_data(state.clone()).configure(configure)).await;
+        let created = test::call_service(
+            &app,
+            json_post(
+                "/api/v1/profiles",
+                r#"{"name":"Keep","container_url":"http://localhost:4444"}"#,
+            )
+            .to_request(),
+        )
+        .await;
+        let body: Value = test::read_body_json(created).await;
+        let id = body["data"]["id"].as_str().unwrap().to_owned();
+
+        let response = test::call_service(
+            &app,
+            json_post(&format!("/api/v1/profiles/{id}"), r#"{"container_url":""}"#).to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            state.profiles.lock().await[0].container_url,
+            "http://localhost:4444"
+        );
+    }
+
+    #[actix_web::test]
+    async fn starting_an_unknown_profile_is_a_404() {
+        let app = test::init_service(App::new().app_data(test_state()).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/profiles/nope/start")
+                .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn stopping_a_profile_with_no_session_is_a_404() {
+        let app = test::init_service(App::new().app_data(test_state()).configure(configure)).await;
+
+        let response = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/api/v1/profiles/nope/stop")
+                .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[actix_web::test]
+    async fn a_launch_failure_reports_the_step_that_failed() {
+        let failure = launch_failed(LaunchError {
+            stage: crate::session::Stage::Cookies,
+            message: "no cookies today".to_owned(),
+        });
+
+        assert_eq!(failure.status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(failure.body.status.error_code, "COOKIE_FAILED");
+        assert_eq!(failure.body.status.message, "no cookies today");
+    }
+
+    #[actix_web::test]
+    async fn the_webdriver_port_comes_from_the_url_or_defaults_to_4444() {
+        assert_eq!(webdriver_port("http://localhost:4445"), 4445);
+        assert_eq!(webdriver_port("http://localhost"), 4444);
+        assert_eq!(webdriver_port(""), 4444);
     }
 
     #[actix_web::test]
