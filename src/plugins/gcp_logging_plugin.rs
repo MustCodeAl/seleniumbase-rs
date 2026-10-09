@@ -12,7 +12,6 @@
 //! JSON file; in a future release the plugin can exchange it for an access
 //! token automatically.
 
-use crate::plugins::base_plugin::SeleniumBasePlugin;
 use reqwest::Client;
 use std::path::Path;
 use thiserror::Error;
@@ -32,7 +31,12 @@ pub enum GcsUploadError {
     Request(#[from] reqwest::Error),
 }
 
-/// Plugin that logs test activity to stdout and can upload artifacts to GCS.
+/// Uploads test artifacts, such as the files the failure plugins save, to GCS.
+///
+/// It has no hooks of its own: call [`upload_file`](Self::upload_file) after a
+/// test, for example on the screenshot a
+/// [`ScreenshotOnFailurePlugin`](crate::plugins::screen_shots::ScreenshotOnFailurePlugin)
+/// wrote.
 pub struct GcpLoggingPlugin;
 
 impl GcpLoggingPlugin {
@@ -83,30 +87,6 @@ impl GcpLoggingPlugin {
                 body,
             })
         }
-    }
-}
-
-impl SeleniumBasePlugin for GcpLoggingPlugin {
-    fn on_start(&mut self) {
-        println!("[GcpLoggingPlugin] test session started");
-    }
-
-    fn before_command(&mut self, name: &str, target: &str, value: &str) {
-        println!(
-            "[GcpLoggingPlugin] before {} target={} value={}",
-            name, target, value
-        );
-    }
-
-    fn after_command(&mut self, name: &str, target: &str, value: &str, passed: bool) {
-        println!(
-            "[GcpLoggingPlugin] after {} target={} value={} passed={}",
-            name, target, value, passed
-        );
-    }
-
-    fn on_stop(&mut self) {
-        println!("[GcpLoggingPlugin] test session stopped");
     }
 }
 

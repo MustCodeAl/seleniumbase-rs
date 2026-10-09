@@ -4,6 +4,10 @@ SeleniumBase for Rust can upload test artifacts (screenshots, logs, PDFs) to
 Amazon S3, Azure Blob Storage, and Google Cloud Storage. Each backend is behind
 an optional Cargo feature so the default build stays lightweight.
 
+These types are uploaders, not test hooks: call `upload_file` after a test, for
+example on the screenshot a failure plugin saved. See
+[Test Plugins](test_plugins.md) for the hooks.
+
 ## What you will learn
 
 - Which Cargo features enable each cloud backend.

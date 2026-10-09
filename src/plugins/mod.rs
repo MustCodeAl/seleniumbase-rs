@@ -1,8 +1,11 @@
-pub mod base_plugin;
-pub mod db_reporting_plugin;
+//! Hooks that run around a test and the helpers that go with them.
+//!
+//! See [`observer`] for how plugins are attached to a test run.
+
 pub mod driver_manager;
+pub mod observer;
 pub mod page_source;
-pub mod sb_manager;
+pub mod reports;
 pub mod screen_shots;
 
 #[cfg(feature = "s3")]

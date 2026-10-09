@@ -1,40 +1,43 @@
-use crate::plugins::base_plugin::SeleniumBasePlugin;
-use std::fs;
-use std::path::Path;
+//! Saves the page's HTML when a test fails.
 
-/// Plugin that saves page source on failure.
+use std::path::PathBuf;
+
+use async_trait::async_trait;
+
+use super::observer::{write_evidence, PageEvidence, TestPlugin};
+use crate::error::{Result, SeleniumBaseError};
+
+/// Saves the page's HTML into a directory when a test fails.
+///
+/// The file is named after the test and the time, for example
+/// `login_works_20261009_051500.html`, and an existing file is never replaced.
+#[derive(Debug, Clone)]
 pub struct PageSourceOnFailurePlugin {
-    pub output_dir: String,
+    /// Where page sources are saved.
+    pub output_dir: PathBuf,
 }
 
 impl PageSourceOnFailurePlugin {
-    pub fn new(output_dir: impl Into<String>) -> Self {
+    /// Saves page sources into `output_dir`, creating it if needed.
+    #[must_use]
+    pub fn new(output_dir: impl Into<PathBuf>) -> Self {
         Self {
             output_dir: output_dir.into(),
         }
     }
 }
 
-impl SeleniumBasePlugin for PageSourceOnFailurePlugin {
-    fn on_failure(&mut self, command: &str, target: &str, _value: &str, error: &str) {
-        let dir = Path::new(&self.output_dir);
-        fs::create_dir_all(dir).ok();
-        let safe = target.replace(['/', '\\', ':', ' '], "_");
-        let name = format!(
-            "{}_{}_{}.html",
-            safe,
-            command.replace(' ', "_"),
-            chrono::Local::now().format("%Y%m%d_%H%M%S")
-        );
-        let path = dir.join(name);
-        fs::write(
-            &path,
-            format!(
-                "<html><body><h1>Failure context</h1>\
-                 <p>Command: {}</p><p>Target: {}</p><p>Error: {}</p></body></html>",
-                command, target, error
-            ),
-        )
-        .ok();
+#[async_trait]
+impl TestPlugin for PageSourceOnFailurePlugin {
+    async fn test_failed(
+        &mut self,
+        test: &str,
+        _error: &SeleniumBaseError,
+        page: &dyn PageEvidence,
+    ) -> Result<()> {
+        let html = page.page_source().await?;
+        let path = write_evidence(&self.output_dir, test, "html", html.as_bytes()).await?;
+        tracing::info!(test, path = %path.display(), "saved the failing page's source");
+        Ok(())
     }
 }

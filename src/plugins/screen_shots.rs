@@ -1,39 +1,45 @@
-use crate::plugins::base_plugin::SeleniumBasePlugin;
-use std::fs;
-use std::path::Path;
+//! Saves a screenshot when a test fails.
 
-/// Plugin that saves a screenshot on test failure.
+use std::path::PathBuf;
+
+use async_trait::async_trait;
+
+use super::observer::{write_evidence, PageEvidence, TestPlugin};
+use crate::error::{Result, SeleniumBaseError};
+
+/// Saves a PNG screenshot of the page into a directory when a test fails.
+///
+/// The file is named after the test and the time, for example
+/// `login_works_20261009_051500.png`, and an existing file is never replaced.
+/// If the browser cannot take the screenshot, no file is written; a file that
+/// only pretends to be a screenshot would be worse than none.
+#[derive(Debug, Clone)]
 pub struct ScreenshotOnFailurePlugin {
-    pub output_dir: String,
+    /// Where screenshots are saved.
+    pub output_dir: PathBuf,
 }
 
 impl ScreenshotOnFailurePlugin {
-    pub fn new(output_dir: impl Into<String>) -> Self {
+    /// Saves screenshots into `output_dir`, creating it if needed.
+    #[must_use]
+    pub fn new(output_dir: impl Into<PathBuf>) -> Self {
         Self {
             output_dir: output_dir.into(),
         }
     }
 }
 
-impl SeleniumBasePlugin for ScreenshotOnFailurePlugin {
-    fn on_failure(&mut self, command: &str, target: &str, _value: &str, error: &str) {
-        let dir = Path::new(&self.output_dir);
-        fs::create_dir_all(dir).ok();
-        let safe = target.replace(['/', '\\', ':', ' '], "_");
-        let name = format!("{}_{}_{}.png", safe, command.replace(' ', "_"), timestamp());
-        let path = dir.join(name);
-        // Real screenshot capture requires a WebDriver reference; log the intended path.
-        fs::write(
-            &path,
-            format!(
-                "Failure screenshot placeholder for command '{}' on target '{}'\nError: {}",
-                command, target, error
-            ),
-        )
-        .ok();
+#[async_trait]
+impl TestPlugin for ScreenshotOnFailurePlugin {
+    async fn test_failed(
+        &mut self,
+        test: &str,
+        _error: &SeleniumBaseError,
+        page: &dyn PageEvidence,
+    ) -> Result<()> {
+        let png = page.screenshot_png().await?;
+        let path = write_evidence(&self.output_dir, test, "png", &png).await?;
+        tracing::info!(test, path = %path.display(), "saved a failure screenshot");
+        Ok(())
     }
-}
-
-fn timestamp() -> String {
-    chrono::Local::now().format("%Y%m%d_%H%M%S").to_string()
 }

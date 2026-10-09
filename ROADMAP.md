@@ -25,6 +25,7 @@ Design rules that apply to everything below:
 | --- | --- |
 | Dependencies | All direct crates at their latest releases; no git sources. |
 | Request interception and per-context proxies | `Page::intercept` with typed rules; `ContextOptions` and `BrowserPool::acquire_with` give a lease its own proxy, with the password answered per session. Verified on real Chrome. |
+| Test plugins | `plugins::observer::{Plugins, TestPlugin, PageEvidence}`, with `ScreenshotOnFailurePlugin`, `PageSourceOnFailurePlugin`, `ReportPlugin` and `ResultStorePlugin`. Hooks run around a test and see the page on failure, with `BaseCase` and `sb_cdp::Page`. Tested without a browser and through the Pure CDP mock; the `BaseCase` runner is not yet run on a real driver. |
 | Turso storage (`turso` feature) | `ResultStore` and `sbase report` for test-run history and flaky tests; `ProfileVault` for encrypted profiles. |
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
 | WebRTC leak shield | `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::{shield_webrtc, webrtc_policy}` (the existing `WebRtcPolicy`). Verified on real Chrome. |
@@ -148,8 +149,9 @@ step 2.
   tests and one real-Chrome launch. Not verified: the real keychain, the Tauri
   window, and the WebDriver/Docker path.
 - To do: wire `record_outcome` into `run_browser_test` and the Python-style
-  `with_db_reporting` / `database_env` options (the `Plugins` runner is the
-  place; see the plugin rebuild).
+  `with_db_reporting` / `database_env` options (`Plugins::run_browser_test` and
+  `ResultStorePlugin` are the place, and now exist; what is left is a
+  `BrowserConfig`/environment switch that attaches them).
 - Known: the feature needs Rust 1.90 (`roaring`, via `turso_core`), while the
   crate's MSRV stays 1.89 without it. `cfg_block`, also via `turso_core`,
   declares no licence in its manifest; `cargo deny check` passes.
@@ -210,6 +212,28 @@ step 2.
    `thirtyfour::WebElement`. Everything must still build with
    `--no-default-features` and headless.
 
+### Modules with no consumer (decide: wire in, keep as API, or delete)
+
+A scan found 23 source files whose public items are referenced from nowhere
+else in the crate, its tests, examples or docs, all unchanged since the first
+import on 2026-08-04. Four were the old plugin files, now rebuilt or removed;
+19 remain. Nothing here has been deleted, because some are intentional library
+surface. Decide each:
+
+- `src/api/playwright.rs` (free functions for the `playwright` feature)
+- `src/behave/common_steps.rs` (`CommonSteps`)
+- `src/cli/scripts/{logo_helper,rich_helper,run}.rs`
+- `src/common/{decorators,exceptions,shutdown}.rs`
+- `src/config/{ad_block_list,proxy_list}.rs`
+- `src/plugins/driver_manager.rs` (`DriverStack`)
+- `src/resources/assets.rs`, `src/utilities/selenium_grid.rs`
+- `src/utils/extensions/{ad_block,disable_csp,proxy_auth,recorder,sbase_ext}.rs`
+- `src/utils/translate/master_dict.rs` (the `translate` CLI command is also
+  still planned, so this one probably wants wiring in)
+
+The scan counts name mentions, so an item used only through a glob import or a
+macro would show up here wrongly; check before deleting.
+
 ## Publishing
 
 Work happens on a feature branch. To publish: run the quality gate on a clean
@@ -219,6 +243,11 @@ match.
 
 ## Decisions to remember
 
+- The `SeleniumBasePlugin` trait, `PluginManager` and `DbReportingPlugin` were
+  removed: nothing ever called the manager, so none of their hooks ran, and the
+  screenshot plugin wrote a text note into a `.png`. `TestPlugin` and `Plugins`
+  replace them with hooks that fire and do real work. There is no per-command
+  hook any more.
 - The old `seleniumbase-mcp` tool names (`quit`, `screenshot`, the one-argument
   `assert_text`, `list_macros`) were replaced by the upstream names.
 - `Cookies::save` writes JSON, not Python pickles.

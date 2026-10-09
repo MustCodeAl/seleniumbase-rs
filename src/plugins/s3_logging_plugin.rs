@@ -1,4 +1,3 @@
-use crate::plugins::base_plugin::SeleniumBasePlugin;
 use s3::creds::Credentials;
 use s3::{Bucket, Region};
 use std::path::Path;
@@ -23,7 +22,12 @@ pub enum S3UploadError {
     Upload(String),
 }
 
-/// Plugin that logs test activity to stdout and can upload artifacts to S3.
+/// Uploads test artifacts, such as the files the failure plugins save, to S3.
+///
+/// It has no hooks of its own: call [`upload_file`](Self::upload_file) after a
+/// test, for example on the screenshot a
+/// [`ScreenshotOnFailurePlugin`](crate::plugins::screen_shots::ScreenshotOnFailurePlugin)
+/// wrote.
 pub struct S3LoggingPlugin;
 
 impl S3LoggingPlugin {
@@ -71,30 +75,6 @@ impl S3LoggingPlugin {
             .map_err(|e| S3UploadError::Upload(e.to_string()))?;
 
         Ok(())
-    }
-}
-
-impl SeleniumBasePlugin for S3LoggingPlugin {
-    fn on_start(&mut self) {
-        println!("[S3LoggingPlugin] test session started");
-    }
-
-    fn before_command(&mut self, name: &str, target: &str, value: &str) {
-        println!(
-            "[S3LoggingPlugin] before {} target={} value={}",
-            name, target, value
-        );
-    }
-
-    fn after_command(&mut self, name: &str, target: &str, value: &str, passed: bool) {
-        println!(
-            "[S3LoggingPlugin] after {} target={} value={} passed={}",
-            name, target, value, passed
-        );
-    }
-
-    fn on_stop(&mut self) {
-        println!("[S3LoggingPlugin] test session stopped");
     }
 }
 

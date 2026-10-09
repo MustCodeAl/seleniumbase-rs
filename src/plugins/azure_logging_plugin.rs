@@ -12,7 +12,6 @@
 //!
 //! A future release may support Entra ID credentials and shared-key auth.
 
-use crate::plugins::base_plugin::SeleniumBasePlugin;
 use azure_storage_blob::BlobClient;
 use std::path::Path;
 use thiserror::Error;
@@ -31,7 +30,13 @@ pub enum AzureUploadError {
     Upload(String),
 }
 
-/// Plugin that logs test activity to stdout and can upload artifacts to Azure Blob Storage.
+/// Uploads test artifacts, such as the files the failure plugins save, to Azure
+/// Blob Storage.
+///
+/// It has no hooks of its own: call [`upload_file`](Self::upload_file) after a
+/// test, for example on the screenshot a
+/// [`ScreenshotOnFailurePlugin`](crate::plugins::screen_shots::ScreenshotOnFailurePlugin)
+/// wrote.
 pub struct AzureLoggingPlugin;
 
 impl AzureLoggingPlugin {
@@ -56,30 +61,6 @@ impl AzureLoggingPlugin {
             .await
             .map_err(|e| AzureUploadError::Upload(e.to_string()))?;
         Ok(())
-    }
-}
-
-impl SeleniumBasePlugin for AzureLoggingPlugin {
-    fn on_start(&mut self) {
-        println!("[AzureLoggingPlugin] test session started");
-    }
-
-    fn before_command(&mut self, name: &str, target: &str, value: &str) {
-        println!(
-            "[AzureLoggingPlugin] before {} target={} value={}",
-            name, target, value
-        );
-    }
-
-    fn after_command(&mut self, name: &str, target: &str, value: &str, passed: bool) {
-        println!(
-            "[AzureLoggingPlugin] after {} target={} value={} passed={}",
-            name, target, value, passed
-        );
-    }
-
-    fn on_stop(&mut self) {
-        println!("[AzureLoggingPlugin] test session stopped");
     }
 }
 
