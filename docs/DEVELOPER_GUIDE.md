@@ -290,7 +290,10 @@ Anti-detection layer:
 - `options.rs` — `StealthOptions` builder for launch args and prefs.
 - `reactor.rs` — background CDP `Fetch` interceptor.
 - `dprocess.rs` — detached chromedriver/browser process helpers.
-- `humanize.rs` — Bézier mouse paths and keystroke timing.
+- `humanize.rs` — Bézier mouse paths and keystroke timing, and the seedable `Rng`
+  the rest of the layer shares.
+- `randomize.rs` — the tables and assembly behind `Fingerprint::randomized`
+  (private; the method is the API).
 
 ### `src/profile_payloads/`
 

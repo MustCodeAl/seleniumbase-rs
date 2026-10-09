@@ -809,6 +809,79 @@ impl Fingerprint {
         report
     }
 
+    /// Generates a random but coherent identity for `os`, fully determined by
+    /// `seed`.
+    ///
+    /// Randomising fields one at a time yields the mismatches detectors look
+    /// for (a Mac with a Direct3D renderer, a Tokyo time zone under an `en-US`
+    /// locale), so this draws a whole machine and a whole place and derives
+    /// every field from them:
+    ///
+    /// - **Graphics**: WebGL vendor and renderer strings (and PCI ids) that the
+    ///   OS really reports: ANGLE over Direct3D 11 on Windows, ANGLE over Metal
+    ///   with an Apple chip on macOS, ANGLE over Mesa or the NVIDIA driver on
+    ///   Linux, a Mali or Adreno chip on Android, and `Apple GPU` on iOS.
+    /// - **Hardware**: core count, device memory, screen size, colour depth and
+    ///   device pixel ratio that machine ships with. A Mac gets its chip's core
+    ///   count and its model's screen; a PC's class (integrated, mainstream,
+    ///   enthusiast) decides its cores, memory and screens.
+    /// - **Place**: a locale, its language list, a time zone it is spoken in, and
+    ///   coordinates inside that time zone's main city, so locale, time zone and
+    ///   geolocation agree with each other.
+    /// - **Software**: a user agent, `navigator.platform`, `navigator.vendor` and
+    ///   Client Hints (built the way Chromium builds them) that agree with the OS
+    ///   and with the claimed Chromium major version.
+    /// - **Noise**: a canvas and audio noise [`seed`](Fingerprint::seed), so the
+    ///   noise is stable for this identity and different for the next.
+    ///
+    /// The result passes [`validate`](Fingerprint::validate) without errors or
+    /// warnings for every seed the tests try: 1,500 per OS, and edge cases such
+    /// as `0` and `u64::MAX`. The masking flags are [`StealthFlags::balanced`], so the
+    /// values are applied as they are.
+    ///
+    /// The same `seed` gives the same identity within one version of this crate.
+    /// Adding or changing a table row changes what a seed maps to, so persist
+    /// the generated [`Fingerprint`] (it implements `Serialize`), not the seed,
+    /// if an identity must outlive an upgrade.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::{Fingerprint, OsType};
+    ///
+    /// let fp = Fingerprint::randomized(OsType::Macos, 7);
+    ///
+    /// // The same seed always gives the same identity.
+    /// assert_eq!(fp, Fingerprint::randomized(OsType::Macos, 7));
+    ///
+    /// // It is coherent, with nothing even to warn about.
+    /// let report = fp.validate();
+    /// assert!(report.is_coherent() && report.warnings.is_empty());
+    ///
+    /// // A Mac reports an Apple GPU through Metal, never Direct3D.
+    /// let renderer = fp.webgl_renderer.as_deref().unwrap_or_default();
+    /// assert!(renderer.contains("Metal") && !renderer.contains("Direct3D"));
+    ///
+    /// // Another seed is another machine.
+    /// assert_ne!(fp, Fingerprint::randomized(OsType::Macos, 8));
+    /// ```
+    ///
+    /// # Limitations
+    ///
+    /// - The claimed Chromium major version comes from a short, fixed window of
+    ///   recent releases. Pair the identity with a browser of that era, or
+    ///   change `user_agent`, `client_hints` and `core_version` together.
+    /// - Client Hints report full versions as `major.0.0.0`, the form the
+    ///   user agent itself uses.
+    /// - Fonts and media devices are left unset, and the proxy is left off.
+    /// - Nothing launches a browser with the identity yet; apply it with
+    ///   [`BrowserConfig::with_fingerprint`](crate::BrowserConfig::with_fingerprint)
+    ///   or the evasion registry.
+    #[must_use]
+    pub fn randomized(os: OsType, seed: u64) -> Self {
+        super::randomize::generate(os, seed)
+    }
+
     /// Returns the tracker host block list, defaulting to
     /// [`default_tracker_hosts`] when none were supplied.
     pub fn tracker_hosts(&self) -> Vec<String> {

@@ -29,6 +29,7 @@ Design rules that apply to everything below:
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
 | WebRTC leak shield | `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::{shield_webrtc, webrtc_policy}` (the existing `WebRtcPolicy`). Verified on real Chrome. |
 | Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
+| Profile randomisation | `Fingerprint::randomized(os, seed)`: a coherent identity (WebGL, hardware, locale, time zone, Client Hints, noise seed) for all five `OsType`s that passes `validate()` for every seed tried (1,500 per OS plus edge cases). Not yet run against a real fingerprinting page. |
 | Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | 24 tools, mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
 | MCP `driver` / `sb` servers | 26 and 88 tools plus 8 stealth tools; catalogue and offline behaviour tested (`tests/mcp_webdriver.rs`). |
@@ -142,8 +143,9 @@ step 2.
   the clear-text `profiles.json` (and `tags.json`, `folders.json`); wire
   `record_outcome` into `run_browser_test` and the Python-style `with_db_reporting`
   / `database_env` options; consider the OS keychain for the vault passphrase.
-- Known: `cfg_block`, a transitive dependency of `turso_core`, declares no
-  licence in its manifest. `cargo deny check` passes.
+- Known: the feature needs Rust 1.90 (`roaring`, via `turso_core`), while the
+  crate's MSRV stays 1.89 without it. `cfg_block`, also via `turso_core`,
+  declares no licence in its manifest; `cargo deny check` passes.
 
 ### Five architecture improvements
 
@@ -156,8 +158,8 @@ step 2.
 2. **Async browser pool (done).** `BrowserPool`/`Lease` over isolated
    `BrowserContext`s, with an in-memory `SessionStore` for cookie and local-
    storage sharing. Verified on real Chrome. Still to do: a `Fingerprint` per
-   lease (item 4/5), and a per-lease proxy (item 3), both of which build on
-   `BrowserContext`.
+   lease (item 5; `Fingerprint::randomized` now supplies the identities), and a
+   per-lease proxy (item 3), both of which build on `BrowserContext`.
 3. **CDP request interception (done).**
    - Done: `Page::intercept` with typed `Rule`s (block, fulfil, modify) and a
      request log, verified on real Chrome. The existing `CdpReactor` was checked
@@ -173,8 +175,29 @@ step 2.
      does every value of Chrome's own `--force-webrtc-ip-handling-policy`; the
      shield gathers none. `sb_cdp` reuses the existing `WebRtcPolicy` for the
      flag rather than defining its own.
-4. **Hardware and profile randomisation**: WebGL, canvas, timezone and locale,
-   as `Fingerprint::randomized(os, seed)` that always passes `validate()`.
+4. **Hardware and profile randomisation (done).**
+   `Fingerprint::randomized(os, seed)` draws a whole machine (a plausible GPU
+   or Apple chip with the cores, memory and screens that machine ships with) and a
+   whole place (locale, time zone, coordinates in that zone's city), then
+   derives the WebGL strings and PCI ids, user agent, `navigator` values, Client
+   Hints (built with Chromium's own decoy-brand algorithm) and a canvas/audio
+   noise seed from them. It supports all five `OsType`s, reuses the seedable
+   `humanize::Rng` (which gained `next_u64` and `pick`), and passes
+   `validate()` with no warnings for every seed tried: 1,500 per OS plus edge
+   cases such as `0` and `u64::MAX` (`tests/fingerprint_randomized.rs`). That
+   is a sample, not a proof over all 2^64 seeds. Limitations:
+   - The tables are plausible, not sampled from real traffic, and nothing has
+     been run against a real fingerprinting page or a live bot-detection
+     service.
+   - The user agent claims one of a fixed window of Chromium majors (153-155)
+     and a few Mobile Safari releases, and Client Hints report full versions as
+     `major.0.0.0`. Refresh the window with each release; a browser of another
+     version contradicts the identity.
+   - Fonts, media devices and the proxy are left unset.
+   - A seed maps to the same identity only within one crate version, because
+     adding a table row shifts the draws; persist the `Fingerprint`, not the
+     seed.
+   - Not wired into `sb_cdp::Browser` (item 5).
 5. **Integration**: use `Fingerprint` and `EvasionRegistry` from
    `sb_cdp::Browser`; make the `ElementApi` traits stop leaking
    `thirtyfour::WebElement`. Everything must still build with

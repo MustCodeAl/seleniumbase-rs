@@ -12,6 +12,7 @@ profiles, choose masking modes, and apply native-level spoofing through CDP.
 ## What you will learn
 
 - How to use built-in fingerprint presets.
+- How to generate a random but coherent `Fingerprint` from a seed.
 - How to build a custom `Fingerprint`.
 - How `StealthFlags` masking modes work.
 - How to enable native-level CDP spoofing.
@@ -62,6 +63,61 @@ let fp = fingerprint!(linux);
 let fp = fingerprint!(android);
 let fp = fingerprint!(ios);
 ```
+
+## Randomised identities
+
+A preset is one identity; a fleet of sessions that all share it is easy to
+spot. `Fingerprint::randomized(os, seed)` generates a different, believable
+identity for each seed instead:
+
+```rust
+use seleniumbase_rs::{Fingerprint, OsType};
+
+let fp = Fingerprint::randomized(OsType::Windows, 42);
+
+// The same seed always gives the same identity.
+assert_eq!(fp, Fingerprint::randomized(OsType::Windows, 42));
+
+// It passes the coherence check, with no warnings either.
+let report = fp.validate();
+assert!(report.is_coherent() && report.warnings.is_empty());
+
+// Another seed is another machine, in another place.
+let other = Fingerprint::randomized(OsType::Windows, 43);
+assert_ne!(fp.webgl_renderer, other.webgl_renderer);
+```
+
+Detectors check that signals agree with each other, so the generator never
+randomises a field alone. It draws a whole machine and a whole place, then
+derives every field from them:
+
+| Dimension | What is generated |
+|---|---|
+| WebGL | Vendor and renderer the OS really reports: ANGLE over Direct3D 11 (Windows), ANGLE over Metal with an Apple chip (macOS), ANGLE over Mesa or the NVIDIA driver (Linux), an Adreno or Mali chip (Android), `Apple GPU` (iOS). |
+| Hardware | `hardwareConcurrency`, `deviceMemory`, screen size, `colorDepth` and device pixel ratio that machine ships with: a Mac gets its chip's core count and its model's screen, a PC's class decides its cores, memory and screens, and a phone gets its own screen. |
+| Place | A locale and language list, a time zone it is spoken in, and coordinates in that zone's main city, so `locale`, `timezone` and geolocation agree. |
+| Software | User agent, `platform`, `vendor` and Client Hints (built the way Chromium builds them) that agree with the OS and with the claimed Chromium version. |
+| Noise | A canvas and audio noise `seed`, different for every seed. |
+
+All five `OsType` values are supported. The masking flags are
+`StealthFlags::balanced()`, so the generated values are applied as they are.
+
+Things to know:
+
+- **Stable within a release.** A seed maps to the same identity for one version
+  of the crate. Adding a table row changes what a seed maps to, so store the
+  generated `Fingerprint` (it is `Serialize`), not the seed, if an identity has
+  to outlive an upgrade.
+- **The Chromium version is a fixed window.** The user agent claims one of a few
+  recent Chromium releases. Pair the identity with a browser of that era, or
+  change `user_agent`, `client_hints` and `core_version` together.
+- **Client Hints use `major.0.0.0`** for full versions, the form the user agent
+  itself uses.
+- **Not set:** fonts, media devices and the proxy. Set them on the result if you
+  need them.
+- **Not launched for you yet.** Pass the result to
+  `BrowserConfig::with_fingerprint` or to the evasion registry; `sb_cdp::Browser`
+  does not take a fingerprint yet.
 
 ## Building a custom fingerprint
 
@@ -394,6 +450,10 @@ for warning in &report.warnings {
 ```
 
 The MCP `validate_fingerprint` tool exposes the same report.
+
+A fingerprint from `Fingerprint::randomized` passes this check with no warnings
+for every seed the tests try (1,500 per OS, plus edge cases). If you edit a
+generated profile by hand, run `validate()` again afterwards.
 
 ## Humanized input
 

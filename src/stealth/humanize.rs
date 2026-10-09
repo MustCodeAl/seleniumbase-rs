@@ -30,12 +30,41 @@ impl Rng {
         }
     }
 
-    fn next_u64(&mut self) -> u64 {
+    /// Returns the next 64 random bits.
+    pub fn next_u64(&mut self) -> u64 {
         self.state = self.state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.state;
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
         z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
         z ^ (z >> 31)
+    }
+
+    /// Returns an index in `0..len`, or `0` when `len` is `0`.
+    ///
+    /// The 64 random bits are reduced with a modulo, whose bias is far below
+    /// anything observable for the small tables this is meant for.
+    fn index(&mut self, len: usize) -> usize {
+        let Some(bound) = u64::try_from(len).ok().filter(|bound| *bound > 0) else {
+            return 0;
+        };
+        usize::try_from(self.next_u64() % bound).unwrap_or(0)
+    }
+
+    /// Picks one element of `items`, uniformly.
+    ///
+    /// Repeat an element to weight it. An empty array is rejected when the
+    /// code is compiled, so this cannot panic at run time.
+    ///
+    /// ```
+    /// use seleniumbase_rs::stealth::humanize::Rng;
+    ///
+    /// let mut rng = Rng::new(7);
+    /// let colour = rng.pick(&["red", "green", "blue"]);
+    /// assert!(["red", "green", "blue"].contains(colour));
+    /// ```
+    pub fn pick<'a, T, const N: usize>(&mut self, items: &'a [T; N]) -> &'a T {
+        const { assert!(N > 0, "cannot pick from an empty array") };
+        &items[self.index(N)]
     }
 
     /// Returns a float in `[0.0, 1.0)`.
@@ -197,5 +226,53 @@ mod tests {
     fn keystroke_delay_handles_swapped_bounds() {
         let d = keystroke_delay(180, 40, 1);
         assert!((40..=180).contains(&d));
+    }
+
+    #[test]
+    fn next_u64_is_deterministic_for_seed() {
+        let mut a = Rng::new(5);
+        let mut b = Rng::new(5);
+        let first: Vec<u64> = (0..8).map(|_| a.next_u64()).collect();
+        let second: Vec<u64> = (0..8).map(|_| b.next_u64()).collect();
+        assert_eq!(first, second);
+        assert_ne!(first[0], first[1], "the stream must advance");
+    }
+
+    #[test]
+    fn pick_reaches_every_element_and_nothing_else() {
+        let items = ["a", "b", "c", "d"];
+        let mut rng = Rng::new(11);
+        let mut seen = std::collections::BTreeSet::new();
+        for _ in 0..200 {
+            seen.insert(*rng.pick(&items));
+        }
+        assert_eq!(seen.len(), items.len());
+    }
+
+    #[test]
+    fn pick_is_deterministic_for_seed() {
+        let items = [1, 2, 3, 4, 5, 6, 7, 8];
+        let draw = |seed| -> Vec<i32> {
+            let mut rng = Rng::new(seed);
+            (0..16).map(|_| *rng.pick(&items)).collect()
+        };
+        assert_eq!(draw(3), draw(3));
+        assert_ne!(draw(3), draw(4));
+    }
+
+    #[test]
+    fn pick_handles_edge_seeds_and_a_single_element() {
+        for seed in [0, 1, u64::MAX] {
+            let mut rng = Rng::new(seed);
+            assert_eq!(*rng.pick(&[42]), 42);
+            assert!([1, 2, 3].contains(rng.pick(&[1, 2, 3])));
+        }
+    }
+
+    #[test]
+    fn index_of_an_empty_range_is_zero() {
+        let mut rng = Rng::new(9);
+        assert_eq!(rng.index(0), 0);
+        assert_eq!(rng.index(1), 0);
     }
 }
