@@ -24,7 +24,7 @@ The crate root exposes the following modules:
 | `profile_payloads` | External browser profile payload parsing and conversion. |
 | `plugins` | Cloud/logging plugin interfaces. |
 | `resources` | Static assets bundled with the crate. |
-| `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, and (with `test-util`) a mock browser. |
+| `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
 | `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |

@@ -27,6 +27,7 @@
 //! # }
 //! ```
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
@@ -58,6 +59,8 @@ pub struct MockCtrl {
 struct Inner {
     state: Mutex<State>,
     events: broadcast::Sender<CdpEvent>,
+    /// Set when the "browser" has gone away; see [`MockCtrl::disconnect`].
+    disconnected: AtomicBool,
 }
 
 #[derive(Default)]
@@ -83,6 +86,7 @@ impl MockCtrl {
             inner: Arc::new(Inner {
                 state: Mutex::new(State::default()),
                 events,
+                disconnected: AtomicBool::new(false),
             }),
         };
         ctrl.install_defaults();
@@ -159,6 +163,19 @@ impl MockCtrl {
             .collect()
     }
 
+    /// Makes the mocked browser go away, as a crashed Chrome would.
+    ///
+    /// [`Browser::is_connected`](super::Browser::is_connected) turns `false`
+    /// and every later command fails. [`Browser::close`](super::Browser::close)
+    /// does the same.
+    pub fn disconnect(&self) {
+        self.inner.disconnected.store(true, Ordering::SeqCst);
+    }
+
+    pub(crate) fn is_disconnected(&self) -> bool {
+        self.inner.disconnected.load(Ordering::SeqCst)
+    }
+
     /// Pushes a protocol event to everything listening, as the browser would.
     pub fn emit(&self, method: &str, params: Value, session_id: Option<&str>) {
         // Nobody listening is fine for a test.
@@ -179,6 +196,9 @@ impl MockCtrl {
         params: &Value,
         session_id: Option<&str>,
     ) -> Result<Value, String> {
+        if self.is_disconnected() {
+            return Err("the connection is closed".to_owned());
+        }
         let mut state = locked(&self.inner.state);
         state.calls.push(Call {
             method: method.to_owned(),

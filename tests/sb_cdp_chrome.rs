@@ -12,7 +12,9 @@ use std::net::TcpListener;
 use std::thread;
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page, SelectBy, State};
+use seleniumbase_rs::sb_cdp::{
+    Browser, BrowserPool, Cookie, LaunchOptions, Page, PoolOptions, SelectBy, State,
+};
 use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::json;
@@ -584,4 +586,87 @@ async fn human_input_is_trusted_moves_in_many_steps_and_types_with_varied_timing
     );
 
     browser.close().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn pooled_workers_are_isolated_and_can_share_a_session_in_memory() {
+    let base = serve();
+    let pool = BrowserPool::new(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .build()
+            .unwrap(),
+        PoolOptions::builder()
+            .max_browsers(2)
+            .contexts_per_browser(2)
+            .build()
+            .unwrap(),
+    );
+
+    // Four workers at once, each setting a cookie that only it may see.
+    let mut workers = tokio::task::JoinSet::new();
+    for n in 0..4 {
+        let (pool, base) = (pool.clone(), base.clone());
+        workers.spawn(async move {
+            let lease = pool.acquire().await.unwrap();
+            lease.page().goto(format!("{base}/")).await.unwrap();
+            let mine = Cookie::new("who", format!("worker-{n}")).domain("127.0.0.1");
+            lease.page().cookies().set(&[mine]).await.unwrap();
+            // Stay long enough for the others to be running too.
+            tokio::time::sleep(Duration::from_millis(400)).await;
+            let seen: Vec<String> = lease
+                .page()
+                .cookies()
+                .all()
+                .await
+                .unwrap()
+                .into_iter()
+                .filter(|cookie| cookie.name == "who")
+                .map(|cookie| cookie.value)
+                .collect();
+            lease.release().await;
+            (n, seen)
+        });
+    }
+    while let Some(done) = workers.join_next().await {
+        let (n, seen) = done.unwrap();
+        assert_eq!(
+            seen,
+            [format!("worker-{n}")],
+            "worker {n} must see only its own cookie"
+        );
+    }
+    assert_eq!(
+        pool.stats().await.launched,
+        2,
+        "four leases fit in two browsers"
+    );
+
+    // One worker signs in; another, in a fresh context, starts signed in.
+    let alice = pool.acquire().await.unwrap();
+    alice.page().goto(format!("{base}/cookie")).await.unwrap();
+    alice.save_session("alice").await.unwrap();
+    alice.release().await;
+    assert_eq!(pool.sessions().names(), ["alice"]);
+
+    let bob = pool.acquire().await.unwrap();
+    bob.page().goto(format!("{base}/")).await.unwrap();
+    let before = bob.page().cookies().all().await.unwrap();
+    assert!(
+        before.iter().all(|cookie| cookie.name != "sid"),
+        "a new context starts empty"
+    );
+    assert!(bob.load_session("alice").await.unwrap());
+    let after = bob.page().cookies().all().await.unwrap();
+    assert!(
+        after
+            .iter()
+            .any(|cookie| cookie.name == "sid" && cookie.value == "abc123"),
+        "the saved login arrives in the new context"
+    );
+    bob.release().await;
+
+    pool.close().await;
 }

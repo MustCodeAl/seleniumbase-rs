@@ -24,6 +24,7 @@ Design rules that apply to everything below:
 | Area | State |
 | --- | --- |
 | Dependencies | All direct crates at their latest releases; no git sources. |
+| Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
 | Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
 | Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | 24 tools, mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
@@ -141,8 +142,11 @@ step 2.
    Still to do: a WebDriver `human_click` with a real pointer path (needs a
    working driver to verify), and wiring `Fingerprint::humanize` through
    `sb_cdp::Browser` once item 5 lands.
-2. **Async browser pool**: a thread-safe pool of browsers with in-memory
-   session and cookie sync between workers.
+2. **Async browser pool (done).** `BrowserPool`/`Lease` over isolated
+   `BrowserContext`s, with an in-memory `SessionStore` for cookie and local-
+   storage sharing. Verified on real Chrome. Still to do: a `Fingerprint` per
+   lease (item 4/5), and a per-lease proxy (item 3), both of which build on
+   `BrowserContext`.
 3. **CDP request interception**: per-tab proxy routing via browser contexts,
    typed intercept rules, WebRTC/mDNS leak shielding with a self-test. Verify
    first whether `CdpReactor` intercepts page traffic at all: it enables

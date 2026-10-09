@@ -60,6 +60,7 @@
 mod browser;
 mod captcha;
 mod client;
+mod context;
 mod expect;
 mod human;
 mod input;
@@ -68,6 +69,8 @@ mod locator;
 #[cfg(any(test, feature = "test-util"))]
 mod mock;
 mod page;
+mod pool;
+mod session_store;
 mod state;
 mod sync;
 mod types;
@@ -78,6 +81,8 @@ pub use browser::Browser;
 pub use captcha::Captcha;
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
+#[doc(inline)]
+pub use context::BrowserContext;
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
@@ -93,6 +98,10 @@ pub use locator::Locator;
 pub use mock::{Call, MockCtrl};
 #[doc(inline)]
 pub use page::Page;
+#[doc(inline)]
+pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
+#[doc(inline)]
+pub use session_store::{Session, SessionStore};
 #[doc(inline)]
 pub use state::{
     Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds, WindowState,

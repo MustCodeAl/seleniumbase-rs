@@ -212,7 +212,15 @@ impl Client {
         match &self.link {
             Link::Ws(ws) => !ws.reader.is_finished(),
             #[cfg(any(test, feature = "test-util"))]
-            Link::Mock(_) => true,
+            Link::Mock(ctrl) => !ctrl.is_disconnected(),
+        }
+    }
+
+    /// Marks a mocked connection as closed; a real one closes with its process.
+    #[cfg(any(test, feature = "test-util"))]
+    pub(crate) fn mark_closed(&self) {
+        if let Link::Mock(ctrl) = &self.link {
+            ctrl.disconnect();
         }
     }
 }

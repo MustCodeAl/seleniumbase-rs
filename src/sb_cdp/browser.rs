@@ -336,7 +336,7 @@ impl Browser {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the tab cannot be created.
     pub async fn new_page(&self, url: Option<impl AsRef<str>>) -> Result<Page, SeleniumBaseError> {
-        self.open_target(url.as_ref().map(AsRef::as_ref), false)
+        self.open_target(url.as_ref().map(AsRef::as_ref), false, None)
             .await
     }
 
@@ -349,25 +349,25 @@ impl Browser {
         &self,
         url: Option<impl AsRef<str>>,
     ) -> Result<Page, SeleniumBaseError> {
-        self.open_target(url.as_ref().map(AsRef::as_ref), true)
+        self.open_target(url.as_ref().map(AsRef::as_ref), true, None)
             .await
     }
 
-    async fn open_target(
+    pub(super) async fn open_target(
         &self,
         url: Option<&str>,
         window: bool,
+        context: Option<&str>,
     ) -> Result<Page, SeleniumBaseError> {
         // Open blank and navigate once attached. Creating the tab at the URL
         // would start loading before anything is listening, and a fresh tab's
         // blank document already reports "complete", so waiting on it can
         // return before the real navigation has begun.
-        let response = self
-            .execute(
-                "Target.createTarget",
-                json!({ "url": "about:blank", "newWindow": window }),
-            )
-            .await?;
+        let mut params = json!({ "url": "about:blank", "newWindow": window });
+        if let Some(context) = context {
+            params["browserContextId"] = json!(context);
+        }
+        let response = self.execute("Target.createTarget", params).await?;
         let id = response["targetId"].as_str().ok_or_else(|| {
             SeleniumBaseError::cdp_driver("Target.createTarget returned no targetId")
         })?;
@@ -566,6 +566,8 @@ impl Browser {
                 let _ = child.kill().await;
             }
         }
+        #[cfg(any(test, feature = "test-util"))]
+        self.inner.client.mark_closed();
         Ok(())
     }
 }

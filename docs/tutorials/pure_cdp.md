@@ -139,6 +139,60 @@ differ. It is slower than `locator.click()` by design. `Behavior::builder()
 .seed(n)` makes the randomness reproducible. The planning is a pure module,
 `stealth::behavior`, usable on its own.
 
+## Isolated contexts
+
+`browser.new_context()` opens a `BrowserContext`: tabs that share no cookies,
+storage or cache with anything else, like an incognito window. Open tabs in it
+with `context.new_page(url)` and throw everything away with `context.dispose()`.
+It is much cheaper than a second Chrome process.
+
+## Many workers: the browser pool
+
+`BrowserPool` shares a few Chrome processes between many concurrent workers.
+Each `acquire()` returns a `Lease`: its own isolated context and a tab.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
+
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let pool = BrowserPool::new(
+    LaunchOptions::builder().headless(true).build()?,
+    PoolOptions::builder().max_browsers(2).contexts_per_browser(4).build()?,
+);
+
+let worker = pool.acquire().await?;       // waits its turn if the pool is full
+worker.page().goto("https://example.com/login").await?;
+// ... sign in ...
+worker.save_session("alice").await?;      // cookies and local storage, in memory
+worker.release().await;                   // discards the context
+
+let another = pool.acquire().await?;
+another.page().goto("https://example.com").await?;
+another.load_session("alice").await?;     // signed in, without logging in again
+another.release().await;
+pool.close().await;
+# Ok(())
+# }
+```
+
+- **Bounded and fair.** The pool never holds more than `max_browsers *
+  contexts_per_browser` leases; waiting workers queue in order, and `acquire`
+  gives up with a `WaitTimeout` after `acquire_timeout` (60 s by default).
+- **Lazy, reused, replaced.** Chrome starts on the first `acquire`, is reused,
+  and is replaced after `retire_after` leases (100 by default) so a long-running
+  pool does not accumulate leaked memory. A Chrome that has died is replaced
+  too.
+- **Isolated.** Workers cannot see each other's cookies.
+- **Sessions in memory.** `pool.sessions()` is a `SessionStore` shared by every
+  lease. Nothing is written to disk and its `Debug` output never shows a value.
+  Expired cookies are skipped on load, and local storage is restored only if the
+  page is on the origin it was captured from.
+- **Release it.** `lease.release().await` frees the slot at once. Dropping a
+  lease also frees it, but in the background.
+
+Use `BrowserPool::with_launcher` to supply browsers yourself, for example to
+connect to existing ones or, with `test-util`, to hand out mocked browsers.
+
 ## CAPTCHAs
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,
