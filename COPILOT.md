@@ -1,6 +1,6 @@
 # SeleniumBase Rust Port — Copilot / AI Agent Guide
 
-This file is the single source of truth for AI agents working on the Rust port (`rust-port/`). Read it first before making changes.
+This file is the single source of truth for AI agents working on this repository. Read it first before making changes.
 
 ## What this project is
 
@@ -14,8 +14,13 @@ Run these after any non-trivial change:
 cargo fmt --all -- --check
 cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings
 cargo test --features mcp-server
-mdbook build   # from rust-port/docs if book.toml exists
+cargo deny check          # advisories, licenses, bans, sources
+mdbook build              # book.toml lives at the repository root
 ```
+
+The crate declares `rust-version = "1.89"`. That floor comes from the
+dependency graph (`aes` currently requires it), so raise it deliberately and
+keep the `msrv` CI job and the `Dockerfile` base image in step with it.
 
 ## Layout
 

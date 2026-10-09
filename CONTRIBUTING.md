@@ -40,9 +40,9 @@ you oriented quickly.
 ## Quick Start
 
 ```bash
-# Clone the workspace
-git clone https://github.com/MustCodeAl/SeleniumBase.git
-cd SeleniumBase/rust-port
+# Clone the crate
+git clone https://github.com/MustCodeAl/seleniumbase-rs.git
+cd seleniumbase-rs
 
 # Run the default test suite
 cargo test
@@ -88,7 +88,7 @@ export DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib"
 ## Project Layout
 
 ```text
-rust-port/
+seleniumbase-rs/
 ├── src/
 │   ├── lib.rs                 # Crate root and public re-exports
 │   ├── api/                   # BaseCase implementation split by topic
@@ -226,9 +226,21 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
 cargo fmt --all -- --check
 cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings
 cargo test --features s3,azure,gcp,playwright,mcp-server
+cargo deny check
 mdbook build
 cargo publish --dry-run
 ```
+
+`cargo deny check` gates advisories, licenses, banned crates, and dependency
+sources against `deny.toml`. Every advisory that is ignored there carries a
+written rationale, so if a new one appears, either upgrade the dependency or
+add an entry explaining why the risk is acceptable — do not widen the ignore
+list silently.
+
+The crate declares `rust-version = "1.89"`, which the `msrv` CI job enforces
+with that exact toolchain. The floor is set by the dependency graph rather than
+by the crate's own source, so when it has to move, bump `rust-version`, the
+`msrv` job, and the `Dockerfile` base image together.
 
 On macOS, prefix the test/publish commands with:
 
@@ -388,6 +400,7 @@ binary-signature detection.
 - [ ] `cargo fmt --all -- --check` is clean.
 - [ ] `cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings` is clean.
 - [ ] `cargo test --features s3,azure,gcp,playwright,mcp-server` passes.
+- [ ] `cargo deny check` is clean.
 - [ ] `mdbook build` succeeds.
 - [ ] New public items have doc comments.
 - [ ] New features are covered by tests or examples.

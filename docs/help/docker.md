@@ -13,16 +13,10 @@ configuring CI.
 
 ## Build the image
 
-From the `rust-port` directory:
-
-```bash
-docker build -t seleniumbase-rs .
-```
-
 From the repository root:
 
 ```bash
-docker build -f rust-port/Dockerfile -t seleniumbase-rs ./rust-port
+docker build -t seleniumbase-rs .
 ```
 
 ## Run the CLI

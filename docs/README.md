@@ -85,7 +85,7 @@ crate can be published.
 ## Build this book locally
 
 Install [mdBook](https://rust-lang.github.io/mdBook/guide/installation.html),
-then run from the `rust-port` directory:
+then run from the repository root:
 
 ```bash
 mdbook serve --open

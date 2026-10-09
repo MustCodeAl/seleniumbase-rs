@@ -14,7 +14,6 @@ files, and more. This page covers the most common workflows.
 ## Build the CLI
 
 ```bash
-cd rust-port
 cargo build --bin sbase
 ```
 

@@ -24,7 +24,7 @@ presentations, and optional stealth/CDP integrations.
 ## Repository layout
 
 ```text
-rust-port/
+seleniumbase-rs/
 ├── Cargo.toml              # Crate manifest (optional cloud/Playwright/MCP features)
 ├── README.md               # User-facing quick-start and feature index
 ├── DOCS.md                 # Overview of major features

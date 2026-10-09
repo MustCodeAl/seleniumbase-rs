@@ -49,7 +49,6 @@ This README is the project landing page. If you are reading the mdBook, see the
 
 ```bash
 # Run a UC-mode smoke test against seleniumbase.io
-cd rust-port
 cargo run --bin sbase -- --uc open https://seleniumbase.io
 
 # Or assert on title from the CLI
