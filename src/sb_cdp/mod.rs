@@ -76,6 +76,7 @@ mod session_store;
 mod state;
 mod sync;
 mod types;
+mod webrtc;
 
 #[doc(inline)]
 pub use browser::Browser;
@@ -112,3 +113,5 @@ pub use state::{
 };
 #[doc(inline)]
 pub use types::{ElementInfo, PageInfo, Permission, Point, Rect, Scroll, SelectBy, State};
+#[doc(inline)]
+pub use webrtc::{AddressKind, CandidateKind, IceCandidate, WebRtcPolicy, WebRtcReport};

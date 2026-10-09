@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
+use super::webrtc::WebRtcPolicy;
 use crate::error::SeleniumBaseError;
 use crate::stealth::patcher::find_system_chrome;
 
@@ -167,6 +168,7 @@ pub struct LaunchOptions {
     pub(crate) window_size: Option<(u32, u32)>,
     pub(crate) window_position: Option<(i32, i32)>,
     pub(crate) no_sandbox: bool,
+    pub(crate) webrtc: WebRtcPolicy,
     pub(crate) extra_args: Vec<String>,
     pub(crate) startup_timeout: Duration,
 }
@@ -223,6 +225,9 @@ impl LaunchOptions {
         if self.no_sandbox {
             args.push("--no-sandbox".to_owned());
         }
+        if let Some(flag) = self.webrtc.chrome_flag() {
+            args.push(flag.to_owned());
+        }
         if let Some(proxy) = &self.proxy {
             // Chrome ignores credentials here; they are supplied over the
             // protocol when the proxy asks for them.
@@ -269,6 +274,7 @@ pub struct LaunchOptionsBuilder {
     window_size: Option<(u32, u32)>,
     window_position: Option<(i32, i32)>,
     no_sandbox: bool,
+    webrtc: WebRtcPolicy,
     extra_args: Vec<String>,
     startup_timeout: Duration,
 }
@@ -290,6 +296,7 @@ impl Default for LaunchOptionsBuilder {
             window_size: None,
             window_position: None,
             no_sandbox: std::env::var_os("SB_NO_SANDBOX").is_some(),
+            webrtc: WebRtcPolicy::default(),
             extra_args: Vec::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
         }
@@ -297,6 +304,14 @@ impl Default for LaunchOptionsBuilder {
 }
 
 impl LaunchOptionsBuilder {
+    /// How much of the machine's network a page's WebRTC may reveal; see
+    /// [`WebRtcPolicy`]. Allowed by default.
+    #[must_use]
+    pub fn webrtc_policy(mut self, policy: WebRtcPolicy) -> Self {
+        self.webrtc = policy;
+        self
+    }
+
     /// Navigates to `url` as soon as the browser is up.
     #[must_use]
     pub fn url(mut self, url: impl Into<String>) -> Self {
@@ -466,6 +481,7 @@ impl LaunchOptionsBuilder {
             window_size: self.window_size,
             window_position: self.window_position,
             no_sandbox: self.no_sandbox,
+            webrtc: self.webrtc,
             extra_args: self.extra_args,
             startup_timeout: self.startup_timeout,
         }

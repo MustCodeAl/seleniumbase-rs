@@ -472,6 +472,14 @@ impl Browser {
             json!({ "expression": super::page::HELPER_JS }),
         )
         .await?;
+        if let Some(shim) = self.inner.options.webrtc.shim() {
+            send(
+                "Page.addScriptToEvaluateOnNewDocument",
+                json!({ "source": shim }),
+            )
+            .await?;
+            send("Runtime.evaluate", json!({ "expression": shim })).await?;
+        }
         if self.inner.options.ad_block {
             send("Network.enable", json!({})).await?;
             send(

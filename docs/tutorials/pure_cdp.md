@@ -11,6 +11,7 @@ It is the engine behind the `cdp` MCP server.
 - Fill forms, click, and press keys with trusted input
 - Wait and assert with retrying expectations
 - Work with frames, cookies, storage and tabs
+- Keep WebRTC from revealing the machine's addresses
 - Test code that drives pages without launching Chrome
 
 ## Launch and navigate
@@ -255,6 +256,41 @@ pool.close().await;
 
 Use `BrowserPool::with_launcher` to supply browsers yourself, for example to
 connect to existing ones or, with `test-util`, to hand out mocked browsers.
+
+## Keeping WebRTC from leaking addresses
+
+A page can open an `RTCPeerConnection` without asking, and the candidates it
+gathers name the machine's network addresses. That is how a proxy or VPN gets
+bypassed. `page.webrtc_report()` gathers candidates the way a tracking script
+would (with no STUN server, so nothing leaves the machine) and tells you what a
+page can learn:
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, WebRtcPolicy};
+
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let browser = Browser::launch(
+    LaunchOptions::builder().webrtc_policy(WebRtcPolicy::Block).build()?,
+)
+.await?;
+let page = browser.default_page().await?;
+assert!(page.webrtc_report().await?.is_clean());
+# Ok(())
+# }
+```
+
+- `WebRtcPolicy::Allow` (the default) leaves Chrome alone. On a typical machine
+  the report then shows `.local` names for the host's addresses, which is
+  enough for a script to recognise the machine.
+- `WebRtcPolicy::Block` sets Chrome's `disable_non_proxied_udp` policy and
+  makes every connection relay-only, dropping its STUN servers. Nothing is
+  gathered, so pages that need WebRTC calls will not connect.
+- `page.shield_webrtc(policy)` applies a policy to a tab that is already open,
+  and to every document it loads afterwards.
+
+Chrome's `default_public_interface_only` policy is deliberately not offered: in
+Chrome 155 it still lists the `.local` candidates, so it hides nothing the probe
+can see.
 
 ## CAPTCHAs
 

@@ -10,7 +10,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State};
+use seleniumbase_rs::sb_cdp::{
+    Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State, WebRtcPolicy,
+};
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::{json, Value};
 
@@ -697,4 +699,85 @@ async fn an_elements_screen_rect_adds_the_window_origin_and_toolbar_and_removes_
         (rect.x, rect.y, rect.width, rect.height),
         (118.0, 300.0, 40.0, 20.0)
     );
+}
+
+// ----------------------------------------------------------------------
+// WebRTC leak probing and shielding
+// ----------------------------------------------------------------------
+
+#[tokio::test]
+async fn the_webrtc_probe_turns_candidate_lines_into_a_report() {
+    let (page, mock) = quick_page().await;
+    mock.reply(
+        "Runtime.evaluate",
+        value(json!([
+            "candidate:1 1 udp 2113937151 9b1c4d2e-0000-0000-0000-000000000000.local 50000 typ host",
+            "candidate:2 1 udp 1677729535 203.0.113.9 61000 typ srflx raddr 0.0.0.0 rport 0",
+            "not a candidate",
+        ])),
+    );
+
+    let report = page.webrtc_report().await.unwrap();
+
+    assert_eq!(
+        report.candidates().len(),
+        2,
+        "lines that are not candidates are dropped"
+    );
+    assert!(!report.is_clean());
+    assert_eq!(report.leaks().len(), 2);
+}
+
+#[tokio::test]
+async fn a_page_that_gathers_nothing_has_a_clean_report() {
+    let (page, mock) = quick_page().await;
+    mock.reply("Runtime.evaluate", value(json!([])));
+
+    assert!(page.webrtc_report().await.unwrap().is_clean());
+}
+
+#[tokio::test]
+async fn blocking_webrtc_installs_the_shim_now_and_for_every_new_document() {
+    let (page, mock) = quick_page().await;
+
+    page.shield_webrtc(WebRtcPolicy::Block).await.unwrap();
+
+    assert_eq!(
+        shim_installs(&mock),
+        1,
+        "registered once for every new document"
+    );
+    let now: Vec<_> = mock
+        .calls_to("Runtime.evaluate")
+        .into_iter()
+        .filter(|c| {
+            c.params["expression"]
+                .as_str()
+                .is_some_and(|e| e.contains("iceTransportPolicy"))
+        })
+        .collect();
+    assert!(!now.is_empty(), "the current document is shielded too");
+}
+
+#[tokio::test]
+async fn allowing_webrtc_installs_no_script() {
+    let (page, mock) = quick_page().await;
+
+    page.shield_webrtc(WebRtcPolicy::Allow).await.unwrap();
+
+    assert_eq!(shim_installs(&mock), 0);
+}
+
+/// How many scripts registered for new documents carry the WebRTC shim. The
+/// page helper is registered the same way, so counting every registration
+/// would be wrong.
+fn shim_installs(mock: &MockCtrl) -> usize {
+    mock.calls_to("Page.addScriptToEvaluateOnNewDocument")
+        .into_iter()
+        .filter(|call| {
+            call.params["source"]
+                .as_str()
+                .is_some_and(|source| source.contains("iceTransportPolicy"))
+        })
+        .count()
 }
