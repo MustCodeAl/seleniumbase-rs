@@ -3,6 +3,7 @@
 
 Usage:
     python3 -I tools/parity/seed_manifest.py            # from the repository root
+    python3 -I tools/parity/seed_manifest.py --reclassify-planned
 
 For each name in parity/upstream-api.json that parity/api.toml does not yet
 list, this looks for a Rust counterpart and writes an entry:
@@ -12,7 +13,9 @@ list, this looks for a Rust counterpart and writes an entry:
   not-applicable  a known reason (recorded in the tables below)
   planned         nothing found; someone has to decide
 
-Existing entries are never changed, so hand edits survive. Review the new
+Existing entries are never changed, so hand edits survive; with
+`--reclassify-planned`, entries still marked `planned` are upgraded when a
+counterpart has since appeared. Review the new
 `planned` entries, then run `cargo test --test parity`.
 """
 import json
@@ -75,7 +78,137 @@ CDP_COMPOSED = {
     "close_active_tab": "Page::close", "grant_permissions": "Browser::grant_permissions",
     "reset_permissions": "Browser::reset_permissions",
 }
+CDP_COMPOSED.update({
+    # Retrying assertions: `page.locator(sel).expect()` / `page.expect()`.
+    "assert_element": "LocatorExpect::to_be_visible",
+    "assert_element_visible": "LocatorExpect::to_be_visible",
+    "assert_element_present": "LocatorExpect::to_exist",
+    "assert_element_absent": "LocatorExpect::to_exist",
+    "assert_element_not_visible": "LocatorExpect::to_be_hidden",
+    "assert_element_attribute": "LocatorExpect::to_have_attribute",
+    "assert_text": "LocatorExpect::to_contain_text",
+    "assert_exact_text": "LocatorExpect::to_have_text",
+    "assert_text_not_visible": "LocatorExpect::to_contain_text",
+    "assert_title": "PageExpect::to_have_title",
+    "assert_title_contains": "PageExpect::to_contain_title",
+    "assert_url": "PageExpect::to_have_url",
+    "assert_url_contains": "PageExpect::to_contain_url",
+    "assert_any_of_elements_visible": "Page::wait_for_any",
+    "assert_any_of_elements_present": "Page::wait_for_any",
+    "wait_for_any_of_elements_visible": "Page::wait_for_any",
+    "wait_for_any_of_elements_present": "Page::wait_for_any",
+    # Waits: `locator.wait_for(State::...)`.
+    "wait_for_element": "Locator::wait_for",
+    "wait_for_element_visible": "Locator::wait_for",
+    "wait_for_element_present": "Locator::wait_for",
+    "wait_for_element_absent": "Locator::wait_for",
+    "wait_for_element_not_visible": "Locator::wait_for",
+    "wait_for_text": "LocatorExpect::to_contain_text",
+    "wait_for_text_not_visible": "LocatorExpect::to_contain_text",
+    # Clicking and form controls.
+    "click_if_visible": "Locator::click",
+    "click_nth_element": "Locator::nth",
+    "click_nth_visible_element": "Locator::nth",
+    "click_visible_elements": "Locator::visible",
+    "click_link": "Locator::click",
+    "click_and_hold": "Mouse::down",
+    "mouse_click": "Mouse::click",
+    "hover_and_click": "Locator::hover",
+    "nested_click": "Locator::locator",
+    "clear_input": "Locator::clear",
+    "select": "Locator::select_option",
+    "check_if_unchecked": "Locator::check",
+    "uncheck_if_checked": "Locator::uncheck",
+    "select_if_unselected": "Locator::set_checked",
+    "unselect_if_selected": "Locator::set_checked",
+    "fast_type": "Locator::fill",
+    "fast_keys": "Keyboard::insert_text",
+    # Finding and reading elements.
+    "find_element": "Page::locator", "find_elements": "Locator::all",
+    "find_all": "Locator::all", "find_visible_elements": "Locator::visible",
+    "find_element_by_text": "Page::locator", "find_elements_by_text": "Locator::all",
+    "get_parent": "Locator::parent", "get_nested_element": "Locator::locator",
+    "get_element_attribute": "Locator::attribute", "get_element_attributes": "Locator::info",
+    "get_element_html": "Locator::html", "get_element_rect": "Locator::bounding_box",
+    "get_element_position": "Locator::bounding_box", "get_element_size": "Locator::bounding_box",
+    "is_attribute_present": "Locator::attribute", "is_text_visible": "Locator::text",
+    "is_exact_text_visible": "Locator::text", "remove_element": "Locator::remove",
+    "remove_elements": "Locator::remove", "remove_from_dom": "Locator::remove",
+    "set_attributes": "Locator::set_attribute", "js_scroll_into_view": "Locator::scroll_into_view",
+    "highlight_overlay": "Locator::flash",
+    # Scrolling and page state.
+    "scroll_by_y": "Page::scroll", "scroll_down": "Page::scroll", "scroll_up": "Page::scroll",
+    "scroll_to_bottom": "Page::scroll", "scroll_to_top": "Page::scroll", "scroll_to_y": "Page::scroll",
+    "get_page_title": "Page::title", "get_active_element": "Page::evaluate",
+    "get_active_element_css": "Page::evaluate", "get_origin": "Page::evaluate",
+    "goto_if_not_url": "Page::goto", "execute_script": "Page::evaluate",
+    "get_document": "Page::execute", "get_flattened_document": "Page::execute",
+    "get_navigation_history": "Page::execute",
+    "save_screenshot_to_logs": "Page::screenshot", "save_page_source": "Page::content",
+    "save_page_source_to_logs": "Page::content", "save_as_html": "Page::content",
+    "save_as_html_to_logs": "Page::content", "save_as_pdf_to_logs": "Page::pdf",
+    # Cookies, storage, windows, tabs and the browser itself.
+    "clear_cookies": "Cookies::clear", "set_all_cookies": "Cookies::set",
+    "get_cookie_string": "Cookies::header",
+    "get_local_storage_item": "Storage::get", "set_local_storage_item": "Storage::set",
+    "get_session_storage_item": "Storage::get", "set_session_storage_item": "Storage::set",
+    "get_window": "Window::bounds", "get_window_position": "Window::bounds",
+    "get_window_size": "Window::bounds", "get_screen_rect": "Window::bounds",
+    "reset_window_size": "Window::restore",
+    "switch_to_tab": "Browser::pages", "switch_to_window": "Browser::pages",
+    "switch_to_newest_window": "Browser::newest_page", "get_active_tab": "Browser::default_page",
+    "stop": "Browser::close", "quit": "Browser::close",
+    "get_port": "Browser::debugging_port", "get_rd_port": "Browser::debugging_port",
+    "get_rd_host": "Browser::http_url", "get_rd_url": "Browser::http_url",
+    "get_endpoint_url": "Browser::http_url", "get_websocket_url": "Browser::websocket_url",
+    "grant_all_permissions": "Browser::grant_permissions",
+    "set_download_path": "Browser::set_download_dir",
+    "click_with_offset": "Locator::click_at",
+    "get_gui_element_rect": "Locator::screen_rect",
+    "get_gui_element_center": "Locator::screen_rect",
+    "get_all_urls": "Locator::urls",
+    "medimize": "Window::restore",
+    "click_captcha": "Page::solve_captcha",
+    "gui_click_captcha": "Page::solve_captcha",
+    "click_active_element": "Page::evaluate",
+    "get_locale_code": "Page::evaluate",
+    "select_all": "Page::evaluate",
+    "internalize_links": "Locator::set_attribute",
+    "download_file": "Browser::set_download_dir",
+    "get_path_of_downloaded_file": "Browser::set_download_dir",
+    "assert_downloaded_file": "Browser::set_download_dir",
+    "get_mfa_code": "BaseCase::get_mfa_code",
+    "enter_mfa_code": "BaseCase::enter_mfa_code",
+    "gui_click_x_y": "Gui::click", "gui_click_with_offset": "Gui::click",
+    "gui_click_element": "Gui::click", "gui_click_and_hold": "Gui::mouse_down",
+    "gui_hover_element": "Gui::move_mouse", "gui_hover_x_y": "Gui::move_mouse",
+    "gui_move_to_element": "Gui::move_mouse", "gui_hover_and_click": "Gui::click",
+    "gui_drag_and_drop": "Gui::drag", "gui_drag_drop_points": "Gui::drag",
+    "gui_press_key": "Gui::press_key", "gui_press_keys": "Gui::press_keys",
+    "gui_write": "Gui::write",
+})
 CDP_TYPES = ["Locator", "Page", "Cookies", "Storage", "Window", "Emulation", "Browser"]
+
+# `sb.cdp.<name>` with no Rust counterpart because Rust already has the idea.
+CDP_NOT_APPLICABLE = {
+    **{
+        name: "Rust has assert!, assert_eq! and friends."
+        for name in (
+            "assert_equal", "assert_not_equal", "assert_true", "assert_false",
+            "assert_in", "assert_not_in",
+        )
+    },
+    "get_event_loop": "The async runtime is the caller's; there is no event loop to expose.",
+    "add_handler": "Subscribe to protocol events with Page::events / Browser::events.",
+    "js_dumps": "Values cross as serde_json::Value; there is nothing to serialise by hand.",
+    "get_beautiful_soup": "HTML parsing lives in api::html (the scraper crate).",
+    "tile_windows": "Desktop window tiling is not part of a CDP browser API.",
+    "activate_cdp_mode": "Already in CDP mode: sb_cdp is the CDP engine.",
+    "sleep": "Use tokio::time::sleep.",
+    "append_data_to_logs": "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder.",
+    "save_data_to_logs": "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder.",
+    "save_file_as": "Write files with std::fs.",
+}
 
 CLI_COMPOSED = {
     "help": ("clap", "Provided by the argument parser."),
@@ -142,6 +275,9 @@ def classify(api, methods, fields):
 
     for item in api["cdp"]:
         n = item["name"]
+        if n in CDP_NOT_APPLICABLE:
+            put("cdp", n, status="not-applicable", reason=CDP_NOT_APPLICABLE[n])
+            continue
         target = CDP_COMPOSED.get(n)
         if target is None:
             target = next((f"{t}::{n}" for t in CDP_TYPES if (t, n) in methods), None)
@@ -235,11 +371,16 @@ def main():
     methods, fields = scan_rust()
     proposed = classify(api, methods, fields)
 
+    upgrade = "--reclassify-planned" in sys.argv[1:]
     merged, added = {}, 0
     for surface in sorted(set(existing) | set(proposed)):
         merged[surface] = dict(existing.get(surface, {}))
         for name, entry in proposed.get(surface, {}).items():
-            if name not in merged[surface]:
+            current = merged[surface].get(name)
+            if current is None:
+                merged[surface][name] = entry
+                added += 1
+            elif upgrade and current["status"] == "planned" and entry["status"] != "planned":
                 merged[surface][name] = entry
                 added += 1
     write(merged, manifest, HEADER)

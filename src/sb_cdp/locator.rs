@@ -794,3 +794,145 @@ fn parse_info(value: &Value) -> ElementInfo {
         visible: value["visible"].as_bool().unwrap_or_default(),
     }
 }
+
+impl Locator {
+    /// Clicks at `offset` pixels right of and below the element's top-left
+    /// corner, scrolling it into view first. Corresponds to Python's
+    /// `click_with_offset`; to click relative to the centre, add half of
+    /// [`bounding_box`](Self::bounding_box)'s width and height to `offset`.
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn click_at(&self, offset: Point) -> Result<(), SeleniumBaseError> {
+        let center = self.actionable_center().await?;
+        let size = self.bounding_box().await?;
+        let top_left = Point {
+            x: center.x - size.width / 2.0,
+            y: center.y - size.height / 2.0,
+        };
+        self.page
+            .mouse()
+            .click(Point {
+                x: top_left.x + offset.x,
+                y: top_left.y + offset.y,
+            })
+            .await
+    }
+
+    /// The first match's rectangle in screen coordinates, as a desktop
+    /// automation tool needs it. Corresponds to Python's
+    /// `get_gui_element_rect`.
+    ///
+    /// The browser's toolbar height is estimated from the window's outer and
+    /// inner sizes, so the result is exact for a normal window and approximate
+    /// when the toolbar and a docked panel are both open.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches, or
+    /// [`SeleniumBaseError::CdpDriver`] if the page cannot be measured.
+    pub async fn screen_rect(&self) -> Result<Rect, SeleniumBaseError> {
+        let element = self.bounding_box().await?;
+        let metrics: [f64; 6] = self
+            .page
+            .evaluate_as(crate::utils::geometry::WINDOW_METRICS_SCRIPT)
+            .await?;
+        Ok(crate::utils::geometry::screen_rect(element, metrics))
+    }
+
+    /// The absolute `http(s)`, `ftp` and `file` URLs in the `href` and `src`
+    /// attributes of the first match and everything inside it, in page order
+    /// and without repeats. Relative links are resolved against the page URL.
+    /// Corresponds to Python's `get_all_urls`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
+    pub async fn urls(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        let base = url::Url::parse(&self.page.url().await?).ok();
+        let mut found = vec![self.info().await?];
+        found.extend(self.locator("[href], [src]").infos().await?);
+
+        let mut seen = std::collections::BTreeSet::new();
+        let mut urls = Vec::new();
+        for info in found {
+            for attribute in ["href", "src"] {
+                let Some(url) = info
+                    .attributes
+                    .get(attribute)
+                    .and_then(|raw| absolute_url(raw, base.as_ref()))
+                else {
+                    continue;
+                };
+                if seen.insert(url.clone()) {
+                    urls.push(url);
+                }
+            }
+        }
+        Ok(urls)
+    }
+}
+
+/// `raw` resolved against `base`, if it is a link a browser could follow.
+fn absolute_url(raw: &str, base: Option<&url::Url>) -> Option<String> {
+    let raw = raw.trim();
+    if raw.is_empty() || raw.starts_with('#') {
+        return None;
+    }
+    let url = match base {
+        Some(base) => base.join(raw).ok()?,
+        None => url::Url::parse(raw).ok()?,
+    };
+    matches!(url.scheme(), "http" | "https" | "ftp" | "file").then(|| url.into())
+}
+
+#[cfg(test)]
+mod url_tests {
+    use super::*;
+
+    fn base() -> url::Url {
+        url::Url::parse("https://example.com/dir/page").unwrap()
+    }
+
+    #[test]
+    fn relative_links_resolve_against_the_page() {
+        let base = base();
+        assert_eq!(
+            absolute_url("/about", Some(&base)).as_deref(),
+            Some("https://example.com/about")
+        );
+        assert_eq!(
+            absolute_url("next", Some(&base)).as_deref(),
+            Some("https://example.com/dir/next")
+        );
+        assert_eq!(
+            absolute_url("//cdn.test/a.js", Some(&base)).as_deref(),
+            Some("https://cdn.test/a.js")
+        );
+    }
+
+    #[test]
+    fn fragments_scripts_and_blanks_are_not_urls() {
+        let base = base();
+        for skip in [
+            "",
+            "  ",
+            "#top",
+            "javascript:void(0)",
+            "mailto:a@b.test",
+            "data:text/plain,hi",
+        ] {
+            assert_eq!(absolute_url(skip, Some(&base)), None, "{skip:?}");
+        }
+    }
+
+    #[test]
+    fn without_a_page_url_only_absolute_links_survive() {
+        assert_eq!(
+            absolute_url("https://a.test/x", None).as_deref(),
+            Some("https://a.test/x")
+        );
+        assert_eq!(absolute_url("/x", None), None);
+    }
+}

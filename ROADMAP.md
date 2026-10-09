@@ -67,8 +67,10 @@ Design rules that apply to everything below:
 7. **Pure CDP: iframes.** `src/sb_cdp/helper.js` resolves selectors in the main
    document only. Resolve through same-origin `iframe.contentDocument`, and add
    the frame offsets to `center()`. Test with `srcdoc` iframes on real Chrome.
-8. **Pure CDP: check the 215 Python `sb.cdp.*` methods** each have a Rust
-   composition (`page.locator(sel)...`). List the ones that do not and add them.
+8. **Pure CDP: verify the compositions.** Every `sb.cdp.*` method now has a
+   mapping in `parity/api.toml`, checked to exist. Check that each composition
+   behaves like the Python method (waits, visibility rules), with real-Chrome
+   tests for the ones that matter.
 
 ## 2. Make future upstream updates cheap (done; keep the manifest current)
 
@@ -78,13 +80,10 @@ Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
 `docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
 workflow (untested: Actions are billing-locked).
 
-First classification of 4.55.2: BaseCase 440 of 453 matched by name and 11
-not applicable; Driver 75 of 79; all 138 MCP tools; CDP Mode 56 composed and
-159 still `planned`; CLI 17 of 36; pytest options 18 of 263. Work these
-`planned` entries down, biggest wins first:
+Current state against 4.55.2 (`just parity-docs` has the full table): BaseCase 442 of 453 implemented, 11 not applicable; Driver 75 of 79; all 138 MCP tools; CDP Mode 212 of 215 mapped or not applicable (3 messenger/toast methods planned); CLI 17 of 36; pytest options 18 of 263. Work these `planned` entries down, biggest wins first:
 
-1. CDP Mode: map the 159 unmapped `sb.cdp.*` methods to a Rust composition, or
-   port them (this also covers item 8 above).
+1. CDP Mode: the three messenger methods (`post_message`, `activate_messenger`,
+   `set_messenger_theme`): an in-page toast for `sb_cdp`.
 2. CLI commands (item 5 above).
 3. Options: most pytest options are Python-test-runner settings; mark the
    irrelevant ones `not-applicable` with a reason and port the rest into

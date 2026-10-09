@@ -17,7 +17,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 440 | 2 | 11 | 0 |
 | [Driver methods](#driver-methods) | 79 | 75 | 0 | 0 | 4 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 0 | 56 | 0 | 159 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 0 | 196 | 16 | 3 |
 | [Command-line commands](#command-line-commands) | 36 | 15 | 2 | 0 | 19 |
 | [pytest options](#pytest-options) | 263 | 18 | 0 | 0 | 245 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 10 | 0 | 0 | 97 |
@@ -578,221 +578,221 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
-| `activate_cdp_mode` | planned |  | No Rust composition identified yet. |
+| `activate_cdp_mode` | not-applicable |  | Already in CDP mode: sb_cdp is the CDP engine. |
 | `activate_messenger` | planned |  | No Rust composition identified yet. |
-| `add_handler` | planned |  | No Rust composition identified yet. |
-| `append_data_to_logs` | planned |  | No Rust composition identified yet. |
-| `assert_any_of_elements_present` | planned |  | No Rust composition identified yet. |
-| `assert_any_of_elements_visible` | planned |  | No Rust composition identified yet. |
-| `assert_downloaded_file` | planned |  | No Rust composition identified yet. |
-| `assert_element` | planned |  | No Rust composition identified yet. |
-| `assert_element_absent` | planned |  | No Rust composition identified yet. |
-| `assert_element_attribute` | planned |  | No Rust composition identified yet. |
-| `assert_element_not_visible` | planned |  | No Rust composition identified yet. |
-| `assert_element_present` | planned |  | No Rust composition identified yet. |
-| `assert_element_visible` | planned |  | No Rust composition identified yet. |
-| `assert_equal` | planned |  | No Rust composition identified yet. |
-| `assert_exact_text` | planned |  | No Rust composition identified yet. |
-| `assert_false` | planned |  | No Rust composition identified yet. |
-| `assert_in` | planned |  | No Rust composition identified yet. |
-| `assert_not_equal` | planned |  | No Rust composition identified yet. |
-| `assert_not_in` | planned |  | No Rust composition identified yet. |
-| `assert_text` | planned |  | No Rust composition identified yet. |
-| `assert_text_not_visible` | planned |  | No Rust composition identified yet. |
-| `assert_title` | planned |  | No Rust composition identified yet. |
-| `assert_title_contains` | planned |  | No Rust composition identified yet. |
-| `assert_true` | planned |  | No Rust composition identified yet. |
-| `assert_url` | planned |  | No Rust composition identified yet. |
-| `assert_url_contains` | planned |  | No Rust composition identified yet. |
+| `add_handler` | not-applicable |  | Subscribe to protocol events with Page::events / Browser::events. |
+| `append_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
+| `assert_any_of_elements_present` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_any_of_elements_visible` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_downloaded_file` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_element` | composed | `LocatorExpect::to_be_visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_element_absent` | composed | `LocatorExpect::to_exist` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_element_attribute` | composed | `LocatorExpect::to_have_attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_element_not_visible` | composed | `LocatorExpect::to_be_hidden` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_element_present` | composed | `LocatorExpect::to_exist` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_element_visible` | composed | `LocatorExpect::to_be_visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_equal` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
+| `assert_exact_text` | composed | `LocatorExpect::to_have_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_false` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
+| `assert_in` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
+| `assert_not_equal` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
+| `assert_not_in` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
+| `assert_text` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_text_not_visible` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_title` | composed | `PageExpect::to_have_title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_title_contains` | composed | `PageExpect::to_contain_title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_true` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
+| `assert_url` | composed | `PageExpect::to_have_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_url_contains` | composed | `PageExpect::to_contain_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `bring_active_window_to_front` | composed | `Page::bring_to_front` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `check_if_unchecked` | planned |  | No Rust composition identified yet. |
+| `check_if_unchecked` | composed | `Locator::check` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `clear` | composed | `Locator::clear` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `clear_cookies` | planned |  | No Rust composition identified yet. |
-| `clear_input` | planned |  | No Rust composition identified yet. |
+| `clear_cookies` | composed | `Cookies::clear` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `clear_input` | composed | `Locator::clear` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `click` | composed | `Locator::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_active_element` | planned |  | No Rust composition identified yet. |
-| `click_and_hold` | planned |  | No Rust composition identified yet. |
-| `click_captcha` | planned |  | No Rust composition identified yet. |
-| `click_if_visible` | planned |  | No Rust composition identified yet. |
-| `click_link` | planned |  | No Rust composition identified yet. |
-| `click_nth_element` | planned |  | No Rust composition identified yet. |
-| `click_nth_visible_element` | planned |  | No Rust composition identified yet. |
-| `click_visible_elements` | planned |  | No Rust composition identified yet. |
-| `click_with_offset` | planned |  | No Rust composition identified yet. |
+| `click_active_element` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_and_hold` | composed | `Mouse::down` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_captcha` | composed | `Page::solve_captcha` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_if_visible` | composed | `Locator::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_link` | composed | `Locator::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_nth_element` | composed | `Locator::nth` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_nth_visible_element` | composed | `Locator::nth` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_visible_elements` | composed | `Locator::visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `click_with_offset` | composed | `Locator::click_at` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `close_active_tab` | composed | `Page::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `download_file` | planned |  | No Rust composition identified yet. |
+| `download_file` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `drag_and_drop` | composed | `Locator::drag_to` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `enter_mfa_code` | planned |  | No Rust composition identified yet. |
+| `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `evaluate` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `execute_script` | planned |  | No Rust composition identified yet. |
-| `fast_keys` | planned |  | No Rust composition identified yet. |
-| `fast_type` | planned |  | No Rust composition identified yet. |
-| `find_all` | planned |  | No Rust composition identified yet. |
-| `find_element` | planned |  | No Rust composition identified yet. |
-| `find_element_by_text` | planned |  | No Rust composition identified yet. |
-| `find_elements` | planned |  | No Rust composition identified yet. |
-| `find_elements_by_text` | planned |  | No Rust composition identified yet. |
-| `find_visible_elements` | planned |  | No Rust composition identified yet. |
+| `execute_script` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `fast_keys` | composed | `Keyboard::insert_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `fast_type` | composed | `Locator::fill` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `find_all` | composed | `Locator::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `find_element` | composed | `Page::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `find_element_by_text` | composed | `Page::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `find_elements` | composed | `Locator::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `find_elements_by_text` | composed | `Locator::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `find_visible_elements` | composed | `Locator::visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `flash` | composed | `Locator::flash` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `focus` | composed | `Locator::focus` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_active_element` | planned |  | No Rust composition identified yet. |
-| `get_active_element_css` | planned |  | No Rust composition identified yet. |
-| `get_active_tab` | planned |  | No Rust composition identified yet. |
+| `get_active_element` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_active_element_css` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_active_tab` | composed | `Browser::default_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_all_cookies` | composed | `Cookies::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_all_urls` | planned |  | No Rust composition identified yet. |
+| `get_all_urls` | composed | `Locator::urls` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_attribute` | composed | `Locator::attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_beautiful_soup` | planned |  | No Rust composition identified yet. |
-| `get_cookie_string` | planned |  | No Rust composition identified yet. |
+| `get_beautiful_soup` | not-applicable |  | HTML parsing lives in api::html (the scraper crate). |
+| `get_cookie_string` | composed | `Cookies::header` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_current_url` | composed | `Page::url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_document` | planned |  | No Rust composition identified yet. |
-| `get_element_attribute` | planned |  | No Rust composition identified yet. |
-| `get_element_attributes` | planned |  | No Rust composition identified yet. |
-| `get_element_html` | planned |  | No Rust composition identified yet. |
-| `get_element_position` | planned |  | No Rust composition identified yet. |
-| `get_element_rect` | planned |  | No Rust composition identified yet. |
-| `get_element_size` | planned |  | No Rust composition identified yet. |
-| `get_endpoint_url` | planned |  | No Rust composition identified yet. |
-| `get_event_loop` | planned |  | No Rust composition identified yet. |
-| `get_flattened_document` | planned |  | No Rust composition identified yet. |
-| `get_gui_element_center` | planned |  | No Rust composition identified yet. |
-| `get_gui_element_rect` | planned |  | No Rust composition identified yet. |
+| `get_document` | composed | `Page::execute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_element_attribute` | composed | `Locator::attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_element_attributes` | composed | `Locator::info` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_element_html` | composed | `Locator::html` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_element_position` | composed | `Locator::bounding_box` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_element_rect` | composed | `Locator::bounding_box` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_element_size` | composed | `Locator::bounding_box` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_endpoint_url` | composed | `Browser::http_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_event_loop` | not-applicable |  | The async runtime is the caller's; there is no event loop to expose. |
+| `get_flattened_document` | composed | `Page::execute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_gui_element_center` | composed | `Locator::screen_rect` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_gui_element_rect` | composed | `Locator::screen_rect` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_html` | composed | `Locator::html` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_local_storage_item` | planned |  | No Rust composition identified yet. |
-| `get_locale_code` | planned |  | No Rust composition identified yet. |
-| `get_mfa_code` | planned |  | No Rust composition identified yet. |
-| `get_navigation_history` | planned |  | No Rust composition identified yet. |
-| `get_nested_element` | planned |  | No Rust composition identified yet. |
-| `get_origin` | planned |  | No Rust composition identified yet. |
+| `get_local_storage_item` | composed | `Storage::get` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_locale_code` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_mfa_code` | composed | `BaseCase::get_mfa_code` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_navigation_history` | composed | `Page::execute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_nested_element` | composed | `Locator::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_origin` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_page_source` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_page_title` | planned |  | No Rust composition identified yet. |
-| `get_parent` | planned |  | No Rust composition identified yet. |
-| `get_path_of_downloaded_file` | planned |  | No Rust composition identified yet. |
-| `get_port` | planned |  | No Rust composition identified yet. |
-| `get_rd_host` | planned |  | No Rust composition identified yet. |
-| `get_rd_port` | planned |  | No Rust composition identified yet. |
-| `get_rd_url` | planned |  | No Rust composition identified yet. |
-| `get_screen_rect` | planned |  | No Rust composition identified yet. |
-| `get_session_storage_item` | planned |  | No Rust composition identified yet. |
+| `get_page_title` | composed | `Page::title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_parent` | composed | `Locator::parent` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_path_of_downloaded_file` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_port` | composed | `Browser::debugging_port` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_rd_host` | composed | `Browser::http_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_rd_port` | composed | `Browser::debugging_port` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_rd_url` | composed | `Browser::http_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_screen_rect` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_session_storage_item` | composed | `Storage::get` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_tabs` | composed | `Browser::pages` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_text` | composed | `Locator::text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_title` | composed | `Page::title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_user_agent` | composed | `Page::user_agent` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_websocket_url` | planned |  | No Rust composition identified yet. |
-| `get_window` | planned |  | No Rust composition identified yet. |
-| `get_window_position` | planned |  | No Rust composition identified yet. |
+| `get_websocket_url` | composed | `Browser::websocket_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_window` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_window_position` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `get_window_rect` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_window_size` | planned |  | No Rust composition identified yet. |
+| `get_window_size` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `go_back` | composed | `Page::back` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `go_forward` | composed | `Page::forward` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `goto` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `goto_if_not_url` | planned |  | No Rust composition identified yet. |
-| `grant_all_permissions` | planned |  | No Rust composition identified yet. |
+| `goto_if_not_url` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `grant_all_permissions` | composed | `Browser::grant_permissions` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `grant_permissions` | composed | `Browser::grant_permissions` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_click_and_hold` | planned |  | No Rust composition identified yet. |
-| `gui_click_captcha` | planned |  | No Rust composition identified yet. |
-| `gui_click_element` | planned |  | No Rust composition identified yet. |
-| `gui_click_with_offset` | planned |  | No Rust composition identified yet. |
-| `gui_click_x_y` | planned |  | No Rust composition identified yet. |
-| `gui_drag_and_drop` | planned |  | No Rust composition identified yet. |
-| `gui_drag_drop_points` | planned |  | No Rust composition identified yet. |
-| `gui_hover_and_click` | planned |  | No Rust composition identified yet. |
-| `gui_hover_element` | planned |  | No Rust composition identified yet. |
-| `gui_hover_x_y` | planned |  | No Rust composition identified yet. |
-| `gui_move_to_element` | planned |  | No Rust composition identified yet. |
-| `gui_press_key` | planned |  | No Rust composition identified yet. |
-| `gui_press_keys` | planned |  | No Rust composition identified yet. |
-| `gui_write` | planned |  | No Rust composition identified yet. |
+| `gui_click_and_hold` | composed | `Gui::mouse_down` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_click_captcha` | composed | `Page::solve_captcha` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_click_element` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_click_with_offset` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_click_x_y` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_drag_and_drop` | composed | `Gui::drag` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_drag_drop_points` | composed | `Gui::drag` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_hover_and_click` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_hover_element` | composed | `Gui::move_mouse` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_hover_x_y` | composed | `Gui::move_mouse` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_move_to_element` | composed | `Gui::move_mouse` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_press_key` | composed | `Gui::press_key` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_press_keys` | composed | `Gui::press_keys` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `gui_write` | composed | `Gui::write` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `highlight` | composed | `Locator::flash` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `highlight_overlay` | planned |  | No Rust composition identified yet. |
-| `hover_and_click` | planned |  | No Rust composition identified yet. |
+| `highlight_overlay` | composed | `Locator::flash` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `hover_and_click` | composed | `Locator::hover` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `hover_element` | composed | `Locator::hover` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `internalize_links` | planned |  | No Rust composition identified yet. |
-| `is_attribute_present` | planned |  | No Rust composition identified yet. |
+| `internalize_links` | composed | `Locator::set_attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `is_attribute_present` | composed | `Locator::attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `is_checked` | composed | `Locator::is_checked` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `is_element_present` | composed | `Locator::exists` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `is_element_visible` | composed | `Locator::is_visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_exact_text_visible` | planned |  | No Rust composition identified yet. |
+| `is_exact_text_visible` | composed | `Locator::text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `is_online` | composed | `Page::is_online` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `is_selected` | composed | `Locator::is_selected` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_text_visible` | planned |  | No Rust composition identified yet. |
-| `js_dumps` | planned |  | No Rust composition identified yet. |
-| `js_scroll_into_view` | planned |  | No Rust composition identified yet. |
+| `is_text_visible` | composed | `Locator::text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `js_dumps` | not-applicable |  | Values cross as serde_json::Value; there is nothing to serialise by hand. |
+| `js_scroll_into_view` | composed | `Locator::scroll_into_view` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `load_cookies` | composed | `Cookies::load` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `maximize` | composed | `Window::maximize` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `medimize` | planned |  | No Rust composition identified yet. |
+| `medimize` | composed | `Window::restore` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `minimize` | composed | `Window::minimize` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `mouse_click` | planned |  | No Rust composition identified yet. |
-| `nested_click` | planned |  | No Rust composition identified yet. |
+| `mouse_click` | composed | `Mouse::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `nested_click` | composed | `Locator::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `open` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `open_new_tab` | composed | `Browser::new_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `open_new_window` | composed | `Browser::new_window` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `post_message` | planned |  | No Rust composition identified yet. |
 | `press_keys` | composed | `Locator::press` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `print_to_pdf` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `quit` | planned |  | No Rust composition identified yet. |
+| `quit` | composed | `Browser::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `refresh` | composed | `Page::reload` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `reload` | composed | `Page::reload` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `remove_element` | planned |  | No Rust composition identified yet. |
-| `remove_elements` | planned |  | No Rust composition identified yet. |
-| `remove_from_dom` | planned |  | No Rust composition identified yet. |
+| `remove_element` | composed | `Locator::remove` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `remove_elements` | composed | `Locator::remove` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `remove_from_dom` | composed | `Locator::remove` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `reset_permissions` | composed | `Browser::reset_permissions` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `reset_window_size` | planned |  | No Rust composition identified yet. |
-| `save_as_html` | planned |  | No Rust composition identified yet. |
-| `save_as_html_to_logs` | planned |  | No Rust composition identified yet. |
+| `reset_window_size` | composed | `Window::restore` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `save_as_html` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `save_as_html_to_logs` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `save_as_pdf` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_as_pdf_to_logs` | planned |  | No Rust composition identified yet. |
+| `save_as_pdf_to_logs` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `save_cookies` | composed | `Cookies::save` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_data_to_logs` | planned |  | No Rust composition identified yet. |
-| `save_file_as` | planned |  | No Rust composition identified yet. |
-| `save_page_source` | planned |  | No Rust composition identified yet. |
-| `save_page_source_to_logs` | planned |  | No Rust composition identified yet. |
+| `save_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
+| `save_file_as` | not-applicable |  | Write files with std::fs. |
+| `save_page_source` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `save_page_source_to_logs` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `save_screenshot` | composed | `Page::screenshot` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_screenshot_to_logs` | planned |  | No Rust composition identified yet. |
-| `scroll_by_y` | planned |  | No Rust composition identified yet. |
-| `scroll_down` | planned |  | No Rust composition identified yet. |
+| `save_screenshot_to_logs` | composed | `Page::screenshot` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `scroll_by_y` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `scroll_down` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `scroll_into_view` | composed | `Locator::scroll_into_view` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_to_bottom` | planned |  | No Rust composition identified yet. |
-| `scroll_to_top` | planned |  | No Rust composition identified yet. |
-| `scroll_to_y` | planned |  | No Rust composition identified yet. |
-| `scroll_up` | planned |  | No Rust composition identified yet. |
-| `select` | planned |  | No Rust composition identified yet. |
-| `select_all` | planned |  | No Rust composition identified yet. |
-| `select_if_unselected` | planned |  | No Rust composition identified yet. |
+| `scroll_to_bottom` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `scroll_to_top` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `scroll_to_y` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `scroll_up` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `select` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `select_all` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `select_if_unselected` | composed | `Locator::set_checked` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `select_option_by_index` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `select_option_by_text` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `select_option_by_value` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `send_keys` | composed | `Locator::type_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_all_cookies` | planned |  | No Rust composition identified yet. |
-| `set_attributes` | planned |  | No Rust composition identified yet. |
-| `set_download_path` | planned |  | No Rust composition identified yet. |
-| `set_local_storage_item` | planned |  | No Rust composition identified yet. |
+| `set_all_cookies` | composed | `Cookies::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `set_attributes` | composed | `Locator::set_attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `set_download_path` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `set_local_storage_item` | composed | `Storage::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_locale` | composed | `Emulation::locale` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_messenger_theme` | planned |  | No Rust composition identified yet. |
-| `set_session_storage_item` | planned |  | No Rust composition identified yet. |
+| `set_session_storage_item` | composed | `Storage::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_value` | composed | `Locator::set_value` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_window_rect` | composed | `Window::set_bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `sleep` | planned |  | No Rust composition identified yet. |
+| `sleep` | not-applicable |  | Use tokio::time::sleep. |
 | `solve_captcha` | composed | `Page::solve_captcha` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `stop` | planned |  | No Rust composition identified yet. |
+| `stop` | composed | `Browser::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `submit` | composed | `Locator::submit` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `switch_to_newest_tab` | composed | `Browser::newest_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `switch_to_newest_window` | planned |  | No Rust composition identified yet. |
-| `switch_to_tab` | planned |  | No Rust composition identified yet. |
-| `switch_to_window` | planned |  | No Rust composition identified yet. |
-| `tile_windows` | planned |  | No Rust composition identified yet. |
+| `switch_to_newest_window` | composed | `Browser::newest_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `switch_to_tab` | composed | `Browser::pages` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `switch_to_window` | composed | `Browser::pages` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `tile_windows` | not-applicable |  | Desktop window tiling is not part of a CDP browser API. |
 | `type` | composed | `Locator::type_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `uncheck_if_checked` | planned |  | No Rust composition identified yet. |
-| `unselect_if_selected` | planned |  | No Rust composition identified yet. |
-| `wait_for_any_of_elements_present` | planned |  | No Rust composition identified yet. |
-| `wait_for_any_of_elements_visible` | planned |  | No Rust composition identified yet. |
-| `wait_for_element` | planned |  | No Rust composition identified yet. |
-| `wait_for_element_absent` | planned |  | No Rust composition identified yet. |
-| `wait_for_element_not_visible` | planned |  | No Rust composition identified yet. |
-| `wait_for_element_present` | planned |  | No Rust composition identified yet. |
-| `wait_for_element_visible` | planned |  | No Rust composition identified yet. |
-| `wait_for_text` | planned |  | No Rust composition identified yet. |
-| `wait_for_text_not_visible` | planned |  | No Rust composition identified yet. |
+| `uncheck_if_checked` | composed | `Locator::uncheck` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `unselect_if_selected` | composed | `Locator::set_checked` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_any_of_elements_visible` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_element` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_element_absent` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_element_not_visible` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_element_present` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_element_visible` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_text` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `wait_for_text_not_visible` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 
 ## Command-line commands
 

@@ -1,27 +1,5 @@
 // Helpers that complete the BaseCase surface of the Python framework.
 
-/// Window and scroll measurements needed to turn a page position into a
-/// screen position, as `[screenX, screenY, chromeWidth, chromeHeight,
-/// scrollX, scrollY]`.
-const WINDOW_METRICS_SCRIPT: &str = "return [window.screenX, window.screenY, \
-    window.outerWidth - window.innerWidth, window.outerHeight - window.innerHeight, \
-    window.scrollX, window.scrollY];";
-
-/// An element's rectangle on the screen, given its rectangle in the document
-/// and the window measurements from [`WINDOW_METRICS_SCRIPT`].
-///
-/// The browser's toolbar sits above the page and the window frame is split
-/// evenly on both sides, so the page origin is the window origin plus half the
-/// horizontal chrome and all of the vertical chrome.
-fn screen_rect(element: crate::sb_cdp::Rect, metrics: [f64; 6]) -> crate::sb_cdp::Rect {
-    let [window_x, window_y, chrome_width, chrome_height, scroll_x, scroll_y] = metrics;
-    crate::sb_cdp::Rect {
-        x: window_x + chrome_width / 2.0 + element.x - scroll_x,
-        y: window_y + chrome_height + element.y - scroll_y,
-        ..element
-    }
-}
-
 impl BaseCase {
     /// Replaces an input's content with `text` in one step, with no per-key
     /// events. A trailing newline presses Enter. Corresponds to Python's
@@ -73,9 +51,11 @@ impl BaseCase {
     ) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
         let element = self.find_element(css).await?;
         let rect = element.rect().await?;
-        let metrics = self.execute_script(WINDOW_METRICS_SCRIPT).await?;
+        let metrics = self
+            .execute_script(&format!("return {};", crate::utils::geometry::WINDOW_METRICS_SCRIPT))
+            .await?;
         let metrics: [f64; 6] = serde_json::from_value(metrics)?;
-        Ok(screen_rect(
+        Ok(crate::utils::geometry::screen_rect(
             crate::sb_cdp::Rect {
                 x: rect.x,
                 y: rect.y,
@@ -202,16 +182,7 @@ impl BaseCase {
 #[cfg(test)]
 mod parity_tests {
     use super::*;
-    use crate::sb_cdp::Rect;
 
-    #[test]
-    fn a_screen_rect_adds_the_window_origin_and_toolbar_and_removes_the_scroll() {
-        let element = Rect { x: 100.0, y: 500.0, width: 40.0, height: 20.0 };
-        // Window at (10, 20); 16px of side frame in total, 80px of toolbar;
-        // scrolled 300px down.
-        let screen = screen_rect(element, [10.0, 20.0, 16.0, 80.0, 0.0, 300.0]);
-        assert_eq!(screen, Rect { x: 118.0, y: 300.0, width: 40.0, height: 20.0 });
-    }
 
     #[test]
     fn jq_format_escapes_what_would_end_a_quoted_script_string() {
@@ -241,10 +212,4 @@ mod parity_tests {
         assert!(BaseCase::get_saved_cookies(bad.to_str().unwrap()).is_err());
     }
 
-    #[test]
-    fn a_page_scrolled_to_the_top_keeps_its_document_position_on_screen() {
-        let element = Rect { x: 8.0, y: 8.0, width: 100.0, height: 30.0 };
-        let screen = screen_rect(element, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-        assert_eq!(screen, element, "no chrome, no scroll, window at the origin");
-    }
 }

@@ -5,18 +5,16 @@
 //! grouped behind one tool with an `action`, `mode` or `state` argument, which
 //! keeps the tool list short enough for a model to choose from.
 
-use std::collections::BTreeSet;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use url::Url;
 
 use super::support::{cookie_file, is_missing, json_output, nonempty, write_file};
 use super::{
     Args, Closeable, Ctx, Effect, Host, Output, Prop, Schema, Settings, Started, ToolDef, ToolError,
 };
 use crate::error::SeleniumBaseError;
-use crate::sb_cdp::{Browser, Key, LaunchOptions, Locator, Page, Scroll, SelectBy, State};
+use crate::sb_cdp::{Browser, Key, LaunchOptions, Page, Scroll, SelectBy, State};
 
 const SERVER_NAME: &str = "seleniumbase-cdp";
 
@@ -748,46 +746,8 @@ async fn get_content(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     match format {
         "text" => Ok(element.text().await?.into()),
         "html" => Ok(element.html().await?.into()),
-        _ => Ok(Output::Json(json!(urls_in(&session.page, &element).await?))),
+        _ => Ok(Output::Json(json!(element.urls().await?))),
     }
-}
-
-/// The absolute http(s), ftp and file URLs in an element's `href` and `src`
-/// attributes, in page order and without repeats.
-async fn urls_in(page: &Page, element: &Locator) -> Result<Vec<String>, SeleniumBaseError> {
-    let base = Url::parse(&page.url().await?).ok();
-    let mut found = vec![element.info().await?];
-    found.extend(element.locator("[href], [src]").infos().await?);
-
-    let mut seen = BTreeSet::new();
-    let mut urls = Vec::new();
-    for info in found {
-        for attribute in ["href", "src"] {
-            let Some(url) = info
-                .attributes
-                .get(attribute)
-                .and_then(|raw| absolute_url(raw, base.as_ref()))
-            else {
-                continue;
-            };
-            if seen.insert(url.clone()) {
-                urls.push(url);
-            }
-        }
-    }
-    Ok(urls)
-}
-
-fn absolute_url(raw: &str, base: Option<&Url>) -> Option<String> {
-    let raw = raw.trim();
-    if raw.is_empty() || raw.starts_with('#') {
-        return None;
-    }
-    let url = match base {
-        Some(base) => base.join(raw).ok()?,
-        None => Url::parse(raw).ok()?,
-    };
-    matches!(url.scheme(), "http" | "https" | "ftp" | "file").then(|| url.into())
 }
 
 async fn get_attributes(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {

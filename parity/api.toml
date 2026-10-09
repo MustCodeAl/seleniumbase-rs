@@ -1826,108 +1826,124 @@ status = "implemented"
 rust = "BaseCase::write"
 
 [cdp."activate_cdp_mode"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Already in CDP mode: sb_cdp is the CDP engine."
 
 [cdp."activate_messenger"]
 status = "planned"
 note = "No Rust composition identified yet."
 
 [cdp."add_handler"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Subscribe to protocol events with Page::events / Browser::events."
 
 [cdp."append_data_to_logs"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder."
 
 [cdp."assert_any_of_elements_present"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::wait_for_any"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_any_of_elements_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::wait_for_any"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_downloaded_file"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::set_download_dir"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_be_visible"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_element_absent"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_exist"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_element_attribute"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_have_attribute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_element_not_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_be_hidden"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_element_present"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_exist"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_element_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_be_visible"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_equal"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Rust has assert!, assert_eq! and friends."
 
 [cdp."assert_exact_text"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_have_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_false"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Rust has assert!, assert_eq! and friends."
 
 [cdp."assert_in"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Rust has assert!, assert_eq! and friends."
 
 [cdp."assert_not_equal"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Rust has assert!, assert_eq! and friends."
 
 [cdp."assert_not_in"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Rust has assert!, assert_eq! and friends."
 
 [cdp."assert_text"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_contain_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_text_not_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_contain_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_title"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "PageExpect::to_have_title"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_title_contains"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "PageExpect::to_contain_title"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_true"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Rust has assert!, assert_eq! and friends."
 
 [cdp."assert_url"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "PageExpect::to_have_url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."assert_url_contains"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "PageExpect::to_contain_url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."bring_active_window_to_front"]
 status = "composed"
@@ -1935,8 +1951,9 @@ rust = "Page::bring_to_front"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."check_if_unchecked"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::check"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."clear"]
 status = "composed"
@@ -1944,12 +1961,14 @@ rust = "Locator::clear"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."clear_cookies"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Cookies::clear"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."clear_input"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::clear"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click"]
 status = "composed"
@@ -1957,40 +1976,49 @@ rust = "Locator::click"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_active_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_and_hold"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Mouse::down"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_captcha"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::solve_captcha"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_if_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_link"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_nth_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::nth"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_nth_visible_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::nth"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_visible_elements"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::visible"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."click_with_offset"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::click_at"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."close_active_tab"]
 status = "composed"
@@ -1998,8 +2026,9 @@ rust = "Page::close"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."download_file"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::set_download_dir"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."drag_and_drop"]
 status = "composed"
@@ -2007,8 +2036,9 @@ rust = "Locator::drag_to"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."enter_mfa_code"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "BaseCase::enter_mfa_code"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."evaluate"]
 status = "composed"
@@ -2016,40 +2046,49 @@ rust = "Page::evaluate"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."execute_script"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."fast_keys"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Keyboard::insert_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."fast_type"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::fill"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."find_all"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::all"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."find_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::locator"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."find_element_by_text"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::locator"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."find_elements"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::all"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."find_elements_by_text"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::all"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."find_visible_elements"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::visible"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."flash"]
 status = "composed"
@@ -2067,16 +2106,19 @@ rust = "Page::goto"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_active_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_active_element_css"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_active_tab"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::default_page"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_all_cookies"]
 status = "composed"
@@ -2084,8 +2126,9 @@ rust = "Cookies::all"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_all_urls"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::urls"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_attribute"]
 status = "composed"
@@ -2093,12 +2136,13 @@ rust = "Locator::attribute"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_beautiful_soup"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "HTML parsing lives in api::html (the scraper crate)."
 
 [cdp."get_cookie_string"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Cookies::header"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_current_url"]
 status = "composed"
@@ -2106,52 +2150,63 @@ rust = "Page::url"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_document"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::execute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_element_attribute"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::attribute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_element_attributes"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::info"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_element_html"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::html"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_element_position"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::bounding_box"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_element_rect"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::bounding_box"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_element_size"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::bounding_box"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_endpoint_url"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::http_url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_event_loop"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "The async runtime is the caller's; there is no event loop to expose."
 
 [cdp."get_flattened_document"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::execute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_gui_element_center"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::screen_rect"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_gui_element_rect"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::screen_rect"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_html"]
 status = "composed"
@@ -2159,28 +2214,34 @@ rust = "Locator::html"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_local_storage_item"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Storage::get"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_locale_code"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_mfa_code"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "BaseCase::get_mfa_code"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_navigation_history"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::execute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_nested_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::locator"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_origin"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_page_source"]
 status = "composed"
@@ -2188,40 +2249,49 @@ rust = "Page::content"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_page_title"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::title"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_parent"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::parent"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_path_of_downloaded_file"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::set_download_dir"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_port"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::debugging_port"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_rd_host"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::http_url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_rd_port"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::debugging_port"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_rd_url"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::http_url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_screen_rect"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Window::bounds"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_session_storage_item"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Storage::get"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_tabs"]
 status = "composed"
@@ -2244,16 +2314,19 @@ rust = "Page::user_agent"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_websocket_url"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::websocket_url"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_window"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Window::bounds"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_window_position"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Window::bounds"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_window_rect"]
 status = "composed"
@@ -2261,8 +2334,9 @@ rust = "Window::bounds"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."get_window_size"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Window::bounds"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."go_back"]
 status = "composed"
@@ -2280,12 +2354,14 @@ rust = "Page::goto"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."goto_if_not_url"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::goto"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."grant_all_permissions"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::grant_permissions"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."grant_permissions"]
 status = "composed"
@@ -2293,60 +2369,74 @@ rust = "Browser::grant_permissions"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_click_and_hold"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::mouse_down"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_click_captcha"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::solve_captcha"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_click_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_click_with_offset"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_click_x_y"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_drag_and_drop"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::drag"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_drag_drop_points"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::drag"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_hover_and_click"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_hover_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::move_mouse"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_hover_x_y"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::move_mouse"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_move_to_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::move_mouse"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_press_key"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::press_key"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_press_keys"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::press_keys"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."gui_write"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Gui::write"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."highlight"]
 status = "composed"
@@ -2354,12 +2444,14 @@ rust = "Locator::flash"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."highlight_overlay"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::flash"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."hover_and_click"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::hover"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."hover_element"]
 status = "composed"
@@ -2367,12 +2459,14 @@ rust = "Locator::hover"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."internalize_links"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::set_attribute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."is_attribute_present"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::attribute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."is_checked"]
 status = "composed"
@@ -2390,8 +2484,9 @@ rust = "Locator::is_visible"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."is_exact_text_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."is_online"]
 status = "composed"
@@ -2404,16 +2499,18 @@ rust = "Locator::is_selected"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."is_text_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."js_dumps"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Values cross as serde_json::Value; there is nothing to serialise by hand."
 
 [cdp."js_scroll_into_view"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::scroll_into_view"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."load_cookies"]
 status = "composed"
@@ -2426,8 +2523,9 @@ rust = "Window::maximize"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."medimize"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Window::restore"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."minimize"]
 status = "composed"
@@ -2435,12 +2533,14 @@ rust = "Window::minimize"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."mouse_click"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Mouse::click"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."nested_click"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::locator"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."open"]
 status = "composed"
@@ -2472,8 +2572,9 @@ rust = "Page::pdf"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."quit"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::close"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."refresh"]
 status = "composed"
@@ -2486,16 +2587,19 @@ rust = "Page::reload"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."remove_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::remove"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."remove_elements"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::remove"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."remove_from_dom"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::remove"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."reset_permissions"]
 status = "composed"
@@ -2503,16 +2607,19 @@ rust = "Browser::reset_permissions"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."reset_window_size"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Window::restore"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_as_html"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::content"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_as_html_to_logs"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::content"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_as_pdf"]
 status = "composed"
@@ -2520,8 +2627,9 @@ rust = "Page::pdf"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_as_pdf_to_logs"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::pdf"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_cookies"]
 status = "composed"
@@ -2529,20 +2637,22 @@ rust = "Cookies::save"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_data_to_logs"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder."
 
 [cdp."save_file_as"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Write files with std::fs."
 
 [cdp."save_page_source"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::content"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_page_source_to_logs"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::content"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_screenshot"]
 status = "composed"
@@ -2550,16 +2660,19 @@ rust = "Page::screenshot"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."save_screenshot_to_logs"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::screenshot"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_by_y"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::scroll"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_down"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::scroll"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_into_view"]
 status = "composed"
@@ -2567,32 +2680,39 @@ rust = "Locator::scroll_into_view"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_to_bottom"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::scroll"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_to_top"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::scroll"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_to_y"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::scroll"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."scroll_up"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::scroll"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."select"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::select_option"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."select_all"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::evaluate"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."select_if_unselected"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::set_checked"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."select_option_by_index"]
 status = "composed"
@@ -2615,20 +2735,24 @@ rust = "Locator::type_text"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_all_cookies"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Cookies::set"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_attributes"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::set_attribute"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_download_path"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::set_download_dir"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_local_storage_item"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Storage::set"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_locale"]
 status = "composed"
@@ -2640,8 +2764,9 @@ status = "planned"
 note = "No Rust composition identified yet."
 
 [cdp."set_session_storage_item"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Storage::set"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_value"]
 status = "composed"
@@ -2654,8 +2779,8 @@ rust = "Window::set_bounds"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."sleep"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Use tokio::time::sleep."
 
 [cdp."solve_captcha"]
 status = "composed"
@@ -2663,8 +2788,9 @@ rust = "Page::solve_captcha"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."stop"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::close"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."submit"]
 status = "composed"
@@ -2677,20 +2803,23 @@ rust = "Browser::newest_page"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."switch_to_newest_window"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::newest_page"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."switch_to_tab"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::pages"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."switch_to_window"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Browser::pages"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."tile_windows"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "not-applicable"
+reason = "Desktop window tiling is not part of a CDP browser API."
 
 [cdp."type"]
 status = "composed"
@@ -2698,48 +2827,59 @@ rust = "Locator::type_text"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."uncheck_if_checked"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::uncheck"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."unselect_if_selected"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::set_checked"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_any_of_elements_present"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::wait_for_any"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_any_of_elements_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Page::wait_for_any"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_element"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::wait_for"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_element_absent"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::wait_for"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_element_not_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::wait_for"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_element_present"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::wait_for"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_element_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "Locator::wait_for"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_text"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_contain_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."wait_for_text_not_visible"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "composed"
+rust = "LocatorExpect::to_contain_text"
+note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cli."behave-gui"]
 status = "implemented"

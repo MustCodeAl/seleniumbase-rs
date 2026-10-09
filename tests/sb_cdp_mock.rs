@@ -591,3 +591,110 @@ async fn reload_keeps_the_cache_and_hard_reload_bypasses_it() {
         .collect();
     assert_eq!(reloads, [json!(false), json!(true)]);
 }
+
+// ----------------------------------------------------------------------
+// Offsets, screen geometry and URL collection
+// ----------------------------------------------------------------------
+
+#[tokio::test]
+async fn clicking_at_an_offset_measures_from_the_elements_top_left() {
+    let (page, mock) = quick_page().await;
+    mock.on("Runtime.evaluate", |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("__sbcdp.center(") {
+            // A 100x40 element centred at (200, 100): top-left is (150, 80).
+            value(json!({ "x": 200.0, "y": 100.0, "covered": false }))
+        } else if expression.contains("__sbcdp.info(") {
+            value(json!({
+                "tag": "div", "text": "", "html": "", "attributes": {}, "visible": true,
+                "rect": { "x": 150.0, "y": 80.0, "width": 100.0, "height": 40.0 },
+            }))
+        } else if expression.contains(".some(__sbcdp.visible)")
+            || expression.contains(".length > 0")
+        {
+            value(json!(true))
+        } else {
+            value(Value::Null)
+        })
+    });
+
+    page.locator("#target")
+        .click_at(seleniumbase_rs::sb_cdp::Point { x: 10.0, y: 5.0 })
+        .await
+        .unwrap();
+
+    let pressed: Vec<_> = mock
+        .calls_to("Input.dispatchMouseEvent")
+        .into_iter()
+        .filter(|call| call.params["type"] == "mousePressed")
+        .map(|call| {
+            (
+                call.params["x"].as_f64().unwrap(),
+                call.params["y"].as_f64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(pressed, [(160.0, 85.0)]);
+}
+
+#[tokio::test]
+async fn an_elements_urls_are_absolute_unique_and_in_page_order() {
+    let (page, mock) = quick_page().await;
+    mock.on("Runtime.evaluate", |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("location.href") {
+            value(json!("https://example.com/dir/page"))
+        } else if expression.contains(".map(__sbcdp.info)") && expression.contains("[href], [src]") {
+            value(json!([
+                { "tag": "a", "text": "", "html": "", "attributes": { "href": "/about" }, "rect": { "x": 0, "y": 0, "width": 1, "height": 1 }, "visible": true },
+                { "tag": "img", "text": "", "html": "", "attributes": { "src": "logo.png" }, "rect": { "x": 0, "y": 0, "width": 1, "height": 1 }, "visible": true },
+                { "tag": "a", "text": "", "html": "", "attributes": { "href": "/about" }, "rect": { "x": 0, "y": 0, "width": 1, "height": 1 }, "visible": true },
+                { "tag": "a", "text": "", "html": "", "attributes": { "href": "#top" }, "rect": { "x": 0, "y": 0, "width": 1, "height": 1 }, "visible": true },
+            ]))
+        } else if expression.contains("__sbcdp.info(") {
+            value(json!({ "tag": "body", "text": "", "html": "", "attributes": {}, "rect": { "x": 0, "y": 0, "width": 1, "height": 1 }, "visible": true }))
+        } else if expression.contains(".length > 0") {
+            value(json!(true))
+        } else {
+            value(Value::Null)
+        })
+    });
+
+    let urls = page.locator("body").urls().await.unwrap();
+
+    assert_eq!(
+        urls,
+        [
+            "https://example.com/about",
+            "https://example.com/dir/logo.png"
+        ]
+    );
+}
+
+#[tokio::test]
+async fn an_elements_screen_rect_adds_the_window_origin_and_toolbar_and_removes_the_scroll() {
+    let (page, mock) = quick_page().await;
+    mock.on("Runtime.evaluate", |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("window.screenX") {
+            // Window at (10, 20), 16px of side frame, 80px of toolbar, scrolled 300px.
+            value(json!([10.0, 20.0, 16.0, 80.0, 0.0, 300.0]))
+        } else if expression.contains("__sbcdp.info(") {
+            value(json!({
+                "tag": "div", "text": "", "html": "", "attributes": {}, "visible": true,
+                "rect": { "x": 100.0, "y": 500.0, "width": 40.0, "height": 20.0 },
+            }))
+        } else if expression.contains(".length > 0") {
+            value(json!(true))
+        } else {
+            value(Value::Null)
+        })
+    });
+
+    let rect = page.locator("#target").screen_rect().await.unwrap();
+
+    assert_eq!(
+        (rect.x, rect.y, rect.width, rect.height),
+        (118.0, 300.0, 40.0, 20.0)
+    );
+}
