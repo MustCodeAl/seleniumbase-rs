@@ -78,6 +78,10 @@ rust-s3 = { version = "0.38", features = ["tokio-native-tls"], optional = true }
 azure_storage_blob = { version = "1.1", optional = true }
 azure_core = { version = "1.1", optional = true }
 rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"], optional = true }
+# Embedded database for test-run reporting and the encrypted profile vault. The
+# default features are off because `mimalloc` installs a global allocator,
+# which a library must not impose on its users.
+turso = { version = "0.8", default-features = false, optional = true }
 
 [features]
 default = ["tui", "gui"]
@@ -97,6 +101,9 @@ gcp = []
 mcp-server = ["dep:rmcp"]
 # Scripted mock browser for testing code that drives pages without Chrome.
 test-util = []
+# Embedded Turso database: `ResultStore` (test-run reporting, `sbase report`) and
+# `ProfileVault` (encrypted browser-profile storage).
+turso = ["dep:turso"]
 
 [dev-dependencies]
 # Paused clocks let tests play out human-paced input instantly.

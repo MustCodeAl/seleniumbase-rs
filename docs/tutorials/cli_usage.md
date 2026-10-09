@@ -107,6 +107,23 @@ modified token fails to decrypt. They are not interchangeable with Python
 SeleniumBase's `sbase encrypt`, which is a reversible obfuscation with a fixed
 key.
 
+## Read a results database
+
+With the `turso` feature (`cargo build --features turso`), `sbase report` reads
+the database a `ResultStore` writes. See
+[Results Database and Encrypted Profiles](results_and_profiles.md).
+
+```bash
+sbase report --db reports/results.db            # the latest runs
+sbase report --db reports/results.db --run 12   # one run's results
+sbase report --db reports/results.db --run 12 --failed
+sbase report --db reports/results.db --flaky    # pass-and-fail across recent runs
+sbase report --json                             # machine-readable; any of the above
+```
+
+The path can also come from `SB_REPORT_DB`. A path that does not exist is an
+error; `report` never creates a database.
+
 ## Run a JSON scenario
 
 ```bash

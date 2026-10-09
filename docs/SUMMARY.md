@@ -29,6 +29,7 @@
 - [Macros](tutorials/macros.md)
 - [Browser Profiles](tutorials/browser_profiles.md)
 - [Tracing and Logging](tutorials/tracing.md)
+- [Results Database and Encrypted Profiles](tutorials/results_and_profiles.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
   - [Syncing with upstream](UPSTREAM_SYNC.md)
   - [API parity table](parity.md)

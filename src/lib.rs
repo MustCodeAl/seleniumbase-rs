@@ -65,6 +65,8 @@ pub mod mcp;
 pub mod plugins;
 pub mod profile_payloads;
 pub mod resources;
+#[cfg(feature = "turso")]
+pub mod storage;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
 #[warn(
     clippy::pedantic,

@@ -77,11 +77,11 @@ pub fn aes_decrypt(ciphertext: &str, key: &[u8]) -> Result<String, SeleniumBaseE
 const TOKEN_PREFIX: &str = "sbenc1";
 
 /// PBKDF2-HMAC-SHA256 work factor (OWASP's 2023 recommendation).
-const PBKDF2_ITERATIONS: u32 = 600_000;
+pub(crate) const PBKDF2_ITERATIONS: u32 = 600_000;
 
-const SALT_LEN: usize = 16;
+pub(crate) const SALT_LEN: usize = 16;
 
-fn derive_key(
+pub(crate) fn derive_key(
     passphrase: &str,
     salt: &[u8],
     iterations: u32,

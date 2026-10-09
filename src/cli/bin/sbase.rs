@@ -26,6 +26,9 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
+#[cfg(feature = "turso")]
+mod report;
+
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("CARGO_PKG_NAME"), ")");
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -318,6 +321,33 @@ enum Commands {
     Decrypt {
         /// The token to decrypt.
         token: Option<String>,
+    },
+    /// Show the test runs recorded in a results database.
+    ///
+    /// Lists the latest runs; `--run` shows one run's results and `--flaky`
+    /// the tests that both pass and fail across recent runs. The database is
+    /// the one a `ResultStore` writes: pass its path with `--db` or set
+    /// SB_REPORT_DB (default: reports/results.db).
+    #[cfg(feature = "turso")]
+    Report {
+        /// Path of the results database.
+        #[arg(long)]
+        db: Option<PathBuf>,
+        /// Show the results of this run.
+        #[arg(long, conflicts_with = "flaky")]
+        run: Option<seleniumbase_rs::storage::RunId>,
+        /// With --run, show only the tests that failed.
+        #[arg(long, requires = "run")]
+        failed: bool,
+        /// Show tests that both pass and fail across the latest runs.
+        #[arg(long)]
+        flaky: bool,
+        /// How many runs to list, or to examine for flaky tests.
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        /// Print JSON instead of a table.
+        #[arg(long)]
+        json: bool,
     },
     /// Run a diagnostic check on the environment and configuration.
     Doctor,
@@ -1323,6 +1353,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let passphrase = encryption_passphrase()?;
             let token = text_or_stdin(token)?;
             println!("{}", decrypt_with_passphrase(&token, &passphrase)?);
+        }
+        #[cfg(feature = "turso")]
+        Commands::Report {
+            db,
+            run,
+            failed,
+            flaky,
+            limit,
+            json,
+        } => {
+            report::run(db, run, failed, flaky, limit, json).await?;
         }
         Commands::Doctor => {
             run_doctor().await?;

@@ -25,6 +25,7 @@ Design rules that apply to everything below:
 | --- | --- |
 | Dependencies | All direct crates at their latest releases; no git sources. |
 | Request interception and per-context proxies | `Page::intercept` with typed rules; `ContextOptions` and `BrowserPool::acquire_with` give a lease its own proxy, with the password answered per session. Verified on real Chrome. |
+| Turso storage (`turso` feature) | `ResultStore` and `sbase report` for test-run history and flaky tests; `ProfileVault` for encrypted profiles. |
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
 | WebRTC leak shield | `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::{shield_webrtc, webrtc_policy}` (the existing `WebRtcPolicy`). Verified on real Chrome. |
 | Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
@@ -132,9 +133,17 @@ step 2.
 
 ### Turso (optional `turso` feature, off by default)
 
-- Test-run reporting, the equivalent of Python's `--database_env` reporting and
-  `sbase report`.
-- The Tauri example's profile store, replacing the clear-text `profiles.json`.
+- Done: `storage::ResultStore` (runs, results, flaky-test detection), the
+  `sbase report` command, and `storage::ProfileVault` (profiles sealed with
+  AES-256-GCM, bound to their id, passphrase changeable in one transaction).
+  Covered by unit tests, `tests/cli_report.rs` and doctests. See
+  `docs/tutorials/results_and_profiles.md`.
+- To do: move the Tauri example's profile store onto `ProfileVault`, replacing
+  the clear-text `profiles.json` (and `tags.json`, `folders.json`); wire
+  `record_outcome` into `run_browser_test` and the Python-style `with_db_reporting`
+  / `database_env` options; consider the OS keychain for the vault passphrase.
+- Known: `cfg_block`, a transitive dependency of `turso_core`, declares no
+  licence in its manifest. `cargo deny check` passes.
 
 ### Five architecture improvements
 

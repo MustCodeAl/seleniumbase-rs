@@ -164,6 +164,17 @@ pub enum SeleniumBaseError {
     /// Browser test lifecycle helper encountered a failure.
     #[error("browser test lifecycle failed: {0}")]
     TestLifecycle(String),
+
+    /// The embedded results or profile database failed.
+    #[error("database error: {0}")]
+    Database(String),
+}
+
+#[cfg(feature = "turso")]
+impl From<turso::Error> for SeleniumBaseError {
+    fn from(error: turso::Error) -> Self {
+        Self::Database(error.to_string())
+    }
 }
 
 impl SeleniumBaseError {
@@ -402,6 +413,7 @@ impl SeleniumBaseError {
             Self::PythonMigration(_) => "python_migration",
             Self::Skipped(_) => "skipped",
             Self::TestLifecycle(_) => "test_lifecycle",
+            Self::Database(_) => "database",
         }
     }
 
