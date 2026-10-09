@@ -16,7 +16,7 @@ The crate root exposes the following modules:
 | `cli` | `sbase` command-line script implementations. |
 | `common` | Decorators, obfuscation, and shared exception types. |
 | `config` | Settings, proxy lists, and ad-block lists. |
-| `core` | Logging, reporting, download, and session helpers. |
+| `core` | Test result records and the JSON and HTML reports made from them. |
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
 | `js_code` | `quote`, which turns a Rust string into a JavaScript string literal for the scripts the crate builds. |
 | `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |

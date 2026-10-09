@@ -6,7 +6,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 
 use super::observer::TestPlugin;
-use crate::core::report_helper::{write_html_report, write_json_report, TestResult};
+use crate::core::report_helper::{write_html_report_async, write_json_report_async, TestResult};
 use crate::error::{Result, SeleniumBaseError};
 
 #[derive(Debug, Clone, Copy)]
@@ -67,14 +67,10 @@ impl TestPlugin for ReportPlugin {
         if let Some(parent) = self.path.parent().filter(|p| !p.as_os_str().is_empty()) {
             tokio::fs::create_dir_all(parent).await?;
         }
-        let (path, results, format) = (self.path.clone(), self.results.clone(), self.format);
-        tokio::task::spawn_blocking(move || match format {
-            Format::Json => write_json_report(&path, &results),
-            Format::Html => write_html_report(&path, &results),
-        })
-        .await
-        .ok()
-        .ok_or_else(|| SeleniumBaseError::TestLifecycle("the report writer panicked".to_owned()))?
+        match self.format {
+            Format::Json => write_json_report_async(&self.path, &self.results).await,
+            Format::Html => write_html_report_async(&self.path, &self.results).await,
+        }
         .map_err(SeleniumBaseError::from)
     }
 }
