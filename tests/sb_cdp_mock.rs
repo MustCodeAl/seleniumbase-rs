@@ -10,9 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{
-    Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State, WebRtcPolicy,
-};
+use seleniumbase_rs::sb_cdp::{Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State};
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::{json, Value};
 
@@ -737,10 +735,10 @@ async fn a_page_that_gathers_nothing_has_a_clean_report() {
 }
 
 #[tokio::test]
-async fn blocking_webrtc_installs_the_shim_now_and_for_every_new_document() {
+async fn shielding_webrtc_installs_the_shim_now_and_for_every_new_document() {
     let (page, mock) = quick_page().await;
 
-    page.shield_webrtc(WebRtcPolicy::Block).await.unwrap();
+    page.shield_webrtc().await.unwrap();
 
     assert_eq!(
         shim_installs(&mock),
@@ -760,10 +758,8 @@ async fn blocking_webrtc_installs_the_shim_now_and_for_every_new_document() {
 }
 
 #[tokio::test]
-async fn allowing_webrtc_installs_no_script() {
-    let (page, mock) = quick_page().await;
-
-    page.shield_webrtc(WebRtcPolicy::Allow).await.unwrap();
+async fn a_page_is_not_shielded_unless_asked() {
+    let (_page, mock) = quick_page().await;
 
     assert_eq!(shim_installs(&mock), 0);
 }

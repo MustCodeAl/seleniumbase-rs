@@ -3,18 +3,26 @@
 //! A page can open a `RTCPeerConnection` without asking, and the ICE
 //! candidates it gathers list the machine's addresses: private ones, `.local`
 //! names that stand in for them, and, via STUN, the public one. That is the
-//! classic way a proxy or VPN is bypassed. A [`WebRtcPolicy`] closes it, and
-//! [`Page::webrtc_report`] checks that it is closed by gathering candidates
-//! the way a tracking script would.
+//! classic way a proxy or VPN is bypassed.
+//!
+//! Chrome's `--force-webrtc-ip-handling-policy` flag (the
+//! [`WebRtcPolicy`](crate::WebRtcPolicy) a `Fingerprint` carries) limits which
+//! addresses are offered, but on Chrome 155 every value of it still lists a
+//! `.local` host candidate, which tells a script the machine is gathering
+//! candidates at all. Making WebRTC relay-only, with
+//! [`Page::shield_webrtc`] or
+//! [`LaunchOptionsBuilder::shield_webrtc`](super::LaunchOptionsBuilder::shield_webrtc),
+//! gathers none. [`Page::webrtc_report`] checks the result by gathering
+//! candidates the way a tracking script would.
 //!
 //! # Examples
 //!
 //! ```no_run
-//! use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, WebRtcPolicy};
+//! use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 //!
 //! # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 //! let browser = Browser::launch(
-//!     LaunchOptions::builder().webrtc_policy(WebRtcPolicy::Block).build()?,
+//!     LaunchOptions::builder().shield_webrtc(true).build()?,
 //! )
 //! .await?;
 //! let page = browser.default_page().await?;
@@ -29,39 +37,26 @@ use serde_json::json;
 
 use super::Page;
 use crate::error::SeleniumBaseError;
+use crate::stealth::fingerprint::WebRtcPolicy;
 
-/// How much of the machine's network a page's WebRTC may reveal.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-#[non_exhaustive]
-pub enum WebRtcPolicy {
-    /// Chrome's default: local addresses appear as `.local` names, and a STUN
-    /// server can learn the public address.
-    #[default]
-    Allow,
-    /// No candidates at all: connections can only go through a relay, and none
-    /// is configured. Pages that need WebRTC calls will not connect.
-    Block,
-}
-
-impl WebRtcPolicy {
-    /// The Chrome flag that applies the policy to every tab.
-    pub(crate) fn chrome_flag(self) -> Option<&'static str> {
-        match self {
-            Self::Allow => None,
-            Self::Block => Some("--force-webrtc-ip-handling-policy=disable_non_proxied_udp"),
+/// The Chrome flag that applies `policy` to every tab.
+pub(super) fn chrome_flag(policy: WebRtcPolicy) -> &'static str {
+    match policy {
+        WebRtcPolicy::DisableNonProxiedUdp => {
+            "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"
         }
-    }
-
-    /// A script that enforces the policy inside a page, where Chrome's flag
-    /// alone is not enough.
-    pub(crate) fn shim(self) -> Option<&'static str> {
-        (self == Self::Block).then_some(RELAY_ONLY_SHIM)
+        WebRtcPolicy::PublicInterfaceOnly => {
+            "--force-webrtc-ip-handling-policy=default_public_interface_only"
+        }
+        WebRtcPolicy::PublicAndPrivateInterfaces => {
+            "--force-webrtc-ip-handling-policy=default_public_and_private_interfaces"
+        }
     }
 }
 
 /// Makes every `RTCPeerConnection` relay-only and drops its STUN servers, so
 /// it gathers no candidate of its own and contacts no third party.
-const RELAY_ONLY_SHIM: &str = r"(() => {
+pub(super) const RELAY_ONLY_SHIM: &str = r"(() => {
   if (window.__sbWebRtcShield || !window.RTCPeerConnection) return;
   window.__sbWebRtcShield = true;
   const Native = window.RTCPeerConnection;
@@ -242,26 +237,24 @@ impl WebRtcReport {
 }
 
 impl Page {
-    /// Enforces `policy` inside this tab, now and on every page it loads.
+    /// Makes WebRTC relay-only in this tab, now and on every page it loads.
     ///
-    /// [`Block`](WebRtcPolicy::Block) installs a script that makes WebRTC
-    /// relay-only. [`Allow`](WebRtcPolicy::Allow) installs nothing. To also set
-    /// Chrome's own IP-handling flag, use
-    /// [`LaunchOptionsBuilder::webrtc_policy`](super::LaunchOptionsBuilder::webrtc_policy).
+    /// The tab then gathers no host, `.local` or public candidate and contacts
+    /// no STUN server, so it cannot reveal the machine's addresses. Pages that
+    /// need a WebRTC call to connect will not, unless they bring a TURN relay.
+    /// To shield every tab from launch, use
+    /// [`LaunchOptionsBuilder::shield_webrtc`](super::LaunchOptionsBuilder::shield_webrtc).
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser refuses.
-    pub async fn shield_webrtc(&self, policy: WebRtcPolicy) -> Result<(), SeleniumBaseError> {
-        let Some(shim) = policy.shim() else {
-            return Ok(());
-        };
+    pub async fn shield_webrtc(&self) -> Result<(), SeleniumBaseError> {
         self.execute(
             "Page.addScriptToEvaluateOnNewDocument",
-            json!({ "source": shim }),
+            json!({ "source": RELAY_ONLY_SHIM }),
         )
         .await?;
-        self.evaluate(shim).await?;
+        self.evaluate(RELAY_ONLY_SHIM).await?;
         Ok(())
     }
 
@@ -389,23 +382,32 @@ mod tests {
     }
 
     #[test]
-    fn each_policy_maps_to_its_chrome_flag_and_shim() {
-        assert_eq!(WebRtcPolicy::Allow.chrome_flag(), None);
-        assert_eq!(WebRtcPolicy::Allow.shim(), None);
-        assert!(WebRtcPolicy::Block
-            .chrome_flag()
-            .unwrap()
-            .ends_with("=disable_non_proxied_udp"));
-        assert!(WebRtcPolicy::Block
-            .shim()
-            .unwrap()
-            .contains("iceTransportPolicy: 'relay'"));
-        assert_eq!(WebRtcPolicy::default(), WebRtcPolicy::Allow);
+    fn each_policy_maps_to_its_chrome_flag() {
+        for (policy, value) in [
+            (
+                WebRtcPolicy::DisableNonProxiedUdp,
+                "disable_non_proxied_udp",
+            ),
+            (
+                WebRtcPolicy::PublicInterfaceOnly,
+                "default_public_interface_only",
+            ),
+            (
+                WebRtcPolicy::PublicAndPrivateInterfaces,
+                "default_public_and_private_interfaces",
+            ),
+        ] {
+            assert_eq!(
+                chrome_flag(policy),
+                format!("--force-webrtc-ip-handling-policy={value}")
+            );
+        }
     }
 
     #[test]
-    fn the_block_shim_leaves_only_relay_servers_so_no_stun_server_is_contacted() {
-        let shim = WebRtcPolicy::Block.shim().unwrap();
+    fn the_shim_leaves_only_relay_servers_so_no_stun_server_is_contacted() {
+        let shim = RELAY_ONLY_SHIM;
+        assert!(shim.contains("iceTransportPolicy: 'relay'"));
         assert!(shim.contains("turns?:"), "only TURN servers survive");
         assert!(
             shim.contains("window.__sbWebRtcShield"),
@@ -414,19 +416,28 @@ mod tests {
     }
 
     #[test]
-    fn the_launch_flag_follows_the_policy() {
+    fn chrome_is_left_alone_unless_a_policy_is_chosen() {
         use super::super::LaunchOptions;
-        let args = |policy| {
-            LaunchOptions::builder()
-                .webrtc_policy(policy)
+        let args = |builder: super::super::LaunchOptionsBuilder| {
+            builder
                 .build()
                 .unwrap()
                 .browser_args(std::path::Path::new("/tmp/profile"))
         };
-        assert!(!args(WebRtcPolicy::Allow)
+        assert!(!args(LaunchOptions::builder())
             .iter()
             .any(|arg| arg.contains("webrtc")));
-        assert!(args(WebRtcPolicy::Block)
-            .contains(&"--force-webrtc-ip-handling-policy=disable_non_proxied_udp".to_owned()));
+        assert!(
+            !args(LaunchOptions::builder().shield_webrtc(true))
+                .iter()
+                .any(|arg| arg.contains("webrtc")),
+            "the shield is a script, not a flag"
+        );
+        assert!(
+            args(LaunchOptions::builder().webrtc_policy(WebRtcPolicy::PublicInterfaceOnly))
+                .contains(
+                    &"--force-webrtc-ip-handling-policy=default_public_interface_only".to_owned()
+                )
+        );
     }
 }

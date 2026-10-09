@@ -472,7 +472,8 @@ impl Browser {
             json!({ "expression": super::page::HELPER_JS }),
         )
         .await?;
-        if let Some(shim) = self.inner.options.webrtc.shim() {
+        if self.inner.options.shield_webrtc {
+            let shim = super::webrtc::RELAY_ONLY_SHIM;
             send(
                 "Page.addScriptToEvaluateOnNewDocument",
                 json!({ "source": shim }),

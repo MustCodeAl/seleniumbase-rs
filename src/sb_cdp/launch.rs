@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
-use super::webrtc::WebRtcPolicy;
 use crate::error::SeleniumBaseError;
+use crate::stealth::fingerprint::WebRtcPolicy;
 use crate::stealth::patcher::find_system_chrome;
 
 /// How long a freshly launched browser may take to publish its endpoint.
@@ -168,7 +168,8 @@ pub struct LaunchOptions {
     pub(crate) window_size: Option<(u32, u32)>,
     pub(crate) window_position: Option<(i32, i32)>,
     pub(crate) no_sandbox: bool,
-    pub(crate) webrtc: WebRtcPolicy,
+    pub(crate) webrtc: Option<WebRtcPolicy>,
+    pub(crate) shield_webrtc: bool,
     pub(crate) extra_args: Vec<String>,
     pub(crate) startup_timeout: Duration,
 }
@@ -225,8 +226,8 @@ impl LaunchOptions {
         if self.no_sandbox {
             args.push("--no-sandbox".to_owned());
         }
-        if let Some(flag) = self.webrtc.chrome_flag() {
-            args.push(flag.to_owned());
+        if let Some(policy) = self.webrtc {
+            args.push(super::webrtc::chrome_flag(policy).to_owned());
         }
         if let Some(proxy) = &self.proxy {
             // Chrome ignores credentials here; they are supplied over the
@@ -274,7 +275,8 @@ pub struct LaunchOptionsBuilder {
     window_size: Option<(u32, u32)>,
     window_position: Option<(i32, i32)>,
     no_sandbox: bool,
-    webrtc: WebRtcPolicy,
+    webrtc: Option<WebRtcPolicy>,
+    shield_webrtc: bool,
     extra_args: Vec<String>,
     startup_timeout: Duration,
 }
@@ -296,7 +298,8 @@ impl Default for LaunchOptionsBuilder {
             window_size: None,
             window_position: None,
             no_sandbox: std::env::var_os("SB_NO_SANDBOX").is_some(),
-            webrtc: WebRtcPolicy::default(),
+            webrtc: None,
+            shield_webrtc: false,
             extra_args: Vec::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
         }
@@ -304,11 +307,24 @@ impl Default for LaunchOptionsBuilder {
 }
 
 impl LaunchOptionsBuilder {
-    /// How much of the machine's network a page's WebRTC may reveal; see
-    /// [`WebRtcPolicy`]. Allowed by default.
+    /// Sets Chrome's WebRTC IP-handling policy, the same flag a `Fingerprint`
+    /// applies. Chrome's own behaviour is kept unless this is called.
+    ///
+    /// The flag limits which addresses are offered but does not stop a page
+    /// seeing `.local` host candidates; for that, use
+    /// [`shield_webrtc`](Self::shield_webrtc).
     #[must_use]
     pub fn webrtc_policy(mut self, policy: WebRtcPolicy) -> Self {
-        self.webrtc = policy;
+        self.webrtc = Some(policy);
+        self
+    }
+
+    /// Makes WebRTC relay-only in every tab, so none gathers a candidate or
+    /// contacts a STUN server. Pages that need a WebRTC call to connect will
+    /// not. See [`Page::shield_webrtc`](super::Page::shield_webrtc).
+    #[must_use]
+    pub fn shield_webrtc(mut self, shield: bool) -> Self {
+        self.shield_webrtc = shield;
         self
     }
 
@@ -482,6 +498,7 @@ impl LaunchOptionsBuilder {
             window_position: self.window_position,
             no_sandbox: self.no_sandbox,
             webrtc: self.webrtc,
+            shield_webrtc: self.shield_webrtc,
             extra_args: self.extra_args,
             startup_timeout: self.startup_timeout,
         }

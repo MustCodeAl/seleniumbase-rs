@@ -260,17 +260,17 @@ connect to existing ones or, with `test-util`, to hand out mocked browsers.
 ## Keeping WebRTC from leaking addresses
 
 A page can open an `RTCPeerConnection` without asking, and the candidates it
-gathers name the machine's network addresses. That is how a proxy or VPN gets
+gathers describe the machine's network. That is how a proxy or VPN gets
 bypassed. `page.webrtc_report()` gathers candidates the way a tracking script
 would (with no STUN server, so nothing leaves the machine) and tells you what a
 page can learn:
 
 ```rust,no_run
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, WebRtcPolicy};
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
 # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let browser = Browser::launch(
-    LaunchOptions::builder().webrtc_policy(WebRtcPolicy::Block).build()?,
+    LaunchOptions::builder().shield_webrtc(true).build()?,
 )
 .await?;
 let page = browser.default_page().await?;
@@ -279,18 +279,19 @@ assert!(page.webrtc_report().await?.is_clean());
 # }
 ```
 
-- `WebRtcPolicy::Allow` (the default) leaves Chrome alone. On a typical machine
-  the report then shows `.local` names for the host's addresses, which is
-  enough for a script to recognise the machine.
-- `WebRtcPolicy::Block` sets Chrome's `disable_non_proxied_udp` policy and
-  makes every connection relay-only, dropping its STUN servers. Nothing is
-  gathered, so pages that need WebRTC calls will not connect.
-- `page.shield_webrtc(policy)` applies a policy to a tab that is already open,
-  and to every document it loads afterwards.
-
-Chrome's `default_public_interface_only` policy is deliberately not offered: in
-Chrome 155 it still lists the `.local` candidates, so it hides nothing the probe
-can see.
+- **By default** Chrome is left alone. On a typical machine the report lists
+  `.local` host candidates, which stand in for the machine's private addresses
+  but still tell a script that the machine is gathering candidates.
+- **The shield** (`LaunchOptionsBuilder::shield_webrtc(true)`, or
+  `page.shield_webrtc()` for a tab that is already open) makes every
+  `RTCPeerConnection` relay-only and drops its STUN servers. Nothing is
+  gathered, now or on any page the tab loads later. Pages that need a WebRTC
+  call to connect will not, unless they bring a TURN relay.
+- **Chrome's own flag** is available too: `webrtc_policy(WebRtcPolicy::...)`
+  takes the same `WebRtcPolicy` a `Fingerprint` carries. On Chrome 155 none of
+  its three values removes the `.local` candidates, so use the shield when the
+  goal is for a page to learn nothing, and the flag when you only want to limit
+  which addresses are offered.
 
 ## CAPTCHAs
 

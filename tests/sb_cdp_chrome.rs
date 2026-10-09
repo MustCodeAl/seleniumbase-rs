@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{
     Browser, BrowserPool, ContextOptions, Cookie, LaunchOptions, Outcome, Page, PoolOptions, Proxy,
-    Response, Rule, SelectBy, State, WebRtcPolicy,
+    Response, Rule, SelectBy, State,
 };
 use seleniumbase_rs::stealth::behavior::Behavior;
 use seleniumbase_rs::SeleniumBaseError;
@@ -913,13 +913,13 @@ async fn a_context_can_have_its_own_password_protected_proxy_while_others_go_dir
     browser.close().await.unwrap();
 }
 
-async fn webrtc_report_under(policy: WebRtcPolicy) -> seleniumbase_rs::sb_cdp::WebRtcReport {
+async fn webrtc_report_under(shield: bool) -> seleniumbase_rs::sb_cdp::WebRtcReport {
     let base = serve();
     let browser = Browser::launch(
         LaunchOptions::builder()
             .headless(true)
             .no_sandbox(std::env::var_os("CI").is_some())
-            .webrtc_policy(policy)
+            .shield_webrtc(shield)
             .build()
             .unwrap(),
     )
@@ -934,8 +934,8 @@ async fn webrtc_report_under(policy: WebRtcPolicy) -> seleniumbase_rs::sb_cdp::W
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
-async fn webrtc_leaks_addresses_by_default_and_the_policies_close_the_leak() {
-    let open = webrtc_report_under(WebRtcPolicy::Allow).await;
+async fn webrtc_gathers_candidates_by_default_and_the_shield_stops_it() {
+    let open = webrtc_report_under(false).await;
     println!(
         "allow:        {:?}",
         open.candidates()
@@ -954,12 +954,38 @@ async fn webrtc_leaks_addresses_by_default_and_the_policies_close_the_leak() {
         "an unshielded page should reveal candidates"
     );
 
-    let blocked = webrtc_report_under(WebRtcPolicy::Block).await;
+    let shielded = webrtc_report_under(true).await;
     assert!(
-        blocked.candidates().is_empty(),
-        "a blocked page gathers nothing: {blocked:?}"
+        shielded.candidates().is_empty(),
+        "a shielded page gathers nothing: {shielded:?}"
     );
-    assert!(blocked.is_clean());
+    assert!(shielded.is_clean());
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn the_shield_works_together_with_chromes_ip_handling_flag() {
+    use seleniumbase_rs::WebRtcPolicy;
+    let base = serve();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .webrtc_policy(WebRtcPolicy::DisableNonProxiedUdp)
+            .shield_webrtc(true)
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let page = browser.default_page().await.unwrap();
+    page.goto(format!("{base}/")).await.unwrap();
+    let report = page.webrtc_report().await.unwrap();
+    browser.close().await.unwrap();
+    assert!(
+        report.candidates().is_empty(),
+        "flag and shield together: {report:?}"
+    );
 }
 
 #[tokio::test]
@@ -982,7 +1008,7 @@ async fn a_running_tab_can_be_shielded_after_the_fact() {
         return;
     }
 
-    page.shield_webrtc(WebRtcPolicy::Block).await.unwrap();
+    page.shield_webrtc().await.unwrap();
     assert!(
         page.webrtc_report().await.unwrap().is_clean(),
         "the current document is shielded"

@@ -26,7 +26,7 @@ Design rules that apply to everything below:
 | Dependencies | All direct crates at their latest releases; no git sources. |
 | Request interception and per-context proxies | `Page::intercept` with typed rules; `ContextOptions` and `BrowserPool::acquire_with` give a lease its own proxy, with the password answered per session. Verified on real Chrome. |
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
-| WebRTC leak shield | `WebRtcPolicy`, `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::webrtc_policy`. Verified on real Chrome. |
+| WebRTC leak shield | `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::{shield_webrtc, webrtc_policy}` (the existing `WebRtcPolicy`). Verified on real Chrome. |
 | Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
 | Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | 24 tools, mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
@@ -157,12 +157,13 @@ step 2.
    - Done: per-context proxy routing with per-session password handling
      (`ContextOptions`, `acquire_with`), verified on real Chrome against a
      password-protected proxy.
-   - Done: WebRTC leak shielding. `WebRtcPolicy::{Allow, Block}`, a probe
-     (`Page::webrtc_report`) that classifies the candidates a page can gather, and
-     `Page::shield_webrtc` for a tab that is already open. Verified on real
-     Chrome: the default leaks two `.local` host candidates and `Block` leaks
-     none. Chrome's `default_public_interface_only` was tried and dropped: it
-     does not remove the `.local` candidates.
+   - Done: WebRTC leak shielding. A probe (`Page::webrtc_report`) that
+     classifies the candidates a page can gather, and a relay-only shield
+     (`Page::shield_webrtc`, `LaunchOptionsBuilder::shield_webrtc`). Verified on
+     real Chrome 155: the default gathers two `.local` host candidates, and so
+     does every value of Chrome's own `--force-webrtc-ip-handling-policy`; the
+     shield gathers none. `sb_cdp` reuses the existing `WebRtcPolicy` for the
+     flag rather than defining its own.
 4. **Hardware and profile randomisation**: WebGL, canvas, timezone and locale,
    as `Fingerprint::randomized(os, seed)` that always passes `validate()`.
 5. **Integration**: use `Fingerprint` and `EvasionRegistry` from
