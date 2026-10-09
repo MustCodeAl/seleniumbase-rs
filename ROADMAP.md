@@ -139,10 +139,17 @@ step 2.
   AES-256-GCM, bound to their id, passphrase changeable in one transaction).
   Covered by unit tests, `tests/cli_report.rs` and doctests. See
   `docs/tutorials/results_and_profiles.md`.
-- To do: move the Tauri example's profile store onto `ProfileVault`, replacing
-  the clear-text `profiles.json` (and `tags.json`, `folders.json`); wire
-  `record_outcome` into `run_browser_test` and the Python-style `with_db_reporting`
-  / `database_env` options; consider the OS keychain for the vault passphrase.
+- Done: the Tauri example (`examples/tauri-profile-manager`) keeps profiles,
+  tags and folders in a `ProfileVault` instead of clear-text JSON, migrating the
+  old files only after reading every document back and comparing it. The vault
+  passphrase comes from `SB_PROFILE_PASSPHRASE` or the OS keychain. It also has a
+  Pure CDP engine (isolated context, per-profile proxy, WebRTC shield) and a
+  Randomize action built on `Fingerprint::randomized`. Verified: the example's
+  tests and one real-Chrome launch. Not verified: the real keychain, the Tauri
+  window, and the WebDriver/Docker path.
+- To do: wire `record_outcome` into `run_browser_test` and the Python-style
+  `with_db_reporting` / `database_env` options (the `Plugins` runner is the
+  place; see the plugin rebuild).
 - Known: the feature needs Rust 1.90 (`roaring`, via `turso_core`), while the
   crate's MSRV stays 1.89 without it. `cfg_block`, also via `turso_core`,
   declares no licence in its manifest; `cargo deny check` passes.
