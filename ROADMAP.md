@@ -253,6 +253,77 @@ surface. Decide each:
 The scan counts name mentions, so an item used only through a glob import or a
 macro would show up here wrongly; check before deleting.
 
+### Audit of the files untouched since 2026-08-04
+
+Two read-only audits covered `src/api/**`, `src/stealth/*`,
+`src/profile_payloads`, `tracing_util.rs` and `src/utilities`. **Every item
+below was found by reading the code; none was run or confirmed against Chrome**,
+so check each with a test before fixing it.
+
+Fixed and tested (these were confirmed by reading and are covered by unit
+tests): a payload's Chrome switches that run programs, load code or reroute
+traffic are refused (`stealth::evasions::permitted_switch`, applied to the
+WebDriver, Playwright and profile paths); `folder_id` can no longer leave
+`./profile-data`; start pages are limited to five web pages; derived `Debug`
+on `StealthOptions` and both `ProxyConfig` types no longer prints proxy
+passwords; the CDP reactor no longer spins at 100% CPU after the socket closes
+and keeps a request's own headers when it overrides one; mobile defaults no
+longer override a caller's user agent and window size; `--no-sandbox` is
+Linux-only and `--disable-gpu` headless-only (WebDriver path, not run against a
+real driver).
+
+Open, most serious first:
+
+- Path traversal through caller-supplied file names: `base_case_impl_dom.rs`
+  (`save_page_source`, `save_as_html`), `base_case_impl_extra.rs` (cookie
+  files, `assert_downloaded_file`, `delete_downloaded_file`) and
+  `base_case_impl_downloads.rs` (`join(user name)`, so `../../x` or an absolute
+  path reads or deletes any file). The `artifacts.rs` fix in the agent branch
+  (`b65e522`) has the helper to reuse.
+- `master_qa.rs:97` treats end-of-input as "yes", so manual checks pass on their
+  own in CI. `dialog.rs` `prompt()` shows a message box and returns the
+  default; it never asks for text. `tour.rs:314` writes CSS with doubled
+  braces, which is invalid.
+- Shadow DOM script builders (`utils/shadow.rs`) cut the script before the
+  closing `})();`; the agent branch (`982e89d`) rebuilds them.
+- `cdp_driver.rs` talks to the browser socket without a target session, so it
+  probably cannot work; only docs mention it. `stealth/cdp.rs` swallows the
+  three mouse-event errors, so a failed click reports `Ok`.
+- `python_importer.rs`: a sleep of `1.0` is written as `from_secs_f64(1)`, which
+  does not compile; an apostrophe in a comment swallows the following lines.
+  `selenium_ide.rs:23` has no `(?s)`, so multi-line rows match nothing.
+- `patcher.rs`: the backup copy overwrites an existing `.orig`; the patched
+  binary is written in place and not atomically; the cache key ignores the patch
+  set; the patched Chrome copy probably cannot start on macOS or Linux because
+  only the executable is copied (unverified).
+- `uc.rs:270` evaluates a top-level `let o` that fails the second time;
+  non-configurable `defineProperty` calls outside `try`.
+- Providers (`stealth/providers/builtin.rs`): the font check mishandles
+  shorthand such as `12px Arial`; the timezone provider patches only
+  `Intl.DateTimeFormat`, so `getTimezoneOffset` disagrees; canvas and audio
+  noise differ on every read despite the "deterministic" claim; page-visible
+  globals `__sbNative`, `__sbVendorId`, `__sbBlockedTrackers`. No provider's
+  JavaScript has ever been parsed or run in a test.
+- `html_inspector.rs`: the reported selector does not identify the element;
+  radio-group issues come out in `HashMap` order. `deferred.rs` evaluates queued
+  assertions against whichever page is current when they run.
+- `tracing_util.rs` calls `set_var("RUST_LOG")`; `chart.rs`, `tour.rs` and
+  `presentation.rs` splice unescaped text into HTML and JavaScript;
+  `get_origin` drops the port; `charts.rs` and `presentations.rs` return paths
+  inside a temporary directory that is already deleted.
+
+Unmerged work from the first-wave agents is still in their worktrees under
+`.claude/worktrees/` (the agents were stopped to save usage; their commits are
+intact, their uncommitted files are not reviewed): `ad42103370f30d15f` (shutdown
+handler, one retry/polling API; mid-fix when stopped), `adb6da293d5997036` (js_code
+`quote()`, styled report, artifacts path fix), `ac6308fa69e10f103` (CLI test
+generation), `a8eaa5fb909e58850` (CLI/config files, 16 uncommitted files). None
+of it has been through the gate.
+
+Performance harnesses are in `benches/` (`cargo bench --bench cpu`, `--bench
+cdp_latency`). They compile and pass clippy, but have **not been run**, so there
+are no performance numbers yet and nothing here compares against Python.
+
 ## Publishing
 
 Work happens on a feature branch. To publish: run the quality gate on a clean

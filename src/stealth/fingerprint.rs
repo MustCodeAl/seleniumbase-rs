@@ -358,7 +358,7 @@ pub enum WebRtcPolicy {
 }
 
 /// Proxy configuration for a profile.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProxyConfig {
     pub r#type: String,
     pub host: String,
@@ -366,6 +366,20 @@ pub struct ProxyConfig {
     pub username: Option<String>,
     pub password: Option<String>,
     pub save_traffic: bool,
+}
+
+// Written by hand so that logging a fingerprint never prints the password.
+impl std::fmt::Debug for ProxyConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyConfig")
+            .field("type", &self.r#type)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| "<redacted>"))
+            .field("save_traffic", &self.save_traffic)
+            .finish()
+    }
 }
 
 impl ProxyConfig {

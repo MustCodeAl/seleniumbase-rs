@@ -246,7 +246,7 @@ pub struct CmdParam {
     pub value: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ProxyConfig {
     #[serde(rename = "type")]
     pub proxy_type: String,
@@ -258,6 +258,20 @@ pub struct ProxyConfig {
     pub password: String,
     #[serde(default)]
     pub save_traffic: bool,
+}
+
+// Written by hand so that logging a profile never prints the password.
+impl std::fmt::Debug for ProxyConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyConfig")
+            .field("proxy_type", &self.proxy_type)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("username", &self.username)
+            .field("password", &"<redacted>")
+            .field("save_traffic", &self.save_traffic)
+            .finish()
+    }
 }
 
 fn default_browser_type() -> String {
@@ -909,13 +923,8 @@ impl ProfileParams {
             }
             _ => DriverMode::Uc,
         };
-        let custom_start_urls: Vec<String> = self
-            .parameters
-            .custom_start_urls
-            .iter()
-            .take(5)
-            .cloned()
-            .collect();
+        let custom_start_urls: Vec<String> =
+            self.start_urls().into_iter().map(str::to_owned).collect();
         let mut config = BrowserConfig {
             webdriver_url: container_url.into(),
             browser: self.browser(),
@@ -995,29 +1004,70 @@ impl ProfileParams {
     }
 
     /// Per-profile persistent data directory when `storage.is_local` is true.
+    ///
+    /// The folder is named after `folder_id` with anything but letters,
+    /// digits, `-` and `_` replaced, so an id from outside the program cannot
+    /// point the directory somewhere else.
     pub fn user_data_dir(&self) -> Option<String> {
-        if self.parameters.storage.is_local {
-            Some(format!("./profile-data/{}", self.folder_id))
-        } else {
-            None
+        if !self.parameters.storage.is_local {
+            return None;
         }
+        let folder: String = self
+            .folder_id
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let folder = if folder.is_empty() {
+            "default"
+        } else {
+            &folder
+        };
+        Some(format!("./profile-data/{folder}"))
+    }
+
+    /// The pages to open at start-up: at most five, and only web pages.
+    ///
+    /// A payload can come from outside the program, so `file:` and other
+    /// schemes that reach the machine itself are left out.
+    pub fn start_urls(&self) -> Vec<&str> {
+        self.parameters
+            .custom_start_urls
+            .iter()
+            .map(String::as_str)
+            .filter(|url| {
+                let url = url.trim_start().to_ascii_lowercase();
+                let web = url.starts_with("http://")
+                    || url.starts_with("https://")
+                    || url == "about:blank";
+                if !web {
+                    tracing::warn!("ignoring a start page that is not a web page");
+                }
+                web
+            })
+            .take(5)
+            .collect()
     }
 
     /// Additional Chromium command-line flags parsed from `cmd_params`.
+    ///
+    /// Switches that run programs, load code, open remote control or move
+    /// traffic are left out; see
+    /// [`permitted_switch`](crate::stealth::evasions::permitted_switch).
     pub fn extra_args(&self) -> Vec<String> {
-        self.parameters
-            .fingerprint
-            .cmd_params
-            .params
-            .iter()
-            .map(|p| {
-                if p.value.is_empty() {
-                    format!("--{}", p.flag)
-                } else {
-                    format!("--{}={}", p.flag, p.value)
-                }
-            })
-            .collect()
+        crate::stealth::evasions::switches_to_args(
+            self.parameters
+                .fingerprint
+                .cmd_params
+                .params
+                .iter()
+                .map(|p| (p.flag.as_str(), p.value.as_str())),
+        )
     }
 
     /// Applies runtime fingerprint overrides to an active `BaseCase`.
@@ -1035,7 +1085,7 @@ impl ProfileParams {
             sb.set_geolocation(geo.latitude, geo.longitude, geo.accuracy)
                 .await?;
         }
-        for url in self.parameters.custom_start_urls.iter().skip(1) {
+        for url in self.start_urls().into_iter().skip(1) {
             sb.open(url).await?;
         }
         Ok(())
@@ -1115,6 +1165,97 @@ mod tests {
         assert_eq!(params.parameters.flags.webrtc_masking, "mask");
         assert!(params.parameters.storage.is_local);
         assert_eq!(params.times, 1);
+    }
+
+    #[test]
+    fn a_folder_id_cannot_leave_the_profile_directory() {
+        for (id, expected) in [
+            (
+                "4500dd84-d8c5-4450-b2df-1c64daed8bad",
+                "4500dd84-d8c5-4450-b2df-1c64daed8bad",
+            ),
+            ("../../etc", "______etc"),
+            ("a/b\\c", "a_b_c"),
+            ("..", "__"),
+            ("", "default"),
+        ] {
+            let params: ProfileParams = serde_json::from_value(json!({
+                "name": "P", "folder_id": id, "parameters": {}
+            }))
+            .unwrap();
+            assert_eq!(
+                params.user_data_dir().as_deref(),
+                Some(format!("./profile-data/{expected}").as_str()),
+                "folder id {id:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn switches_that_run_programs_are_not_passed_to_chrome() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "P",
+            "parameters": { "fingerprint": { "cmd_params": { "params": [
+                { "flag": "renderer-cmd-prefix", "value": "/bin/sh -c evil" },
+                { "flag": "load-extension", "value": "/tmp/ext" },
+                { "flag": "lang", "value": "fr-FR" },
+                { "flag": "disable-quic" }
+            ] } } }
+        }))
+        .unwrap();
+        assert_eq!(params.extra_args(), ["--disable-quic", "--lang=fr-FR"]);
+        let config = params.to_browser_config("http://localhost:4444");
+        assert!(!config.extra_args.iter().any(|a| a.contains("cmd-prefix")));
+    }
+
+    #[test]
+    fn only_web_pages_are_opened_at_start_up() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "P",
+            "parameters": { "custom_start_urls": [
+                "file:///etc/passwd", "https://a.example", "javascript:alert(1)",
+                "http://b.example", "about:blank", "https://c.example",
+                "https://d.example", "https://e.example"
+            ] }
+        }))
+        .unwrap();
+        assert_eq!(
+            params.start_urls(),
+            [
+                "https://a.example",
+                "http://b.example",
+                "about:blank",
+                "https://c.example",
+                "https://d.example"
+            ]
+        );
+        let config = params.to_browser_config("http://localhost:4444");
+        assert_eq!(config.start_page.as_deref(), Some("https://a.example"));
+    }
+
+    #[test]
+    fn debug_output_does_not_show_the_proxy_password() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "P",
+            "parameters": { "proxy": {
+                "type": "http", "host": "proxy.example", "port": 8081,
+                "username": "user", "password": "hunter2"
+            } }
+        }))
+        .unwrap();
+        let shown = format!("{params:?}");
+        assert!(!shown.contains("hunter2"), "{shown}");
+        assert!(shown.contains("proxy.example"), "{shown}");
+        // The fingerprint's own proxy type hides it too.
+        let fp = stealth_fp::ProxyConfig {
+            r#type: "http".into(),
+            host: "h".into(),
+            port: 1,
+            username: Some("u".into()),
+            password: Some("hunter2".into()),
+            save_traffic: false,
+        };
+        assert!(!format!("{fp:?}").contains("hunter2"));
     }
 
     #[test]
@@ -1204,12 +1345,16 @@ mod tests {
         let params: ProfileParams = serde_json::from_value(json!({
             "name": "Urls",
             "parameters": {
-                "custom_start_urls": ["a", "b", "c", "d", "e", "f"]
+                "custom_start_urls": [
+                    "https://a.example", "https://b.example", "https://c.example",
+                    "https://d.example", "https://e.example", "https://f.example"
+                ]
             }
         }))
         .unwrap();
+        assert_eq!(params.start_urls().len(), 5);
         let config = params.to_browser_config("http://localhost:4444");
-        assert_eq!(config.start_page, Some("a".to_string()));
+        assert_eq!(config.start_page, Some("https://a.example".to_string()));
     }
 
     #[test]

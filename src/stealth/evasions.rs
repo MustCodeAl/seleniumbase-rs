@@ -54,6 +54,81 @@ pub fn cdc_scrub() -> String {
         .to_owned()
 }
 
+/// Chrome switches a fingerprint payload may not set.
+///
+/// A payload can come from outside the program, so a switch that runs a
+/// program (`--renderer-cmd-prefix` puts any command in front of every
+/// renderer), loads code, hands out remote control, or sends traffic
+/// somewhere the caller did not choose is refused.
+const FORBIDDEN_SWITCHES: &[&str] = &[
+    "renderer-cmd-prefix",
+    "utility-cmd-prefix",
+    "zygote-cmd-prefix",
+    "gpu-launcher",
+    "ppapi-plugin-launcher",
+    "plugin-launcher",
+    "nacl-gdb",
+    "nacl-gdb-script",
+    "browser-subprocess-path",
+    "load-extension",
+    "load-component-extension",
+    "user-data-dir",
+    "remote-debugging-port",
+    "remote-debugging-address",
+    "remote-debugging-pipe",
+    "proxy-server",
+    "proxy-pac-url",
+    "host-resolver-rules",
+    "host-rules",
+    "ignore-certificate-errors",
+    "ignore-certificate-errors-spki-list",
+];
+
+/// Whether a payload's `flag` (written without the leading dashes) and
+/// `value` may be handed to Chrome.
+///
+/// The flag must be a plain switch name, the value must be one line, and the
+/// switch must not be one of the refused ones.
+#[must_use]
+pub fn permitted_switch(flag: &str, value: &str) -> bool {
+    let plain = !flag.is_empty()
+        && flag.starts_with(|c: char| c.is_ascii_alphanumeric())
+        && flag
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    plain
+        && !value.contains(['\n', '\r', '\0'])
+        && !FORBIDDEN_SWITCHES
+            .iter()
+            .any(|forbidden| forbidden.eq_ignore_ascii_case(flag))
+}
+
+/// The arguments for a payload's switches, in a fixed order, with the refused
+/// ones left out.
+#[must_use]
+pub fn switches_to_args<'a>(switches: impl IntoIterator<Item = (&'a str, &'a str)>) -> Vec<String> {
+    let mut kept: Vec<(&str, &str)> = switches
+        .into_iter()
+        .filter(|(flag, value)| {
+            let ok = permitted_switch(flag, value);
+            if !ok {
+                tracing::warn!(flag, "refusing a Chrome switch from a fingerprint payload");
+            }
+            ok
+        })
+        .collect();
+    kept.sort_unstable();
+    kept.into_iter()
+        .map(|(flag, value)| {
+            if value.is_empty() {
+                format!("--{flag}")
+            } else {
+                format!("--{flag}={value}")
+            }
+        })
+        .collect()
+}
+
 /// Returns Chromium command-line arguments derived from a fingerprint.
 pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     let mut args = vec![
@@ -134,13 +209,9 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
         QuicMode::Natural | QuicMode::Auto => {}
     }
 
-    for (flag, value) in &fp.cmd_params {
-        if value.is_empty() {
-            args.push(format!("--{flag}"));
-        } else {
-            args.push(format!("--{flag}={value}"));
-        }
-    }
+    args.extend(switches_to_args(
+        fp.cmd_params.iter().map(|(f, v)| (f.as_str(), v.as_str())),
+    ));
 
     args
 }
@@ -369,6 +440,31 @@ mod tests {
         assert!(args.iter().any(|a| a.contains("AutomationControlled")));
         assert!(args.iter().any(|a| a.starts_with("--user-agent=")));
         assert!(args.iter().any(|a| a.starts_with("--window-size=")));
+    }
+
+    #[test]
+    fn payload_switches_that_run_programs_are_refused() {
+        let args = switches_to_args([
+            ("renderer-cmd-prefix", "/bin/sh -c evil"),
+            ("RENDERER-CMD-PREFIX", "x"),
+            ("load-extension", "/tmp/ext"),
+            ("proxy-server", "http://elsewhere"),
+            ("user-data-dir", "/tmp/x"),
+            ("--lang", "de"),
+            ("two words", ""),
+            ("force-color-profile", "srgb\n--no-sandbox"),
+            ("lang", "de-DE"),
+            ("disable-quic", ""),
+        ]);
+        assert_eq!(args, vec!["--disable-quic", "--lang=de-DE"]);
+    }
+
+    #[test]
+    fn payload_switches_come_out_in_a_fixed_order() {
+        let first = switches_to_args([("b-flag", "1"), ("a-flag", ""), ("c-flag", "3")]);
+        let second = switches_to_args([("c-flag", "3"), ("a-flag", ""), ("b-flag", "1")]);
+        assert_eq!(first, second);
+        assert_eq!(first, vec!["--a-flag", "--b-flag=1", "--c-flag=3"]);
     }
 
     #[test]

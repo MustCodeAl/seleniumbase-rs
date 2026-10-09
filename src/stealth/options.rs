@@ -9,7 +9,7 @@ use crate::stealth::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 
 /// Collection of browser launch options that reduce automation fingerprints.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct StealthOptions {
     pub headless: bool,
     pub window_size: Option<String>,
@@ -30,6 +30,47 @@ pub struct StealthOptions {
     pub extra_args: Vec<String>,
     /// Optional explicit path to a patched or custom browser binary.
     pub binary_path: Option<PathBuf>,
+}
+
+// Written by hand: the proxy URL may carry a password and the extra headers
+// may carry credentials, and neither should reach a log.
+impl std::fmt::Debug for StealthOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut header_names: Vec<&String> = self.extra_headers.keys().collect();
+        header_names.sort();
+        f.debug_struct("StealthOptions")
+            .field("headless", &self.headless)
+            .field("window_size", &self.window_size)
+            .field("user_agent", &self.user_agent)
+            .field("locale", &self.locale)
+            .field("proxy", &self.proxy.as_deref().map(without_credentials))
+            .field(
+                "proxy_pac_url",
+                &self.proxy_pac_url.as_deref().map(without_credentials),
+            )
+            .field("user_data_dir", &self.user_data_dir)
+            .field("extension_dir", &self.extension_dir)
+            .field("mobile", &self.mobile)
+            .field("ad_block", &self.ad_block)
+            .field("uc", &self.uc)
+            .field("fingerprint", &self.fingerprint)
+            .field("extra_header_names", &header_names)
+            .field("extra_args", &self.extra_args)
+            .field("binary_path", &self.binary_path)
+            .finish()
+    }
+}
+
+/// `url` with any `user:password@` removed, for showing in a log.
+fn without_credentials(url: &str) -> String {
+    let (scheme, rest) = url.split_once("://").map_or(("", url), |(s, r)| (s, r));
+    let host_start = rest.rfind('@').map_or(0, |at| at + 1);
+    let rest = &rest[host_start..];
+    if scheme.is_empty() {
+        rest.to_owned()
+    } else {
+        format!("{scheme}://{rest}")
+    }
 }
 
 impl From<&BrowserConfig> for StealthOptions {
@@ -60,17 +101,24 @@ impl StealthOptions {
         &self,
         caps: &mut C,
     ) -> Result<(), SeleniumBaseError> {
-        // Baseline stability flags.
-        caps.add_arg("--disable-gpu")?;
+        // Baseline stability flags. The sandbox is only turned off where it
+        // commonly cannot start (containers and root shells on Linux), and the
+        // GPU only where there is no screen to draw on, because a browser with
+        // no GPU reports a software renderer that pages can tell apart.
         caps.add_arg("--disable-dev-shm-usage")?;
-        caps.add_arg("--no-sandbox")?;
-
-        let size = self.window_size.as_deref().unwrap_or("1280,720");
-        caps.add_arg(&format!("--window-size={size}"))?;
-
+        if cfg!(target_os = "linux") {
+            caps.add_arg("--no-sandbox")?;
+        }
         if self.headless {
+            caps.add_arg("--disable-gpu")?;
             caps.add_arg("--headless=new")?;
         }
+
+        let size =
+            self.window_size
+                .as_deref()
+                .unwrap_or(if self.mobile { "390,844" } else { "1280,720" });
+        caps.add_arg(&format!("--window-size={size}"))?;
 
         if self.ad_block {
             caps.add_arg("--blink-settings=imagesEnabled=false")?;
@@ -100,9 +148,9 @@ impl StealthOptions {
             caps.add_arg(&format!("--load-extension={extension_dir}"))?;
         }
 
-        if self.mobile {
+        // A phone user agent only where the caller named none.
+        if self.mobile && self.user_agent.is_none() {
             caps.add_arg("--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")?;
-            caps.add_arg("--window-size=390,844")?;
         }
 
         if let Some(binary) = self.binary_path.as_deref() {
@@ -146,30 +194,32 @@ impl StealthOptions {
     }
 }
 
+/// The standard undetected-chrome launch arguments.
+const UC_ARGS: [&str; 17] = [
+    "--disable-blink-features=AutomationControlled",
+    "--disable-infobars",
+    "--disable-popup-blocking",
+    "--no-first-run",
+    "--disable-notifications",
+    "--disable-background-networking",
+    "--disable-client-side-phishing-detection",
+    "--disable-default-apps",
+    "--disable-prompt-on-repost",
+    "--disable-sync",
+    "--disable-translate",
+    "--metrics-recording-only",
+    "--no-default-browser-check",
+    "--password-store=basic",
+    "--use-mock-keychain",
+    "--disable-search-engine-choice-screen",
+    "--safebrowsing-disable-download-protection",
+];
+
 /// Adds the standard undetected-chrome launch arguments.
 pub fn apply_undetected_args<C: ChromiumLikeCapabilities>(
     caps: &mut C,
 ) -> Result<(), SeleniumBaseError> {
-    let args = [
-        "--disable-blink-features=AutomationControlled",
-        "--disable-infobars",
-        "--disable-popup-blocking",
-        "--no-first-run",
-        "--disable-notifications",
-        "--disable-background-networking",
-        "--disable-client-side-phishing-detection",
-        "--disable-default-apps",
-        "--disable-prompt-on-repost",
-        "--disable-sync",
-        "--disable-translate",
-        "--metrics-recording-only",
-        "--no-default-browser-check",
-        "--password-store=basic",
-        "--use-mock-keychain",
-        "--disable-search-engine-choice-screen",
-        "--safebrowsing-disable-download-protection",
-    ];
-    for arg in args {
+    for arg in UC_ARGS {
         caps.add_arg(arg)?;
     }
     caps.add_exclude_switch("enable-automation")?;
@@ -179,28 +229,7 @@ pub fn apply_undetected_args<C: ChromiumLikeCapabilities>(
 
 /// Returns the default list of undetected-chrome launch arguments.
 pub fn default_uc_args() -> Vec<String> {
-    [
-        "--disable-blink-features=AutomationControlled",
-        "--disable-infobars",
-        "--disable-popup-blocking",
-        "--no-first-run",
-        "--disable-notifications",
-        "--disable-background-networking",
-        "--disable-client-side-phishing-detection",
-        "--disable-default-apps",
-        "--disable-prompt-on-repost",
-        "--disable-sync",
-        "--disable-translate",
-        "--metrics-recording-only",
-        "--no-default-browser-check",
-        "--password-store=basic",
-        "--use-mock-keychain",
-        "--disable-search-engine-choice-screen",
-        "--safebrowsing-disable-download-protection",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect()
+    UC_ARGS.iter().map(|s| (*s).to_owned()).collect()
 }
 
 #[cfg(test)]
@@ -228,5 +257,79 @@ mod tests {
         assert!(args.contains(&"--disable-blink-features=AutomationControlled".to_owned()));
         assert!(args.contains(&"--window-size=1920,1080".to_owned()));
         assert!(!args.iter().any(|a| a.contains("enable-automation")));
+    }
+
+    #[test]
+    fn mobile_defaults_do_not_override_what_the_caller_set() {
+        let own = StealthOptions {
+            mobile: true,
+            user_agent: Some("MyAgent/1.0".to_owned()),
+            window_size: Some("500,900".to_owned()),
+            ..Default::default()
+        };
+        let args = own.args().unwrap();
+        assert_eq!(
+            args.iter()
+                .filter(|a| a.starts_with("--user-agent="))
+                .count(),
+            1,
+            "{args:?}"
+        );
+        assert!(args.contains(&"--user-agent=MyAgent/1.0".to_owned()));
+        assert_eq!(
+            args.iter()
+                .filter(|a| a.starts_with("--window-size="))
+                .count(),
+            1
+        );
+        assert!(args.contains(&"--window-size=500,900".to_owned()));
+
+        let bare = StealthOptions {
+            mobile: true,
+            ..Default::default()
+        };
+        let args = bare.args().unwrap();
+        assert!(args.contains(&"--window-size=390,844".to_owned()));
+        assert!(args.iter().any(|a| a.contains("Android")));
+    }
+
+    #[test]
+    fn gpu_stays_on_unless_headless() {
+        let shown = StealthOptions::default().args().unwrap();
+        assert!(!shown.contains(&"--disable-gpu".to_owned()));
+        let headless = StealthOptions {
+            headless: true,
+            ..Default::default()
+        };
+        assert!(headless
+            .args()
+            .unwrap()
+            .contains(&"--disable-gpu".to_owned()));
+    }
+
+    #[test]
+    fn debug_output_hides_proxy_passwords_and_header_values() {
+        let opts = StealthOptions {
+            proxy: Some("http://user:hunter2@proxy.example:8080".to_owned()),
+            extra_headers: [("Authorization".to_owned(), "Bearer s3cret".to_owned())].into(),
+            ..Default::default()
+        };
+        let shown = format!("{opts:?}");
+        assert!(
+            !shown.contains("hunter2") && !shown.contains("user:"),
+            "{shown}"
+        );
+        assert!(!shown.contains("s3cret"), "{shown}");
+        assert!(shown.contains("http://proxy.example:8080"), "{shown}");
+        assert!(shown.contains("Authorization"), "{shown}");
+    }
+
+    #[test]
+    fn credentials_are_cut_from_urls_for_logs() {
+        assert_eq!(without_credentials("socks5://a:b@h:1"), "socks5://h:1");
+        assert_eq!(without_credentials("h:1"), "h:1");
+        assert_eq!(without_credentials("a:b@h:1"), "h:1");
+        // A password that itself contains an `@`.
+        assert_eq!(without_credentials("http://a:p@ss@h:1"), "http://h:1");
     }
 }

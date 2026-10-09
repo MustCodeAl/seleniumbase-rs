@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{Sink, SinkExt, Stream, StreamExt};
 use serde_json::{json, Value};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::connect_async;
@@ -65,31 +65,8 @@ impl CdpReactor {
             }
         }
 
-        let (mut write, mut read) = ws_stream.split();
-        let mut next_id: u64 = 2;
-        let handle = tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    msg = read.next() => {
-                        let Some(Ok(Message::Text(text))) = msg else { continue };
-                        let Ok(value) = serde_json::from_str::<Value>(&text) else { continue };
-                        if !is_request_paused(&value) {
-                            continue;
-                        }
-                        let Some(request_id) = value
-                            .get("params")
-                            .and_then(|p| p.get("requestId"))
-                            .and_then(|v| v.as_str())
-                        else {
-                            continue;
-                        };
-                        let cmd = build_continue_request(next_id, request_id, &header_overrides);
-                        next_id += 1;
-                        let _ = write.send(Message::Text(cmd.to_string().into())).await;
-                    }
-                }
-            }
-        });
+        let (write, read) = ws_stream.split();
+        let handle = tokio::spawn(answer_paused_requests(read, write, header_overrides));
 
         Ok(Self {
             handle: Some(handle),
@@ -107,6 +84,54 @@ impl CdpReactor {
 impl Drop for CdpReactor {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+/// Continues every paused request with `header_overrides` applied, until the
+/// connection closes or fails.
+async fn answer_paused_requests<R, W>(
+    mut read: R,
+    mut write: W,
+    header_overrides: HashMap<String, String>,
+) where
+    R: Stream<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
+    W: Sink<Message> + Unpin,
+{
+    // Id 1 was `Fetch.enable`.
+    let mut next_id: u64 = 2;
+    // `None` means the socket closed; an error means it is no longer usable.
+    // Either way there is nothing left to answer, so stop instead of polling
+    // a dead stream.
+    while let Some(Ok(message)) = read.next().await {
+        let Message::Text(text) = message else {
+            continue;
+        };
+        let Ok(value) = serde_json::from_str::<Value>(&text) else {
+            continue;
+        };
+        if !is_request_paused(&value) {
+            continue;
+        }
+        let Some(params) = value.get("params") else {
+            continue;
+        };
+        let Some(request_id) = params.get("requestId").and_then(Value::as_str) else {
+            continue;
+        };
+        let cmd = build_continue_request(
+            next_id,
+            request_id,
+            &header_overrides,
+            params.get("request").and_then(|r| r.get("headers")),
+        );
+        next_id += 1;
+        if write
+            .send(Message::Text(cmd.to_string().into()))
+            .await
+            .is_err()
+        {
+            break;
+        }
     }
 }
 
@@ -146,14 +171,36 @@ fn is_request_paused(value: &Value) -> bool {
     value.get("method").and_then(|m| m.as_str()) == Some("Fetch.requestPaused")
 }
 
-fn build_continue_request(id: u64, request_id: &str, overrides: &HashMap<String, String>) -> Value {
+/// Builds the `Fetch.continueRequest` for one paused request.
+///
+/// The protocol's `headers` list replaces every header of the request, so the
+/// request's own headers (`original`, an object of name to value) are kept and
+/// each override replaces the header of the same name, whatever its case.
+fn build_continue_request(
+    id: u64,
+    request_id: &str,
+    overrides: &HashMap<String, String>,
+    original: Option<&Value>,
+) -> Value {
     let mut params = json!({ "requestId": request_id });
     if !overrides.is_empty() {
-        let headers: Vec<Value> = overrides
-            .iter()
-            .map(|(k, v)| json!({ "name": k, "value": v }))
+        let mut headers: Vec<(String, String)> = original
+            .and_then(Value::as_object)
+            .map(|own| {
+                own.iter()
+                    .filter_map(|(name, value)| Some((name.clone(), value.as_str()?.to_owned())))
+                    .collect()
+            })
+            .unwrap_or_default();
+        for (name, value) in overrides {
+            headers.retain(|(own, _)| !own.eq_ignore_ascii_case(name));
+            headers.push((name.clone(), value.clone()));
+        }
+        headers.sort();
+        params["headers"] = headers
+            .into_iter()
+            .map(|(name, value)| json!({ "name": name, "value": value }))
             .collect();
-        params["headers"] = json!(headers);
     }
     json!({ "id": id, "method": "Fetch.continueRequest", "params": params })
 }
@@ -179,7 +226,7 @@ mod tests {
     fn continue_request_includes_headers() {
         let mut overrides = HashMap::new();
         overrides.insert("Accept-Language".to_owned(), "en-US".to_owned());
-        let cmd = build_continue_request(7, "abc", &overrides);
+        let cmd = build_continue_request(7, "abc", &overrides, None);
         assert_eq!(cmd["id"], 7);
         assert_eq!(cmd["method"], "Fetch.continueRequest");
         assert_eq!(cmd["params"]["requestId"], "abc");
@@ -187,5 +234,82 @@ mod tests {
         assert!(headers
             .iter()
             .any(|h| h["name"] == "Accept-Language" && h["value"] == "en-US"));
+    }
+
+    #[test]
+    fn overrides_keep_the_headers_the_request_already_had() {
+        let overrides = HashMap::from([("accept-language".to_owned(), "de".to_owned())]);
+        let own = json!({ "Accept-Language": "en", "User-Agent": "UA", "Accept": "*/*" });
+        let cmd = build_continue_request(2, "r", &overrides, Some(&own));
+        let headers = cmd["params"]["headers"].as_array().unwrap();
+        let pairs: Vec<(&str, &str)> = headers
+            .iter()
+            .map(|h| (h["name"].as_str().unwrap(), h["value"].as_str().unwrap()))
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("Accept", "*/*"),
+                ("User-Agent", "UA"),
+                ("accept-language", "de")
+            ]
+        );
+    }
+
+    #[test]
+    fn no_overrides_leaves_the_request_alone() {
+        let cmd = build_continue_request(2, "r", &HashMap::new(), Some(&json!({ "A": "1" })));
+        assert!(cmd["params"].get("headers").is_none());
+    }
+
+    #[tokio::test]
+    async fn the_task_ends_when_the_connection_does() {
+        use std::sync::{Arc, Mutex};
+
+        let sent = Arc::new(Mutex::new(Vec::<String>::new()));
+        let sink = {
+            let sent = Arc::clone(&sent);
+            futures_util::sink::unfold((), move |(), message: Message| {
+                let sent = Arc::clone(&sent);
+                async move {
+                    if let Message::Text(text) = message {
+                        sent.lock().unwrap().push(text.to_string());
+                    }
+                    Ok::<(), std::convert::Infallible>(())
+                }
+            })
+        };
+        let paused = json!({
+            "method": "Fetch.requestPaused",
+            "params": { "requestId": "q1", "request": { "headers": { "Host": "h" } } }
+        });
+        let incoming = futures_util::stream::iter(vec![
+            Ok(Message::Ping(Vec::new().into())),
+            Ok(Message::Text("not json".into())),
+            Ok(Message::Text(paused.to_string().into())),
+        ]);
+        let overrides = HashMap::from([("X-Test".to_owned(), "1".to_owned())]);
+
+        // The stream ends after three frames. Before the fix this never
+        // returned: the loop kept polling the finished stream.
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            answer_paused_requests(incoming, Box::pin(sink), overrides),
+        )
+        .await
+        .expect("the task stops when the stream ends");
+
+        let sent = sent.lock().unwrap();
+        assert_eq!(sent.len(), 1, "{sent:?}");
+        let command: Value = serde_json::from_str(&sent[0]).unwrap();
+        assert_eq!(command["id"], 2);
+        assert_eq!(command["params"]["requestId"], "q1");
+        let names: Vec<&str> = command["params"]["headers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|h| h["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, ["Host", "X-Test"]);
     }
 }
