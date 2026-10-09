@@ -12,6 +12,9 @@ use seleniumbase_rs::cli::commands::{
     blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
     looks_like_pdf, parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
 };
+use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
+use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
+use seleniumbase_rs::cli::scripts::sb_mkfile::TestFile;
 use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
 // use seleniumbase_rs::dashboard::write_dashboard_html;
@@ -545,20 +548,38 @@ enum Commands {
     },
     /// Install required dependencies and artifacts.
     Install,
-    /// Create a directory.
+    /// Create a folder with a runnable browser-test suite.
+    ///
+    /// Names are relative to the current directory and use letters, digits, `_`,
+    /// `-` and `.`, with `/` between folders. Nothing is overwritten unless
+    /// `--force` is given.
     Mkdir {
-        #[arg(long, help = "Directory to create")]
+        /// Folder to create, for example `tests/ui`.
         dir: String,
+        /// Create only the scaffolding, with no example tests.
+        #[arg(short, long)]
+        basic: bool,
+        /// Replace generated files that already exist.
+        #[arg(long)]
+        force: bool,
     },
-    /// Create a file.
+    /// Create a browser-test file.
+    ///
+    /// The name follows the same rules as `mkdir`; `.rs` is added when missing.
+    /// An existing file is never overwritten unless `--force` is given.
+    #[command(visible_alias = "new")]
     Mkfile {
-        #[arg(long, help = "File path to create")]
+        /// File to create, for example `tests/login.rs`.
         file: String,
-    },
-    /// Scaffold a new Rust test file from a template.
-    New {
-        /// File path for the generated test (e.g. `tests/login.rs`).
-        file: String,
+        /// Page the test opens (default: https://example.com).
+        #[arg(long)]
+        url: Option<String>,
+        /// Leave the test body empty: it only opens the page.
+        #[arg(short, long)]
+        basic: bool,
+        /// Replace the file if it already exists.
+        #[arg(long)]
+        force: bool,
     },
     /// Launch the interactive commander GUI.
     #[cfg(feature = "tui")]
@@ -800,6 +821,27 @@ fn text_or_stdin(value: Option<String>) -> Result<String, Box<dyn std::error::Er
     Ok(text.trim_end_matches(['\n', '\r']).to_owned())
 }
 
+/// Where the file-generating commands create files: the current directory.
+fn here(replace: bool) -> Scaffold {
+    Scaffold::new(".").replacing(replace)
+}
+
+/// Reports what a file-generating command created, or why it could not: the
+/// reason goes to standard error and the exit status is 1.
+fn report_created(outcome: Result<Vec<PathBuf>, ScaffoldError>) {
+    match outcome {
+        Ok(paths) => {
+            for path in paths {
+                println!("Created {}", path.display());
+            }
+        }
+        Err(error) => {
+            eprintln!("sbase: {error}");
+            std::process::exit(1);
+        }
+    }
+}
+
 async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
@@ -969,6 +1011,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             {
                 return Err("Python import completed with errors; review generated TODOs.".into());
             }
+            return Ok(());
+        }
+        Commands::Mkdir { dir, basic, force } => {
+            report_created(
+                Suite::new(dir).and_then(|suite| suite.basic(*basic).create(&here(*force))),
+            );
+            return Ok(());
+        }
+        Commands::Mkfile {
+            file,
+            url,
+            basic,
+            force,
+        } => {
+            report_created(
+                TestFile::new(file)
+                    .and_then(|test| match url {
+                        Some(url) => test.url(url),
+                        None => Ok(test),
+                    })
+                    .and_then(|test| test.basic(*basic).create(&here(*force)))
+                    .map(|path| vec![path]),
+            );
             return Ok(());
         }
         _ => {}
@@ -1584,14 +1649,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(path) => println!("Drivers installed successfully at {}", path.display()),
             Err(e) => eprintln!("Failed to install driver: {}", e),
         },
-        Commands::Mkdir { dir } => {
-            sb_mkdir::create_test_dir(&dir);
-        }
-        Commands::Mkfile { file } => {
-            sb_mkfile::create_test_file(&file);
-        }
-        Commands::New { file } => {
-            sb_mkfile::create_test_file(&file);
+        Commands::Mkdir { .. } | Commands::Mkfile { .. } => {
+            unreachable!("file-generating commands return before browser configuration")
         }
         #[cfg(feature = "tui")]
         Commands::Commander => {

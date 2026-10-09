@@ -1,0 +1,8 @@
+//! Browser tests for this folder. See README.md for how Cargo finds them.
+//!
+//! Add a test by creating `my_test.rs` here with a `#[tokio::test]` function,
+//! then declaring it below with `mod my_test;`.
+
+// Remove this attribute once a test uses `helpers::config`.
+#[allow(dead_code)]
+mod helpers;

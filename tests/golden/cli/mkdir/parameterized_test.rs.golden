@@ -1,0 +1,27 @@
+//! A parameterized test: one browser session for each row of the table below.
+//!
+//! Rust has no built-in parameterized tests; a loop over a table does the job.
+
+use seleniumbase_rs::{run_browser_test, Result};
+
+use crate::helpers;
+
+/// `(page, text expected in its heading)`.
+const PAGES: [(&str, &str); 2] = [
+    ("https://example.com", "Example Domain"),
+    ("https://example.org", "Example Domain"),
+];
+
+#[tokio::test]
+async fn every_page_has_its_heading() -> Result<()> {
+    for (page, heading) in PAGES {
+        run_browser_test(helpers::config()?, move |sb| {
+            Box::pin(async move {
+                sb.open(page).await?;
+                sb.assert_text("h1", heading).await
+            })
+        })
+        .await?;
+    }
+    Ok(())
+}

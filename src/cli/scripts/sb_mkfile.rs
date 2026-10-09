@@ -1,23 +1,287 @@
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+//! `sbase mkfile` (also `sbase new`): create one browser-test file.
+//!
+//! The file is an ordinary Rust integration test built on
+//! [`run_browser_test`](crate::run_browser_test), the shape the guide in
+//! `docs/rust-test-tooling.md` recommends. The text is rendered by
+//! [`TestFile::render`]; the golden files under `tests/golden/cli/` pin it, and
+//! the `cfg(doctest)` items at the bottom of this file compile those golden
+//! files against the current API on every `cargo test`.
 
-pub fn create_test_file(filename: &str) {
-    let path = Path::new(filename);
-    if path.exists() {
-        println!("File already exists: {}", filename);
-        return;
+use std::path::PathBuf;
+
+use url::Url;
+
+use crate::cli::scaffold::{rust_fn_name, RelativeName, Scaffold, ScaffoldError};
+
+/// The page the example test opens when no URL is given.
+const EXAMPLE_URL: &str = "https://example.com";
+
+/// A browser-test file to generate.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::cli::scripts::sb_mkfile::TestFile;
+///
+/// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
+/// let file = TestFile::new("tests/login")?.basic(true);
+/// let source = file.render();
+/// assert!(source.contains("async fn login() -> Result<()>"));
+/// assert!(source.contains("// Add your steps here."));
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TestFile {
+    name: RelativeName,
+    url: Option<Url>,
+    basic: bool,
+}
+
+impl TestFile {
+    /// A test file called `name`; `.rs` is appended when the name has no extension.
+    ///
+    /// # Errors
+    ///
+    /// [`ScaffoldError::InvalidName`] when `name` is not a relative name made of
+    /// letters, digits, `_`, `-` and `.`, or has an extension other than `.rs`.
+    pub fn new(name: &str) -> Result<Self, ScaffoldError> {
+        Ok(Self {
+            name: RelativeName::new(name)?.with_extension_or_default("rs")?,
+            url: None,
+            basic: false,
+        })
     }
 
-    match File::create(path) {
-        Ok(mut file) => {
-            let content = "use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n    sb.open(\"https://github.com/MustCodeAl\").await?;\n    sb.assert_title(\"MustCodeAl\").await?;\n    Ok(())\n}\n";
-            if let Err(e) = file.write_all(content.as_bytes()) {
-                eprintln!("Failed to write to file {}: {}", filename, e);
-            } else {
-                println!("Successfully created test file: {}", filename);
-            }
+    /// Makes the test open `url` instead of the example page.
+    ///
+    /// # Errors
+    ///
+    /// [`ScaffoldError::InvalidValue`] unless `url` is an absolute `http`, `https`
+    /// or `file` URL.
+    pub fn url(mut self, url: &str) -> Result<Self, ScaffoldError> {
+        let parsed = Url::parse(url).map_err(|error| ScaffoldError::InvalidValue {
+            what: "URL",
+            value: url.to_owned(),
+            reason: error.to_string(),
+        })?;
+        if !matches!(parsed.scheme(), "http" | "https" | "file") {
+            return Err(ScaffoldError::InvalidValue {
+                what: "URL",
+                value: url.to_owned(),
+                reason: format!(
+                    "the scheme must be http, https or file, not {}",
+                    parsed.scheme()
+                ),
+            });
         }
-        Err(e) => eprintln!("Failed to create file {}: {}", filename, e),
+        self.url = Some(parsed);
+        Ok(self)
+    }
+
+    /// Leaves the body empty: the test only opens the page.
+    #[must_use]
+    pub fn basic(mut self, basic: bool) -> Self {
+        self.basic = basic;
+        self
+    }
+
+    /// The validated file name, including the `.rs` extension.
+    #[must_use]
+    pub fn name(&self) -> &RelativeName {
+        &self.name
+    }
+
+    /// The Rust source of the test.
+    #[must_use]
+    pub fn render(&self) -> String {
+        let stem = self.name.file_stem();
+        let fn_name = rust_fn_name(stem);
+        let start = self
+            .url
+            .as_ref()
+            .map_or_else(|| EXAMPLE_URL.to_owned(), |url| url.as_str().to_owned());
+        let body = match (&self.url, self.basic) {
+            (_, true) => format!(
+                "            sb.open({start:?}).await?;\n\
+                 \x20           // Add your steps here.\n\
+                 \x20           Ok(())\n"
+            ),
+            (None, false) => format!(
+                "            sb.open({start:?}).await?;\n\
+                 \x20           sb.assert_title(\"Example Domain\").await?;\n\
+                 \x20           sb.assert_text(\"h1\", \"Example Domain\").await\n"
+            ),
+            (Some(_), false) => format!(
+                "            sb.open({start:?}).await?;\n\
+                 \x20           sb.assert_element(\"body\").await\n"
+            ),
+        };
+        format!(
+            "//! Browser test generated by `sbase mkfile`.\n\
+             //!\n\
+             //! Run it with `cargo test --test {stem}` when this file is in your crate's\n\
+             //! `tests/` folder. It needs Chrome and a matching chromedriver; `sbase doctor`\n\
+             //! checks both.\n\
+             \n\
+             use seleniumbase_rs::{{run_browser_test, BrowserConfig, Result}};\n\
+             \n\
+             #[tokio::test]\n\
+             async fn {fn_name}() -> Result<()> {{\n\
+             \x20   run_browser_test(BrowserConfig::default(), |sb| {{\n\
+             \x20       Box::pin(async move {{\n\
+             {body}\
+             \x20       }})\n\
+             \x20   }})\n\
+             \x20   .await\n\
+             }}\n"
+        )
+    }
+
+    /// Writes the file below the scaffold's root and returns its relative path.
+    ///
+    /// # Errors
+    ///
+    /// Any [`ScaffoldError`] from [`Scaffold::write_all`]; in particular
+    /// [`ScaffoldError::AlreadyExists`] unless the scaffold is replacing files.
+    pub fn create(&self, scaffold: &Scaffold) -> Result<PathBuf, ScaffoldError> {
+        let mut created = scaffold.write_all(&[(self.name.clone(), self.render())])?;
+        Ok(created.remove(0))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_default_test_asserts_what_example_com_serves() {
+        let source = TestFile::new("login").unwrap().render();
+        assert!(
+            source.contains("async fn login() -> Result<()>"),
+            "{source}"
+        );
+        assert!(
+            source.contains("sb.open(\"https://example.com\")"),
+            "{source}"
+        );
+        assert!(
+            source.contains("assert_title(\"Example Domain\")"),
+            "{source}"
+        );
+        assert!(source.contains("cargo test --test login"), "{source}");
+    }
+
+    #[test]
+    fn a_custom_url_gets_assertions_that_hold_on_any_page() {
+        let source = TestFile::new("t")
+            .unwrap()
+            .url("https://my.site/path?q=1")
+            .unwrap()
+            .render();
+        assert!(
+            source.contains("sb.open(\"https://my.site/path?q=1\")"),
+            "{source}"
+        );
+        assert!(source.contains("assert_element(\"body\")"), "{source}");
+        assert!(!source.contains("Example Domain"), "{source}");
+    }
+
+    #[test]
+    fn a_url_cannot_break_out_of_the_string_literal() {
+        // Quotes and spaces are percent-encoded by URL parsing, and `{:?}` escapes the rest.
+        let source = TestFile::new("t")
+            .unwrap()
+            .url("https://a.test/\"); std::process::exit(1); (\"")
+            .unwrap()
+            .render();
+        assert!(
+            source.contains("sb.open(\"https://a.test/%22);%20std::process::exit(1);%20(%22\")"),
+            "{source}"
+        );
+        syn::parse_file(&source).unwrap();
+    }
+
+    #[test]
+    fn only_web_and_file_urls_are_accepted() {
+        let file = TestFile::new("t").unwrap();
+        assert!(file.clone().url("file:///tmp/page.html").is_ok());
+        for bad in [
+            "",
+            "example.com",
+            "javascript:alert(1)",
+            "data:text/html,x",
+            "ftp://x/y",
+        ] {
+            assert!(file.clone().url(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn names_get_a_rs_extension_and_a_valid_function_name() {
+        let file = TestFile::new("tests/My-Login.v2.rs").unwrap();
+        assert_eq!(file.name().to_string(), "tests/My-Login.v2.rs");
+        assert!(file.render().contains("async fn my_login_v2()"));
+        assert_eq!(
+            TestFile::new("tests/Login").unwrap().name().to_string(),
+            "tests/Login.rs"
+        );
+        assert!(TestFile::new("t.py").is_err());
+        assert!(TestFile::new("My-Login.v2").is_err(), "'.v2' is not '.rs'");
+        assert!(TestFile::new("../t").is_err());
+    }
+
+    #[test]
+    fn every_variant_is_valid_rust() {
+        for basic in [false, true] {
+            for url in [None, Some("https://example.org/a")] {
+                let mut file = TestFile::new("a_test").unwrap().basic(basic);
+                if let Some(url) = url {
+                    file = file.url(url).unwrap();
+                }
+                let source = file.render();
+                syn::parse_file(&source)
+                    .unwrap_or_else(|e| panic!("basic={basic} url={url:?}: {e}\n{source}"));
+            }
+        }
+    }
+
+    #[test]
+    fn create_refuses_to_overwrite() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = TestFile::new("a").unwrap();
+        let first = file.create(&Scaffold::new(dir.path())).unwrap();
+        assert_eq!(first, PathBuf::from("a.rs"));
+        let second = file.create(&Scaffold::new(dir.path()));
+        assert!(matches!(second, Err(ScaffoldError::AlreadyExists(_))));
+        assert!(file
+            .create(&Scaffold::new(dir.path()).replacing(true))
+            .is_ok());
+    }
+}
+
+// Compile checks. `cargo test --doc` builds the golden files exactly as a user's
+// crate would, so a template that drifts from the API fails here.
+#[cfg(doctest)]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    include_str!("../../../tests/golden/cli/mkfile_example.rs.golden"),
+    "\nfn main() {}\n```"
+)]
+struct ExampleTestCompiles;
+
+#[cfg(doctest)]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    include_str!("../../../tests/golden/cli/mkfile_basic.rs.golden"),
+    "\nfn main() {}\n```"
+)]
+struct BasicTestCompiles;
+
+#[cfg(doctest)]
+#[doc = concat!(
+    "```no_run,test_harness\n",
+    include_str!("../../../tests/golden/cli/mkfile_url.rs.golden"),
+    "\nfn main() {}\n```"
+)]
+struct UrlTestCompiles;

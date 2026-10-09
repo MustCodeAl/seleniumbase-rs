@@ -1,0 +1,5 @@
+//! Browser tests for this folder. See README.md for how Cargo finds them.
+
+mod helpers;
+mod my_first_test;
+mod parameterized_test;

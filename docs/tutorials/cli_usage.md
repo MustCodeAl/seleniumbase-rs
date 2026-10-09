@@ -146,12 +146,27 @@ Example `scenario.json`:
 ## Generate files
 
 ```bash
-./target/debug/sbase new tests/MyTest.rs
-./target/debug/sbase mkfile MyTest.rs
-./target/debug/sbase mkdir my_tests
-./target/debug/sbase mkpres MyPresentation
-./target/debug/sbase mkchart MyChart
+sbase mkfile tests/login.rs                       # one browser test (alias: new)
+sbase mkfile tests/login.rs --url https://my.site # ... that opens your page
+sbase mkdir tests/ui                              # a suite: main.rs, helpers.rs, examples, README
+sbase mkdir tests/ui --basic                      # the scaffolding only, no example tests
 ```
+
+The generated Rust uses `run_browser_test` (see [Writing Browser Tests](../rust-test-tooling.md)),
+and a test in `tests/` runs with `cargo test --test login`. A folder sitting
+directly inside `tests/` is one test target; `tests/ui/README.md` says how to
+register a folder anywhere else.
+
+The generators are careful with what they write:
+
+- A name is relative to the current directory and may contain letters, digits,
+  `_`, `-` and `.`, with `/` between folders. `..`, absolute paths, backslashes
+  and other characters are rejected before anything is created, and a link that
+  leads out of the directory is not followed.
+- An existing file is never overwritten. `mkdir` checks every file first and
+  creates none of them if one exists. Pass `--force` to replace regular files.
+- They need no browser and ignore `sbase_config.toml`, so they work in an empty
+  folder.
 
 ## Import Python tests
 
