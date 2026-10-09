@@ -76,14 +76,34 @@ Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
 `docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
 workflow (untested: Actions are billing-locked).
 
-Current state against 4.55.2 (`just parity-docs` has the full table): BaseCase 442 of 453 implemented, 11 not applicable; Driver 75 of 79; all 138 MCP tools; CDP Mode 212 of 215 mapped or not applicable (3 messenger/toast methods planned); CLI 17 of 36; pytest options 18 of 263. Work these `planned` entries down, biggest wins first:
+Current state against 4.55.2 (`just parity-docs` has the full table): BaseCase 442 of 453 implemented, 11 not applicable; Driver 75 of 79; all 138 MCP tools; CDP Mode 212 of 215 mapped or not applicable (3 messenger/toast methods planned); CLI 33 of 36; options by theme below. Work these `planned` entries down, biggest wins first:
 
 1. CDP Mode: the three messenger methods (`post_message`, `activate_messenger`,
    `set_messenger_theme`): an in-page toast for `sb_cdp`.
 2. CLI commands (item 5 above).
-3. Options: most pytest options are Python-test-runner settings; mark the
-   irrelevant ones `not-applicable` with a reason and port the rest into
-   `BrowserConfig`/`RuntimeConfig`.
+3. Options. 121 distinct options and keyword arguments are still `planned`;
+   the rest map onto `BrowserConfig`/`RuntimeConfig`, pass through as browser
+   flags, or are Python test-runner plumbing. By theme:
+   - *Browser preferences*: `block_images`, `disable_cookies`, `disable_js`,
+     `do_not_track`, `enable_sync`, `disable_csp`, `external_pdf`,
+     `page_load_strategy`, `fullscreen`, `device_metrics`, `mobile_emulator`.
+   - *Demo and slow modes*: `demo`, `demo_sleep`, `highlights`,
+     `message_duration`, `slow`, `slowmo`, `interval`, `verify_delay`, `fast`.
+   - *Reporting and artifacts*: `dashboard`, `dash_title`, `crumbs`, `metrics`,
+     `archive_logs`, `archive_downloads`, `log_path`, `save_screenshot`,
+     `no_screenshot`, `list_fail_page`, `with_s3_logging`, `with_db_reporting`
+     (the Turso reporting work).
+   - *Recorder*: `rec`, `record`, `rec_sleep`, `rec_print`, `rec_behave`,
+     `rec_gherkin`, `recorder_ext`.
+   - *More browsers and drivers*: `safari`, `opera`, `brave`, `comet`, `ie`,
+     `cft` (Chrome for Testing), `driver_version`.
+   - *Proxies*: `multi_proxy`, `proxy_bypass_list`, `proxy_driver`.
+   - *Undetected mode and debugging*: `uc_subprocess`, `uc_cdp_events`,
+     `remote_debug`, `log_cdp`, `xvfb`.
+   - *Waits*: `skip_js_waits`, `wait_for_angularjs`, `timeout_multiplier`,
+     `time_limit`, `check_js`.
+   - *Other*: `cap_file`, `cap_string`, `firefox_arg`, `firefox_pref`, `crx`,
+     `extension_zip`, `auto_ext`.
 
 ## 3. Documentation
 

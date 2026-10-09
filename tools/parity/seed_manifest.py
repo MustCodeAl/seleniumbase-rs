@@ -235,6 +235,45 @@ CLI_DIVERGENCE = {
     "decrypt": "Reads tokens made by `sbase encrypt` only; see `encrypt`.",
 }
 
+# Options grouped by what they are. Names are compared with dashes turned into
+# underscores. Each group is (names, status, rust item or reason, note).
+FLAG_NOTE = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+OPTION_GROUPS = [
+    (("headless", "headed", "headless1", "headless2"), "composed", "BrowserConfig::headless", "Headed is headless = false."),
+    (("browser", "chrome", "chromium", "firefox", "edge", "use_chromium"), "composed", "BrowserConfig::browser", "Choose the Browser variant."),
+    (("uc", "undetected", "undetectable"), "composed", "BrowserConfig::mode", "DriverMode::Uc."),
+    (("proxy", "proxy_server", "proxy_string"), "composed", "BrowserConfig::proxy", "SERVER:PORT or USER:PASS@SERVER:PORT."),
+    (("pac_url",), "composed", "BrowserConfig::proxy_pac_url", ""),
+    (("agent", "user_agent"), "composed", "BrowserConfig::user_agent", ""),
+    (("locale_code", "locale"), "composed", "BrowserConfig::locale", ""),
+    (("binary_location", "bl"), "composed", "BrowserConfig::browser_binary_path", ""),
+    (("ad_block", "adblock", "block_ads"), "composed", "BrowserConfig::ad_block", ""),
+    (("rs", "reuse_session"), "composed", "BrowserConfig::reuse_session", ""),
+    (("user_data_dir",), "composed", "BrowserConfig::user_data_dir", ""),
+    (("server", "port", "protocol"), "composed", "BrowserConfig::webdriver_url", "Give the full WebDriver URL instead of its parts."),
+    (
+        (
+            "incognito", "incognito_mode", "guest", "guest_mode", "no_sandbox", "disable_gpu",
+            "disable_features", "chromium_arg", "window_size", "window_position", "maximize",
+            "maximize_window", "dark", "dark_mode", "host_resolver_rules", "swiftshader",
+            "enable_3d_apis", "devtools", "open_devtools", "disable_web_security",
+            "enable_web_security", "disable_ws", "enable_ws", "dws",
+        ),
+        "composed", "BrowserConfig::extra_args", FLAG_NOTE,
+    ),
+    (
+        (
+            "is_pytest", "with_selenium", "with_testing_base", "with_basic_test_info",
+            "with_page_source", "with_screen_shots", "settings_file", "settings",
+            "var1", "var2", "var3", "variables", "reuse_class_session",
+        ),
+        "not-applicable", "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it.", "",
+    ),
+]
+OPTION_BY_NAME = {
+    name: group for group in OPTION_GROUPS for name in group[0]
+}
+
 FN = re.compile(r"^\s*pub(?:\([a-z]+\))?\s+(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)")
 IMPL = re.compile(r"^\s*impl(?:<[^>]*>)?\s+(?:[\w:<>, ']+\s+for\s+)?([A-Za-z_]\w*)")
 STRUCT = re.compile(r"^\s*pub\s+struct\s+(\w+)")
@@ -337,7 +376,14 @@ def classify(api, methods, fields):
         raw = api["options"]["pytest"] if surface == "options_pytest" else names
         for original, n in zip(raw, names):
             owner = next((t for t in config_types if (t, n) in fields), None)
-            if owner:
+            group = OPTION_BY_NAME.get(n.replace("-", "_"))
+            if group and not owner:
+                _, status, target, note = group
+                if status == "not-applicable":
+                    put(surface, original, status=status, reason=target)
+                else:
+                    put(surface, original, status=status, rust=target, **({"note": note} if note else {}))
+            elif owner:
                 put(surface, original, status="implemented", rust=f"{owner}::{n}")
             else:
                 put(surface, original, status="planned", note="No Rust setting yet.")

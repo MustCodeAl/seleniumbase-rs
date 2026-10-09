@@ -3912,12 +3912,12 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."agent"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::user_agent"
 
 [options_driver."binary_location"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser_binary_path"
 
 [options_driver."block_images"]
 status = "planned"
@@ -3940,8 +3940,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."chromium_arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."chs"]
 status = "planned"
@@ -3960,12 +3961,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."dark_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."devtools"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."disable_cookies"]
 status = "planned"
@@ -3976,20 +3979,23 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."disable_features"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."disable_gpu"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."disable_js"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."disable_ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."do_not_track"]
 status = "planned"
@@ -4000,16 +4006,18 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."enable_3d_apis"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."enable_sync"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."enable_ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."extension_dir"]
 status = "implemented"
@@ -4032,36 +4040,43 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."guest"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."guest_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."headed"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_driver."headless"]
 status = "implemented"
 rust = "BrowserConfig::headless"
 
 [options_driver."headless1"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_driver."headless2"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_driver."host_resolver_rules"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."incognito"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."is_mobile"]
 status = "planned"
@@ -4072,8 +4087,8 @@ status = "implemented"
 rust = "BrowserConfig::locale"
 
 [options_driver."locale_code"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::locale"
 
 [options_driver."log_cdp"]
 status = "planned"
@@ -4092,8 +4107,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."no_sandbox"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."page_load_strategy"]
 status = "planned"
@@ -4104,16 +4120,18 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."port"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_driver."position"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."protocol"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_driver."proxy"]
 status = "implemented"
@@ -4136,8 +4154,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."server"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_driver."servername"]
 status = "planned"
@@ -4148,12 +4167,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."swiftshader"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."uc"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_driver."uc_cdp"]
 status = "planned"
@@ -4172,32 +4193,37 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."undetectable"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_driver."undetected"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_driver."use_auto_ext"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_driver."use_chromium"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_driver."user_data_dir"]
 status = "implemented"
 rust = "BrowserConfig::user_data_dir"
 
 [options_driver."window_position"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."window_size"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--account"]
 status = "planned"
@@ -4212,12 +4238,12 @@ status = "implemented"
 rust = "BrowserConfig::ad_block"
 
 [options_pytest."--adblock"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::ad_block"
 
 [options_pytest."--agent"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::user_agent"
 
 [options_pytest."--all-scripts"]
 status = "planned"
@@ -4248,28 +4274,28 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--binary-location"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser_binary_path"
 
 [options_pytest."--binary_location"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser_binary_path"
 
 [options_pytest."--bl"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser_binary_path"
 
 [options_pytest."--block-ads"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::ad_block"
 
 [options_pytest."--block-images"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--block_ads"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::ad_block"
 
 [options_pytest."--block_images"]
 status = "planned"
@@ -4312,20 +4338,24 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--chrome"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_pytest."--chromium"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_pytest."--chromium-arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--chromium_arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--chs"]
 status = "planned"
@@ -4348,16 +4378,19 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--dark"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--dark-mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--dark_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--dash-title"]
 status = "planned"
@@ -4416,8 +4449,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--devtools"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable-beforeunload"]
 status = "planned"
@@ -4432,24 +4466,28 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--disable-features"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable-gpu"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable-js"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--disable-web-security"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable-ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable_beforeunload"]
 status = "planned"
@@ -4464,20 +4502,23 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--disable_features"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable_gpu"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable_js"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--disable_ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--do-not-track"]
 status = "planned"
@@ -4496,44 +4537,51 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--dws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--edge"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_pytest."--ee"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--enable-3d-apis"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--enable-sync"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--enable-web-security"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--enable-ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--enable_3d_apis"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--enable_sync"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--enable_ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--env"]
 status = "planned"
@@ -4596,8 +4644,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--firefox"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_pytest."--firefox-arg"]
 status = "planned"
@@ -4624,76 +4673,87 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--guest"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--guest-mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--guest_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--gui"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--headed"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_pytest."--headless"]
 status = "implemented"
 rust = "BrowserConfig::headless"
 
 [options_pytest."--headless1"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_pytest."--headless2"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_pytest."--highlights"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--host-resolver-rules"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--host_resolver_rules"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--ie"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--incognito"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--incognito-mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--incognito_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--interval"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--is-pytest"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--is_pytest"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--lfp"]
 status = "planned"
@@ -4712,12 +4772,12 @@ status = "implemented"
 rust = "BrowserConfig::locale"
 
 [options_pytest."--locale-code"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::locale"
 
 [options_pytest."--locale_code"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::locale"
 
 [options_pytest."--log-cdp"]
 status = "planned"
@@ -4744,16 +4804,19 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--maximize"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--maximize-window"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--maximize_window"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--message-duration"]
 status = "planned"
@@ -4792,8 +4855,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--no-sandbox"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--no-screenshot"]
 status = "planned"
@@ -4804,8 +4868,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--no_sandbox"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--no_screenshot"]
 status = "planned"
@@ -4816,20 +4881,22 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--open-devtools"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--open_devtools"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--opera"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--pac-url"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::proxy_pac_url"
 
 [options_pytest."--page-load-strategy"]
 status = "planned"
@@ -4844,12 +4911,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--port"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_pytest."--protocol"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_pytest."--proxy"]
 status = "implemented"
@@ -4868,12 +4937,14 @@ status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
 
 [options_pytest."--proxy-server"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::proxy"
+note = "SERVER:PORT or USER:PASS@SERVER:PORT."
 
 [options_pytest."--proxy-string"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::proxy"
+note = "SERVER:PORT or USER:PASS@SERVER:PORT."
 
 [options_pytest."--proxy_bypass_list"]
 status = "planned"
@@ -4944,24 +5015,24 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--reuse-class-session"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--reuse-session"]
 status = "implemented"
 rust = "BrowserConfig::reuse_session"
 
 [options_pytest."--reuse_class_session"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--reuse_session"]
 status = "implemented"
 rust = "BrowserConfig::reuse_session"
 
 [options_pytest."--rs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::reuse_session"
 
 [options_pytest."--safari"]
 status = "planned"
@@ -4980,20 +5051,21 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--server"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_pytest."--settings"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--settings-file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--settings_file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--sjw"]
 status = "planned"
@@ -5036,8 +5108,9 @@ status = "implemented"
 rust = "BrowserConfig::start_page"
 
 [options_pytest."--swiftshader"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--time-limit"]
 status = "planned"
@@ -5060,8 +5133,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--uc"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_pytest."--uc-cdp"]
 status = "planned"
@@ -5088,12 +5162,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--undetectable"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_pytest."--undetected"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_pytest."--url"]
 status = "planned"
@@ -5104,8 +5180,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--use-chromium"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_pytest."--use_auto_ext"]
 status = "planned"
@@ -5128,20 +5205,20 @@ status = "implemented"
 rust = "BrowserConfig::user_data_dir"
 
 [options_pytest."--var1"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--var2"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--var3"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--variables"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--verify-delay"]
 status = "planned"
@@ -5172,28 +5249,32 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--window-position"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--window-size"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--window_position"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--window_size"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--with-basic-test-info"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-basic_test_info"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-db-reporting"]
 status = "planned"
@@ -5204,12 +5285,12 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--with-page-source"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-page_source"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-s3-logging"]
 status = "planned"
@@ -5220,24 +5301,24 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--with-screen-shots"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-screen_shots"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-selenium"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-testing-base"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-testing_base"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--xvfb"]
 status = "planned"
@@ -5264,12 +5345,12 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."agent"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::user_agent"
 
 [options_sb."binary_location"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser_binary_path"
 
 [options_sb."block_images"]
 status = "planned"
@@ -5292,16 +5373,18 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."chromium_arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."chs"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."dark_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."data"]
 status = "planned"
@@ -5320,8 +5403,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."devtools"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."disable_beforeunload"]
 status = "planned"
@@ -5336,16 +5420,18 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."disable_features"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."disable_js"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."disable_ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."do_not_track"]
 status = "planned"
@@ -5356,16 +5442,18 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."enable_3d_apis"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."enable_sync"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."enable_ws"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."environment"]
 status = "planned"
@@ -5396,40 +5484,47 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."guest"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."guest_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."headed"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_sb."headless"]
 status = "implemented"
 rust = "BrowserConfig::headless"
 
 [options_sb."headless1"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_sb."headless2"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_sb."highlights"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."host_resolver_rules"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."incognito"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."interval"]
 status = "planned"
@@ -5448,8 +5543,8 @@ status = "implemented"
 rust = "BrowserConfig::locale"
 
 [options_sb."locale_code"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::locale"
 
 [options_sb."log_cdp"]
 status = "planned"
@@ -5460,8 +5555,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."maximize"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."message_duration"]
 status = "planned"
@@ -5488,16 +5584,18 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."port"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_sb."position"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."protocol"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_sb."proxy"]
 status = "implemented"
@@ -5552,16 +5650,17 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."server"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL instead of its parts."
 
 [options_sb."servername"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."settings_file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."size"]
 status = "planned"
@@ -5584,8 +5683,9 @@ status = "implemented"
 rust = "BrowserConfig::start_page"
 
 [options_sb."swiftshader"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."test"]
 status = "planned"
@@ -5600,8 +5700,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."uc"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_sb."uc_cdp"]
 status = "planned"
@@ -5620,40 +5721,43 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."undetectable"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_sb."undetected"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mode"
+note = "DriverMode::Uc."
 
 [options_sb."use_auto_ext"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."use_chromium"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::browser"
+note = "Choose the Browser variant."
 
 [options_sb."user_data_dir"]
 status = "implemented"
 rust = "BrowserConfig::user_data_dir"
 
 [options_sb."var1"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."var2"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."var3"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."variables"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."wait_for_angularjs"]
 status = "planned"
@@ -5664,12 +5768,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."window_position"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."window_size"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."xvfb"]
 status = "planned"

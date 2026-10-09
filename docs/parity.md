@@ -19,9 +19,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 75 | 0 | 0 | 4 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 0 | 196 | 16 | 3 |
 | [Command-line commands](#command-line-commands) | 36 | 17 | 8 | 8 | 3 |
-| [pytest options](#pytest-options) | 263 | 18 | 0 | 0 | 245 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 10 | 0 | 0 | 97 |
-| [`Driver()` arguments](#driver()-arguments) | 74 | 9 | 0 | 0 | 65 |
+| [pytest options](#pytest-options) | 263 | 18 | 66 | 20 | 159 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 10 | 28 | 5 | 64 |
+| [`Driver()` arguments](#driver()-arguments) | 74 | 9 | 29 | 0 | 36 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
 | [MCP: SB server](#mcp-sb-server) | 88 | 88 | 0 | 0 | 0 |
@@ -846,8 +846,8 @@ Python `--option` flags.
 | `--account` | planned |  | No Rust setting yet. |
 | `--ad-block` | implemented | `BrowserConfig::ad_block` |  |
 | `--ad_block` | implemented | `BrowserConfig::ad_block` |  |
-| `--adblock` | planned |  | No Rust setting yet. |
-| `--agent` | planned |  | No Rust setting yet. |
+| `--adblock` | composed | `BrowserConfig::ad_block` |  |
+| `--agent` | composed | `BrowserConfig::user_agent` |  |
 | `--all-scripts` | planned |  | No Rust setting yet. |
 | `--all_scripts` | planned |  | No Rust setting yet. |
 | `--archive-downloads` | planned |  | No Rust setting yet. |
@@ -855,12 +855,12 @@ Python `--option` flags.
 | `--archive_downloads` | planned |  | No Rust setting yet. |
 | `--archive_logs` | planned |  | No Rust setting yet. |
 | `--auto-ext` | planned |  | No Rust setting yet. |
-| `--binary-location` | planned |  | No Rust setting yet. |
-| `--binary_location` | planned |  | No Rust setting yet. |
-| `--bl` | planned |  | No Rust setting yet. |
-| `--block-ads` | planned |  | No Rust setting yet. |
+| `--binary-location` | composed | `BrowserConfig::browser_binary_path` |  |
+| `--binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
+| `--bl` | composed | `BrowserConfig::browser_binary_path` |  |
+| `--block-ads` | composed | `BrowserConfig::ad_block` |  |
 | `--block-images` | planned |  | No Rust setting yet. |
-| `--block_ads` | planned |  | No Rust setting yet. |
+| `--block_ads` | composed | `BrowserConfig::ad_block` |  |
 | `--block_images` | planned |  | No Rust setting yet. |
 | `--brave` | planned |  | No Rust setting yet. |
 | `--browser` | implemented | `BrowserConfig::browser` |  |
@@ -871,18 +871,18 @@ Python `--option` flags.
 | `--cft` | planned |  | No Rust setting yet. |
 | `--check-js` | planned |  | No Rust setting yet. |
 | `--check_js` | planned |  | No Rust setting yet. |
-| `--chrome` | planned |  | No Rust setting yet. |
-| `--chromium` | planned |  | No Rust setting yet. |
-| `--chromium-arg` | planned |  | No Rust setting yet. |
-| `--chromium_arg` | planned |  | No Rust setting yet. |
+| `--chrome` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
+| `--chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
+| `--chromium-arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--chs` | planned |  | No Rust setting yet. |
 | `--codegen` | planned |  | No Rust setting yet. |
 | `--comet` | planned |  | No Rust setting yet. |
 | `--crumbs` | planned |  | No Rust setting yet. |
 | `--crx` | planned |  | No Rust setting yet. |
-| `--dark` | planned |  | No Rust setting yet. |
-| `--dark-mode` | planned |  | No Rust setting yet. |
-| `--dark_mode` | planned |  | No Rust setting yet. |
+| `--dark` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--dark-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--dash-title` | planned |  | No Rust setting yet. |
 | `--dash_title` | planned |  | No Rust setting yet. |
 | `--dashboard` | planned |  | No Rust setting yet. |
@@ -897,36 +897,36 @@ Python `--option` flags.
 | `--demo_sleep` | planned |  | No Rust setting yet. |
 | `--device-metrics` | planned |  | No Rust setting yet. |
 | `--device_metrics` | planned |  | No Rust setting yet. |
-| `--devtools` | planned |  | No Rust setting yet. |
+| `--devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable-beforeunload` | planned |  | No Rust setting yet. |
 | `--disable-cookies` | planned |  | No Rust setting yet. |
 | `--disable-csp` | planned |  | No Rust setting yet. |
-| `--disable-features` | planned |  | No Rust setting yet. |
-| `--disable-gpu` | planned |  | No Rust setting yet. |
+| `--disable-features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable-gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable-js` | planned |  | No Rust setting yet. |
-| `--disable-web-security` | planned |  | No Rust setting yet. |
-| `--disable-ws` | planned |  | No Rust setting yet. |
+| `--disable-web-security` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable-ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable_beforeunload` | planned |  | No Rust setting yet. |
 | `--disable_cookies` | planned |  | No Rust setting yet. |
 | `--disable_csp` | planned |  | No Rust setting yet. |
-| `--disable_features` | planned |  | No Rust setting yet. |
-| `--disable_gpu` | planned |  | No Rust setting yet. |
+| `--disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--disable_gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable_js` | planned |  | No Rust setting yet. |
-| `--disable_ws` | planned |  | No Rust setting yet. |
+| `--disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--do-not-track` | planned |  | No Rust setting yet. |
 | `--do_not_track` | planned |  | No Rust setting yet. |
 | `--driver-version` | planned |  | No Rust setting yet. |
 | `--driver_version` | planned |  | No Rust setting yet. |
-| `--dws` | planned |  | No Rust setting yet. |
-| `--edge` | planned |  | No Rust setting yet. |
+| `--dws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--edge` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--ee` | planned |  | No Rust setting yet. |
-| `--enable-3d-apis` | planned |  | No Rust setting yet. |
+| `--enable-3d-apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--enable-sync` | planned |  | No Rust setting yet. |
-| `--enable-web-security` | planned |  | No Rust setting yet. |
-| `--enable-ws` | planned |  | No Rust setting yet. |
-| `--enable_3d_apis` | planned |  | No Rust setting yet. |
+| `--enable-web-security` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--enable-ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--enable_sync` | planned |  | No Rust setting yet. |
-| `--enable_ws` | planned |  | No Rust setting yet. |
+| `--enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--env` | planned |  | No Rust setting yet. |
 | `--esc-end` | planned |  | No Rust setting yet. |
 | `--esc_end` | planned |  | No Rust setting yet. |
@@ -942,46 +942,46 @@ Python `--option` flags.
 | `--fdebug` | planned |  | No Rust setting yet. |
 | `--final-debug` | planned |  | No Rust setting yet. |
 | `--final-trace` | planned |  | No Rust setting yet. |
-| `--firefox` | planned |  | No Rust setting yet. |
+| `--firefox` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--firefox-arg` | planned |  | No Rust setting yet. |
 | `--firefox-pref` | planned |  | No Rust setting yet. |
 | `--firefox_arg` | planned |  | No Rust setting yet. |
 | `--firefox_pref` | planned |  | No Rust setting yet. |
 | `--ftrace` | planned |  | No Rust setting yet. |
 | `--fullscreen` | planned |  | No Rust setting yet. |
-| `--guest` | planned |  | No Rust setting yet. |
-| `--guest-mode` | planned |  | No Rust setting yet. |
-| `--guest_mode` | planned |  | No Rust setting yet. |
+| `--guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--guest-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--gui` | planned |  | No Rust setting yet. |
-| `--headed` | planned |  | No Rust setting yet. |
+| `--headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headless` | implemented | `BrowserConfig::headless` |  |
-| `--headless1` | planned |  | No Rust setting yet. |
-| `--headless2` | planned |  | No Rust setting yet. |
+| `--headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `--headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--highlights` | planned |  | No Rust setting yet. |
-| `--host-resolver-rules` | planned |  | No Rust setting yet. |
-| `--host_resolver_rules` | planned |  | No Rust setting yet. |
+| `--host-resolver-rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--ie` | planned |  | No Rust setting yet. |
-| `--incognito` | planned |  | No Rust setting yet. |
-| `--incognito-mode` | planned |  | No Rust setting yet. |
-| `--incognito_mode` | planned |  | No Rust setting yet. |
+| `--incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--incognito-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--incognito_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--interval` | planned |  | No Rust setting yet. |
-| `--is-pytest` | planned |  | No Rust setting yet. |
-| `--is_pytest` | planned |  | No Rust setting yet. |
+| `--is-pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--is_pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--lfp` | planned |  | No Rust setting yet. |
 | `--list-fail-page` | planned |  | No Rust setting yet. |
 | `--list-fail-pages` | planned |  | No Rust setting yet. |
 | `--locale` | implemented | `BrowserConfig::locale` |  |
-| `--locale-code` | planned |  | No Rust setting yet. |
-| `--locale_code` | planned |  | No Rust setting yet. |
+| `--locale-code` | composed | `BrowserConfig::locale` |  |
+| `--locale_code` | composed | `BrowserConfig::locale` |  |
 | `--log-cdp` | planned |  | No Rust setting yet. |
 | `--log-cdp-events` | planned |  | No Rust setting yet. |
 | `--log-path` | planned |  | No Rust setting yet. |
 | `--log_cdp` | planned |  | No Rust setting yet. |
 | `--log_cdp_events` | planned |  | No Rust setting yet. |
 | `--log_path` | planned |  | No Rust setting yet. |
-| `--maximize` | planned |  | No Rust setting yet. |
-| `--maximize-window` | planned |  | No Rust setting yet. |
-| `--maximize_window` | planned |  | No Rust setting yet. |
+| `--maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--maximize-window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--maximize_window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--message-duration` | planned |  | No Rust setting yet. |
 | `--message_duration` | planned |  | No Rust setting yet. |
 | `--metrics` | planned |  | No Rust setting yet. |
@@ -991,27 +991,27 @@ Python `--option` flags.
 | `--multi-proxy` | planned |  | No Rust setting yet. |
 | `--multi_proxy` | planned |  | No Rust setting yet. |
 | `--no-csp` | planned |  | No Rust setting yet. |
-| `--no-sandbox` | planned |  | No Rust setting yet. |
+| `--no-sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--no-screenshot` | planned |  | No Rust setting yet. |
 | `--no_csp` | planned |  | No Rust setting yet. |
-| `--no_sandbox` | planned |  | No Rust setting yet. |
+| `--no_sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--no_screenshot` | planned |  | No Rust setting yet. |
 | `--ns` | planned |  | No Rust setting yet. |
-| `--open-devtools` | planned |  | No Rust setting yet. |
-| `--open_devtools` | planned |  | No Rust setting yet. |
+| `--open-devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--open_devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--opera` | planned |  | No Rust setting yet. |
-| `--pac-url` | planned |  | No Rust setting yet. |
+| `--pac-url` | composed | `BrowserConfig::proxy_pac_url` |  |
 | `--page-load-strategy` | planned |  | No Rust setting yet. |
 | `--page_load_strategy` | planned |  | No Rust setting yet. |
 | `--pls` | planned |  | No Rust setting yet. |
-| `--port` | planned |  | No Rust setting yet. |
-| `--protocol` | planned |  | No Rust setting yet. |
+| `--port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
+| `--protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `--proxy` | implemented | `BrowserConfig::proxy` |  |
 | `--proxy-bypass-list` | planned |  | No Rust setting yet. |
 | `--proxy-driver` | planned |  | No Rust setting yet. |
 | `--proxy-pac-url` | implemented | `BrowserConfig::proxy_pac_url` |  |
-| `--proxy-server` | planned |  | No Rust setting yet. |
-| `--proxy-string` | planned |  | No Rust setting yet. |
+| `--proxy-server` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
+| `--proxy-string` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
 | `--proxy_bypass_list` | planned |  | No Rust setting yet. |
 | `--proxy_driver` | planned |  | No Rust setting yet. |
 | `--rcs` | planned |  | No Rust setting yet. |
@@ -1029,19 +1029,19 @@ Python `--option` flags.
 | `--remote-debugger` | planned |  | No Rust setting yet. |
 | `--remote_debug` | planned |  | No Rust setting yet. |
 | `--remote_debugger` | planned |  | No Rust setting yet. |
-| `--reuse-class-session` | planned |  | No Rust setting yet. |
+| `--reuse-class-session` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--reuse-session` | implemented | `BrowserConfig::reuse_session` |  |
-| `--reuse_class_session` | planned |  | No Rust setting yet. |
+| `--reuse_class_session` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--reuse_session` | implemented | `BrowserConfig::reuse_session` |  |
-| `--rs` | planned |  | No Rust setting yet. |
+| `--rs` | composed | `BrowserConfig::reuse_session` |  |
 | `--safari` | planned |  | No Rust setting yet. |
 | `--save-screenshot` | planned |  | No Rust setting yet. |
 | `--save_screenshot` | planned |  | No Rust setting yet. |
 | `--screenshot` | planned |  | No Rust setting yet. |
-| `--server` | planned |  | No Rust setting yet. |
-| `--settings` | planned |  | No Rust setting yet. |
-| `--settings-file` | planned |  | No Rust setting yet. |
-| `--settings_file` | planned |  | No Rust setting yet. |
+| `--server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
+| `--settings` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--settings-file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--sjw` | planned |  | No Rust setting yet. |
 | `--skip-js-waits` | planned |  | No Rust setting yet. |
 | `--skip_js_waits` | planned |  | No Rust setting yet. |
@@ -1052,33 +1052,33 @@ Python `--option` flags.
 | `--ss` | planned |  | No Rust setting yet. |
 | `--start-page` | implemented | `BrowserConfig::start_page` |  |
 | `--start_page` | implemented | `BrowserConfig::start_page` |  |
-| `--swiftshader` | planned |  | No Rust setting yet. |
+| `--swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--time-limit` | planned |  | No Rust setting yet. |
 | `--time_limit` | planned |  | No Rust setting yet. |
 | `--timelimit` | planned |  | No Rust setting yet. |
 | `--timeout-multiplier` | planned |  | No Rust setting yet. |
 | `--timeout_multiplier` | planned |  | No Rust setting yet. |
-| `--uc` | planned |  | No Rust setting yet. |
+| `--uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--uc-cdp` | planned |  | No Rust setting yet. |
 | `--uc-cdp-events` | planned |  | No Rust setting yet. |
 | `--uc-sub` | planned |  | No Rust setting yet. |
 | `--uc-subprocess` | planned |  | No Rust setting yet. |
 | `--uc_cdp_events` | planned |  | No Rust setting yet. |
 | `--uc_subprocess` | planned |  | No Rust setting yet. |
-| `--undetectable` | planned |  | No Rust setting yet. |
-| `--undetected` | planned |  | No Rust setting yet. |
+| `--undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
+| `--undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--url` | planned |  | No Rust setting yet. |
 | `--use-auto-ext` | planned |  | No Rust setting yet. |
-| `--use-chromium` | planned |  | No Rust setting yet. |
+| `--use-chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--use_auto_ext` | planned |  | No Rust setting yet. |
 | `--user-agent` | implemented | `BrowserConfig::user_agent` |  |
 | `--user-data-dir` | implemented | `BrowserConfig::user_data_dir` |  |
 | `--user_agent` | implemented | `BrowserConfig::user_agent` |  |
 | `--user_data_dir` | implemented | `BrowserConfig::user_data_dir` |  |
-| `--var1` | planned |  | No Rust setting yet. |
-| `--var2` | planned |  | No Rust setting yet. |
-| `--var3` | planned |  | No Rust setting yet. |
-| `--variables` | planned |  | No Rust setting yet. |
+| `--var1` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--verify-delay` | planned |  | No Rust setting yet. |
 | `--verify_delay` | planned |  | No Rust setting yet. |
 | `--visual-baseline` | planned |  | No Rust setting yet. |
@@ -1086,23 +1086,23 @@ Python `--option` flags.
 | `--wait-for-angularjs` | planned |  | No Rust setting yet. |
 | `--wait_for_angularjs` | planned |  | No Rust setting yet. |
 | `--wfa` | planned |  | No Rust setting yet. |
-| `--window-position` | planned |  | No Rust setting yet. |
-| `--window-size` | planned |  | No Rust setting yet. |
-| `--window_position` | planned |  | No Rust setting yet. |
-| `--window_size` | planned |  | No Rust setting yet. |
-| `--with-basic-test-info` | planned |  | No Rust setting yet. |
-| `--with-basic_test_info` | planned |  | No Rust setting yet. |
+| `--window-position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--window-size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--window_position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--window_size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--with-basic-test-info` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-basic_test_info` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--with-db-reporting` | planned |  | No Rust setting yet. |
 | `--with-db_reporting` | planned |  | No Rust setting yet. |
-| `--with-page-source` | planned |  | No Rust setting yet. |
-| `--with-page_source` | planned |  | No Rust setting yet. |
+| `--with-page-source` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-page_source` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--with-s3-logging` | planned |  | No Rust setting yet. |
 | `--with-s3_logging` | planned |  | No Rust setting yet. |
-| `--with-screen-shots` | planned |  | No Rust setting yet. |
-| `--with-screen_shots` | planned |  | No Rust setting yet. |
-| `--with-selenium` | planned |  | No Rust setting yet. |
-| `--with-testing-base` | planned |  | No Rust setting yet. |
-| `--with-testing_base` | planned |  | No Rust setting yet. |
+| `--with-screen-shots` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-screen_shots` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-selenium` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-testing-base` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-testing_base` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--xvfb` | planned |  | No Rust setting yet. |
 | `--xvfb-metrics` | planned |  | No Rust setting yet. |
 | `--xvfb_metrics` | planned |  | No Rust setting yet. |
@@ -1116,32 +1116,32 @@ Keyword arguments of `SB()`.
 | `account` | planned |  | No Rust setting yet. |
 | `ad_block` | implemented | `BrowserConfig::ad_block` |  |
 | `ad_block_on` | planned |  | No Rust setting yet. |
-| `agent` | planned |  | No Rust setting yet. |
-| `binary_location` | planned |  | No Rust setting yet. |
+| `agent` | composed | `BrowserConfig::user_agent` |  |
+| `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `block_images` | planned |  | No Rust setting yet. |
 | `browser` | implemented | `BrowserConfig::browser` |  |
 | `cap_file` | planned |  | No Rust setting yet. |
 | `cap_string` | planned |  | No Rust setting yet. |
 | `cft` | planned |  | No Rust setting yet. |
-| `chromium_arg` | planned |  | No Rust setting yet. |
+| `chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `chs` | planned |  | No Rust setting yet. |
-| `dark_mode` | planned |  | No Rust setting yet. |
+| `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `data` | planned |  | No Rust setting yet. |
 | `demo` | planned |  | No Rust setting yet. |
 | `demo_sleep` | planned |  | No Rust setting yet. |
 | `device_metrics` | planned |  | No Rust setting yet. |
-| `devtools` | planned |  | No Rust setting yet. |
+| `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_beforeunload` | planned |  | No Rust setting yet. |
 | `disable_cookies` | planned |  | No Rust setting yet. |
 | `disable_csp` | planned |  | No Rust setting yet. |
-| `disable_features` | planned |  | No Rust setting yet. |
+| `disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_js` | planned |  | No Rust setting yet. |
-| `disable_ws` | planned |  | No Rust setting yet. |
+| `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `do_not_track` | planned |  | No Rust setting yet. |
 | `driver_version` | planned |  | No Rust setting yet. |
-| `enable_3d_apis` | planned |  | No Rust setting yet. |
+| `enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `enable_sync` | planned |  | No Rust setting yet. |
-| `enable_ws` | planned |  | No Rust setting yet. |
+| `enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `environment` | planned |  | No Rust setting yet. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | planned |  | No Rust setting yet. |
@@ -1149,32 +1149,32 @@ Keyword arguments of `SB()`.
 | `fast` | planned |  | No Rust setting yet. |
 | `firefox_arg` | planned |  | No Rust setting yet. |
 | `firefox_pref` | planned |  | No Rust setting yet. |
-| `guest` | planned |  | No Rust setting yet. |
-| `guest_mode` | planned |  | No Rust setting yet. |
-| `headed` | planned |  | No Rust setting yet. |
+| `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless` | implemented | `BrowserConfig::headless` |  |
-| `headless1` | planned |  | No Rust setting yet. |
-| `headless2` | planned |  | No Rust setting yet. |
+| `headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `highlights` | planned |  | No Rust setting yet. |
-| `host_resolver_rules` | planned |  | No Rust setting yet. |
-| `incognito` | planned |  | No Rust setting yet. |
+| `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `interval` | planned |  | No Rust setting yet. |
 | `is_mobile` | planned |  | No Rust setting yet. |
 | `js_checking_on` | planned |  | No Rust setting yet. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
-| `locale_code` | planned |  | No Rust setting yet. |
+| `locale_code` | composed | `BrowserConfig::locale` |  |
 | `log_cdp` | planned |  | No Rust setting yet. |
 | `log_cdp_events` | planned |  | No Rust setting yet. |
-| `maximize` | planned |  | No Rust setting yet. |
+| `maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `message_duration` | planned |  | No Rust setting yet. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | planned |  | No Rust setting yet. |
 | `no_screenshot` | planned |  | No Rust setting yet. |
 | `page_load_strategy` | planned |  | No Rust setting yet. |
 | `pls` | planned |  | No Rust setting yet. |
-| `port` | planned |  | No Rust setting yet. |
+| `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `position` | planned |  | No Rust setting yet. |
-| `protocol` | planned |  | No Rust setting yet. |
+| `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `proxy` | implemented | `BrowserConfig::proxy` |  |
 | `proxy_bypass_list` | planned |  | No Rust setting yet. |
 | `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
@@ -1188,36 +1188,36 @@ Keyword arguments of `SB()`.
 | `remote_debug` | planned |  | No Rust setting yet. |
 | `rtf` | planned |  | No Rust setting yet. |
 | `save_screenshot` | planned |  | No Rust setting yet. |
-| `server` | planned |  | No Rust setting yet. |
+| `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `servername` | planned |  | No Rust setting yet. |
-| `settings_file` | planned |  | No Rust setting yet. |
+| `settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `size` | planned |  | No Rust setting yet. |
 | `sjw` | planned |  | No Rust setting yet. |
 | `skip_js_waits` | planned |  | No Rust setting yet. |
 | `slow` | planned |  | No Rust setting yet. |
 | `start_page` | implemented | `BrowserConfig::start_page` |  |
-| `swiftshader` | planned |  | No Rust setting yet. |
+| `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `test` | planned |  | No Rust setting yet. |
 | `time_limit` | planned |  | No Rust setting yet. |
 | `timeout_multiplier` | planned |  | No Rust setting yet. |
-| `uc` | planned |  | No Rust setting yet. |
+| `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `uc_cdp` | planned |  | No Rust setting yet. |
 | `uc_cdp_events` | planned |  | No Rust setting yet. |
 | `uc_sub` | planned |  | No Rust setting yet. |
 | `uc_subprocess` | planned |  | No Rust setting yet. |
-| `undetectable` | planned |  | No Rust setting yet. |
-| `undetected` | planned |  | No Rust setting yet. |
+| `undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
+| `undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `use_auto_ext` | planned |  | No Rust setting yet. |
-| `use_chromium` | planned |  | No Rust setting yet. |
+| `use_chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `user_data_dir` | implemented | `BrowserConfig::user_data_dir` |  |
-| `var1` | planned |  | No Rust setting yet. |
-| `var2` | planned |  | No Rust setting yet. |
-| `var3` | planned |  | No Rust setting yet. |
-| `variables` | planned |  | No Rust setting yet. |
+| `var1` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `wait_for_angularjs` | planned |  | No Rust setting yet. |
 | `wfa` | planned |  | No Rust setting yet. |
-| `window_position` | planned |  | No Rust setting yet. |
-| `window_size` | planned |  | No Rust setting yet. |
+| `window_position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `window_size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `xvfb` | planned |  | No Rust setting yet. |
 | `xvfb_metrics` | planned |  | No Rust setting yet. |
 
@@ -1229,78 +1229,78 @@ Keyword arguments of `Driver()`.
 | --- | --- | --- | --- |
 | `ad_block` | implemented | `BrowserConfig::ad_block` |  |
 | `ad_block_on` | planned |  | No Rust setting yet. |
-| `agent` | planned |  | No Rust setting yet. |
-| `binary_location` | planned |  | No Rust setting yet. |
+| `agent` | composed | `BrowserConfig::user_agent` |  |
+| `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `block_images` | planned |  | No Rust setting yet. |
 | `browser` | implemented | `BrowserConfig::browser` |  |
 | `cap_file` | planned |  | No Rust setting yet. |
 | `cap_string` | planned |  | No Rust setting yet. |
 | `cft` | planned |  | No Rust setting yet. |
-| `chromium_arg` | planned |  | No Rust setting yet. |
+| `chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `chs` | planned |  | No Rust setting yet. |
 | `d_height` | planned |  | No Rust setting yet. |
 | `d_p_r` | planned |  | No Rust setting yet. |
 | `d_width` | planned |  | No Rust setting yet. |
-| `dark_mode` | planned |  | No Rust setting yet. |
-| `devtools` | planned |  | No Rust setting yet. |
+| `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_cookies` | planned |  | No Rust setting yet. |
 | `disable_csp` | planned |  | No Rust setting yet. |
-| `disable_features` | planned |  | No Rust setting yet. |
-| `disable_gpu` | planned |  | No Rust setting yet. |
+| `disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `disable_gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_js` | planned |  | No Rust setting yet. |
-| `disable_ws` | planned |  | No Rust setting yet. |
+| `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `do_not_track` | planned |  | No Rust setting yet. |
 | `driver_version` | planned |  | No Rust setting yet. |
-| `enable_3d_apis` | planned |  | No Rust setting yet. |
+| `enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `enable_sync` | planned |  | No Rust setting yet. |
-| `enable_ws` | planned |  | No Rust setting yet. |
+| `enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | planned |  | No Rust setting yet. |
 | `external_pdf` | planned |  | No Rust setting yet. |
 | `firefox_arg` | planned |  | No Rust setting yet. |
 | `firefox_pref` | planned |  | No Rust setting yet. |
-| `guest` | planned |  | No Rust setting yet. |
-| `guest_mode` | planned |  | No Rust setting yet. |
-| `headed` | planned |  | No Rust setting yet. |
+| `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless` | implemented | `BrowserConfig::headless` |  |
-| `headless1` | planned |  | No Rust setting yet. |
-| `headless2` | planned |  | No Rust setting yet. |
-| `host_resolver_rules` | planned |  | No Rust setting yet. |
-| `incognito` | planned |  | No Rust setting yet. |
+| `headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `is_mobile` | planned |  | No Rust setting yet. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
-| `locale_code` | planned |  | No Rust setting yet. |
+| `locale_code` | composed | `BrowserConfig::locale` |  |
 | `log_cdp` | planned |  | No Rust setting yet. |
 | `log_cdp_events` | planned |  | No Rust setting yet. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | planned |  | No Rust setting yet. |
-| `no_sandbox` | planned |  | No Rust setting yet. |
+| `no_sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `page_load_strategy` | planned |  | No Rust setting yet. |
 | `pls` | planned |  | No Rust setting yet. |
-| `port` | planned |  | No Rust setting yet. |
+| `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `position` | planned |  | No Rust setting yet. |
-| `protocol` | planned |  | No Rust setting yet. |
+| `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `proxy` | implemented | `BrowserConfig::proxy` |  |
 | `proxy_bypass_list` | planned |  | No Rust setting yet. |
 | `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
 | `recorder_ext` | planned |  | No Rust setting yet. |
 | `remote_debug` | planned |  | No Rust setting yet. |
-| `server` | planned |  | No Rust setting yet. |
+| `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `servername` | planned |  | No Rust setting yet. |
 | `size` | planned |  | No Rust setting yet. |
-| `swiftshader` | planned |  | No Rust setting yet. |
-| `uc` | planned |  | No Rust setting yet. |
+| `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `uc_cdp` | planned |  | No Rust setting yet. |
 | `uc_cdp_events` | planned |  | No Rust setting yet. |
 | `uc_sub` | planned |  | No Rust setting yet. |
 | `uc_subprocess` | planned |  | No Rust setting yet. |
-| `undetectable` | planned |  | No Rust setting yet. |
-| `undetected` | planned |  | No Rust setting yet. |
+| `undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
+| `undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `use_auto_ext` | planned |  | No Rust setting yet. |
-| `use_chromium` | planned |  | No Rust setting yet. |
+| `use_chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `user_data_dir` | implemented | `BrowserConfig::user_data_dir` |  |
-| `window_position` | planned |  | No Rust setting yet. |
-| `window_size` | planned |  | No Rust setting yet. |
+| `window_position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `window_size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 
 ## MCP: CDP server
 
