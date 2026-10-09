@@ -13,6 +13,7 @@ use seleniumbase_rs::cli::commands::{
     looks_like_pdf, parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
 };
 use seleniumbase_rs::cli::scripts::*;
+use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::config::settings::Settings;
@@ -304,6 +305,19 @@ enum Commands {
         /// Directory where the patched copy is cached.
         #[arg(long, help = "Directory where patched binaries are cached")]
         cache_dir: Option<String>,
+    },
+    /// Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
+    ///
+    /// The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never
+    /// from an argument, so it stays out of shell history and process listings.
+    Encrypt {
+        /// The text to encrypt.
+        text: Option<String>,
+    },
+    /// Decrypt a token made by `sbase encrypt`; read from stdin if TOKEN is omitted.
+    Decrypt {
+        /// The token to decrypt.
+        token: Option<String>,
     },
     /// Run a diagnostic check on the environment and configuration.
     Doctor,
@@ -732,6 +746,28 @@ async fn resolve_pdf(
         sb.print_to_pdf(target).await?;
     }
     Ok((path, holder))
+}
+
+/// The passphrase for `encrypt` and `decrypt`.
+///
+/// It is read from the environment and not from an argument, so it does not
+/// end up in shell history or a process listing.
+fn encryption_passphrase() -> Result<String, Box<dyn std::error::Error>> {
+    match std::env::var("SB_ENCRYPTION_KEY") {
+        Ok(passphrase) if !passphrase.is_empty() => Ok(passphrase),
+        _ => Err("set the SB_ENCRYPTION_KEY environment variable to the passphrase to use".into()),
+    }
+}
+
+/// `value` if given, otherwise all of standard input without its trailing
+/// newline, so `echo secret | sbase encrypt` works.
+fn text_or_stdin(value: Option<String>) -> Result<String, Box<dyn std::error::Error>> {
+    if let Some(value) = value {
+        return Ok(value);
+    }
+    let mut text = String::new();
+    std::io::Read::read_to_string(&mut std::io::stdin(), &mut text)?;
+    Ok(text.trim_end_matches(['\n', '\r']).to_owned())
 }
 
 async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
@@ -1277,6 +1313,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(cache);
             let patched = patcher.patch(EnginePatch::chrome_binary())?;
             println!("Patched Chrome binary available at: {}", patched.display());
+        }
+        Commands::Encrypt { text } => {
+            let passphrase = encryption_passphrase()?;
+            let text = text_or_stdin(text)?;
+            println!("{}", encrypt_with_passphrase(&text, &passphrase)?);
+        }
+        Commands::Decrypt { token } => {
+            let passphrase = encryption_passphrase()?;
+            let token = text_or_stdin(token)?;
+            println!("{}", decrypt_with_passphrase(&token, &passphrase)?);
         }
         Commands::Doctor => {
             run_doctor().await?;

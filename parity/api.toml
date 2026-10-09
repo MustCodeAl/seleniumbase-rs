@@ -2886,20 +2886,22 @@ status = "implemented"
 rust = "sbase behave-gui"
 
 [cli."behave-options"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Lists behave (Python BDD) options; this crate has its own Gherkin runner."
 
 [cli."case-plans"]
-status = "planned"
-note = "No Rust command yet."
+status = "composed"
+rust = "sbase caseplans"
+note = "One canonical name; the hyphenated spelling is an alias upstream."
 
 [cli."caseplans"]
 status = "implemented"
 rust = "sbase caseplans"
 
 [cli."codegen"]
-status = "planned"
-note = "No Rust command yet."
+status = "composed"
+rust = "sbase record"
+note = "Records browser actions to a test file."
 
 [cli."commander"]
 status = "implemented"
@@ -2910,24 +2912,27 @@ status = "implemented"
 rust = "sbase convert"
 
 [cli."decrypt"]
-status = "planned"
-note = "No Rust command yet."
+status = "implemented"
+rust = "sbase decrypt"
+divergence = "Reads tokens made by `sbase encrypt` only; see `encrypt`."
 
 [cli."download"]
 status = "implemented"
 rust = "sbase download"
 
 [cli."encrypt"]
-status = "planned"
-note = "No Rust command yet."
+status = "implemented"
+rust = "sbase encrypt"
+divergence = "AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable."
 
 [cli."extract-objects"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Edits the structure of Python test files."
 
 [cli."get"]
-status = "planned"
-note = "No Rust command yet."
+status = "composed"
+rust = "sbase install"
+note = "Python treats `get` and `install` as the same command."
 
 [cli."grid-hub"]
 status = "planned"
@@ -2938,12 +2943,14 @@ status = "planned"
 note = "No Rust command yet."
 
 [cli."gui"]
-status = "planned"
-note = "No Rust command yet."
+status = "composed"
+rust = "sbase commander"
+note = "Python's `gui` is the same test runner as `commander`."
 
 [cli."gui-behave"]
-status = "planned"
-note = "No Rust command yet."
+status = "composed"
+rust = "sbase behave-gui"
+note = "One canonical name; the alias is not ported."
 
 [cli."help"]
 status = "composed"
@@ -2951,16 +2958,16 @@ rust = "clap"
 note = "Provided by the argument parser."
 
 [cli."inject-objects"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Edits the structure of Python test files."
 
 [cli."install"]
 status = "implemented"
 rust = "sbase install"
 
 [cli."methods"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API."
 
 [cli."mkchart"]
 status = "implemented"
@@ -2983,16 +2990,16 @@ status = "implemented"
 rust = "sbase mkrec"
 
 [cli."obfuscate"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Obfuscates a Python source file; there is no Python source to obfuscate here."
 
 [cli."objectify"]
 status = "implemented"
 rust = "sbase objectify"
 
 [cli."options"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig."
 
 [cli."print"]
 status = "implemented"
@@ -3007,20 +3014,21 @@ status = "implemented"
 rust = "sbase record"
 
 [cli."recorder"]
-status = "planned"
-note = "No Rust command yet."
+status = "composed"
+rust = "sbase record"
+note = "Records browser actions to a test file."
 
 [cli."revert-objects"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Edits the structure of Python test files."
 
 [cli."translate"]
 status = "planned"
 note = "No Rust command yet."
 
 [cli."unobfuscate"]
-status = "planned"
-note = "No Rust command yet."
+status = "not-applicable"
+reason = "Reverses Python source obfuscation; see `obfuscate`."
 
 [cli."version"]
 status = "composed"

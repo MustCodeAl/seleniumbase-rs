@@ -18,7 +18,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [BaseCase methods](#basecase-methods) | 453 | 440 | 2 | 11 | 0 |
 | [Driver methods](#driver-methods) | 79 | 75 | 0 | 0 | 4 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 0 | 196 | 16 | 3 |
-| [Command-line commands](#command-line-commands) | 36 | 15 | 2 | 0 | 19 |
+| [Command-line commands](#command-line-commands) | 36 | 17 | 8 | 8 | 3 |
 | [pytest options](#pytest-options) | 263 | 18 | 0 | 0 | 245 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 10 | 0 | 0 | 97 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 9 | 0 | 0 | 65 |
@@ -801,40 +801,40 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
 | `behave-gui` | implemented | `sbase behave-gui` |  |
-| `behave-options` | planned |  | No Rust command yet. |
-| `case-plans` | planned |  | No Rust command yet. |
+| `behave-options` | not-applicable |  | Lists behave (Python BDD) options; this crate has its own Gherkin runner. |
+| `case-plans` | composed | `sbase caseplans` | One canonical name; the hyphenated spelling is an alias upstream. |
 | `caseplans` | implemented | `sbase caseplans` |  |
-| `codegen` | planned |  | No Rust command yet. |
+| `codegen` | composed | `sbase record` | Records browser actions to a test file. |
 | `commander` | implemented | `sbase commander` |  |
 | `convert` | implemented | `sbase convert` |  |
-| `decrypt` | planned |  | No Rust command yet. |
+| `decrypt` | implemented | `sbase decrypt` | Differs: Reads tokens made by `sbase encrypt` only; see `encrypt`. |
 | `download` | implemented | `sbase download` |  |
-| `encrypt` | planned |  | No Rust command yet. |
-| `extract-objects` | planned |  | No Rust command yet. |
-| `get` | planned |  | No Rust command yet. |
+| `encrypt` | implemented | `sbase encrypt` | Differs: AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable. |
+| `extract-objects` | not-applicable |  | Edits the structure of Python test files. |
+| `get` | composed | `sbase install` | Python treats `get` and `install` as the same command. |
 | `grid-hub` | planned |  | No Rust command yet. |
 | `grid-node` | planned |  | No Rust command yet. |
-| `gui` | planned |  | No Rust command yet. |
-| `gui-behave` | planned |  | No Rust command yet. |
+| `gui` | composed | `sbase commander` | Python's `gui` is the same test runner as `commander`. |
+| `gui-behave` | composed | `sbase behave-gui` | One canonical name; the alias is not ported. |
 | `help` | composed | `clap` | Provided by the argument parser. |
-| `inject-objects` | planned |  | No Rust command yet. |
+| `inject-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `install` | implemented | `sbase install` |  |
-| `methods` | planned |  | No Rust command yet. |
+| `methods` | not-applicable |  | Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API. |
 | `mkchart` | implemented | `sbase mkchart` |  |
 | `mkdir` | implemented | `sbase mkdir` |  |
 | `mkfile` | implemented | `sbase mkfile` |  |
 | `mkpres` | implemented | `sbase mkpres` |  |
 | `mkrec` | implemented | `sbase mkrec` |  |
-| `obfuscate` | planned |  | No Rust command yet. |
+| `obfuscate` | not-applicable |  | Obfuscates a Python source file; there is no Python source to obfuscate here. |
 | `objectify` | implemented | `sbase objectify` |  |
-| `options` | planned |  | No Rust command yet. |
+| `options` | not-applicable |  | Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig. |
 | `print` | implemented | `sbase print` |  |
 | `proxy` | implemented | `sbase proxy` |  |
 | `record` | implemented | `sbase record` |  |
-| `recorder` | planned |  | No Rust command yet. |
-| `revert-objects` | planned |  | No Rust command yet. |
+| `recorder` | composed | `sbase record` | Records browser actions to a test file. |
+| `revert-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `translate` | planned |  | No Rust command yet. |
-| `unobfuscate` | planned |  | No Rust command yet. |
+| `unobfuscate` | not-applicable |  | Reverses Python source obfuscation; see `obfuscate`. |
 | `version` | composed | `clap` | Provided by the argument parser. |
 
 ## pytest options

@@ -213,6 +213,26 @@ CDP_NOT_APPLICABLE = {
 CLI_COMPOSED = {
     "help": ("clap", "Provided by the argument parser."),
     "version": ("clap", "Provided by the argument parser."),
+    "get": ("sbase install", "Python treats `get` and `install` as the same command."),
+    "case-plans": ("sbase caseplans", "One canonical name; the hyphenated spelling is an alias upstream."),
+    "gui-behave": ("sbase behave-gui", "One canonical name; the alias is not ported."),
+    "gui": ("sbase commander", "Python's `gui` is the same test runner as `commander`."),
+    "recorder": ("sbase record", "Records browser actions to a test file."),
+    "codegen": ("sbase record", "Records browser actions to a test file."),
+}
+CLI_NOT_APPLICABLE = {
+    "methods": "Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API.",
+    "options": "Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig.",
+    "behave-options": "Lists behave (Python BDD) options; this crate has its own Gherkin runner.",
+    "obfuscate": "Obfuscates a Python source file; there is no Python source to obfuscate here.",
+    "unobfuscate": "Reverses Python source obfuscation; see `obfuscate`.",
+    "extract-objects": "Edits the structure of Python test files.",
+    "inject-objects": "Edits the structure of Python test files.",
+    "revert-objects": "Edits the structure of Python test files.",
+}
+CLI_DIVERGENCE = {
+    "encrypt": "AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable.",
+    "decrypt": "Reads tokens made by `sbase encrypt` only; see `encrypt`.",
 }
 
 FN = re.compile(r"^\s*pub(?:\([a-z]+\))?\s+(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)")
@@ -297,11 +317,14 @@ def classify(api, methods, fields):
     cli_text = rust_text("cli/**/*.rs")
     for n in api["cli"]:
         camel = "".join(p.capitalize() for p in n.split("-"))
-        if n in CLI_COMPOSED:
+        if n in CLI_NOT_APPLICABLE:
+            put("cli", n, status="not-applicable", reason=CLI_NOT_APPLICABLE[n])
+        elif n in CLI_COMPOSED:
             rust, note = CLI_COMPOSED[n]
             put("cli", n, status="composed", rust=rust, note=note)
         elif re.search(rf'\b{camel}\b|"{re.escape(n)}"', cli_text):
-            put("cli", n, status="implemented", rust=f"sbase {n}")
+            extra = {"divergence": CLI_DIVERGENCE[n]} if n in CLI_DIVERGENCE else {}
+            put("cli", n, status="implemented", rust=f"sbase {n}", **extra)
         else:
             put("cli", n, status="planned", note="No Rust command yet.")
 

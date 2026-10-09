@@ -88,6 +88,25 @@ version.
 `doctor` prints the active `SB_*` environment variables, the detected Chrome
 binary, and the patched-binary cache path.
 
+## Encrypt and decrypt secrets
+
+Keep a password out of a test file by storing it encrypted. The passphrase comes
+from the environment, never from an argument, so it stays out of shell history
+and process listings:
+
+```bash
+export SB_ENCRYPTION_KEY='a long passphrase'
+sbase encrypt 'my password'          # prints a token such as sbenc1:600000:...
+echo 'my password' | sbase encrypt   # or read the text from standard input
+sbase decrypt 'sbenc1:600000:...'    # prints: my password
+```
+
+Tokens use AES-256-GCM with a key derived from the passphrase (PBKDF2-HMAC-SHA256,
+600,000 iterations, a fresh random salt each time). A wrong passphrase or a
+modified token fails to decrypt. They are not interchangeable with Python
+SeleniumBase's `sbase encrypt`, which is a reversible obfuscation with a fixed
+key.
+
 ## Run a JSON scenario
 
 ```bash
