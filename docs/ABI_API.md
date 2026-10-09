@@ -124,7 +124,7 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 | `gcp` | Enables Google Cloud Storage artifact uploads. | no |
 | `mcp-server` | Enables the `mcp` module and builds the `seleniumbase-mcp` binary using `rmcp`. | no |
 | `test-util` | Exposes `sb_cdp::Browser::new_mocked` and `MockCtrl` for testing code that drives pages without Chrome. | no |
-| `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbase report` command. | no |
+| `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbase report` command. Needs Rust 1.90 or newer (a Turso dependency requires it); the rest of the crate builds on 1.89. | no |
 | `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. | no |
 | `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
 

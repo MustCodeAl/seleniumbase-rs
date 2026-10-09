@@ -4,7 +4,8 @@ Two things a team ends up needing are a history of test runs, and a safe place
 for browser profiles. Both live in one embedded database,
 [Turso](https://github.com/tursodatabase/turso), behind the `turso` feature. It
 is off by default, runs in your process, and keeps everything in a local file;
-nothing is sent over the network.
+nothing is sent over the network. The feature needs Rust 1.90 or newer, because a
+Turso dependency does; without it the crate still builds on 1.89.
 
 ```toml
 [dependencies]
