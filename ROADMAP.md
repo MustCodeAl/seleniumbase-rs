@@ -29,7 +29,7 @@ Design rules that apply to everything below:
 | MCP `driver` / `sb` servers | 26 and 88 tools plus 8 stealth tools; catalogue and offline behaviour tested (`tests/mcp_webdriver.rs`). |
 | `seleniumbase-mcp` binary | `--server cdp\|driver\|sb`, default `sb`. |
 | `sbase` CLI | `encrypt` and `decrypt` (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`). |
-| BaseCase | `nested_click`, `solve_captcha`, `fast_type`, `js_click_if_visible`, `get_gui_element_rect/center`, `jq_format`, `post_message`, `save_as_html_to_logs`, `save_teardown_screenshot`, `switch_to_default_driver`, `wait_for_angularjs`, `get_saved_cookies`. |
+| BaseCase | Actions wait for their element; `nested_click`, `solve_captcha`, `fast_type`, `js_click_if_visible`, `get_gui_element_rect/center`, `jq_format`, `post_message`, `save_as_html_to_logs`, `save_teardown_screenshot`, `switch_to_default_driver`, `wait_for_angularjs`, `get_saved_cookies`. |
 
 ## 1. Finish the parity upgrade (next)
 
@@ -37,11 +37,14 @@ Design rules that apply to everything below:
    `tests/mcp_webdriver_chrome.rs` is written but unrun: the installed
    chromedriver (151) does not match Chrome (155). Run it once with a matching
    driver (`sbase get chromedriver` or a download) and fix whatever it finds.
-2. **BaseCase actions do not wait.** `click`, `type_text`, `submit`, ... act
-   immediately, while Python's accept a `timeout` and wait. The MCP layer works
-   around it by waiting first (`mcp::webdriver::ready`). Fix at the source:
-   make BaseCase actions wait up to the configured timeout, and add per-call
-   timeout variants. Then drop the workaround.
+2. **BaseCase actions wait (done; verify on a real driver).** `click`,
+   `type_text`, `get_text`, `hover`, `submit`, ... now poll for their element up
+   to `set_timeout` (10 s default) and fail with `WaitTimeout` naming the
+   selector. The three `tests/browser_smoke.rs` tests that prove it
+   (`an_action_waits_for_an_element_that_appears_late` and two more) are
+   written but unrun, for the same driver-mismatch reason as item 1. Per-call
+   timeout variants are still to do; the MCP layer passes its own timeout by
+   waiting first.
 3. **BaseCase semantic differences to resolve or document**
    - `click_nth_visible_element` is 0-based; Python's is 1-based.
    - `download_file` opens the URL in a browser tab; Python downloads over HTTP

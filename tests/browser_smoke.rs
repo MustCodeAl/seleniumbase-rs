@@ -96,3 +96,73 @@ async fn deferred_asserts_collect_failures() {
         .expect("all deferred assertions should pass");
     sb.quit().await.expect("quit");
 }
+
+const LATE_PAGE: &str = "data:text/html,<html><head><title>Late</title></head><body><script>\
+    setTimeout(function(){var b=document.createElement('button');b.id='late';b.textContent='Go';\
+    b.onclick=function(){document.title='clicked'};document.body.append(b)},800)</script></body></html>";
+
+#[tokio::test]
+#[ignore = "requires a local Chrome/chromedriver"]
+async fn an_action_waits_for_an_element_that_appears_late() {
+    let _guard = BROWSER_LOCK.lock().await;
+    let mut sb = BaseCase::new(test_config())
+        .await
+        .expect("connect to browser");
+    sb.open(LATE_PAGE).await.expect("open the page");
+
+    sb.click("#late")
+        .await
+        .expect("click waits for the button to exist");
+
+    assert_eq!(sb.get_title().await.expect("title"), "clicked");
+    sb.quit().await.expect("quit");
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome/chromedriver"]
+async fn an_action_on_a_missing_element_times_out_and_names_it() {
+    let _guard = BROWSER_LOCK.lock().await;
+    let mut sb = BaseCase::new(test_config())
+        .await
+        .expect("connect to browser");
+    sb.open(DEMO_PAGE).await.expect("open demo page");
+    sb.set_timeout(1).await.expect("shorten the wait");
+
+    let error = sb
+        .click("#nope")
+        .await
+        .expect_err("there is no such element");
+
+    let message = error.to_string();
+    assert!(
+        matches!(
+            error,
+            seleniumbase_rs::SeleniumBaseError::WaitTimeout { .. }
+        ),
+        "{message}"
+    );
+    assert!(message.contains("#nope"), "{message}");
+    sb.quit().await.expect("quit");
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome/chromedriver"]
+async fn checking_for_an_absent_element_does_not_wait_out_the_timeout() {
+    let _guard = BROWSER_LOCK.lock().await;
+    let mut sb = BaseCase::new(test_config())
+        .await
+        .expect("connect to browser");
+    sb.open(DEMO_PAGE).await.expect("open demo page");
+    sb.set_timeout(20).await.expect("lengthen the wait");
+
+    let started = std::time::Instant::now();
+    let present = sb.is_element_present("#nope").await.expect("check");
+
+    assert!(!present);
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "an absence check must answer at once, took {:?}",
+        started.elapsed()
+    );
+    sb.quit().await.expect("quit");
+}

@@ -8,13 +8,26 @@ or a timeout expires.
 This page explains the waiting model, the available assertion helpers, soft
 assertions, and common mistakes to avoid.
 
-## Implicit smart waiting
+## Smart waiting in actions
 
-Many `BaseCase` methods automatically wait for the target element to be present
-and visible before acting. This includes `click`, `type_text`, `get_text`,
-`hover`, and several others. You do not need to add a manual wait before every
-action, but explicit waits are still useful when you need precise timing or when
-testing dynamic state changes.
+`BaseCase` actions wait for their element before acting, polling until it is
+ready or the timeout passes (10 seconds by default; see
+[Default timeout](#default-timeout)):
+
+| Action | Waits for the element to be |
+| --- | --- |
+| `click`, `double_click`, `context_click` | visible and enabled |
+| `type_text`, `send_keys`, `clear`, `hover`, `drag_and_drop` | visible |
+| `get_text`, `get_attribute`, `submit`, `set_value`, `select_option_by_*` | present |
+
+If the element never gets there, the action fails with
+`SeleniumBaseError::WaitTimeout`, which names the selector and the state it was
+waiting for. You do not need a manual wait before every action, but explicit
+waits are still useful for precise timing or for waiting on dynamic state.
+
+The wait is a poll, not a WebDriver implicit wait, so checks such as
+`is_element_present` still answer at once instead of waiting out the timeout
+when the element is absent.
 
 ## Explicit waits
 
@@ -111,7 +124,7 @@ containing all of the failures.
 
 ## Default timeout
 
-You can change the default implicit wait used by helper macros and some methods:
+You can change how long actions and some other methods wait:
 
 ```rust
 let old = sb.set_timeout(30).await?;
@@ -130,7 +143,7 @@ methods also honor the overall test time limit set with `set_time_limit`.
 
 ## Wait and assertion checklist
 
-- [ ] Action methods use implicit waiting where possible.
+- [ ] Rely on the actions' built-in waiting instead of adding sleeps.
 - [ ] Explicit waits are used for dynamic state changes.
 - [ ] Timeouts are chosen based on realistic page timing, not worst-case guesses.
 - [ ] Soft assertions are followed by `process_deferred_asserts`.

@@ -636,6 +636,7 @@ impl BaseCase {
         css: &str,
         index: usize,
     ) -> Result<(), SeleniumBaseError> {
+        self.await_ready(css, Ready::Present).await?;
         self.record("select_option_by_index", Some(css), Some(&index.to_string()));
         let script = format!(
             "var s = document.querySelector('{}'); if (s && s.options[{}]) s.selectedIndex = {};",

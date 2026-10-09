@@ -491,6 +491,7 @@ impl BaseCase {
     pub async fn click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         debug!(%css, "clicking element");
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Clickable).await?;
         self.record("click", Some(css), None);
         self.session.click(by).await
     }
@@ -500,6 +501,7 @@ impl BaseCase {
     pub async fn type_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         debug!(%css, text_len = text.len(), "typing text");
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Visible).await?;
         self.record("type_text", Some(css), Some(text));
         self.session.type_text(by, text).await
     }
@@ -507,6 +509,7 @@ impl BaseCase {
     /// Clears the value of the element selected by `css`.
     pub async fn clear(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Visible).await?;
         self.record("clear", Some(css), None);
         self.session.clear(by).await
     }
@@ -521,6 +524,7 @@ impl BaseCase {
     /// Submits the form containing the element selected by `css`.
     pub async fn submit(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
         self.record("submit", Some(css), None);
         self.session.submit(by).await
     }
@@ -528,12 +532,14 @@ impl BaseCase {
     /// Returns the visible text of the element `css`.
     pub async fn get_text(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
         self.session.text(by).await
     }
 
     /// Hovers over the element selected by `css`.
     pub async fn hover(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Visible).await?;
         self.record("hover", Some(css), None);
         self.session.hover(by).await
     }
@@ -556,6 +562,7 @@ impl BaseCase {
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
         self.record("select_option_by_text", Some(css), Some(text));
         self.session.select_option_by_text(by, text).await
     }
@@ -567,6 +574,7 @@ impl BaseCase {
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
         self.record("select_option_by_value", Some(css), Some(value));
         self.session.select_option_by_value(by, value).await
     }
@@ -592,6 +600,8 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let source_by = Selector::auto(source_css).to_by()?;
         let target_by = Selector::auto(target_css).to_by()?;
+        self.await_ready(source_css, Ready::Visible).await?;
+        self.await_ready(target_css, Ready::Visible).await?;
         self.record("drag_and_drop", Some(source_css), Some(target_css));
         self.session.drag_and_drop(source_by, target_by).await
     }
@@ -756,6 +766,7 @@ impl BaseCase {
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Present).await?;
         self.session.get_attribute(by, attribute_name).await
     }
 
@@ -1095,6 +1106,7 @@ impl BaseCase {
     /// Double-clicks the element selected by `css`.
     pub async fn double_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Clickable).await?;
         self.record("double_click", Some(css), None);
         self.session.double_click(by).await
     }
@@ -1102,6 +1114,7 @@ impl BaseCase {
     /// Right-clicks the element selected by `css`.
     pub async fn context_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Clickable).await?;
         self.record("context_click", Some(css), None);
         self.session.context_click(by).await
     }
@@ -1422,6 +1435,7 @@ impl BaseCase {
 
     /// Executes the `send_keys` action.
     pub async fn send_keys(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.await_ready(css, Ready::Visible).await?;
         self.add_text(css, text).await
     }
 
@@ -2040,6 +2054,7 @@ impl BaseCase {
 
     /// Set the `value` property of the element.
     pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
+        self.await_ready(css, Ready::Present).await?;
         let script = format!(
             "document.querySelector({}).value = {};",
             serde_json::to_string(css)

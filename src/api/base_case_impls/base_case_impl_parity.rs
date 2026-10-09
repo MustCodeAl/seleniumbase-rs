@@ -1,6 +1,55 @@
 // Helpers that complete the BaseCase surface of the Python framework.
 
+/// What an action needs from its element before it can run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Ready {
+    /// The element exists in the page.
+    Present,
+    /// The element exists and is displayed.
+    Visible,
+    /// The element is displayed and enabled.
+    Clickable,
+}
+
+impl std::fmt::Display for Ready {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Present => "present",
+            Self::Visible => "visible",
+            Self::Clickable => "clickable",
+        })
+    }
+}
+
 impl BaseCase {
+    /// Waits, polling, until `css` is ready for an action, for up to the
+    /// configured timeout ([`set_timeout`](Self::set_timeout), 10 seconds by
+    /// default).
+    ///
+    /// Actions call this first so they do not race a page that is still
+    /// rendering. A WebDriver-wide implicit wait is deliberately not used: it
+    /// would also make every "is it absent?" check wait the full time.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the selector and the
+    /// state it never reached.
+    async fn await_ready(&self, css: &str, ready: Ready) -> Result<(), SeleniumBaseError> {
+        let by = Selector::auto(css).to_by()?;
+        let timeout = self.timeout_secs;
+        let reached = match ready {
+            Ready::Present => self.session.wait_for_element(by, timeout).await.map(drop),
+            Ready::Visible => self.session.wait_for_element_visible(by, timeout).await.map(drop),
+            Ready::Clickable => self.session.wait_for_element_clickable(by, timeout).await.map(drop),
+        };
+        reached.map_err(|_| {
+            SeleniumBaseError::wait_timeout(
+                format!("'{css}' to be {ready}"),
+                Some(Duration::from_secs(timeout)),
+            )
+        })
+    }
+
     /// Replaces an input's content with `text` in one step, with no per-key
     /// events. A trailing newline presses Enter. Corresponds to Python's
     /// `fast_type`; use [`type_text`](Self::type_text) where the page listens
@@ -183,6 +232,19 @@ impl BaseCase {
 mod parity_tests {
     use super::*;
 
+
+    #[test]
+    fn a_wait_names_the_state_in_the_timeout_message() {
+        assert_eq!(Ready::Present.to_string(), "present");
+        assert_eq!(Ready::Visible.to_string(), "visible");
+        assert_eq!(Ready::Clickable.to_string(), "clickable");
+        let message = SeleniumBaseError::wait_timeout(
+            format!("'#go' to be {}", Ready::Clickable),
+            Some(Duration::from_secs(10)),
+        )
+        .to_string();
+        assert!(message.contains("#go") && message.contains("clickable"), "{message}");
+    }
 
     #[test]
     fn jq_format_escapes_what_would_end_a_quoted_script_string() {
