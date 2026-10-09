@@ -18,7 +18,7 @@ things you can do for test maintainability.
 |--------|---------|---------|
 | `#` | ID | `#username` |
 | `.` | Class (first match) | `.btn-primary` |
-| `/`, `//`, `./`, `(` | XPath | `//div[@class='hero']` |
+| `/`, `//`, `./`, `../`, `(` | XPath | `//div[@class='hero']` |
 | an XPath axis | XPath | `parent::div`, `following-sibling::td` |
 | `link=`, `link_text=`, `text=` | Exact link text | `link=Log in` |
 | `partial_link=`, `partial_link_text=`, `partial_text=` | Partial link text | `partial_text=Privacy` |
@@ -33,6 +33,11 @@ Any of the thirteen XPath axes may lead an expression, so `parent::div` and
 `ancestor-or-self::form` are recognized as XPath. CSS pseudo-elements are not
 confused with them, because a pseudo-element never begins with an axis name:
 `div::before` and `::after` stay CSS.
+
+The prefixes are matched exactly and everything after one is the text, so
+`LINK=Home` (wrong case) and ` link=Home` (leading space) are CSS, and
+`text=//div` is a link whose text is `//div`. An attribute selector such as
+`[name=q]` or `input[name='q']` is CSS: there is no `name=` prefix.
 
 If you need to force a particular strategy, construct the `Selector` variant
 yourself instead of relying on detection:
@@ -60,7 +65,7 @@ sb.type_text("input[name='q']", "seleniumbase").await?;
 sb.click("link=Sign up").await?;
 
 // Partial link text
-sb.click("partial link=Privacy Policy").await?;
+sb.click("partial_link=Privacy Policy").await?;
 
 // XPath
 sb.hover("//button[contains(text(), 'Menu')]").await?;
@@ -114,19 +119,22 @@ let button = root.find(thirtyfour::prelude::By::Css("button")).await?;
 button.click().await?;
 ```
 
-## XPath conversion
+## XPath to CSS
 
-Some helpers accept either XPath or CSS. You can convert between them with the
-selector utility:
+A simple XPath expression can be turned into the equivalent CSS selector:
 
 ```rust
-use seleniumbase_rs::utils::selectors;
+use seleniumbase_rs::utils::selectors::xpath_to_css;
 
-let xpath = selectors::css_to_xpath("div.content > p")?;
+assert_eq!(xpath_to_css("//input[@type='text' and @name='q']")?, "input[type='text'][name='q']");
 ```
 
-This is useful when you have a CSS selector but need an XPath for a tool or
-assertion that only accepts XPath.
+Only expressions with an exact CSS equivalent are converted: a tag (or `*`)
+anywhere in the document, narrowed by attribute tests (`@id='x'`, `@href`)
+joined with `and`. Anything else (`or`, `contains()`, `text()`, positions,
+paths with several steps) is an `InvalidSelector` error, because a CSS selector
+that quietly left part of the XPath out would match different elements. The
+other direction is `BaseCase::convert_css_to_xpath`.
 
 ## Best practices
 

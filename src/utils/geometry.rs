@@ -62,6 +62,48 @@ mod tests {
     }
 
     #[test]
+    fn a_window_on_a_monitor_to_the_left_has_a_negative_origin() {
+        let element = Rect {
+            x: 10.0,
+            y: 10.0,
+            width: 5.0,
+            height: 5.0,
+        };
+        let screen = screen_rect(element, [-1920.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!((screen.x, screen.y), (-1910.0, 10.0));
+        assert_eq!((screen.width, screen.height), (5.0, 5.0));
+    }
+
+    #[test]
+    fn a_headless_window_has_no_chrome_so_only_its_origin_and_scroll_count() {
+        // Headless Chrome reports equal outer and inner sizes.
+        let element = Rect {
+            x: 30.0,
+            y: 60.5,
+            width: 1.0,
+            height: 2.0,
+        };
+        let screen = screen_rect(element, [0.0, 0.0, 0.0, 0.0, 0.0, 0.5]);
+        assert_eq!((screen.x, screen.y), (30.0, 60.0));
+    }
+
+    #[test]
+    fn the_metrics_script_is_a_six_element_array_of_window_properties() {
+        let script = WINDOW_METRICS_SCRIPT;
+
+        assert!(script.starts_with('[') && script.ends_with(']'), "{script}");
+        assert_eq!(script.matches("window.").count(), 8, "{script}");
+        for property in ["screenX", "screenY", "scrollX", "scrollY"] {
+            assert!(script.contains(&format!("window.{property}")), "{property}");
+        }
+        // Chrome is the outer size minus the inner size, width then height.
+        let chrome_width = script.find("outerWidth - window.innerWidth").unwrap();
+        let chrome_height = script.find("outerHeight - window.innerHeight").unwrap();
+        assert!(chrome_width < chrome_height);
+        assert_eq!(script.split(',').count(), 6, "{script}");
+    }
+
+    #[test]
     fn scrolling_moves_the_element_up_and_left_on_the_screen() {
         let element = Rect {
             x: 50.0,
