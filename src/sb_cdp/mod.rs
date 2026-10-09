@@ -58,6 +58,7 @@
 //! The full mapping is in the parity table in the documentation.
 
 mod browser;
+mod captcha;
 mod client;
 mod expect;
 mod input;
@@ -72,6 +73,8 @@ mod types;
 
 #[doc(inline)]
 pub use browser::Browser;
+#[doc(inline)]
+pub use captcha::Captcha;
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
