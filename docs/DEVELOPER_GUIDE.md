@@ -60,7 +60,7 @@ seleniumbase-rs/
 │   │   └── reactor.rs      # CDP Fetch interceptor
 │   ├── behave/             # Gherkin/BDD runner and step registry
 │   ├── cli/                # Command-line tooling (sbase binary)
-│   ├── common/             # Decorators, obfuscation, exceptions
+│   ├── common/             # Encryption, obfuscation, graceful shutdown
 │   ├── config/             # Settings and proxy/ad-block lists
 │   ├── core/               # Test result records, JSON/HTML report writers
 │   ├── js_code/            # `quote`: safe JavaScript string literals for built scripts
@@ -477,7 +477,7 @@ the `mcp` module, built with the `mcp-server` feature. A server is a
 ## Testing guidelines
 
 - Add unit tests for pure helper logic (selectors, translations, HTML parsing,
-  decorators, JS builders).
+  retry and rate-limit policies, JS builders).
 - Avoid tests that require a live browser in the default suite; mark them with
   `#[ignore]` or place them under `tests/`.
 - Use `BaseCase::without_session(config)` to construct a `BaseCase` for testing
