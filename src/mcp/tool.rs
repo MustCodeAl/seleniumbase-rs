@@ -13,6 +13,12 @@ use super::host::Ctx;
 use super::schema::Schema;
 use crate::error::SeleniumBaseError;
 
+/// The longest wait or pause a single call may ask for, in seconds.
+///
+/// A model chooses these numbers, and one call holds the browser for its
+/// whole duration, so they are bounded.
+pub const MAX_SECONDS: f64 = 3600.0;
+
 /// The result of a tool call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Output {
@@ -158,6 +164,13 @@ impl Args {
         Self(map)
     }
 
+    /// Moves the value of argument `from` to `to`, if `from` was given.
+    pub(crate) fn rename(&mut self, from: &str, to: &str) {
+        if let Some(value) = self.0.remove(from) {
+            self.0.insert(to.to_owned(), value);
+        }
+    }
+
     fn get(&self, name: &str) -> Option<&Value> {
         self.0.get(name).filter(|value| !value.is_null())
     }
@@ -222,8 +235,11 @@ impl Args {
                 .as_f64()
                 .ok_or_else(|| ToolError::invalid(name, "expected a number of seconds"))?,
         };
-        if !seconds.is_finite() || seconds < 0.0 {
-            return Err(ToolError::invalid(name, "must be zero or more seconds"));
+        if !seconds.is_finite() || !(0.0..=MAX_SECONDS).contains(&seconds) {
+            return Err(ToolError::invalid(
+                name,
+                format!("must be between 0 and {MAX_SECONDS} seconds"),
+            ));
         }
         Ok(Duration::from_secs_f64(seconds))
     }

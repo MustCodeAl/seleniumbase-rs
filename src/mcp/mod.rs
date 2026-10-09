@@ -21,9 +21,14 @@
 
 mod host;
 mod schema;
+mod support;
 mod tool;
+mod webdriver;
 
 pub mod cdp;
+pub mod driver;
+pub mod sb;
+mod stealth;
 
 pub use host::{Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR};
 pub use schema::{Prop, Schema};
@@ -40,17 +45,23 @@ use crate::error::SeleniumBaseError;
 pub enum Profile {
     /// The Pure CDP engine: no WebDriver.
     Cdp,
+    /// WebDriver with the `Driver()` toolset.
+    Driver,
+    /// WebDriver with the broader `SB()` toolset and the stealth tools.
+    Sb,
 }
 
 impl Profile {
     /// Every profile, in the order they are documented.
-    pub const ALL: [Self; 1] = [Self::Cdp];
+    pub const ALL: [Self; 3] = [Self::Cdp, Self::Driver, Self::Sb];
 
     /// The name used on the command line.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             Self::Cdp => "cdp",
+            Self::Driver => "driver",
+            Self::Sb => "sb",
         }
     }
 }
@@ -82,6 +93,8 @@ impl std::str::FromStr for Profile {
 pub async fn serve(profile: Profile) -> Result<(), SeleniumBaseError> {
     match profile {
         Profile::Cdp => run(cdp::host(Settings::from_env())).await,
+        Profile::Driver => run(driver::host(Settings::from_env())).await,
+        Profile::Sb => run(sb::host(Settings::from_env())).await,
     }
 }
 

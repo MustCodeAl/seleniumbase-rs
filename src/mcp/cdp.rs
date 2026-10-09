@@ -6,12 +6,12 @@
 //! keeps the tool list short enough for a model to choose from.
 
 use std::collections::BTreeSet;
-use std::path::Path;
 use std::time::Duration;
 
 use serde_json::{json, Value};
 use url::Url;
 
+use super::support::{cookie_file, is_missing, json_output, nonempty, write_file};
 use super::{
     Args, Closeable, Ctx, Effect, Host, Output, Prop, Schema, Settings, Started, ToolDef, ToolError,
 };
@@ -585,25 +585,6 @@ fn tools() -> Vec<ToolDef<Cdp>> {
     ]
 }
 
-/// Whether a lookup failed only because nothing matched in time.
-fn is_missing(error: &SeleniumBaseError) -> bool {
-    matches!(
-        error,
-        SeleniumBaseError::ElementNotFound { .. } | SeleniumBaseError::WaitTimeout { .. }
-    )
-}
-
-/// A text argument that counts as unset when empty, as clients often send "".
-fn nonempty<'a>(args: &'a Args, name: &str) -> Result<Option<&'a str>, ToolError> {
-    Ok(args.opt_str(name)?.filter(|text| !text.is_empty()))
-}
-
-fn json_output(value: impl serde::Serialize) -> Result<Output, ToolError> {
-    Ok(Output::Json(
-        serde_json::to_value(value).map_err(SeleniumBaseError::from)?,
-    ))
-}
-
 // ----------------------------------------------------------------------
 // Session
 // ----------------------------------------------------------------------
@@ -1167,8 +1148,6 @@ async fn assert_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError
 // Browser state
 // ----------------------------------------------------------------------
 
-const COOKIE_DIR: &str = "saved_cookies";
-
 async fn manage_cookies(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let action = args.choice("action", &["get_all", "clear", "save", "load"], "get_all")?;
     let session = ctx.session().await?;
@@ -1181,19 +1160,8 @@ async fn manage_cookies(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> 
             Ok("Cookies cleared.".into())
         }
         _ => {
-            // Only the last path part is honoured, so a client cannot name a
-            // file outside the cookie directory.
-            let requested = args.str_or("filename", "cookies.txt")?;
-            let name = Path::new(requested)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .ok_or_else(|| ToolError::invalid("filename", "not a usable file name"))?;
-            let name = if Path::new(name).extension().is_some_and(|ext| ext == "txt") {
-                name.to_owned()
-            } else {
-                format!("{name}.txt")
-            };
-            let path = ctx.settings().output_path(Some(COOKIE_DIR), &name)?;
+            let (path, name) =
+                cookie_file(ctx.settings(), args.str_or("filename", "cookies.txt")?)?;
 
             if action == "save" {
                 if let Some(dir) = path.parent() {
@@ -1407,14 +1375,7 @@ async fn save_page(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         "html" => page.content().await?.into_bytes(),
         _ => page.pdf().await?,
     };
-    if let Some(dir) = path.parent() {
-        tokio::fs::create_dir_all(dir)
-            .await
-            .map_err(SeleniumBaseError::from)?;
-    }
-    tokio::fs::write(&path, bytes)
-        .await
-        .map_err(SeleniumBaseError::from)?;
+    write_file(&path, &bytes).await?;
     Ok(format!("Saved {format} as {}", path.display()).into())
 }
 

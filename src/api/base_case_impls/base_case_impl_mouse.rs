@@ -131,3 +131,106 @@ impl BaseCase {
         Ok(())
     }
 }
+
+impl BaseCase {
+    /// Clicks the first `css` match inside the first `parent_css` match.
+    ///
+    /// When the parent is an `iframe` the click happens inside the frame and
+    /// focus then returns to the top-level page. Corresponds to Python's
+    /// `nested_click`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if either element is
+    /// missing, or [`SeleniumBaseError::WebDriver`] if the click fails.
+    pub async fn nested_click(
+        &mut self,
+        parent_css: &str,
+        css: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        let parent = self.find_element(parent_css).await?;
+        let tag = parent.tag_name().await?;
+        if tag.eq_ignore_ascii_case("iframe") || tag.eq_ignore_ascii_case("frame") {
+            self.switch_to_frame(parent_css).await?;
+            let clicked = self.click(css).await;
+            self.switch_to_default_content().await?;
+            return clicked;
+        }
+        let by = Selector::auto(css).to_by()?;
+        let child = parent
+            .find(by)
+            .await
+            .map_err(|_| SeleniumBaseError::element_not_found(format!("{parent_css} {css}")))?;
+        child.click().await?;
+        Ok(())
+    }
+
+    /// Attempts the first supported CAPTCHA widget on the page.
+    ///
+    /// Checkbox widgets (Cloudflare Turnstile, reCAPTCHA, hCaptcha, Friendly
+    /// Captcha) are clicked and the DataDome slider is dragged, using trusted
+    /// mouse events sent over the DevTools Protocol, so this needs a Chromium
+    /// browser. Returns the widget that was attempted, or `None` if the page
+    /// shows no supported widget. Whether the site then accepts the challenge
+    /// is up to the site; check the page afterwards.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the page script or a DevTools command fails.
+    pub async fn solve_captcha(
+        &self,
+    ) -> Result<Option<crate::sb_cdp::Captcha>, SeleniumBaseError> {
+        use crate::sb_cdp::Captcha;
+
+        let found = self
+            .execute_script(&format!("return {};", Captcha::locate_script()))
+            .await?;
+        let Some((kind, area)) = Captcha::parse_located(&found) else {
+            return Ok(None);
+        };
+
+        let plan = kind.plan(area);
+        self.dispatch_mouse("mouseMoved", plan.press.x, plan.press.y, 0).await?;
+        self.sleep(0.15).await;
+        match plan.release {
+            None => self.cdp_mouse_click(plan.press.x, plan.press.y).await?,
+            Some(release) => {
+                self.dispatch_mouse("mousePressed", plan.press.x, plan.press.y, 1).await?;
+                // Move in steps: a slider ignores a jump from end to end.
+                const STEPS: u32 = 12;
+                for step in 1..=STEPS {
+                    let along = f64::from(step) / f64::from(STEPS);
+                    let x = plan.press.x + (release.x - plan.press.x) * along;
+                    let y = plan.press.y + (release.y - plan.press.y) * along;
+                    self.dispatch_mouse("mouseMoved", x, y, 1).await?;
+                    self.sleep(0.02).await;
+                }
+                self.dispatch_mouse("mouseReleased", release.x, release.y, 0).await?;
+            }
+        }
+        Ok(Some(kind))
+    }
+
+    /// Sends one raw mouse event; `buttons` is the DevTools button bitmask.
+    async fn dispatch_mouse(
+        &self,
+        kind: &str,
+        x: f64,
+        y: f64,
+        buttons: u8,
+    ) -> Result<(), SeleniumBaseError> {
+        self.execute_cdp_with_params(
+            "Input.dispatchMouseEvent",
+            serde_json::json!({
+                "type": kind,
+                "x": x,
+                "y": y,
+                "button": if buttons == 0 && kind != "mouseReleased" { "none" } else { "left" },
+                "buttons": buttons,
+                "clickCount": u8::from(kind != "mouseMoved"),
+            }),
+        )
+        .await?;
+        Ok(())
+    }
+}
