@@ -293,8 +293,22 @@ impl Page {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the reload takes too long.
     pub async fn reload(&self) -> Result<(), SeleniumBaseError> {
+        self.reload_with(false).await
+    }
+
+    /// Reloads the page, bypassing the browser cache, and waits for it to load.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the reload takes too long.
+    pub async fn hard_reload(&self) -> Result<(), SeleniumBaseError> {
+        self.reload_with(true).await
+    }
+
+    async fn reload_with(&self, ignore_cache: bool) -> Result<(), SeleniumBaseError> {
         let mut events = self.events();
-        self.execute("Page.reload", json!({})).await?;
+        self.execute("Page.reload", json!({ "ignoreCache": ignore_cache }))
+            .await?;
         self.await_load_event(&mut events).await
     }
 

@@ -14,7 +14,7 @@ use std::future::Future;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
-    ListToolsResult, ServerInfo, Tool,
+    ListToolsResult, ServerConfig, Tool,
 };
 use rmcp::serve_server;
 use rmcp::service::{RequestContext, RoleServer};
@@ -251,8 +251,8 @@ fn tools() -> Vec<Tool> {
 
 #[allow(clippy::manual_async_fn)]
 impl ServerHandler for SeleniumBaseMcp {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(Default::default())
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(Default::default())
             .with_instructions("Browser automation MCP server powered by SeleniumBase for Rust.")
     }
 
