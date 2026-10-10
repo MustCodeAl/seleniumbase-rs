@@ -462,6 +462,14 @@ impl Browser {
         let client = &self.inner.client;
         let send = |method: &'static str, params: Value| client.send(method, params, Some(session));
         send("Page.enable", json!({})).await?;
+        // Chrome only acknowledges input for the tab that has focus, so a click
+        // on any other tab waits until the command times out. Telling every tab
+        // it is focused lets several tabs be driven at once.
+        send(
+            "Emulation.setFocusEmulationEnabled",
+            json!({ "enabled": true }),
+        )
+        .await?;
         send(
             "Page.addScriptToEvaluateOnNewDocument",
             json!({ "source": super::page::HELPER_JS }),

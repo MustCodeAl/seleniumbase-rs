@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use serde_json::json;
+use serde_json::{json, Value};
 
 use super::page::Page;
 use super::types::Point;
@@ -75,6 +75,17 @@ impl Mouse {
         Self { page }
     }
 
+    fn event(kind: &str, at: Point, button: Option<Button>, pressed: u8, count: u8) -> Value {
+        json!({
+            "type": kind,
+            "x": at.x,
+            "y": at.y,
+            "button": button.map_or("none", Button::protocol_name),
+            "buttons": pressed,
+            "clickCount": count,
+        })
+    }
+
     async fn dispatch(
         &self,
         kind: &str,
@@ -86,14 +97,7 @@ impl Mouse {
         self.page
             .execute(
                 "Input.dispatchMouseEvent",
-                json!({
-                    "type": kind,
-                    "x": at.x,
-                    "y": at.y,
-                    "button": button.map_or("none", Button::protocol_name),
-                    "buttons": pressed,
-                    "clickCount": count,
-                }),
+                Self::event(kind, at, button, pressed, count),
             )
             .await?;
         Ok(())
@@ -127,14 +131,27 @@ impl Mouse {
         self.dispatch("mouseReleased", at, Some(button), 0, 1).await
     }
 
+    /// Moves to `at` and presses and releases `button` `times` times.
+    ///
+    /// Chrome holds a pointer move back until the next frame (about 33 ms in
+    /// headless mode) before it answers, but it delivers that move ahead of
+    /// the press that follows. So all the events go out together, in order, and
+    /// the page sees the same sequence as before, in under a millisecond
+    /// instead of waiting a frame for the move.
     async fn click_n(&self, at: Point, button: Button, times: u8) -> Result<(), SeleniumBaseError> {
-        self.move_to(at).await?;
+        const METHOD: &str = "Input.dispatchMouseEvent";
+        let mut commands = vec![(METHOD, Self::event("mouseMoved", at, None, 0, 0))];
         for count in 1..=times {
-            self.dispatch("mousePressed", at, Some(button), button.mask(), count)
-                .await?;
-            self.dispatch("mouseReleased", at, Some(button), 0, count)
-                .await?;
+            commands.push((
+                METHOD,
+                Self::event("mousePressed", at, Some(button), button.mask(), count),
+            ));
+            commands.push((
+                METHOD,
+                Self::event("mouseReleased", at, Some(button), 0, count),
+            ));
         }
+        self.page.execute_ordered(commands).await?;
         Ok(())
     }
 

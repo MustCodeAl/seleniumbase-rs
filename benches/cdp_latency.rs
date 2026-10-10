@@ -35,13 +35,21 @@ fn serve() -> String {
     thread::spawn(move || {
         for stream in listener.incoming() {
             let Ok(mut stream) = stream else { continue };
-            let mut buffer = [0_u8; 1024];
-            let _ = stream.read(&mut buffer);
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{FIXTURE}",
-                FIXTURE.len()
-            );
-            let _ = stream.write_all(response.as_bytes());
+            // One thread per connection: Chrome opens spare connections that
+            // never send a request, and a server that waits on each in turn
+            // would starve the real ones.
+            thread::spawn(move || {
+                let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+                let mut buffer = [0_u8; 1024];
+                if stream.read(&mut buffer).unwrap_or(0) == 0 {
+                    return;
+                }
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{FIXTURE}",
+                    FIXTURE.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+            });
         }
     });
     format!("http://{address}")

@@ -6,6 +6,7 @@
   - [Security](security.md)
   - [Reliability](reliability.md)
   - [Performance](performance.md)
+  - [Benchmarks](benchmarks.md)
 - [Writing Browser Tests](rust-test-tooling.md)
 - [Migrate Python Tests](python-migration.md)
 - [Selectors](tutorials/selectors.md)

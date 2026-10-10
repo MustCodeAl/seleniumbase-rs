@@ -321,8 +321,15 @@ generation), `a8eaa5fb909e58850` (CLI/config files, 16 uncommitted files). None
 of it has been through the gate.
 
 Performance harnesses are in `benches/` (`cargo bench --bench cpu`, `--bench
-cdp_latency`). They compile and pass clippy, but have **not been run**, so there
-are no performance numbers yet and nothing here compares against Python.
+cdp_latency`); results and what they led to are in `docs/benchmarks.md`. Two
+changes came from them and are covered by tests against a real Chrome: every
+tab is told it has focus (a click on a tab that was not frontmost used to wait
+for the 30 s command timeout), and a click sends its move, press and release
+together (33.4 ms to 0.48 ms; eight tabs from 239 to 3,223 clicks a second).
+There is still no comparison with Python SeleniumBase, because it is not
+installed here. Not yet looked at: pipelining `drag`'s steps, the combined
+visibility-and-centre evaluate for locators (worth about 0.1 ms), and the
+WebDriver path, which was not measured at all.
 
 ## Publishing
 

@@ -1183,3 +1183,24 @@ async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
     browser.close().await.unwrap();
     applied.expect("Chrome knows every permission name the fingerprint grants");
 }
+
+#[tokio::test]
+#[ignore = "needs Chrome"]
+async fn every_tab_takes_input_not_only_the_frontmost() {
+    let (browser, first, base) = open().await;
+    let second = browser
+        .new_page(Some(format!("{base}/")))
+        .await
+        .unwrap()
+        .with_timeout(Duration::from_secs(3));
+
+    // Before every tab was told it has focus, a click on the tab that was not
+    // frontmost waited for the 60 second command timeout.
+    let started = std::time::Instant::now();
+    for page in [&first, &second, &first, &second] {
+        page.locator("#counter").click().await.unwrap();
+    }
+    let elapsed = started.elapsed();
+    browser.close().await.unwrap();
+    assert!(elapsed < Duration::from_secs(10), "took {elapsed:?}");
+}

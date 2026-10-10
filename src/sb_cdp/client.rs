@@ -27,6 +27,8 @@ use crate::error::SeleniumBaseError;
 
 type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type Pending = Arc<StdMutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
+/// Where one command's response arrives.
+type Reply = oneshot::Receiver<Result<Value, String>>;
 
 /// How long a single protocol command may take before it is abandoned.
 ///
@@ -207,6 +209,40 @@ impl Client {
         }
     }
 
+    /// Sends commands one after another without waiting for a response in
+    /// between, then waits for all of them, and returns the results in order.
+    ///
+    /// The browser runs commands for a tab in the order they arrive, so the
+    /// effect is the same as sending them one at a time. What changes is the
+    /// time: a command that Chrome answers late no longer holds up the ones
+    /// behind it. If any command fails, the first error is returned; the others
+    /// were already sent and still run.
+    pub(crate) async fn send_ordered(
+        &self,
+        commands: Vec<(&str, Value)>,
+        session_id: Option<&str>,
+    ) -> Result<Vec<Value>, SeleniumBaseError> {
+        match &self.link {
+            Link::Ws(ws) => ws.send_ordered(commands, session_id).await,
+            #[cfg(any(test, feature = "test-util"))]
+            Link::Mock(ctrl) => {
+                let mut results = Vec::with_capacity(commands.len());
+                let mut first_error = None;
+                for (method, params) in commands {
+                    match ctrl.handle(method, &params, session_id) {
+                        Ok(result) => results.push(result),
+                        Err(message) => {
+                            first_error.get_or_insert_with(|| {
+                                SeleniumBaseError::cdp_driver(format!("{method}: {message}"))
+                            });
+                        }
+                    }
+                }
+                first_error.map_or(Ok(results), Err)
+            }
+        }
+    }
+
     /// Whether the connection is still usable.
     pub(crate) fn is_open(&self) -> bool {
         match &self.link {
@@ -226,35 +262,96 @@ impl Client {
 }
 
 impl WsLink {
+    /// Registers a command and returns its id, the frame to write, and the
+    /// receiver its response will arrive on.
+    ///
+    /// Registering comes first: the response can beat the insert otherwise.
+    fn register(
+        &self,
+        method: &str,
+        params: &Value,
+        session_id: Option<&str>,
+    ) -> (u64, Message, Reply) {
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        let mut payload = json!({ "id": id, "method": method, "params": params });
+        if let Some(session_id) = session_id {
+            payload["sessionId"] = Value::String(session_id.to_owned());
+        }
+        let (tx, rx) = oneshot::channel();
+        locked(&self.pending).insert(id, tx);
+        (id, Message::Text(payload.to_string().into()), rx)
+    }
+
     async fn send(
         &self,
         method: &str,
         params: Value,
         session_id: Option<&str>,
     ) -> Result<Value, SeleniumBaseError> {
-        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
-        let mut payload = json!({ "id": id, "method": method, "params": params });
-        if let Some(session_id) = session_id {
-            payload["sessionId"] = Value::String(session_id.to_owned());
-        }
-
-        // Register before sending: the response can beat the insert otherwise.
-        let (tx, rx) = oneshot::channel();
-        locked(&self.pending).insert(id, tx);
-
-        let sent = self
-            .sink
-            .lock()
-            .await
-            .send(Message::Text(payload.to_string().into()))
-            .await;
+        let (id, frame, rx) = self.register(method, &params, session_id);
+        let sent = self.sink.lock().await.send(frame).await;
         if let Err(error) = sent {
             self.forget(id);
             return Err(SeleniumBaseError::browser_disconnected(format!(
                 "sending {method} failed: {error}"
             )));
         }
+        self.finish(id, method, rx).await
+    }
 
+    /// Writes every command under one hold of the socket, so nothing can come
+    /// between them, then waits for the responses in order.
+    async fn send_ordered(
+        &self,
+        commands: Vec<(&str, Value)>,
+        session_id: Option<&str>,
+    ) -> Result<Vec<Value>, SeleniumBaseError> {
+        let mut waiting: Vec<(u64, &str, Reply)> = Vec::with_capacity(commands.len());
+        {
+            let mut sink = self.sink.lock().await;
+            let mut written = Ok(());
+            let mut failed = "";
+            for (method, params) in commands {
+                let (id, frame, rx) = self.register(method, &params, session_id);
+                waiting.push((id, method, rx));
+                written = sink.feed(frame).await;
+                if written.is_err() {
+                    failed = method;
+                    break;
+                }
+            }
+            if written.is_ok() {
+                written = sink.flush().await;
+                failed = "the batch";
+            }
+            if let Err(error) = written {
+                for (id, _, _) in &waiting {
+                    self.forget(*id);
+                }
+                return Err(SeleniumBaseError::browser_disconnected(format!(
+                    "sending {failed} failed: {error}"
+                )));
+            }
+        }
+        let mut results = Vec::with_capacity(waiting.len());
+        let mut remaining = waiting.into_iter();
+        while let Some((id, method, rx)) = remaining.next() {
+            match self.finish(id, method, rx).await {
+                Ok(result) => results.push(result),
+                Err(error) => {
+                    // The rest already ran or will; their answers are not wanted.
+                    for (id, _, _) in remaining {
+                        self.forget(id);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(results)
+    }
+
+    /// Waits for the response to a command that has been written.
+    async fn finish(&self, id: u64, method: &str, rx: Reply) -> Result<Value, SeleniumBaseError> {
         match tokio::time::timeout(COMMAND_TIMEOUT, rx).await {
             Ok(Ok(Ok(result))) => Ok(result),
             Ok(Ok(Err(message))) => Err(SeleniumBaseError::cdp_driver(format!(

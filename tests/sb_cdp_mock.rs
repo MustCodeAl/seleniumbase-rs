@@ -1028,3 +1028,21 @@ async fn a_screenshot_name_that_could_leave_the_logs_directory_is_refused() {
         "nothing was captured for a refused name"
     );
 }
+
+#[tokio::test]
+async fn every_tab_is_told_it_has_focus_so_input_reaches_it() {
+    let (browser, mock) = Browser::new_mocked();
+    let _first = browser.default_page().await.unwrap();
+    let _second = browser
+        .new_page(Some("about:blank".to_owned()))
+        .await
+        .unwrap();
+
+    // Chrome only acknowledges input for the focused tab, so a click on any
+    // other tab would wait for the command timeout.
+    let focus = mock.calls_to("Emulation.setFocusEmulationEnabled");
+    assert_eq!(focus.len(), 2, "one per tab: {focus:?}");
+    assert!(focus
+        .iter()
+        .all(|call| call.params == json!({ "enabled": true })));
+}

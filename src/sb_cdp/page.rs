@@ -144,6 +144,23 @@ impl Page {
             .await
     }
 
+    /// Sends several commands to this tab in order, without waiting between
+    /// them, and returns their results in order.
+    ///
+    /// The browser runs a tab's commands in the order they arrive, so this does
+    /// the same as awaiting each in turn, only sooner. Use it where one command
+    /// would otherwise sit waiting on a slow answer ahead of the next.
+    pub(crate) async fn execute_ordered(
+        &self,
+        commands: Vec<(&str, Value)>,
+    ) -> Result<Vec<Value>, SeleniumBaseError> {
+        self.browser
+            .inner()
+            .client
+            .send_ordered(commands, Some(&self.session))
+            .await
+    }
+
     /// Subscribes to protocol events from this tab.
     #[must_use]
     pub fn events(&self) -> Events {
