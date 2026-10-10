@@ -6,6 +6,7 @@
 .DS_Store
 node_modules/
 downloaded_drivers/
+.serena/
 __pycache__/
 
 # Left in the project directory by the local docker build wrapper
