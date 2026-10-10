@@ -1,13 +1,24 @@
-//! External browser profile profile parameters for anti-detect browser automation.
+//! Browser profile payloads, in the JSON shape anti-detect browser tools use.
 //!
-//! This module models the JSON payload used by external anti-detect browser profile
-//! `POST /profile/create` endpoint and provides helpers to translate those
-//! parameters into [`BrowserConfig`] and runtime [`BaseCase`] actions supported
-//! by `seleniumbase-rs`.
+//! [`ProfileParams`] models the body such a tool posts to its
+//! `POST /profile/create` endpoint. Its methods turn the payload into what
+//! this crate runs on: a [`BrowserConfig`] to launch a browser with, a
+//! [`Fingerprint`] to present, and the screen size and location to apply to a
+//! running [`BaseCase`] with
+//! [`apply_runtime_overrides`](ProfileParams::apply_runtime_overrides).
 //!
-//! # Example
+//! A payload can come from outside the program, so the conversion drops what
+//! would be unsafe to honour: Chrome switches that run programs, load code or
+//! reroute traffic, start pages that are not web pages, and a `folder_id` that
+//! would leave `./profile-data`.
 //!
-//! ```ignore
+//! [`BrowserConfig`]: crate::browser::config::BrowserConfig
+//! [`Fingerprint`]: crate::stealth::fingerprint::Fingerprint
+//! [`BaseCase`]: crate::BaseCase
+//!
+//! # Examples
+//!
+//! ```
 //! use seleniumbase_rs::profile_payloads::ProfileParams;
 //! use serde_json::json;
 //!
@@ -15,10 +26,11 @@
 //!     "name": "Windows Chromium",
 //!     "browser_type": "chromium",
 //!     "os_type": "windows",
+//!     "folder_id": "work",
 //!     "parameters": {
 //!         "fingerprint": {
 //!             "navigator": {
-//!                 "user_agent": "Mozilla/5.0 ...",
+//!                 "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
 //!                 "platform": "Win32",
 //!                 "hardware_concurrency": 8
 //!             },
@@ -29,6 +41,13 @@
 //! }))?;
 //!
 //! let config = params.to_browser_config("http://localhost:4444");
+//! assert_eq!(config.webdriver_url, "http://localhost:4444");
+//! assert_eq!(
+//!     config.user_agent.as_deref(),
+//!     Some("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+//! );
+//! assert_eq!(config.user_data_dir.as_deref(), Some("./profile-data/work"));
+//! # Ok::<(), serde_json::Error>(())
 //! ```
 
 mod profile;
