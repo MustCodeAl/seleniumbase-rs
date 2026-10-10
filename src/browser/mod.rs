@@ -3,6 +3,7 @@
 
 pub mod config;
 pub mod downloader;
+pub mod driver_access;
 pub mod launcher;
 pub mod session;
 

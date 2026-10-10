@@ -5,10 +5,11 @@
 
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::browser::downloader::download_chrome_driver;
+use crate::browser::driver_access::{killed_by_the_system, make_runnable, spawn_repairing};
 use crate::error::SeleniumBaseError;
 
 /// A running WebDriver process launched by the crate.
@@ -26,30 +27,62 @@ impl DriverProcess {
 }
 
 /// Launch a local chromedriver on a free port and return its WebDriver URL.
+///
+/// If the system will not run the driver, it is repaired once and started
+/// again: a missing execute permission is added, and on macOS the quarantine
+/// flag is removed and a binary whose signature no longer matches (the system
+/// kills it as it starts) is signed again. See
+/// [`driver_access`](crate::browser::driver_access).
 pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
     let port = find_free_port()?;
     let binary = ensure_chromedriver_binary().await?;
     let url = format!("http://127.0.0.1:{port}");
 
     let binary_str = binary.display().to_string();
-    let child = Command::new(&binary)
-        .arg(format!("--port={port}"))
-        .arg("--disable-dev-shm-usage")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| {
-            let err = SeleniumBaseError::browser_launch(
-                binary_str.clone(),
-                format!("failed to spawn chromedriver on port {port}: {e}"),
-            );
-            err.log_in_context("launch_chromedriver");
-            err
-        })?;
+    let configure = |command: &mut std::process::Command| {
+        command
+            .arg(format!("--port={port}"))
+            .arg("--disable-dev-shm-usage")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+    };
+    let mut child = spawn_repairing(&binary, configure).inspect_err(|err| {
+        err.log_in_context("launch_chromedriver");
+    })?;
 
-    wait_for_port(port, Duration::from_secs(15), &binary_str).await?;
+    let mut repaired = false;
+    loop {
+        match wait_for_port(port, Duration::from_secs(15), &binary_str, &mut child).await? {
+            Waited::Ready => break,
+            Waited::Exited(status)
+                if cfg!(target_os = "macos") && !repaired && killed_by_the_system(status) =>
+            {
+                // macOS kills a driver whose signature or quarantine flag it
+                // rejects. Fix the file and start it once more.
+                repaired = true;
+                make_runnable(&binary, true)?;
+                child = spawn_repairing(&binary, configure)?;
+            }
+            Waited::Exited(status) => {
+                let err = SeleniumBaseError::browser_launch(
+                    binary_str,
+                    format!("chromedriver exited as it started ({status})"),
+                );
+                err.log_in_context("launch_chromedriver");
+                return Err(err);
+            }
+        }
+    }
 
     Ok(DriverProcess { url, child })
+}
+
+/// How waiting for the driver's port ended.
+enum Waited {
+    /// The driver accepts connections.
+    Ready,
+    /// The driver process ended first.
+    Exited(ExitStatus),
 }
 
 /// Find an unused TCP port on localhost.
@@ -65,17 +98,22 @@ fn find_free_port() -> Result<u16, SeleniumBaseError> {
     Ok(port.port())
 }
 
-/// Poll the port until the driver accepts a TCP connection or timeout.
+/// Poll the port until the driver accepts a TCP connection, its process ends,
+/// or the timeout passes.
 async fn wait_for_port(
     port: u16,
     timeout: Duration,
     binary: &str,
-) -> Result<(), SeleniumBaseError> {
+    child: &mut Child,
+) -> Result<Waited, SeleniumBaseError> {
     let addr = format!("127.0.0.1:{port}");
     let deadline = Instant::now() + timeout;
     loop {
         if TcpStream::connect(&addr).is_ok() {
-            return Ok(());
+            return Ok(Waited::Ready);
+        }
+        if let Ok(Some(status)) = child.try_wait() {
+            return Ok(Waited::Exited(status));
         }
         if Instant::now() >= deadline {
             let err = SeleniumBaseError::browser_launch(

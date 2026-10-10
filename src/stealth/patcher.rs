@@ -195,6 +195,11 @@ impl<P: AsRef<Path>> ChromedriverPatcher<P> {
             err.log_in_context("ChromedriverPatcher::patch");
             err
         })?;
+        // Changing the bytes of a signed binary breaks its signature, and
+        // macOS kills a program whose signature does not match.
+        if cfg!(target_os = "macos") {
+            crate::browser::driver_access::make_runnable(path, true)?;
+        }
         Ok(())
     }
 

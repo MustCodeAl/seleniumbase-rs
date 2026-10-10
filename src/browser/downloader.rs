@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use reqwest::Client;
 use zip::ZipArchive;
 
+use crate::browser::driver_access::make_runnable;
 use crate::error::SeleniumBaseError;
 
 /// Download and extract the latest chromedriver for the current platform.
@@ -18,7 +19,8 @@ pub async fn download_chrome_driver() -> Result<PathBuf, SeleniumBaseError> {
     fs::create_dir_all(&dest_dir).map_err(io_error)?;
 
     let dest_path = extract_chromedriver(&client, &download_url, &dest_dir).await?;
-    make_executable(&dest_path)?;
+    // Executable, and free of the macOS quarantine flag if the archive had one.
+    make_runnable(&dest_path, false)?;
     Ok(dest_path)
 }
 
@@ -114,17 +116,6 @@ async fn extract_chromedriver(
         download_url,
         "chromedriver executable not found in ZIP archive",
     ))
-}
-
-fn make_executable(path: &Path) -> Result<(), SeleniumBaseError> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path).map_err(io_error)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(path, perms).map_err(io_error)?;
-    }
-    Ok(())
 }
 
 fn io_error(err: impl std::fmt::Display) -> SeleniumBaseError {

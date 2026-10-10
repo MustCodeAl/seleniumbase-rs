@@ -1,10 +1,11 @@
 //! Detached process helpers for launching chromedriver / browser binaries.
 
+use crate::browser::driver_access::spawn_repairing;
 use crate::error::SeleniumBaseError;
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 
 /// Returns the path to `chromedriver` if it exists in `PATH`.
 pub fn find_chromedriver() -> Option<PathBuf> {
@@ -27,22 +28,17 @@ pub fn start_detached<P: AsRef<Path>>(
     binary: P,
     args: &[String],
 ) -> Result<Child, SeleniumBaseError> {
-    let mut cmd = Command::new(binary.as_ref());
-    cmd.args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
-
-    #[cfg(unix)]
-    cmd.process_group(0);
-
-    let binary = binary.as_ref().display().to_string();
-    cmd.spawn().map_err(|e| {
-        let err =
-            SeleniumBaseError::browser_launch(binary.clone(), format!("failed to spawn: {e}"));
-        err.log_in_context("start_detached");
-        err
+    // If the system refuses the file (no execute permission, or the macOS
+    // quarantine flag), it is repaired once and started again.
+    spawn_repairing(binary.as_ref(), |cmd| {
+        cmd.args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        #[cfg(unix)]
+        cmd.process_group(0);
     })
+    .inspect_err(|err| err.log_in_context("start_detached"))
 }
 
 /// Kills a child process started with the helpers above.

@@ -299,6 +299,19 @@ patcher keeps its first `.orig` backup, replaces the binary with a rename
 instead of writing into it, and keeps its permissions; the `cdc_` cleanup script
 in `uc.rs` can run twice (checked in a real Chrome).
 
+Also added, on request: if macOS will not start chromedriver, the launcher now
+fixes the file and starts it again (`browser::driver_access`). A missing
+execute permission is added; the `com.apple.quarantine` flag is removed; and a
+driver killed as it starts, which is what Apple Silicon does to a binary whose
+signature no longer matches (what patching does to it), is signed again ad hoc.
+Patching a chromedriver on macOS signs it again straight away. Checked on this
+machine by altering a copy of the installed chromedriver 152, which macOS
+killed, and starting it through `launch_chromedriver()`. Not changed: the
+Chrome browser patcher still removes the signature
+(`strip_binary_signature`), which probably leaves an arm64 Chrome copy unable to
+start; that needs the same ad hoc signing and a test against a real patched
+Chrome.
+
 Open, most serious first:
 
 - `dialog.rs` `prompt()` shows a message box and returns the default; it never
