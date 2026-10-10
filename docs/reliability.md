@@ -26,7 +26,7 @@ The safest way to write a Tokio test is with `run_browser_test`. It creates a
 `BaseCase`, runs the test body, and then awaits `BaseCase::quit` even if the
 body returns an error:
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
 #[tokio::test]
@@ -46,8 +46,13 @@ Key properties:
 - The browser is always closed, even when assertions fail.
 - If both the test body and cleanup fail, the returned lifecycle error retains
   both failure messages.
-- The closure receives `&mut BaseCase` and must return `Result<(), E>` where `E`
-  converts into `SeleniumBaseError`.
+- The closure receives `&mut BaseCase` and must return a boxed future whose output
+  is `Result<()>`, that is `Result<(), SeleniumBaseError>`. Inside it, `?` converts
+  any error that has a `From` impl for `SeleniumBaseError`.
+- If you forget `quit`, dropping a `BaseCase` still tries to close its browser
+  (see [Shutdown](#shutdown-and-signals)), but that cleanup runs in the
+  background and cannot be awaited, which is why `run_browser_test` closes it
+  explicitly.
 
 Run the test with the standard harness:
 
@@ -74,6 +79,39 @@ Retry a browser action only when:
   effect).
 - You log every retry attempt.
 
+When those hold, `RetryPolicy` (in `seleniumbase_rs::utilities::retry`, and
+re-exported at the crate root) does the retrying with exponential backoff and
+logs each retry at `warn`. You say which errors are transient;
+`SeleniumBaseError::is_transient` is a ready-made answer (browser disconnects,
+network and download failures, wait timeouts):
+
+```rust
+use seleniumbase_rs::{RetryPolicy, SeleniumBaseError};
+
+# async fn fetch() -> Result<String, SeleniumBaseError> { Ok(String::new()) }
+# async fn demo() -> Result<(), SeleniumBaseError> {
+let body = RetryPolicy::network()
+    .retry(|| fetch(), SeleniumBaseError::is_transient)
+    .await?;
+# let _ = body;
+# Ok(())
+# }
+```
+
+The presets are `RetryPolicy::default()` (3 attempts, 200 ms doubling to 5 s),
+`webdriver()`, `network()` (5 attempts), and `seleniumbase()` (the Python
+`retry_on_exception` defaults: 6 attempts, 1 s doubling to 32 s); or fill in the
+four public fields yourself. `retry_blocking` is the version for synchronous
+code. This module replaces the older `retry_on_exception`,
+`retry_on_exception_async` and `rate_limited` functions in `common::decorators`,
+which are deprecated.
+
+Two more helpers live beside it. `poll_until(timeout, policy, op)` calls an
+async operation until it returns `Some` or the deadline passes (the waits in
+`BrowserSession` are built on it), and `RateLimiter::new(max_calls, window)`
+keeps a loop, or several tasks sharing it behind an `Arc`, to at most that many
+calls per window (`acquire().await` waits for a slot).
+
 A better strategy is to remove the source of flakiness:
 
 - Use web-first waits instead of fixed sleeps.
@@ -83,14 +121,20 @@ A better strategy is to remove the source of flakiness:
 ## Prefer explicit waits over sleeps
 
 Browser tests fail most often because they interact with elements before the
-page is ready. `BaseCase` methods such as `click`, `type_text`, and `get_text`
-wait automatically for the target element to be present and visible. When you
-need finer control, use explicit waits:
+page is ready. `BaseCase` actions wait for the target before they act, for up
+to the default timeout (10 seconds; change it with `set_timeout`): `click` waits
+until the element is displayed and enabled, `type_text`, `clear` and `hover`
+until it is displayed, and `get_text` and `submit` until it exists. When you need
+finer control, use explicit waits:
 
-```rust
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.wait_for_element_visible("#submit", 10).await?;
 sb.wait_for_text("body", "Order confirmed", 15).await?;
 sb.wait_for_element_not_visible(".spinner", 10).await?;
+# Ok(())
+# }
 ```
 
 Avoid `tokio::time::sleep` whenever possible. It makes tests slower and does not
@@ -101,7 +145,9 @@ eliminate timing races.
 When a test fails, the most useful diagnostic data is often the state of the
 browser at the moment of failure:
 
-```rust
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 match sb.assert_text_visible("Welcome!", "body").await {
     Ok(()) => {}
     Err(e) => {
@@ -110,14 +156,16 @@ match sb.assert_text_visible("Welcome!", "body").await {
         return Err(e);
     }
 }
+# Ok(())
+# }
 ```
 
-You can also save artifacts from the CLI:
-
-```bash
-cargo run --bin sbase -- screenshot
-cargo run --bin sbase -- save-source
-```
+The files go to the `latest_logs` folder of the working directory, named
+`screenshot_<milliseconds>.png` and `page_source_<milliseconds>.html`. The
+`sbase screenshot` and `sbase save-source` commands write the same files, but
+each starts its own fresh browser, so they capture a blank page, not your test's
+failing one. For failure evidence use the code above, or the test plugins in
+[Test Plugins](tutorials/test_plugins.md).
 
 ## Use configuration, not code, for environment differences
 
@@ -129,9 +177,48 @@ environments.
 See [Settings and Configuration](tutorials/settings_and_config.md) for the full
 configuration hierarchy.
 
+## Shutdown and signals
+
+A process that owns a browser has to close it when it is told to stop. A
+terminal sends SIGINT on Ctrl-C and orchestrators send SIGTERM; left alone, both
+end the process on the spot and leave Chrome and its driver running.
+`seleniumbase_rs::common::shutdown` turns those signals into something async
+code can wait on, and `sbase` and `seleniumbase-mcp` use it themselves: on a
+signal they close the browser, waiting at most `SB_SHUTDOWN_TIMEOUT_SECS`
+seconds (default 30, `0` for no grace), and `sbase` exits with status 130 for
+SIGINT or 143 for SIGTERM.
+
+In your own program, race the work against the signals and bound the cleanup:
+
+```rust,no_run
+use seleniumbase_rs::common::shutdown::{
+    cleanup_within, run_until_shutdown, timeout_from_env, Outcome,
+};
+
+# async fn run_tests() {}
+# async fn close_browsers() {}
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+match run_until_shutdown(run_tests()).await? {
+    Outcome::Completed(()) => {}
+    Outcome::Interrupted(signal) => eprintln!("{signal} received; closing browsers"),
+}
+cleanup_within(timeout_from_env(), close_browsers()).await;
+# Ok(())
+# }
+```
+
+Dropping a `BrowserSession` (and so a `BaseCase`) that was not quit starts its
+cleanup on the Tokio runtime with `spawn_cleanup`, because `Drop` cannot await.
+Call `drain_cleanups(timeout_from_env()).await` before the program exits so that
+cleanup is not cut off; `sbase` does. Once a handler is installed, a signal no
+longer ends the process by itself, so the code that installs one must keep
+waiting on it.
+
 ## Reliability checklist
 
 - [ ] Tests use `run_browser_test` or an equivalent cleanup wrapper.
+- [ ] Programs that own browsers stop on SIGINT/SIGTERM and wait for cleanup
+      (`common::shutdown`).
 - [ ] Tests rely on explicit waits rather than sleeps.
 - [ ] Selectors target stable attributes, not generated class names.
 - [ ] Retries are used sparingly and only for transient, idempotent operations.

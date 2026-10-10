@@ -32,7 +32,15 @@ plain Selenium WebDriver, and writes a Rust test that uses `#[tokio::test]` and
 `run_browser_test`.
 
 Diagnostics are printed to standard error. If you omit `--output`, the generated
-Rust is written to standard output so you can inspect it before saving.
+Rust is written to standard output so you can inspect it before saving. Unless
+you pass `--test-name`, the test function is named after the Python file
+(`login_test` here). The file is written even when there are problems, but the
+command then exits with an error if any diagnostic has the `Error` severity.
+
+The importer skips `import`, `from`, `def`, `class`, decorator and `with SB(`
+lines and reads the statements that remain, so every statement in the file ends
+up in one generated test, even when the Python file has several test methods.
+Split them by hand.
 
 ## Override detection
 
@@ -54,15 +62,41 @@ cargo run --bin sbase -- import-python tests/login_test.py \
 
 ## What the importer converts
 
-The importer understands the most common SeleniumBase and Selenium statements:
+The importer reads one statement at a time and understands these. In all cases
+the arguments must be string (or, for waits and `sleep`, number) literals.
 
-- Navigation: `open`, `get`, `refresh`, `go_back`, `go_forward`.
-- Interactions: `click`, `type`, `send_keys`, `clear`, `submit`, `hover`, `select_by_visible_text`.
-- Assertions: `assert_element`, `assert_text`, `assert_exact_text`, `assert_title`.
-- Locators: `By.ID`, `By.CSS_SELECTOR`, `By.XPATH`, `By.LINK_TEXT`, `By.PARTIAL_LINK_TEXT`.
-- Saved element variables assigned from `find_element` calls.
+SeleniumBase, as `self.` or `sb.` calls:
+
+- Navigation: `open`, `visit`, `get`, `refresh`, `refresh_page`, `go_back`,
+  `go_forward`, `maximize_window`.
+- Interactions: `click`, `click_link`, `click_link_text`,
+  `click_partial_link_text`, `double_click`, `right_click`, `type`, `type_text`,
+  `update_text`, `send_keys`, `clear`, `submit`, `hover`, `check_if_unchecked`,
+  `uncheck_if_checked`, `select_option_by_text`.
+- Assertions: `assert_element`, `assert_element_visible`, `assert_text`,
+  `assert_exact_text`, `assert_title`, `assert_title_contains`, `assert_url`,
+  `assert_url_contains`. For `assert_text` and `assert_exact_text` the importer
+  swaps the arguments, because Python takes the text first and the Rust methods
+  take the selector first.
+- Reads: `get_text`, `get_attribute` (the value is bound to an unused variable).
+- Waits: `wait_for_element_visible`, `wait_for_element_present` (the timeout
+  defaults to 10 seconds), and `sleep`.
+
+Selenium WebDriver, as `driver.` or `self.driver.` calls:
+
+- Navigation: `driver.get(url)`, `maximize_window()`, `back()`, `forward()`,
+  `refresh()`. `driver.quit()` and `driver.close()` are dropped, because the
+  generated test closes the browser itself.
+- Saved element variables assigned from `find_element` calls, and
+  `driver.find_element(...)` used directly, followed by `click`, `clear`,
+  `submit` or `send_keys` with a string literal; `.text` and `.get_attribute()`
+  on CSS-based variables.
+- Locators: `By.CSS_SELECTOR`, `By.ID`, `By.NAME`, `By.CLASS_NAME` (one class),
+  `By.TAG_NAME`, `By.XPATH`, `By.LINK_TEXT`, `By.PARTIAL_LINK_TEXT`. Link-text
+  locators only support `click`.
 - Simple XPath expressions that can be safely approximated as CSS selectors.
-- Explicit `WebDriverWait` for visibility and presence.
+- Title checks: `assert "text" in driver.title` and
+  `assert driver.title == "text"`.
 
 ## What requires manual review
 
@@ -75,6 +109,14 @@ The importer is conservative. Anything it does not understand is emitted as a
 - Custom helpers and page-object classes.
 - Pytest fixtures, parametrization, and plugins.
 - File uploads, downloads, and non-standard API calls.
+- Selenium `WebDriverWait`, `Select(...).select_by_visible_text`, `ActionChains`
+  and keyboard chords for `send_keys`.
+
+A statement the importer does not recognise becomes a `TODO` comment and a
+`Warning` diagnostic. One it recognises but cannot translate safely (a
+non-literal argument, an XPath with no CSS equivalent, an unknown `By` strategy)
+becomes a `TODO` comment and an `Error` diagnostic, which makes the CLI exit
+with an error.
 
 Always review the generated file before running it.
 
@@ -95,23 +137,21 @@ class LoginTest(BaseCase):
         self.assert_text("Welcome", "body")
 ```
 
-The importer produces something like:
+The importer produces (the layout is rustfmt-able but not formatted):
 
 ```rust
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{BrowserConfig, run_browser_test};
 
 #[tokio::test]
-async fn login() -> Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open("https://example.com/login").await?;
-            sb.type_text("#username", "alice").await?;
-            sb.type_text("#password", "secret").await?;
-            sb.click("#submit").await?;
-            sb.assert_text("body", "Welcome").await
-        })
-    })
-    .await
+async fn login_test() -> seleniumbase_rs::Result<()> {
+    run_browser_test(BrowserConfig::default(), |sb| Box::pin(async move {
+        sb.open("https://example.com/login").await?;
+        sb.type_text("#username", "alice").await?;
+        sb.type_text("#password", "secret").await?;
+        sb.click("#submit").await?;
+        sb.assert_text("body", "Welcome").await?;
+        Ok(())
+    })).await
 }
 ```
 
@@ -130,11 +170,12 @@ After conversion, run these steps before trusting the test:
 The same importer is available from Rust code through `import_python`,
 `ImportOptions`, and `PythonSource`:
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{
     import_python, ImportOptions, ImportResult, PythonSource,
 };
 
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 let python = std::fs::read_to_string("tests/login_test.py")?;
 let result: ImportResult = import_python(
     &python,
@@ -148,7 +189,15 @@ println!("{}", result.rust);
 for diagnostic in &result.diagnostics {
     eprintln!("{:?} at line {}: {}", diagnostic.severity, diagnostic.line, diagnostic.message);
 }
+if !result.is_complete() {
+    eprintln!("error-level diagnostics: review the TODO comments");
+}
+# Ok(())
+# }
 ```
+
+`result.detected_source` says which API family the importer assumed, and
+`result.is_complete()` is true when no diagnostic has the `Error` severity.
 
 ## Migration strategy
 

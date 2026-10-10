@@ -17,9 +17,13 @@ remain, and the operational practices that reduce them.
   of silently propagating `None` or exceptions.
 - **Locked dependencies**: `Cargo.lock` records exact dependency versions, making
   builds reproducible and easier to audit.
-- **Feature gates**: optional integrations such as cloud uploads, Playwright, and
-  the MCP server are compiled in only when explicitly enabled, reducing the
-  default attack surface.
+- **Feature gates**: nothing is enabled by default. Optional pieces such as cloud
+  uploads (`s3`, `azure`, `gcp`), Playwright, the MCP server, the terminal UI
+  (`tui`), native desktop automation (`gui`) and the embedded database (`turso`)
+  are compiled in only when explicitly enabled, reducing the default attack
+  surface and dependency tree.
+- **No `unsafe` in this crate**: the crate's own source has no `unsafe` blocks.
+  Its dependencies may.
 
 ## What Rust does not protect against
 
@@ -39,6 +43,31 @@ Rust harness, the following risks remain:
   any action the browser can.
 - **Supply-chain attacks**: a compromised dependency can still run code at build
   or runtime, even in a Rust project.
+
+## Protections built into the crate
+
+These reduce some risks; none replaces the guidance below.
+
+- **Encrypting secrets**: `sbase encrypt` and `sbase decrypt` (and
+  `common::encryption`) use AES-256-GCM with a passphrase read from the
+  `SB_ENCRYPTION_KEY` environment variable, never from an argument, so it stays
+  out of shell history and process listings.
+- **Passwords out of logs**: the `Debug` output of `StealthOptions` hides the
+  password in a proxy URL and the values of extra headers, and `ProxyEntry`
+  never shows a password in `Debug` or `Display`.
+- **Stored profiles**: with the `turso` feature, `ProfileVault` keeps browser
+  profiles, which hold cookies and proxy passwords, encrypted at rest.
+- **Untrusted fingerprint payloads**: switches that run a program, load code,
+  open remote debugging, or redirect traffic (for example
+  `--renderer-cmd-prefix`, `--load-extension`, `--remote-debugging-port`,
+  `--proxy-server`) are refused when they come from a fingerprint payload.
+- **Confined output**: artifacts such as screenshots and recordings are written
+  into `latest_logs`, and a file name with a directory part or `..` is refused.
+  MCP file-writing tools are confined to `SB_MCP_OUTPUT_DIR` (default
+  `./mcp_output`), and absolute paths and `..` are refused there too.
+- **Closing browsers**: `sbase` and `seleniumbase-mcp` close their browser on
+  SIGINT and SIGTERM, within `SB_SHUTDOWN_TIMEOUT_SECS`, so an orchestrated stop
+  does not leave a logged-in browser running.
 
 ## Secure operating guidance
 
@@ -69,10 +98,15 @@ Rust harness, the following risks remain:
 
 ### Dependency auditing
 
-- Run `cargo audit` in CI to detect known vulnerabilities in dependencies.
+- Run `cargo audit` or `cargo deny check` in CI to detect known vulnerabilities
+  in dependencies. This repository's CI runs `cargo deny check` with the
+  `deny.toml` at the repository root, which also bans wildcard version
+  requirements and unknown registries and git sources, checks licenses, and
+  lists each ignored advisory with the reason.
 - Review `Cargo.lock` changes in pull requests, especially for optional features
   that pull in large dependency trees.
-- Pin git dependencies to a specific tag or revision.
+- The crate has no git dependencies. If you add one, pin it to a specific tag or
+  revision (and allow it in `deny.toml`).
 
 ### Isolation
 
