@@ -9,12 +9,14 @@ Python SeleniumBase provides multiple undetected/stealth modes. The Rust port mu
 ## Decision
 Implement a layered stealth stack:
 
-1. **Chrome binary patching** (`src/stealth/patcher.rs`) removes `$cdc_` and other automation markers from the chromedriver executable.
+1. **Binary patching** (`src/stealth/patcher.rs`) removes `$cdc_` and other automation markers from the chromedriver executable (`ChromedriverPatcher`). `ChromeBinaryPatcher` does the same kind of work on a cached copy of the Chrome binary, for native spoofing (see 6).
 2. **Launch arguments and preferences** (`StealthOptions`) disable automation indicators and harden the browser profile.
-3. **CDP overrides** (`src/stealth/evasions.rs`) send `Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`, and `Emulation.setLocaleOverride` at session start.
-4. **JavaScript providers** (`src/stealth/providers/`) patch runtime fingerprints for navigator, screen, WebGL, fonts, media devices, WebRTC, and plugins.
-5. **Profiles** (`src/profile_payloads/`) let users declare a target persona and derive concrete fingerprints from it.
-6. **Native vs. JS spoofing** is toggled by `StealthFlags::native_spoofing`; when enabled, CDP covers dimensions that the browser already exposes via Client Hints.
+3. **CDP overrides** (`src/stealth/evasions.rs`) build, from a `Fingerprint`, the parameters of `Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride` and `Emulation.setLocaleOverride` (and the timezone, geolocation and similar overrides) in `cdp_overrides`. `BrowserSession::apply_fingerprint` sends them at session start, together with the bootstrap script registered through `Page.addScriptToEvaluateOnNewDocument`.
+4. **JavaScript providers** (`src/stealth/providers/`) patch runtime fingerprints. Each of the built-in providers (`default_registry()` holds 29) covers one dimension: navigator, screen, WebGL, canvas and audio noise, fonts, media devices, WebRTC, plugins, timezone and more. Providers patch prototypes rather than instances and start their snippet with `SB_PREAMBLE`, whose helpers make a replaced function report a native name, length and `[native code]` source.
+5. **Profiles** (`src/profile_payloads/`) translate an external anti-detect profile payload into a `BrowserConfig` carrying a concrete `Fingerprint`.
+6. **Native vs. JS spoofing** is toggled by `StealthFlags::native_spoofing`. When it is on, the CDP overrides and launch arguments carry the values the browser can supply itself (user agent and Client Hints, screen size, locale), and the providers skip the JavaScript patch for them. For example, `window_geometry` then only patches `colorDepth` and `pixelDepth`. When `BrowserConfig::browser_binary_path` is unset, `BrowserSession` also patches a cached copy of the system Chrome binary (`SB_CHROME_BIN` or the one found on the system) before launch and uses it.
+
+The pure CDP engine (`src/sb_cdp`, see ADR 002) does not use chromedriver, so layer 1's chromedriver patch does not apply to it. It reuses `bootstrap_script` and `cdp_overrides` for layers 3 and 4.
 
 ## Consequences
 - Positive: Modular providers are easy to extend and test independently.
