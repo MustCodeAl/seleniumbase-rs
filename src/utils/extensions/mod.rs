@@ -95,7 +95,10 @@ fn extract_with_limit(archive: &[u8], dest: &Path, limit: u64) -> Result<(), Sel
         let Some(relative) = entry.enclosed_name() else {
             return Err(SeleniumBaseError::InvalidConfig(format!(
                 "the extension has an entry that leaves its folder: {}",
-                entry.name()
+                entry.name().map_or_else(
+                    |error| format!("<unreadable name: {error}>"),
+                    std::borrow::Cow::into_owned,
+                )
             )));
         };
         if is_archiver_litter(&relative) {
@@ -157,7 +160,9 @@ mod tests {
 
     fn names_in(archive: &[u8]) -> BTreeSet<String> {
         let zip = zip::ZipArchive::new(Cursor::new(archive)).expect("a readable zip");
-        zip.file_names().map(str::to_owned).collect()
+        zip.file_names()
+            .map(|name| name.expect("a readable entry name").into_owned())
+            .collect()
     }
 
     fn manifest_of(archive: &[u8]) -> Value {

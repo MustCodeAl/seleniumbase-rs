@@ -707,13 +707,25 @@ Risks:
 - CA key material is freed, not guaranteed wiped (no zeroize in btls): acceptable for an ephemeral,
   loopback-only CA. A matching fingerprint does not make automation permitted; the tutorial says so.
 
-Open questions for the user:
+Questions the plan raised, and the answers (2026-10-10):
 1. `--remote-debugging-pipe` needs fds 3/4 in the child, which std only offers through `unsafe`
    `pre_exec` (`command-fds` is unsafe inside). Accept that, or keep `--remote-debugging-port=0`?
+   **Answer: keep `--remote-debugging-port=0`.** No `unsafe`; the pipe transport is deferred.
 2. Try ALPN `h2` on the intercepted leg (Chrome's own header block) instead of the recorded `http/1.1`?
+   **Answer: keep `http/1.1`** on the browser-to-proxy leg.
 3. Will you run the capture tools on Windows and Linux machines, and open the URL in Safari in WP11?
+   **Answer (user): macOS only for now.** Windows, Linux and Safari personas stay refused with
+   `SpecError::NotMeasured` until they are captured on those systems.
 4. v2: one MITM for many `BrowserPool` contexts, routed by per-context token (`ProxyAuth::register`)?
+   **Answer: later.** One proxy per context for now.
 5. Accept peetprint or JA4_r strings as further custom inputs (they carry signature algorithms)?
+   **Answer (user): "custom inputs are for everything".** Every part of a profile can be supplied by
+   the caller, layered over a measured base: JA3, JA4 and JA4_r, peetprint, Akamai HTTP/2
+   fingerprints, header names, order and values, the `User-Agent`, `Accept-Language` and the
+   client-hint set. Each input is checked for what BoringSSL and wreq can emit; anything they cannot
+   reproduce is refused with a named `SpecError` before a client exists, and every accepted input is
+   proven by a wire round trip. WP6 and WP7 therefore also parse JA4_r and peetprint (WP6), and the
+   builder in WP12 takes each of them.
 
 Deliberately not copied: their code and names (`CloudScraper` is `BrowserScraper`/`StealthSession`);
 their measured values (Chrome 153, Safari 27); `wreq-util` and its presets, including the worktree
