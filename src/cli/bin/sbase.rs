@@ -1107,12 +1107,19 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     init_tracing_from_runtime(&runtime);
 
     let args = Cli::parse();
+    let is_record = matches!(args.command, Commands::Record { .. });
     // `record` stops itself on SIGINT or SIGTERM so that it can save what it
     // captured. A signal cancels any other command, which closes its browser.
-    let outcome = if matches!(args.command, Commands::Record { .. }) {
-        Outcome::Completed(run(args).await)
+    //
+    // `run` holds the locals of every command, so its future is large. It is
+    // boxed so that it lives on the heap: kept on the main thread's stack, and
+    // copied again by the signal race, it overflowed the 8 MiB stack in debug
+    // builds as soon as a command compiled a few regular expressions.
+    let work = Box::pin(run(args));
+    let outcome = if is_record {
+        Outcome::Completed(work.await)
     } else {
-        run_until_shutdown(run(args)).await?
+        run_until_shutdown(work).await?
     };
     // Browsers dropped on the way out are closed in the background; wait.
     drain_cleanups(timeout_from_env()).await;

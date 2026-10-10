@@ -241,7 +241,6 @@ surface. Decide each:
 
 - `src/api/playwright.rs` (free functions for the `playwright` feature)
 - `src/behave/common_steps.rs` (`CommonSteps`)
-- `src/common/{decorators,exceptions,shutdown}.rs`
 - `src/config/ad_block_list.rs` (re-exported, used by nothing else)
 - `src/plugins/driver_manager.rs` (`DriverStack`)
 - `src/utils/extensions/{ad_block,disable_csp,proxy_auth,recorder,sbase_ext}.rs`
@@ -336,16 +335,15 @@ Open, most serious first:
   `get_origin` drops the port; `charts.rs` and `presentations.rs` return paths
   inside a temporary directory that is already deleted.
 
-Unmerged work from the first-wave agents is still in their worktrees under
-`.claude/worktrees/` (the agents were stopped to save usage; their commits are
-intact, their uncommitted files are not reviewed): `ad42103370f30d15f` (a
-shutdown handler that closes browsers on SIGTERM, and one retry/polling API
-that replaces `common/{decorators,exceptions}.rs`, which are public modules, so
-that is a breaking change to decide on; it was mid-fix when stopped),
-`ac6308fa69e10f103` (CLI test-file generation that cannot escape its
-directory), `a8eaa5fb909e58850` (CLI/config files, 16 uncommitted files). The
-three commits from `adb6da293d5997036` (artifacts, shadow DOM, report) are
-merged and gated.
+The first-wave agents' finished work is all merged and gated: artifacts, shadow
+DOM and the report; the CLI scaffolding; the `sbase test`, `grid-hub` and
+`grid-node` commands with the config and resources work; the graceful shutdown
+handler (SIGTERM and SIGINT close browsers); and the one retry/polling API in
+`utilities::retry`. That last one replaced `common::{decorators,exceptions}`;
+those two public modules are kept as `#[deprecated]` shims, so nothing breaks.
+The worktrees under `.claude/worktrees/` can be removed. Merging the shutdown
+handler also exposed a stack overflow in `sbase` (its large `run` future was
+copied on the 8 MiB main stack in debug builds); the future is now boxed.
 
 Performance harnesses are in `benches/` (`cargo bench --bench cpu`, `--bench
 cdp_latency`); results and what they led to are in `docs/benchmarks.md`. Two
