@@ -639,12 +639,17 @@ mod tests_pdf_html {
 
     #[test]
     fn an_unconfigured_locale_is_distinguishable_from_the_fallback() {
-        let mut config = BrowserConfig::default();
-        config.locale = None;
+        let config = BrowserConfig {
+            locale: None,
+            ..BrowserConfig::default()
+        };
         let sb = BaseCase::with_session(config.clone(), BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), None);
         assert_eq!(sb.get_locale(), "en-US");
-        config.locale = Some("de-DE".to_owned());
+        let config = BrowserConfig {
+            locale: Some("de-DE".to_owned()),
+            ..config
+        };
         let sb = BaseCase::with_session(config, BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), Some("de-DE"));
         assert_eq!(sb.get_locale(), "de-DE");
