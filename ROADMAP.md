@@ -278,18 +278,22 @@ the shadow DOM script builders now close their function (checked by running
 them in a real Chrome); the HTML report escapes what tests print and is written
 atomically.
 
+Fixed since, with tests: `master_qa.rs` no longer treats closed input as "yes"
+(and escapes `|` and newlines in its Markdown table); the Python importer writes
+`1.0` for a one-second sleep, rejects a sleep that would panic, ignores a
+comment's apostrophes, and no longer mistakes a Selenium script that mentions
+`seleniumbase.io` for a SeleniumBase one; the Selenium IDE reader handles
+multi-line rows and entities; `tracing_util` builds its filter instead of
+changing `RUST_LOG`; `stealth/cdp.rs` reports a failed click or domain enable
+instead of returning `Ok` (WebDriver path, not run against a real driver).
+
 Open, most serious first:
 
-- `master_qa.rs:97` treats end-of-input as "yes", so manual checks pass on their
-  own in CI. `dialog.rs` `prompt()` shows a message box and returns the
-  default; it never asks for text. `tour.rs:314` writes CSS with doubled
-  braces, which is invalid.
+- `dialog.rs` `prompt()` shows a message box and returns the default; it never
+  asks for text. `tour.rs:314` writes CSS with doubled braces, which is
+  invalid.
 - `cdp_driver.rs` talks to the browser socket without a target session, so it
-  probably cannot work; only docs mention it. `stealth/cdp.rs` swallows the
-  three mouse-event errors, so a failed click reports `Ok`.
-- `python_importer.rs`: a sleep of `1.0` is written as `from_secs_f64(1)`, which
-  does not compile; an apostrophe in a comment swallows the following lines.
-  `selenium_ide.rs:23` has no `(?s)`, so multi-line rows match nothing.
+  probably cannot work; only docs mention it.
 - `patcher.rs`: the backup copy overwrites an existing `.orig`; the patched
   binary is written in place and not atomically; the cache key ignores the patch
   set; the patched Chrome copy probably cannot start on macOS or Linux because
@@ -305,8 +309,8 @@ Open, most serious first:
 - `html_inspector.rs`: the reported selector does not identify the element;
   radio-group issues come out in `HashMap` order. `deferred.rs` evaluates queued
   assertions against whichever page is current when they run.
-- `tracing_util.rs` calls `set_var("RUST_LOG")`; `chart.rs`, `tour.rs` and
-  `presentation.rs` splice unescaped text into HTML and JavaScript;
+- `chart.rs`, `tour.rs` and `presentation.rs` splice unescaped text into HTML
+  and JavaScript;
   `get_origin` drops the port; `charts.rs` and `presentations.rs` return paths
   inside a temporary directory that is already deleted.
 

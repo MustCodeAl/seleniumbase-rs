@@ -53,10 +53,16 @@ impl CdpClient {
     }
 
     /// Enables the Page, Network, and Runtime CDP domains.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first domain the browser refused to enable.
     pub async fn enable_default_domains(&self) -> Result<(), crate::error::SeleniumBaseError> {
-        self.dev_tools.execute_cdp("Page.enable").await.ok();
-        self.dev_tools.execute_cdp("Network.enable").await.ok();
-        self.dev_tools.execute_cdp("Runtime.enable").await.ok();
+        for domain in ["Page.enable", "Network.enable", "Runtime.enable"] {
+            self.dev_tools.execute_cdp(domain).await.map_err(|e| {
+                crate::error::SeleniumBaseError::Unsupported(format!("{domain}: {e}"))
+            })?;
+        }
         Ok(())
     }
 
@@ -110,40 +116,29 @@ impl CdpClient {
     }
 
     /// Dispatches a left mouse click at the given coordinates via CDP.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the first event the browser refused, so a click
+    /// that did not happen is not reported as one that did.
     pub async fn mouse_click(&self, x: f64, y: f64) -> Result<(), crate::error::SeleniumBaseError> {
-        let params_move = serde_json::json!({
-            "type": "mouseMoved",
-            "x": x,
-            "y": y,
-        });
-        self.dev_tools
-            .execute_cdp_with_params("Input.dispatchMouseEvent", params_move)
-            .await
-            .ok();
-
-        let params_press = serde_json::json!({
-            "type": "mousePressed",
-            "x": x,
-            "y": y,
-            "button": "left",
-            "clickCount": 1
-        });
-        self.dev_tools
-            .execute_cdp_with_params("Input.dispatchMouseEvent", params_press)
-            .await
-            .ok();
-
-        let params_release = serde_json::json!({
-            "type": "mouseReleased",
-            "x": x,
-            "y": y,
-            "button": "left",
-            "clickCount": 1
-        });
-        self.dev_tools
-            .execute_cdp_with_params("Input.dispatchMouseEvent", params_release)
-            .await
-            .ok();
+        for (kind, button) in [
+            ("mouseMoved", None),
+            ("mousePressed", Some("left")),
+            ("mouseReleased", Some("left")),
+        ] {
+            let mut params = serde_json::json!({ "type": kind, "x": x, "y": y });
+            if let Some(button) = button {
+                params["button"] = serde_json::json!(button);
+                params["clickCount"] = serde_json::json!(1);
+            }
+            self.dev_tools
+                .execute_cdp_with_params("Input.dispatchMouseEvent", params)
+                .await
+                .map_err(|e| {
+                    crate::error::SeleniumBaseError::Unsupported(format!("{kind}: {e}"))
+                })?;
+        }
         Ok(())
     }
 

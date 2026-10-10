@@ -174,7 +174,12 @@ fn detect_source(source: &str, requested: PythonSource) -> PythonSource {
     if requested != PythonSource::Auto {
         return requested;
     }
-    if source.contains("seleniumbase") || source.contains("BaseCase") || source.contains("with SB(")
+    // The import line, not the word: a Selenium script can mention
+    // `seleniumbase.io` in a URL.
+    if source.contains("from seleniumbase")
+        || source.contains("import seleniumbase")
+        || source.contains("BaseCase")
+        || source.contains("with SB(")
     {
         PythonSource::SeleniumBase
     } else {
@@ -232,7 +237,12 @@ fn parse_seleniumbase(statement: &str, line: usize) -> ParseOutcome {
         "go_back" => ParseOutcome::Action(Action::Back),
         "go_forward" => ParseOutcome::Action(Action::Forward),
         "refresh_page" | "refresh" => ParseOutcome::Action(Action::Refresh),
-        "sleep" => match args.first().and_then(|value| value.parse::<f64>().ok()) {
+        // `Duration::from_secs_f64` panics on a negative or non-finite number.
+        "sleep" => match args
+            .first()
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|seconds| seconds.is_finite() && *seconds >= 0.0)
+        {
             Some(seconds) => ParseOutcome::Action(Action::Sleep(seconds)),
             None => invalid_arguments(line, &method),
         },
@@ -499,14 +509,11 @@ fn statements(source: &str) -> Vec<(usize, String)> {
     let mut escaped = false;
 
     for (index, line) in source.lines().enumerate() {
-        if current.is_empty() {
-            start_line = index + 1;
-        } else {
-            current.push(' ');
-        }
-        current.push_str(line.trim());
-
-        for character in line.chars() {
+        // A `#` outside a string starts a comment. What follows it is prose,
+        // so an apostrophe there must not open a string that swallows the
+        // lines after it.
+        let mut code_end = line.len();
+        for (at, character) in line.char_indices() {
             if escaped {
                 escaped = false;
                 continue;
@@ -525,12 +532,22 @@ fn statements(source: &str) -> Vec<(usize, String)> {
             }
             if quote.is_none() {
                 match character {
+                    '#' => {
+                        code_end = at;
+                        break;
+                    }
                     '(' | '[' | '{' => depth += 1,
                     ')' | ']' | '}' => depth -= 1,
                     _ => {}
                 }
             }
         }
+        if current.is_empty() {
+            start_line = index + 1;
+        } else {
+            current.push(' ');
+        }
+        current.push_str(line[..code_end].trim());
         if depth <= 0 && quote.is_none() {
             result.push((start_line, std::mem::take(&mut current)));
             depth = 0;
@@ -681,7 +698,8 @@ fn render_action(action: &Action) -> String {
         Action::Forward => "sb.go_forward().await?;".to_owned(),
         Action::Refresh => "sb.refresh().await?;".to_owned(),
         Action::Sleep(seconds) => {
-            format!("tokio::time::sleep(std::time::Duration::from_secs_f64({seconds})).await;")
+            // `{:?}` keeps the decimal point (`1.0`), which a float literal needs.
+            format!("tokio::time::sleep(std::time::Duration::from_secs_f64({seconds:?})).await;")
         }
         Action::Todo(line, message) => {
             format!("// TODO(source line {line}): {}", one_line(message))
@@ -816,6 +834,80 @@ self.double_click("#submit")
         assert!(result.rust.contains("sb.assert_url_contains(\"example\")"));
         assert!(result.rust.contains("sb.check_if_unchecked(\"#agree\")"));
         assert!(result.rust.contains("sb.double_click(\"#submit\")"));
+    }
+
+    #[test]
+    fn a_sleep_becomes_a_float_literal_that_compiles() {
+        let result = import_python(
+            "self.sleep(1)\nself.sleep(0.5)\nself.sleep(2.0)",
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                ..Default::default()
+            },
+        );
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        for seconds in ["1.0", "0.5", "2.0"] {
+            assert!(
+                result.rust.contains(&format!("from_secs_f64({seconds})")),
+                "{seconds}: {}",
+                result.rust
+            );
+        }
+    }
+
+    #[test]
+    fn a_sleep_that_would_panic_at_run_time_is_reported() {
+        for bad in ["-1", "nan", "inf"] {
+            let result = import_python(
+                &format!("self.sleep({bad})"),
+                &ImportOptions {
+                    source: PythonSource::SeleniumBase,
+                    ..Default::default()
+                },
+            );
+            assert!(!result.is_complete(), "{bad} was accepted");
+        }
+    }
+
+    #[test]
+    fn an_apostrophe_in_a_comment_does_not_swallow_the_next_lines() {
+        let source = "# it's the login page\nself.open(\"https://example.test\")  # don't wait\nself.click(\"#go\")";
+        let result = import_python(
+            source,
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                ..Default::default()
+            },
+        );
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert!(result.rust.contains("sb.open(\"https://example.test\")"));
+        assert!(result.rust.contains("sb.click(\"#go\")"));
+    }
+
+    #[test]
+    fn a_hash_inside_a_string_is_not_a_comment() {
+        let result = import_python(
+            "self.click(\"#submit\")",
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                ..Default::default()
+            },
+        );
+        assert!(result.is_complete());
+        assert!(result.rust.contains("sb.click(\"#submit\")"));
+    }
+
+    #[test]
+    fn a_url_that_mentions_seleniumbase_does_not_make_it_a_seleniumbase_script() {
+        let source = "driver.get(\"https://seleniumbase.io/demo_page\")";
+        assert_eq!(
+            detect_source(source, PythonSource::Auto),
+            PythonSource::Selenium
+        );
+        assert_eq!(
+            detect_source("from seleniumbase import BaseCase", PythonSource::Auto),
+            PythonSource::SeleniumBase
+        );
     }
 
     #[test]

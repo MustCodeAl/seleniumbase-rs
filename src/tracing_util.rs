@@ -26,8 +26,53 @@ use tracing_subscriber::{EnvFilter, Layer};
 
 use crate::config::{LogFormat, RuntimeConfig};
 
+/// The filter named by `RUST_LOG`, or `info` if it is unset or invalid.
 fn env_filter() -> EnvFilter {
     EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+}
+
+/// The filter `directives` describes, or the `RUST_LOG` one if they are invalid.
+///
+/// Built directly, so the process environment is left alone: changing it from
+/// a running program is not safe while other threads read it.
+fn filter_from(directives: &str) -> EnvFilter {
+    EnvFilter::try_new(directives).unwrap_or_else(|_| env_filter())
+}
+
+/// Installs the global subscriber, ignoring a second call.
+fn install(filter: EnvFilter, format: &LogFormat) {
+    let _ = tracing_log::LogTracer::init();
+    let registry = tracing_subscriber::registry();
+    match format {
+        LogFormat::Json => {
+            let layer = json_subscriber::fmt::layer()
+                .with_current_span(true)
+                .with_span_list(false)
+                .with_filter(filter);
+            finish(registry.with(layer));
+        }
+        LogFormat::Pretty => {
+            let layer = tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_filter(filter);
+            finish(registry.with(layer));
+        }
+    }
+}
+
+/// Adds the timing layer when it is built in, and sets the subscriber.
+fn finish<S>(subscriber: S)
+where
+    S: tracing::Subscriber
+        + for<'span> tracing_subscriber::registry::LookupSpan<'span>
+        + Send
+        + Sync
+        + 'static,
+{
+    #[cfg(feature = "full-tracing")]
+    let subscriber = subscriber.with(timing_layer());
+    let _ = subscriber.try_init();
 }
 
 /// Initialize tracing from the current [`RuntimeConfig`].
@@ -35,48 +80,7 @@ fn env_filter() -> EnvFilter {
 /// Honors `SB_LOG_LEVEL` and `SB_LOG_FORMAT` so logs are treated as an
 /// environment-driven event stream (Twelve-Factor XI).
 pub fn init_tracing_from_runtime(config: &RuntimeConfig) {
-    let filter = EnvFilter::new(&config.log_level);
-    let _ = tracing_log::LogTracer::init();
-
-    #[cfg(feature = "full-tracing")]
-    let timing = timing_layer();
-
-    match config.log_format {
-        LogFormat::Json => {
-            let fmt = json_subscriber::fmt::layer()
-                .with_current_span(true)
-                .with_span_list(false)
-                .with_filter(filter);
-            #[cfg(feature = "full-tracing")]
-            {
-                let _ = tracing_subscriber::registry()
-                    .with(fmt)
-                    .with(timing)
-                    .try_init();
-            }
-            #[cfg(not(feature = "full-tracing"))]
-            {
-                let _ = tracing_subscriber::registry().with(fmt).try_init();
-            }
-        }
-        LogFormat::Pretty => {
-            let fmt = tracing_subscriber::fmt::layer()
-                .with_target(true)
-                .with_thread_ids(false)
-                .with_filter(filter);
-            #[cfg(feature = "full-tracing")]
-            {
-                let _ = tracing_subscriber::registry()
-                    .with(fmt)
-                    .with(timing)
-                    .try_init();
-            }
-            #[cfg(not(feature = "full-tracing"))]
-            {
-                let _ = tracing_subscriber::registry().with(fmt).try_init();
-            }
-        }
-    }
+    install(EnvFilter::new(&config.log_level), &config.log_format);
 }
 
 /// Install a plain text tracing subscriber and bridge `log` records.
@@ -84,26 +88,7 @@ pub fn init_tracing_from_runtime(config: &RuntimeConfig) {
 /// Reads the `RUST_LOG` environment variable and defaults to `info`.
 /// Calling this more than once in the same process is ignored.
 pub fn init_tracing() {
-    let fmt = tracing_subscriber::fmt::layer()
-        .with_target(true)
-        .with_thread_ids(false)
-        .with_filter(env_filter());
-
-    let _ = tracing_log::LogTracer::init();
-
-    #[cfg(feature = "full-tracing")]
-    {
-        let timing = timing_layer();
-        let _ = tracing_subscriber::registry()
-            .with(fmt)
-            .with(timing)
-            .try_init();
-    }
-
-    #[cfg(not(feature = "full-tracing"))]
-    {
-        let _ = tracing_subscriber::registry().with(fmt).try_init();
-    }
+    install(env_filter(), &LogFormat::Pretty);
 }
 
 /// Install a JSON tracing subscriber and bridge `log` records.
@@ -111,26 +96,7 @@ pub fn init_tracing() {
 /// Reads the `RUST_LOG` environment variable and defaults to `info`.
 /// Calling this more than once in the same process is ignored.
 pub fn init_tracing_json() {
-    let fmt = json_subscriber::fmt::layer()
-        .with_current_span(true)
-        .with_span_list(false)
-        .with_filter(env_filter());
-
-    let _ = tracing_log::LogTracer::init();
-
-    #[cfg(feature = "full-tracing")]
-    {
-        let timing = timing_layer();
-        let _ = tracing_subscriber::registry()
-            .with(fmt)
-            .with(timing)
-            .try_init();
-    }
-
-    #[cfg(not(feature = "full-tracing"))]
-    {
-        let _ = tracing_subscriber::registry().with(fmt).try_init();
-    }
+    install(env_filter(), &LogFormat::Json);
 }
 
 #[cfg(feature = "full-tracing")]
@@ -144,7 +110,9 @@ fn timing_layer() -> tracing_timing::TimingLayer {
 /// Initialize tracing with a custom [`EnvFilter`] string.
 ///
 /// This is useful for binaries that want to accept a `--log-level` flag and
-/// still inherit the rest of the default subscriber configuration.
+/// still inherit the rest of the default subscriber configuration. A filter
+/// that does not parse falls back to `RUST_LOG`, then to `info`. The process
+/// environment is not changed.
 ///
 /// # Example
 ///
@@ -156,12 +124,32 @@ fn timing_layer() -> tracing_timing::TimingLayer {
 /// }
 /// ```
 pub fn init_tracing_with_filter(filter: &str) {
-    std::env::set_var("RUST_LOG", filter);
-    init_tracing();
+    install(filter_from(filter), &LogFormat::Pretty);
 }
 
 /// Initialize JSON tracing with a custom [`EnvFilter`] string.
+///
+/// See [`init_tracing_with_filter`] for how the filter is read.
 pub fn init_tracing_json_with_filter(filter: &str) {
-    std::env::set_var("RUST_LOG", filter);
-    init_tracing_json();
+    install(filter_from(filter), &LogFormat::Json);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_filter_string_is_used_without_touching_the_environment() {
+        let before = std::env::var_os("RUST_LOG");
+        let filter = filter_from("seleniumbase_rs=debug,info");
+        assert_eq!(std::env::var_os("RUST_LOG"), before);
+        let shown = filter.to_string();
+        assert!(shown.contains("seleniumbase_rs=debug"), "{shown}");
+    }
+
+    #[test]
+    fn an_unparsable_filter_falls_back_instead_of_failing() {
+        // Nothing to assert beyond not panicking and getting some filter back.
+        let _ = filter_from("=== not a filter ===");
+    }
 }
