@@ -1204,3 +1204,91 @@ async fn every_tab_takes_input_not_only_the_frontmost() {
     browser.close().await.unwrap();
     assert!(elapsed < Duration::from_secs(10), "took {elapsed:?}");
 }
+
+/// Runs a `build_shadow_*` script, which is a function body for WebDriver's
+/// `Execute Script`, in the page.
+async fn run_script_body<T: serde::de::DeserializeOwned>(page: &Page, script: &str) -> T {
+    page.evaluate_as(format!("(function(){{ {script} }})()"))
+        .await
+        .expect("the script is valid JavaScript and returns a value")
+}
+
+#[tokio::test]
+#[ignore = "needs Chrome"]
+async fn shadow_dom_scripts_run_in_a_real_page() {
+    use seleniumbase_rs::utils::shadow::{
+        build_shadow_attribute, build_shadow_click, build_shadow_text, build_shadow_type,
+        split_shadow_selector,
+    };
+
+    let (browser, page, _) = open().await;
+    page.evaluate(
+        r##"(() => {
+            const host = document.createElement('my-app');
+            document.body.append(host);
+            const outer = host.attachShadow({ mode: 'open' });
+            outer.innerHTML = '<div class="form"></div>';
+            const inner = outer.querySelector('.form').attachShadow({ mode: 'open' });
+            inner.innerHTML = '<input name="q"><button class="go">Go</button>';
+            window.events = [];
+            inner.querySelector('.go').addEventListener('click', () => window.events.push('click'));
+            const input = inner.querySelector('input');
+            for (const type of ['input', 'change']) {
+                input.addEventListener(type, () => window.events.push(type));
+            }
+            return true;
+        })()"##,
+    )
+    .await
+    .unwrap();
+    let pierce =
+        |tail: &str| split_shadow_selector(&format!("my-app ::shadow .form ::shadow {tail}"));
+
+    let clicked: bool = run_script_body(&page, &build_shadow_click(&pierce(".go"))).await;
+    assert!(clicked);
+
+    // Quotes and backslashes in the text must arrive as typed.
+    let text = r#"say "hi" and 'bye' \ done"#;
+    let typed: bool = run_script_body(&page, &build_shadow_type(&pierce("input"), text)).await;
+    assert!(typed);
+    let value: String = page
+        .evaluate_as(
+            "document.querySelector('my-app').shadowRoot.querySelector('.form')\
+             .shadowRoot.querySelector('input').value",
+        )
+        .await
+        .unwrap();
+    assert_eq!(value, text);
+    let events: Vec<String> = page.evaluate_as("window.events").await.unwrap();
+    assert_eq!(events, ["click", "input", "change"]);
+
+    let label: String = run_script_body(&page, &build_shadow_text(&pierce(".go"))).await;
+    assert_eq!(label, "Go");
+    let name: String =
+        run_script_body(&page, &build_shadow_attribute(&pierce("input"), "name")).await;
+    assert_eq!(name, "q");
+    let absent: String =
+        run_script_body(&page, &build_shadow_attribute(&pierce("input"), "nope")).await;
+    assert_eq!(absent, "");
+
+    // Nothing found: the scripts say so instead of throwing.
+    let missing = split_shadow_selector("my-app ::shadow .nope");
+    assert!(!run_script_body::<bool>(&page, &build_shadow_click(&missing)).await);
+    assert_eq!(
+        run_script_body::<String>(&page, &build_shadow_text(&missing)).await,
+        ""
+    );
+
+    // A selector that tries to break out of its string literal stays inside it.
+    let hostile = vec![r#"my-app"); window.hacked = true; ("#.to_owned()];
+    let result = page
+        .evaluate_as::<bool>(format!(
+            "(function(){{ {} }})()",
+            build_shadow_click(&hostile)
+        ))
+        .await;
+    let hacked: Option<bool> = page.evaluate_as("window.hacked").await.ok();
+    browser.close().await.unwrap();
+    assert!(!result.as_ref().is_ok_and(|clicked| *clicked), "{result:?}");
+    assert_ne!(hacked, Some(true), "the selector ran as code");
+}

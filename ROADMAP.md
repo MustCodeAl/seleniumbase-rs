@@ -270,22 +270,20 @@ passwords; the CDP reactor no longer spins at 100% CPU after the socket closes
 and keeps a request's own headers when it overrides one; mobile defaults no
 longer override a caller's user agent and window size; `--no-sandbox` is
 Linux-only and `--disable-gpu` headless-only (WebDriver path, not run against a
-real driver).
+real driver). Also fixed: file names a caller supplies (`save_page_source`,
+the cookie files, `save_data_as`, `append_data_to_file`, the downloads helpers)
+can no longer climb out of their folder, through `artifacts::confined_path`,
+with a test that fails if a bare `filename` is joined onto a directory again;
+the shadow DOM script builders now close their function (checked by running
+them in a real Chrome); the HTML report escapes what tests print and is written
+atomically.
 
 Open, most serious first:
 
-- Path traversal through caller-supplied file names: `base_case_impl_dom.rs`
-  (`save_page_source`, `save_as_html`), `base_case_impl_extra.rs` (cookie
-  files, `assert_downloaded_file`, `delete_downloaded_file`) and
-  `base_case_impl_downloads.rs` (`join(user name)`, so `../../x` or an absolute
-  path reads or deletes any file). The `artifacts.rs` fix in the agent branch
-  (`b65e522`) has the helper to reuse.
 - `master_qa.rs:97` treats end-of-input as "yes", so manual checks pass on their
   own in CI. `dialog.rs` `prompt()` shows a message box and returns the
   default; it never asks for text. `tour.rs:314` writes CSS with doubled
   braces, which is invalid.
-- Shadow DOM script builders (`utils/shadow.rs`) cut the script before the
-  closing `})();`; the agent branch (`982e89d`) rebuilds them.
 - `cdp_driver.rs` talks to the browser socket without a target session, so it
   probably cannot work; only docs mention it. `stealth/cdp.rs` swallows the
   three mouse-event errors, so a failed click reports `Ok`.
@@ -314,11 +312,14 @@ Open, most serious first:
 
 Unmerged work from the first-wave agents is still in their worktrees under
 `.claude/worktrees/` (the agents were stopped to save usage; their commits are
-intact, their uncommitted files are not reviewed): `ad42103370f30d15f` (shutdown
-handler, one retry/polling API; mid-fix when stopped), `adb6da293d5997036` (js_code
-`quote()`, styled report, artifacts path fix), `ac6308fa69e10f103` (CLI test
-generation), `a8eaa5fb909e58850` (CLI/config files, 16 uncommitted files). None
-of it has been through the gate.
+intact, their uncommitted files are not reviewed): `ad42103370f30d15f` (a
+shutdown handler that closes browsers on SIGTERM, and one retry/polling API
+that replaces `common/{decorators,exceptions}.rs`, which are public modules, so
+that is a breaking change to decide on; it was mid-fix when stopped),
+`ac6308fa69e10f103` (CLI test-file generation that cannot escape its
+directory), `a8eaa5fb909e58850` (CLI/config files, 16 uncommitted files). The
+three commits from `adb6da293d5997036` (artifacts, shadow DOM, report) are
+merged and gated.
 
 Performance harnesses are in `benches/` (`cargo bench --bench cpu`, `--bench
 cdp_latency`); results and what they led to are in `docs/benchmarks.md`. Two
