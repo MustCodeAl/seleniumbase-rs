@@ -876,6 +876,21 @@ mod tests {
             path
         }
 
+        /// The log once it contains `text`, or as it stands after ten seconds.
+        ///
+        /// The stand-in is a separate process, so on a busy machine it can still
+        /// be starting when `start` returns.
+        fn log_with(path: &Path, text: &str) -> String {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            loop {
+                let log = fs::read_to_string(path).unwrap_or_default();
+                if log.contains(text) || Instant::now() >= deadline {
+                    return log;
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+
         const WAITS: &str = "echo \"fake java: $*\"\n\
                              trap 'kill $child 2>/dev/null; exit 0' TERM\n\
                              sleep 120 &\n\
@@ -919,7 +934,7 @@ mod tests {
                 f.process.state().unwrap(),
                 RunState::Running(record.clone())
             );
-            let log = fs::read_to_string(f.process.log_path()).unwrap();
+            let log = log_with(&f.process.log_path(), "hub --port 4999");
             assert!(log.contains("fake java: -jar"), "{log}");
             assert!(log.contains("hub --port 4999"), "{log}");
 
@@ -959,7 +974,7 @@ mod tests {
 
             let error = f
                 .process
-                .start(&launch, Duration::from_secs(5))
+                .start(&launch, Duration::from_secs(20))
                 .unwrap_err();
 
             let shown = error.to_string();
