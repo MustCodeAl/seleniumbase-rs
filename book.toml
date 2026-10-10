@@ -8,5 +8,6 @@ title = "SeleniumBase for Rust"
 build-dir = "book"
 
 [output.html]
-git-repository-url = "https://github.com/MustCodeAl/SeleniumBase"
+git-repository-url = "https://github.com/MustCodeAl/seleniumbase-rs"
+edit-url-template = "https://github.com/MustCodeAl/seleniumbase-rs/edit/main/docs/{path}"
 preferred-dark-theme = "ayu"

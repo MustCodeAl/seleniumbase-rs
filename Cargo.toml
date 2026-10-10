@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.89"
 license = "MIT"
 description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
-repository = "https://github.com/MustCodeAl/SeleniumBase"
+repository = "https://github.com/MustCodeAl/seleniumbase-rs"
 
 [lib]
 name = "seleniumbase_rs"

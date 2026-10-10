@@ -1,3 +1,15 @@
 [profile.default]
 retries = 0
 
+# Tests that start a real Chrome (they are `#[ignore]`d: run them with
+# `cargo nextest run --run-ignored only`) compete for CPU and memory, and a
+# Chrome that is starved misses its 20 second DevTools deadline. Run them one at
+# a time, and give a stuck one a minute before it is reported slow.
+[test-groups]
+chrome = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = "binary(/_chrome$/) | binary(browser_smoke)"
+test-group = "chrome"
+slow-timeout = { period = "60s", terminate-after = 3 }
+

@@ -25,3 +25,17 @@ Thumbs.db
 
 # Test artifacts
 *.log
+latest_logs/
+downloaded_drivers/
+
+# Tool state and agent worktrees (gigabytes of build output, never part of the image)
+.claude/
+.tokensave/
+.serena/
+book/
+
+# Files the local docker build wrapper leaves behind
+slim.report.json
+.ai-bom.json
+.ai-build-context.md
+.ai-build-error.json

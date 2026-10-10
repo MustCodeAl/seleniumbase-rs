@@ -13,6 +13,12 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# A tag push and the release made from it both start this workflow; the later run
+# replaces the earlier instead of pushing the same tags twice.
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     name: Build and push Docker image
@@ -48,6 +54,26 @@ jobs:
             type=semver,pattern={{major}}
             type=ref,event=tag
             type=sha
+
+      # Build once into the local daemon and run the image before anything is
+      # pushed, so a broken image never reaches the registry. The push below
+      # reuses these layers from the cache.
+      - name: Build for a smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: seleniumbase-rs:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Smoke test the image
+        run: |
+          docker run --rm seleniumbase-rs:ci --version
+          docker run --rm seleniumbase-rs:ci doctor | tee doctor.txt
+          grep -q 'Found: /usr/bin/chromium' doctor.txt
 
       - name: Build and push
         id: push
