@@ -7,3 +7,9 @@
 node_modules/
 downloaded_drivers/
 __pycache__/
+
+# Left in the project directory by the local docker build wrapper
+slim.report.json
+.ai-bom.json
+.ai-build-context.md
+.ai-build-error.json
