@@ -435,6 +435,32 @@ impl GridProcess {
         Ok(record)
     }
 
+    /// Whether the process [`start`](Self::start) started has since ended, with
+    /// the end of its log if so.
+    ///
+    /// `start` only watches for the first moments, and a Java that dies later,
+    /// for instance on a port taken a second after it looked free, is not seen
+    /// there. A caller that goes on to wait for the Grid asks this while it
+    /// waits, so the failure shows at once and with its cause, not as a timeout.
+    ///
+    /// Returns `None` while the process is running or when nothing was started.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the record exists but cannot be read.
+    pub fn ended(&self) -> Result<Option<String>, SeleniumBaseError> {
+        Ok(match self.state()? {
+            RunState::Stale(record) => Some(format!(
+                "The Grid {} (process {}) is no longer running. End of {}:\n{}",
+                record.role.as_str(),
+                record.pid,
+                record.log.display(),
+                log_tail(&record.log, 15)
+            )),
+            RunState::Running(_) | RunState::NotRunning => None,
+        })
+    }
+
     /// Stops the recorded process and removes its record.
     ///
     /// The process is asked to end and given `grace` to do so, then forced. A

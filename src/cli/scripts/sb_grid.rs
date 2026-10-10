@@ -184,15 +184,25 @@ async fn start(
     }
     let record = process.start(&launch, Duration::from_millis(500))?;
 
-    if let Err(error) = wait_until_ready(&address, command.wait, Duration::from_millis(500)).await {
+    // Wait for the Grid to answer, but stop at once if its process ends: a Java
+    // that dies after the first moments would otherwise be waited on for the
+    // whole timeout and then reported as slow, without its log.
+    let ready = wait_until_ready(&address, command.wait, Duration::from_millis(500));
+    let failure = tokio::select! {
+        ready = ready => ready.err().map(|error| {
+            format!(
+                "the Grid {role} did not come up: {error}. Its log is {}",
+                process.log_path().display()
+            )
+        }),
+        note = ended(process) => Some(format!("the Grid {role} exited while starting. {note}")),
+    };
+    if let Some(reason) = failure {
         // Do not leave a Grid that never came up running in the background.
         let _ = process.stop(Duration::from_secs(5));
         return Err(SeleniumBaseError::browser_launch(
             launch.java_path().display().to_string(),
-            format!(
-                "the Grid {role} did not come up: {error}. Its log is {}",
-                process.log_path().display()
-            ),
+            reason,
         ));
     }
 
@@ -214,6 +224,19 @@ async fn start(
     }
     lines.push(format!("Log: {}", record.log.display()));
     Ok(lines)
+}
+
+/// Resolves, with the end of the log, once the Grid process `start` began has
+/// ended. Pending while it runs.
+async fn ended(process: &GridProcess) -> String {
+    loop {
+        // A record that cannot be read is left to the readiness wait's own
+        // timeout; it is not a reason to claim the process ended.
+        if let Ok(Some(note)) = process.ended() {
+            return note;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 /// Whether something accepts connections at `address` right now.
@@ -576,8 +599,34 @@ mod tests {
 
             let error = run(&f.command).await.unwrap_err().to_string();
 
-            assert!(error.contains("exited at once"), "{error}");
+            // Caught by the first watch ("exited at once") or, on a busy machine
+            // where the script has not run yet, by the readiness wait.
+            assert!(error.contains("exited"), "{error}");
             assert!(error.contains("bad jar"), "{error}");
+        }
+
+        #[tokio::test]
+        async fn a_java_that_dies_later_is_reported_without_waiting_out_the_timeout() {
+            // Alive for longer than the first watch (500 ms), so only the
+            // readiness wait can notice that it ended.
+            let mut f = fixture(
+                GridRole::Hub,
+                GridAction::Start,
+                "sleep 2\necho 'Error: late failure' >&2\nexit 2",
+            );
+            f.command.port = Some(free_port().await);
+            f.command.wait = Duration::from_secs(60);
+            let began = std::time::Instant::now();
+
+            let error = run(&f.command).await.unwrap_err().to_string();
+
+            assert!(
+                began.elapsed() < Duration::from_secs(30),
+                "waited out the timeout: {:?}",
+                began.elapsed()
+            );
+            assert!(error.contains("exited while starting"), "{error}");
+            assert!(error.contains("late failure"), "{error}");
         }
 
         #[tokio::test]
