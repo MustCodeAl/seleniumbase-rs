@@ -1,10 +1,23 @@
 //! Built-in [`EvasionProvider`](super::EvasionProvider) implementations.
 //!
 //! Each provider spoofs one browser dimension. They are registered, in
-//! priority order, by [`all`]. Snippets are intentionally self-contained IIFEs
-//! so they can also be used individually.
+//! priority order, by [`all`]. Snippets are self-contained IIFEs, so they can
+//! also be run one at a time.
+//!
+//! The snippets follow three rules, each checked against a real Chrome by
+//! `tests/stealth_providers_chrome.rs`:
+//!
+//! - **Patch what the browser patches.** A replaced method goes on its
+//!   prototype, and a replaced getter on the prototype that owns it, never on
+//!   the instance, so `Object.getOwnPropertyNames(object)` is unchanged.
+//! - **Look native.** Replacements are made with the `sb` helpers described in
+//!   [`providers`](super), so their name, length, source and `prototype` are
+//!   what the browser's own function would show.
+//! - **Be the same on every read.** A getter returns one object, and noise is
+//!   a function of the seed and the position, never of how many reads came
+//!   before.
 
-use super::{EvasionContext, EvasionProvider};
+use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
 use crate::stealth::fingerprint::{
     BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
 };
@@ -12,6 +25,43 @@ use crate::stealth::fingerprint::{
 /// Returns `true` when a masking mode should emit its evasion.
 fn masked(mode: MaskingMode) -> bool {
     matches!(mode, MaskingMode::Mask | MaskingMode::Custom)
+}
+
+/// Fills `@NAME@` markers in a JavaScript template, in one pass.
+///
+/// `@SB@` is the [`SB_PREAMBLE`]. A marker that is not in `values` stays as
+/// written, and text that is substituted in is never searched for markers, so
+/// a value cannot smuggle in another one.
+fn render(template: &str, values: &[(&str, &str)]) -> String {
+    let mut out = String::with_capacity(template.len() + 512);
+    let mut rest = template;
+    while let Some(start) = rest.find('@') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('@') else {
+            out.push('@');
+            out.push_str(after);
+            return out;
+        };
+        let key = &after[..end];
+        if key == "SB" {
+            out.push_str(SB_PREAMBLE);
+            rest = &after[end + 1..];
+        } else if let Some((_, value)) = values.iter().find(|(name, _)| *name == key) {
+            out.push_str(value);
+            rest = &after[end + 1..];
+        } else {
+            out.push('@');
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// A single-quoted JavaScript string literal for `text`.
+fn quoted(text: &str) -> String {
+    format!("'{}'", EvasionContext::escape(text))
 }
 
 /// Returns every built-in provider as trait objects.
@@ -49,10 +99,24 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
     ]
 }
 
-const PROTO: &str = "Object.getPrototypeOf(navigator)";
+/// The hash both noise providers draw from: the same `(seed, index)` always
+/// gives the same 32-bit value, with no state between calls.
+const NOISE_HASH: &str = r##"function hash(index) {
+    let h = (seed ^ Math.imul(index + 1, 0x9E3779B1)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x85EBCA77) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0xC2B2AE3D) >>> 0;
+    return (h ^ (h >>> 16)) >>> 0;
+  }"##;
 
-/// Installs `window.__sbNative`, a helper that marks a replacement function so
-/// `Function.prototype.toString` reports `[native code]` for it.
+/// Installs the shared `sb` helpers and masks `Function.prototype.toString`,
+/// so that replaced functions report `[native code]`.
+///
+/// The helpers live in the scope of the assembled bootstrap script, not on
+/// `window`; see [`SB_PREAMBLE`]. Run on its own, outside
+/// [`EvasionRegistry::bootstrap`](super::EvasionRegistry::bootstrap), this
+/// snippet has no shared scope to put them in and leaves a `__sb` global
+/// behind, so use the registry.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct NativeToStringProvider;
 
 impl EvasionProvider for NativeToStringProvider {
@@ -68,30 +132,62 @@ impl EvasionProvider for NativeToStringProvider {
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(
-            r#"(function() {
+            r##"(function () {
   const nativeToString = Function.prototype.toString;
-  const masked = new WeakMap();
-  const proxy = new Proxy(nativeToString, {
-    apply(target, thisArg, args) {
-      if (masked.has(thisArg)) {
-        const name = masked.get(thisArg) || (thisArg && thisArg.name) || '';
-        return 'function ' + name + '() { [native code] }';
+  const names = new WeakMap();
+  const patchedToString = new Proxy(nativeToString, {
+    apply: function (target, thisArg, args) {
+      if (names.has(thisArg)) {
+        return 'function ' + names.get(thisArg) + '() { [native code] }';
       }
       return Reflect.apply(target, thisArg, args);
     }
   });
-  Function.prototype.toString = proxy;
-  Object.defineProperty(window, '__sbNative', {
-    value: function(fn, name) { try { masked.set(fn, name || (fn && fn.name)); } catch (e) {} return fn; },
-    configurable: true
-  });
-})();"#
+  names.set(patchedToString, 'toString');
+  Function.prototype.toString = patchedToString;
+  function mark(fn, name) {
+    names.set(fn, name);
+    return fn;
+  }
+  // A stand-in for a method: named `name`, as long as `like`, with no
+  // `prototype`, because a method defined with shorthand syntax has none.
+  function native(fn, name, like) {
+    if (typeof fn !== 'function') { return fn; }
+    const label = String(name || (like && like.name) || fn.name || '');
+    const holder = { [label](...args) { return Reflect.apply(fn, this, args); } };
+    const wrapper = holder[label];
+    try {
+      Object.defineProperty(wrapper, 'length', { value: like ? like.length : fn.length, configurable: true });
+    } catch (e) {}
+    return mark(wrapper, label);
+  }
+  // A constructor keeps its own `prototype`, so it is renamed in place.
+  function ctor(fn, name) {
+    if (typeof fn !== 'function') { return fn; }
+    const label = String(name || fn.name || '');
+    try { Object.defineProperty(fn, 'name', { value: label, configurable: true }); } catch (e) {}
+    return mark(fn, label);
+  }
+  // Replaces an accessor's getter and keeps the property's other attributes.
+  function getter(object, property, fn) {
+    const current = Object.getOwnPropertyDescriptor(object, property);
+    Object.defineProperty(object, property, {
+      get: native(fn, 'get ' + property),
+      set: current ? current.set : undefined,
+      enumerable: current ? current.enumerable : true,
+      configurable: true
+    });
+  }
+  try { __sb = { native: native, ctor: ctor, getter: getter }; } catch (e) {}
+})();"##
                 .to_owned(),
         )
     }
 }
 
-/// Removes the `navigator.webdriver` flag and common automation hooks.
+/// Makes `navigator.webdriver` read `false`, as in a browser nobody automates,
+/// and removes common automation hooks from `window`.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct WebdriverProvider;
 
 impl EvasionProvider for WebdriverProvider {
@@ -102,22 +198,24 @@ impl EvasionProvider for WebdriverProvider {
         10
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(format!(
-            r#"(function() {{
-  try {{ delete {PROTO}.webdriver; }} catch (e) {{}}
-  try {{ Object.defineProperty({PROTO}, 'webdriver', {{ get: function() {{ return undefined; }} }}); }} catch (e) {{}}
+        Some(render(
+            r##"(function () {
+  @SB@
+  sb.getter(Object.getPrototypeOf(navigator), 'webdriver', function () { return false; });
   const hooks = ['callPhantom', '_phantom', '__nightmare', '__selenium_unwrapped',
     '__webdriver_evaluate', '__driver_evaluate', '__webdriver_script_fn',
     '__driver_unwrapped', '__fxdriver_evaluate', '__selenium_evaluate',
     '__webdriver_script_func', '_Selenium_IDE_Recorder', 'domAutomation',
     'domAutomationController'];
-  hooks.forEach(function(h) {{ try {{ delete window[h]; }} catch (e) {{}} }});
-}})();"#
+  hooks.forEach(function (h) { try { delete window[h]; } catch (e) {} });
+})();"##,
+            &[],
         ))
     }
 }
 
 /// Scrubs `$cdc_` / `__webdriver` / `__driver` markers from the prototype chain.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CdpMarkerProvider;
 
 impl EvasionProvider for CdpMarkerProvider {
@@ -129,7 +227,7 @@ impl EvasionProvider for CdpMarkerProvider {
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(
-            r#"(function() {
+            r##"(function() {
   const patterns = [/^\$?cdc_[a-zA-Z0-9]{22}_/, /^\$?cdc_/, /__webdriver/, /__selenium/, /__driver/, /\$chrome_/, /__fxdriver/];
   function scrub(obj) {
     if (!obj) return;
@@ -142,13 +240,14 @@ impl EvasionProvider for CdpMarkerProvider {
   let o = window;
   while (o) { scrub(o); o = Object.getPrototypeOf(o); }
   scrub(document);
-})();"#
+})();"##
                 .to_owned(),
         )
     }
 }
 
 /// Stubs `window.chrome` (runtime, app, csi, loadTimes).
+#[derive(Clone, Copy, Debug, Default)]
 pub struct ChromeRuntimeProvider;
 
 impl EvasionProvider for ChromeRuntimeProvider {
@@ -163,20 +262,21 @@ impl EvasionProvider for ChromeRuntimeProvider {
         masked(fp.flags.chrome_runtime_masking) || masked(fp.flags.navigator_masking)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
+        Some(render(
+            r##"(function () {
+  @SB@
   window.chrome = window.chrome || {};
   window.chrome.app = {
     isInstalled: false,
     InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
     RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
-    getDetails: function() {},
-    getIsInstalled: function() { return false; },
-    installState: function() { return Promise.resolve('not_installed'); },
-    runningState: function() { return 'cannot_run'; },
+    getDetails: sb.native(function getDetails() {}, 'getDetails'),
+    getIsInstalled: sb.native(function getIsInstalled() { return false; }, 'getIsInstalled'),
+    installState: sb.native(function installState() { return Promise.resolve('not_installed'); }, 'installState'),
+    runningState: sb.native(function runningState() { return 'cannot_run'; }, 'runningState'),
   };
   const startLoad = Date.now() / 1000;
-  window.chrome.loadTimes = function() {
+  window.chrome.loadTimes = sb.native(function loadTimes() {
     return {
       requestTime: startLoad, startLoadTime: startLoad, commitLoadTime: startLoad + 0.05,
       finishDocumentLoadTime: startLoad + 0.1, finishLoadTime: startLoad + 0.2,
@@ -184,10 +284,10 @@ impl EvasionProvider for ChromeRuntimeProvider {
       navigationType: 'Other', wasFetchedViaSpdy: false, wasNpnNegotiated: true,
       npnNegotiatedProtocol: 'h2', wasAlternateProtocolAvailable: false, connectionInfo: 'h2',
     };
-  };
-  window.chrome.csi = function() {
+  }, 'loadTimes');
+  window.chrome.csi = sb.native(function csi() {
     return { startE: Date.now(), onloadT: Date.now(), pageT: 1000 + Math.random() * 200, tran: 15 };
-  };
+  }, 'csi');
   window.chrome.runtime = {
     id: undefined,
     OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
@@ -195,18 +295,24 @@ impl EvasionProvider for ChromeRuntimeProvider {
     PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
     PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
     RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' },
-    connect: function() { return { postMessage: function(){}, disconnect: function(){}, onDisconnect: { addListener: function(){} }, onMessage: { addListener: function(){} } }; },
-    sendMessage: function() { if (arguments.length && typeof arguments[arguments.length - 1] === 'function') { arguments[arguments.length - 1]({}); } return Promise.resolve({}); },
-    getURL: function(path) { return 'chrome-extension://' + (this.id || '') + (path || ''); },
-    getManifest: function() { return {}; },
+    connect: sb.native(function connect() {
+      return { postMessage: function(){}, disconnect: function(){}, onDisconnect: { addListener: function(){} }, onMessage: { addListener: function(){} } };
+    }, 'connect'),
+    sendMessage: sb.native(function sendMessage() {
+      if (arguments.length && typeof arguments[arguments.length - 1] === 'function') { arguments[arguments.length - 1]({}); }
+      return Promise.resolve({});
+    }, 'sendMessage'),
+    getURL: sb.native(function getURL(path) { return 'chrome-extension://' + (this.id || '') + (path || ''); }, 'getURL'),
+    getManifest: sb.native(function getManifest() { return {}; }, 'getManifest'),
   };
-})();"#
-                .to_owned(),
-        )
+})();"##,
+            &[],
+        ))
     }
 }
 
 /// Overrides navigator properties (UA, platform, cores, memory, vendor, etc.).
+#[derive(Clone, Copy, Debug, Default)]
 pub struct NavigatorPropsProvider;
 
 impl EvasionProvider for NavigatorPropsProvider {
@@ -222,10 +328,10 @@ impl EvasionProvider for NavigatorPropsProvider {
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
         let native = fp.flags.native_spoofing;
-        let mut out = String::from("(function() {\n");
+        let mut body = String::new();
         let mut define = |prop: &str, value: String| {
-            out.push_str(&format!(
-                "  try {{ Object.defineProperty({PROTO}, '{prop}', {{ get: function() {{ return {value}; }}, configurable: true }}); }} catch (e) {{}}\n"
+            body.push_str(&format!(
+                "  try {{ sb.getter(proto, '{prop}', function () {{ return {value}; }}); }} catch (e) {{}}\n"
             ));
         };
 
@@ -234,27 +340,22 @@ impl EvasionProvider for NavigatorPropsProvider {
                 .platform
                 .clone()
                 .unwrap_or_else(|| fp.os_type.platform().to_owned());
-            define(
-                "platform",
-                format!("'{}'", EvasionContext::escape(&platform)),
-            );
+            define("platform", quoted(&platform));
 
             if let Some(ua) = fp.user_agent.as_deref() {
-                define("userAgent", format!("'{}'", EvasionContext::escape(ua)));
-                define("appVersion", {
-                    let av = fp
-                        .app_version
-                        .clone()
-                        .unwrap_or_else(|| ua.replacen("Mozilla/", "", 1));
-                    format!("'{}'", EvasionContext::escape(&av))
-                });
+                define("userAgent", quoted(ua));
+                let app_version = fp
+                    .app_version
+                    .clone()
+                    .unwrap_or_else(|| ua.replacen("Mozilla/", "", 1));
+                define("appVersion", quoted(&app_version));
             }
         }
         if let Some(cores) = fp.hardware_concurrency {
             define("hardwareConcurrency", cores.to_string());
         }
         if let Some(mem) = fp.device_memory {
-            define("deviceMemory", mem.to_string());
+            define("deviceMemory", EvasionContext::number(mem));
         }
         if let Some(touch) = fp.max_touch_points {
             define("maxTouchPoints", touch.to_string());
@@ -266,29 +367,35 @@ impl EvasionProvider for NavigatorPropsProvider {
                 "Google Inc.".to_owned()
             }
         });
-        define("vendor", format!("'{}'", EvasionContext::escape(&vendor)));
+        define("vendor", quoted(&vendor));
         let product_sub = fp
             .product_sub
             .clone()
             .unwrap_or_else(|| "20030107".to_owned());
-        define(
-            "productSub",
-            format!("'{}'", EvasionContext::escape(&product_sub)),
-        );
+        define("productSub", quoted(&product_sub));
         if let Some(oscpu) = fp.oscpu.as_deref() {
-            define("oscpu", format!("'{}'", EvasionContext::escape(oscpu)));
+            define("oscpu", quoted(oscpu));
         }
         if let Some(build) = fp.build_id.as_deref() {
-            define("buildID", format!("'{}'", EvasionContext::escape(build)));
+            define("buildID", quoted(build));
         }
         // pdfViewerEnabled is expected true on modern desktop Chrome.
         define("pdfViewerEnabled", "true".to_owned());
-        out.push_str("})();");
-        Some(out)
+
+        Some(render(
+            "(function () {\n  @SB@\n  const proto = Object.getPrototypeOf(navigator);\n@BODY@})();",
+            &[("BODY", &body)],
+        ))
     }
 }
 
-/// Fixes `navigator.permissions.query` and `Notification.permission`.
+/// Makes `navigator.permissions.query` agree with `Notification.permission`.
+///
+/// A headless Chrome answers `denied` to one and `prompt` to the other, which
+/// is a known tell. The answer for `notifications` becomes the permission
+/// state that `Notification.permission` names (`default` is `prompt`); every
+/// other query is the browser's own.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PermissionsProvider;
 
 impl EvasionProvider for PermissionsProvider {
@@ -302,29 +409,37 @@ impl EvasionProvider for PermissionsProvider {
         masked(fp.flags.navigator_masking)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  if (!navigator.permissions || !navigator.permissions.query) return;
-  const orig = navigator.permissions.query.bind(navigator.permissions);
-  const patched = function(parameters) {
-    if (parameters && parameters.name === 'notifications') {
-      return Promise.resolve({
-        state: (typeof Notification !== 'undefined' && Notification.permission) || 'default',
-        onchange: null,
-        addEventListener: function() {}, removeEventListener: function() {},
-        dispatchEvent: function() { return true; },
-      });
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof Permissions === 'undefined' || !Permissions.prototype.query) { return; }
+  const original = Permissions.prototype.query;
+  // Notification.permission says "default" where a PermissionState says "prompt".
+  const states = { granted: 'granted', denied: 'denied', 'default': 'prompt' };
+  Permissions.prototype.query = sb.native(function query(descriptor) {
+    const result = original.apply(this, arguments);
+    if (!(descriptor && descriptor.name === 'notifications' && typeof Notification !== 'undefined')) {
+      return result;
     }
-    return orig(parameters);
-  };
-  navigator.permissions.query = (window.__sbNative || function(f){return f;})(patched, 'query');
-})();"#
-                .to_owned(),
-        )
+    return result.then(function (status) {
+      try {
+        Object.defineProperty(status, 'state', {
+          value: states[Notification.permission] || status.state, enumerable: true, configurable: true
+        });
+      } catch (e) {}
+      return status;
+    });
+  }, 'query', original);
+})();"##,
+            &[],
+        ))
     }
 }
 
 /// Spoofs `navigator.plugins` / `navigator.mimeTypes` with 5 PDF-viewer plugins.
+///
+/// Both lists are built once and returned on every read, as Chrome does.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PluginsProvider;
 
 impl EvasionProvider for PluginsProvider {
@@ -338,8 +453,9 @@ impl EvasionProvider for PluginsProvider {
         masked(fp.flags.navigator_masking)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
+        Some(render(
+            r##"(function () {
+  @SB@
   const data = [
     { name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
     { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
@@ -351,8 +467,10 @@ impl EvasionProvider for PluginsProvider {
     { type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' },
     { type: 'text/pdf', suffixes: 'pdf', description: 'Portable Document Format' },
   ];
-  function make() {
-    const plugins = data.map(function(d) {
+  let plugins = null;
+  let mimes = null;
+  function makePlugins() {
+    const list = data.map(function (d) {
       const p = Object.create(Plugin.prototype);
       Object.defineProperties(p, {
         name: { value: d.name }, filename: { value: d.filename },
@@ -361,42 +479,50 @@ impl EvasionProvider for PluginsProvider {
       return p;
     });
     const arr = Object.create(PluginArray.prototype);
-    plugins.forEach(function(p, i) { arr[i] = p; arr[p.name] = p; });
+    list.forEach(function (p, i) { arr[i] = p; arr[p.name] = p; });
     Object.defineProperties(arr, {
-      length: { value: plugins.length },
-      item: { value: function(i) { return plugins[i]; } },
-      namedItem: { value: function(n) { return plugins.find(function(p){ return p.name === n; }) || null; } },
-      refresh: { value: function() {} },
+      length: { value: list.length },
+      item: { value: sb.native(function item(i) { return list[i] || null; }, 'item') },
+      namedItem: { value: sb.native(function namedItem(n) { return list.find(function (p) { return p.name === n; }) || null; }, 'namedItem') },
+      refresh: { value: sb.native(function refresh() {}, 'refresh') },
     });
     return arr;
   }
   function makeMimes() {
-    const mimes = mimeDefs.map(function(m) {
+    const first = navigator.plugins[0];
+    const list = mimeDefs.map(function (m) {
       const mm = Object.create(MimeType.prototype);
       Object.defineProperties(mm, {
         type: { value: m.type }, suffixes: { value: m.suffixes },
-        description: { value: m.description }, enabledPlugin: { value: null },
+        description: { value: m.description }, enabledPlugin: { value: first },
       });
       return mm;
     });
     const arr = Object.create(MimeTypeArray.prototype);
-    mimes.forEach(function(m, i) { arr[i] = m; arr[m.type] = m; });
+    list.forEach(function (m, i) { arr[i] = m; arr[m.type] = m; });
     Object.defineProperties(arr, {
-      length: { value: mimes.length },
-      item: { value: function(i) { return mimes[i]; } },
-      namedItem: { value: function(n) { return mimes.find(function(m){ return m.type === n; }) || null; } },
+      length: { value: list.length },
+      item: { value: sb.native(function item(i) { return list[i] || null; }, 'item') },
+      namedItem: { value: sb.native(function namedItem(n) { return list.find(function (m) { return m.type === n; }) || null; }, 'namedItem') },
     });
     return arr;
   }
-  try { Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', { get: make, configurable: true }); } catch (e) {}
-  try { Object.defineProperty(Object.getPrototypeOf(navigator), 'mimeTypes', { get: makeMimes, configurable: true }); } catch (e) {}
-})();"#
-                .to_owned(),
-        )
+  const proto = Object.getPrototypeOf(navigator);
+  try { sb.getter(proto, 'plugins', function () { return plugins || (plugins = makePlugins()); }); } catch (e) {}
+  try { sb.getter(proto, 'mimeTypes', function () { return mimes || (mimes = makeMimes()); }); } catch (e) {}
+})();"##,
+            &[],
+        ))
     }
 }
 
 /// Spoofs `screen.*`, `window.outer*`, and `devicePixelRatio`.
+///
+/// This provider owns the outer window size; the
+/// [headless](HeadlessProvider) fixes leave it alone, so the two cannot undo
+/// each other. A window is as large as the persona's screen, and never smaller
+/// than the viewport it really has.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct WindowGeometryProvider;
 
 impl EvasionProvider for WindowGeometryProvider {
@@ -419,34 +545,61 @@ impl EvasionProvider for WindowGeometryProvider {
         let pr = fp.pixel_ratio.unwrap_or(1.0);
         let depth = fp.color_depth.unwrap_or(24);
         let avail_h = h.saturating_sub(40);
+        let depth = depth.to_string();
         if native {
             // Width/height/scale are handled by CDP Emulation.setDeviceMetricsOverride.
             // Only colorDepth is not covered by CDP, so patch it minimally.
-            return Some(format!(
-                r#"(function() {{
-  try {{ Object.defineProperty(window.Screen.prototype, 'colorDepth', {{ get: function() {{ return {depth}; }}, configurable: true }}); }} catch (e) {{}}
-  try {{ Object.defineProperty(window.Screen.prototype, 'pixelDepth', {{ get: function() {{ return {depth}; }}, configurable: true }}); }} catch (e) {{}}
-}})();"#
+            return Some(render(
+                r##"(function () {
+  @SB@
+  try { sb.getter(Screen.prototype, 'colorDepth', function () { return @DEPTH@; }); } catch (e) {}
+  try { sb.getter(Screen.prototype, 'pixelDepth', function () { return @DEPTH@; }); } catch (e) {}
+})();"##,
+                &[("DEPTH", &depth)],
             ));
         }
-        Some(format!(
-            r#"(function() {{
-  const defs = {{
-    width: {w}, height: {h}, availWidth: {w}, availHeight: {avail_h},
-    colorDepth: {depth}, pixelDepth: {depth},
-  }};
-  Object.keys(defs).forEach(function(k) {{
-    try {{ Object.defineProperty(window.Screen.prototype, k, {{ get: function() {{ return defs[k]; }}, configurable: true }}); }} catch (e) {{}}
-  }});
-  try {{ Object.defineProperty(window, 'outerWidth', {{ get: function() {{ return {w}; }}, configurable: true }}); }} catch (e) {{}}
-  try {{ Object.defineProperty(window, 'outerHeight', {{ get: function() {{ return {h}; }}, configurable: true }}); }} catch (e) {{}}
-  try {{ Object.defineProperty(window, 'devicePixelRatio', {{ get: function() {{ return {pr}; }}, configurable: true }}); }} catch (e) {{}}
-}})();"#
+        Some(render(
+            r##"(function () {
+  @SB@
+  const defs = {
+    width: @W@, height: @H@, availWidth: @W@, availHeight: @AVAIL_H@,
+    colorDepth: @DEPTH@, pixelDepth: @DEPTH@,
+  };
+  Object.keys(defs).forEach(function (k) {
+    try { sb.getter(Screen.prototype, k, function () { return defs[k]; }); } catch (e) {}
+  });
+  // outerWidth, outerHeight and devicePixelRatio are replaceable accessors that
+  // live on window itself; keep their setter and enumerability.
+  function replaceable(property, read) {
+    const current = Object.getOwnPropertyDescriptor(window, property);
+    Object.defineProperty(window, property, {
+      get: sb.native(read, 'get ' + property),
+      set: current ? current.set : undefined,
+      enumerable: current ? current.enumerable : true,
+      configurable: true
+    });
+  }
+  try { replaceable('outerWidth', function () { return Math.max(@W@, window.innerWidth); }); } catch (e) {}
+  try { replaceable('outerHeight', function () { return Math.max(@AVAIL_H@, window.innerHeight); }); } catch (e) {}
+  try { replaceable('devicePixelRatio', function () { return @PR@; }); } catch (e) {}
+})();"##,
+            &[
+                ("W", &w.to_string()),
+                ("H", &h.to_string()),
+                ("AVAIL_H", &avail_h.to_string()),
+                ("DEPTH", &depth),
+                ("PR", &EvasionContext::number(pr)),
+            ],
         ))
     }
 }
 
 /// Overrides WebGL `UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL`.
+///
+/// The fingerprint's optional GPU vendor and renderer ids are not emitted: no
+/// browser API shows them to a page, and a property to carry them would only
+/// be one more thing to find.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct WebglProvider;
 
 impl EvasionProvider for WebglProvider {
@@ -468,42 +621,35 @@ impl EvasionProvider for WebglProvider {
         };
         let vendor = fp.webgl_vendor.as_deref().unwrap_or(default_vendor);
         let renderer = fp.webgl_renderer.as_deref().unwrap_or(default_renderer);
-        let vendor_id = fp.webgl_vendor_id.as_deref().unwrap_or("");
-        let renderer_id = fp.webgl_renderer_id.as_deref().unwrap_or("");
-        Some(format!(
-            r#"(function() {{
-  const vendor = '{v}';
-  const renderer = '{r}';
-  const vendorId = '{vid}';
-  const rendererId = '{rid}';
-  function patch(ctx) {{
-    if (!ctx || !ctx.prototype) return;
-    const orig = ctx.prototype.getParameter;
-    const patched = function(parameter) {{
-      if (parameter === 37445) return vendor;
-      if (parameter === 37446) return renderer;
-      return orig.call(this, parameter);
-    }};
-    ctx.prototype.getParameter = (window.__sbNative || function(f){{return f;}})(patched, 'getParameter');
-    if (vendorId) {{
-      Object.defineProperty(ctx.prototype, '__sbVendorId', {{ value: vendorId, configurable: true }});
-    }}
-    if (rendererId) {{
-      Object.defineProperty(ctx.prototype, '__sbRendererId', {{ value: rendererId, configurable: true }});
-    }}
-  }}
+        Some(render(
+            r##"(function () {
+  @SB@
+  const vendor = @VENDOR@;
+  const renderer = @RENDERER@;
+  function patch(context) {
+    if (!context || !context.prototype) { return; }
+    const original = context.prototype.getParameter;
+    context.prototype.getParameter = sb.native(function getParameter(parameter) {
+      if (parameter === 37445) { return vendor; }
+      if (parameter === 37446) { return renderer; }
+      return original.apply(this, arguments);
+    }, 'getParameter', original);
+  }
   patch(window.WebGLRenderingContext);
   patch(window.WebGL2RenderingContext);
-}})();"#,
-            v = EvasionContext::escape(vendor),
-            r = EvasionContext::escape(renderer),
-            vid = EvasionContext::escape(vendor_id),
-            rid = EvasionContext::escape(renderer_id),
+})();"##,
+            &[("VENDOR", &quoted(vendor)), ("RENDERER", &quoted(renderer))],
         ))
     }
 }
 
 /// Deterministic canvas noise on `toDataURL` / `toBlob` / `getImageData`.
+///
+/// The noise is a function of the seed and the pixel's position, so reading
+/// the same canvas twice gives the same bytes, and a sub-rectangle carries the
+/// noise of the same pixels as the whole canvas. `toDataURL` and `toBlob`
+/// read a noisy copy: the canvas itself is never changed.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CanvasNoiseProvider;
 
 impl EvasionProvider for CanvasNoiseProvider {
@@ -517,51 +663,72 @@ impl EvasionProvider for CanvasNoiseProvider {
         matches!(fp.flags.canvas_noise, CanvasNoiseMode::Mask)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let seed = ctx.seed;
-        Some(format!(
-            r#"(function() {{
-  let state = {seed} >>> 0;
-  function rand() {{ state = (state * 1664525 + 1013904223) >>> 0; return state / 4294967296; }}
-  function tweak(canvas) {{
-    try {{
-      const ctx = canvas.getContext('2d');
-      if (!ctx || !canvas.width || !canvas.height) return;
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const d = img.data;
-      for (let i = 0; i < d.length; i += 4) {{
-        const n = Math.floor(rand() * 3) - 1;
-        d[i] = Math.max(0, Math.min(255, d[i] + n));
-      }}
-      ctx.putImageData(img, 0, 0);
-    }} catch (e) {{}}
-  }}
-  const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
-  HTMLCanvasElement.prototype.toDataURL = (window.__sbNative || function(f){{return f;}})(function() {{
-    tweak(this); return origToDataURL.apply(this, arguments);
-  }}, 'toDataURL');
-  const origToBlob = HTMLCanvasElement.prototype.toBlob;
-  if (origToBlob) {{
-    HTMLCanvasElement.prototype.toBlob = (window.__sbNative || function(f){{return f;}})(function() {{
-      tweak(this); return origToBlob.apply(this, arguments);
-    }}, 'toBlob');
-  }}
-  const origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-  CanvasRenderingContext2D.prototype.getImageData = (window.__sbNative || function(f){{return f;}})(function() {{
-    const img = origGetImageData.apply(this, arguments);
-    const d = img.data;
-    for (let i = 0; i < d.length; i += 4) {{
-      const n = Math.floor(rand() * 3) - 1;
-      d[i] = Math.max(0, Math.min(255, d[i] + n));
-    }}
-    return img;
-  }}, 'getImageData');
-}})();"#
+        Some(render(
+            r##"(function () {
+  @SB@
+  const seed = @SEED@ >>> 0;
+  @HASH@
+  // Nudges the red channel of each pixel by -1, 0 or +1. The pixel at
+  // (x0 + column, y0 + row) always gets the same nudge.
+  function perturb(data, width, x0, y0) {
+    for (let i = 0; i < data.length; i += 4) {
+      const pixel = i / 4;
+      const column = pixel % width;
+      const row = (pixel - column) / width;
+      const nudge = (hash((y0 + row) * 65536 + x0 + column) % 3) - 1;
+      if (nudge !== 0) { data[i] = Math.max(0, Math.min(255, data[i] + nudge)); }
+    }
+  }
+  const createElement = Document.prototype.createElement;
+  const getContext = HTMLCanvasElement.prototype.getContext;
+  const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+  const putImageData = CanvasRenderingContext2D.prototype.putImageData;
+  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+  const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+  // A noisy copy of a canvas, or null when it cannot be read (empty, or tainted
+  // by another origin); then the genuine canvas answers, or throws, as it would.
+  function noisyCopy(canvas) {
+    try {
+      if (!canvas.width || !canvas.height) { return null; }
+      const copy = createElement.call(document, 'canvas');
+      copy.width = canvas.width;
+      copy.height = canvas.height;
+      const context = getContext.call(copy, '2d');
+      context.drawImage(canvas, 0, 0);
+      const image = originalGetImageData.call(context, 0, 0, copy.width, copy.height);
+      perturb(image.data, image.width, 0, 0);
+      putImageData.call(context, image, 0, 0);
+      return copy;
+    } catch (e) {
+      return null;
+    }
+  }
+  HTMLCanvasElement.prototype.toDataURL = sb.native(function toDataURL() {
+    return originalToDataURL.apply(noisyCopy(this) || this, arguments);
+  }, 'toDataURL', originalToDataURL);
+  if (originalToBlob) {
+    HTMLCanvasElement.prototype.toBlob = sb.native(function toBlob() {
+      return originalToBlob.apply(noisyCopy(this) || this, arguments);
+    }, 'toBlob', originalToBlob);
+  }
+  CanvasRenderingContext2D.prototype.getImageData = sb.native(function getImageData(sx, sy) {
+    const image = originalGetImageData.apply(this, arguments);
+    perturb(image.data, image.width, Math.floor(Number(sx)) || 0, Math.floor(Number(sy)) || 0);
+    return image;
+  }, 'getImageData', originalGetImageData);
+})();"##,
+            &[("SEED", &ctx.seed.to_string()), ("HASH", NOISE_HASH)],
         ))
     }
 }
 
-/// Deterministic audio noise on `AudioBuffer.getChannelData` and
-/// `AnalyserNode.getFloatFrequencyData`.
+/// Deterministic audio noise on `AudioBuffer.getChannelData`,
+/// `AudioBuffer.copyFromChannel` and `AnalyserNode.getFloatFrequencyData`.
+///
+/// A buffer's samples are perturbed once, the first time any of them is read,
+/// so later reads see the same values; the analyser's noise depends only on the
+/// seed and the bin.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct AudioNoiseProvider;
 
 impl EvasionProvider for AudioNoiseProvider {
@@ -576,44 +743,47 @@ impl EvasionProvider for AudioNoiseProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let seed = ctx.seed ^ 0x5DEE_CE66;
-        Some(format!(
-            r#"(function() {{
-  let state = {seed} >>> 0;
-  function rand() {{ state = (state * 1664525 + 1013904223) >>> 0; return state / 4294967296 - 0.5; }}
-  if (window.AudioBuffer) {{
-    const orig = AudioBuffer.prototype.getChannelData;
-    AudioBuffer.prototype.getChannelData = (window.__sbNative || function(f){{return f;}})(function() {{
-      const data = orig.apply(this, arguments);
-      for (let i = 0; i < data.length; i += 100) {{ data[i] = data[i] + rand() * 1e-7; }}
+        Some(render(
+            r##"(function () {
+  @SB@
+  const seed = @SEED@ >>> 0;
+  @HASH@
+  function noise(index) { return hash(index) / 4294967296 - 0.5; }
+  if (window.AudioBuffer) {
+    const originalGetChannelData = AudioBuffer.prototype.getChannelData;
+    const originalCopyFromChannel = AudioBuffer.prototype.copyFromChannel;
+    const done = new WeakSet();
+    AudioBuffer.prototype.getChannelData = sb.native(function getChannelData(channel) {
+      const data = originalGetChannelData.apply(this, arguments);
+      if (!done.has(data.buffer)) {
+        done.add(data.buffer);
+        const offset = (Number(channel) || 0) * 100003;
+        for (let i = 0; i < data.length; i += 100) { data[i] += noise(i + offset) * 1e-7; }
+      }
       return data;
-    }}, 'getChannelData');
-  }}
-  if (window.AnalyserNode) {{
-    const origF = AnalyserNode.prototype.getFloatFrequencyData;
-    AnalyserNode.prototype.getFloatFrequencyData = (window.__sbNative || function(f){{return f;}})(function(array) {{
-      origF.call(this, array);
-      for (let i = 0; i < array.length; i++) {{ array[i] += rand() * 0.0002; }}
-    }}, 'getFloatFrequencyData');
-  }}
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (AC) {{
-    const origCreateAnalyser = AC.prototype.createAnalyser;
-    AC.prototype.createAnalyser = (window.__sbNative || function(f){{return f;}})(function() {{
-      const node = origCreateAnalyser.apply(this, arguments);
-      const origGetFloat = node.getFloatFrequencyData.bind(node);
-      node.getFloatFrequencyData = function(array) {{
-        origGetFloat(array);
-        for (let i = 0; i < array.length; i++) {{ array[i] += rand() * 0.0002; }}
-      }};
-      return node;
-    }}, 'createAnalyser');
-  }}
-}})();"#
+    }, 'getChannelData', originalGetChannelData);
+    if (originalCopyFromChannel) {
+      AudioBuffer.prototype.copyFromChannel = sb.native(function copyFromChannel(destination, channel) {
+        this.getChannelData(channel);
+        return originalCopyFromChannel.apply(this, arguments);
+      }, 'copyFromChannel', originalCopyFromChannel);
+    }
+  }
+  if (window.AnalyserNode) {
+    const originalFloat = AnalyserNode.prototype.getFloatFrequencyData;
+    AnalyserNode.prototype.getFloatFrequencyData = sb.native(function getFloatFrequencyData(array) {
+      originalFloat.apply(this, arguments);
+      for (let i = 0; i < array.length; i++) { array[i] += noise(i) * 0.0002; }
+    }, 'getFloatFrequencyData', originalFloat);
+  }
+})();"##,
+            &[("SEED", &seed.to_string()), ("HASH", NOISE_HASH)],
         ))
     }
 }
 
 /// Filters WebRTC STUN/TURN servers to prevent local-IP leaks.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct WebRtcProvider;
 
 impl EvasionProvider for WebRtcProvider {
@@ -629,76 +799,92 @@ impl EvasionProvider for WebRtcProvider {
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let public_ip = ctx.fingerprint.webrtc_public_ip.clone().unwrap_or_default();
         let local_ip = ctx.fingerprint.webrtc_local_ip.clone().unwrap_or_default();
-        let has_custom_ips = !public_ip.is_empty() || !local_ip.is_empty();
-        Some(format!(
-            r#"(function() {{
+        Some(render(
+            r##"(function () {
+  @SB@
   const RTC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-  if (!RTC) return;
-  function filterConfig(config) {{
-    if (config && Array.isArray(config.iceServers)) {{
-      config.iceServers = config.iceServers.filter(function(s) {{
-        const urls = [].concat(s.urls || s.url || []);
-        return urls.every(function(u) {{ return typeof u === 'string' && !/^stun:|^turn:/i.test(u); }});
-      }});
-    }}
+  if (!RTC) { return; }
+  const publicIp = @PUBLIC_IP@;
+  const localIp = @LOCAL_IP@;
+  const customIps = !!(publicIp || localIp);
+  function filterConfig(config) {
+    if (config && Array.isArray(config.iceServers)) {
+      return Object.assign({}, config, {
+        iceServers: config.iceServers.filter(function (s) {
+          const urls = [].concat(s.urls || s.url || []);
+          return urls.every(function (u) { return typeof u === 'string' && !/^(stuns?|turns?):/i.test(u); });
+        })
+      });
+    }
     return config;
-  }}
-  function replaceIps(sdp) {{
-    if (typeof sdp !== 'string') return sdp;
-    return sdp.split(/\r?\n/).map(function(line) {{
-      if ({has_public} && line.indexOf('a=candidate:') === 0) {{
+  }
+  function replaceIps(sdp) {
+    if (typeof sdp !== 'string') { return sdp; }
+    return sdp.split(/\r?\n/).map(function (line) {
+      if (publicIp && line.indexOf('a=candidate:') === 0) {
         const parts = line.split(' ');
-        if (parts.length >= 5) parts[4] = '{public_ip}';
+        if (parts.length >= 5) { parts[4] = publicIp; }
         return parts.join(' ');
-      }}
-      if ({has_local} && line.indexOf('c=IN IP') === 0) {{
+      }
+      if (localIp && line.indexOf('c=IN IP') === 0) {
         const parts = line.split(' ');
-        if (parts.length >= 3) parts[2] = '{local_ip}';
+        if (parts.length >= 3) { parts[2] = localIp; }
         return parts.join(' ');
-      }}
+      }
       return line;
-    }}).join('\r\n');
-  }}
-  const Patched = function(config, constraints) {{
-    const pc = new RTC(filterConfig(config), constraints);
-    if ({has_custom_ips}) {{
-      const origCreateOffer = pc.createOffer.bind(pc);
-      pc.createOffer = function(opts) {{ return origCreateOffer(opts).then(function(o) {{ if (o && o.sdp) o.sdp = replaceIps(o.sdp); return o; }}); }};
-      const origSetLocal = pc.setLocalDescription.bind(pc);
-      pc.setLocalDescription = function(desc) {{ if (desc && desc.sdp) desc.sdp = replaceIps(desc.sdp); return origSetLocal(desc); }};
-    }}
-    return pc;
-  }};
-  Patched.prototype = RTC.prototype;
-  window.RTCPeerConnection = (window.__sbNative || function(f){{return f;}})(Patched, 'RTCPeerConnection');
-  window.webkitRTCPeerConnection = window.RTCPeerConnection;
-  if ({has_custom_ips} && window.RTCIceCandidate) {{
-    const OrigCandidate = window.RTCIceCandidate;
-    window.RTCIceCandidate = function(candidateInit) {{
-      let c = candidateInit;
-      if (typeof c === 'string') c = {{ candidate: c, sdpMid: '', sdpMLineIndex: 0 }};
-      if (c && typeof c.candidate === 'string') {{
-        if ({has_public}) {{
-          const parts = c.candidate.split(' ');
-          if (parts.length >= 5) parts[4] = '{public_ip}';
-          c.candidate = parts.join(' ');
-        }}
-      }}
-      return new OrigCandidate(c);
-    }};
-    window.RTCIceCandidate.prototype = OrigCandidate.prototype;
-  }}
-}})();"#,
-            has_public = !public_ip.is_empty(),
-            has_local = !local_ip.is_empty(),
-            has_custom_ips = has_custom_ips,
-            public_ip = EvasionContext::escape(&public_ip),
-            local_ip = EvasionContext::escape(&local_ip),
+    }).join('\r\n');
+  }
+  function decorate(pc) {
+    const createOffer = pc.createOffer.bind(pc);
+    pc.createOffer = function (opts) {
+      return createOffer(opts).then(function (o) { if (o && o.sdp) { o.sdp = replaceIps(o.sdp); } return o; });
+    };
+    const setLocal = pc.setLocalDescription.bind(pc);
+    pc.setLocalDescription = function (desc) {
+      if (desc && desc.sdp) { desc.sdp = replaceIps(desc.sdp); }
+      return setLocal(desc);
+    };
+  }
+  const Patched = new Proxy(RTC, {
+    construct: function (target, args, newTarget) {
+      const pc = Reflect.construct(target, [filterConfig(args[0])].concat(args.slice(1)), newTarget);
+      if (customIps) { decorate(pc); }
+      return pc;
+    }
+  });
+  sb.ctor(Patched, 'RTCPeerConnection');
+  Object.defineProperty(RTC.prototype, 'constructor', { value: Patched, writable: true, configurable: true });
+  window.RTCPeerConnection = Patched;
+  if ('webkitRTCPeerConnection' in window) { window.webkitRTCPeerConnection = Patched; }
+  if (customIps && window.RTCIceCandidate) {
+    const Original = window.RTCIceCandidate;
+    const PatchedCandidate = new Proxy(Original, {
+      construct: function (target, args, newTarget) {
+        let init = args[0];
+        if (typeof init === 'string') { init = { candidate: init, sdpMid: '', sdpMLineIndex: 0 }; }
+        if (publicIp && init && typeof init.candidate === 'string') {
+          const parts = init.candidate.split(' ');
+          if (parts.length >= 5) { parts[4] = publicIp; }
+          init = Object.assign({}, init, { candidate: parts.join(' ') });
+        }
+        return Reflect.construct(target, [init].concat(args.slice(1)), newTarget);
+      }
+    });
+    sb.ctor(PatchedCandidate, 'RTCIceCandidate');
+    Object.defineProperty(Original.prototype, 'constructor', { value: PatchedCandidate, writable: true, configurable: true });
+    window.RTCIceCandidate = PatchedCandidate;
+  }
+})();"##,
+            &[
+                ("PUBLIC_IP", &quoted(&public_ip)),
+                ("LOCAL_IP", &quoted(&local_ip)),
+            ],
         ))
     }
 }
 
 /// Spoofs the Battery Status API.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct BatteryProvider;
 
 impl EvasionProvider for BatteryProvider {
@@ -713,31 +899,35 @@ impl EvasionProvider for BatteryProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let b = ctx.fingerprint.battery.clone().unwrap_or_default();
-        let charging_time = if b.charging_time.is_finite() {
-            b.charging_time.to_string()
-        } else {
-            "Infinity".to_owned()
-        };
-        let discharging_time = if b.discharging_time.is_finite() {
-            b.discharging_time.to_string()
-        } else {
-            "Infinity".to_owned()
-        };
-        Some(format!(
-            r#"(function() {{
-  const info = {{ charging: {charging}, chargingTime: {charging_time}, dischargingTime: {discharging_time}, level: {level},
-    addEventListener: function() {{}}, removeEventListener: function() {{}}, dispatchEvent: function() {{ return true; }},
-    onchargingchange: null, onchargingtimechange: null, ondischargingtimechange: null, onlevelchange: null }};
-  const getBattery = function() {{ return Promise.resolve(info); }};
-  try {{ Object.defineProperty(Object.getPrototypeOf(navigator), 'getBattery', {{ value: (window.__sbNative || function(f){{return f;}})(getBattery, 'getBattery'), configurable: true }}); }} catch (e) {{}}
-}})();"#,
-            charging = b.charging,
-            level = b.level,
+        Some(render(
+            r##"(function () {
+  @SB@
+  const info = { charging: @CHARGING@, chargingTime: @CHARGING_TIME@, dischargingTime: @DISCHARGING_TIME@, level: @LEVEL@,
+    addEventListener: function () {}, removeEventListener: function () {}, dispatchEvent: function () { return true; },
+    onchargingchange: null, onchargingtimechange: null, ondischargingtimechange: null, onlevelchange: null };
+  const getBattery = sb.native(function getBattery() { return Promise.resolve(info); }, 'getBattery');
+  try { Object.defineProperty(Object.getPrototypeOf(navigator), 'getBattery', { value: getBattery, configurable: true }); } catch (e) {}
+})();"##,
+            &[
+                ("CHARGING", if b.charging { "true" } else { "false" }),
+                ("CHARGING_TIME", &EvasionContext::number(b.charging_time)),
+                (
+                    "DISCHARGING_TIME",
+                    &EvasionContext::number(b.discharging_time),
+                ),
+                ("LEVEL", &EvasionContext::number(b.level)),
+            ],
         ))
     }
 }
 
 /// Spoofs the Network Information API (`navigator.connection`).
+///
+/// `navigator.connection` stays the browser's own `NetworkInformation`; only
+/// the four values Chrome reports (`effectiveType`, `rtt`, `downlink` and
+/// `saveData`) are replaced, on the prototype that owns them. Chrome has no
+/// `mozConnection` or `webkitConnection`, so none is added.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct ConnectionProvider;
 
 impl EvasionProvider for ConnectionProvider {
@@ -752,25 +942,30 @@ impl EvasionProvider for ConnectionProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let c = ctx.fingerprint.connection.clone().unwrap_or_default();
-        Some(format!(
-            r#"(function() {{
-  const conn = {{ effectiveType: '{et}', rtt: {rtt}, downlink: {downlink}, saveData: {save_data},
-    type: 'wifi', downlinkMax: Infinity,
-    addEventListener: function() {{}}, removeEventListener: function() {{}}, onchange: null,
-    dispatchEvent: function() {{ return true; }} }};
-  ['connection', 'mozConnection', 'webkitConnection'].forEach(function(prop) {{
-    try {{ Object.defineProperty(Object.getPrototypeOf(navigator), prop, {{ get: function() {{ return conn; }}, configurable: true }}); }} catch (e) {{}}
-  }});
-}})();"#,
-            et = EvasionContext::escape(&c.effective_type),
-            rtt = c.rtt,
-            downlink = c.downlink,
-            save_data = c.save_data,
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof NetworkInformation === 'undefined') { return; }
+  const proto = NetworkInformation.prototype;
+  const values = { effectiveType: @EFFECTIVE_TYPE@, rtt: @RTT@, downlink: @DOWNLINK@, saveData: @SAVE_DATA@ };
+  Object.keys(values).forEach(function (prop) {
+    if (prop in proto) {
+      try { sb.getter(proto, prop, function () { return values[prop]; }); } catch (e) {}
+    }
+  });
+})();"##,
+            &[
+                ("EFFECTIVE_TYPE", &quoted(&c.effective_type)),
+                ("RTT", &c.rtt.to_string()),
+                ("DOWNLINK", &EvasionContext::number(c.downlink)),
+                ("SAVE_DATA", if c.save_data { "true" } else { "false" }),
+            ],
         ))
     }
 }
 
 /// Spoofs `navigator.mediaDevices.enumerateDevices`.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct MediaDevicesProvider;
 
 impl EvasionProvider for MediaDevicesProvider {
@@ -785,51 +980,68 @@ impl EvasionProvider for MediaDevicesProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
-        if !fp.media_devices.is_empty() {
+        let devices = if fp.media_devices.is_empty() {
+            let audio_in = fp.audio_inputs.unwrap_or(1);
+            let audio_out = fp.audio_outputs.unwrap_or(1);
+            let video_in = fp.video_inputs.unwrap_or(1);
+            render(
+                r##"(function () {
+    const labels = ['Default', 'Communications', 'Microphone', 'Camera', 'Speaker'];
+    const out = [];
+    for (let i = 0; i < @AUDIO_IN@; i++) out.push({ deviceId: 'audioinput-' + i, groupId: 'grp-' + i, kind: 'audioinput', label: labels[i % labels.length] });
+    for (let i = 0; i < @AUDIO_OUT@; i++) out.push({ deviceId: 'audiooutput-' + i, groupId: 'grp-' + i, kind: 'audiooutput', label: labels[i % labels.length] });
+    for (let i = 0; i < @VIDEO_IN@; i++) out.push({ deviceId: 'videoinput-' + i, groupId: 'grp-' + i, kind: 'videoinput', label: 'Camera ' + i });
+    return out;
+  })()"##,
+                &[
+                    ("AUDIO_IN", &audio_in.to_string()),
+                    ("AUDIO_OUT", &audio_out.to_string()),
+                    ("VIDEO_IN", &video_in.to_string()),
+                ],
+            )
+        } else {
             let entries = fp
                 .media_devices
                 .iter()
                 .map(|d| {
                     format!(
-                        "{{ deviceId: '{}', groupId: '{}', kind: '{}', label: '{}', toJSON: function() {{ return this; }} }}",
-                        EvasionContext::escape(&d.device_id),
-                        EvasionContext::escape(&d.group_id),
-                        EvasionContext::escape(&d.kind),
-                        EvasionContext::escape(&d.label),
+                        "{{ deviceId: {}, groupId: {}, kind: {}, label: {} }}",
+                        quoted(&d.device_id),
+                        quoted(&d.group_id),
+                        quoted(&d.kind),
+                        quoted(&d.label),
                     )
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            return Some(format!(
-                r#"(function() {{
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-  const devices = [{entries}];
-  const patched = function() {{ return Promise.resolve(devices.map(function(d) {{ return Object.assign({{}}, d, {{ toJSON: function() {{ return this; }} }}); }})); }};
-  navigator.mediaDevices.enumerateDevices = (window.__sbNative || function(f){{return f;}})(patched, 'enumerateDevices');
-}})();"#
-            ));
-        }
-        let audio_in = fp.audio_inputs.unwrap_or(1);
-        let audio_out = fp.audio_outputs.unwrap_or(1);
-        let video_in = fp.video_inputs.unwrap_or(1);
-        Some(format!(
-            r#"(function() {{
-  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
-  const labels = ['Default', 'Communications', 'Microphone', 'Camera', 'Speaker'];
-  const patched = function() {{
-    const out = [];
-    for (let i = 0; i < {audio_in}; i++) out.push({{ deviceId: 'audioinput-' + i, groupId: 'grp-' + i, kind: 'audioinput', label: labels[i % labels.length], toJSON: function() {{ return this; }} }});
-    for (let i = 0; i < {audio_out}; i++) out.push({{ deviceId: 'audiooutput-' + i, groupId: 'grp-' + i, kind: 'audiooutput', label: labels[i % labels.length], toJSON: function() {{ return this; }} }});
-    for (let i = 0; i < {video_in}; i++) out.push({{ deviceId: 'videoinput-' + i, groupId: 'grp-' + i, kind: 'videoinput', label: 'Camera ' + i, toJSON: function() {{ return this; }} }});
-    return Promise.resolve(out);
-  }};
-  navigator.mediaDevices.enumerateDevices = (window.__sbNative || function(f){{return f;}})(patched, 'enumerateDevices');
-}})();"#
+            format!("[{entries}]")
+        };
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof MediaDevices === 'undefined' || !MediaDevices.prototype.enumerateDevices) { return; }
+  const original = MediaDevices.prototype.enumerateDevices;
+  const devices = @DEVICES@;
+  MediaDevices.prototype.enumerateDevices = sb.native(function enumerateDevices() {
+    return Promise.resolve(devices.map(function (d) {
+      return Object.assign({}, d, { toJSON: function () { return this; } });
+    }));
+  }, 'enumerateDevices', original);
+})();"##,
+            &[("DEVICES", &devices)],
         ))
     }
 }
 
 /// Restricts font enumeration and loading to the configured font list.
+///
+/// `document.fonts.check` and `load` are replaced on `FontFaceSet.prototype`.
+/// A font spec is read the way CSS reads the `font` shorthand: the family is
+/// what follows the size (`bold 14px "Segoe UI", sans-serif` names
+/// `Segoe UI`), and a bare family name is taken as it is. A spec that names an
+/// allowed font, or only a generic family such as `sans-serif`, is available;
+/// any other family is not.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct FontsProvider;
 
 impl EvasionProvider for FontsProvider {
@@ -843,50 +1055,68 @@ impl EvasionProvider for FontsProvider {
         masked(fp.flags.fonts_masking) && !fp.fonts.is_empty()
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let fonts = ctx.fingerprint.fonts.clone();
-        let families: Vec<String> = fonts
+        let set = ctx
+            .fingerprint
+            .fonts
             .iter()
-            .map(|f| format!("'{}'", EvasionContext::escape(f)))
-            .collect();
-        let set = families.join(", ");
-        Some(format!(
-            r#"(function() {{
-  const allowed = new Set([{set}]);
-  function makeFace(family) {{
-    return {{ family: family, status: 'loaded', load: function() {{ return Promise.resolve(this); }}, }}
-  }}
-  function parseFamily(spec) {{
-    if (typeof spec !== 'string') return '';
-    return spec.replace(/['"]/g, '').split(',')[0].trim();
-  }}
-  if (document.fonts) {{
-    const origLoad = document.fonts.load.bind(document.fonts);
-    document.fonts.load = function(fontSpec, text) {{
-      const family = parseFamily(fontSpec);
-      if (allowed.has(family)) return Promise.resolve([makeFace(family)]);
-      return origLoad(fontSpec, text);
-    }};
-    document.fonts.check = function(fontSpec, text) {{
-      return allowed.has(parseFamily(fontSpec));
-    }};
-  }}
-  if (window.FontFace) {{
-    const Orig = window.FontFace;
-    window.FontFace = function(family, source, descriptors) {{
-      if (!allowed.has(parseFamily(family))) {{
-        return new Orig('sans-serif', 'url(data:application/font-woff2;base64,)', descriptors);
-      }}
-      return new Orig(family, source, descriptors);
-    }};
-    window.FontFace.prototype = Orig.prototype;
-  }}
-}})();"#,
-            set = set
+            .map(|f| quoted(f))
+            .collect::<Vec<_>>()
+            .join(", ");
+        Some(render(
+            r##"(function () {
+  @SB@
+  const allowed = new Set([@FONTS@]);
+  const generic = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui',
+    'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded', 'math', 'emoji', 'fangsong']);
+  const size = /^(?:(?:\d+(?:\.\d+)?|\.\d+)(?:px|pt|pc|em|ex|ch|rem|vw|vh|vmin|vmax|cm|mm|in|q|%)|(?:xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large|smaller|larger))(?:\/\S*)?$/i;
+  // The first family of a font spec: after the size in a shorthand, else the whole text.
+  function parseFamily(spec) {
+    if (typeof spec !== 'string') { return ''; }
+    const first = spec.split(',')[0].replace(/['"]/g, '').trim();
+    const tokens = first.split(/\s+/);
+    for (let i = 0; i < tokens.length - 1; i++) {
+      if (size.test(tokens[i])) { return tokens.slice(i + 1).join(' '); }
+    }
+    return first;
+  }
+  function available(family) { return allowed.has(family) || generic.has(family.toLowerCase()); }
+  function makeFace(family) {
+    return { family: family, status: 'loaded', load: function () { return Promise.resolve(this); } };
+  }
+  if (window.FontFaceSet) {
+    const originalLoad = FontFaceSet.prototype.load;
+    const originalCheck = FontFaceSet.prototype.check;
+    FontFaceSet.prototype.load = sb.native(function load(spec, text) {
+      const family = parseFamily(spec);
+      if (allowed.has(family)) { return Promise.resolve([makeFace(family)]); }
+      return originalLoad.apply(this, arguments);
+    }, 'load', originalLoad);
+    FontFaceSet.prototype.check = sb.native(function check(spec, text) {
+      return available(parseFamily(spec));
+    }, 'check', originalCheck);
+  }
+  if (window.FontFace) {
+    const Original = window.FontFace;
+    const Patched = new Proxy(Original, {
+      construct: function (target, args, newTarget) {
+        if (!allowed.has(parseFamily(args[0]))) {
+          args = ['sans-serif', 'url(data:application/font-woff2;base64,)', args[2]];
+        }
+        return Reflect.construct(target, args, newTarget);
+      }
+    });
+    sb.ctor(Patched, 'FontFace');
+    Object.defineProperty(Original.prototype, 'constructor', { value: Patched, writable: true, configurable: true });
+    window.FontFace = Patched;
+  }
+})();"##,
+            &[("FONTS", &set)],
         ))
     }
 }
 
 /// Spoofs `speechSynthesis.getVoices()`.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct SpeechProvider;
 
 impl EvasionProvider for SpeechProvider {
@@ -909,28 +1139,31 @@ impl EvasionProvider for SpeechProvider {
             .iter()
             .map(|v| {
                 format!(
-                    "{{ name: '{n}', lang: '{l}', default: {d}, localService: {ls}, voiceURI: '{u}' }}",
-                    n = EvasionContext::escape(&v.name),
-                    l = EvasionContext::escape(&v.lang),
-                    d = v.default,
-                    ls = v.local_service,
-                    u = EvasionContext::escape(&v.voice_uri),
+                    "{{ name: {}, lang: {}, default: {}, localService: {}, voiceURI: {} }}",
+                    quoted(&v.name),
+                    quoted(&v.lang),
+                    v.default,
+                    v.local_service,
+                    quoted(&v.voice_uri),
                 )
             })
             .collect::<Vec<_>>()
             .join(", ");
-        Some(format!(
-            r#"(function() {{
-  if (!window.speechSynthesis) return;
-  const voices = [{entries}];
-  const patched = function() {{ return voices; }};
-  try {{ Object.defineProperty(window.speechSynthesis, 'getVoices', {{ value: (window.__sbNative || function(f){{return f;}})(patched, 'getVoices'), configurable: true }}); }} catch (e) {{}}
-}})();"#
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof SpeechSynthesis === 'undefined' || !SpeechSynthesis.prototype.getVoices) { return; }
+  const original = SpeechSynthesis.prototype.getVoices;
+  const voices = [@VOICES@];
+  SpeechSynthesis.prototype.getVoices = sb.native(function getVoices() { return voices.slice(); }, 'getVoices', original);
+})();"##,
+            &[("VOICES", &entries)],
         ))
     }
 }
 
 /// Provides a minimal Web Bluetooth stub.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct BluetoothProvider;
 
 impl EvasionProvider for BluetoothProvider {
@@ -944,22 +1177,27 @@ impl EvasionProvider for BluetoothProvider {
         masked(fp.flags.bluetooth_masking)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  if (navigator.bluetooth) return;
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (navigator.bluetooth) { return; }
   const bt = {
-    getAvailability: function() { return Promise.resolve(false); },
-    requestDevice: function() { return Promise.reject(new DOMException('User cancelled', 'NotFoundError')); },
-    addEventListener: function() {}, removeEventListener: function() {},
+    getAvailability: function () { return Promise.resolve(false); },
+    requestDevice: function () { return Promise.reject(new DOMException('User cancelled', 'NotFoundError')); },
+    addEventListener: function () {}, removeEventListener: function () {},
   };
-  try { Object.defineProperty(Object.getPrototypeOf(navigator), 'bluetooth', { get: function() { return bt; }, configurable: true }); } catch (e) {}
-})();"#
-                .to_owned(),
-        )
+  try { sb.getter(Object.getPrototypeOf(navigator), 'bluetooth', function () { return bt; }); } catch (e) {}
+})();"##,
+            &[],
+        ))
     }
 }
 
-/// Fixes headless-mode signals (matchMedia, missing chrome).
+/// Fixes headless-mode signals: `matchMedia` answers and page visibility.
+///
+/// It does not touch `window.outerWidth` or `outerHeight`; the
+/// [window geometry](WindowGeometryProvider) provider owns those.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct HeadlessProvider;
 
 impl EvasionProvider for HeadlessProvider {
@@ -973,34 +1211,44 @@ impl EvasionProvider for HeadlessProvider {
         masked(fp.flags.headless_masking)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  const orig = window.matchMedia;
-  if (orig) {
-    const patched = function(query) {
-      const mql = orig.call(window, query);
-      if (query === '(prefers-reduced-motion: reduce)' || query === '(prefers-color-scheme: dark)') {
-        return { matches: false, media: query, onchange: null, addListener: function() {}, removeListener: function() {}, addEventListener: function() {}, removeEventListener: function() {}, dispatchEvent: function() { return false; } };
-      }
-      if (query === '(any-pointer: fine)') {
-        return { matches: true, media: query, onchange: null, addListener: function() {}, removeListener: function() {}, addEventListener: function() {}, removeEventListener: function() {}, dispatchEvent: function() { return false; } };
-      }
-      return mql;
+        Some(render(
+            r##"(function () {
+  @SB@
+  const original = window.matchMedia;
+  if (original) {
+    const answer = function (query, matches) {
+      return { matches: matches, media: query, onchange: null, addListener: function () {}, removeListener: function () {},
+        addEventListener: function () {}, removeEventListener: function () {}, dispatchEvent: function () { return false; } };
     };
-    window.matchMedia = (window.__sbNative || function(f){return f;})(patched, 'matchMedia');
+    window.matchMedia = sb.native(function matchMedia(query) {
+      const list = original.apply(this, arguments);
+      if (query === '(prefers-reduced-motion: reduce)' || query === '(prefers-color-scheme: dark)') { return answer(query, false); }
+      if (query === '(any-pointer: fine)') { return answer(query, true); }
+      return list;
+    }, 'matchMedia', original);
   }
-  try { Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true }); } catch (e) {}
-  try { Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true }); } catch (e) {}
-  try { Object.defineProperty(window, 'outerWidth', { get: function() { return window.innerWidth; }, configurable: true }); } catch (e) {}
-  try { Object.defineProperty(window, 'outerHeight', { get: function() { return window.innerHeight; }, configurable: true }); } catch (e) {}
-})();"#
-                .to_owned(),
-        )
+  if (typeof Document !== 'undefined') {
+    try { sb.getter(Document.prototype, 'hidden', function () { return false; }); } catch (e) {}
+    try { sb.getter(Document.prototype, 'visibilityState', function () { return 'visible'; }); } catch (e) {}
+  }
+})();"##,
+            &[],
+        ))
     }
 }
 
-/// Traps `Error.prepareStackTrace` assignments so anti-bot scripts cannot
-/// detect CDP by inspecting stack-trace formatting.
+/// Reserved for hiding `Error.prepareStackTrace`; contributes nothing.
+///
+/// This provider used to define an accessor for `Error.prepareStackTrace`
+/// that stored and returned whatever was assigned, which changes nothing about
+/// how stack traces are formatted. It also added an own accessor Chrome does
+/// not have (`Object.getOwnPropertyDescriptor(Error, 'prepareStackTrace')` is
+/// `undefined` in Chrome), so it made the page easier to spot and no harder to
+/// detect as automated. The detection it was meant for, a script that reads a
+/// stack getter while the DevTools protocol has `Runtime` enabled, cannot be
+/// answered from page JavaScript. The provider stays registered so the name is
+/// stable, but it never applies and emits no script.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PrepareStackTraceProvider;
 
 impl EvasionProvider for PrepareStackTraceProvider {
@@ -1010,26 +1258,24 @@ impl EvasionProvider for PrepareStackTraceProvider {
     fn priority(&self) -> i32 {
         87
     }
+    fn applies(&self, _fp: &Fingerprint) -> bool {
+        false
+    }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  try {
-    let current = Error.prepareStackTrace;
-    Object.defineProperty(Error, 'prepareStackTrace', {
-      get: function() { return current; },
-      set: function(fn) { current = fn; },
-      configurable: true
-    });
-  } catch (e) {}
-})();"#
-                .to_owned(),
-        )
+        None
     }
 }
 
-/// Spoofs `HTMLMediaElement.canPlayType` to report support for common codecs
-/// (H.264, AAC) that headless Chrome sometimes omits, a signal checked by
-/// Turnstile/DataDome-style scripts.
+/// Makes `HTMLMediaElement.canPlayType` answer for the codecs Chrome plays.
+///
+/// A Chromium build without proprietary codecs says nothing can play H.264 or
+/// AAC, which Turnstile/DataDome-style scripts treat as a tell. When the
+/// browser itself says it cannot play an MP4/AAC/MP3 type, this answers the way
+/// Chrome with those codecs does: `maybe` for a bare container, `probably` when
+/// every listed codec is a known one, and an empty string otherwise. When the
+/// browser already says it can, its answer stands, and WebM and everything else
+/// are always the browser's own.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct MediaCodecsProvider;
 
 impl EvasionProvider for MediaCodecsProvider {
@@ -1040,23 +1286,30 @@ impl EvasionProvider for MediaCodecsProvider {
         89
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  if (!HTMLMediaElement || !HTMLMediaElement.prototype.canPlayType) return;
-  const orig = HTMLMediaElement.prototype.canPlayType;
-  HTMLMediaElement.prototype.canPlayType = (window.__sbNative || function(f){return f;})(function(type) {
-    const t = String(type).toLowerCase();
-    if (t.indexOf('video/mp4') !== -1 || t.indexOf('video/webm') !== -1) return 'probably';
-    if (t.indexOf('audio/mp4') !== -1 || t.indexOf('audio/mpeg') !== -1 || t.indexOf('audio/aac') !== -1) return 'probably';
-    return orig.call(this, type);
-  }, 'canPlayType');
-})();"#
-                .to_owned(),
-        )
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof HTMLMediaElement === 'undefined' || !HTMLMediaElement.prototype.canPlayType) { return; }
+  const original = HTMLMediaElement.prototype.canPlayType;
+  const known = /^(?:avc[13](?:\.[0-9a-f]+)*|mp4a\.40\.(?:2|5|29)|mp4a\.6b|mp3|flac|opus|vp9|vp09(?:\.\d+)*|av01(?:\.[0-9a-z]+)*)$/i;
+  const container = /^\s*(video\/mp4|audio\/mp4|audio\/x-m4a|audio\/aac|audio\/mpeg|audio\/mp3)\s*(?:;\s*codecs\s*=\s*"?([^"]*)"?\s*)?$/i;
+  HTMLMediaElement.prototype.canPlayType = sb.native(function canPlayType(type) {
+    const answer = original.apply(this, arguments);
+    if (answer !== '') { return answer; }
+    const match = container.exec(String(type));
+    if (!match) { return answer; }
+    if (match[2] === undefined) { return /^audio\/(aac|mpeg|mp3)$/i.test(match[1]) ? 'probably' : 'maybe'; }
+    const codecs = match[2].split(',').map(function (c) { return c.trim(); }).filter(Boolean);
+    return codecs.length > 0 && codecs.every(function (c) { return known.test(c); }) ? 'probably' : '';
+  }, 'canPlayType', original);
+})();"##,
+            &[],
+        ))
     }
 }
 
 /// Overrides `navigator.userAgentData` (Client Hints).
+#[derive(Clone, Copy, Debug, Default)]
 pub struct ClientHintsProvider;
 
 impl EvasionProvider for ClientHintsProvider {
@@ -1077,48 +1330,66 @@ impl EvasionProvider for ClientHintsProvider {
             list.iter()
                 .map(|b| {
                     format!(
-                        "{{ brand: '{}', version: '{}' }}",
-                        EvasionContext::escape(&b.brand),
-                        EvasionContext::escape(&b.version)
+                        "{{ brand: {}, version: {} }}",
+                        quoted(&b.brand),
+                        quoted(&b.version)
                     )
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
         };
-        let brands = brand_json(&ch.brands);
-        let full = brand_json(&ch.full_version_list);
-        Some(format!(
-            r#"(function() {{
-  const brands = [{brands}];
-  const fullList = [{full}];
-  const highEntropy = {{
-    architecture: '{arch}', bitness: '{bitness}', model: '{model}',
-    platform: '{platform}', platformVersion: '{platform_version}',
-    uaFullVersion: '{ua_full}', fullVersionList: fullList, brands: brands, mobile: {mobile},
-  }};
-  const uaData = {{
-    brands: brands, mobile: {mobile}, platform: '{platform}',
-    getHighEntropyValues: function(hints) {{
-      const res = {{ brands: brands, mobile: {mobile}, platform: '{platform}' }};
-      (hints || []).forEach(function(h) {{ if (h in highEntropy) res[h] = highEntropy[h]; }});
+        Some(render(
+            r##"(function () {
+  @SB@
+  const brands = [@BRANDS@];
+  const fullList = [@FULL@];
+  const highEntropy = {
+    architecture: @ARCH@, bitness: @BITNESS@, model: @MODEL@,
+    platform: @PLATFORM@, platformVersion: @PLATFORM_VERSION@,
+    uaFullVersion: @UA_FULL@, fullVersionList: fullList, brands: brands, mobile: @MOBILE@,
+  };
+  const uaData = {
+    brands: brands, mobile: @MOBILE@, platform: @PLATFORM@,
+    getHighEntropyValues: function (hints) {
+      const res = { brands: brands, mobile: @MOBILE@, platform: @PLATFORM@ };
+      (hints || []).forEach(function (h) { if (h in highEntropy) res[h] = highEntropy[h]; });
       return Promise.resolve(res);
-    }},
-    toJSON: function() {{ return {{ brands: brands, mobile: {mobile}, platform: '{platform}' }}; }},
-  }};
-  try {{ Object.defineProperty(Object.getPrototypeOf(navigator), 'userAgentData', {{ get: function() {{ return uaData; }}, configurable: true }}); }} catch (e) {{}}
-}})();"#,
-            arch = EvasionContext::escape(&ch.architecture),
-            bitness = EvasionContext::escape(&ch.bitness),
-            model = EvasionContext::escape(&ch.model),
-            platform = EvasionContext::escape(&ch.platform),
-            platform_version = EvasionContext::escape(&ch.platform_version),
-            ua_full = EvasionContext::escape(&ch.ua_full_version),
-            mobile = ch.mobile,
+    },
+    toJSON: function () { return { brands: brands, mobile: @MOBILE@, platform: @PLATFORM@ }; },
+  };
+  try { sb.getter(Object.getPrototypeOf(navigator), 'userAgentData', function () { return uaData; }); } catch (e) {}
+})();"##,
+            &[
+                ("BRANDS", &brand_json(&ch.brands)),
+                ("FULL", &brand_json(&ch.full_version_list)),
+                ("ARCH", &quoted(&ch.architecture)),
+                ("BITNESS", &quoted(&ch.bitness)),
+                ("MODEL", &quoted(&ch.model)),
+                ("PLATFORM", &quoted(&ch.platform)),
+                ("PLATFORM_VERSION", &quoted(&ch.platform_version)),
+                ("UA_FULL", &quoted(&ch.ua_full_version)),
+                ("MOBILE", if ch.mobile { "true" } else { "false" }),
+            ],
         ))
     }
 }
 
-/// Spoofs the time zone used by `Intl.DateTimeFormat` and `Date`.
+/// Spoofs the time zone seen by `Intl.DateTimeFormat` and by `Date`.
+///
+/// The two are made to agree. `Intl.DateTimeFormat` gets the zone as its
+/// default, unless a caller names another one, and `new Date(...)`'s local-time
+/// methods report that zone: `getTimezoneOffset`, `getHours` and the other
+/// local getters, `toString`, `toDateString`, `toTimeString` and the
+/// `toLocale*String` family, daylight saving time included.
+///
+/// Not covered: the `Date` setters and constructor forms that take local
+/// components (`new Date(2024, 0, 15)`), `Date.parse` of a string without an
+/// offset, and a bare `Date()` call, which still use the machine's zone. When
+/// the fingerprint is applied over the DevTools protocol,
+/// `Emulation.setTimezoneOverride` already changes all of them in the browser
+/// itself and this provider is not needed (see
+/// [`StealthFlags::native_spoofing`](crate::stealth::fingerprint::StealthFlags::native_spoofing)).
+#[derive(Clone, Copy, Debug, Default)]
 pub struct TimezoneProvider;
 
 impl EvasionProvider for TimezoneProvider {
@@ -1137,32 +1408,104 @@ impl EvasionProvider for TimezoneProvider {
             .timezone
             .as_deref()
             .unwrap_or("America/New_York");
-        Some(format!(
-            r#"(function() {{
-  const zone = '{zone}';
-  const OrigDTF = Intl.DateTimeFormat;
-  const Patched = function(...args) {{
-    if (!(this instanceof Patched)) return new Patched(...args);
-    if (!args[1]) args[1] = {{}};
-    if (!args[1].timeZone) args[1].timeZone = zone;
-    return new OrigDTF(...args);
-  }};
-  Patched.prototype = OrigDTF.prototype;
-  Patched.supportedLocalesOf = OrigDTF.supportedLocalesOf;
+        Some(render(
+            r##"(function () {
+  @SB@
+  const zone = @ZONE@;
+  const Original = Intl.DateTimeFormat;
+  // An unknown zone name cannot be honoured; leave the browser's own.
+  try { new Original('en-US', { timeZone: zone }); } catch (e) { return; }
+
+  function withZone(args) {
+    const options = args[1];
+    if (options === undefined) {
+      args[1] = { timeZone: zone };
+    } else if (options !== null && typeof options === 'object' && options.timeZone === undefined) {
+      args[1] = Object.assign({}, options, { timeZone: zone });
+    }
+    return args;
+  }
+  const Patched = new Proxy(Original, {
+    apply: function (target, thisArg, args) { return Reflect.apply(target, thisArg, withZone(Array.from(args))); },
+    construct: function (target, args, newTarget) { return Reflect.construct(target, withZone(Array.from(args)), newTarget); }
+  });
+  sb.ctor(Patched, 'DateTimeFormat');
+  Object.defineProperty(Original.prototype, 'constructor', { value: Patched, writable: true, configurable: true });
   Intl.DateTimeFormat = Patched;
-  const origResolved = OrigDTF.prototype.resolvedOptions;
-  OrigDTF.prototype.resolvedOptions = function() {{
-    const opts = origResolved.call(this);
-    opts.timeZone = zone;
-    return opts;
-  }};
-}})();"#,
-            zone = EvasionContext::escape(zone),
+
+  // Date, in the same zone.
+  const parts = new Original('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric',
+    day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  const zoneNames = new Original('en-US', { timeZone: zone, timeZoneName: 'long' });
+  const proto = Date.prototype;
+  const time = proto.getTime;
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // The local fields of a time, in the zone, and the zone's offset from UTC in minutes.
+  function local(ms) {
+    const p = {};
+    parts.formatToParts(ms).forEach(function (x) { p[x.type] = x.value; });
+    const f = { year: +p.year, month: +p.month - 1, day: +p.day, hour: +p.hour % 24, minute: +p.minute, second: +p.second };
+    f.weekday = new Date(Date.UTC(f.year, f.month, f.day)).getUTCDay();
+    f.offset = (Date.UTC(f.year, f.month, f.day, f.hour, f.minute, f.second) - Math.floor(ms / 1000) * 1000) / 60000;
+    return f;
+  }
+  function pad(n, width) {
+    let s = String(Math.abs(n));
+    while (s.length < width) { s = '0' + s; }
+    return s;
+  }
+  function gmt(offset) {
+    const a = Math.abs(offset);
+    return 'GMT' + (offset < 0 ? '-' : '+') + pad(Math.floor(a / 60), 2) + pad(a % 60, 2);
+  }
+  function zoneName(ms) {
+    const part = zoneNames.formatToParts(ms).find(function (x) { return x.type === 'timeZoneName'; });
+    return part ? part.value : zone;
+  }
+  function datePart(f) { return DAYS[f.weekday] + ' ' + MONTHS[f.month] + ' ' + pad(f.day, 2) + ' ' + pad(f.year, 4); }
+  function timePart(f, ms) {
+    return pad(f.hour, 2) + ':' + pad(f.minute, 2) + ':' + pad(f.second, 2) + ' ' + gmt(f.offset) + ' (' + zoneName(ms) + ')';
+  }
+
+  function replace(name, build) {
+    const original = proto[name];
+    proto[name] = sb.native(function () {
+      const ms = time.call(this);
+      if (ms !== ms) { return original.apply(this, arguments); }
+      return build(local(ms), ms, arguments);
+    }, name, original);
+  }
+  replace('getTimezoneOffset', function (f) { return 0 - f.offset; });
+  replace('getFullYear', function (f) { return f.year; });
+  replace('getMonth', function (f) { return f.month; });
+  replace('getDate', function (f) { return f.day; });
+  replace('getDay', function (f) { return f.weekday; });
+  replace('getHours', function (f) { return f.hour; });
+  replace('getMinutes', function (f) { return f.minute; });
+  replace('getSeconds', function (f) { return f.second; });
+  replace('toString', function (f, ms) { return datePart(f) + ' ' + timePart(f, ms); });
+  replace('toDateString', function (f) { return datePart(f); });
+  replace('toTimeString', function (f, ms) { return timePart(f, ms); });
+
+  ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString'].forEach(function (name) {
+    const original = proto[name];
+    proto[name] = sb.native(function (locales, options) {
+      return original.call(this, locales, withZone([locales, options])[1]);
+    }, name, original);
+  });
+})();"##,
+            &[("ZONE", &quoted(zone))],
         ))
     }
 }
 
 /// Spoofs localization-related values.
+///
+/// `navigator.languages` is one frozen array, returned on every read, as in
+/// Chrome. Quality values in the fingerprint's list (`en;q=0.9`) are dropped.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct LocalizationProvider;
 
 impl EvasionProvider for LocalizationProvider {
@@ -1179,27 +1522,39 @@ impl EvasionProvider for LocalizationProvider {
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
         let langs = fp.languages.as_deref().unwrap_or("en-US,en");
-        let list: Vec<&str> = langs
+        let mut list: Vec<&str> = langs
             .split(',')
             .map(|s| s.split(';').next().unwrap_or(s).trim())
+            .filter(|s| !s.is_empty())
             .collect();
-        let primary = list.first().copied().unwrap_or("en-US");
+        if list.is_empty() {
+            list.push("en-US");
+        }
+        let primary = list[0];
         let array = list
             .iter()
-            .map(|s| format!("'{}'", EvasionContext::escape(s)))
+            .map(|s| quoted(s))
             .collect::<Vec<_>>()
             .join(", ");
-        Some(format!(
-            r#"(function() {{
-  try {{ Object.defineProperty({PROTO}, 'language', {{ get: function() {{ return '{primary}'; }}, configurable: true }}); }} catch (e) {{}}
-  try {{ Object.defineProperty({PROTO}, 'languages', {{ get: function() {{ return [{array}]; }}, configurable: true }}); }} catch (e) {{}}
-}})();"#,
-            primary = EvasionContext::escape(primary),
+        Some(render(
+            r##"(function () {
+  @SB@
+  const languages = Object.freeze([@LANGUAGES@]);
+  const proto = Object.getPrototypeOf(navigator);
+  try { sb.getter(proto, 'language', function () { return @PRIMARY@; }); } catch (e) {}
+  try { sb.getter(proto, 'languages', function () { return languages; }); } catch (e) {}
+})();"##,
+            &[("LANGUAGES", &array), ("PRIMARY", &quoted(primary))],
         ))
     }
 }
 
-/// Spoofs `navigator.geolocation.getCurrentPosition` (CDP fallback).
+/// Spoofs `navigator.geolocation.getCurrentPosition` / `watchPosition` (CDP
+/// fallback).
+///
+/// The methods are replaced on `Geolocation.prototype`. When the popup mode is
+/// not `Allow`, they are the browser's own.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct GeolocationProvider;
 
 impl EvasionProvider for GeolocationProvider {
@@ -1214,27 +1569,43 @@ impl EvasionProvider for GeolocationProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
-        let lat = fp.latitude.unwrap_or(0.0);
-        let lon = fp.longitude.unwrap_or(0.0);
-        let alt = fp.altitude.unwrap_or(0.0);
-        let acc = fp.accuracy.unwrap_or(100.0);
+        let acc = EvasionContext::number(fp.accuracy.unwrap_or(100.0));
         let allow = matches!(fp.flags.geolocation_popup, PopupMode::Allow);
-        Some(format!(
-            r#"(function() {{
-  if (!navigator.geolocation) return;
-  const coords = {{ latitude: {lat}, longitude: {lon}, altitude: {alt}, accuracy: {acc}, altitudeAccuracy: {acc}, heading: null, speed: null }};
-  const pos = {{ coords: coords, timestamp: Date.now() }};
-  const orig = navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);
-  navigator.geolocation.getCurrentPosition = (window.__sbNative || function(f){{return f;}})(function(success, error, options) {{
-    if ({allow}) {{ setTimeout(function() {{ success && success(pos); }}, 0); return; }}
-    return orig(success, error, options);
-  }}, 'getCurrentPosition');
-}})();"#
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof Geolocation === 'undefined') { return; }
+  const coords = { latitude: @LAT@, longitude: @LON@, altitude: @ALT@, accuracy: @ACC@, altitudeAccuracy: @ACC@, heading: null, speed: null };
+  const allow = @ALLOW@;
+  const originalGet = Geolocation.prototype.getCurrentPosition;
+  const originalWatch = Geolocation.prototype.watchPosition;
+  let nextWatch = 1;
+  function answer(success) {
+    setTimeout(function () { if (typeof success === 'function') { success({ coords: coords, timestamp: Date.now() }); } }, 0);
+  }
+  Geolocation.prototype.getCurrentPosition = sb.native(function getCurrentPosition(success, error, options) {
+    if (!allow) { return originalGet.apply(this, arguments); }
+    answer(success);
+  }, 'getCurrentPosition', originalGet);
+  Geolocation.prototype.watchPosition = sb.native(function watchPosition(success, error, options) {
+    if (!allow) { return originalWatch.apply(this, arguments); }
+    answer(success);
+    return nextWatch++;
+  }, 'watchPosition', originalWatch);
+})();"##,
+            &[
+                ("LAT", &EvasionContext::number(fp.latitude.unwrap_or(0.0))),
+                ("LON", &EvasionContext::number(fp.longitude.unwrap_or(0.0))),
+                ("ALT", &EvasionContext::number(fp.altitude.unwrap_or(0.0))),
+                ("ACC", &acc),
+                ("ALLOW", if allow { "true" } else { "false" }),
+            ],
         ))
     }
 }
 
 /// Fixes the Modernizr hairline headless detection.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct HairlineProvider;
 
 impl EvasionProvider for HairlineProvider {
@@ -1251,21 +1622,33 @@ impl EvasionProvider for HairlineProvider {
         )
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  const desc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
-  if (!desc || !desc.get) return;
-  Object.defineProperty(HTMLDivElement.prototype, 'offsetHeight', {
-    ...desc,
-    get: function() { if (this.id === 'modernizr') return 1; return desc.get.apply(this); }
+        Some(render(
+            r##"(function () {
+  @SB@
+  const current = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+  if (!current || !current.get) { return; }
+  sb.getter(HTMLElement.prototype, 'offsetHeight', function () {
+    if (this instanceof HTMLElement && this.id === 'modernizr') { return 1; }
+    return current.get.call(this);
   });
-})();"#
-                .to_owned(),
-        )
+})();"##,
+            &[],
+        ))
     }
 }
 
-/// Keeps iframe `contentWindow` self/window references consistent.
+/// Reserved for keeping iframe `contentWindow` references consistent;
+/// contributes nothing.
+///
+/// This provider used to wrap `document.createElement` and, for an `iframe`,
+/// patch `contentWindow.self` and `window`. A new iframe has no
+/// `contentWindow` until it is inserted, so the patch never did anything,
+/// and the wrapper made `createElement` an own property of `document`, which
+/// Chrome's is not. Scripts that run before any page script, as the bootstrap
+/// does, already run in every frame, srcdoc frames included. The provider
+/// stays registered so the name is stable, but it never applies and emits no
+/// script.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct IframeProvider;
 
 impl EvasionProvider for IframeProvider {
@@ -1275,26 +1658,11 @@ impl EvasionProvider for IframeProvider {
     fn priority(&self) -> i32 {
         120
     }
-    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  const orig = document.createElement;
-  document.createElement = (window.__sbNative || function(f){return f;})(function(tagName, options) {
-    const el = orig.call(document, tagName, options);
-    if (tagName && String(tagName).toLowerCase() === 'iframe') {
-      try {
-        const cw = el.contentWindow;
-        if (cw) {
-          Object.defineProperty(cw, 'self', { get: function() { return cw; } });
-          Object.defineProperty(cw, 'window', { get: function() { return cw; } });
-        }
-      } catch (e) {}
+    fn applies(&self, _fp: &Fingerprint) -> bool {
+        false
     }
-    return el;
-  }, 'createElement');
-})();"#
-                .to_owned(),
-        )
+    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
+        None
     }
 }
 
@@ -1304,6 +1672,7 @@ impl EvasionProvider for IframeProvider {
 /// page is running in a controllable environment. This provider does not
 /// change the return value's API surface; it only ensures the shadow root is
 /// reachable via `element.shadowRoot`.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct AttachShadowProvider;
 
 impl EvasionProvider for AttachShadowProvider {
@@ -1317,25 +1686,32 @@ impl EvasionProvider for AttachShadowProvider {
         !matches!(fp.flags.headless_masking, MaskingMode::Disabled)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
-  if (!Element.prototype.attachShadow) return;
-  const orig = Element.prototype.attachShadow;
-  Element.prototype.attachShadow = (window.__sbNative || function(f){return f;})(function(options) {
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (!Element.prototype.attachShadow) { return; }
+  const original = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = sb.native(function attachShadow(options) {
     const opts = (options && typeof options === 'object') ? options : {};
-    return orig.call(this, { ...opts, mode: 'open' });
-  }, 'attachShadow');
-})();"#
-                .to_owned(),
-        )
+    return original.call(this, { ...opts, mode: 'open' });
+  }, 'attachShadow', original);
+})();"##,
+            &[],
+        ))
     }
 }
 
-/// Records a tracker/fingerprint-script host block list on `window`.
+/// Blocks requests to tracker and fingerprint-script hosts from page script.
 ///
-/// The actual blocking is best enforced by a CDP/network interceptor; this
-/// snippet exposes the list so a page-side fetch guard can consult it, and
-/// documents which hosts should be dropped.
+/// The guard is page-side and covers `fetch` (a string, a `URL` or a
+/// `Request`), `XMLHttpRequest` and `navigator.sendBeacon`; a blocked request
+/// fails the way an unreachable host does (`TypeError: Failed to fetch`, an
+/// `error` event on the request, `false` from `sendBeacon`). A host matches
+/// when it is a listed host or a subdomain of one, never because the name
+/// appears somewhere in the URL. Scripts, images and frames loaded by markup are
+/// not covered; block those with a network interceptor. The list lives in the
+/// snippet's own scope, not on `window`.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct TrackerBlockProvider;
 
 impl EvasionProvider for TrackerBlockProvider {
@@ -1352,24 +1728,47 @@ impl EvasionProvider for TrackerBlockProvider {
         let hosts = ctx.fingerprint.tracker_hosts();
         let array = hosts
             .iter()
-            .map(|h| format!("'{}'", EvasionContext::escape(h)))
+            .map(|h| quoted(&h.to_ascii_lowercase()))
             .collect::<Vec<_>>()
             .join(", ");
-        Some(format!(
-            r#"(function() {{
-  const blocked = [{array}];
-  Object.defineProperty(window, '__sbBlockedTrackers', {{ value: blocked, configurable: true }});
-  const origFetch = window.fetch;
-  if (origFetch) {{
-    window.fetch = (window.__sbNative || function(f){{return f;}})(function(input, init) {{
-      const url = (typeof input === 'string') ? input : (input && input.url) || '';
-      if (blocked.some(function(h) {{ return url.indexOf(h) !== -1; }})) {{
-        return Promise.reject(new TypeError('Blocked by anti-detect profile'));
-      }}
-      return origFetch.apply(this, arguments);
-    }}, 'fetch');
-  }}
-}})();"#
+        Some(render(
+            r##"(function () {
+  @SB@
+  const blocked = [@HOSTS@];
+  function isBlocked(target) {
+    let host;
+    try { host = new URL(String(target), location.href).hostname.toLowerCase(); } catch (e) { return false; }
+    return blocked.some(function (h) { return host === h || host.endsWith('.' + h); });
+  }
+  if (window.fetch) {
+    const originalFetch = window.fetch;
+    window.fetch = sb.native(function fetch(input, init) {
+      const target = (typeof Request !== 'undefined' && input instanceof Request) ? input.url : input;
+      if (isBlocked(target)) { return Promise.reject(new TypeError('Failed to fetch')); }
+      return originalFetch.apply(this, arguments);
+    }, 'fetch', originalFetch);
+  }
+  if (window.XMLHttpRequest) {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    // A blocked request is opened on a URL no request can succeed on, so it
+    // fails with the browser's own error events and status 0.
+    XMLHttpRequest.prototype.open = sb.native(function open(method, url) {
+      if (isBlocked(url)) {
+        const rest = Array.prototype.slice.call(arguments, 2);
+        return originalOpen.apply(this, [method, 'about:blank'].concat(rest));
+      }
+      return originalOpen.apply(this, arguments);
+    }, 'open', originalOpen);
+  }
+  if (navigator.sendBeacon) {
+    const originalBeacon = navigator.sendBeacon;
+    Navigator.prototype.sendBeacon = sb.native(function sendBeacon(url) {
+      if (isBlocked(url)) { return false; }
+      return originalBeacon.apply(this, arguments);
+    }, 'sendBeacon', originalBeacon);
+  }
+})();"##,
+            &[("HOSTS", &array)],
         ))
     }
 }
@@ -1377,10 +1776,37 @@ impl EvasionProvider for TrackerBlockProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{BrandVersion, ClientHints, Fingerprint};
+    use crate::stealth::fingerprint::{BatteryProfile, BrandVersion, ClientHints, Fingerprint};
 
     fn ctx_for(fp: &Fingerprint) -> EvasionContext<'_> {
         EvasionContext::new(fp)
+    }
+
+    /// A fingerprint that makes every provider apply.
+    fn everything() -> Fingerprint {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.audio_masking = MaskingMode::Mask;
+        fp.flags.media_devices_masking = MaskingMode::Mask;
+        fp.flags.block_trackers = true;
+        fp.fonts = vec!["Arial".to_owned()];
+        fp.latitude = Some(1.0);
+        fp.longitude = Some(2.0);
+        fp.webgl_vendor_id = Some("0x10de".to_owned());
+        fp.webgl_renderer_id = Some("0x1f91".to_owned());
+        fp.webrtc_public_ip = Some("203.0.113.9".to_owned());
+        fp.webrtc_local_ip = Some("10.0.0.2".to_owned());
+        fp.client_hints = Some(ClientHints {
+            brands: vec![BrandVersion::new("Chromium", "124")],
+            full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
+            platform: "Windows".to_owned(),
+            platform_version: "15.0.0".to_owned(),
+            architecture: "x86".to_owned(),
+            bitness: "64".to_owned(),
+            model: String::new(),
+            ua_full_version: "124.0.0.0".to_owned(),
+            mobile: false,
+        });
+        fp
     }
 
     #[test]
@@ -1421,15 +1847,14 @@ mod tests {
     }
 
     #[test]
-    fn webgl_includes_optional_ids() {
+    fn webgl_gpu_ids_are_not_exposed_to_pages() {
         let mut fp = Fingerprint::windows_desktop();
         fp.webgl_vendor_id = Some("0x10de".into());
         fp.webgl_renderer_id = Some("0x1f91".into());
         let script = WebglProvider.script(&ctx_for(&fp)).unwrap();
-        assert!(script.contains("__sbVendorId"));
-        assert!(script.contains("__sbRendererId"));
-        assert!(script.contains("0x10de"));
-        assert!(script.contains("0x1f91"));
+        assert!(!script.contains("__sbVendorId") && !script.contains("__sbRendererId"));
+        assert!(!script.contains("0x10de"));
+        assert!(!script.contains("0x1f91"));
     }
 
     #[test]
@@ -1442,10 +1867,34 @@ mod tests {
     }
 
     #[test]
+    fn noise_does_not_depend_on_a_running_generator() {
+        // The old noise advanced a shared generator on every read; a stateless
+        // hash is what makes two reads agree.
+        let fp = Fingerprint::windows_desktop();
+        for provider in [
+            &CanvasNoiseProvider as &dyn EvasionProvider,
+            &AudioNoiseProvider,
+        ] {
+            let script = provider.script(&ctx_for(&fp)).unwrap();
+            assert!(script.contains("Math.imul"), "{}", provider.name());
+            assert!(!script.contains("1664525"), "{}", provider.name());
+        }
+    }
+
+    #[test]
     fn window_geometry_includes_screen_width() {
         let fp = Fingerprint::windows_desktop();
         let script = WindowGeometryProvider.script(&ctx_for(&fp)).unwrap();
         assert!(script.contains("1920"));
+    }
+
+    #[test]
+    fn headless_leaves_the_outer_window_size_to_window_geometry() {
+        let fp = Fingerprint::windows_desktop();
+        let script = HeadlessProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(!script.contains("outerWidth") && !script.contains("outerHeight"));
+        let script = WindowGeometryProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("outerWidth") && script.contains("outerHeight"));
     }
 
     #[test]
@@ -1466,23 +1915,14 @@ mod tests {
 
     #[test]
     fn client_hints_only_applies_when_set() {
-        let mut fp = Fingerprint::windows_desktop();
-        assert!(!ClientHintsProvider.applies(&fp));
-        fp.client_hints = Some(ClientHints {
-            brands: vec![BrandVersion::new("Chromium", "124")],
-            full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
-            platform: "Windows".to_owned(),
-            platform_version: "15.0.0".to_owned(),
-            architecture: "x86".to_owned(),
-            bitness: "64".to_owned(),
-            model: String::new(),
-            ua_full_version: "124.0.0.0".to_owned(),
-            mobile: false,
-        });
+        let fp = everything();
         assert!(ClientHintsProvider.applies(&fp));
         let script = ClientHintsProvider.script(&ctx_for(&fp)).unwrap();
         assert!(script.contains("userAgentData"));
         assert!(script.contains("Chromium"));
+
+        let fp = Fingerprint::windows_desktop();
+        assert!(!ClientHintsProvider.applies(&fp));
     }
 
     #[test]
@@ -1497,5 +1937,120 @@ mod tests {
     fn native_tostring_runs_first() {
         let providers = all();
         assert_eq!(providers[0].name(), "native_tostring");
+    }
+
+    #[test]
+    fn no_snippet_names_a_page_visible_global() {
+        let fp = everything();
+        for provider in all() {
+            let Some(script) = provider.script(&ctx_for(&fp)) else {
+                continue;
+            };
+            for forbidden in [
+                "window.__sb",
+                "__sbNative",
+                "__sbVendorId",
+                "__sbRenderer",
+                "__sbBlocked",
+            ] {
+                assert!(
+                    !script.contains(forbidden),
+                    "{} leaves {forbidden} on the page",
+                    provider.name()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn no_marker_is_left_unfilled() {
+        let marker = regex::Regex::new(r"@[A-Z][A-Z_]*@").unwrap();
+        let fp = everything();
+        for provider in all() {
+            let Some(script) = provider.script(&ctx_for(&fp)) else {
+                continue;
+            };
+            assert!(
+                !marker.is_match(&script),
+                "{} has an unfilled marker: {:?}",
+                provider.name(),
+                marker.find(&script).map(|m| m.as_str())
+            );
+        }
+    }
+
+    #[test]
+    fn providers_that_cannot_work_emit_nothing() {
+        let fp = everything();
+        for provider in [
+            &PrepareStackTraceProvider as &dyn EvasionProvider,
+            &IframeProvider,
+        ] {
+            assert!(!provider.applies(&fp), "{}", provider.name());
+            assert!(
+                provider.script(&ctx_for(&fp)).is_none(),
+                "{}",
+                provider.name()
+            );
+        }
+    }
+
+    #[test]
+    fn a_number_that_rust_prints_as_inf_reaches_javascript_as_infinity() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.battery = Some(BatteryProfile {
+            charging: false,
+            level: f64::INFINITY,
+            charging_time: f64::NEG_INFINITY,
+            discharging_time: f64::NAN,
+        });
+        fp.connection = Some(crate::stealth::fingerprint::ConnectionProfile {
+            effective_type: "4g".to_owned(),
+            rtt: 1,
+            downlink: f64::INFINITY,
+            save_data: false,
+        });
+        fp.device_memory = Some(f64::INFINITY);
+        fp.pixel_ratio = Some(f64::INFINITY);
+        fp.latitude = Some(f64::NAN);
+        let ident = regex::Regex::new(r"\binf\b|\bnan\b").unwrap();
+        for provider in [
+            &BatteryProvider as &dyn EvasionProvider,
+            &ConnectionProvider,
+            &NavigatorPropsProvider,
+            &WindowGeometryProvider,
+            &GeolocationProvider,
+        ] {
+            let script = provider.script(&ctx_for(&fp)).unwrap();
+            assert!(
+                !ident.is_match(&script),
+                "{} prints a Rust float",
+                provider.name()
+            );
+        }
+        let battery = BatteryProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(battery.contains("level: Infinity"));
+        assert!(battery.contains("chargingTime: -Infinity"));
+        assert!(battery.contains("dischargingTime: NaN"));
+    }
+
+    #[test]
+    fn text_from_a_fingerprint_is_escaped() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.user_agent = Some("a'; evil(); '\\".to_owned());
+        let script = NavigatorPropsProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains(r"'a\'; evil(); \'\\'"));
+    }
+
+    #[test]
+    fn render_fills_each_marker_once_and_never_searches_what_it_filled() {
+        let out = render(
+            "a @ONE@ b @TWO@ c @UNKNOWN@ d @ e",
+            &[("ONE", "@TWO@"), ("TWO", "2")],
+        );
+        assert_eq!(out, "a @TWO@ b 2 c @UNKNOWN@ d @ e");
+        assert_eq!(render("no markers", &[]), "no markers");
+        assert_eq!(render("trailing @", &[]), "trailing @");
+        assert!(render("@SB@", &[]).starts_with("const sb ="));
     }
 }

@@ -395,8 +395,10 @@ Current priority bands:
 - 60–90 — WebDriver/headless cleanup, runtime, iframe, chrome object fixes.
 - 100–130 — self-defense, notification, memory, battery, connection, WebRTC.
 
-Lower numbers run first. When a provider depends on `window.__sbNative`, keep
-its priority above 5.
+Lower numbers run first. A provider that makes replacements look native starts
+its snippet with `providers::SB_PREAMBLE` and keeps its priority above 5, because
+the `native_tostring` provider (priority 5) installs the helpers that preamble
+uses. They live in the scope of the assembled script, not on `window`.
 
 ### CDP reactor
 

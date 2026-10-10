@@ -11,12 +11,31 @@
 //! 1. Implement [`EvasionProvider`] for a unit struct in
 //!    [`builtin`](crate::stealth::providers::builtin) (or your own crate).
 //! 2. Return the JavaScript from [`EvasionProvider::script`]; use
-//!    [`EvasionContext::escape`] and the placeholder helpers to substitute
-//!    values from the fingerprint.
+//!    [`EvasionContext::escape`] for text and [`EvasionContext::number`] for
+//!    numbers when substituting values from the fingerprint. Patch
+//!    prototypes rather than instances, and start the snippet with
+//!    [`SB_PREAMBLE`] to make replacements look native (see below).
 //! 3. Gate inclusion with [`EvasionProvider::applies`] and order it with
 //!    [`EvasionProvider::priority`].
 //! 4. Register it, either in [`default_registry`] for a built-in or via
 //!    [`EvasionRegistry::register_provider`] at runtime.
+//!
+//! # Looking native
+//!
+//! A page can ask a replaced function for its source, name, length and
+//! properties, and a getter for its name. [`SB_PREAMBLE`] puts a constant `sb`
+//! in scope with three helpers that answer like the browser would:
+//!
+//! - `sb.native(fn, name, like)` returns a stand-in for a method: it has the
+//!   given `name`, the length of `like` (the original), no `prototype`, and its
+//!   source prints as `[native code]`;
+//! - `sb.ctor(fn, name)` marks a constructor the same way;
+//! - `sb.getter(object, property, fn)` replaces an accessor's getter, keeping
+//!   the property's other attributes, with a native-looking `get <property>`.
+//!
+//! The helpers are installed once, by the `native_tostring` provider, in the
+//! scope of the assembled script, not on `window`. Without it, or when a snippet
+//! runs on its own, `sb` falls back to plain functions that mark nothing.
 //!
 //! # Example
 //!
@@ -33,6 +52,14 @@
 pub mod builtin;
 
 use crate::stealth::fingerprint::Fingerprint;
+
+/// JavaScript that puts the shared `sb` helpers in scope for a snippet.
+///
+/// Put it on the first line of a snippet's function body. See
+/// [Looking native](self#looking-native).
+pub const SB_PREAMBLE: &str = "const sb = (typeof __sb !== 'undefined' && __sb) || { \
+native: function (f) { return f; }, ctor: function (f) { return f; }, \
+getter: function (o, p, f) { Object.defineProperty(o, p, { get: f, configurable: true }); } };";
 
 /// Runtime configuration for script assembly.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,12 +111,52 @@ impl<'a> EvasionContext<'a> {
     }
 
     /// Escapes a string for safe interpolation inside single-quoted JS.
+    ///
+    /// Backslashes, single quotes, line breaks and the Unicode line and
+    /// paragraph separators are escaped, so the text cannot end the literal or
+    /// the line it is on.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::stealth::providers::EvasionContext;
+    ///
+    /// assert_eq!(EvasionContext::escape("it's"), "it\\'s");
+    /// ```
     pub fn escape(value: &str) -> String {
         value
             .replace('\\', "\\\\")
             .replace('\'', "\\'")
             .replace('\n', "\\n")
             .replace('\r', "\\r")
+            .replace('\u{2028}', "\\u2028")
+            .replace('\u{2029}', "\\u2029")
+    }
+
+    /// Formats a number as a JavaScript numeric expression.
+    ///
+    /// Rust prints an infinite `f64` as `inf`, which JavaScript reads as an
+    /// undefined variable. This prints `Infinity`, `-Infinity` and `NaN`, which
+    /// it does understand, and finite values as they are.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::stealth::providers::EvasionContext;
+    ///
+    /// assert_eq!(EvasionContext::number(1.5), "1.5");
+    /// assert_eq!(EvasionContext::number(f64::INFINITY), "Infinity");
+    /// assert_eq!(EvasionContext::number(f64::NEG_INFINITY), "-Infinity");
+    /// assert_eq!(EvasionContext::number(f64::NAN), "NaN");
+    /// ```
+    pub fn number(value: f64) -> String {
+        if value.is_nan() {
+            "NaN".to_owned()
+        } else if value.is_infinite() {
+            if value > 0.0 { "Infinity" } else { "-Infinity" }.to_owned()
+        } else {
+            value.to_string()
+        }
     }
 }
 
@@ -176,6 +243,11 @@ impl EvasionRegistry {
     }
 
     /// Assembles a single IIFE bootstrap script from all applicable providers.
+    ///
+    /// The providers' snippets are copied in unchanged, one after another, in
+    /// priority order. The script declares the `__sb` variable that
+    /// [`SB_PREAMBLE`] looks for in its own scope, so the assembly adds nothing
+    /// to the page's global object.
     pub fn bootstrap(&self, ctx: &EvasionContext) -> String {
         let mut body = String::new();
         for (name, script) in self.scripts(ctx) {
@@ -191,25 +263,8 @@ impl EvasionRegistry {
                 body.push('\n');
             }
         }
-        format!(
-            "(() => {{\n  'use strict';\n{body}}})();",
-            body = indent(&body)
-        )
+        format!("(() => {{\n  'use strict';\n  let __sb;\n{body}}})();")
     }
-}
-
-fn indent(s: &str) -> String {
-    s.lines()
-        .map(|line| {
-            if line.is_empty() {
-                String::new()
-            } else {
-                format!("  {line}")
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-        + "\n"
 }
 
 /// Returns a registry populated with every built-in provider.
@@ -259,5 +314,104 @@ mod tests {
     #[test]
     fn escape_handles_quotes() {
         assert_eq!(EvasionContext::escape("a'b\\c"), "a\\'b\\\\c");
+    }
+
+    #[test]
+    fn escape_handles_every_character_that_ends_a_line() {
+        assert_eq!(
+            EvasionContext::escape("a\nb\rc\u{2028}d\u{2029}e"),
+            "a\\nb\\rc\\u2028d\\u2029e"
+        );
+    }
+
+    #[test]
+    fn number_never_prints_a_rust_only_spelling() {
+        assert_eq!(EvasionContext::number(0.0), "0");
+        assert_eq!(EvasionContext::number(-2.5), "-2.5");
+        assert_eq!(EvasionContext::number(1e21), "1000000000000000000000");
+        assert_eq!(EvasionContext::number(f64::INFINITY), "Infinity");
+        assert_eq!(EvasionContext::number(f64::NEG_INFINITY), "-Infinity");
+        assert_eq!(EvasionContext::number(f64::NAN), "NaN");
+    }
+
+    struct Template;
+
+    impl EvasionProvider for Template {
+        fn name(&self) -> &str {
+            "template"
+        }
+        fn script(&self, _ctx: &EvasionContext) -> Option<String> {
+            Some("window.t = `one\n  two\n    three`;".to_owned())
+        }
+    }
+
+    #[test]
+    fn bootstrap_copies_a_snippet_in_unchanged() {
+        // Re-indenting the script would add spaces inside this template
+        // literal and change the string the page sees.
+        let mut reg = EvasionRegistry::empty();
+        reg.register_provider(Box::new(Template));
+        let fp = Fingerprint::windows_desktop();
+        let config = EvasionConfig {
+            isolate_failures: false,
+            annotate: false,
+        };
+
+        let script = reg.bootstrap(&EvasionContext::with_config(&fp, config));
+
+        assert!(
+            script.contains("window.t = `one\n  two\n    three`;"),
+            "{script}"
+        );
+    }
+
+    #[test]
+    fn bootstrap_declares_the_helper_scope_and_nothing_global() {
+        let fp = Fingerprint::windows_desktop();
+        let script = default_registry().bootstrap(&EvasionContext::new(&fp));
+
+        assert!(script.starts_with("(() => {\n  'use strict';\n  let __sb;\n"));
+        assert!(script.ends_with("})();"));
+        assert!(!script.contains("window.__sb"));
+        assert!(
+            script.contains("__sb = {"),
+            "native_tostring fills the scope"
+        );
+    }
+
+    #[test]
+    fn the_preamble_falls_back_to_plain_functions() {
+        assert!(SB_PREAMBLE.starts_with("const sb = "));
+        assert!(SB_PREAMBLE.contains("typeof __sb !== 'undefined'"));
+        assert!(SB_PREAMBLE.contains("native:") && SB_PREAMBLE.contains("getter:"));
+        assert!(SB_PREAMBLE.contains("ctor:"));
+        assert!(
+            !SB_PREAMBLE.contains('\n'),
+            "it is one line, to sit on one line of a snippet"
+        );
+    }
+
+    #[test]
+    fn default_registry_has_every_builtin_once() {
+        let registry = default_registry();
+        let names = registry.provider_names();
+        assert_eq!(names.len(), builtin::all().len());
+        let mut sorted = names.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), names.len());
+    }
+
+    #[test]
+    fn inapplicable_providers_are_left_out() {
+        let fp = Fingerprint::windows_desktop();
+        let registry = default_registry();
+        let applicable = registry.applicable_names(&fp);
+        assert!(applicable.contains(&"webdriver".to_owned()));
+        assert!(
+            !applicable.contains(&"tracker_block".to_owned()),
+            "off by default"
+        );
+        assert!(!applicable.contains(&"iframe".to_owned()));
     }
 }
