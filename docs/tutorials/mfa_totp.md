@@ -13,36 +13,62 @@ manual intervention.
 
 ## Generate a TOTP code
 
-```rust
-let code = sb.get_totp_code("JBSWY3DPEHPK3PXP").await?;
+`get_totp_code` is a plain method, not an `async` one: it reads the clock and
+computes the code, with no browser call.
+
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
 println!("TOTP code: {code}");
+# Ok(())
+# }
 ```
 
 The secret is the base32-encoded shared secret provided by the service when
 enabling MFA. It is often shown as a QR code or a plain string during enrollment.
+Spaces and dashes in the secret are ignored, and case does not matter.
+`get_mfa_code` and `get_google_auth_code` are aliases of `get_totp_code`.
 
 ## Use in a login flow
 
-```rust
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.type_text("#username", "demo_user").await?;
 sb.type_text("#password", "secret_pass").await?;
 sb.click("#login").await?;
 
-let code = sb.get_totp_code("JBSWY3DPEHPK3PXP").await?;
+let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
 sb.type_text("#otp", &code).await?;
 sb.click("#verify-otp").await?;
+# Ok(())
+# }
+```
+
+`enter_totp_code(css, secret).await?` (alias `enter_mfa_code`) generates the code
+and types it into the field in one call:
+
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+sb.enter_totp_code("#otp", "JBSWY3DPEHPK3PXP").await?;
+# Ok(())
+# }
 ```
 
 ## Google Authenticator compatibility
 
 Codes are compatible with Google Authenticator, Authy, Microsoft Authenticator,
-and other standard TOTP apps. The default time step is 30 seconds and the output
-length is 6 digits.
+and other standard TOTP apps (RFC 6238 with HMAC-SHA1). The time step is 30
+seconds and the output length is 6 digits; neither can be changed, so a service
+that uses another length, step or hash will not accept these codes.
 
 ## Security notes
 
 - Keep MFA secrets out of source code; load them from environment variables or a
-  secrets manager.
+  secrets manager. If you keep one in a file, `sbase encrypt` and `sbase decrypt`
+  (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`) can protect it at rest.
 - Codes are generated locally; no network request is required.
 - Treat TOTP secrets with the same care as passwords. Rotate them if exposed.
 
@@ -51,5 +77,5 @@ length is 6 digits.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Code rejected | System clock skew | Synchronize the test machine's clock with NTP. |
-| Invalid secret format | Secret is not base32 | Re-copy the secret without spaces or convert it. |
+| `invalid base32 character` error | The secret is not base32 (letters `A`-`Z` and digits `2`-`7`) | Re-copy the secret from the enrollment screen. |
 | Code expires before use | Generated too early | Generate the code immediately before typing it. |
