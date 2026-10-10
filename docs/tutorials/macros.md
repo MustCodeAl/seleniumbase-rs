@@ -46,7 +46,7 @@ Generates a `#[tokio::test]` async function that creates a [`BaseCase`](crate::B
 runs the supplied closure, and always calls `quit()` before returning. The test
 fails if the closure returns an `Err`.
 
-```rust,ignore
+```rust,no_run
 use seleniumbase_rs::sb_test;
 
 sb_test!(visit_example, seleniumbase_rs::BrowserConfig::default(), |sb| {
@@ -56,8 +56,13 @@ sb_test!(visit_example, seleniumbase_rs::BrowserConfig::default(), |sb| {
 });
 ```
 
-The closure receives `&mut BaseCase` and must return `Result<(), E>` where `E`
-converts into `SeleniumBaseError` (for example, via `?` on crate methods).
+The `|sb| { ... }` part only looks like a closure. The macro creates the
+`BaseCase`, binds it to the name you give (a `mut` binding of type `BaseCase`,
+not a reference), and runs your block inside an `async` block whose result type
+is `Result<(), SeleniumBaseError>`; use `?` on crate methods and finish with
+`Ok(())`. It panics if the `BaseCase` cannot be created, calls `quit` whether or
+not the block failed, and then panics with the error if the block returned one.
+The macro quits for you, so do not call `sb_quit!` inside it.
 
 ## `uc_config!`
 
@@ -106,13 +111,17 @@ let fp = fingerprint!(macos);
 let fp = fingerprint!(linux);
 let fp = fingerprint!(android);
 let fp = fingerprint!(ios);
-let fp = fingerprint!(edge);
+let fp = fingerprint!(safari); // same preset as ios
+let fp = fingerprint!(edge); // same preset as windows
 ```
 
 ## Action macros
 
 These macros call the corresponding [`BaseCase`](crate::BaseCase) method and
-await it. An optional trailing message is passed to `.expect(...)`.
+await it. Without a trailing message the macro evaluates to the method's
+`Result`, so follow it with `?` (a bare call compiles but ignores the failure and
+draws an `unused_must_use` warning). With a trailing message the macro
+unwraps the `Result` with `.expect(message)`, which panics on failure.
 
 | Macro | Calls |
 |---|---|
@@ -138,38 +147,46 @@ await it. An optional trailing message is passed to `.expect(...)`.
 `sb_fill_form!` types into multiple fields in sequence and returns a
 [`Result`](crate::Result), so it works with the `?` operator inside tests:
 
-```rust,ignore
+```rust,no_run
 use seleniumbase_rs::sb_fill_form;
 
+# async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> seleniumbase_rs::Result<()> {
 sb_fill_form!(sb, "#username" => "alice", "#password" => "secret")?;
+# Ok(())
+# }
 ```
 
-`sb_with_timeout!` temporarily raises the default implicit wait timeout for the
-enclosed block and restores it afterwards:
+`sb_with_timeout!` temporarily sets the default wait timeout (the one the
+actions and `sb_wait_for!` use) for the enclosed block and restores it
+afterwards. The block must produce a `Result`, and the macro returns that
+`Result`, so finish with `?`:
 
-```rust,ignore
-use seleniumbase_rs::sb_with_timeout;
+```rust,no_run
+use seleniumbase_rs::{sb_click, sb_wait_for, sb_with_timeout};
 
+# async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> seleniumbase_rs::Result<()> {
 sb_with_timeout!(sb, 30, {
-    sb_wait_for!(sb, "#slow-element");
-    sb_click!(sb, "#slow-element");
-});
+    sb_wait_for!(sb, "#slow-element")?;
+    sb_click!(sb, "#slow-element")
+})?;
+# Ok(())
+# }
 ```
 
-```rust,ignore
+A complete test with the macros (each action macro ends in `?`):
+
+```rust,no_run
 use seleniumbase_rs::{
-    assert_visible, sb_click, sb_open, sb_quit, sb_screenshot, sb_test,
-    sb_type, selector,
+    assert_visible, sb_click, sb_open, sb_screenshot, sb_test, sb_type,
 };
 
 sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
-    sb_open!(sb, "https://example.com/login");
-    sb_type!(sb, "#username", "alice");
-    sb_type!(sb, "#password", "secret");
-    sb_click!(sb, "#submit");
-    assert_visible!(sb, "#dashboard");
-    sb_screenshot!(sb, "dashboard.png");
-    sb_quit!(sb);
+    sb_open!(sb, "https://example.com/login")?;
+    sb_type!(sb, "#username", "alice")?;
+    sb_type!(sb, "#password", "secret")?;
+    sb_click!(sb, "#submit")?;
+    assert_visible!(sb, "#dashboard")?;
+    sb_screenshot!(sb, "dashboard.png")?;
     Ok(())
 });
 ```
@@ -191,5 +208,6 @@ custom timeouts, or non-trivial control flow.
 |---|---|---|
 | Macro expansion error | Used outside an `async` function | Wrap the call in an async block or `sb_test!`. |
 | `sb_test!` not found | Macro not imported | Import `seleniumbase_rs::sb_test`. |
-| Action macro panics | Selector did not match | Add an explicit `sb_wait_for!` first or increase the timeout. |
+| Action macro panics | A trailing message was given, so a failure is unwrapped with `expect` (for example because the selector did not match) | Drop the message and use `?`, or add an explicit `sb_wait_for!` first or raise the timeout. |
+| Warning that a `Result` must be used | An action macro without a message was called without `?` | Add `?`: the failure is otherwise ignored. |
 | `selector!` type mismatch | Wrong variant name | Use `css`, `xpath`, `id`, `link`, or `partial_link`. |

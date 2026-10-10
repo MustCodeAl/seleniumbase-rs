@@ -1,8 +1,8 @@
 # Chart Maker Guide
 
-Generate interactive charts from your test data and save them as standalone HTML
-files. Charts are useful for visualizing benchmark results, test metrics, or any
-numeric data produced during a run.
+Generate charts from your test data and save them as standalone HTML files.
+Charts are useful for visualizing benchmark results, test metrics, or any numeric
+data produced during a run.
 
 ## What you will learn
 
@@ -13,14 +13,37 @@ numeric data produced during a run.
 ## Supported chart types
 
 - Pie
-- Bar
+- Bar (vertical bars)
 - Line
-- Area
-- Column
+- Area (a filled line)
+- Column (horizontal bars)
+
+Values are `i32`.
 
 ## Single-series chart
 
+The `Chart` type needs no browser. Build it, add data points, and save it:
+
 ```rust
+use seleniumbase_rs::{Chart, ChartType};
+
+# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let mut chart = Chart::new("Browser Market Share", ChartType::Pie);
+chart.add_data_point("Chrome", 60);
+chart.add_data_point("Firefox", 25);
+chart.add_data_point("Safari", 15);
+chart.save("market_share.html")?;
+# let _ = std::fs::remove_file("market_share.html");
+# Ok(())
+# }
+```
+
+`BaseCase` has the same operations as async methods, for tests that already hold
+one (`create_pie_chart`, `create_bar_chart`, `create_line_chart`,
+`create_area_chart`, `create_column_chart`, then `add_data_point` and
+`save_chart`). Each `create_*_chart` call replaces the current chart:
+
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
@@ -40,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Multi-series chart
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
@@ -63,15 +86,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+The labels come from the primary series. An extra series is matched to them by
+label, and a label it lacks is drawn as `0`.
+
 ## Output
 
-Each chart is a self-contained HTML file with embedded JavaScript. Open it in
-any browser or attach it to test reports.
+`save_chart` (and `Chart::save`) writes one HTML file that draws the chart with
+[Chart.js](https://www.chartjs.org/). The file embeds the data but loads the
+Chart.js library from `cdn.jsdelivr.net`, so opening it needs internet access.
+Open it in any browser or attach it to test reports.
+
+Related methods on `BaseCase`:
+
+- `display_chart()` saves the chart to a temporary `chart.html` and opens it in
+  the test's browser, returning the path.
+- `extract_chart()` returns the chart as a JSON string with the title, type,
+  labels and datasets.
+
+`sbase mkchart --file results.html` writes a small fixed example chart (a
+Passed/Failed/Skipped bar chart) to edit by hand.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Chart file is empty | No data points added | Call `add_data_point` before `save_chart`. |
-| Multi-series labels misaligned | Series lengths differ | Ensure every series has a value for each primary label. |
-| Interactive features broken | Offline environment | Open the file in a browser with internet access or use a bundled renderer. |
+| `No chart created` error | `add_data_point` or `save_chart` before any `create_*_chart` | Create the chart first. |
+| Extra series shows zeros | Its labels differ from the primary series | Use the same labels as the primary series. |
+| Chart does not render | Offline: Chart.js is loaded from a CDN | Open the file on a machine with internet access, or edit the `<script src>` to point at a local copy. |

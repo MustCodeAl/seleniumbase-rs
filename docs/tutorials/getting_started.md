@@ -13,13 +13,16 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 ## Prerequisites
 
-- Rust toolchain (1.80 or newer recommended).
+- Rust toolchain 1.89 or newer (the crate's `rust-version`).
 - A Chromium-based browser such as Google Chrome, Chromium, or Microsoft Edge.
 - A network connection for the first build (dependencies may need to be fetched).
 
 The crate can connect to an existing WebDriver endpoint or auto-start
-`chromedriver` for you. If you already have `chromedriver` on your `PATH`, the
-auto-start path is usually unnecessary.
+`chromedriver` for you. With the default WebDriver URL it first looks for a
+driver already listening on `http://localhost:4444`; if there is none, it starts
+`downloaded_drivers/chromedriver` on a free port, downloading the latest stable
+chromedriver into that folder first when it is missing (it does not look on your
+`PATH`). `cargo run --bin sbase -- install` fetches the driver ahead of time.
 
 ## Create a new project
 
@@ -42,7 +45,7 @@ The `tokio` runtime is required because `BaseCase` methods are async.
 
 Replace the contents of `src/main.rs` with the following program:
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
@@ -92,15 +95,16 @@ welcome message, and close.
 - `sb.open(url).await?` navigates to the requested page.
 - `sb.type_text(selector, text).await?` finds the element, clears it, and types.
 - `sb.click(selector).await?` clicks the element.
-- `sb.assert_text_visible(text, selector).await?` waits and fails if the text is
-  not visible.
+- `sb.assert_text_visible(text, selector).await?` checks at once and fails if the
+  text is not visible; it does not wait. On a page that renders late, call
+  `sb.wait_for_text(selector, text, timeout_secs).await?` first.
 - `sb.quit().await?` closes the browser and ends the session.
 
 ## Writing a `#[tokio::test]` instead of `main`
 
 For real test suites, use the test harness:
 
-```rust
+```rust,no_run
 // tests/login.rs
 use seleniumbase_rs::{run_browser_test, BrowserConfig, DriverMode, Result};
 
@@ -135,10 +139,10 @@ cargo test login_succeeds
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `WebDriver` connection error | No driver running and auto-start disabled. | Set `auto_start_driver: true` in `BrowserConfig` or start `chromedriver` manually. |
+| `WebDriver` connection error | No driver running, and auto-start does not apply: it needs `auto_start_driver` (on by default) and the default WebDriver URL `http://localhost:4444`. | Remove the custom URL, or start `chromedriver` yourself and pass its URL. |
 | `chromedriver` not found | The driver executable is missing. | Install it with `cargo run --bin sbase -- install` or download it from the Chrome for Testing dashboard. |
-| Chrome not found | The browser binary path is wrong. | Set `SB_CHROME_BIN` or use `BrowserConfig::with_browser_binary_path`. |
-| Headless detected | Site blocks legacy headless. | Use `with_headless(false)` or pass `--headless=new` in `extra_args`. |
+| Chrome not found | The browser binary path is wrong. | Use `BrowserConfig::with_browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables). |
+| Headless detected | Site blocks headless Chrome (headless sessions already use `--headless=new`). | Use `with_headless(false)`. |
 
 ## Next steps
 
