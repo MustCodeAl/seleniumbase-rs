@@ -1,6 +1,6 @@
-use crate::behave::steps::StepRegistry;
+use crate::behave::steps::{capture_groups, step_pattern};
 use crate::BaseCase;
-use regex::{Regex, RegexBuilder};
+use regex::Regex;
 use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
@@ -21,6 +21,12 @@ struct RegisteredAsyncStep {
 }
 
 /// Async behave step registry backed by a `BaseCase` instance.
+///
+/// It matches steps the way [`StepRegistry`](crate::behave::StepRegistry)
+/// does: exact steps first, then regex patterns in registration order, and a
+/// group that took no part in a match is passed as an empty string. Run a
+/// whole feature with
+/// [`run_feature_text_async`](crate::behave::run_feature_text_async).
 pub struct AsyncStepRegistry {
     base_case: Rc<RefCell<BaseCase>>,
     exact: Vec<(String, AsyncStepHandler)>,
@@ -28,6 +34,7 @@ pub struct AsyncStepRegistry {
 }
 
 impl AsyncStepRegistry {
+    /// Creates an empty registry whose handlers share `base_case`.
     pub fn new(base_case: BaseCase) -> Self {
         Self {
             base_case: Rc::new(RefCell::new(base_case)),
@@ -37,19 +44,47 @@ impl AsyncStepRegistry {
     }
 
     /// Register an exact step string.
+    ///
+    /// Registering the same string again replaces the earlier handler, as it
+    /// does in the sync registry.
     pub fn register(&mut self, pattern: impl Into<String>, handler: AsyncStepHandler) {
-        self.exact.push((pattern.into(), handler));
+        let pattern = pattern.into();
+        match self.exact.iter_mut().find(|(known, _)| *known == pattern) {
+            Some(entry) => entry.1 = handler,
+            None => self.exact.push((pattern, handler)),
+        }
     }
 
     /// Register a regex step pattern with capture groups.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `pattern` is not a valid regular expression; use
+    /// [`try_register_regex`](Self::try_register_regex) for one that comes from
+    /// outside the program.
     pub fn register_regex(&mut self, pattern: &str, handler: AsyncStepHandler) {
-        let re = RegexBuilder::new(pattern)
-            .build()
-            .expect("invalid step regex");
-        self.regex.push(RegisteredAsyncStep {
-            pattern: re,
-            handler,
-        });
+        if let Err(error) = self.try_register_regex(pattern, handler) {
+            panic!("invalid step regex {pattern:?}: {error}");
+        }
+    }
+
+    /// Like [`register_regex`](Self::register_regex), but reports an invalid
+    /// pattern instead of panicking.
+    pub fn try_register_regex(
+        &mut self,
+        pattern: &str,
+        handler: AsyncStepHandler,
+    ) -> Result<(), regex::Error> {
+        let pattern = Regex::new(pattern)?;
+        self.regex.push(RegisteredAsyncStep { pattern, handler });
+        Ok(())
+    }
+
+    /// Whether [`run`](Self::run) would find a handler for `step`.
+    pub fn has_handler(&self, step: &str) -> bool {
+        let trimmed = step.trim();
+        self.exact.iter().any(|(pattern, _)| pattern == trimmed)
+            || self.regex.iter().any(|r| r.pattern.is_match(trimmed))
     }
 
     /// Run a step against the registry.
@@ -62,13 +97,8 @@ impl AsyncStepRegistry {
         }
         for registered in &self.regex {
             if let Some(captures) = registered.pattern.captures(trimmed) {
-                let caps: Vec<String> = captures
-                    .iter()
-                    .skip(1)
-                    .filter_map(|m| m.map(|m| m.as_str().to_owned()))
-                    .collect();
                 let handler = &registered.handler;
-                return handler(self.base_case.clone(), trimmed, &caps).await;
+                return handler(self.base_case.clone(), trimmed, &capture_groups(&captures)).await;
             }
         }
         Err(format!("no handler registered for step: {}", step))
@@ -82,11 +112,13 @@ impl AsyncStepRegistry {
         f(&mut self.base_case.borrow_mut())
     }
 
-    /// Convenience: register common browser navigation steps.
+    /// Convenience: register common browser navigation steps: `I open "url"`,
+    /// `I go back` and `I go forward`, with or without a leading `Given`,
+    /// `When`, `Then`, `And` or `But`.
     #[allow(clippy::await_holding_refcell_ref)]
     pub fn register_navigation_steps(&mut self) {
         self.register_regex(
-            r#"^I open "(.+?)"$"#,
+            &step_pattern(r#"I open "(.+?)""#),
             Box::new(|bc, _step, caps| {
                 let url = caps[0].clone();
                 Box::pin(async move {
@@ -98,7 +130,7 @@ impl AsyncStepRegistry {
             }),
         );
         self.register_regex(
-            r"^I go back$",
+            &step_pattern("I go back"),
             Box::new(|bc, _step, _caps| {
                 Box::pin(async move {
                     bc.borrow_mut()
@@ -109,7 +141,7 @@ impl AsyncStepRegistry {
             }),
         );
         self.register_regex(
-            r"^I go forward$",
+            &step_pattern("I go forward"),
             Box::new(|bc, _step, _caps| {
                 Box::pin(async move {
                     bc.borrow_mut()
@@ -121,11 +153,13 @@ impl AsyncStepRegistry {
         );
     }
 
-    /// Convenience: register common element interaction steps.
+    /// Convenience: register common element interaction steps: `I click
+    /// "selector"` and `I type "text" into "selector"`, with or without a
+    /// leading keyword.
     #[allow(clippy::await_holding_refcell_ref)]
     pub fn register_element_steps(&mut self) {
         self.register_regex(
-            r#"^I click "(.+?)"$"#,
+            &step_pattern(r#"I click "(.+?)""#),
             Box::new(|bc, _step, caps| {
                 let selector = caps[0].clone();
                 Box::pin(async move {
@@ -137,7 +171,7 @@ impl AsyncStepRegistry {
             }),
         );
         self.register_regex(
-            r#"^I type "(.+?)" into "(.+?)"$"#,
+            &step_pattern(r#"I type "(.+?)" into "(.+?)""#),
             Box::new(|bc, _step, caps| {
                 let text = caps[0].clone();
                 let selector = caps[1].clone();
@@ -158,27 +192,111 @@ impl AsyncStepRegistry {
     }
 }
 
-impl From<AsyncStepRegistry> for StepRegistry {
-    /// Convert to a sync `StepRegistry` by dropping the `BaseCase` reference.
-    /// Useful for sharing step patterns with non-browser tests.
-    fn from(_value: AsyncStepRegistry) -> Self {
-        StepRegistry::new()
-    }
-}
-
-fn _assert_send() {
-    // BaseCase is not Send, so AsyncStepRegistry is not Send either.
-    // This is intentional for single-threaded async behave runners.
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::behave::{run_feature_text_async, RunFilter};
+
+    fn registry() -> AsyncStepRegistry {
+        AsyncStepRegistry::new(BaseCase::without_session(Default::default()))
+    }
+
+    /// An exact-step handler that fails with `message`.
+    fn failing(message: &'static str) -> AsyncStepHandler {
+        Box::new(move |_, _, _| Box::pin(async move { Err(message.to_owned()) }))
+    }
 
     #[tokio::test]
     async fn test_async_registry_no_match() {
         let bc = BaseCase::without_session(Default::default());
         let registry = AsyncStepRegistry::new(bc);
         assert!(registry.run("unknown").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn registering_a_step_again_replaces_it() {
+        let mut registry = registry();
+        registry.register("Given x", failing("first"));
+        registry.register("Given x", failing("second"));
+        assert_eq!(registry.run("Given x").await.unwrap_err(), "second");
+    }
+
+    #[tokio::test]
+    async fn a_group_that_did_not_match_keeps_its_position() {
+        let mut registry = registry();
+        registry.register_regex(
+            r#"^I click( twice)? on "(.+?)"$"#,
+            Box::new(|_, _, caps| {
+                let caps = caps.to_vec();
+                Box::pin(async move { Err(caps.join("|")) })
+            }),
+        );
+        assert_eq!(registry.run(r#"I click on "OK""#).await.unwrap_err(), "|OK");
+        assert_eq!(
+            registry.run(r#"I click twice on "OK""#).await.unwrap_err(),
+            " twice|OK"
+        );
+    }
+
+    #[test]
+    fn has_handler_sees_exact_and_regex_steps() {
+        let mut registry = registry();
+        registry.register("Given exact", failing("x"));
+        registry.register_regex(r"^Given re\d$", failing("x"));
+        assert!(registry.has_handler("Given exact"));
+        assert!(registry.has_handler("  Given re7  "));
+        assert!(!registry.has_handler("Given other"));
+        assert!(registry
+            .try_register_regex("(unclosed", failing("x"))
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn a_feature_runs_against_the_async_registry() {
+        let mut registry = registry();
+        registry.register(
+            "Given a cat",
+            Box::new(|_, _, _| Box::pin(async { Ok(()) })),
+        );
+        registry.register("Then it purrs", failing("it hisses"));
+
+        let results = run_feature_text_async(
+            "@pets\nFeature: f\nScenario: ok\nGiven a cat\nAnd a cat\n\
+             Scenario: broken\nGiven a cat\nThen it purrs\n",
+            &registry,
+            &RunFilter {
+                include_tags: vec!["pets".into()],
+                exclude_tags: vec![],
+            },
+        )
+        .await;
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].passed, "{:?}", results[0].messages);
+        assert_eq!(
+            results[1].messages,
+            ["step 'Then it purrs' failed: it hisses"]
+        );
+    }
+
+    #[test]
+    fn the_built_in_browser_steps_match_with_any_keyword() {
+        // The runner looks a step up with its keyword, so a feature file's
+        // `When I open "..."` must find the handler registered for `I open`.
+        let mut registry = registry();
+        registry.register_common_browser_steps();
+
+        for step in [
+            "I open \"https://x.test\"",
+            "Given I open \"https://x.test\"",
+            "When I go back",
+            "And I go forward",
+            "Then I click \"#a\"",
+            "But I type \"hi\" into \"#q\"",
+        ] {
+            assert!(registry.has_handler(step), "{step}");
+        }
+        assert!(!registry.has_handler("Given I dance"));
     }
 }
