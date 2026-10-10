@@ -241,14 +241,22 @@ surface. Decide each:
 
 - `src/api/playwright.rs` (free functions for the `playwright` feature)
 - `src/behave/common_steps.rs` (`CommonSteps`)
-- `src/cli/scripts/{logo_helper,rich_helper,run}.rs`
 - `src/common/{decorators,exceptions,shutdown}.rs`
-- `src/config/{ad_block_list,proxy_list}.rs`
+- `src/config/ad_block_list.rs` (re-exported, used by nothing else)
 - `src/plugins/driver_manager.rs` (`DriverStack`)
-- `src/resources/assets.rs`, `src/utilities/selenium_grid.rs`
 - `src/utils/extensions/{ad_block,disable_csp,proxy_auth,recorder,sbase_ext}.rs`
 - `src/utils/translate/master_dict.rs` (the `translate` CLI command is also
   still planned, so this one probably wants wiring in)
+
+Now wired in and tested: `cli/scripts/{logo_helper,rich_helper,run}.rs` (the
+`sbase test` command and the banner), `config/proxy_list.rs`,
+`resources/assets.rs`, and `utilities/selenium_grid.rs` with the new
+`grid_server.rs` and `sbase grid` (it starts a Selenium Server jar you supply;
+nothing is downloaded). It has not been run against a real Selenium Server jar
+or Java on this machine; the tests do not need one. The translate vocabulary work
+was left out because it was unfinished when its agent stopped
+(`utils/translate/language.rs` and a test for `master_dict::entries()` do not
+exist yet).
 
 The scan counts name mentions, so an item used only through a glob import or a
 macro would show up here wrongly; check before deleting.

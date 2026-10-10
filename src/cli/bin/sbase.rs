@@ -19,7 +19,9 @@ use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
-use seleniumbase_rs::config::settings::Settings;
+use seleniumbase_rs::config::proxy_list::ProxyList;
+use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
+use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::stealth::patcher::find_system_chrome;
 use seleniumbase_rs::{
     import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
@@ -61,7 +63,7 @@ impl From<BrowserArg> for Browser {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "sbase", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.")]
+#[command(name = "sbase", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.", before_long_help = logo_helper::LOGO)]
 struct Cli {
     #[arg(
         long,
@@ -69,8 +71,12 @@ struct Cli {
         help = "WebDriver server URL (e.g. http://localhost:4444)"
     )]
     webdriver: String,
-    #[arg(long, value_enum, default_value_t = BrowserArg::Chrome, help = "Browser engine to launch")]
-    browser: BrowserArg,
+    #[arg(
+        long,
+        value_enum,
+        help = "Browser engine to launch (default: chrome, or the config file's)"
+    )]
+    browser: Option<BrowserArg>,
     #[arg(long, default_value_t = false, help = "Run the browser in headed mode")]
     headed: bool,
     #[arg(
@@ -103,8 +109,17 @@ struct Cli {
         help = "Enable the built-in ad-block extension"
     )]
     ad_block: bool,
-    #[arg(long, help = "Proxy URL (scheme://host:port)")]
+    #[arg(
+        long,
+        help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
+    )]
     proxy: Option<String>,
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "File of proxies to choose from; without --proxy a random one is used"
+    )]
+    proxy_list: Option<String>,
     #[arg(long, help = "URL to a proxy auto-config (PAC) file")]
     proxy_pac_url: Option<String>,
     #[arg(long, help = "Path to a persistent browser user-data directory")]
@@ -548,6 +563,32 @@ enum Commands {
     },
     /// Install required dependencies and artifacts.
     Install,
+    /// Run the project's tests, or one example, through Cargo.
+    ///
+    /// The global options reach the tests as SB_* environment variables (for
+    /// example `sbase --headless --browser firefox test` sets SB_HEADLESS and
+    /// SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets
+    /// how many tests run at once.
+    Test {
+        /// Run only the tests whose name contains this text.
+        #[arg(conflicts_with = "example")]
+        filter: Option<String>,
+        /// Run one integration test file from tests/.
+        #[arg(long, value_name = "NAME", conflicts_with = "example")]
+        test: Option<String>,
+        /// Run one example from examples/ instead of the tests.
+        #[arg(long, value_name = "NAME")]
+        example: Option<String>,
+        /// Build with the release profile.
+        #[arg(long)]
+        release: bool,
+        /// Cargo features to enable, separated by commas.
+        #[arg(long, value_delimiter = ',')]
+        features: Vec<String>,
+        /// Arguments for the test harness, after `--` (for example --nocapture).
+        #[arg(last = true)]
+        harness_args: Vec<String>,
+    },
     /// Create a folder with a runnable browser-test suite.
     ///
     /// Names are relative to the current directory and use letters, digits, `_`,
@@ -920,11 +961,8 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
 
     println!();
     println!("Chromedriver");
-    let chromedriver: Option<PathBuf> = which::which("chromedriver")
-        .ok()
-        .or_else(|| std::env::var("CHROMEDRIVER_PATH").ok().map(PathBuf::from));
-    match chromedriver {
-        Some(path) if path.exists() => {
+    match assets::lookup_chromedriver() {
+        assets::DriverLookup::Found(path) => {
             println!("  Found: {}", path.display());
             match ChromedriverPatcher::new(&path).needs_patch() {
                 Ok(true) => {
@@ -942,13 +980,17 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Some(path) => {
-            println!("  Configured path missing: {}", path.display());
-            println!("  Hint: install chromedriver or set CHROMEDRIVER_PATH");
+        assets::DriverLookup::MissingConfigured(path) => {
+            println!(
+                "  {} is set to {}, which is not a file",
+                assets::CHROMEDRIVER_PATH_VAR,
+                path.display()
+            );
+            println!("  Hint: fix or unset CHROMEDRIVER_PATH, or run `sbase install`");
         }
-        None => {
-            println!("  Not found in PATH");
-            println!("  Hint: install chromedriver or set CHROMEDRIVER_PATH");
+        assets::DriverLookup::NotFound => {
+            println!("  Not found in {}/ or on PATH", assets::DRIVERS_DIR);
+            println!("  Hint: run `sbase install` or set CHROMEDRIVER_PATH");
         }
     }
 
@@ -956,7 +998,17 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> std::process::ExitCode {
+    match execute().await {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            rich_helper::print_error(&error.to_string());
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     let runtime = RuntimeConfig::from_env().unwrap_or_default();
     init_tracing_from_runtime(&runtime);
 
@@ -1043,57 +1095,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Choose either --cdp or --uc, not both.".into());
     }
 
-    // Start from global config file (if any) and apply CLI overrides.
+    // Start from the global config file (if any), then apply only what the
+    // command line asked for, so an option left alone keeps the file's value.
     let mut settings = match args.config.as_deref() {
         Some(path) => Settings::load(Some(path))?,
         None => Settings::load_global()?,
     };
-    settings.browser = match args.browser {
-        BrowserArg::Chrome => "chrome".to_owned(),
-        BrowserArg::Chromium => "chromium".to_owned(),
-        BrowserArg::Edge => "edge".to_owned(),
-        BrowserArg::Firefox => "firefox".to_owned(),
+    let proxy = match args.proxy_list.as_deref() {
+        Some(path) => {
+            let list = ProxyList::from_file(path)?;
+            match args.proxy.as_deref() {
+                Some(name_or_proxy) => Some(list.resolve(name_or_proxy)?),
+                None => {
+                    let entry = list
+                        .random()
+                        .ok_or_else(|| format!("the proxy list {path} is empty"))?;
+                    rich_helper::print_notice(&format!("Using proxy {entry}"));
+                    Some(entry.spec().to_owned())
+                }
+            }
+        }
+        None => args.proxy,
     };
-    if args.headless {
-        settings.headless = true;
-    } else if args.headed {
-        settings.headless = false;
-    }
-    if args.cdp {
-        settings.mode = Some("cdp".to_owned());
-    } else if args.uc {
-        settings.mode = Some("uc".to_owned());
-    }
-    if let Some(v) = args.user_agent.as_ref().or(args.agent.as_ref()) {
-        settings.user_agent = Some(v.clone());
-    }
-    if let Some(v) = args.locale {
-        settings.locale = Some(v);
-    }
-    if args.ad_block {
-        settings.ad_block = true;
-    }
-    if let Some(v) = args.proxy {
-        settings.proxy = Some(v);
-    }
-    if let Some(v) = args.proxy_pac_url {
-        settings.proxy_pac_url = Some(v);
-    }
-    if let Some(v) = args.user_data_dir {
-        settings.user_data_dir = Some(v);
-    }
-    if let Some(v) = args.extension_dir {
-        settings.extension_dir = Some(v);
-    }
-    if args.reuse_session || args.rs {
-        settings.reuse_session = true;
-    }
-    if args.mobile {
-        settings.mobile = true;
-    }
-    if let Some(v) = args.threads {
-        settings.threads = Some(v);
-    }
+    let overrides = SettingsOverrides {
+        browser: args
+            .browser
+            .and_then(|browser| browser.to_possible_value())
+            .map(|value| value.get_name().to_owned()),
+        headless: args
+            .headless
+            .then_some(true)
+            .or_else(|| args.headed.then_some(false)),
+        mode: args
+            .cdp
+            .then(|| "cdp".to_owned())
+            .or_else(|| args.uc.then(|| "uc".to_owned())),
+        user_agent: args.user_agent.or(args.agent),
+        locale: args.locale,
+        ad_block: args.ad_block.then_some(true),
+        proxy,
+        proxy_pac_url: args.proxy_pac_url,
+        user_data_dir: args.user_data_dir,
+        extension_dir: args.extension_dir,
+        reuse_session: (args.reuse_session || args.rs).then_some(true),
+        mobile: args.mobile.then_some(true),
+        threads: args.threads,
+    };
+    overrides.apply(&mut settings);
 
     let mode = settings
         .mode
@@ -1649,6 +1697,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(path) => println!("Drivers installed successfully at {}", path.display()),
             Err(e) => eprintln!("Failed to install driver: {}", e),
         },
+        Commands::Test {
+            filter,
+            test,
+            example,
+            release,
+            features,
+            harness_args,
+        } => {
+            let target = match (test, example) {
+                (_, Some(name)) => run::TestTarget::Example(name),
+                (Some(name), None) => run::TestTarget::Test(name),
+                (None, None) => run::TestTarget::All,
+            };
+            let mut test_run = run::TestRun::new()
+                .target(target)
+                .release(release)
+                .features(features)
+                .harness_args(harness_args);
+            if let Some(filter) = filter {
+                test_run = test_run.filter(filter);
+            }
+            if let Some(threads) = settings.threads {
+                test_run = test_run.threads(threads);
+            }
+            // Only what the command line asked for: the tests load the config
+            // file and the rest of the environment themselves.
+            for (name, value) in overrides.env() {
+                test_run = test_run.env(name, value);
+            }
+            if config.webdriver_url != "http://localhost:4444" {
+                test_run = test_run.env("SB_WEBDRIVER_URL", config.webdriver_url.clone());
+            }
+            let status = test_run.status()?;
+            if !status.success() {
+                std::process::exit(status.code().unwrap_or(1));
+            }
+        }
         Commands::Mkdir { .. } | Commands::Mkfile { .. } => {
             unreachable!("file-generating commands return before browser configuration")
         }

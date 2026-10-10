@@ -31,6 +31,141 @@ pub struct Settings {
     pub remote_webdriver_timeout_seconds: Option<u64>,
 }
 
+/// The settings a command line asked for explicitly, and nothing else.
+///
+/// Each field is `None` unless the user passed the matching option. That
+/// distinction matters: an option left at its default must not hide the value
+/// from a config file or an `SB_*` variable, but an option that was passed
+/// beats both. The same overrides can be applied to a [`Settings`] directly
+/// ([`apply`](Self::apply)) or handed to a child process, such as a test run,
+/// as environment variables ([`env`](Self::env)).
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
+///
+/// let overrides = SettingsOverrides {
+///     headless: Some(true),
+///     proxy: Some("proxy.example.com:8080".to_owned()),
+///     ..SettingsOverrides::default()
+/// };
+///
+/// let mut settings = Settings::default();
+/// overrides.apply(&mut settings);
+/// assert!(settings.headless);
+/// assert_eq!(settings.proxy.as_deref(), Some("proxy.example.com:8080"));
+///
+/// let env = overrides.env();
+/// assert!(env.contains(&("SB_HEADLESS", "true".to_owned())));
+/// ```
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SettingsOverrides {
+    /// Browser name (`SB_BROWSER`).
+    pub browser: Option<String>,
+    /// Run without a visible window (`SB_HEADLESS`).
+    pub headless: Option<bool>,
+    /// Driver mode: `webdriver`, `cdp` or `uc` (`SB_MODE`).
+    pub mode: Option<String>,
+    /// User-agent string (`SB_USER_AGENT`).
+    pub user_agent: Option<String>,
+    /// Browser locale (`SB_LOCALE`).
+    pub locale: Option<String>,
+    /// Block ads (`SB_AD_BLOCK`).
+    pub ad_block: Option<bool>,
+    /// Proxy address (`SB_PROXY`).
+    pub proxy: Option<String>,
+    /// Proxy auto-config URL (`SB_PROXY_PAC_URL`).
+    pub proxy_pac_url: Option<String>,
+    /// Persistent profile directory (`SB_USER_DATA_DIR`).
+    pub user_data_dir: Option<String>,
+    /// Unpacked extension directory (`SB_EXTENSION_DIR`).
+    pub extension_dir: Option<String>,
+    /// Reuse an existing browser session (`SB_REUSE_SESSION`).
+    pub reuse_session: Option<bool>,
+    /// Emulate a mobile device (`SB_MOBILE`).
+    pub mobile: Option<bool>,
+    /// Number of parallel threads (`SB_THREADS`).
+    pub threads: Option<usize>,
+}
+
+impl SettingsOverrides {
+    /// Writes every option that is set into `settings`.
+    pub fn apply(&self, settings: &mut Settings) {
+        if let Some(browser) = &self.browser {
+            settings.browser.clone_from(browser);
+        }
+        if let Some(headless) = self.headless {
+            settings.headless = headless;
+        }
+        if let Some(mode) = &self.mode {
+            settings.mode = Some(mode.clone());
+        }
+        if let Some(user_agent) = &self.user_agent {
+            settings.user_agent = Some(user_agent.clone());
+        }
+        if let Some(locale) = &self.locale {
+            settings.locale = Some(locale.clone());
+        }
+        if let Some(ad_block) = self.ad_block {
+            settings.ad_block = ad_block;
+        }
+        if let Some(proxy) = &self.proxy {
+            settings.proxy = Some(proxy.clone());
+        }
+        if let Some(pac) = &self.proxy_pac_url {
+            settings.proxy_pac_url = Some(pac.clone());
+        }
+        if let Some(dir) = &self.user_data_dir {
+            settings.user_data_dir = Some(dir.clone());
+        }
+        if let Some(dir) = &self.extension_dir {
+            settings.extension_dir = Some(dir.clone());
+        }
+        if let Some(reuse) = self.reuse_session {
+            settings.reuse_session = reuse;
+        }
+        if let Some(mobile) = self.mobile {
+            settings.mobile = mobile;
+        }
+        if let Some(threads) = self.threads {
+            settings.threads = Some(threads);
+        }
+    }
+
+    /// The `SB_*` environment variables that carry these options to a child
+    /// process, one for each option that is set.
+    ///
+    /// A process that loads its settings with [`Settings::load`] sees them as
+    /// the highest-priority overrides it can receive from outside. A proxy
+    /// address may contain a password, so hand the result only to processes
+    /// you trust with it.
+    #[must_use]
+    pub fn env(&self) -> Vec<(&'static str, String)> {
+        let text = |name, value: &Option<String>| value.clone().map(|value| (name, value));
+        let flag = |name, value: Option<bool>| value.map(|value| (name, value.to_string()));
+        [
+            text("SB_BROWSER", &self.browser),
+            flag("SB_HEADLESS", self.headless),
+            text("SB_MODE", &self.mode),
+            text("SB_USER_AGENT", &self.user_agent),
+            text("SB_LOCALE", &self.locale),
+            flag("SB_AD_BLOCK", self.ad_block),
+            text("SB_PROXY", &self.proxy),
+            text("SB_PROXY_PAC_URL", &self.proxy_pac_url),
+            text("SB_USER_DATA_DIR", &self.user_data_dir),
+            text("SB_EXTENSION_DIR", &self.extension_dir),
+            flag("SB_REUSE_SESSION", self.reuse_session),
+            flag("SB_MOBILE", self.mobile),
+            self.threads
+                .map(|threads| ("SB_THREADS", threads.to_string())),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -153,70 +288,81 @@ impl Settings {
         }
     }
 
-    fn apply_env_overrides(mut settings: Self) -> Result<Self, SeleniumBaseError> {
-        if let Ok(v) = std::env::var("SB_BROWSER") {
+    fn apply_env_overrides(settings: Self) -> Result<Self, SeleniumBaseError> {
+        Self::apply_overrides(settings, |name| std::env::var(name).ok())
+    }
+
+    /// Applies the `SB_*` overrides that `var` reports on top of `settings`.
+    ///
+    /// `var` looks a variable up by name, so the overrides can come from the
+    /// process environment or from any other source.
+    fn apply_overrides(
+        mut settings: Self,
+        var: impl Fn(&str) -> Option<String>,
+    ) -> Result<Self, SeleniumBaseError> {
+        if let Some(v) = var("SB_BROWSER") {
             settings.browser = v;
         }
-        if let Ok(v) = std::env::var("SB_HEADLESS") {
+        if let Some(v) = var("SB_HEADLESS") {
             settings.headless = parse_bool(&v)?;
         }
-        if let Ok(v) = std::env::var("SB_TIMEOUT") {
+        if let Some(v) = var("SB_TIMEOUT") {
             settings.timeout_seconds = v
                 .parse()
                 .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_TIMEOUT: {e}")))?;
         }
-        if let Ok(v) = std::env::var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
+        if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
             settings.remote_webdriver_timeout_seconds = Some(v.parse().map_err(|e| {
                 SeleniumBaseError::InvalidConfig(format!("SB_REMOTE_WEBDRIVER_TIMEOUT: {e}"))
             })?);
         }
-        if let Ok(v) = std::env::var("SB_SCREENSHOT_DIR") {
+        if let Some(v) = var("SB_SCREENSHOT_DIR") {
             settings.screenshot_dir = v;
         }
-        if let Ok(v) = std::env::var("SB_PROXY") {
+        if let Some(v) = var("SB_PROXY") {
             settings.proxy = Some(v);
         }
-        if let Ok(v) = std::env::var("SB_WINDOW_WIDTH") {
+        if let Some(v) = var("SB_WINDOW_WIDTH") {
             settings.window_width = v
                 .parse()
                 .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_WIDTH: {e}")))?;
         }
-        if let Ok(v) = std::env::var("SB_WINDOW_HEIGHT") {
+        if let Some(v) = var("SB_WINDOW_HEIGHT") {
             settings.window_height = v
                 .parse()
                 .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_HEIGHT: {e}")))?;
         }
-        if let Ok(v) = std::env::var("SB_USER_DATA_DIR") {
+        if let Some(v) = var("SB_USER_DATA_DIR") {
             settings.user_data_dir = Some(v);
         }
-        if let Ok(v) = std::env::var("SB_EXTENSION_DIR") {
+        if let Some(v) = var("SB_EXTENSION_DIR") {
             settings.extension_dir = Some(v);
         }
-        if let Ok(v) = std::env::var("SB_LOCALE") {
+        if let Some(v) = var("SB_LOCALE") {
             settings.locale = Some(v);
         }
-        if let Ok(v) = std::env::var("SB_USER_AGENT") {
+        if let Some(v) = var("SB_USER_AGENT") {
             settings.user_agent = Some(v);
         }
-        if let Ok(v) = std::env::var("SB_MODE") {
+        if let Some(v) = var("SB_MODE") {
             settings.mode = Some(v);
         }
-        if let Ok(v) = std::env::var("SB_AD_BLOCK") {
+        if let Some(v) = var("SB_AD_BLOCK") {
             settings.ad_block = parse_bool(&v)?;
         }
-        if let Ok(v) = std::env::var("SB_REUSE_SESSION") {
+        if let Some(v) = var("SB_REUSE_SESSION") {
             settings.reuse_session = parse_bool(&v)?;
         }
-        if let Ok(v) = std::env::var("SB_MOBILE") {
+        if let Some(v) = var("SB_MOBILE") {
             settings.mobile = parse_bool(&v)?;
         }
-        if let Ok(v) = std::env::var("SB_THREADS") {
+        if let Some(v) = var("SB_THREADS") {
             settings.threads = Some(
                 v.parse()
                     .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_THREADS: {e}")))?,
             );
         }
-        if let Ok(v) = std::env::var("SB_PROXY_PAC_URL") {
+        if let Some(v) = var("SB_PROXY_PAC_URL") {
             settings.proxy_pac_url = Some(v);
         }
         Ok(settings)
@@ -346,6 +492,119 @@ threads = 4
             config.proxy_pac_url,
             Some("http://proxy/proxy.pac".to_string())
         );
+    }
+
+    fn every_option() -> SettingsOverrides {
+        SettingsOverrides {
+            browser: Some("firefox".to_owned()),
+            headless: Some(true),
+            mode: Some("uc".to_owned()),
+            user_agent: Some("TestAgent/1.0".to_owned()),
+            locale: Some("fr-FR".to_owned()),
+            ad_block: Some(true),
+            proxy: Some("proxy.test:8080".to_owned()),
+            proxy_pac_url: Some("http://proxy.test/proxy.pac".to_owned()),
+            user_data_dir: Some("/tmp/profile".to_owned()),
+            extension_dir: Some("/tmp/ext".to_owned()),
+            reuse_session: Some(true),
+            mobile: Some(true),
+            threads: Some(4),
+        }
+    }
+
+    #[test]
+    fn overrides_that_are_set_replace_the_settings() {
+        let mut settings = Settings::default();
+        every_option().apply(&mut settings);
+
+        assert_eq!(settings.browser, "firefox");
+        assert!(
+            settings.headless && settings.ad_block && settings.reuse_session && settings.mobile
+        );
+        assert_eq!(settings.mode.as_deref(), Some("uc"));
+        assert_eq!(settings.user_agent.as_deref(), Some("TestAgent/1.0"));
+        assert_eq!(settings.locale.as_deref(), Some("fr-FR"));
+        assert_eq!(settings.proxy.as_deref(), Some("proxy.test:8080"));
+        assert_eq!(
+            settings.proxy_pac_url.as_deref(),
+            Some("http://proxy.test/proxy.pac")
+        );
+        assert_eq!(settings.user_data_dir.as_deref(), Some("/tmp/profile"));
+        assert_eq!(settings.extension_dir.as_deref(), Some("/tmp/ext"));
+        assert_eq!(settings.threads, Some(4));
+    }
+
+    #[test]
+    fn overrides_that_are_not_set_leave_the_settings_alone() {
+        let before = Settings {
+            browser: "edge".to_owned(),
+            headless: true,
+            proxy: Some("from-config:1".to_owned()),
+            threads: Some(2),
+            ..Settings::default()
+        };
+        let mut after = before.clone();
+
+        SettingsOverrides::default().apply(&mut after);
+
+        assert_eq!(after, before);
+    }
+
+    #[test]
+    fn an_explicit_false_beats_a_true_in_the_settings() {
+        let mut settings = Settings {
+            headless: true,
+            ..Settings::default()
+        };
+        SettingsOverrides {
+            headless: Some(false),
+            ..SettingsOverrides::default()
+        }
+        .apply(&mut settings);
+        assert!(!settings.headless);
+    }
+
+    #[test]
+    fn the_environment_form_means_the_same_as_applying_directly() {
+        let overrides = every_option();
+        let vars: std::collections::HashMap<_, _> = overrides.env().into_iter().collect();
+        assert_eq!(vars.len(), 13, "one variable per option");
+
+        let via_env =
+            Settings::apply_overrides(Settings::default(), |name| vars.get(name).cloned()).unwrap();
+        let mut direct = Settings::default();
+        overrides.apply(&mut direct);
+
+        assert_eq!(via_env, direct);
+    }
+
+    #[test]
+    fn options_that_are_not_set_produce_no_variable() {
+        assert!(SettingsOverrides::default().env().is_empty());
+        let only_proxy = SettingsOverrides {
+            proxy: Some("p:1".to_owned()),
+            ..SettingsOverrides::default()
+        };
+        assert_eq!(only_proxy.env(), [("SB_PROXY", "p:1".to_owned())]);
+    }
+
+    #[test]
+    fn an_override_lookup_that_finds_nothing_changes_nothing() {
+        let original = Settings {
+            browser: "edge".to_owned(),
+            mobile: true,
+            ..Settings::default()
+        };
+        let same = Settings::apply_overrides(original.clone(), |_| None).unwrap();
+        assert_eq!(same, original);
+    }
+
+    #[test]
+    fn a_bad_override_value_is_an_error() {
+        let result = Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_THREADS").then(|| "many".to_owned())
+        });
+        assert!(result.is_err());
     }
 
     #[test]

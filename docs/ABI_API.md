@@ -23,7 +23,7 @@ The crate root exposes the following modules:
 | `mcp` | MCP servers (`cdp`, `driver`, `sb`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
 | `profile_payloads` | External browser profile payload parsing and conversion. |
 | `plugins` | Cloud/logging plugin interfaces. |
-| `resources` | Static assets bundled with the crate. |
+| `resources` | Where downloaded browser drivers live and how a chromedriver is found. |
 | `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
 | `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |

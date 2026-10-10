@@ -180,6 +180,36 @@ use seleniumbase_rs::BrowserConfig;
 let config = BrowserConfig::from_env()?;
 ```
 
+## Proxy lists and ad-block lists
+
+Two small types in `seleniumbase_rs::config` hold lists that are too long for
+a config file field.
+
+`ProxyList` is Python's `PROXY_LIST`: proxies, optionally named, read from a
+text file (see [CLI usage](cli_usage.md#proxies-from-a-list) for the format).
+Each entry is validated when it is read. It resolves a name or a literal proxy
+(`resolve`), and hands proxies out in turn (`next_round_robin`) or at random
+(`random`); the turn counter is atomic, so one list can serve parallel tests:
+
+```rust
+use seleniumbase_rs::config::proxy_list::ProxyList;
+use seleniumbase_rs::BrowserConfig;
+
+let proxies = ProxyList::from_file("proxies.txt")?;
+let entry = proxies.next_round_robin().expect("a non-empty list");
+let config = BrowserConfig::default().with_proxy(entry.spec());
+```
+
+`ProxyEntry`'s `Debug` and `Display` never show a password; only `spec()` does.
+
+`AdBlockList` is a set of hosts to refuse, with their subdomains.
+`AdBlockList::builtin()` is the crate's starter list of advertising and
+tracking hosts, `AdBlockList::parse` reads the host rules of a hosts file or
+an Adblock Plus list (and counts the rules it cannot express), and
+`url_patterns()` gives the patterns for the DevTools command
+`Network.setBlockedURLs`. `is_blocked(url)` matches on the parsed host, so a
+blocked name inside a query string does not block the page.
+
 ## Best practices
 
 - Commit a sample config file (e.g., `sbase_config.example.toml`) to the repo so

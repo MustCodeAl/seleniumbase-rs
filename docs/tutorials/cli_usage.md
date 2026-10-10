@@ -86,7 +86,51 @@ version.
 ```
 
 `doctor` prints the active `SB_*` environment variables, the detected Chrome
-binary, and the patched-binary cache path.
+binary, and the patched-binary cache path. For chromedriver it looks, in order,
+at the file named by `CHROMEDRIVER_PATH`, at `downloaded_drivers/` (where
+`sbase install` puts it), and on `PATH`; a `CHROMEDRIVER_PATH` that names no
+file is reported rather than skipped.
+
+## Run your tests
+
+`sbase test` runs `cargo test` (or one example) and carries the global options
+into the tests as `SB_*` environment variables, the way Python SeleniumBase's
+pytest options reach its tests:
+
+```bash
+sbase test                                  # every test
+sbase test login                            # tests whose name contains "login"
+sbase test --test browser_smoke             # one file from tests/
+sbase test --example basic_test             # run one example instead
+sbase --headless --browser firefox -n 4 test -- --nocapture
+```
+
+Only options you actually pass are exported (`SB_HEADLESS`, `SB_BROWSER`,
+`SB_MODE`, `SB_PROXY`, ...), so the config file and your own `SB_*` variables
+still apply to everything else. A test sees them when it loads its settings
+with `Settings::load(None)`. `-n` becomes `--test-threads`, and the exit status
+is Cargo's.
+
+## Proxies from a list
+
+`--proxy-list FILE` reads a list of proxies, one per line, optionally named
+(the Rust counterpart of Python's `PROXY_LIST`):
+
+```text
+# proxies.txt
+office = 10.0.0.5:3128
+eu = alice:s3cret@proxy.example.com:8080
+socks5://10.0.0.9:1080
+```
+
+```bash
+sbase --proxy-list proxies.txt --proxy eu open https://example.com   # by name
+sbase --proxy-list proxies.txt open https://example.com              # a random one
+```
+
+Each line is checked when the file is read, and an error names the line number
+(never the password). The same type, `ProxyList`, hands proxies out in turn or
+at random to Rust code; see `seleniumbase_rs::config::proxy_list`.
 
 ## Encrypt and decrypt secrets
 
@@ -210,16 +254,16 @@ Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
 | `--uc` | Enable UC (undetected) mode. |
 | `--cdp` | Enable CDP mode. |
 | `--headless` | Run browser headlessly. |
-| `--browser NAME` | Select browser (`chrome`, `chromium`, `edge`, `firefox`). |
-| `--proxy URL` | Route traffic through a proxy. |
-| `--timeout SECS` | Set default timeout. |
-| `--verbose` | Increase log output. |
+| `--browser NAME` | Select browser (`chrome`, `chromium`, `edge`, `firefox`). Without it the config file's browser, else Chrome. |
+| `--proxy PROXY` | Route traffic through a proxy (`host:port`, or a name from `--proxy-list`). |
+| `--proxy-list FILE` | Choose the proxy from a list of proxies. |
+| `-n N` | Number of parallel tests for `sbase test`. |
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `sbase: command not found` | Binary not on `PATH` | Use `./target/debug/sbase` or install with `cargo install --path .`. |
-| Subcommand flag ignored | Flag placed before subcommand | Put flags after the subcommand: `sbase open --headless`. |
+| Global flag rejected | Flag placed after the subcommand | Put global flags before the subcommand: `sbase --headless open URL`. |
 | CDP command fails | Not in CDP mode | Add `--cdp` or use a CDP-enabled config. |
 | `doctor` shows missing Chrome | Chrome not installed or not on PATH | Set `SB_CHROME_BIN` to the full path. |
