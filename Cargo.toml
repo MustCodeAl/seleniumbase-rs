@@ -94,10 +94,12 @@ rmcp = { version = "3.5", default-features = false, features = ["server", "trans
 turso = { version = "0.8", default-features = false, optional = true }
 
 [features]
-default = ["tui", "gui"]
-# Interactive Commander TUI (`sbase commander`). Disable to slim the dependency tree.
+# Nothing is on by default: a headless browser pool needs neither the terminal UI
+# nor the desktop automation stacks, and `gui` links GTK and X11 on Linux.
+default = []
+# Interactive Commander TUI (`sbase commander`).
 tui = ["dep:ratatui", "dep:crossterm"]
-# Native OS dialogs and GUI automation (enigo/rfd). Disable for headless-only builds.
+# Native OS dialogs and GUI automation (enigo/rfd).
 gui = ["dep:enigo", "dep:rfd"]
 # Playwright-compatible automation mode powered by rustwright.
 playwright = ["dep:rustwright", "dep:rustwright-core"]

@@ -697,8 +697,7 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
-    /// Launch the interactive commander GUI.
-    #[cfg(feature = "tui")]
+    /// Launch the interactive commander (needs a build with the `tui` feature).
     Commander,
     /// Generate case plans.
     Caseplans,
@@ -1867,6 +1866,14 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 eprintln!("Failed to run commander: {}", e);
                 std::process::exit(1);
             }
+        }
+        #[cfg(not(feature = "tui"))]
+        Commands::Commander => {
+            eprintln!(
+                "this sbase was built without the terminal UI; \
+                 reinstall it with `cargo install seleniumbase-rs --features tui`"
+            );
+            std::process::exit(2);
         }
         Commands::Caseplans => match sb_caseplans::run_caseplans() {
             Ok(path) => println!("Generated {}", path.display()),

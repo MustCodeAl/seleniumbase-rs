@@ -34,14 +34,11 @@ jobs:
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      # The default feature set includes `gui` (enigo/rfd), which links
-      # against GTK and X11 on Linux.
-      - name: Install GUI build dependencies
+      # The default build has no `gui` feature, so GTK and X11 are not needed.
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev \
-            libssl-dev pkg-config
+          sudo apt-get install -y libssl-dev pkg-config
 
       - name: Verify Chrome and chromedriver are available
         # GitHub-hosted runners ship Chrome + chromedriver preinstalled.
@@ -65,6 +62,9 @@ jobs:
             features: "s3,azure,gcp"
           - os: ubuntu-latest
             features: "mcp-server"
+          # `gui` and `tui` are off by default, so the default build skips them.
+          - os: ubuntu-latest
+            features: "gui,tui"
           - os: ubuntu-latest
             features: "playwright"
           - os: macos-latest
@@ -73,6 +73,8 @@ jobs:
             features: "s3,azure,gcp"
           - os: macos-latest
             features: "mcp-server"
+          - os: macos-latest
+            features: "gui,tui"
           - os: macos-latest
             features: "playwright"
           - os: windows-latest
@@ -213,7 +215,7 @@ jobs:
             libssl-dev pkg-config
 
       - name: Check against the declared rust-version
-        run: cargo check --all-targets
+        run: cargo check --all-targets --features gui,tui
 
   # The Tauri example carries its own manifest outside the workspace, so the
   # jobs above never build it and regressions in it go unnoticed.

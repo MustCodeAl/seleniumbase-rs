@@ -17,15 +17,15 @@ test:
 # Run tests with all optional features enabled
 # On macOS you may need to export DYLD_LIBRARY_PATH for the playwright feature.
 test-all:
-    cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing
+    cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
 
 # Run Clippy with the strictest settings for all features
 lint:
-    cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing -- -D warnings
+    cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui -- -D warnings
 
 # Build the library and all binaries
 build:
-    cargo build --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing
+    cargo build --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
 
 # Build the mdBook documentation
 docs:

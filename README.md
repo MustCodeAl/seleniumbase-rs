@@ -214,8 +214,8 @@ cargo run --bin sbase -- doctor
 cargo run --bin sbase -- completions bash > sbase.bash
 cargo run --bin sbase -- completions zsh > _sbase
 
-# Interactive commander TUI
-cargo run --bin sbase -- commander
+# Interactive commander TUI (build with the `tui` feature)
+cargo run --features tui --bin sbase -- commander
 ```
 
 See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
@@ -240,8 +240,8 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Cookies & storage | `cargo run --example cookies_storage` |
 | JS execution | `cargo run --example js_execution` |
 | Network conditions | `cargo run --example network_conditions` |
-| GUI automation | `cargo run --example gui_automation` |
-| Native dialogs | `cargo run --example dialog` |
+| GUI automation | `cargo run --example gui_automation --features gui` |
+| Native dialogs | `cargo run --example dialog --features gui` |
 | HTML inspector | `cargo run --example html_inspector` |
 | MasterQA | `cargo run --example masterqa` |
 | Tour maker | `cargo run --example tour_maker` |

@@ -235,8 +235,8 @@ contained:
 
 | Feature | Default | Purpose |
 |---|---|---|
-| `tui` | on | Interactive Commander TUI (`sbase commander`). Pulls `ratatui`/`crossterm`. |
-| `gui` | on | Native OS dialogs and GUI automation. Pulls `rfd`/`enigo`. Disable for headless-only or library-only consumers. |
+| `tui` | off | Interactive Commander TUI (`sbase commander`). Pulls `ratatui`/`crossterm`. |
+| `gui` | off | Native OS dialogs and GUI automation. Pulls `rfd`/`enigo`; on Linux it needs GTK and X11 development packages. |
 | `playwright` | off | Enables the `rustwright`-based Playwright-compatible engine. |
 | `s3` | off | Enables AWS S3 artifact uploads. |
 | `azure` | off | Enables Azure Blob Storage artifact uploads. |
@@ -246,15 +246,22 @@ contained:
 | `json-logs` | off | Structured JSON log output. |
 | `error-backtrace` | off | Backtraces attached to `SeleniumBaseError`. |
 
-Library consumers can drop the GUI/TUI stacks entirely:
+No feature is on by default, so a library user or a headless pool pulls in
+neither the terminal UI nor the desktop automation stacks. Turn them on when
+you want them:
 
 ```toml
-seleniumbase-rs = { path = "../seleniumbase-rs", default-features = false }
+seleniumbase-rs = { version = "0.1", features = ["gui", "tui"] }
 ```
 
-The default build includes `tui` and `gui` so the `sbase` CLI works out of the
-box. The crate compiles cleanly with `--no-default-features` and with
-`--all-features`; keep both green when touching feature-gated code.
+```text
+cargo install seleniumbase-rs --features tui   # sbase commander
+cargo run --example gui_automation --features gui
+```
+
+The crate compiles cleanly with no features and with `--all-features`; keep both
+green when touching feature-gated code. CI also builds `gui,tui` on Linux and
+macOS, because the default build no longer covers them.
 
 When adding a feature-gated API, use `#[cfg(feature = "...")]` and declare the
 dependency as `optional = true` in `Cargo.toml`. Prefer `#[cfg(feature = "...")]`
