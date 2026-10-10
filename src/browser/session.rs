@@ -582,7 +582,12 @@ impl BrowserSession {
         Ok(self.driver().screenshot_as_png().await?)
     }
 
-    /// Enables Page/Network/Runtime CDP domains.
+    /// Enables the Page and Network CDP domains.
+    ///
+    /// The Runtime domain stays off on purpose: enabling it is a well-known
+    /// bot-detection tell. See [`CdpClient::enable_default_domains`].
+    ///
+    /// [`CdpClient::enable_default_domains`]: crate::stealth::cdp::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.enable_default_domains()

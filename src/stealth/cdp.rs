@@ -9,6 +9,12 @@
 use std::sync::Arc;
 use thirtyfour::extensions::cdp::ChromeDevTools;
 
+/// The commands [`CdpClient::enable_default_domains`] sends, in order.
+///
+/// `Runtime.enable` must never be added: it is a well-known automation tell
+/// (see the method's documentation).
+const DEFAULT_DOMAIN_COMMANDS: [&str; 2] = ["Page.enable", "Network.enable"];
+
 /// Thin wrapper around [`ChromeDevTools`] for issuing CDP commands.
 #[allow(deprecated)]
 pub struct CdpClient {
@@ -52,13 +58,20 @@ impl CdpClient {
         Ok(())
     }
 
-    /// Enables the Page, Network, and Runtime CDP domains.
+    /// Enables the Page and Network CDP domains.
+    ///
+    /// The Runtime domain is deliberately left off. Enabling it makes the
+    /// browser report every console call and every new execution context to the
+    /// client, and bot-detection scripts probe for exactly that traffic (for
+    /// example by logging an object whose property getter fires only if a
+    /// client is listening). Commands such as `Runtime.evaluate` work without
+    /// it.
     ///
     /// # Errors
     ///
     /// Returns the first domain the browser refused to enable.
     pub async fn enable_default_domains(&self) -> Result<(), crate::error::SeleniumBaseError> {
-        for domain in ["Page.enable", "Network.enable", "Runtime.enable"] {
+        for domain in DEFAULT_DOMAIN_COMMANDS {
             self.dev_tools.execute_cdp(domain).await.map_err(|e| {
                 crate::error::SeleniumBaseError::Unsupported(format!("{domain}: {e}"))
             })?;
@@ -167,5 +180,27 @@ impl CdpClient {
             .await
             .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DEFAULT_DOMAIN_COMMANDS;
+
+    #[test]
+    fn the_default_domains_never_include_runtime() {
+        // `Runtime.enable` makes the browser emit the console and
+        // execution-context events that bot-detection scripts probe for.
+        for command in DEFAULT_DOMAIN_COMMANDS {
+            assert!(
+                !command.starts_with("Runtime."),
+                "{command} would make the automation detectable"
+            );
+        }
+    }
+
+    #[test]
+    fn the_default_domains_are_page_then_network() {
+        assert_eq!(DEFAULT_DOMAIN_COMMANDS, ["Page.enable", "Network.enable"]);
     }
 }
