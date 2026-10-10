@@ -8,12 +8,42 @@ use zip::ZipArchive;
 use crate::browser::driver_access::make_runnable;
 use crate::error::SeleniumBaseError;
 
-/// Download and extract the latest chromedriver for the current platform.
+/// The Chrome for Testing listing of the newest stable build.
+const STABLE_LISTING: &str =
+    "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+
+/// The Chrome for Testing listing of the newest build of every milestone.
+const MILESTONE_LISTING: &str =
+    "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json";
+
+/// Download and extract the latest stable chromedriver for the current platform.
+///
+/// A chromedriver only drives the Chrome of its own major version, so prefer
+/// [`download_chrome_driver_for`] when the installed Chrome is known.
 pub async fn download_chrome_driver() -> Result<PathBuf, SeleniumBaseError> {
+    download_chrome_driver_for(None).await
+}
+
+/// Download and extract the chromedriver for Chrome `major` (the newest build of
+/// that milestone), or the latest stable one when `major` is `None`.
+///
+/// # Errors
+///
+/// Returns an error when the listing cannot be fetched, when no chromedriver is
+/// published for `major` on this platform, or when the archive cannot be read.
+pub async fn download_chrome_driver_for(major: Option<u32>) -> Result<PathBuf, SeleniumBaseError> {
     let platform = platform_label()?;
     let client = Client::new();
-    let version_info = fetch_version_info(&client).await?;
-    let download_url = chromedriver_download_url(&version_info, platform)?;
+    let download_url = match major {
+        None => {
+            let listing = fetch_version_info(&client, STABLE_LISTING).await?;
+            chromedriver_download_url(&listing, platform)?
+        }
+        Some(major) => {
+            let listing = fetch_version_info(&client, MILESTONE_LISTING).await?;
+            chromedriver_milestone_url(&listing, major, platform)?
+        }
+    };
 
     let dest_dir = PathBuf::from("downloaded_drivers");
     fs::create_dir_all(&dest_dir).map_err(io_error)?;
@@ -38,9 +68,10 @@ fn platform_label() -> Result<&'static str, SeleniumBaseError> {
     }
 }
 
-async fn fetch_version_info(client: &Client) -> Result<serde_json::Value, SeleniumBaseError> {
-    let url =
-        "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+async fn fetch_version_info(
+    client: &Client,
+    url: &str,
+) -> Result<serde_json::Value, SeleniumBaseError> {
     let response = client
         .get(url)
         .send()
@@ -71,6 +102,33 @@ fn chromedriver_download_url(
         .ok_or_else(|| {
             SeleniumBaseError::Unsupported(format!(
                 "no chromedriver download found for platform: {platform}"
+            ))
+        })
+}
+
+/// The download URL of the chromedriver for Chrome `major`, from the
+/// per-milestone listing.
+fn chromedriver_milestone_url(
+    listing: &serde_json::Value,
+    major: u32,
+    platform: &str,
+) -> Result<String, SeleniumBaseError> {
+    let downloads = listing["milestones"][major.to_string().as_str()]["downloads"]["chromedriver"]
+        .as_array()
+        .ok_or_else(|| {
+            SeleniumBaseError::Unsupported(format!(
+                "no chromedriver is published for Chrome {major}"
+            ))
+        })?;
+
+    downloads
+        .iter()
+        .find(|download| download["platform"].as_str() == Some(platform))
+        .and_then(|download| download["url"].as_str())
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| {
+            SeleniumBaseError::Unsupported(format!(
+                "no chromedriver for Chrome {major} is published for platform: {platform}"
             ))
         })
 }
@@ -106,6 +164,14 @@ async fn extract_chromedriver(
 
         if file_name == "chromedriver" || file_name == "chromedriver.exe" {
             let dest_path = dest_dir.join(&file_name);
+            // Replace the file instead of overwriting it in place: macOS caches
+            // a binary's signature per file, and a new binary written into the
+            // same file is killed for not matching it.
+            match fs::remove_file(&dest_path) {
+                Ok(()) => {}
+                Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+                Err(err) => return Err(io_error(err)),
+            }
             let mut outfile = File::create(&dest_path).map_err(io_error)?;
             io::copy(&mut file, &mut outfile).map_err(io_error)?;
             return Ok(dest_path);
@@ -129,4 +195,53 @@ fn map_download_error(url: impl Into<String>, err: impl std::fmt::Display) -> Se
 fn map_network_error(url: impl Into<String>, response: reqwest::Response) -> SeleniumBaseError {
     let status = response.status().as_u16();
     SeleniumBaseError::network(url, status, response.status().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn listing() -> serde_json::Value {
+        serde_json::json!({
+            "milestones": {
+                "155": {
+                    "version": "155.0.8059.39",
+                    "downloads": {
+                        "chromedriver": [
+                            { "platform": "linux64", "url": "https://example.test/155/linux64.zip" },
+                            { "platform": "mac-arm64", "url": "https://example.test/155/mac-arm64.zip" }
+                        ]
+                    }
+                },
+                "140": { "version": "140.0.1.2", "downloads": { "chrome": [] } }
+            }
+        })
+    }
+
+    #[test]
+    fn the_milestone_listing_gives_the_driver_for_that_chrome_and_platform() {
+        let url = chromedriver_milestone_url(&listing(), 155, "mac-arm64").unwrap();
+        assert_eq!(url, "https://example.test/155/mac-arm64.zip");
+    }
+
+    #[test]
+    fn a_milestone_or_platform_with_no_driver_is_an_error_that_names_it() {
+        let missing_milestone =
+            chromedriver_milestone_url(&listing(), 99, "mac-arm64").unwrap_err();
+        assert!(
+            missing_milestone.to_string().contains("Chrome 99"),
+            "{missing_milestone}"
+        );
+        let no_driver_listed =
+            chromedriver_milestone_url(&listing(), 140, "mac-arm64").unwrap_err();
+        assert!(
+            no_driver_listed.to_string().contains("Chrome 140"),
+            "{no_driver_listed}"
+        );
+        let wrong_platform = chromedriver_milestone_url(&listing(), 155, "win32").unwrap_err();
+        assert!(
+            wrong_platform.to_string().contains("win32"),
+            "{wrong_platform}"
+        );
+    }
 }

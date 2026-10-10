@@ -22,6 +22,7 @@ use seleniumbase_rs::common::shutdown::{
 };
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
+use seleniumbase_rs::browser::driver_version::binary_major;
 use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 use seleniumbase_rs::resources::assets;
@@ -1057,6 +1058,25 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
     match assets::lookup_chromedriver() {
         assets::DriverLookup::Found(path) => {
             println!("  Found: {}", path.display());
+            let driver = binary_major(&path).await;
+            let browser = match find_system_chrome() {
+                Some(chrome) => binary_major(&chrome).await,
+                None => None,
+            };
+            match (driver, browser) {
+                (Some(driver), Some(browser)) if driver == browser => {
+                    println!("  Version: {driver} (matches Chrome {browser})");
+                }
+                (Some(driver), Some(browser)) => {
+                    println!("  Version: {driver}, but Chrome is {browser}");
+                    println!(
+                        "  Hint: a chromedriver only drives its own Chrome version; \
+                         run `sbase install` to fetch the matching one"
+                    );
+                }
+                (Some(driver), None) => println!("  Version: {driver}"),
+                (None, _) => {}
+            }
             match ChromedriverPatcher::new(&path).needs_patch() {
                 Ok(true) => {
                     println!("  Status: contains automation markers");

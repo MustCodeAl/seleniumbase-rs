@@ -8,9 +8,11 @@ use std::path::PathBuf;
 use std::process::{Child, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::browser::downloader::download_chrome_driver;
+use crate::browser::downloader::download_chrome_driver_for;
 use crate::browser::driver_access::{killed_by_the_system, make_runnable, spawn_repairing};
+use crate::browser::driver_version::{binary_major, fit, Fit};
 use crate::error::SeleniumBaseError;
+use crate::stealth::patcher::find_system_chrome;
 
 /// A running WebDriver process launched by the crate.
 pub struct DriverProcess {
@@ -127,29 +129,63 @@ async fn wait_for_port(
     }
 }
 
-/// Return the path to the chromedriver binary, downloading it if necessary.
+/// Return the path to a chromedriver binary that matches the installed Chrome.
+///
+/// A chromedriver only drives the Chrome of its own major version. A driver in
+/// `downloaded_drivers/` is used as it is when its version matches, or when
+/// either version cannot be read. When the versions differ, the driver for the
+/// installed Chrome is downloaded in its place, falling back to the latest
+/// stable one, and to the old driver only when nothing could be downloaded.
 async fn ensure_chromedriver_binary() -> Result<PathBuf, SeleniumBaseError> {
-    let candidate_names = if cfg!(windows) {
-        vec!["chromedriver.exe"]
+    let name = if cfg!(windows) {
+        "chromedriver.exe"
     } else {
-        vec!["chromedriver"]
+        "chromedriver"
+    };
+    let existing = PathBuf::from("downloaded_drivers").join(name);
+    let browser = match find_system_chrome() {
+        Some(chrome) => binary_major(&chrome).await,
+        None => None,
     };
 
-    let dest_dir = PathBuf::from("downloaded_drivers");
-    for name in &candidate_names {
-        let path = dest_dir.join(name);
-        if path.exists() {
-            return Ok(path);
+    if existing.exists() {
+        match fit(binary_major(&existing).await, browser) {
+            Fit::Mismatch { driver, browser } => {
+                tracing::warn!(
+                    driver,
+                    browser,
+                    path = %existing.display(),
+                    "chromedriver {driver} cannot drive Chrome {browser}; fetching the matching driver"
+                );
+            }
+            Fit::Matches | Fit::Unknown => return Ok(existing),
         }
     }
 
-    let downloaded = download_chrome_driver().await?;
-    if downloaded.exists() {
-        return Ok(downloaded);
+    let attempts: &[Option<u32>] = if browser.is_some() {
+        &[browser, None]
+    } else {
+        &[None]
+    };
+    let mut last_error = None;
+    for &major in attempts {
+        match download_chrome_driver_for(major).await {
+            Ok(path) if path.exists() => return Ok(path),
+            Ok(_) => {}
+            Err(error) => {
+                tracing::warn!(%error, ?major, "chromedriver download failed");
+                last_error = Some(error);
+            }
+        }
     }
-
-    Err(SeleniumBaseError::browser_launch(
-        "chromedriver",
-        "binary not found in PATH or downloaded_drivers/ and download returned nothing",
-    ))
+    if existing.exists() {
+        tracing::warn!("using the chromedriver on disk although its version does not match");
+        return Ok(existing);
+    }
+    Err(last_error.unwrap_or_else(|| {
+        SeleniumBaseError::browser_launch(
+            "chromedriver",
+            "binary not found in downloaded_drivers/ and download returned nothing",
+        )
+    }))
 }
