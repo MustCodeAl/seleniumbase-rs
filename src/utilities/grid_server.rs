@@ -897,8 +897,18 @@ mod tests {
         /// when asked to.
         fn fake_java(dir: &Path, body: &str) -> PathBuf {
             let path = dir.join("fake-java");
-            fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+            fs::write(
+                &path,
+                format!("#!/bin/sh\n[ \"$1\" = --warm ] && exit 0\n{body}\n"),
+            )
+            .unwrap();
             fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+            // The first run of a program that was just written can be held up
+            // for seconds while the system checks it, which on a busy machine
+            // outlasts the start-up watch the tests depend on. Run it once here,
+            // where waiting costs nothing.
+            let warmed = Command::new(&path).arg("--warm").status().unwrap();
+            assert!(warmed.success(), "the stand-in Java did not run: {warmed}");
             path
         }
 
