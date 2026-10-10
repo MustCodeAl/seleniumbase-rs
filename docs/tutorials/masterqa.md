@@ -6,32 +6,37 @@ or sign-off, but the setup and navigation can still be scripted.
 
 ## What you will learn
 
-- How to start and stop a MasterQA session.
+- How to start a MasterQA session.
 - How to insert manual verification steps.
 - What the generated report contains.
 - When MasterQA is the right tool.
 
 ## Start a MasterQA session
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut sb = BaseCase::new(BrowserConfig::default()).await?;
-    sb.open("https://seleniumbase.io/demo_page").await?;
+    let mut sb = BaseCase::new(BrowserConfig::default().with_headless(false)).await?;
+    sb.open("https://seleniumbase.io/simple/login").await?;
 
-    sb.start_master_qa("Verify Login Page").await?;
+    sb.start_qa_session("Verify Login Page");
 
     // Automated steps
     sb.type_text("#username", "demo_user").await?;
     sb.type_text("#password", "secret_pass").await?;
     sb.click("#log-in").await?;
 
-    // Manual verification step
-    sb.verify("Confirm the dashboard loads with the user avatar visible.").await?;
+    // Manual verification steps: each one prompts in the terminal.
+    sb.manual_verify("The dashboard loads.");
+    sb.manual_verify("The user avatar is visible.");
 
-    sb.stop_master_qa().await?;
+    // Write the report and keep its path.
+    let steps = sb.qa_session().map(|s| s.steps.clone()).unwrap_or_default();
+    let report = sb.save_qa_report(&steps, "Verify Login Page", None::<&str>)?;
+    println!("Report written to: {}", report.display());
+
     sb.quit().await?;
     Ok(())
 }
@@ -39,18 +44,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## How it works
 
-- `start_master_qa(title)` initializes a Markdown report.
-- `verify(instruction)` pauses execution and prompts the operator with the instruction.
-- `stop_master_qa()` writes the final report to `latest_logs/masterqa_report.md`.
+- `start_qa_session(title)` starts a `MasterQaSession` with that title and makes
+  it the active one (it replaces any earlier session). It returns
+  `&mut MasterQaSession`, and `qa_session()` returns the active one.
+- `manual_verify(question)` is synchronous. It prints
+  `Manual QA verification required: <question> [Y/n]` and waits for a line on
+  standard input: Enter, `y` or `yes` passes the step, `n` or `no` fails it. The
+  answer is recorded in the active session and returned as a `bool`. With no
+  active session a temporary one is used, so nothing is kept. If standard input
+  is closed, so nobody can answer, the step is recorded as failed.
+- `MasterQaSession::verify_with_notes(question)` does the same and, when you
+  answer no, asks for an optional failure note.
+- `save_qa_report(&steps, title, path)` writes the Markdown report to `path`, or
+  to `latest_logs/qa_report_<milliseconds>.md` when `path` is `None`, and returns
+  where it went. Nothing writes a report on its own at the end of a session; you
+  call this (or `MasterQaSession::save_markdown(path)`).
+- Without a browser, `MasterQA::verify(question)` is a one-off prompt.
+
+`MasterQaSession`, `QaStep` and `MasterQA` live in
+`seleniumbase_rs::api::master_qa`. A session also offers `all_passed()` (true
+only when there is at least one step and every step passed) and
+`passed_count()`.
 
 ## Report format
 
-The generated Markdown report contains:
+The generated Markdown report is a title, then a table with one row per manual
+step, then a summary line:
 
-- Test title and timestamp.
-- Each automated step.
-- Each manual verification step with pass/fail status.
-- Summary of results.
+```markdown
+# Verify Login Page
+
+| Step | Question | Result | Notes |
+|------|----------|--------|-------|
+| 1 | The dashboard loads. | PASS | - |
+| 2 | The user avatar is visible. | FAIL | - |
+
+**Summary:** 1 / 2 steps passed.
+```
+
+The report lists only the manual verification steps. Automated steps are not
+recorded in it, and there is no timestamp inside the file (the file name carries
+one).
 
 ## When to use MasterQA
 
@@ -61,5 +95,8 @@ The generated Markdown report contains:
 ## Best practices
 
 - Keep manual verification steps focused on a single question.
-- Run MasterQA in headed mode so the operator can see the browser.
+- Run MasterQA in headed mode so the operator can see the browser
+  (`BrowserConfig::default()` is headless).
+- Run it from an interactive terminal: a CI job with no standard input records
+  every manual step as failed.
 - Store reports in CI artifacts for audit trails.
