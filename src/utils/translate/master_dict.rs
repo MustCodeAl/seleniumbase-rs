@@ -235,20 +235,202 @@ mod tests {
     /// table, in the order en, zh, nl, fr, it, ja, ko, pt, ru, es. They must
     /// keep translating the same way.
     const LEGACY: &[(&str, [&str; 9])] = &[
-        ("open", ["打开", "openen", "ouvrir", "aprire", "開く", "열기", "abrir", "открыть", "abrir"]),
-        ("click", ["点击", "klikken", "cliquer", "cliccare", "クリック", "클릭", "clicar", "кликнуть", "clic"]),
-        ("type", ["输入", "typen", "saisir", "digitare", "入力", "입력", "digitar", "ввести", "escribir"]),
-        ("assert", ["断言", "beweren", "vérifier", "verificare", "検証", "검증", "verificar", "проверить", "verificar"]),
-        ("wait", ["等待", "wachten", "attendre", "attendere", "待機", "대기", "esperar", "ждать", "esperar"]),
-        ("hover", ["悬停", "hoveren", "survoler", "passare", "ホバー", "호버", "pairar", "навести", "hover"]),
-        ("scroll", ["滚动", "scrollen", "défiler", "scorrere", "スクロール", "스크롤", "rolar", "прокрутить", "desplazar"]),
-        ("refresh", ["刷新", "vernieuwen", "rafraîchir", "aggiornare", "更新", "새로고침", "atualizar", "обновить", "refrescar"]),
-        ("go_back", ["返回", "terug", "retour", "indietro", "戻る", "뒤로", "voltar", "назад", "atrás"]),
-        ("go_forward", ["前进", "verder", "avancer", "avanti", "進む", "앞으로", "avançar", "вперед", "adelante"]),
-        ("close", ["关闭", "sluiten", "fermer", "chiudere", "閉じる", "닫기", "fechar", "закрыть", "cerrar"]),
-        ("submit", ["提交", "indienen", "soumettre", "inviare", "送信", "제출", "enviar", "отправить", "enviar"]),
-        ("clear", ["清空", "wissen", "effacer", "cancellare", "クリア", "지우기", "limpar", "очистить", "limpiar"]),
-        ("select", ["选择", "selecteren", "sélectionner", "selezionare", "選択", "선택", "selecionar", "выбрать", "seleccionar"]),
+        (
+            "open",
+            [
+                "打开",
+                "openen",
+                "ouvrir",
+                "aprire",
+                "開く",
+                "열기",
+                "abrir",
+                "открыть",
+                "abrir",
+            ],
+        ),
+        (
+            "click",
+            [
+                "点击",
+                "klikken",
+                "cliquer",
+                "cliccare",
+                "クリック",
+                "클릭",
+                "clicar",
+                "кликнуть",
+                "clic",
+            ],
+        ),
+        (
+            "type",
+            [
+                "输入",
+                "typen",
+                "saisir",
+                "digitare",
+                "入力",
+                "입력",
+                "digitar",
+                "ввести",
+                "escribir",
+            ],
+        ),
+        (
+            "assert",
+            [
+                "断言",
+                "beweren",
+                "vérifier",
+                "verificare",
+                "検証",
+                "검증",
+                "verificar",
+                "проверить",
+                "verificar",
+            ],
+        ),
+        (
+            "wait",
+            [
+                "等待",
+                "wachten",
+                "attendre",
+                "attendere",
+                "待機",
+                "대기",
+                "esperar",
+                "ждать",
+                "esperar",
+            ],
+        ),
+        (
+            "hover",
+            [
+                "悬停",
+                "hoveren",
+                "survoler",
+                "passare",
+                "ホバー",
+                "호버",
+                "pairar",
+                "навести",
+                "hover",
+            ],
+        ),
+        (
+            "scroll",
+            [
+                "滚动",
+                "scrollen",
+                "défiler",
+                "scorrere",
+                "スクロール",
+                "스크롤",
+                "rolar",
+                "прокрутить",
+                "desplazar",
+            ],
+        ),
+        (
+            "refresh",
+            [
+                "刷新",
+                "vernieuwen",
+                "rafraîchir",
+                "aggiornare",
+                "更新",
+                "새로고침",
+                "atualizar",
+                "обновить",
+                "refrescar",
+            ],
+        ),
+        (
+            "go_back",
+            [
+                "返回",
+                "terug",
+                "retour",
+                "indietro",
+                "戻る",
+                "뒤로",
+                "voltar",
+                "назад",
+                "atrás",
+            ],
+        ),
+        (
+            "go_forward",
+            [
+                "前进",
+                "verder",
+                "avancer",
+                "avanti",
+                "進む",
+                "앞으로",
+                "avançar",
+                "вперед",
+                "adelante",
+            ],
+        ),
+        (
+            "close",
+            [
+                "关闭",
+                "sluiten",
+                "fermer",
+                "chiudere",
+                "閉じる",
+                "닫기",
+                "fechar",
+                "закрыть",
+                "cerrar",
+            ],
+        ),
+        (
+            "submit",
+            [
+                "提交",
+                "indienen",
+                "soumettre",
+                "inviare",
+                "送信",
+                "제출",
+                "enviar",
+                "отправить",
+                "enviar",
+            ],
+        ),
+        (
+            "clear",
+            [
+                "清空",
+                "wissen",
+                "effacer",
+                "cancellare",
+                "クリア",
+                "지우기",
+                "limpar",
+                "очистить",
+                "limpiar",
+            ],
+        ),
+        (
+            "select",
+            [
+                "选择",
+                "selecteren",
+                "sélectionner",
+                "selezionare",
+                "選択",
+                "선택",
+                "selecionar",
+                "выбрать",
+                "seleccionar",
+            ],
+        ),
     ];
 
     const NON_ENGLISH: [Language; 9] = [
@@ -276,7 +458,11 @@ mod tests {
         for entry in entries() {
             for language in Language::ALL {
                 let word = entry.get(language);
-                assert!(!word.trim().is_empty(), "{} has no {language} word", entry.en);
+                assert!(
+                    !word.trim().is_empty(),
+                    "{} has no {language} word",
+                    entry.en
+                );
                 assert_eq!(word, word.trim(), "{} ({language}) has padding", entry.en);
             }
         }

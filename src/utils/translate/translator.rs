@@ -80,7 +80,10 @@ mod tests {
     #[test]
     fn a_method_without_a_short_name_translates() {
         assert_eq!(translate_action("double_click", "es"), "doble_clic");
-        assert_eq!(translate_to("scroll_to_top", Language::French), "défiler_vers_haut");
+        assert_eq!(
+            translate_to("scroll_to_top", Language::French),
+            "défiler_vers_haut"
+        );
     }
 
     #[test]
@@ -90,7 +93,9 @@ mod tests {
             spanish,
         };
 
-        let modules: [(Language, fn(&str) -> String); 10] = [
+        type Translate = fn(&str) -> String;
+
+        let modules: [(Language, Translate); 10] = [
             (Language::English, english::translate),
             (Language::Chinese, chinese::translate),
             (Language::Dutch, dutch::translate),
