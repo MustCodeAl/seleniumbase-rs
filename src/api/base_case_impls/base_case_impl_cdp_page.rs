@@ -139,7 +139,6 @@ impl BaseCase {
             .await
     }
 
-    /// Captures a PNG screenshot via CDP and writes it to `path`.
     /// Selects the `<option>` at `index` (zero-based) inside the `<select>`
     /// matching `selector`.
     pub async fn cdp_select_option_by_index(
@@ -152,6 +151,12 @@ impl BaseCase {
             .await
     }
 
+    /// Captures a PNG screenshot via CDP and writes it to `path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the session has no CDP connection, the capture
+    /// fails, or the file cannot be written.
     pub async fn cdp_screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError> {
         CdpPage::new(&self.session).screenshot(path).await
     }
