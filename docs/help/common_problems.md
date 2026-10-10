@@ -1,8 +1,14 @@
 # Common Problems
 
 This page collects common pitfalls and their solutions. If you run into
-something not listed here, enable debug logging with
-`RUST_LOG=seleniumbase_rs=debug` and check the error category and hint.
+something not listed here, turn on debug logging and check the error category
+and hint:
+
+- In your own program, call `init_tracing()` and run with
+  `RUST_LOG=seleniumbase_rs=debug`.
+- With the `sbase` and `seleniumbase-mcp` binaries, `RUST_LOG` is ignored. They
+  read `SB_LOG_LEVEL` (default `info`), for example
+  `SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
 
 ## Detected as a bot despite UC mode
 
@@ -16,72 +22,123 @@ UC mode removes many fingerprints, but detection is layered. Check each defense:
    `BrowserConfig::with_extra_args` or `StealthOptions::extra_args`.
 3. **Use a coherent fingerprint.** A Windows user agent with a macOS WebGL
    vendor or a mobile screen on a desktop platform is suspicious. Build a
-   [`Fingerprint`](../tutorials/fingerprint_stealth.md) and keep the values
-   consistent.
+   [`Fingerprint`](../tutorials/fingerprint_stealth.md), keep the values
+   consistent, and check it with `Fingerprint::validate()`, whose
+   `CoherenceReport::is_coherent()` is `false` when the values contradict each
+   other.
 4. **Check WebGL / geolocation consistency.** Spoofed WebGL vendor/renderer and
    geolocation should match the IP address and timezone.
-5. **Run headful or use `--headless=new`.** Some sites test for the legacy
-   headless implementation.
+5. **Run headed.** A headless session already starts Chrome with
+   `--headless=new`, but some sites still tell headless from headed. See
+   [Headless detected](#headless-detected).
+6. **Drop chromedriver altogether.** The [pure CDP engine](../tutorials/pure_cdp.md)
+   (`seleniumbase_rs::sb_cdp`) launches Chrome directly, so there is no driver
+   binary to leak markers.
 
 ## chromedriver executable not found
 
-`BaseCase::new` fails with a WebDriver or connection error when chromedriver is
-missing or not running:
+`BaseCase::new` starts a chromedriver for you when the WebDriver URL is the
+default (`http://localhost:4444`) and `auto_start_driver` is on (it is by
+default). It first tries to connect to a driver already listening there; if
+none answers, it launches `downloaded_drivers/chromedriver` (`chromedriver.exe`
+on Windows) on a free port, downloading the latest stable chromedriver into
+`downloaded_drivers/` first if it is missing. That download needs network
+access to the Chrome for Testing endpoint. To fetch the driver ahead of time:
 
 ```bash
-which chromedriver
-# empty? download it:
-cargo run --bin sbase -- install chromedriver
+cargo run --bin sbase -- install
 ```
 
-Alternatively, download a matching version from the
-[Chrome for Testing dashboard](https://googlechromelabs.github.io/chrome-for-testing/)
-and pass the path explicitly:
+`sbase install` takes no argument. The auto-start does not look at your `PATH`
+or at `CHROMEDRIVER_PATH`; those are consulted only by `sbase doctor`, which
+prints which chromedriver it finds (`CHROMEDRIVER_PATH`, then
+`downloaded_drivers/`, then `PATH`) and whether it still has automation
+markers.
+
+To use a driver you run yourself, start it and pass its URL. A URL other than
+the default turns auto-start off:
 
 ```bash
+chromedriver --port=9515 &
 cargo run --bin sbase -- --webdriver http://localhost:9515 open https://example.com
 ```
 
-If you want SeleniumBase to launch the driver for you, make sure
-`auto_start_driver: true` is set in `BrowserConfig` or `sbase_config.toml`.
+A driver that does not match your Chrome version fails when the session is
+created, with a WebDriver error. Download a matching one from the
+[Chrome for Testing dashboard](https://googlechromelabs.github.io/chrome-for-testing/).
+
+## chromedriver is killed or refused on macOS
+
+macOS can refuse a driver that has the `com.apple.quarantine` flag or whose
+code signature no longer matches its contents (which is what patching does).
+The crate repairs this itself: after downloading, and again if the system
+refuses to start the driver, it adds the execute permission, removes the
+quarantine flag and, for a binary the system killed as it started, signs it
+again ad hoc (`codesign --force --sign -`). `ChromedriverPatcher::patch` also
+signs the patched file again on macOS. The same repair is available as
+`seleniumbase_rs::browser::driver_access::make_runnable(path, resign)`. If a
+driver you supply still will not start, run the two steps by hand:
+
+```bash
+xattr -d com.apple.quarantine /path/to/chromedriver
+codesign --force --sign - /path/to/chromedriver
+```
 
 ## Headless detected
 
-Switch to headful mode for sites that refuse legacy headless:
+`BrowserConfig::default()` is **headless**, while the global config file and the
+`sbase` command line default to headed. A headless session passes
+`--headless=new` (and `--disable-gpu`) to Chrome. Switch to headed mode for
+sites that still refuse it:
 
 ```rust
-let config = BrowserConfig {
-    headless: false,
-    ..BrowserConfig::default().with_mode(DriverMode::Uc)
-};
+use seleniumbase_rs::{BrowserConfig, DriverMode};
+
+let config = BrowserConfig::default()
+    .with_mode(DriverMode::Uc)
+    .with_headless(false);
 ```
 
-Or use `--headless=new` via `StealthOptions` or `extra_args`. Combine this with
-a `Fingerprint` and binary patching.
+Combine this with a `Fingerprint` and binary patching. On a server with no
+display, run the headed browser under a virtual display such as Xvfb.
 
-## cargo publish fails with a git dependency
+## Item not found: a Cargo feature is off
 
-The optional `playwright` feature depends on `rustwright` from GitHub:
+Nothing is enabled by default. These pieces exist only when their feature is on:
 
-```toml
-rustwright = { git = "https://github.com/Skyvern-AI/rustwright", optional = true }
-```
+| Feature | What it adds |
+|---------|--------------|
+| `tui` | `sbase commander` (without it the command prints an error and exits with status 2) |
+| `gui` | `Gui`, `api::dialog`, `api::gui` and the `dialog`, `dialogs` and `gui_automation` examples (on Linux it links GTK and X11) |
+| `playwright` | `PlaywrightSession`, `BaseCase::activate_playwright_mode` |
+| `mcp-server` | the `seleniumbase_rs::mcp` module and the `seleniumbase-mcp` binary |
+| `turso` | `seleniumbase_rs::storage` (`ResultStore`, `ProfileVault`) and `sbase report` |
+| `test-util` | the scripted mock browser for `sb_cdp` (`Browser::new_mocked`, `MockCtrl`) |
+| `s3`, `azure`, `gcp` | the cloud logging plugins |
+| `full-tracing` | a timing-histogram layer in the subscriber the `init_tracing*` functions install |
+| `error-backtrace` | nothing yet: the feature is declared, but no code reads it |
 
-`cargo publish` rejects git dependencies. Publish only the default feature set,
-or pin `rustwright` to a crates.io release before publishing. The default build
-does not pull `rustwright`.
+Enable one with `--features`, for example
+`cargo build --features tui,turso`.
 
 ## Playwright / rustwright feature not compiling
 
-Enable the feature explicitly and ensure the git dependency can be fetched:
+The `playwright` feature pulls in the `rustwright` and `rustwright-core`
+crates from crates.io, which bring a large Chromium automation core. It is off
+by default, so a plain `cargo build` does not need them:
 
 ```bash
 cargo build --features playwright
 ```
 
-If compilation fails because of network access to GitHub, vendor the dependency
-or use a crates.io mirror. The `playwright` feature is disabled by default, so a
-plain `cargo build` does not require `rustwright`.
+The project's own quality gate (see `ROADMAP.md`) notes that building with
+`--all-features` needs a `libpython` available because of this feature. If you
+build with it on macOS and a test binary fails to start with a missing
+`libpython...dylib`, point the loader at your Python install's `lib` folder:
+
+```bash
+DYLD_LIBRARY_PATH=/path/to/python/lib cargo test --features playwright
+```
 
 ## MCP server not listing tools
 
@@ -93,9 +150,11 @@ cargo build --bin seleniumbase-mcp --features mcp-server
 ```
 
 The server communicates over stdio. Configure your MCP client with the absolute
-path to the built binary and an empty argument list. Listing tools does not
-require a running browser; the session starts lazily on the first browser tool
-call.
+path to the built binary. It serves the `sb` toolset unless you pass
+`--server cdp` or `--server driver`. Listing tools does not require a running
+browser, but no browser exists until the client calls the `start_browser` tool;
+any other browser tool called first returns "no browser session is running; call
+start_browser first". See the [MCP servers guide](../tutorials/mcp_server.md).
 
 ## Macro not found
 
@@ -108,51 +167,54 @@ use seleniumbase_rs::{sb_open, sb_click, sb_test, selector};
 
 Action macros expand `.await` internally, so they must be called inside an
 `async` block or function. `sb_test!` generates a `#[tokio::test]` wrapper for
-you.
+you. See the [macros guide](../tutorials/macros.md).
 
 ## Errors are not descriptive enough
 
-Enable structured logging to see error category, transient/retry status, and a
-remediation hint:
+`SeleniumBaseError::log()` emits a `tracing` error event with the error
+category, whether it is transient, and a remediation hint; `ResultExt::log_err`
+logs only the message. Make sure a subscriber is installed:
 
-```rust
-use seleniumbase_rs::{init_tracing, ResultExt};
-
+```rust,no_run
+# use seleniumbase_rs::{init_tracing, BaseCase, ResultExt};
+# async fn demo(case: &mut BaseCase) {
 init_tracing();
 
-// Errors are logged automatically when you use ResultExt::log_err:
+// `log_err` logs the message and returns the Result unchanged.
 let _ = case.click("#missing").await.log_err();
+
+// `log` adds `error.category`, `error.transient` and `error.hint` fields.
+if let Err(err) = case.click("#missing").await {
+    err.log();
+}
+# }
 ```
 
-Or configure `RUST_LOG` before running `sbase` / `seleniumbase-mcp`:
+Or configure the log level before running `sbase` / `seleniumbase-mcp`:
 
 ```bash
-RUST_LOG=seleniumbase_rs=info,error cargo run --bin sbase -- open https://example.com
+SB_LOG_LEVEL=seleniumbase_rs=info,error cargo run --bin sbase -- open https://example.com
 ```
 
 `SeleniumBaseError` provides helpers for programmatic handling:
 
 ```rust
+# use seleniumbase_rs::SeleniumBaseError;
+# fn handle(err: SeleniumBaseError) -> Result<(), SeleniumBaseError> {
 match err {
-    e if e.is_transient() => retry().await,
+    e if e.is_transient() => println!("worth another attempt: {e}"),
     e if e.is_skipped() => return Ok(()),
     e if e.category() == "element_not_found" => {
         println!("Hint: {}", e.hint().unwrap_or_default());
     }
-    _ => return Err(err),
+    e => return Err(e),
 }
+# Ok(())
+# }
 ```
 
-## Python dylib error on macOS when running tests
-
-The test binary may link against a local `libpython3.14.dylib`. If tests fail to
-launch with a missing library error, point the loader at your Python install:
-
-```bash
-DYLD_LIBRARY_PATH=~/.local/share/mise/installs/python/3.14.6/lib cargo test
-```
-
-Adjust the path to match your Python installation.
+To retry transient failures with backoff, see `RetryPolicy` in the
+[reliability guide](../reliability.md).
 
 ## Environment variable not applied
 
@@ -162,5 +224,19 @@ Configuration uses the `SB_` prefix, not `SBASE_`. For example:
 export SB_HEADLESS=true
 export SB_WEBDRIVER_URL=http://localhost:9515
 ```
+
+Where a variable is read depends on how you build the configuration:
+
+- `BrowserConfig::default()` reads **no** variables. `BrowserConfig::from_env()`
+  reads the runtime ones (`SB_WEBDRIVER_URL`, `SB_CHROME_BIN`,
+  `SB_REMOTE_WEBDRIVER_TIMEOUT`, and so on).
+- `Settings::load()` and `Settings::from_env()` read the settings ones
+  (`SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`, and the rest of the list in
+  [Customizing Test Runs](./customizing_test_runs.md)). `sbase test` passes the
+  flags you give it to the tests as such variables.
+- The `sbase` binary applies the settings variables only when you give it
+  `--config FILE`. Without that option it uses the global config file and its
+  own flags, and it takes the WebDriver URL from `--webdriver`, not from
+  `SB_WEBDRIVER_URL`.
 
 See [Customizing Test Runs](./customizing_test_runs.md) for the full list.
