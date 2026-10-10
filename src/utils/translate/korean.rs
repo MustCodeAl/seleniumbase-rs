@@ -1,20 +1,22 @@
+//! Korean (한국어) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in Korean, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::korean::translate;
+///
+/// assert_eq!(translate("click"), "클릭");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "열기",
-        "click" => "클릭",
-        "type" => "입력",
-        "assert" => "검증",
-        "wait" => "대기",
-        "hover" => "호버",
-        "scroll" => "스크롤",
-        "refresh" => "새로고침",
-        "go_back" => "뒤로",
-        "go_forward" => "앞으로",
-        "close" => "닫기",
-        "submit" => "제출",
-        "clear" => "지우기",
-        "select" => "선택",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::Korean)
+        .unwrap_or(action)
+        .to_owned()
 }

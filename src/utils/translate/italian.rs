@@ -1,20 +1,22 @@
+//! Italian (italiano) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in Italian, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::italian::translate;
+///
+/// assert_eq!(translate("click"), "cliccare");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "aprire",
-        "click" => "cliccare",
-        "type" => "digitare",
-        "assert" => "verificare",
-        "wait" => "attendere",
-        "hover" => "passare",
-        "scroll" => "scorrere",
-        "refresh" => "aggiornare",
-        "go_back" => "indietro",
-        "go_forward" => "avanti",
-        "close" => "chiudere",
-        "submit" => "inviare",
-        "clear" => "cancellare",
-        "select" => "selezionare",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::Italian)
+        .unwrap_or(action)
+        .to_owned()
 }

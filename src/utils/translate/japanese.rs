@@ -1,20 +1,22 @@
+//! Japanese (日本語) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in Japanese, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::japanese::translate;
+///
+/// assert_eq!(translate("click"), "クリック");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "開く",
-        "click" => "クリック",
-        "type" => "入力",
-        "assert" => "検証",
-        "wait" => "待機",
-        "hover" => "ホバー",
-        "scroll" => "スクロール",
-        "refresh" => "更新",
-        "go_back" => "戻る",
-        "go_forward" => "進む",
-        "close" => "閉じる",
-        "submit" => "送信",
-        "clear" => "クリア",
-        "select" => "選択",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::Japanese)
+        .unwrap_or(action)
+        .to_owned()
 }

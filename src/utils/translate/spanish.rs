@@ -1,20 +1,22 @@
+//! Spanish (español) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in Spanish, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::spanish::translate;
+///
+/// assert_eq!(translate("click"), "clic");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "abrir",
-        "click" => "clic",
-        "type" => "escribir",
-        "assert" => "verificar",
-        "wait" => "esperar",
-        "hover" => "hover",
-        "scroll" => "desplazar",
-        "refresh" => "refrescar",
-        "go_back" => "atrás",
-        "go_forward" => "adelante",
-        "close" => "cerrar",
-        "submit" => "enviar",
-        "clear" => "limpiar",
-        "select" => "seleccionar",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::Spanish)
+        .unwrap_or(action)
+        .to_owned()
 }

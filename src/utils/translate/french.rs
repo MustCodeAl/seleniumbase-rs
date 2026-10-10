@@ -1,20 +1,22 @@
+//! French (français) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in French, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::french::translate;
+///
+/// assert_eq!(translate("click"), "cliquer");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "ouvrir",
-        "click" => "cliquer",
-        "type" => "saisir",
-        "assert" => "vérifier",
-        "wait" => "attendre",
-        "hover" => "survoler",
-        "scroll" => "défiler",
-        "refresh" => "rafraîchir",
-        "go_back" => "retour",
-        "go_forward" => "avancer",
-        "close" => "fermer",
-        "submit" => "soumettre",
-        "clear" => "effacer",
-        "select" => "sélectionner",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::French)
+        .unwrap_or(action)
+        .to_owned()
 }

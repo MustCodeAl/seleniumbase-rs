@@ -1,20 +1,22 @@
+//! Chinese (中文) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in Chinese, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::chinese::translate;
+///
+/// assert_eq!(translate("click"), "点击");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "打开",
-        "click" => "点击",
-        "type" => "输入",
-        "assert" => "断言",
-        "wait" => "等待",
-        "hover" => "悬停",
-        "scroll" => "滚动",
-        "refresh" => "刷新",
-        "go_back" => "返回",
-        "go_forward" => "前进",
-        "close" => "关闭",
-        "submit" => "提交",
-        "clear" => "清空",
-        "select" => "选择",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::Chinese)
+        .unwrap_or(action)
+        .to_owned()
 }

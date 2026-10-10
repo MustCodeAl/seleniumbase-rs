@@ -1,20 +1,22 @@
+//! Dutch (Nederlands) method names.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in Dutch, or `action` itself if the [dictionary](master_dict)
+/// does not know it.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::dutch::translate;
+///
+/// assert_eq!(translate("click"), "klikken");
+/// assert_eq!(translate("custom"), "custom");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "openen",
-        "click" => "klikken",
-        "type" => "typen",
-        "assert" => "beweren",
-        "wait" => "wachten",
-        "hover" => "hoveren",
-        "scroll" => "scrollen",
-        "refresh" => "vernieuwen",
-        "go_back" => "terug",
-        "go_forward" => "verder",
-        "close" => "sluiten",
-        "submit" => "indienen",
-        "clear" => "wissen",
-        "select" => "selecteren",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::Dutch)
+        .unwrap_or(action)
+        .to_owned()
 }

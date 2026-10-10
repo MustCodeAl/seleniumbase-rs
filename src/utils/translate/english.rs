@@ -1,20 +1,24 @@
+//! English: the language of the method names themselves.
+
+use super::language::Language;
+use super::master_dict;
+
+/// `action` in English: the name itself.
+///
+/// A name the [dictionary](master_dict) does not know comes back unchanged,
+/// and so does a known one, so this is the identity.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::english::translate;
+///
+/// assert_eq!(translate("click"), "click");
+/// assert_eq!(translate("type"), "type");
+/// ```
+#[must_use]
 pub fn translate(action: &str) -> String {
-    match action {
-        "open" => "open",
-        "click" => "click",
-        "type" => "type",
-        "assert" => "assert",
-        "wait" => "wait",
-        "hover" => "hover",
-        "scroll" => "scroll",
-        "refresh" => "refresh",
-        "go_back" => "go_back",
-        "go_forward" => "go_forward",
-        "close" => "close",
-        "submit" => "submit",
-        "clear" => "clear",
-        "select" => "select",
-        _ => action,
-    }
-    .to_string()
+    master_dict::translate(action, Language::English)
+        .unwrap_or(action)
+        .to_owned()
 }
