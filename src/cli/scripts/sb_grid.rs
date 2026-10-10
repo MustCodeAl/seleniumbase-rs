@@ -104,7 +104,11 @@ pub fn resolve_jar(
 ) -> Result<PathBuf, SeleniumBaseError> {
     explicit
         .map(Path::to_path_buf)
-        .or_else(|| from_env.filter(|value| !value.is_empty()).map(PathBuf::from))
+        .or_else(|| {
+            from_env
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        })
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(format!(
                 "no Selenium Server jar: pass --jar PATH or set {JAR_ENV}. sbase does not \
@@ -162,7 +166,10 @@ fn launch_for(command: &GridCommand) -> Result<GridLaunch, SeleniumBaseError> {
         .extra_args(command.extra_args.clone()))
 }
 
-async fn start(command: &GridCommand, process: &GridProcess) -> Result<Vec<String>, SeleniumBaseError> {
+async fn start(
+    command: &GridCommand,
+    process: &GridProcess,
+) -> Result<Vec<String>, SeleniumBaseError> {
     let role = command.role.as_str();
     let launch = launch_for(command)?;
     let address = launch.local_address();
@@ -231,7 +238,10 @@ fn stop(process: &GridProcess, role: &str) -> Result<Vec<String>, SeleniumBaseEr
     }])
 }
 
-async fn status(command: &GridCommand, process: &GridProcess) -> Result<Vec<String>, SeleniumBaseError> {
+async fn status(
+    command: &GridCommand,
+    process: &GridProcess,
+) -> Result<Vec<String>, SeleniumBaseError> {
     let role = command.role.as_str();
     Ok(match process.state()? {
         RunState::NotRunning => vec![format!("The Grid {role} is not running.")],
@@ -308,7 +318,11 @@ mod tests {
         assert_eq!(describe_age(now - 5), "5 s");
         assert_eq!(describe_age(now - 300), "5 min");
         assert_eq!(describe_age(now - 7300), "2 h");
-        assert_eq!(describe_age(now + 100), "0 s", "a clock step back is not an error");
+        assert_eq!(
+            describe_age(now + 100),
+            "0 s",
+            "a clock step back is not an error"
+        );
     }
 
     #[cfg(unix)]
@@ -414,20 +428,32 @@ mod tests {
             let started = run(&f.command).await.unwrap();
 
             assert!(started[0].contains("started (process"), "{started:?}");
-            assert!(started[0].contains(&format!("ready at http://127.0.0.1:{port}")), "{started:?}");
-            assert!(started.iter().any(|l| l.starts_with("Console: ")), "{started:?}");
+            assert!(
+                started[0].contains(&format!("ready at http://127.0.0.1:{port}")),
+                "{started:?}"
+            );
+            assert!(
+                started.iter().any(|l| l.starts_with("Console: ")),
+                "{started:?}"
+            );
             let log = std::fs::read_to_string(
                 GridProcess::new(&f.command.state_dir, GridRole::Hub).log_path(),
             )
             .unwrap();
-            assert!(log.contains(&format!("hub --port {port} --session-timeout 230")), "{log}");
+            assert!(
+                log.contains(&format!("hub --port {port} --session-timeout 230")),
+                "{log}"
+            );
 
             let status = run(&with_action(&f, GridAction::Status)).await.unwrap();
             assert!(status[0].contains("is running (process"), "{status:?}");
             assert_eq!(status[1], "Ready: 1 node(s), 2 slot(s), 1 in use.");
 
             let stopped = run(&with_action(&f, GridAction::Stop)).await.unwrap();
-            assert!(stopped[0].starts_with("Stopped the Grid hub"), "{stopped:?}");
+            assert!(
+                stopped[0].starts_with("Stopped the Grid hub"),
+                "{stopped:?}"
+            );
             let after = run(&with_action(&f, GridAction::Status)).await.unwrap();
             assert_eq!(after, ["The Grid hub is not running."]);
         }
@@ -441,7 +467,10 @@ mod tests {
 
             let restarted = run(&with_action(&f, GridAction::Restart)).await.unwrap();
 
-            assert!(restarted[0].starts_with("Stopped the Grid hub"), "{restarted:?}");
+            assert!(
+                restarted[0].starts_with("Stopped the Grid hub"),
+                "{restarted:?}"
+            );
             assert!(restarted[1].contains("started (process"), "{restarted:?}");
             assert_ne!(first[0], restarted[1], "a different process");
             run(&with_action(&f, GridAction::Stop)).await.unwrap();
@@ -469,7 +498,10 @@ mod tests {
 
             let lines = run(&f.command).await.unwrap();
 
-            assert!(lines[1].contains("Registered with the hub at hub.example.com"), "{lines:?}");
+            assert!(
+                lines[1].contains("Registered with the hub at hub.example.com"),
+                "{lines:?}"
+            );
             let log = std::fs::read_to_string(
                 GridProcess::new(&f.command.state_dir, GridRole::Node).log_path(),
             )
@@ -494,7 +526,11 @@ mod tests {
             assert!(error.contains("did not come up"), "{error}");
             assert!(error.contains("grid-hub.log"), "{error}");
             let after = run(&with_action(&f, GridAction::Status)).await.unwrap();
-            assert_eq!(after, ["The Grid hub is not running."], "it must not be left running");
+            assert_eq!(
+                after,
+                ["The Grid hub is not running."],
+                "it must not be left running"
+            );
         }
 
         #[tokio::test]

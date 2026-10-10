@@ -216,7 +216,10 @@ impl GridLaunch {
             args.extend(["--hub".into(), hub.origin().into()]);
         }
         if let Some(timeout) = self.session_timeout {
-            args.extend(["--session-timeout".into(), timeout.as_secs().to_string().into()]);
+            args.extend([
+                "--session-timeout".into(),
+                timeout.as_secs().to_string().into(),
+            ]);
         }
         args.extend([
             "--log-level".into(),
@@ -355,7 +358,9 @@ impl GridProcess {
             ));
         }
         if launch.port == 0 {
-            return Err(SeleniumBaseError::invalid_config("the Grid port must not be 0"));
+            return Err(SeleniumBaseError::invalid_config(
+                "the Grid port must not be 0",
+            ));
         }
         if !launch.jar.is_file() {
             return Err(SeleniumBaseError::invalid_config(format!(
@@ -609,7 +614,9 @@ fn process_command(pid: u32) -> Result<Option<String>, SeleniumBaseError> {
         .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
         .output()
         .map_err(|error| {
-            SeleniumBaseError::Unsupported(format!("cannot list processes with `tasklist`: {error}"))
+            SeleniumBaseError::Unsupported(format!(
+                "cannot list processes with `tasklist`: {error}"
+            ))
         })?;
     let text = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     let listed = text.contains(&format!("\"{pid}\""));
@@ -651,7 +658,9 @@ mod tests {
     use super::*;
 
     fn strings(args: &[OsString]) -> Vec<String> {
-        args.iter().map(|a| a.to_string_lossy().into_owned()).collect()
+        args.iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect()
     }
 
     #[test]
@@ -731,7 +740,10 @@ mod tests {
         let local = GridLaunch::hub("s.jar").port(4500);
         assert_eq!(local.local_address().to_string(), "http://127.0.0.1:4500");
         let wildcard = GridLaunch::hub("s.jar").host("0.0.0.0").port(4500);
-        assert_eq!(wildcard.local_address().to_string(), "http://127.0.0.1:4500");
+        assert_eq!(
+            wildcard.local_address().to_string(),
+            "http://127.0.0.1:4500"
+        );
         let named = GridLaunch::hub("s.jar").host("grid.test").port(4500);
         assert_eq!(named.local_address().to_string(), "http://grid.test:4500");
     }
@@ -752,7 +764,10 @@ mod tests {
         );
         for unset in [None, Some(OsString::new())] {
             let dir = state_dir_from(unset);
-            assert!(dir.ends_with(Path::new("seleniumbase-rs").join("grid")), "{dir:?}");
+            assert!(
+                dir.ends_with(Path::new("seleniumbase-rs").join("grid")),
+                "{dir:?}"
+            );
         }
     }
 
@@ -788,7 +803,10 @@ mod tests {
         let process = GridProcess::new(dir.path(), GridRole::Hub);
 
         let error = process
-            .start(&GridLaunch::hub(dir.path().join("none.jar")), Duration::from_millis(10))
+            .start(
+                &GridLaunch::hub(dir.path().join("none.jar")),
+                Duration::from_millis(10),
+            )
             .unwrap_err();
 
         assert!(error.to_string().contains("not downloaded"), "{error}");
@@ -890,11 +908,17 @@ mod tests {
             let f = fixture(GridRole::Hub, WAITS);
             let launch = GridLaunch::hub(&f.jar).java(&f.java).port(4999);
 
-            let record = f.process.start(&launch, Duration::from_millis(200)).unwrap();
+            let record = f
+                .process
+                .start(&launch, Duration::from_millis(200))
+                .unwrap();
 
             assert_eq!(record.role, GridRole::Hub);
             assert_eq!(record.port, 4999);
-            assert_eq!(f.process.state().unwrap(), RunState::Running(record.clone()));
+            assert_eq!(
+                f.process.state().unwrap(),
+                RunState::Running(record.clone())
+            );
             let log = fs::read_to_string(f.process.log_path()).unwrap();
             assert!(log.contains("fake java: -jar"), "{log}");
             assert!(log.contains("hub --port 4999"), "{log}");
@@ -910,9 +934,15 @@ mod tests {
         fn a_second_start_while_running_is_refused_and_leaves_the_first_alone() {
             let f = fixture(GridRole::Hub, WAITS);
             let launch = GridLaunch::hub(&f.jar).java(&f.java);
-            let first = f.process.start(&launch, Duration::from_millis(200)).unwrap();
+            let first = f
+                .process
+                .start(&launch, Duration::from_millis(200))
+                .unwrap();
 
-            let error = f.process.start(&launch, Duration::from_millis(200)).unwrap_err();
+            let error = f
+                .process
+                .start(&launch, Duration::from_millis(200))
+                .unwrap_err();
 
             assert!(error.to_string().contains("already running"), "{error}");
             assert_eq!(f.process.state().unwrap(), RunState::Running(first));
@@ -927,7 +957,10 @@ mod tests {
             );
             let launch = GridLaunch::hub(&f.jar).java(&f.java);
 
-            let error = f.process.start(&launch, Duration::from_secs(5)).unwrap_err();
+            let error = f
+                .process
+                .start(&launch, Duration::from_secs(5))
+                .unwrap_err();
 
             let shown = error.to_string();
             assert!(shown.contains("exited at once"), "{shown}");
@@ -948,9 +981,16 @@ mod tests {
                 started_at: 0,
                 log: f.process.log_path(),
             };
-            fs::write(f.process.record_path(), serde_json::to_vec(&impostor).unwrap()).unwrap();
+            fs::write(
+                f.process.record_path(),
+                serde_json::to_vec(&impostor).unwrap(),
+            )
+            .unwrap();
 
-            assert_eq!(f.process.state().unwrap(), RunState::Stale(impostor.clone()));
+            assert_eq!(
+                f.process.state().unwrap(),
+                RunState::Stale(impostor.clone())
+            );
             let outcome = f.process.stop(Duration::from_millis(100)).unwrap();
 
             assert_eq!(outcome, StopOutcome::StaleRemoved(impostor));
@@ -964,12 +1004,18 @@ mod tests {
             fs::create_dir_all(f.process.record_path().parent().unwrap()).unwrap();
             // Start and stop one to learn a pid that is certainly gone.
             let launch = GridLaunch::hub(&f.jar).java(&f.java);
-            let old = f.process.start(&launch, Duration::from_millis(200)).unwrap();
+            let old = f
+                .process
+                .start(&launch, Duration::from_millis(200))
+                .unwrap();
             f.process.stop(Duration::from_secs(10)).unwrap();
             fs::write(f.process.record_path(), serde_json::to_vec(&old).unwrap()).unwrap();
             assert_eq!(f.process.state().unwrap(), RunState::Stale(old.clone()));
 
-            let fresh = f.process.start(&launch, Duration::from_millis(200)).unwrap();
+            let fresh = f
+                .process
+                .start(&launch, Duration::from_millis(200))
+                .unwrap();
 
             assert_ne!(fresh.pid, old.pid);
             assert_eq!(f.process.state().unwrap(), RunState::Running(fresh));
@@ -979,15 +1025,24 @@ mod tests {
         #[test]
         fn a_hub_and_a_node_are_independent() {
             let hub = fixture(GridRole::Hub, WAITS);
-            let node_process = GridProcess::new(hub.process.record_path().parent().unwrap(), GridRole::Node);
+            let node_process =
+                GridProcess::new(hub.process.record_path().parent().unwrap(), GridRole::Node);
             let hub_launch = GridLaunch::hub(&hub.jar).java(&hub.java);
-            let node_launch = GridLaunch::node(&hub.jar, "127.0.0.1".parse().unwrap()).java(&hub.java);
+            let node_launch =
+                GridLaunch::node(&hub.jar, "127.0.0.1".parse().unwrap()).java(&hub.java);
 
-            hub.process.start(&hub_launch, Duration::from_millis(200)).unwrap();
-            node_process.start(&node_launch, Duration::from_millis(200)).unwrap();
+            hub.process
+                .start(&hub_launch, Duration::from_millis(200))
+                .unwrap();
+            node_process
+                .start(&node_launch, Duration::from_millis(200))
+                .unwrap();
 
             assert!(matches!(hub.process.state().unwrap(), RunState::Running(_)));
-            assert!(matches!(node_process.state().unwrap(), RunState::Running(_)));
+            assert!(matches!(
+                node_process.state().unwrap(),
+                RunState::Running(_)
+            ));
             node_process.stop(Duration::from_secs(10)).unwrap();
             assert!(matches!(hub.process.state().unwrap(), RunState::Running(_)));
             hub.process.stop(Duration::from_secs(10)).unwrap();
@@ -995,12 +1050,11 @@ mod tests {
 
         #[test]
         fn a_grid_that_ignores_the_polite_request_is_forced() {
-            let f = fixture(
-                GridRole::Hub,
-                "trap '' TERM\nwhile true; do sleep 1; done",
-            );
+            let f = fixture(GridRole::Hub, "trap '' TERM\nwhile true; do sleep 1; done");
             let launch = GridLaunch::hub(&f.jar).java(&f.java);
-            f.process.start(&launch, Duration::from_millis(200)).unwrap();
+            f.process
+                .start(&launch, Duration::from_millis(200))
+                .unwrap();
 
             let outcome = f.process.stop(Duration::from_millis(300)).unwrap();
 

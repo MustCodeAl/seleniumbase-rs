@@ -23,6 +23,7 @@ use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::stealth::patcher::find_system_chrome;
+use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
 use seleniumbase_rs::{
     import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
     ChromedriverPatcher, DriverMode, EnginePatch, ImportOptions, ImportSeverity, PythonSource,
@@ -42,6 +43,68 @@ enum BrowserArg {
     Chromium,
     Edge,
     Firefox,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum GridActionArg {
+    /// Start it and wait until it is ready.
+    Start,
+    /// Stop it.
+    Stop,
+    /// Stop it if it is running, then start it.
+    Restart,
+    /// Say whether it is running and ready.
+    Status,
+}
+
+impl From<GridActionArg> for sb_grid::GridAction {
+    fn from(value: GridActionArg) -> Self {
+        match value {
+            GridActionArg::Start => Self::Start,
+            GridActionArg::Stop => Self::Stop,
+            GridActionArg::Restart => Self::Restart,
+            GridActionArg::Status => Self::Status,
+        }
+    }
+}
+
+/// The options `grid-hub` and `grid-node` share.
+#[derive(clap::Args, Debug)]
+struct GridArgs {
+    /// What to do with the Grid process.
+    #[arg(value_enum)]
+    action: GridActionArg,
+    /// The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable).
+    /// It is never downloaded.
+    #[arg(long, value_name = "PATH")]
+    jar: Option<PathBuf>,
+    /// The Java executable (default: `java` on PATH).
+    #[arg(long, value_name = "PATH")]
+    java: Option<PathBuf>,
+    /// The address to listen on.
+    #[arg(long = "grid-host", value_name = "HOST")]
+    host: Option<String>,
+    /// The port to listen on (default: 4444 for a hub, 5555 for a node).
+    #[arg(long = "grid-port", value_name = "PORT")]
+    port: Option<u16>,
+    /// For a node, the hub to register with: a host or a URL.
+    #[arg(long, value_name = "HOST_OR_URL")]
+    hub: Option<String>,
+    /// Close sessions that have been idle this many seconds.
+    #[arg(long, value_name = "SECONDS")]
+    session_timeout: Option<u64>,
+    /// How many seconds `start` waits for the Grid to become ready.
+    #[arg(long, value_name = "SECONDS", default_value_t = 60)]
+    wait: u64,
+    /// Log at INFO instead of WARNING.
+    #[arg(long = "grid-verbose")]
+    verbose: bool,
+    /// Start even if something already accepts connections on the port.
+    #[arg(long)]
+    skip_port_check: bool,
+    /// More arguments for the Selenium Server, after `--`.
+    #[arg(last = true)]
+    extra_args: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -589,6 +652,15 @@ enum Commands {
         #[arg(last = true)]
         harness_args: Vec<String>,
     },
+    /// Start, stop, restart or check a Selenium Grid hub.
+    ///
+    /// Needs a Selenium Server jar you supply; nothing is downloaded. The
+    /// process record and log are kept in a folder of your own (SB_GRID_DIR).
+    GridHub(GridArgs),
+    /// Start, stop, restart or check a Selenium Grid node.
+    ///
+    /// A node registers with the hub named by `--hub`, or with this machine's.
+    GridNode(GridArgs),
     /// Create a folder with a runnable browser-test suite.
     ///
     /// Names are relative to the current directory and use letters, digits, `_`,
@@ -862,6 +934,25 @@ fn text_or_stdin(value: Option<String>) -> Result<String, Box<dyn std::error::Er
     Ok(text.trim_end_matches(['\n', '\r']).to_owned())
 }
 
+/// Runs `grid-hub` or `grid-node` and prints what happened.
+async fn run_grid(role: GridRole, args: &GridArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let mut command = sb_grid::GridCommand::new(role, args.action.into(), default_state_dir());
+    command.jar = args.jar.clone();
+    command.java = args.java.clone();
+    command.host = args.host.clone();
+    command.port = args.port;
+    command.hub = args.hub.clone();
+    command.session_timeout = args.session_timeout.map(Duration::from_secs);
+    command.wait = Duration::from_secs(args.wait);
+    command.verbose = args.verbose;
+    command.skip_port_check = args.skip_port_check;
+    command.extra_args = args.extra_args.clone();
+    for line in sb_grid::run(&command).await? {
+        println!("{line}");
+    }
+    Ok(())
+}
+
 /// Where the file-generating commands create files: the current directory.
 fn here(replace: bool) -> Scaffold {
     Scaffold::new(".").replacing(replace)
@@ -1088,6 +1179,8 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
             );
             return Ok(());
         }
+        Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
+        Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         _ => {}
     }
 
@@ -1734,8 +1827,11 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(status.code().unwrap_or(1));
             }
         }
-        Commands::Mkdir { .. } | Commands::Mkfile { .. } => {
-            unreachable!("file-generating commands return before browser configuration")
+        Commands::Mkdir { .. }
+        | Commands::Mkfile { .. }
+        | Commands::GridHub(_)
+        | Commands::GridNode(_) => {
+            unreachable!("these commands return before browser configuration")
         }
         #[cfg(feature = "tui")]
         Commands::Commander => {
