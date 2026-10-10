@@ -1,9 +1,9 @@
 # UC Mode (Undetected Chromedriver)
 
-UC Mode bypasses bot detection by removing automation markers from the
-chromedriver binary, launching Chromium with stealth flags, and applying
-JavaScript evasions that mask `navigator.webdriver`, plugins, WebGL, and other
-fingerprints.
+UC Mode launches Chromium with stealth flags and applies JavaScript evasions that
+mask `navigator.webdriver`, plugins, WebGL, and other fingerprints. Removing the
+automation markers from the chromedriver binary itself is a separate step that
+you run yourself (below).
 
 ## What you will learn
 
@@ -16,7 +16,7 @@ fingerprints.
 
 Set the driver mode to `Uc` in [`BrowserConfig`](crate::BrowserConfig):
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
@@ -30,10 +30,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+`BrowserConfig::default()` is headless. UC mode needs Chrome, Chromium or Edge.
+On the command line, `sbase --uc open https://example.com` does the same (put
+`--uc` before the subcommand).
+
 ## Binary patching
 
 Even in UC mode, a stock `chromedriver` may inject `cdc_` variables into every
-page. Patch the executable before launch to strip those signatures:
+page. UC mode does not patch the driver for you. Patch the executable before
+launch to strip those signatures:
 
 ```bash
 cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
@@ -41,10 +46,13 @@ cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
 
 You can also patch from code:
 
-```rust
-use seleniumbase_rs::patch_chromedriver;
+```rust,no_run
+use seleniumbase_rs::stealth::patcher::patch_chromedriver;
 
+# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 patch_chromedriver("/path/to/chromedriver")?;
+# Ok(())
+# }
 ```
 
 See [Binary Patching](../tutorials/binary_patching.md) for the full API,
@@ -72,9 +80,11 @@ If a site still flags the browser:
 2. Add `engine_spoofing_args()` to the launch flags.
 3. Use a [`Fingerprint`](../tutorials/fingerprint_stealth.md) with consistent
    user agent, platform, screen size, WebGL vendor, and geolocation.
-4. Run headful (`headless: false`) or use `--headless=new` instead of the old
-   headless implementation.
+4. Run headful (`with_headless(false)`). A headless session already starts
+   Chrome with `--headless=new`, so there is no newer headless mode to switch to.
 5. Align egress IP with the spoofed geolocation and timezone.
+6. Try the [pure CDP engine](../tutorials/pure_cdp.md), which needs no
+   chromedriver.
 
 ## Troubleshooting
 
@@ -82,5 +92,5 @@ If a site still flags the browser:
 |---|---|---|
 | `navigator.webdriver` still `true` | chromedriver not patched | Run `patch-chromedriver` and verify `needs_patch()`. |
 | Detection after patching | Missing engine args | Add `engine_spoofing_args()` to launch flags. |
-| Detection only in headless | Legacy headless artifacts | Run headful or pass `--headless=new`. |
+| Detection only in headless | Headless artifacts | Run headful with `with_headless(false)` (or `sbase --headed`). |
 | Inconsistent signals | Fingerprint values mismatch | Validate with `Fingerprint::validate()`. |

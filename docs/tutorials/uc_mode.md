@@ -19,7 +19,7 @@ layer additional evasions when a site is still detecting you.
 
 Set the driver mode to `Uc` in `BrowserConfig`:
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sb.open("https://seleniumbase.io/demo_page").await?;
 
     // Verify that navigator.webdriver is masked.
-    let hidden: bool = sb.execute_script("return navigator.webdriver === undefined").await?;
+    let hidden = sb.execute_script("return navigator.webdriver === undefined").await?;
     println!("navigator.webdriver hidden: {hidden}");
 
     sb.quit().await?;
@@ -40,9 +40,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+`BrowserConfig::default()` is headless; `with_headless(false)` opens a window.
+On the command line, `sbase --uc open URL` selects UC mode (a global option, so
+it goes before the subcommand; `--cdp` and `--uc` cannot be combined).
+
+UC mode drives Chrome through CDP, so it needs a Chromium-based browser (Chrome,
+Chromium or Edge). With Firefox, `BaseCase::new` returns an
+`InvalidConfig` error.
+
 ## What is patched automatically
 
-When UC mode is active, the framework applies many evasions:
+When UC mode is active, the framework starts Chrome with the standard
+undetected-Chrome launch arguments (`--disable-blink-features=AutomationControlled`,
+`--no-first-run`, `--disable-infobars` and more), leaves out the
+`enable-automation` switch, turns off the automation extension, and injects a
+stealth script into every new document. The script applies these evasions:
 
 - `cdc_` variables injected by `chromedriver` are removed from the page context.
 - `navigator.webdriver` is masked or removed.
@@ -51,17 +63,31 @@ When UC mode is active, the framework applies many evasions:
 - Chrome-only objects such as `chrome.app`, `chrome.runtime`, `chrome.csi`, and
   `chrome.loadTimes` are created.
 - WebGL vendor and renderer report a common Intel profile.
-- `navigator.permissions.query` returns natural values.
+- `navigator.permissions.query` returns natural values for notifications.
 - `navigator.mediaDevices.enumerateDevices` returns realistic device labels.
 - iframe `contentWindow` patches propagate the mask into nested frames.
+
+If you set no user agent and Chrome reports `HeadlessChrome`, the user agent is
+overridden to say `Chrome`. If the `BrowserConfig` carries a `Fingerprint`, its
+bootstrap script and CDP overrides are applied too.
+
+UC mode does **not** patch the chromedriver binary for you; see
+[Patch the chromedriver binary](#patch-the-chromedriver-binary).
 
 ## Extra evasions you can apply
 
 ### Timezone and geolocation
 
-```rust
+These use CDP, so they work in `Cdp` and `Uc` mode; in plain WebDriver mode they
+return an "Enable mode cdp or uc" error.
+
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.set_timezone("America/Los_Angeles").await?;
 sb.set_geolocation(34.0522, -118.2437, 100.0).await?;
+# Ok(())
+# }
 ```
 
 ### Custom user agent and locale
@@ -75,14 +101,28 @@ let config = BrowserConfig::default()
     .with_locale("en-US");
 ```
 
+### Human-like input and fresh sessions
+
+`uc_click(css)` and `uc_type(css, text)` are aliases for `human_click` and
+`human_type`, which move and type with human-like timing. `uc_open_with_reconnect(url)`
+reconnects the session and then opens the URL; `uc_open_with_disconnect(url)`
+quits the session, connects a new one with the same config, then opens the URL.
+
 ### Reconnect for a fresh session
 
-```rust
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.reconnect().await?;
+# Ok(())
+# }
 ```
 
-`reconnect` obtains a fresh WebDriver session without restarting the driver
-process. This is useful when a site invalidates the current session.
+`reconnect` closes the current WebDriver session and connects a new one with the
+same configuration. With a driver you run yourself (`--webdriver URL`) the driver
+process keeps running; with the auto-started driver, a new chromedriver is
+started for the new session. This is useful when a site invalidates the current
+session.
 
 ## Patch the chromedriver binary
 
@@ -95,16 +135,21 @@ cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
 
 From code:
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{ChromedriverPatcher, EnginePatch};
 
+# fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
 if patcher.needs_patch()? {
     patcher.patch(EnginePatch::balanced())?;
 }
+# Ok(())
+# }
 ```
 
-See [Binary Patching](./binary_patching.md) for backup, restore, and safety notes.
+The auto-started driver is `downloaded_drivers/chromedriver` (`sbase install`
+puts it there), so that is the file to patch. See
+[Binary Patching](./binary_patching.md) for backup, restore, and safety notes.
 
 ## Engine spoofing arguments
 
@@ -131,10 +176,12 @@ If a site still flags the browser, combine all layers:
 2. Add `engine_spoofing_args()` to the launch flags.
 3. Use a coherent [`Fingerprint`](./fingerprint_stealth.md) with consistent user
    agent, platform, screen size, WebGL vendor, and geolocation.
-4. Run headful (`headless: false`) or use `--headless=new` instead of the legacy
-   headless implementation.
+4. Run headful (`with_headless(false)`). A headless session already uses
+   `--headless=new`, not the legacy headless implementation.
 5. Enable `native_spoofing` to move spoofing out of JavaScript and into CDP
    where possible.
+6. Try the [pure CDP engine](./pure_cdp.md), which launches Chrome without
+   chromedriver at all.
 
 ## When to use UC mode
 
@@ -152,3 +199,4 @@ patches can make debugging harder and may conflict with some CI environments.
 - [Fingerprint & Stealth Profiles](./fingerprint_stealth.md)
 - [Binary Patching](./binary_patching.md)
 - [CDP Mode](./cdp_mode.md)
+- [Pure CDP](./pure_cdp.md)
