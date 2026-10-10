@@ -1,24 +1,44 @@
 # Recorder Mode Guide
 
 Recorder Mode captures your browser interactions and generates either a Rust
-source file or a JSON scenario that can be replayed later. It is a fast way to
-bootstrap a UI test: point, click, type, assert, and then refine the generated
-output.
+source file or a JSON action file that can be replayed later. It is a fast way
+to bootstrap a UI test: point, click, type, assert, and then refine the
+generated output.
 
 ## What you will learn
 
 - How to record from the CLI and from code.
 - What the generated Rust test looks like.
-- How to export and replay JSON scenarios.
+- How to export and replay JSON action files, and how they differ from the
+  scenario files `run-scenario` reads.
 - Tips for keeping generated tests maintainable.
+
+## Record from the CLI
+
+`sbase record` opens a browser on a URL, captures your clicks, typing, `<select>`
+changes and page navigations while you use it, and saves them as an action file
+when you press Ctrl-C (or after `--duration SECONDS`, or when you close the
+browser):
+
+```bash
+cargo run --bin sbase -- record https://seleniumbase.io/demo_page -o actions.json
+cargo run --bin sbase -- replay actions.json
+```
+
+Run it headed (the default), and put any global options such as `--browser`
+before `record`. `replay` runs the file in a fresh browser and exits with status
+1 if a step fails. See [Recorder CLI](../help/recorder_cli.md) for the file
+format and the actions replay understands.
 
 ## Record from code
 
 `BaseCase` records every action you perform through its API automatically. There
 is no separate start/stop toggle for the default recorder; simply run the
-interactions you want to capture and then export the recording.
+interactions you want to capture and then export the recording. If you want only
+part of a run, `start_recording()` marks a starting point and `stop_recording()`
+returns the actions recorded since then.
 
-```rust
+```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
@@ -45,32 +65,59 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The recorder produces method calls such as:
 
-```rust
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.click("#myButton").await?;
 sb.type_text("#myInput", "hello").await?;
-sb.assert_text_visible("Success!", "body").await?;
+sb.assert_text("body", "Success!").await?;
+# Ok(())
+# }
 ```
 
-Generated tests use the `sb_test!` macro shape and include a default timeout and
-assertion helpers. Always review the output before committing it to your suite.
+Only some `BaseCase` methods record themselves: navigation and interaction ones
+such as `open`, `click`, `type_text`, `clear`, `hover`, the `select_option_*`
+methods and a few waits, and among assertions only `assert_text`. Calls to
+other methods leave no trace in the recording.
 
-## JSON scenarios
+`export_recording_as_rust` (and the `.rs` file `save_recording_to_logs` writes)
+is a complete `#[tokio::main]` program: it imports `BaseCase` and
+`BrowserConfig`, creates a `BaseCase` from `BrowserConfig::default()`, runs the
+calls, and quits. To get a `#[tokio::test]` function instead, call
+`ActionRecorder::to_rust_test(name)`, or `save_recording_as_test(dir, name)` to
+write it to `dir/name.rs`. The generated code has no custom timeout and does not
+use the `sb_test!` macro. Always review the output before committing it to your
+suite.
 
-Recorded actions can also be serialized as JSON for the low-code scenario
-runner. From code:
+## JSON action files
 
-```rust
-sb.save_recorded_actions("scenario.json")?;
+Recorded actions can also be saved as JSON. From code:
+
+```rust,no_run
+# use seleniumbase_rs::BaseCase;
+# fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+sb.save_recorded_actions("recorded.json")?;
+# Ok(())
+# }
 ```
 
-Then replay it with the CLI:
+The file goes in the `latest_logs` folder (the name must be a plain file name),
+and holds an array of `{ "name", "target", "value", "timestamp_ms" }` objects.
+Replay it with the CLI:
 
 ```bash
-cargo run --bin sbase -- run-scenario --file scenario.json
+cargo run --bin sbase -- replay latest_logs/recorded.json
 ```
 
-JSON scenarios are portable and can be executed by CI jobs without recompiling
-a test binary.
+This is not the file `sbase run-scenario` reads. That command takes a
+hand-written scenario, an object with a `name` and a list of `steps` such as
+`{ "action": "click", "css": "#myButton" }`; passing it an action file fails to
+parse. See [Recorder CLI](../help/recorder_cli.md) for both formats.
+
+Action files are portable and can be replayed by CI jobs without recompiling a
+test binary. `replay` understands `goto`/`open`, `click`, `type`/`type_text`,
+`select_option_by_value`, `assert_text`, `assert_title` and `assert_url`, and
+skips any other action.
 
 ## Best practices
 
@@ -85,4 +132,6 @@ a test binary.
 |---|---|---|
 | Recording is empty | Actions were performed without a `BaseCase` method (e.g. raw JS) | Use `BaseCase` interaction methods so the internal recorder captures them. |
 | Generated selector is brittle | Page uses auto-generated IDs | Replace recorded selectors with stable `data-testid` or class selectors. |
-| JSON scenario fails on replay | Target application changed | Regenerate or hand-edit the scenario. |
+| Replay fails | Target application changed | Regenerate or hand-edit the action file. |
+| `run-scenario` rejects the saved file | It is an action file, not a scenario | Replay it with `sbase replay`. |
+| `replay` reports skipped steps | The action is not one replay understands | Use the generated Rust test instead, or hand-edit the file. |
