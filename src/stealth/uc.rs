@@ -266,15 +266,31 @@ pub async fn override_geolocation(
     Ok(())
 }
 
+/// The script [`clear_cdc_properties`] runs: it deletes the `cdc_…` properties
+/// ChromeDriver leaves on `window` and its prototypes.
+///
+/// It is a function expression so that running it again, or in a page that
+/// already ran it, cannot fail on a re-declared variable.
+pub const CLEAR_CDC_SCRIPT: &str = "(() => { let o = window; while (o) { Object.getOwnPropertyNames(o).filter(p => /^[a-z]{3}_[a-zA-Z0-9]{22}_.*/i.test(p)).forEach(p => { try { delete o[p]; } catch(e) {} }); o = Object.getPrototypeOf(o); } })()";
+
 /// Masks the WebDriver `cdc_` property in the active page as an extra defense.
+///
+/// # Errors
+///
+/// Returns an error if the browser refuses the command or the script throws.
 pub async fn clear_cdc_properties(cdp: &CdpClient) -> Result<(), SeleniumBaseError> {
-    cdp.execute_with_params(
-        "Runtime.evaluate",
-        json!({
-            "expression": "let o = window; while (o) { Object.getOwnPropertyNames(o).filter(p => /^[a-z]{3}_[a-zA-Z0-9]{22}_.*/i.test(p)).forEach(p => { try { delete o[p]; } catch(e) {} }); o = Object.getPrototypeOf(o); }",
-            "returnByValue": true
-        }),
-    )
-    .await?;
+    // Inside a function: a top-level `let` stays declared in the page, so the
+    // second call would throw "Identifier 'o' has already been declared".
+    let response = cdp
+        .execute_with_params(
+            "Runtime.evaluate",
+            json!({ "expression": CLEAR_CDC_SCRIPT, "returnByValue": true }),
+        )
+        .await?;
+    if let Some(details) = response.get("exceptionDetails") {
+        return Err(SeleniumBaseError::Unsupported(format!(
+            "clearing the cdc_ properties threw: {details}"
+        )));
+    }
     Ok(())
 }

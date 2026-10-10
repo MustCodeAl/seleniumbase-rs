@@ -309,11 +309,12 @@ impl Tour {
         let mut html = String::from(
             "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>Tour: ",
         );
-        html.push_str(&self.name);
+        html.push_str(&html_escape(&self.name));
+        // A plain string, not a format template, so braces are written once.
         html.push_str(
-            "</title>\n<style>\nbody {{ font-family: Arial,sans-serif; margin: 40px; }}\n.step {{ margin: 12px 0; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }}\n.target {{ color: #555; font-size: 0.9em; }}\n</style>\n</head>\n<body>\n<h1>",
+            "</title>\n<style>\nbody { font-family: Arial,sans-serif; margin: 40px; }\n.step { margin: 12px 0; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }\n.target { color: #555; font-size: 0.9em; }\n</style>\n</head>\n<body>\n<h1>",
         );
-        html.push_str(&self.name);
+        html.push_str(&html_escape(&self.name));
         html.push_str("</h1>\n<ol>\n");
         for step in &self.steps {
             html.push_str("<li class=\"step\">\n");
@@ -349,6 +350,19 @@ fn html_escape(text: &str) -> String {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn the_exported_page_has_valid_css_and_an_escaped_name() {
+        let tour = Tour::new("<script>alert(1)</script> & co");
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("tour.html");
+        tour.export_html(&path).unwrap();
+        let html = fs::read_to_string(&path).unwrap();
+        assert!(!html.contains("{{") && !html.contains("}}"), "{html}");
+        assert!(html.contains("body { font-family"), "{html}");
+        assert!(!html.contains("<script>"), "{html}");
+        assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt; &amp; co"));
+    }
 
     #[test]
     fn export_html_contains_steps() {

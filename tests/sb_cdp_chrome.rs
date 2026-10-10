@@ -1292,3 +1292,36 @@ async fn shadow_dom_scripts_run_in_a_real_page() {
     assert!(!result.as_ref().is_ok_and(|clicked| *clicked), "{result:?}");
     assert_ne!(hacked, Some(true), "the selector ran as code");
 }
+
+#[tokio::test]
+#[ignore = "needs Chrome"]
+async fn the_cdc_cleanup_script_runs_twice_and_removes_the_property() {
+    let (browser, page, _) = open().await;
+    page.evaluate("window.cdc_adoQpoasnfa76pfcZLmcfl_Array = [1]; window.keep = 1; true")
+        .await
+        .unwrap();
+
+    for round in 1..=2 {
+        let response = page
+            .execute(
+                "Runtime.evaluate",
+                json!({ "expression": seleniumbase_rs::stealth::uc::CLEAR_CDC_SCRIPT,
+                        "returnByValue": true }),
+            )
+            .await
+            .unwrap();
+        assert!(
+            response.get("exceptionDetails").is_none(),
+            "round {round}: {response}"
+        );
+    }
+
+    let left: bool = page
+        .evaluate_as("'cdc_adoQpoasnfa76pfcZLmcfl_Array' in window")
+        .await
+        .unwrap();
+    let kept: bool = page.evaluate_as("window.keep === 1").await.unwrap();
+    browser.close().await.unwrap();
+    assert!(!left, "the cdc_ property is still there");
+    assert!(kept, "an unrelated property was removed");
+}

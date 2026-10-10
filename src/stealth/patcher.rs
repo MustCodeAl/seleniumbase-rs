@@ -103,6 +103,25 @@ impl EnginePatch {
     }
 }
 
+/// Replaces the file at `path` with `content` in one step.
+///
+/// The new bytes are written beside it and renamed over it, keeping the
+/// original's permissions. Writing into the file itself fails while it is
+/// running (`ETXTBSY` on Linux) and leaves a half-written binary if the write
+/// is interrupted; a rename does neither.
+fn replace_file(path: &Path, content: &[u8]) -> std::io::Result<()> {
+    let mut temp = path.as_os_str().to_owned();
+    temp.push(".patching");
+    let temp = PathBuf::from(temp);
+    let written = fs::write(&temp, content)
+        .and_then(|()| fs::set_permissions(&temp, fs::metadata(path)?.permissions()))
+        .and_then(|()| fs::rename(&temp, path));
+    if written.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    written
+}
+
 /// Fluent patcher for a chromedriver-style binary.
 #[derive(Clone, Debug)]
 pub struct ChromedriverPatcher<P: AsRef<Path>> {
@@ -129,7 +148,9 @@ impl<P: AsRef<Path>> ChromedriverPatcher<P> {
     pub fn patch(&self, spec: EnginePatch) -> Result<(), SeleniumBaseError> {
         let path = self.path.as_ref();
         let path_str = path.display().to_string();
-        if spec.backup {
+        // The first backup is the original. A later patch must not replace it
+        // with a file that is already patched, or nothing is left to restore.
+        if spec.backup && !self.backup_path().exists() {
             let backup = self.backup_path();
             fs::copy(path, &backup).map_err(|e| {
                 SeleniumBaseError::patcher(
@@ -166,7 +187,7 @@ impl<P: AsRef<Path>> ChromedriverPatcher<P> {
             content = patch_navigator_webdriver_assignments(content);
         }
 
-        fs::write(path, content).map_err(|e| {
+        replace_file(path, &content).map_err(|e| {
             let err = SeleniumBaseError::patcher(
                 &path_str,
                 format!("failed to write patched chromedriver: {e}"),
@@ -187,7 +208,13 @@ impl<P: AsRef<Path>> ChromedriverPatcher<P> {
                 "no .orig backup found to restore",
             ));
         }
-        fs::copy(&backup, self.path.as_ref()).map_err(|e| {
+        let original = fs::read(&backup).map_err(|e| {
+            SeleniumBaseError::patcher(
+                &path_str,
+                format!("failed to read the backup {}: {}", backup.display(), e),
+            )
+        })?;
+        replace_file(self.path.as_ref(), &original).map_err(|e| {
             SeleniumBaseError::patcher(
                 &path_str,
                 format!(
@@ -733,5 +760,63 @@ mod tests {
         let args = engine_spoofing_args();
         assert!(args.contains(&"--disable-blink-features=AutomationControlled".to_owned()));
         assert!(args.iter().any(|a| a.contains("PrivacySandboxSettings4")));
+    }
+}
+
+#[cfg(test)]
+mod backup_tests {
+    use super::*;
+
+    fn driver_in(dir: &Path) -> PathBuf {
+        let path = dir.join("chromedriver");
+        fs::write(&path, b"head __webdriver_evaluate tail").unwrap();
+        path
+    }
+
+    #[test]
+    fn a_second_patch_keeps_the_first_backup_so_restore_returns_the_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = driver_in(dir.path());
+        let original = fs::read(&path).unwrap();
+        let patcher = ChromedriverPatcher::new(&path);
+
+        patcher.patch(EnginePatch::balanced()).unwrap();
+        let patched = fs::read(&path).unwrap();
+        assert_ne!(patched, original, "the patch changed nothing; test is void");
+        assert_eq!(fs::read(patcher.backup_path()).unwrap(), original);
+
+        patcher.patch(EnginePatch::balanced()).unwrap();
+        assert_eq!(
+            fs::read(patcher.backup_path()).unwrap(),
+            original,
+            "the second patch replaced the backup with a patched file"
+        );
+
+        patcher.restore().unwrap();
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn patching_keeps_the_executable_bit_and_leaves_no_temp_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = driver_in(dir.path());
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+
+        ChromedriverPatcher::new(&path)
+            .patch(EnginePatch::balanced())
+            .unwrap();
+
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
+        let leftovers: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.ends_with(".patching"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
     }
 }

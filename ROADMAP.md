@@ -285,21 +285,22 @@ comment's apostrophes, and no longer mistakes a Selenium script that mentions
 `seleniumbase.io` for a SeleniumBase one; the Selenium IDE reader handles
 multi-line rows and entities; `tracing_util` builds its filter instead of
 changing `RUST_LOG`; `stealth/cdp.rs` reports a failed click or domain enable
-instead of returning `Ok` (WebDriver path, not run against a real driver).
+instead of returning `Ok` (WebDriver path, not run against a real driver); the
+tour export writes valid CSS and escapes the tour's name; the chromedriver
+patcher keeps its first `.orig` backup, replaces the binary with a rename
+instead of writing into it, and keeps its permissions; the `cdc_` cleanup script
+in `uc.rs` can run twice (checked in a real Chrome).
 
 Open, most serious first:
 
 - `dialog.rs` `prompt()` shows a message box and returns the default; it never
-  asks for text. `tour.rs:314` writes CSS with doubled braces, which is
-  invalid.
+  asks for text.
 - `cdp_driver.rs` talks to the browser socket without a target session, so it
   probably cannot work; only docs mention it.
-- `patcher.rs`: the backup copy overwrites an existing `.orig`; the patched
-  binary is written in place and not atomically; the cache key ignores the patch
-  set; the patched Chrome copy probably cannot start on macOS or Linux because
-  only the executable is copied (unverified).
-- `uc.rs:270` evaluates a top-level `let o` that fails the second time;
-  non-configurable `defineProperty` calls outside `try`.
+- `patcher.rs` (the Chrome browser patcher): the cache key ignores the patch
+  set; the patched Chrome copy is written non-atomically and probably cannot
+  start on macOS or Linux because only the executable is copied (unverified).
+- `uc.rs`: non-configurable `defineProperty` calls outside `try`.
 - Providers (`stealth/providers/builtin.rs`): the font check mishandles
   shorthand such as `12px Arial`; the timezone provider patches only
   `Intl.DateTimeFormat`, so `getTimezoneOffset` disagrees; canvas and audio
