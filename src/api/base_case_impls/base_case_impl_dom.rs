@@ -222,27 +222,161 @@ impl BaseCase {
         self.element_from_script_result(result).await
     }
 
-    /// Returns the origin of the current URL.
+    /// Returns the origin of the current URL, as `window.location.origin`
+    /// reports it: the scheme, the host and a port that is not the scheme's
+    /// default (`http://localhost:8080`), or `null` for a page with no origin
+    /// such as `about:blank`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the current URL cannot be read or parsed.
     pub async fn get_origin(&mut self) -> Result<String, SeleniumBaseError> {
         let url = self.get_current_url().await?;
-        let parsed = reqwest::Url::parse(&url)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?;
-        Ok(format!(
-            "{}://{}",
-            parsed.scheme(),
-            parsed.host_str().unwrap_or("")
-        ))
+        origin_of_url(&url)
     }
 
-    /// Returns true if `css` is inside an `<iframe>` or `<frame>`.
+    /// Returns true if `css` is not in this document but is inside an
+    /// `<iframe>` or `<frame>` of it, at any depth.
+    ///
+    /// The elements of the current document are not "in an iframe", so this is
+    /// false for them, as in Python SeleniumBase. Only frames from the same
+    /// origin can be searched; the contents of a cross-origin frame are hidden
+    /// from the page's script and count as not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `css` is not a valid CSS selector.
     pub async fn is_element_in_an_iframe(&self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let script = format!(
-            "var el = document.querySelector('{}'); return !!(el && el.closest('iframe, frame'));",
-            js_escape(css)
-        );
+        let script = element_in_iframe_script(css);
         match self.execute_script(&script).await? {
             Value::Bool(v) => Ok(v),
             _ => Ok(false),
         }
+    }
+}
+
+/// The origin of `url`, serialized the way `window.location.origin` does.
+fn origin_of_url(url: &str) -> Result<String, SeleniumBaseError> {
+    let parsed = url::Url::parse(url)
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("invalid URL '{url}': {e}")))?;
+    // Chrome reports a local file's origin as `file://`; the URL standard calls it opaque.
+    if parsed.scheme() == "file" {
+        return Ok("file://".to_owned());
+    }
+    Ok(parsed.origin().ascii_serialization())
+}
+
+/// A script that tells whether `css` matches an element inside a frame of the
+/// current document but not in the document itself.
+fn element_in_iframe_script(css: &str) -> String {
+    format!(
+        "var selector = {}; \
+         if (document.querySelector(selector) !== null) {{ return false; }} \
+         function searchFrames(doc, depth) {{ \
+             var frames = doc.querySelectorAll('iframe, frame'); \
+             for (var i = 0; i < frames.length; i++) {{ \
+                 var inner = null; \
+                 try {{ inner = frames[i].contentDocument; }} catch (e) {{ inner = null; }} \
+                 if (!inner) {{ continue; }} \
+                 if (inner.querySelector(selector) !== null) {{ return true; }} \
+                 if (depth < 8 && searchFrames(inner, depth + 1)) {{ return true; }} \
+             }} \
+             return false; \
+         }} \
+         return searchFrames(document, 0);",
+        js_string_literal(css)
+    )
+}
+
+#[cfg(test)]
+mod tests_dom {
+    use super::chrome_support::open_html;
+    use super::*;
+
+    #[test]
+    fn origin_keeps_a_port_that_is_not_the_default_for_its_scheme() {
+        let cases = [
+            ("http://localhost:8080/a/b?q=1#h", "http://localhost:8080"),
+            ("https://example.com/x", "https://example.com"),
+            ("https://example.com:443/x", "https://example.com"),
+            ("http://example.com:80/", "http://example.com"),
+            ("https://user:pw@example.com:8443/x", "https://example.com:8443"),
+            ("HTTP://EXAMPLE.com/", "http://example.com"),
+            ("http://[::1]:3000/", "http://[::1]:3000"),
+        ];
+        for (url, expected) in cases {
+            assert_eq!(origin_of_url(url).unwrap(), expected, "{url}");
+        }
+    }
+
+    #[test]
+    fn a_page_with_no_origin_has_the_origin_null_not_an_empty_host() {
+        for url in ["about:blank", "data:text/html,hi", "javascript:void(0)"] {
+            assert_eq!(origin_of_url(url).unwrap(), "null", "{url}");
+        }
+        assert_eq!(origin_of_url("file:///tmp/page.html").unwrap(), "file://");
+    }
+
+    #[test]
+    fn origin_of_something_that_is_not_a_url_is_an_error() {
+        assert!(matches!(origin_of_url("not a url"), Err(SeleniumBaseError::InvalidConfig(_))));
+    }
+
+    #[test]
+    fn the_iframe_script_embeds_the_selector_as_a_string_literal() {
+        let script = element_in_iframe_script("a[title='x\"y']\n");
+        assert!(script.starts_with(r#"var selector = "a[title='x\"y']\n";"#), "{script}");
+    }
+
+    #[tokio::test]
+    #[ignore = "needs Chrome"]
+    async fn origin_agrees_with_the_browser() {
+        let (browser, page) = open_html("<!doctype html><title>x</title>").await;
+        for url in [
+            "http://localhost:8080/a",
+            "https://example.com:8443/b?c#d",
+            "https://example.com:443/",
+            "http://user:pw@example.com/",
+            "about:blank",
+            "data:text/html,hi",
+            "file:///tmp/x.html",
+            "blob:https://example.com/uuid",
+        ] {
+            let expected: String = page
+                .evaluate_as(format!("new URL({}).origin", js_string_literal(url)))
+                .await
+                .unwrap();
+            assert_eq!(origin_of_url(url).unwrap(), expected, "{url}");
+        }
+        // And for the page the browser is actually showing.
+        let shown: String = page.evaluate_as("location.href").await.unwrap();
+        let real: String = page.evaluate_as("window.location.origin").await.unwrap();
+        assert_eq!(origin_of_url(&shown).unwrap(), real);
+        assert!(real.contains(':'), "the fixture runs on a port: {real}");
+        browser.close().await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "needs Chrome"]
+    async fn an_element_is_in_an_iframe_only_when_a_frame_holds_it() {
+        let (browser, page) = open_html(
+            "<!doctype html><p id=here>top</p>\
+             <iframe id=one srcdoc=\"<p id='inner'>x</p><iframe id='two' srcdoc='<p id=deep>y</p>'></iframe>\"></iframe>",
+        )
+        .await;
+        page.wait_for_load().await.unwrap();
+        // The nested frame loads asynchronously.
+        page.wait_for_function("document.getElementById('one').contentDocument.getElementById('two')?.contentDocument?.getElementById('deep')")
+            .await
+            .unwrap();
+        let ask = |css: &'static str| {
+            let page = page.clone();
+            async move { page.evaluate(format!("(function () {{ {} }})()", element_in_iframe_script(css))).await.unwrap() }
+        };
+        assert_eq!(ask("#here").await, false, "an element of this document is not in a frame");
+        assert_eq!(ask("#inner").await, true);
+        assert_eq!(ask("#deep").await, true, "frames are searched at any depth");
+        assert_eq!(ask("#nowhere").await, false);
+        browser.close().await.unwrap();
     }
 }
