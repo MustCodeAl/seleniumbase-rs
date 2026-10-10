@@ -237,10 +237,11 @@ written rationale, so if a new one appears, either upgrade the dependency or
 add an entry explaining why the risk is acceptable — do not widen the ignore
 list silently.
 
-The crate declares `rust-version = "1.89"`, which the `msrv` CI job enforces
-with that exact toolchain. The floor is set by the dependency graph rather than
-by the crate's own source, so when it has to move, bump `rust-version`, the
-`msrv` job, and the `Dockerfile` base image together.
+The crate declares `rust-version = "1.99"`, the newest stable release when it was
+last raised, which the `msrv` CI job enforces with that exact toolchain. The
+floor is a choice to track current stable, not something the crate's own source
+needs, so when it moves, bump `rust-version`, the `msrv` job, and the
+`Dockerfile` base image together.
 
 On macOS, prefix the test/publish commands with:
 

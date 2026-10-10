@@ -13,7 +13,7 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 ## Prerequisites
 
-- Rust toolchain 1.89 or newer (the crate's `rust-version`).
+- Rust toolchain 1.99 or newer (the crate's `rust-version`).
 - A Chromium-based browser such as Google Chrome, Chromium, or Microsoft Edge.
 - A network connection for the first build (dependencies may need to be fetched).
 

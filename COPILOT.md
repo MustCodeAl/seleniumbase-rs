@@ -18,9 +18,9 @@ cargo deny check          # advisories, licenses, bans, sources
 mdbook build              # book.toml lives at the repository root
 ```
 
-The crate declares `rust-version = "1.89"`. That floor comes from the
-dependency graph (`aes` currently requires it), so raise it deliberately and
-keep the `msrv` CI job and the `Dockerfile` base image in step with it.
+The crate declares `rust-version = "1.99"`, the newest stable release when it was
+last raised. Raise it deliberately and keep the `msrv` CI job and the
+`Dockerfile` base image in step with it.
 
 ## Layout
 

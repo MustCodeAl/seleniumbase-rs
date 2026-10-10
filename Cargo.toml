@@ -2,7 +2,7 @@
 name = "seleniumbase-rs"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.89"
+rust-version = "1.99"
 license = "MIT"
 description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
 repository = "https://github.com/MustCodeAl/seleniumbase-rs"

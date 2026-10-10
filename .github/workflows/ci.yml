@@ -199,10 +199,11 @@ jobs:
         uses: actions/checkout@v4
 
       # Keep this in step with `rust-version` in Cargo.toml and the Dockerfile
-      # base image. The floor comes from the dependency graph, not from this
-      # crate's own source.
-      - name: Install Rust 1.89
-        uses: dtolnay/rust-toolchain@1.89
+      # base image. The crate tracks the newest stable release; this job fails
+      # when a dependency starts to need something newer than the declared
+      # version.
+      - name: Install Rust 1.99
+        uses: dtolnay/rust-toolchain@1.99
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2

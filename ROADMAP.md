@@ -153,8 +153,8 @@ step 2.
   `with_db_reporting` / `database_env` options (`Plugins::run_browser_test` and
   `ResultStorePlugin` are the place, and now exist; what is left is a
   `BrowserConfig`/environment switch that attaches them).
-- Known: the feature needs Rust 1.90 (`roaring`, via `turso_core`), while the
-  crate's MSRV stays 1.89 without it. `cfg_block`, also via `turso_core`,
+- Known: the feature needs Rust 1.90 (`roaring`, via `turso_core`), which the
+  crate's `rust-version` (1.99) covers. `cfg_block`, also via `turso_core`,
   declares no licence in its manifest; `cargo deny check` passes.
 
 ### Five architecture improvements
