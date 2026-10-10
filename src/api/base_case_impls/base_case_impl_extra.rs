@@ -920,7 +920,7 @@ impl BaseCase {
     pub async fn save_saved_cookies(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
         let cookies = self.session.get_cookies().await?;
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         fs::write(&path, serde_json::to_string_pretty(&cookies)?)?;
         Ok(path)
     }
@@ -931,7 +931,7 @@ impl BaseCase {
         filename: &str,
     ) -> Result<(), SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         let data = fs::read_to_string(&path)?;
         let cookies: Vec<Value> = serde_json::from_str(&data)?;
         for cookie in cookies {
@@ -948,7 +948,7 @@ impl BaseCase {
     /// Deletes the saved cookies file from the logs directory.
     pub async fn delete_saved_cookies(&self, filename: &str) -> Result<(), SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         if path.exists() {
             fs::remove_file(&path)?;
         }
@@ -979,7 +979,7 @@ impl BaseCase {
 
     /// Asserts that `filename` exists in the downloads folder.
     pub fn assert_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let path = default_download_dir().join(filename);
+        let path = crate::artifacts::confined_path(&default_download_dir(), filename)?;
         if !path.exists() {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Downloaded file '{}' was not found",
@@ -991,7 +991,7 @@ impl BaseCase {
 
     /// Deletes `filename` from the downloads folder.
     pub fn delete_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let path = default_download_dir().join(filename);
+        let path = crate::artifacts::confined_path(&default_download_dir(), filename)?;
         if path.exists() {
             fs::remove_file(&path)?;
         }
@@ -1009,7 +1009,7 @@ impl BaseCase {
         self.session.switch_to_new_window().await?;
         self.open(url).await?;
         let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        let expected = default_download_dir().join(filename);
+        let expected = crate::artifacts::confined_path(&default_download_dir(), filename)?;
         loop {
             if expected.exists() {
                 self.session.switch_to_window(&original).await?;
@@ -1369,7 +1369,7 @@ impl BaseCase {
         filename: &str,
     ) -> Result<(), SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         use std::io::Write;
         let mut file = std::fs::OpenOptions::new()
             .create(true)
@@ -1394,7 +1394,7 @@ impl BaseCase {
     /// Saves `data` to `filename` in the logs directory (overwrites).
     pub fn save_data_as(&self, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         fs::write(&path, data)?;
         Ok(())
     }

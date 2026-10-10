@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
 use async_trait::async_trait;
 
@@ -274,57 +274,15 @@ impl AssertionApi for Page {
 impl ScreenshotApi for Page {
     /// Saves into the logs directory; `filename` must be a bare file name.
     async fn save_screenshot(&self, filename: &str) -> crate::Result<PathBuf> {
-        let name = bare_file_name(filename)?;
-        let path = crate::artifacts::ensure_latest_logs_dir()?.join(name);
+        let path = crate::artifacts::confined_path(
+            &crate::artifacts::ensure_latest_logs_dir()?,
+            filename,
+        )?;
         tokio::fs::write(&path, self.screenshot().await?).await?;
         Ok(path)
     }
 
     async fn screenshot_as_png(&self) -> crate::Result<Vec<u8>> {
         self.screenshot().await
-    }
-}
-
-/// `filename` as a path, if it is one plain file name: no directory part, no
-/// `..`, not absolute, so it cannot name a file outside the logs directory.
-fn bare_file_name(filename: &str) -> crate::Result<&Path> {
-    let path = Path::new(filename);
-    let mut parts = path.components();
-    match (parts.next(), parts.next()) {
-        (Some(Component::Normal(_)), None) => Ok(path),
-        _ => Err(crate::SeleniumBaseError::invalid_config(format!(
-            "a screenshot name must be a plain file name, not {filename:?}"
-        ))),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_plain_file_name_is_accepted() {
-        for ok in ["shot.png", "login-failure_1.png", "no_extension"] {
-            assert!(bare_file_name(ok).is_ok(), "{ok}");
-        }
-    }
-
-    #[test]
-    fn a_name_that_could_leave_the_logs_directory_is_refused() {
-        for bad in [
-            "",
-            "..",
-            "../shot.png",
-            "a/b.png",
-            "/etc/passwd",
-            "./x.png",
-            "a\\..\\b",
-        ] {
-            // On Windows a backslash is a separator; elsewhere it is part of a name.
-            if bad.contains('\\') && !cfg!(windows) {
-                continue;
-            }
-            assert!(bare_file_name(bad).is_err(), "{bad:?}");
-        }
     }
 }

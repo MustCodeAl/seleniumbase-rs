@@ -10,7 +10,7 @@ impl BaseCase {
     pub async fn save_page_source(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
         let source = self.get_page_source().await?;
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         fs::write(&path, source)?;
         Ok(path)
     }

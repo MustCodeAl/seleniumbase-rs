@@ -7,13 +7,20 @@ impl BaseCase {
     }
 
     /// Returns the full path of `filename` inside the downloads folder.
-    pub fn get_path_of_downloaded_file(&self, filename: &str) -> PathBuf {
-        default_download_dir().join(filename)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` is not a plain
+    /// file name (no directory part, no `..`), so it cannot reach a file
+    /// outside the downloads folder.
+    pub fn get_path_of_downloaded_file(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+        crate::artifacts::confined_path(&default_download_dir(), filename)
     }
 
     /// Returns true if `filename` exists in the downloads folder.
     pub fn is_downloaded_file_present(&self, filename: &str) -> bool {
-        self.get_path_of_downloaded_file(filename).exists()
+        self.get_path_of_downloaded_file(filename)
+            .is_ok_and(|path| path.exists())
     }
 
     /// Returns true if any downloaded file matches `regex`.
@@ -31,7 +38,7 @@ impl BaseCase {
 
     /// Reads the contents of `filename` from the downloads folder.
     pub fn get_data_from_downloaded_file(&self, filename: &str) -> Result<String, SeleniumBaseError> {
-        let path = self.get_path_of_downloaded_file(filename);
+        let path = self.get_path_of_downloaded_file(filename)?;
         Ok(fs::read_to_string(&path)?)
     }
 
@@ -67,7 +74,7 @@ impl BaseCase {
 
     /// Deletes `filename` from the downloads folder if it exists.
     pub fn delete_downloaded_file_if_present(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let path = self.get_path_of_downloaded_file(filename);
+        let path = self.get_path_of_downloaded_file(filename)?;
         if path.exists() {
             fs::remove_file(&path)?;
         }

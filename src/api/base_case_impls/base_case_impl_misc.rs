@@ -188,7 +188,7 @@ impl BaseCase {
     /// Saves recorded actions to a JSON file in the logs directory.
     pub fn save_recorded_actions(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
-        let path = dir.join(filename);
+        let path = crate::artifacts::confined_path(&dir, filename)?;
         let actions = self.recorded_actions()?;
         fs::write(&path, serde_json::to_string_pretty(&actions)?)?;
         Ok(path)
