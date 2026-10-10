@@ -69,7 +69,7 @@ futures-util = "0.3"
 chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"
-zip = "8.6"
+zip = "9.0"
 flate2 = "1.1"
 tar = "0.4"
 dirs = "7.0"
