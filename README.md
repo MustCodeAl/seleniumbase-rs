@@ -1,9 +1,12 @@
 # SeleniumBase for Rust
 
 `seleniumbase-rs` is a Rust port of the Python SeleniumBase browser-automation
-framework. It layers an ergonomic, Python-parity `BaseCase` API on top of the
-`thirtyfour` WebDriver crate and adds native stealth, CDP, and tooling features
-that are usually only available in Python or Node-based stacks.
+framework and of its MCP server. It layers an ergonomic, Python-parity
+`BaseCase` API on top of the `thirtyfour` WebDriver crate, adds a pure Chrome
+DevTools Protocol engine that needs no driver, and brings stealth, a browser
+pool, request interception and tools for AI agents that develop and debug tests.
+It is young (`0.1.0`, not on crates.io); see [Project status](#project-status)
+for what is verified and what is not.
 
 This README is the project landing page. If you are reading the mdBook, see the
 [book overview](./docs/README.md) for a narrative introduction.
@@ -32,9 +35,17 @@ This README is the project landing page. If you are reading the mdBook, see the
 - **A familiar test API**: `open`, `click`, `type_text`, assertions, waits,
   frames, windows, cookies, local storage, uploads, PDF handling, and more than
   200 helper methods.
-- **Multiple browser backends**: WebDriver, Chrome DevTools Protocol (CDP), and
-  Undetected Chromedriver (UC) mode, plus an optional `rustwright`-based
-  Playwright-compatible engine.
+- **Multiple browser backends**: WebDriver, Undetected Chromedriver (UC) mode,
+  an optional `rustwright`-based Playwright-compatible engine, and the pure CDP
+  engine (`sb_cdp`) that drives Chrome directly with no chromedriver, with
+  locators that wait, request interception, per-context proxies, a browser pool
+  and a mock browser for tests without Chrome.
+- **Tools for AI agents**: MCP servers (`cdp`, `driver`, `sb`) with page
+  inspection, selector diagnosis, console and network views, an accessibility
+  audit, a debug bundle and export of a session as a Rust test; failures come back
+  with the page's state and a hint. See [Vibe coding](./docs/tutorials/vibe_coding.md).
+- **Errors that say what to do**: every error has a hint, and `sbase` exits with a
+  status that follows the error's category.
 - **Anti-detection tooling**: binary patching for `chromedriver` and Chrome, a
   priority-ordered JavaScript evasion registry, fingerprint presets, and
   CDP-level spoofing.
@@ -57,25 +68,24 @@ cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains Sel
 
 ## Installation
 
-Add the crate to a Cargo project:
-
-```bash
-cargo add seleniumbase-rs
-```
-
-Or add it manually to `Cargo.toml`:
+The crate is not published to crates.io. Add it from the repository:
 
 ```toml
 [dependencies]
-seleniumbase-rs = "0.1"
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 ```
 
 Optional features are enabled in `Cargo.toml`:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { version = "0.1", features = ["playwright", "s3", "azure", "gcp", "mcp-server"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["mcp-server", "s3"] }
 ```
+
+To build the `sbase` CLI and the MCP server from a checkout, which Rust version
+you need, the Docker image and the platform notes, see
+[Building and installing](./docs/building.md), [Deployment](./docs/deployment.md)
+and [Operating systems](./docs/platforms.md).
 
 ## Architecture at a glance
 
@@ -87,6 +97,7 @@ seleniumbase-rs = { version = "0.1", features = ["playwright", "s3", "azure", "g
 │                 AssertionApi, ScreenshotApi)                 │
 ├─────────────────────────────────────────────────────────────┤
 │  BrowserSession  ──►  thirtyfour WebDriver + CDP session     │
+│  sb_cdp (pure CDP) ──►  Chrome directly, no driver           │
 ├─────────────────────────────────────────────────────────────┤
 │  Stealth layer: patcher, evasion registry, fingerprint       │
 │  presets, CDP overrides, engine-spoofing args                │
@@ -408,21 +419,31 @@ cookies, and execute JavaScript in the active page.
 
 | Feature | Purpose |
 |---------|---------|
+| `tui` | The `sbase commander` terminal UI. |
+| `gui` | Native OS dialogs and GUI automation (links GTK and X11 on Linux). |
 | `playwright` | `rustwright` Playwright-compatible engine. |
 | `s3` | AWS S3 artifact uploads. |
 | `azure` | Azure Blob Storage artifact uploads. |
 | `gcp` | Google Cloud Storage artifact uploads. |
 | `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+| `turso` | Embedded database: `ResultStore`, `ProfileVault`, `sbase report`. |
+| `test-util` | The scripted mock browser, for tests without Chrome. |
 | `full-tracing` | Verbose `tracing` span events for debugging. |
-| `json-logs` | Structured JSON log output. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
+| `scrape`, `impersonate` | Stealth scraping groundwork and TLS/HTTP/2 impersonation; in progress (`impersonate` needs cmake). |
+
+No feature is on by default.
 
 ## Documentation
 
-- [Developer Guide](./docs/DEVELOPER_GUIDE.md)
+- [Developer Guide](./docs/DEVELOPER_GUIDE.md) and [Contributing](./CONTRIBUTING.md)
 - [Extended Documentation](./DOCS.md)
 - [Rust Book Source](./docs/README.md)
-- [Why Rust?](./docs/why-rust.md)
+- [Why Rust?](./docs/why-rust.md) and [How it compares](./docs/comparison.md)
+- [Building and installing](./docs/building.md), [Deployment](./docs/deployment.md)
+  and [Operating systems](./docs/platforms.md)
+- [FAQ](./docs/faq.md), [Reliability](./docs/reliability.md) and
+  [Performance](./docs/performance.md)
 - [Python Migration](./docs/python-migration.md)
 - [Rust Test Tooling](./docs/rust-test-tooling.md)
 

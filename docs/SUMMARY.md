@@ -2,7 +2,12 @@
 
 - [SeleniumBase for Rust](README.md)
 - [Getting Started](tutorials/getting_started.md)
+- [Building and installing](building.md)
+  - [Deployment](deployment.md)
+  - [Operating systems](platforms.md)
+- [FAQ](faq.md)
 - [Why Rust?](why-rust.md)
+  - [How it compares](comparison.md)
   - [Security](security.md)
   - [Reliability](reliability.md)
   - [Performance](performance.md)

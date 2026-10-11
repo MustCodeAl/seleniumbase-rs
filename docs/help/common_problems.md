@@ -10,6 +10,26 @@ and hint:
   read `SB_LOG_LEVEL` (default `info`), for example
   `SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
 
+## Start here
+
+Run `sbase doctor` first. It reports which Chrome and chromedriver it finds and
+whether their major versions match, and most start-up problems show up there. In
+an AI-agent session the MCP tool `diagnose_environment` reports the same, plus the
+platform and the redacted `SB_*` settings, without starting a browser.
+
+| Symptom | Most likely cause | Go to |
+|---|---|---|
+| "chromedriver keeps crashing", "session not created" | chromedriver and Chrome are different major versions | [chromedriver executable not found](#chromedriver-executable-not-found) |
+| The driver is "killed" or refused on a Mac | macOS quarantine or an overwritten signed binary | [chromedriver is killed or refused on macOS](#chromedriver-is-killed-or-refused-on-macos) |
+| "Chrome not found" | Chrome is not in a standard location | [Chrome is not found](#chrome-is-not-found) |
+| Chrome exits at once in Docker or as root | the sandbox cannot start | [Chrome will not start in a container](#chrome-will-not-start-in-a-container) |
+| A wait times out, "element not found" | wrong selector, or the page is not ready | [An element is not found or a wait times out](#an-element-is-not-found-or-a-wait-times-out) |
+| A test passes alone but fails in the suite | shared state or too much parallelism | [Passes alone, fails in the suite](#passes-alone-fails-in-the-suite) |
+| Detected as a bot | layered detection | [Detected as a bot despite UC mode](#detected-as-a-bot-despite-uc-mode) |
+| A type, function or macro is "not found" | an optional Cargo feature is off | [Item not found](#item-not-found-a-cargo-feature-is-off) |
+| The MCP server lists no tools | wrong `--server` or no client config | [MCP server not listing tools](#mcp-server-not-listing-tools) |
+| A setting is ignored | wrong variable name or prefix | [Environment variable not applied](#environment-variable-not-applied) |
+
 ## Detected as a bot despite UC mode
 
 UC mode removes many fingerprints, but detection is layered. Check each defense:
@@ -175,6 +195,53 @@ use seleniumbase_rs::{sb_open, sb_click, sb_test, selector};
 Action macros expand `.await` internally, so they must be called inside an
 `async` block or function. `sb_test!` generates a `#[tokio::test]` wrapper for
 you. See the [macros guide](../tutorials/macros.md).
+
+## Chrome is not found
+
+The library looks in the usual install locations for your system (see
+[Operating systems](../platforms.md)). If yours is elsewhere, or you want a
+specific build, name it:
+
+```bash
+export SB_CHROME_BIN="/path/to/chrome"      # CHROME_BIN also works
+```
+
+Run `sbase doctor` to confirm which one was picked. The pure CDP engine also takes
+the path in `LaunchOptions`.
+
+## Chrome will not start in a container
+
+Chrome often cannot start its sandbox as root or inside Docker. Set
+`SB_NO_SANDBOX=1` (or `LaunchOptionsBuilder::no_sandbox(true)` in the pure CDP
+engine) and run headless (`SB_HEADLESS=true`). `--no-sandbox` weakens the
+browser's isolation, so use it only in a container you control. If it crashes
+under load rather than at start, give the container more shared memory
+(`--shm-size=1g`). See [Deployment](../deployment.md).
+
+## An element is not found or a wait times out
+
+Read the error before changing anything: it names the selector and carries a
+hint, and element errors point out a likely mistake in the selector.
+
+1. Check the selector in the browser's developer tools; a class that is generated
+   on each build, or an element inside an iframe or a shadow root, will not match
+   a plain selector.
+2. Wait for the right condition (`wait_for_element_visible`,
+   `wait_for_text`) instead of sleeping.
+3. `BaseCase` actions already wait for their element for the default timeout
+   (10 seconds; `set_timeout` changes it). A timeout that long usually means the
+   selector is wrong, not that the page is slow.
+4. With an AI agent attached, `diagnose_selector` explains why a selector matches
+   nothing and `suggest_selectors` proposes ones that work; `inspect_page` shows
+   what is on the page.
+
+## Passes alone, fails in the suite
+
+The usual causes are shared state and too much parallelism. Give each test its
+own browser context (the pool's `Lease` isolates cookies and storage), do not
+reuse a logged-in profile between tests, and lower `SB_THREADS` to see whether the
+failure goes away. Do not add retries to hide it; see
+[Reliability](../reliability.md).
 
 ## Reading an error
 

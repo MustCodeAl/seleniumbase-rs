@@ -24,8 +24,11 @@ docker build -t seleniumbase-rs .
 The runtime image contains the compiled `sbase` binary and Chromium. Run a
 headless command, for example:
 
+The image's entry point is `sbase`, so the arguments after the image name are
+`sbase` arguments:
+
 ```bash
-docker run --rm seleniumbase-rs sbase --help
+docker run --rm seleniumbase-rs --help
 ```
 
 ## Docker Compose
@@ -36,7 +39,7 @@ services:
     build: .
     environment:
       - SB_HEADLESS=true
-    command: ["sbase", "--help"]
+    command: ["--help"]
 ```
 
 Run with Compose:
@@ -47,17 +50,21 @@ docker compose up --build
 
 ## CI/CD
 
-See `.github/workflows/` for ready-to-use GitHub Actions jobs:
+See `.github/workflows/` for the GitHub Actions jobs:
 
-- `build.yml` — build and test on every push.
-- `clippy.yml` — lint check.
-- `examples.yml` — run example suite.
-- `docker-rs.yml` — build and push the Rust Docker image (repository root only).
+- `ci.yml` — format, lint, build and test on Linux, macOS and Windows.
+- `docker.yml` — build the Docker image.
+- `completions.yml` — generate the shell completions.
+
+More on running in CI and containers: [Deployment](../deployment.md).
 
 ## Headless in Docker
 
-Always run browsers in headless mode inside containers; the image already adds
-`--no-sandbox` for Chromium when headless mode is enabled:
+Always run browsers in headless mode inside containers (`SB_HEADLESS=true`).
+The image does not add `--no-sandbox` for you: if Chromium fails with a sandbox
+error, set `SB_NO_SANDBOX=1` (or `LaunchOptionsBuilder::no_sandbox(true)` in the
+pure CDP engine). That weakens Chrome's isolation, so use it only in a container
+you control.
 
 ```rust
 let config = BrowserConfig::default().with_headless(true);
@@ -68,5 +75,6 @@ let config = BrowserConfig::default().with_headless(true);
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `chromedriver` not found in container | Wrong base image stage | Use the runtime stage produced by the Dockerfile. |
-| Browser crashes with sandbox error | Missing `--no-sandbox` | Enable headless mode or pass `--no-sandbox` via extra args. |
+| Browser crashes with sandbox error | Chrome cannot start its sandbox in the container | Set `SB_NO_SANDBOX=1` (see above). |
+| Browser crashes under load | Small default `/dev/shm` | Start the container with `--shm-size=1g`. |
 | Environment variable ignored | Used `SBASE_` prefix | Use the `SB_` prefix. |
