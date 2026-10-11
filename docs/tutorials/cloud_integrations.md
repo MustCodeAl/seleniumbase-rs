@@ -86,7 +86,7 @@ az storage blob generate-sas \
   --container-name mycontainer \
   --name myblob \
   --permissions rw \
-  --expiry 2025-12-31T00:00:00Z \
+  --expiry 2027-12-31T00:00:00Z \
   --https-only
 ```
 

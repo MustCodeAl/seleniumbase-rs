@@ -7,10 +7,16 @@ solves well.
 
 ## What this crate is
 
-`seleniumbase-rs` is a Rust port of the Python SeleniumBase framework. It keeps
-the productive `BaseCase` API and anti-detection features, but runs on Rust's
-async runtime, type system, and native distribution model. It uses `thirtyfour`
-for WebDriver communication and adds its own CDP, stealth, and tooling layers.
+`seleniumbase-rs` is a Rust port of the Python SeleniumBase framework (it tracks
+4.55.2) and of its MCP server. It keeps the productive `BaseCase` API and
+anti-detection features, but runs on Rust's async runtime, type system, and
+native distribution model. It has two engines: a WebDriver engine built on
+`thirtyfour`, and a pure Chrome DevTools Protocol engine (`sb_cdp`) that needs
+no driver at all. Every API of the upstream project has a recorded status in
+[the parity table](parity.md): 875 implemented, 377 composed from existing Rust
+calls, 113 not applicable (for example pytest plumbing) and none still planned.
+That table is a claim, not a measurement; the composed and not-applicable
+entries have not been independently reviewed yet.
 
 ## When Rust helps most
 
@@ -63,9 +69,45 @@ with production code becomes a compile-time guarantee instead of a manual task.
 
 ### Feature flags and dependency control
 
-Optional features such as `playwright`, `s3`, `azure`, `gcp`, `mcp-server`, and
-`full-tracing` are compiled in only when you enable them. Default builds stay
-small, and you can audit exactly which dependencies are included for each target.
+Optional features such as `tui`, `gui`, `playwright`, `s3`, `azure`, `gcp`,
+`mcp-server`, `turso`, `full-tracing`, and the in-progress `scrape` and
+`impersonate` are compiled in only when you enable them. The default feature set
+is empty, so default builds stay small, and you can audit exactly which
+dependencies are included for each target (`cargo deny check` and `cargo audit`
+run against the lockfile).
+
+## What the Rust port adds beyond Python
+
+These exist in this crate and not in upstream Python SeleniumBase. The pure CDP
+engine, the input engine, the pool, interception and the identity application
+were checked against a real Chrome 155; the agent tools have unit tests and
+three real-Chrome tests (`diagnose_environment` ran only against a mock):
+
+- **A pure CDP engine with no driver.** `Browser`, `Page` and `Locator` talk to
+  Chrome directly, so there is no chromedriver version to match. A mock browser
+  lets tests run without Chrome.
+- **A behavioural input engine.** Curved pointer paths and human typing pace
+  (`Page::human`).
+- **An async browser pool.** `BrowserPool` and `Lease` hand out isolated,
+  recycled browser contexts with shared session state.
+- **Request interception and per-context proxies.** Block, fulfil or modify
+  requests per page, give each context its own proxy (including password
+  protected ones), and shield WebRTC leaks.
+- **Coherent randomised identities.** `Fingerprint::randomized(os, seed)` draws a
+  whole machine and place. The tables are plausible, not measured from real
+  traffic, and nothing has been run against a live bot-detection service.
+- **Tools for AI agents that develop and debug tests.** The MCP servers answer a
+  failed call with the page state, a hint and the next tools to try, and offer
+  page inspection, selector diagnosis, a console and failed-request view, an
+  accessibility audit, a debug bundle, an environment check and an export of the
+  session as a Rust test.
+- **Errors for people.** Every error has a hint, `sbase` exits with a status that
+  follows the error's category, and failed tests carry their page and evidence
+  into the reports.
+
+Not there yet: TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation and the stealth
+scraping session are under construction behind the `scrape` and `impersonate`
+features. See [the plan](design/stealth_parity_plan.md).
 
 ## What does not change
 

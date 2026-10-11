@@ -52,6 +52,27 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   feature, `extract_extension`, and iteration on `DriverStack`.
 - Parity tooling: `parity/api.toml`, `parity/upstream.toml`, `docs/parity.md`
   and `docs/UPSTREAM_SYNC.md`.
+- **Browsers**: launch options for Brave, Comet, Opera, Safari, Internet
+  Explorer, Chrome for Testing and `chrome-headless-shell`, typed launch
+  switches, capability overrides, Firefox preferences and CDP event capture
+  (`browser::options`). `sbase install` picks the chromedriver version.
+- **`RunSettings`** (`BaseCase::set_run_settings`): demo mode, slow and fast
+  runs, message duration, skipping JavaScript waits, recording `sleep`, and
+  resetting a visual baseline; `ActionRecorder::to_gherkin` and
+  `save_recording_as_feature` export a recording as a Gherkin feature.
+- **`sbase translate`** writes a JSON scenario's actions in another language, and
+  the pure CDP `Page` gained `post_message`, `activate_messenger` and
+  `set_messenger_theme`.
+- **Parity**: every API in `parity/api.toml` now has a status (875 implemented,
+  377 composed, 113 not-applicable with a reason, none planned). The composed and
+  not-applicable entries are still to be reviewed.
+- **Stealth scraping groundwork** (features `scrape` and `impersonate`, in
+  `src/wire`, `src/scrape` and `src/impersonate`): egress redaction, routes, geo
+  locales and a proxy pool; bot-protection challenge detection and a
+  mitigation policy; per-site state with an atomic JSON store. The JA3/JA4/Akamai
+  wire work and the TLS proxy are not written yet.
+- A `rust-analyzer.toml` that loads the optional features so analysis covers
+  `src/mcp` and `src/scrape`.
 - `CLAUDE.md` (a map of the modules, checks and gotchas), `CHANGELOG.md`, and
   `docs/design/stealth_parity_plan.md` (the plan for the stealthscraper-rs
   feature set and JA3/JA4/Akamai impersonation).
@@ -93,6 +114,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   line up by label; the presentation escapes its title; the HTML inspector gives
   each issue a selector that matches its element; `get_origin` keeps the port;
   PDFs that need a password can be read.
+- A WebDriver session with a fingerprint no longer sends the proxy login
+  (`Proxy-Authorization`) to every site as an extra header; the pure CDP path
+  already filtered it.
+- A flaky Grid test (the stand-in `java` was slow on its first run).
 - The recorder generates Rust for every recorded action, keeps events across
   navigations, and the stdin recorder only says "recorded" for what it recorded.
 - The CLI scaffolders no longer overwrite files; the interactive commands stop at

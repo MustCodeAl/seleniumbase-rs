@@ -486,12 +486,16 @@ comments for manual review.
 
 ## Project status
 
-The initial Rust port plan is complete, and the upgrade to feature parity with
-Python SeleniumBase 4.55.2 is under way: [ROADMAP.md](./ROADMAP.md) lists what
-is done and what is missing, [CHANGELOG.md](./CHANGELOG.md) what changed, and
-[docs/parity.md](./docs/parity.md) the status of every upstream API. The crate
-needs Rust 1.99 and builds and tests cleanly on stable Rust. Work is
-continuously pushed to two locations:
+Every API of Python SeleniumBase 4.55.2 and of its MCP server now has a recorded
+status: 875 implemented, 377 composed from existing Rust calls, 113 not
+applicable with a reason, and none still planned
+([docs/parity.md](./docs/parity.md)). The composed and not-applicable entries
+are still to be independently reviewed, and most behaviour is verified against a
+mock or unit tests rather than a real browser. [ROADMAP.md](./ROADMAP.md) lists
+what is done and what is missing (the stealth scraping work, TLS and HTTP/2
+impersonation, is the largest open part) and [CHANGELOG.md](./CHANGELOG.md) what
+changed. The crate needs Rust 1.99; the default test run has 1,600 passing tests.
+Work is continuously pushed to two locations:
 
 - Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
 - Crate-only orphan branch: `MustCodeAl/seleniumbase-rs/main`
@@ -509,10 +513,15 @@ tradeoffs and measurement guidance.
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing -- -D warnings
-cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing
-mdbook build
+cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
+cargo test --features "mcp-server test-util"
+cargo clippy --features scrape --lib -- -D warnings
+cargo check --features turso --all-targets
 ```
+
+These were the checks run on the last published commit. The `playwright`, `s3`,
+`azure`, `gcp` and `full-tracing` features and `mdbook build` are not part of
+that run.
 
 On macOS with Python 3.14 from [mise](https://mise.jdx.dev), the `playwright`
 feature tests need the Python library path exported:
