@@ -276,6 +276,48 @@ pub fn default_registry() -> EvasionRegistry {
     registry
 }
 
+/// The built-in providers [`session_registry`] leaves out, by
+/// [`name`](EvasionProvider::name).
+///
+/// Chrome already has `navigator.plugins`, `navigator.mimeTypes` and
+/// `navigator.connection`, and answers for them itself, so a replaced getter
+/// is one more thing a page can find and a real Chrome does not have.
+pub const SESSION_OMITTED_PROVIDERS: [&str; 2] = ["plugins", "connection"];
+
+/// Returns the registry for a browser session that drives a real Chrome.
+///
+/// It is [`default_registry`] without the providers named in
+/// [`SESSION_OMITTED_PROVIDERS`]: the assembled script never mentions
+/// `plugins`, `mimeTypes`, `pdfViewerEnabled` or `connection`, so the browser's
+/// own lists, PDF viewer flag and network information are what a page reads.
+/// [`default_registry`] is unchanged, for callers that want those spoofs, such
+/// as a browser that really lacks them.
+///
+/// The fingerprint is accepted so that a later rule can depend on the persona
+/// without changing callers; today every persona gets the same set.
+///
+/// # Examples
+///
+/// ```rust
+/// use seleniumbase_rs::stealth::fingerprint::Fingerprint;
+/// use seleniumbase_rs::stealth::providers::{session_registry, EvasionContext};
+///
+/// let fp = Fingerprint::windows_desktop();
+/// let script = session_registry(&fp).bootstrap(&EvasionContext::new(&fp));
+/// assert!(script.contains("webdriver"));
+/// assert!(!script.contains("mimeTypes"));
+/// ```
+#[must_use]
+pub fn session_registry(_fingerprint: &Fingerprint) -> EvasionRegistry {
+    let mut registry = EvasionRegistry::empty();
+    for provider in builtin::all() {
+        if !SESSION_OMITTED_PROVIDERS.contains(&provider.name()) {
+            registry.register_provider(provider);
+        }
+    }
+    registry
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -413,5 +455,247 @@ mod tests {
             "off by default"
         );
         assert!(!applicable.contains(&"iframe".to_owned()));
+    }
+
+    // ------------------------------------------------------------------
+    // Hardening: what a session leaves to the browser
+    // ------------------------------------------------------------------
+
+    use crate::stealth::fingerprint::{BrandVersion, ClientHints, MaskingMode};
+
+    /// The names a page reads to find a replaced list, flag or network report
+    /// that Chrome would have answered for itself, as whole words:
+    /// `chrome.loadTimes()` has a `connectionInfo` field, which is not one.
+    fn browser_owned() -> regex::Regex {
+        regex::Regex::new(r"\b(?:plugins|mimeTypes|pdfViewerEnabled|connection)\b").unwrap()
+    }
+
+    /// The first browser-owned name in `script`, with the text before it.
+    fn names_browser_owned(script: &str) -> Option<String> {
+        let found = browser_owned().find(script)?;
+        let before = script.get(found.start().saturating_sub(60)..found.start());
+        Some(format!("{} after {before:?}", found.as_str()))
+    }
+
+    /// A fingerprint that makes every provider that can apply, apply.
+    fn everything() -> Fingerprint {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.audio_masking = MaskingMode::Mask;
+        fp.flags.media_devices_masking = MaskingMode::Mask;
+        fp.flags.block_trackers = true;
+        fp.fonts = vec!["Arial".to_owned()];
+        fp.latitude = Some(1.0);
+        fp.longitude = Some(2.0);
+        fp.webrtc_public_ip = Some("203.0.113.9".to_owned());
+        fp.webrtc_local_ip = Some("10.0.0.2".to_owned());
+        fp.client_hints = Some(ClientHints {
+            brands: vec![BrandVersion::new("Chromium", "124")],
+            full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
+            platform: "Windows".to_owned(),
+            ..ClientHints::default()
+        });
+        fp
+    }
+
+    #[test]
+    fn the_session_registry_is_the_default_one_without_plugins_and_connection() {
+        let fp = everything();
+
+        let session = session_registry(&fp).provider_names();
+
+        let expected: Vec<String> = default_registry()
+            .provider_names()
+            .into_iter()
+            .filter(|name| !SESSION_OMITTED_PROVIDERS.contains(&name.as_str()))
+            .collect();
+        assert_eq!(session, expected, "the same providers in the same order");
+        assert_eq!(session.len(), builtin::all().len() - 2);
+        assert!(!session.contains(&"plugins".to_owned()));
+        assert!(!session.contains(&"connection".to_owned()));
+    }
+
+    #[test]
+    fn the_default_registry_still_has_the_providers_a_session_leaves_out() {
+        let fp = everything();
+        let script = default_registry().bootstrap(&EvasionContext::new(&fp));
+
+        for word in ["plugins", "mimeTypes", "connection"] {
+            assert!(script.contains(word), "{word} is the default's to spoof");
+        }
+    }
+
+    #[test]
+    fn the_session_script_never_names_what_chrome_answers_for_itself() {
+        let fp = everything();
+
+        let script = session_registry(&fp).bootstrap(&EvasionContext::new(&fp));
+
+        assert_eq!(names_browser_owned(&script), None);
+    }
+
+    /// The providers that never apply and so never emit a script.
+    const INERT: [&str; 2] = ["prepare_stack_trace", "iframe"];
+
+    /// What every session provider must satisfy, whatever it spoofs.
+    ///
+    /// Its snippet is a self-running function, so it can be run on its own and
+    /// leaves nothing behind but what it patches. It names none of the surfaces
+    /// Chrome answers for itself, leaves no marker unfilled and no helper on
+    /// `window`, and is the same text every time it is asked for.
+    fn audit(name: &str) {
+        let fp = everything();
+        let ctx = EvasionContext::new(&fp);
+        let registry = session_registry(&fp);
+        let provider = registry
+            .ordered()
+            .into_iter()
+            .find(|provider| provider.name() == name)
+            .unwrap_or_else(|| panic!("{name} is not in the session registry"));
+
+        let Some(script) = provider.script(&ctx) else {
+            assert!(INERT.contains(&name), "{name} gave no script");
+            assert!(
+                !provider.applies(&fp),
+                "{name} is inert, so it never applies"
+            );
+            return;
+        };
+
+        assert!(!INERT.contains(&name), "{name} is listed as inert");
+        assert!(script.starts_with("(function"), "{name} is a snippet");
+        assert!(script.trim_end().ends_with("})();"), "{name} runs itself");
+        assert_eq!(names_browser_owned(&script), None, "{name}");
+        assert!(
+            !script.contains("window.__sb"),
+            "{name} leaves a helper on window"
+        );
+        assert!(
+            !regex::Regex::new(r"@[A-Z][A-Z_]*@")
+                .unwrap()
+                .is_match(&script),
+            "{name} has an unfilled marker"
+        );
+        assert_eq!(
+            provider.script(&ctx).as_deref(),
+            Some(script.as_str()),
+            "{name} gives the same script for the same input"
+        );
+    }
+
+    /// One test per session provider, named after it.
+    macro_rules! audit_each {
+        ($($test:ident => $name:literal),+ $(,)?) => {
+            /// The providers the audit tests below cover.
+            const AUDITED: &[&str] = &[$($name),+];
+            $(
+                #[test]
+                fn $test() {
+                    audit($name);
+                }
+            )+
+        };
+    }
+
+    audit_each! {
+        native_tostring_passes_the_audit => "native_tostring",
+        webdriver_passes_the_audit => "webdriver",
+        cdp_markers_passes_the_audit => "cdp_markers",
+        chrome_runtime_passes_the_audit => "chrome_runtime",
+        navigator_props_passes_the_audit => "navigator_props",
+        permissions_passes_the_audit => "permissions",
+        window_geometry_passes_the_audit => "window_geometry",
+        webgl_passes_the_audit => "webgl",
+        canvas_noise_passes_the_audit => "canvas_noise",
+        audio_noise_passes_the_audit => "audio_noise",
+        webrtc_passes_the_audit => "webrtc",
+        battery_passes_the_audit => "battery",
+        media_devices_passes_the_audit => "media_devices",
+        fonts_passes_the_audit => "fonts",
+        speech_passes_the_audit => "speech",
+        bluetooth_passes_the_audit => "bluetooth",
+        headless_passes_the_audit => "headless",
+        prepare_stack_trace_passes_the_audit => "prepare_stack_trace",
+        client_hints_passes_the_audit => "client_hints",
+        media_codecs_passes_the_audit => "media_codecs",
+        timezone_passes_the_audit => "timezone",
+        localization_passes_the_audit => "localization",
+        geolocation_passes_the_audit => "geolocation",
+        hairline_passes_the_audit => "hairline",
+        iframe_passes_the_audit => "iframe",
+        attach_shadow_passes_the_audit => "attach_shadow",
+        tracker_block_passes_the_audit => "tracker_block",
+    }
+
+    #[test]
+    fn every_session_provider_has_an_audit_test() {
+        let fp = everything();
+
+        let mut names = session_registry(&fp).provider_names();
+        names.sort_unstable();
+        let mut audited: Vec<String> = AUDITED.iter().map(|name| (*name).to_owned()).collect();
+        audited.sort_unstable();
+
+        assert_eq!(
+            names, audited,
+            "add a line to audit_each! for a new provider"
+        );
+    }
+
+    #[test]
+    fn noise_is_a_pure_function_of_the_seed_and_the_position() {
+        let mut fp = everything();
+        fp.seed = Some(41);
+        let noisy = [
+            &builtin::CanvasNoiseProvider as &dyn EvasionProvider,
+            &builtin::AudioNoiseProvider,
+        ];
+
+        for provider in noisy {
+            let name = provider.name();
+            let script = provider.script(&EvasionContext::new(&fp)).unwrap();
+            for source in [
+                "Math.random",
+                "Date.now",
+                "performance.now",
+                "getRandomValues",
+            ] {
+                assert!(!script.contains(source), "{name} reads {source}");
+            }
+            assert!(script.contains("hash(index)"), "{name} hashes the position");
+
+            let again = provider.script(&EvasionContext::new(&fp)).unwrap();
+            assert_eq!(script, again, "{name}: same seed, same script");
+            fp.seed = Some(42);
+            let other = provider.script(&EvasionContext::new(&fp)).unwrap();
+            assert_ne!(script, other, "{name}: the seed is what changes the noise");
+            fp.seed = Some(41);
+        }
+    }
+
+    #[test]
+    fn client_hints_wait_for_a_secure_context() {
+        let fp = everything();
+        let script = builtin::ClientHintsProvider
+            .script(&EvasionContext::new(&fp))
+            .unwrap();
+
+        let guard = script
+            .find("if (!window.isSecureContext)")
+            .expect("the snippet checks the context");
+        let define = script
+            .find("'userAgentData'")
+            .expect("the snippet defines the property");
+        assert!(guard < define, "the check comes before the property exists");
+    }
+
+    #[test]
+    fn navigator_props_leave_the_pdf_viewer_flag_to_the_browser() {
+        let fp = everything();
+        let script = builtin::NavigatorPropsProvider
+            .script(&EvasionContext::new(&fp))
+            .unwrap();
+
+        assert!(!script.contains("pdfViewerEnabled"));
+        assert!(script.contains("hardwareConcurrency"), "the rest is intact");
     }
 }
