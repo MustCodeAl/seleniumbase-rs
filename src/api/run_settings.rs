@@ -188,9 +188,67 @@ pub(crate) fn compare_or_store_baseline(
         .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to write baseline: {e}")))
 }
 
+/// What `check_window` does with the outcome of comparing a window with its
+/// baseline, given the `level` the caller asked for.
+///
+/// Level 0 is a dry run, as in Python SeleniumBase: a difference is reported
+/// on stderr but does not fail the test. Any other level fails on a difference.
+/// A baseline that cannot be read or written is a real error at every level.
+///
+/// # Errors
+///
+/// Returns `result`'s error unless it is a difference found at level 0.
+pub(crate) fn apply_check_level(
+    result: Result<(), SeleniumBaseError>,
+    level: f64,
+) -> Result<(), SeleniumBaseError> {
+    match result {
+        Err(SeleniumBaseError::AssertionFailed(difference)) if level <= 0.0 => {
+            tracing::warn!(%difference, "check_window found a difference at level 0 (a dry run)");
+            Ok(())
+        }
+        other => other,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn difference() -> Result<(), SeleniumBaseError> {
+        Err(SeleniumBaseError::AssertionFailed(
+            "Visual regression detected for 'home'".to_owned(),
+        ))
+    }
+
+    #[test]
+    fn level_zero_is_a_dry_run_that_does_not_fail_on_a_difference() {
+        assert!(apply_check_level(difference(), 0.0).is_ok());
+        assert!(apply_check_level(Ok(()), 0.0).is_ok());
+    }
+
+    #[test]
+    fn every_other_level_fails_on_a_difference() {
+        for level in [1.0, 2.0, 3.0] {
+            let error = apply_check_level(difference(), level).unwrap_err();
+            assert!(
+                matches!(error, SeleniumBaseError::AssertionFailed(_)),
+                "level {level}: {error:?}"
+            );
+        }
+        assert!(apply_check_level(Ok(()), 3.0).is_ok());
+    }
+
+    #[test]
+    fn level_zero_still_fails_when_the_baseline_cannot_be_read() {
+        let unreadable = Err(SeleniumBaseError::InvalidConfig(
+            "failed to read baseline: denied".to_owned(),
+        ));
+        assert!(matches!(
+            apply_check_level(unreadable, 0.0),
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+    }
 
     #[test]
     fn the_default_changes_nothing() {

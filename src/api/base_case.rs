@@ -1738,18 +1738,35 @@ impl BaseCase {
 
     // --- Visual Testing ---
 
-    pub async fn check_window(&mut self, name: &str, _level: f64) -> Result<(), SeleniumBaseError> {
+    /// Compares the window with the baseline stored under `name`, or stores
+    /// it as the baseline when there is none (or when the run resets
+    /// baselines).
+    ///
+    /// Corresponds to Python's `check_window`, with these differences. The
+    /// comparison is of the screenshot's bytes, not of the page's HTML tags
+    /// (Python's `tags_level1` to `tags_level3` files), so a repainted pixel
+    /// is a difference and the levels 1 to 3 are all the same strict check.
+    /// `level` 0 is the dry run Python describes: a difference is logged but
+    /// does not fail. The baseline is `visual_baseline/<name>.png` in the
+    /// working directory, shared by every test that uses the name.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the window differs
+    /// from the baseline at a `level` above 0.
+    pub async fn check_window(&mut self, name: &str, level: f64) -> Result<(), SeleniumBaseError> {
         let baseline_dir = PathBuf::from("visual_baseline");
         std::fs::create_dir_all(&baseline_dir).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to create visual_baseline dir: {e}"))
         })?;
         let baseline_path = baseline_dir.join(format!("{name}.png"));
         let current = self.screenshot_as_png().await?;
-        crate::api::run_settings::compare_or_store_baseline(
+        let outcome = crate::api::run_settings::compare_or_store_baseline(
             &baseline_path,
             &current,
             self.run_settings.reset_visual_baseline(),
-        )
+        );
+        crate::api::run_settings::apply_check_level(outcome, level)
     }
 
     // --- MasterQA Integration ---

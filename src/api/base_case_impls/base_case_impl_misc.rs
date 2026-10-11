@@ -81,14 +81,29 @@ impl BaseCase {
         self.process_deferred_asserts().await
     }
 
-    /// Alias for `process_deferred_asserts`.
-    pub async fn deferred_check_window(&mut self) -> Result<(), SeleniumBaseError> {
-        self.process_deferred_asserts().await
+    /// Runs [`check_window`](Self::check_window) and, if the window differs
+    /// from its baseline, records the failure, with the page's URL, for
+    /// [`process_deferred_asserts`](Self::process_deferred_asserts) to report
+    /// instead of returning it. Corresponds to Python's `deferred_check_window`.
+    pub async fn deferred_check_window(
+        &mut self,
+        name: &str,
+        level: f64,
+    ) -> Result<(), SeleniumBaseError> {
+        if let Err(error) = self.check_window(name, level).await {
+            let url = self.get_current_url().await.ok();
+            self.deferred.record_failure(url, error.to_string());
+        }
+        Ok(())
     }
 
-    /// Alias for `process_deferred_asserts`.
-    pub async fn delayed_check_window(&mut self) -> Result<(), SeleniumBaseError> {
-        self.process_deferred_asserts().await
+    /// Alias for `deferred_check_window`.
+    pub async fn delayed_check_window(
+        &mut self,
+        name: &str,
+        level: f64,
+    ) -> Result<(), SeleniumBaseError> {
+        self.deferred_check_window(name, level).await
     }
 
     // Console / messaging helpers.
