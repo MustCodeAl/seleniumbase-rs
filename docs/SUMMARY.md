@@ -26,6 +26,7 @@
 - [Common Problems](help/common_problems.md)
 - [CLI Usage](tutorials/cli_usage.md)
 - [MCP Servers](tutorials/mcp_server.md)
+  - [Vibe coding with an AI agent](tutorials/vibe_coding.md)
 - [API Guide](tutorials/api_reference.md)
 - [Macros](tutorials/macros.md)
 - [Browser Profiles](tutorials/browser_profiles.md)

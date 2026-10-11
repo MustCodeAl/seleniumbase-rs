@@ -1,9 +1,21 @@
 # Why Rust?
 
-This page explains when `seleniumbase-rs` is the right choice for your browser
-automation work and when another stack may be a better fit. The goal is not to
-claim that Rust is universally better, but to show which engineering problems it
-solves well.
+**Short answer.** Choose `seleniumbase-rs` if your tests or tooling already live
+in Rust, if you want to ship the runner as one native binary, or if you want the
+pure CDP engine and the agent tools that upstream Python SeleniumBase does not
+have. Do not choose it because you expect faster tests: the browser sets the
+pace (see [Performance](performance.md)).
+
+| You are... | Then |
+|---|---|
+| A Rust team testing a Rust service | Use it: share types and run tests with `cargo test` |
+| Shipping a test runner to CI or to people who do not write Rust | Use it: `sbase` is one binary |
+| Building AI-agent tooling around a browser | Use it: the MCP servers explain failures and inspect pages |
+| A Python team with a large SeleniumBase suite | Stay on Python unless you have another reason |
+| Wanting speed from the same tests | Measure first; expect little change |
+
+This page explains when the crate is the right choice and when another stack may
+be a better fit. It does not claim Rust is universally better.
 
 ## What this crate is
 
@@ -108,6 +120,49 @@ three real-Chrome tests (`diagnose_environment` ran only against a mock):
 Not there yet: TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation and the stealth
 scraping session are under construction behind the `scrape` and `impersonate`
 features. See [the plan](design/stealth_parity_plan.md).
+
+## Evidence from this crate
+
+These are things the type system and the toolchain did here, not general claims
+about Rust:
+
+- **Secrets cannot leak by formatting.** A `Proxy` with credentials never shows
+  its password in `Debug`, `Display` or the command line, and the scraping types
+  (`RedactedUrl`, the egress key) redact on construction and are never
+  serialised with the secret. Tests assert this.
+- **A new case breaks the build, not the run.** The challenge detector's
+  `ChallengeKind` and the mitigation policy's `Action` are enums matched
+  exhaustively; adding a variant makes every `match` that ignores it fail to
+  compile.
+- **Bad option combinations fail before launch.** `LaunchOptions::builder()
+  .build()` rejects `incognito` together with `guest`, or `use_chromium` with an
+  explicit `executable_path`, before Chrome starts.
+- **No `unsafe`.** The crate has no `unsafe` blocks, so memory-safety bugs would
+  have to come from a dependency.
+- **Testing without a browser.** `Browser::new_mocked` swaps the Chrome
+  connection for a scripted one behind the same types, so most of the pure CDP
+  engine is tested without launching Chrome. The default run has 1,600 passing
+  tests; the real-Chrome ones are `#[ignore]`d and run one binary at a time.
+- **Dependencies are auditable.** `cargo deny check` and `cargo audit` run
+  against the lockfile (currently no vulnerabilities, 3 allowed unmaintained
+  warnings).
+
+Rust did not prevent every bug. During this port the WebDriver path sent a proxy
+login as an extra header to every site, which is a logic error the compiler
+cannot see; a review found it and a test now guards it. Timing-dependent tests
+also flaked until they were made to wait for what they check.
+
+## What it costs
+
+- **Compile time and memory.** A full check, lint and test run takes many
+  minutes on an 8 GB machine, which is why the project gates once per batch.
+- **A learning curve.** Test authors need to be comfortable with Rust, `async`
+  and the borrow checker.
+- **A smaller ecosystem.** Python SeleniumBase has far more examples and
+  plugins; Python plugins cannot be reused here.
+- **Unfinished parts.** TLS and HTTP/2 impersonation and the stealth scraping
+  session are not written yet, and the parity table's `composed` and
+  `not-applicable` entries are still to be independently reviewed.
 
 ## What does not change
 

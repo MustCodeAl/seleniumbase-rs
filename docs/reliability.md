@@ -140,6 +140,58 @@ sb.wait_for_element_not_visible(".spinner", 10).await?;
 Avoid `tokio::time::sleep` whenever possible. It makes tests slower and does not
 eliminate timing races.
 
+## Errors that say what to do
+
+Every `SeleniumBaseError` carries a hint, and `is_transient()` tells a retryable
+failure (a browser disconnect, a network or download error, a wait timeout) from
+one that will fail again. Element errors point out a likely mistake in the
+selector, and a wait that times out reports the error that stopped it. `sbase` prints `error:`, `caused by:` and
+`hint:` lines and exits with a status that follows the error's category, so a CI
+script can tell a bad selector from a missing browser.
+
+In reports, a failed test carries its failure kind, hint, page URL and title and
+links to its evidence (`FailureDetails`, `ReportPlugin::with_evidence`). When an
+AI agent drives the browser through the MCP servers, a failed tool call is
+answered with the call, the page's state (URL, title, ready state, script
+errors, selector matches, read within two seconds), the hint and the next tools
+to try.
+
+## Match the driver to the browser
+
+A chromedriver for a different Chrome major version is the usual cause of "the
+driver keeps crashing". The launcher compares the two, downloads the driver for
+the installed Chrome's major version when they differ, and writes a replaced
+driver as a new file (macOS kills a signed binary that is overwritten in place).
+`sbase install` and `sbase doctor` apply the same check, and the MCP tool
+`diagnose_environment` reports the versions and the fix without starting a
+browser. The pure CDP engine has no driver to match.
+
+## Browsers that outlive a test
+
+Pooled browsers (`BrowserPool`, `Lease`) are bounded, isolated per context and
+recycled, so one test's cookies and storage do not leak into the next, and no
+idle timeout closes a launched browser under a long-running service. Temporary state that the library writes
+(the scraping state store, for example) is written atomically: a temp file is
+synced and renamed over the target, a corrupt file is an error, and a missing
+file reads as empty.
+
+## Testing the harness itself
+
+The pure CDP engine has a mock browser (`Browser::new_mocked`), so waits,
+retries and error paths are tested without Chrome. Tests that need a real Chrome
+are named `*_chrome.rs`, are `#[ignore]`d and should run one binary at a time.
+Tests that fake `java` or other executables warm the script once first, because
+macOS can take seconds to run a freshly written script the first time; a test
+that races that start-up is flaky by construction.
+
+## Known gaps
+
+- Most behaviour is covered by unit tests and a mock browser; only part of it has
+  been run against a real Chrome (155).
+- The parity entries classified as composed or not-applicable have not been
+  independently reviewed, and the new `RunSettings` pauses have no test beyond
+  compiling.
+
 ## Capture artifacts on failure
 
 When a test fails, the most useful diagnostic data is often the state of the
