@@ -11,6 +11,11 @@
 //!   the proxy must cover loopback hosts.
 //! - And because the proxy covers loopback, it must be the one to refuse: a direct proxy never
 //!   connects a page to a loopback or metadata address.
+//! - A page opens a `wss://` WebSocket through the proxy to a loopback echo site and receives its
+//!   echo; the site sees the measured WebSocket JA4 and Chrome's own handshake fields. A `ws://`
+//!   WebSocket is refused by the proxy and never reaches its server. A WebSocket that is a tab's
+//!   first request through the proxy fails on the `407`, which Chrome does not retry with the
+//!   token (pinned as a known limit).
 //!
 //! The tests start Chrome, so they are ignored by default. Only one Chrome-driving test binary may
 //! run on the machine at a time:
@@ -20,6 +25,8 @@
 //! ```
 #![cfg(feature = "impersonate")]
 
+#[path = "impersonate_mitm/echo.rs"]
+mod echo;
 #[path = "impersonate_mitm/support.rs"]
 mod support;
 
@@ -41,19 +48,29 @@ use btls::x509::{X509Name, X509};
 use seleniumbase_rs::impersonate::mitm::{MitmOptions, MitmProxy};
 use seleniumbase_rs::impersonate::tls_server::ALPN_HTTP1;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, LaunchOptionsBuilder, Page};
+use seleniumbase_rs::stealth::fingerprint::OsType;
+use seleniumbase_rs::wire::emulation;
 use seleniumbase_rs::wire::ja4::Ja4;
+use seleniumbase_rs::wire::BrowserKind;
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinSet;
 use tokio_btls::SslStream;
 
+use echo::EchoOrigin;
 use support::{
     der, new_ca, profile, read_head, start_mitm, tunnel, RecordingOrigin, Seen, ALPN_H2, WITHIN,
 };
 
 /// The host of the origin.
 const ORIGIN: &str = "origin.test";
+/// The host of the WebSocket echo site.
+const WS: &str = "ws.test";
+/// The host of a plain TCP server that must never be reached.
+const PLAIN: &str = "plain.test";
+/// What the page sends over its WebSocket.
+const GREETING: &str = "hello from Chrome through the proxy";
 /// What the attacker's page says; it must never reach the page through the proxy.
 const ATTACKER_MARKER: &str = "served by the loopback attacker";
 /// How long the attacker's certificate is backdated.
@@ -244,6 +261,170 @@ async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
     counting.abort();
     browser.close().await.expect("Chrome closes");
     mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "starts the local Chrome"]
+async fn a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo() {
+    let mut echo = EchoOrigin::start().await;
+    let options = MitmOptions::default()
+        .trust_upstream_root(echo.root())
+        .resolve(WS, echo.addr())
+        .allow_private_destinations(true);
+    let (mitm, _sink) = start_mitm(None, options).await;
+    let browser = launch_behind(&mitm).await;
+    let page = browser.new_page(None::<&str>).await.expect("a tab");
+    let port = echo.addr().port();
+    page.goto(format!("https://{WS}:{port}/"))
+        .await
+        .expect("the page loads");
+
+    let echoed = open_websocket(&page, &format!("wss://{WS}:{port}/echo")).await;
+    assert_eq!(echoed, format!("echo:{GREETING}"), "{:?}", mitm.stats());
+
+    let seen = echo
+        .next(WITHIN)
+        .await
+        .expect("the echo site took the handshake");
+    let measured = emulation::get(BrowserKind::Chrome, OsType::Macos).expect("measured");
+    let websocket = measured
+        .tls_websocket
+        .as_ref()
+        .expect("a measured WebSocket hello")
+        .without_known_gaps(&measured.provenance.known_gaps);
+    assert_eq!(Ja4::of(&seen.hello), websocket.ja4(), "WebSocket JA4");
+    assert_eq!(seen.alpn.as_deref(), Some(&b"http/1.1"[..]));
+    let request = &seen.request;
+    assert_eq!(request.header("upgrade"), Some("websocket"));
+    assert_eq!(request.header("connection"), Some("Upgrade"));
+    assert!(request.header("sec-websocket-key").is_some());
+    assert_eq!(request.header("sec-websocket-version"), Some("13"));
+    let origin = format!("https://{WS}:{port}");
+    assert_eq!(request.header("origin"), Some(origin.as_str()));
+    let agent = request.header("user-agent").unwrap_or_default();
+    assert!(
+        agent.contains(&format!("Chrome/{}.", profile().major())),
+        "{agent}"
+    );
+    assert!(request.header("proxy-authorization").is_none());
+    let names: Vec<&str> = request
+        .headers
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
+    eprintln!("the WebSocket handshake Chrome sent through the proxy, in order: {names:?}");
+    assert!(mitm.stats().websockets >= 1, "{:?}", mitm.stats());
+
+    browser.close().await.expect("Chrome closes");
+    mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "starts the local Chrome"]
+async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
+    let echo = EchoOrigin::start().await;
+    let plain = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+        .await
+        .expect("binds loopback");
+    let plain_addr = plain.local_addr().expect("an address");
+    let connections = Arc::new(AtomicUsize::new(0));
+    let counted = Arc::clone(&connections);
+    let counting = tokio::spawn(async move {
+        while plain.accept().await.is_ok() {
+            counted.fetch_add(1, Ordering::SeqCst);
+        }
+    });
+    let options = MitmOptions::default()
+        .trust_upstream_root(echo.root())
+        .resolve(WS, echo.addr())
+        .resolve(PLAIN, plain_addr)
+        .allow_private_destinations(true);
+    let (mitm, _sink) = start_mitm(None, options).await;
+    let browser = launch_behind(&mitm).await;
+    let page = browser.new_page(None::<&str>).await.expect("a tab");
+    // A navigation through the proxy first, so that Chrome holds the proxy's credentials; then
+    // a blank page, which is not a secure context and so may try `ws://`.
+    page.goto(format!("https://{WS}:{}/", echo.addr().port()))
+        .await
+        .expect("the page loads");
+    page.goto("about:blank").await.expect("a blank page");
+    let before = mitm.stats();
+
+    let outcome = open_websocket(&page, &format!("ws://{PLAIN}:{}/", plain_addr.port())).await;
+
+    let after = mitm.stats();
+    eprintln!("a ws:// WebSocket behind the proxy: {outcome}; before {before:?}, after {after:?}");
+    assert_eq!(outcome, "error");
+    assert_eq!(
+        connections.load(Ordering::SeqCst),
+        0,
+        "the plain server was reached"
+    );
+    assert!(
+        after.refused > before.refused,
+        "the proxy itself refused it: {after:?}"
+    );
+    assert_eq!(after.websockets, 0, "{after:?}");
+    counting.abort();
+    browser.close().await.expect("Chrome closes");
+    mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+/// A known limit, pinned: `ProxyAuth` gives Chrome the token over `Fetch.authRequired`, and a
+/// WebSocket's `CONNECT` that gets the `407` is not retried with it. A WebSocket therefore works
+/// once an earlier request has taken the proxy's credentials (any navigation through the proxy
+/// does), and fails when it is a tab's first request. When this test fails because the echo
+/// came back, the limit is gone: update the tutorial's MITM section.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "starts the local Chrome"]
+async fn a_websocket_before_any_request_through_the_proxy_fails_on_the_407() {
+    let echo = EchoOrigin::start().await;
+    let options = MitmOptions::default()
+        .trust_upstream_root(echo.root())
+        .resolve(WS, echo.addr())
+        .allow_private_destinations(true);
+    let (mitm, _sink) = start_mitm(None, options).await;
+    let browser = launch_behind(&mitm).await;
+    let page = browser.new_page(None::<&str>).await.expect("a tab");
+    let before = mitm.stats();
+
+    let outcome = open_websocket(&page, &format!("wss://{WS}:{}/echo", echo.addr().port())).await;
+
+    let after = mitm.stats();
+    eprintln!(
+        "a wss:// WebSocket as a tab's first request through the proxy: {outcome}; \
+         before {before:?}, after {after:?}; the echo site read {} handshakes",
+        echo.handshakes()
+    );
+    assert_eq!(outcome, "error");
+    assert!(
+        after.unauthorized > before.unauthorized,
+        "the CONNECT got the 407: {after:?}"
+    );
+    assert_eq!(echo.handshakes(), 0, "the handshake reached the site");
+    assert_eq!(after.websockets, 0, "{after:?}");
+    browser.close().await.expect("Chrome closes");
+    mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+/// Opens a WebSocket to `url` in `page` and sends [`GREETING`]: `"echo:<text>"` with what came
+/// back, `"error"`, `"closed:<code>"` or `"timeout"`.
+async fn open_websocket(page: &Page, url: &str) -> String {
+    let script = format!(
+        r#"new Promise((resolve) => {{
+            const socket = new WebSocket("{url}");
+            const timer = setTimeout(() => resolve("timeout"), 8000);
+            socket.onopen = () => socket.send("{GREETING}");
+            socket.onmessage = (event) => {{
+                clearTimeout(timer);
+                resolve("echo:" + String(event.data));
+                socket.close(1000);
+            }};
+            socket.onerror = () => {{ clearTimeout(timer); resolve("error"); }};
+            socket.onclose = (event) => {{ clearTimeout(timer); resolve("closed:" + event.code); }};
+        }})"#
+    );
+    page.evaluate_as(&script).await.expect("evaluates")
 }
 
 /// Checks that a navigation reached the origin with the measured JA4, Akamai string and
