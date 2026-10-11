@@ -26,9 +26,18 @@
 //! way in. It cannot go further, because Chrome must know the pin at launch. The pin is safe
 //! only while every connection of that Chrome profile ends at the proxy: the proxy must also
 //! cover loopback hosts and QUIC, must refuse a CONNECT it cannot intercept instead of tunnelling
-//! it blind, and nobody may log or export a leaf certificate. The behaviour is that of the
-//! Chromium source (`services/network/ignore_errors_cert_verifier.cc`, read on 2026-10-11); it
-//! has not been measured on Chrome 155.
+//! it blind, and nobody may log or export a leaf certificate.
+//!
+//! The trust of the pin is measured on Chrome 155 (headless, macOS). In
+//! `tests/impersonate_mitm_chrome.rs`, `without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key`
+//! shows Chrome, started with the pin and no proxy, loading a page from a loopback server whose
+//! chain is its own self-signed certificate followed by the proxy's leaf, so a chain that carries
+//! the pinned key is accepted from a sender that does not hold the private key.
+//! `a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page` shows the other half:
+//! behind the proxy, which covers loopback hosts, the same server never reaches the page. Both
+//! tests are `#[ignore]`d because they start Chrome. They do not isolate each skipped check
+//! (signature, host name, validity, revocation); those stay as read in the Chromium source
+//! (`services/network/ignore_errors_cert_verifier.cc`, read on 2026-10-11).
 //!
 //! # Loopback only
 //!

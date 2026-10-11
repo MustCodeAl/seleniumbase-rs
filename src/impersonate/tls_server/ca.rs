@@ -127,8 +127,11 @@ impl EphemeralCa {
     /// handshake and in [`Leaf::certificate`]. The pin is safe only while every connection of
     /// that Chrome profile ends at this server, so the proxy that uses it must keep all of
     /// Chrome's traffic, loopback hosts and QUIC included, on the MITM, and nobody may log
-    /// or export a leaf certificate. This follows the Chromium source
-    /// (`services/network/ignore_errors_cert_verifier.cc`); it was not measured on Chrome 155.
+    /// or export a leaf certificate. That a chain carrying the pinned key is accepted from any
+    /// sender is measured on Chrome 155 (headless, macOS) by `without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key`
+    /// in `tests/impersonate_mitm_chrome.rs`; the skipped checks are as read in the Chromium
+    /// source (`services/network/ignore_errors_cert_verifier.cc`), and that test does not isolate
+    /// each of them.
     ///
     /// Only the leaf key is pinned and the server presents the leaf alone, so the CA key is not
     /// a second way in.
