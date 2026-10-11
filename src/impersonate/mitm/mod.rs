@@ -51,6 +51,15 @@
 //! is no HTTP/3. Requests whose `User-Agent` claims a Chrome major other than the profile's are
 //! refused, because the measured TLS and HTTP/2 would contradict the header.
 //!
+//! # HTTP/1.1 origins
+//!
+//! The upstream protocol is settled by ALPN when the connection opens, after the request was
+//! prepared. The first request to an origin is prepared for HTTP/2, so when that origin turns out
+//! to speak HTTP/1.1 only, its first request carries the HTTP/2-only `priority` header; the proxy
+//! then remembers the origin and its later requests do not. On HTTP/1.1 the header names take the
+//! measured spelling; a name outside the measured lists keeps the lower case the browser leg
+//! delivers.
+//!
 //! # Secrets
 //!
 //! The token, the `Proxy-Authorization` value, the egress credentials, leaf certificates and keys
