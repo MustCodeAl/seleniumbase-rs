@@ -620,3 +620,305 @@ pub(crate) mod chrome_support {
         open(&format!("{base}/")).await
     }
 }
+
+/// A minimal W3C WebDriver server on a loopback port, for the tests that need
+/// a [`BaseCase`] with a WebDriver session but no browser.
+///
+/// The server answers the new-session, timeouts and delete-session commands
+/// itself and passes every other command to the closure given to
+/// [`MockWebDriver::start`], which sees the method, the path (relative to the
+/// session: `/element`, not `/session/mock/element`) and the JSON body. Every
+/// request is recorded, so a test can say what was sent.
+#[cfg(test)]
+pub(crate) mod webdriver_support {
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::{Arc, Mutex};
+
+    use serde_json::{json, Value};
+
+    use super::{BaseCase, BrowserConfig};
+
+    /// The key W3C WebDriver gives an element reference.
+    const ELEMENT_KEY: &str = "element-6066-11e4-a52e-4f735466cecf";
+
+    /// An element reference for the element with `id`.
+    pub fn element(id: &str) -> Value {
+        json!({ ELEMENT_KEY: id })
+    }
+
+    /// What the server answers a command with.
+    pub enum Reply {
+        /// The command succeeded and returned this `value`.
+        Value(Value),
+        /// The command failed: the HTTP status and the W3C error code.
+        Error(u16, &'static str),
+    }
+
+    /// A request the server received.
+    #[derive(Clone, Debug)]
+    pub struct Seen {
+        pub method: String,
+        /// Relative to the session: `/title`, not `/session/mock/title`.
+        pub path: String,
+        pub body: Value,
+    }
+
+    /// The running server.
+    pub struct MockWebDriver {
+        url: String,
+        seen: Arc<Mutex<Vec<Seen>>>,
+    }
+
+    impl MockWebDriver {
+        /// Starts the server. `capabilities` is what a new session reports.
+        pub fn start(
+            capabilities: Value,
+            respond: impl Fn(&Seen) -> Reply + Send + Sync + 'static,
+        ) -> Self {
+            let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+            let address = listener.local_addr().expect("bound address");
+            let seen = Arc::new(Mutex::new(Vec::new()));
+            let respond: Arc<dyn Fn(&Seen) -> Reply + Send + Sync> = Arc::new(respond);
+            let log = Arc::clone(&seen);
+            std::thread::spawn(move || {
+                for stream in listener.incoming() {
+                    let Ok(stream) = stream else { continue };
+                    let (log, respond, capabilities) =
+                        (Arc::clone(&log), Arc::clone(&respond), capabilities.clone());
+                    std::thread::spawn(move || answer(stream, &log, &*respond, &capabilities));
+                }
+            });
+            Self {
+                url: format!("http://{address}"),
+                seen,
+            }
+        }
+
+        /// The requests received for `path` so far, oldest first.
+        pub fn requests(&self, path: &str) -> Vec<Seen> {
+            self.seen
+                .lock()
+                .expect("request log")
+                .iter()
+                .filter(|request| request.path == path)
+                .cloned()
+                .collect()
+        }
+
+        /// A [`BaseCase`] whose session is on this server.
+        pub async fn base_case(&self) -> BaseCase {
+            let mut config = BrowserConfig::default().with_webdriver_url(self.url.clone());
+            config.auto_start_driver = false;
+            BaseCase::new(config)
+                .await
+                .expect("the mock WebDriver accepts a session")
+        }
+    }
+
+    /// Reads one request, answers it, and closes the connection.
+    fn answer(
+        mut stream: TcpStream,
+        seen: &Mutex<Vec<Seen>>,
+        respond: &(dyn Fn(&Seen) -> Reply + Send + Sync),
+        capabilities: &Value,
+    ) {
+        let Some((method, target, body)) = read_request(&mut stream) else {
+            return;
+        };
+        let path = target
+            .strip_prefix("/session/mock")
+            .unwrap_or(&target)
+            .to_owned();
+        let request = Seen { method, path, body };
+        let reply = match (request.method.as_str(), request.path.as_str()) {
+            ("POST", "/session") => {
+                Reply::Value(json!({ "sessionId": "mock", "capabilities": capabilities }))
+            }
+            ("POST", "/timeouts") | ("DELETE", "") => Reply::Value(Value::Null),
+            _ => respond(&request),
+        };
+        seen.lock().expect("request log").push(request);
+        let (status, value) = match reply {
+            Reply::Value(value) => (200, value),
+            Reply::Error(status, code) => (
+                status,
+                json!({ "error": code, "message": code, "stacktrace": "" }),
+            ),
+        };
+        let body = json!({ "value": value }).to_string();
+        let response = format!(
+            "HTTP/1.1 {status} X\r\nContent-Type: application/json; charset=utf-8\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = stream.write_all(response.as_bytes());
+    }
+
+    /// The method, target and JSON body of the request on `stream`.
+    fn read_request(stream: &mut TcpStream) -> Option<(String, String, Value)> {
+        let mut buffer = Vec::new();
+        let mut chunk = [0_u8; 4096];
+        let header_end = loop {
+            if let Some(at) = buffer.windows(4).position(|window| window == b"\r\n\r\n") {
+                break at + 4;
+            }
+            let read = stream.read(&mut chunk).ok().filter(|read| *read > 0)?;
+            buffer.extend_from_slice(&chunk[..read]);
+        };
+        let head = String::from_utf8_lossy(&buffer[..header_end]).into_owned();
+        let mut request_line = head.lines().next()?.split(' ');
+        let method = request_line.next()?.to_owned();
+        let target = request_line.next()?.to_owned();
+        let length = head
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().ok())
+                    .flatten()
+            })
+            .unwrap_or(0);
+        while buffer.len() < header_end + length {
+            let read = stream.read(&mut chunk).ok().filter(|read| *read > 0)?;
+            buffer.extend_from_slice(&chunk[..read]);
+        }
+        let body =
+            serde_json::from_slice(&buffer[header_end..header_end + length]).unwrap_or(Value::Null);
+        Some((method, target, body))
+    }
+}
+
+/// Tests of `BaseCase` commands against a mock WebDriver (see
+/// [`webdriver_support`]).
+#[cfg(test)]
+mod tests_with_a_driver {
+    use super::webdriver_support::{element, MockWebDriver, Reply, Seen};
+    use super::*;
+    use serde_json::json;
+
+    fn method_and_path(request: &Seen) -> (&str, &str) {
+        (request.method.as_str(), request.path.as_str())
+    }
+
+    #[tokio::test]
+    async fn a_wait_for_an_element_that_is_not_there_times_out() {
+        let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
+            ("POST", "/element") => Reply::Error(404, "no such element"),
+            _ => Reply::Value(Value::Null),
+        });
+        let mut sb = driver.base_case().await;
+        let error = sb
+            .wait_for_element_present("#a", 0)
+            .await
+            .expect_err("nothing matches");
+        assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn the_driver_is_told_which_kind_of_selector_was_given() {
+        let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
+            ("POST", "/element") => Reply::Value(element("e1")),
+            _ => Reply::Value(Value::Null),
+        });
+        let mut sb = driver.base_case().await;
+        for selector in ["#a", "//div[@id='b']", "link=Home", "p_link=Hom"] {
+            sb.wait_for_element_present(selector, 1).await.unwrap();
+        }
+
+        let lookups: Vec<(String, String)> = driver
+            .requests("/element")
+            .iter()
+            .map(|request| {
+                let text = |key: &str| request.body[key].as_str().unwrap_or_default().to_owned();
+                (text("using"), text("value"))
+            })
+            .collect();
+        let expected = [
+            ("css selector", "#a"),
+            ("xpath", "//div[@id='b']"),
+            ("link text", "Home"),
+            ("partial link text", "Hom"),
+        ];
+        assert_eq!(lookups.len(), expected.len(), "{lookups:?}");
+        for (lookup, (using, value)) in lookups.iter().zip(expected) {
+            assert_eq!((lookup.0.as_str(), lookup.1.as_str()), (using, value));
+        }
+    }
+
+    #[tokio::test]
+    async fn the_cookie_string_comes_from_the_driver() {
+        let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
+            ("GET", "/cookie") => Reply::Value(json!([
+                { "name": "sid", "value": "abc", "path": "/", "domain": "localhost",
+                  "secure": false, "httpOnly": true },
+                { "name": "theme", "value": "dark", "path": "/", "domain": "localhost",
+                  "secure": false, "httpOnly": false },
+            ])),
+            _ => Reply::Value(Value::Null),
+        });
+        let sb = driver.base_case().await;
+        assert_eq!(sb.get_cookie_string().await.unwrap(), "sid=abc; theme=dark");
+    }
+
+    #[tokio::test]
+    async fn the_driver_version_is_the_one_the_session_reports() {
+        let driver = MockWebDriver::start(
+            json!({
+                "browserName": "chrome",
+                "chrome": { "chromedriverVersion": "152.0.7977.64 (506c834e-refs/branch-heads/7977@{#1891})" },
+            }),
+            |_| Reply::Value(Value::Null),
+        );
+        let sb = driver.base_case().await;
+        assert_eq!(sb.get_chromedriver_version().unwrap(), "152.0.7977.64");
+        assert_eq!(sb.get_chromium_driver_version().unwrap(), "152.0.7977.64");
+
+        let firefox = MockWebDriver::start(json!({ "browserName": "firefox" }), |_| {
+            Reply::Value(Value::Null)
+        });
+        let sb = firefox.base_case().await;
+        assert!(matches!(
+            sb.get_chromedriver_version(),
+            Err(SeleniumBaseError::Unsupported(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn only_severe_entries_of_the_browser_log_are_js_errors() {
+        let log = |entries: Value| {
+            MockWebDriver::start(json!({}), move |request| match method_and_path(request) {
+                ("POST", "/log") => Reply::Value(entries.clone()),
+                ("GET", "/url") => Reply::Value(json!("http://localhost:8080/page")),
+                _ => Reply::Value(Value::Null),
+            })
+        };
+        let quiet = log(json!([
+            { "level": "INFO", "message": "0 errors found", "timestamp": 1 },
+            { "level": "WARNING", "message": "error-prone but a warning", "timestamp": 2 },
+        ]));
+        quiet
+            .base_case()
+            .await
+            .assert_no_js_errors()
+            .await
+            .expect("no severe entries");
+
+        let broken = log(json!([
+            { "level": "SEVERE", "message": "http://localhost:8080/app.js 1:1 Uncaught TypeError: x", "timestamp": 3 },
+        ]));
+        let error = broken
+            .base_case()
+            .await
+            .assert_no_js_errors()
+            .await
+            .unwrap_err();
+        let SeleniumBaseError::AssertionFailed(message) = error else {
+            panic!("expected an assertion failure, got {error:?}");
+        };
+        assert!(
+            message.contains("Uncaught TypeError") && message.contains("localhost:8080/page"),
+            "{message}"
+        );
+    }
+}

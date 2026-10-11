@@ -133,7 +133,10 @@ Domain files:
 3. Return `crate::Result<T>` (an alias for `Result<T, SeleniumBaseError>`).
 4. Record the action with `self.record(...)` when it represents a user-facing
    test step.
-5. Add a unit test when the helper does not require a live browser.
+5. Add a unit test when the helper does not require a live browser. A test that
+   needs a `BaseCase` with a WebDriver session can start a `MockWebDriver` (in
+   `base_case_impl_common.rs`): it answers the WebDriver commands you choose and
+   records what the `BaseCase` sent.
 6. Run `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
 Example:
