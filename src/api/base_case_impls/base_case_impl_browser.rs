@@ -28,6 +28,41 @@ fn driver_version_from_capabilities(capabilities: &Value) -> Option<String> {
     .map(str::to_owned)
 }
 
+/// Whether `url` is one SeleniumBase's `is_valid_url` accepts: an `http` or
+/// `https` URL with a host name, `localhost` or an IPv4 address (and an
+/// optional port and path), or one of the browser schemes `about:`, `blob:`,
+/// `chrome:`, `data:`, `edge:` and `file:`.
+fn is_valid_url_text(url: &str) -> bool {
+    // Python's pattern from `page_utils.is_valid_url`, case-insensitive.
+    static HTTP_URL: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let http_url = HTTP_URL.get_or_init(|| {
+        Regex::new(concat!(
+            r"(?i)^https?://",
+            r"(?:(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,6}\.?|[a-z0-9-]{2,}\.?)",
+            r"|localhost",
+            r"|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})",
+            r"(?::[0-9]+)?",
+            r"(?:/?|[/?]\S+)$",
+        ))
+        .expect("the URL pattern is valid")
+    });
+    http_url.is_match(url)
+        || ["about:", "blob:", "chrome:", "data:", "edge:", "file:"]
+            .iter()
+            .any(|scheme| url.starts_with(scheme))
+}
+
+/// The version number in a browser product string: `126.0.6478.126` for
+/// `Chrome/126.0.6478.126`. A string with no `/` is returned as it is.
+fn version_number(product: &str) -> String {
+    product.rsplit('/').next().unwrap_or(product).to_owned()
+}
+
+/// The first component of a dotted version: `126` for `126.0.6478.126`.
+fn major_version(version: &str) -> String {
+    version.split('.').next().unwrap_or(version).to_owned()
+}
+
 impl BaseCase {
     /// Returns true if the configured browser is Chromium-based.
     pub fn is_chromium(&self) -> bool {
@@ -60,9 +95,12 @@ impl BaseCase {
         self.execute_script("return document.readyState;").await.is_ok()
     }
 
-    /// Returns true if `url` is a valid absolute URL.
+    /// Returns true if `url` is one Python SeleniumBase's `is_valid_url`
+    /// accepts: `http(s)://` with a host name, `localhost` or an IPv4 address,
+    /// or an `about:`, `blob:`, `chrome:`, `data:`, `edge:` or `file:` URL.
+    /// `mailto:`, `javascript:` and a bare `host:port` are not valid.
     pub fn is_valid_url(&self, url: &str) -> bool {
-        reqwest::Url::parse(url).is_ok()
+        is_valid_url_text(url)
     }
 
     /// Returns browser version information via CDP `Browser.getVersion`.
@@ -96,14 +134,29 @@ impl BaseCase {
         }
     }
 
-    /// Alias for `get_browser_version` focused on Chrome/Chromium.
+    /// The browser's version number, such as `126.0.6478.126`, without the
+    /// product name that [`get_browser_version`](Self::get_browser_version)
+    /// keeps. Corresponds to Python's `get_chrome_version`.
+    ///
+    /// # Errors
+    ///
+    /// See [`get_browser_version`](Self::get_browser_version).
     pub async fn get_chrome_version(&self) -> Result<String, SeleniumBaseError> {
-        self.get_browser_version().await
+        self.get_browser_version()
+            .await
+            .map(|product| version_number(&product))
     }
 
-    /// Alias for `get_chrome_version`.
+    /// The browser's major version, such as `126`. Corresponds to Python's
+    /// `get_chromium_version`.
+    ///
+    /// # Errors
+    ///
+    /// See [`get_browser_version`](Self::get_browser_version).
     pub async fn get_chromium_version(&self) -> Result<String, SeleniumBaseError> {
-        self.get_chrome_version().await
+        self.get_chrome_version()
+            .await
+            .map(|version| major_version(&version))
     }
 
     /// Returns the version of the driver this session is running on, such as
@@ -165,6 +218,53 @@ mod tests_browser {
         // Undetected mode runs on the CDP client too.
         let uc = sb(DriverMode::Uc);
         assert!(uc.is_cdp_mode_active() && uc.is_uc_mode_active());
+    }
+
+    #[test]
+    fn a_url_is_valid_only_when_python_would_accept_it() {
+        for url in [
+            "https://seleniumbase.io",
+            "http://seleniumbase.io/demo_page?a=1",
+            "HTTPS://EXAMPLE.COM/",
+            "http://localhost",
+            "http://localhost:8080/path",
+            "http://127.0.0.1:9515",
+            "https://a.b.example.co.uk/x/y",
+            "about:blank",
+            "blob:https://x/1",
+            "chrome://version",
+            "data:text/html,<p>x</p>",
+            "edge://settings",
+            "file:///tmp/a.html",
+        ] {
+            assert!(is_valid_url_text(url), "{url} should be valid");
+        }
+        for url in [
+            "",
+            "mailto:a@b.c",
+            "javascript:alert(1)",
+            "foo:bar",
+            "ftp://example.com/file",
+            "seleniumbase.io",
+            "http://",
+            "http://exa mple.com",
+            "https://-bad.example.com",
+            "localhost:8080",
+        ] {
+            assert!(!is_valid_url_text(url), "{url} should not be valid");
+        }
+    }
+
+    #[test]
+    fn the_version_loses_its_product_name_and_the_major_version_its_tail() {
+        assert_eq!(version_number("Chrome/126.0.6478.126"), "126.0.6478.126");
+        assert_eq!(version_number("HeadlessChrome/139.0.0.0"), "139.0.0.0");
+        assert_eq!(version_number("Edg/139.0.3405.86"), "139.0.3405.86");
+        assert_eq!(version_number("126.0.6478.126"), "126.0.6478.126");
+        assert_eq!(major_version("126.0.6478.126"), "126");
+        assert_eq!(major_version("126"), "126");
+        // The two compose the way `get_chromium_version` uses them.
+        assert_eq!(major_version(&version_number("Chrome/126.0.6478.126")), "126");
     }
 
     #[test]
