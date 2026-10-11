@@ -802,6 +802,19 @@ mod tests_with_a_driver {
     }
 
     #[tokio::test]
+    async fn an_element_that_is_there_is_found_even_with_a_zero_timeout() {
+        let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
+            ("POST", "/element") => Reply::Value(element("e1")),
+            ("POST", "/elements") => Reply::Value(json!([element("e1")])),
+            _ => Reply::Value(Value::Null),
+        });
+        let mut sb = driver.base_case().await;
+        sb.wait_for_element_present("#a", 0)
+            .await
+            .expect("a wait checks at least once");
+    }
+
+    #[tokio::test]
     async fn a_wait_for_an_element_that_is_not_there_times_out() {
         let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
             ("POST", "/element") => Reply::Error(404, "no such element"),

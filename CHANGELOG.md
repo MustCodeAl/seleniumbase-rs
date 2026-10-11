@@ -180,6 +180,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `wait_for_element_present` looks for the element once before it gives up, so an
+  element that is already there is found with a timeout of zero.
 - `assert_is_instance` and `assert_not_is_instance` look at the type of the value
   passed. They read the name of a `&dyn Any`, which is always `dyn core::any::Any`,
   so the first never passed and the second never failed. They take `&T` now; a

@@ -472,6 +472,9 @@ impl BaseCase {
     }
 
     /// Waits up to `timeout` seconds for `css` to appear in the DOM.
+    ///
+    /// The element is looked for at least once, so an element that is already
+    /// there is found even with a `timeout` of zero.
     pub async fn wait_for_element_present(
         &mut self,
         css: &str,
@@ -481,14 +484,14 @@ impl BaseCase {
         let start = std::time::Instant::now();
         let timeout_dur = Duration::from_secs(self.effective_timeout(timeout));
         loop {
+            if self.session.driver().find(by.clone()).await.is_ok() {
+                return Ok(());
+            }
             if start.elapsed() > timeout_dur {
                 return Err(SeleniumBaseError::WaitTimeout(format!(
                     "Element {} not present after {} seconds",
                     css, timeout
                 )));
-            }
-            if self.session.driver().find(by.clone()).await.is_ok() {
-                return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
