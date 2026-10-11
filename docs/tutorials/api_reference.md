@@ -124,8 +124,9 @@ All `selector` arguments accept the same formats described in the
 | `wait_for_text_visible(text, selector, timeout)` | Waits for text to appear. |
 | `wait_for_text_not_visible(text, selector, timeout)` | Waits for text to disappear. |
 | `wait_for_ready_state_complete()` | Waits for `document.readyState === 'complete'`. |
-| `set_time_limit(seconds)` | Caps wait timeouts globally. |
+| `set_time_limit(seconds)` | Fails the test at its next open, wait or element action once it has run longer than this. |
 | `set_timeout(seconds)` | Sets the default implicit wait timeout. |
+| `set_default_timeout(seconds)` / `reset_default_timeout()` | Changes the default wait (1 to 60 seconds) and puts it back. |
 | `sleep(seconds)` | Async sleep helper. |
 | `wait(seconds)` | Alias for `sleep` using whole seconds. |
 

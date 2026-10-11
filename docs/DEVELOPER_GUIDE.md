@@ -89,7 +89,9 @@ pub struct BaseCase {
     qa_session: Option<MasterQaSession>,
     #[cfg(feature = "playwright")]
     playwright_session: Option<PlaywrightSession>,
-    time_limit_secs: Option<u64>,
+    time_limit: Option<Duration>,
+    started: Instant,
+    timeout_secs: u64,
     gui_held: Option<(i32, i32)>,
 }
 ```

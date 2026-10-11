@@ -88,13 +88,14 @@ make that decision for you.
 ## Contributing and project status
 
 **How complete is the port?**
-Every upstream API has a status (862 implemented, 374 composed, 112
-not-applicable, 17 planned), but the composed and not-applicable entries have
-not been independently reviewed, and most behaviour is tested against a mock or
+Every upstream API has a status (862 implemented, 375 composed, 96
+not-applicable, 32 planned), and most behaviour is tested against a mock or
 unit tests rather than a real browser. An audit of the entries marked
-implemented found 26 that did less than the Python method; they were fixed or
-re-marked, and the `planned` ones are listed in [the parity table](parity.md). The project README has a "Project
-status" section.
+implemented found 26 that did less than the Python method, and a second audit of
+the composed and not-applicable entries found 34 more that said more than the
+Rust does; they were fixed or re-marked, and the `planned` ones are listed in
+[the parity table](parity.md). The project README has a "Project status"
+section.
 
 **How do I contribute?**
 Read `CONTRIBUTING.md` and `CLAUDE.md`. Run the checks listed in

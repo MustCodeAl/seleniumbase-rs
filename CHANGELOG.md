@@ -64,8 +64,26 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
 - **Parity**: every API in `parity/api.toml` now has a status (862 implemented,
-  374 composed, 112 not-applicable with a reason, 17 planned). The composed and
-  not-applicable entries are still to be reviewed.
+  375 composed, 96 not-applicable with a reason, 32 planned). Two audits
+  corrected it: 26 entries marked done, and 34 composed or not-applicable ones
+  (see below).
+- **Parity audit of the composed and not-applicable entries**, the Rust that
+  came out of it:
+  - Text selectors: `SelectorBuf::containing_text(text, tag)`, and a CSS selector
+    with SeleniumBase's `:contains("text")` runs as XPath in `Page::locator` and
+    in the WebDriver `By` conversion.
+  - `Page::goto_if_not_url`, `Page::active_element` and `active_element_css`;
+    `Page::evaluate` drops a `return ` that starts the last line, as Python does.
+  - `Locator::all_waiting` (waits for a first match), `viewport_rect` (window
+    coordinates, as `get_element_rect`), `click_and_hold` and `flash_with`.
+  - `Browser::debugging_host` (and `http_url` follows it, so an attached remote
+    browser reports its own host), `grant_permissions_for(origin, ..)` and
+    `grant_all_permissions`; `Permission` now has the 23 kinds Python grants,
+    and `Permission::name`.
+  - `sbase version`, and `sbase obfuscate` and `unobfuscate` as aliases of
+    `encrypt` and `decrypt`.
+  - Real-Chrome tests for these in `tests/sb_cdp_parity_chrome.rs`, mock tests in
+    `tests/sb_cdp_parity_mock.rs`.
 - **Stealth scraping, the wire layer** (feature `scrape`, `src/wire`): parsers
   for TLS `ClientHello`s, JA3, JA4 (with `JA4_r` and the original-order
   variants), peetprint and Akamai HTTP/2 strings; `TlsSpec`, `H2Spec` and
@@ -136,7 +154,21 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - `TestResult` has a `failure` field, and `PageEvidence` gains `current_url` and
   `page_title` (with defaults).
 - The `cdp` MCP server no longer offers `tag:contains("text")` selectors, which
-  its engine never supported; `diagnose_selector` gives the XPath for one.
+  its engine never supported; `diagnose_selector` gives the XPath for one. (A
+  `:contains()` selector now does run, converted to XPath, in `Page::locator`.)
+- **Breaking** (parity audit): `BaseCase::set_time_limit` now fails the test once
+  it has run longer than the limit, at its next open, readiness wait or element
+  action, and cuts waits to the time left; it used to only cap single waits.
+  `set_default_timeout` raises or lowers the default wait (1 to 60 seconds)
+  instead of setting the time limit, and `reset_default_timeout` restores it.
+  `BaseCase::new` opens `start_page` when the configuration has one.
+  `run_browser_test` (and `Plugins::run_browser_test`) count a test that ends in
+  `skip_test` as passed and log the reason. `Emulation::locale` also sets
+  `navigator.language` and `Accept-Language`, keeping the user agent and client
+  hints. `Permission::ALL` has 23 entries instead of 7 and `Permission` has more
+  variants. The parity entries for the ad-block options (a WebDriver launch only
+  turns images off), `--esc-end`, `--rec-sb-cdp` and `gui_click_captcha` are now
+  `planned`; the notes of many composed entries say what differs from Python.
 - The pure CDP engine runs `session_registry` (27 providers: the default
   registry without `plugins` and `connection`), so a page reads Chrome's own
   `navigator.plugins`, `mimeTypes`, PDF viewer flag and `navigator.connection`;

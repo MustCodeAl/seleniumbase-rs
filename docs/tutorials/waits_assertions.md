@@ -130,8 +130,20 @@ You can change how long actions and some other methods wait:
 let old = sb.set_timeout(30).await?;
 ```
 
-`set_timeout` returns the previous value so you can restore it later. Some
-methods also honor the overall test time limit set with `set_time_limit`.
+`set_timeout` returns the previous value so you can restore it later.
+`set_default_timeout(seconds)` changes the same default (1 to 60 seconds) and
+`reset_default_timeout()` puts it back.
+
+## Time limit for the whole test
+
+```rust
+sb.set_time_limit(120)?;
+```
+
+Once the test has run longer than the limit, counted from creating the
+`BaseCase`, its next `open`, readiness wait or element action fails with a
+time-limit error, and waits are cut to the time left. A test that does none of
+those is not interrupted; wrap the test in `tokio::time::timeout` for a hard stop.
 
 ## Anti-patterns
 
