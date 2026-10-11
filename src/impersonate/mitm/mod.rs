@@ -387,7 +387,7 @@ impl MitmOptions {
 /// Why the proxy could not start, swap its upstream, or serve one request.
 ///
 /// The per-request variants are what the proxy logs when it refuses; the browser only ever sees
-/// an empty status (`407`, `400`, `413` or `502`). No variant carries a token, a credential, a
+/// an empty status (`407`, `400`, `403`, `413` or `502`). No variant carries a token, a credential, a
 /// header value or key material.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

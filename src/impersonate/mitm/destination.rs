@@ -246,16 +246,11 @@ mod tests {
     }
 
     async fn resolved(filter: &PublicOnly, name: &str) -> Result<Vec<SocketAddr>, String> {
-        match filter.resolve(Name::from(name)).await {
-            Ok(addrs) => Ok(addrs.collect()),
-            Err(error) => {
-                assert!(
-                    is_internal_destination(error.as_ref()) || !error.to_string().is_empty(),
-                    "{error}"
-                );
-                Err(error.to_string())
-            }
-        }
+        filter
+            .resolve(Name::from(name))
+            .await
+            .map(Iterator::collect)
+            .map_err(|error| error.to_string())
     }
 
     #[test]
