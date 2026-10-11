@@ -127,6 +127,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   down (such as `meta.x.action`), which was changed and counted as translated.
 - `EgressRef::parse` lower-cases the host of `socks5` and `socks5h` specs, as it
   does for http and https, so one proxy spelled two ways has one `EgressKey`.
+- `ActionRecorder::to_gherkin` skips a recorded `type_text` with no text and says
+  so in a `# skipped:` comment; the written `I type "" into "..."` step matched
+  no handler, so the generated scenario failed at that step.
 - `sbase translate --overwrite` keeps the file's permissions (the replacement was
   left at mode 0600) and writes through a symbolic link instead of replacing it.
 

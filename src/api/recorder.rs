@@ -143,7 +143,8 @@ impl ActionRecorder {
     ///
     /// Opening a page, clicking, typing, and going back or forward become
     /// steps. An action with no such step (or text that would break a step's
-    /// quotes) becomes a `# skipped:` comment, so a gap is never silent.
+    /// quotes, or typing no text, which the step cannot match) becomes a
+    /// `# skipped:` comment, so a gap is never silent.
     pub fn to_gherkin(&self, feature_name: &str) -> String {
         let title: String = feature_name
             .chars()
@@ -237,6 +238,12 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 .value
                 .as_deref()
                 .ok_or_else(|| format!("{name} has no value"))?;
+            // The step's pattern is `I type "(.+?)" into "(.+?)"`: no text, no match.
+            if value.is_empty() {
+                return Err(format!(
+                    "{name}: the text is empty, and the I type step needs at least one character"
+                ));
+            }
             Ok(format!(
                 "I type \"{}\" into \"{}\"",
                 plain(value, "text")?,
@@ -2355,6 +2362,33 @@ mod tests {
             .filter(|line| line.trim_start().starts_with("# skipped:"))
             .count();
         assert_eq!(skipped, 4, "{feature}");
+    }
+
+    #[test]
+    fn an_empty_text_is_skipped_because_the_type_step_cannot_match_it() {
+        use crate::behave::async_steps::AsyncStepRegistry;
+        let mut registry =
+            AsyncStepRegistry::new(crate::BaseCase::without_session(BrowserConfig::default()));
+        registry.register_common_browser_steps();
+        let mut recorder = ActionRecorder::default();
+        recorder.record("open", Some("https://example.com"), None);
+        recorder.record("type_text", Some("#q"), Some(""));
+        recorder.record("click", Some("#go"), None);
+
+        let feature = recorder.to_gherkin("Search");
+        let steps: Vec<&str> = feature
+            .lines()
+            .map(str::trim)
+            .filter(|l| ["Given ", "And "].iter().any(|k| l.starts_with(k)))
+            .collect();
+        assert_eq!(steps.len(), 2, "{feature}");
+        for step in steps {
+            assert!(registry.has_handler(step), "no handler for {step:?}");
+        }
+        assert!(
+            feature.contains("    # skipped: type_text: the text is empty"),
+            "{feature}"
+        );
     }
 
     #[test]
