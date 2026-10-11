@@ -34,7 +34,9 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::akamai::{Akamai, PriorityFrame, Pseudo, MAX_STREAM_ID, MAX_WEIGHT, MIN_WEIGHT};
+use super::akamai::{
+    Akamai, PriorityFrame, Pseudo, MAX_PRIORITY_FRAMES, MAX_STREAM_ID, MAX_WEIGHT, MIN_WEIGHT,
+};
 use super::h2_frames::{read_preface, H2CaptureError, H2Preface, HeadersPriority};
 
 /// SETTINGS identifiers (RFC 9113 section 6.5.2, RFC 8441 and RFC 9218).
@@ -85,7 +87,7 @@ pub const MIN_MAX_FRAME_SIZE: u32 = 16_384;
 /// The largest legal `SETTINGS_MAX_FRAME_SIZE`.
 pub const MAX_MAX_FRAME_SIZE: u32 = 16_777_215;
 /// The most PRIORITY frames a spec may carry.
-pub const MAX_SPEC_PRIORITY_FRAMES: usize = 64;
+pub const MAX_SPEC_PRIORITY_FRAMES: usize = MAX_PRIORITY_FRAMES;
 /// The stream id of a client's first request unless it says otherwise.
 const DEFAULT_INITIAL_STREAM: u32 = 1;
 
@@ -241,14 +243,16 @@ impl H2Spec {
             return Err(SpecError::WindowUpdate(self.window_update));
         }
         check_priority_frames(&self.priority_frames)?;
-        if let Some(priority) = &self.headers_priority {
+        if let Some(priority) = self.headers_priority {
             check_headers_priority(priority)?;
         }
         if !Pseudo::ALL.iter().all(|p| self.pseudo_order.contains(p)) {
             return Err(SpecError::PseudoOrder);
         }
         match self.initial_stream_id {
-            Some(id) if id % 2 == 0 || id > MAX_STREAM_ID => Err(SpecError::InitialStreamId(id)),
+            Some(id) if id.is_multiple_of(2) || id > MAX_STREAM_ID => {
+                Err(SpecError::InitialStreamId(id))
+            }
             _ => Ok(()),
         }
     }
@@ -366,7 +370,7 @@ fn priority_problem(frame: &PriorityFrame) -> Option<&'static str> {
         Some("stream id 0 is the connection")
     } else if frame.stream_id > MAX_STREAM_ID {
         Some("stream id above 2^31 - 1")
-    } else if frame.stream_id % 2 == 0 {
+    } else if frame.stream_id.is_multiple_of(2) {
         Some("client streams have odd ids")
     } else if frame.depends_on > MAX_STREAM_ID {
         Some("dependency above 2^31 - 1")
@@ -379,7 +383,7 @@ fn priority_problem(frame: &PriorityFrame) -> Option<&'static str> {
     }
 }
 
-fn check_headers_priority(priority: &HeadersPriority) -> Result<(), SpecError> {
+fn check_headers_priority(priority: HeadersPriority) -> Result<(), SpecError> {
     let reason = if !(MIN_WEIGHT..=MAX_WEIGHT).contains(&priority.weight) {
         "weight outside 1 to 256"
     } else if priority.depends_on > MAX_STREAM_ID {

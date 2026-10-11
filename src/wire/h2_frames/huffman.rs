@@ -159,7 +159,7 @@ pub(super) fn encode(input: &[u8]) -> Vec<u8> {
         let code = TABLES.first_code[len] + rank;
         bits.extend((0..len).rev().map(|shift| (code >> shift) & 1 == 1));
     }
-    while bits.len() % 8 != 0 {
+    while !bits.len().is_multiple_of(8) {
         bits.push(true);
     }
     bits.chunks(8)

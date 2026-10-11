@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     fn priority_section_zero_means_none_and_empty_is_malformed() {
-        assert!(sample_with_priority("0").priority_frames.is_empty());
+        assert_eq!(sample_with_priority("0").priority_frames, Vec::new());
         assert!(matches!(
             Akamai::parse("1:1|0||m,a,s,p"),
             Err(AkamaiError::PriorityFrame { index: 0, .. })

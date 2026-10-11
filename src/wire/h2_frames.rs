@@ -454,15 +454,17 @@ fn parse_payload(head: &Head, payload: &[u8]) -> Result<Frame, H2CaptureError> {
 fn parse_settings(head: &Head, payload: &[u8]) -> Result<Frame, H2CaptureError> {
     head.require_stream_zero()?;
     let ack = head.has(flag::ACK);
-    if (ack && !payload.is_empty()) || payload.len() % SETTING_LEN != 0 {
+    if (ack && !payload.is_empty()) || !payload.len().is_multiple_of(SETTING_LEN) {
         return Err(head.size_error());
     }
-    let settings = payload
-        .chunks_exact(SETTING_LEN)
-        .map(|entry| {
-            let id = u16::from_be_bytes([entry[0], entry[1]]);
-            let value = u32::from_be_bytes([entry[2], entry[3], entry[4], entry[5]]);
-            (id, value)
+    let (entries, _whole_entries_only) = payload.as_chunks::<SETTING_LEN>();
+    let settings = entries
+        .iter()
+        .map(|&[i0, i1, v0, v1, v2, v3]| {
+            (
+                u16::from_be_bytes([i0, i1]),
+                u32::from_be_bytes([v0, v1, v2, v3]),
+            )
         })
         .collect();
     Ok(Frame::Settings { ack, settings })
@@ -642,7 +644,7 @@ impl PrefaceState {
         }
     }
 
-    fn finish(self, block: PendingBlock, consumed: usize) -> Result<H2Preface, H2CaptureError> {
+    fn finish(self, block: &PendingBlock, consumed: usize) -> Result<H2Preface, H2CaptureError> {
         let settings = self.settings.ok_or(H2CaptureError::MissingSettings)?;
         let headers = HpackDecoder::default().decode(&block.block)?;
         Ok(H2Preface {
@@ -670,7 +672,8 @@ fn check_magic(bytes: &[u8]) -> Result<bool, H2CaptureError> {
 /// request's header block.
 ///
 /// Returns `Ok(None)` when `bytes` ends before the first request is complete; call it again
-/// with more bytes.
+/// with the longer buffer. Each call reads from the start, which the [`MAX_PREFACE_BYTES`]
+/// limit keeps cheap.
 ///
 /// # Errors
 ///
@@ -693,7 +696,7 @@ pub fn read_preface(bytes: &[u8]) -> Result<Option<H2Preface>, H2CaptureError> {
         };
         offset += used;
         if let Some(block) = state.accept(frame)? {
-            return state.finish(block, offset).map(Some);
+            return state.finish(&block, offset).map(Some);
         }
     }
 }

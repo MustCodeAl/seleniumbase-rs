@@ -98,7 +98,7 @@ fn a_capture_becomes_placeholders_and_literals_in_order() {
             "Accept-Language"
         ]
     );
-    assert!(s.priority_by_dest.is_empty());
+    assert_eq!(s.priority_by_dest, Vec::<(String, String)>::new());
     assert_eq!(s.validate(), Ok(()));
 }
 
@@ -131,7 +131,7 @@ fn the_identity_read_from_a_capture_has_each_value() {
     assert_eq!(id.sec_ch_ua_mobile.as_deref(), Some("?0"));
     assert_eq!(id.sec_ch_ua_platform.as_deref(), Some("\"TestOS\""));
     assert_eq!(id.cookie.as_deref(), Some("a=b; c=d"));
-    assert!(id.overrides.is_empty());
+    assert_eq!(id.overrides, Vec::<(String, String)>::new());
     assert_eq!(HeaderIdentity::from_captured(&[("Accept", "*/*")]), None);
 }
 

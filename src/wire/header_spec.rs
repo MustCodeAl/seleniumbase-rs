@@ -420,7 +420,7 @@ impl HeaderSpec {
             .iter_mut()
             .find(|(known, _)| known.eq_ignore_ascii_case(dest))
         {
-            Some(entry) => entry.1 = value.to_owned(),
+            Some(entry) => value.clone_into(&mut entry.1),
             None => next
                 .priority_by_dest
                 .push((dest.to_owned(), value.to_owned())),
