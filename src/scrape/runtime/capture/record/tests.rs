@@ -290,9 +290,8 @@ fn a_grease_signature_algorithm_is_kept_in_the_evidence_but_not_in_the_spec() {
     let raw = hello_with_grease_sigalg(&JA4_EXAMPLE_EXTENSIONS);
     let websocket = hello_with_grease_sigalg(&reversed());
 
-    let measurement =
-        TlsMeasurement::from_hellos(std::slice::from_ref(&raw), Some(&websocket))
-            .expect("one browser");
+    let measurement = TlsMeasurement::from_hellos(std::slice::from_ref(&raw), Some(&websocket))
+        .expect("one browser");
 
     assert_eq!(measurement.spec.signature_algorithms, CHROME_SIGALGS);
     assert_eq!(

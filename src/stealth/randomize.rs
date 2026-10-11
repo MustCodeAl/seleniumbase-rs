@@ -1182,7 +1182,7 @@ const BRAND_ORDERS: [[usize; 3]; 6] = [
 /// The brand lists and full version of a Chromium release, built the way
 /// Chromium builds them: a decoy brand whose wording, version and position are
 /// all derived from the major version. The caller fills in the platform fields.
-fn chromium_hints(major: u32) -> ClientHints {
+pub(crate) fn chromium_hints(major: u32) -> ClientHints {
     let seed = usize::try_from(major).unwrap_or_default();
     let decoy = format!(
         "Not{}A{}Brand",

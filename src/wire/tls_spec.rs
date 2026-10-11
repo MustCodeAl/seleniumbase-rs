@@ -237,7 +237,7 @@ impl TlsSpec {
             supported_groups: without_grease(&hello.supported_groups),
             key_share_groups: without_grease(&hello.key_share_groups),
             point_formats: hello.point_formats.clone(),
-            signature_algorithms: hello.signature_algorithms.clone(),
+            signature_algorithms: without_grease(&hello.signature_algorithms),
             alpn: strings(&hello.alpn),
             alps,
             delegated_credentials: hello.delegated_credentials.clone(),

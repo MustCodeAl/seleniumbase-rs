@@ -96,6 +96,11 @@ fn the_measured_client_hints_agree_with_the_browser_they_describe() {
         names(&hints.full_version_list),
         "both lists name the brands in the same order"
     );
+    assert_eq!(
+        names(&hints.brands),
+        names(&crate::stealth::randomize::chromium_hints(chrome.major).brands),
+        "the measured brand order is the order the library generates for this major version"
+    );
     let (decoys, real): (Vec<_>, Vec<_>) = hints
         .brands
         .iter()
