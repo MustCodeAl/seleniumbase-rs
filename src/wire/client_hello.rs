@@ -16,6 +16,11 @@ pub use super::ids::is_grease;
 /// Largest `ClientHello` handshake message, header included, that the parser accepts.
 pub const MAX_CLIENT_HELLO: usize = 64 * 1024;
 
+/// The most TLS records one `ClientHello` may span. A 64 KiB message fits four full records, so
+/// this allows any fragmentation a client stack would use, and no peer can make the readers walk
+/// more than this many record headers per call, however slowly it sends.
+pub const MAX_HELLO_RECORDS: usize = 1024;
+
 /// Bytes in a TLS record header: content type, legacy version and payload length.
 const RECORD_HEADER_LEN: usize = 5;
 /// Bytes in a handshake message header: message type and 24-bit length.
@@ -159,6 +164,9 @@ pub enum ClientHelloError {
     /// The handshake message is longer than [`MAX_CLIENT_HELLO`].
     #[error("the ClientHello is larger than 64 KiB")]
     TooLarge,
+    /// The message is spread over more than [`MAX_HELLO_RECORDS`] records.
+    #[error("the ClientHello spans more than {} records", MAX_HELLO_RECORDS)]
+    TooManyRecords,
     /// The body of one extension is malformed.
     #[error("malformed body of extension {id:#06x}")]
     Extension {
@@ -188,7 +196,8 @@ impl ClientHello {
     ///
     /// Fails as soon as the bytes cannot be a `ClientHello`: [`ClientHelloError::NotHandshake`],
     /// [`ClientHelloError::NotClientHello`], [`ClientHelloError::Length`] for a bad record
-    /// length and [`ClientHelloError::TooLarge`].
+    /// length, [`ClientHelloError::TooLarge`] and [`ClientHelloError::TooManyRecords`]. Each call
+    /// costs at most [`MAX_HELLO_RECORDS`] record headers, however the prefix arrived.
     pub fn needed_len(prefix: &[u8]) -> Result<Option<usize>, ClientHelloError> {
         Ok(scan(prefix)?.end)
     }
@@ -208,11 +217,11 @@ impl ClientHello {
             have: records.len(),
         };
         let end = scan.end.ok_or_else(|| truncated(records.len() + 1))?;
-        if end > records.len() {
+        let Some(whole_records) = records.get(..end) else {
             return Err(truncated(end));
-        }
-        let body = scan
-            .payload
+        };
+        let payload = gather(whole_records)?;
+        let body = payload
             .get(HANDSHAKE_HEADER_LEN..scan.message_len)
             .ok_or(ClientHelloError::Length)?;
         parse_message(body, scan.record_version)
@@ -330,8 +339,9 @@ impl<'a> Reader<'a> {
 /// The result of walking the records of a stream prefix.
 #[derive(Debug, Default)]
 struct Scan {
-    /// Handshake bytes gathered from the records, as far as the prefix holds them.
-    payload: Vec<u8>,
+    /// The handshake message header, as far as the prefix holds it. Nothing after it is copied,
+    /// so that a walk costs the record headers only.
+    head: Vec<u8>,
     /// Version in the first record header.
     record_version: u16,
     /// Length of the handshake message, header included, once its header is known.
@@ -374,12 +384,19 @@ fn handshake_len(payload: &[u8]) -> Result<Option<usize>, ClientHelloError> {
 }
 
 /// Walks the records of `prefix` until the first handshake message is complete or the bytes end.
+/// It looks at no more than [`MAX_HELLO_RECORDS`] record headers and copies four bytes, so a peer
+/// that sends the hello a byte at a time costs a bounded amount per call.
 fn scan(prefix: &[u8]) -> Result<Scan, ClientHelloError> {
     let mut scan = Scan::default();
     let mut declared = 0_usize;
     let mut pos = 0_usize;
+    let mut records = 0_usize;
     let mut total = None;
     while let Some(header) = prefix.get(pos..pos + RECORD_HEADER_LEN) {
+        records += 1;
+        if records > MAX_HELLO_RECORDS {
+            return Err(ClientHelloError::TooManyRecords);
+        }
         let (version, len) = record_header(header)?;
         if pos == 0 {
             scan.record_version = version;
@@ -390,9 +407,10 @@ fn scan(prefix: &[u8]) -> Result<Scan, ClientHelloError> {
         let present = prefix
             .get(body_start..pos.min(prefix.len()))
             .unwrap_or_default();
-        scan.payload.extend_from_slice(present);
         if total.is_none() {
-            total = handshake_len(&scan.payload)?;
+            let missing = HANDSHAKE_HEADER_LEN - scan.head.len();
+            scan.head.extend(present.iter().take(missing));
+            total = handshake_len(&scan.head)?;
         }
         if let Some(message_len) = total.filter(|&message_len| declared >= message_len) {
             scan.message_len = message_len;
@@ -401,6 +419,22 @@ fn scan(prefix: &[u8]) -> Result<Scan, ClientHelloError> {
         }
     }
     Ok(scan)
+}
+
+/// The handshake bytes of the whole records of `records`, in order.
+fn gather(records: &[u8]) -> Result<Vec<u8>, ClientHelloError> {
+    let mut payload = Vec::new();
+    let mut pos = 0_usize;
+    while let Some(header) = records.get(pos..pos + RECORD_HEADER_LEN) {
+        let (_version, len) = record_header(header)?;
+        let body_start = pos + RECORD_HEADER_LEN;
+        pos = body_start + len;
+        let body = records
+            .get(body_start..pos)
+            .ok_or(ClientHelloError::Length)?;
+        payload.extend_from_slice(body);
+    }
+    Ok(payload)
 }
 
 /// Maps a bad length inside an extension body to [`ClientHelloError::Extension`].
@@ -550,6 +584,8 @@ fn parse_message(body: &[u8], record_version: u16) -> Result<ClientHello, Client
     Ok(hello)
 }
 
+#[cfg(test)]
+mod bounds;
 #[cfg(test)]
 pub(crate) mod fixtures;
 #[cfg(test)]
