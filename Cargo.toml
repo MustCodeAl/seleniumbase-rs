@@ -36,6 +36,11 @@ required-features = ["scrape"]
 name = "capture_hints"
 required-features = ["scrape"]
 
+# Serves HTTPS with the ephemeral CA, so it needs the BoringSSL stack.
+[[example]]
+name = "capture_h2"
+required-features = ["impersonate"]
+
 [[bin]]
 name = "seleniumbase-mcp"
 path = "src/bin/mcp_server.rs"
