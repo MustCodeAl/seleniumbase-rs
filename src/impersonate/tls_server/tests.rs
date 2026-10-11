@@ -426,6 +426,59 @@ fn options_outside_their_bounds_are_refused() {
     ));
 }
 
+#[test]
+fn options_are_checked_in_whole_seconds_like_the_certificates_are_issued() {
+    let base = CaOptions::default();
+    let hour = Duration::from_hours(1);
+    let half_second = Duration::from_millis(500);
+    // Each pair passes a comparison of Durations, but issuing uses whole seconds, so the leaf
+    // would be valid for as long as its renew margin and no cached leaf would ever be fresh.
+    let bad = [
+        CaOptions {
+            leaf_validity: hour + half_second,
+            leaf_renew_margin: hour,
+            ..base
+        },
+        CaOptions {
+            leaf_validity: Duration::from_millis(1500),
+            leaf_renew_margin: Duration::from_secs(1),
+            ..base
+        },
+        CaOptions {
+            ca_validity: Duration::from_millis(900),
+            leaf_validity: half_second,
+            leaf_renew_margin: Duration::ZERO,
+            ..base
+        },
+    ];
+    for options in bad {
+        assert!(
+            matches!(
+                EphemeralCa::generate_at(options, fixed_now()),
+                Err(TlsServerError::InvalidOptions(_))
+            ),
+            "{options:?}"
+        );
+    }
+    let fine = [
+        CaOptions {
+            leaf_validity: hour + Duration::from_millis(1500),
+            leaf_renew_margin: hour,
+            ..base
+        },
+        CaOptions {
+            ca_validity: MAX_CA_VALIDITY + half_second,
+            ..base
+        },
+    ];
+    for options in fine {
+        assert!(
+            EphemeralCa::generate_at(options, fixed_now()).is_ok(),
+            "{options:?}"
+        );
+    }
+}
+
 /// Every form the private keys could take in text or bytes.
 fn key_material(key: &PKeyRef<Private>) -> Vec<Vec<u8>> {
     let der = key.private_key_to_der().expect("DER");

@@ -86,7 +86,8 @@ const SECONDS_PER_DAY: u64 = 24 * SECONDS_PER_HOUR;
 const MAX_ALPN_PROTOCOL_LEN: usize = 255;
 
 /// Lifetimes and the cache bound of an [`EphemeralCa`]. Every field is a custom input, checked
-/// by [`EphemeralCa::generate_at`].
+/// by [`EphemeralCa::generate_at`]. The durations count in whole seconds: a certificate is
+/// issued for the whole seconds of its validity, and the bounds below are checked on those.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CaOptions {
     /// How long the CA certificate is valid, from creation. At most [`MAX_CA_VALIDITY`].
@@ -111,15 +112,19 @@ impl Default for CaOptions {
 }
 
 impl CaOptions {
-    /// Checks the documented bounds of every field.
+    /// Checks the documented bounds of every field. Certificates are issued in whole seconds,
+    /// dropping any sub-second part, so the durations are compared the same way: a leaf valid
+    /// for 3600.5 s with a renew margin of 3600 s is refused, as the leaf would last 3600 s.
     fn validate(&self) -> Result<(), TlsServerError> {
+        let ca_validity = self.ca_validity.as_secs();
+        let leaf_validity = self.leaf_validity.as_secs();
         let problem = if self.leaf_capacity == 0 || self.leaf_capacity > MAX_LEAF_CAPACITY {
             Some("leaf_capacity must be from 1 to MAX_LEAF_CAPACITY")
-        } else if self.ca_validity > MAX_CA_VALIDITY {
+        } else if ca_validity > MAX_CA_VALIDITY.as_secs() {
             Some("ca_validity exceeds MAX_CA_VALIDITY")
-        } else if self.leaf_validity > self.ca_validity {
+        } else if leaf_validity > ca_validity {
             Some("leaf_validity exceeds ca_validity")
-        } else if self.leaf_renew_margin >= self.leaf_validity {
+        } else if self.leaf_renew_margin.as_secs() >= leaf_validity {
             Some("leaf_renew_margin must be shorter than leaf_validity")
         } else {
             None
