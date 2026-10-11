@@ -11,6 +11,7 @@
 //! YAML, and replays them against a [`BaseCase`](crate::BaseCase).
 
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::path::{Path, PathBuf};
 
 use crate::api::base_case::BaseCase;
@@ -65,6 +66,10 @@ impl ActionRecorder {
     }
 
     /// Generates a standalone `#[tokio::main]` Rust program from the recording.
+    ///
+    /// An action the generator cannot turn into a call (an unknown name, or one
+    /// missing an argument) becomes a `// skipped: ...` comment, so a gap in
+    /// the program is never silent.
     pub fn to_rust_script(&self) -> String {
         let mut out = String::from(
             "use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
@@ -75,6 +80,9 @@ impl ActionRecorder {
     }
 
     /// Generates a `#[tokio::test]` async function from the recording.
+    ///
+    /// See [`to_rust_script`](Self::to_rust_script) for actions that cannot be
+    /// generated.
     pub fn to_rust_test(&self, test_name: &str) -> String {
         let fn_name = rust_identifier(test_name);
         let mut out =
@@ -89,11 +97,27 @@ impl ActionRecorder {
     }
 
     /// Writes the recording as a Rust test file into `dir/{name}.rs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is empty or
+    /// contains a path separator (the file always goes directly into `dir`),
+    /// and [`SeleniumBaseError::Io`] if the file cannot be written.
     pub fn save_recording_as_test(
         &self,
         dir: &Path,
         name: &str,
     ) -> Result<PathBuf, SeleniumBaseError> {
+        if name.is_empty()
+            || name == "."
+            || name == ".."
+            || name.contains(['/', '\\'])
+            || name.contains('\0')
+        {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "'{name}' is not a usable test file name: it must be non-empty and contain no path separator"
+            )));
+        }
         std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{name}.rs"));
         std::fs::write(&path, self.to_rust_test(name))?;
@@ -102,485 +126,383 @@ impl ActionRecorder {
 
     fn write_actions(&self, out: &mut String) {
         for action in &self.actions {
-            self.write_action(out, action);
+            match rust_call(action) {
+                Ok(call) => line(out, &call),
+                // `{:?}` keeps a hostile name from ending the comment.
+                Err(reason) => line(out, &format!("// skipped: {reason}")),
+            }
         }
     }
+}
 
-    #[allow(clippy::too_many_lines)]
-    fn write_action(&self, out: &mut String, action: &RecordedAction) {
-        let target = action.target.as_deref();
-        let value = action.value.as_deref();
+/// How a recorded action's `target` and `value` become the arguments of the
+/// [`BaseCase`] method it calls.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Shape {
+    /// `sb.method()`
+    NoArgs,
+    /// `sb.method(target)`
+    Target,
+    /// `sb.method(target, value)`
+    TargetValue,
+    /// `sb.method(value, target)`: the method takes the text first.
+    ValueTarget,
+    /// `sb.method(target, 10)`: a wait, with a ten-second timeout.
+    TargetSeconds,
+    /// `sb.method(10)`: a wait for an alert, with a ten-second timeout.
+    Seconds,
+    /// The value is `name=content`: `sb.method(target, "name", "content")`.
+    TargetPair,
+    /// The target is `width,height`: `sb.method(width, height)`.
+    Size,
+    /// The value is `x, y`: `sb.method(target, x, y)`.
+    TargetOffset,
+    /// The value is a whole number: `sb.method(target, n)`.
+    TargetIndex,
+    /// `let _ = sb.method(target).await?;`: the result is not needed.
+    TargetDiscarded,
+}
 
-        match action.name.as_str() {
-            "open" => {
-                if let Some(url) = target {
-                    line(out, &format!("sb.open({:?}).await?;", url));
-                }
-            }
-            "click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.click({:?}).await?;", css));
-                }
-            }
-            "type_text" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.type_text({:?}, {:?}).await?;", css, text));
-                }
-            }
-            "clear" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.clear({:?}).await?;", css));
-                }
-            }
-            "click_link_text" => {
-                if let Some(text) = target {
-                    line(out, &format!("sb.click_link_text({:?}).await?;", text));
-                }
-            }
-            "submit" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.submit({:?}).await?;", css));
-                }
-            }
-            "hover" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.hover({:?}).await?;", css));
-                }
-            }
-            "select_option_by_text" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.select_option_by_text({:?}, {:?}).await?;", css, text),
-                    );
-                }
-            }
-            "select_option_by_value" => {
-                if let (Some(css), Some(val)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.select_option_by_value({:?}, {:?}).await?;", css, val),
-                    );
-                }
-            }
-            "switch_to_frame" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.switch_to_frame({:?}).await?;", css));
-                }
-            }
-            "switch_to_default_content" => {
-                line(out, "sb.switch_to_default_content().await?;");
-            }
-            "drag_and_drop" => {
-                if let (Some(source), Some(dest)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.drag_and_drop({:?}, {:?}).await?;", source, dest),
-                    );
-                }
-            }
-            "cdp_click_element" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.cdp_click_element({:?}).await?;", css));
-                }
-            }
-            "wait_for_element_visible" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("sb.wait_for_element_visible({:?}, 10).await?;", css),
-                    );
-                }
-            }
-            "wait_for_element_absent" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("sb.wait_for_element_absent({:?}, 10).await?;", css),
-                    );
-                }
-            }
-            "wait_for_element_not_visible" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("sb.wait_for_element_not_visible({:?}, 10).await?;", css),
-                    );
-                }
-            }
-            "wait_for_element_present" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("sb.wait_for_element_present({:?}, 10).await?;", css),
-                    );
-                }
-            }
-            "wait_for_element_clickable" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("sb.wait_for_element_clickable({:?}, 10).await?;", css),
-                    );
-                }
-            }
-            "wait_for_ready_state_complete" => {
-                line(out, "sb.wait_for_ready_state_complete().await?;");
-            }
-            "assert_text" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.assert_text({:?}, {:?}).await?;", css, text),
-                    );
-                }
-            }
-            "assert_text_visible" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.assert_text_visible({:?}, {:?}).await?;", text, css),
-                    );
-                }
-            }
-            "assert_text_not_visible" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.assert_text_not_visible({:?}, {:?}).await?;", text, css),
-                    );
-                }
-            }
-            "assert_exact_text" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.assert_exact_text({:?}, {:?}).await?;", css, text),
-                    );
-                }
-            }
-            "assert_attribute" => {
-                if let (Some(css), Some(pair)) = (target, value) {
-                    if let Some((attribute, expected)) = pair.split_once('=') {
-                        line(
-                            out,
-                            &format!(
-                                "sb.assert_attribute({:?}, {:?}, {:?}).await?;",
-                                css,
-                                attribute.trim(),
-                                expected.trim()
-                            ),
-                        );
-                    }
-                }
-            }
-            "assert_title" => {
-                if let Some(text) = target {
-                    line(out, &format!("sb.assert_title({:?}).await?;", text));
-                }
-            }
-            "assert_title_contains" => {
-                if let Some(text) = target {
-                    line(
-                        out,
-                        &format!("sb.assert_title_contains({:?}).await?;", text),
-                    );
-                }
-            }
-            "assert_link_text" => {
-                if let Some(text) = target {
-                    line(out, &format!("sb.assert_link_text({:?}).await?;", text));
-                }
-            }
-            "maximize_window" => {
-                line(out, "sb.maximize_window().await?;");
-            }
-            "set_window_size" => {
-                if let Some(pair) = target {
-                    if let Some((width, height)) = pair.split_once(',') {
-                        line(
-                            out,
-                            &format!(
-                                "sb.set_window_size({}, {}).await?;",
-                                width.trim(),
-                                height.trim()
-                            ),
-                        );
-                    }
-                }
-            }
-            "switch_to_window" => {
-                if let Some(handle) = target {
-                    line(out, &format!("sb.switch_to_window({:?}).await?;", handle));
-                }
-            }
-            "switch_to_new_window" => {
-                line(out, "sb.switch_to_new_window().await?;");
-            }
-            "switch_to_newest_window" => {
-                line(out, "sb.switch_to_newest_window().await?;");
-            }
-            "switch_to_default_window" => {
-                line(out, "sb.switch_to_default_window().await?;");
-            }
-            "switch_to_parent_frame" => {
-                line(out, "sb.switch_to_parent_frame().await?;");
-            }
-            "go_back" => {
-                line(out, "sb.go_back().await?;");
-            }
-            "go_forward" => {
-                line(out, "sb.go_forward().await?;");
-            }
-            "refresh" => {
-                line(out, "sb.refresh().await?;");
-            }
-            "delete_all_cookies" => {
-                line(out, "sb.delete_all_cookies().await?;");
-            }
-            "delete_cookie" => {
-                if let Some(name) = target {
-                    line(out, &format!("sb.delete_cookie({:?}).await?;", name));
-                }
-            }
-            "add_cookie" => {
-                if let (Some(name), Some(val)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.add_cookie({:?}, {:?}).await?;", name, val),
-                    );
-                }
-            }
-            "double_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.double_click({:?}).await?;", css));
-                }
-            }
-            "context_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.context_click({:?}).await?;", css));
-                }
-            }
-            "scroll_to" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.scroll_to({:?}).await?;", css));
-                }
-            }
-            "scroll_to_bottom" => {
-                line(out, "sb.scroll_to_bottom().await?;");
-            }
-            "scroll_to_top" => {
-                line(out, "sb.scroll_to_top().await?;");
-            }
-            "smooth_scroll_to" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.smooth_scroll_to({:?}).await?;", css));
-                }
-            }
-            "check_if_unchecked" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.check_if_unchecked({:?}).await?;", css));
-                }
-            }
-            "uncheck_if_checked" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.uncheck_if_checked({:?}).await?;", css));
-                }
-            }
-            "add_text" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.add_text({:?}, {:?}).await?;", css, text));
-                }
-            }
-            "send_keys" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.send_keys({:?}, {:?}).await?;", css, text));
-                }
-            }
-            "js_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.js_click({:?}).await?;", css));
-                }
-            }
-            "js_type" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.js_type({:?}, {:?}).await?;", css, text));
-                }
-            }
-            "js_click_if_present" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.js_click_if_present({:?}).await?;", css));
-                }
-            }
-            "js_click_all" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.js_click_all({:?}).await?;", css));
-                }
-            }
-            "jquery_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.jquery_click({:?}).await?;", css));
-                }
-            }
-            "set_attribute" => {
-                if let (Some(css), Some(pair)) = (target, value) {
-                    if let Some((attribute, new_value)) = pair.split_once('=') {
-                        line(
-                            out,
-                            &format!(
-                                "sb.set_attribute({:?}, {:?}, {:?}).await?;",
-                                css,
-                                attribute.trim(),
-                                new_value.trim()
-                            ),
-                        );
-                    }
-                }
-            }
-            "remove_attribute" => {
-                if let (Some(css), Some(attribute)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.remove_attribute({:?}, {:?}).await?;", css, attribute),
-                    );
-                }
-            }
-            "choose_file" => {
-                if let (Some(css), Some(path)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.choose_file({:?}, {:?}).await?;", css, path),
-                    );
-                }
-            }
-            "click_partial_link_text" => {
-                if let Some(text) = target {
-                    line(
-                        out,
-                        &format!("sb.click_partial_link_text({:?}).await?;", text),
-                    );
-                }
-            }
-            "wait_for_and_accept_alert" => {
-                line(out, "sb.wait_for_and_accept_alert(10).await?;");
-            }
-            "wait_for_and_dismiss_alert" => {
-                line(out, "sb.wait_for_and_dismiss_alert(10).await?;");
-            }
-            "accept_alert" => {
-                line(out, "sb.accept_alert().await?;");
-            }
-            "dismiss_alert" => {
-                line(out, "sb.dismiss_alert().await?;");
-            }
-            "type_alert_text" => {
-                if let Some(text) = target {
-                    line(out, &format!("sb.type_alert_text({:?}).await?;", text));
-                }
-            }
-            "clear_local_storage" => {
-                line(out, "sb.clear_local_storage().await?;");
-            }
-            "remove_local_storage_item" => {
-                if let Some(key) = target {
-                    line(
-                        out,
-                        &format!("sb.remove_local_storage_item({:?}).await?;", key),
-                    );
-                }
-            }
-            "set_local_storage_item" => {
-                if let (Some(key), Some(val)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.set_local_storage_item({:?}, {:?}).await?;", key, val),
-                    );
-                }
-            }
-            "close_window" => {
-                line(out, "sb.close_window().await?;");
-            }
-            "highlight_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.highlight_click({:?}).await?;", css));
-                }
-            }
-            "open_new_window" => {
-                line(out, "sb.open_new_window().await?;");
-            }
-            "open_new_tab" => {
-                line(out, "sb.open_new_tab().await?;");
-            }
-            "click_visible_elements" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("sb.click_visible_elements({:?}).await?;", css),
-                    );
-                }
-            }
-            "find_element" => {
-                if let Some(css) = target {
-                    line(out, &format!("let _ = sb.find_element({:?}).await?;", css));
-                }
-            }
-            "find_elements" => {
-                if let Some(css) = target {
-                    line(out, &format!("let _ = sb.find_elements({:?}).await?;", css));
-                }
-            }
-            "get_shadow_root" => {
-                if let Some(css) = target {
-                    line(
-                        out,
-                        &format!("let _ = sb.get_shadow_root({:?}).await?;", css),
-                    );
-                }
-            }
-            "slow_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.slow_click({:?}).await?;", css));
-                }
-            }
-            "human_type" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.human_type({:?}, {:?}).await?;", css, text),
-                    );
-                }
-            }
-            "human_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.human_click({:?}).await?;", css));
-                }
-            }
-            "uc_click" => {
-                if let Some(css) = target {
-                    line(out, &format!("sb.uc_click({:?}).await?;", css));
-                }
-            }
-            "uc_type" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.uc_type({:?}, {:?}).await?;", css, text));
-                }
-            }
-            "update_text" => {
-                if let (Some(css), Some(text)) = (target, value) {
-                    line(
-                        out,
-                        &format!("sb.update_text({:?}, {:?}).await?;", css, text),
-                    );
-                }
-            }
-            "click_xpath" => {
-                if let Some(xpath) = target {
-                    line(out, &format!("sb.click_xpath({:?}).await?;", xpath));
-                }
-            }
-            _ => {}
-        }
+/// Every action the generator can turn into a call: the recorded name, the
+/// [`BaseCase`] method it calls, and how its arguments are built.
+///
+/// The recorded names are those `BaseCase` records itself, those
+/// [`RecorderSession`] captures, and those older recordings use.
+const CALLS: &[(&str, &str, Shape)] = &[
+    ("open", "open", Shape::Target),
+    ("click", "click", Shape::Target),
+    ("type_text", "type_text", Shape::TargetValue),
+    ("clear", "clear", Shape::Target),
+    ("click_link_text", "click_link_text", Shape::Target),
+    ("click_link", "click_link", Shape::Target),
+    ("click_partial_link", "click_partial_link", Shape::Target),
+    (
+        "click_partial_link_text",
+        "click_partial_link_text",
+        Shape::Target,
+    ),
+    ("submit", "submit", Shape::Target),
+    ("hover", "hover", Shape::Target),
+    (
+        "select_option_by_text",
+        "select_option_by_text",
+        Shape::TargetValue,
+    ),
+    (
+        "select_option_by_value",
+        "select_option_by_value",
+        Shape::TargetValue,
+    ),
+    (
+        "select_option_by_index",
+        "select_option_by_index",
+        Shape::TargetIndex,
+    ),
+    ("select_all", "select_all", Shape::Target),
+    ("unselect_all", "unselect_all", Shape::Target),
+    ("switch_to_frame", "switch_to_frame", Shape::Target),
+    (
+        "switch_to_default_content",
+        "switch_to_default_content",
+        Shape::NoArgs,
+    ),
+    (
+        "switch_to_parent_frame",
+        "switch_to_parent_frame",
+        Shape::NoArgs,
+    ),
+    ("drag_and_drop", "drag_and_drop", Shape::TargetValue),
+    ("cdp_click_element", "cdp_click_element", Shape::Target),
+    (
+        "wait_for_element_visible",
+        "wait_for_element_visible",
+        Shape::TargetSeconds,
+    ),
+    (
+        "wait_for_element_absent",
+        "wait_for_element_absent",
+        Shape::TargetSeconds,
+    ),
+    (
+        "wait_for_element_not_visible",
+        "wait_for_element_not_visible",
+        Shape::TargetSeconds,
+    ),
+    (
+        "wait_for_element_present",
+        "wait_for_element_present",
+        Shape::TargetSeconds,
+    ),
+    (
+        "wait_for_element_clickable",
+        "wait_for_element_clickable",
+        Shape::TargetSeconds,
+    ),
+    (
+        "wait_for_ready_state_complete",
+        "wait_for_ready_state_complete",
+        Shape::NoArgs,
+    ),
+    ("assert_text", "assert_text", Shape::TargetValue),
+    (
+        "assert_text_visible",
+        "assert_text_visible",
+        Shape::ValueTarget,
+    ),
+    (
+        "assert_text_not_visible",
+        "assert_text_not_visible",
+        Shape::ValueTarget,
+    ),
+    ("assert_exact_text", "assert_exact_text", Shape::TargetValue),
+    ("assert_attribute", "assert_attribute", Shape::TargetPair),
+    ("assert_title", "assert_title", Shape::Target),
+    (
+        "assert_title_contains",
+        "assert_title_contains",
+        Shape::Target,
+    ),
+    ("assert_link_text", "assert_link_text", Shape::Target),
+    ("maximize_window", "maximize_window", Shape::NoArgs),
+    ("set_window_size", "set_window_size", Shape::Size),
+    ("switch_to_window", "switch_to_window", Shape::Target),
+    (
+        "switch_to_new_window",
+        "switch_to_new_window",
+        Shape::NoArgs,
+    ),
+    (
+        "switch_to_newest_window",
+        "switch_to_newest_window",
+        Shape::NoArgs,
+    ),
+    (
+        "switch_to_default_window",
+        "switch_to_default_window",
+        Shape::NoArgs,
+    ),
+    ("go_back", "go_back", Shape::NoArgs),
+    ("go_forward", "go_forward", Shape::NoArgs),
+    ("refresh", "refresh", Shape::NoArgs),
+    ("delete_all_cookies", "delete_all_cookies", Shape::NoArgs),
+    ("delete_cookie", "delete_cookie", Shape::Target),
+    ("add_cookie", "add_cookie", Shape::TargetValue),
+    ("double_click", "double_click", Shape::Target),
+    ("context_click", "context_click", Shape::Target),
+    (
+        "click_with_offset",
+        "click_with_offset",
+        Shape::TargetOffset,
+    ),
+    (
+        "double_click_with_offset",
+        "double_click_with_offset",
+        Shape::TargetOffset,
+    ),
+    ("scroll_to", "scroll_to", Shape::Target),
+    ("scroll_to_bottom", "scroll_to_bottom", Shape::NoArgs),
+    ("scroll_to_top", "scroll_to_top", Shape::NoArgs),
+    ("scroll_into_view", "scroll_into_view", Shape::Target),
+    ("smooth_scroll_to", "smooth_scroll_to", Shape::Target),
+    ("slow_scroll_to", "slow_scroll_to", Shape::Target),
+    ("check_if_unchecked", "check_if_unchecked", Shape::Target),
+    ("uncheck_if_checked", "uncheck_if_checked", Shape::Target),
+    ("add_text", "add_text", Shape::TargetValue),
+    ("send_keys", "send_keys", Shape::TargetValue),
+    ("js_click", "js_click", Shape::Target),
+    ("js_type", "js_type", Shape::TargetValue),
+    ("js_update_text", "js_update_text", Shape::TargetValue),
+    ("js_click_if_present", "js_click_if_present", Shape::Target),
+    ("js_click_all", "js_click_all", Shape::Target),
+    ("jquery_click", "jquery_click", Shape::Target),
+    ("jquery_click_all", "jquery_click_all", Shape::Target),
+    ("jquery_type", "jquery_type", Shape::TargetValue),
+    (
+        "jquery_update_text",
+        "jquery_update_text",
+        Shape::TargetValue,
+    ),
+    ("set_attribute", "set_attribute", Shape::TargetPair),
+    ("remove_attribute", "remove_attribute", Shape::TargetValue),
+    ("choose_file", "choose_file", Shape::TargetValue),
+    (
+        "wait_for_and_accept_alert",
+        "wait_for_and_accept_alert",
+        Shape::Seconds,
+    ),
+    (
+        "wait_for_and_dismiss_alert",
+        "wait_for_and_dismiss_alert",
+        Shape::Seconds,
+    ),
+    ("accept_alert", "accept_alert", Shape::NoArgs),
+    ("dismiss_alert", "dismiss_alert", Shape::NoArgs),
+    ("type_alert_text", "type_alert_text", Shape::Target),
+    ("clear_local_storage", "clear_local_storage", Shape::NoArgs),
+    (
+        "remove_local_storage_item",
+        "remove_local_storage_item",
+        Shape::Target,
+    ),
+    (
+        "set_local_storage_item",
+        "set_local_storage_item",
+        Shape::TargetValue,
+    ),
+    ("close_window", "close_window", Shape::NoArgs),
+    ("highlight_click", "highlight_click", Shape::Target),
+    ("open_new_window", "open_new_window", Shape::NoArgs),
+    (
+        "click_visible_elements",
+        "click_visible_elements",
+        Shape::Target,
+    ),
+    ("find_element", "find_element", Shape::TargetDiscarded),
+    ("find_elements", "find_elements", Shape::TargetDiscarded),
+    ("get_shadow_root", "get_shadow_root", Shape::TargetDiscarded),
+    ("slow_click", "slow_click", Shape::Target),
+    ("human_type", "human_type", Shape::TargetValue),
+    ("human_click", "human_click", Shape::Target),
+    ("uc_click", "uc_click", Shape::Target),
+    ("uc_type", "uc_type", Shape::TargetValue),
+    ("update_text", "update_text", Shape::TargetValue),
+    ("click_xpath", "click_xpath", Shape::Target),
+    // `open_new_tab` is special: with a URL it is `open_new_tab_url`.
+    ("open_new_tab", "open_new_tab", Shape::NoArgs),
+];
+
+/// Other names for an action in `CALLS`: those `RecorderSession` and older
+/// recordings use.
+const ALIASES: &[(&str, &str)] = &[
+    ("goto", "open"),
+    ("navigate", "open"),
+    ("type", "type_text"),
+];
+
+/// Actions `BaseCase` records without what it takes to run them again.
+const UNEXPORTABLE: &[(&str, &str)] = &[(
+    "drag_and_drop_with_offset",
+    "the recording keeps the two selectors but not the offset",
+)];
+
+/// A string as a Rust literal.
+fn literal(text: &str) -> String {
+    format!("{text:?}")
+}
+
+/// A whole number parsed from recorded text, as a Rust literal.
+fn number<T: std::str::FromStr + std::fmt::Display>(
+    action: &str,
+    what: &str,
+    text: &str,
+) -> Result<String, String> {
+    text.trim()
+        .parse::<T>()
+        .map(|n| n.to_string())
+        .map_err(|_| format!("{action}: {what} {text:?} is not a whole number in range"))
+}
+
+/// The line of Rust that replays `action`, or why there is none.
+fn rust_call(action: &RecordedAction) -> Result<String, String> {
+    let recorded = action.name.as_str();
+    let name = ALIASES
+        .iter()
+        .find(|(alias, _)| *alias == recorded)
+        .map_or(recorded, |(_, canonical)| *canonical);
+    if let Some((_, reason)) = UNEXPORTABLE
+        .iter()
+        .find(|(unexportable, _)| *unexportable == name)
+    {
+        return Err(format!("{name}: {reason}"));
     }
+    let Some((_, method, shape)) = CALLS.iter().find(|(known, _, _)| *known == name) else {
+        return Err(format!("unknown action {:?}", action.name));
+    };
+
+    let target = action.target.as_deref();
+    let value = action.value.as_deref();
+    let need_target = || target.ok_or_else(|| format!("{name} has no target"));
+    let need_value = || value.ok_or_else(|| format!("{name} has no value"));
+
+    let (method, args) = match shape {
+        Shape::NoArgs => {
+            // `open_new_tab` remembers the page it opened.
+            match (*method, target) {
+                ("open_new_tab", Some(url)) => ("open_new_tab_url", literal(url)),
+                _ => (*method, String::new()),
+            }
+        }
+        Shape::Target | Shape::TargetDiscarded => (*method, literal(need_target()?)),
+        Shape::TargetValue => (
+            *method,
+            format!("{}, {}", literal(need_target()?), literal(need_value()?)),
+        ),
+        Shape::ValueTarget => (
+            *method,
+            format!("{}, {}", literal(need_value()?), literal(need_target()?)),
+        ),
+        Shape::TargetSeconds => (*method, format!("{}, 10", literal(need_target()?))),
+        Shape::Seconds => (*method, "10".to_owned()),
+        Shape::TargetPair => {
+            let pair = need_value()?;
+            let (key, content) = pair
+                .split_once('=')
+                .ok_or_else(|| format!("{name}: value {pair:?} is not name=content"))?;
+            (
+                *method,
+                format!(
+                    "{}, {}, {}",
+                    literal(need_target()?),
+                    literal(key.trim()),
+                    literal(content.trim())
+                ),
+            )
+        }
+        Shape::Size => {
+            let size = need_target()?;
+            let (width, height) = size
+                .split_once(',')
+                .ok_or_else(|| format!("{name}: target {size:?} is not width,height"))?;
+            (
+                *method,
+                format!(
+                    "{}, {}",
+                    number::<u32>(name, "width", width)?,
+                    number::<u32>(name, "height", height)?
+                ),
+            )
+        }
+        Shape::TargetOffset => {
+            let offset = need_value()?;
+            let (x, y) = offset
+                .split_once(',')
+                .ok_or_else(|| format!("{name}: value {offset:?} is not x, y"))?;
+            (
+                *method,
+                format!(
+                    "{}, {}, {}",
+                    literal(need_target()?),
+                    number::<i64>(name, "x offset", x)?,
+                    number::<i64>(name, "y offset", y)?
+                ),
+            )
+        }
+        Shape::TargetIndex => (
+            *method,
+            format!(
+                "{}, {}",
+                literal(need_target()?),
+                number::<usize>(name, "index", need_value()?)?
+            ),
+        ),
+    };
+
+    let discard = if *shape == Shape::TargetDiscarded {
+        "let _ = "
+    } else {
+        ""
+    };
+    Ok(format!("{discard}sb.{method}({args}).await?;"))
 }
 
 fn line(out: &mut String, content: &str) {
@@ -589,22 +511,36 @@ fn line(out: &mut String, content: &str) {
     out.push('\n');
 }
 
+/// Words that cannot name a function, in any edition (`gen` is reserved from
+/// 2024, and the test may be compiled there).
+const KEYWORDS: &[&str] = &[
+    "Self", "abstract", "as", "async", "await", "become", "box", "break", "const", "continue",
+    "crate", "do", "dyn", "else", "enum", "extern", "false", "final", "fn", "for", "gen", "if",
+    "impl", "in", "let", "loop", "macro", "match", "mod", "move", "mut", "override", "priv", "pub",
+    "ref", "return", "self", "static", "struct", "super", "trait", "true", "try", "type", "typeof",
+    "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+];
+
+/// A name made safe to use as a Rust function name.
 fn rust_identifier(name: &str) -> String {
     let mut ident: String = name
         .chars()
         .map(|c| {
-            if c.is_alphanumeric() || c == '_' {
+            if c.is_ascii_alphanumeric() || c == '_' {
                 c
             } else {
                 '_'
             }
         })
         .collect();
-    if ident.is_empty() {
-        ident.push_str("recorded_test");
+    if ident.is_empty() || ident == "_" {
+        return "recorded_test".to_owned();
     }
-    if ident.chars().next().unwrap().is_ascii_digit() {
+    if ident.starts_with(|c: char| c.is_ascii_digit()) {
         ident.insert(0, '_');
+    }
+    if KEYWORDS.contains(&ident.as_str()) {
+        ident.push('_');
     }
     ident
 }
@@ -678,6 +614,10 @@ pub struct RecorderSession {
     last_url: Option<String>,
     #[serde(skip)]
     installed: bool,
+    /// Whether the listeners are also installed in every document the browser
+    /// loads from now on, not just the current one.
+    #[serde(skip)]
+    on_new_documents: bool,
 }
 
 impl RecorderSession {
@@ -692,6 +632,7 @@ impl RecorderSession {
             actions,
             last_url: None,
             installed: false,
+            on_new_documents: false,
         }
     }
 
@@ -762,12 +703,7 @@ impl RecorderSession {
                 std::fs::create_dir_all(parent)?;
             }
         }
-        let is_yaml = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"))
-            .unwrap_or(false);
-        let data = if is_yaml {
+        let data = if is_yaml_path(path) {
             self.to_yaml()
         } else {
             self.to_json()?
@@ -776,10 +712,99 @@ impl RecorderSession {
         Ok(path.to_path_buf())
     }
 
-    /// Loads a recorded action list from a JSON file written by [`Self::save`].
-    pub fn load_json(path: &Path) -> Result<Vec<RecordedAction>, SeleniumBaseError> {
+    /// Loads a recorded action list from a file written by [`Self::save`].
+    ///
+    /// A `.yaml`/`.yml` extension selects YAML, anything else JSON, the same
+    /// choice [`save`](Self::save) makes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] if the file cannot be read, and
+    /// [`SeleniumBaseError::InvalidConfig`] if it is not a recording.
+    pub fn load(path: &Path) -> Result<Vec<RecordedAction>, SeleniumBaseError> {
         let raw = std::fs::read_to_string(path)?;
-        Self::parse_json(&raw)
+        if is_yaml_path(path) {
+            Self::parse_yaml(&raw)
+        } else {
+            Self::parse_json(&raw)
+        }
+    }
+
+    /// Loads a recorded action list from a file written by [`Self::save`].
+    ///
+    /// The name is from when only JSON was written. It now does what
+    /// [`load`](Self::load) does, so a `.yaml` recording replays too.
+    ///
+    /// # Errors
+    ///
+    /// See [`load`](Self::load).
+    pub fn load_json(path: &Path) -> Result<Vec<RecordedAction>, SeleniumBaseError> {
+        Self::load(path)
+    }
+
+    /// Parses the YAML that [`to_yaml`](Self::to_yaml) writes.
+    ///
+    /// Only that format is understood: a list of items with `name`, `target`,
+    /// `value` and `timestamp_ms` keys, whose strings are double-quoted. It is
+    /// not a general YAML parser.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] naming the line that is
+    /// not understood.
+    pub fn parse_yaml(raw: &str) -> Result<Vec<RecordedAction>, SeleniumBaseError> {
+        let bad = |number: usize, why: &str| {
+            SeleniumBaseError::InvalidConfig(format!("recording line {number}: {why}"))
+        };
+        let mut actions: Vec<RecordedAction> = Vec::new();
+        for (index, text) in raw.lines().enumerate() {
+            let number = index + 1;
+            let trimmed = text.trim_end();
+            if trimmed.is_empty() || trimmed.trim_start().starts_with('#') || trimmed == "[]" {
+                continue;
+            }
+            let entry = if let Some(rest) = trimmed.strip_prefix("- ") {
+                actions.push(RecordedAction {
+                    name: String::new(),
+                    target: None,
+                    value: None,
+                    timestamp_ms: 0,
+                });
+                rest
+            } else if trimmed.starts_with("  ") {
+                trimmed.trim_start()
+            } else {
+                return Err(bad(number, "expected `- name: ...` or an indented key"));
+            };
+            let Some(action) = actions.last_mut() else {
+                return Err(bad(number, "a key before the first `- ` item"));
+            };
+            let (key, scalar) = entry
+                .split_once(": ")
+                .ok_or_else(|| bad(number, "expected `key: value`"))?;
+            let string = || {
+                serde_json::from_str::<Option<String>>(scalar)
+                    .map_err(|_| bad(number, "expected a double-quoted string"))
+            };
+            match key {
+                "name" => action.name = string()?.unwrap_or_default(),
+                "target" => action.target = string()?,
+                "value" => action.value = string()?,
+                "timestamp_ms" => {
+                    action.timestamp_ms = scalar
+                        .parse()
+                        .map_err(|_| bad(number, "expected a whole number"))?;
+                }
+                other => return Err(bad(number, &format!("unknown key `{other}`"))),
+            }
+        }
+        if let Some(position) = actions.iter().position(|action| action.name.is_empty()) {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "recording item {} has no name",
+                position + 1
+            )));
+        }
+        Ok(actions)
     }
 
     /// Parses a recorded action list from JSON text.
@@ -797,8 +822,11 @@ impl RecorderSession {
 
     /// JavaScript that installs the in-page event listeners.
     ///
-    /// The script is idempotent: re-running it after a navigation reinstalls the
-    /// listeners without duplicating them.
+    /// The script is idempotent: running it again on the same page does not
+    /// duplicate the listeners. What the listeners capture is kept in the
+    /// browser's `sessionStorage`, so it survives a navigation to another page
+    /// of the same origin. Events not yet drained when the browser moves to a
+    /// different origin stay behind, as storage is kept per origin.
     pub fn install_script() -> &'static str {
         INSTALL_SCRIPT
     }
@@ -810,7 +838,40 @@ impl RecorderSession {
 
     /// Parses the JSON payload produced by [`Self::drain_script`].
     pub fn parse_drained(raw: &str) -> Vec<RecordedAction> {
-        serde_json::from_str::<Vec<RecordedAction>>(raw).unwrap_or_default()
+        Self::parse_captured(raw)
+            .into_iter()
+            .map(|event| event.action())
+            .collect()
+    }
+
+    fn parse_captured(raw: &str) -> Vec<Captured> {
+        serde_json::from_str(raw).unwrap_or_default()
+    }
+}
+
+/// One event as the in-page listeners report it: a [`RecordedAction`] and the
+/// address of the page it happened on.
+#[derive(Deserialize)]
+struct Captured {
+    name: String,
+    #[serde(default)]
+    target: Option<String>,
+    #[serde(default)]
+    value: Option<String>,
+    #[serde(default)]
+    timestamp_ms: u64,
+    #[serde(default)]
+    url: Option<String>,
+}
+
+impl Captured {
+    fn action(self) -> RecordedAction {
+        RecordedAction {
+            name: self.name,
+            target: self.target,
+            value: self.value,
+            timestamp_ms: u128::from(self.timestamp_ms),
+        }
     }
 }
 
@@ -823,7 +884,15 @@ impl RecorderSession {
             let _ = self.drain(sb).await;
         }
         sb.open(url).await?;
-        self.last_url = Some(url.to_owned());
+        // Remember the address the browser is at, not the one it was asked
+        // for: `https://example.com` becomes `https://example.com/`, and a
+        // redirect changes it altogether. Otherwise the next `drain` sees a
+        // difference and records a second `goto` for the same page.
+        self.last_url = Some(
+            sb.get_current_url()
+                .await
+                .unwrap_or_else(|_| url.to_owned()),
+        );
         self.push("goto", Some(url), None);
         if self.installed {
             let _ = self.install(sb).await;
@@ -878,8 +947,29 @@ impl RecorderSession {
     /// While installed, [`RecorderSession::click`] and
     /// [`RecorderSession::type_text`] stop recording locally so each
     /// interaction is captured exactly once.
+    ///
+    /// In CDP mode (`DriverMode::Cdp` or `DriverMode::Uc`) the listeners are
+    /// also registered to be installed in every page the browser loads from
+    /// now on, so an interaction right after a navigation is captured too. In
+    /// any other session that registration is skipped, and a new page gets the
+    /// listeners at the next call to [`drain`](Self::drain): an interaction
+    /// before that is not captured.
     pub async fn install(&mut self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
         sb.execute_script(Self::install_script()).await?;
+        if !self.on_new_documents {
+            // A frame has its own document; only the page itself is recorded,
+            // as the selectors are relative to it.
+            let source = format!(
+                "(function () {{\nif (window.top !== window) {{ return; }}\n{INSTALL_SCRIPT}\n}})();"
+            );
+            self.on_new_documents = sb
+                .execute_cdp_with_params(
+                    "Page.addScriptToEvaluateOnNewDocument",
+                    json!({ "source": source }),
+                )
+                .await
+                .is_ok();
+        }
         self.installed = true;
         Ok(())
     }
@@ -894,28 +984,40 @@ impl RecorderSession {
     /// Also reinstalls the listeners when a navigation wiped them and records a
     /// `goto` action whenever the page URL changed since the last drain.
     pub async fn drain(&mut self, sb: &mut BaseCase) -> Result<usize, SeleniumBaseError> {
+        let before = self.actions.len();
         let raw = sb.execute_script(Self::drain_script()).await;
-        let mut captured = match raw {
-            Ok(value) => {
-                let text = value.as_str().map(ToOwned::to_owned).unwrap_or_default();
-                Self::parse_drained(&text)
-            }
+        let captured = match raw {
+            Ok(value) => Self::parse_captured(value.as_str().unwrap_or_default()),
             Err(_) => Vec::new(),
         };
 
-        // Re-install after navigations, and note the navigation itself.
-        if let Ok(url) = sb.get_current_url().await {
-            if self.last_url.as_deref() != Some(url.as_str()) {
-                self.last_url = Some(url.clone());
-                self.actions
-                    .push(RecordedAction::new("goto", Some(&url), None));
+        // Each event knows the page it happened on. Seeing a new address means
+        // the browser went there first, so the `goto` goes before the event.
+        for event in captured {
+            if let Some(url) = event.url.clone() {
+                self.note_page(&url);
             }
+            self.actions.push(event.action());
+        }
+
+        // A navigation with no event after it still needs its `goto`, and the
+        // page needs the listeners again.
+        if let Ok(url) = sb.get_current_url().await {
+            self.note_page(&url);
         }
         let _ = self.install(sb).await;
 
-        let count = captured.len();
-        self.actions.append(&mut captured);
-        Ok(count)
+        Ok(self.actions.len() - before)
+    }
+
+    /// Records a `goto` if the browser is now on a page other than the last one
+    /// the recording knows.
+    fn note_page(&mut self, url: &str) {
+        if self.last_url.as_deref() != Some(url) {
+            self.last_url = Some(url.to_owned());
+            self.actions
+                .push(RecordedAction::new("goto", Some(url), None));
+        }
     }
 
     /// Replays `actions` against `sb`.
@@ -1016,10 +1118,22 @@ const INSTALL_SCRIPT: &str = r##"
 if (window.__sbRecorderInstalled) { return "already-installed"; }
 window.__sbRecorderInstalled = true;
 window.__sbRecordedActions = window.__sbRecordedActions || [];
+var KEY = "__sbRecordedActions";
 var push = function (name, target, value) {
-    window.__sbRecordedActions.push({
-        name: name, target: target, value: value, timestamp_ms: Date.now()
-    });
+    var event = {
+        name: name, target: target, value: value,
+        timestamp_ms: Date.now(), url: window.location.href
+    };
+    // sessionStorage outlives the page: a click that leaves it, or a field
+    // changed just before, would be lost with a script variable. A page that
+    // forbids storage (about:blank, data: URLs) falls back to the variable.
+    try {
+        var stored = JSON.parse(window.sessionStorage.getItem(KEY) || "[]");
+        stored.push(event);
+        window.sessionStorage.setItem(KEY, JSON.stringify(stored));
+    } catch (e) {
+        window.__sbRecordedActions.push(event);
+    }
 };
 var cssPath = function (el) {
     if (!el || el.nodeType !== 1) { return null; }
@@ -1072,13 +1186,28 @@ return "installed";
 "##;
 
 const DRAIN_SCRIPT: &str = r##"
-var actions = window.__sbRecordedActions || [];
+var KEY = "__sbRecordedActions";
+var actions = [];
+try {
+    actions = JSON.parse(window.sessionStorage.getItem(KEY) || "[]");
+    window.sessionStorage.removeItem(KEY);
+} catch (e) {
+    actions = [];
+}
+var loose = window.__sbRecordedActions || [];
 window.__sbRecordedActions = [];
-return JSON.stringify(actions);
+return JSON.stringify(actions.concat(loose));
 "##;
 
 fn yaml_scalar(value: &str) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| format!("{value:?}"))
+}
+
+/// Whether `path` names a YAML file, by its extension.
+fn is_yaml_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"))
 }
 
 #[cfg(test)]
@@ -1184,6 +1313,30 @@ mod tests {
         assert_eq!(rust_identifier("my test"), "my_test");
         assert_eq!(rust_identifier("123-test"), "_123_test");
         assert_eq!(rust_identifier(""), "recorded_test");
+        assert_eq!(rust_identifier("_"), "recorded_test");
+    }
+
+    #[test]
+    fn rust_identifier_only_uses_characters_a_rust_name_may_have() {
+        // `char::is_alphanumeric` accepts all of these; a Rust name does not.
+        assert_eq!(rust_identifier("test\u{b2}"), "test_");
+        assert_eq!(rust_identifier("na\u{ef}ve"), "na_ve");
+        assert_eq!(rust_identifier("\u{4e2d}\u{6587}"), "__");
+    }
+
+    #[test]
+    fn rust_identifier_does_not_produce_a_keyword() {
+        for keyword in [
+            "fn", "match", "async", "type", "gen", "Self", "self", "crate",
+        ] {
+            let ident = rust_identifier(keyword);
+            assert_eq!(ident, format!("{keyword}_"));
+            syn::parse_str::<syn::Ident>(&ident)
+                .unwrap_or_else(|e| panic!("{ident} is not a valid name: {e}"));
+        }
+        // And a test named after a keyword still generates a function that parses.
+        let source = ActionRecorder::default().to_rust_test("fn");
+        syn::parse_file(&source).expect("a test named after a keyword parses");
     }
 
     fn sample_session() -> RecorderSession {
@@ -1257,8 +1410,19 @@ mod tests {
     fn recorder_session_converts_to_action_recorder() {
         let recorder = sample_session().to_action_recorder();
         let script = recorder.to_rust_script();
-        // `goto`/`type` are replay-only aliases, so only known names emit code.
+        // `goto` and `type` are what `RecorderSession` records; the generated
+        // program must navigate and type, not silently drop them.
+        assert!(
+            script.contains("sb.open(\"https://example.com\").await?;"),
+            "{script}"
+        );
         assert!(script.contains("sb.click(\"#submit\")"));
+        assert!(
+            script.contains("sb.type_text(\"#name\", \"Ada \\\"A\\\" Lovelace\").await?;"),
+            "{script}"
+        );
+        assert!(script.contains("sb.assert_text(\"#msg\", \"Welcome\")"));
+        assert!(!script.contains("skipped"), "{script}");
         syn::parse_file(&script).expect("generated script should parse");
     }
 
@@ -1306,5 +1470,612 @@ mod tests {
         assert_eq!(report.failed(), 1);
         assert!(!report.is_success());
         assert!(ReplayReport::default().is_success());
+    }
+
+    // ---- code generation ---------------------------------------------------
+
+    /// What `BaseCase` accepts: each method's name and its parameter types
+    /// (`self` left out), read from the source of every `impl BaseCase`.
+    fn basecase_methods() -> std::collections::HashMap<String, Vec<String>> {
+        fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    rust_files(&path, found);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    found.push(path);
+                }
+            }
+        }
+        fn type_name(ty: &syn::Type) -> String {
+            match ty {
+                syn::Type::Reference(reference) => format!("&{}", type_name(&reference.elem)),
+                syn::Type::Path(path) => path
+                    .path
+                    .segments
+                    .last()
+                    .map(|segment| segment.ident.to_string())
+                    .unwrap_or_default(),
+                _ => "other".to_owned(),
+            }
+        }
+
+        let mut files = Vec::new();
+        rust_files(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/api"),
+            &mut files,
+        );
+        let mut methods = std::collections::HashMap::new();
+        for file in files {
+            let source = std::fs::read_to_string(&file).unwrap();
+            // A file that is only part of an item (none today) is skipped.
+            let Ok(syntax) = syn::parse_file(&source) else {
+                continue;
+            };
+            for item in syntax.items {
+                let syn::Item::Impl(implementation) = item else {
+                    continue;
+                };
+                let is_base_case = implementation.trait_.is_none()
+                    && matches!(&*implementation.self_ty,
+                        syn::Type::Path(path) if path.path.is_ident("BaseCase"));
+                if !is_base_case {
+                    continue;
+                }
+                for member in implementation.items {
+                    let syn::ImplItem::Fn(function) = member else {
+                        continue;
+                    };
+                    let parameters = function
+                        .sig
+                        .inputs
+                        .iter()
+                        .filter_map(|argument| match argument {
+                            syn::FnArg::Typed(typed) => Some(type_name(&typed.ty)),
+                            syn::FnArg::Receiver(_) => None,
+                        })
+                        .collect();
+                    methods.insert(function.sig.ident.to_string(), parameters);
+                }
+            }
+        }
+        methods
+    }
+
+    /// The `target` and `value` that make `shape` generate a call.
+    fn sample_for(shape: Shape) -> (Option<&'static str>, Option<&'static str>) {
+        match shape {
+            Shape::NoArgs | Shape::Seconds => (None, None),
+            Shape::Target | Shape::TargetDiscarded | Shape::TargetSeconds => (Some("#t"), None),
+            Shape::TargetValue | Shape::ValueTarget => (Some("#t"), Some("v")),
+            Shape::TargetPair => (Some("#t"), Some("name=content")),
+            Shape::Size => (Some("800,600"), None),
+            Shape::TargetOffset => (Some("#t"), Some("5, -7")),
+            Shape::TargetIndex => (Some("#t"), Some("2")),
+        }
+    }
+
+    /// The method and the arguments of the `sb.method(args).await?;` on a line.
+    fn parse_call(line: &str) -> (String, Vec<syn::Expr>) {
+        let code = line
+            .trim()
+            .trim_start_matches("let _ = ")
+            .trim_end_matches(';');
+        let expr: syn::Expr = syn::parse_str(code).unwrap_or_else(|e| panic!("{line}: {e}"));
+        let syn::Expr::Try(attempt) = expr else {
+            panic!("{line} does not end in `?`");
+        };
+        let syn::Expr::Await(awaited) = *attempt.expr else {
+            panic!("{line} does not `.await`");
+        };
+        let syn::Expr::MethodCall(call) = *awaited.base else {
+            panic!("{line} is not a method call");
+        };
+        assert!(
+            matches!(&*call.receiver, syn::Expr::Path(path) if path.path.is_ident("sb")),
+            "{line} is not called on `sb`"
+        );
+        (call.method.to_string(), call.args.into_iter().collect())
+    }
+
+    fn literal_kind(expr: &syn::Expr) -> &'static str {
+        match expr {
+            syn::Expr::Lit(literal) => match &literal.lit {
+                syn::Lit::Str(_) => "string",
+                syn::Lit::Int(_) => "integer",
+                _ => "other",
+            },
+            // A negative number is a unary minus on a literal.
+            syn::Expr::Unary(unary) => literal_kind(&unary.expr),
+            _ => "other",
+        }
+    }
+
+    fn calls_in(script: &str) -> Vec<&str> {
+        script
+            .lines()
+            .map(str::trim)
+            .filter(|line| line.starts_with("sb.") || line.starts_with("let _ = sb."))
+            .filter(|line| !line.starts_with("sb.quit"))
+            .collect()
+    }
+
+    #[test]
+    fn every_generated_call_is_a_basecase_method_taking_those_arguments() {
+        let methods = basecase_methods();
+        assert!(
+            methods.len() > 100,
+            "read only {} BaseCase methods; is the oracle broken?",
+            methods.len()
+        );
+
+        let mut recorder = ActionRecorder::default();
+        for (name, _, shape) in CALLS {
+            let (target, value) = sample_for(*shape);
+            recorder.record(name, target, value);
+        }
+        recorder.record("open_new_tab", Some("https://example.com"), None);
+        let script = recorder.to_rust_script();
+        assert!(!script.contains("skipped"), "{script}");
+
+        let calls = calls_in(&script);
+        assert_eq!(calls.len(), CALLS.len() + 1, "one call per action");
+
+        let mut problems = Vec::new();
+        for line in calls {
+            let (method, arguments) = parse_call(line);
+            let Some(parameters) = methods.get(&method) else {
+                problems.push(format!("{line}: BaseCase has no method `{method}`"));
+                continue;
+            };
+            if parameters.len() != arguments.len() {
+                problems.push(format!(
+                    "{line}: `{method}` takes {} argument(s) {parameters:?}, the call passes {}",
+                    parameters.len(),
+                    arguments.len()
+                ));
+                continue;
+            }
+            for (parameter, argument) in parameters.iter().zip(&arguments) {
+                let kind = literal_kind(argument);
+                let fits = match parameter.as_str() {
+                    "&str" => kind == "string",
+                    "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
+                    | "isize" => kind == "integer",
+                    _ => false,
+                };
+                if !fits {
+                    problems.push(format!(
+                        "{line}: `{method}` wants a {parameter}, the call passes a {kind}"
+                    ));
+                }
+            }
+        }
+        assert!(problems.is_empty(), "{}", problems.join("\n"));
+    }
+
+    fn call(name: &str, target: Option<&str>, value: Option<&str>) -> Result<String, String> {
+        rust_call(&RecordedAction::new(name, target, value))
+    }
+
+    #[test]
+    fn the_table_has_no_duplicates_and_its_aliases_point_into_it() {
+        for (index, (name, _, _)) in CALLS.iter().enumerate() {
+            assert!(
+                CALLS[index + 1..].iter().all(|(other, _, _)| other != name),
+                "{name} is listed twice"
+            );
+        }
+        for (alias, canonical) in ALIASES {
+            assert!(
+                CALLS.iter().any(|(name, _, _)| name == canonical),
+                "{alias} points at {canonical}, which is not generated"
+            );
+            assert!(
+                CALLS.iter().all(|(name, _, _)| name != alias),
+                "{alias} is both an alias and an action"
+            );
+        }
+        for (name, _) in UNEXPORTABLE {
+            assert!(CALLS.iter().all(|(known, _, _)| known != name));
+        }
+    }
+
+    #[test]
+    fn what_a_recorder_session_records_is_what_the_generator_turns_into_code() {
+        // `goto` and `type` were dropped from the generated program.
+        assert_eq!(
+            call("goto", Some("https://example.com"), None).unwrap(),
+            "sb.open(\"https://example.com\").await?;"
+        );
+        assert_eq!(
+            call("navigate", Some("https://example.com"), None).unwrap(),
+            "sb.open(\"https://example.com\").await?;"
+        );
+        assert_eq!(
+            call("type", Some("#q"), Some("rust")).unwrap(),
+            "sb.type_text(\"#q\", \"rust\").await?;"
+        );
+        assert_eq!(
+            call("select_option_by_value", Some("#c"), Some("us")).unwrap(),
+            "sb.select_option_by_value(\"#c\", \"us\").await?;"
+        );
+    }
+
+    #[test]
+    fn the_actions_basecase_records_are_generated_with_the_arguments_it_recorded() {
+        assert_eq!(
+            call("open_new_tab", Some("https://example.com/x"), None).unwrap(),
+            "sb.open_new_tab_url(\"https://example.com/x\").await?;"
+        );
+        assert_eq!(
+            call("open_new_tab", None, None).unwrap(),
+            "sb.open_new_tab().await?;"
+        );
+        assert_eq!(
+            call("click_with_offset", Some("#a"), Some("10, -4")).unwrap(),
+            "sb.click_with_offset(\"#a\", 10, -4).await?;"
+        );
+        assert_eq!(
+            call("select_option_by_index", Some("#s"), Some("2")).unwrap(),
+            "sb.select_option_by_index(\"#s\", 2).await?;"
+        );
+        assert_eq!(
+            call("click_partial_link", Some("Terms"), None).unwrap(),
+            "sb.click_partial_link(\"Terms\").await?;"
+        );
+    }
+
+    #[test]
+    fn text_assertions_pass_their_arguments_in_the_order_the_methods_take_them() {
+        // `assert_text(css, text)` but `assert_text_visible(text, css)`.
+        assert_eq!(
+            call("assert_text", Some("#m"), Some("Hi")).unwrap(),
+            "sb.assert_text(\"#m\", \"Hi\").await?;"
+        );
+        assert_eq!(
+            call("assert_text_visible", Some("#m"), Some("Hi")).unwrap(),
+            "sb.assert_text_visible(\"Hi\", \"#m\").await?;"
+        );
+    }
+
+    #[test]
+    fn an_action_that_cannot_be_generated_becomes_a_comment_that_says_why() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("levitate", Some("#a"), None);
+        recorder.record("click", None, None);
+        recorder.record("type_text", Some("#a"), None);
+        recorder.record("drag_and_drop_with_offset", Some("#a"), Some("#b"));
+        recorder.record("set_window_size", Some("wide,tall"), None);
+        recorder.record("assert_attribute", Some("#a"), Some("no equals sign"));
+        recorder.record("click", Some("#fine"), None);
+
+        let script = recorder.to_rust_script();
+        for expected in [
+            "// skipped: unknown action \"levitate\"",
+            "// skipped: click has no target",
+            "// skipped: type_text has no value",
+            "// skipped: drag_and_drop_with_offset: the recording keeps the two selectors",
+            "// skipped: set_window_size: width \"wide\" is not a whole number",
+            "// skipped: assert_attribute: value \"no equals sign\" is not name=content",
+            "sb.click(\"#fine\").await?;",
+        ] {
+            assert!(
+                script.contains(expected),
+                "missing {expected:?} in\n{script}"
+            );
+        }
+        syn::parse_file(&script).expect("skipped actions leave a valid program");
+    }
+
+    #[test]
+    fn nothing_recorded_can_add_code_to_the_generated_program() {
+        let mut recorder = ActionRecorder::default();
+        // A name with a newline would end a `//` comment and start a statement.
+        recorder.record("levitate\nstd::process::exit(1);", None, None);
+        recorder.record("set_window_size", Some("1;std::process::exit(1),2"), None);
+        recorder.record("click", Some("\"); std::process::exit(1); (\""), None);
+        recorder.record(
+            "select_option_by_index",
+            Some("#a"),
+            Some("1); std::process::exit(1"),
+        );
+        recorder.record("click_with_offset", Some("#a"), Some("1, 2); evil("));
+
+        let script = recorder.to_rust_script();
+        assert!(
+            !script
+                .lines()
+                .any(|line| line.trim_start().starts_with("std::process")),
+            "{script}"
+        );
+        // `let sb`, the one click, `quit` and `Ok(())`; nothing else.
+        let file = syn::parse_file(&script).unwrap();
+        let syn::Item::Fn(main) = &file.items[1] else {
+            panic!("expected main in {script}");
+        };
+        assert_eq!(main.block.stmts.len(), 4, "{script}");
+    }
+
+    #[test]
+    fn awkward_text_arrives_in_the_generated_program_exactly_as_recorded() {
+        let awkward = [
+            "say \"hi\"",
+            "back\\slash",
+            "line\nbreak",
+            "braces {} {{x}}",
+            "tab\tand unicode \u{fc}\u{2713}\u{1f600}",
+            "'single'",
+            "",
+        ];
+        for text in awkward {
+            let line = call("type_text", Some("#f"), Some(text)).unwrap();
+            let (method, arguments) = parse_call(&line);
+            assert_eq!(method, "type_text");
+            let syn::Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(value),
+                ..
+            }) = &arguments[1]
+            else {
+                panic!("{line}: second argument is not a string");
+            };
+            assert_eq!(value.value(), text, "{line}");
+        }
+    }
+
+    #[test]
+    fn a_recording_cannot_be_saved_outside_the_folder_it_was_given() {
+        let dir = tempfile::tempdir().unwrap();
+        let inside = dir.path().join("tests");
+        for name in ["../escape", "a/b", "..", ".", "", "a\\b", "x\0y"] {
+            let error = ActionRecorder::default()
+                .save_recording_as_test(&inside, name)
+                .unwrap_err();
+            assert!(
+                matches!(error, SeleniumBaseError::InvalidConfig(_)),
+                "{name:?}: {error:?}"
+            );
+        }
+        assert!(!dir.path().join("escape.rs").exists());
+        assert!(
+            !inside.exists() || std::fs::read_dir(&inside).unwrap().next().is_none(),
+            "nothing was written"
+        );
+
+        // A name with dots and dashes is fine; the function gets a clean name.
+        let saved = ActionRecorder::default()
+            .save_recording_as_test(&inside, "my-login.flow")
+            .unwrap();
+        assert_eq!(saved, inside.join("my-login.flow.rs"));
+        assert!(std::fs::read_to_string(saved)
+            .unwrap()
+            .contains("async fn my_login_flow()"));
+    }
+
+    // ---- loading what was saved ---------------------------------------------
+
+    #[test]
+    fn a_yaml_recording_reads_back_exactly() {
+        let mut session = RecorderSession::new();
+        session.push("goto", Some("https://example.com/?q=a: b"), None);
+        session.push(
+            "type",
+            Some("#name"),
+            Some("Ada \"A\" Lovelace\nline two \\ \u{2713} #hash: colon"),
+        );
+        session.push("click", None, None);
+
+        let back = RecorderSession::parse_yaml(&session.to_yaml()).unwrap();
+        assert_eq!(back.len(), 3);
+        for (written, read) in session.actions().iter().zip(&back) {
+            assert_eq!(written.name, read.name);
+            assert_eq!(written.target, read.target);
+            assert_eq!(written.value, read.value);
+            assert_eq!(written.timestamp_ms, read.timestamp_ms);
+        }
+        assert!(RecorderSession::parse_yaml("[]\n").unwrap().is_empty());
+        assert!(RecorderSession::parse_yaml("").unwrap().is_empty());
+    }
+
+    #[test]
+    fn load_reads_a_saved_file_whatever_its_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let session = sample_session();
+        for file in ["actions.json", "actions.yaml", "actions.YML", "actions"] {
+            let path = session.save(&dir.path().join(file)).unwrap();
+            for loaded in [
+                RecorderSession::load(&path).unwrap(),
+                RecorderSession::load_json(&path).unwrap(),
+            ] {
+                assert_eq!(loaded.len(), 4, "{file}");
+                assert_eq!(loaded[2].value.as_deref(), Some("Ada \"A\" Lovelace"));
+            }
+        }
+    }
+
+    #[test]
+    fn a_yaml_recording_with_a_mistake_names_the_line() {
+        for (raw, line) in [
+            ("- name: \"a\"\n  target: unquoted\n", 2),
+            ("  name: \"a\"\n", 1),
+            ("- name: \"a\"\n  colour: \"red\"\n", 2),
+            ("- name: \"a\"\n  timestamp_ms: soon\n", 2),
+            ("garbage\n", 1),
+        ] {
+            let error = RecorderSession::parse_yaml(raw).unwrap_err().to_string();
+            assert!(error.contains(&format!("line {line}")), "{raw:?}: {error}");
+        }
+        let nameless = RecorderSession::parse_yaml("- target: \"x\"\n").unwrap_err();
+        assert!(nameless.to_string().contains("no name"), "{nameless}");
+    }
+
+    #[test]
+    fn a_drained_event_remembers_the_page_it_happened_on_but_the_recording_does_not_keep_it() {
+        let raw = r##"[{"name":"click","target":"#a","value":null,"timestamp_ms":7,"url":"http://x.test/a"}]"##;
+        let captured = RecorderSession::parse_captured(raw);
+        assert_eq!(captured[0].url.as_deref(), Some("http://x.test/a"));
+
+        let actions = RecorderSession::parse_drained(raw);
+        assert_eq!(actions[0].timestamp_ms, 7);
+        let saved = serde_json::to_string(&actions).unwrap();
+        assert!(!saved.contains("x.test"), "{saved}");
+    }
+
+    #[test]
+    fn a_goto_is_recorded_once_for_each_new_page() {
+        let mut session = RecorderSession::new();
+        session.note_page("http://x.test/a");
+        session.note_page("http://x.test/a");
+        session.note_page("http://x.test/b");
+        session.note_page("http://x.test/a");
+        let targets: Vec<_> = session
+            .actions()
+            .iter()
+            .map(|action| (action.name.as_str(), action.target.as_deref()))
+            .collect();
+        assert_eq!(
+            targets,
+            [
+                ("goto", Some("http://x.test/a")),
+                ("goto", Some("http://x.test/b")),
+                ("goto", Some("http://x.test/a")),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_listeners_keep_what_they_capture_where_a_navigation_cannot_erase_it() {
+        let install = RecorderSession::install_script();
+        assert!(install.contains("sessionStorage.setItem"));
+        assert!(install.contains("url: window.location.href"));
+        let drain = RecorderSession::drain_script();
+        assert!(drain.contains("sessionStorage.getItem"));
+        assert!(drain.contains("sessionStorage.removeItem"));
+        // Both read and write the same key.
+        assert!(install.contains("__sbRecordedActions") && drain.contains("__sbRecordedActions"));
+    }
+
+    // ---- live capture, against a real browser --------------------------------
+
+    use crate::browser::config::{BrowserConfig, DriverMode};
+
+    /// Serves a page with a field and a link, and a second page with a button,
+    /// on a loopback port. Returns the address.
+    fn serve_pages() -> String {
+        use std::io::{Read, Write};
+        const FIRST: &str =
+            r#"<!doctype html><title>A</title><input id="name"><a id="next" href="/b">Next</a>"#;
+        const SECOND: &str =
+            r#"<!doctype html><title>B</title><button id="done" type="button">Done</button>"#;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buffer = [0_u8; 2048];
+                let read = stream.read(&mut buffer).unwrap_or(0);
+                let request = String::from_utf8_lossy(&buffer[..read]);
+                let body = if request.starts_with("GET /b") {
+                    SECOND
+                } else {
+                    FIRST
+                };
+                let _ = stream.write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                    .as_bytes(),
+                );
+            }
+        });
+        format!("http://{address}")
+    }
+
+    /// What a recording holds, as `(name, target, value)`.
+    fn steps(session: &RecorderSession) -> Vec<(String, Option<String>, Option<String>)> {
+        session
+            .actions()
+            .iter()
+            .map(|a| (a.name.clone(), a.target.clone(), a.value.clone()))
+            .collect()
+    }
+
+    fn step(
+        name: &str,
+        target: Option<&str>,
+        value: Option<&str>,
+    ) -> (String, Option<String>, Option<String>) {
+        (
+            name.to_owned(),
+            target.map(ToOwned::to_owned),
+            value.map(ToOwned::to_owned),
+        )
+    }
+
+    /// Records the typing and clicks of a visit to two pages, with a navigation
+    /// between them, and checks what the recording holds.
+    ///
+    /// Only a session in CDP mode can have the listeners installed in every page
+    /// the browser loads later. Any other session gets them on the new page when
+    /// the recording is next drained, so `drain_on_the_new_page` drains once
+    /// there before the first click.
+    async fn record_across_a_navigation(mode: DriverMode, drain_on_the_new_page: bool) {
+        let base = serve_pages();
+        let mut sb = BaseCase::new(BrowserConfig {
+            headless: true,
+            mode,
+            ..BrowserConfig::default()
+        })
+        .await
+        .expect("Chrome starts");
+        let mut session = RecorderSession::new();
+
+        // A URL the browser normalizes (`http://host:port` becomes
+        // `http://host:port/`) must not be recorded a second time on the next
+        // drain.
+        session.goto(&mut sb, &base).await.unwrap();
+        session.install(&sb).await.unwrap();
+        session.drain(&mut sb).await.unwrap();
+        assert_eq!(
+            steps(&session),
+            [step("goto", Some(&base), None)],
+            "a drain with nothing new adds nothing"
+        );
+
+        sb.type_text("#name", "Ada").await.unwrap();
+        // Leaving the page must not lose the typing or the click itself.
+        sb.click("#next").await.unwrap();
+        sb.wait_for_element_visible("#done", 5).await.unwrap();
+        if drain_on_the_new_page {
+            session.drain(&mut sb).await.unwrap();
+        }
+        sb.click("#done").await.unwrap();
+        session.drain(&mut sb).await.unwrap();
+        sb.quit().await.unwrap();
+
+        assert_eq!(
+            steps(&session),
+            [
+                step("goto", Some(&base), None),
+                step("type", Some("#name"), Some("Ada")),
+                step("click", Some("#next"), None),
+                step("goto", Some(&format!("{base}/b")), None),
+                step("click", Some("#done"), None),
+            ]
+        );
+    }
+
+    /// Run with `cargo test --lib recorder -- --ignored`.
+    #[tokio::test]
+    #[ignore = "launches a real Chrome through chromedriver"]
+    async fn a_live_recording_keeps_what_happened_either_side_of_a_navigation() {
+        record_across_a_navigation(DriverMode::WebDriver, true).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "launches a real Chrome through chromedriver"]
+    async fn in_cdp_mode_a_new_page_records_from_its_first_moment() {
+        record_across_a_navigation(DriverMode::Cdp, false).await;
     }
 }
