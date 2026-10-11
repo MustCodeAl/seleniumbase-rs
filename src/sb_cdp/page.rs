@@ -180,13 +180,20 @@ impl Page {
 
     /// Evaluates a JavaScript expression and returns its value.
     ///
-    /// Promises are awaited. The result must be JSON-representable.
+    /// Promises are awaited. The result must be JSON-representable, so an
+    /// element comes back as `{}`; return what you need from it instead.
+    ///
+    /// Like Python's `evaluate`, a `return ` that starts the last line is
+    /// dropped, so a Selenium-style `return document.title` works. A `return`
+    /// anywhere else is a syntax error here: wrap the script in
+    /// `(() => { ... })()`.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the script throws.
     pub async fn evaluate(&self, expression: impl AsRef<str>) -> Result<Value, SeleniumBaseError> {
-        self.eval_labelled("", expression.as_ref()).await
+        self.eval_labelled("", &without_final_return(expression.as_ref()))
+            .await
     }
 
     /// Evaluates a JavaScript expression and deserialises the result.
@@ -314,6 +321,24 @@ impl Page {
             return Ok(());
         }
         self.await_load_event(&mut events).await
+    }
+
+    /// Navigates to `url` unless the tab is already on it.
+    ///
+    /// Corresponds to Python's `goto_if_not_url`. Addresses are compared in the
+    /// form the browser reports them, so `https://example.com` and
+    /// `https://example.com/` are the same page. Parameters a search engine adds
+    /// after the query (`...?q=term&source=hp`) are ignored, as in Python.
+    ///
+    /// # Errors
+    ///
+    /// As [`goto`](Self::goto).
+    pub async fn goto_if_not_url(&self, url: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
+        let wanted = normalize_page_url(url.as_ref())?;
+        if is_same_page(&self.url().await?, &wanted) {
+            return Ok(());
+        }
+        self.goto(wanted).await
     }
 
     /// Reloads the page and waits for it to load.
@@ -531,6 +556,36 @@ impl Page {
         self.string_of("document.documentElement.outerHTML").await
     }
 
+    /// A CSS selector for the element that has keyboard focus: the shortest one
+    /// that finds it, such as `input#email`, or `body` when nothing is focused.
+    ///
+    /// Corresponds to Python's `get_active_element_css`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
+    pub async fn active_element_css(&self) -> Result<String, SeleniumBaseError> {
+        // The script is the body of a function, ending in `return`.
+        let script = format!(
+            "(function () {{\n{}\n}})()",
+            crate::stealth::js::active_css_js::get_active_css_js()
+        );
+        self.string_of(&script).await
+    }
+
+    /// A [`Locator`] for the element that has keyboard focus.
+    ///
+    /// Corresponds to Python's `get_active_element`. The locator keeps the
+    /// selector of the element that was focused when this was called; it does
+    /// not follow focus as it moves.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
+    pub async fn active_element(&self) -> Result<Locator, SeleniumBaseError> {
+        Ok(self.locator(self.active_element_css().await?))
+    }
+
     /// The browser's `User-Agent` string.
     ///
     /// # Errors
@@ -719,6 +774,46 @@ fn map_script_error(label: &str, description: &str) -> SeleniumBaseError {
     SeleniumBaseError::cdp_driver(description.lines().next().unwrap_or(description))
 }
 
+/// `expression` without the `return ` that starts its last line.
+///
+/// Python's `evaluate` does the same, so that a script written for
+/// Selenium's `execute_script` (`return document.title`) also works where an
+/// expression is wanted.
+fn without_final_return(expression: &str) -> String {
+    let expression = expression.trim();
+    let (head, last) = match expression.rsplit_once('\n') {
+        Some((head, last)) => (Some(head), last),
+        None => (None, expression),
+    };
+    let Some(rest) = last.trim().strip_prefix("return ") else {
+        return expression.to_owned();
+    };
+    match head {
+        Some(head) => format!("{head}\n{rest}").trim().to_owned(),
+        None => rest.trim().to_owned(),
+    }
+}
+
+/// Whether the tab, at `current`, is already on `wanted`.
+///
+/// Both are put in the form the browser reports addresses in. A search
+/// engine's tracking parameters after the query (`?q=term&source=hp`) do not
+/// make it another page, which is how Python's `goto_if_not_url` sees it.
+fn is_same_page(current: &str, wanted: &str) -> bool {
+    let canonical =
+        |text: &str| url::Url::parse(text).map_or_else(|_| text.to_owned(), String::from);
+    let (current, wanted) = (canonical(current), canonical(wanted));
+    if current == wanted {
+        return true;
+    }
+    match (current.find("?q="), current.find('&')) {
+        (Some(query), Some(ampersand)) if query < ampersand => {
+            current.split('&').next() == Some(wanted.as_str())
+        }
+        _ => false,
+    }
+}
+
 /// Whether an error just means a navigation replaced the page mid-command.
 fn is_navigation_race(message: &str) -> bool {
     message.contains("Execution context was destroyed")
@@ -757,6 +852,44 @@ mod tests {
         assert!(
             matches!(error, SeleniumBaseError::CdpDriver(ref m) if m == "ReferenceError: nope is not defined")
         );
+    }
+
+    #[test]
+    fn a_leading_return_on_the_last_line_is_dropped_like_python_does() {
+        assert_eq!(without_final_return("return 1"), "1");
+        assert_eq!(without_final_return("  return  1 + 1;  "), "1 + 1;");
+        assert_eq!(
+            without_final_return("const a = 1;\n  return a;\n"),
+            "const a = 1;\na;"
+        );
+    }
+
+    #[test]
+    fn other_scripts_are_left_as_they_are() {
+        for script in [
+            "document.title",
+            "returned",
+            "return;",
+            "(() => {\n  return 5;\n})()",
+        ] {
+            assert_eq!(without_final_return(script), script.trim());
+        }
+    }
+
+    #[test]
+    fn the_same_page_is_recognised_however_it_is_spelled() {
+        assert!(is_same_page("https://a.test/", "https://a.test"));
+        assert!(is_same_page("https://a.test/x?y=1", "https://a.test/x?y=1"));
+        assert!(!is_same_page("https://a.test/x", "https://a.test/y"));
+        assert!(is_same_page(
+            "https://b.test/search?q=rust&source=hp",
+            "https://b.test/search?q=rust"
+        ));
+        // Only a search query is told apart from its tracking parameters.
+        assert!(!is_same_page(
+            "https://b.test/list?page=2&sort=asc",
+            "https://b.test/list?page=2"
+        ));
     }
 
     #[test]

@@ -73,6 +73,29 @@ const PARTIAL_LINK_TEXT_PREFIXES: [&str; 6] = [
     "p_text=",
 ];
 
+/// SeleniumBase's own `:contains("text")` pseudo-class. It is not CSS, so a
+/// browser's `querySelector` rejects it; SeleniumBase rewrites it as XPath.
+const CONTAINS_PSEUDO: &str = ":contains(";
+
+/// The XPath for a CSS selector that uses `:contains()`, or `None` when the
+/// selector is more than the converter understands (it is then left as CSS and
+/// the browser reports the problem).
+fn contains_to_xpath(css: &str) -> Option<String> {
+    crate::api::base_case::css_to_xpath(css).ok()
+}
+
+/// `text` as an XPath string literal, quoted so that any content is safe.
+fn xpath_string_literal(text: &str) -> String {
+    if !text.contains('\'') {
+        format!("'{text}'")
+    } else if !text.contains('"') {
+        format!("\"{text}\"")
+    } else {
+        let parts: Vec<String> = text.split('\'').map(|part| format!("'{part}'")).collect();
+        format!("concat({})", parts.join(", \"'\", "))
+    }
+}
+
 /// Returns `true` when `selector` is an XPath expression.
 ///
 /// This mirrors SeleniumBase's `page_utils.is_xpath_selector`, which treats a
@@ -177,12 +200,22 @@ impl<'a> Selector<'a> {
 
     /// Converts this selector into a WebDriver locator.
     ///
+    /// A CSS selector that uses SeleniumBase's `:contains("text")` pseudo-class,
+    /// which is not CSS and which browsers reject, becomes the equivalent XPath
+    /// expression, as it does in SeleniumBase.
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when the text is empty
     /// or contains only whitespace.
     pub fn to_by(self) -> Result<By, SeleniumBaseError> {
         match self {
+            Self::Css(value) if value.contains(CONTAINS_PSEUDO) && !value.trim().is_empty() => {
+                Ok(match contains_to_xpath(value) {
+                    Some(xpath) => By::XPath(xpath),
+                    None => By::Css(value.to_owned()),
+                })
+            }
             Self::Css(value) if !value.trim().is_empty() => Ok(By::Css(value.to_owned())),
             Self::XPath(value) if !value.trim().is_empty() => Ok(By::XPath(value.to_owned())),
             Self::Id(value) if !value.trim().is_empty() => Ok(By::Id(value.to_owned())),
@@ -250,6 +283,49 @@ impl SelectorBuf {
         Self::PartialLinkText(text.into())
     }
 
+    /// Creates a selector for elements that contain `text`, the way
+    /// SeleniumBase's `find_element_by_text` finds them.
+    ///
+    /// With a `tag`, that is every `tag` element whose text contains `text`,
+    /// which is what `tag:contains("text")` means in SeleniumBase. Without one it
+    /// is the innermost elements that hold the text themselves, so a page's
+    /// `<html>` and `<body>` do not match just because they contain everything.
+    /// Runs of white space in `text` and in the page count as one space.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// assert_eq!(
+    ///     SelectorBuf::containing_text("Sign in", Some("button")),
+    ///     SelectorBuf::xpath("//button[contains(normalize-space(.), 'Sign in')]"),
+    /// );
+    /// ```
+    pub fn containing_text(text: impl AsRef<str>, tag: Option<&str>) -> Self {
+        let wanted = text
+            .as_ref()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let literal = xpath_string_literal(&wanted);
+        let tag = tag
+            .map(str::trim)
+            .filter(|tag| {
+                !tag.is_empty()
+                    && tag
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | ':' | '*'))
+            })
+            .map(str::to_owned);
+        match tag {
+            Some(tag) => Self::XPath(format!("//{tag}[contains(normalize-space(.), {literal})]")),
+            None => Self::XPath(format!(
+                "//*[text()[contains(normalize-space(.), {literal})]]"
+            )),
+        }
+    }
+
     /// Borrows this selector as a [`Selector`].
     pub fn as_selector(&self) -> Selector<'_> {
         match self {
@@ -274,8 +350,16 @@ impl From<Selector<'_>> for SelectorBuf {
 }
 
 impl From<&str> for SelectorBuf {
+    /// Classifies `selector` like SeleniumBase does. CSS that uses
+    /// `:contains("text")` is converted to XPath, which is how SeleniumBase
+    /// runs it too.
     fn from(selector: &str) -> Self {
-        Selector::auto(selector).into()
+        match Selector::auto(selector) {
+            Selector::Css(css) if css.contains(CONTAINS_PSEUDO) => {
+                contains_to_xpath(css).map_or_else(|| Self::Css(css.to_owned()), Self::XPath)
+            }
+            other => other.into(),
+        }
     }
 }
 
