@@ -5226,6 +5226,7 @@ dependencies = [
  "azure_core",
  "azure_storage_blob",
  "base64 0.23.1",
+ "brotli",
  "btls",
  "bytes",
  "chrono",

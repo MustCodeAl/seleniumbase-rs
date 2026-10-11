@@ -106,6 +106,8 @@ psl = { version = "2.1.241", optional = true }
 wreq = { version = "=6.0.0-rc.31", optional = true, default-features = false, features = [
     "tokio-rt", "webpki-roots", "gzip", "deflate", "brotli", "zstd", "socks", "stream"] }
 btls = { version = "=0.5.6", optional = true }
+# Certificate compression (RFC 8879) for the impersonated ClientHello: Chrome offers brotli.
+brotli = { version = "9", optional = true, default-features = false, features = ["std"] }
 tokio-btls = { version = "=0.5.6", optional = true }
 hyper = { version = "1.12", optional = true, default-features = false, features = ["server", "http1"] }
 hyper-util = { version = "0.1.21", optional = true, default-features = false, features = ["tokio"] }
@@ -153,7 +155,7 @@ turso = ["dep:turso"]
 scrape = ["dep:psl"]
 # Browser-identical TLS, HTTP/2 and headers through wreq and BoringSSL: the MITM proxy,
 # HttpSession and StealthSession. Needs cmake and a C/C++ toolchain.
-impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:tokio-btls", "dep:hyper", "dep:hyper-util",
+impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls", "dep:hyper", "dep:hyper-util",
                "dep:http-body-util", "dep:http", "dep:bytes"]
 
 [dev-dependencies]
