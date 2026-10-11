@@ -129,3 +129,6 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   traffic are refused; file names a caller supplies cannot climb out of their
   folder; the HTML report escapes what tests print; proxy passwords no longer
   appear in `Debug` output.
+- `ActionRecorder::to_gherkin` escapes the name of an action it cannot turn into
+  a step, so a recorded name with a line break can no longer end the
+  `# skipped:` comment and add a Scenario or steps to the feature.

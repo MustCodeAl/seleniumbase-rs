@@ -245,7 +245,12 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         }
         "go_back" => Ok("I go back".to_owned()),
         "go_forward" => Ok("I go forward".to_owned()),
-        other => Err(format!("{other}: no Gherkin step for this action")),
+        // The name is whatever was recorded. Written plainly, a line break in it would end the
+        // `# skipped:` comment and start a Scenario or a step, so it is escaped.
+        other => Err(format!(
+            "{}: no Gherkin step for this action",
+            other.escape_debug()
+        )),
     }
 }
 
@@ -2306,6 +2311,50 @@ mod tests {
              \x20   # skipped: hover: no Gherkin step for this action\n\
              \x20   # skipped: type_text: the text \"say \\\"hi\\\"\" has a quote or a line break\n"
         );
+    }
+
+    #[test]
+    fn nothing_recorded_can_add_lines_to_the_generated_feature() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("open", Some("https://example.com"), None);
+        // A name with a line break would end a `# skipped:` comment and start
+        // a Scenario or a step of the attacker's choosing.
+        recorder.record(
+            "x\nScenario: injected\n    Given I open \"https://evil.test\"",
+            None,
+            None,
+        );
+        recorder.record("y\r    Then I click \"#evil\"", None, None);
+        recorder.record("z\u{2028}Scenario: split", None, None);
+        recorder.record("w\u{85}Scenario: split", None, None);
+        recorder.record("click", Some("#ok"), None);
+
+        let feature = recorder.to_gherkin("Sign up");
+        assert!(
+            !feature.contains(['\r', '\u{85}', '\u{2028}', '\u{2029}']),
+            "{feature:?}"
+        );
+        let lines: Vec<String> = feature.lines().map(String::from).collect();
+        let parsed = crate::behave::parse_feature(&lines);
+        assert_eq!(parsed.scenarios.len(), 1, "{feature}");
+        let steps: Vec<String> = parsed.scenarios[0]
+            .steps
+            .iter()
+            .map(crate::behave::Step::full_text)
+            .collect();
+        assert_eq!(
+            steps,
+            [
+                "Given I open \"https://example.com\"",
+                "And I click \"#ok\""
+            ],
+            "{feature}"
+        );
+        let skipped = feature
+            .lines()
+            .filter(|line| line.trim_start().starts_with("# skipped:"))
+            .count();
+        assert_eq!(skipped, 4, "{feature}");
     }
 
     #[test]
