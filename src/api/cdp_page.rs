@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
+use crate::js_code::quote;
 
 /// How often [`CdpPage::wait_for_element_present`] re-queries the DOM.
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -288,12 +289,9 @@ impl<'a> CdpPage<'a> {
         selector: &str,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
-        let escaped_attr = attribute.replace('\\', "\\\\").replace('\'', "\\'");
-        let script = format!(
-            "(function() {{ var el = document.querySelector('{escaped_selector}'); return el ? el.getAttribute('{escaped_attr}') : null; }})()"
-        );
-        let result = self.evaluate(&script).await?;
+        let result = self
+            .evaluate(&attribute_script(selector, attribute))
+            .await?;
         Ok(extract_string_value(&result))
     }
 
@@ -304,17 +302,7 @@ impl<'a> CdpPage<'a> {
         selector: &str,
         property: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
-        let escaped_prop = property.replace('\\', "\\\\").replace('\'', "\\'");
-        let script = format!(
-            "(function() {{ \
-             var el = document.querySelector('{escaped_selector}'); \
-             if (!el) return null; \
-             var v = el['{escaped_prop}']; \
-             return v !== undefined ? String(v) : el.getAttribute('{escaped_prop}'); \
-             }})()"
-        );
-        let result = self.evaluate(&script).await?;
+        let result = self.evaluate(&property_script(selector, property)).await?;
         Ok(extract_string_value(&result))
     }
 
@@ -371,23 +359,9 @@ impl<'a> CdpPage<'a> {
         selector: &str,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
-        let escaped_text = text.replace('\\', "\\\\").replace('\'', "\\'");
-        let script = format!(
-            "(function() {{ \
-             var s = document.querySelector('{escaped_selector}'); \
-             if (!s) return false; \
-             for (var i = 0; i < s.options.length; i++) {{ \
-                 if (s.options[i].text === '{escaped_text}') {{ \
-                     s.selectedIndex = i; \
-                     s.dispatchEvent(new Event('change', {{bubbles: true}})); \
-                     return true; \
-                 }} \
-             }} \
-             return false; \
-             }})()"
-        );
-        let result = self.evaluate(&script).await?;
+        let result = self
+            .evaluate(&select_by_text_script(selector, text))
+            .await?;
         if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
             return Err(SeleniumBaseError::InvalidSelector(format!(
                 "Option with text '{text}' not found in {selector}"
@@ -402,18 +376,9 @@ impl<'a> CdpPage<'a> {
         selector: &str,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
-        let escaped_value = value.replace('\\', "\\\\").replace('\'', "\\'");
-        let script = format!(
-            "(function() {{ \
-             var s = document.querySelector('{escaped_selector}'); \
-             if (!s) return false; \
-             s.value = '{escaped_value}'; \
-             s.dispatchEvent(new Event('change', {{bubbles: true}})); \
-             return true; \
-             }})()"
-        );
-        let result = self.evaluate(&script).await?;
+        let result = self
+            .evaluate(&select_by_value_script(selector, value))
+            .await?;
         if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
             return Err(SeleniumBaseError::InvalidSelector(format!(
                 "Failed to set value '{value}' on {selector}"
@@ -433,18 +398,9 @@ impl<'a> CdpPage<'a> {
         selector: &str,
         index: usize,
     ) -> Result<(), SeleniumBaseError> {
-        let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
-        let script = format!(
-            "(function() {{ \
-             var s = document.querySelector('{escaped_selector}'); \
-             if (!s) return false; \
-             if ({index} >= s.options.length) return false; \
-             s.selectedIndex = {index}; \
-             s.dispatchEvent(new Event('change', {{bubbles: true}})); \
-             return true; \
-             }})()"
-        );
-        let result = self.evaluate(&script).await?;
+        let result = self
+            .evaluate(&select_by_index_script(selector, index))
+            .await?;
         if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
             return Err(SeleniumBaseError::InvalidSelector(format!(
                 "Option at index {index} not found in {selector}"
@@ -475,22 +431,14 @@ impl<'a> CdpPage<'a> {
 /// [`single_element_script`]. It gives `true` when the element exists.
 const FOCUS_AND_CLEAR: &str = "el ? (el.focus(), el.value = '', true) : false";
 
-/// `text` as a JavaScript string literal (a JSON string is one).
-fn js_string(text: &str) -> String {
-    Value::String(text.to_owned()).to_string()
-}
-
 /// The expression that gives the first element matching `selector`, or `null`.
 fn query_script(selector: &str) -> String {
-    format!("document.querySelector({})", js_string(selector))
+    format!("document.querySelector({})", quote(selector))
 }
 
 /// The expression that gives an array of every element matching `selector`.
 fn query_all_script(selector: &str) -> String {
-    format!(
-        "Array.from(document.querySelectorAll({}))",
-        js_string(selector)
-    )
+    format!("Array.from(document.querySelectorAll({}))", quote(selector))
 }
 
 /// The expression that gives `[left, top, width, height]` of the first element
@@ -501,7 +449,7 @@ fn center_script(selector: &str) -> String {
          if (!el) return null; \
          var r = el.getBoundingClientRect(); \
          return [r.left, r.top, r.width, r.height]; }})()",
-        js_string(selector)
+        quote(selector)
     )
 }
 
@@ -576,8 +524,84 @@ fn parse_center(result: &Value, selector: &str) -> Result<(f64, f64), SeleniumBa
 
 /// Builds a script that selects an element and evaluates `inner` on it.
 fn single_element_script(selector: &str, inner: &str) -> String {
-    let escaped = selector.replace('\\', "\\\\").replace('\'', "\\'");
-    format!("(function() {{ var el = document.querySelector('{escaped}'); return {inner}; }})()")
+    let selector = quote(selector);
+    format!("(function() {{ var el = document.querySelector({selector}); return {inner}; }})()")
+}
+
+/// The expression that gives the named attribute of the first element
+/// matching `selector`, or `null`.
+fn attribute_script(selector: &str, attribute: &str) -> String {
+    let (selector, attribute) = (quote(selector), quote(attribute));
+    format!(
+        "(function() {{ var el = document.querySelector({selector}); \
+         return el ? el.getAttribute({attribute}) : null; }})()"
+    )
+}
+
+/// The expression that gives the named property of the first element matching
+/// `selector`, as a string, or its attribute of that name when the property is
+/// undefined, or `null`.
+fn property_script(selector: &str, property: &str) -> String {
+    let (selector, property) = (quote(selector), quote(property));
+    format!(
+        "(function() {{ \
+         var el = document.querySelector({selector}); \
+         if (!el) return null; \
+         var v = el[{property}]; \
+         return v !== undefined ? String(v) : el.getAttribute({property}); \
+         }})()"
+    )
+}
+
+/// The expression that selects the `<option>` of the first element matching
+/// `selector` whose text is `text`, and gives whether there was one.
+fn select_by_text_script(selector: &str, text: &str) -> String {
+    let (selector, text) = (quote(selector), quote(text));
+    format!(
+        "(function() {{ \
+         var s = document.querySelector({selector}); \
+         if (!s) return false; \
+         for (var i = 0; i < s.options.length; i++) {{ \
+             if (s.options[i].text === {text}) {{ \
+                 s.selectedIndex = i; \
+                 s.dispatchEvent(new Event('change', {{bubbles: true}})); \
+                 return true; \
+             }} \
+         }} \
+         return false; \
+         }})()"
+    )
+}
+
+/// The expression that gives the first element matching `selector` the value
+/// `value`, and gives whether there was one.
+fn select_by_value_script(selector: &str, value: &str) -> String {
+    let (selector, value) = (quote(selector), quote(value));
+    format!(
+        "(function() {{ \
+         var s = document.querySelector({selector}); \
+         if (!s) return false; \
+         s.value = {value}; \
+         s.dispatchEvent(new Event('change', {{bubbles: true}})); \
+         return true; \
+         }})()"
+    )
+}
+
+/// The expression that selects the `<option>` at `index` of the first element
+/// matching `selector`, and gives whether there was one.
+fn select_by_index_script(selector: &str, index: usize) -> String {
+    let selector = quote(selector);
+    format!(
+        "(function() {{ \
+         var s = document.querySelector({selector}); \
+         if (!s) return false; \
+         if ({index} >= s.options.length) return false; \
+         s.selectedIndex = {index}; \
+         s.dispatchEvent(new Event('change', {{bubbles: true}})); \
+         return true; \
+         }})()"
+    )
 }
 
 /// Extracts a string `value` from a CDP `Runtime.evaluate` result object.
@@ -612,7 +636,7 @@ mod tests {
 
     #[test]
     fn a_selector_becomes_a_javascript_string_literal() {
-        assert_eq!(js_string("a'b\"c\\d\n"), r#""a'b\"c\\d\n""#);
+        assert_eq!(quote("a'b\"c\\d\n"), r#""a'b\"c\\d\n""#);
     }
 
     #[test]
@@ -731,6 +755,182 @@ mod tests {
     #[test]
     fn single_element_script_escapes_quotes() {
         let script = single_element_script("[data-test='foo]", "el.textContent");
-        assert!(script.contains("[data-test=\\'foo]"));
+        assert!(script.contains(r#"document.querySelector("[data-test='foo]")"#));
+    }
+
+    /// Text a selector, an attribute name, an option's text or a value could
+    /// hold, each of which breaks a script that pastes it between quotes.
+    const HOSTILE: &[&str] = &[
+        "a[title='x']",
+        "x'); alert(1); ('",
+        r#"say "hi" and C:\dir\new"#,
+        "line one\nline two\r\n\ttabbed",
+        "separators \u{2028} and \u{2029} inside",
+        "</script><!-- &amp; -->",
+        "emoji 🦀 and 日本語",
+        "",
+    ];
+
+    /// A script cut into its code, with every string literal replaced by `S`,
+    /// and what each literal evaluates to, the way a JavaScript engine reads
+    /// it. It says why an engine would not read it: a literal that never ends,
+    /// or one with a raw line terminator in it.
+    fn read(script: &str) -> Result<(String, Vec<String>), String> {
+        fn hex(chars: &mut std::str::Chars<'_>, digits: usize) -> Result<char, String> {
+            let text: String = chars.by_ref().take(digits).collect();
+            u32::from_str_radix(&text, 16)
+                .ok()
+                .and_then(char::from_u32)
+                .ok_or_else(|| format!("bad escape \\x{text}"))
+        }
+
+        let mut skeleton = String::new();
+        let mut literals = Vec::new();
+        let mut chars = script.chars();
+        while let Some(c) = chars.next() {
+            if c != '\'' && c != '"' {
+                skeleton.push(c);
+                continue;
+            }
+            let mut value = String::new();
+            loop {
+                match chars.next().ok_or("a string literal never ends")? {
+                    end if end == c => break,
+                    '\\' => match chars.next().ok_or("a backslash ends the script")? {
+                        'n' => value.push('\n'),
+                        'r' => value.push('\r'),
+                        't' => value.push('\t'),
+                        'x' => value.push(hex(&mut chars, 2)?),
+                        'u' => value.push(hex(&mut chars, 4)?),
+                        '\n' | '\r' | '\u{2028}' | '\u{2029}' => {
+                            return Err("a line continuation inside a string literal".to_owned())
+                        }
+                        other => value.push(other),
+                    },
+                    '\n' | '\r' | '\u{2028}' | '\u{2029}' => {
+                        return Err("a raw line terminator inside a string literal".to_owned())
+                    }
+                    other => value.push(other),
+                }
+            }
+            skeleton.push('S');
+            literals.push(value);
+        }
+        Ok((skeleton, literals))
+    }
+
+    /// `text` with every run of white space as one space.
+    fn squash(text: &str) -> String {
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    /// Checks that `build` makes a script whose code does not depend on the
+    /// text it is given and whose string literals are exactly `literals(text)`,
+    /// for every hostile text: nothing a caller passed became code.
+    fn assert_inert(build: impl Fn(&str) -> String, literals: impl Fn(&str) -> Vec<String>) {
+        let (plain_code, _) = read(&build("plain")).expect("a plain script reads");
+        for text in HOSTILE {
+            let script = build(text);
+            let (code, found) = read(&script).unwrap_or_else(|why| panic!("{why}: {script:?}"));
+            assert_eq!(squash(&code), squash(&plain_code), "script: {script:?}");
+            assert_eq!(found, literals(text), "script: {script:?}");
+        }
+    }
+
+    #[test]
+    fn the_reader_rejects_what_an_engine_would_reject() {
+        assert!(read(r#"f('x', "y")"#).is_ok());
+        assert!(read("f('it's')").is_err(), "an apostrophe ends the literal");
+        assert!(read("f('a\nb')").is_err(), "a raw newline");
+        assert!(read("f(\"a\u{2028}b\")").is_err(), "a raw line separator");
+        assert!(read("f(\"open").is_err(), "no end");
+    }
+
+    #[test]
+    fn the_query_scripts_keep_the_selector_inside_its_string() {
+        for build in [query_script, query_all_script, center_script] {
+            assert_inert(build, |text| vec![text.to_owned()]);
+        }
+    }
+
+    #[test]
+    fn an_element_script_keeps_the_selector_inside_its_string() {
+        assert_inert(
+            |text| single_element_script(text, "el ? el.innerText : ''"),
+            |text| vec![text.to_owned(), String::new()],
+        );
+        assert_inert(
+            |text| single_element_script(text, FOCUS_AND_CLEAR),
+            |text| vec![text.to_owned(), String::new()],
+        );
+    }
+
+    #[test]
+    fn get_attribute_keeps_the_selector_and_the_name_inside_their_strings() {
+        assert_inert(
+            |text| attribute_script(&format!("a[title='{text}']"), &format!("data-{text}")),
+            |text| vec![format!("a[title='{text}']"), format!("data-{text}")],
+        );
+    }
+
+    #[test]
+    fn get_property_keeps_the_selector_and_the_name_inside_their_strings() {
+        assert_inert(
+            |text| property_script(&format!("a[title='{text}']"), &format!("data-{text}")),
+            |text| {
+                let name = format!("data-{text}");
+                vec![format!("a[title='{text}']"), name.clone(), name]
+            },
+        );
+    }
+
+    #[test]
+    fn selecting_an_option_by_text_keeps_the_selector_and_the_text_inside_their_strings() {
+        assert_inert(
+            |text| select_by_text_script(&format!("select[name='{text}']"), text),
+            |text| {
+                vec![
+                    format!("select[name='{text}']"),
+                    text.to_owned(),
+                    "change".to_owned(),
+                ]
+            },
+        );
+    }
+
+    #[test]
+    fn selecting_an_option_by_value_keeps_the_selector_and_the_value_inside_their_strings() {
+        assert_inert(
+            |text| select_by_value_script(&format!("select[name='{text}']"), text),
+            |text| {
+                vec![
+                    format!("select[name='{text}']"),
+                    text.to_owned(),
+                    "change".to_owned(),
+                ]
+            },
+        );
+    }
+
+    #[test]
+    fn selecting_an_option_by_index_keeps_the_selector_inside_its_string() {
+        assert_inert(
+            |text| select_by_index_script(&format!("select[name='{text}']"), 3),
+            |text| vec![format!("select[name='{text}']"), "change".to_owned()],
+        );
+        let script = select_by_index_script("select", 3);
+        assert!(script.contains("3 >= s.options.length"), "{script}");
+        assert!(script.contains("s.selectedIndex = 3"), "{script}");
+    }
+
+    #[test]
+    fn a_value_with_a_newline_or_a_line_separator_is_one_literal() {
+        // A textarea's value is the case that broke: `s.value = '<text>'` with a
+        // raw newline in it is a syntax error.
+        for value in ["first\nsecond", "first\u{2028}second", "it's\r\nhere"] {
+            let script = select_by_value_script("textarea", value);
+            let (_, literals) = read(&script).unwrap_or_else(|why| panic!("{why}: {script:?}"));
+            assert_eq!(literals[1], value, "{script:?}");
+        }
     }
 }

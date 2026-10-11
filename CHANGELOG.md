@@ -228,6 +228,11 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   waits, `wait_for_any_of_elements_present`, `download_file`) return `WaitTimeout`
   instead of `AssertionFailed` and name what they waited for.
   `wait_for_ready_state_complete` takes its default from the configured timeout.
+- `CdpPage` (the DevTools page of a WebDriver session) quotes the selectors,
+  attribute and property names, option texts and values it puts into its page
+  scripts with `js_code::quote`, as `BaseCase` does. It escaped only the
+  backslash and the single quote, so a newline or U+2028 in a value (the text of
+  a `<textarea>`) was a syntax error in the script.
 - The examples run offline against a loopback site (`examples/local_site`) and
   check what they claim; the `partial link=` selector prefix in the selectors
   tutorial is `partial_link=`.
