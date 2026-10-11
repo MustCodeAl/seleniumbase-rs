@@ -146,13 +146,10 @@ mod tests {
         reason = "callers pass `json!` temporaries"
     )]
     fn record(tool: &str, arguments: Value) -> CallRecord {
-        CallRecord::new(
-            tool,
-            Effect::Act,
-            arguments.as_object().unwrap(),
-            true,
-            "done",
-        )
+        let Value::Object(arguments) = arguments else {
+            panic!("tool arguments are an object")
+        };
+        CallRecord::new(tool, Effect::Act, &arguments, true, "done")
     }
 
     #[test]

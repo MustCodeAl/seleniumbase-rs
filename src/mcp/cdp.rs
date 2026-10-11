@@ -3,7 +3,9 @@
 //! One Chrome session is shared by every call. `start_browser` launches it,
 //! the other tools drive it, and `close_browser` ends it. Related actions are
 //! grouped behind one tool with an `action`, `mode` or `state` argument, which
-//! keeps the tool list short enough for a model to choose from.
+//! keeps the tool list short enough for a model to choose from. The developer
+//! tools follow them; on this engine `get_failed_requests` can also watch the
+//! tab's `Network` events.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, PoisonError};

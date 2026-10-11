@@ -1,5 +1,5 @@
 //! The `sb` server: the 88 tools of upstream's `SB()` server, on [`BaseCase`],
-//! plus this crate's own stealth tools.
+//! plus this crate's own stealth and developer tools.
 
 use super::webdriver::{self as w, selector_prop, start_schema, timeout_prop};
 use super::{devtools, stealth, Effect, Host, Prop, Schema, Settings, ToolDef};

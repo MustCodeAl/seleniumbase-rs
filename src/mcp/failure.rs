@@ -386,7 +386,10 @@ mod tests {
         reason = "callers pass `json!` temporaries"
     )]
     fn arguments(value: Value) -> Map<String, Value> {
-        value.as_object().cloned().unwrap()
+        let Value::Object(map) = value else {
+            panic!("tool arguments are an object")
+        };
+        map
     }
 
     fn every_tool(_: &str) -> bool {

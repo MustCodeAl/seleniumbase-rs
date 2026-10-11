@@ -18,6 +18,7 @@ use std::time::Duration;
 use serde_json::{json, Map, Value};
 
 use super::export::{current_session, export};
+use super::failure::shorten;
 use super::host::ProbeFuture;
 use super::support::{json_output, nonempty, write_file};
 use super::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError, OUTPUT_DIR_VAR};
@@ -90,12 +91,22 @@ fn expression(op: &str, args: &Value) -> String {
     format!("{}({}, {args})", body.trim_end(), Value::from(op))
 }
 
+/// Runs operation `op` of the page script and returns its answer, always as
+/// an object.
+///
+/// Every operation answers with an object. Anything else (a page that broke a
+/// built-in the script uses can cause it) is kept under `unexpected`, so the
+/// tools can add fields to the answer without failing.
 async fn page_op<S: DevSession>(
     session: &mut S,
     op: &str,
     args: &Value,
 ) -> Result<Value, ToolError> {
-    Ok(session.evaluate(&expression(op, args)).await?)
+    Ok(match session.evaluate(&expression(op, args)).await? {
+        answer @ Value::Object(_) => answer,
+        Value::Null => json!({}),
+        other => json!({ "unexpected": other }),
+    })
 }
 
 /// A whole-number argument between 1 and `max`, or `default`.
@@ -628,7 +639,7 @@ async fn get_console_messages<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<
         .rev()
         .take(limit)
         .rev()
-        .map(|error| Value::from(error.as_str()))
+        .map(|error| shorten(&Value::from(error.as_str()), 500))
         .collect();
     messages["page_errors"] = Value::from(errors);
     if messages["recording"] == false {
@@ -714,7 +725,11 @@ pub(super) fn probe<S: DevSession>(ctx: Ctx<S>, selector: Option<String>) -> Pro
                 .as_array()
                 .cloned()
                 .unwrap_or_default();
-            recent.extend(errors.into_iter().map(Value::from));
+            recent.extend(
+                errors
+                    .into_iter()
+                    .map(|error| shorten(&Value::from(error), 300)),
+            );
             let skip = recent.len().saturating_sub(5);
             state["javascript_errors"] = Value::from(recent.split_off(skip));
         }

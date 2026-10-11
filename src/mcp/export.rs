@@ -314,7 +314,10 @@ mod tests {
         } else {
             Effect::Act
         };
-        CallRecord::new(tool, effect, arguments.as_object().unwrap(), ok, "")
+        let Value::Object(arguments) = arguments else {
+            panic!("tool arguments are an object")
+        };
+        CallRecord::new(tool, effect, &arguments, ok, "")
     }
 
     #[test]
@@ -341,7 +344,7 @@ mod tests {
         let test = export.recorder.to_rust_test("search_works");
 
         assert_eq!(export.steps, 4);
-        assert_eq!(export.skipped, vec![]);
+        assert_eq!(export.skipped, Vec::<(String, String)>::new());
         assert!(
             test.contains("sb.open(\"https://shop.test\").await?;"),
             "{test}"
