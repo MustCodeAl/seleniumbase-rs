@@ -83,6 +83,8 @@ scrape-gate:
     cargo clippy --all-targets --features "mcp-server test-util scrape" -- -D warnings
     cargo test --features "mcp-server test-util scrape" --test scrape_domain_purity
     cargo test --features scrape --lib scrape::
+    cargo test --features "mcp-server test-util scrape" --test scrape_browser
+    cargo test --features "mcp-server test-util scrape" --test scrape_capture
     cargo test --features scrape --doc scrape
     cargo check --no-default-features
 
