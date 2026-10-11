@@ -5,8 +5,11 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use seleniumbase_rs::impersonate::mitm::{MitmOptions, MitmProxy};
+use seleniumbase_rs::scrape::egress::route::EgressRef;
 use seleniumbase_rs::scrape::ledger::events::{CollectingEventSink, ScraperEvent};
 use seleniumbase_rs::stealth::fingerprint::OsType;
 use seleniumbase_rs::wire::emulation::{self, Emulation};
@@ -23,7 +26,7 @@ use crate::echo::{
 };
 use crate::support::{
     closes, der, eventually, exchange, measured_user_agent, new_ca, proxy_auth, read_head,
-    start_mitm, tunnel, Head, QUIET, WITHIN,
+    start_mitm, tunnel, EgressProxy, Head, QUIET, WITHIN,
 };
 
 /// The host the echo site is reached by.
@@ -494,6 +497,39 @@ async fn a_websocket_handshake_outside_a_tunnel_is_refused() {
     assert!(body.is_empty());
     tokio::time::sleep(QUIET).await;
     assert_eq!(origin.connections(), 0);
+}
+
+#[tokio::test]
+async fn a_websocket_leaves_through_the_egress_with_its_credentials() {
+    let mut origin = EchoOrigin::start().await;
+    let egress_proxy = EgressProxy::start(origin.addr()).await;
+    let ca = new_ca();
+    let options = MitmOptions::default()
+        .ca(Arc::clone(&ca))
+        .trust_upstream_root(origin.root());
+    let egress =
+        EgressRef::parse(&egress_proxy.spec(Some(("alice", "s3cret"))), None).expect("an egress");
+    let (mitm, _sink) = start_mitm(Some(egress), options).await;
+    let mut tls = open_echo(&mitm, &der(&ca), origin.addr().port()).await;
+
+    let text = b"through the egress";
+    assert_eq!(
+        round_trip(&mut tls, TEXT, text).await,
+        (TEXT, text.to_vec())
+    );
+    assert_eq!(egress_proxy.tunnels(), 1, "one tunnel, the WebSocket's");
+    let expected = format!("Basic {}", STANDARD.encode("alice:s3cret"));
+    assert_eq!(egress_proxy.auth(), [Some(expected)]);
+    let seen = origin
+        .next(WITHIN)
+        .await
+        .expect("the origin took the handshake");
+    assert_eq!(seen.alpn.as_deref(), Some(&b"http/1.1"[..]));
+    let shown = format!("{mitm:?}");
+    assert!(
+        !shown.contains("s3cret") && !shown.contains("alice"),
+        "{shown}"
+    );
 }
 
 #[tokio::test]
