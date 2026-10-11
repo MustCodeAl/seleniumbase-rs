@@ -113,8 +113,8 @@ pub fn run_recorder(mut input: impl BufRead, mut output: impl Write) -> io::Resu
     Ok(())
 }
 
-/// Records `command` (`<action> [selector] [value]`) if it adds a line to the
-/// generated script, and says what happened either way.
+/// Records `command` (`<action> [selector] [value]`) if the script generator can
+/// turn it into a call, and says what happened either way.
 fn record_action(recorder: &mut ActionRecorder, command: &str) -> Result<String, String> {
     let mut parts = command.splitn(3, ' ');
     let word = parts.next().unwrap_or_default();
@@ -122,15 +122,11 @@ fn record_action(recorder: &mut ActionRecorder, command: &str) -> Result<String,
     let target = parts.next().filter(|target| !target.is_empty());
     let value = parts.next();
 
-    let before = recorder.to_rust_script();
-    recorder.record(action, target, value);
-    if recorder.to_rust_script() == before {
-        recorder.actions.pop();
-        return Err(format!(
-            "Not recorded: '{command}' is not an action the script generator knows, \
-             or an argument is missing."
-        ));
-    }
+    recorder
+        .try_record(action, target, value)
+        .map_err(|reason| {
+            format!("Not recorded: '{command}': {reason} (usage: <action> <selector> [value])")
+        })?;
     Ok(match target {
         Some(target) => format!("Recorded: {word} {target}"),
         None => format!("Recorded: {word}"),
@@ -297,6 +293,15 @@ mod tests {
         let out = transcript("fly #a\nclick\nquit\n");
 
         assert_eq!(out.matches("Not recorded").count(), 2, "{out}");
+        assert!(!out.contains("Recorded:"), "{out}");
+    }
+
+    #[test]
+    fn a_mistyped_action_gets_a_suggestion_and_the_usage() {
+        let out = transcript("clik #a\nquit\n");
+
+        assert!(out.contains("did you mean \"click\""), "{out}");
+        assert!(out.contains("usage: <action> <selector>"), "{out}");
         assert!(!out.contains("Recorded:"), "{out}");
     }
 

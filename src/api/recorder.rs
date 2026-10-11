@@ -65,6 +65,29 @@ impl ActionRecorder {
         self.actions.push(RecordedAction::new(name, target, value));
     }
 
+    /// Records an action only if [`to_rust_script`](Self::to_rust_script) can
+    /// turn it into a call.
+    ///
+    /// For a person typing actions in, this is the difference between "recorded"
+    /// and a `// skipped:` comment found in the saved file later.
+    ///
+    /// # Errors
+    ///
+    /// Returns why the action cannot be generated: an unknown name (with the
+    /// closest known one when there is one), or a missing or malformed argument.
+    /// The recording is left unchanged.
+    pub fn try_record(
+        &mut self,
+        name: &str,
+        target: Option<&str>,
+        value: Option<&str>,
+    ) -> Result<(), String> {
+        let action = RecordedAction::new(name, target, value);
+        rust_call(&action)?;
+        self.actions.push(action);
+        Ok(())
+    }
+
     /// Generates a standalone `#[tokio::main]` Rust program from the recording.
     ///
     /// An action the generator cannot turn into a call (an unknown name, or one
@@ -385,6 +408,40 @@ const UNEXPORTABLE: &[(&str, &str)] = &[(
     "the recording keeps the two selectors but not the offset",
 )];
 
+/// The known action closest to a mistyped `name`, if one is a small edit away.
+fn closest_action(name: &str) -> Option<&'static str> {
+    let allowed = (name.chars().count() / 3).clamp(1, 3);
+    CALLS
+        .iter()
+        .map(|(known, _, _)| *known)
+        .chain(ALIASES.iter().map(|(alias, _)| *alias))
+        .map(|known| (edit_distance(name, known), known))
+        .filter(|(distance, _)| *distance <= allowed)
+        .min_by_key(|(distance, _)| *distance)
+        .map(|(_, known)| known)
+}
+
+/// The number of single-character insertions, deletions and substitutions that
+/// turn `a` into `b`.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut diagonal = row[0];
+        row[0] = i + 1;
+        for (j, cb) in b.iter().enumerate() {
+            let above = row[j + 1];
+            row[j + 1] = if ca == *cb {
+                diagonal
+            } else {
+                1 + diagonal.min(above).min(row[j])
+            };
+            diagonal = above;
+        }
+    }
+    row[b.len()]
+}
+
 /// A string as a Rust literal.
 fn literal(text: &str) -> String {
     format!("{text:?}")
@@ -416,7 +473,10 @@ fn rust_call(action: &RecordedAction) -> Result<String, String> {
         return Err(format!("{name}: {reason}"));
     }
     let Some((_, method, shape)) = CALLS.iter().find(|(known, _, _)| *known == name) else {
-        return Err(format!("unknown action {:?}", action.name));
+        return Err(match closest_action(&action.name) {
+            Some(near) => format!("unknown action {:?}; did you mean {near:?}?", action.name),
+            None => format!("unknown action {:?}", action.name),
+        });
     };
 
     let target = action.target.as_deref();
@@ -1766,6 +1826,38 @@ mod tests {
             );
         }
         syn::parse_file(&script).expect("skipped actions leave a valid program");
+    }
+
+    #[test]
+    fn a_mistyped_action_names_the_closest_known_one() {
+        let mut recorder = ActionRecorder::default();
+        let reason = recorder.try_record("clik", Some("#a"), None).unwrap_err();
+        assert_eq!(reason, "unknown action \"clik\"; did you mean \"click\"?");
+        assert!(recorder.actions.is_empty(), "a refused action is not kept");
+
+        let reason = recorder
+            .try_record("levitate", Some("#a"), None)
+            .unwrap_err();
+        assert_eq!(
+            reason, "unknown action \"levitate\"",
+            "nothing is near enough to guess"
+        );
+    }
+
+    #[test]
+    fn try_record_keeps_only_what_the_generator_can_use() {
+        let mut recorder = ActionRecorder::default();
+        recorder.try_record("click", Some("#ok"), None).unwrap();
+        assert_eq!(
+            recorder.try_record("click", None, None).unwrap_err(),
+            "click has no target"
+        );
+        assert!(recorder.try_record("type_text", Some("#a"), None).is_err());
+
+        assert_eq!(recorder.actions.len(), 1);
+        let script = recorder.to_rust_script();
+        assert!(script.contains("sb.click(\"#ok\")"), "{script}");
+        assert!(!script.contains("skipped"), "{script}");
     }
 
     #[test]
