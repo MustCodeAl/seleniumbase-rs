@@ -163,9 +163,10 @@ also flaked until they were made to wait for what they check.
 - **A smaller ecosystem.** Python SeleniumBase has far more examples and
   plugins; Python plugins cannot be reused here.
 - **Unfinished parts.** The impersonating HTTP session, the MITM proxy and the
-  combined stealth session are not written yet, only one browser and system is
-  measured for TLS and HTTP/2, and the parity table's `composed` and
-  `not-applicable` entries are still to be independently reviewed.
+  combined stealth session exist but are young and not a stable API (tested
+  against local servers and a local Chrome, not live services), only one browser
+  and system is measured for TLS and HTTP/2, and the parity table's `composed`
+  and `not-applicable` entries are still to be independently reviewed.
 
 ## What does not change
 

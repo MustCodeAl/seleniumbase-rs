@@ -122,7 +122,8 @@ seleniumbase-rs/
 │   ├── stealth/               # Fingerprint, evasion providers, humanize, patcher, reactor
 │   ├── wire/                  # (feature scrape/impersonate) pure TLS/HTTP2 wire formats
 │   ├── scrape/                # (feature scrape) challenge, egress, jar, ledger, passport, runtime
-│   ├── impersonate/           # (feature impersonate) the client and the TLS proxy
+│   ├── impersonate/           # (feature impersonate) client, http_session/, mitm/,
+│   │                          # stealth_session/, tls_server/ (ephemeral CA), capture_h2
 │   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
 │   ├── cli/                   # sbase: bin/sbase.rs (clap), commands.rs, scripts/
 │   ├── behave/                # Gherkin/BDD runner
@@ -258,6 +259,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
 cargo clippy --features scrape --lib -- -D warnings   # the scrape feature
+cargo clippy --features impersonate --lib -- -D warnings  # the impersonate feature (cmake; builds BoringSSL)
 cargo check --features turso --all-targets            # code that only builds with turso
 cargo deny check && cargo audit                        # when Cargo.lock changed
 mdbook build                                           # when docs changed

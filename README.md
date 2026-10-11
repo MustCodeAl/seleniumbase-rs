@@ -431,7 +431,7 @@ cookies, and execute JavaScript in the active page.
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
 | `scrape` | Stealth scraping: JA3, JA4 and Akamai parsers, a measured Chrome 155 table (macOS only), a cookie jar, stealth identities, challenge detection, `BrowserScraper` and the capture tools. Pure Rust; adds only `psl`. |
-| `impersonate` | Includes `scrape`. Browser-identical TLS and HTTP/2 through wreq and BoringSSL (`ImpersonationProfile`, `CustomProfileBuilder`) and an ephemeral-CA TLS server. Needs cmake and a C/C++ toolchain. `HttpSession`, `MitmProxy` and `StealthSession` are not available yet. |
+| `impersonate` | Includes `scrape`. Browser-identical TLS and HTTP/2 through wreq and BoringSSL (`ImpersonationProfile`, `CustomProfileBuilder`), an ephemeral-CA TLS server, `HttpSession` (plain requests that continue a browser's session), `MitmProxy` (a loopback proxy that gives a real Chrome the impersonated handshake; WebSocket is refused) and `StealthSession` (moves between the two). Only macOS and Chrome 155 are measured, and the Chrome-driving tests run headless. Experimental, not a stable API. Needs cmake and a C/C++ toolchain. |
 
 No feature is on by default.
 
@@ -517,8 +517,8 @@ or re-marked 26 that did less than the Python method. The composed and
 not-applicable entries are still to be independently reviewed, and most
 behaviour is verified against a
 mock or unit tests rather than a real browser. [ROADMAP.md](./ROADMAP.md) lists
-what is done and what is missing (the rest of the stealth scraping work, the HTTP
-session, the MITM proxy and the combined session, is the largest open part) and
+what is done and what is missing (for the stealth scraping work: the review
+fixes, the final gates, and measuring more browsers and systems) and
 [CHANGELOG.md](./CHANGELOG.md) what changed. The crate needs Rust 1.99; the default test run has 1,600 passing tests.
 Work is continuously pushed to two locations:
 

@@ -53,7 +53,7 @@ desktop or cloud stacks.
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
 | `scrape` | wire fingerprints (JA3, JA4, Akamai), cookie jar, stealth identities, `BrowserScraper` (adds `psl`) | pure Rust; see [Stealth Scraping](tutorials/stealth_scraping.md) |
-| `impersonate` | browser-identical TLS and HTTP/2 (BoringSSL) | client and TLS server exist; `HttpSession`, `MitmProxy` and `StealthSession` do not yet; needs cmake |
+| `impersonate` | browser-identical TLS and HTTP/2 (BoringSSL): the client, the TLS server, `HttpSession`, `MitmProxy` and `StealthSession` | needs cmake and a C/C++ toolchain; macOS and Chrome 155 only are measured |
 
 Combine them with `--features "mcp-server tui"`.
 

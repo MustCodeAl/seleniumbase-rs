@@ -75,7 +75,9 @@ coherent fingerprints, human-paced input), but there is no guarantee against any
 particular service, and the randomised identities have not been tested against
 live detection. A TLS (JA3/JA4) and HTTP/2 impersonation client exists behind the
 `impersonate` feature for one measured browser and system (Chrome 155 on macOS),
-but nothing yet applies it to a browser session. See
+with an HTTP session, a proxy that applies it to a real Chrome, and a session that
+moves between the two. They were tested against local servers and a local Chrome,
+not live services. See
 [the stealth tutorial](tutorials/fingerprint_stealth.md) and
 [Stealth Scraping](tutorials/stealth_scraping.md).
 

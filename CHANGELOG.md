@@ -90,8 +90,33 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `BrowserScraper`, which fetches through a real Chrome on the pure CDP engine,
   solves challenges and rotates egress and profile. `Fingerprint::randomized_with_major`
   fixes the Chromium major an identity claims.
-- **Not written yet**: `HttpSession`, `MitmProxy` and `StealthSession`.
-  Nothing else sends a request through the impersonating client for you.
+- **`HttpSession`** (feature `impersonate`): plain HTTP requests that continue a
+  browser page's session with the measured TLS, HTTP/2 and headers of Chrome 155
+  on macOS. It reads the cookies, user agent, languages and proxy from a page
+  (`HttpSession::from_page`) or an identity, keeps an RFC 6265 jar, follows
+  redirects by hand, bounds time, bodies and pace, judges replies with the
+  mitigation and session policies, and writes cookies back to the page. A page of
+  another Chrome major, one that says `HeadlessChrome`, or an unmeasured system is
+  refused. The first request to an HTTP/1.1-only origin carries an HTTP/2
+  `priority` header.
+- **`MitmProxy`** (feature `impersonate`): a loopback proxy that ends a real
+  Chrome's TLS with the ephemeral CA and replays each request through the
+  impersonating client, behind a random token, with bounded connections, heads and
+  bodies, and a hot-swappable egress and profile. WebSocket upgrades are refused,
+  and a request claiming another Chrome major is refused. Measured on Chrome 155
+  (headless, macOS): a chain carrying the pinned leaf key is accepted by a Chrome
+  that has the SPKI-list switch and no proxy, and is never served to a page behind
+  the proxy.
+- **`StealthSession`** (feature `impersonate`): the session that moves between
+  `HttpSession` and a real Chrome behind `MitmProxy` by the mitigation and session
+  policies. It starts the proxy when a browser is first needed, makes up to 4
+  attempts per fetch by default, and rotates the profile and the egress in both
+  modes. Tested against loopback sites, a scripted browser and, in ignored tests,
+  a headless Chrome 155 on macOS; not against a live service.
+- **Re-exports**: the main types of the stealth layer at the top of `wire`,
+  `scrape` and `impersonate` and at the crate root behind the same features. The
+  TLS and HTTP/2 `SpecError` enums are `TlsSpecError` and `H2SpecError`. The stealth
+  layer is experimental and not a stable API.
 - `docs/tutorials/stealth_scraping.md` and `docs/adr/003-stealth-scraping-layout.md`.
 - A `rust-analyzer.toml` that loads the optional features so analysis covers
   `src/mcp` and `src/scrape`.
