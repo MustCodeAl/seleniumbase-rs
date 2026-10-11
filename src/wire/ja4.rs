@@ -33,7 +33,7 @@ const HASH_BYTES: usize = HASH_HEX_CHARS / 2;
 /// The hash written for an empty list.
 const NO_HASH: &str = "000000000000";
 /// The ALPN field of a hello with no usable ALPN value.
-const NO_ALPN: &str = "00";
+pub const NO_ALPN: &str = "00";
 /// Highest value of a two-digit count.
 const MAX_COUNT: usize = 99;
 /// Characters in the `a` section.
