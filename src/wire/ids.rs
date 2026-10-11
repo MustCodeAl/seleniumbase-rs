@@ -288,8 +288,9 @@ pub const H2_SETTINGS_ACCEPTED: &[u16] = &[
     0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0008, 0x0009,
 ];
 
-/// Cipher suites the policy of the spec layer lets through, all of which `BoringSSL` writes into
-/// a client hello (the wire probe of `tests/impersonate_wire.rs` checks each).
+/// Cipher suites the spec layer lets through, all of which `BoringSSL` writes into a hello.
+///
+/// The wire probe of `tests/impersonate_wire.rs` checks each id.
 ///
 /// The TLS 1.3 trio, the ECDHE and RSA AEAD suites, and the CBC suites with SHA-1, SHA-256 and
 /// SHA-384 (3DES included). The TLS 1.2 DHE suites reach the wire too, but [`DHE_CIPHERS`] keeps
@@ -311,17 +312,22 @@ pub const BORINGSSL_CLIENT_EXTENSIONS: &[u16] = &[
     0x0023, 0x002B, 0x002D, 0x0033, 0x4469, 0x44CD, 0xFE0D, 0xFF01,
 ];
 
-/// Extensions `BoringSSL` puts in every client hello whatever the options say: `supported_groups`
-/// and `signature_algorithms`. A spec that leaves one out describes a hello no client can send.
+/// Extensions `BoringSSL` puts in every client hello whatever the options say.
+///
+/// These are `supported_groups` and `signature_algorithms`. A spec that leaves one out
+/// describes a hello no client can send.
 pub const BORINGSSL_ALWAYS_SENT_EXTENSIONS: &[u16] = &[0x000A, 0x000D];
 
-/// Extensions `BoringSSL` sends exactly when the hello offers TLS 1.2 or older (the lowest
-/// offered version is below 1.3): `ec_point_formats`, `extended_master_secret` and
-/// `renegotiation_info`. A TLS 1.3-only hello has none of them.
+/// Extensions `BoringSSL` sends exactly when the hello offers TLS 1.2 or older.
+///
+/// That is when the lowest offered version is below 1.3: `ec_point_formats`,
+/// `extended_master_secret` and `renegotiation_info`. A TLS 1.3-only hello has none of them.
 pub const BORINGSSL_LEGACY_ONLY_EXTENSIONS: &[u16] = &[0x000B, 0x0017, 0xFF01];
 
-/// Extensions `BoringSSL` sends exactly when the hello offers TLS 1.3 (the highest offered
-/// version is 1.3): `supported_versions`, `psk_key_exchange_modes` and `key_share`.
+/// Extensions `BoringSSL` sends exactly when the hello offers TLS 1.3.
+///
+/// That is when the highest offered version is 1.3: `supported_versions`,
+/// `psk_key_exchange_modes` and `key_share`.
 pub const BORINGSSL_TLS13_ONLY_EXTENSIONS: &[u16] = &[0x002B, 0x002D, 0x0033];
 
 /// Supported groups `BoringSSL` can emit: x25519, P-256, P-384, P-521, the ML-KEM and Kyber
@@ -330,9 +336,10 @@ pub const BORINGSSL_GROUPS: &[u16] = &[
     0x001D, 0x0017, 0x0018, 0x0019, 0x0202, 0x0100, 0x0101, 0x11EC, 0x6399, 0xFE32,
 ];
 
-/// Groups `BoringSSL` can send a key share for. The FFDHE groups can be offered in
-/// `supported_groups` but have no key share implementation, so a hello that asks for a share of
-/// one is never sent.
+/// Groups `BoringSSL` can send a key share for.
+///
+/// The FFDHE groups can be offered in `supported_groups` but have no key share implementation,
+/// so a hello that asks for a share of one is never sent.
 pub const BORINGSSL_KEY_SHARE_GROUPS: &[u16] = &[
     0x001D, 0x0017, 0x0018, 0x0019, 0x0202, 0x11EC, 0x6399, 0xFE32,
 ];

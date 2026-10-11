@@ -182,7 +182,7 @@ impl ImpersonationProfile {
     /// Returns [`ImpersonateError::Emulation`] when the embedded tables are broken or hold no
     /// entry for `kind`, and the errors of [`ImpersonationProfile::from_measured`].
     pub fn measured(kind: BrowserKind) -> Result<Self, ImpersonateError> {
-        let table = emulation::try_measured().map_err(|error| error.clone())?;
+        let table = emulation::try_measured().map_err(Clone::clone)?;
         let entry = emulation::newest(table, kind).ok_or(ImpersonateError::Incomplete {
             what: "measurement for this browser",
         })?;
@@ -246,7 +246,7 @@ impl ImpersonationProfile {
     /// Returns [`ImpersonateError::Incomplete`] when nothing is measured, and the errors of
     /// [`ImpersonationProfile::from_fingerprint`].
     pub fn random(seed: u64) -> Result<Self, ImpersonateError> {
-        let table = emulation::try_measured().map_err(|error| error.clone())?;
+        let table = emulation::try_measured().map_err(Clone::clone)?;
         let count = u64::try_from(table.len()).unwrap_or(u64::MAX).max(1);
         let index = usize::try_from(seed % count).unwrap_or_default();
         let entry = table.get(index).ok_or(ImpersonateError::Incomplete {

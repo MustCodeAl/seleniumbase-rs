@@ -7,7 +7,7 @@ use crate::impersonate::convert::ConvertError;
 use crate::scrape::egress::geo::Locale;
 use crate::stealth::fingerprint::{BrandVersion, Fingerprint, OsType};
 use crate::wire::client_hello::ext_id;
-use crate::wire::emulation::{self, EmulationError, KnownGap};
+use crate::wire::emulation::{self, Emulation, EmulationError, KnownGap};
 use crate::wire::h2_spec::SpecError as H2SpecError;
 use crate::wire::header_spec::{HeaderValue, RequestShape};
 use crate::wire::tls_spec::SpecError as TlsSpecError;
@@ -63,7 +63,7 @@ fn the_measured_profile_keeps_its_gaps_and_sends_a_reproducible_spec() {
     );
     assert!(!profile.tls_spec().has_extension(ext_id::TRUST_ANCHORS));
     assert_eq!(profile.validate(), Ok(()));
-    assert!(profile.dropped_settings().is_empty());
+    assert_eq!(profile.dropped_settings(), []);
     let measured = emulation::get(BrowserKind::Chrome, OsType::Macos).expect("measured");
     assert_eq!(profile.user_agent(), measured.user_agent);
     assert_eq!(profile.tls_spec().grease, measured.tls.grease);
@@ -71,6 +71,51 @@ fn the_measured_profile_keeps_its_gaps_and_sends_a_reproducible_spec() {
         profile.http2_spec(),
         measured.http2.as_ref().expect("measured")
     );
+}
+
+#[test]
+fn an_entry_without_its_http2_spec_or_hints_is_not_a_profile() {
+    let mut entry = Emulation::from_json("chrome", CHROME_FILE).expect("the measured file");
+    let hints = entry.client_hints.take();
+    assert!(hints.is_some());
+    assert_eq!(
+        ImpersonationProfile::from_measured(&entry),
+        Err(ImpersonateError::Incomplete {
+            what: "client hints"
+        })
+    );
+    entry.client_hints = hints;
+    entry.http2 = None;
+    assert_eq!(
+        ImpersonationProfile::from_measured(&entry),
+        Err(ImpersonateError::Incomplete {
+            what: "HTTP/2 spec"
+        })
+    );
+}
+
+#[test]
+fn a_measured_profile_names_its_browser_and_system() {
+    let profile = chrome();
+    assert_eq!(profile.kind(), BrowserKind::Chrome);
+    assert_eq!(profile.os(), OsType::Macos);
+    assert!(profile.header_spec().document.len() > 5);
+    assert!(profile.identity().sec_ch_ua.is_some());
+}
+
+#[test]
+fn a_fingerprint_without_a_user_agent_or_a_chrome_version_is_refused() {
+    let mut fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 3, 155);
+    fingerprint.user_agent = None;
+    assert!(matches!(
+        ImpersonationProfile::from_fingerprint(&fingerprint),
+        Err(ImpersonateError::Fingerprint(_))
+    ));
+    fingerprint.user_agent = Some("Mozilla/5.0 (X11) Gecko/20100101 Firefox/130.0".to_owned());
+    assert!(matches!(
+        ImpersonationProfile::from_fingerprint(&fingerprint),
+        Err(ImpersonateError::Fingerprint(_))
+    ));
 }
 
 #[test]

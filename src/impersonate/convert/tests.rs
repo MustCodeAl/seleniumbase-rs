@@ -18,7 +18,7 @@ use crate::wire::client_hello::ext_id;
 use crate::wire::emulation::{self, Emulation};
 use crate::wire::h2_spec::H2Spec;
 use crate::wire::ids::{CIPHER_SUITES, SIGNATURE_ALGORITHMS};
-use crate::wire::tls_spec::TlsSpec;
+use crate::wire::tls_spec::{Alps, TlsSpec};
 use crate::wire::BrowserKind;
 
 /// The names `BoringSSL` gives the groups the measured Chrome offers.
@@ -299,6 +299,60 @@ fn the_legacy_extensions_follow_the_lowest_version() {
         check_emittable(&spec),
         Err(ConvertError::ExtensionVersion { id: 0x000B, .. })
     ));
+}
+
+#[test]
+fn the_session_ticket_extension_is_tls12_only() {
+    let mut spec = effective_tls();
+    spec.supported_versions = vec![0x0304];
+    spec.extensions
+        .retain(|id| ![0x000B, 0x0017, 0xFF01].contains(id));
+    assert!(spec.session_ticket());
+    assert!(matches!(
+        check_emittable(&spec),
+        Err(ConvertError::ExtensionVersion { id: 0x0023, .. })
+    ));
+}
+
+#[test]
+fn alps_needs_tls13_and_an_alpn_list() {
+    let mut spec = tls12_only();
+    spec.alps = Some(Alps {
+        protocols: vec!["h2".to_owned()],
+        new_codepoint: true,
+    });
+    assert!(matches!(
+        check_emittable(&spec),
+        Err(ConvertError::ExtensionVersion { id: 0x44CD, .. })
+    ));
+    let mut spec = effective_tls();
+    spec.alpn.clear();
+    assert!(matches!(
+        check_emittable(&spec),
+        Err(ConvertError::ExtensionVersion { id: 0x44CD, .. })
+    ));
+}
+
+#[test]
+fn ids_with_no_boringssl_name_are_refused_when_the_options_are_built() {
+    let mut spec = effective_tls();
+    spec.cipher_suites.push(0xBEEF);
+    assert_eq!(
+        tls_options(&spec).err(),
+        Some(ConvertError::CipherName(0xBEEF))
+    );
+    let mut spec = effective_tls();
+    spec.signature_algorithms.push(0xBEEF);
+    assert_eq!(
+        tls_options(&spec).err(),
+        Some(ConvertError::SigalgName(0xBEEF))
+    );
+    let mut spec = effective_tls();
+    spec.supported_groups.push(0xBEEF);
+    assert_eq!(
+        tls_options(&spec).err(),
+        Some(ConvertError::GroupName(0xBEEF))
+    );
 }
 
 #[test]

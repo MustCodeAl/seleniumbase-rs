@@ -68,69 +68,30 @@ const LIST_SEPARATOR: &str = ":";
 const SENSITIVE_HEADERS: [&str; 3] = ["cookie", "authorization", "proxy-authorization"];
 
 /// One group `BoringSSL` can offer: its wire id, its spelling in `SSL_CTX_set1_curves_list` and
-/// the key share that sends it.
-struct GroupEntry {
-    /// The wire id.
-    id: u16,
-    /// The spelling `BoringSSL` parses.
-    name: &'static str,
-    /// The key share wreq sends for it.
-    share: KeyShare,
-}
+/// the key share wreq sends for it.
+type GroupRow = (u16, &'static str, KeyShare);
 
 /// Every group the vendored `BoringSSL` of btls 0.5.6 names, with the post-quantum and FFDHE
 /// additions of its patches.
-const GROUPS: [GroupEntry; 10] = [
-    GroupEntry {
-        id: 0x001D,
-        name: "X25519",
-        share: KeyShare::X25519,
-    },
-    GroupEntry {
-        id: 0x0017,
-        name: "P-256",
-        share: KeyShare::P256,
-    },
-    GroupEntry {
-        id: 0x0018,
-        name: "P-384",
-        share: KeyShare::P384,
-    },
-    GroupEntry {
-        id: 0x0019,
-        name: "P-521",
-        share: KeyShare::P521,
-    },
-    GroupEntry {
-        id: 0x11EC,
-        name: "X25519MLKEM768",
-        share: KeyShare::X25519_MLKEM768,
-    },
-    GroupEntry {
-        id: 0x6399,
-        name: "X25519Kyber768Draft00",
-        share: KeyShare::X25519_KYBER768_DRAFT00,
-    },
-    GroupEntry {
-        id: 0x0202,
-        name: "MLKEM1024",
-        share: KeyShare::MLKEM1024,
-    },
-    GroupEntry {
-        id: 0xFE32,
-        name: "P256Kyber768Draft00",
-        share: KeyShare::P256_KYBER768_DRAFT00,
-    },
-    GroupEntry {
-        id: 0x0100,
-        name: "ffdhe2048",
-        share: KeyShare::FFDHE2048,
-    },
-    GroupEntry {
-        id: 0x0101,
-        name: "ffdhe3072",
-        share: KeyShare::FFDHE3072,
-    },
+const GROUPS: [GroupRow; 10] = [
+    (0x001D, "X25519", KeyShare::X25519),
+    (0x0017, "P-256", KeyShare::P256),
+    (0x0018, "P-384", KeyShare::P384),
+    (0x0019, "P-521", KeyShare::P521),
+    (0x11EC, "X25519MLKEM768", KeyShare::X25519_MLKEM768),
+    (
+        0x6399,
+        "X25519Kyber768Draft00",
+        KeyShare::X25519_KYBER768_DRAFT00,
+    ),
+    (0x0202, "MLKEM1024", KeyShare::MLKEM1024),
+    (
+        0xFE32,
+        "P256Kyber768Draft00",
+        KeyShare::P256_KYBER768_DRAFT00,
+    ),
+    (0x0100, "ffdhe2048", KeyShare::FFDHE2048),
+    (0x0101, "ffdhe3072", KeyShare::FFDHE3072),
 ];
 
 /// The extensions whose `BoringSSL` handler writes an empty body (`extended_master_secret`,
@@ -279,10 +240,11 @@ fn alps_protocol(name: &str) -> Result<AlpsProtocol, ConvertError> {
 ///
 /// # Errors
 ///
-/// Returns the first [`ConvertError`] found: an ALPN or ALPS name wreq cannot announce, versions
-/// with a gap, an extension `BoringSSL` always sends but the spec leaves out, an extension that
-/// needs a protocol version the spec does not offer, a post-quantum group without TLS 1.3, or a
-/// certificate compression algorithm with no compressor.
+/// Returns the first [`ConvertError`] found: an ALPN or ALPS name wreq cannot announce, a TLS 1.3
+/// suite after a TLS 1.2 suite, padding `BoringSSL` would not write or would add, a key share for
+/// a group it cannot send one for, versions with a gap, an extension `BoringSSL` always sends but
+/// the spec leaves out, an extension that needs a protocol version the spec does not offer, a
+/// post-quantum group without TLS 1.3, or a certificate compression algorithm with no compressor.
 pub fn check_emittable(spec: &TlsSpec) -> Result<(), ConvertError> {
     for name in &spec.alpn {
         alpn_protocol(name)?;
@@ -417,16 +379,16 @@ fn curves_list(spec: &TlsSpec) -> Result<String, ConvertError> {
     let names = spec
         .supported_groups
         .iter()
-        .map(|&id| group_entry(id).map(|entry| entry.name))
+        .map(|&id| group_row(id).map(|&(_, name, _)| name))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(names.join(LIST_SEPARATOR))
 }
 
 /// The group table row of an id.
-fn group_entry(id: u16) -> Result<&'static GroupEntry, ConvertError> {
+fn group_row(id: u16) -> Result<&'static GroupRow, ConvertError> {
     GROUPS
         .iter()
-        .find(|entry| entry.id == id)
+        .find(|&&(known, _, _)| known == id)
         .ok_or(ConvertError::GroupName(id))
 }
 
@@ -448,8 +410,8 @@ fn key_shares(spec: &TlsSpec) -> Result<Vec<KeyShare>, ConvertError> {
     spec.key_share_groups
         .iter()
         .map(|&id| {
-            group_entry(id)
-                .map(|entry| entry.share)
+            group_row(id)
+                .map(|&(_, _, share)| share)
                 .map_err(|_unknown| ConvertError::KeyShare(id))
         })
         .collect()
