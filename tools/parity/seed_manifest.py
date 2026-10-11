@@ -31,6 +31,10 @@ SRC = ROOT / "src"
 BASECASE_COMPOSED = {
     "type": ("BaseCase::type_text", "One canonical name: Rust has type_text only."),
     "get_google_auth_password": ("BaseCase::get_mfa_code", "Same TOTP computation."),
+    "skip": (
+        "BaseCase::skip_test",
+        "Returns Err(SeleniumBaseError::Skipped); run_browser_test counts that as a pass and logs the reason.",
+    ),
 }
 BASECASE_NOT_APPLICABLE = {
     **{
@@ -41,7 +45,7 @@ BASECASE_NOT_APPLICABLE = {
         name: "unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle."
         for name in (
             "setUp", "tearDown", "setUpClass", "tearDownClass",
-            "main", "run", "skip", "has_exception",
+            "main", "run", "has_exception",
         )
     },
 }
@@ -56,9 +60,9 @@ CDP_COMPOSED = {
     "solve_captcha": "Page::solve_captcha", "save_screenshot": "Page::screenshot",
     "print_to_pdf": "Page::pdf", "save_as_pdf": "Page::pdf",
     "get_text": "Locator::text", "get_attribute": "Locator::attribute",
-    "get_html": "Locator::html", "set_value": "Locator::set_value",
+    "get_html": "Page::content", "set_value": "Locator::set_value",
     "type": "Locator::type_text", "send_keys": "Locator::type_text",
-    "press_keys": "Locator::press", "hover_element": "Locator::hover",
+    "press_keys": "Locator::type_text", "hover_element": "Locator::hover",
     "hover": "Locator::hover", "drag_and_drop": "Locator::drag_to",
     "scroll_into_view": "Locator::scroll_into_view", "focus": "Locator::focus",
     "is_element_visible": "Locator::is_visible", "is_element_present": "Locator::exists",
@@ -75,7 +79,7 @@ CDP_COMPOSED = {
     "set_geolocation": "Emulation::geolocation",
     "open_new_tab": "Browser::new_page", "open_new_window": "Browser::new_window",
     "get_tabs": "Browser::pages", "switch_to_newest_tab": "Browser::newest_page",
-    "close_active_tab": "Page::close", "grant_permissions": "Browser::grant_permissions",
+    "close_active_tab": "Page::close", "grant_permissions": "Browser::grant_permissions_for",
     "reset_permissions": "Browser::reset_permissions",
 }
 CDP_COMPOSED.update({
@@ -111,8 +115,8 @@ CDP_COMPOSED.update({
     "click_nth_visible_element": "Locator::nth",
     "click_visible_elements": "Locator::visible",
     "click_link": "Locator::click",
-    "click_and_hold": "Mouse::down",
-    "mouse_click": "Mouse::click",
+    "click_and_hold": "Locator::click_and_hold",
+    "mouse_click": "Locator::click",
     "hover_and_click": "Locator::hover",
     "nested_click": "Locator::locator",
     "clear_input": "Locator::clear",
@@ -124,13 +128,14 @@ CDP_COMPOSED.update({
     "fast_type": "Locator::fill",
     "fast_keys": "Keyboard::insert_text",
     # Finding and reading elements.
-    "find_element": "Page::locator", "find_elements": "Locator::all",
-    "find_all": "Locator::all", "find_visible_elements": "Locator::visible",
-    "find_element_by_text": "Page::locator", "find_elements_by_text": "Locator::all",
+    "find_element": "Page::locator", "find_elements": "Locator::all_waiting",
+    "find_all": "Locator::all_waiting", "find_visible_elements": "Locator::visible",
+    "find_element_by_text": "SelectorBuf::containing_text",
+    "find_elements_by_text": "SelectorBuf::containing_text",
     "get_parent": "Locator::parent", "get_nested_element": "Locator::locator",
     "get_element_attribute": "Locator::attribute", "get_element_attributes": "Locator::info",
-    "get_element_html": "Locator::html", "get_element_rect": "Locator::bounding_box",
-    "get_element_position": "Locator::bounding_box", "get_element_size": "Locator::bounding_box",
+    "get_element_html": "Locator::html", "get_element_rect": "Locator::viewport_rect",
+    "get_element_position": "Locator::viewport_rect", "get_element_size": "Locator::bounding_box",
     "is_attribute_present": "Locator::attribute", "is_text_visible": "Locator::text",
     "is_exact_text_visible": "Locator::text", "remove_element": "Locator::remove",
     "remove_elements": "Locator::remove", "remove_from_dom": "Locator::remove",
@@ -139,9 +144,9 @@ CDP_COMPOSED.update({
     # Scrolling and page state.
     "scroll_by_y": "Page::scroll", "scroll_down": "Page::scroll", "scroll_up": "Page::scroll",
     "scroll_to_bottom": "Page::scroll", "scroll_to_top": "Page::scroll", "scroll_to_y": "Page::scroll",
-    "get_page_title": "Page::title", "get_active_element": "Page::evaluate",
-    "get_active_element_css": "Page::evaluate", "get_origin": "Page::evaluate",
-    "goto_if_not_url": "Page::goto", "execute_script": "Page::evaluate",
+    "get_page_title": "Page::title", "get_active_element": "Page::active_element",
+    "get_active_element_css": "Page::active_element_css", "get_origin": "Page::evaluate",
+    "goto_if_not_url": "Page::goto_if_not_url", "execute_script": "Page::evaluate",
     "get_document": "Page::execute", "get_flattened_document": "Page::execute",
     "get_navigation_history": "Page::execute",
     "save_screenshot_to_logs": "Page::screenshot", "save_page_source": "Page::content",
@@ -153,15 +158,15 @@ CDP_COMPOSED.update({
     "get_local_storage_item": "Storage::get", "set_local_storage_item": "Storage::set",
     "get_session_storage_item": "Storage::get", "set_session_storage_item": "Storage::set",
     "get_window": "Window::bounds", "get_window_position": "Window::bounds",
-    "get_window_size": "Window::bounds", "get_screen_rect": "Window::bounds",
+    "get_window_size": "Window::bounds", "get_screen_rect": "Page::evaluate",
     "reset_window_size": "Window::restore",
     "switch_to_tab": "Browser::pages", "switch_to_window": "Browser::pages",
     "switch_to_newest_window": "Browser::newest_page", "get_active_tab": "Browser::default_page",
     "stop": "Browser::close", "quit": "Browser::close",
     "get_port": "Browser::debugging_port", "get_rd_port": "Browser::debugging_port",
-    "get_rd_host": "Browser::http_url", "get_rd_url": "Browser::http_url",
+    "get_rd_host": "Browser::debugging_host", "get_rd_url": "Browser::http_url",
     "get_endpoint_url": "Browser::http_url", "get_websocket_url": "Browser::websocket_url",
-    "grant_all_permissions": "Browser::grant_permissions",
+    "grant_all_permissions": "Browser::grant_all_permissions",
     "set_download_path": "Browser::set_download_dir",
     "click_with_offset": "Locator::click_at",
     "get_gui_element_rect": "Locator::screen_rect",
@@ -169,10 +174,9 @@ CDP_COMPOSED.update({
     "get_all_urls": "Locator::urls",
     "medimize": "Window::restore",
     "click_captcha": "Page::solve_captcha",
-    "gui_click_captcha": "Page::solve_captcha",
     "click_active_element": "Page::evaluate",
     "get_locale_code": "Page::evaluate",
-    "select_all": "Page::evaluate",
+    "select_all": "Locator::all_waiting",
     "internalize_links": "Locator::set_attribute",
     "download_file": "Browser::set_download_dir",
     "get_path_of_downloaded_file": "Browser::set_download_dir",
@@ -212,20 +216,35 @@ CDP_NOT_APPLICABLE = {
 
 CLI_COMPOSED = {
     "help": ("clap", "Provided by the argument parser."),
-    "version": ("clap", "Provided by the argument parser."),
-    "get": ("sbase install", "Python treats `get` and `install` as the same command."),
+    "get": (
+        "sbase install",
+        "Python treats `get` and `install` as the same command, with a driver name, a version and `--path`. "
+        "`sbase install` takes no argument: it fetches the chromedriver that matches the installed Chrome.",
+    ),
     "case-plans": ("sbase caseplans", "One canonical name; the hyphenated spelling is an alias upstream."),
     "gui-behave": ("sbase behave-gui", "One canonical name; the alias is not ported."),
     "gui": ("sbase commander", "Python's `gui` is the same test runner as `commander`."),
-    "recorder": ("sbase record", "Records browser actions to a test file."),
-    "codegen": ("sbase record", "Records browser actions to a test file."),
+    "recorder": (
+        "sbase record",
+        "`sbase record URL -o FILE` writes the recorded actions as a JSON or YAML list that `sbase replay` runs. "
+        "It does not write a test file.",
+    ),
+    "codegen": (
+        "sbase record",
+        "`sbase record URL -o FILE` writes the recorded actions as a JSON or YAML list that `sbase replay` runs. "
+        "It does not write a test file.",
+    ),
+    "obfuscate": ("sbase encrypt", "Alias of encrypt upstream, as here; it encrypts a string, not a source file."),
+    "unobfuscate": ("sbase decrypt", "Alias of decrypt upstream, as here."),
 }
 CLI_NOT_APPLICABLE = {
     "methods": "Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API.",
     "options": "Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig.",
     "behave-options": "Lists behave (Python BDD) options; this crate has its own Gherkin runner.",
-    "obfuscate": "Obfuscates a Python source file; there is no Python source to obfuscate here.",
-    "unobfuscate": "Reverses Python source obfuscation; see `obfuscate`.",
+    "download": (
+        "Python's `download server` fetches the Selenium Standalone Server. sbase never downloads it: "
+        "`sbase grid-hub` and `sbase grid-node` run a jar you supply."
+    ),
     "extract-objects": "Edits the structure of Python test files.",
     "inject-objects": "Edits the structure of Python test files.",
     "revert-objects": "Edits the structure of Python test files.",
@@ -239,35 +258,83 @@ CLI_DIVERGENCE = {
 # underscores. Each group is (names, status, rust item or reason, note).
 FLAG_NOTE = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 OPTION_GROUPS = [
-    (("headless", "headed", "headless1", "headless2"), "composed", "BrowserConfig::headless", "Headed is headless = false."),
+    (("headless", "headed"), "composed", "BrowserConfig::headless", "Headed is headless = false."),
+    (("headless2",), "composed", "BrowserConfig::headless", "`headless = true` launches Chrome's new headless mode (`--headless=new`)."),
+    (
+        ("headless1",), "composed", "BrowserConfig::browser",
+        "Chrome's old headless mode exists only as chrome-headless-shell: choose Browser::ChromeHeadlessShell.",
+    ),
     (("browser", "chrome", "chromium", "firefox", "edge", "use_chromium"), "composed", "BrowserConfig::browser", "Choose the Browser variant."),
     (("uc", "undetected", "undetectable"), "composed", "BrowserConfig::mode", "DriverMode::Uc."),
-    (("proxy", "proxy_server", "proxy_string"), "composed", "BrowserConfig::proxy", "SERVER:PORT or USER:PASS@SERVER:PORT."),
+    (
+        ("proxy", "proxy_server", "proxy_string"), "composed", "BrowserConfig::proxy",
+        "SERVER:PORT only: a WebDriver session cannot log in to a proxy (the pure CDP engine can).",
+    ),
     (("pac_url",), "composed", "BrowserConfig::proxy_pac_url", ""),
     (("agent", "user_agent"), "composed", "BrowserConfig::user_agent", ""),
     (("locale_code", "locale"), "composed", "BrowserConfig::locale", ""),
     (("binary_location", "bl"), "composed", "BrowserConfig::browser_binary_path", ""),
-    (("ad_block", "adblock", "block_ads"), "composed", "BrowserConfig::ad_block", ""),
+    (
+        ("ad_block", "adblock", "block_ads", "ad_block_on"), "planned", "",
+        "BrowserConfig::ad_block only turns images off in a WebDriver launch and blocks no ads.",
+    ),
     (("rs", "reuse_session"), "composed", "BrowserConfig::reuse_session", ""),
     (("user_data_dir",), "composed", "BrowserConfig::user_data_dir", ""),
     (("server", "port", "protocol"), "composed", "BrowserConfig::webdriver_url", "Give the full WebDriver URL instead of its parts."),
     (
         (
             "incognito", "incognito_mode", "guest", "guest_mode", "no_sandbox", "disable_gpu",
-            "disable_features", "chromium_arg", "window_size", "window_position", "maximize",
-            "maximize_window", "dark", "dark_mode", "host_resolver_rules", "swiftshader",
-            "enable_3d_apis", "devtools", "open_devtools", "disable_web_security",
-            "enable_web_security", "disable_ws", "enable_ws", "dws",
+            "disable_features", "chromium_arg", "dark", "dark_mode", "host_resolver_rules",
+            "swiftshader", "devtools", "open_devtools", "disable_web_security", "disable_ws", "dws",
         ),
         "composed", "BrowserConfig::extra_args", FLAG_NOTE,
     ),
     (
+        ("window_size",), "composed", "BrowserConfig::with_window_size",
+        "Chrome's `--window-size`; a Firefox window is resized once it runs.",
+    ),
+    (
+        ("window_position",), "composed", "BrowserConfig::with_window_position",
+        "Chrome's `--window-position`; a Firefox window is moved once it runs.",
+    ),
+    (
+        ("maximize", "maximize_window"), "composed", "BaseCase::maximize_window",
+        "Call it once the session has started; a session always starts with a --window-size.",
+    ),
+    (
+        ("enable_web_security", "enable_ws"), "not-applicable",
+        "Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on.", "",
+    ),
+    (
+        ("enable_3d_apis",), "composed", "BrowserConfig::headless",
+        "A Rust session never adds --disable-3d-apis; a headless one adds --disable-gpu and cannot leave it out.",
+    ),
+    (
         (
-            "is_pytest", "with_selenium", "with_testing_base", "with_basic_test_info",
-            "with_page_source", "with_screen_shots", "settings_file", "settings",
+            "is_pytest", "with_selenium",
             "var1", "var2", "var3", "variables", "reuse_class_session",
         ),
         "not-applicable", "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it.", "",
+    ),
+    (
+        ("settings_file", "settings"), "composed", "Settings::from_file",
+        "`sbase --config FILE` or Settings::load(Some(path)) read a TOML or JSON file; the keys are the Settings fields.",
+    ),
+    (
+        ("with_screen_shots",), "composed", "ScreenshotOnFailurePlugin::new",
+        "Always on upstream. Add the plugin to `Plugins` and run the test with Plugins::run_browser_test.",
+    ),
+    (
+        ("with_page_source",), "composed", "PageSourceOnFailurePlugin::new",
+        "Always on upstream. Add the plugin to `Plugins` and run the test with Plugins::run_browser_test.",
+    ),
+    (
+        ("with_testing_base",), "composed", "Plugins::run_browser_test",
+        "Always on upstream. Add ScreenshotOnFailurePlugin and PageSourceOnFailurePlugin to `Plugins`.",
+    ),
+    (
+        ("with_basic_test_info",), "composed", "ReportPlugin::json",
+        "Always on upstream. A ReportPlugin report carries the error, a hint, and the page's URL and title.",
     ),
 ]
 OPTION_BY_NAME = {
@@ -381,6 +448,8 @@ def classify(api, methods, fields):
                 _, status, target, note = group
                 if status == "not-applicable":
                     put(surface, original, status=status, reason=target)
+                elif status == "planned":
+                    put(surface, original, status=status, note=note)
                 else:
                     put(surface, original, status=status, rust=target, **({"note": note} if note else {}))
             elif owner:

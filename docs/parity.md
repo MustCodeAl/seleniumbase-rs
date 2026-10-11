@@ -15,13 +15,13 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 433 | 3 | 11 | 6 |
+| [BaseCase methods](#basecase-methods) | 453 | 433 | 4 | 10 | 6 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 195 | 14 | 3 |
-| [Command-line commands](#command-line-commands) | 36 | 16 | 7 | 9 | 4 |
-| [pytest options](#pytest-options) | 263 | 103 | 98 | 58 | 4 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 51 | 38 | 18 | 0 |
-| [`Driver()` arguments](#driver()-arguments) | 74 | 41 | 31 | 2 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 194 | 14 | 4 |
+| [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
+| [pytest options](#pytest-options) | 263 | 105 | 100 | 45 | 13 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 50 | 38 | 16 | 3 |
+| [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 29 | 3 | 2 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
 | [MCP: SB server](#mcp-sb-server) | 88 | 88 | 0 | 0 | 0 |
@@ -357,7 +357,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `remove_elements` | implemented | `BaseCase::remove_elements` |  |
 | `remove_local_storage_item` | implemented | `BaseCase::remove_local_storage_item` |  |
 | `remove_session_storage_item` | implemented | `BaseCase::remove_session_storage_item` |  |
-| `reset_default_timeout` | implemented | `BaseCase::reset_default_timeout` |  |
+| `reset_default_timeout` | implemented | `BaseCase::reset_default_timeout` | Puts back the default wait from before set_default_timeout. |
 | `reset_jqc_theme` | implemented | `BaseCase::reset_jqc_theme` |  |
 | `reset_window_size` | implemented | `BaseCase::reset_window_size` |  |
 | `right_click` | implemented | `BaseCase::right_click` |  |
@@ -407,7 +407,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_content_to_frame` | planned |  | BaseCase::set_content_to_frame(html) appends an iframe holding the given HTML to the page. Python's set_content_to_frame(frame) replaces the page with the content of an iframe already on it (or opens its src in a new tab) and set_content_to_default restores the page. Not ported. |
 | `set_content_to_parent` | implemented | `BaseCase::set_content_to_parent` |  |
 | `set_content_to_parent_frame` | implemented | `BaseCase::set_content_to_parent_frame` |  |
-| `set_default_timeout` | implemented | `BaseCase::set_default_timeout` |  |
+| `set_default_timeout` | implemented | `BaseCase::set_default_timeout` | Raises or lowers how long actions wait by default; whole seconds, 1 to 60 (Python allows 0.5 to 60). |
 | `set_introjs_colors` | implemented | `BaseCase::set_introjs_colors` |  |
 | `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` |  |
 | `set_local_storage_item` | implemented | `BaseCase::set_local_storage_item` |  |
@@ -415,7 +415,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_session_storage_item` | implemented | `BaseCase::set_session_storage_item` |  |
 | `set_text` | implemented | `BaseCase::set_text` | Differs: Sets the value of an input or textarea (firing input and change) or the textContent of any other element, as Python does; it presses no Enter for a trailing newline, and the selector is CSS. |
 | `set_text_content` | implemented | `BaseCase::set_text_content` | Differs: Same as set_text, as in Python; the selector is CSS and there is no scroll argument. |
-| `set_time_limit` | implemented | `BaseCase::set_time_limit` |  |
+| `set_time_limit` | implemented | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. It is kept apart from the default wait that set_default_timeout changes. |
 | `set_value` | implemented | `BaseCase::set_value` |  |
 | `set_window_position` | implemented | `BaseCase::set_window_position` |  |
 | `set_window_rect` | implemented | `BaseCase::set_window_rect` | Differs: Takes (x, y, width, height) with unsigned sizes. |
@@ -423,7 +423,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `show_element` | implemented | `BaseCase::show_element` |  |
 | `show_elements` | implemented | `BaseCase::show_elements` |  |
 | `show_file_choosers` | implemented | `BaseCase::show_file_choosers` |  |
-| `skip` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
+| `skip` | composed | `BaseCase::skip_test` | `skip_test(message)` returns Err(SeleniumBaseError::Skipped) for the test to `?` out with. libtest has no runtime skip: `run_browser_test` (and `Plugins::run_browser_test`) log the reason and count the test as passed, and any other harness has to map `is_skipped()` to Ok itself. Python also records the reason for its dashboard and database reports, which is not done here. |
 | `sleep` | implemented | `BaseCase::sleep` | Differs: Takes seconds as f64 and is async. |
 | `slow_click` | implemented | `BaseCase::slow_click` |  |
 | `slow_scroll_to` | implemented | `BaseCase::slow_scroll_to` |  |
@@ -611,10 +611,10 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `clear_input` | composed | `Locator::clear` | Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `click` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `click_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement.click()")`. |
-| `click_and_hold` | composed | `Mouse::down` | Move the pointer onto the element, then press with `page.mouse().down(..)`; the Mouse acts at coordinates, not on a selector. |
+| `click_and_hold` | composed | `Locator::click_and_hold` | `page.locator(selector).click_and_hold(Duration::from_secs(2))` scrolls the element into view, presses at its centre, holds for the given time and releases there. Mouse::down and Mouse::up act at coordinates. |
 | `click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
 | `click_if_visible` | composed | `Locator::click` | Locator::click has no "only if visible" condition; check `page.locator(selector).is_visible()` first. |
-| `click_link` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `click_link` | composed | `Locator::click` | `page.locator(SelectorBuf::partial_link_text(link_text)).click()` clicks the first link whose text contains `link_text`. The argument is link text, not a selector, so build the selector with `SelectorBuf::partial_link_text` (or `link_text` for an exact match) rather than passing the bare text. |
 | `click_nth_element` | composed | `Locator::nth` | `page.locator(selector).nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_nth_visible_element` | composed | `Locator::nth` | `page.locator(selector).visible().nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_visible_elements` | composed | `Locator::visible` | `page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`. |
@@ -623,22 +623,22 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `download_file` | planned |  | Browser::set_download_dir only chooses the folder downloads go to; nothing fetches the URL. Python's download_file(url, filename) downloads it and renames the file. |
 | `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::get_mfa_code and type it with Locator::type_text. |
-| `evaluate` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value. |
-| `execute_script` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value. |
-| `fast_keys` | composed | `Keyboard::insert_text` | `page.keyboard().insert_text(text)` inserts the text in one step. |
+| `evaluate` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value, so an element comes back as `{}`. As in Python, a `return ` that starts the last line is dropped; a `return` anywhere else is a syntax error, so wrap such a script in `(() => { ... })()`. |
+| `execute_script` | composed | `Page::evaluate` | `page.evaluate(script)`, as for `evaluate`: a `return ` that starts the last line is dropped, so Selenium-style `return document.title` works; values come back as serde_json::Value. |
+| `fast_keys` | composed | `Keyboard::insert_text` | Python types into the element the selector names. Focus it first: `page.locator(selector).focus().await?; page.keyboard().insert_text(text).await?` inserts the text in one step after what the field holds. fast_type's Locator::fill clears the field first. |
 | `fast_type` | composed | `Locator::fill` | `page.locator(selector).fill(text)` replaces the content in one step, with input events but no per-key ones. |
-| `find_all` | composed | `Locator::all` | `page.locator(selector).all()` gives one Locator per match. |
-| `find_element` | composed | `Page::locator` | `page.locator(selector)` returns a Locator, the handle every element action goes through. |
-| `find_element_by_text` | composed | `Page::locator` | `page.locator(selector)` with a text selector returns a Locator. |
-| `find_elements` | composed | `Locator::all` | `page.locator(selector).all()` gives one Locator per match. |
-| `find_elements_by_text` | composed | `Locator::all` | `page.locator(selector).all()` gives one Locator per match; filter by text yourself. |
+| `find_all` | composed | `Locator::all_waiting` | `page.locator(selector).all_waiting()` waits up to the timeout for a first match, then gives one Locator per match; after the timeout it gives an empty list, as Python does. `all()` does not wait. |
+| `find_element` | composed | `Page::locator` | `page.locator(selector)` returns a Locator, the handle every element action goes through; CSS, XPath and `tag:contains("text")` selectors work. Python also searches by text when the selector is plain text, which Rust does not guess: use `SelectorBuf::containing_text`. Python's `best_match` option is not offered. |
+| `find_element_by_text` | composed | `SelectorBuf::containing_text` | `page.locator(SelectorBuf::containing_text(text, Some("button")))` finds a tag element whose text contains the text, as Python's `tag:contains("text")` does (that form also works as a selector string); with `None` for the tag it finds the innermost elements that hold the text. A `text=` prefix still means link text, as in SeleniumBase. |
+| `find_elements` | composed | `Locator::all_waiting` | `page.locator(selector).all_waiting()` waits up to the timeout for a first match, then gives one Locator per match; after the timeout it gives an empty list, as Python does. `all()` does not wait. |
+| `find_elements_by_text` | composed | `SelectorBuf::containing_text` | `page.locator(SelectorBuf::containing_text(text, tag)).all()` gives one Locator per element that contains the text: the innermost ones when `tag` is None, every `tag` element otherwise. |
 | `find_visible_elements` | composed | `Locator::visible` | Call `page.locator(selector).visible(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `flash` | composed | `Locator::flash` | Call `page.locator(selector).flash(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `flash` | composed | `Locator::flash_with` | `page.locator(selector).flash_with(color, duration)` outlines the element for the duration in any CSS colour; `flash()` uses the defaults. Python's `pause` is a `tokio::time::sleep` afterwards. The outline is an outline, not Python's vanishing dot. |
 | `focus` | composed | `Locator::focus` | Call `page.locator(selector).focus(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
-| `get_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement")`. |
-| `get_active_element_css` | composed | `Page::evaluate` | No method: evaluate a script on `document.activeElement` with `page.evaluate(..)`. |
-| `get_active_tab` | composed | `Browser::default_page` | `browser.default_page()` is the first tab, not necessarily the active one. |
+| `get_active_element` | composed | `Page::active_element` | `page.active_element()` returns a Locator for the element that has focus, found through its selector. Python returns a dump of the element; read what you need from the Locator (`info()`, `text()`, `attribute(..)`). `page.evaluate("document.activeElement")` does not work: an element comes back as `{}`. |
+| `get_active_element_css` | composed | `Page::active_element_css` | `page.active_element_css()` returns the shortest selector that finds the focused element, such as `input#email`, or `body` when nothing has focus. |
+| `get_active_tab` | composed | `Browser::default_page` | Python's active tab is the one the engine drives; in Rust that is the Page you hold. `browser.default_page()` is only the first tab listed, which may be another one. |
 | `get_all_cookies` | composed | `Cookies::all` | `page.cookies().all(..)`. |
 | `get_all_urls` | composed | `Locator::urls` | `page.locator(selector).urls()` lists the absolute URLs under the element. |
 | `get_attribute` | composed | `Locator::attribute` | Call `page.locator(selector).attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -649,15 +649,15 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_element_attribute` | composed | `Locator::attribute` | Call `page.locator(selector).attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get_element_attributes` | composed | `Locator::info` | `page.locator(selector).info()` returns the element's details, attributes included. |
 | `get_element_html` | composed | `Locator::html` | Call `page.locator(selector).html(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `get_element_position` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
-| `get_element_rect` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
+| `get_element_position` | composed | `Locator::viewport_rect` | `page.locator(selector).viewport_rect()` is measured from the window's visible area, as in Python. `bounding_box()` is measured from the top of the document and differs by how far the page is scrolled. |
+| `get_element_rect` | composed | `Locator::viewport_rect` | `page.locator(selector).viewport_rect()` is measured from the window's visible area, as Python's window-based rectangle is. `bounding_box()` is measured from the top of the document and differs by how far the page is scrolled. |
 | `get_element_size` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
-| `get_endpoint_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint. |
+| `get_endpoint_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to. |
 | `get_event_loop` | not-applicable |  | The async runtime is the caller's; there is no event loop to expose. |
 | `get_flattened_document` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `DOM.getFlattenedDocument`. |
 | `get_gui_element_center` | composed | `Locator::screen_rect` | `page.locator(selector).screen_rect()` gives the rectangle in screen coordinates; take its centre. |
 | `get_gui_element_rect` | composed | `Locator::screen_rect` | Call `page.locator(selector).screen_rect(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `get_html` | composed | `Locator::html` | `page.locator(selector).html()` returns the element's HTML; for the whole page use `page.content()`. |
+| `get_html` | composed | `Page::content` | `page.content()` returns the whole page's HTML, `document.documentElement.outerHTML`, which is what Python returns with `include_shadow_dom=False`. Python's default (True) reads the html element's outer HTML through DevTools; whether that adds shadow-root content was not compared. For one element use `page.locator(selector).html()`. |
 | `get_local_storage_item` | composed | `Storage::get` | `page.local_storage().get(key)`. |
 | `get_locale_code` | composed | `Page::evaluate` | No method: `page.evaluate("navigator.language")`. |
 | `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
@@ -669,10 +669,10 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_parent` | composed | `Locator::parent` | Call `page.locator(selector).parent(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get_path_of_downloaded_file` | composed | `Browser::set_download_dir` | Rust has no helper: join the folder given to Browser::set_download_dir with the file name. |
 | `get_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
-| `get_rd_host` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint; take its host. |
+| `get_rd_host` | composed | `Browser::debugging_host` | `browser.debugging_host()` is `127.0.0.1` for a launched browser and the host given to `Browser::connect` for an attached one. |
 | `get_rd_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
-| `get_rd_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint. |
-| `get_screen_rect` | composed | `Window::bounds` | `page.window().bounds()` is the browser window's rectangle, not the screen's; read the screen size with `page.evaluate("[screen.width, screen.height]")`. |
+| `get_rd_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to. |
+| `get_screen_rect` | composed | `Page::evaluate` | Python returns `window.screen`. Read it with `page.evaluate("({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })")`. `page.window().bounds()` is the browser window's rectangle, not the screen's. |
 | `get_session_storage_item` | composed | `Storage::get` | `page.session_storage().get(key)`. |
 | `get_tabs` | composed | `Browser::pages` | `browser.pages()`. |
 | `get_text` | composed | `Locator::text` | Call `page.locator(selector).text(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -686,20 +686,20 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `go_back` | composed | `Page::back` | A method of the Page that sb.cdp drives: `page.back(..)`. |
 | `go_forward` | composed | `Page::forward` | A method of the Page that sb.cdp drives: `page.forward(..)`. |
 | `goto` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
-| `goto_if_not_url` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
-| `grant_all_permissions` | composed | `Browser::grant_permissions` | A method of the Browser, not of one page: `browser.grant_permissions(..)`. |
-| `grant_permissions` | composed | `Browser::grant_permissions` | A method of the Browser, not of one page: `browser.grant_permissions(..)`. |
-| `gui_click_and_hold` | composed | `Gui::mouse_down` | `Gui::mouse_down` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
-| `gui_click_element` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_click_with_offset` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_click_x_y` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_drag_and_drop` | composed | `Gui::drag` | `Gui::drag` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `goto_if_not_url` | composed | `Page::goto_if_not_url` | `page.goto_if_not_url(url)` navigates only when the tab is on another page. Like Python it ignores what a search engine adds after the query (`?q=term&source=hp`). |
+| `grant_all_permissions` | composed | `Browser::grant_all_permissions` | A method of the Browser, not of one page: `browser.grant_all_permissions()` grants the 23 kinds in `Permission::ALL`, which are the ones Python grants. |
+| `grant_permissions` | composed | `Browser::grant_permissions_for` | A method of the Browser, not of one page: `browser.grant_permissions(&[..])` for all origins, `browser.grant_permissions_for(origin, &[..])` for one. Permissions are the `Permission` enum, not free-form names. |
+| `gui_click_and_hold` | composed | `Gui::mouse_down` | Feature `gui`. Gui::mouse_down presses at the pointer's current position without moving it, so move first: take `let r = page.locator(selector).screen_rect().await?`, `gui.move_mouse(x, y)?` to the centre `(r.x + r.width / 2.0, r.y + r.height / 2.0)`, then `gui.mouse_down()?`, sleep for the hold time and `gui.mouse_up()?`. |
+| `gui_click_captcha` | planned |  | Python clicks the widget with the operating system's pointer (PyAutoGUI), which works where synthesised clicks into the cross-origin challenge frame are refused. `Page::solve_captcha` is not that: it clicks with DevTools mouse events and the OS pointer never moves. The parts for a real-input click exist (`Locator::screen_rect` for the widget's frame, `Gui::move_mouse`, `Gui::click`, feature `gui`), but nothing combines them with the captcha plan yet. |
+| `gui_click_element` | composed | `Gui::click` | Feature `gui`. Gui::click clicks where the pointer already is, so move first: `let r = page.locator(selector).screen_rect().await?; gui.move_mouse((r.x + r.width / 2.0) as i32, (r.y + r.height / 2.0) as i32)?; gui.click()?`. Python also glides the pointer over `timeframe` seconds. |
+| `gui_click_with_offset` | composed | `Gui::click` | Feature `gui`. Move to the offset from the element's top-left corner, then click: `let r = page.locator(selector).screen_rect().await?; gui.move_mouse(r.x as i32 + dx, r.y as i32 + dy)?; gui.click()?`. |
+| `gui_click_x_y` | composed | `Gui::click` | Feature `gui`. Gui::click does not move the pointer: `gui.move_mouse(x, y)?; gui.click()?`. |
+| `gui_drag_and_drop` | composed | `Gui::drag` | Feature `gui`. Take the centre of `page.locator(drag_selector).screen_rect().await?` and of the drop selector's, and pass both points to `gui.drag((x1, y1), (x2, y2))?`. |
 | `gui_drag_drop_points` | composed | `Gui::drag` | `Gui::drag` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_hover_and_click` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_hover_element` | composed | `Gui::move_mouse` | `Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_hover_and_click` | composed | `Gui::click` | Feature `gui`. Move to the centre of the first element's `screen_rect()` and wait for the page to react, then move to the centre of the second's and `gui.click()?`. |
+| `gui_hover_element` | composed | `Gui::move_mouse` | Feature `gui`. Take the centre of `page.locator(selector).screen_rect().await?` and pass it to `gui.move_mouse(x, y)?`; the pointer is the operating system's, outside the page. |
 | `gui_hover_x_y` | composed | `Gui::move_mouse` | `Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
-| `gui_move_to_element` | composed | `Gui::move_mouse` | `Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_move_to_element` | composed | `Gui::move_mouse` | Feature `gui`. Take the centre of `page.locator(selector).screen_rect().await?` and pass it to `gui.move_mouse(x, y)?`; the pointer is the operating system's, outside the page. |
 | `gui_press_key` | composed | `Gui::press_key` | `Gui::press_key` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
 | `gui_press_keys` | composed | `Gui::press_keys` | `Gui::press_keys(&[..])` holds the modifier keys while it presses the others; it needs feature `gui`. |
 | `gui_write` | composed | `Gui::write` | `Gui::write` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
@@ -719,23 +719,23 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `js_dumps` | not-applicable |  | Values cross as serde_json::Value; there is nothing to serialise by hand. |
 | `js_scroll_into_view` | composed | `Locator::scroll_into_view` | Call `page.locator(selector).scroll_into_view(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `load_cookies` | composed | `Cookies::load` | `page.cookies().load(..)`. |
-| `maximize` | composed | `Window::maximize` | `page.window().maximize(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `maximize` | composed | `Window::maximize` | `page.window().maximize()`. |
 | `medimize` | composed | `Window::restore` | `page.window().restore()` returns the window to its normal state. |
-| `minimize` | composed | `Window::minimize` | `page.window().minimize(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
-| `mouse_click` | composed | `Mouse::click` | `page.mouse().click(..)`; the Mouse acts at coordinates, not on a selector. |
+| `minimize` | composed | `Window::minimize` | `page.window().minimize()`. |
+| `mouse_click` | composed | `Locator::click` | `page.locator(selector).click()` waits for the element, scrolls it into view and clicks its centre with real mouse events. `page.mouse().click(point)` clicks at coordinates instead. |
 | `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `open` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
 | `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page(..)`. |
 | `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window(..)`. |
 | `post_message` | implemented | `Page::post_message` | Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it. Differs: Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions. |
-| `press_keys` | composed | `Locator::press` | `page.locator(selector).type_text(text)` types the text one key at a time without Python's human-speed delays; Locator::press sends one named key. |
+| `press_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
 | `print_to_pdf` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it with std::fs. |
 | `quit` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
 | `refresh` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
 | `reload` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
-| `remove_element` | composed | `Locator::remove` | Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `remove_elements` | composed | `Locator::remove` | Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `remove_from_dom` | composed | `Locator::remove` | Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `remove_element` | composed | `Locator::remove` | `page.locator(selector).first().remove()`. Python's remove_element removes one element, the first match; `Locator::remove` on its own removes every match, which is remove_elements. |
+| `remove_elements` | composed | `Locator::remove` | `page.locator(selector).remove()` removes every match, as Python's remove_elements does. |
+| `remove_from_dom` | composed | `Locator::remove` | `page.locator(selector).first().remove()`. Python's remove_from_dom removes one element, the first match; `Locator::remove` on its own removes every match. |
 | `reset_permissions` | composed | `Browser::reset_permissions` | A method of the Browser, not of one page: `browser.reset_permissions(..)`. |
 | `reset_window_size` | composed | `Window::set_bounds` | Read page.window().bounds() when the page opens and pass those values back to set_bounds, as Python restores the start position and size. Window::restore only leaves the maximized or minimized state; it does not restore a size. |
 | `save_as_html` | composed | `Page::content` | `page.content()` returns the HTML; write it with std::fs. |
@@ -747,7 +747,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `save_file_as` | planned |  | Python downloads a URL and saves it under a name in a folder. Nothing on the CDP engine fetches a URL for you; fetch it with an HTTP client and write it with std::fs. |
 | `save_page_source` | composed | `Page::content` | `page.content()` returns the HTML; write it with std::fs. |
 | `save_page_source_to_logs` | composed | `Page::content` | `page.content()` returns the HTML; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
-| `save_screenshot` | composed | `Page::screenshot` | `page.screenshot(..)` returns the image; write it with std::fs. |
+| `save_screenshot` | composed | `Page::screenshot` | `page.screenshot(..)` returns the viewport as image bytes; write them with std::fs. For Python's `selector` argument use `page.locator(selector).screenshot()`. |
 | `save_screenshot_to_logs` | composed | `Page::screenshot` | `page.screenshot(..)` returns the image; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
 | `scroll_by_y` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
 | `scroll_down` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
@@ -757,7 +757,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `scroll_to_y` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
 | `scroll_up` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
 | `select` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `select_all` | composed | `Locator::all` | Python's select_all returns the matching elements, like find_elements; page.locator(selector).all() gives one Locator per match. |
+| `select_all` | composed | `Locator::all_waiting` | Python's select_all returns the matching elements, like find_elements; `page.locator(selector).all_waiting()` waits up to the timeout for a first match, then gives one Locator per match (an empty list after the timeout, as Python does). `all()` does not wait. |
 | `select_if_unselected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(true)`. |
 | `select_option_by_index` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_text` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -767,11 +767,11 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `set_attributes` | composed | `Locator::set_attribute` | Call `page.locator(selector).set_attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_download_path` | composed | `Browser::set_download_dir` | `browser.set_download_dir(dir)`. |
 | `set_local_storage_item` | composed | `Storage::set` | `page.local_storage().set(key, value)`. |
-| `set_locale` | composed | `Emulation::locale` | `page.emulation().locale(..)`. |
+| `set_locale` | composed | `Emulation::locale` | `page.emulation().locale(..)` sets the Intl locale and also the language the page reads from `navigator.language` and the browser sends in `Accept-Language`, keeping the user agent and client hints it had. As in Python the language takes effect from the next page load. |
 | `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). |
 | `set_session_storage_item` | composed | `Storage::set` | `page.session_storage().set(key, value)`. |
 | `set_value` | composed | `Locator::set_value` | Call `page.locator(selector).set_value(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `set_window_rect` | composed | `Window::set_bounds` | `page.window().set_bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `set_window_rect` | composed | `Window::set_bounds` | `page.window().set_bounds(x, y, width, height)`; it first restores a minimised or maximised window. |
 | `sleep` | not-applicable |  | Use tokio::time::sleep. |
 | `solve_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
 | `stop` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
@@ -804,38 +804,38 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `behave-options` | not-applicable |  | Lists behave (Python BDD) options; this crate has its own Gherkin runner. |
 | `case-plans` | planned |  | Alias of caseplans upstream; see that entry. |
 | `caseplans` | planned |  | Python launches the Case Plans Generator over the test files. `sbase caseplans` only writes a fixed CASE_PLANS.md checklist. |
-| `codegen` | composed | `sbase record` | Records browser actions to a test file. |
+| `codegen` | composed | `sbase record` | `sbase record URL -o FILE` writes the recorded actions as a JSON or YAML list that `sbase replay` runs. It does not write a test file; ActionRecorder::to_rust_test does that, from code. |
 | `commander` | implemented | `sbase commander` |  |
 | `convert` | implemented | `sbase convert` |  |
 | `decrypt` | implemented | `sbase decrypt` | Differs: Reads tokens made by `sbase encrypt` only; see `encrypt`. |
-| `download` | implemented | `sbase download` |  |
+| `download` | not-applicable |  | Python's `download server` fetches the Selenium Standalone Server. `sbase` never downloads it: `sbase grid-hub` and `sbase grid-node` run a jar you supply with --jar or SB_SELENIUM_SERVER_JAR. (`sbase download-file` downloads a file from a URL, which is another command.) |
 | `encrypt` | implemented | `sbase encrypt` | Differs: AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable. |
 | `extract-objects` | not-applicable |  | Edits the structure of Python test files. |
-| `get` | composed | `sbase install` | Python treats `get` and `install` as the same command. |
+| `get` | composed | `sbase install` | Python treats `get` and `install` as the same command, with a driver name, a version or channel, and `--path`. `sbase install` takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). There is no choice of driver, no version, no edgedriver or geckodriver and no copy to a folder on the PATH. Chrome for Testing and chrome-headless-shell are fetched when the session starts and one of them is chosen as the browser. |
 | `grid-hub` | implemented | `sbase grid-hub` | start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. |
 | `grid-node` | implemented | `sbase grid-node` | start, stop, restart and status; registers with the hub named by --hub. |
 | `gui` | composed | `sbase commander` | Python's `gui` is the same test runner as `commander`. |
 | `gui-behave` | planned |  | Alias of behave-gui upstream; see that entry. |
 | `help` | composed | `clap` | Provided by the argument parser. |
 | `inject-objects` | not-applicable |  | Edits the structure of Python test files. |
-| `install` | implemented | `sbase install` |  |
+| `install` | implemented | `sbase install` | Differs: Takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). No driver name, version or --path, and no edgedriver or geckodriver. |
 | `methods` | not-applicable |  | Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API. |
 | `mkchart` | implemented | `sbase mkchart` |  |
 | `mkdir` | implemented | `sbase mkdir` |  |
 | `mkfile` | implemented | `sbase mkfile` |  |
 | `mkpres` | implemented | `sbase mkpres` |  |
-| `mkrec` | composed | `sbase record` | Python's mkrec creates a new test with the Recorder, which `sbase record` does. `sbase mkrec` only writes a starter recording file and opens no browser. |
-| `obfuscate` | not-applicable |  | Obfuscates a Python source file; there is no Python source to obfuscate here. |
+| `mkrec` | composed | `sbase record` | Python's mkrec creates a new test file with the Recorder. `sbase record URL -o FILE` records in a browser and writes a JSON or YAML action list that `sbase replay` runs, not a test file; `sbase mkrec` only writes a starter recording file and opens no browser. |
+| `obfuscate` | composed | `sbase encrypt` | Alias of encrypt upstream, as here: `sbase obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's. |
 | `objectify` | not-applicable |  | Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbase objectify` only writes a starter page_object.rs. |
 | `options` | not-applicable |  | Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig. |
 | `print` | implemented | `sbase print` |  |
 | `proxy` | implemented | `sbase proxy` |  |
 | `record` | implemented | `sbase record` |  |
-| `recorder` | composed | `sbase record` | Records browser actions to a test file. |
+| `recorder` | composed | `sbase record` | Python's recorder is a desktop app that launches the Recorder. `sbase record URL -o FILE` has no window of its own: it opens the page, records until it is stopped, and writes a JSON or YAML action list that `sbase replay` runs. It does not write a test file. |
 | `revert-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `translate` | implemented | `sbase translate` | sbase translate FILE LANGUAGE [--print\|--overwrite\|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages. Differs: Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario. The language is a positional argument, not a --zh style flag. |
-| `unobfuscate` | not-applicable |  | Reverses Python source obfuscation; see `obfuscate`. |
-| `version` | composed | `clap` | Provided by the argument parser. |
+| `unobfuscate` | composed | `sbase decrypt` | Alias of decrypt upstream, as here: `sbase unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's. |
+| `version` | implemented | `sbase version` | Prints the same line as `sbase --version`. |
 
 ## pytest options
 
@@ -844,9 +844,9 @@ Python `--option` flags.
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
 | `--account` | not-applicable |  | Hands a free-text account string to pytest tests as sb.account; a Rust test reads its own values from std::env or a fixture file. |
-| `--ad-block` | implemented | `BrowserConfig::ad_block` |  |
-| `--ad_block` | implemented | `BrowserConfig::ad_block` |  |
-| `--adblock` | composed | `BrowserConfig::ad_block` |  |
+| `--ad-block` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
+| `--ad_block` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
+| `--adblock` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
 | `--agent` | composed | `BrowserConfig::user_agent` |  |
 | `--all-scripts` | not-applicable |  | Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend. |
 | `--all_scripts` | not-applicable |  | Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend. |
@@ -858,9 +858,9 @@ Python `--option` flags.
 | `--binary-location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--bl` | composed | `BrowserConfig::browser_binary_path` |  |
-| `--block-ads` | composed | `BrowserConfig::ad_block` |  |
+| `--block-ads` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
 | `--block-images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
-| `--block_ads` | composed | `BrowserConfig::ad_block` |  |
+| `--block_ads` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
 | `--block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
 | `--brave` | implemented | `BrowserConfig::browser` | Run with chromedriver; the program is found in Brave's install locations or on the PATH. |
 | `--browser` | implemented | `BrowserConfig::browser` |  |
@@ -876,7 +876,7 @@ Python `--option` flags.
 | `--chromium-arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
-| `--codegen` | composed | `BaseCase::start_recording` |  |
+| `--codegen` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--comet` | implemented | `BrowserConfig::browser` | Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess). |
 | `--crumbs` | composed | `BaseCase::delete_all_cookies` |  |
 | `--crx` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
@@ -919,17 +919,17 @@ Python `--option` flags.
 | `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
 | `--dws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--edge` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
-| `--ee` | not-applicable |  | Polls the ESC key inside the Python test loop to skip the running test; cargo test has no hook to skip a running test from the keyboard. |
-| `--enable-3d-apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--ee` | planned |  | Python injects a page script whose keydown handler sets `document.sb_esc_end` when ESC is pressed, and skips the test at the next page-ready wait. The pieces exist (BaseCase::wait_for_ready_state_complete, BaseCase::skip_test), but nothing injects the listener or checks the flag. |
+| `--enable-3d-apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
 | `--enable-sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
-| `--enable-web-security` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--enable-ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--enable-web-security` | not-applicable |  | Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
+| `--enable-ws` | not-applicable |  | Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
+| `--enable_3d_apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
 | `--enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
-| `--enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--enable_ws` | not-applicable |  | Python adds --disable-web-security unless this is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `--env` | not-applicable |  | Names the test environment (qa, prod, ...) for the pytest plugin; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead. |
-| `--esc-end` | not-applicable |  | Polls the ESC key inside the Python test loop to skip the running test; cargo test has no hook to skip a running test from the keyboard. |
-| `--esc_end` | not-applicable |  | Polls the ESC key inside the Python test loop to skip the running test; cargo test has no hook to skip a running test from the keyboard. |
+| `--esc-end` | planned |  | Python injects a page script whose keydown handler sets `document.sb_esc_end` when ESC is pressed, and skips the test at the next page-ready wait. The pieces exist (BaseCase::wait_for_ready_state_complete, BaseCase::skip_test), but nothing injects the listener or checks the flag. |
+| `--esc_end` | planned |  | Python injects a page script whose keydown handler sets `document.sb_esc_end` when ESC is pressed, and skips the test at the next page-ready wait. The pieces exist (BaseCase::wait_for_ready_state_complete, BaseCase::skip_test), but nothing injects the listener or checks the flag. |
 | `--extension-dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `--extension-zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
@@ -948,15 +948,15 @@ Python `--option` flags.
 | `--firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--ftrace` | not-applicable |  | Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
-| `--fullscreen` | composed | `BrowserConfig::extra_args` | Passed to the browser as --start-maximized through BrowserConfig::extra_args. |
+| `--fullscreen` | composed | `BaseCase::maximize_window` | Alias of --maximize upstream. Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--guest-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--gui` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headless` | implemented | `BrowserConfig::headless` |  |
-| `--headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `--headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `--headless1` | composed | `BrowserConfig::browser` | Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode. |
+| `--headless2` | composed | `BrowserConfig::headless` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
 | `--highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override. |
 | `--host-resolver-rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -979,9 +979,9 @@ Python `--option` flags.
 | `--log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `--log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `--log_path` | not-applicable |  | Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here. |
-| `--maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--maximize-window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--maximize_window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `--maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
+| `--maximize-window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
+| `--maximize_window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
 | `--message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
 | `--metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
@@ -1000,31 +1000,31 @@ Python `--option` flags.
 | `--open-devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--open_devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--opera` | implemented | `BrowserConfig::browser` | Run with operadriver, which must be in downloaded_drivers/ or on the PATH; nothing downloads it. |
-| `--pac-url` | composed | `BrowserConfig::proxy_pac_url` |  |
+| `--pac-url` | composed | `BrowserConfig::proxy_pac_url` | URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
 | `--page-load-strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `--protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `--proxy` | implemented | `BrowserConfig::proxy` |  |
+| `--proxy` | implemented | `BrowserConfig::proxy` | Differs: SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy). |
 | `--proxy-bypass-list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `--proxy-driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
-| `--proxy-pac-url` | implemented | `BrowserConfig::proxy_pac_url` |  |
-| `--proxy-server` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
-| `--proxy-string` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
+| `--proxy-pac-url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
+| `--proxy-server` | composed | `BrowserConfig::proxy` | SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy). |
+| `--proxy-string` | composed | `BrowserConfig::proxy` | SERVER:PORT only. A WebDriver session hands the address to Chrome as a flag, Chrome ignores credentials in it, and the engine does not answer the proxy's login request, so USER:PASS@SERVER:PORT does not log in. For a proxy that needs a password use the pure CDP engine (LaunchOptionsBuilder::proxy). |
 | `--proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `--proxy_driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
 | `--rcs` | planned |  | Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run. |
-| `--rec` | composed | `BaseCase::start_recording` |  |
+| `--rec` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--rec-behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `--rec-gherkin` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `--rec-print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
-| `--rec-sb-cdp` | not-applicable |  | Saves recorded actions as a Python sb_cdp script; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
-| `--rec-sb-mgr` | not-applicable |  | Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
+| `--rec-sb-cdp` | planned |  | The recorder writes code for the WebDriver engine (BaseCase calls), with ActionRecorder::to_rust_script and to_rust_test. Nothing writes Pure CDP code (Page and Locator calls) from a recording, although that engine exists. |
+| `--rec-sb-mgr` | composed | `ActionRecorder::to_rust_script` | Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead. |
 | `--rec-sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
-| `--record` | composed | `BaseCase::start_recording` |  |
+| `--record` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--record-sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
-| `--recorder` | composed | `BaseCase::start_recording` |  |
+| `--recorder` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
 | `--remote-debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `--remote-debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `--remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
@@ -1039,9 +1039,9 @@ Python `--option` flags.
 | `--save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `--settings` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--settings-file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--settings` | composed | `Settings::from_file` | `sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings-file` | composed | `Settings::from_file` | `sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings_file` | composed | `Settings::from_file` | `sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `--sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip-js-waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
@@ -1050,14 +1050,14 @@ Python `--option` flags.
 | `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
 | `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
 | `--ss` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
-| `--start-page` | implemented | `BrowserConfig::start_page` |  |
-| `--start_page` | implemented | `BrowserConfig::start_page` |  |
+| `--start-page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
+| `--start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `--swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--time-limit` | composed | `BaseCase::set_time_limit` |  |
-| `--time_limit` | composed | `BaseCase::set_time_limit` |  |
-| `--timelimit` | composed | `BaseCase::set_time_limit` |  |
-| `--timeout-multiplier` | composed | `BaseCase::set_default_timeout` | Multiply the default timeout yourself. |
-| `--timeout_multiplier` | composed | `BaseCase::set_default_timeout` | Multiply the default timeout yourself. |
+| `--time-limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
+| `--time_limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
+| `--timelimit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
+| `--timeout-multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
+| `--timeout_multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
 | `--uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--uc-cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
 | `--uc-cdp-events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
@@ -1067,7 +1067,7 @@ Python `--option` flags.
 | `--uc_subprocess` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
 | `--undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
-| `--url` | composed | `BrowserConfig::start_page` |  |
+| `--url` | composed | `BrowserConfig::start_page` | Alias of --start-page upstream. BaseCase::new opens the start page when one is set. |
 | `--use-auto-ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--use-chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--use_auto_ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
@@ -1086,23 +1086,23 @@ Python `--option` flags.
 | `--wait-for-angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
 | `--wait_for_angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
 | `--wfa` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
-| `--window-position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--window-size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--window_position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--window_size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--with-basic-test-info` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--with-basic_test_info` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--window-position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
+| `--window-size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
+| `--window_position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
+| `--window_size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
+| `--with-basic-test-info` | composed | `ReportPlugin::json` | Always on upstream. A failed test's report says the kind of error, a hint, and the page's URL and title: add `ReportPlugin::json(path)` to `Plugins` and run the test with `Plugins::run_browser_test`. It is one report file for the run, not a basic_test_info.txt per failure. |
+| `--with-basic_test_info` | composed | `ReportPlugin::json` | Always on upstream. A failed test's report says the kind of error, a hint, and the page's URL and title: add `ReportPlugin::json(path)` to `Plugins` and run the test with `Plugins::run_browser_test`. It is one report file for the run, not a basic_test_info.txt per failure. |
 | `--with-db-reporting` | composed | `ResultStore::record_outcome` | Needs the turso feature; the store is a local database, not MySQL. |
 | `--with-db_reporting` | composed | `ResultStore::record_outcome` | Needs the turso feature; the store is a local database, not MySQL. |
-| `--with-page-source` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--with-page_source` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-page-source` | composed | `PageSourceOnFailurePlugin::new` | Always on upstream. Add `PageSourceOnFailurePlugin::new("latest_logs")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves the page source. |
+| `--with-page_source` | composed | `PageSourceOnFailurePlugin::new` | Always on upstream. Add `PageSourceOnFailurePlugin::new("latest_logs")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves the page source. |
 | `--with-s3-logging` | composed | `S3LoggingPlugin::upload_file` |  |
 | `--with-s3_logging` | composed | `S3LoggingPlugin::upload_file` |  |
-| `--with-screen-shots` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--with-screen_shots` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-screen-shots` | composed | `ScreenshotOnFailurePlugin::new` | Always on upstream. Add `ScreenshotOnFailurePlugin::new("latest_logs")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves a PNG screenshot. |
+| `--with-screen_shots` | composed | `ScreenshotOnFailurePlugin::new` | Always on upstream. Add `ScreenshotOnFailurePlugin::new("latest_logs")` to `Plugins` and run the test with `Plugins::run_browser_test`; a failed test then saves a PNG screenshot. |
 | `--with-selenium` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--with-testing-base` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--with-testing_base` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `--with-testing-base` | composed | `Plugins::run_browser_test` | Deprecated and always on upstream: logs and screenshots are saved when a test fails. Build a `Plugins` with `ScreenshotOnFailurePlugin` and `PageSourceOnFailurePlugin` and run the test with `Plugins::run_browser_test`; the runner in api::runner does none of this by itself. |
+| `--with-testing_base` | composed | `Plugins::run_browser_test` | Deprecated and always on upstream: logs and screenshots are saved when a test fails. Build a `Plugins` with `ScreenshotOnFailurePlugin` and `PageSourceOnFailurePlugin` and run the test with `Plugins::run_browser_test`; the runner in api::runner does none of this by itself. |
 | `--xvfb` | implemented | `BrowserConfig::with_virtual_display` | Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python. |
 | `--xvfb-metrics` | implemented | `VirtualDisplay::new` | WIDTH,HEIGHT of the virtual screen; 1366,768 when not given. |
 | `--xvfb_metrics` | implemented | `VirtualDisplay::new` | WIDTH,HEIGHT of the virtual screen; 1366,768 when not given. |
@@ -1114,8 +1114,8 @@ Keyword arguments of `SB()`.
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
 | `account` | not-applicable |  | Hands a free-text account string to SB() tests as sb.account; a Rust test reads its own values from std::env or a fixture file. |
-| `ad_block` | implemented | `BrowserConfig::ad_block` |  |
-| `ad_block_on` | composed | `BrowserConfig::ad_block` | Python's ad_block_on is the state the ad-block option sets. |
+| `ad_block` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
+| `ad_block_on` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
 | `agent` | composed | `BrowserConfig::user_agent` |  |
 | `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
@@ -1139,9 +1139,9 @@ Keyword arguments of `SB()`.
 | `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
-| `enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `enable_3d_apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless enable_3d_apis is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
 | `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
-| `enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `enable_ws` | not-applicable |  | Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `environment` | not-applicable |  | Names the test environment (qa, prod, ...) for SB() tests; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
@@ -1153,8 +1153,8 @@ Keyword arguments of `SB()`.
 | `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless` | implemented | `BrowserConfig::headless` |  |
-| `headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `headless1` | composed | `BrowserConfig::browser` | Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode. |
+| `headless2` | composed | `BrowserConfig::headless` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
 | `highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override. |
 | `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1165,7 +1165,7 @@ Keyword arguments of `SB()`.
 | `locale_code` | composed | `BrowserConfig::locale` |  |
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
-| `maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
@@ -1175,14 +1175,14 @@ Keyword arguments of `SB()`.
 | `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `proxy` | implemented | `BrowserConfig::proxy` |  |
+| `proxy` | implemented | `BrowserConfig::proxy` | Differs: SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy). |
 | `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
-| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
+| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
 | `raise_test_failure` | not-applicable |  | Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err. |
 | `rec_behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `rec_print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
-| `rec_sb_cdp` | not-applicable |  | Saves recorded actions as a Python sb_cdp script; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
-| `rec_sb_mgr` | not-applicable |  | Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
+| `rec_sb_cdp` | planned |  | The recorder writes code for the WebDriver engine (BaseCase calls), with ActionRecorder::to_rust_script and to_rust_test. Nothing writes Pure CDP code (Page and Locator calls) from a recording, although that engine exists. |
+| `rec_sb_mgr` | composed | `ActionRecorder::to_rust_script` | Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead. |
 | `record_sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
 | `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
@@ -1190,16 +1190,16 @@ Keyword arguments of `SB()`.
 | `save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
-| `settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
+| `settings_file` | composed | `Settings::from_file` | `sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
-| `start_page` | implemented | `BrowserConfig::start_page` |  |
+| `start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |
-| `time_limit` | composed | `BaseCase::set_time_limit` |  |
-| `timeout_multiplier` | composed | `BaseCase::set_default_timeout` | Multiply the default timeout yourself. |
+| `time_limit` | composed | `BaseCase::set_time_limit` | Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop. |
+| `timeout_multiplier` | composed | `BaseCase::set_timeout` | Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are. |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `uc_cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
 | `uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
@@ -1227,8 +1227,8 @@ Keyword arguments of `Driver()`.
 
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
-| `ad_block` | implemented | `BrowserConfig::ad_block` |  |
-| `ad_block_on` | composed | `BrowserConfig::ad_block` | Python's ad_block_on is the state the ad-block option sets. |
+| `ad_block` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
+| `ad_block_on` | planned |  | Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded. |
 | `agent` | composed | `BrowserConfig::user_agent` |  |
 | `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
@@ -1251,9 +1251,9 @@ Keyword arguments of `Driver()`.
 | `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
-| `enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `enable_3d_apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless enable_3d_apis is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
 | `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
-| `enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `enable_ws` | not-applicable |  | Python adds --disable-web-security unless enable_ws is set. A Rust session never adds it, so web security is already on and there is nothing to enable. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
@@ -1263,8 +1263,8 @@ Keyword arguments of `Driver()`.
 | `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless` | implemented | `BrowserConfig::headless` |  |
-| `headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
+| `headless1` | composed | `BrowserConfig::browser` | Chrome's old headless mode now exists only as chrome-headless-shell: choose `Browser::ChromeHeadlessShell` as the browser, with `headless` set. `BrowserConfig::headless` alone launches the new mode. |
+| `headless2` | composed | `BrowserConfig::headless` | `headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for. |
 | `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
@@ -1280,9 +1280,9 @@ Keyword arguments of `Driver()`.
 | `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `proxy` | implemented | `BrowserConfig::proxy` |  |
+| `proxy` | implemented | `BrowserConfig::proxy` | Differs: SERVER:PORT only: a WebDriver session cannot log in to a proxy, so USER:PASS@SERVER:PORT does not authenticate. The pure CDP engine can (LaunchOptionsBuilder::proxy). |
 | `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
-| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
+| `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` | Differs: URL only: a WebDriver session cannot log in to a proxy, so USERNAME:PASSWORD@URL does not authenticate. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
 | `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
