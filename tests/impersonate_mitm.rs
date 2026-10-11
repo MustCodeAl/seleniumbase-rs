@@ -8,6 +8,7 @@
 //!   header order without hop-by-hop or proxy headers, the measured `priority`), the refusals
 //!   (untrusted upstream certificate, version mismatch, upgrades, `Host` mismatch, body limit),
 //!   streaming of a 64 MiB body, and absolute-form `http://` requests;
+//! - [`socks`]: a SOCKS5 egress gets the host name to resolve, not an address looked up here;
 //! - [`lifecycle`]: swapping the egress between requests on one listener, shutdown and drop
 //!   leaving no task, and the static check that the module writes no files.
 //!
@@ -22,5 +23,7 @@ mod destinations;
 mod forwarding;
 #[path = "impersonate_mitm/lifecycle.rs"]
 mod lifecycle;
+#[path = "impersonate_mitm/socks.rs"]
+mod socks;
 #[path = "impersonate_mitm/support.rs"]
 mod support;

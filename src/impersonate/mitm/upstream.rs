@@ -9,6 +9,8 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::{Arc, Mutex, PoisonError, RwLock};
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine as _;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, Response, Version};
 use http_body_util::BodyExt as _;
 use hyper::body::Incoming;
@@ -243,13 +245,48 @@ fn client(
     })
 }
 
+/// The scheme the client must use for an egress. A `socks5` proxy resolves names the way a
+/// browser does, at the proxy; the client's own `socks5` resolves them on this machine, which
+/// tells this machine's resolver every site visited and can answer differently from the proxy,
+/// so it gets `socks5h`.
+fn proxy_scheme(scheme: &str) -> &str {
+    if scheme == "socks5" {
+        "socks5h"
+    } else {
+        scheme
+    }
+}
+
+/// The `Proxy-Authorization` value of a user name and password, marked sensitive.
+fn basic_auth(user: &str, password: &str) -> Result<HeaderValue, MitmError> {
+    let token = STANDARD.encode(format!("{user}:{password}"));
+    let mut value = HeaderValue::from_str(&format!("Basic {token}"))
+        .map_err(|_error| MitmError::Egress("the egress credentials were refused"))?;
+    value.set_sensitive(true);
+    Ok(value)
+}
+
 /// The egress as a client proxy, credentials attached; they never leave this function.
-fn egress_proxy(egress: &EgressRef) -> Result<wreq::Proxy, MitmError> {
-    let proxy = egress.proxy();
-    let target = wreq::Proxy::all(proxy.server())
+///
+/// The credentials of an HTTP or HTTPS proxy travel in a sensitive `Proxy-Authorization` header
+/// and never in the proxy address, which the client prints in its trace logs. A SOCKS proxy
+/// takes them in the address, because its handshake has no header; that address is never logged
+/// by this crate.
+pub(super) fn egress_proxy(egress: &EgressRef) -> Result<wreq::Proxy, MitmError> {
+    let key = egress.key();
+    let host = if key.host.contains(':') {
+        format!("[{}]", key.host)
+    } else {
+        key.host.clone()
+    };
+    let address = format!("{}://{host}:{}", proxy_scheme(&key.scheme), key.port);
+    let target = wreq::Proxy::all(address.as_str())
         .map_err(|_error| MitmError::Egress("the egress address is not a proxy URL"))?;
-    Ok(match proxy.credentials() {
-        Some((user, password)) => target.basic_auth(user, password),
+    Ok(match egress.proxy().credentials() {
+        Some((user, password)) if key.scheme.starts_with("socks") => {
+            target.basic_auth(user, password)
+        }
+        Some((user, password)) => target.custom_http_auth(basic_auth(user, password)?),
         None => target,
     })
 }

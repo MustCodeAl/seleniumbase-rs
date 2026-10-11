@@ -13,6 +13,7 @@ use super::connect::ProxyCredentials;
 use super::forward::{
     claimed_chrome_major, forwarded_request_headers, forwarded_response_headers, Origin,
 };
+use super::upstream::egress_proxy;
 use super::{
     chrome_args_for, hex, random_token, MitmError, MitmOptions, MitmProxy, DISABLE_QUIC_ARG,
     MAX_CONNECTIONS, MAX_HEADERS, MAX_HEADER_BYTES, MIN_HEADER_BYTES, PROXY_EVERYTHING_ARG,
@@ -22,6 +23,7 @@ use crate::impersonate::client::ImpersonationProfile;
 use crate::impersonate::tls_server::EphemeralCa;
 use crate::sb_cdp::LaunchOptions;
 use crate::scrape::egress::redact::Secret;
+use crate::scrape::egress::route::EgressRef;
 use crate::scrape::ledger::events::NoopEventSink;
 use crate::wire::BrowserKind;
 
@@ -366,4 +368,49 @@ async fn invalid_options_never_bind() {
     )
     .await;
     assert!(matches!(started, Err(MitmError::InvalidOptions(_))));
+}
+
+#[test]
+fn a_socks5_egress_is_given_to_the_client_as_socks5h_so_names_resolve_at_the_proxy() {
+    for spec in [
+        "socks5://alice:s3cret@10.0.0.1:1080",
+        "socks5h://alice:s3cret@10.0.0.1:1080",
+        "socks5://10.0.0.1:1080",
+    ] {
+        let egress = EgressRef::parse(spec, None).expect(spec);
+        let shown = format!("{:?}", egress_proxy(&egress).expect(spec));
+        assert!(shown.contains("socks5h://"), "{spec}: {shown}");
+        assert!(!shown.contains("socks5://"), "{spec}: {shown}");
+    }
+}
+
+#[test]
+fn an_http_egress_keeps_its_credentials_out_of_the_proxy_address() {
+    // The client prints the proxy address in its trace logs.
+    for spec in [
+        "http://alice:s3cret@proxy.example:8080",
+        "https://alice:s3cret@proxy.example:8443",
+    ] {
+        let egress = EgressRef::parse(spec, None).expect(spec);
+        let shown = format!("{:?}", egress_proxy(&egress).expect(spec));
+        assert!(
+            !shown.contains("s3cret") && !shown.contains("alice"),
+            "{spec}: {shown}"
+        );
+    }
+}
+
+#[test]
+fn every_scheme_an_egress_may_have_makes_a_proxy() {
+    for spec in [
+        "http://alice:s3cret@proxy.example:8080",
+        "https://proxy.example:8443",
+        "socks5://alice:s3cret@10.0.0.1:1080",
+        "socks5h://10.0.0.1:1080",
+        "http://[2001:db8::1]:3128",
+        "socks5://[2001:db8::1]:1080",
+    ] {
+        let egress = EgressRef::parse(spec, None).expect(spec);
+        assert!(egress_proxy(&egress).is_ok(), "{spec}");
+    }
 }
