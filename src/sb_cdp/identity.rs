@@ -32,12 +32,44 @@ use serde_json::{json, Value};
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::evasions::{bootstrap_script, safe_cdp_overrides};
+use crate::stealth::evasions::safe_cdp_overrides;
 use crate::stealth::fingerprint::Fingerprint;
+use crate::stealth::providers::{session_registry, EvasionContext};
 
 /// The override that grants permissions. It is browser-wide, so it needs the
 /// context of the tab it is for and is sent separately.
 const PERMISSIONS: &str = "Browser.grantPermissions";
+
+/// The override that sets what the screen and the pixel ratio read as.
+const DEVICE_METRICS: &str = "Emulation.setDeviceMetricsOverride";
+
+/// The script a tab runs before any page script: the session providers, which
+/// leave to the browser what a real Chrome answers for itself.
+fn session_script(fingerprint: &Fingerprint) -> String {
+    session_registry(fingerprint).bootstrap(&EvasionContext::new(fingerprint))
+}
+
+/// The device metrics a tab is given for the screen the library computed.
+///
+/// The library's own override sets the viewport to the screen's size. A
+/// desktop persona's page must keep the viewport its window really has, so
+/// there the viewport fields are `0`, which the protocol reads as "no
+/// override", and the size goes in `screenWidth` and `screenHeight`: the
+/// browser itself then reports `screen.width` and `screen.height`, with no
+/// script involved. A mobile persona is a phone-sized page, so its viewport
+/// stays the screen.
+fn session_metrics(overrides: &Value) -> Value {
+    let mobile = overrides["mobile"].as_bool().unwrap_or(false);
+    let viewport = |size: &Value| if mobile { size.clone() } else { json!(0) };
+    json!({
+        "width": viewport(&overrides["width"]),
+        "height": viewport(&overrides["height"]),
+        "screenWidth": overrides["width"],
+        "screenHeight": overrides["height"],
+        "deviceScaleFactor": overrides["deviceScaleFactor"],
+        "mobile": mobile,
+    })
+}
 
 /// What it takes to make a tab match a fingerprint, worked out once.
 #[derive(Clone)]
@@ -63,7 +95,7 @@ impl Identity {
         let mut tab = vec![
             (
                 "Page.addScriptToEvaluateOnNewDocument".to_owned(),
-                json!({ "source": bootstrap_script(fingerprint) }),
+                json!({ "source": session_script(fingerprint) }),
             ),
             // Some overrides, such as the blocked URLs, only take effect once
             // the network domain is on.
@@ -81,6 +113,8 @@ impl Identity {
                         .filter_map(|name| name.as_str().map(str::to_owned))
                         .collect()
                 });
+            } else if method == DEVICE_METRICS {
+                tab.push((method, session_metrics(&params)));
             } else {
                 tab.push((method, params));
             }
@@ -116,6 +150,14 @@ impl Page {
     /// applies the protocol overrides it recommends: user agent and Client
     /// Hints, language, time zone, screen size, location, and so on. The page
     /// that is open now keeps its old identity until it navigates or reloads.
+    ///
+    /// The script is the [session registry](crate::stealth::providers::session_registry)'s,
+    /// which leaves `navigator.plugins`, `mimeTypes`, `pdfViewerEnabled` and
+    /// `navigator.connection` to the browser, and defines `userAgentData` only
+    /// in a secure context. A desktop persona's screen is sent as
+    /// `Emulation.setDeviceMetricsOverride` with a `0` by `0` viewport and the
+    /// persona's `screenWidth` and `screenHeight`, so the browser reports the
+    /// screen itself and the page keeps the viewport its window has.
     ///
     /// The `Proxy-Authorization` header a fingerprint with a proxy password can
     /// ask for is never sent: it would reach every site the tab visits.
@@ -190,6 +232,81 @@ mod tests {
         assert!(methods.contains(&"Network.setUserAgentOverride"));
         assert!(methods.contains(&"Emulation.setTimezoneOverride"));
         assert!(methods.contains(&"Emulation.setLocaleOverride"));
+    }
+
+    /// The parameters of the `method` command in `identity`, if it has one.
+    fn params_of<'a>(identity: &'a Identity, method: &str) -> Option<&'a Value> {
+        identity
+            .tab_commands()
+            .iter()
+            .find(|(name, _)| name == method)
+            .map(|(_, params)| params)
+    }
+
+    #[test]
+    fn the_script_is_the_sessions_and_leaves_plugins_and_connection_to_the_browser() {
+        let fingerprint = Fingerprint::randomized(OsType::Windows, 7);
+
+        let identity = Identity::of(&fingerprint);
+
+        let source = identity.tab_commands()[0].1["source"].as_str().unwrap();
+        assert_eq!(
+            source,
+            session_registry(&fingerprint).bootstrap(&EvasionContext::new(&fingerprint))
+        );
+        let owned =
+            regex::Regex::new(r"\b(?:plugins|mimeTypes|pdfViewerEnabled|connection)\b").unwrap();
+        assert_eq!(owned.find(source), None, "a name Chrome answers for itself");
+        assert_ne!(
+            source,
+            crate::stealth::evasions::bootstrap_script(&fingerprint),
+            "the default script spoofs them"
+        );
+    }
+
+    #[test]
+    fn a_desktop_screen_is_sent_as_screen_metrics_that_leave_the_viewport_alone() {
+        let mut fingerprint = Fingerprint::randomized(OsType::Macos, 5);
+        fingerprint.pixel_ratio = Some(2.0);
+        let width = fingerprint.screen_width.unwrap();
+        let height = fingerprint.screen_height.unwrap();
+
+        let identity = Identity::of(&fingerprint);
+
+        assert_eq!(
+            params_of(&identity, DEVICE_METRICS),
+            Some(&json!({
+                "width": 0,
+                "height": 0,
+                "screenWidth": width,
+                "screenHeight": height,
+                "deviceScaleFactor": 2.0,
+                "mobile": false,
+            }))
+        );
+    }
+
+    #[test]
+    fn a_phone_screen_is_also_the_page() {
+        let fingerprint = Fingerprint::randomized(OsType::Android, 5);
+        let width = fingerprint.screen_width.unwrap();
+        let height = fingerprint.screen_height.unwrap();
+
+        let identity = Identity::of(&fingerprint);
+
+        let sent = params_of(&identity, DEVICE_METRICS).expect("a device metrics override");
+        assert_eq!(sent["width"], width);
+        assert_eq!(sent["height"], height);
+        assert_eq!(sent["screenWidth"], width);
+        assert_eq!(sent["screenHeight"], height);
+        assert_eq!(sent["mobile"], true);
+    }
+
+    #[test]
+    fn a_fingerprint_without_a_screen_sends_no_metrics() {
+        let identity = Identity::of(&Fingerprint::default());
+
+        assert!(params_of(&identity, DEVICE_METRICS).is_none());
     }
 
     #[test]
