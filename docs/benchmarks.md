@@ -13,6 +13,13 @@ cargo bench --bench cpu --features turso   # adds the result store and vault
 cargo bench --bench cdp_latency            # the Pure CDP engine against Chrome
 ```
 
+**Status of these figures.** They were measured before the latest work: the
+`RunSettings` hooks in `open`, `click` and `type_text`, the new MCP developer
+tools and failure reports, and the `scrape` modules. The hot paths measured below
+(the CDP round trip, locator and click, screenshot, pool throughput) were not
+changed by that work, but nothing here has been re-run since, so treat them as
+dated. Re-run the three commands above before quoting a number.
+
 **There is no comparison with Python SeleniumBase here.** It is not installed
 on the machine these numbers came from, so nothing below claims "X times faster
 than Python". What can be said is structural: the Pure CDP engine talks to

@@ -114,6 +114,42 @@ CDP can reduce round trips for some operations, but it also adds complexity:
 - Use CDP for operations such as setting headers, throttling network, or
   clearing cache when those operations are on the critical path.
 
+## Pauses that are there on purpose
+
+`BaseCase::set_run_settings` (`RunSettings`) adds or removes deliberate waiting:
+
+- **Demo and slow modes** pause after `open`, `click`, `type_text` and
+  `update_text` (demo mode also outlines the element first), so a person can
+  follow the run. Never leave them on in CI.
+- **Fast mode** cancels those demo and slow pauses. It does not make the browser
+  faster.
+- **Skip JavaScript waits** makes `wait_for_ready_state_complete` return at once.
+  Use it only for pages that never finish loading, and expect more flaky
+  clicks.
+- **Message duration** sets how long `post_message` toasts stay on screen.
+
+These pauses were added in the parity work and have been unit-tested without a
+browser, but their cost has not been benchmarked.
+
+## Choosing the engine
+
+- The **pure CDP engine** (`sb_cdp`) has no chromedriver process and no HTTP
+  request per command, and the library's own part of a round trip is about 0.1 ms
+  (see [Benchmarks](benchmarks.md)). It is the lower-overhead choice when you do
+  not need the Selenium API. The saving over WebDriver is structural, not
+  measured.
+- The **WebDriver engine** is the choice when you need Selenium Grid, Firefox or
+  an existing `BaseCase` suite. Match the chromedriver to Chrome's major version
+  (the launcher and `sbase install` do this); a mismatch costs far more than any
+  tuning.
+- Launching Chrome to a DevTools connection takes about 0.5 s, while attaching
+  and loading a first page takes about 50 ms, so reuse a browser through
+  `BrowserPool` leases instead of launching one per test.
+- Enter text with `fill` (about 0.4 ms) and use key-by-key typing (about 142 ms for
+  11 characters) only when a page needs to see keystrokes.
+- A failed MCP tool call reads the page's state for at most two seconds before
+  answering, so failures are slower than successes by design.
+
 ## Performance checklist
 
 - [ ] Measure complete representative tests, not empty loops.
