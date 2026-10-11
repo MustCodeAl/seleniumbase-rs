@@ -4318,20 +4318,20 @@ status = "not-applicable"
 reason = "Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend."
 
 [options_pytest."--archive-downloads"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe."
 
 [options_pytest."--archive-logs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead."
 
 [options_pytest."--archive_downloads"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe."
 
 [options_pytest."--archive_logs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead."
 
 [options_pytest."--auto-ext"]
 status = "implemented"
@@ -4502,24 +4502,29 @@ rust = "BrowserConfig::with_disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--demo"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_mode"
+note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo-mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_mode"
+note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo-sleep"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_sleep"
+note = "The pause demo and slow mode make after an action."
 
 [options_pytest."--demo_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_mode"
+note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo_sleep"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_sleep"
+note = "The pause demo and slow mode make after an action."
 
 [options_pytest."--device-metrics"]
 status = "implemented"
@@ -4723,16 +4728,19 @@ rust = "BrowserConfig::with_external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--fast"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_fast_mode"
+note = "Cancels the demo and slow pauses."
 
 [options_pytest."--fast-mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_fast_mode"
+note = "Cancels the demo and slow pauses."
 
 [options_pytest."--fast_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_fast_mode"
+note = "Cancels the demo and slow pauses."
 
 [options_pytest."--fdebug"]
 status = "not-applicable"
@@ -4820,8 +4828,8 @@ rust = "BrowserConfig::headless"
 note = "Headed is headless = false."
 
 [options_pytest."--highlights"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override."
 
 [options_pytest."--host-resolver-rules"]
 status = "composed"
@@ -4854,8 +4862,8 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--interval"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override."
 
 [options_pytest."--is-pytest"]
 status = "not-applicable"
@@ -4933,12 +4941,14 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--message-duration"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_message_duration"
+note = "How long BaseCase::post_message keeps its message, in whole seconds."
 
 [options_pytest."--message_duration"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_message_duration"
+note = "How long BaseCase::post_message keeps its message, in whole seconds."
 
 [options_pytest."--metrics"]
 status = "implemented"
@@ -5093,12 +5103,14 @@ status = "composed"
 rust = "BaseCase::start_recording"
 
 [options_pytest."--rec-behave"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "ActionRecorder::to_gherkin"
+note = "Writes a feature for the common browser steps; save_recording_as_feature saves it."
 
 [options_pytest."--rec-gherkin"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "ActionRecorder::to_gherkin"
+note = "Writes a feature for the common browser steps; save_recording_as_feature saves it."
 
 [options_pytest."--rec-print"]
 status = "composed"
@@ -5114,16 +5126,18 @@ status = "not-applicable"
 reason = "Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test."
 
 [options_pytest."--rec-sleep"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_record_sleep"
+note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep."
 
 [options_pytest."--record"]
 status = "composed"
 rust = "BaseCase::start_recording"
 
 [options_pytest."--record-sleep"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_record_sleep"
+note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep."
 
 [options_pytest."--recorder"]
 status = "composed"
@@ -5207,32 +5221,39 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--sjw"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_skip_js_waits"
+note = "Makes wait_for_ready_state_complete return at once."
 
 [options_pytest."--skip-js-waits"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_skip_js_waits"
+note = "Makes wait_for_ready_state_complete return at once."
 
 [options_pytest."--skip_js_waits"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_skip_js_waits"
+note = "Makes wait_for_ready_state_complete return at once."
 
 [options_pytest."--slow"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_slow_mode"
+note = "Pauses after open, click, type_text and update_text."
 
 [options_pytest."--slow-mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_slow_mode"
+note = "Pauses after open, click, type_text and update_text."
 
 [options_pytest."--slow_mode"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_slow_mode"
+note = "Pauses after open, click, type_text and update_text."
 
 [options_pytest."--slowmo"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_slow_mode"
+note = "Pauses after open, click, type_text and update_text."
 
 [options_pytest."--ss"]
 status = "composed"
@@ -5371,20 +5392,22 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--verify-delay"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override."
 
 [options_pytest."--verify_delay"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override."
 
 [options_pytest."--visual-baseline"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_visual_baseline_reset"
+note = "check_window replaces its stored screenshot instead of comparing."
 
 [options_pytest."--visual_baseline"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_visual_baseline_reset"
+note = "check_window replaces its stored screenshot instead of comparing."
 
 [options_pytest."--wait-for-angularjs"]
 status = "composed"
@@ -5556,12 +5579,14 @@ status = "not-applicable"
 reason = "Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file."
 
 [options_sb."demo"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_mode"
+note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
 
 [options_sb."demo_sleep"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_demo_sleep"
+note = "The pause demo and slow mode make after an action."
 
 [options_sb."device_metrics"]
 status = "implemented"
@@ -5648,8 +5673,9 @@ rust = "BrowserConfig::with_external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_sb."fast"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_fast_mode"
+note = "Cancels the demo and slow pauses."
 
 [options_sb."firefox_arg"]
 status = "implemented"
@@ -5691,8 +5717,8 @@ rust = "BrowserConfig::headless"
 note = "Headed is headless = false."
 
 [options_sb."highlights"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override."
 
 [options_sb."host_resolver_rules"]
 status = "composed"
@@ -5705,8 +5731,8 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."interval"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override."
 
 [options_sb."is_mobile"]
 status = "composed"
@@ -5742,8 +5768,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."message_duration"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_message_duration"
+note = "How long BaseCase::post_message keeps its message, in whole seconds."
 
 [options_sb."mobile"]
 status = "implemented"
@@ -5801,8 +5828,9 @@ status = "not-applicable"
 reason = "Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
 
 [options_sb."rec_behave"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "ActionRecorder::to_gherkin"
+note = "Writes a feature for the common browser steps; save_recording_as_feature saves it."
 
 [options_sb."rec_print"]
 status = "composed"
@@ -5818,8 +5846,9 @@ status = "not-applicable"
 reason = "Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test."
 
 [options_sb."record_sleep"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_record_sleep"
+note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep."
 
 [options_sb."recorder_ext"]
 status = "implemented"
@@ -5860,16 +5889,19 @@ rust = "BrowserConfig::with_window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_sb."sjw"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_skip_js_waits"
+note = "Makes wait_for_ready_state_complete return at once."
 
 [options_sb."skip_js_waits"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_skip_js_waits"
+note = "Makes wait_for_ready_state_complete return at once."
 
 [options_sb."slow"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "RunSettings::with_slow_mode"
+note = "Pauses after open, click, type_text and update_text."
 
 [options_sb."start_page"]
 status = "implemented"

@@ -19,8 +19,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 196 | 16 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 20 | 8 | 8 | 0 |
-| [pytest options](#pytest-options) | 263 | 82 | 100 | 50 | 31 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 42 | 38 | 16 | 11 |
+| [pytest options](#pytest-options) | 263 | 105 | 100 | 58 | 0 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 51 | 38 | 18 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 41 | 31 | 2 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
@@ -850,10 +850,10 @@ Python `--option` flags.
 | `--agent` | composed | `BrowserConfig::user_agent` |  |
 | `--all-scripts` | not-applicable |  | Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend. |
 | `--all_scripts` | not-applicable |  | Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend. |
-| `--archive-downloads` | planned |  | No Rust setting yet. |
-| `--archive-logs` | planned |  | No Rust setting yet. |
-| `--archive_downloads` | planned |  | No Rust setting yet. |
-| `--archive_logs` | planned |  | No Rust setting yet. |
+| `--archive-downloads` | not-applicable |  | Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe. |
+| `--archive-logs` | not-applicable |  | This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead. |
+| `--archive_downloads` | not-applicable |  | Downloads go to the OS Downloads folder (BaseCase::get_downloads_folder) and are never cleared, so there is no project downloaded_files folder to archive; moving the user's Downloads would be unsafe. |
+| `--archive_logs` | not-applicable |  | This crate never deletes latest_logs/ (artifacts::ensure_latest_logs_dir only creates it), so there are no deleted old logs to archive instead. |
 | `--auto-ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--binary-location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
@@ -890,11 +890,11 @@ Python `--option` flags.
 | `--database-env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--database_env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--dcsp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--demo` | planned |  | No Rust setting yet. |
-| `--demo-mode` | planned |  | No Rust setting yet. |
-| `--demo-sleep` | planned |  | No Rust setting yet. |
-| `--demo_mode` | planned |  | No Rust setting yet. |
-| `--demo_sleep` | planned |  | No Rust setting yet. |
+| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `--demo-sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
+| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `--demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -936,9 +936,9 @@ Python `--option` flags.
 | `--extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--external-pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
 | `--external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
-| `--fast` | planned |  | No Rust setting yet. |
-| `--fast-mode` | planned |  | No Rust setting yet. |
-| `--fast_mode` | planned |  | No Rust setting yet. |
+| `--fast` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
+| `--fast-mode` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
+| `--fast_mode` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
 | `--fdebug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-debug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-trace` | not-applicable |  | Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
@@ -957,14 +957,14 @@ Python `--option` flags.
 | `--headless` | implemented | `BrowserConfig::headless` |  |
 | `--headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `--highlights` | planned |  | No Rust setting yet. |
+| `--highlights` | not-applicable |  | BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override. |
 | `--host-resolver-rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--ie` | implemented | `BrowserConfig::browser` | Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows. |
 | `--incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--incognito-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--incognito_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--interval` | planned |  | No Rust setting yet. |
+| `--interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |
 | `--is-pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--is_pytest` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--lfp` | not-applicable |  | A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails. |
@@ -982,8 +982,8 @@ Python `--option` flags.
 | `--maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--maximize-window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--maximize_window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--message-duration` | planned |  | No Rust setting yet. |
-| `--message_duration` | planned |  | No Rust setting yet. |
+| `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
+| `--message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
 | `--metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--mobile` | implemented | `BrowserConfig::mobile` |  |
 | `--mobile-emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
@@ -1016,14 +1016,14 @@ Python `--option` flags.
 | `--proxy_driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
 | `--rcs` | composed | `BrowserConfig::reuse_session` |  |
 | `--rec` | composed | `BaseCase::start_recording` |  |
-| `--rec-behave` | planned |  | No Rust setting yet. |
-| `--rec-gherkin` | planned |  | No Rust setting yet. |
+| `--rec-behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
+| `--rec-gherkin` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `--rec-print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
 | `--rec-sb-cdp` | not-applicable |  | Saves recorded actions as a Python sb_cdp script; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
 | `--rec-sb-mgr` | not-applicable |  | Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
-| `--rec-sleep` | planned |  | No Rust setting yet. |
+| `--rec-sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `--record` | composed | `BaseCase::start_recording` |  |
-| `--record-sleep` | planned |  | No Rust setting yet. |
+| `--record-sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `--recorder` | composed | `BaseCase::start_recording` |  |
 | `--remote-debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `--remote-debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
@@ -1042,13 +1042,13 @@ Python `--option` flags.
 | `--settings` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--settings-file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--sjw` | planned |  | No Rust setting yet. |
-| `--skip-js-waits` | planned |  | No Rust setting yet. |
-| `--skip_js_waits` | planned |  | No Rust setting yet. |
-| `--slow` | planned |  | No Rust setting yet. |
-| `--slow-mode` | planned |  | No Rust setting yet. |
-| `--slow_mode` | planned |  | No Rust setting yet. |
-| `--slowmo` | planned |  | No Rust setting yet. |
+| `--sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
+| `--skip-js-waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
+| `--skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
+| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
+| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
+| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
+| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
 | `--ss` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--start-page` | implemented | `BrowserConfig::start_page` |  |
 | `--start_page` | implemented | `BrowserConfig::start_page` |  |
@@ -1079,10 +1079,10 @@ Python `--option` flags.
 | `--var2` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--var3` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--verify-delay` | planned |  | No Rust setting yet. |
-| `--verify_delay` | planned |  | No Rust setting yet. |
-| `--visual-baseline` | planned |  | No Rust setting yet. |
-| `--visual_baseline` | planned |  | No Rust setting yet. |
+| `--verify-delay` | not-applicable |  | MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override. |
+| `--verify_delay` | not-applicable |  | MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override. |
+| `--visual-baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window replaces its stored screenshot instead of comparing. |
+| `--visual_baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window replaces its stored screenshot instead of comparing. |
 | `--wait-for-angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
 | `--wait_for_angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
 | `--wfa` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
@@ -1127,8 +1127,8 @@ Keyword arguments of `SB()`.
 | `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `data` | not-applicable |  | Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file. |
-| `demo` | planned |  | No Rust setting yet. |
-| `demo_sleep` | planned |  | No Rust setting yet. |
+| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_beforeunload` | composed | `BaseCase::disable_beforeunload` | Call it after each navigation. |
@@ -1146,7 +1146,7 @@ Keyword arguments of `SB()`.
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
-| `fast` | planned |  | No Rust setting yet. |
+| `fast` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
 | `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1155,10 +1155,10 @@ Keyword arguments of `SB()`.
 | `headless` | implemented | `BrowserConfig::headless` |  |
 | `headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `highlights` | planned |  | No Rust setting yet. |
+| `highlights` | not-applicable |  | BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override. |
 | `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `interval` | planned |  | No Rust setting yet. |
+| `interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |
 | `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `js_checking_on` | composed | `BaseCase::assert_no_js_errors` | Call it after the page loads. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
@@ -1166,7 +1166,7 @@ Keyword arguments of `SB()`.
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `message_duration` | planned |  | No Rust setting yet. |
+| `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `no_screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
@@ -1179,11 +1179,11 @@ Keyword arguments of `SB()`.
 | `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
 | `raise_test_failure` | not-applicable |  | Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err. |
-| `rec_behave` | planned |  | No Rust setting yet. |
+| `rec_behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `rec_print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
 | `rec_sb_cdp` | not-applicable |  | Saves recorded actions as a Python sb_cdp script; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
 | `rec_sb_mgr` | not-applicable |  | Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test. |
-| `record_sleep` | planned |  | No Rust setting yet. |
+| `record_sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
 | `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `rtf` | not-applicable |  | Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err. |
@@ -1192,9 +1192,9 @@ Keyword arguments of `SB()`.
 | `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
 | `settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
-| `sjw` | planned |  | No Rust setting yet. |
-| `skip_js_waits` | planned |  | No Rust setting yet. |
-| `slow` | planned |  | No Rust setting yet. |
+| `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
+| `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
+| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
 | `start_page` | implemented | `BrowserConfig::start_page` |  |
 | `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |

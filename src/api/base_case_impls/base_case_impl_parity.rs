@@ -141,13 +141,15 @@ impl BaseCase {
     }
 
     /// Shows `message` in the page for a few seconds. Corresponds to Python's
-    /// `post_message` with its default duration.
+    /// `post_message` with its default duration, which is three seconds unless
+    /// the run settings (`RunSettings::with_message_duration`) say otherwise.
     ///
     /// # Errors
     ///
     /// Returns an error if the page script fails.
     pub async fn post_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.post_message_for(message, 3).await
+        self.post_message_for(message, self.run_settings().message_seconds())
+            .await
     }
 
     /// Saves the page's HTML as `name` in the logs folder and returns its

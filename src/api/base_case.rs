@@ -14,6 +14,7 @@ use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
+use crate::api::run_settings::RunSettings;
 use crate::api::tour::{Tour, TourTheme};
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::BrowserConfig;
@@ -49,6 +50,8 @@ pub struct BaseCase {
     gui_held: Option<(i32, i32)>,
     /// Additional browser sessions created by [`BaseCase::get_new_driver`].
     extra_sessions: Vec<BrowserSession>,
+    /// Run-wide demo, slow, fast and similar settings.
+    run_settings: RunSettings,
 }
 
 impl BaseCase {
@@ -81,6 +84,35 @@ impl BaseCase {
             #[cfg(feature = "gui")]
             gui_held: None,
             extra_sessions: Vec::new(),
+            run_settings: RunSettings::default(),
+        }
+    }
+
+    /// The run-wide settings in force.
+    pub fn run_settings(&self) -> &RunSettings {
+        &self.run_settings
+    }
+
+    /// Replaces the run-wide settings: demo and slow mode, fast mode, how long
+    /// messages last, whether the JavaScript waits are skipped, whether `sleep`
+    /// is recorded and whether `check_window` resets its baseline.
+    pub fn set_run_settings(&mut self, settings: RunSettings) {
+        self.run_settings = settings;
+    }
+
+    /// In demo mode, outlines the element `css` picks, if the page has it.
+    async fn demo_highlight(&self, css: &str) {
+        if self.run_settings.demo_mode() {
+            // A selector the outline script cannot use must not fail the action.
+            let _ = self.highlight(css).await;
+        }
+    }
+
+    /// Pauses for the time demo or slow mode asks for after an action.
+    async fn demo_pause(&self, tiny: bool) {
+        let pause = self.run_settings.pause(tiny);
+        if !pause.is_zero() {
+            tokio::time::sleep(pause).await;
         }
     }
 
@@ -192,6 +224,9 @@ impl BaseCase {
 
     /// Waits until `document.readyState` is `complete`.
     pub async fn wait_for_ready_state_complete(&self) -> Result<(), SeleniumBaseError> {
+        if self.run_settings.skip_js_waits() {
+            return Ok(());
+        }
         let script = "return document.readyState;";
         let start = std::time::Instant::now();
         let timeout_secs = self.time_limit_secs.unwrap_or(10);
@@ -468,7 +503,9 @@ impl BaseCase {
         let url = crate::utils::urls::normalize_page_url(url)?;
         info!(%url, "opening url");
         self.record("open", Some(&url), None);
-        self.session.goto(&url).await
+        self.session.goto(&url).await?;
+        self.demo_pause(false).await;
+        Ok(())
     }
 
     /// Executes the `refresh` action.
@@ -493,7 +530,10 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Clickable).await?;
         self.record("click", Some(css), None);
-        self.session.click(by).await
+        self.demo_highlight(css).await;
+        self.session.click(by).await?;
+        self.demo_pause(false).await;
+        Ok(())
     }
 
     /// Executes the `type_text` action.
@@ -503,7 +543,10 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Visible).await?;
         self.record("type_text", Some(css), Some(text));
-        self.session.type_text(by, text).await
+        self.demo_highlight(css).await;
+        self.session.type_text(by, text).await?;
+        self.demo_pause(true).await;
+        Ok(())
     }
 
     /// Clears the value of the element selected by `css`.
@@ -1062,7 +1105,13 @@ impl BaseCase {
     }
 
     /// Pauses execution for `seconds`.
+    ///
+    /// With [`RunSettings::with_record_sleep`] on, the pause goes into the
+    /// recording as a `sleep` action.
     pub async fn sleep(&self, seconds: f64) {
+        if self.run_settings.record_sleep() {
+            self.record("sleep", None, Some(&seconds.to_string()));
+        }
         let millis = if seconds <= 0.0 {
             0_u64
         } else {
@@ -1696,22 +1745,11 @@ impl BaseCase {
         })?;
         let baseline_path = baseline_dir.join(format!("{name}.png"));
         let current = self.screenshot_as_png().await?;
-
-        if baseline_path.exists() {
-            let baseline = std::fs::read(&baseline_path).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("failed to read baseline: {e}"))
-            })?;
-            if baseline != current {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Visual regression detected for '{name}'"
-                )));
-            }
-        } else {
-            std::fs::write(&baseline_path, current).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("failed to write baseline: {e}"))
-            })?;
-        }
-        Ok(())
+        crate::api::run_settings::compare_or_store_baseline(
+            &baseline_path,
+            &current,
+            self.run_settings.reset_visual_baseline(),
+        )
     }
 
     // --- MasterQA Integration ---
@@ -1836,7 +1874,10 @@ impl BaseCase {
     pub async fn update_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("update_text", Some(css), Some(text));
         let by = Selector::auto(css).to_by()?;
-        self.session.type_text(by, text).await
+        self.demo_highlight(css).await;
+        self.session.type_text(by, text).await?;
+        self.demo_pause(true).await;
+        Ok(())
     }
 
     /// Focus the element matching `css`.

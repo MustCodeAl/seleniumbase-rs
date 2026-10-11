@@ -131,19 +131,54 @@ impl ActionRecorder {
         dir: &Path,
         name: &str,
     ) -> Result<PathBuf, SeleniumBaseError> {
-        if name.is_empty()
-            || name == "."
-            || name == ".."
-            || name.contains(['/', '\\'])
-            || name.contains('\0')
-        {
-            return Err(SeleniumBaseError::InvalidConfig(format!(
-                "'{name}' is not a usable test file name: it must be non-empty and contain no path separator"
-            )));
-        }
+        check_file_name(name)?;
         std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{name}.rs"));
         std::fs::write(&path, self.to_rust_test(name))?;
+        Ok(path)
+    }
+
+    /// Generates a Gherkin feature from the recording, for the `behave` runner
+    /// with the steps `AsyncStepRegistry::register_common_browser_steps` adds.
+    ///
+    /// Opening a page, clicking, typing, and going back or forward become
+    /// steps. An action with no such step (or text that would break a step's
+    /// quotes) becomes a `# skipped:` comment, so a gap is never silent.
+    pub fn to_gherkin(&self, feature_name: &str) -> String {
+        let title: String = feature_name
+            .chars()
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect();
+        let mut out = format!("Feature: {title}\n\n  Scenario: {title}\n");
+        let mut keyword = "Given";
+        for action in &self.actions {
+            match gherkin_step(action) {
+                Ok(step) => {
+                    out.push_str(&format!("    {keyword} {step}\n"));
+                    keyword = "And";
+                }
+                Err(reason) => out.push_str(&format!("    # skipped: {reason}\n")),
+            }
+        }
+        out
+    }
+
+    /// Writes the recording as a Gherkin feature file into `dir/{name}.feature`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is empty or
+    /// contains a path separator, and [`SeleniumBaseError::Io`] if the file
+    /// cannot be written.
+    pub fn save_recording_as_feature(
+        &self,
+        dir: &Path,
+        name: &str,
+    ) -> Result<PathBuf, SeleniumBaseError> {
+        check_file_name(name)?;
+        std::fs::create_dir_all(dir)?;
+        let path = dir.join(format!("{name}.feature"));
+        std::fs::write(&path, self.to_gherkin(name))?;
         Ok(path)
     }
 
@@ -155,6 +190,62 @@ impl ActionRecorder {
                 Err(reason) => line(out, &format!("// skipped: {reason}")),
             }
         }
+    }
+}
+
+/// Rejects a file name that is empty or would leave the folder it is saved in.
+fn check_file_name(name: &str) -> Result<(), SeleniumBaseError> {
+    if name.is_empty()
+        || name == "."
+        || name == ".."
+        || name.contains(['/', '\\'])
+        || name.contains('\0')
+    {
+        return Err(SeleniumBaseError::InvalidConfig(format!(
+            "'{name}' is not a usable test file name: it must be non-empty and contain no path separator"
+        )));
+    }
+    Ok(())
+}
+
+/// The Gherkin step (without its keyword) that replays `action`, or why there
+/// is none.
+fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
+    let name = ALIASES
+        .iter()
+        .find(|(alias, _)| *alias == action.name)
+        .map_or(action.name.as_str(), |(_, canonical)| *canonical);
+    // A quote or a line break in an argument would end the step early.
+    let plain = |text: &str, what: &str| -> Result<String, String> {
+        if text.contains(['"', '\n', '\r']) {
+            Err(format!(
+                "{name}: the {what} {text:?} has a quote or a line break"
+            ))
+        } else {
+            Ok(text.to_owned())
+        }
+    };
+    let target = action
+        .target
+        .as_deref()
+        .ok_or_else(|| format!("{name} has no target"));
+    match name {
+        "open" => Ok(format!("I open \"{}\"", plain(target?, "URL")?)),
+        "click" => Ok(format!("I click \"{}\"", plain(target?, "selector")?)),
+        "type_text" => {
+            let value = action
+                .value
+                .as_deref()
+                .ok_or_else(|| format!("{name} has no value"))?;
+            Ok(format!(
+                "I type \"{}\" into \"{}\"",
+                plain(value, "text")?,
+                plain(target?, "selector")?
+            ))
+        }
+        "go_back" => Ok("I go back".to_owned()),
+        "go_forward" => Ok("I go forward".to_owned()),
+        other => Err(format!("{other}: no Gherkin step for this action")),
     }
 }
 
@@ -184,6 +275,9 @@ enum Shape {
     TargetIndex,
     /// `let _ = sb.method(target).await?;`: the result is not needed.
     TargetDiscarded,
+    /// `sb.sleep(2.5).await;`: the value is the pause in seconds, and the call
+    /// cannot fail.
+    Sleep,
 }
 
 /// Every action the generator can turn into a call: the recorded name, the
@@ -389,6 +483,7 @@ const CALLS: &[(&str, &str, Shape)] = &[
     ("uc_click", "uc_click", Shape::Target),
     ("uc_type", "uc_type", Shape::TargetValue),
     ("update_text", "update_text", Shape::TargetValue),
+    ("sleep", "sleep", Shape::Sleep),
     ("click_xpath", "click_xpath", Shape::Target),
     // `open_new_tab` is special: with a URL it is `open_new_tab_url`.
     ("open_new_tab", "open_new_tab", Shape::NoArgs),
@@ -555,6 +650,17 @@ fn rust_call(action: &RecordedAction) -> Result<String, String> {
                 number::<usize>(name, "index", need_value()?)?
             ),
         ),
+        Shape::Sleep => {
+            let text = need_value()?;
+            let seconds = text
+                .trim()
+                .parse::<f64>()
+                .ok()
+                .filter(|s| s.is_finite() && *s >= 0.0)
+                .ok_or_else(|| format!("{name}: {text:?} is not a number of seconds"))?;
+            // `sleep` returns nothing, so there is no `?`.
+            return Ok(format!("sb.{method}({seconds:?}).await;"));
+        }
     };
 
     let discard = if *shape == Shape::TargetDiscarded {
@@ -1612,6 +1718,7 @@ mod tests {
             Shape::Size => (Some("800,600"), None),
             Shape::TargetOffset => (Some("#t"), Some("5, -7")),
             Shape::TargetIndex => (Some("#t"), Some("2")),
+            Shape::Sleep => (None, Some("1.5")),
         }
     }
 
@@ -1622,10 +1729,12 @@ mod tests {
             .trim_start_matches("let _ = ")
             .trim_end_matches(';');
         let expr: syn::Expr = syn::parse_str(code).unwrap_or_else(|e| panic!("{line}: {e}"));
-        let syn::Expr::Try(attempt) = expr else {
-            panic!("{line} does not end in `?`");
+        // Only a method that cannot fail (`sleep`) is awaited without a `?`.
+        let awaited = match expr {
+            syn::Expr::Try(attempt) => *attempt.expr,
+            other => other,
         };
-        let syn::Expr::Await(awaited) = *attempt.expr else {
+        let syn::Expr::Await(awaited) = awaited else {
             panic!("{line} does not `.await`");
         };
         let syn::Expr::MethodCall(call) = *awaited.base else {
@@ -1643,6 +1752,7 @@ mod tests {
             syn::Expr::Lit(literal) => match &literal.lit {
                 syn::Lit::Str(_) => "string",
                 syn::Lit::Int(_) => "integer",
+                syn::Lit::Float(_) => "float",
                 _ => "other",
             },
             // A negative number is a unary minus on a literal.
@@ -1702,6 +1812,7 @@ mod tests {
                     "&str" => kind == "string",
                     "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
                     | "isize" => kind == "integer",
+                    "f64" => kind == "float",
                     _ => false,
                 };
                 if !fits {
@@ -2169,5 +2280,77 @@ mod tests {
     #[ignore = "launches a real Chrome through chromedriver"]
     async fn in_cdp_mode_a_new_page_records_from_its_first_moment() {
         record_across_a_navigation(DriverMode::Cdp, false).await;
+    }
+
+    fn gherkin_recorder() -> ActionRecorder {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("open", Some("https://example.com"), None);
+        recorder.record("type_text", Some("#name"), Some("Ada"));
+        recorder.record("click", Some("#go"), None);
+        recorder.record("go_back", None, None);
+        recorder.record("hover", Some("#menu"), None);
+        recorder.record("type_text", Some("#q"), Some("say \"hi\""));
+        recorder
+    }
+
+    #[test]
+    fn a_recording_becomes_a_gherkin_scenario_and_says_what_it_skipped() {
+        let feature = gherkin_recorder().to_gherkin("Sign up");
+        assert_eq!(
+            feature,
+            "Feature: Sign up\n\n  Scenario: Sign up\n\
+             \x20   Given I open \"https://example.com\"\n\
+             \x20   And I type \"Ada\" into \"#name\"\n\
+             \x20   And I click \"#go\"\n\
+             \x20   And I go back\n\
+             \x20   # skipped: hover: no Gherkin step for this action\n\
+             \x20   # skipped: type_text: the text \"say \\\"hi\\\"\" has a quote or a line break\n"
+        );
+    }
+
+    #[test]
+    fn every_gherkin_step_has_a_handler_in_the_common_browser_steps() {
+        use crate::behave::async_steps::AsyncStepRegistry;
+        let mut registry =
+            AsyncStepRegistry::new(crate::BaseCase::without_session(BrowserConfig::default()));
+        registry.register_common_browser_steps();
+        let feature = gherkin_recorder().to_gherkin("Sign up");
+        let steps: Vec<&str> = feature
+            .lines()
+            .map(str::trim)
+            .filter(|l| ["Given ", "And "].iter().any(|k| l.starts_with(k)))
+            .collect();
+        assert_eq!(steps.len(), 4);
+        for step in steps {
+            assert!(registry.has_handler(step), "no handler for {step:?}");
+        }
+    }
+
+    #[test]
+    fn a_feature_is_saved_beside_the_name_and_a_path_is_refused() {
+        let dir = tempfile::tempdir().expect("a temporary folder");
+        let path = gherkin_recorder()
+            .save_recording_as_feature(dir.path(), "signup")
+            .expect("saved");
+        assert_eq!(path, dir.path().join("signup.feature"));
+        assert!(std::fs::read_to_string(&path)
+            .unwrap()
+            .starts_with("Feature: signup"));
+        assert!(gherkin_recorder()
+            .save_recording_as_feature(dir.path(), "../signup")
+            .is_err());
+    }
+
+    #[test]
+    fn a_recorded_sleep_is_generated_without_a_question_mark() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("sleep", None, Some("2"));
+        recorder.record("sleep", None, Some("0.5"));
+        let script = recorder.to_rust_script();
+        assert!(script.contains("    sb.sleep(2.0).await;\n"), "{script}");
+        assert!(script.contains("    sb.sleep(0.5).await;\n"), "{script}");
+        assert!(recorder.try_record("sleep", None, Some("soon")).is_err());
+        assert!(recorder.try_record("sleep", None, Some("-1")).is_err());
+        assert!(recorder.try_record("sleep", None, None).is_err());
     }
 }
