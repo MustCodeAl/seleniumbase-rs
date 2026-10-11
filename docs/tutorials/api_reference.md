@@ -207,10 +207,11 @@ Deferred assertions collect failures and report them together when
 | `set_window_rect(x, y, w, h)` | Sets position and size. |
 | `get_window_rect()` | Returns `(x, y, width, height)`. |
 | `get_screen_rect()` | Returns `(width, height)`. |
-| `get_new_driver(config)` | Creates and switches to a new browser session. |
-| `switch_to_driver(index)` | Switches to an extra driver created by `get_new_driver`. |
-| `quit_extra_driver(index)` | Quits an extra driver. |
-| `driver_count()` | Returns the number of extra drivers. |
+| `get_new_driver(config)` | Opens a new browser session and makes it active (`None` reuses the current config). The previously active session is parked and the method returns its index. |
+| `switch_to_driver(index)` | Swaps the active session with the one parked at `index`. The session you leave stays open, parked at the same index, so the same call switches back. An out-of-range index returns `InvalidConfig` and changes nothing. |
+| `switch_to_default_driver()` | `switch_to_driver(0)`: a swap with slot 0, which holds the original session only until the first switch. |
+| `quit_extra_driver(index)` | Quits the parked session at `index`. The slot stays as a disconnected placeholder, so indices do not shift. |
+| `driver_count()` | Returns the number of parked sessions, including quit placeholders. |
 
 ## Cookies and storage
 
@@ -411,3 +412,7 @@ async fn login(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErr
 - [GUI Automation](./gui_automation.md)
 
 For exact signatures, run `cargo doc --no-deps --open`.
+
+---
+
+Verified against commit 8e9180f: only the multi-driver rows (`get_new_driver` to `driver_count`) were re-checked against the code in this pass; the rest of this page was not.
