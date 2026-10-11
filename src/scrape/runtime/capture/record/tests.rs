@@ -273,6 +273,50 @@ fn one_hello_is_enough_for_a_spec() {
     assert!(!measurement.spec.permute_extensions);
 }
 
+/// Chrome 155 puts a GREASE value at the head of `signature_algorithms`.
+const GREASE_SIGALG: u16 = 0x9A9A;
+
+fn hello_with_grease_sigalg(extension_order: &[u16]) -> Vec<u8> {
+    let mut sigalgs = vec![GREASE_SIGALG];
+    sigalgs.extend_from_slice(&CHROME_SIGALGS);
+    HelloBuilder::new(&CHROME_CIPHERS, extension_order)
+        .with_body(ext_id::SIGNATURE_ALGORITHMS, length16(&u16s(&sigalgs)))
+        .with_grease()
+        .record()
+}
+
+#[test]
+fn a_grease_signature_algorithm_is_kept_in_the_evidence_but_not_in_the_spec() {
+    let raw = hello_with_grease_sigalg(&JA4_EXAMPLE_EXTENSIONS);
+    let websocket = hello_with_grease_sigalg(&reversed());
+
+    let measurement =
+        TlsMeasurement::from_hellos(std::slice::from_ref(&raw), Some(&websocket))
+            .expect("one browser");
+
+    assert_eq!(measurement.spec.signature_algorithms, CHROME_SIGALGS);
+    assert_eq!(
+        measurement
+            .websocket_spec
+            .as_ref()
+            .map(|spec| spec.signature_algorithms.clone()),
+        Some(CHROME_SIGALGS.to_vec())
+    );
+    assert!(
+        measurement.spec.grease,
+        "the flag still says the browser GREASEs"
+    );
+    let sample = measurement.samples.first().expect("one sample");
+    assert_eq!(sample.raw().expect("hex"), raw, "the evidence is untouched");
+    let hello = sample.hello().expect("parses");
+    assert_eq!(hello.signature_algorithms.first(), Some(&GREASE_SIGALG));
+    assert_eq!(
+        sample.ja4,
+        Ja4::of(&hello).to_string(),
+        "JA4 already ignores the GREASE value"
+    );
+}
+
 #[test]
 fn no_hello_is_an_error() {
     let error = TlsMeasurement::from_hellos(&[], None).expect_err("nothing");

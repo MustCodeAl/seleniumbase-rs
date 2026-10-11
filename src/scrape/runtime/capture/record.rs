@@ -17,7 +17,7 @@ use super::hints::HintsMeasurement;
 use super::CaptureError;
 use crate::scrape::runtime::json_store::atomic_write;
 use crate::stealth::fingerprint::OsType;
-use crate::wire::client_hello::{ext_id, ClientHello};
+use crate::wire::client_hello::{ext_id, is_grease, ClientHello};
 use crate::wire::ids::ML_DSA_SIGALGS;
 use crate::wire::ja3::{hex_lower, Ja3, Peetprint};
 use crate::wire::ja4::Ja4;
@@ -251,11 +251,11 @@ impl TlsMeasurement {
             what: "the ordinary connections",
         })?;
         let first = ClientHello::parse(first_raw)?;
-        let mut spec = TlsSpec::from_client_hello(&first);
+        let mut spec = TlsSpec::from_client_hello(&grease_as_flag(&first));
         let mut samples = vec![HelloRecord::of_hello(first_raw, &first)];
         for raw in page.iter().skip(1) {
             let other = ClientHello::parse(raw)?;
-            spec = spec.with_observed_order(&other)?;
+            spec = spec.with_observed_order(&grease_as_flag(&other))?;
             let record = HelloRecord::of_hello(raw, &other);
             if let Some(reference) = samples.first().filter(|first| first.ja4 != record.ja4) {
                 return Err(CaptureError::Unstable {
@@ -269,7 +269,7 @@ impl TlsMeasurement {
         let websocket_hello = websocket.map(ClientHello::parse).transpose()?;
         let websocket_spec = websocket_hello.as_ref().map(|hello| TlsSpec {
             permute_extensions: spec.permute_extensions,
-            ..TlsSpec::from_client_hello(hello)
+            ..TlsSpec::from_client_hello(&grease_as_flag(hello))
         });
         let websocket_sample = match (websocket, &websocket_hello) {
             (Some(raw), Some(hello)) => Some(HelloRecord::of_hello(raw, hello)),
@@ -284,6 +284,18 @@ impl TlsMeasurement {
             known_gaps,
         })
     }
+}
+
+/// The hello with the GREASE values taken out of `signature_algorithms`.
+///
+/// A browser's GREASE is one flag of the spec (`TlsSpec::grease`), not a list entry, and JA4 already
+/// leaves it out of the signature algorithms it hashes. `TlsSpec::from_client_hello` keeps a GREASE
+/// signature algorithm that a browser sends (Chrome 155 sends one at the head of the list), which
+/// `check_reproducible` then refuses. The raw bytes under `capture` still hold the value as sent.
+fn grease_as_flag(hello: &ClientHello) -> ClientHello {
+    let mut plain = hello.clone();
+    plain.signature_algorithms.retain(|&id| !is_grease(id));
+    plain
 }
 
 /// What the specs carry that a `BoringSSL` client cannot send.
