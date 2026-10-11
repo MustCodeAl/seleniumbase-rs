@@ -150,13 +150,70 @@ fn a_permuting_spec_leaves_the_order_to_boringssl() {
 }
 
 #[test]
-fn a_spec_that_does_not_permute_pins_its_extension_order() {
+fn a_spec_that_does_not_permute_pins_its_extension_order_after_the_unlisted_handlers() {
     let mut spec = effective_tls();
     spec.permute_extensions = false;
     let options = tls_options(&spec).expect("converts");
     let wanted: Vec<ExtensionType> = spec.extensions.iter().map(|&id| id.into()).collect();
     assert_eq!(options.permute_extensions, Some(false));
-    assert_eq!(options.extension_permutation.as_deref(), Some(&wanted[..]));
+    let pinned = options.extension_permutation.expect("an order is pinned");
+    assert!(
+        pinned.len() > wanted.len(),
+        "the unlisted handlers come first"
+    );
+    assert!(
+        pinned.ends_with(&wanted),
+        "the spec's own order comes last, unchanged"
+    );
+}
+
+/// A spec that does not permute, with its extensions ending in `last`.
+fn pinned_ending_in(last: u16) -> TlsSpec {
+    let mut spec = effective_tls();
+    spec.permute_extensions = false;
+    spec.extensions.retain(|id| *id != last);
+    spec.extensions.push(last);
+    spec
+}
+
+#[test]
+fn padding_follows_an_empty_last_extension_in_a_hello_without_grease() {
+    let mut spec = pinned_ending_in(ext_id::EXTENDED_MASTER_SECRET);
+    spec.grease = false;
+    assert_eq!(check_emittable(&spec), Err(ConvertError::PaddingAppended));
+    spec.extensions.push(ext_id::PADDING);
+    assert_eq!(
+        check_emittable(&spec),
+        Ok(()),
+        "padding listed after the empty extension"
+    );
+    spec.grease = true;
+    assert_eq!(
+        check_emittable(&spec),
+        Err(ConvertError::PaddingUnavailable),
+        "GREASE ends the hello with a non-empty extension, so no padding follows"
+    );
+}
+
+#[test]
+fn padding_cannot_be_asked_for_after_a_non_empty_extension() {
+    let mut spec = pinned_ending_in(ext_id::ALPN);
+    spec.grease = false;
+    assert_eq!(check_emittable(&spec), Ok(()));
+    spec.extensions.push(ext_id::PADDING);
+    assert_eq!(
+        check_emittable(&spec),
+        Err(ConvertError::PaddingUnavailable)
+    );
+}
+
+#[test]
+fn a_permuting_spec_is_not_judged_for_padding() {
+    let mut spec = effective_tls();
+    spec.grease = false;
+    spec.extensions.push(ext_id::PADDING);
+    assert!(spec.permute_extensions);
+    assert_eq!(check_emittable(&spec), Ok(()));
 }
 
 #[test]
@@ -183,6 +240,23 @@ fn unsupported_alpn_and_alps_names_are_refused() {
     assert_eq!(
         tls_options(&spec).err(),
         Some(ConvertError::UnsupportedAlps("spdy/3".to_owned()))
+    );
+}
+
+#[test]
+fn the_tls13_suites_must_come_before_every_other_suite() {
+    let mut spec = effective_tls();
+    spec.cipher_suites.rotate_left(3);
+    assert_eq!(
+        check_emittable(&spec),
+        Err(ConvertError::Tls13SuitesNotFirst)
+    );
+    let mut spec = effective_tls();
+    spec.cipher_suites[..3].reverse();
+    assert_eq!(
+        check_emittable(&spec),
+        Ok(()),
+        "any order among the TLS 1.3 suites"
     );
 }
 
@@ -387,7 +461,7 @@ fn headers_keep_their_order_and_spelling() {
         pair("User-Agent", "Agent/1"),
         pair("Accept-Language", "en-US,en;q=0.9"),
     ];
-    let (map, order) = wreq_headers(&list).expect("converts");
+    let (map, order) = wreq_headers(&list, &[]).expect("converts");
     let spelled: Vec<&[u8]> = order.iter().map(|(_, case)| case.as_ref()).collect();
     assert_eq!(
         spelled,
@@ -403,9 +477,32 @@ fn headers_keep_their_order_and_spelling() {
 }
 
 #[test]
+fn transport_headers_lead_the_order_without_a_value() {
+    let list = [pair("Accept", "*/*")];
+    let (map, order) = wreq_headers(&list, &["Host"]).expect("converts");
+    let names: Vec<&str> = order.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, ["host", "accept"]);
+    assert!(map.get("host").is_none(), "the transport adds the value");
+}
+
+#[test]
+fn only_groups_with_a_key_share_implementation_get_a_key_share() {
+    let mut spec = effective_tls();
+    spec.supported_groups.push(0x0100);
+    spec.key_share_groups = vec![0x0100];
+    assert_eq!(check_emittable(&spec), Err(ConvertError::KeyShare(0x0100)));
+    spec.key_share_groups = vec![0x001D];
+    assert_eq!(
+        check_emittable(&spec),
+        Ok(()),
+        "offered, but no share is sent"
+    );
+}
+
+#[test]
 fn credential_values_are_marked_sensitive_and_never_printed() {
     let list = [pair("Cookie", "session=abc"), pair("Accept", "*/*")];
-    let (map, _) = wreq_headers(&list).expect("converts");
+    let (map, _) = wreq_headers(&list, &[]).expect("converts");
     assert!(map.get("cookie").expect("set").is_sensitive());
     assert!(!map.get("accept").expect("set").is_sensitive());
     assert!(!format!("{map:?}").contains("session=abc"));
@@ -415,14 +512,14 @@ fn credential_values_are_marked_sensitive_and_never_printed() {
 fn a_header_that_cannot_be_sent_is_refused_without_its_value() {
     let bad_name = [pair("Bad Name", "x")];
     assert!(matches!(
-        wreq_headers(&bad_name),
+        wreq_headers(&bad_name, &[]),
         Err(ConvertError::Header {
             reason: "not a valid name",
             ..
         })
     ));
     let bad_value = [pair("X-Test", "line\nbreak secret")];
-    let error = wreq_headers(&bad_value).expect_err("refused");
+    let error = wreq_headers(&bad_value, &[]).expect_err("refused");
     assert!(matches!(
         &error,
         ConvertError::Header {

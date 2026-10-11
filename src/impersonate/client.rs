@@ -68,6 +68,12 @@ pub use self::custom::CustomProfileBuilder;
 const SEC_FETCH_DEST: &str = "sec-fetch-dest";
 /// The name of the HTTP/2-only priority header.
 const PRIORITY_HEADER: &str = "priority";
+/// The header the language preference travels in; a cookie follows it.
+const ACCEPT_LANGUAGE: &str = "accept-language";
+/// The cookie header.
+const COOKIE_HEADER: &str = "Cookie";
+/// The header the transport adds on HTTP/1.1, which a browser writes first.
+const HOST_HEADER: &str = "Host";
 
 /// Why a profile or a client could not be built.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -395,8 +401,11 @@ impl ImpersonationProfile {
 
     /// The headers of one request, in wire order, with the placeholders filled.
     ///
-    /// `cookie` is the `Cookie` value of this request; it is not kept. On HTTP/2 the list ends
-    /// with the `priority` header of the measured table for the request's `Sec-Fetch-Dest`.
+    /// `cookie` is the `Cookie` value of this request; it is not kept. When the header list has
+    /// no `Cookie` slot (the measurement was made without cookies), the cookie goes right after
+    /// `Accept-Language`, where Chrome writes it, or at the end when there is none. On HTTP/2 the
+    /// list ends with the `priority` header of the measured table for the request's
+    /// `Sec-Fetch-Dest`.
     ///
     /// # Errors
     ///
@@ -412,6 +421,18 @@ impl ImpersonationProfile {
             identity = identity.with_cookie(cookie);
         }
         let mut list = self.headers.render(shape, &identity)?;
+        if let Some(cookie) = cookie {
+            if !list
+                .iter()
+                .any(|(name, _)| name.eq_ignore_ascii_case(COOKIE_HEADER))
+            {
+                let after = list
+                    .iter()
+                    .position(|(name, _)| name.eq_ignore_ascii_case(ACCEPT_LANGUAGE))
+                    .map_or(list.len(), |index| index + 1);
+                list.insert(after, (COOKIE_HEADER.to_owned(), cookie.to_owned()));
+            }
+        }
         if wire == WireProtocol::Http2 {
             let destination = list
                 .iter()
@@ -438,7 +459,11 @@ impl ImpersonationProfile {
         wire: WireProtocol,
     ) -> Result<RequestBuilder, ImpersonateError> {
         let list = self.headers_for(shape, cookie, wire)?;
-        let (headers, order) = convert::wreq_headers(&list)?;
+        let leading: &[&'static str] = match wire {
+            WireProtocol::Http1 => &[HOST_HEADER],
+            WireProtocol::Http2 => &[],
+        };
+        let (headers, order) = convert::wreq_headers(&list, leading)?;
         Ok(request
             .default_headers(false)
             .headers(headers)
@@ -465,7 +490,7 @@ pub fn impersonation_client(
     let tls = convert::tls_options(&profile.tls)?;
     let http2 = convert::http2_options(&profile.http2)?;
     let document = profile.headers_for(RequestShape::Document, None, WireProtocol::Http2)?;
-    let (headers, order) = convert::wreq_headers(&document)?;
+    let (headers, order) = convert::wreq_headers(&document, &[])?;
     let emulation = Emulation::builder()
         .tls_options(tls)
         .http2_options(http2)

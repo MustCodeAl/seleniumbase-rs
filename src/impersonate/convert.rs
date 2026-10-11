@@ -36,8 +36,9 @@ use crate::wire::akamai::{PriorityFrame, Pseudo, MAX_STREAM_ID};
 use crate::wire::client_hello::ext_id;
 use crate::wire::h2_spec::{setting_id, H2Spec, INITIAL_CONNECTION_WINDOW};
 use crate::wire::ids::{
-    ALPN_H2, ALPN_HTTP_1_1, BORINGSSL_ALWAYS_SENT_EXTENSIONS, BORINGSSL_LEGACY_ONLY_EXTENSIONS,
-    BORINGSSL_TLS13_ONLY_EXTENSIONS, CIPHER_SUITES, SIGNATURE_ALGORITHMS,
+    ALPN_H2, ALPN_HTTP_1_1, BORINGSSL_ALWAYS_SENT_EXTENSIONS, BORINGSSL_KEY_SHARE_GROUPS,
+    BORINGSSL_LEGACY_ONLY_EXTENSIONS, BORINGSSL_TLS13_ONLY_EXTENSIONS, CIPHER_SUITES,
+    SIGNATURE_ALGORITHMS, TLS13_CIPHERS,
 };
 use crate::wire::tls_spec::TlsSpec;
 
@@ -132,6 +133,23 @@ const GROUPS: [GroupEntry; 10] = [
     },
 ];
 
+/// The extensions whose `BoringSSL` handler writes an empty body (`extended_master_secret`,
+/// `signed_certificate_timestamp`, and `session_ticket` without a ticket). When one is the last
+/// extension handled and the hello carries no GREASE, `BoringSSL` appends a one-byte padding
+/// extension after it.
+const EMPTY_BODY_EXTENSIONS: [u16; 3] = [
+    ext_id::EXTENDED_MASTER_SECRET,
+    ext_id::SIGNED_CERT_TIMESTAMP,
+    ext_id::SESSION_TICKET,
+];
+
+/// Every extension `BoringSSL` of btls 0.5.6 has a handler for (`kExtensions`), by wire id.
+const HANDLED_EXTENSIONS: [u16; 30] = [
+    0x0000, 0x0005, 0x000A, 0x000B, 0x000D, 0x000E, 0x0010, 0x0012, 0x0017, 0x001B, 0x001C, 0x0022,
+    0x0023, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002F, 0x0033, 0x0039, 0x3374, 0x4469, 0x44CD,
+    0x7550, 0x8A3B, 0xCA34, 0xFE0D, 0xFF01, 0xFFA5,
+];
+
 /// The groups `BoringSSL` drops from a hello that offers no TLS 1.3, because they only exist in
 /// TLS 1.3 key shares.
 const POST_QUANTUM_GROUPS: [u16; 4] = [0x11EC, 0x6399, 0x0202, 0xFE32];
@@ -160,6 +178,10 @@ pub enum ConvertError {
     /// A key share cannot be sent for this group.
     #[error("a key share cannot be sent for group {0:#06x}")]
     KeyShare(u16),
+    /// `BoringSSL` writes the TLS 1.3 suites before every other suite, so a list that puts one
+    /// after a TLS 1.2 suite cannot be sent.
+    #[error("the TLS 1.3 cipher suites must come before every other cipher suite")]
+    Tls13SuitesNotFirst,
     /// The offered protocol versions are not one unbroken range.
     #[error("the offered protocol versions {0:?} are not one unbroken range")]
     VersionGap(Vec<u16>),
@@ -174,6 +196,14 @@ pub enum ConvertError {
         /// The version rule that forbids it.
         reason: &'static str,
     },
+    /// The spec lists the padding extension, and `BoringSSL` would not write it: it adds padding
+    /// only after an extension with an empty body, in a hello without GREASE.
+    #[error("padding is written only after an empty extension in a hello without GREASE")]
+    PaddingUnavailable,
+    /// The spec does not list the padding extension, and `BoringSSL` would write it: the last
+    /// extension has an empty body and the hello carries no GREASE.
+    #[error("BoringSSL appends padding after an empty last extension in a hello without GREASE")]
+    PaddingAppended,
     /// `BoringSSL` drops this group from a hello that offers no TLS 1.3.
     #[error("group {0:#06x} needs TLS 1.3 and the spec offers none")]
     GroupNeedsTls13(u16),
@@ -262,6 +292,15 @@ pub fn check_emittable(spec: &TlsSpec) -> Result<(), ConvertError> {
             alps_protocol(name)?;
         }
     }
+    check_cipher_order(spec)?;
+    check_padding(spec)?;
+    if let Some(&group) = spec
+        .key_share_groups
+        .iter()
+        .find(|group| !BORINGSSL_KEY_SHARE_GROUPS.contains(group))
+    {
+        return Err(ConvertError::KeyShare(group));
+    }
     let (min, max) = version_range(spec)?;
     check_extension_versions(spec, min, max)?;
     if max < TLS_1_3 {
@@ -276,6 +315,48 @@ pub fn check_emittable(spec: &TlsSpec) -> Result<(), ConvertError> {
     spec.cert_compression
         .iter()
         .try_for_each(|&algorithm| compressor(algorithm).map(drop))
+}
+
+/// Checks the one rule by which `BoringSSL` writes the padding extension, which a spec cannot
+/// ask for directly.
+///
+/// The rule needs a fixed extension order, so a spec that permutes its extensions is not judged.
+/// The other rule, which pads a hello of 256 to 511 bytes up to 512, depends on the length of the
+/// host name and is not judged either; it can add a padding extension to a short hello.
+fn check_padding(spec: &TlsSpec) -> Result<(), ConvertError> {
+    if spec.permute_extensions {
+        return Ok(());
+    }
+    let padded = spec.has_extension(ext_id::PADDING);
+    let last = spec
+        .extensions
+        .iter()
+        .rev()
+        .find(|&&id| id != ext_id::PADDING);
+    let appended = !spec.grease && last.is_some_and(|id| EMPTY_BODY_EXTENSIONS.contains(id));
+    match (padded, appended) {
+        (true, false) => Err(ConvertError::PaddingUnavailable),
+        (false, true) => Err(ConvertError::PaddingAppended),
+        _ => Ok(()),
+    }
+}
+
+/// Checks that the TLS 1.3 suites, which `BoringSSL` always writes first, come first.
+fn check_cipher_order(spec: &TlsSpec) -> Result<(), ConvertError> {
+    let first_other = spec
+        .cipher_suites
+        .iter()
+        .position(|id| !TLS13_CIPHERS.contains(id));
+    let late_tls13 = first_other.is_some_and(|start| {
+        spec.cipher_suites
+            .iter()
+            .skip(start)
+            .any(|id| TLS13_CIPHERS.contains(id))
+    });
+    if late_tls13 {
+        return Err(ConvertError::Tls13SuitesNotFirst);
+    }
+    Ok(())
 }
 
 /// Checks the extensions that depend on the protocol versions offered.
@@ -538,10 +619,22 @@ pub fn tls_options(spec: &TlsSpec) -> Result<TlsOptions, ConvertError> {
         builder = builder.certificate_compressors(Cow::Owned(compressors));
     }
     if !spec.permute_extensions {
-        let order: Vec<ExtensionType> = spec.extensions.iter().map(|&id| id.into()).collect();
-        builder = builder.extension_permutation(order);
+        builder = builder.extension_permutation(pinned_order(spec));
     }
     Ok(builder.build())
+}
+
+/// The extension order to pin: the extensions `BoringSSL` handles but the spec does not list come
+/// first, so the handlers it visits last are the spec's own. `BoringSSL` writes only the
+/// extensions that are switched on, so the unlisted ones add nothing to the hello, but the last
+/// handler it visits decides whether it appends padding.
+fn pinned_order(spec: &TlsSpec) -> Vec<ExtensionType> {
+    HANDLED_EXTENSIONS
+        .iter()
+        .filter(|id| !spec.extensions.contains(id))
+        .chain(&spec.extensions)
+        .map(|&id| ExtensionType::from(id))
+        .collect()
 }
 
 /// Sets the ALPS protocols and codepoint, when the spec sends the extension.
@@ -675,15 +768,23 @@ pub fn http2_options(spec: &H2Spec) -> Result<Http2Options, ConvertError> {
 /// writes them in.
 ///
 /// The names keep the spelling they have in the list (HTTP/1 shows it; HTTP/2 lowercases it).
-/// The values of `Cookie` and the credential headers are marked sensitive.
+/// The values of `Cookie` and the credential headers are marked sensitive. `leading` names
+/// headers the transport adds itself, such as `Host` on HTTP/1.1: they get no value here, but
+/// they take their place at the front of the order, where the browser writes them.
 ///
 /// # Errors
 ///
 /// Returns [`ConvertError::Header`] for a name that is not an HTTP token or a value that is not
 /// a valid header value.
-pub fn wreq_headers(list: &[(String, String)]) -> Result<(HeaderMap, OrigHeaderMap), ConvertError> {
+pub fn wreq_headers(
+    list: &[(String, String)],
+    leading: &[&'static str],
+) -> Result<(HeaderMap, OrigHeaderMap), ConvertError> {
     let mut map = HeaderMap::with_capacity(list.len());
-    let mut order = OrigHeaderMap::with_capacity(list.len());
+    let mut order = OrigHeaderMap::with_capacity(list.len() + leading.len());
+    for &name in leading {
+        order.insert(name);
+    }
     for (name, value) in list {
         let refuse = |reason| ConvertError::Header {
             name: name.clone(),

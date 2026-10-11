@@ -159,6 +159,30 @@ fn a_cookie_is_added_per_request_in_its_place_and_never_kept() {
 }
 
 #[test]
+fn a_cookie_without_a_slot_goes_after_accept_language() {
+    let profile = chrome();
+    assert!(profile
+        .header_spec()
+        .document
+        .iter()
+        .all(|(name, _)| !name.eq_ignore_ascii_case("cookie")));
+    let list = profile
+        .headers_for(RequestShape::Document, Some("sid=1"), WireProtocol::Http2)
+        .expect("renders");
+    let names: Vec<&str> = list.iter().map(|(name, _)| name.as_str()).collect();
+    let language = names
+        .iter()
+        .position(|name| name.eq_ignore_ascii_case("accept-language"))
+        .expect("Chrome sends a language");
+    assert_eq!(names.get(language + 1), Some(&"Cookie"));
+    assert_eq!(names.last(), Some(&"priority"), "priority stays last");
+    let without = profile
+        .headers_for(RequestShape::Document, None, WireProtocol::Http2)
+        .expect("renders");
+    assert_eq!(without.len() + 1, list.len());
+}
+
+#[test]
 fn the_client_hints_header_has_the_shape_chrome_writes() {
     let brands = [
         BrandVersion::new("Google Chrome", "155"),

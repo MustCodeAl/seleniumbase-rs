@@ -198,6 +198,40 @@ impl CustomProfileBuilder {
         self.tls_overlay(|base| base.with_signature_algorithms(ids))
     }
 
+    /// Turns GREASE (RFC 8701) on or off in the hello: the extra cipher, group, version and
+    /// signature algorithm values and the first and last extension that fingerprints strip.
+    ///
+    /// GREASE decides whether `BoringSSL` writes the padding extension after an empty last
+    /// extension, so a spec that lists padding needs it off. Call this before
+    /// [`ja3`](Self::ja3), which checks the result.
+    ///
+    /// # Errors
+    ///
+    /// Returns the named error when the result cannot be sent.
+    pub fn grease(self, enabled: bool) -> Result<Self, ImpersonateError> {
+        self.tls_overlay(|base| {
+            let mut spec = base.clone();
+            spec.grease = enabled;
+            spec.check_reproducible()?;
+            Ok(spec)
+        })
+    }
+
+    /// Lets `BoringSSL` shuffle the extensions on every connection, as Chrome does, or pins
+    /// their order. A JA3, `JA4_ro` or similar input pins the order; its JA3 is then exact.
+    ///
+    /// # Errors
+    ///
+    /// Returns the named error when the result cannot be sent.
+    pub fn permute_extensions(self, enabled: bool) -> Result<Self, ImpersonateError> {
+        self.tls_overlay(|base| {
+            let mut spec = base.clone();
+            spec.permute_extensions = enabled;
+            spec.check_reproducible()?;
+            Ok(spec)
+        })
+    }
+
     /// Replaces the HTTP/2 SETTINGS, connection window, PRIORITY frames and pseudo-header order
     /// with an Akamai fingerprint. The HEADERS priority fields stay the base's.
     ///
