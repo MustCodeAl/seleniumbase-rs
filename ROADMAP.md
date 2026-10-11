@@ -40,6 +40,7 @@ Design rules that apply to everything below:
 | BaseCase | Actions wait for their element; `nested_click`, `solve_captcha`, `fast_type`, `js_click_if_visible`, `get_gui_element_rect/center`, `jq_format`, `post_message`, `save_as_html_to_logs`, `save_teardown_screenshot`, `switch_to_default_driver`, `wait_for_angularjs`, `get_saved_cookies`. |
 | Toolchain and dependencies | Rust 1.99 (`rust-version`, the `Dockerfile` and the CI msrv job), `zip` 9.0 and a current lockfile. `cargo audit` reports no vulnerabilities (three unmaintained-crate warnings: `bincode` 1.3.3, `fxhash`, `ttf-parser` 0.25.1); `cargo deny check` passes. |
 | Chromedriver that matches Chrome | `browser::driver_version` compares major versions. The launcher downloads the driver of Chrome's milestone when the cached one differs, and `sbase install` and `sbase doctor` make the same check. A replaced driver is written as a new file, because macOS kills a signed binary that is overwritten in place. Driver 155.0.8059.40 is installed here; the real-driver suites in section 1 are still to be run. |
+| Parity honesty audit | 26 manifest entries that did less than their Python method were fixed (with tests; the page scripts are in `src/api/page_scripts.rs`) or re-marked in `parity/api.toml`; the 196 composed CDP entries carry a real note each. Unit tests run without a browser; the real-browser checks are `#[ignore]`d in `src/api/page_scripts.rs` (pure CDP) and `tests/parity_honesty_chrome.rs` (chromedriver). |
 | Per-file review pass | Bugs found by reading were fixed, each with a test, across the book (`docs/`), `src/api` (the top-level modules and `base_case_impls`), `behave`, `cli`, `common`, `plugins`, the stealth page scripts, `utils/extensions` and the Playwright path. The CLI generators and recorders are run as the real binary in `tests/cli_generators.rs` and `tests/cli_templates.rs`. |
 | Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and the stdin recorder (`ActionRecorder::try_record`) refuses such a line and names the closest known action. |
 | Knowledge map and plans | `CLAUDE.md` (module map, checks, gotchas) and `docs/design/stealth_parity_plan.md` (20 work packages for the stealthscraper-rs feature set, JA3/JA4 and Akamai impersonation). |
@@ -67,15 +68,18 @@ Design rules that apply to everything below:
    argument order of `assert_text`, `assert_exact_text` and `wait_for_text`
    differs. Changing any of them shifts existing callers, so do it as a
    deliberate breaking release, not quietly.
-4. **Python names with no Rust counterpart, to classify** (implement, or record
-   as composed / not applicable with a reason):
-   `get_jqc_button_input`, `get_jqc_form_inputs`, `get_jqc_text_input`
-   (JQuery-Confirm dialogs; Rust has `show_prompt`/`show_confirm`),
-   `get_google_auth_password` (composed: `get_mfa_code`), `type` (canonical:
-   `type_text`), `setUp`/`tearDown`/`setUpClass`/`tearDownClass`/`main`/`run`/
-   `skip`/`has_exception` (unittest harness).
-5. **`sbase` CLI gaps.** None are `planned`; each command is implemented,
-   mapped onto an existing command or marked not applicable in `parity/api.toml`.
+4. **Python names with no Rust counterpart (done).** Every one is classified
+   in `parity/api.toml`: `get_jqc_button_input`, `get_jqc_form_inputs`,
+   `get_jqc_text_input` and the unittest harness (`setUp`, `tearDown`,
+   `setUpClass`, `tearDownClass`, `main`, `run`, `skip`, `has_exception`) are not
+   applicable; `get_google_auth_password` and `type` are composed.
+5. **`sbase` CLI gaps.** Four commands are `planned` because the Rust command
+   only looks like the Python one: `caseplans` and `behave-gui` (and their
+   aliases `case-plans` and `gui-behave`) write a fixed file instead of
+   launching the Case Plans Generator and Behave Commander GUIs. `objectify` is
+   not applicable (it rewrites Python source) and `mkrec` is mapped onto
+   `sbase record`. Still to do: `sbase` exits 0 when `objectify`, `caseplans`,
+   `behave-gui` or `mkrec` fail (`src/cli/bin/sbase.rs`).
 6. **pytest-style options and settings.** Compare the Python `--option` list
    and `SB()`/`Driver()` kwargs with `BrowserConfig`/`RuntimeConfig`; add the
    missing ones.
@@ -92,7 +96,14 @@ Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
 `docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
 workflow (untested: Actions are billing-locked).
 
-Current state against 4.55.2 (`just parity-docs` has the full table): no entry is `planned`. Every upstream name is implemented, composed from existing Rust APIs, or not applicable with a stated reason. What is left is depth, not coverage: the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text` and `update_text` only, and several compositions still want the real-Chrome checks of item 7 above.
+Current state against 4.55.2 (`just parity-docs` has the full table): 861 entries are implemented, 375 composed from existing Rust APIs, 112 not applicable with a stated reason and 17 `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` level 0, and others), and the entries were re-marked where it was not. The 17 `planned` entries are the work still to do:
+
+- `BaseCase` (6): `generate_referral`, `generate_referral_chain`, `generate_traffic`, `generate_traffic_chain` (a real click-through between two pages, not a `?ref=` parameter), `set_content_to_frame` (swap the page for an iframe's content) and `install_addon` (Firefox add-ons through geckodriver).
+- pytest options (4): `--reuse-session`, `--reuse_session`, `--rs`, `--rcs`: `BrowserConfig::reuse_session` is stored but nothing shares a browser across a run.
+- `sbase` (4): `caseplans`, `case-plans`, `behave-gui`, `gui-behave`.
+- CDP engine (3): `download_file`, `assert_downloaded_file`, `save_file_as`.
+
+What is left beyond those is depth: `check_window` compares screenshots, not HTML tag structure; the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text` and `update_text` only; and the compositions still want the real-Chrome checks of item 7 above (each composed CDP entry now says how to write it in Rust, but its waits and visibility rules have not been compared with Python's one by one).
 
 ## 3. Documentation
 

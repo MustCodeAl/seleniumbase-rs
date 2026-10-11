@@ -43,14 +43,17 @@ sb.post_message_for("Transient message", 3).await?;
 ```
 
 These helpers inject a visible banner into the page, useful for demos or
-MasterQA reports.
+MasterQA reports. The banner replaces the one already showing and goes away
+after the run's message duration.
 
 ## Console logs
 
 ```rust
 sb.start_recording_console_logs().await?;
-// Or use the alias: sb.console_log_script().await?;
+// Write to the browser console, as Python's console_log_string and
+// console_log_script(script) do:
 sb.console_log_string("Custom log entry").await?;
+sb.console_log_script("document.title").await?;
 let logs = sb.get_recorded_console_logs().await?;
 ```
 
@@ -60,6 +63,11 @@ let logs = sb.get_recorded_console_logs().await?;
 let url = sb.generate_referral("https://example.com", "docs")?;
 sb.generate_traffic("https://example.com", "docs").await?;
 ```
+
+These only add a `?ref=docs` query parameter to the URL (and open it); they do
+not click a link from one page to another, so the destination sees no real
+referral. Python's `generate_referral(start_page, destination_page)` does that,
+and it is listed as planned in [the parity table](../parity.md).
 
 ## Multi-series charts
 
@@ -73,12 +81,13 @@ let path = sb.display_chart().await?;
 
 ## Deferred assertions
 
-Deferred assertions collect failures and only fail the test when
-`process_deferred_asserts` is called:
+Deferred assertions check the page at once, collect the failures with the URL
+of the page they saw, and only fail the test when `process_deferred_asserts` is
+called:
 
 ```rust
 sb.deferred_assert_element_present("#result").await?;
-sb.deferred_assert_exact_text("#result", "Done").await?;
+sb.deferred_assert_exact_text("#result", "Done").await?; // (selector, text)
 sb.process_deferred_asserts().await?;
 ```
 

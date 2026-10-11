@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (875 implemented,
-  377 composed, 113 not-applicable with a reason, none planned). The composed and
+- **Parity**: every API in `parity/api.toml` now has a status (861 implemented,
+  375 composed, 112 not-applicable with a reason, 17 planned). The composed and
   not-applicable entries are still to be reviewed.
 - **Stealth scraping groundwork** (features `scrape` and `impersonate`, in
   `src/wire`, `src/scrape` and `src/impersonate`): egress redaction, routes, geo
@@ -89,6 +89,24 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   job); `zip` moved to 9.0 and the lockfile is current.
 - `BaseCase` actions wait for their element (up to `set_timeout`, 10 s by
   default) and fail with `WaitTimeout` naming the selector.
+- **Breaking**, from a parity audit (each method now does what the Python
+  method of the name does): `press_keys(css, text)` types text into an element
+  (the old one-named-key method is `press_key(name)`); `select_all(css)` returns
+  the matching elements (the old select-every-option method is
+  `select_all_options`); `bring_to_front(css)` raises an element (the window
+  focus is `bring_active_window_to_front`); `console_log_script(script)` takes
+  the expression to log; `deferred_check_window(name, level)` and
+  `delayed_check_window(name, level)` take a name and a level;
+  `assert_downloaded_file` is `async` and waits for the download;
+  `switch_to_frame_of_element` returns the frame's name; `find_text`,
+  `find_exact_text` and `find_non_empty_text` wait for visible text and fail with
+  a timeout instead of returning `None`; `DeferredAssert` has three more
+  variants. `check_window` at level 0 no longer fails on a difference.
+- `BaseCase::generate_referral`, `generate_traffic` and their chains,
+  `set_content_to_frame` and `install_addon`, the `--reuse-session` options, the
+  `caseplans` and `behave-gui` commands and three CDP downloads are now `planned`
+  in `parity/api.toml`, because the Rust code only looked like the Python one.
+  `objectify` is not applicable and `mkrec` is mapped onto `sbase record`.
 - Waits report the error that stopped them, and link checks report real status
   codes.
 - `Cookies::save` writes JSON, not Python pickles. The old `seleniumbase-mcp`
@@ -118,6 +136,18 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   (`Proxy-Authorization`) to every site as an extra header; the pure CDP path
   already filtered it.
 - A flaky Grid test (the stand-in `java` was slow on its first run).
+- Parity audit: `set_text`, `set_text_content` and `highlight_update_text` set
+  an input's value instead of its (invisible) `textContent`; the deferred
+  asserts check at once, `deferred_assert_exact_text` is exact and
+  `deferred_assert_non_empty_text` checks text; `switch_to_frame_of_element`
+  finds elements in iframes; `select_option_by_index` fails for a missing option
+  and fires `change`; `get_chrome_version` returns the version number and
+  `get_chromium_version` the major version; `is_valid_url` follows Python's
+  pattern; `ad_block` uses upstream's selector list; `add_js_code_from_link`
+  downloads and injects the code; `post_success_message` and the other toasts go
+  away; `highlight` restores the element's outline; `delete_saved_cookies`
+  deletes the file `save_cookies` wrote; `console_log_string` writes to the
+  console.
 - The recorder generates Rust for every recorded action, keeps events across
   navigations, and the stdin recorder only says "recorded" for what it recorded.
 - The CLI scaffolders no longer overwrite files; the interactive commands stop at

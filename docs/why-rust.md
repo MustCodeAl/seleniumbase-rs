@@ -25,8 +25,8 @@ anti-detection features, but runs on Rust's async runtime, type system, and
 native distribution model. It has two engines: a WebDriver engine built on
 `thirtyfour`, and a pure Chrome DevTools Protocol engine (`sb_cdp`) that needs
 no driver at all. Every API of the upstream project has a recorded status in
-[the parity table](parity.md): 875 implemented, 377 composed from existing Rust
-calls, 113 not applicable (for example pytest plumbing) and none still planned.
+[the parity table](parity.md): 861 implemented, 375 composed from existing Rust
+calls, 112 not applicable (for example pytest plumbing) and 17 still planned.
 That table is a claim, not a measurement; the composed and not-applicable
 entries have not been independently reviewed yet.
 

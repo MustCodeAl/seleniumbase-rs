@@ -66,7 +66,8 @@ browser processes do not leak when a test fails.
 | `type_text(selector, text)` | Clears and types. |
 | `add_text(selector, text)` | Appends text. |
 | `send_keys(selector, text)` | Sends keystrokes to the element. |
-| `press_keys(key_name)` | Presses a single special key (e.g. `Enter`, `Tab`). |
+| `press_keys(selector, text)` | Types `text` into the element one key at a time; a trailing `\n` presses Enter. |
+| `press_key(key_name)` | Presses one named key (e.g. `enter`, `tab`) on the element that has focus. |
 | `clear(selector)` | Clears the element. |
 | `submit(selector)` | Submits the parent form. |
 | `hover(selector)` | Hovers over the element. |
@@ -76,7 +77,7 @@ browser processes do not leak when a test fails.
 | `drag_and_drop_with_offset(src, x, y)` | Drags an element by an offset. |
 | `select_option_by_text(selector, text)` | Selects by visible text. |
 | `select_option_by_value(selector, value)` | Selects by value. |
-| `select_option_by_index(selector, index)` | Selects by zero-based index. |
+| `select_option_by_index(selector, index)` | Selects by zero-based index and fires `input` and `change`; fails if there is no such option. |
 | `js_click(selector)` | Clicks via JavaScript. |
 | `js_type(selector, text)` | Types via JavaScript. |
 | `highlight_click(selector)` | Highlights then clicks. |
@@ -93,10 +94,10 @@ All `selector` arguments accept the same formats described in the
 
 | Method | Description |
 |--------|-------------|
-| `press_up_arrow()` | Presses the Up arrow key. |
-| `press_down_arrow()` | Presses the Down arrow key. |
-| `press_left_arrow()` | Presses the Left arrow key. |
-| `press_right_arrow()` | Presses the Right arrow key. |
+| `press_up_arrow()` | Presses the Up arrow key once, on the element that has focus. |
+| `press_down_arrow()` | Presses the Down arrow key once, on the element that has focus. |
+| `press_left_arrow()` | Presses the Left arrow key once, on the element that has focus. |
+| `press_right_arrow()` | Presses the Right arrow key once, on the element that has focus. |
 
 ## Scrolling
 
@@ -155,16 +156,18 @@ See [Waits and Assertions](./waits_assertions.md) for detailed examples.
 
 ## Deferred assertions
 
-Deferred assertions collect failures and report them together when
-`process_deferred_asserts` is called. Useful for soft assertions.
+Deferred assertions check the page at once, collect failures (with the URL of
+the page each one saw) and report them together when `process_deferred_asserts`
+is called. Useful for soft assertions.
 
 | Method | Description |
 |--------|-------------|
-| `deferred_assert_element(selector)` | Records an element-visible assertion. |
-| `deferred_assert_text(text, selector)` | Records a text-visible assertion. |
-| `deferred_assert_element_present(selector)` | Records an element-present assertion. |
-| `deferred_assert_exact_text(text, selector)` | Records an exact-text assertion. |
-| `deferred_assert_non_empty_text(selector)` | Records a non-empty-text assertion. |
+| `deferred_assert_element(selector)` | Checks the element is visible; records a failure if not. |
+| `deferred_assert_text(text, selector)` | Checks the element contains the text; records a failure if not. |
+| `deferred_assert_element_present(selector)` | Checks the element is in the page, visible or not. |
+| `deferred_assert_exact_text(selector, text)` | Checks the element's text is exactly `text`. |
+| `deferred_assert_non_empty_text(selector)` | Checks the element shows some text. |
+| `deferred_check_window(name, level)` | Runs `check_window` and records a difference as a failure. |
 | `process_deferred_asserts()` | Fails if any deferred assertion failed. |
 
 ## Queries
@@ -193,7 +196,8 @@ Deferred assertions collect failures and report them together when
 | `switch_to_frame(selector)` | Enters a frame. |
 | `switch_to_default_content()` | Returns to top document. |
 | `switch_to_parent_frame()` | Goes to parent frame. |
-| `set_content_to_frame(selector)` | Alias for `switch_to_frame`. |
+| `set_content_to_frame(html)` | Appends an iframe holding `html` to the page. Not Python's `set_content_to_frame(frame)`; see [the parity table](../parity.md). |
+| `switch_to_frame_of_element(selector)` | Enters the frame that holds the element; `None` if it is in this document. |
 | `set_content_to_default()` | Alias for `switch_to_default_content`. |
 | `switch_to_window(handle)` | Switches to a window. |
 | `switch_to_new_window()` | Opens and switches to new window. |
@@ -237,7 +241,7 @@ Deferred assertions collect failures and report them together when
 | `save_screenshot(filename)` | Writes a screenshot to the logs directory. `filename` must be a plain file name (no directory part, no `..`); a file of that name is replaced. |
 | `save_screenshot_to_path(path)` | Writes screenshot to an arbitrary path. |
 | `screenshot_as_png()` | Returns the current page screenshot as PNG bytes. |
-| `check_window(name, level)` | Compares a screenshot to a stored baseline. |
+| `check_window(name, level)` | Compares a screenshot to a stored baseline, byte for byte (not Python's HTML-tag comparison). Level 0 only logs a difference; any other level fails on it. |
 
 ## Script execution and DOM modification
 
@@ -253,6 +257,7 @@ Deferred assertions collect failures and report them together when
 | `add_js_link(src)` | Injects a `<script src="...">`. |
 | `add_css_style(css)` | Injects a `<style>` block. |
 | `add_js_code(js)` | Injects a `<script>` block. |
+| `add_js_code_from_link(url)` | Downloads the script at `url` and injects its code inline. |
 | `load_html_string(html)` | Loads raw HTML as the current page. |
 | `load_html_file(path)` | Loads an HTML file as the current page. |
 | `set_content(html)` | Alias for `load_html_string`. |
@@ -260,6 +265,7 @@ Deferred assertions collect failures and report them together when
 | `show_element(selector)` | Shows a hidden element. |
 | `remove_element(selector)` | Removes an element from the DOM. |
 | `console_log_string(text)` | Logs `text` to the browser console via JavaScript. |
+| `console_log_script(script)` | Logs the value of the JavaScript expression `script` to the console. |
 | `start_recording_console_logs()` | Starts capturing console logs. |
 | `get_recorded_console_logs()` | Returns captured console log lines. |
 
@@ -274,7 +280,7 @@ Deferred assertions collect failures and report them together when
 | `get_downloads_folder()` | Returns the default downloads directory. |
 | `get_downloaded_files()` | Returns a list of downloaded file names. |
 | `is_downloaded_file_present(filename)` | Returns true if the file exists in downloads. |
-| `assert_downloaded_file(filename)` | Fails if the downloaded file is not present. |
+| `assert_downloaded_file(filename)` | Waits up to the default timeout for the file, then fails if it is not present. |
 | `get_pdf_text(filename)` | Extracts text from a PDF file. |
 | `assert_pdf_text(filename, text)` | Fails if the PDF does not contain `text`. |
 
@@ -380,7 +386,7 @@ See the [Tours](./tours.md) and [Charts](./charts.md) pages for details.
 | `get_beautiful_soup_object()` | Alias for `get_beautiful_soup`. |
 | `convert_css_to_xpath(css)` | Converts a CSS selector to an XPath expression. |
 | `convert_xpath_to_css(xpath)` | Converts an XPath expression to a CSS selector. |
-| `ad_block()` | Injects an ad-blocking script. |
+| `ad_block()` | Removes the ad elements of upstream's `AD_BLOCK_LIST` from the current page. |
 | `disable_beforeunload()` | Disables `beforeunload` prompts. |
 | `print_unique_links_with_status_codes()` | Prints all unique links and their HTTP status codes. |
 

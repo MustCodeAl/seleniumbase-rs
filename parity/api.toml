@@ -130,6 +130,7 @@ rust = "BaseCase::assert_data_in_downloaded_file"
 [basecase."assert_downloaded_file"]
 status = "implemented"
 rust = "BaseCase::assert_downloaded_file"
+divergence = "Waits for the default timeout (set_timeout), not a per-call one, and looks only in the OS downloads folder; Python's browser flag and its downloaded_files folder are not used."
 
 [basecase."assert_downloaded_file_regex"]
 status = "implemented"
@@ -294,8 +295,9 @@ status = "implemented"
 rust = "BaseCase::check_if_unchecked"
 
 [basecase."check_window"]
-status = "implemented"
+status = "composed"
 rust = "BaseCase::check_window"
+note = "Compares the window's screenshot byte for byte with visual_baseline/<name>.png instead of comparing the page's HTML tags (Python's tags_level1 to tags_level3 files), so a repainted pixel is a difference and levels 1 to 3 are the same strict check. Level 0 is a dry run that logs a difference without failing, as in Python. The baseline is keyed by name only, not by test name, and the baseline, check_domain and full_diff arguments are not ported."
 
 [basecase."choose_file"]
 status = "implemented"
@@ -454,26 +456,32 @@ rust = "BaseCase::deactivate_design_mode"
 [basecase."deferred_assert_element"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_element"
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_assert_element_present"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_element_present"
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_exact_text"
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (css, text); Python's is (text, selector)."
 
 [basecase."deferred_assert_non_empty_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_non_empty_text"
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_assert_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_text"
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (text, css), like Python's."
 
 [basecase."deferred_check_window"]
 status = "implemented"
 rust = "BaseCase::deferred_check_window"
+divergence = "Takes the name and level; the failure is recorded, with the page's URL, for process_deferred_asserts. Same differences as check_window."
 
 [basecase."delayed_assert_element"]
 status = "implemented"
@@ -518,6 +526,7 @@ rust = "BaseCase::delete_local_storage"
 [basecase."delete_saved_cookies"]
 status = "implemented"
 rust = "BaseCase::delete_saved_cookies"
+divergence = "Deletes the file from latest_logs/ and from the working directory, the two places save_saved_cookies and save_cookies write; Python's saved_cookies/ folder and .txt suffix are not used."
 
 [basecase."delete_session_storage"]
 status = "implemented"
@@ -614,6 +623,7 @@ divergence = "Returns thirtyfour::WebElements; takes CSS or XPath only."
 [basecase."find_exact_text"]
 status = "implemented"
 rust = "BaseCase::find_exact_text"
+divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
 
 [basecase."find_link_text"]
 status = "implemented"
@@ -622,6 +632,7 @@ rust = "BaseCase::find_link_text"
 [basecase."find_non_empty_text"]
 status = "implemented"
 rust = "BaseCase::find_non_empty_text"
+divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> with visible text and returns the deepest first one, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
 
 [basecase."find_partial_link_text"]
 status = "implemented"
@@ -630,6 +641,7 @@ rust = "BaseCase::find_partial_link_text"
 [basecase."find_text"]
 status = "implemented"
 rust = "BaseCase::find_text"
+divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
 
 [basecase."find_visible_elements"]
 status = "implemented"
@@ -648,20 +660,20 @@ status = "implemented"
 rust = "BaseCase::frame_switch"
 
 [basecase."generate_referral"]
-status = "implemented"
-rust = "BaseCase::generate_referral"
+status = "planned"
+note = "BaseCase::generate_referral(url, referrer) only returns the URL with ?ref=<referrer> appended. Python's generate_referral(start_page, destination_page, selector) opens the start page, adds a link to the destination there and clicks it, so the destination sees a real referral. Not ported."
 
 [basecase."generate_referral_chain"]
-status = "implemented"
-rust = "BaseCase::generate_referral_chain"
+status = "planned"
+note = "BaseCase::generate_referral_chain(url, referrers) only returns one ?ref= URL per referrer. Python's generate_referral_chain(pages) clicks through a chain of at least two pages. Not ported."
 
 [basecase."generate_traffic"]
-status = "implemented"
-rust = "BaseCase::generate_traffic"
+status = "planned"
+note = "BaseCase::generate_traffic(url, referrer) only opens the URL with ?ref=<referrer> appended, which sends no Referer header. Python's generate_traffic(start_page, destination_page, loops, selector) clicks a real link `loops` times. Not ported."
 
 [basecase."generate_traffic_chain"]
-status = "implemented"
-rust = "BaseCase::generate_traffic_chain"
+status = "planned"
+note = "BaseCase::generate_traffic_chain(url, referrers) only opens one ?ref= URL per referrer. Python's generate_traffic_chain(pages) clicks through a chain of pages. Not ported."
 
 [basecase."get"]
 status = "implemented"
@@ -961,6 +973,7 @@ rust = "BaseCase::hide_elements"
 [basecase."highlight"]
 status = "implemented"
 rust = "BaseCase::highlight"
+divergence = "Scrolls to the element and outlines it once for about a second, restored by a timer in the page, so the call does not block; Python animates the element for `loops` rounds and takes scroll and timeout arguments."
 
 [basecase."highlight_click"]
 status = "implemented"
@@ -1019,8 +1032,8 @@ status = "implemented"
 rust = "BaseCase::inspect_html"
 
 [basecase."install_addon"]
-status = "implemented"
-rust = "BaseCase::install_addon"
+status = "planned"
+note = "BaseCase::install_addon always returns SeleniumBaseError::Unsupported. Python installs a Firefox .xpi through geckodriver (install_addon, temporary=True); that needs geckodriver's moz/addon/install endpoint, which this crate does not call."
 
 [basecase."internalize_links"]
 status = "implemented"
@@ -1231,6 +1244,7 @@ rust = "BaseCase::play_tour"
 [basecase."post_error_message"]
 status = "implemented"
 rust = "BaseCase::post_error_message"
+divergence = "Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go."
 
 [basecase."post_message"]
 status = "implemented"
@@ -1239,30 +1253,37 @@ rust = "BaseCase::post_message"
 [basecase."post_message_and_highlight"]
 status = "implemented"
 rust = "BaseCase::post_message_and_highlight"
+divergence = "Shows a plain box (see post_success_message) and highlights it; Python takes a selector and highlights that element after posting the message."
 
 [basecase."post_success_message"]
 status = "implemented"
 rust = "BaseCase::post_success_message"
+divergence = "Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go."
 
 [basecase."press_down_arrow"]
 status = "implemented"
 rust = "BaseCase::press_down_arrow"
+divergence = "Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
 
 [basecase."press_keys"]
 status = "implemented"
 rust = "BaseCase::press_keys"
+divergence = "Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus."
 
 [basecase."press_left_arrow"]
 status = "implemented"
 rust = "BaseCase::press_left_arrow"
+divergence = "Presses the Left arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
 
 [basecase."press_right_arrow"]
 status = "implemented"
 rust = "BaseCase::press_right_arrow"
+divergence = "Presses the Right arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
 
 [basecase."press_up_arrow"]
 status = "implemented"
 rust = "BaseCase::press_up_arrow"
+divergence = "Presses the Up arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count."
 
 [basecase."print_to_pdf"]
 status = "implemented"
@@ -1510,14 +1531,15 @@ rust = "BaseCase::set_content"
 [basecase."set_content_to_default"]
 status = "implemented"
 rust = "BaseCase::set_content_to_default"
+divergence = "Leaves the frame context (switch_to_default_content); Python also restores the page that set_content_to_frame replaced, which Rust has no counterpart of."
 
 [basecase."set_content_to_default_content"]
 status = "implemented"
 rust = "BaseCase::set_content_to_default_content"
 
 [basecase."set_content_to_frame"]
-status = "implemented"
-rust = "BaseCase::set_content_to_frame"
+status = "planned"
+note = "BaseCase::set_content_to_frame(html) appends an iframe holding the given HTML to the page. Python's set_content_to_frame(frame) replaces the page with the content of an iframe already on it (or opens its src in a new tab) and set_content_to_default restores the page. Not ported."
 
 [basecase."set_content_to_parent"]
 status = "implemented"
@@ -1544,8 +1566,9 @@ status = "implemented"
 rust = "BaseCase::set_local_storage_item"
 
 [basecase."set_messenger_theme"]
-status = "implemented"
-rust = "BaseCase::set_messenger_theme"
+status = "composed"
+rust = "Page::set_messenger_theme"
+note = "On the pure-CDP engine, Page::set_messenger_theme takes MessengerSettings (theme, location, max_messages) as Python does. BaseCase::set_messenger_theme(color) on the WebDriver engine only sets the background colour of Messenger messages; it does not pick a theme or location."
 
 [basecase."set_session_storage_item"]
 status = "implemented"
@@ -1554,10 +1577,12 @@ rust = "BaseCase::set_session_storage_item"
 [basecase."set_text"]
 status = "implemented"
 rust = "BaseCase::set_text"
+divergence = "Sets the value of an input or textarea (firing input and change) or the textContent of any other element, as Python does; it presses no Enter for a trailing newline, and the selector is CSS."
 
 [basecase."set_text_content"]
 status = "implemented"
 rust = "BaseCase::set_text_content"
+divergence = "Same as set_text, as in Python; the selector is CSS and there is no scroll argument."
 
 [basecase."set_time_limit"]
 status = "implemented"
@@ -1656,6 +1681,7 @@ rust = "BaseCase::switch_to_frame"
 [basecase."switch_to_frame_of_element"]
 status = "implemented"
 rust = "BaseCase::switch_to_frame_of_element"
+divergence = "Returns the frame's name, else its id, else an empty string, or None when the element is in the current document. Looks one level down, as Python does."
 
 [basecase."switch_to_newest_tab"]
 status = "implemented"
@@ -1863,47 +1889,46 @@ reason = "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the 
 [cdp."assert_any_of_elements_present"]
 status = "composed"
 rust = "Page::wait_for_any"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises."
 
 [cdp."assert_any_of_elements_visible"]
 status = "composed"
 rust = "Page::wait_for_any"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises."
 
 [cdp."assert_downloaded_file"]
-status = "composed"
-rust = "Browser::set_download_dir"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+status = "planned"
+note = "Browser::set_download_dir only chooses the folder; nothing waits for a file to appear in it. Poll the folder yourself (BaseCase::assert_downloaded_file does it for the WebDriver engine)."
 
 [cdp."assert_element"]
 status = "composed"
 rust = "LocatorExpect::to_be_visible"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.locator(selector).expect().to_be_visible(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_element_absent"]
 status = "composed"
 rust = "LocatorExpect::to_exist"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().not().to_exist()`; the wait is the expect timeout."
 
 [cdp."assert_element_attribute"]
 status = "composed"
 rust = "LocatorExpect::to_have_attribute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.locator(selector).expect().to_have_attribute(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_element_not_visible"]
 status = "composed"
 rust = "LocatorExpect::to_be_hidden"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().to_be_hidden()`; the wait is the expect timeout."
 
 [cdp."assert_element_present"]
 status = "composed"
 rust = "LocatorExpect::to_exist"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().to_exist()`; the wait is the expect timeout."
 
 [cdp."assert_element_visible"]
 status = "composed"
 rust = "LocatorExpect::to_be_visible"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.locator(selector).expect().to_be_visible(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_equal"]
 status = "not-applicable"
@@ -1912,7 +1937,7 @@ reason = "Rust has assert!, assert_eq! and friends."
 [cdp."assert_exact_text"]
 status = "composed"
 rust = "LocatorExpect::to_have_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().to_have_text(text)`, which compares the whole text."
 
 [cdp."assert_false"]
 status = "not-applicable"
@@ -1933,22 +1958,22 @@ reason = "Rust has assert!, assert_eq! and friends."
 [cdp."assert_text"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_text_not_visible"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().not().to_contain_text(text)`; the wait is the expect timeout."
 
 [cdp."assert_title"]
 status = "composed"
 rust = "PageExpect::to_have_title"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.expect().to_have_title(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_title_contains"]
 status = "composed"
 rust = "PageExpect::to_contain_title"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.expect().to_contain_title(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_true"]
 status = "not-applicable"
@@ -1957,202 +1982,201 @@ reason = "Rust has assert!, assert_eq! and friends."
 [cdp."assert_url"]
 status = "composed"
 rust = "PageExpect::to_have_url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.expect().to_have_url(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."assert_url_contains"]
 status = "composed"
 rust = "PageExpect::to_contain_url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Assert with `page.expect().to_contain_url(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError."
 
 [cdp."bring_active_window_to_front"]
 status = "composed"
 rust = "Page::bring_to_front"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.bring_to_front(..)`."
 
 [cdp."check_if_unchecked"]
 status = "composed"
 rust = "Locator::check"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).check(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."clear"]
 status = "composed"
 rust = "Locator::clear"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."clear_cookies"]
 status = "composed"
 rust = "Cookies::clear"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.cookies().clear(..)`."
 
 [cdp."clear_input"]
 status = "composed"
 rust = "Locator::clear"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."click"]
 status = "composed"
 rust = "Locator::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."click_active_element"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "No method: `page.evaluate(\"document.activeElement.click()\")`."
 
 [cdp."click_and_hold"]
 status = "composed"
 rust = "Mouse::down"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Move the pointer onto the element, then press with `page.mouse().down(..)`; the Mouse acts at coordinates, not on a selector."
 
 [cdp."click_captcha"]
 status = "composed"
 rust = "Page::solve_captcha"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
 
 [cdp."click_if_visible"]
 status = "composed"
 rust = "Locator::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Locator::click has no \"only if visible\" condition; check `page.locator(selector).is_visible()` first."
 
 [cdp."click_link"]
 status = "composed"
 rust = "Locator::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."click_nth_element"]
 status = "composed"
 rust = "Locator::nth"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).nth(i).click()`; `nth` is zero-based, Python's number starts at 1."
 
 [cdp."click_nth_visible_element"]
 status = "composed"
 rust = "Locator::nth"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).visible().nth(i).click()`; `nth` is zero-based, Python's number starts at 1."
 
 [cdp."click_visible_elements"]
 status = "composed"
 rust = "Locator::visible"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`."
 
 [cdp."click_with_offset"]
 status = "composed"
 rust = "Locator::click_at"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner."
 
 [cdp."close_active_tab"]
 status = "composed"
 rust = "Page::close"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.close()` closes that Page's tab."
 
 [cdp."download_file"]
-status = "composed"
-rust = "Browser::set_download_dir"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+status = "planned"
+note = "Browser::set_download_dir only chooses the folder downloads go to; nothing fetches the URL. Python's download_file(url, filename) downloads it and renames the file."
 
 [cdp."drag_and_drop"]
 status = "composed"
 rust = "Locator::drag_to"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."enter_mfa_code"]
 status = "composed"
 rust = "BaseCase::enter_mfa_code"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::get_mfa_code and type it with Locator::type_text."
 
 [cdp."evaluate"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.evaluate(script)`; values come back as serde_json::Value."
 
 [cdp."execute_script"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.evaluate(script)`; values come back as serde_json::Value."
 
 [cdp."fast_keys"]
 status = "composed"
 rust = "Keyboard::insert_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.keyboard().insert_text(text)` inserts the text in one step."
 
 [cdp."fast_type"]
 status = "composed"
 rust = "Locator::fill"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).fill(text)` replaces the content in one step, with input events but no per-key ones."
 
 [cdp."find_all"]
 status = "composed"
 rust = "Locator::all"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).all()` gives one Locator per match."
 
 [cdp."find_element"]
 status = "composed"
 rust = "Page::locator"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector)` returns a Locator, the handle every element action goes through."
 
 [cdp."find_element_by_text"]
 status = "composed"
 rust = "Page::locator"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector)` with a text selector returns a Locator."
 
 [cdp."find_elements"]
 status = "composed"
 rust = "Locator::all"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).all()` gives one Locator per match."
 
 [cdp."find_elements_by_text"]
 status = "composed"
 rust = "Locator::all"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).all()` gives one Locator per match; filter by text yourself."
 
 [cdp."find_visible_elements"]
 status = "composed"
 rust = "Locator::visible"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).visible(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."flash"]
 status = "composed"
 rust = "Locator::flash"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).flash(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."focus"]
 status = "composed"
 rust = "Locator::focus"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).focus(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get"]
 status = "composed"
 rust = "Page::goto"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 
 [cdp."get_active_element"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "No method: `page.evaluate(\"document.activeElement\")`."
 
 [cdp."get_active_element_css"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "No method: evaluate a script on `document.activeElement` with `page.evaluate(..)`."
 
 [cdp."get_active_tab"]
 status = "composed"
 rust = "Browser::default_page"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.default_page()` is the first tab, not necessarily the active one."
 
 [cdp."get_all_cookies"]
 status = "composed"
 rust = "Cookies::all"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.cookies().all(..)`."
 
 [cdp."get_all_urls"]
 status = "composed"
 rust = "Locator::urls"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).urls()` lists the absolute URLs under the element."
 
 [cdp."get_attribute"]
 status = "composed"
 rust = "Locator::attribute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).attribute(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_beautiful_soup"]
 status = "not-applicable"
@@ -2161,52 +2185,52 @@ reason = "HTML parsing lives in api::html (the scraper crate)."
 [cdp."get_cookie_string"]
 status = "composed"
 rust = "Cookies::header"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.cookies().header(..)`."
 
 [cdp."get_current_url"]
 status = "composed"
 rust = "Page::url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.url(..)`."
 
 [cdp."get_document"]
 status = "composed"
 rust = "Page::execute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Raw protocol call: `page.execute(..)` with `DOM.getDocument`."
 
 [cdp."get_element_attribute"]
 status = "composed"
 rust = "Locator::attribute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).attribute(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_element_attributes"]
 status = "composed"
 rust = "Locator::info"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).info()` returns the element's details, attributes included."
 
 [cdp."get_element_html"]
 status = "composed"
 rust = "Locator::html"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).html(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_element_position"]
 status = "composed"
 rust = "Locator::bounding_box"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box."
 
 [cdp."get_element_rect"]
 status = "composed"
 rust = "Locator::bounding_box"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box."
 
 [cdp."get_element_size"]
 status = "composed"
 rust = "Locator::bounding_box"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box."
 
 [cdp."get_endpoint_url"]
 status = "composed"
 rust = "Browser::http_url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.http_url()` is the DevTools HTTP endpoint."
 
 [cdp."get_event_loop"]
 status = "not-applicable"
@@ -2215,312 +2239,312 @@ reason = "The async runtime is the caller's; there is no event loop to expose."
 [cdp."get_flattened_document"]
 status = "composed"
 rust = "Page::execute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Raw protocol call: `page.execute(..)` with `DOM.getFlattenedDocument`."
 
 [cdp."get_gui_element_center"]
 status = "composed"
 rust = "Locator::screen_rect"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).screen_rect()` gives the rectangle in screen coordinates; take its centre."
 
 [cdp."get_gui_element_rect"]
 status = "composed"
 rust = "Locator::screen_rect"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).screen_rect(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_html"]
 status = "composed"
 rust = "Locator::html"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).html()` returns the element's HTML; for the whole page use `page.content()`."
 
 [cdp."get_local_storage_item"]
 status = "composed"
 rust = "Storage::get"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.local_storage().get(key)`."
 
 [cdp."get_locale_code"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "No method: `page.evaluate(\"navigator.language\")`."
 
 [cdp."get_mfa_code"]
 status = "composed"
 rust = "BaseCase::get_mfa_code"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase."
 
 [cdp."get_navigation_history"]
 status = "composed"
 rust = "Page::execute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`."
 
 [cdp."get_nested_element"]
 status = "composed"
 rust = "Locator::locator"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_origin"]
 status = "composed"
 rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "No method: `page.evaluate(\"location.origin\")`."
 
 [cdp."get_page_source"]
 status = "composed"
 rust = "Page::content"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.content()` returns the page's HTML."
 
 [cdp."get_page_title"]
 status = "composed"
 rust = "Page::title"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.title()`."
 
 [cdp."get_parent"]
 status = "composed"
 rust = "Locator::parent"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).parent(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_path_of_downloaded_file"]
 status = "composed"
 rust = "Browser::set_download_dir"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Rust has no helper: join the folder given to Browser::set_download_dir with the file name."
 
 [cdp."get_port"]
 status = "composed"
 rust = "Browser::debugging_port"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.debugging_port()`."
 
 [cdp."get_rd_host"]
 status = "composed"
 rust = "Browser::http_url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.http_url()` is the DevTools HTTP endpoint; take its host."
 
 [cdp."get_rd_port"]
 status = "composed"
 rust = "Browser::debugging_port"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.debugging_port()`."
 
 [cdp."get_rd_url"]
 status = "composed"
 rust = "Browser::http_url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.http_url()` is the DevTools HTTP endpoint."
 
 [cdp."get_screen_rect"]
 status = "composed"
 rust = "Window::bounds"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().bounds()` is the browser window's rectangle, not the screen's; read the screen size with `page.evaluate(\"[screen.width, screen.height]\")`."
 
 [cdp."get_session_storage_item"]
 status = "composed"
 rust = "Storage::get"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.session_storage().get(key)`."
 
 [cdp."get_tabs"]
 status = "composed"
 rust = "Browser::pages"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.pages()`."
 
 [cdp."get_text"]
 status = "composed"
 rust = "Locator::text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).text(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_title"]
 status = "composed"
 rust = "Page::title"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.title()`."
 
 [cdp."get_user_agent"]
 status = "composed"
 rust = "Page::user_agent"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.user_agent()`."
 
 [cdp."get_websocket_url"]
 status = "composed"
 rust = "Browser::websocket_url"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.websocket_url()`."
 
 [cdp."get_window"]
 status = "composed"
 rust = "Window::bounds"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."get_window_position"]
 status = "composed"
 rust = "Window::bounds"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."get_window_rect"]
 status = "composed"
 rust = "Window::bounds"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."get_window_size"]
 status = "composed"
 rust = "Window::bounds"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."go_back"]
 status = "composed"
 rust = "Page::back"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.back(..)`."
 
 [cdp."go_forward"]
 status = "composed"
 rust = "Page::forward"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.forward(..)`."
 
 [cdp."goto"]
 status = "composed"
 rust = "Page::goto"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 
 [cdp."goto_if_not_url"]
 status = "composed"
 rust = "Page::goto"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 
 [cdp."grant_all_permissions"]
 status = "composed"
 rust = "Browser::grant_permissions"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Browser, not of one page: `browser.grant_permissions(..)`."
 
 [cdp."grant_permissions"]
 status = "composed"
 rust = "Browser::grant_permissions"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Browser, not of one page: `browser.grant_permissions(..)`."
 
 [cdp."gui_click_and_hold"]
 status = "composed"
 rust = "Gui::mouse_down"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::mouse_down` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_click_captcha"]
 status = "composed"
 rust = "Page::solve_captcha"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
 
 [cdp."gui_click_element"]
 status = "composed"
 rust = "Gui::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_click_with_offset"]
 status = "composed"
 rust = "Gui::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_click_x_y"]
 status = "composed"
 rust = "Gui::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_drag_and_drop"]
 status = "composed"
 rust = "Gui::drag"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::drag` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_drag_drop_points"]
 status = "composed"
 rust = "Gui::drag"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::drag` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_hover_and_click"]
 status = "composed"
 rust = "Gui::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_hover_element"]
 status = "composed"
 rust = "Gui::move_mouse"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_hover_x_y"]
 status = "composed"
 rust = "Gui::move_mouse"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_move_to_element"]
 status = "composed"
 rust = "Gui::move_mouse"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_press_key"]
 status = "composed"
 rust = "Gui::press_key"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::press_key` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."gui_press_keys"]
 status = "composed"
 rust = "Gui::press_keys"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::press_keys(&[..])` holds the modifier keys while it presses the others; it needs feature `gui`."
 
 [cdp."gui_write"]
 status = "composed"
 rust = "Gui::write"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`Gui::write` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page."
 
 [cdp."highlight"]
 status = "composed"
 rust = "Locator::flash"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).flash()` outlines the element briefly; it has no loops or colour options."
 
 [cdp."highlight_overlay"]
 status = "composed"
 rust = "Locator::flash"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).flash()` outlines the element briefly; it draws no overlay."
 
 [cdp."hover_and_click"]
 status = "composed"
 rust = "Locator::hover"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Hover with `page.locator(hover_selector).hover()`, then click the second Locator: two calls instead of one."
 
 [cdp."hover_element"]
 status = "composed"
 rust = "Locator::hover"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).hover()`."
 
 [cdp."internalize_links"]
 status = "composed"
 rust = "Locator::set_attribute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Set `target` to `_self` on the link Locator with `set_attribute` so links open in the same tab."
 
 [cdp."is_attribute_present"]
 status = "composed"
 rust = "Locator::attribute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).attribute(name)` returns an Option; the attribute is present when it is Some."
 
 [cdp."is_checked"]
 status = "composed"
 rust = "Locator::is_checked"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).is_checked(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."is_element_present"]
 status = "composed"
 rust = "Locator::exists"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).exists(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."is_element_visible"]
 status = "composed"
 rust = "Locator::is_visible"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).is_visible(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."is_exact_text_visible"]
 status = "composed"
 rust = "Locator::text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Compare `page.locator(selector).text()` with the text; there is no single predicate."
 
 [cdp."is_online"]
 status = "composed"
 rust = "Page::is_online"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.is_online(..)`."
 
 [cdp."is_selected"]
 status = "composed"
 rust = "Locator::is_selected"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).is_selected()`."
 
 [cdp."is_text_visible"]
 status = "composed"
 rust = "Locator::text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Test `page.locator(selector).text()` for the text; there is no single predicate."
 
 [cdp."js_dumps"]
 status = "not-applicable"
@@ -2529,52 +2553,52 @@ reason = "Values cross as serde_json::Value; there is nothing to serialise by ha
 [cdp."js_scroll_into_view"]
 status = "composed"
 rust = "Locator::scroll_into_view"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).scroll_into_view(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."load_cookies"]
 status = "composed"
 rust = "Cookies::load"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.cookies().load(..)`."
 
 [cdp."maximize"]
 status = "composed"
 rust = "Window::maximize"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().maximize(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."medimize"]
 status = "composed"
 rust = "Window::restore"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().restore()` returns the window to its normal state."
 
 [cdp."minimize"]
 status = "composed"
 rust = "Window::minimize"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().minimize(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."mouse_click"]
 status = "composed"
 rust = "Mouse::click"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.mouse().click(..)`; the Mouse acts at coordinates, not on a selector."
 
 [cdp."nested_click"]
 status = "composed"
 rust = "Locator::locator"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."open"]
 status = "composed"
 rust = "Page::goto"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 
 [cdp."open_new_tab"]
 status = "composed"
 rust = "Browser::new_page"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Browser, not of one page: `browser.new_page(..)`."
 
 [cdp."open_new_window"]
 status = "composed"
 rust = "Browser::new_window"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Browser, not of one page: `browser.new_window(..)`."
 
 [cdp."post_message"]
 status = "implemented"
@@ -2585,200 +2609,200 @@ divergence = "Python lets markup in the message through; here it is shown as tex
 [cdp."press_keys"]
 status = "composed"
 rust = "Locator::press"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).type_text(text)` types the text one key at a time without Python's human-speed delays; Locator::press sends one named key."
 
 [cdp."print_to_pdf"]
 status = "composed"
 rust = "Page::pdf"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.pdf(..)` returns the PDF; write it with std::fs."
 
 [cdp."quit"]
 status = "composed"
 rust = "Browser::close"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.close()` closes the whole browser."
 
 [cdp."refresh"]
 status = "composed"
 rust = "Page::reload"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.reload(..)`."
 
 [cdp."reload"]
 status = "composed"
 rust = "Page::reload"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.reload(..)`."
 
 [cdp."remove_element"]
 status = "composed"
 rust = "Locator::remove"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."remove_elements"]
 status = "composed"
 rust = "Locator::remove"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."remove_from_dom"]
 status = "composed"
 rust = "Locator::remove"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."reset_permissions"]
 status = "composed"
 rust = "Browser::reset_permissions"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Browser, not of one page: `browser.reset_permissions(..)`."
 
 [cdp."reset_window_size"]
 status = "composed"
-rust = "Window::restore"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+rust = "Window::set_bounds"
+note = "Read page.window().bounds() when the page opens and pass those values back to set_bounds, as Python restores the start position and size. Window::restore only leaves the maximized or minimized state; it does not restore a size."
 
 [cdp."save_as_html"]
 status = "composed"
 rust = "Page::content"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.content()` returns the HTML; write it with std::fs."
 
 [cdp."save_as_html_to_logs"]
 status = "composed"
 rust = "Page::content"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.content()` returns the HTML; write it into artifacts::ensure_latest_logs_dir() with std::fs."
 
 [cdp."save_as_pdf"]
 status = "composed"
 rust = "Page::pdf"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.pdf(..)` returns the PDF; write it with std::fs."
 
 [cdp."save_as_pdf_to_logs"]
 status = "composed"
 rust = "Page::pdf"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.pdf(..)` returns the PDF; write it into artifacts::ensure_latest_logs_dir() with std::fs."
 
 [cdp."save_cookies"]
 status = "composed"
 rust = "Cookies::save"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.cookies().save(..)`."
 
 [cdp."save_data_to_logs"]
 status = "not-applicable"
 reason = "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder."
 
 [cdp."save_file_as"]
-status = "not-applicable"
-reason = "Write files with std::fs."
+status = "planned"
+note = "Python downloads a URL and saves it under a name in a folder. Nothing on the CDP engine fetches a URL for you; fetch it with an HTTP client and write it with std::fs."
 
 [cdp."save_page_source"]
 status = "composed"
 rust = "Page::content"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.content()` returns the HTML; write it with std::fs."
 
 [cdp."save_page_source_to_logs"]
 status = "composed"
 rust = "Page::content"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.content()` returns the HTML; write it into artifacts::ensure_latest_logs_dir() with std::fs."
 
 [cdp."save_screenshot"]
 status = "composed"
 rust = "Page::screenshot"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.screenshot(..)` returns the image; write it with std::fs."
 
 [cdp."save_screenshot_to_logs"]
 status = "composed"
 rust = "Page::screenshot"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.screenshot(..)` returns the image; write it into artifacts::ensure_latest_logs_dir() with std::fs."
 
 [cdp."scroll_by_y"]
 status = "composed"
 rust = "Page::scroll"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.scroll(..)`."
 
 [cdp."scroll_down"]
 status = "composed"
 rust = "Page::scroll"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.scroll(..)`."
 
 [cdp."scroll_into_view"]
 status = "composed"
 rust = "Locator::scroll_into_view"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).scroll_into_view(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."scroll_to_bottom"]
 status = "composed"
 rust = "Page::scroll"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.scroll(..)`."
 
 [cdp."scroll_to_top"]
 status = "composed"
 rust = "Page::scroll"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.scroll(..)`."
 
 [cdp."scroll_to_y"]
 status = "composed"
 rust = "Page::scroll"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.scroll(..)`."
 
 [cdp."scroll_up"]
 status = "composed"
 rust = "Page::scroll"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.scroll(..)`."
 
 [cdp."select"]
 status = "composed"
 rust = "Locator::select_option"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."select_all"]
 status = "composed"
-rust = "Page::evaluate"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+rust = "Locator::all"
+note = "Python's select_all returns the matching elements, like find_elements; page.locator(selector).all() gives one Locator per match."
 
 [cdp."select_if_unselected"]
 status = "composed"
 rust = "Locator::set_checked"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).set_checked(true)`."
 
 [cdp."select_option_by_index"]
 status = "composed"
 rust = "Locator::select_option"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."select_option_by_text"]
 status = "composed"
 rust = "Locator::select_option"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."select_option_by_value"]
 status = "composed"
 rust = "Locator::select_option"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."send_keys"]
 status = "composed"
 rust = "Locator::type_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
 
 [cdp."set_all_cookies"]
 status = "composed"
 rust = "Cookies::set"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.cookies().set(..)`."
 
 [cdp."set_attributes"]
 status = "composed"
 rust = "Locator::set_attribute"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).set_attribute(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."set_download_path"]
 status = "composed"
 rust = "Browser::set_download_dir"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.set_download_dir(dir)`."
 
 [cdp."set_local_storage_item"]
 status = "composed"
 rust = "Storage::set"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.local_storage().set(key, value)`."
 
 [cdp."set_locale"]
 status = "composed"
 rust = "Emulation::locale"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.emulation().locale(..)`."
 
 [cdp."set_messenger_theme"]
 status = "implemented"
@@ -2788,17 +2812,17 @@ note = "Theme, location and the message limit are typed in MessengerSettings; th
 [cdp."set_session_storage_item"]
 status = "composed"
 rust = "Storage::set"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.session_storage().set(key, value)`."
 
 [cdp."set_value"]
 status = "composed"
 rust = "Locator::set_value"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).set_value(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."set_window_rect"]
 status = "composed"
 rust = "Window::set_bounds"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.window().set_bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values."
 
 [cdp."sleep"]
 status = "not-applicable"
@@ -2807,118 +2831,118 @@ reason = "Use tokio::time::sleep."
 [cdp."solve_captcha"]
 status = "composed"
 rust = "Page::solve_captcha"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
 
 [cdp."stop"]
 status = "composed"
 rust = "Browser::close"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.close()` closes the whole browser."
 
 [cdp."submit"]
 status = "composed"
 rust = "Locator::submit"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).submit(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."switch_to_newest_tab"]
 status = "composed"
 rust = "Browser::newest_page"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.newest_page()` returns the Page of the newest tab."
 
 [cdp."switch_to_newest_window"]
 status = "composed"
 rust = "Browser::newest_page"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`browser.newest_page()` returns the Page of the newest window."
 
 [cdp."switch_to_tab"]
 status = "composed"
 rust = "Browser::pages"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch."
 
 [cdp."switch_to_window"]
 status = "composed"
 rust = "Browser::pages"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch."
 
 [cdp."tile_windows"]
-status = "not-applicable"
-reason = "Desktop window tiling is not part of a CDP browser API."
+status = "composed"
+rust = "Window::set_bounds"
+note = "Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler."
 
 [cdp."type"]
 status = "composed"
 rust = "Locator::type_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
 
 [cdp."uncheck_if_checked"]
 status = "composed"
 rust = "Locator::uncheck"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."unselect_if_selected"]
 status = "composed"
 rust = "Locator::set_checked"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).set_checked(false)`."
 
 [cdp."wait_for_any_of_elements_present"]
 status = "composed"
 rust = "Page::wait_for_any"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector."
 
 [cdp."wait_for_any_of_elements_visible"]
 status = "composed"
 rust = "Page::wait_for_any"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector."
 
 [cdp."wait_for_element"]
 status = "composed"
 rust = "Locator::wait_for"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."wait_for_element_absent"]
 status = "composed"
 rust = "Locator::wait_for"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."wait_for_element_not_visible"]
 status = "composed"
 rust = "Locator::wait_for"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."wait_for_element_present"]
 status = "composed"
 rust = "Locator::wait_for"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."wait_for_element_visible"]
 status = "composed"
 rust = "Locator::wait_for"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."wait_for_text"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().to_contain_text(text)` waits for the text; it does not return the element."
 
 [cdp."wait_for_text_not_visible"]
 status = "composed"
 rust = "LocatorExpect::to_contain_text"
-note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
+note = "`page.locator(selector).expect().not().to_contain_text(text)` waits for the text to go."
 
 [cli."behave-gui"]
-status = "implemented"
-rust = "sbase behave-gui"
+status = "planned"
+note = "Python launches Behave Commander, a GUI that runs behave tests. `sbase behave-gui` only prompts for a name and writes a new .feature file; it runs nothing."
 
 [cli."behave-options"]
 status = "not-applicable"
 reason = "Lists behave (Python BDD) options; this crate has its own Gherkin runner."
 
 [cli."case-plans"]
-status = "composed"
-rust = "sbase caseplans"
-note = "One canonical name; the hyphenated spelling is an alias upstream."
+status = "planned"
+note = "Alias of caseplans upstream; see that entry."
 
 [cli."caseplans"]
-status = "implemented"
-rust = "sbase caseplans"
+status = "planned"
+note = "Python launches the Case Plans Generator over the test files. `sbase caseplans` only writes a fixed CASE_PLANS.md checklist."
 
 [cli."codegen"]
 status = "composed"
@@ -2972,9 +2996,8 @@ rust = "sbase commander"
 note = "Python's `gui` is the same test runner as `commander`."
 
 [cli."gui-behave"]
-status = "composed"
-rust = "sbase behave-gui"
-note = "One canonical name; the alias is not ported."
+status = "planned"
+note = "Alias of behave-gui upstream; see that entry."
 
 [cli."help"]
 status = "composed"
@@ -3010,16 +3033,17 @@ status = "implemented"
 rust = "sbase mkpres"
 
 [cli."mkrec"]
-status = "implemented"
-rust = "sbase mkrec"
+status = "composed"
+rust = "sbase record"
+note = "Python's mkrec creates a new test with the Recorder, which `sbase record` does. `sbase mkrec` only writes a starter recording file and opens no browser."
 
 [cli."obfuscate"]
 status = "not-applicable"
 reason = "Obfuscates a Python source file; there is no Python source to obfuscate here."
 
 [cli."objectify"]
-status = "implemented"
-rust = "sbase objectify"
+status = "not-applicable"
+reason = "Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbase objectify` only writes a starter page_object.rs."
 
 [cli."options"]
 status = "not-applicable"
@@ -3186,6 +3210,7 @@ rust = "BaseCase::get_user_agent"
 [driver."highlight"]
 status = "implemented"
 rust = "BaseCase::highlight"
+divergence = "Scrolls to the element and outlines it once for about a second, restored by a timer in the page, so the call does not block; Python animates the element for `loops` rounds and takes scroll and timeout arguments."
 
 [driver."highlight_click"]
 status = "implemented"
@@ -3268,6 +3293,7 @@ rust = "BaseCase::open_url"
 [driver."press_keys"]
 status = "implemented"
 rust = "BaseCase::press_keys"
+divergence = "Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus."
 
 [driver."refresh"]
 status = "implemented"
@@ -4829,7 +4855,7 @@ note = "Headed is headless = false."
 
 [options_pytest."--highlights"]
 status = "not-applicable"
-reason = "BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override."
+reason = "BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override."
 
 [options_pytest."--host-resolver-rules"]
 status = "composed"
@@ -5095,8 +5121,8 @@ rust = "BrowserConfig::with_proxy_for_driver_download"
 note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--rcs"]
-status = "composed"
-rust = "BrowserConfig::reuse_session"
+status = "planned"
+note = "Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
 
 [options_pytest."--rec"]
 status = "composed"
@@ -5168,20 +5194,20 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--reuse-session"]
-status = "implemented"
-rust = "BrowserConfig::reuse_session"
+status = "planned"
+note = "BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
 
 [options_pytest."--reuse_class_session"]
 status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--reuse_session"]
-status = "implemented"
-rust = "BrowserConfig::reuse_session"
+status = "planned"
+note = "BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
 
 [options_pytest."--rs"]
-status = "composed"
-rust = "BrowserConfig::reuse_session"
+status = "planned"
+note = "Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
 
 [options_pytest."--safari"]
 status = "implemented"
@@ -5718,7 +5744,7 @@ note = "Headed is headless = false."
 
 [options_sb."highlights"]
 status = "not-applicable"
-reason = "BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override."
+reason = "BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override."
 
 [options_sb."host_resolver_rules"]
 status = "composed"

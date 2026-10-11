@@ -15,11 +15,11 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 440 | 2 | 11 | 0 |
+| [BaseCase methods](#basecase-methods) | 453 | 432 | 4 | 11 | 6 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 196 | 16 | 0 |
-| [Command-line commands](#command-line-commands) | 36 | 20 | 8 | 8 | 0 |
-| [pytest options](#pytest-options) | 263 | 105 | 100 | 58 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 195 | 14 | 3 |
+| [Command-line commands](#command-line-commands) | 36 | 16 | 7 | 9 | 4 |
+| [pytest options](#pytest-options) | 263 | 103 | 98 | 58 | 4 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 51 | 38 | 18 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 41 | 31 | 2 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
@@ -61,7 +61,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_attribute` | implemented | `BaseCase::assert_attribute` |  |
 | `assert_attribute_not_present` | implemented | `BaseCase::assert_attribute_not_present` |  |
 | `assert_data_in_downloaded_file` | implemented | `BaseCase::assert_data_in_downloaded_file` |  |
-| `assert_downloaded_file` | implemented | `BaseCase::assert_downloaded_file` |  |
+| `assert_downloaded_file` | implemented | `BaseCase::assert_downloaded_file` | Differs: Waits for the default timeout (set_timeout), not a per-call one, and looks only in the OS downloads folder; Python's browser flag and its downloaded_files folder are not used. |
 | `assert_downloaded_file_regex` | implemented | `BaseCase::assert_downloaded_file_regex` |  |
 | `assert_element` | implemented | `BaseCase::assert_element` |  |
 | `assert_element_absent` | implemented | `BaseCase::assert_element_absent` |  |
@@ -102,7 +102,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `bring_active_window_to_front` | implemented | `BaseCase::bring_active_window_to_front` |  |
 | `bring_to_front` | implemented | `BaseCase::bring_to_front` |  |
 | `check_if_unchecked` | implemented | `BaseCase::check_if_unchecked` |  |
-| `check_window` | implemented | `BaseCase::check_window` |  |
+| `check_window` | composed | `BaseCase::check_window` | Compares the window's screenshot byte for byte with visual_baseline/<name>.png instead of comparing the page's HTML tags (Python's tags_level1 to tags_level3 files), so a repainted pixel is a difference and levels 1 to 3 are the same strict check. Level 0 is a dry run that logs a difference without failing, as in Python. The baseline is keyed by name only, not by test name, and the baseline, check_domain and full_diff arguments are not ported. |
 | `choose_file` | implemented | `BaseCase::choose_file` |  |
 | `clear` | implemented | `BaseCase::clear` |  |
 | `clear_all_cookies` | implemented | `BaseCase::clear_all_cookies` |  |
@@ -141,12 +141,12 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `create_tour` | implemented | `BaseCase::create_tour` |  |
 | `deactivate_demo_mode` | implemented | `BaseCase::deactivate_demo_mode` |  |
 | `deactivate_design_mode` | implemented | `BaseCase::deactivate_design_mode` |  |
-| `deferred_assert_element` | implemented | `BaseCase::deferred_assert_element` |  |
-| `deferred_assert_element_present` | implemented | `BaseCase::deferred_assert_element_present` |  |
-| `deferred_assert_exact_text` | implemented | `BaseCase::deferred_assert_exact_text` |  |
-| `deferred_assert_non_empty_text` | implemented | `BaseCase::deferred_assert_non_empty_text` |  |
-| `deferred_assert_text` | implemented | `BaseCase::deferred_assert_text` |  |
-| `deferred_check_window` | implemented | `BaseCase::deferred_check_window` |  |
+| `deferred_assert_element` | implemented | `BaseCase::deferred_assert_element` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
+| `deferred_assert_element_present` | implemented | `BaseCase::deferred_assert_element_present` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
+| `deferred_assert_exact_text` | implemented | `BaseCase::deferred_assert_exact_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (css, text); Python's is (text, selector). |
+| `deferred_assert_non_empty_text` | implemented | `BaseCase::deferred_assert_non_empty_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
+| `deferred_assert_text` | implemented | `BaseCase::deferred_assert_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (text, css), like Python's. |
+| `deferred_check_window` | implemented | `BaseCase::deferred_check_window` | Differs: Takes the name and level; the failure is recorded, with the page's URL, for process_deferred_asserts. Same differences as check_window. |
 | `delayed_assert_element` | implemented | `BaseCase::delayed_assert_element` |  |
 | `delayed_assert_element_present` | implemented | `BaseCase::delayed_assert_element_present` |  |
 | `delayed_assert_exact_text` | implemented | `BaseCase::delayed_assert_exact_text` |  |
@@ -157,7 +157,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `delete_downloaded_file` | implemented | `BaseCase::delete_downloaded_file` |  |
 | `delete_downloaded_file_if_present` | implemented | `BaseCase::delete_downloaded_file_if_present` |  |
 | `delete_local_storage` | implemented | `BaseCase::delete_local_storage` |  |
-| `delete_saved_cookies` | implemented | `BaseCase::delete_saved_cookies` |  |
+| `delete_saved_cookies` | implemented | `BaseCase::delete_saved_cookies` | Differs: Deletes the file from latest_logs/ and from the working directory, the two places save_saved_cookies and save_cookies write; Python's saved_cookies/ folder and .txt suffix are not used. |
 | `delete_session_storage` | implemented | `BaseCase::delete_session_storage` |  |
 | `disable_beforeunload` | implemented | `BaseCase::disable_beforeunload` |  |
 | `dismiss_alert` | implemented | `BaseCase::dismiss_alert` |  |
@@ -180,19 +180,19 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `fill` | implemented | `BaseCase::fill` |  |
 | `find_element` | implemented | `BaseCase::find_element` | Differs: Returns a thirtyfour::WebElement; takes CSS or XPath only. |
 | `find_elements` | implemented | `BaseCase::find_elements` | Differs: Returns thirtyfour::WebElements; takes CSS or XPath only. |
-| `find_exact_text` | implemented | `BaseCase::find_exact_text` |  |
+| `find_exact_text` | implemented | `BaseCase::find_exact_text` | Differs: Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None. |
 | `find_link_text` | implemented | `BaseCase::find_link_text` |  |
-| `find_non_empty_text` | implemented | `BaseCase::find_non_empty_text` |  |
+| `find_non_empty_text` | implemented | `BaseCase::find_non_empty_text` | Differs: Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> with visible text and returns the deepest first one, where Python returns the selector's element. Fails with a wait timeout instead of returning None. |
 | `find_partial_link_text` | implemented | `BaseCase::find_partial_link_text` |  |
-| `find_text` | implemented | `BaseCase::find_text` |  |
+| `find_text` | implemented | `BaseCase::find_text` | Differs: Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None. |
 | `find_visible_elements` | implemented | `BaseCase::find_visible_elements` |  |
 | `flash` | implemented | `BaseCase::flash` |  |
 | `focus` | implemented | `BaseCase::focus` |  |
 | `frame_switch` | implemented | `BaseCase::frame_switch` |  |
-| `generate_referral` | implemented | `BaseCase::generate_referral` |  |
-| `generate_referral_chain` | implemented | `BaseCase::generate_referral_chain` |  |
-| `generate_traffic` | implemented | `BaseCase::generate_traffic` |  |
-| `generate_traffic_chain` | implemented | `BaseCase::generate_traffic_chain` |  |
+| `generate_referral` | planned |  | BaseCase::generate_referral(url, referrer) only returns the URL with ?ref=<referrer> appended. Python's generate_referral(start_page, destination_page, selector) opens the start page, adds a link to the destination there and clicks it, so the destination sees a real referral. Not ported. |
+| `generate_referral_chain` | planned |  | BaseCase::generate_referral_chain(url, referrers) only returns one ?ref= URL per referrer. Python's generate_referral_chain(pages) clicks through a chain of at least two pages. Not ported. |
+| `generate_traffic` | planned |  | BaseCase::generate_traffic(url, referrer) only opens the URL with ?ref=<referrer> appended, which sends no Referer header. Python's generate_traffic(start_page, destination_page, loops, selector) clicks a real link `loops` times. Not ported. |
+| `generate_traffic_chain` | planned |  | BaseCase::generate_traffic_chain(url, referrers) only opens one ?ref= URL per referrer. Python's generate_traffic_chain(pages) clicks through a chain of pages. Not ported. |
 | `get` | implemented | `BaseCase::get` |  |
 | `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
 | `get_attribute` | implemented | `BaseCase::get_attribute` |  |
@@ -266,7 +266,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `has_exception` | not-applicable |  | unittest/pytest harness plumbing; the Rust runner (api::runner) owns the lifecycle. |
 | `hide_element` | implemented | `BaseCase::hide_element` |  |
 | `hide_elements` | implemented | `BaseCase::hide_elements` |  |
-| `highlight` | implemented | `BaseCase::highlight` |  |
+| `highlight` | implemented | `BaseCase::highlight` | Differs: Scrolls to the element and outlines it once for about a second, restored by a timer in the page, so the call does not block; Python animates the element for `loops` rounds and takes scroll and timeout arguments. |
 | `highlight_click` | implemented | `BaseCase::highlight_click` |  |
 | `highlight_elements` | implemented | `BaseCase::highlight_elements` |  |
 | `highlight_if_visible` | implemented | `BaseCase::highlight_if_visible` |  |
@@ -281,7 +281,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `hover_over_element` | implemented | `BaseCase::hover_over_element` |  |
 | `input` | implemented | `BaseCase::input` |  |
 | `inspect_html` | implemented | `BaseCase::inspect_html` |  |
-| `install_addon` | implemented | `BaseCase::install_addon` |  |
+| `install_addon` | planned |  | BaseCase::install_addon always returns SeleniumBaseError::Unsupported. Python installs a Firefox .xpi through geckodriver (install_addon, temporary=True); that needs geckodriver's moz/addon/install endpoint, which this crate does not call. |
 | `internalize_links` | implemented | `BaseCase::internalize_links` |  |
 | `is_alert_present` | implemented | `BaseCase::is_alert_present` |  |
 | `is_attribute_present` | implemented | `BaseCase::is_attribute_present` |  |
@@ -333,15 +333,15 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `open_start_page` | implemented | `BaseCase::open_start_page` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |
 | `play_tour` | implemented | `BaseCase::play_tour` |  |
-| `post_error_message` | implemented | `BaseCase::post_error_message` |  |
+| `post_error_message` | implemented | `BaseCase::post_error_message` | Differs: Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
 | `post_message` | implemented | `BaseCase::post_message` |  |
-| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` |  |
-| `post_success_message` | implemented | `BaseCase::post_success_message` |  |
-| `press_down_arrow` | implemented | `BaseCase::press_down_arrow` |  |
-| `press_keys` | implemented | `BaseCase::press_keys` |  |
-| `press_left_arrow` | implemented | `BaseCase::press_left_arrow` |  |
-| `press_right_arrow` | implemented | `BaseCase::press_right_arrow` |  |
-| `press_up_arrow` | implemented | `BaseCase::press_up_arrow` |  |
+| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message) and highlights it; Python takes a selector and highlights that element after posting the message. |
+| `post_success_message` | implemented | `BaseCase::post_success_message` | Differs: Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
+| `press_down_arrow` | implemented | `BaseCase::press_down_arrow` | Differs: Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
+| `press_keys` | implemented | `BaseCase::press_keys` | Differs: Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus. |
+| `press_left_arrow` | implemented | `BaseCase::press_left_arrow` | Differs: Presses the Left arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
+| `press_right_arrow` | implemented | `BaseCase::press_right_arrow` | Differs: Presses the Right arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
+| `press_up_arrow` | implemented | `BaseCase::press_up_arrow` | Differs: Presses the Up arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
 | `print_to_pdf` | implemented | `BaseCase::print_to_pdf` |  |
 | `print_unique_links_with_status_codes` | implemented | `BaseCase::print_unique_links_with_status_codes` |  |
 | `process_deferred_asserts` | implemented | `BaseCase::process_deferred_asserts` |  |
@@ -402,19 +402,19 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_attribute_all` | implemented | `BaseCase::set_attribute_all` |  |
 | `set_attributes` | implemented | `BaseCase::set_attributes` |  |
 | `set_content` | implemented | `BaseCase::set_content` |  |
-| `set_content_to_default` | implemented | `BaseCase::set_content_to_default` |  |
+| `set_content_to_default` | implemented | `BaseCase::set_content_to_default` | Differs: Leaves the frame context (switch_to_default_content); Python also restores the page that set_content_to_frame replaced, which Rust has no counterpart of. |
 | `set_content_to_default_content` | implemented | `BaseCase::set_content_to_default_content` |  |
-| `set_content_to_frame` | implemented | `BaseCase::set_content_to_frame` |  |
+| `set_content_to_frame` | planned |  | BaseCase::set_content_to_frame(html) appends an iframe holding the given HTML to the page. Python's set_content_to_frame(frame) replaces the page with the content of an iframe already on it (or opens its src in a new tab) and set_content_to_default restores the page. Not ported. |
 | `set_content_to_parent` | implemented | `BaseCase::set_content_to_parent` |  |
 | `set_content_to_parent_frame` | implemented | `BaseCase::set_content_to_parent_frame` |  |
 | `set_default_timeout` | implemented | `BaseCase::set_default_timeout` |  |
 | `set_introjs_colors` | implemented | `BaseCase::set_introjs_colors` |  |
 | `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` |  |
 | `set_local_storage_item` | implemented | `BaseCase::set_local_storage_item` |  |
-| `set_messenger_theme` | implemented | `BaseCase::set_messenger_theme` |  |
+| `set_messenger_theme` | composed | `Page::set_messenger_theme` | On the pure-CDP engine, Page::set_messenger_theme takes MessengerSettings (theme, location, max_messages) as Python does. BaseCase::set_messenger_theme(color) on the WebDriver engine only sets the background colour of Messenger messages; it does not pick a theme or location. |
 | `set_session_storage_item` | implemented | `BaseCase::set_session_storage_item` |  |
-| `set_text` | implemented | `BaseCase::set_text` |  |
-| `set_text_content` | implemented | `BaseCase::set_text_content` |  |
+| `set_text` | implemented | `BaseCase::set_text` | Differs: Sets the value of an input or textarea (firing input and change) or the textContent of any other element, as Python does; it presses no Enter for a trailing newline, and the selector is CSS. |
+| `set_text_content` | implemented | `BaseCase::set_text_content` | Differs: Same as set_text, as in Python; the selector is CSS and there is no scroll argument. |
 | `set_time_limit` | implemented | `BaseCase::set_time_limit` |  |
 | `set_value` | implemented | `BaseCase::set_value` |  |
 | `set_window_position` | implemented | `BaseCase::set_window_position` |  |
@@ -438,7 +438,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `switch_to_default_window` | implemented | `BaseCase::switch_to_default_window` |  |
 | `switch_to_driver` | implemented | `BaseCase::switch_to_driver` |  |
 | `switch_to_frame` | implemented | `BaseCase::switch_to_frame` |  |
-| `switch_to_frame_of_element` | implemented | `BaseCase::switch_to_frame_of_element` |  |
+| `switch_to_frame_of_element` | implemented | `BaseCase::switch_to_frame_of_element` | Differs: Returns the frame's name, else its id, else an empty string, or None when the element is in the current document. Looks one level down, as Python does. |
 | `switch_to_newest_tab` | implemented | `BaseCase::switch_to_newest_tab` |  |
 | `switch_to_newest_window` | implemented | `BaseCase::switch_to_newest_window` |  |
 | `switch_to_parent_frame` | implemented | `BaseCase::switch_to_parent_frame` |  |
@@ -522,7 +522,7 @@ Methods of Python's `Driver()`.
 | `get_text` | implemented | `BaseCase::get_text` |  |
 | `get_title` | implemented | `BaseCase::get_title` |  |
 | `get_user_agent` | implemented | `BaseCase::get_user_agent` |  |
-| `highlight` | implemented | `BaseCase::highlight` |  |
+| `highlight` | implemented | `BaseCase::highlight` | Differs: Scrolls to the element and outlines it once for about a second, restored by a timer in the page, so the call does not block; Python animates the element for `loops` rounds and takes scroll and timeout arguments. |
 | `highlight_click` | implemented | `BaseCase::highlight_click` |  |
 | `highlight_if_visible` | implemented | `BaseCase::highlight_if_visible` |  |
 | `is_alert_present` | implemented | `BaseCase::is_alert_present` |  |
@@ -542,7 +542,7 @@ Methods of Python's `Driver()`.
 | `open_new_tab` | implemented | `BaseCase::open_new_tab` |  |
 | `open_new_window` | implemented | `BaseCase::open_new_window` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |
-| `press_keys` | implemented | `BaseCase::press_keys` |  |
+| `press_keys` | implemented | `BaseCase::press_keys` | Differs: Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus. |
 | `refresh` | implemented | `BaseCase::refresh` |  |
 | `reset_window_size` | implemented | `BaseCase::reset_window_size` |  |
 | `select` | implemented | `BaseCase::select` |  |
@@ -582,217 +582,217 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `activate_messenger` | implemented | `Page::activate_messenger` | Loads jQuery and the Messenger library from their CDNs into the page; a page with no network cannot. |
 | `add_handler` | not-applicable |  | Subscribe to protocol events with Page::events / Browser::events. |
 | `append_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
-| `assert_any_of_elements_present` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_any_of_elements_visible` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_downloaded_file` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_element` | composed | `LocatorExpect::to_be_visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_element_absent` | composed | `LocatorExpect::to_exist` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_element_attribute` | composed | `LocatorExpect::to_have_attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_element_not_visible` | composed | `LocatorExpect::to_be_hidden` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_element_present` | composed | `LocatorExpect::to_exist` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_element_visible` | composed | `LocatorExpect::to_be_visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises. |
+| `assert_any_of_elements_visible` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises. |
+| `assert_downloaded_file` | planned |  | Browser::set_download_dir only chooses the folder; nothing waits for a file to appear in it. Poll the folder yourself (BaseCase::assert_downloaded_file does it for the WebDriver engine). |
+| `assert_element` | composed | `LocatorExpect::to_be_visible` | Assert with `page.locator(selector).expect().to_be_visible(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `assert_element_absent` | composed | `LocatorExpect::to_exist` | `page.locator(selector).expect().not().to_exist()`; the wait is the expect timeout. |
+| `assert_element_attribute` | composed | `LocatorExpect::to_have_attribute` | Assert with `page.locator(selector).expect().to_have_attribute(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `assert_element_not_visible` | composed | `LocatorExpect::to_be_hidden` | `page.locator(selector).expect().to_be_hidden()`; the wait is the expect timeout. |
+| `assert_element_present` | composed | `LocatorExpect::to_exist` | `page.locator(selector).expect().to_exist()`; the wait is the expect timeout. |
+| `assert_element_visible` | composed | `LocatorExpect::to_be_visible` | Assert with `page.locator(selector).expect().to_be_visible(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
 | `assert_equal` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
-| `assert_exact_text` | composed | `LocatorExpect::to_have_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_exact_text` | composed | `LocatorExpect::to_have_text` | `page.locator(selector).expect().to_have_text(text)`, which compares the whole text. |
 | `assert_false` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
 | `assert_in` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
 | `assert_not_equal` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
 | `assert_not_in` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
-| `assert_text` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_text_not_visible` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_title` | composed | `PageExpect::to_have_title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_title_contains` | composed | `PageExpect::to_contain_title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_text` | composed | `LocatorExpect::to_contain_text` | Assert with `page.locator(selector).expect().to_contain_text(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `assert_text_not_visible` | composed | `LocatorExpect::to_contain_text` | `page.locator(selector).expect().not().to_contain_text(text)`; the wait is the expect timeout. |
+| `assert_title` | composed | `PageExpect::to_have_title` | Assert with `page.expect().to_have_title(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `assert_title_contains` | composed | `PageExpect::to_contain_title` | Assert with `page.expect().to_contain_title(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
 | `assert_true` | not-applicable |  | Rust has assert!, assert_eq! and friends. |
-| `assert_url` | composed | `PageExpect::to_have_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `assert_url_contains` | composed | `PageExpect::to_contain_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `bring_active_window_to_front` | composed | `Page::bring_to_front` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `check_if_unchecked` | composed | `Locator::check` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `clear` | composed | `Locator::clear` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `clear_cookies` | composed | `Cookies::clear` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `clear_input` | composed | `Locator::clear` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click` | composed | `Locator::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_active_element` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_and_hold` | composed | `Mouse::down` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_captcha` | composed | `Page::solve_captcha` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_if_visible` | composed | `Locator::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_link` | composed | `Locator::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_nth_element` | composed | `Locator::nth` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_nth_visible_element` | composed | `Locator::nth` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_visible_elements` | composed | `Locator::visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `click_with_offset` | composed | `Locator::click_at` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `close_active_tab` | composed | `Page::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `download_file` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `drag_and_drop` | composed | `Locator::drag_to` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `evaluate` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `execute_script` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `fast_keys` | composed | `Keyboard::insert_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `fast_type` | composed | `Locator::fill` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `find_all` | composed | `Locator::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `find_element` | composed | `Page::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `find_element_by_text` | composed | `Page::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `find_elements` | composed | `Locator::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `find_elements_by_text` | composed | `Locator::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `find_visible_elements` | composed | `Locator::visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `flash` | composed | `Locator::flash` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `focus` | composed | `Locator::focus` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_active_element` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_active_element_css` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_active_tab` | composed | `Browser::default_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_all_cookies` | composed | `Cookies::all` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_all_urls` | composed | `Locator::urls` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_attribute` | composed | `Locator::attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `assert_url` | composed | `PageExpect::to_have_url` | Assert with `page.expect().to_have_url(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `assert_url_contains` | composed | `PageExpect::to_contain_url` | Assert with `page.expect().to_contain_url(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
+| `bring_active_window_to_front` | composed | `Page::bring_to_front` | A method of the Page that sb.cdp drives: `page.bring_to_front(..)`. |
+| `check_if_unchecked` | composed | `Locator::check` | Call `page.locator(selector).check(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `clear` | composed | `Locator::clear` | Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `clear_cookies` | composed | `Cookies::clear` | `page.cookies().clear(..)`. |
+| `clear_input` | composed | `Locator::clear` | Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `click` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `click_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement.click()")`. |
+| `click_and_hold` | composed | `Mouse::down` | Move the pointer onto the element, then press with `page.mouse().down(..)`; the Mouse acts at coordinates, not on a selector. |
+| `click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
+| `click_if_visible` | composed | `Locator::click` | Locator::click has no "only if visible" condition; check `page.locator(selector).is_visible()` first. |
+| `click_link` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `click_nth_element` | composed | `Locator::nth` | `page.locator(selector).nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
+| `click_nth_visible_element` | composed | `Locator::nth` | `page.locator(selector).visible().nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
+| `click_visible_elements` | composed | `Locator::visible` | `page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`. |
+| `click_with_offset` | composed | `Locator::click_at` | `page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner. |
+| `close_active_tab` | composed | `Page::close` | `page.close()` closes that Page's tab. |
+| `download_file` | planned |  | Browser::set_download_dir only chooses the folder downloads go to; nothing fetches the URL. Python's download_file(url, filename) downloads it and renames the file. |
+| `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::get_mfa_code and type it with Locator::type_text. |
+| `evaluate` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value. |
+| `execute_script` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value. |
+| `fast_keys` | composed | `Keyboard::insert_text` | `page.keyboard().insert_text(text)` inserts the text in one step. |
+| `fast_type` | composed | `Locator::fill` | `page.locator(selector).fill(text)` replaces the content in one step, with input events but no per-key ones. |
+| `find_all` | composed | `Locator::all` | `page.locator(selector).all()` gives one Locator per match. |
+| `find_element` | composed | `Page::locator` | `page.locator(selector)` returns a Locator, the handle every element action goes through. |
+| `find_element_by_text` | composed | `Page::locator` | `page.locator(selector)` with a text selector returns a Locator. |
+| `find_elements` | composed | `Locator::all` | `page.locator(selector).all()` gives one Locator per match. |
+| `find_elements_by_text` | composed | `Locator::all` | `page.locator(selector).all()` gives one Locator per match; filter by text yourself. |
+| `find_visible_elements` | composed | `Locator::visible` | Call `page.locator(selector).visible(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `flash` | composed | `Locator::flash` | Call `page.locator(selector).flash(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `focus` | composed | `Locator::focus` | Call `page.locator(selector).focus(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
+| `get_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement")`. |
+| `get_active_element_css` | composed | `Page::evaluate` | No method: evaluate a script on `document.activeElement` with `page.evaluate(..)`. |
+| `get_active_tab` | composed | `Browser::default_page` | `browser.default_page()` is the first tab, not necessarily the active one. |
+| `get_all_cookies` | composed | `Cookies::all` | `page.cookies().all(..)`. |
+| `get_all_urls` | composed | `Locator::urls` | `page.locator(selector).urls()` lists the absolute URLs under the element. |
+| `get_attribute` | composed | `Locator::attribute` | Call `page.locator(selector).attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get_beautiful_soup` | not-applicable |  | HTML parsing lives in api::html (the scraper crate). |
-| `get_cookie_string` | composed | `Cookies::header` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_current_url` | composed | `Page::url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_document` | composed | `Page::execute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_element_attribute` | composed | `Locator::attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_element_attributes` | composed | `Locator::info` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_element_html` | composed | `Locator::html` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_element_position` | composed | `Locator::bounding_box` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_element_rect` | composed | `Locator::bounding_box` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_element_size` | composed | `Locator::bounding_box` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_endpoint_url` | composed | `Browser::http_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_cookie_string` | composed | `Cookies::header` | `page.cookies().header(..)`. |
+| `get_current_url` | composed | `Page::url` | A method of the Page that sb.cdp drives: `page.url(..)`. |
+| `get_document` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `DOM.getDocument`. |
+| `get_element_attribute` | composed | `Locator::attribute` | Call `page.locator(selector).attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_element_attributes` | composed | `Locator::info` | `page.locator(selector).info()` returns the element's details, attributes included. |
+| `get_element_html` | composed | `Locator::html` | Call `page.locator(selector).html(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_element_position` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
+| `get_element_rect` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
+| `get_element_size` | composed | `Locator::bounding_box` | `page.locator(selector).bounding_box()`; position, size and rect all come from the one bounding box. |
+| `get_endpoint_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint. |
 | `get_event_loop` | not-applicable |  | The async runtime is the caller's; there is no event loop to expose. |
-| `get_flattened_document` | composed | `Page::execute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_gui_element_center` | composed | `Locator::screen_rect` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_gui_element_rect` | composed | `Locator::screen_rect` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_html` | composed | `Locator::html` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_local_storage_item` | composed | `Storage::get` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_locale_code` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_mfa_code` | composed | `BaseCase::get_mfa_code` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_navigation_history` | composed | `Page::execute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_nested_element` | composed | `Locator::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_origin` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_page_source` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_page_title` | composed | `Page::title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_parent` | composed | `Locator::parent` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_path_of_downloaded_file` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_port` | composed | `Browser::debugging_port` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_rd_host` | composed | `Browser::http_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_rd_port` | composed | `Browser::debugging_port` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_rd_url` | composed | `Browser::http_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_screen_rect` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_session_storage_item` | composed | `Storage::get` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_tabs` | composed | `Browser::pages` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_text` | composed | `Locator::text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_title` | composed | `Page::title` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_user_agent` | composed | `Page::user_agent` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_websocket_url` | composed | `Browser::websocket_url` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_window` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_window_position` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_window_rect` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `get_window_size` | composed | `Window::bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `go_back` | composed | `Page::back` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `go_forward` | composed | `Page::forward` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `goto` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `goto_if_not_url` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `grant_all_permissions` | composed | `Browser::grant_permissions` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `grant_permissions` | composed | `Browser::grant_permissions` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_click_and_hold` | composed | `Gui::mouse_down` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_click_captcha` | composed | `Page::solve_captcha` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_click_element` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_click_with_offset` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_click_x_y` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_drag_and_drop` | composed | `Gui::drag` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_drag_drop_points` | composed | `Gui::drag` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_hover_and_click` | composed | `Gui::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_hover_element` | composed | `Gui::move_mouse` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_hover_x_y` | composed | `Gui::move_mouse` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_move_to_element` | composed | `Gui::move_mouse` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_press_key` | composed | `Gui::press_key` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_press_keys` | composed | `Gui::press_keys` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `gui_write` | composed | `Gui::write` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `highlight` | composed | `Locator::flash` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `highlight_overlay` | composed | `Locator::flash` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `hover_and_click` | composed | `Locator::hover` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `hover_element` | composed | `Locator::hover` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `internalize_links` | composed | `Locator::set_attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_attribute_present` | composed | `Locator::attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_checked` | composed | `Locator::is_checked` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_element_present` | composed | `Locator::exists` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_element_visible` | composed | `Locator::is_visible` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_exact_text_visible` | composed | `Locator::text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_online` | composed | `Page::is_online` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_selected` | composed | `Locator::is_selected` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `is_text_visible` | composed | `Locator::text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `get_flattened_document` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `DOM.getFlattenedDocument`. |
+| `get_gui_element_center` | composed | `Locator::screen_rect` | `page.locator(selector).screen_rect()` gives the rectangle in screen coordinates; take its centre. |
+| `get_gui_element_rect` | composed | `Locator::screen_rect` | Call `page.locator(selector).screen_rect(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_html` | composed | `Locator::html` | `page.locator(selector).html()` returns the element's HTML; for the whole page use `page.content()`. |
+| `get_local_storage_item` | composed | `Storage::get` | `page.local_storage().get(key)`. |
+| `get_locale_code` | composed | `Page::evaluate` | No method: `page.evaluate("navigator.language")`. |
+| `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
+| `get_navigation_history` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`. |
+| `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_origin` | composed | `Page::evaluate` | No method: `page.evaluate("location.origin")`. |
+| `get_page_source` | composed | `Page::content` | `page.content()` returns the page's HTML. |
+| `get_page_title` | composed | `Page::title` | `page.title()`. |
+| `get_parent` | composed | `Locator::parent` | Call `page.locator(selector).parent(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_path_of_downloaded_file` | composed | `Browser::set_download_dir` | Rust has no helper: join the folder given to Browser::set_download_dir with the file name. |
+| `get_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
+| `get_rd_host` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint; take its host. |
+| `get_rd_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
+| `get_rd_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint. |
+| `get_screen_rect` | composed | `Window::bounds` | `page.window().bounds()` is the browser window's rectangle, not the screen's; read the screen size with `page.evaluate("[screen.width, screen.height]")`. |
+| `get_session_storage_item` | composed | `Storage::get` | `page.session_storage().get(key)`. |
+| `get_tabs` | composed | `Browser::pages` | `browser.pages()`. |
+| `get_text` | composed | `Locator::text` | Call `page.locator(selector).text(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `get_title` | composed | `Page::title` | `page.title()`. |
+| `get_user_agent` | composed | `Page::user_agent` | `page.user_agent()`. |
+| `get_websocket_url` | composed | `Browser::websocket_url` | `browser.websocket_url()`. |
+| `get_window` | composed | `Window::bounds` | `page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `get_window_position` | composed | `Window::bounds` | `page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `get_window_rect` | composed | `Window::bounds` | `page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `get_window_size` | composed | `Window::bounds` | `page.window().bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `go_back` | composed | `Page::back` | A method of the Page that sb.cdp drives: `page.back(..)`. |
+| `go_forward` | composed | `Page::forward` | A method of the Page that sb.cdp drives: `page.forward(..)`. |
+| `goto` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
+| `goto_if_not_url` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
+| `grant_all_permissions` | composed | `Browser::grant_permissions` | A method of the Browser, not of one page: `browser.grant_permissions(..)`. |
+| `grant_permissions` | composed | `Browser::grant_permissions` | A method of the Browser, not of one page: `browser.grant_permissions(..)`. |
+| `gui_click_and_hold` | composed | `Gui::mouse_down` | `Gui::mouse_down` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
+| `gui_click_element` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_click_with_offset` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_click_x_y` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_drag_and_drop` | composed | `Gui::drag` | `Gui::drag` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_drag_drop_points` | composed | `Gui::drag` | `Gui::drag` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_hover_and_click` | composed | `Gui::click` | `Gui::click` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_hover_element` | composed | `Gui::move_mouse` | `Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_hover_x_y` | composed | `Gui::move_mouse` | `Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_move_to_element` | composed | `Gui::move_mouse` | `Gui::move_mouse` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_press_key` | composed | `Gui::press_key` | `Gui::press_key` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `gui_press_keys` | composed | `Gui::press_keys` | `Gui::press_keys(&[..])` holds the modifier keys while it presses the others; it needs feature `gui`. |
+| `gui_write` | composed | `Gui::write` | `Gui::write` from api::gui (feature `gui`): it moves the real pointer and keyboard in screen coordinates, outside the page. |
+| `highlight` | composed | `Locator::flash` | `page.locator(selector).flash()` outlines the element briefly; it has no loops or colour options. |
+| `highlight_overlay` | composed | `Locator::flash` | `page.locator(selector).flash()` outlines the element briefly; it draws no overlay. |
+| `hover_and_click` | composed | `Locator::hover` | Hover with `page.locator(hover_selector).hover()`, then click the second Locator: two calls instead of one. |
+| `hover_element` | composed | `Locator::hover` | `page.locator(selector).hover()`. |
+| `internalize_links` | composed | `Locator::set_attribute` | Set `target` to `_self` on the link Locator with `set_attribute` so links open in the same tab. |
+| `is_attribute_present` | composed | `Locator::attribute` | `page.locator(selector).attribute(name)` returns an Option; the attribute is present when it is Some. |
+| `is_checked` | composed | `Locator::is_checked` | Call `page.locator(selector).is_checked(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `is_element_present` | composed | `Locator::exists` | Call `page.locator(selector).exists(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `is_element_visible` | composed | `Locator::is_visible` | Call `page.locator(selector).is_visible(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `is_exact_text_visible` | composed | `Locator::text` | Compare `page.locator(selector).text()` with the text; there is no single predicate. |
+| `is_online` | composed | `Page::is_online` | A method of the Page that sb.cdp drives: `page.is_online(..)`. |
+| `is_selected` | composed | `Locator::is_selected` | `page.locator(selector).is_selected()`. |
+| `is_text_visible` | composed | `Locator::text` | Test `page.locator(selector).text()` for the text; there is no single predicate. |
 | `js_dumps` | not-applicable |  | Values cross as serde_json::Value; there is nothing to serialise by hand. |
-| `js_scroll_into_view` | composed | `Locator::scroll_into_view` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `load_cookies` | composed | `Cookies::load` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `maximize` | composed | `Window::maximize` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `medimize` | composed | `Window::restore` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `minimize` | composed | `Window::minimize` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `mouse_click` | composed | `Mouse::click` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `nested_click` | composed | `Locator::locator` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `open` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `open_new_tab` | composed | `Browser::new_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `open_new_window` | composed | `Browser::new_window` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `js_scroll_into_view` | composed | `Locator::scroll_into_view` | Call `page.locator(selector).scroll_into_view(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `load_cookies` | composed | `Cookies::load` | `page.cookies().load(..)`. |
+| `maximize` | composed | `Window::maximize` | `page.window().maximize(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `medimize` | composed | `Window::restore` | `page.window().restore()` returns the window to its normal state. |
+| `minimize` | composed | `Window::minimize` | `page.window().minimize(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
+| `mouse_click` | composed | `Mouse::click` | `page.mouse().click(..)`; the Mouse acts at coordinates, not on a selector. |
+| `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `open` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
+| `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page(..)`. |
+| `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window(..)`. |
 | `post_message` | implemented | `Page::post_message` | Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it. Differs: Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions. |
-| `press_keys` | composed | `Locator::press` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `print_to_pdf` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `quit` | composed | `Browser::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `refresh` | composed | `Page::reload` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `reload` | composed | `Page::reload` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `remove_element` | composed | `Locator::remove` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `remove_elements` | composed | `Locator::remove` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `remove_from_dom` | composed | `Locator::remove` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `reset_permissions` | composed | `Browser::reset_permissions` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `reset_window_size` | composed | `Window::restore` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_as_html` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_as_html_to_logs` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_as_pdf` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_as_pdf_to_logs` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_cookies` | composed | `Cookies::save` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `press_keys` | composed | `Locator::press` | `page.locator(selector).type_text(text)` types the text one key at a time without Python's human-speed delays; Locator::press sends one named key. |
+| `print_to_pdf` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it with std::fs. |
+| `quit` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
+| `refresh` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
+| `reload` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
+| `remove_element` | composed | `Locator::remove` | Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `remove_elements` | composed | `Locator::remove` | Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `remove_from_dom` | composed | `Locator::remove` | Call `page.locator(selector).remove(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `reset_permissions` | composed | `Browser::reset_permissions` | A method of the Browser, not of one page: `browser.reset_permissions(..)`. |
+| `reset_window_size` | composed | `Window::set_bounds` | Read page.window().bounds() when the page opens and pass those values back to set_bounds, as Python restores the start position and size. Window::restore only leaves the maximized or minimized state; it does not restore a size. |
+| `save_as_html` | composed | `Page::content` | `page.content()` returns the HTML; write it with std::fs. |
+| `save_as_html_to_logs` | composed | `Page::content` | `page.content()` returns the HTML; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
+| `save_as_pdf` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it with std::fs. |
+| `save_as_pdf_to_logs` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
+| `save_cookies` | composed | `Cookies::save` | `page.cookies().save(..)`. |
 | `save_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
-| `save_file_as` | not-applicable |  | Write files with std::fs. |
-| `save_page_source` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_page_source_to_logs` | composed | `Page::content` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_screenshot` | composed | `Page::screenshot` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `save_screenshot_to_logs` | composed | `Page::screenshot` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_by_y` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_down` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_into_view` | composed | `Locator::scroll_into_view` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_to_bottom` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_to_top` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_to_y` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `scroll_up` | composed | `Page::scroll` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `select` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `select_all` | composed | `Page::evaluate` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `select_if_unselected` | composed | `Locator::set_checked` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `select_option_by_index` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `select_option_by_text` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `select_option_by_value` | composed | `Locator::select_option` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `send_keys` | composed | `Locator::type_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_all_cookies` | composed | `Cookies::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_attributes` | composed | `Locator::set_attribute` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_download_path` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_local_storage_item` | composed | `Storage::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_locale` | composed | `Emulation::locale` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `save_file_as` | planned |  | Python downloads a URL and saves it under a name in a folder. Nothing on the CDP engine fetches a URL for you; fetch it with an HTTP client and write it with std::fs. |
+| `save_page_source` | composed | `Page::content` | `page.content()` returns the HTML; write it with std::fs. |
+| `save_page_source_to_logs` | composed | `Page::content` | `page.content()` returns the HTML; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
+| `save_screenshot` | composed | `Page::screenshot` | `page.screenshot(..)` returns the image; write it with std::fs. |
+| `save_screenshot_to_logs` | composed | `Page::screenshot` | `page.screenshot(..)` returns the image; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
+| `scroll_by_y` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
+| `scroll_down` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
+| `scroll_into_view` | composed | `Locator::scroll_into_view` | Call `page.locator(selector).scroll_into_view(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `scroll_to_bottom` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
+| `scroll_to_top` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
+| `scroll_to_y` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
+| `scroll_up` | composed | `Page::scroll` | A method of the Page that sb.cdp drives: `page.scroll(..)`. |
+| `select` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `select_all` | composed | `Locator::all` | Python's select_all returns the matching elements, like find_elements; page.locator(selector).all() gives one Locator per match. |
+| `select_if_unselected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(true)`. |
+| `select_option_by_index` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `select_option_by_text` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `select_option_by_value` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `send_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `set_all_cookies` | composed | `Cookies::set` | `page.cookies().set(..)`. |
+| `set_attributes` | composed | `Locator::set_attribute` | Call `page.locator(selector).set_attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `set_download_path` | composed | `Browser::set_download_dir` | `browser.set_download_dir(dir)`. |
+| `set_local_storage_item` | composed | `Storage::set` | `page.local_storage().set(key, value)`. |
+| `set_locale` | composed | `Emulation::locale` | `page.emulation().locale(..)`. |
 | `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). |
-| `set_session_storage_item` | composed | `Storage::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_value` | composed | `Locator::set_value` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_window_rect` | composed | `Window::set_bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `set_session_storage_item` | composed | `Storage::set` | `page.session_storage().set(key, value)`. |
+| `set_value` | composed | `Locator::set_value` | Call `page.locator(selector).set_value(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `set_window_rect` | composed | `Window::set_bounds` | `page.window().set_bounds(..)`; sizes and positions come as a WindowBounds struct instead of separate values. |
 | `sleep` | not-applicable |  | Use tokio::time::sleep. |
-| `solve_captcha` | composed | `Page::solve_captcha` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `stop` | composed | `Browser::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `submit` | composed | `Locator::submit` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `switch_to_newest_tab` | composed | `Browser::newest_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `switch_to_newest_window` | composed | `Browser::newest_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `switch_to_tab` | composed | `Browser::pages` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `switch_to_window` | composed | `Browser::pages` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `tile_windows` | not-applicable |  | Desktop window tiling is not part of a CDP browser API. |
-| `type` | composed | `Locator::type_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `uncheck_if_checked` | composed | `Locator::uncheck` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `unselect_if_selected` | composed | `Locator::set_checked` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_any_of_elements_visible` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_element` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_element_absent` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_element_not_visible` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_element_present` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_element_visible` | composed | `Locator::wait_for` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_text` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `wait_for_text_not_visible` | composed | `LocatorExpect::to_contain_text` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
+| `solve_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
+| `stop` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
+| `submit` | composed | `Locator::submit` | Call `page.locator(selector).submit(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `switch_to_newest_tab` | composed | `Browser::newest_page` | `browser.newest_page()` returns the Page of the newest tab. |
+| `switch_to_newest_window` | composed | `Browser::newest_page` | `browser.newest_page()` returns the Page of the newest window. |
+| `switch_to_tab` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch. |
+| `switch_to_window` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch. |
+| `tile_windows` | composed | `Window::set_bounds` | Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler. |
+| `type` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `uncheck_if_checked` | composed | `Locator::uncheck` | Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `unselect_if_selected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(false)`. |
+| `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |
+| `wait_for_any_of_elements_visible` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |
+| `wait_for_element` | composed | `Locator::wait_for` | Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `wait_for_element_absent` | composed | `Locator::wait_for` | Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `wait_for_element_not_visible` | composed | `Locator::wait_for` | Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `wait_for_element_present` | composed | `Locator::wait_for` | Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `wait_for_element_visible` | composed | `Locator::wait_for` | Call `page.locator(selector).wait_for(..)`; the Locator holds the selector, so it is not an argument of the call. |
+| `wait_for_text` | composed | `LocatorExpect::to_contain_text` | `page.locator(selector).expect().to_contain_text(text)` waits for the text; it does not return the element. |
+| `wait_for_text_not_visible` | composed | `LocatorExpect::to_contain_text` | `page.locator(selector).expect().not().to_contain_text(text)` waits for the text to go. |
 
 ## Command-line commands
 
@@ -800,10 +800,10 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
-| `behave-gui` | implemented | `sbase behave-gui` |  |
+| `behave-gui` | planned |  | Python launches Behave Commander, a GUI that runs behave tests. `sbase behave-gui` only prompts for a name and writes a new .feature file; it runs nothing. |
 | `behave-options` | not-applicable |  | Lists behave (Python BDD) options; this crate has its own Gherkin runner. |
-| `case-plans` | composed | `sbase caseplans` | One canonical name; the hyphenated spelling is an alias upstream. |
-| `caseplans` | implemented | `sbase caseplans` |  |
+| `case-plans` | planned |  | Alias of caseplans upstream; see that entry. |
+| `caseplans` | planned |  | Python launches the Case Plans Generator over the test files. `sbase caseplans` only writes a fixed CASE_PLANS.md checklist. |
 | `codegen` | composed | `sbase record` | Records browser actions to a test file. |
 | `commander` | implemented | `sbase commander` |  |
 | `convert` | implemented | `sbase convert` |  |
@@ -815,7 +815,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `grid-hub` | implemented | `sbase grid-hub` | start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. |
 | `grid-node` | implemented | `sbase grid-node` | start, stop, restart and status; registers with the hub named by --hub. |
 | `gui` | composed | `sbase commander` | Python's `gui` is the same test runner as `commander`. |
-| `gui-behave` | composed | `sbase behave-gui` | One canonical name; the alias is not ported. |
+| `gui-behave` | planned |  | Alias of behave-gui upstream; see that entry. |
 | `help` | composed | `clap` | Provided by the argument parser. |
 | `inject-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `install` | implemented | `sbase install` |  |
@@ -824,9 +824,9 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `mkdir` | implemented | `sbase mkdir` |  |
 | `mkfile` | implemented | `sbase mkfile` |  |
 | `mkpres` | implemented | `sbase mkpres` |  |
-| `mkrec` | implemented | `sbase mkrec` |  |
+| `mkrec` | composed | `sbase record` | Python's mkrec creates a new test with the Recorder, which `sbase record` does. `sbase mkrec` only writes a starter recording file and opens no browser. |
 | `obfuscate` | not-applicable |  | Obfuscates a Python source file; there is no Python source to obfuscate here. |
-| `objectify` | implemented | `sbase objectify` |  |
+| `objectify` | not-applicable |  | Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbase objectify` only writes a starter page_object.rs. |
 | `options` | not-applicable |  | Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig. |
 | `print` | implemented | `sbase print` |  |
 | `proxy` | implemented | `sbase proxy` |  |
@@ -957,7 +957,7 @@ Python `--option` flags.
 | `--headless` | implemented | `BrowserConfig::headless` |  |
 | `--headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `--headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `--highlights` | not-applicable |  | BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override. |
+| `--highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override. |
 | `--host-resolver-rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--ie` | implemented | `BrowserConfig::browser` | Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows. |
@@ -1014,7 +1014,7 @@ Python `--option` flags.
 | `--proxy-string` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
 | `--proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `--proxy_driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
-| `--rcs` | composed | `BrowserConfig::reuse_session` |  |
+| `--rcs` | planned |  | Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run. |
 | `--rec` | composed | `BaseCase::start_recording` |  |
 | `--rec-behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `--rec-gherkin` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
@@ -1030,10 +1030,10 @@ Python `--option` flags.
 | `--remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `--remote_debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `--reuse-class-session` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--reuse-session` | implemented | `BrowserConfig::reuse_session` |  |
+| `--reuse-session` | planned |  | BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run. |
 | `--reuse_class_session` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--reuse_session` | implemented | `BrowserConfig::reuse_session` |  |
-| `--rs` | composed | `BrowserConfig::reuse_session` |  |
+| `--reuse_session` | planned |  | BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run. |
+| `--rs` | planned |  | Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run. |
 | `--safari` | implemented | `BrowserConfig::browser` | Run with safaridriver, which comes with macOS; Safari needs Allow Remote Automation turned on. |
 | `--save-screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
@@ -1155,7 +1155,7 @@ Keyword arguments of `SB()`.
 | `headless` | implemented | `BrowserConfig::headless` |  |
 | `headless1` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
-| `highlights` | not-applicable |  | BaseCase::highlight draws a static outline, not an animation, so there is no loop count to override. |
+| `highlights` | not-applicable |  | BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override. |
 | `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `interval` | not-applicable |  | Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override. |

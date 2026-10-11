@@ -508,10 +508,12 @@ comments for manual review.
 ## Project status
 
 Every API of Python SeleniumBase 4.55.2 and of its MCP server now has a recorded
-status: 875 implemented, 377 composed from existing Rust calls, 113 not
-applicable with a reason, and none still planned
-([docs/parity.md](./docs/parity.md)). The composed and not-applicable entries
-are still to be independently reviewed, and most behaviour is verified against a
+status: 861 implemented, 375 composed from existing Rust calls, 112 not
+applicable with a reason, and 17 still planned
+([docs/parity.md](./docs/parity.md)). An audit of the entries marked done fixed
+or re-marked 26 that did less than the Python method. The composed and
+not-applicable entries are still to be independently reviewed, and most
+behaviour is verified against a
 mock or unit tests rather than a real browser. [ROADMAP.md](./ROADMAP.md) lists
 what is done and what is missing (the stealth scraping work, TLS and HTTP/2
 impersonation, is the largest open part) and [CHANGELOG.md](./CHANGELOG.md) what
