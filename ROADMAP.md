@@ -98,14 +98,14 @@ Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
 `docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
 workflow (untested: Actions are billing-locked).
 
-Current state against 4.55.2 (`just parity-docs` has the full table): 861 entries are implemented, 375 composed from existing Rust APIs, 112 not applicable with a stated reason and 17 `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` level 0, and others), and the entries were re-marked where it was not. The 17 `planned` entries are the work still to do:
+Current state against 4.55.2 (`just parity-docs` has the full table): 862 entries are implemented, 374 composed from existing Rust APIs, 112 not applicable with a stated reason and 17 `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` (now the tag-structure levels, as Python 4.55.2 does), and others), and the entries were re-marked where it was not. The 17 `planned` entries are the work still to do:
 
 - `BaseCase` (6): `generate_referral`, `generate_referral_chain`, `generate_traffic`, `generate_traffic_chain` (a real click-through between two pages, not a `?ref=` parameter), `set_content_to_frame` (swap the page for an iframe's content) and `install_addon` (Firefox add-ons through geckodriver).
 - pytest options (4): `--reuse-session`, `--reuse_session`, `--rs`, `--rcs`: `BrowserConfig::reuse_session` is stored but nothing shares a browser across a run.
 - `sbase` (4): `caseplans`, `case-plans`, `behave-gui`, `gui-behave`.
 - CDP engine (3): `download_file`, `assert_downloaded_file`, `save_file_as`.
 
-What is left beyond those is depth: `check_window` compares screenshots, not HTML tag structure; the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text` and `update_text` only; and the compositions still want the real-Chrome checks of item 7 above (each composed CDP entry now says how to write it in Rust, but its waits and visibility rules have not been compared with Python's one by one).
+What is left beyond those is depth: the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text` and `update_text` only; and the compositions still want the real-Chrome checks of item 7 above (each composed CDP entry now says how to write it in Rust, but its waits and visibility rules have not been compared with Python's one by one).
 
 ## 3. Documentation
 

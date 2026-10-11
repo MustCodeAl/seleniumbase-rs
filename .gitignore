@@ -14,3 +14,6 @@ slim.report.json
 .ai-bom.json
 .ai-build-context.md
 .ai-build-error.json
+
+# check_window baselines written by test runs
+visual_baseline/
