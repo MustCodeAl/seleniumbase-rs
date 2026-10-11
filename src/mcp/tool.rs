@@ -1,6 +1,6 @@
 //! Tool definitions: arguments, results and errors.
 
-use std::fmt;
+use std::fmt::{self, Write as _};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 
 use super::host::Ctx;
 use super::schema::Schema;
-use crate::error::SeleniumBaseError;
+use crate::error::{closest_match, SeleniumBaseError};
 
 /// The longest wait or pause a single call may ask for, in seconds.
 ///
@@ -106,17 +106,6 @@ impl ToolError {
         Self::InvalidArgument {
             name: name.to_owned(),
             reason: reason.into(),
-        }
-    }
-
-    /// The message shown to the model, with a remediation hint when one exists.
-    pub(crate) fn message(&self) -> String {
-        match self {
-            Self::Failed(error) => match error.hint() {
-                Some(hint) => format!("{error}\n\nHint: {hint}"),
-                None => error.to_string(),
-            },
-            other => other.to_string(),
         }
     }
 }
@@ -310,7 +299,8 @@ impl Args {
     ///
     /// # Errors
     ///
-    /// Returns [`ToolError::InvalidArgument`] listing the allowed values.
+    /// Returns [`ToolError::InvalidArgument`] listing the allowed values, and
+    /// the closest one when the given value looks like a typo of it.
     pub fn choice<'a>(
         &self,
         name: &str,
@@ -324,10 +314,12 @@ impl Args {
                 .copied()
                 .find(|option| *option == given)
                 .ok_or_else(|| {
-                    ToolError::invalid(
-                        name,
-                        format!("expected one of {}, got {given:?}", allowed.join(", ")),
-                    )
+                    let mut reason =
+                        format!("expected one of {}, got {given:?}", allowed.join(", "));
+                    if let Some(near) = closest_match(given, allowed.iter().copied()) {
+                        let _ = write!(reason, "; did you mean {near:?}?");
+                    }
+                    ToolError::invalid(name, reason)
                 }),
         }
     }
@@ -445,6 +437,12 @@ impl<S> ToolDef<S> {
         self.name
     }
 
+    /// What the tool does to the world.
+    #[must_use]
+    pub fn effect(&self) -> Effect {
+        self.effect
+    }
+
     pub(crate) fn describe(&self) -> Tool {
         Tool::new(self.name, self.description, Arc::clone(&self.schema))
             .with_annotations(self.effect.annotations(self.title))
@@ -557,6 +555,25 @@ mod tests {
     }
 
     #[test]
+    fn a_mistyped_choice_is_answered_with_the_nearest_option() {
+        let error = args(json!({ "action": "hovr" }))
+            .choice(
+                "action",
+                &["hover", "hover_and_click", "drag_and_drop"],
+                "hover",
+            )
+            .unwrap_err()
+            .to_string();
+        assert!(error.ends_with("did you mean \"hover\"?"), "{error}");
+
+        let far = args(json!({ "action": "explode" }))
+            .choice("action", &["hover", "drag_and_drop"], "hover")
+            .unwrap_err()
+            .to_string();
+        assert!(!far.contains("did you mean"), "{far}");
+    }
+
+    #[test]
     fn renaming_moves_a_value_and_leaves_other_arguments_alone() {
         let mut a = args(json!({ "dropdown_selector": "#c", "option": "x" }));
         a.rename("dropdown_selector", "selector");
@@ -580,12 +597,17 @@ mod tests {
     #[test]
     fn a_failed_browser_error_carries_its_hint_to_the_model() {
         let failure = SeleniumBaseError::element_not_found("#nope");
-        let hint = failure.hint();
-        let message = ToolError::Failed(failure).message();
+        let hint = failure.hint().unwrap();
+        let report = crate::mcp::failure::FailureReport::new(
+            "click_element",
+            &Map::new(),
+            &ToolError::Failed(failure),
+            None,
+            &|_| true,
+        );
+        let message = report.render();
         assert!(message.contains("#nope"), "{message}");
-        if let Some(hint) = hint {
-            assert!(message.contains(&hint), "{message}");
-        }
+        assert!(message.contains(&format!("hint: {hint}")), "{message}");
     }
 
     #[test]

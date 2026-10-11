@@ -8,7 +8,8 @@
 //!
 //! A server is a [`Host`]: a list of [`ToolDef`]s plus the session they share.
 //! Tool failures are returned to the model as error results it can act on,
-//! not as protocol errors.
+//! not as protocol errors: a [`FailureReport`] says what failed, what was
+//! tried, what the page looked like, and which tools to try next.
 //!
 //! ```no_run
 //! # async fn run() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
@@ -19,7 +20,9 @@
 //! # }
 //! ```
 
+mod failure;
 mod host;
+mod journal;
 mod schema;
 mod support;
 mod tool;
@@ -30,6 +33,7 @@ pub mod driver;
 pub mod sb;
 mod stealth;
 
+pub use failure::FailureReport;
 pub use host::{Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR};
 pub use schema::{Prop, Schema};
 pub use tool::{Args, Effect, Output, ToolDef, ToolError, ToolFuture};

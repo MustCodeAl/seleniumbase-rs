@@ -2,7 +2,8 @@
 
 use std::future::Future;
 use std::path::{Component, Path, PathBuf};
-use std::sync::Arc;
+use std::pin::Pin;
+use std::sync::{Arc, PoisonError};
 
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
@@ -13,7 +14,10 @@ use rmcp::service::{RequestContext, RoleServer};
 use serde_json::{Map, Value};
 use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
 
+use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT};
+use super::journal::{CallRecord, Journal};
 use super::tool::{Args, Output, ToolDef, ToolError};
+use crate::error::closest_match;
 
 /// Environment variable naming the directory tools write files into.
 pub const OUTPUT_DIR_VAR: &str = "SB_MCP_OUTPUT_DIR";
@@ -107,10 +111,12 @@ pub enum Started {
 /// browser needs: two clicks must not interleave.
 pub type Session<S> = OwnedMappedMutexGuard<Option<S>, S>;
 
-/// What a tool handler gets: the shared session slot and the settings.
+/// What a tool handler gets: the shared session slot, the settings, and the
+/// log of the calls made so far.
 pub struct Ctx<S> {
     slot: Arc<Mutex<Option<S>>>,
     settings: Arc<Settings>,
+    journal: Arc<std::sync::Mutex<Journal>>,
 }
 
 impl<S> Clone for Ctx<S> {
@@ -118,6 +124,7 @@ impl<S> Clone for Ctx<S> {
         Self {
             slot: Arc::clone(&self.slot),
             settings: Arc::clone(&self.settings),
+            journal: Arc::clone(&self.journal),
         }
     }
 }
@@ -137,7 +144,23 @@ impl<S: Send + 'static> Ctx<S> {
         Self {
             slot: Arc::new(Mutex::new(None)),
             settings: Arc::new(settings),
+            journal: Arc::default(),
         }
+    }
+
+    /// Adds a finished call to the log.
+    pub(crate) fn record(&self, record: CallRecord) {
+        self.journal
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(record);
+    }
+
+    /// The calls in the log, oldest first, and how many older ones were
+    /// dropped to keep it bounded.
+    pub(crate) fn calls(&self) -> (Vec<CallRecord>, usize) {
+        let journal = self.journal.lock().unwrap_or_else(PoisonError::into_inner);
+        (journal.calls(), journal.dropped())
     }
 
     /// Where tools may write files.
@@ -187,11 +210,20 @@ impl<S: Send + 'static> Ctx<S> {
     }
 }
 
+/// The future a [`Probe`] returns: what the page looks like, or `None` when
+/// there is no page to look at.
+pub(crate) type ProbeFuture = Pin<Box<dyn Future<Output = Option<Value>> + Send>>;
+
+/// Reads the page after a failed call, for the failure report. It is given
+/// the selector the call was about, if any.
+pub(crate) type Probe<S> = fn(Ctx<S>, Option<String>) -> ProbeFuture;
+
 struct Shared<S> {
     name: &'static str,
     instructions: &'static str,
     tools: Vec<ToolDef<S>>,
     ctx: Ctx<S>,
+    probe: Option<Probe<S>>,
 }
 
 /// A named set of tools and the session they share.
@@ -233,8 +265,30 @@ impl<S: Send + 'static> Host<S> {
                 instructions,
                 tools,
                 ctx: Ctx::new(settings),
+                probe: None,
             }),
         }
+    }
+
+    /// Reads the page with `probe` when a call fails for a reason the page
+    /// can explain.
+    ///
+    /// Call it while building the server: a host that has been cloned keeps
+    /// the probe it had.
+    #[must_use]
+    pub(crate) fn with_probe(mut self, probe: Probe<S>) -> Self {
+        if let Some(shared) = Arc::get_mut(&mut self.shared) {
+            shared.probe = Some(probe);
+        } else {
+            tracing::warn!(server = self.shared.name, "a shared host keeps its probe");
+        }
+        self
+    }
+
+    /// Whether the server offers a tool called `name`.
+    #[must_use]
+    pub fn has_tool(&self, name: &str) -> bool {
+        self.shared.tools.iter().any(|tool| tool.name() == name)
     }
 
     /// The server's name, as clients see it.
@@ -278,8 +332,78 @@ impl<S: Send + 'static> Host<S> {
             .iter()
             .find(|tool| tool.name() == name)
             .ok_or_else(|| ToolError::UnknownTool(name.to_owned()))?;
-        tool.call(self.shared.ctx.clone(), Args::new(arguments))
-            .await
+        let logged = arguments.clone();
+        let result = tool
+            .call(self.shared.ctx.clone(), Args::new(arguments))
+            .await;
+        let outcome = match &result {
+            Ok(output) => output.render(),
+            Err(error) => error.to_string(),
+        };
+        self.shared.ctx.record(CallRecord::new(
+            name,
+            tool.effect(),
+            &logged,
+            result.is_ok(),
+            &outcome,
+        ));
+        result
+    }
+
+    /// Runs one tool like [`call`](Self::call), and explains a failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`FailureReport`] for any failure; see [`explain`](Self::explain).
+    pub async fn call_explained(
+        &self,
+        name: &str,
+        arguments: Map<String, Value>,
+    ) -> Result<Output, Box<FailureReport>> {
+        let kept = arguments.clone();
+        match self.call(name, arguments).await {
+            Ok(output) => Ok(output),
+            Err(error) => Err(Box::new(self.explain(name, &kept, &error).await)),
+        }
+    }
+
+    /// Explains why calling `tool` with `arguments` failed with `error`.
+    ///
+    /// For a failure the page can explain (an element, a wait, an assertion,
+    /// a navigation or a script), the page is read first: URL, title, ready
+    /// state, recent script errors, and how many elements the selector
+    /// matches. Reading it takes at most two seconds and never fails the
+    /// report; a page that does not answer in time is reported as not read.
+    pub async fn explain(
+        &self,
+        tool: &str,
+        arguments: &Map<String, Value>,
+        error: &ToolError,
+    ) -> FailureReport {
+        let page = match self.shared.probe {
+            Some(probe) if concerns_page(error) => {
+                let selector = focus_selector(error, arguments);
+                tokio::time::timeout(PROBE_TIMEOUT, probe(self.shared.ctx.clone(), selector))
+                    .await
+                    .unwrap_or_else(|_| {
+                        Some(serde_json::json!({
+                            "unavailable": "the page did not answer within 2 seconds"
+                        }))
+                    })
+            }
+            _ => None,
+        };
+        FailureReport::new(tool, arguments, error, page, &|name| self.has_tool(name))
+    }
+
+    /// The protocol message for a call to a tool that does not exist, with
+    /// the nearest real name when the given one looks like a typo of it.
+    fn unknown_tool(&self, name: &str) -> String {
+        let near = closest_match(name, self.shared.tools.iter().map(ToolDef::name));
+        match near {
+            Some(near) => format!("unknown tool: {name}; did you mean {near}?"),
+            None => format!("unknown tool: {name}"),
+        }
     }
 }
 
@@ -292,8 +416,12 @@ impl<S: Closeable> Host<S> {
     }
 }
 
-fn error_result(message: String) -> CallToolResponse {
-    CallToolResponse::Complete(CallToolResult::error(vec![ContentBlock::text(message)]))
+/// A failed call as the client sees it: the report as text, and the same
+/// fields as structured content.
+fn error_result(report: &FailureReport) -> CallToolResponse {
+    let mut result = CallToolResult::error(vec![ContentBlock::text(report.render())]);
+    result.structured_content = Some(report.to_json());
+    CallToolResponse::Complete(result)
 }
 
 #[expect(
@@ -326,15 +454,16 @@ impl<S: Send + 'static> ServerHandler for Host<S> {
     ) -> impl Future<Output = Result<CallToolResponse, ErrorData>> + '_ {
         async move {
             let arguments = request.arguments.unwrap_or_default();
-            match self.call(&request.name, arguments).await {
+            match self.call(&request.name, arguments.clone()).await {
                 Ok(output) => Ok(CallToolResponse::Complete(CallToolResult::success(vec![
                     ContentBlock::text(output.render()),
                 ]))),
-                Err(ToolError::UnknownTool(name)) => Err(ErrorData::invalid_params(
-                    format!("unknown tool: {name}"),
-                    None,
+                Err(ToolError::UnknownTool(name)) => {
+                    Err(ErrorData::invalid_params(self.unknown_tool(&name), None))
+                }
+                Err(error) => Ok(error_result(
+                    &self.explain(&request.name, &arguments, &error).await,
                 )),
-                Err(error) => Ok(error_result(error.message())),
             }
         }
     }
@@ -359,6 +488,106 @@ mod tests {
             settings.output_path(Some(""), "a.png").unwrap(),
             Path::new("out").join("a.png"),
             "an empty folder means none"
+        );
+    }
+
+    #[test]
+    fn a_mistyped_tool_name_is_answered_with_the_nearest_one() {
+        let host: Host<()> = Host::new(
+            "test",
+            "",
+            vec![ToolDef::new(
+                "click_element",
+                "Click",
+                "Clicks.",
+                super::super::Effect::Act,
+                super::super::Schema::new(),
+                |_ctx: Ctx<()>, _args: Args| async { Ok(Output::from("ok")) },
+            )],
+            Settings::new("out"),
+        );
+
+        assert_eq!(
+            host.unknown_tool("clik_element"),
+            "unknown tool: clik_element; did you mean click_element?"
+        );
+        assert_eq!(
+            host.unknown_tool("make_coffee"),
+            "unknown tool: make_coffee"
+        );
+    }
+
+    #[tokio::test]
+    async fn every_call_is_logged_with_how_it_ended() {
+        let host: Host<()> = Host::new(
+            "test",
+            "",
+            vec![ToolDef::new(
+                "needs_browser",
+                "Needs Browser",
+                "Fails without a browser.",
+                super::super::Effect::Act,
+                super::super::Schema::new(),
+                |ctx: Ctx<()>, _args: Args| async move {
+                    let _session = ctx.session().await?;
+                    Ok(Output::from("ok"))
+                },
+            )],
+            Settings::new("out"),
+        );
+        let arguments = serde_json::json!({ "selector": "#x" })
+            .as_object()
+            .cloned()
+            .unwrap();
+
+        let report = host
+            .call_explained("needs_browser", arguments)
+            .await
+            .unwrap_err();
+
+        assert_eq!(report.kind, "no_browser");
+        assert!(report.page.is_none(), "no page is read without a browser");
+        let (calls, dropped) = host.ctx().calls();
+        assert_eq!((calls.len(), dropped), (1, 0));
+        assert!(!calls[0].ok);
+        assert_eq!(calls[0].arguments["selector"], "#x");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_page_that_never_answers_does_not_hold_up_the_report() {
+        fn hangs(_ctx: Ctx<()>, _selector: Option<String>) -> ProbeFuture {
+            Box::pin(std::future::pending())
+        }
+        let host: Host<()> = Host::new(
+            "test",
+            "",
+            vec![ToolDef::new(
+                "click_element",
+                "Click",
+                "Fails the way a missing element does.",
+                super::super::Effect::Act,
+                super::super::Schema::new(),
+                |_ctx: Ctx<()>, _args: Args| async {
+                    Err::<Output, _>(ToolError::Failed(
+                        crate::error::SeleniumBaseError::element_not_found("#x"),
+                    ))
+                },
+            )],
+            Settings::new("out"),
+        )
+        .with_probe(hangs);
+        let started = tokio::time::Instant::now();
+
+        let report = host
+            .call_explained("click_element", Map::new())
+            .await
+            .unwrap_err();
+
+        assert_eq!(started.elapsed(), PROBE_TIMEOUT);
+        assert_eq!(report.kind, "element_not_found");
+        assert_eq!(
+            report.page.unwrap()["unavailable"],
+            "the page did not answer within 2 seconds"
         );
     }
 
