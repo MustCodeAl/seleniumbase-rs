@@ -385,7 +385,7 @@ See the [Tours](./tours.md) and [Charts](./charts.md) pages for details.
 | `get_beautiful_soup()` | Returns a BeautifulSoup-style parser for the page. |
 | `get_beautiful_soup_object()` | Alias for `get_beautiful_soup`. |
 | `convert_css_to_xpath(css)` | Converts a CSS selector to an XPath expression. |
-| `convert_xpath_to_css(xpath)` | Converts an XPath expression to a CSS selector. |
+| `convert_xpath_to_css(xpath)` | Converts a simple XPath expression (a tag with attribute tests) to a CSS selector; any other XPath is an `InvalidSelector` error. |
 | `ad_block()` | Removes the ad elements of upstream's `AD_BLOCK_LIST` from the current page. |
 | `disable_beforeunload()` | Disables `beforeunload` prompts. |
 | `print_unique_links_with_status_codes()` | Prints all unique links and their HTTP status codes. |

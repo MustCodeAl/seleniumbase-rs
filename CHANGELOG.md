@@ -180,6 +180,17 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `xpath_to_css` (so `convert_xpath_to_css` and the Python importer) converts only
+  what has an exact CSS equivalent, a tag or `*` with attribute tests joined by
+  `and`, and returns `InvalidSelector` for the rest. It used to drop a predicate it
+  did not understand: `//div[2]` became `div` and an `or` became an AND. An id with
+  a backslash or a line break no longer produces invalid CSS in `Selector::Id`,
+  and `..` and `../` count as XPath.
+- `normalize_page_url` (`open`, `Page::goto`, the scrape and impersonation fetches)
+  matches schemes without regard to case, so `HTTPS://EXAMPLE.COM` is left alone,
+  and refuses a file path and a scheme a browser cannot open (`ftp:`, `mailto:`,
+  `javascript:`) with a message that says so, instead of turning them into an
+  `https://` host.
 - `Page::close` (pure CDP) waits, for at most two seconds, until the browser no
   longer lists the tab; `Browser::list_pages` right after a close could still show
   it, which made a real-Chrome test fail one run in five.

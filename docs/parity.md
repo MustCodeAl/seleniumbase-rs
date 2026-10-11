@@ -125,7 +125,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `context_click` | implemented | `BaseCase::context_click` |  |
 | `convert_css_to_xpath` | implemented | `BaseCase::convert_css_to_xpath` |  |
 | `convert_to_css_selector` | implemented | `BaseCase::convert_to_css_selector` |  |
-| `convert_xpath_to_css` | implemented | `BaseCase::convert_xpath_to_css` |  |
+| `convert_xpath_to_css` | implemented | `BaseCase::convert_xpath_to_css` | Differs: Converts only a tag (or *) found anywhere in the document, narrowed by attribute tests joined with and, and returns an InvalidSelector error for any other XPath (paths of several steps, positions, contains(), text(), or), where Python converts more forms. The CSS it returns is equivalent but spelled [id='x'] and [class='x'] where Python writes #x and .x. |
 | `create_area_chart` | implemented | `BaseCase::create_area_chart` |  |
 | `create_bar_chart` | implemented | `BaseCase::create_bar_chart` |  |
 | `create_bootstrap_tour` | implemented | `BaseCase::create_bootstrap_tour` |  |

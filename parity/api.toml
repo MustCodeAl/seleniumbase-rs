@@ -392,6 +392,7 @@ rust = "BaseCase::convert_to_css_selector"
 [basecase."convert_xpath_to_css"]
 status = "implemented"
 rust = "BaseCase::convert_xpath_to_css"
+divergence = "Converts only a tag (or *) found anywhere in the document, narrowed by attribute tests joined with and, and returns an InvalidSelector error for any other XPath (paths of several steps, positions, contains(), text(), or), where Python converts more forms. The CSS it returns is equivalent but spelled [id='x'] and [class='x'] where Python writes #x and .x."
 
 [basecase."create_area_chart"]
 status = "implemented"
