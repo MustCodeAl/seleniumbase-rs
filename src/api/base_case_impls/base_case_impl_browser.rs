@@ -31,12 +31,7 @@ fn driver_version_from_capabilities(capabilities: &Value) -> Option<String> {
 impl BaseCase {
     /// Returns true if the configured browser is Chromium-based.
     pub fn is_chromium(&self) -> bool {
-        matches!(
-            self.config.browser,
-            crate::browser::config::Browser::Chrome
-                | crate::browser::config::Browser::Chromium
-                | crate::browser::config::Browser::Edge
-        )
+        self.config.browser.is_chromium_based()
     }
 
     /// Returns true if the WebDriver session is still responsive.

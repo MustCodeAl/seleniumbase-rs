@@ -10,8 +10,9 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::{By, DesiredCapabilities, WebDriver, WebElement};
 use tracing::{info, instrument};
 
+use crate::browser::binaries;
 use crate::browser::config::{Browser, BrowserConfig};
-use crate::browser::launcher::{launch_chromedriver, DriverProcess};
+use crate::browser::launcher::{launch_driver_for, DriverProcess};
 use crate::browser::options::{firefox_preferences, CdpEvent, LaunchSettings};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
@@ -36,9 +37,9 @@ impl BrowserSession {
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         validate_mode_support(&config)?;
         let (driver, driver_process) = connect_driver(&config).await?;
-        if config.browser == Browser::Firefox {
-            // Chromium takes its window geometry as launch arguments; Firefox
-            // has to be told once it is running.
+        if !config.browser.is_chromium_based() {
+            // Chromium takes its window geometry as launch arguments; the
+            // others have to be told once they are running.
             apply_window_rect(&driver, &config.launch).await?;
         }
         let cdp = if config.is_cdp_enabled() {
@@ -836,14 +837,15 @@ impl BrowserSession {
 }
 
 fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
-    if config.is_cdp_enabled()
-        && !matches!(
-            config.browser,
-            Browser::Chrome | Browser::Chromium | Browser::Edge
-        )
-    {
+    if config.is_cdp_enabled() && !config.browser.is_chromium_based() {
+        return Err(SeleniumBaseError::InvalidConfig(format!(
+            "CDP/UC mode requires a Chromium-based browser, not {}",
+            config.browser
+        )));
+    }
+    if config.is_uc_enabled() && config.browser == Browser::ChromeHeadlessShell {
         return Err(SeleniumBaseError::InvalidConfig(
-            "CDP/UC mode requires a Chromium-based browser (chrome/chromium/edge)".to_owned(),
+            "chrome-headless-shell cannot run the undetected (UC) mode".to_owned(),
         ));
     }
     Ok(())
@@ -876,7 +878,15 @@ fn session_capabilities(
     config: &BrowserConfig,
 ) -> Result<thirtyfour::Capabilities, SeleniumBaseError> {
     let mut caps: thirtyfour::Capabilities = match config.browser {
-        Browser::Chrome | Browser::Chromium => {
+        // Brave, Comet, Opera and the two Chrome builds are driven as Chrome is,
+        // with their own program set as the binary.
+        Browser::Chrome
+        | Browser::Chromium
+        | Browser::Brave
+        | Browser::Comet
+        | Browser::Opera
+        | Browser::ChromeForTesting
+        | Browser::ChromeHeadlessShell => {
             let mut caps = DesiredCapabilities::chrome();
             apply_chromium_capabilities(&mut caps, config)?;
             caps.into()
@@ -891,9 +901,31 @@ fn session_capabilities(
             apply_firefox_capabilities(&mut caps, config)?;
             caps.into()
         }
+        Browser::Safari => {
+            let mut caps = DesiredCapabilities::safari();
+            apply_generic_capabilities(&mut caps, config)?;
+            caps.into()
+        }
+        Browser::InternetExplorer => {
+            let mut caps = DesiredCapabilities::internet_explorer();
+            apply_generic_capabilities(&mut caps, config)?;
+            caps.into()
+        }
     };
     config.launch.capabilities.apply_to(&mut caps);
     Ok(caps)
+}
+
+/// What every browser's capabilities take from the settings: the page load
+/// strategy. Safari and Internet Explorer have nothing else to set.
+fn apply_generic_capabilities(
+    caps: &mut impl thirtyfour::CapabilitiesHelper,
+    config: &BrowserConfig,
+) -> Result<(), SeleniumBaseError> {
+    if let Some(strategy) = config.launch.page_load_strategy {
+        caps.set_page_load_strategy(strategy.into())?;
+    }
+    Ok(())
 }
 
 /// Firefox's headless flag, page load strategy, arguments and preferences.
@@ -951,6 +983,7 @@ async fn connect_driver(
     config: &BrowserConfig,
 ) -> Result<(WebDriver, Option<DriverProcess>), SeleniumBaseError> {
     let mut config = config.clone();
+    resolve_browser_binary(&mut config)?;
     patch_chrome_binary_if_needed(&mut config).await?;
 
     let mut process: Option<DriverProcess> = None;
@@ -960,7 +993,7 @@ async fn connect_driver(
         match try_connect(&config, &url).await {
             Ok(driver) => return Ok((driver, None)),
             Err(_) => {
-                let launched = launch_chromedriver().await?;
+                let launched = launch_driver_for(config.browser).await?;
                 url = launched.url.clone();
                 process = Some(launched);
             }
@@ -969,6 +1002,52 @@ async fn connect_driver(
 
     let driver = try_connect(&config, &url).await?;
     Ok((driver, process))
+}
+
+/// Finds the program of a browser that is not Google Chrome and sets it as
+/// the browser binary, unless the caller named one.
+///
+/// # Errors
+///
+/// Returns an error that says where it looked when Brave, Comet, Opera,
+/// Chrome for Testing or `chrome-headless-shell` cannot be found.
+fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), SeleniumBaseError> {
+    let needs_program = matches!(
+        config.browser,
+        Browser::Brave
+            | Browser::Comet
+            | Browser::Opera
+            | Browser::ChromeForTesting
+            | Browser::ChromeHeadlessShell
+    );
+    if !needs_program || config.browser_binary_path.is_some() {
+        return Ok(());
+    }
+    let found = binaries::locate(config.browser).ok_or_else(|| {
+        SeleniumBaseError::invalid_config(missing_browser_message(config.browser))
+    })?;
+    config.browser_binary_path = Some(found);
+    Ok(())
+}
+
+/// What to tell the user when a browser's program cannot be found.
+fn missing_browser_message(browser: Browser) -> String {
+    match browser {
+        Browser::ChromeForTesting | Browser::ChromeHeadlessShell => format!(
+            "{browser} is not installed: nothing was found under {}/{}. Download it \
+             there, or name its program with BrowserConfig::with_browser_binary_path.",
+            binaries::DOWNLOADS_DIR,
+            if browser == Browser::ChromeForTesting {
+                binaries::CHROME_FOR_TESTING_DIR
+            } else {
+                binaries::CHROME_HEADLESS_SHELL_DIR
+            },
+        ),
+        _ => format!(
+            "{browser} was not found in its usual install locations or on the PATH. \
+             Install it, or name its program with BrowserConfig::with_browser_binary_path."
+        ),
+    }
 }
 
 async fn patch_chrome_binary_if_needed(

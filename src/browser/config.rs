@@ -9,6 +9,12 @@ use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 
 /// Supported browser types.
+///
+/// The names Python SeleniumBase uses for them (`--brave`, `--cft`, `--chs`,
+/// `--ie`, ...) are read by [`FromStr`] and written by [`Display`].
+///
+/// [`FromStr`]: std::str::FromStr
+/// [`Display`]: std::fmt::Display
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Browser {
     #[default]
@@ -16,6 +22,85 @@ pub enum Browser {
     Chromium,
     Edge,
     Firefox,
+    /// Brave, a Chromium browser run with chromedriver.
+    Brave,
+    /// Perplexity's Comet, a Chromium browser run with chromedriver.
+    Comet,
+    /// Opera, a Chromium browser run with operadriver.
+    Opera,
+    /// Safari, run with `safaridriver` (macOS only).
+    Safari,
+    /// Internet Explorer, run with `IEDriverServer` (Windows only).
+    InternetExplorer,
+    /// Chrome for Testing: Google's build of Chrome made for automation, run
+    /// with chromedriver (`--cft`).
+    ChromeForTesting,
+    /// `chrome-headless-shell`, the headless-only Chrome, run with chromedriver
+    /// (`--chs`). It cannot run the undetected (UC) mode.
+    ChromeHeadlessShell,
+}
+
+impl Browser {
+    /// Whether the browser is Chromium-based, which is what the CDP and UC modes
+    /// and the Chrome launch arguments need.
+    #[must_use]
+    pub const fn is_chromium_based(self) -> bool {
+        !matches!(self, Self::Firefox | Self::Safari | Self::InternetExplorer)
+    }
+
+    /// The name Python SeleniumBase gives the browser (`--browser=NAME`).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Chrome => "chrome",
+            Self::Chromium => "chromium",
+            Self::Edge => "edge",
+            Self::Firefox => "firefox",
+            Self::Brave => "brave",
+            Self::Comet => "comet",
+            Self::Opera => "opera",
+            Self::Safari => "safari",
+            Self::InternetExplorer => "ie",
+            Self::ChromeForTesting => "cft",
+            Self::ChromeHeadlessShell => "chs",
+        }
+    }
+}
+
+impl std::fmt::Display for Browser {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for Browser {
+    type Err = SeleniumBaseError;
+
+    /// Reads a Python `--browser` name, in any letter case. `ie` also answers
+    /// to `internet explorer`, `cft` to `chrome-for-testing`, and `chs` to
+    /// `chrome-headless-shell`.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        Ok(match text.trim().to_ascii_lowercase().as_str() {
+            "chrome" => Self::Chrome,
+            "chromium" => Self::Chromium,
+            "edge" => Self::Edge,
+            "firefox" => Self::Firefox,
+            "brave" => Self::Brave,
+            "comet" => Self::Comet,
+            "opera" => Self::Opera,
+            "safari" => Self::Safari,
+            "ie" | "internet explorer" | "internet-explorer" => Self::InternetExplorer,
+            "cft" | "chrome-for-testing" => Self::ChromeForTesting,
+            "chs" | "chrome-headless-shell" => Self::ChromeHeadlessShell,
+            _ => {
+                return Err(SeleniumBaseError::parse(
+                    text,
+                    "a browser: chrome, chromium, edge, firefox, brave, comet, opera, safari, ie, \
+                     cft or chs",
+                ))
+            }
+        })
+    }
 }
 
 /// Driver execution mode.
@@ -373,5 +458,111 @@ impl BrowserConfig {
         self.fingerprint
             .as_ref()
             .is_some_and(|fp| fp.flags.native_spoofing)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ALL: [Browser; 11] = [
+        Browser::Chrome,
+        Browser::Chromium,
+        Browser::Edge,
+        Browser::Firefox,
+        Browser::Brave,
+        Browser::Comet,
+        Browser::Opera,
+        Browser::Safari,
+        Browser::InternetExplorer,
+        Browser::ChromeForTesting,
+        Browser::ChromeHeadlessShell,
+    ];
+
+    #[test]
+    fn every_browser_reads_back_from_its_python_name() {
+        for browser in ALL {
+            assert_eq!(
+                browser.name().parse::<Browser>().unwrap(),
+                browser,
+                "{browser:?}"
+            );
+            assert_eq!(browser.to_string(), browser.name());
+        }
+        // The names Python SeleniumBase takes.
+        for (name, browser) in [
+            ("brave", Browser::Brave),
+            ("comet", Browser::Comet),
+            ("opera", Browser::Opera),
+            ("safari", Browser::Safari),
+            ("ie", Browser::InternetExplorer),
+            ("cft", Browser::ChromeForTesting),
+            ("chs", Browser::ChromeHeadlessShell),
+            ("Internet Explorer", Browser::InternetExplorer),
+            (" CHROME ", Browser::Chrome),
+        ] {
+            assert_eq!(name.parse::<Browser>().unwrap(), browser, "{name}");
+        }
+        assert!("netscape".parse::<Browser>().is_err());
+        assert!("".parse::<Browser>().is_err());
+    }
+
+    #[test]
+    fn only_firefox_safari_and_ie_are_not_chromium_based() {
+        let others: Vec<_> = ALL.into_iter().filter(|b| !b.is_chromium_based()).collect();
+        assert_eq!(
+            others,
+            [Browser::Firefox, Browser::Safari, Browser::InternetExplorer]
+        );
+    }
+
+    #[test]
+    fn the_default_browser_is_chrome() {
+        assert_eq!(Browser::default(), Browser::Chrome);
+        assert_eq!(BrowserConfig::default().browser, Browser::Chrome);
+    }
+
+    #[test]
+    fn a_default_config_writes_no_launch_settings_and_a_set_one_sits_beside_the_rest() {
+        let plain = serde_json::to_value(BrowserConfig::default()).unwrap();
+        assert!(plain.get("switches").is_none(), "{plain}");
+        assert!(plain.get("page_load_strategy").is_none(), "{plain}");
+
+        let config = BrowserConfig::default()
+            .with_browser(Browser::Brave)
+            .with_block_images(true)
+            .with_page_load_strategy(PageLoadStrategy::Eager);
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["browser"], "Brave");
+        assert_eq!(json["switches"], serde_json::json!(["block-images"]));
+        assert_eq!(json["page_load_strategy"], "eager");
+        let back: BrowserConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(back, config);
+    }
+
+    #[test]
+    fn a_config_written_before_launch_settings_existed_still_reads() {
+        let mut old = serde_json::to_value(BrowserConfig::default()).unwrap();
+        old.as_object_mut().unwrap().remove("launch");
+        let config: BrowserConfig = serde_json::from_value(old).unwrap();
+        assert_eq!(config.launch, LaunchSettings::default());
+    }
+
+    #[test]
+    fn device_metrics_turn_mobile_on() {
+        let config =
+            BrowserConfig::default().with_device_metrics(DeviceMetrics::new(360, 640, 2.0));
+        assert!(config.mobile);
+        assert_eq!(
+            config.launch.device_metrics,
+            Some(DeviceMetrics::new(360, 640, 2.0))
+        );
+    }
+
+    #[test]
+    fn the_remote_debugger_has_a_default_port_and_can_be_closed() {
+        let on = BrowserConfig::default().with_remote_debug(true);
+        assert_eq!(on.launch.remote_debug_port, Some(9222));
+        assert_eq!(on.with_remote_debug(false).launch.remote_debug_port, None);
     }
 }

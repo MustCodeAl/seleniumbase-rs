@@ -249,12 +249,8 @@ impl Settings {
 
     /// Converts these settings into a `BrowserConfig` used by `BaseCase`.
     pub fn to_browser_config(&self) -> BrowserConfig {
-        let browser = match self.browser.to_lowercase().as_str() {
-            "chromium" => Browser::Chromium,
-            "edge" => Browser::Edge,
-            "firefox" => Browser::Firefox,
-            _ => Browser::Chrome,
-        };
+        // Every browser Python SeleniumBase names; an unknown name means Chrome.
+        let browser = self.browser.parse::<Browser>().unwrap_or_default();
         let mode = self
             .mode
             .as_deref()
