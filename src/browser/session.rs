@@ -1006,3 +1006,96 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
 ) -> Result<(), SeleniumBaseError> {
     crate::stealth::options::StealthOptions::from(config).apply_to(caps)
 }
+
+#[cfg(test)]
+mod capability_tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::browser::options::{
+        CapabilityOverrides, FirefoxOptions, PageLoadStrategy, WindowSize,
+    };
+
+    fn caps_json(config: &BrowserConfig) -> Value {
+        serde_json::to_value(session_capabilities(config).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn firefox_gets_its_arguments_preferences_and_page_load_strategy() {
+        let mut firefox = FirefoxOptions::default();
+        firefox.add_args("private-window").unwrap();
+        firefox
+            .add_preferences("javascript.enabled:true,intl.accept_languages:fr")
+            .unwrap();
+        let config = BrowserConfig::default()
+            .with_browser(Browser::Firefox)
+            .with_headless(true)
+            .with_block_images(true)
+            .with_disable_js(true)
+            .with_do_not_track(true)
+            .with_page_load_strategy(PageLoadStrategy::Eager)
+            .with_firefox_options(firefox);
+        let caps = caps_json(&config);
+
+        assert_eq!(caps["browserName"], "firefox");
+        assert_eq!(caps["pageLoadStrategy"], "eager");
+        let options = &caps["moz:firefoxOptions"];
+        assert_eq!(options["args"], json!(["-headless", "--private-window"]));
+        // An explicit preference wins over the one a switch sets.
+        assert_eq!(
+            options["prefs"],
+            json!({
+                "permissions.default.image": 2,
+                "javascript.enabled": true,
+                "privacy.donottrackheader.enabled": true,
+                "intl.accept_languages": "fr",
+            })
+        );
+    }
+
+    #[test]
+    fn a_plain_firefox_session_asks_for_no_preferences() {
+        let caps = caps_json(&BrowserConfig::default().with_browser(Browser::Firefox));
+        let options = &caps["moz:firefoxOptions"];
+        assert!(options.get("prefs").is_none(), "{options}");
+        assert!(caps.get("pageLoadStrategy").is_none());
+    }
+
+    #[test]
+    fn capability_overrides_are_merged_into_every_browsers_capabilities() {
+        let overrides = CapabilityOverrides::from_text(
+            r#"{"se:name": "smoke", "goog:chromeOptions": {"args": ["--mute-audio"]}}"#,
+        )
+        .unwrap();
+        for browser in [
+            Browser::Chrome,
+            Browser::Chromium,
+            Browser::Edge,
+            Browser::Firefox,
+        ] {
+            let config = BrowserConfig::default()
+                .with_browser(browser)
+                .with_capabilities(overrides.clone());
+            assert_eq!(caps_json(&config)["se:name"], "smoke", "{browser:?}");
+        }
+
+        // Chrome's own arguments keep what the settings added.
+        let config = BrowserConfig::default()
+            .with_window_size(WindowSize::new(800, 600))
+            .with_capabilities(overrides);
+        let args = caps_json(&config)["goog:chromeOptions"]["args"].clone();
+        let args = args.as_array().unwrap();
+        assert!(args.contains(&json!("--mute-audio")), "{args:?}");
+        assert!(args.contains(&json!("--window-size=800,600")), "{args:?}");
+    }
+
+    #[test]
+    fn an_override_can_replace_what_the_settings_chose() {
+        let config = BrowserConfig::default()
+            .with_page_load_strategy(PageLoadStrategy::Eager)
+            .with_capabilities(
+                CapabilityOverrides::from_text(r#"{"pageLoadStrategy": "none"}"#).unwrap(),
+            );
+        assert_eq!(caps_json(&config)["pageLoadStrategy"], "none");
+    }
+}
