@@ -391,6 +391,8 @@ pub struct Locale {
     pub tag: &'static str,
     /// The ISO 3166-1 alpha-2 country code, upper case.
     pub country: &'static str,
+    /// `navigator.languages`, most preferred first. The first entry is the tag.
+    pub languages: &'static [&'static str],
     /// The IANA time zone.
     pub timezone: &'static str,
     /// Latitude of the city centre, in degrees.
@@ -399,10 +401,33 @@ pub struct Locale {
     pub longitude: f64,
 }
 
+/// How far a reported position may sit from the city centre, in degrees
+/// (about four kilometres).
+const POSITION_JITTER_DEGREES: f64 = 0.04;
+
+/// The least a reported position may claim to be off by, in metres.
+const MIN_ACCURACY_METRES: f64 = 20.0;
+
+/// The most a reported position may claim to be off by, in metres.
+const MAX_ACCURACY_METRES: f64 = 150.0;
+
+/// The `q` value, in tenths, of the second language in an `Accept-Language` header. Each later
+/// language drops by one tenth, down to a floor of one.
+const SECOND_LANGUAGE_Q_TENTHS: usize = 9;
+
+/// A spot near a city, as a browser would report it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Position {
+    pub(crate) latitude: f64,
+    pub(crate) longitude: f64,
+    pub(crate) accuracy: f64,
+}
+
 impl Locale {
     const fn new(
         tag: &'static str,
         country: &'static str,
+        languages: &'static [&'static str],
         timezone: &'static str,
         latitude: f64,
         longitude: f64,
@@ -410,50 +435,455 @@ impl Locale {
         Self {
             tag,
             country,
+            languages,
             timezone,
             latitude,
             longitude,
         }
     }
 
-    /// `navigator.languages` and `Accept-Language`, most preferred first, in the shape Chrome
-    /// sends them: the tag, its bare language, then English.
+    /// `Accept-Language`, most preferred first, in the shape Chrome sends it: the first language
+    /// bare, then each later one with a `q` that falls by a tenth from `0.9`.
     #[must_use]
     pub fn accept_language(&self) -> String {
-        let language = self.tag.split('-').next().unwrap_or(self.tag);
-        if language == "en" {
-            format!("{},en;q=0.9", self.tag)
-        } else {
-            format!("{},{language};q=0.9,en-US;q=0.8,en;q=0.7", self.tag)
+        if self.languages.is_empty() {
+            return self.tag.to_owned();
+        }
+        let mut header = String::new();
+        for (index, language) in self.languages.iter().enumerate() {
+            if index > 0 {
+                let tenths = (SECOND_LANGUAGE_Q_TENTHS + 1).saturating_sub(index).max(1);
+                header.push_str(&format!(",{language};q=0.{tenths}"));
+            } else {
+                header.push_str(language);
+            }
+        }
+        header
+    }
+
+    /// A spot within a few kilometres of the city, with the accuracy a browser would claim. It
+    /// makes exactly three draws from `rng`, in this order: latitude, longitude, accuracy.
+    pub(crate) fn position(&self, rng: &mut Rng) -> Position {
+        let latitude = round_degrees(
+            self.latitude + rng.range(-POSITION_JITTER_DEGREES, POSITION_JITTER_DEGREES),
+        );
+        let longitude = round_degrees(
+            self.longitude + rng.range(-POSITION_JITTER_DEGREES, POSITION_JITTER_DEGREES),
+        );
+        let accuracy = rng.range(MIN_ACCURACY_METRES, MAX_ACCURACY_METRES).round();
+        Position {
+            latitude,
+            longitude,
+            accuracy,
         }
     }
 }
 
-/// The places a generated identity may be in. The US appears once per time zone so that it is
-/// the most common, as it is on the web.
-pub static LOCALES: [Locale; 17] = [
-    Locale::new("en-US", "US", "America/New_York", 40.7128, -74.0060),
-    Locale::new("en-US", "US", "America/Chicago", 41.8781, -87.6298),
-    Locale::new("en-US", "US", "America/Denver", 39.7392, -104.9903),
-    Locale::new("en-US", "US", "America/Los_Angeles", 34.0522, -118.2437),
-    Locale::new("en-GB", "GB", "Europe/London", 51.5074, -0.1278),
-    Locale::new("en-CA", "CA", "America/Toronto", 43.6532, -79.3832),
-    Locale::new("en-AU", "AU", "Australia/Sydney", -33.8688, 151.2093),
-    Locale::new("en-IN", "IN", "Asia/Kolkata", 19.0760, 72.8777),
-    Locale::new("de-DE", "DE", "Europe/Berlin", 52.5200, 13.4050),
-    Locale::new("fr-FR", "FR", "Europe/Paris", 48.8566, 2.3522),
-    Locale::new("es-ES", "ES", "Europe/Madrid", 40.4168, -3.7038),
-    Locale::new("it-IT", "IT", "Europe/Rome", 41.9028, 12.4964),
-    Locale::new("nl-NL", "NL", "Europe/Amsterdam", 52.3676, 4.9041),
-    Locale::new("pt-BR", "BR", "America/Sao_Paulo", -23.5505, -46.6333),
-    Locale::new("ja-JP", "JP", "Asia/Tokyo", 35.6762, 139.6503),
-    Locale::new("pl-PL", "PL", "Europe/Warsaw", 52.2297, 21.0122),
-    Locale::new("sv-SE", "SE", "Europe/Stockholm", 59.3293, 18.0686),
+/// How many leading entries of [`LOCALES`] a generated identity may be placed in. Changing it
+/// changes every seeded identity, so it only grows by editing the table on purpose.
+const RANDOM_REGION_COUNT: usize = 17;
+
+/// The places an identity may be in, and the countries a proxy may exit from. The first
+/// [`RANDOM_REGION_COUNT`] entries are the places [`generate`] draws from; the US appears once
+/// per time zone there, so that it is the most common, as it is on the web. The entries after
+/// them only serve a lookup by country or tag. A country with several entries (the US) is
+/// found at its first.
+const LOCALE_TABLE: &[Locale] = &[
+    Locale::new(
+        "en-US",
+        "US",
+        &["en-US", "en"],
+        "America/New_York",
+        40.7128,
+        -74.0060,
+    ),
+    Locale::new(
+        "en-US",
+        "US",
+        &["en-US", "en"],
+        "America/Chicago",
+        41.8781,
+        -87.6298,
+    ),
+    Locale::new(
+        "en-US",
+        "US",
+        &["en-US", "en"],
+        "America/Denver",
+        39.7392,
+        -104.9903,
+    ),
+    Locale::new(
+        "en-US",
+        "US",
+        &["en-US", "en"],
+        "America/Los_Angeles",
+        34.0522,
+        -118.2437,
+    ),
+    Locale::new(
+        "en-GB",
+        "GB",
+        &["en-GB", "en"],
+        "Europe/London",
+        51.5074,
+        -0.1278,
+    ),
+    Locale::new(
+        "en-CA",
+        "CA",
+        &["en-CA", "en"],
+        "America/Toronto",
+        43.6532,
+        -79.3832,
+    ),
+    Locale::new(
+        "en-AU",
+        "AU",
+        &["en-AU", "en"],
+        "Australia/Sydney",
+        -33.8688,
+        151.2093,
+    ),
+    Locale::new(
+        "en-IN",
+        "IN",
+        &["en-IN", "en"],
+        "Asia/Kolkata",
+        19.0760,
+        72.8777,
+    ),
+    Locale::new(
+        "de-DE",
+        "DE",
+        &["de-DE", "de", "en-US", "en"],
+        "Europe/Berlin",
+        52.5200,
+        13.4050,
+    ),
+    Locale::new(
+        "fr-FR",
+        "FR",
+        &["fr-FR", "fr", "en-US", "en"],
+        "Europe/Paris",
+        48.8566,
+        2.3522,
+    ),
+    Locale::new(
+        "es-ES",
+        "ES",
+        &["es-ES", "es", "en-US", "en"],
+        "Europe/Madrid",
+        40.4168,
+        -3.7038,
+    ),
+    Locale::new(
+        "it-IT",
+        "IT",
+        &["it-IT", "it", "en-US", "en"],
+        "Europe/Rome",
+        41.9028,
+        12.4964,
+    ),
+    Locale::new(
+        "nl-NL",
+        "NL",
+        &["nl-NL", "nl", "en-US", "en"],
+        "Europe/Amsterdam",
+        52.3676,
+        4.9041,
+    ),
+    Locale::new(
+        "pt-BR",
+        "BR",
+        &["pt-BR", "pt", "en-US", "en"],
+        "America/Sao_Paulo",
+        -23.5505,
+        -46.6333,
+    ),
+    Locale::new(
+        "ja-JP",
+        "JP",
+        &["ja-JP", "ja", "en-US", "en"],
+        "Asia/Tokyo",
+        35.6762,
+        139.6503,
+    ),
+    Locale::new(
+        "pl-PL",
+        "PL",
+        &["pl-PL", "pl", "en-US", "en"],
+        "Europe/Warsaw",
+        52.2297,
+        21.0122,
+    ),
+    Locale::new(
+        "sv-SE",
+        "SE",
+        &["sv-SE", "sv", "en-US", "en"],
+        "Europe/Stockholm",
+        59.3293,
+        18.0686,
+    ),
+    // From here on the entries are not drawn for a generated identity.
+    Locale::new(
+        "es-MX",
+        "MX",
+        &["es-MX", "es", "en-US", "en"],
+        "America/Mexico_City",
+        19.4326,
+        -99.1332,
+    ),
+    Locale::new(
+        "es-AR",
+        "AR",
+        &["es-AR", "es", "en-US", "en"],
+        "America/Argentina/Buenos_Aires",
+        -34.6037,
+        -58.3816,
+    ),
+    Locale::new(
+        "es-CO",
+        "CO",
+        &["es-CO", "es", "en-US", "en"],
+        "America/Bogota",
+        4.7110,
+        -74.0721,
+    ),
+    Locale::new(
+        "es-CL",
+        "CL",
+        &["es-CL", "es", "en-US", "en"],
+        "America/Santiago",
+        -33.4489,
+        -70.6693,
+    ),
+    Locale::new(
+        "pt-PT",
+        "PT",
+        &["pt-PT", "pt", "en-US", "en"],
+        "Europe/Lisbon",
+        38.7223,
+        -9.1393,
+    ),
+    Locale::new(
+        "ko-KR",
+        "KR",
+        &["ko-KR", "ko", "en-US", "en"],
+        "Asia/Seoul",
+        37.5665,
+        126.9780,
+    ),
+    Locale::new(
+        "zh-TW",
+        "TW",
+        &["zh-TW", "zh", "en-US", "en"],
+        "Asia/Taipei",
+        25.0330,
+        121.5654,
+    ),
+    Locale::new(
+        "tr-TR",
+        "TR",
+        &["tr-TR", "tr", "en-US", "en"],
+        "Europe/Istanbul",
+        41.0082,
+        28.9784,
+    ),
+    Locale::new(
+        "ru-RU",
+        "RU",
+        &["ru-RU", "ru", "en-US", "en"],
+        "Europe/Moscow",
+        55.7558,
+        37.6173,
+    ),
+    Locale::new(
+        "uk-UA",
+        "UA",
+        &["uk-UA", "uk", "en-US", "en"],
+        "Europe/Kyiv",
+        50.4501,
+        30.5234,
+    ),
+    Locale::new(
+        "cs-CZ",
+        "CZ",
+        &["cs-CZ", "cs", "en-US", "en"],
+        "Europe/Prague",
+        50.0755,
+        14.4378,
+    ),
+    Locale::new(
+        "da-DK",
+        "DK",
+        &["da-DK", "da", "en-US", "en"],
+        "Europe/Copenhagen",
+        55.6761,
+        12.5683,
+    ),
+    Locale::new(
+        "fi-FI",
+        "FI",
+        &["fi-FI", "fi", "en-US", "en"],
+        "Europe/Helsinki",
+        60.1699,
+        24.9384,
+    ),
+    Locale::new(
+        "nb-NO",
+        "NO",
+        &["nb-NO", "nb", "en-US", "en"],
+        "Europe/Oslo",
+        59.9139,
+        10.7522,
+    ),
+    Locale::new(
+        "de-AT",
+        "AT",
+        &["de-AT", "de", "en-US", "en"],
+        "Europe/Vienna",
+        48.2082,
+        16.3738,
+    ),
+    Locale::new(
+        "de-CH",
+        "CH",
+        &["de-CH", "de", "en-US", "en"],
+        "Europe/Zurich",
+        47.3769,
+        8.5417,
+    ),
+    Locale::new(
+        "nl-BE",
+        "BE",
+        &["nl-BE", "nl", "en-US", "en"],
+        "Europe/Brussels",
+        50.8503,
+        4.3517,
+    ),
+    Locale::new(
+        "en-IE",
+        "IE",
+        &["en-IE", "en"],
+        "Europe/Dublin",
+        53.3498,
+        -6.2603,
+    ),
+    Locale::new(
+        "en-NZ",
+        "NZ",
+        &["en-NZ", "en"],
+        "Pacific/Auckland",
+        -36.8485,
+        174.7633,
+    ),
+    Locale::new(
+        "en-SG",
+        "SG",
+        &["en-SG", "en"],
+        "Asia/Singapore",
+        1.3521,
+        103.8198,
+    ),
+    Locale::new(
+        "en-ZA",
+        "ZA",
+        &["en-ZA", "en"],
+        "Africa/Johannesburg",
+        -26.2041,
+        28.0473,
+    ),
+    Locale::new(
+        "en-PH",
+        "PH",
+        &["en-PH", "en"],
+        "Asia/Manila",
+        14.5995,
+        120.9842,
+    ),
+    Locale::new(
+        "id-ID",
+        "ID",
+        &["id-ID", "id", "en-US", "en"],
+        "Asia/Jakarta",
+        -6.2088,
+        106.8456,
+    ),
+    Locale::new(
+        "th-TH",
+        "TH",
+        &["th-TH", "th", "en-US", "en"],
+        "Asia/Bangkok",
+        13.7563,
+        100.5018,
+    ),
+    Locale::new(
+        "vi-VN",
+        "VN",
+        &["vi-VN", "vi", "en-US", "en"],
+        "Asia/Ho_Chi_Minh",
+        10.8231,
+        106.6297,
+    ),
+    Locale::new(
+        "ar-AE",
+        "AE",
+        &["ar-AE", "ar", "en-US", "en"],
+        "Asia/Dubai",
+        25.2048,
+        55.2708,
+    ),
+    Locale::new(
+        "he-IL",
+        "IL",
+        &["he-IL", "he", "en-US", "en"],
+        "Asia/Jerusalem",
+        31.7683,
+        35.2137,
+    ),
+    Locale::new(
+        "el-GR",
+        "GR",
+        &["el-GR", "el", "en-US", "en"],
+        "Europe/Athens",
+        37.9838,
+        23.7275,
+    ),
+    Locale::new(
+        "hu-HU",
+        "HU",
+        &["hu-HU", "hu", "en-US", "en"],
+        "Europe/Budapest",
+        47.4979,
+        19.0402,
+    ),
+    Locale::new(
+        "ro-RO",
+        "RO",
+        &["ro-RO", "ro", "en-US", "en"],
+        "Europe/Bucharest",
+        44.4268,
+        26.1025,
+    ),
 ];
 
-/// How far a reported position may sit from the city centre, in degrees
-/// (about four kilometres).
-const POSITION_JITTER_DEGREES: f64 = 0.04;
+/// The table, for lookups by country and tag and for the geo resolver.
+pub static LOCALES: &[Locale] = LOCALE_TABLE;
+
+/// The places [`generate`] draws from: the first [`RANDOM_REGION_COUNT`] entries of [`LOCALES`].
+static REGIONS: [Locale; RANDOM_REGION_COUNT] = first_regions();
+
+/// Copies the leading entries of the table, so that the drawn places and the table cannot drift.
+const fn first_regions() -> [Locale; RANDOM_REGION_COUNT] {
+    let mut regions = [LOCALE_TABLE[0]; RANDOM_REGION_COUNT];
+    let mut index = 0;
+    while index < RANDOM_REGION_COUNT {
+        regions[index] = LOCALE_TABLE[index];
+        index += 1;
+    }
+    regions
+}
 
 /// The WebGL strings, ids and so on that a graphics stack reports.
 #[derive(Debug)]
@@ -503,7 +933,6 @@ struct Profile {
     graphics: Graphics,
 }
 
-/// Builds an identity for `os` that is fully determined by `seed`.
 /// Builds an identity for `os` that is fully determined by `seed`. With `forced_major`, the
 /// Chromium major is that value instead of a draw; the draw still happens, so the rest of the
 /// identity is the same as for the unforced seed.
@@ -511,7 +940,7 @@ pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fing
     let mut rng = Rng::new(seed);
     // The noise seed gets a draw of its own, so it is not simply the caller's seed.
     let noise_seed = rng.next_u64();
-    let region = *rng.pick(&LOCALES);
+    let region = *rng.pick(&REGIONS);
     let profile = match os {
         OsType::Windows => windows(&mut rng, forced_major),
         OsType::Macos => macos(&mut rng, forced_major),
@@ -520,13 +949,7 @@ pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fing
         OsType::Ios => ios(&mut rng),
     };
 
-    let latitude = round_degrees(
-        region.latitude + rng.range(-POSITION_JITTER_DEGREES, POSITION_JITTER_DEGREES),
-    );
-    let longitude = round_degrees(
-        region.longitude + rng.range(-POSITION_JITTER_DEGREES, POSITION_JITTER_DEGREES),
-    );
-    let accuracy = rng.range(20.0, 150.0).round();
+    let place = region.position(&mut rng);
     let languages = region.accept_language();
 
     Fingerprint {
@@ -551,9 +974,9 @@ pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fing
         webgl_renderer: Some(profile.graphics.renderer),
         webgl_vendor_id: profile.graphics.vendor_id,
         webgl_renderer_id: profile.graphics.renderer_id,
-        latitude: Some(latitude),
-        longitude: Some(longitude),
-        accuracy: Some(accuracy),
+        latitude: Some(place.latitude),
+        longitude: Some(place.longitude),
+        accuracy: Some(place.accuracy),
         seed: Some(noise_seed),
         client_hints: profile.client_hints,
         flags: StealthFlags::balanced(),
@@ -901,15 +1324,72 @@ mod tests {
         assert_distinct(&places, "LOCALES");
     }
 
+    /// The wording of the header before the table carried a language list per entry.
+    fn accept_language_of_the_first_seventeen(tag: &str) -> String {
+        let language = tag.split('-').next().unwrap_or(tag);
+        if language == "en" {
+            format!("{tag},en;q=0.9")
+        } else {
+            format!("{tag},{language};q=0.9,en-US;q=0.8,en;q=0.7")
+        }
+    }
+
     #[test]
     fn languages_take_the_shape_chrome_sends() {
-        let region = |tag| Locale::new(tag, "XX", "Zone/Name", 0.0, 0.0);
-        assert_eq!(region("en-US").accept_language(), "en-US,en;q=0.9");
-        assert_eq!(region("en-GB").accept_language(), "en-GB,en;q=0.9");
+        let region = |languages| Locale::new("xx-XX", "XX", languages, "Zone/Name", 0.0, 0.0);
+        assert_eq!(region(&["en-US", "en"]).accept_language(), "en-US,en;q=0.9");
         assert_eq!(
-            region("de-DE").accept_language(),
+            region(&["de-DE", "de", "en-US", "en"]).accept_language(),
             "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7"
         );
+        assert_eq!(region(&["fr"]).accept_language(), "fr");
+        assert_eq!(region(&[]).accept_language(), "xx-XX");
+    }
+
+    #[test]
+    fn the_q_value_falls_a_tenth_per_language_down_to_a_floor() {
+        const MANY: &[&str] = &["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+        let header = Locale::new("a", "XX", MANY, "Zone/Name", 0.0, 0.0).accept_language();
+        assert!(header.starts_with("a,b;q=0.9,c;q=0.8,d;q=0.7"), "{header}");
+        assert!(
+            header.contains("i;q=0.2") && header.contains("j;q=0.1"),
+            "{header}"
+        );
+        assert!(
+            header.ends_with("l;q=0.1"),
+            "the floor is one tenth: {header}"
+        );
+    }
+
+    #[test]
+    fn every_locale_keeps_the_wording_the_first_seventeen_always_had() {
+        for locale in LOCALES {
+            assert_eq!(
+                locale.accept_language(),
+                accept_language_of_the_first_seventeen(locale.tag),
+                "{}",
+                locale.tag
+            );
+        }
+    }
+
+    #[test]
+    fn the_drawn_regions_are_the_leading_locales() {
+        assert_eq!(REGIONS.as_slice(), &LOCALES[..RANDOM_REGION_COUNT]);
+        assert!(
+            LOCALES.len() > RANDOM_REGION_COUNT,
+            "the table is a superset of the drawn places"
+        );
+    }
+
+    #[test]
+    fn a_position_stays_near_its_city_and_repeats_for_a_seed() {
+        let berlin = LOCALES.iter().find(|l| l.tag == "de-DE").expect("present");
+        let first = berlin.position(&mut Rng::new(5));
+        assert_eq!(first, berlin.position(&mut Rng::new(5)));
+        assert!((first.latitude - berlin.latitude).abs() <= POSITION_JITTER_DEGREES + 1e-4);
+        assert!((first.longitude - berlin.longitude).abs() <= POSITION_JITTER_DEGREES + 1e-4);
+        assert!((MIN_ACCURACY_METRES..=MAX_ACCURACY_METRES).contains(&first.accuracy));
     }
 
     #[test]
@@ -927,13 +1407,50 @@ mod tests {
     }
 
     #[test]
+    fn a_forced_major_reaches_the_user_agent_and_the_client_hints_alike() {
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+        ] {
+            let fp = generate(os, 4, Some(161));
+            assert_eq!(fp.core_version, Some(161), "{os:?}");
+            let ua = fp.user_agent.as_deref().unwrap_or_default();
+            assert!(ua.contains("Chrome/161.0.0.0"), "{os:?}: {ua}");
+            let hints = fp.client_hints.expect("Chromium has client hints");
+            assert_eq!(hints.ua_full_version, "161.0.0.0", "{os:?}");
+            for name in ["Chromium", "Google Chrome"] {
+                assert!(
+                    hints
+                        .brands
+                        .iter()
+                        .any(|b| b.brand == name && b.version == "161"),
+                    "{os:?}: {name} must claim 161"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ios_has_no_chromium_major_to_force() {
+        let free = generate(OsType::Ios, 4, None);
+        let forced = generate(OsType::Ios, 4, Some(161));
+        assert_eq!(free.user_agent, forced.user_agent);
+        assert_eq!(forced.core_version, None);
+    }
+
+    #[test]
     fn every_region_is_internally_consistent() {
-        for region in &LOCALES {
+        for region in LOCALES {
             assert!(
                 region.accept_language().starts_with(region.tag),
                 "{} must lead its own language list",
                 region.tag
             );
+            assert_eq!(region.languages.first(), Some(&region.tag));
+            assert_eq!(region.country.len(), 2);
+            assert!(region.country.bytes().all(|b| b.is_ascii_uppercase()));
             assert!(
                 region.timezone.contains('/'),
                 "{} is not IANA",

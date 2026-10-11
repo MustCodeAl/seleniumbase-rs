@@ -1392,4 +1392,45 @@ mod tests {
         assert!(fp.user_agent.is_none());
         assert_eq!(fp.flags.webrtc_masking, MaskingMode::Natural);
     }
+
+    #[test]
+    fn client_hints_saved_before_wow64_and_form_factors_still_load() {
+        let raw = r#"{
+            "brands": [], "full_version_list": [], "platform": "macOS",
+            "platform_version": "15.0.0", "architecture": "arm", "bitness": "64",
+            "model": "", "ua_full_version": "155.0.0.0", "mobile": false
+        }"#;
+        let hints: ClientHints = serde_json::from_str(raw).unwrap();
+        assert!(!hints.wow64);
+        assert!(hints.form_factors.is_empty());
+        assert_eq!(hints.platform, "macOS");
+    }
+
+    #[test]
+    fn client_hints_carry_wow64_and_form_factors_through_serde() {
+        let hints = ClientHints {
+            wow64: true,
+            form_factors: vec!["Desktop".to_owned()],
+            ..ClientHints::default()
+        };
+        let again: ClientHints =
+            serde_json::from_str(&serde_json::to_string(&hints).unwrap()).unwrap();
+        assert_eq!(again, hints);
+    }
+
+    #[test]
+    fn randomized_with_major_claims_that_major_and_keeps_the_rest_of_the_seed() {
+        let free = Fingerprint::randomized(OsType::Macos, 12);
+        let pinned = Fingerprint::randomized_with_major(OsType::Macos, 12, 155);
+        assert_eq!(pinned.core_version, Some(155));
+        assert!(pinned
+            .user_agent
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Chrome/155.0.0.0"));
+        assert_eq!(pinned.timezone, free.timezone);
+        assert_eq!(pinned.webgl_renderer, free.webgl_renderer);
+        assert_eq!(pinned.seed, free.seed);
+        assert!(pinned.validate().is_coherent());
+    }
 }

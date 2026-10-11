@@ -1,10 +1,5 @@
 //! Country codes, the locale table, and the geo resolver trait that picks a locale from the egress country.
 
-#![expect(
-    clippy::module_name_repetitions,
-    reason = "the public names GeoError, GeoInfo and GeoResolver are fixed by the design plan"
-)]
-
 use std::fmt;
 
 use async_trait::async_trait;
@@ -12,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::route::{EgressKey, EgressRef};
 use crate::stealth::fingerprint::Fingerprint;
+use crate::stealth::humanize::Rng;
 pub use crate::stealth::randomize::{Locale, LOCALES};
 
 /// An ISO 3166-1 alpha-2 country code, upper case. Only a valid one can be built.
@@ -76,31 +72,39 @@ pub enum GeoError {
     Unknown(EgressKey),
 }
 
-/// The first locale of `country` in [`LOCALES`]. The US has four time zones under one country
-/// code; the first of them is returned.
-#[must_use]
-pub fn locale_for_country(country: CountryCode) -> Option<&'static Locale> {
-    LOCALES
-        .iter()
-        .find(|locale| locale.country == country.as_str())
-}
+impl Locale {
+    /// The first locale of `country` in [`LOCALES`]. The US has four time zones under one
+    /// country code; the first of them is returned.
+    #[must_use]
+    pub fn for_country(country: CountryCode) -> Option<&'static Locale> {
+        LOCALES
+            .iter()
+            .find(|locale| locale.country == country.as_str())
+    }
 
-/// The locale whose tag is `tag`, such as `de-DE`.
-#[must_use]
-pub fn locale_by_tag(tag: &str) -> Option<&'static Locale> {
-    LOCALES.iter().find(|locale| locale.tag == tag)
-}
+    /// The locale whose tag is `tag`, such as `de-DE`. BCP 47 tags are case-insensitive, so
+    /// `de-de` finds it too.
+    #[must_use]
+    pub fn by_tag(tag: &str) -> Option<&'static Locale> {
+        LOCALES
+            .iter()
+            .find(|locale| locale.tag.eq_ignore_ascii_case(tag))
+    }
 
-/// Sets the locale fields of `fingerprint` from `locale`: the language list, Accept-Language, the
-/// time zone and the position of the city.
-pub fn apply_locale(locale: &Locale, fingerprint: &mut Fingerprint) {
-    let languages = locale.accept_language();
-    fingerprint.locale = Some(locale.tag.to_owned());
-    fingerprint.languages = Some(languages.clone());
-    fingerprint.accept_languages = Some(languages);
-    fingerprint.timezone = Some(locale.timezone.to_owned());
-    fingerprint.latitude = Some(locale.latitude);
-    fingerprint.longitude = Some(locale.longitude);
+    /// Sets the locale fields of `fingerprint` from this locale: the language list, the
+    /// `Accept-Language` header, the time zone and a position near the city. The position is a
+    /// function of the fingerprint's seed, so the same identity always reports the same spot.
+    pub fn apply_to(&self, fingerprint: &mut Fingerprint) {
+        let languages = self.accept_language();
+        let place = self.position(&mut Rng::new(fingerprint.seed.unwrap_or_default()));
+        fingerprint.locale = Some(self.tag.to_owned());
+        fingerprint.languages = Some(languages.clone());
+        fingerprint.accept_languages = Some(languages);
+        fingerprint.timezone = Some(self.timezone.to_owned());
+        fingerprint.latitude = Some(place.latitude);
+        fingerprint.longitude = Some(place.longitude);
+        fingerprint.accuracy = Some(place.accuracy);
+    }
 }
 
 /// What a geo lookup learned about an egress.
@@ -137,7 +141,7 @@ impl GeoResolver for StaticGeoResolver {
     async fn resolve(&self, egress: &EgressRef) -> Result<GeoInfo, GeoError> {
         let key = egress.key();
         let country = key.country.ok_or_else(|| GeoError::Unknown(key.clone()))?;
-        let locale = locale_for_country(country).ok_or(GeoError::NoLocale(country))?;
+        let locale = Locale::for_country(country).ok_or(GeoError::NoLocale(country))?;
         Ok(GeoInfo {
             country,
             timezone: Some(locale.timezone.to_owned()),
@@ -152,12 +156,33 @@ mod tests {
     use crate::stealth::fingerprint::OsType;
     use futures_util::FutureExt;
 
+    fn country(code: &str) -> CountryCode {
+        CountryCode::new(code).expect("valid code")
+    }
+
+    fn resolve(egress: &EgressRef) -> Result<GeoInfo, GeoError> {
+        // The resolver awaits nothing, so one poll finishes it. No runtime is needed, which
+        // keeps this pure module free of tokio, even in its tests.
+        StaticGeoResolver
+            .resolve(egress)
+            .now_or_never()
+            .expect("resolves in one poll")
+    }
+
     #[test]
     fn a_country_code_is_two_letters_upper_cased() {
-        assert_eq!(CountryCode::new("de").expect("valid").as_str(), "DE");
-        for bad in ["", "D", "DEU", "1A", "D-"] {
-            assert!(CountryCode::new(bad).is_err(), "{bad} was accepted");
+        assert_eq!(country("de").as_str(), "DE");
+        assert_eq!(country("Gb").to_string(), "GB");
+        for bad in ["", "D", "DEU", "1A", "D-", "é", "ÄÖ", " D", "D\n"] {
+            assert!(CountryCode::new(bad).is_err(), "{bad:?} was accepted");
         }
+    }
+
+    #[test]
+    fn a_rejected_code_is_named_in_the_error() {
+        let err = CountryCode::new("DEU").expect_err("three letters");
+        assert!(matches!(&err, GeoError::InvalidCountry(code) if code == "DEU"));
+        assert!(err.to_string().contains("DEU"));
     }
 
     #[test]
@@ -165,11 +190,12 @@ mod tests {
         let code: CountryCode = serde_json::from_str("\"de\"").expect("valid");
         assert_eq!(serde_json::to_string(&code).expect("serializes"), "\"DE\"");
         assert!(serde_json::from_str::<CountryCode>("\"DEU\"").is_err());
+        assert!(serde_json::from_str::<CountryCode>("42").is_err());
     }
 
     #[test]
     fn every_locale_has_a_valid_country_tag_and_iana_zone() {
-        for locale in &LOCALES {
+        for locale in LOCALES {
             assert!(
                 CountryCode::new(locale.country).is_ok(),
                 "{}",
@@ -189,56 +215,119 @@ mod tests {
     }
 
     #[test]
+    fn every_country_in_the_table_is_found_at_its_first_entry() {
+        for locale in LOCALES {
+            let found = Locale::for_country(country(locale.country)).expect("listed");
+            let first = LOCALES
+                .iter()
+                .find(|l| l.country == locale.country)
+                .expect("listed");
+            assert_eq!(found, first, "{}", locale.country);
+        }
+    }
+
+    #[test]
     fn the_table_is_looked_up_by_country_and_by_tag() {
-        let de = CountryCode::new("DE").expect("valid");
         assert_eq!(
-            locale_for_country(de).map(|l| l.timezone),
+            Locale::for_country(country("DE")).map(|l| l.timezone),
             Some("Europe/Berlin")
         );
-        assert_eq!(locale_by_tag("ja-JP").map(|l| l.country), Some("JP"));
-        let nowhere = CountryCode::new("ZZ").expect("valid");
-        assert!(locale_for_country(nowhere).is_none());
+        assert_eq!(
+            Locale::for_country(country("kr")).map(|l| l.timezone),
+            Some("Asia/Seoul")
+        );
+        assert_eq!(Locale::by_tag("ja-JP").map(|l| l.country), Some("JP"));
+        assert_eq!(Locale::by_tag("ja-jp").map(|l| l.country), Some("JP"));
+        assert!(Locale::by_tag("xx-XX").is_none());
+        assert!(Locale::for_country(country("ZZ")).is_none());
+    }
+
+    #[test]
+    fn the_us_is_found_in_new_york_first() {
+        let us = Locale::for_country(country("US")).expect("listed");
+        assert_eq!(us.timezone, "America/New_York");
     }
 
     #[test]
     fn applying_a_locale_sets_the_language_zone_and_position() {
         let mut fingerprint = Fingerprint::randomized(OsType::Windows, 3);
-        let locale = locale_by_tag("de-DE").expect("present");
-        apply_locale(locale, &mut fingerprint);
+        let locale = Locale::by_tag("de-DE").expect("present");
+        locale.apply_to(&mut fingerprint);
         assert_eq!(fingerprint.locale.as_deref(), Some("de-DE"));
         assert_eq!(fingerprint.timezone.as_deref(), Some("Europe/Berlin"));
         assert_eq!(
             fingerprint.accept_languages.as_deref(),
             Some("de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7")
         );
-        assert!(fingerprint
-            .latitude
-            .is_some_and(|lat| (lat - 52.52).abs() < 1e-9));
+        assert_eq!(fingerprint.languages, fingerprint.accept_languages);
+        let (lat, long) = (
+            fingerprint.latitude.expect("set"),
+            fingerprint.longitude.expect("set"),
+        );
+        assert!((lat - 52.52).abs() <= 0.05, "{lat}");
+        assert!((long - 13.405).abs() <= 0.05, "{long}");
+        assert!(fingerprint.accuracy.is_some());
+        assert!(fingerprint.validate().is_coherent());
     }
 
-    // The resolver awaits nothing, so one poll finishes it. No runtime is needed, which keeps this
-    // pure module free of tokio, even in its tests.
+    #[test]
+    fn the_position_is_a_function_of_the_seed() {
+        let locale = Locale::by_tag("fr-FR").expect("present");
+        let place = |seed| {
+            let mut fingerprint = Fingerprint::randomized(OsType::Linux, seed);
+            fingerprint.seed = Some(seed);
+            locale.apply_to(&mut fingerprint);
+            (fingerprint.latitude, fingerprint.longitude)
+        };
+        assert_eq!(place(11), place(11));
+        assert_ne!(place(11), place(12));
+    }
+
+    #[test]
+    fn a_locale_can_move_an_identity_to_any_listed_country() {
+        for locale in LOCALES {
+            let mut fingerprint = Fingerprint::randomized(OsType::Macos, 5);
+            locale.apply_to(&mut fingerprint);
+            assert_eq!(fingerprint.locale.as_deref(), Some(locale.tag));
+            assert_eq!(fingerprint.timezone.as_deref(), Some(locale.timezone));
+        }
+    }
+
     #[test]
     fn the_static_resolver_answers_from_the_spec_country() {
-        let de = CountryCode::new("DE").expect("valid");
+        let de = country("DE");
         let egress = EgressRef::parse("proxy.example:8080", Some(de)).expect("valid spec");
-        let info = StaticGeoResolver
-            .resolve(&egress)
-            .now_or_never()
-            .expect("resolves in one poll")
-            .expect("resolves");
+        let info = resolve(&egress).expect("resolves");
         assert_eq!(info.country, de);
         assert_eq!(info.timezone.as_deref(), Some("Europe/Berlin"));
+        assert_eq!(info.coordinates, Some((52.52, 13.405)));
     }
 
     #[test]
     fn the_static_resolver_refuses_an_egress_without_a_country() {
         let egress = EgressRef::parse("proxy.example:8080", None).expect("valid spec");
-        let err = StaticGeoResolver
-            .resolve(&egress)
-            .now_or_never()
-            .expect("resolves in one poll")
-            .expect_err("no country");
+        let err = resolve(&egress).expect_err("no country");
         assert!(matches!(err, GeoError::Unknown(_)));
+    }
+
+    #[test]
+    fn the_static_resolver_refuses_a_country_with_no_locale() {
+        let zz = country("ZZ");
+        let egress = EgressRef::parse("proxy.example:8080", Some(zz)).expect("valid spec");
+        let err = resolve(&egress).expect_err("no locale");
+        assert!(matches!(err, GeoError::NoLocale(code) if code == zz));
+    }
+
+    #[test]
+    fn a_geo_error_names_the_egress_but_not_its_credentials() {
+        let egress =
+            EgressRef::parse("http://alice:s3cret@proxy.example:8080", None).expect("valid spec");
+        let err = resolve(&egress).expect_err("no country");
+        let shown = format!("{err} {err:?}");
+        assert!(shown.contains("proxy.example"), "{shown}");
+        assert!(
+            !shown.contains("s3cret") && !shown.contains("alice"),
+            "{shown}"
+        );
     }
 }
