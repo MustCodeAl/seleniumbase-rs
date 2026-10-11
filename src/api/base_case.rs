@@ -1741,35 +1741,53 @@ impl BaseCase {
 
     // --- Visual Testing ---
 
-    /// Compares the window with the baseline stored under `name`, or stores
-    /// it as the baseline when there is none (or when the run resets
-    /// baselines).
+    /// Compares the structure of the page with the baseline saved under
+    /// `name`, or saves it as the baseline when there is none (or when the run
+    /// resets baselines).
     ///
-    /// Corresponds to Python's `check_window`, with these differences. The
-    /// comparison is of the screenshot's bytes, not of the page's HTML tags
-    /// (Python's `tags_level1` to `tags_level3` files), so a repainted pixel
-    /// is a difference and the levels 1 to 3 are all the same strict check.
-    /// `level` 0 is the dry run Python describes: a difference is logged but
-    /// does not fail. The baseline is `visual_baseline/<name>.png` in the
-    /// working directory, shared by every test that uses the name.
+    /// Corresponds to Python's `check_window`. The baseline is the folder
+    /// `visual_baseline/<test>/<name>` in the working directory, where the
+    /// test is the name of the running test (the thread's name under
+    /// `cargo test`). It holds `page_url.txt`, `baseline.png` and
+    /// `tags_level_1.txt` to `tags_level_3.txt`, one entry for each tag below
+    /// `<body>`: the tag names (level 1), with the sorted names of its
+    /// attributes (level 2), with the attribute values (level 3).
+    ///
+    /// The levels work as in Python. A `level` of 0 is a dry run that compares
+    /// everything and logs a difference without failing. Level 1 compares the
+    /// tags, level 2 the tags and attribute names and level 3 the tags and
+    /// attribute values. At every level a page on another domain than the
+    /// baseline's is a difference too. The screenshot is saved for a person to
+    /// look at and is not compared, so a repainted pixel is no difference. The
+    /// `baseline`, `check_domain` and `full_diff` arguments are not ported;
+    /// [`RunSettings::with_visual_baseline_reset`] sets the baseline again.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::AssertionFailed`] if the window differs
-    /// from the baseline at a `level` above 0.
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the page differs from
+    /// the baseline at a `level` above 0, and
+    /// [`SeleniumBaseError::InvalidConfig`] if `level` is not 0, 1, 2 or 3,
+    /// `name` is not a plain name or the baseline cannot be read or written.
     pub async fn check_window(&mut self, name: &str, level: f64) -> Result<(), SeleniumBaseError> {
-        let baseline_dir = PathBuf::from("visual_baseline");
-        std::fs::create_dir_all(&baseline_dir).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("failed to create visual_baseline dir: {e}"))
-        })?;
-        let baseline_path = baseline_dir.join(format!("{name}.png"));
-        let current = self.screenshot_as_png().await?;
-        let outcome = crate::api::run_settings::compare_or_store_baseline(
-            &baseline_path,
-            &current,
+        use crate::api::run_settings::{
+            apply_check_level, baseline_dir, check_level, check_page_structure,
+        };
+        let checked = check_level(level)?;
+        let dir = baseline_dir(name)?;
+        // Python waits for the page to settle before it reads it.
+        let _ = self.wait_for_ready_state_complete().await;
+        let url = self.get_current_url().await?;
+        let html = self.get_page_source().await?;
+        let png = self.screenshot_as_png().await?;
+        let outcome = check_page_structure(
+            &dir,
+            &url,
+            &html,
+            &png,
             self.run_settings.reset_visual_baseline(),
+            checked,
         );
-        crate::api::run_settings::apply_check_level(outcome, level)
+        apply_check_level(outcome, level)
     }
 
     // --- MasterQA Integration ---

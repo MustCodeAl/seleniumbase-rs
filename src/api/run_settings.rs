@@ -15,9 +15,13 @@
 //! assert_eq!(settings.pause(false), Duration::from_millis(500));
 //! ```
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use serde_json::{json, Value};
+
+use crate::api::html::BeautifulSoup;
+use crate::artifacts::{confined_path, safe_stem};
 use crate::error::SeleniumBaseError;
 
 /// How long demo mode and slow mode pause after an action unless
@@ -157,35 +161,195 @@ impl RunSettings {
     }
 }
 
-/// Compares `current`, a screenshot, with the baseline stored at `path`, or
-/// stores it when there is none or when `reset` is set.
+/// The `level` argument of `check_window`: 0 (a dry run), 1, 2 or 3.
 ///
 /// # Errors
 ///
-/// Returns [`SeleniumBaseError::AssertionFailed`] if the screenshot differs
-/// from the baseline, and [`SeleniumBaseError::InvalidConfig`] if the baseline
-/// cannot be read or written.
-pub(crate) fn compare_or_store_baseline(
-    path: &Path,
-    current: &[u8],
+/// Returns [`SeleniumBaseError::InvalidConfig`] for any other value.
+pub(crate) fn check_level(level: f64) -> Result<u8, SeleniumBaseError> {
+    (0..=3)
+        .find(|&allowed| f64::from(allowed) == level)
+        .ok_or_else(|| {
+            SeleniumBaseError::InvalidConfig(format!(
+                "Parameter \"level\" must be set to 0, 1, 2, or 3, not {level}!"
+            ))
+        })
+}
+
+/// The folder of the baseline `check_window` keeps for the check `name`:
+/// `visual_baseline/<test>/<name>`.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is not a plain name.
+pub(crate) fn baseline_dir(name: &str) -> Result<PathBuf, SeleniumBaseError> {
+    // Python's test id is the test's name. Rust has no such thing, but the
+    // test harness names the thread that runs a test after it.
+    let thread = std::thread::current();
+    let path = thread.name().unwrap_or_default();
+    let test = safe_stem(path.rsplit("::").next().unwrap_or(path), "default");
+    let name = if name.is_empty() { "default" } else { name };
+    confined_path(&Path::new("visual_baseline").join(test), name)
+}
+
+/// The files of a baseline that must all be there for it to be compared.
+const BASELINE_FILES: [&str; 5] = [
+    "baseline.png",
+    "page_url.txt",
+    "tags_level_1.txt",
+    "tags_level_2.txt",
+    "tags_level_3.txt",
+];
+
+/// What each level of `tags_level_N.txt` fails on, as Python words it.
+const LEVEL_FAILURES: [&str; 3] = [
+    "HTML tags don't match the baseline!",
+    "HTML tag attribute names don't match the baseline!",
+    "HTML tag attribute values don't match the baseline!",
+];
+
+/// The tags below `<body>` in document order, at the three levels: `[tag]`,
+/// `[tag, [attribute names]]` and `[tag, [[name, value]]]`, attributes sorted
+/// by name. These are the entries of Python's `tags_level_1.txt` to
+/// `tags_level_3.txt`.
+fn tag_levels(html: &str) -> Result<[Vec<Value>; 3], SeleniumBaseError> {
+    let mut levels: [Vec<Value>; 3] = Default::default();
+    for node in BeautifulSoup::parse(html).find_all("body *")? {
+        let tag = &node.tag_name;
+        let mut attributes: Vec<_> = node.attributes.iter().collect();
+        attributes.sort();
+        let names: Vec<_> = attributes.iter().map(|(name, _)| name).collect();
+        let pairs: Vec<_> = attributes
+            .iter()
+            .map(|(name, value)| json!([name, attribute_value(tag, name, value)]))
+            .collect();
+        levels[0].push(json!([tag]));
+        levels[1].push(json!([tag, names]));
+        levels[2].push(json!([tag, pairs]));
+    }
+    Ok(levels)
+}
+
+/// An attribute's value as BeautifulSoup gives it: a list of words for the
+/// attributes that hold a list (`class`, `rel` on a link, ...), else a string.
+fn attribute_value(tag: &str, name: &str, value: &str) -> Value {
+    let is_list = matches!(
+        (tag, name),
+        (_, "class" | "accesskey" | "dropzone")
+            | ("a" | "link" | "area", "rel")
+            | ("a" | "link", "rev")
+            | ("td" | "th", "headers")
+            | ("form", "accept-charset")
+            | ("object", "archive")
+            | ("icon", "sizes")
+            | ("iframe", "sandbox")
+            | ("output", "for")
+    );
+    if is_list {
+        json!(value.split_whitespace().collect::<Vec<_>>())
+    } else {
+        json!(value)
+    }
+}
+
+/// `scheme://host[:port]` of `url`, as Python's `get_domain_url` gives it.
+fn domain(url: &str) -> String {
+    match reqwest::Url::parse(url) {
+        Ok(parsed) if parsed.origin().is_tuple() => parsed.origin().ascii_serialization(),
+        Ok(parsed) => format!("{}://", parsed.scheme()),
+        Err(_) => url.to_owned(),
+    }
+}
+
+/// Where the entries first differ, if they do.
+fn first_difference(saved: &[Value], current: &[Value]) -> Option<String> {
+    match saved.iter().zip(current).position(|(old, new)| old != new) {
+        Some(at) => Some(format!(
+            "The first difference is at element {}: the baseline has {} and the page has {}.",
+            at + 1,
+            saved[at],
+            current[at]
+        )),
+        None if saved.len() != current.len() => Some(format!(
+            "The baseline has {} elements and the page has {}.",
+            saved.len(),
+            current.len()
+        )),
+        None => None,
+    }
+}
+
+fn write_baseline(dir: &Path, file: &str, bytes: &[u8]) -> Result<(), SeleniumBaseError> {
+    std::fs::write(dir.join(file), bytes).map_err(|e| {
+        SeleniumBaseError::InvalidConfig(format!("failed to write {file} of the baseline: {e}"))
+    })
+}
+
+fn read_baseline(dir: &Path, file: &str) -> Result<String, SeleniumBaseError> {
+    std::fs::read_to_string(dir.join(file)).map_err(|e| {
+        SeleniumBaseError::InvalidConfig(format!("failed to read {file} of the baseline: {e}"))
+    })
+}
+
+/// Saves the structure of the page in `dir` as the baseline, or compares it
+/// with the baseline that is there.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::AssertionFailed`] for a difference and another
+/// error if the baseline cannot be read or written.
+pub(crate) fn check_page_structure(
+    dir: &Path,
+    url: &str,
+    html: &str,
+    png: &[u8],
     reset: bool,
+    level: u8,
 ) -> Result<(), SeleniumBaseError> {
-    if path.exists() && !reset {
-        let baseline = std::fs::read(path).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("failed to read baseline: {e}"))
+    let current = tag_levels(html)?;
+    if reset || !BASELINE_FILES.iter().all(|file| dir.join(file).is_file()) {
+        std::fs::create_dir_all(dir).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("failed to create the baseline folder: {e}"))
         })?;
-        if baseline != current {
-            let name = path
-                .file_stem()
-                .map_or_else(String::new, |s| s.to_string_lossy().into_owned());
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Visual regression detected for '{name}'"
-            )));
+        write_baseline(dir, "baseline.png", png)?;
+        write_baseline(dir, "page_url.txt", url.as_bytes())?;
+        for (file, entries) in BASELINE_FILES[2..].iter().zip(&current) {
+            write_baseline(dir, file, serde_json::to_string(entries)?.as_bytes())?;
         }
         return Ok(());
     }
-    std::fs::write(path, current)
-        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to write baseline: {e}")))
+    write_baseline(dir, "latest.png", png)?;
+    if domain(read_baseline(dir, "page_url.txt")?.trim()) != domain(url) {
+        return Err(SeleniumBaseError::AssertionFailed(
+            "Page Domain Mismatch Failure: Current Page Domain doesn't match the Page Domain \
+             of the Baseline! Can't compare two completely different sites! Reset the \
+             baseline with RunSettings::with_visual_baseline_reset."
+                .to_owned(),
+        ));
+    }
+    // Level 0 is the dry run: it compares all three and reports every difference.
+    let compared = if level == 0 {
+        0..3
+    } else {
+        usize::from(level) - 1..usize::from(level)
+    };
+    let mut failures = Vec::new();
+    for index in compared {
+        let saved: Vec<Value> =
+            serde_json::from_str(&read_baseline(dir, BASELINE_FILES[index + 2])?)?;
+        if let Some(difference) = first_difference(&saved, &current[index]) {
+            failures.push(format!(
+                "<Level {}> Visual Diff Failure: {} {difference}",
+                index + 1,
+                LEVEL_FAILURES[index]
+            ));
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(SeleniumBaseError::AssertionFailed(failures.join("\n")))
+    }
 }
 
 /// What `check_window` does with the outcome of comparing a window with its
@@ -331,24 +495,217 @@ mod tests {
         assert_eq!(case.run_settings(), &settings);
     }
 
-    #[test]
-    fn a_baseline_is_stored_compared_and_replaced_on_request() {
+    /// A page with a `head`, which no level looks at, and two tags in `body`.
+    const PAGE: &str = r#"<!doctype html><html><head><title>t</title><meta charset="utf-8"></head><body><div id="a" class="x y"><p data-k="v">Hi</p></div></body></html>"#;
+    const URL: &str = "https://example.com/start";
+
+    /// A folder holding the baseline of `PAGE`, saved by a first check.
+    fn baseline() -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("a temporary folder");
-        let path = dir.path().join("home.png");
+        check(&dir, URL, PAGE, 3).expect("the first check saves the baseline");
+        dir
+    }
 
-        compare_or_store_baseline(&path, b"one", false).expect("first run stores the baseline");
-        assert_eq!(std::fs::read(&path).unwrap(), b"one");
-        compare_or_store_baseline(&path, b"one", false).expect("the same screenshot matches");
+    fn check(
+        dir: &tempfile::TempDir,
+        url: &str,
+        html: &str,
+        level: u8,
+    ) -> Result<(), SeleniumBaseError> {
+        check_page_structure(dir.path(), url, html, b"png", false, level)
+    }
 
-        let error = compare_or_store_baseline(&path, b"two", false).unwrap_err();
-        assert!(error.to_string().contains("Visual regression"), "{error}");
+    /// Whether the check at `level` fails with a difference.
+    fn differs(html: &str, level: u8) -> bool {
+        match check(&baseline(), URL, html, level) {
+            Ok(()) => false,
+            Err(SeleniumBaseError::AssertionFailed(_)) => true,
+            Err(other) => panic!("not a difference: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_three_levels_list_the_tags_below_body_in_document_order() {
+        let levels = tag_levels(PAGE).unwrap();
+
+        assert_eq!(levels[0], [json!(["div"]), json!(["p"])]);
         assert_eq!(
-            std::fs::read(&path).unwrap(),
-            b"one",
-            "a mismatch keeps the baseline"
+            levels[1],
+            [json!(["div", ["class", "id"]]), json!(["p", ["data-k"]])]
+        );
+        assert_eq!(
+            levels[2],
+            [
+                json!(["div", [["class", ["x", "y"]], ["id", "a"]]]),
+                json!(["p", [["data-k", "v"]]])
+            ]
+        );
+    }
+
+    #[test]
+    fn the_first_check_saves_the_baseline_whatever_the_level() {
+        for level in 0..=3 {
+            let dir = tempfile::tempdir().unwrap();
+            let nested = dir.path().join("test").join("home");
+
+            check_page_structure(&nested, URL, PAGE, b"png", false, level).unwrap();
+
+            assert_eq!(std::fs::read(nested.join("baseline.png")).unwrap(), b"png");
+            assert_eq!(
+                std::fs::read_to_string(nested.join("page_url.txt")).unwrap(),
+                URL
+            );
+            let levels = tag_levels(PAGE).unwrap();
+            for (index, saved) in levels.iter().enumerate() {
+                let file = nested.join(format!("tags_level_{}.txt", index + 1));
+                let text = std::fs::read_to_string(file).unwrap();
+                assert_eq!(&serde_json::from_str::<Vec<Value>>(&text).unwrap(), saved);
+            }
+        }
+    }
+
+    #[test]
+    fn a_repainted_page_with_the_same_structure_is_not_a_difference() {
+        let dir = baseline();
+
+        check_page_structure(dir.path(), URL, PAGE, b"another picture", false, 3).unwrap();
+
+        assert_eq!(
+            std::fs::read(dir.path().join("baseline.png")).unwrap(),
+            b"png"
+        );
+        assert_eq!(
+            std::fs::read(dir.path().join("latest.png")).unwrap(),
+            b"another picture"
+        );
+    }
+
+    #[test]
+    fn a_change_of_text_is_not_a_difference_at_any_level() {
+        // Python's level 3 compares attribute values, not the text.
+        let changed = PAGE.replace("Hi", "Goodbye");
+        for level in 0..=3 {
+            assert!(!differs(&changed, level), "level {level}");
+        }
+    }
+
+    #[test]
+    fn each_level_sees_what_it_compares_and_the_lower_ones_do_not() {
+        let new_value = PAGE.replace("id=\"a\"", "id=\"b\"");
+        let new_attribute = PAGE.replace("<p data-k", "<p title=\"t\" data-k");
+        let new_tag = PAGE.replace("</p>", "</p><span></span>");
+
+        assert!(!differs(&new_value, 1));
+        assert!(!differs(&new_value, 2));
+        assert!(differs(&new_value, 3));
+
+        assert!(!differs(&new_attribute, 1));
+        assert!(differs(&new_attribute, 2));
+        assert!(differs(&new_attribute, 3));
+
+        assert!(differs(&new_tag, 1));
+        assert!(differs(&new_tag, 2));
+        assert!(differs(&new_tag, 3));
+    }
+
+    #[test]
+    fn the_message_names_the_level_and_the_first_element_that_differs() {
+        let swapped = PAGE.replace("<p ", "<span ").replace("</p>", "</span>");
+
+        let error = check(&baseline(), URL, &swapped, 1)
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("<Level 1>"), "{error}");
+        assert!(error.contains("element 2"), "{error}");
+        assert!(error.contains("span"), "{error}");
+    }
+
+    #[test]
+    fn level_zero_reports_every_level_and_the_dry_run_then_lets_it_pass() {
+        let changed = PAGE.replace("</p>", "</p><span></span>");
+
+        let error = check(&baseline(), URL, &changed, 0).unwrap_err();
+
+        let text = error.to_string();
+        for level in ["<Level 1>", "<Level 2>", "<Level 3>"] {
+            assert!(text.contains(level), "{text}");
+        }
+        assert!(apply_check_level(Err(error), 0.0).is_ok());
+    }
+
+    #[test]
+    fn the_domain_must_match_the_baseline() {
+        let dir = baseline();
+
+        check(&dir, "https://example.com/elsewhere?q=1", PAGE, 1).expect("same domain");
+        for level in [0, 1, 3] {
+            let error = check(&dir, "https://other.example/start", PAGE, level)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("Page Domain Mismatch"),
+                "level {level}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_reset_or_a_missing_file_sets_the_baseline_again() {
+        let changed = PAGE.replace("</p>", "</p><span></span>");
+        let dir = baseline();
+        assert!(check(&dir, URL, &changed, 1).is_err());
+
+        check_page_structure(dir.path(), URL, &changed, b"new", true, 1).expect("reset");
+        check(&dir, URL, &changed, 3).expect("the changed page is the baseline now");
+        assert_eq!(
+            std::fs::read(dir.path().join("baseline.png")).unwrap(),
+            b"new"
         );
 
-        compare_or_store_baseline(&path, b"two", true).expect("a reset replaces the baseline");
-        assert_eq!(std::fs::read(&path).unwrap(), b"two");
+        std::fs::remove_file(dir.path().join("tags_level_2.txt")).unwrap();
+        check(&dir, URL, PAGE, 3).expect("an incomplete baseline is set again");
+        assert!(dir.path().join("tags_level_2.txt").is_file());
+        check(&dir, URL, PAGE, 3).expect("and then it is compared");
+    }
+
+    #[test]
+    fn an_unreadable_baseline_is_an_error_even_at_level_zero() {
+        let dir = baseline();
+        std::fs::write(dir.path().join("tags_level_1.txt"), "not json").unwrap();
+
+        let error = check(&dir, URL, PAGE, 0).unwrap_err();
+
+        assert!(
+            !matches!(error, SeleniumBaseError::AssertionFailed(_)),
+            "{error:?}"
+        );
+        assert!(apply_check_level(Err(error), 0.0).is_err());
+    }
+
+    #[test]
+    fn the_level_is_0_1_2_or_3() {
+        for (level, expected) in [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3)] {
+            assert_eq!(check_level(level).unwrap(), expected);
+        }
+        for level in [-1.0, 0.5, 4.0, f64::NAN, f64::INFINITY] {
+            assert!(
+                matches!(check_level(level), Err(SeleniumBaseError::InvalidConfig(_))),
+                "{level}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_baseline_folder_is_per_test_and_per_name() {
+        // The test harness names each test's thread after the test.
+        let expected =
+            Path::new("visual_baseline").join("the_baseline_folder_is_per_test_and_per_name");
+
+        assert_eq!(baseline_dir("home").unwrap(), expected.join("home"));
+        assert_eq!(baseline_dir("").unwrap(), expected.join("default"));
+        for name in ["../home", "a/b", ".."] {
+            assert!(baseline_dir(name).is_err(), "{name}");
+        }
     }
 }
