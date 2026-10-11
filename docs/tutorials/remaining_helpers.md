@@ -100,4 +100,9 @@ failures at once.
 cargo run --example remaining_helpers
 ```
 
-The example demonstrates many of these helpers in sequence.
+The example demonstrates many of these helpers in sequence, and checks the
+effect of each one, so a run that finishes has shown that the helper did what
+its name says. It needs Chrome and a matching chromedriver, but not the network:
+it opens a page it serves from `127.0.0.1` (the `examples/local_site` module that
+the browser examples share). The screenshot, page source and chart land in
+`latest_logs/`.

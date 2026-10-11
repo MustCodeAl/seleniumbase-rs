@@ -117,8 +117,18 @@ GcpLoggingPlugin::upload_file(
 cargo run --example cloud_upload --features s3,azure,gcp
 ```
 
-The example only performs an upload when the corresponding feature is enabled
-and the required environment variable is set.
+The example writes a small log file to `latest_logs/` and only performs an
+upload when the corresponding feature is enabled and its environment variables
+are set. A backend that is compiled in but not configured is reported as
+skipped, with the variables to set; the example fails only when an upload it
+attempted fails. Besides the credentials described above, it reads the bucket
+name from the environment, so nothing is hard-coded:
+
+| Feature | Variables the example reads |
+|---|---|
+| `s3` | `SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `AWS_REGION` and `AWS_ENDPOINT_URL` |
+| `azure` | `AZURE_BLOB_URL` |
+| `gcp` | `SB_GCS_BUCKET`, `GCS_ACCESS_TOKEN` |
 
 ## Troubleshooting
 

@@ -142,7 +142,7 @@ other direction is `BaseCase::convert_css_to_xpath`.
   usually more stable than positional XPath or generated class names.
 - **Avoid generated class names**: frameworks such as styled-components or CSS
   modules generate class names that change between builds.
-- **Use link text for navigation**: `link=` and `partial link=` match the text
+- **Use link text for navigation**: `link=` and `partial_link=` match the text
   users see, which makes tests readable and resilient to markup changes.
 - **Keep selectors short**: a selector with many descendants is brittle. Add
   stable attributes to the application under test when needed.

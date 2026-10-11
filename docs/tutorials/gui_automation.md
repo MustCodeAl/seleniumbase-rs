@@ -20,6 +20,13 @@ seleniumbase-rs = { version = "0.1", features = ["gui"] }
 cargo run --example gui_automation --features gui
 ```
 
+The example serves a one-field page from `127.0.0.1`, opens it in a visible
+browser window (headless Chrome has no window for native keys to land in), gives
+the field focus, types into it with the operating system's keyboard, and checks
+what arrived. It takes over your keyboard for a moment, so leave the browser
+window in front and do not type while it runs. On macOS your terminal needs the
+Accessibility permission (System Settings > Privacy & Security > Accessibility).
+
 Without the feature, `BaseCase::gui_*`, `seleniumbase_rs::Gui` and the native
 dialog helpers (`show_message`, `show_confirm`, `show_prompt`,
 `choose_file_dialog`, `save_file_dialog`) are not compiled.
