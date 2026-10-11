@@ -1,15 +1,13 @@
 // JavaScript library injection helpers.
 
-/// jQuery, loaded from its own CDN by [`BaseCase::activate_jquery`].
-const JQUERY_URL: &str = "https://code.jquery.com/jquery-3.7.1.min.js";
+// jQuery, loaded from its own CDN by `BaseCase::activate_jquery`, and the
+// Messenger files, which the pure CDP engine loads from the same places.
+use crate::sb_cdp::messenger::{JQUERY_URL, MESSENGER_CSS_URL, MESSENGER_JS_URL};
+
 const JQUERY_CONFIRM_CSS_URL: &str =
     "https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.css";
 const JQUERY_CONFIRM_JS_URL: &str =
     "https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.js";
-const MESSENGER_CSS_URL: &str =
-    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger.min.css";
-const MESSENGER_JS_URL: &str =
-    "https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/js/messenger.min.js";
 
 /// Longest CSS value `css_value` accepts.
 const MAX_CSS_VALUE_LEN: usize = 64;

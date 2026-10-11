@@ -34,6 +34,27 @@ impl BaseCase {
         self.config.browser.is_chromium_based()
     }
 
+    /// Whether the session can run DevTools Protocol commands.
+    /// Corresponds to Python's `driver.is_cdp_mode_active()`.
+    ///
+    /// True for a session started in [`DriverMode::Cdp`](crate::DriverMode::Cdp)
+    /// or [`DriverMode::Uc`](crate::DriverMode::Uc), which are the two that get
+    /// a CDP client. Python reports true only after
+    /// `activate_cdp_mode()`, once the browser is driven without a driver; this
+    /// crate keeps that for the pure CDP engine in [`crate::sb_cdp`], where every
+    /// session is in CDP mode.
+    #[must_use]
+    pub fn is_cdp_mode_active(&self) -> bool {
+        self.config.is_cdp_enabled()
+    }
+
+    /// Whether the session runs in undetected (UC) mode.
+    /// Corresponds to Python's `driver.is_uc_mode_active()`.
+    #[must_use]
+    pub fn is_uc_mode_active(&self) -> bool {
+        self.config.is_uc_enabled()
+    }
+
     /// Returns true if the WebDriver session is still responsive.
     pub async fn is_connected(&self) -> bool {
         self.execute_script("return document.readyState;").await.is_ok()
@@ -122,7 +143,29 @@ impl BaseCase {
 #[cfg(test)]
 mod tests_browser {
     use super::*;
+    use crate::browser::config::{BrowserConfig, DriverMode};
+    use crate::browser::session::BrowserSession;
     use serde_json::json;
+
+    fn sb(mode: DriverMode) -> BaseCase {
+        BaseCase::with_session(
+            BrowserConfig::default().with_mode(mode),
+            BrowserSession::disconnected(),
+        )
+    }
+
+    #[test]
+    fn the_mode_questions_follow_the_mode_the_session_was_started_in() {
+        let plain = sb(DriverMode::WebDriver);
+        assert!(!plain.is_cdp_mode_active() && !plain.is_uc_mode_active());
+
+        let cdp = sb(DriverMode::Cdp);
+        assert!(cdp.is_cdp_mode_active() && !cdp.is_uc_mode_active());
+
+        // Undetected mode runs on the CDP client too.
+        let uc = sb(DriverMode::Uc);
+        assert!(uc.is_cdp_mode_active() && uc.is_uc_mode_active());
+    }
 
     #[test]
     fn the_product_comes_out_of_the_user_agent() {

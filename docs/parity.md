@@ -16,9 +16,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 440 | 2 | 11 | 0 |
-| [Driver methods](#driver-methods) | 79 | 75 | 0 | 0 | 4 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 0 | 196 | 16 | 3 |
-| [Command-line commands](#command-line-commands) | 36 | 17 | 8 | 8 | 3 |
+| [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 196 | 16 | 0 |
+| [Command-line commands](#command-line-commands) | 36 | 20 | 8 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 81 | 70 | 23 | 89 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 42 | 30 | 7 | 28 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 41 | 31 | 2 | 0 |
@@ -500,7 +500,7 @@ Methods of Python's `Driver()`.
 | `assert_non_empty_text` | implemented | `BaseCase::assert_non_empty_text` |  |
 | `assert_text` | implemented | `BaseCase::assert_text` |  |
 | `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` |  |
-| `back` | planned |  | No Rust counterpart yet. |
+| `back` | composed | `BaseCase::go_back` | Named go_back, like the BaseCase method. |
 | `click` | implemented | `BaseCase::click` |  |
 | `click_active_element` | implemented | `BaseCase::click_active_element` |  |
 | `click_if_visible` | implemented | `BaseCase::click_if_visible` |  |
@@ -508,7 +508,7 @@ Methods of Python's `Driver()`.
 | `delete_cookie` | implemented | `BaseCase::delete_cookie` |  |
 | `find_element` | implemented | `BaseCase::find_element` |  |
 | `find_elements` | implemented | `BaseCase::find_elements` |  |
-| `forward` | planned |  | No Rust counterpart yet. |
+| `forward` | composed | `BaseCase::go_forward` | Named go_forward, like the BaseCase method. |
 | `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
 | `get_attribute` | implemented | `BaseCase::get_attribute` |  |
 | `get_cookie` | implemented | `BaseCase::get_cookie` |  |
@@ -527,7 +527,7 @@ Methods of Python's `Driver()`.
 | `highlight_if_visible` | implemented | `BaseCase::highlight_if_visible` |  |
 | `is_alert_present` | implemented | `BaseCase::is_alert_present` |  |
 | `is_attribute_present` | implemented | `BaseCase::is_attribute_present` |  |
-| `is_cdp_mode_active` | planned |  | No Rust counterpart yet. |
+| `is_cdp_mode_active` | implemented | `BaseCase::is_cdp_mode_active` | True for a session in DriverMode::Cdp or DriverMode::Uc, which are the two that have a CDP client. Differs: Python reports true only after activate_cdp_mode(); UC sessions here have a CDP client from the start. |
 | `is_connected` | implemented | `BaseCase::is_connected` |  |
 | `is_element_present` | implemented | `BaseCase::is_element_present` |  |
 | `is_element_visible` | implemented | `BaseCase::is_element_visible` |  |
@@ -535,7 +535,7 @@ Methods of Python's `Driver()`.
 | `is_non_empty_text_visible` | implemented | `BaseCase::is_non_empty_text_visible` |  |
 | `is_online` | implemented | `BaseCase::is_online` |  |
 | `is_text_visible` | implemented | `BaseCase::is_text_visible` |  |
-| `is_uc_mode_active` | planned |  | No Rust counterpart yet. |
+| `is_uc_mode_active` | implemented | `BaseCase::is_uc_mode_active` |  |
 | `is_valid_url` | implemented | `BaseCase::is_valid_url` |  |
 | `js_click` | implemented | `BaseCase::js_click` |  |
 | `locator` | implemented | `BaseCase::locator` |  |
@@ -579,7 +579,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
 | `activate_cdp_mode` | not-applicable |  | Already in CDP mode: sb_cdp is the CDP engine. |
-| `activate_messenger` | planned |  | No Rust composition identified yet. |
+| `activate_messenger` | implemented | `Page::activate_messenger` | Loads jQuery and the Messenger library from their CDNs into the page; a page with no network cannot. |
 | `add_handler` | not-applicable |  | Subscribe to protocol events with Page::events / Browser::events. |
 | `append_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
 | `assert_any_of_elements_present` | composed | `Page::wait_for_any` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
@@ -727,7 +727,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `open` | composed | `Page::goto` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `open_new_tab` | composed | `Browser::new_page` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `open_new_window` | composed | `Browser::new_window` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `post_message` | planned |  | No Rust composition identified yet. |
+| `post_message` | implemented | `Page::post_message` | Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it. Differs: Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions. |
 | `press_keys` | composed | `Locator::press` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `print_to_pdf` | composed | `Page::pdf` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `quit` | composed | `Browser::close` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
@@ -768,7 +768,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `set_download_path` | composed | `Browser::set_download_dir` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_local_storage_item` | composed | `Storage::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_locale` | composed | `Emulation::locale` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
-| `set_messenger_theme` | planned |  | No Rust composition identified yet. |
+| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). |
 | `set_session_storage_item` | composed | `Storage::set` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_value` | composed | `Locator::set_value` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
 | `set_window_rect` | composed | `Window::set_bounds` | sb.cdp takes a selector per call; Rust holds it in a Locator. |
@@ -812,8 +812,8 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `encrypt` | implemented | `sbase encrypt` | Differs: AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable. |
 | `extract-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `get` | composed | `sbase install` | Python treats `get` and `install` as the same command. |
-| `grid-hub` | planned |  | No Rust command yet. |
-| `grid-node` | planned |  | No Rust command yet. |
+| `grid-hub` | implemented | `sbase grid-hub` | start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. |
+| `grid-node` | implemented | `sbase grid-node` | start, stop, restart and status; registers with the hub named by --hub. |
 | `gui` | composed | `sbase commander` | Python's `gui` is the same test runner as `commander`. |
 | `gui-behave` | composed | `sbase behave-gui` | One canonical name; the alias is not ported. |
 | `help` | composed | `clap` | Provided by the argument parser. |
@@ -833,7 +833,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `record` | implemented | `sbase record` |  |
 | `recorder` | composed | `sbase record` | Records browser actions to a test file. |
 | `revert-objects` | not-applicable |  | Edits the structure of Python test files. |
-| `translate` | planned |  | No Rust command yet. |
+| `translate` | implemented | `sbase translate` | sbase translate FILE LANGUAGE [--print\|--overwrite\|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages. Differs: Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario. The language is a positional argument, not a --zh style flag. |
 | `unobfuscate` | not-applicable |  | Reverses Python source obfuscation; see `obfuscate`. |
 | `version` | composed | `clap` | Provided by the argument parser. |
 

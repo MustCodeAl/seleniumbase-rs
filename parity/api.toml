@@ -1848,8 +1848,9 @@ status = "not-applicable"
 reason = "Already in CDP mode: sb_cdp is the CDP engine."
 
 [cdp."activate_messenger"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "implemented"
+rust = "Page::activate_messenger"
+note = "Loads jQuery and the Messenger library from their CDNs into the page; a page with no network cannot."
 
 [cdp."add_handler"]
 status = "not-applicable"
@@ -2576,8 +2577,10 @@ rust = "Browser::new_window"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."post_message"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "implemented"
+rust = "Page::post_message"
+note = "Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it."
+divergence = "Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions."
 
 [cdp."press_keys"]
 status = "composed"
@@ -2778,8 +2781,9 @@ rust = "Emulation::locale"
 note = "sb.cdp takes a selector per call; Rust holds it in a Locator."
 
 [cdp."set_messenger_theme"]
-status = "planned"
-note = "No Rust composition identified yet."
+status = "implemented"
+rust = "Page::set_messenger_theme"
+note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8)."
 
 [cdp."set_session_storage_item"]
 status = "composed"
@@ -2953,12 +2957,14 @@ rust = "sbase install"
 note = "Python treats `get` and `install` as the same command."
 
 [cli."grid-hub"]
-status = "planned"
-note = "No Rust command yet."
+status = "implemented"
+rust = "sbase grid-hub"
+note = "start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing."
 
 [cli."grid-node"]
-status = "planned"
-note = "No Rust command yet."
+status = "implemented"
+rust = "sbase grid-node"
+note = "start, stop, restart and status; registers with the hub named by --hub."
 
 [cli."gui"]
 status = "composed"
@@ -3041,8 +3047,10 @@ status = "not-applicable"
 reason = "Edits the structure of Python test files."
 
 [cli."translate"]
-status = "planned"
-note = "No Rust command yet."
+status = "implemented"
+rust = "sbase translate"
+note = "sbase translate FILE LANGUAGE [--print|--overwrite|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages."
+divergence = "Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario. The language is a positional argument, not a --zh style flag."
 
 [cli."unobfuscate"]
 status = "not-applicable"
@@ -3086,8 +3094,9 @@ status = "implemented"
 rust = "BaseCase::assert_text_not_visible"
 
 [driver."back"]
-status = "planned"
-note = "No Rust counterpart yet."
+status = "composed"
+rust = "BaseCase::go_back"
+note = "Named go_back, like the BaseCase method."
 
 [driver."click"]
 status = "implemented"
@@ -3118,8 +3127,9 @@ status = "implemented"
 rust = "BaseCase::find_elements"
 
 [driver."forward"]
-status = "planned"
-note = "No Rust counterpart yet."
+status = "composed"
+rust = "BaseCase::go_forward"
+note = "Named go_forward, like the BaseCase method."
 
 [driver."get_active_element_css"]
 status = "implemented"
@@ -3194,8 +3204,10 @@ status = "implemented"
 rust = "BaseCase::is_attribute_present"
 
 [driver."is_cdp_mode_active"]
-status = "planned"
-note = "No Rust counterpart yet."
+status = "implemented"
+rust = "BaseCase::is_cdp_mode_active"
+note = "True for a session in DriverMode::Cdp or DriverMode::Uc, which are the two that have a CDP client."
+divergence = "Python reports true only after activate_cdp_mode(); UC sessions here have a CDP client from the start."
 
 [driver."is_connected"]
 status = "implemented"
@@ -3226,8 +3238,8 @@ status = "implemented"
 rust = "BaseCase::is_text_visible"
 
 [driver."is_uc_mode_active"]
-status = "planned"
-note = "No Rust counterpart yet."
+status = "implemented"
+rust = "BaseCase::is_uc_mode_active"
 
 [driver."is_valid_url"]
 status = "implemented"

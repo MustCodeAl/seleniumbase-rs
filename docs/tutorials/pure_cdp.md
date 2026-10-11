@@ -140,6 +140,43 @@ differ. It is slower than `locator.click()` by design. `Behavior::builder()
 .seed(n)` makes the randomness reproducible. The planning is a pure module,
 `stealth::behavior`, usable on its own.
 
+## Messages in the page
+
+`page.post_message`, `page.set_messenger_theme` and `page.activate_messenger`
+show a short message in a corner of the page, the way Python SeleniumBase's CDP
+Mode does with the Messenger library. The library and jQuery load from public
+CDNs, so the page needs network access; `post_message` loads them itself when
+they are missing, and a navigation drops them with the page.
+
+```rust,no_run
+use std::time::Duration;
+use seleniumbase_rs::sb_cdp::{
+    MessageOptions, MessageStyle, MessengerLocation, MessengerSettings, Page,
+};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+page.set_messenger_theme(MessengerSettings {
+    location: MessengerLocation::TopLeft,
+    ..MessengerSettings::default()
+})
+.await?;
+page.post_message(
+    "Logged in",
+    &MessageOptions {
+        style: MessageStyle::Success,
+        duration: Duration::from_secs(3),
+        ..MessageOptions::default()
+    },
+)
+.await?;
+# Ok(())
+# }
+```
+
+The message is escaped before it is posted, so `<b>` appears as typed rather
+than as bold text. With `pause` left on (the default) the call returns after the
+message's duration, so the next step does not start until it is gone.
+
 ## Intercepting requests
 
 `page.intercept(rules)` pauses every request the page makes and answers it by

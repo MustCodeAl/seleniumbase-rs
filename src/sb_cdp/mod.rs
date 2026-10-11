@@ -68,6 +68,7 @@ mod input;
 mod intercept;
 mod launch;
 mod locator;
+pub(crate) mod messenger;
 #[cfg(any(test, feature = "test-util"))]
 mod mock;
 mod page;
@@ -99,6 +100,10 @@ pub use intercept::{Interception, Outcome, Request, ResourceType, Response, Rule
 pub use launch::{LaunchOptions, LaunchOptionsBuilder, Proxy};
 #[doc(inline)]
 pub use locator::Locator;
+#[doc(inline)]
+pub use messenger::{
+    MessageOptions, MessageStyle, MessengerLocation, MessengerSettings, MessengerTheme,
+};
 #[cfg(any(test, feature = "test-util"))]
 #[doc(inline)]
 pub use mock::{Call, MockCtrl};
