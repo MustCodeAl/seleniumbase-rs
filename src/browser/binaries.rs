@@ -188,7 +188,7 @@ pub fn locate(browser: Browser) -> Option<PathBuf> {
         browser,
         Platform::current(),
         &|name| std::env::var(name).ok(),
-        &Path::new(DOWNLOADS_DIR).to_path_buf(),
+        Path::new(DOWNLOADS_DIR),
         &|path| path.is_file(),
         &|name| which::which(name).ok(),
     )

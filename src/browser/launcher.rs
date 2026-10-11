@@ -405,7 +405,9 @@ mod driver_program_tests {
         if which::which("operadriver").is_ok() {
             return;
         }
-        let error = launch_driver_for(Browser::Opera).await.unwrap_err();
+        let Err(error) = launch_driver_for(Browser::Opera).await else {
+            panic!("operadriver was found where none should be");
+        };
         let text = error.to_string();
         assert!(text.contains("operadriver"), "{text}");
         assert!(text.contains("with_webdriver_url"), "{text}");
