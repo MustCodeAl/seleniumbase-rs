@@ -934,4 +934,14 @@ mod tests_with_a_driver {
             "{message}"
         );
     }
+
+    #[tokio::test]
+    async fn the_domain_url_keeps_the_port() {
+        let driver = MockWebDriver::start(json!({}), |request| match method_and_path(request) {
+            ("GET", "/url") => Reply::Value(json!("http://localhost:8080/a/b?c=d#e")),
+            _ => Reply::Value(Value::Null),
+        });
+        let mut sb = driver.base_case().await;
+        assert_eq!(sb.get_domain_url().await.unwrap(), "http://localhost:8080");
+    }
 }

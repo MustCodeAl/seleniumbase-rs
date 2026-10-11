@@ -180,6 +180,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `get_domain_url` keeps a port that is not the scheme's default
+  (`http://localhost:8080`), as Python's does; it used to drop it.
 - `wait_for_element_present` looks for the element once before it gives up, so an
   element that is already there is found with a timeout of zero.
 - `assert_is_instance` and `assert_not_is_instance` look at the type of the value

@@ -2201,12 +2201,20 @@ impl BaseCase {
         })
     }
 
-    /// Extract the domain (scheme + host) from the current URL.
+    /// Extract the domain (scheme, host and a port that is not the scheme's
+    /// default) from the current URL: `http://localhost:8080` for
+    /// `http://localhost:8080/a/b?c=d`.
     pub async fn get_domain_url(&mut self) -> Result<String, SeleniumBaseError> {
         let url = self.get_current_url().await?;
         reqwest::Url::parse(&url)
             .map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))
-            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or("")))
+            .map(|u| {
+                let host = u.host_str().unwrap_or("");
+                match u.port() {
+                    Some(port) => format!("{}://{host}:{port}", u.scheme()),
+                    None => format!("{}://{host}", u.scheme()),
+                }
+            })
     }
 
     /// Convert a simple XPath expression to an approximate CSS selector.
