@@ -501,18 +501,55 @@ async fn a_clearance_cookie_that_appears_ends_the_wait() {
 }
 
 #[tokio::test]
-async fn the_cookie_from_before_the_solve_does_not_count() {
+async fn the_cookie_from_before_the_solve_does_not_count_while_the_challenge_shows() {
     let (page, mock) = mocked_page().await;
+    Site::serve(&mock, vec![Served::new(200, CLOUDFLARE_JS)]);
+    // The cookie mock goes in after the site, which answers the cookies on its own.
     script_cookies(
         &mock,
         &[cdp_cookie("cf_clearance", "old", ".shop.example", -1.0)],
     );
+    goto_with_response(&page, "https://shop.example/")
+        .await
+        .expect("the navigation finishes");
 
     let cleared = wait_for_clearance(&page, Some(Vendor::Cloudflare), Some("old"), BRIEF)
         .await
         .expect("the cookies read");
 
     assert!(!cleared, "a stale clearance is not a solved challenge");
+}
+
+#[tokio::test]
+async fn an_unchanged_cookie_counts_once_the_page_is_no_longer_a_challenge() {
+    let (page, mock) = mocked_page().await;
+    Site::serve(&mock, vec![Served::new(200, NORMAL_PAGE)]);
+    script_cookies(
+        &mock,
+        &[cdp_cookie(
+            "cf_clearance",
+            "set-by-the-script",
+            ".shop.example",
+            -1.0,
+        )],
+    );
+    goto_with_response(&page, "https://shop.example/")
+        .await
+        .expect("the navigation finishes");
+
+    let cleared = wait_for_clearance(
+        &page,
+        Some(Vendor::Cloudflare),
+        Some("set-by-the-script"),
+        BRIEF,
+    )
+    .await
+    .expect("the cookies read");
+
+    assert!(
+        cleared,
+        "the script set the cookie before the stale value was read, and the page is real"
+    );
 }
 
 #[tokio::test]

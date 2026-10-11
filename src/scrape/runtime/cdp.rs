@@ -243,8 +243,10 @@ pub async fn clearance_value(
 /// Waits until a solved challenge shows in the browser, for at most `timeout`.
 ///
 /// For a vendor with a clearance cookie the wait ends when that cookie holds a value other than
-/// `stale` (the value from before the solve). Otherwise it ends when the page no longer shows a
-/// challenge. Returns whether that happened in time.
+/// `stale` (the value read before the solve), or holds the same value while the page no longer
+/// shows a challenge (a script that set the cookie while the page loaded). A vendor without a
+/// clearance cookie ends when the page no longer shows a challenge. Returns whether that
+/// happened in time.
 ///
 /// # Errors
 ///
@@ -277,8 +279,15 @@ async fn is_cleared(
     stale: Option<&str>,
 ) -> Result<bool, ScrapeError> {
     if vendor.and_then(clearance_cookie).is_some() {
-        let fresh = clearance_value(page, vendor).await?;
-        return Ok(fresh.is_some_and(|value| stale != Some(value.as_str())));
+        let Some(fresh) = clearance_value(page, vendor).await? else {
+            return Ok(false);
+        };
+        if stale != Some(fresh.as_str()) {
+            return Ok(true);
+        }
+        // A challenge script that ran while the page loaded sets its cookie before the caller
+        // reads the "stale" value, so an unchanged cookie is cleared too once the page no longer
+        // shows a challenge.
     }
     let body = page.content().await?;
     let seen = detect(&ResponseView {
