@@ -125,6 +125,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - `sbase translate` and `translate_scenario` rewrite the `action` of the steps in
   the root `steps` list only, not an `action` in any other object three levels
   down (such as `meta.x.action`), which was changed and counted as translated.
+- `EgressRef::parse` lower-cases the host of `socks5` and `socks5h` specs, as it
+  does for http and https, so one proxy spelled two ways has one `EgressKey`.
 
 ### Security
 

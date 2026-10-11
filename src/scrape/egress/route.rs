@@ -100,7 +100,9 @@ impl EgressRef {
             return Err(address());
         }
         let host = match url.host() {
-            Some(url::Host::Domain(domain)) if !domain.is_empty() => domain.to_owned(),
+            // `url` lower-cases the host of a special scheme (http, https) only; the host of
+            // socks5 and socks5h is opaque and keeps its case.
+            Some(url::Host::Domain(domain)) if !domain.is_empty() => domain.to_ascii_lowercase(),
             Some(url::Host::Ipv4(ip)) => ip.to_string(),
             Some(url::Host::Ipv6(ip)) => ip.to_string(),
             _ => return Err(address()),
@@ -284,6 +286,28 @@ mod tests {
         let egress = EgressRef::parse("HTTP://Proxy.EXAMPLE:8080", None).expect("valid spec");
         assert_eq!(egress.key().host, "proxy.example");
         assert_eq!(egress.key().scheme, "http");
+    }
+
+    #[test]
+    fn a_socks_host_is_lower_cased_too() {
+        // `url` lower-cases only the hosts of special schemes (http, https);
+        // for socks5 and socks5h the host is opaque and keeps its case.
+        for scheme in ["socks5", "socks5h"] {
+            let upper = EgressRef::parse(&format!("{scheme}://Proxy.EXAMPLE:1080"), None)
+                .expect("valid spec");
+            let lower = EgressRef::parse(&format!("{scheme}://proxy.example:1080"), None)
+                .expect("valid spec");
+            assert_eq!(upper.key().host, "proxy.example", "{scheme}");
+            assert_eq!(upper.key(), lower.key(), "{scheme}");
+
+            let upper = EgressRef::parse(&format!("{scheme}://al:pw@Proxy.EXAMPLE:1080"), None)
+                .expect("valid spec");
+            assert_eq!(
+                upper.launch_spec().expose(),
+                format!("{scheme}://al:pw@proxy.example:1080"),
+                "{scheme}"
+            );
+        }
     }
 
     #[test]
