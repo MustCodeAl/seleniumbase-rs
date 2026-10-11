@@ -5,10 +5,12 @@
 
 use seleniumbase_rs::impersonate::client::{ImpersonationProfile, WireProtocol};
 use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs::wire::client_hello::{ext_id, without_grease, ClientHello};
+use seleniumbase_rs::wire::client_hello::{ext_id, is_grease, without_grease, ClientHello};
 use seleniumbase_rs::wire::emulation::{self, Emulation, KnownGap};
 use seleniumbase_rs::wire::h2_spec::H2Spec;
 use seleniumbase_rs::wire::header_spec::RequestShape;
+use seleniumbase_rs::wire::ja3::peetprint::Slot;
+use seleniumbase_rs::wire::ja3::Peetprint;
 use seleniumbase_rs::wire::ja4::{Ja4, Ja4AField};
 use seleniumbase_rs::wire::tls_spec::TlsSpec;
 use seleniumbase_rs::wire::BrowserKind;
@@ -26,8 +28,9 @@ fn profile() -> ImpersonationProfile {
     ImpersonationProfile::measured(BrowserKind::Chrome).expect("the measured profile")
 }
 
-/// The spec a hello shows, with the order Chrome shuffles removed and the GREASE signature
-/// algorithm (which `BoringSSL` adds first) taken out, so it can be compared with a measured spec.
+/// The spec a hello shows, with the order Chrome shuffles removed and any GREASE signature
+/// algorithm taken out (`TlsSpec::from_client_hello` keeps it; the vendored `BoringSSL` writes
+/// none, see the peetprint test), so it can be compared with a measured spec.
 fn comparable(hello: &ClientHello, permute: bool) -> TlsSpec {
     let mut spec = TlsSpec::from_client_hello(hello);
     spec.extensions.sort_unstable();
@@ -147,6 +150,47 @@ async fn alpn_server_name_groups_and_key_shares_equal_the_measurement() {
         measured.tls.cipher_suites
     );
     assert_eq!(hello.has_grease(), measured.tls.grease);
+}
+
+/// The one difference the known gaps of the measured file do not name: Chrome writes a GREASE
+/// signature algorithm first, and the vendored `BoringSSL` of btls 0.5.6 writes none (its
+/// `sigalgs_list` takes names, and GREASE has none). JA3 and JA4 strip GREASE, so only the
+/// peetprint shows it.
+///
+/// The test pins the difference. If a newer `BoringSSL` starts writing the GREASE signature
+/// algorithm, it fails, and the gap is closed.
+#[tokio::test]
+async fn the_peetprint_differs_from_the_measured_one_by_the_gaps_and_a_grease_signature_algorithm()
+{
+    let served = exchange(
+        &profile(),
+        RequestShape::Document,
+        WireProtocol::Http2,
+        Via::Negotiated,
+    )
+    .await;
+    let hello = &served.hello;
+    assert!(
+        hello.signature_algorithms.iter().all(|id| !is_grease(*id)),
+        "BoringSSL now writes a GREASE signature algorithm: the gap is closed; drop the \
+         GREASE removal below and record the change in the measured file's known gaps"
+    );
+
+    let file: serde_json::Value = serde_json::from_str(CHROME_FILE).expect("valid JSON");
+    let sample = file["capture"]["tls"]["samples"][0]["peetprint"]
+        .as_str()
+        .expect("a peetprint in the evidence");
+    let mut expected = Peetprint::parse(sample).expect("the evidence parses");
+    assert_eq!(
+        expected.signature_algorithms.first(),
+        Some(&Slot::Grease),
+        "Chrome writes a GREASE signature algorithm first"
+    );
+    expected
+        .signature_algorithms
+        .retain(|slot| !matches!(slot, Slot::Grease | Slot::Id(0x0904..=0x0906)));
+    expected.extensions.retain(|slot| *slot != Slot::Id(0xCA34));
+    assert_eq!(Peetprint::of(hello), expected.normalized());
 }
 
 #[tokio::test]
