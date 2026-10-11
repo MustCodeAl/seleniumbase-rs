@@ -111,24 +111,45 @@ fn skip_space(bytes: &[u8], from: usize) -> usize {
     i
 }
 
-/// Calls `replace` with the text of every `"action": "..."` that sits directly in
-/// a step (an object in the list that is the root object's second level), and
-/// swaps in what it returns. Everything else, spacing and key order included, is
-/// copied as it is.
-fn rewrite_actions(json: &str, mut replace: impl FnMut(&str) -> Option<String>) -> String {
-    const ROOT_OBJECT: usize = 1;
-    const STEP_OBJECT: usize = ROOT_OBJECT + 2;
+/// What an open `{` or `[` is, as far as [`rewrite_actions`] is concerned.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Container {
+    /// The object that is the whole scenario.
+    Root,
+    /// The root's `steps` list.
+    Steps,
+    /// An object that is an element of the `steps` list: a step.
+    Step,
+    /// Any other object or list, wherever it is.
+    Other,
+}
 
+/// Calls `replace` with the text of every `"action": "..."` that sits directly in
+/// a step (an object in the `steps` list of the root object), and swaps in what
+/// it returns. Everything else, spacing and key order included, is copied as it
+/// is; an `action` in any other object, even one three levels down like a
+/// step's, is not a step's.
+fn rewrite_actions(json: &str, mut replace: impl FnMut(&str) -> Option<String>) -> String {
     let bytes = json.as_bytes();
     let mut out = String::with_capacity(json.len());
     let mut copied_to = 0;
-    let mut depth = 0_usize;
+    // The containers that are open, the outermost first.
+    let mut open: Vec<Container> = Vec::new();
+    // Whether the last key of the root object is `steps`.
+    let mut steps_key = false;
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
             b'"' => {
                 let end = string_end(bytes, i);
-                if depth == STEP_OBJECT && &json[i..end] == "\"action\"" {
+                if open.last() == Some(&Container::Root)
+                    && bytes.get(skip_space(bytes, end)) == Some(&b':')
+                {
+                    // Read as JSON, so `"steps"` is `steps`, as it is to the parser.
+                    steps_key = serde_json::from_str::<String>(&json[i..end])
+                        .is_ok_and(|key| key == "steps");
+                }
+                if open.last() == Some(&Container::Step) && &json[i..end] == "\"action\"" {
                     let colon = skip_space(bytes, end);
                     if bytes.get(colon) == Some(&b':') {
                         let value_start = skip_space(bytes, colon + 1);
@@ -153,12 +174,17 @@ fn rewrite_actions(json: &str, mut replace: impl FnMut(&str) -> Option<String>) 
                 }
                 i = end;
             }
-            b'{' | b'[' => {
-                depth += 1;
+            opener @ (b'{' | b'[') => {
+                open.push(match (open.last(), opener) {
+                    (None, b'{') => Container::Root,
+                    (Some(Container::Root), b'[') if steps_key => Container::Steps,
+                    (Some(Container::Steps), b'{') => Container::Step,
+                    _ => Container::Other,
+                });
                 i += 1;
             }
             b'}' | b']' => {
-                depth = depth.saturating_sub(1);
+                open.pop();
                 i += 1;
             }
             _ => i += 1,
@@ -229,6 +255,51 @@ mod tests {
             json.replacen(
                 "\"action\": \"click\", \"css\"",
                 "\"action\": \"klikken\", \"css\"",
+                1
+            )
+        );
+    }
+
+    #[test]
+    fn an_action_outside_the_steps_list_is_not_rewritten() {
+        // Each `action` here sits three levels down, as a step's does, but
+        // only the one in the root's `steps` list is a step.
+        let json = concat!(
+            r#"{"name":"n","meta":{"x":{"action":"click"}},"log":[{"action":"open"}],"#,
+            r#""steps":[{"action":"click"}],"later":[{"action":"open"}],"#,
+            r#""nested":{"steps":[{"action":"open"}]}}"#
+        );
+        let result = translate_scenario(json, Language::Spanish).unwrap();
+        assert_eq!(result.translated, 1);
+        assert!(result.unknown.is_empty());
+        assert_eq!(
+            result.text,
+            json.replacen(
+                r#""steps":[{"action":"click"}]"#,
+                r#""steps":[{"action":"clic"}]"#,
+                1
+            )
+        );
+        assert_eq!(scenario_to_english(&result.text), json);
+
+        // The case the reviewers reported: a scenario with no steps at all.
+        let empty = r#"{"name":"n","meta":{"x":{"action":"click"}},"steps":[]}"#;
+        let result = translate_scenario(empty, Language::Spanish).unwrap();
+        assert_eq!((result.translated, result.text.as_str()), (0, empty));
+        let spanish = r#"{"meta":{"x":{"action":"clic"}},"steps":[]}"#;
+        assert_eq!(scenario_to_english(spanish), spanish);
+    }
+
+    #[test]
+    fn a_steps_key_written_with_escapes_or_after_other_keys_still_counts() {
+        let json = r#"{"a":[{"action":"open"}],"steps":[{"action":"open"}],"b":1}"#;
+        let result = translate_scenario(json, Language::Spanish).unwrap();
+        assert_eq!(result.translated, 1);
+        assert_eq!(
+            result.text,
+            json.replacen(
+                r#""steps":[{"action":"open"}]"#,
+                r#""steps":[{"action":"abrir"}]"#,
                 1
             )
         );

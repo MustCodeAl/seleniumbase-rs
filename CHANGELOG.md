@@ -122,6 +122,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   navigations, and the stdin recorder only says "recorded" for what it recorded.
 - The CLI scaffolders no longer overwrite files; the interactive commands stop at
   the end of their input and on Ctrl-C; Gherkin runs the way `behave` does.
+- `sbase translate` and `translate_scenario` rewrite the `action` of the steps in
+  the root `steps` list only, not an `action` in any other object three levels
+  down (such as `meta.x.action`), which was changed and counted as translated.
 
 ### Security
 
