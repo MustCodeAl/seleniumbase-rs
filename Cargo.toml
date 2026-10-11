@@ -42,6 +42,11 @@ harness = false
 name = "cpu"
 harness = false
 
+# The scrape domain purity check is gated, so a plain `cargo test` never compiles it.
+[[test]]
+name = "scrape_domain_purity"
+required-features = ["scrape"]
+
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
 clap_complete = "4.6"

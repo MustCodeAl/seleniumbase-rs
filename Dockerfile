@@ -13,13 +13,14 @@ WORKDIR /usr/src/seleniumbase-rs
 #
 # Cache dependencies by copying the manifests first and creating a skeleton that
 # matches every target the manifest declares. Cargo refuses to read a manifest
-# whose `[[bench]]`, `[[example]]` or `[[bin]]` files are missing, even when the
-# build asks for one binary.
+# whose `[[bench]]`, `[[example]]`, `[[test]]` or `[[bin]]` files are missing, even
+# when the build asks for one binary.
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir -p src/cli/bin src/bin benches examples && \
+RUN mkdir -p src/cli/bin src/bin benches examples tests && \
     touch src/lib.rs \
           benches/cdp_latency.rs benches/cpu.rs \
-          examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs && \
+          examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs \
+          tests/scrape_domain_purity.rs && \
     echo 'fn main() {}' > src/cli/bin/sbase.rs && \
     echo 'fn main() {}' > src/bin/mcp_server.rs
 
