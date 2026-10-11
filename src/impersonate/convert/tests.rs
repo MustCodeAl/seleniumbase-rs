@@ -144,6 +144,22 @@ fn every_switch_follows_the_spec() {
 }
 
 #[test]
+fn delegated_credentials_and_a_record_size_limit_are_passed_on() {
+    let mut spec = effective_tls();
+    spec.extensions.push(ext_id::DELEGATED_CREDENTIAL);
+    spec.extensions.push(ext_id::RECORD_SIZE_LIMIT);
+    spec.delegated_credentials = vec![0x0403, 0x0804];
+    spec.record_size_limit = Some(16_385);
+    assert_eq!(spec.check_reproducible(), Ok(()));
+    let options = tls_options(&spec).expect("converts");
+    assert_eq!(
+        options.delegated_credentials.as_deref(),
+        Some("ecdsa_secp256r1_sha256:rsa_pss_rsae_sha256")
+    );
+    assert_eq!(options.record_size_limit, Some(16_385));
+}
+
+#[test]
 fn a_permuting_spec_leaves_the_order_to_boringssl() {
     let options = tls_options(&effective_tls()).expect("converts");
     assert!(options.extension_permutation.is_none());

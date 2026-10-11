@@ -542,6 +542,25 @@ fn header_inputs_that_cannot_be_sent_are_refused_by_name() {
 }
 
 #[test]
+fn the_base_can_be_named_and_the_header_lists_replaced_as_a_whole() {
+    let replacement = crate::wire::header_spec::HeaderSpec {
+        document: vec![("X-Only".to_owned(), HeaderValue::Literal("1".to_owned()))],
+        ..Default::default()
+    };
+    let profile = ImpersonationProfile::custom()
+        .base(BrowserKind::Chrome)
+        .base_on(BrowserKind::Chrome, OsType::Macos)
+        .headers(replacement)
+        .build()
+        .expect("builds");
+    let rendered = profile
+        .headers_for(RequestShape::Document, None, WireProtocol::Http1)
+        .expect("renders");
+    assert_eq!(rendered, [("X-Only".to_owned(), "1".to_owned())]);
+    assert_eq!(profile.source(), "custom over chrome-155-macos");
+}
+
+#[test]
 fn a_base_with_no_capture_is_refused_when_the_builder_needs_it() {
     let error = ImpersonationProfile::custom()
         .base_on(BrowserKind::Chrome, OsType::Windows)
