@@ -125,16 +125,23 @@ fn create_new_file(path: &Path, text: &str) -> Result<(), SeleniumBaseError> {
 }
 
 /// Replaces `path` with `text` by writing a file beside it and renaming that
-/// over it, so a failure leaves the original as it was.
+/// over it, so a failure leaves the original as it was. The file keeps its
+/// permissions, and a symbolic link stays a link: the file it points to is the
+/// one replaced.
 fn replace_file(path: &Path, text: &str) -> Result<(), SeleniumBaseError> {
-    let dir = path
+    let target = fs::canonicalize(path)?;
+    let dir = target
         .parent()
         .filter(|dir| !dir.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."));
     let mut temporary = tempfile::NamedTempFile::new_in(dir)?;
     temporary.write_all(text.as_bytes())?;
+    temporary.as_file().sync_all()?;
+    // A temporary file is private to its owner (mode 0600); the file it replaces may be
+    // shared with a group, or read by a CI job that runs as someone else.
+    fs::set_permissions(temporary.path(), fs::metadata(&target)?.permissions())?;
     temporary
-        .persist(path)
+        .persist(&target)
         .map_err(|error| SeleniumBaseError::Io(error.error))?;
     Ok(())
 }
@@ -182,6 +189,52 @@ mod tests {
         assert_eq!(fs::read_to_string(&command.file).unwrap(), report.text);
         assert!(report.text.contains("\"abrir\""));
         assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn overwrite_keeps_the_mode_of_the_file() {
+        use std::os::unix::fs::PermissionsExt;
+        // The temporary file is created with mode 0600; the original's mode
+        // (shared with a group, or with CI running as another user) must win.
+        for mode in [0o644, 0o664, 0o755] {
+            let dir = tempfile::tempdir().unwrap();
+            let command = command(dir.path(), TranslateAction::Overwrite);
+            fs::set_permissions(&command.file, fs::Permissions::from_mode(mode)).unwrap();
+            run(&command).unwrap();
+            let kept = fs::metadata(&command.file).unwrap().permissions().mode() & 0o7777;
+            assert_eq!(kept, mode, "{kept:o} instead of {mode:o}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn overwrite_through_a_symlink_translates_what_it_points_to() {
+        let dir = tempfile::tempdir().unwrap();
+        let shared = dir.path().join("shared");
+        fs::create_dir(&shared).unwrap();
+        let real = shared.join("login.json");
+        fs::write(&real, SCENARIO).unwrap();
+        let link = dir.path().join("login.json");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+
+        let report = run(&TranslateCommand {
+            file: link.clone(),
+            language: Language::Spanish,
+            action: TranslateAction::Overwrite,
+        })
+        .unwrap();
+
+        assert_eq!(report.written.as_deref(), Some(link.as_path()));
+        assert!(
+            fs::symlink_metadata(&link).unwrap().file_type().is_symlink(),
+            "the link was replaced by a regular file"
+        );
+        assert_eq!(fs::read_to_string(&real).unwrap(), report.text);
+        assert!(report.text.contains("\"abrir\""));
+        // No stray temporary file beside the target, or beside the link.
+        assert_eq!(fs::read_dir(&shared).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 2);
     }
 
     #[test]
