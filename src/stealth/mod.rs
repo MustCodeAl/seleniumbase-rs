@@ -24,5 +24,6 @@ pub use patcher::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
 };
 pub use providers::{
-    default_registry, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
+    default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
+    EvasionRegistry, SESSION_OMITTED_PROVIDERS,
 };

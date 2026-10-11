@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State};
-use seleniumbase_rs::stealth::evasions::bootstrap_script;
+use seleniumbase_rs::stealth::providers::{session_registry, EvasionContext};
 use seleniumbase_rs::{
     AssertionApi, BrowserApi, ElementApi, Fingerprint, OsType, ProxyConfig, ScreenshotApi,
     SeleniumBaseError,
@@ -808,8 +808,8 @@ async fn a_fingerprint_is_applied_script_first_then_overrides() {
     assert_eq!(calls[0].0, "Page.addScriptToEvaluateOnNewDocument");
     assert_eq!(
         calls[0].1["source"].as_str().unwrap(),
-        bootstrap_script(&fingerprint),
-        "the library's own script for this fingerprint"
+        session_registry(&fingerprint).bootstrap(&EvasionContext::new(&fingerprint)),
+        "the library's own session script for this fingerprint"
     );
     assert_eq!(calls[1].0, "Network.enable");
     let user_agent = calls

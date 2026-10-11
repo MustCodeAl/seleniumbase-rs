@@ -157,7 +157,8 @@ pub use stealth::fingerprint::{
     WebRtcPolicy,
 };
 pub use stealth::providers::{
-    default_registry, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
+    default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
+    EvasionRegistry, SESSION_OMITTED_PROVIDERS,
 };
 pub use stealth::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
