@@ -73,7 +73,7 @@ pub(super) fn from_cdp(cookie: &Cookie, now: u64) -> Result<StoredCookie, Ignore
 
 #[allow(
     clippy::cast_precision_loss,
-    reason = "expiries are capped at 400 days after now, far below 2^53 seconds, which f64 holds exactly"
+    reason = "expiries are at most 400 days after a time a clock reads (a loaded jar is held to the same, see MAX_TIMESTAMP_SECS), far below 2^53 seconds, which f64 holds exactly"
 )]
 fn seconds_to_f64(seconds: u64) -> f64 {
     seconds as f64

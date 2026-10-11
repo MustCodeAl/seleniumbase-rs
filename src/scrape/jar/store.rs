@@ -25,7 +25,9 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::set_cookie::{CookiePrefix, SetCookie, SetCookieError, MAX_ATTRIBUTE_VALUE_BYTES};
+use super::set_cookie::{
+    CookiePrefix, SetCookie, SetCookieError, MAX_ATTRIBUTE_VALUE_BYTES, MAX_LIFETIME_SECS,
+};
 use crate::sb_cdp::{Cookie, SameSite};
 use rules::{default_path, domain_match, path_match, site_key, validate, RequestOrigin};
 
@@ -49,6 +51,10 @@ pub const MAX_PATH_BYTES: usize = MAX_ATTRIBUTE_VALUE_BYTES;
 
 /// The most bytes a cookie domain may hold: the longest DNS name, without a trailing dot.
 pub const MAX_DOMAIN_BYTES: usize = 253;
+
+/// The last second a four-digit year holds, 23:59:59 on 31 December 9999 UTC. A stored time past
+/// it is not a time a clock reads, so a jar file that carries one is refused.
+pub const MAX_TIMESTAMP_SECS: u64 = 253_402_300_799;
 
 /// The `Path` a `__Host-` cookie must be set with.
 const ROOT_PATH: &str = "/";
@@ -293,7 +299,8 @@ impl CookieJar {
     /// The `Cookie` header value for a request to `request_url` made in `context`, or `None` when
     /// no cookie applies or the URL cannot carry cookies (RFC 6265 section 5.4). Cookies with
     /// longer paths come first, then those created earlier. Expired cookies are purged, and every
-    /// cookie sent has its last access set to `now`.
+    /// cookie sent has its last access raised to `now`; a clock that steps back does not lower it,
+    /// so a jar the library wrote always loads again.
     pub fn header_for(
         &mut self,
         request_url: &Url,
@@ -319,7 +326,7 @@ impl CookieJar {
         let mut header = String::new();
         for (position, &index) in picked.iter().enumerate() {
             let cookie = &mut self.cookies[index];
-            cookie.last_access = now;
+            cookie.last_access = cookie.last_access.max(now);
             if position > 0 {
                 header.push_str(COOKIE_SEPARATOR);
             }
@@ -403,7 +410,7 @@ impl CookieJar {
             return StoreOutcome::Deleted;
         }
         if let Some(index) = old {
-            cookie.created = self.cookies[index].created;
+            cookie.created = self.cookies[index].created.min(cookie.last_access);
             self.cookies[index] = cookie;
             self.evict_beyond_bounds(index);
             return StoreOutcome::Replaced;
@@ -560,6 +567,7 @@ fn check_file(cookies: &[StoredCookie]) -> Result<(), JarError> {
     let mut per_site: HashMap<String, (usize, usize)> = HashMap::new();
     for (index, cookie) in cookies.iter().enumerate() {
         validate(cookie).map_err(|reason| JarError::Invalid { index, reason })?;
+        check_times(index, cookie)?;
         let identity = (&cookie.name, &cookie.domain, cookie.host_only, &cookie.path);
         if !identities.insert(identity) {
             return Err(JarError::Duplicate { index });
@@ -573,6 +581,22 @@ fn check_file(cookies: &[StoredCookie]) -> Result<(), JarError> {
         if *bytes > MAX_BYTES_PER_SITE {
             return Err(JarError::SiteBytes { index });
         }
+    }
+    Ok(())
+}
+
+/// Checks the times of a loaded cookie against what [`CookieJar::store`] and
+/// [`CookieJar::header_for`] guarantee: it was created no later than it was last used, no time lies
+/// past [`MAX_TIMESTAMP_SECS`], and it does not expire more than [`MAX_LIFETIME_SECS`] after its
+/// last use (a header sets the expiry at most that far after the time it is stored, which is no
+/// later than the last use).
+fn check_times(index: usize, cookie: &StoredCookie) -> Result<(), JarError> {
+    if cookie.created > cookie.last_access || cookie.last_access > MAX_TIMESTAMP_SECS {
+        return Err(JarError::Clock { index });
+    }
+    let latest = cookie.last_access + MAX_LIFETIME_SECS;
+    if cookie.expires.is_some_and(|at| at > latest) {
+        return Err(JarError::Lifetime { index });
     }
     Ok(())
 }
@@ -610,6 +634,20 @@ pub enum JarError {
     #[error("stored cookie {index} is one too many for the bytes its site may hold; at most {max} are allowed", max = MAX_BYTES_PER_SITE)]
     SiteBytes {
         /// The position of the first cookie beyond the bound.
+        index: usize,
+    },
+    /// A stored cookie expires more than [`MAX_LIFETIME_SECS`] after its last use, which no
+    /// `Set-Cookie` header can ask for.
+    #[error("stored cookie {index} outlives the longest lifetime a cookie may have")]
+    Lifetime {
+        /// The position of the cookie in the file.
+        index: usize,
+    },
+    /// A stored cookie has a time that no clock produced: it was created after its last use, or
+    /// a time lies past [`MAX_TIMESTAMP_SECS`].
+    #[error("stored cookie {index} carries a time no clock produced")]
+    Clock {
+        /// The position of the cookie in the file.
         index: usize,
     },
 }

@@ -1,10 +1,11 @@
 //! Behaviour tests of the cookie jar, plus properties checked over generated input. The abuse
 //! cases live in `abuse`, the path and domain bounds in `bounds`, the bytes a site may hold in
-//! `site_bytes`.
+//! `site_bytes`, the times a cookie may carry in `times`.
 
 mod abuse;
 mod bounds;
 mod site_bytes;
+mod times;
 
 use super::super::set_cookie::MAX_LIFETIME_SECS;
 use super::rules::is_public_suffix;
@@ -172,7 +173,7 @@ fn the_cookie_header_puts_longer_paths_first_then_older_cookies() {
         (3, "deep_new=1; Path=/a/b"),
     ] {
         assert_eq!(
-            store_at(&mut jar, at, header_text, NOW + offset),
+            store_at(&mut jar, at, header_text, NOW - 3 + offset),
             StoreOutcome::Stored
         );
     }
