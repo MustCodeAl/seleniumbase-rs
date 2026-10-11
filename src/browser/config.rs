@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::browser::options::{
+    CapabilityOverrides, CdpEventCapture, DeviceMetrics, ExtensionArchive, FirefoxOptions,
+    LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList, WindowPosition, WindowSize,
+};
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 
@@ -65,6 +69,13 @@ pub struct BrowserConfig {
     /// node dies mid-session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_webdriver_timeout_seconds: Option<u64>,
+    /// The options that shape how the browser and its driver are started:
+    /// preferences, page load strategy, window geometry, mobile emulation,
+    /// extensions, Firefox settings, extra capabilities, driver version and
+    /// more. Set them with the `with_*` methods below; in a config file they
+    /// sit next to the fields above.
+    #[serde(default, flatten)]
+    pub launch: LaunchSettings,
 }
 
 impl Default for BrowserConfig {
@@ -106,6 +117,7 @@ impl BrowserConfig {
             fingerprint: None,
             browser_binary_path: runtime.chrome_bin.clone(),
             remote_webdriver_timeout_seconds: runtime.remote_webdriver_timeout.map(|d| d.as_secs()),
+            launch: LaunchSettings::default(),
         }
     }
 }
@@ -210,6 +222,148 @@ impl BrowserConfig {
 
     pub fn push_extra_arg(mut self, arg: impl Into<String>) -> Self {
         self.extra_args.push(arg.into());
+        self
+    }
+
+    /// Replaces all the [`LaunchSettings`] at once.
+    pub fn with_launch_settings(mut self, launch: LaunchSettings) -> Self {
+        self.launch = launch;
+        self
+    }
+
+    /// Turns one of the on/off launch settings on or off.
+    pub fn with_switch(mut self, switch: LaunchSwitch, on: bool) -> Self {
+        self.launch.set(switch, on);
+        self
+    }
+
+    /// Do not load images (`--block-images`).
+    ///
+    /// Sets the browser's own content-setting preference, so it also holds for
+    /// images that a page requests later.
+    pub fn with_block_images(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::BlockImages, on)
+    }
+
+    /// Turn JavaScript off (`--disable-js`). Most pages break without it.
+    pub fn with_disable_js(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DisableJavaScript, on)
+    }
+
+    /// Refuse every cookie (`--disable-cookies`).
+    pub fn with_disable_cookies(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DisableCookies, on)
+    }
+
+    /// Send the `DNT: 1` header (`--do-not-track`).
+    pub fn with_do_not_track(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DoNotTrack, on)
+    }
+
+    /// Download PDF files instead of showing them in the browser
+    /// (`--external-pdf`).
+    pub fn with_external_pdf(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::ExternalPdf, on)
+    }
+
+    /// Leave Chrome Sync on (`--enable-sync`); sessions switch it off
+    /// otherwise.
+    pub fn with_enable_sync(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::EnableSync, on)
+    }
+
+    /// Strip the Content Security Policy from every response
+    /// (`--disable-csp`, `--dcsp`, `--no-csp`). Chromium only.
+    pub fn with_disable_csp(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::DisableCsp, on)
+    }
+
+    /// Keep Chrome's automation extension (`--use-auto-ext`, `--auto-ext`).
+    /// Upstream marks it deprecated. Chromium only.
+    pub fn with_automation_extension(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::AutomationExtension, on)
+    }
+
+    /// Load the SeleniumBase Recorder extension (`recorder_ext`). Chromium
+    /// only.
+    pub fn with_recorder_extension(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::RecorderExtension, on)
+    }
+
+    /// How long a navigation waits (`--page-load-strategy`, `--pls`).
+    pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
+        self.launch.page_load_strategy = Some(strategy);
+        self
+    }
+
+    /// The size of the browser window (`--window-size`, `size`).
+    pub fn with_window_size(mut self, size: WindowSize) -> Self {
+        self.launch.window_size = Some(size);
+        self
+    }
+
+    /// The position of the browser window (`--window-position`, `position`).
+    pub fn with_window_position(mut self, position: WindowPosition) -> Self {
+        self.launch.window_position = Some(position);
+        self
+    }
+
+    /// Emulate a phone with this screen (`--metrics`, `d_width`, `d_height`,
+    /// `d_p_r`). It turns mobile emulation on, with the user agent from
+    /// [`user_agent`](Self::user_agent) or, without one, an Android one.
+    pub fn with_device_metrics(mut self, metrics: DeviceMetrics) -> Self {
+        self.launch.device_metrics = Some(metrics);
+        self.mobile = true;
+        self
+    }
+
+    /// Hosts that skip the proxy (`--proxy-bypass-list`).
+    pub fn with_proxy_bypass_list(mut self, hosts: ProxyBypassList) -> Self {
+        self.launch.proxy_bypass_list = hosts;
+        self
+    }
+
+    /// Load a Chromium extension from a `.zip` or `.crx` file
+    /// (`--extension-zip`, `--crx`). May be called more than once.
+    pub fn with_extension_archive(mut self, archive: ExtensionArchive) -> Self {
+        if !self.launch.extension_archives.contains(&archive) {
+            self.launch.extension_archives.push(archive);
+        }
+        self
+    }
+
+    /// Firefox arguments and preferences (`--firefox-arg`, `--firefox-pref`).
+    pub fn with_firefox_options(mut self, firefox: FirefoxOptions) -> Self {
+        self.launch.firefox = firefox;
+        self
+    }
+
+    /// Capabilities to add to the session's (`--cap-string`, `--cap-file`).
+    pub fn with_capabilities(mut self, capabilities: CapabilityOverrides) -> Self {
+        self.launch.capabilities = capabilities;
+        self
+    }
+
+    /// Open Chrome's remote debugger on `port`. Anyone on the machine who can
+    /// reach the port can drive the browser, so use it for debugging only.
+    pub fn with_remote_debug_port(mut self, port: u16) -> Self {
+        self.launch.remote_debug_port = Some(port);
+        self
+    }
+
+    /// Open Chrome's remote debugger on port 9222, or close it again
+    /// (`--remote-debug`, `--remote-debugger`). Debugger at
+    /// `http://localhost:9222`.
+    pub fn with_remote_debug(mut self, on: bool) -> Self {
+        self.launch.remote_debug_port =
+            on.then_some(crate::stealth::options::DEFAULT_REMOTE_DEBUG_PORT);
+        self
+    }
+
+    /// Log the DevTools Protocol events of Chromium sessions
+    /// (`--log-cdp-events`, `--uc-cdp-events`).
+    pub fn with_cdp_events(mut self, capture: CdpEventCapture) -> Self {
+        self.launch.cdp_events = capture;
         self
     }
 

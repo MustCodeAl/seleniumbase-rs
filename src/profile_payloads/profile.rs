@@ -951,6 +951,7 @@ impl ProfileParams {
             fingerprint: Some(self.to_fingerprint()),
             browser_binary_path: None,
             remote_webdriver_timeout_seconds: None,
+            launch: Default::default(),
         };
 
         for extra in self.extra_args() {

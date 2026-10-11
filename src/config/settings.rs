@@ -285,6 +285,7 @@ impl Settings {
             fingerprint: None,
             browser_binary_path: None,
             remote_webdriver_timeout_seconds: self.remote_webdriver_timeout_seconds,
+            launch: Default::default(),
         }
     }
 

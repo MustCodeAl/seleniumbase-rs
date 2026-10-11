@@ -4,15 +4,25 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::browser::config::BrowserConfig;
+use crate::browser::options::{chrome_preferences, Bundled, LaunchSettings, LaunchSwitch};
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
+use thirtyfour::LoggingPrefsLogLevel;
+
+/// The user agent a phone-emulating session reports when the caller names none.
+const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
+/// Chrome's port for its remote debugger when none is named.
+pub const DEFAULT_REMOTE_DEBUG_PORT: u16 = 9222;
 
 /// Collection of browser launch options that reduce automation fingerprints.
 #[derive(Clone, Default)]
 pub struct StealthOptions {
     pub headless: bool,
     pub window_size: Option<String>,
+    /// `X,Y` of the window's top-left corner, for `--window-position`.
+    pub window_position: Option<String>,
     pub user_agent: Option<String>,
     pub locale: Option<String>,
     pub proxy: Option<String>,
@@ -30,6 +40,9 @@ pub struct StealthOptions {
     pub extra_args: Vec<String>,
     /// Optional explicit path to a patched or custom browser binary.
     pub binary_path: Option<PathBuf>,
+    /// The launch settings of the configuration these options came from:
+    /// preferences, page load strategy, mobile emulation, extensions and so on.
+    pub launch: LaunchSettings,
 }
 
 // Written by hand: the proxy URL may carry a password and the extra headers
@@ -41,6 +54,7 @@ impl std::fmt::Debug for StealthOptions {
         f.debug_struct("StealthOptions")
             .field("headless", &self.headless)
             .field("window_size", &self.window_size)
+            .field("window_position", &self.window_position)
             .field("user_agent", &self.user_agent)
             .field("locale", &self.locale)
             .field("proxy", &self.proxy.as_deref().map(without_credentials))
@@ -57,6 +71,7 @@ impl std::fmt::Debug for StealthOptions {
             .field("extra_header_names", &header_names)
             .field("extra_args", &self.extra_args)
             .field("binary_path", &self.binary_path)
+            .field("launch", &self.launch)
             .finish()
     }
 }
@@ -77,7 +92,11 @@ impl From<&BrowserConfig> for StealthOptions {
     fn from(config: &BrowserConfig) -> Self {
         Self {
             headless: config.headless,
-            window_size: None,
+            window_size: config.launch.window_size.map(|size| size.to_string()),
+            window_position: config
+                .launch
+                .window_position
+                .map(|position| position.to_string()),
             user_agent: config.user_agent.clone(),
             locale: config.locale.clone(),
             proxy: config.proxy.clone(),
@@ -91,6 +110,7 @@ impl From<&BrowserConfig> for StealthOptions {
             extra_headers: HashMap::new(),
             extra_args: config.extra_args.clone(),
             binary_path: config.browser_binary_path.clone(),
+            launch: config.launch.clone(),
         }
     }
 }
@@ -119,6 +139,9 @@ impl StealthOptions {
                 .as_deref()
                 .unwrap_or(if self.mobile { "390,844" } else { "1280,720" });
         caps.add_arg(&format!("--window-size={size}"))?;
+        if let Some(position) = self.window_position.as_deref() {
+            caps.add_arg(&format!("--window-position={position}"))?;
+        }
 
         if self.ad_block {
             caps.add_arg("--blink-settings=imagesEnabled=false")?;
@@ -136,6 +159,10 @@ impl StealthOptions {
             caps.add_arg(&format!("--proxy-server={proxy}"))?;
         }
 
+        if let Some(hosts) = self.launch.proxy_bypass_list.to_chrome_value() {
+            caps.add_arg(&format!("--proxy-bypass-list={hosts}"))?;
+        }
+
         if let Some(pac_url) = self.proxy_pac_url.as_deref() {
             caps.add_arg(&format!("--proxy-pac-url={pac_url}"))?;
         }
@@ -150,7 +177,7 @@ impl StealthOptions {
 
         // A phone user agent only where the caller named none.
         if self.mobile && self.user_agent.is_none() {
-            caps.add_arg("--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")?;
+            caps.add_arg(&format!("--user-agent={MOBILE_USER_AGENT}"))?;
         }
 
         if let Some(binary) = self.binary_path.as_deref() {
@@ -172,12 +199,90 @@ impl StealthOptions {
             }
         }
 
+        self.apply_launch_settings(caps)?;
+
         for arg in &self.extra_args {
             if arg.starts_with('-') {
                 caps.add_arg(arg)?;
             } else {
                 caps.add_arg(&format!("--{arg}"))?;
             }
+        }
+
+        // Chrome reads only the last `--disable-features=`, and several of the
+        // arguments above carry one.
+        merge_feature_switch(caps, "disable-features")?;
+        merge_feature_switch(caps, "enable-features")?;
+
+        Ok(())
+    }
+
+    /// The part of [`apply_to`](Self::apply_to) that comes from
+    /// [`LaunchSettings`]: preferences, page load strategy, mobile emulation,
+    /// extensions, sync, the remote debugger and the DevTools event log.
+    fn apply_launch_settings<C: ChromiumLikeCapabilities>(
+        &self,
+        caps: &mut C,
+    ) -> Result<(), SeleniumBaseError> {
+        let launch = &self.launch;
+
+        if let Some(strategy) = launch.page_load_strategy {
+            caps.set_page_load_strategy(strategy.into())?;
+        }
+
+        let preferences = chrome_preferences(&launch.switches);
+        if !preferences.is_empty() {
+            caps.add_experimental_option("prefs", preferences)?;
+        }
+
+        if let Some(metrics) = launch.device_metrics {
+            let user_agent = self
+                .user_agent
+                .as_deref()
+                .or(self.mobile.then_some(MOBILE_USER_AGENT));
+            caps.add_experimental_option("mobileEmulation", metrics.mobile_emulation(user_agent))?;
+        }
+
+        // Chrome Sync is off unless it was asked for. The undetected-mode
+        // arguments already carry the switch, so it is taken out for the one
+        // case that wants sync.
+        if launch.has(LaunchSwitch::EnableSync) {
+            caps.remove_arg("--disable-sync")?;
+        } else {
+            caps.add_arg("--disable-sync")?;
+        }
+
+        if launch.has(LaunchSwitch::AutomationExtension) {
+            caps.add_experimental_option("useAutomationExtension", true)?;
+        }
+
+        let mut loads_extensions = self.extension_dir.is_some();
+        for archive in &launch.extension_archives {
+            caps.add_encoded_extension(&archive.encoded()?)?;
+            loads_extensions = true;
+        }
+        for (switch, bundled) in [
+            (LaunchSwitch::DisableCsp, Bundled::DisableCsp),
+            (LaunchSwitch::RecorderExtension, Bundled::Recorder),
+        ] {
+            if launch.has(switch) {
+                caps.add_encoded_extension(&bundled.encoded())?;
+                loads_extensions = true;
+            }
+        }
+        if loads_extensions {
+            // Chrome 137 and later ignore `--load-extension` unless this
+            // feature is off.
+            caps.add_arg("--disable-features=DisableLoadExtensionCommandLineSwitch")?;
+        }
+
+        if let Some(port) = launch.remote_debug_port {
+            caps.add_arg(&format!("--remote-debugging-port={port}"))?;
+        }
+
+        if launch.cdp_events.captures(self.uc) {
+            caps.set_logging_prefs("performance", LoggingPrefsLogLevel::All)?;
+            caps.set_logging_prefs("browser", LoggingPrefsLogLevel::All)?;
         }
 
         Ok(())
@@ -192,6 +297,45 @@ impl StealthOptions {
         self.apply_to(&mut caps)?;
         Ok(caps.args())
     }
+}
+
+/// Joins every `--<switch>=a,b` argument into the first one, keeping each
+/// feature once.
+///
+/// Chrome keeps only the last occurrence of a switch, so two
+/// `--disable-features=` arguments would silently drop the earlier list.
+fn merge_feature_switch<C: ChromiumLikeCapabilities>(
+    caps: &mut C,
+    switch: &str,
+) -> Result<(), SeleniumBaseError> {
+    let prefix = format!("--{switch}=");
+    let args = caps.args();
+    if args.iter().filter(|arg| arg.starts_with(&prefix)).count() < 2 {
+        return Ok(());
+    }
+    let mut features: Vec<&str> = Vec::new();
+    for list in args.iter().filter_map(|arg| arg.strip_prefix(&prefix)) {
+        for feature in list.split(',').map(str::trim).filter(|f| !f.is_empty()) {
+            if !features.contains(&feature) {
+                features.push(feature);
+            }
+        }
+    }
+    let merged_arg = format!("{prefix}{}", features.join(","));
+    let mut merged = Vec::with_capacity(args.len());
+    let mut placed = false;
+    for arg in &args {
+        if arg.starts_with(&prefix) {
+            if !placed {
+                merged.push(merged_arg.clone());
+                placed = true;
+            }
+        } else {
+            merged.push(arg.clone());
+        }
+    }
+    caps.set_browser_option("args", merged)?;
+    Ok(())
 }
 
 /// The standard undetected-chrome launch arguments.
@@ -331,5 +475,295 @@ mod tests {
         assert_eq!(without_credentials("a:b@h:1"), "h:1");
         // A password that itself contains an `@`.
         assert_eq!(without_credentials("http://a:p@ss@h:1"), "http://h:1");
+    }
+
+    // -- Launch settings ---------------------------------------------------
+
+    use crate::browser::config::DriverMode;
+    use crate::browser::options::{
+        CapabilityOverrides, CdpEventCapture, DeviceMetrics, ExtensionArchive, PageLoadStrategy,
+        ProxyBypassList, WindowPosition, WindowSize,
+    };
+    use serde_json::{json, Value};
+
+    fn options_for(config: &BrowserConfig) -> StealthOptions {
+        StealthOptions::from(config)
+    }
+
+    /// The capabilities Chrome would be asked for, as JSON.
+    fn chrome_caps(options: &StealthOptions) -> Value {
+        let mut caps = DesiredCapabilities::chrome();
+        options.apply_to(&mut caps).unwrap();
+        serde_json::to_value(&caps).unwrap()
+    }
+
+    fn chrome_options(options: &StealthOptions) -> Value {
+        chrome_caps(options)["goog:chromeOptions"].clone()
+    }
+
+    #[test]
+    fn the_window_geometry_comes_from_the_launch_settings() {
+        let config = BrowserConfig::default()
+            .with_window_size(WindowSize::new(1920, 1080))
+            .with_window_position(WindowPosition::new(-10, 20));
+        let args = options_for(&config).args().unwrap();
+        assert!(
+            args.contains(&"--window-size=1920,1080".to_owned()),
+            "{args:?}"
+        );
+        assert!(
+            args.contains(&"--window-position=-10,20".to_owned()),
+            "{args:?}"
+        );
+        assert_eq!(
+            args.iter()
+                .filter(|a| a.starts_with("--window-size="))
+                .count(),
+            1
+        );
+
+        let plain = options_for(&BrowserConfig::default()).args().unwrap();
+        assert!(!plain.iter().any(|a| a.starts_with("--window-position=")));
+        assert!(plain.contains(&"--window-size=1280,720".to_owned()));
+    }
+
+    #[test]
+    fn the_proxy_bypass_list_is_one_semicolon_separated_flag() {
+        let config = BrowserConfig::default()
+            .with_proxy("proxy.example:8080")
+            .with_proxy_bypass_list(ProxyBypassList::new(["*.example.com", "localhost"]).unwrap());
+        let args = options_for(&config).args().unwrap();
+        assert!(args.contains(&"--proxy-server=proxy.example:8080".to_owned()));
+        assert!(
+            args.contains(&"--proxy-bypass-list=*.example.com;localhost".to_owned()),
+            "{args:?}"
+        );
+
+        let none = options_for(&BrowserConfig::default()).args().unwrap();
+        assert!(!none.iter().any(|a| a.starts_with("--proxy-bypass-list")));
+    }
+
+    #[test]
+    fn the_content_switches_become_chrome_preferences() {
+        let config = BrowserConfig::default()
+            .with_block_images(true)
+            .with_disable_js(true)
+            .with_disable_cookies(true)
+            .with_do_not_track(true)
+            .with_external_pdf(true);
+        assert_eq!(
+            chrome_options(&options_for(&config))["prefs"],
+            json!({
+                "profile.managed_default_content_settings.images": 2,
+                "profile.managed_default_content_settings.javascript": 2,
+                "profile.default_content_setting_values.cookies": 2,
+                "enable_do_not_track": true,
+                "plugins.always_open_pdf_externally": true,
+            })
+        );
+
+        let off = BrowserConfig::default()
+            .with_block_images(true)
+            .with_block_images(false);
+        assert!(chrome_options(&options_for(&off)).get("prefs").is_none());
+    }
+
+    #[test]
+    fn the_page_load_strategy_is_a_capability() {
+        for (strategy, wanted) in [
+            (PageLoadStrategy::Normal, "normal"),
+            (PageLoadStrategy::Eager, "eager"),
+            (PageLoadStrategy::None, "none"),
+        ] {
+            let config = BrowserConfig::default().with_page_load_strategy(strategy);
+            assert_eq!(
+                chrome_caps(&options_for(&config))["pageLoadStrategy"],
+                wanted
+            );
+        }
+        let unset = chrome_caps(&options_for(&BrowserConfig::default()));
+        assert!(unset.get("pageLoadStrategy").is_none());
+    }
+
+    #[test]
+    fn device_metrics_turn_on_chromes_mobile_emulation() {
+        let config =
+            BrowserConfig::default().with_device_metrics(DeviceMetrics::new(412, 732, 3.0));
+        let emulation = chrome_options(&options_for(&config))["mobileEmulation"].clone();
+        assert_eq!(
+            emulation["deviceMetrics"],
+            json!({"width": 412, "height": 732, "pixelRatio": 3.0})
+        );
+        assert!(emulation["userAgent"].as_str().unwrap().contains("Android"));
+
+        let own = config.clone().with_user_agent("MyAgent/1.0");
+        let emulation = chrome_options(&options_for(&own))["mobileEmulation"].clone();
+        assert_eq!(emulation["userAgent"], "MyAgent/1.0");
+
+        // Without metrics there is no emulation, only the mobile defaults.
+        let mobile = BrowserConfig::default().with_mobile(true);
+        assert!(chrome_options(&options_for(&mobile))
+            .get("mobileEmulation")
+            .is_none());
+    }
+
+    #[test]
+    fn chrome_sync_is_off_unless_it_was_asked_for() {
+        let default = options_for(&BrowserConfig::default()).args().unwrap();
+        assert!(
+            default.contains(&"--disable-sync".to_owned()),
+            "{default:?}"
+        );
+
+        let enabled = BrowserConfig::default().with_enable_sync(true);
+        assert!(!options_for(&enabled)
+            .args()
+            .unwrap()
+            .contains(&"--disable-sync".to_owned()));
+
+        // The undetected-mode arguments carry the switch too.
+        let uc = BrowserConfig::default().with_mode(DriverMode::Uc);
+        assert!(options_for(&uc)
+            .args()
+            .unwrap()
+            .contains(&"--disable-sync".to_owned()));
+        let uc_synced = uc.with_enable_sync(true);
+        assert!(!options_for(&uc_synced)
+            .args()
+            .unwrap()
+            .contains(&"--disable-sync".to_owned()));
+    }
+
+    #[test]
+    fn the_automation_extension_is_kept_only_when_asked_for() {
+        let uc = BrowserConfig::default().with_mode(DriverMode::Uc);
+        assert_eq!(
+            chrome_options(&options_for(&uc))["useAutomationExtension"],
+            false
+        );
+        let kept = uc.with_automation_extension(true);
+        assert_eq!(
+            chrome_options(&options_for(&kept))["useAutomationExtension"],
+            true
+        );
+        let plain = chrome_options(&options_for(&BrowserConfig::default()));
+        assert!(plain.get("useAutomationExtension").is_none());
+    }
+
+    #[test]
+    fn extension_files_and_bundled_extensions_reach_the_extensions_capability() {
+        use base64::Engine;
+        let dir = tempfile::tempdir().unwrap();
+        let crx = dir.path().join("mine.crx");
+        std::fs::write(&crx, b"crx bytes").unwrap();
+
+        let config = BrowserConfig::default()
+            .with_extension_archive(ExtensionArchive::new(&crx).unwrap())
+            .with_extension_archive(ExtensionArchive::new(&crx).unwrap());
+        let options = chrome_options(&options_for(&config));
+        let encoded = base64::engine::general_purpose::STANDARD.encode(b"crx bytes");
+        assert_eq!(
+            options["extensions"],
+            json!([encoded]),
+            "added twice, loaded once"
+        );
+        assert!(options["args"].as_array().unwrap().contains(&json!(
+            "--disable-features=DisableLoadExtensionCommandLineSwitch"
+        )));
+
+        let bundled = BrowserConfig::default()
+            .with_disable_csp(true)
+            .with_recorder_extension(true);
+        let extensions = chrome_options(&options_for(&bundled))["extensions"].clone();
+        assert_eq!(extensions.as_array().unwrap().len(), 2);
+
+        let none = chrome_options(&options_for(&BrowserConfig::default()));
+        assert!(none.get("extensions").is_none());
+        assert!(!none["args"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a.as_str().unwrap().contains("DisableLoadExtension")));
+    }
+
+    #[test]
+    fn a_missing_extension_file_fails_the_session_before_it_starts() {
+        let config = BrowserConfig::default()
+            .with_extension_archive(ExtensionArchive::new("/no/such/extension.zip").unwrap());
+        let error = options_for(&config).args().unwrap_err();
+        assert!(
+            error.to_string().contains("/no/such/extension.zip"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn disable_features_lists_are_merged_not_overridden() {
+        let config = BrowserConfig::default()
+            .with_disable_csp(true)
+            .with_extra_args(["disable-features=Foo", "--disable-features=Bar,Foo"]);
+        let args = options_for(&config).args().unwrap();
+        let lists: Vec<_> = args
+            .iter()
+            .filter(|a| a.starts_with("--disable-features="))
+            .collect();
+        assert_eq!(
+            lists,
+            ["--disable-features=DisableLoadExtensionCommandLineSwitch,Foo,Bar"],
+            "{args:?}"
+        );
+    }
+
+    #[test]
+    fn the_remote_debugger_port_is_a_chrome_flag() {
+        let on = BrowserConfig::default().with_remote_debug(true);
+        assert!(options_for(&on)
+            .args()
+            .unwrap()
+            .contains(&"--remote-debugging-port=9222".to_owned()));
+        let custom = BrowserConfig::default().with_remote_debug_port(9333);
+        assert!(options_for(&custom)
+            .args()
+            .unwrap()
+            .contains(&"--remote-debugging-port=9333".to_owned()));
+        let off = on.with_remote_debug(false);
+        assert!(!options_for(&off)
+            .args()
+            .unwrap()
+            .iter()
+            .any(|a| a.starts_with("--remote-debugging-port")));
+    }
+
+    #[test]
+    fn the_cdp_event_log_is_the_performance_and_browser_logging_capability() {
+        let logged = BrowserConfig::default().with_cdp_events(CdpEventCapture::Always);
+        assert_eq!(
+            chrome_caps(&options_for(&logged))["goog:loggingPrefs"],
+            json!({"performance": "ALL", "browser": "ALL"})
+        );
+
+        // UC-only capture leaves a plain session alone, and logs a UC one.
+        let uc_only = BrowserConfig::default().with_cdp_events(CdpEventCapture::UndetectedOnly);
+        assert!(chrome_caps(&options_for(&uc_only))
+            .get("goog:loggingPrefs")
+            .is_none());
+        let uc = uc_only.with_mode(DriverMode::Uc);
+        assert!(chrome_caps(&options_for(&uc))
+            .get("goog:loggingPrefs")
+            .is_some());
+
+        let off = chrome_caps(&options_for(&BrowserConfig::default()));
+        assert!(off.get("goog:loggingPrefs").is_none());
+    }
+
+    #[test]
+    fn capability_overrides_do_not_change_the_chrome_arguments() {
+        // They are merged into the capabilities when the session is built.
+        let caps = CapabilityOverrides::from_text(r#"{"name": "x"}"#).unwrap();
+        let config = BrowserConfig::default().with_capabilities(caps);
+        assert_eq!(
+            options_for(&config).args().unwrap(),
+            options_for(&BrowserConfig::default()).args().unwrap()
+        );
     }
 }
