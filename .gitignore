@@ -17,3 +17,6 @@ slim.report.json
 
 # check_window baselines written by test runs
 visual_baseline/
+
+# Screenshots, page sources and charts the examples and tests save
+latest_logs/
