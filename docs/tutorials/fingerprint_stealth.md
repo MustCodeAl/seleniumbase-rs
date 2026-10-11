@@ -8,6 +8,8 @@ pluggable evasion system.
 
 This page explains how to use built-in fingerprint presets, build custom
 profiles, choose masking modes, and apply native-level spoofing through CDP.
+It covers what a page can read inside the browser. The TLS and HTTP/2 side, and
+the scraper built on it, is in [Stealth Scraping](stealth_scraping.md).
 
 ## What you will learn
 
@@ -50,7 +52,8 @@ A fingerprint reaches the page only through a launch path that applies it:
   agent, `--lang`, `--window-size`, the WebRTC policy, and the QUIC and proxy
   flags). No script is injected and no protocol override is sent.
 - The Pure CDP engine and the Playwright session have their own paths, described
-  below.
+  below. The Pure CDP engine runs the script of `session_registry` (27 providers),
+  not `default_registry` (29); see [Built-in providers](#built-in-providers).
 
 ## Fingerprint presets
 
@@ -133,6 +136,9 @@ Things to know:
   user agent claims Chromium 153, 154 or 155 (an iPhone identity claims Mobile
   Safari 17.7, 18.1, 18.3.1 or 18.5). Pair the identity with a browser of that
   era, or change `user_agent`, `client_hints` and `core_version` together.
+  `Fingerprint::randomized_with_major(os, seed, major)` fixes the Chromium major
+  instead (Safari and iOS ignore it); the stealth scraper uses it so the identity
+  claims the Chrome that is running (see [Stealth Scraping](stealth_scraping.md)).
 - **iOS differs.** Safari has no `navigator.deviceMemory` and no
   `navigator.userAgentData`, so an iOS identity sets neither (`device_memory` and
   `client_hints` are `None`).
@@ -214,7 +220,7 @@ identity uses. "Provider" names are the built-in evasion providers listed under
 | `audio_masking` | `MaskingMode` | `Natural` | `Natural` | The `audio_noise` provider. |
 | `graphics_noise` | `NoiseMode` | `Mask` | `Mask` | Only switches the `hairline` provider on (`Mask` or `Natural`) or off (any other value). `Low`, `Medium` and `High` do not set an intensity. |
 | `geolocation_popup` | `PopupMode` | `Prompt` | `Prompt` | `Allow` makes the `geolocation` provider answer `getCurrentPosition` and `watchPosition` itself; otherwise the browser's own methods stay. |
-| `navigator_masking` | `MaskingMode` | `Natural` | `Mask` | The `navigator_props`, `permissions` and `plugins` providers. It also switches on `chrome_runtime` and `localization`. |
+| `navigator_masking` | `MaskingMode` | `Natural` | `Mask` | The `navigator_props`, `permissions` and `plugins` providers (`plugins` only in `default_registry`; the Pure CDP engine leaves `navigator.plugins` and `mimeTypes` to the browser). It also switches on `chrome_runtime` and `localization`. |
 | `localization_masking` | `MaskingMode` | `Natural` | `Mask` | The `localization` provider (`navigator.language` and `navigator.languages`). |
 | `timezone_masking` | `MaskingMode` | `Natural` | `Mask` | The `timezone` provider. |
 | `graphics_masking` | `MaskingMode` | `Natural` | `Mask` | The `webgl` provider. |
@@ -228,7 +234,7 @@ identity uses. "Provider" names are the built-in evasion providers listed under
 | `canvas_noise` | `CanvasNoiseMode` | `Mask` | `Mask` | Only `Mask` runs the `canvas_noise` provider. `Natural`, `Disabled`, `Random`, `Persistent` and `Low` add no noise. |
 | `startup_behavior` | `StartupBehavior` | `Recover` | `Recover` | Stored only. No built-in code reads it. |
 | `battery_masking` | `MaskingMode` | `Natural` | `Mask` | The `battery` provider. |
-| `connection_masking` | `MaskingMode` | `Natural` | `Mask` | The `connection` provider. |
+| `connection_masking` | `MaskingMode` | `Natural` | `Mask` | The `connection` provider (only in `default_registry`; the Pure CDP engine leaves `navigator.connection` to the browser). |
 | `speech_masking` | `MaskingMode` | `Natural` | `Mask` | The `speech` provider. |
 | `bluetooth_masking` | `MaskingMode` | `Natural` | `Mask` | The `bluetooth` provider. |
 | `client_hints_masking` | `MaskingMode` | `Natural` | `Mask` | The `client_hints` provider. It also needs `Fingerprint::client_hints`, and it is skipped under `native_spoofing`. |
@@ -421,7 +427,7 @@ Pure CDP engine), a fingerprint is applied in two layers:
 | Command | Sent when |
 |---|---|
 | `Network.setUserAgentOverride` (user agent, `acceptLanguage`, platform, `userAgentMetadata`) | `user_agent` is set. `acceptLanguage` is `accept_languages`, else `locale`, else `en-US,en;q=0.9`. The metadata comes from `client_hints` when set and is derived from the OS and user agent otherwise. |
-| `Emulation.setDeviceMetricsOverride` | `screen_width` and `screen_height` are set. `pixel_ratio` is the scale factor (1.0 if unset) and `mobile` follows `os_type`. |
+| `Emulation.setDeviceMetricsOverride` | `screen_width` and `screen_height` are set. `pixel_ratio` is the scale factor (1.0 if unset) and `mobile` follows `os_type`. `cdp_overrides` sets the viewport (`width`, `height`) to the screen, and the WebDriver path sends it as it is. The Pure CDP engine changes it for a desktop persona: it sends a `0` by `0` viewport, which the protocol reads as "no override", plus `screenWidth` and `screenHeight`, so the browser itself reports `screen.width` and `screen.height` and the page keeps the viewport its window really has. A mobile persona is a phone-sized page, so its viewport stays the screen. |
 | `Emulation.setLocaleOverride` | `locale` is set. |
 | `Emulation.setTimezoneOverride` | `timezone` is set. |
 | `Emulation.setGeolocationOverride` | `latitude` and `longitude` are set (accuracy 100 and altitude 0 unless set). |
@@ -587,29 +593,40 @@ See [Contributing](../CONTRIBUTING.md) for adding a built-in provider.
 when" is the provider's `applies` condition; "masked" means the flag is `Mask` or
 `Custom`.
 
+The Pure CDP engine does not use `default_registry()`. It uses
+`session_registry(&fp)`, the same list without `plugins` and `connection`
+(`SESSION_OMITTED_PROVIDERS`), which is 27 providers. A real Chrome already has
+`navigator.plugins`, `navigator.mimeTypes`, `navigator.connection` and the PDF
+viewer flag, and answers for them itself, so a replaced getter is one more thing
+a page can find that a real Chrome does not have. The assembled session script
+never mentions `plugins`, `mimeTypes`, `pdfViewerEnabled` or `connection`.
+`default_registry()` is unchanged, for callers that want those spoofs, such as a
+browser that really lacks them, and it is what the WebDriver `Uc` and `Cdp` modes
+use.
+
 | Priority | Name | Runs when | What it does |
 |---|---|---|---|
 | 5 | `native_tostring` | `native_tostring_masking` is not `Disabled` | Makes replaced functions print `[native code]` from `Function.prototype.toString`, and installs the `sb` helpers the other providers use. |
 | 10 | `webdriver` | always | Makes `navigator.webdriver` read `false` (a getter on the navigator prototype) and deletes known automation hooks from `window` (`callPhantom`, `_phantom`, `__nightmare`, `__selenium_unwrapped`, `__webdriver_evaluate`, `__driver_evaluate`, `domAutomation`, and others). |
 | 15 | `cdp_markers` | always | Deletes `$cdc_`, `__webdriver`, `__selenium`, `__driver`, `$chrome_` and `__fxdriver` properties from `window`, its prototype chain and `document`. |
 | 20 | `chrome_runtime` | `chrome_runtime_masking` or `navigator_masking` is masked | `window.chrome.app`, `loadTimes`, `csi` and `runtime` stubs. |
-| 30 | `navigator_props` | `navigator_masking` is masked | `userAgent`, `appVersion` and `platform` (not under `native_spoofing`), then `hardwareConcurrency`, `deviceMemory` and `maxTouchPoints` when set, `vendor`, `productSub` (`20030107` unless set), `oscpu` and `buildID` when set, and `pdfViewerEnabled` (`true`). |
+| 30 | `navigator_props` | `navigator_masking` is masked | `userAgent`, `appVersion` and `platform` (not under `native_spoofing`), then `hardwareConcurrency`, `deviceMemory` and `maxTouchPoints` when set, `vendor`, `productSub` (`20030107` unless set), and `oscpu` and `buildID` when set. It does not touch `pdfViewerEnabled`, `plugins` or `mimeTypes`: Chrome answers for them itself. |
 | 35 | `permissions` | `navigator_masking` is masked | Makes `permissions.query({ name: 'notifications' })` agree with `Notification.permission`. |
-| 40 | `plugins` | `navigator_masking` is masked | Five PDF-viewer plugins and their MIME types. |
-| 45 | `window_geometry` | `screen_masking` is masked | `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`, `pixelDepth`, plus `outerWidth`, `outerHeight` and `devicePixelRatio`. Under `native_spoofing`, only `colorDepth` and `pixelDepth`. |
+| 40 | `plugins` | `navigator_masking` is masked | Five PDF-viewer plugins and their MIME types. In `default_registry()` only. |
+| 45 | `window_geometry` | `screen_masking` is masked | `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`, `pixelDepth`, plus `outerWidth`, `outerHeight` and `devicePixelRatio`. The window is as large as the persona's screen, and never smaller than the viewport it really has. Under `native_spoofing`, only `colorDepth` and `pixelDepth`. |
 | 50 | `webgl` | `graphics_masking` is masked | `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` from WebGL1 and WebGL2 `getParameter`. |
 | 55 | `canvas_noise` | `canvas_noise` is `Mask` | Deterministic noise, a function of the seed and the pixel position, on `toDataURL`, `toBlob` and `getImageData`. |
 | 60 | `audio_noise` | `audio_masking` is masked | Deterministic noise on `AudioBuffer.getChannelData` and `copyFromChannel` and on `AnalyserNode.getFloatFrequencyData`. |
 | 65 | `webrtc` | `webrtc_masking` is masked | Drops STUN and TURN servers from `RTCPeerConnection` configs; rewrites IPs in SDP and `RTCIceCandidate` when `webrtc_public_ip` or `webrtc_local_ip` is set. |
 | 70 | `battery` | `battery_masking` is masked | `navigator.getBattery()` (defaults: charging, level 0.94). |
-| 72 | `connection` | `connection_masking` is masked | `NetworkInformation` `effectiveType`, `rtt`, `downlink` and `saveData` (defaults: `4g`, 50, 10, `false`). |
+| 72 | `connection` | `connection_masking` is masked | `NetworkInformation` `effectiveType`, `rtt`, `downlink` and `saveData` (defaults: `4g`, 50, 10, `false`). In `default_registry()` only. |
 | 75 | `media_devices` | `media_devices_masking` is masked | `enumerateDevices`, from `media_devices` (explicit labels) or generated from the input and output counts (default 1, 1 and 1). |
 | 76 | `fonts` | `fonts_masking` is masked and `fonts` is not empty | Limits `document.fonts.check`, `load` and `FontFace` to the configured fonts. |
 | 78 | `speech` | `speech_masking` is masked | `speechSynthesis.getVoices()` (a default set of three voices unless `speech_voices` is set). |
 | 80 | `bluetooth` | `bluetooth_masking` is masked | A `navigator.bluetooth` stub, only if the browser has none. |
 | 85 | `headless` | `headless_masking` is masked | `matchMedia` answers (`prefers-reduced-motion: reduce` and `prefers-color-scheme: dark` false, `any-pointer: fine` true) and `document.hidden` / `visibilityState`. |
 | 87 | `prepare_stack_trace` | never | Reserved name. It emits no script. |
-| 88 | `client_hints` | `client_hints_masking` is masked, `client_hints` is set, and not `native_spoofing` | `navigator.userAgentData`, including `getHighEntropyValues`. |
+| 88 | `client_hints` | `client_hints_masking` is masked, `client_hints` is set, and not `native_spoofing` | `navigator.userAgentData`, including `getHighEntropyValues`, but only in a secure context (`window.isSecureContext`): that is the only place Chrome has the property, so on a plain `http:` page there is none to read and none is added. `localhost` and `127.0.0.1` are secure contexts. |
 | 89 | `media_codecs` | always | `canPlayType` answers for MP4, AAC and MP3 types when the browser says it cannot play them. WebM and everything else stay the browser's own. |
 | 90 | `timezone` | `timezone_masking` is masked, unless `native_spoofing` is on and a `timezone` is set | `Intl.DateTimeFormat` and the local-time methods of `Date` (`getTimezoneOffset`, `getHours`, `toString`, the `toLocale*String` family and others). `new Date(y, m, d)` and `Date.parse` of a string without an offset keep the machine's zone. |
 | 92 | `localization` | `localization_masking` or `navigator_masking` is masked, and not `native_spoofing` | `navigator.language` and `navigator.languages`. |
@@ -620,8 +637,9 @@ when" is the provider's `applies` condition; "masked" means the flag is `Mask` o
 | 130 | `tracker_block` | `block_trackers` is on | Makes `fetch`, `XMLHttpRequest` and `navigator.sendBeacon` to the tracker hosts (and their subdomains) fail like an unreachable host. Scripts, images and frames loaded by markup are not covered. |
 
 List them at runtime with `default_registry().provider_names()` (all 29, including
-the two reserved ones), `applicable_names(&fp)` (those that run for a
-fingerprint), or over MCP with the `list_evasion_providers` tool.
+the two reserved ones), `session_registry(&fp).provider_names()` (the 27 the Pure
+CDP engine runs), `applicable_names(&fp)` (those that run for a fingerprint), or
+over MCP with the `list_evasion_providers` tool.
 
 ## Profile coherence validation
 
@@ -699,7 +717,8 @@ conditions):
 * `navigator.userAgent`, `platform`, `hardwareConcurrency`, `deviceMemory`,
   `maxTouchPoints`, `vendor`, `language` and `languages`
 * `window.chrome.app`, `csi`, `loadTimes` and `runtime` stubs
-* `navigator.plugins` and `navigator.mimeTypes`
+* `navigator.plugins` and `navigator.mimeTypes` (WebDriver `Uc` and `Cdp` modes;
+  the Pure CDP engine leaves them to Chrome)
 * `navigator.permissions.query` for notifications
 * `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`,
   `outerWidth`, `outerHeight` and `devicePixelRatio`
@@ -713,8 +732,10 @@ conditions):
 * Geolocation, through `Emulation.setGeolocationOverride` (the JavaScript
   provider answers only when `geolocation_popup` is `Allow`)
 * `$cdc_`, `__webdriver`, `__selenium` and similar marker properties
-* Battery Status, Network Information, Speech Synthesis, and Bluetooth APIs
-* Client Hints (`navigator.userAgentData`), when `client_hints` is set
+* Battery Status, Speech Synthesis, and Bluetooth APIs, and Network Information
+  (WebDriver `Uc` and `Cdp` modes only)
+* Client Hints (`navigator.userAgentData`), when `client_hints` is set and the
+  page is a secure context
 * `matchMedia` answers and page visibility, `canPlayType` for MP4/AAC/MP3, and
   `attachShadow` roots forced open
 * STUN and TURN servers dropped from `RTCPeerConnection` configs, and Chrome's
@@ -741,13 +762,17 @@ automation markers:
 
 ## Limitations
 
-* TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation is not available. The crate has
-  `scrape` and `impersonate` Cargo features, but at this commit they hold only
-  an empty module tree: stub files with no behaviour, and nothing that sends a
-  request with a chosen ClientHello or HTTP/2 profile. The design is in
-  [Stealth and impersonation plan](../design/stealth_parity_plan.md); treat it as a
-  plan, not an API. A site sees the TLS and HTTP/2 behaviour of the browser you
-  launch.
+* Nothing on this page changes the TLS or HTTP/2 behaviour of the browser. A
+  fingerprint reaches the page through scripts and protocol overrides; the
+  `ClientHello`, the HTTP/2 connection start and the header order that leave the
+  machine are those of the browser you launch. The `scrape` and `impersonate`
+  Cargo features add JA3, JA4, peetprint and Akamai parsers, a measured table for
+  one browser (Chrome 155 on macOS), and a client that sends that handshake or
+  one you specify; see [Stealth Scraping](stealth_scraping.md). That client is a
+  separate building block. It is not applied to `BaseCase` or to the Pure CDP
+  engine, and the MITM proxy that would give a real Chrome an impersonated
+  handshake is not available yet. The design and the work still open are in the
+  [Stealth and impersonation plan](../design/stealth_parity_plan.md).
 * Some dimensions (WebGL vendor/renderer, canvas/audio noise, media devices,
   fonts, battery, etc.) have no CDP override and remain JavaScript-based even
   when `native_spoofing` is enabled.
@@ -758,7 +783,7 @@ automation markers:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the masking modes are `Natural`, or the site checks what this crate does not change: the TLS and HTTP/2 fingerprint, the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, start from `StealthFlags::balanced()`, and match the egress IP to the identity's place. |
+| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the masking modes are `Natural`, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](stealth_scraping.md)), the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, start from `StealthFlags::balanced()`, and match the egress IP to the identity's place. |
 | `navigator.webdriver` still `true` | The bootstrap script did not run: `DriverMode::WebDriver`, or no fingerprint on the config. The `webdriver` provider has no flag that turns it off. | Use `DriverMode::Uc` or `Cdp`, or `Page::apply_fingerprint` on the Pure CDP engine. For driver-level markers, see binary patching. |
 | Geolocation is wrong | No `latitude` and `longitude` on the fingerprint, no CDP session, or the page lacks the geolocation permission | Set `.geolocation(lat, lon)`, use `DriverMode::Uc` or `Cdp`, and allow geolocation in the browser (`grant_permissions` does not). |
 | Inconsistent locale and time zone | `locale` and `timezone` come from different regions. `validate()` does not check that pair. | Align both, or use `Fingerprint::randomized`, which draws them from one place. |
@@ -769,5 +794,8 @@ automation markers:
 Verified against commit 8e9180f, by reading `src/stealth/**`,
 `src/sb_cdp/identity.rs`, `src/sb_cdp/launch.rs`, `src/browser/{config,session,playwright}.rs`,
 `src/profile_payloads/profile.rs`, `src/mcp/stealth.rs` and `src/macros.rs`.
+The screen, `navigator_props`, `client_hints`, `session_registry` and TLS passages
+were brought up to commit c5a6f2f by reading `src/sb_cdp/identity.rs`,
+`src/stealth/evasions.rs` and `src/stealth/providers/{mod,builtin}.rs` again.
 The code examples were checked against the signatures in those files; they were
 not compiled or run for this check.
