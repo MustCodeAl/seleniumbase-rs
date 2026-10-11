@@ -10,6 +10,8 @@ use tokio::time::Instant;
 use super::rig::{block, country, real_page, script_challenge, widget_challenge, Rig, NOW};
 use crate::scrape::challenge::detect::{ChallengeKind, Detection, Evidence};
 use crate::scrape::challenge::mitigation::{Action, GiveUpReason};
+use crate::scrape::egress::pool::{EgressOutcome, DEFAULT_QUARANTINE_AFTER};
+use crate::scrape::egress::route::EgressRef;
 use crate::scrape::error::ScrapeError;
 use crate::scrape::ledger::events::ScraperEvent;
 use crate::scrape::ledger::state::{DomainState, StateError, StateStore};
@@ -314,6 +316,44 @@ async fn a_block_with_another_egress_moves_there_and_tries_again() {
         state.last_egress.map(|key| key.host),
         Some("fr.proxy.example".to_owned())
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_block_with_every_other_egress_out_of_rotation_gives_up_instead_of_looping() {
+    let rig = Rig::new(vec![block()]);
+    let mut scraper = rig
+        .builder()
+        .with_geo_proxies([
+            ("http://de.proxy.example:8080", country("DE")),
+            ("http://fr.proxy.example:8080", country("FR")),
+        ])
+        .expect("valid specs")
+        .build()
+        .await
+        .expect("the scraper builds");
+    let france = EgressRef::parse("http://fr.proxy.example:8080", Some(country("FR")))
+        .expect("a valid spec");
+    let pool = scraper.egress.pool.as_ref().expect("a pool");
+    for _ in 0..DEFAULT_QUARANTINE_AFTER {
+        pool.report(france.key(), EgressOutcome::Blocked, NOW);
+    }
+
+    let error = scraper
+        .fetch(URL)
+        .await
+        .expect_err("there is nowhere to go");
+
+    assert!(
+        matches!(
+            &error,
+            ScrapeError::GaveUp {
+                reason: GiveUpReason::NoEgressLeft,
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+    assert_eq!(rig.launcher.count(), 2, "no browser was started for it");
 }
 
 #[tokio::test(start_paused = true)]

@@ -1,13 +1,21 @@
 //! Tests of how a scraper is built and of the small readers it uses.
 
-use super::rig::{country, real_page, Rig, SEED};
-use crate::sb_cdp::LaunchOptions;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
+use async_trait::async_trait;
+
+use super::rig::{country, real_page, script_challenge, Rig, SEED};
+use crate::sb_cdp::{Browser, LaunchOptions, Page, SessionStore};
 use crate::scrape::challenge::detect::{ChallengeKind, Detection, Evidence};
-use crate::scrape::egress::geo::GeoError;
+use crate::scrape::challenge::mitigation::MitigationPolicy;
+use crate::scrape::egress::geo::{GeoError, GeoInfo, GeoResolver};
+use crate::scrape::egress::route::EgressRef;
 use crate::scrape::error::ScrapeError;
 use crate::scrape::runtime::browser_scraper::fetch::Target;
 use crate::scrape::runtime::browser_scraper::launcher::{claimed_major, major_of, persona_for};
 use crate::scrape::runtime::browser_scraper::{BrowserFetch, BrowserScraper};
+use crate::scrape::runtime::egress_switch::{ContextProxySwitch, EgressSwitch};
 use crate::stealth::fingerprint::{Fingerprint, OsType};
 
 #[test]
@@ -256,6 +264,92 @@ async fn the_builder_and_a_fetch_print_no_secret() {
     for secret in ["alice", "s3cret", "hunter2", "abc123", "secret body"] {
         assert!(!shown.contains(secret), "{secret} in {shown}");
     }
+}
+
+/// A resolver that puts every egress in a time zone of its own choosing.
+struct Vienna;
+
+#[async_trait]
+impl GeoResolver for Vienna {
+    async fn resolve(&self, egress: &EgressRef) -> Result<GeoInfo, GeoError> {
+        let key = egress.key();
+        Ok(GeoInfo {
+            country: key.country.ok_or_else(|| GeoError::Unknown(key.clone()))?,
+            timezone: Some("Europe/Vienna".to_owned()),
+            coordinates: None,
+        })
+    }
+}
+
+/// A switch that counts its calls and leaves the work to the shipped one.
+struct CountingSwitch {
+    inner: ContextProxySwitch,
+    calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl EgressSwitch for CountingSwitch {
+    async fn switch(
+        &self,
+        browser: &Browser,
+        egress: Option<&EgressRef>,
+    ) -> Result<Page, ScrapeError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        self.inner.switch(browser, egress).await
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_ports_the_caller_supplies_are_the_ones_used() {
+    let rig = Rig::new(vec![script_challenge()]);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let switch = CountingSwitch {
+        inner: ContextProxySwitch::new(),
+        calls: Arc::clone(&calls),
+    };
+    let sessions = SessionStore::new();
+    let policy = MitigationPolicy {
+        max_challenge_attempts: 5,
+        ..MitigationPolicy::default()
+    };
+    let mut scraper = rig
+        .builder()
+        .with_geo_proxies([("http://de.proxy.example:8080", country("DE"))])
+        .expect("a valid spec")
+        .geo_resolver(Arc::new(Vienna))
+        .egress_switch(Box::new(switch))
+        .session_store(sessions.clone())
+        .mitigation(policy)
+        .with_max_challenge_attempts(1)
+        .build()
+        .await
+        .expect("the scraper builds");
+
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "the first tab came from the switch"
+    );
+    assert_eq!(
+        scraper.fingerprint().timezone.as_deref(),
+        Some("Europe/Vienna")
+    );
+    let error = scraper
+        .fetch("https://shop.example/")
+        .await
+        .expect_err("the challenge stands");
+    assert!(
+        matches!(error, ScrapeError::Unsolved { attempts: 1, .. }),
+        "the attempts set on the builder win over the policy's: {error:?}"
+    );
+    scraper
+        .save_session("login")
+        .await
+        .expect("the session saves");
+    assert!(
+        sessions.load("login").is_some(),
+        "it went to the store of the caller"
+    );
 }
 
 #[test]
