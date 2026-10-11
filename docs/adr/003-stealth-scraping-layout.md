@@ -1,7 +1,8 @@
 # ADR 003: Stealth Scraping Layout
 
 ## Status
-Accepted (2026-10-11). The parts named in "Not decided here" are still being written.
+Accepted (2026-10-11). `HttpSession`, `MitmProxy` and `StealthSession` have since been merged into the
+layout below; their public API is in the plan, not in this ADR.
 
 ## Context
 ADR 001 covers what a page can read inside the browser. Stealth scraping adds the
@@ -37,8 +38,8 @@ This record states the layout as it is in the code and the rules that hold it.
      `EgressSwitch` and `BrowserLauncher` sit in `runtime`).
    - `src/impersonate` (feature `impersonate`): `convert` and `client` (the only two
      files that name wreq types, so a change in the wreq release candidate stays in
-     them), `capture_h2`, `tls_server`, and the files for `HttpSession`, the MITM
-     proxy and `StealthSession`, which are placeholders today.
+     them), `capture_h2`, `tls_server`, `http_session/` (`HttpSession`), `mitm/` (the
+     MITM proxy) and `stealth_session/` (`StealthSession`).
 
 3. **Pure modules are enforced by a test.** `tests/scrape_domain_purity.rs` parses
    every file under `src/wire` and `src/scrape/{challenge,egress,jar,ledger,passport}`
@@ -75,6 +76,12 @@ This record states the layout as it is in the code and the rules that hold it.
    logging. Files that hold secrets (the identity file, the state file) are written
    atomically with owner-only permissions.
 
+7. **Re-exports.** The main types of each layer are re-exported at the top of `wire`,
+   `scrape` and `impersonate`, and a curated set at the crate root behind the same
+   features. The `SpecError` of `wire::tls_spec` and the one of `wire::h2_spec` are
+   re-exported as `TlsSpecError` and `H2SpecError`, so no two exported types share a
+   name. The stealth layer is experimental and not a stable API.
+
 ## Consequences
 - Positive: A concern is found by name, and its pure code is separate from the code
   that does I/O, so the pure part can be tested without a browser or a socket.
@@ -94,12 +101,13 @@ This record states the layout as it is in the code and the rules that hold it.
   of its section 2 is the authority.
 
 ## Not decided here
-`HttpSession`, the MITM proxy (`MitmProxy`) and `StealthSession` are in progress.
-Their public API is not recorded in this ADR.
+The public API of `HttpSession`, `MitmProxy` and `StealthSession` is not recorded
+in this ADR; see sections 3.11 to 3.13 of the plan and the tutorial. Measuring
+more browsers and systems is open.
 
 ---
 
-Verified against commit c5a6f2f (layout: `src/lib.rs`, `src/wire/mod.rs`,
+Verified against commit 4184e74 and the re-exports added after it (layout: `src/lib.rs`, `src/wire/mod.rs`,
 `src/scrape/mod.rs`, `src/impersonate/mod.rs`; purity rules:
 `tests/scrape_domain_purity.rs`; features and pins: `Cargo.toml`; measured data:
 `src/wire/emulation.rs`, `src/wire/measured/chrome-155-macos.json`).

@@ -1,10 +1,11 @@
 # Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation
 
-Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `c5a6f2f`): **WP0 to WP13 and WP17 are
-merged. WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`) are in progress. WP18 and
-WP19 are open.** The plan was written on 2026-10-10 as design only, at `8c1394d`. Where the code differs
-from what is written below, [the next section](#status-and-what-the-code-changed) says how, and the code
-wins. The user-facing description of what exists is [Stealth Scraping](../tutorials/stealth_scraping.md);
+Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `4184e74`): **WP0 to WP17 are merged,
+including WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`). The WP18 reviews (two
+passes) are done and their fixes are in progress. WP19 (re-exports and documentation) is in progress.**
+The plan was written on 2026-10-10 as design only, at `8c1394d`. Where the code differs from what is
+written below, [the next section](#status-and-what-the-code-changed) says how, and the code wins. Sections
+3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](../tutorials/stealth_scraping.md);
 the layout rules are recorded in [ADR 003](../adr/003-stealth-scraping-layout.md).
 Sources: the project memory (`stealthscraper-feature-parity`, `project-priorities-2026-10-10`),
 three Context7 reads of `/ypno/stealthscraper-rs`, the wreq 6.0.0-rc.31, wreq-proto 0.2.6,
@@ -28,12 +29,12 @@ http2 0.5.20 and btls 0.5.6 sources in `~/.cargo/registry`, and our code read th
 | 11 | `impersonate::capture_h2`, `wire::emulation`, Chrome HTTP/2 and header measurement | Merged |
 | 12 | `impersonate::{convert, client}`, `CustomProfileBuilder`, wire probe | Merged |
 | 13 | `scrape::error`, `runtime::{cdp, egress_switch, browser_scraper}` | Merged |
-| 14 | `impersonate::http_session` | In progress (the file is a placeholder) |
-| 15 | `impersonate::mitm` | In progress (the files are placeholders) |
-| 16 | `impersonate::stealth_session` | In progress (the file is a placeholder) |
+| 14 | `impersonate::http_session` (`HttpSession`, `HttpOptions`, `HttpRequest`, `HttpReply`, `HttpError`, `Attempt`, `Rules`, `Verdict`, `Fetched`) | Merged |
+| 15 | `impersonate::mitm` (`MitmProxy`, `MitmOptions`, `MitmError`, `MitmStats`) | Merged |
+| 16 | `impersonate::stealth_session` (`StealthSession`, `StealthSessionBuilder`, `StealthFetch`, `StealthError`) | Merged |
 | 17 | Hardening: `session_registry`, secure-context `userAgentData`, screen through the device metrics, no `Runtime.enable` | Merged |
-| 18 | Split-role security review | Open |
-| 19 | Re-exports, final gates, documentation. The tutorial, the `fingerprint_stealth.md` fixes, ADR 003, ROADMAP and CHANGELOG are written; the re-exports in `lib.rs`, `scrape/mod.rs` and `impersonate/mod.rs`, and the full `--all-targets` gates, are not | Open |
+| 18 | Split-role security review | Pass 1 and pass 2 reviews done; fixes in progress |
+| 19 | Re-exports, final gates, documentation. The tutorial now covers `HttpSession`, `MitmProxy` and `StealthSession`; the re-exports in `lib.rs`, `scrape/mod.rs`, `impersonate/mod.rs` and `wire/mod.rs` are written and checked with `cargo check` and `cargo clippy` over the lib for each feature. The full `--all-targets` gates, doctests, `cargo audit` and `cargo deny` are the lead's, after the fixes of WP18 | In progress |
 
 Deviations from the plan that the code made. The plan's text above was not rewritten; read it with these:
 
@@ -62,6 +63,23 @@ Deviations from the plan that the code made. The plan's text above was not rewri
   `solve_timeout`, `clock`, `launcher` (the `BrowserLauncher` port), `fingerprint` and `session_store`.
 - **`impersonate` also enables `brotli`**, for the certificate compressor of the impersonated hello (Chrome
   offers brotli certificate compression).
+- **`StealthSession::fetch` returns `StealthFetch`**, not `Fetched`. `Fetched` is `HttpSession::fetch`'s
+  `{ reply, verdict }`. The `HttpSession` surface is larger than the sketch: `HttpOptions`, `Attempt`,
+  `Rules`, `Verdict`, `assess` and `preflight`, and `HttpError` has more variants (§3.11).
+- **`MitmError` is not the sketch's.** It has `Bind`, `Tls`, `InvalidOptions`, `Random`, `Upstream`,
+  `Egress`, `Unauthorized`, `BadTarget`, `NotIntercepted`, `HostMismatch`, `BodyTooLarge`,
+  `VersionMismatch` and `UpstreamRequest`; the SNI mismatch is `TlsServerError::SniMismatch` (§3.12).
+- **The MITM proxy refuses WebSocket upgrades** with an empty `502` instead of relaying them, and it
+  refuses a request whose user agent claims another Chrome major than the profile's.
+- **The SPKI-list trust is measured.** What `--ignore-certificate-errors-spki-list` accepts was read from
+  the Chromium source; the acceptance of a chain that carries the pinned leaf key is now measured on Chrome
+  155 (headless, macOS) by `without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key` in
+  `tests/impersonate_mitm_chrome.rs`, and the proxy never serves such a chain to a page. Each skipped check
+  is still as read in the source.
+- **`StealthSession` defaults to 4 attempts per fetch** and **starts the MITM proxy lazily** (§3.13).
+- **Re-exports.** The main types are re-exported at the top of `wire`, `scrape` and `impersonate` and at the
+  crate root; the two spec `SpecError`s are `TlsSpecError` and `H2SpecError`. The stealth layer is
+  experimental and not a stable API.
 
 ## 0. Decisions
 
@@ -533,30 +551,66 @@ pub enum ImpersonateError { Ja3(Ja3Error), Akamai(AkamaiError), Spec(SpecError),
 after emulation. Verification stays on; tests trust a root via `tls_cert_store`, never
 `tls_verify_hostname(false)`.
 
-### 3.11 `HttpSession` (`impersonate/http_session.rs`, WP14)
+### 3.11 `HttpSession` (`impersonate/http_session.rs` and `http_session/*`, WP14) — as built
+
+The sketch below is the code's public surface at `4184e74`. `HttpSession` is `Clone` (an `Arc` over the
+wreq client, the profile, a jar behind a mutex, the egress, the limits, a per-site pacer, the sink, the
+clock and the protocol each origin settled on).
 
 ```rust
-pub struct HttpSession { /* Arc<wreq::Client>, profile, Mutex<CookieJar>, Option<EgressRef>, limits, sink */ }
 impl HttpSession {
-    pub async fn from_page(page: &Page, egress: Option<EgressRef>, opts: HttpOptions) -> Result<Self, HttpError>;
-    pub fn from_identity(id: &StealthIdentity, egress: Option<EgressRef>, opts: HttpOptions) -> Result<Self, HttpError>;
+    pub async fn from_page(page: &Page, egress: Option<EgressRef>, options: HttpOptions) -> Result<Self, HttpError>;
+    pub fn from_identity(identity: &StealthIdentity, egress: Option<EgressRef>, options: HttpOptions) -> Result<Self, HttpError>;
     pub async fn get(&self, url: &str) -> Result<HttpReply, HttpError>;
-    pub fn request(&self, method: Method, url: &str) -> HttpRequest<'_>;   // .shape() .header() .json() .body()
-    pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>;  // CookieJar::to_cdp -> Cookies::set
-    pub fn export_identity(&self, base: &StealthIdentity) -> StealthIdentity; }
-impl HttpReply { pub fn status(&self) -> u16; pub fn text(&self) -> Result<&str, HttpError>;
-                 pub fn json<T: DeserializeOwned>(&self) -> Result<T, HttpError>; pub fn detect(&self) -> Detection; }
+    pub fn request(&self, method: Method, url: &str) -> HttpRequest<'_>;   // .shape() .header() .body() .json() .form() .timeout() .send()
+    pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>;   // only this session's changes; kept on failure
+    pub fn export_identity(&self, base: &StealthIdentity) -> StealthIdentity;
+    // outcome.rs: the replies judged by the mitigation and session policies
+    pub fn assess(&self, reply: &HttpReply, attempt: &Attempt, rules: &Rules, identity: &StealthIdentity) -> Verdict;
+    pub async fn fetch(&self, url: &str, attempt: &Attempt, rules: &Rules, identity: &StealthIdentity) -> Result<Fetched, HttpError>;
+    pub fn preflight(&self, url: &str, identity: &StealthIdentity, state: Option<&DomainState>, rules: &Rules) -> Result<Transition, HttpError>;
+    pub fn profile(&self) -> &ImpersonationProfile;  pub fn egress(&self) -> Option<&EgressKey>;  pub fn cookie_count(&self) -> usize; }
+pub struct Attempt { pub number: u32, pub previous_challenges: u32, pub can_rotate_egress: bool, pub can_escalate: bool }
+pub struct Rules { pub mitigation: MitigationPolicy, pub session: SessionPolicy }
+pub struct Verdict { pub detection: Detection, pub action: Action, pub transition: Transition }   // .is_clear()
+pub struct Fetched { pub reply: HttpReply, pub verdict: Verdict }
+impl HttpReply { status() is_success() url() redacted_url() headers() bytes() text() json::<T>() protocol() redirects() elapsed() detect() }
+pub struct HttpOptions { /* timeout, connect_timeout, max_body_bytes, max_request_bytes, max_redirects,
+    follow_redirects, pacing, event_sink, trust(CertStore), resolve, bypass, installed_chrome_major, clock */ }
 pub enum HttpError { Impersonate(ImpersonateError), VersionMismatch { browser: u32, measured: u32 },
-    ReservedHeader(String), TooManyRedirects(usize), BodyTooLarge(usize),
-    Request { url: RedactedUrl, kind: &'static str }, Browser(SeleniumBaseError) }
+    Identity(IdentityError), ReservedHeader(String), InvalidHeader(String), ForbiddenMethod(String),
+    Url { reason: &'static str }, TooManyRedirects(usize), RedirectRefused { url: RedactedUrl, reason: &'static str },
+    BodyTooLarge(usize), RequestTooLarge(usize), Request { url: RedactedUrl, kind: &'static str },
+    Client { kind: &'static str }, Options(&'static str), NotUtf8, Json { kind: &'static str },
+    Browser(SeleniumBaseError) }
 ```
 
-Redirects by hand (`redirect::Policy::none()`, 10 hops, `Set-Cookie` stored per hop, 303 to GET,
-`Authorization` dropped across origins). Body cap 64 MiB unless raised. wreq errors are wrapped after
-`without_url()` and their `Display` is never logged. A caller-set UA or `sec-ch-ua*` header is refused
-(`ReservedHeader`): the profile owns them.
+What differs from the first sketch, and what the code does:
 
-### 3.12 MITM proxy (`impersonate/{tls_server.rs, mitm/*}`, WP10 and WP15)
+- **Judging is part of the session.** `assess`, `fetch` and `preflight` apply `MitigationPolicy::decide`,
+  `SessionPolicy::before_fetch` and `after_fetch`; the plan's `Fetched` for a session is therefore the
+  `{ reply, verdict }` pair of `HttpSession::fetch`, and the dual-mode session returns `StealthFetch`
+  (§3.13). `HttpOptions`, `Attempt`, `Rules` and `Verdict` are new types.
+- **Redirects by hand** (10 hops by default, 30 at most; `Set-Cookie` stored and `Cookie` sent per hop;
+  `303` to `GET`; every header the caller set is dropped on a hop to another origin except `Accept` and
+  `Content-Type`). A redirect is followed where it points, a private address included.
+- **Limits** are named constants in `http_session::options`: total time 30 s (at most 1 h), connect 10 s,
+  reply body 64 MiB after decompression (at most 1 GiB), request body 64 MiB, per-site pacing optional.
+- **Owned headers.** `User-Agent`, `Sec-CH-UA*`, `Accept-Language`, `Accept-Encoding`, `Cookie` and
+  `priority`, and the framing headers, are refused with `ReservedHeader` when the request is sent.
+- **Page handoff.** `from_page` reads `navigator.userAgent`, `navigator.languages`, `Browser.getVersion`,
+  `Network.getAllCookies` and the proxy of the page's browser context. It refuses another Chrome major
+  (`VersionMismatch`, judged on both the user agent and `Browser.getVersion`), a browser that is not
+  Chrome, a user agent that says `HeadlessChrome`, and a system that was not measured (`Impersonate`).
+- **The first request to an origin is written for HTTP/2**, so an HTTP/1.1-only origin gets the HTTP/2
+  `priority` header once; the session then remembers the origin and omits it. Only the second half is
+  asserted by a test.
+- wreq errors are reduced to a fixed word (`kind`); their text, which can name the URL and the proxy
+  password, is dropped. Credentials in a URL are refused.
+
+### 3.12 MITM proxy (`impersonate/{tls_server/*, mitm/*}`, WP10 and WP15) — as built
+
+The CA (WP10) is in `impersonate::tls_server`; the proxy (WP15) is in `impersonate::mitm`.
 
 ```rust
 pub struct EphemeralCa { /* btls PKey + X509, memory only */ }
@@ -565,20 +619,49 @@ impl EphemeralCa {
     pub fn spki_pins(&self) -> [String; 2];        // base64(SHA-256(SPKI)) of the CA key and the shared leaf key
     pub fn leaf_spki_pin(&self) -> &str;           // the leaf pin alone: the only pin Chrome gets
     pub fn chrome_spki_arg(&self) -> String;       // "--ignore-certificate-errors-spki-list=<leaf pin>"
-    pub fn leaf_for(&self, host: &url::Host<String>) -> Result<Arc<Leaf>, TlsServerError>; }  // LRU of 256
-pub fn acceptor(ca: &EphemeralCa, alpn: &[&[u8]]) -> Result<btls::ssl::SslAcceptor, TlsServerError>;
+    pub fn leaf_for(&self, host: &url::Host<String>, now: SystemTime) -> Result<Arc<Leaf>, TlsServerError>; }  // LRU
+pub fn acceptor(alpn: &[&[u8]]) -> Result<btls::ssl::SslAcceptor, TlsServerError>;   // no CA argument
+pub async fn accept<S>(acceptor: &SslAcceptor, leaf: &Leaf, stream: S, handshake_timeout: Duration)
+    -> Result<SslStream<S>, TlsServerError>;
 #[doc(alias = "TlsSpoofingProxy")] pub struct MitmProxy { /* Arc<Inner>; Clone */ }
 impl MitmProxy {
-    pub async fn start(profile: ImpersonationProfile, egress: Option<EgressRef>, opts: MitmOptions,
+    pub async fn start(profile: ImpersonationProfile, egress: Option<EgressRef>, options: MitmOptions,
                        sink: Arc<dyn EventSink>) -> Result<Self, MitmError>;
-    pub fn port(&self) -> u16;  pub async fn shutdown(self, grace: Duration);
-    pub fn browser_proxy(&self) -> sb_cdp::Proxy;  // http://sb:<token>@127.0.0.1:<port>; password-free Debug
-    pub fn chrome_args(&self) -> Vec<String>;      // [EphemeralCa::chrome_spki_arg()]: the leaf pin only
+    pub fn port(&self) -> u16;  pub fn local_addr(&self) -> SocketAddr;  pub async fn shutdown(self, grace: Duration);
+    pub fn proxy_spec(&self) -> Secret;            // http://sb:<token>@127.0.0.1:<port>; holds the token
+    pub fn browser_proxy(&self) -> sb_cdp::Proxy;  // the same, parsed; password-free Debug
+    pub fn chrome_args(&self) -> Vec<String>;      // [leaf pin switch, "--proxy-bypass-list=<-loopback>", "--disable-quic"]
+    pub fn configure_launch(&self, builder: LaunchOptionsBuilder) -> LaunchOptionsBuilder;  // proxy + chrome_args
+    pub fn stats(&self) -> MitmStats;  pub fn egress(&self) -> Option<EgressKey>;
     pub fn swap_upstream(&self, egress: Option<EgressRef>) -> Result<(), MitmError>;
     pub fn swap_profile(&self, profile: ImpersonationProfile) -> Result<(), MitmError>; }
-pub enum MitmError { Bind(io::Error), Tls(TlsServerError), BadTarget(String),
-                     SniMismatch { connect: String, sni: String }, Upstream(ImpersonateError) }
+pub struct MitmOptions { /* max_connections, max_header_bytes, max_headers, max_body_bytes, idle_timeout,
+    handshake_timeout, connect_timeout, read_timeout, trust_upstream_root(der), resolve(host, addr), ca(Arc<EphemeralCa>) */ }
+pub enum MitmError { Bind(io::Error), Tls(TlsServerError), InvalidOptions(&'static str), Random,
+    Upstream(ImpersonateError), Egress(&'static str), Unauthorized, BadTarget(&'static str),
+    NotIntercepted(&'static str), HostMismatch, BodyTooLarge { limit: usize },
+    VersionMismatch { browser: u32, measured: u32 }, UpstreamRequest { url: RedactedUrl, kind: &'static str } }
+pub struct MitmStats { connections, tunnels, unauthorized, refused, forwarded, upstream_errors }
 ```
+
+`SniMismatch` of the first sketch is `TlsServerError::SniMismatch`, reached as `MitmError::Tls(..)`. The
+variants after `Egress` are what the proxy logs when it refuses a request; the browser only sees an empty
+`407`, `400`, `413`, `431` or `502`.
+
+Differences from the first sketch that matter:
+
+- **WebSocket is refused, not relayed.** An upgrade request is answered with an empty `502`
+  (`a_websocket_upgrade_is_refused`). The plan's relay over HTTP/1.1 with the measured `tls_websocket`
+  spec was not built.
+- **A request whose `User-Agent` names another Chrome major than the profile's is refused**
+  (`MitmError::VersionMismatch`), because the measured handshake would contradict the header.
+- **The first request to an HTTP/1.1-only origin carries the HTTP/2 `priority` header**: the upstream
+  protocol is settled by ALPN after the request was prepared. The proxy remembers the origin and omits the
+  header from then on (asserted: `an_http1_origin_gets_the_measured_spelling_and_no_priority_once_known`).
+- **Options and bounds** (`max_connections` 1 to 4096, default 256; request head 8 KiB to 1 MiB, default
+  64 KiB; headers 1 to 1024, default 128; body default 512 MiB; idle 60 s, handshake 10 s, connect 30 s,
+  read 60 s) are checked by `start`.
+- `StealthSession` starts the proxy lazily, the first time a browser is needed (§3.13).
 
 Security rules, each with a WP15 test:
 - CA: P-256, critical `CA:TRUE, pathlen:0`, `keyCertSign|cRLSign`, random serial, per process, never on
@@ -587,35 +670,45 @@ Security rules, each with a WP15 test:
   presents the leaf alone (no CA certificate in the chain).
 - Chrome gets `--ignore-certificate-errors-spki-list=<leaf pin>` (honoured only with `--user-data-dir`,
   which `browser_args` always passes), never `--ignore-certificate-errors`, and never the CA pin.
-  What the switch trusts, read from Chromium's `services/network/ignore_errors_cert_verifier.cc`
-  (not measured on Chrome 155): Chrome hashes the SPKI of every certificate in the presented chain and,
-  when one hash is in the list, accepts the connection with no other check (no signature, host name,
-  validity or revocation). So it trusts any chain that contains a certificate with the pinned public
-  key, from any sender; the key is public (every handshake carries it), so "this CA and its leaves"
-  would be a wrong description. Narrowing it is done by pinning only the leaf key and sending the leaf
+  What the switch trusts, read from Chromium's `services/network/ignore_errors_cert_verifier.cc`:
+  Chrome hashes the SPKI of every certificate in the presented chain and, when one hash is in the list,
+  accepts the connection with no other check (no signature, host name, validity or revocation). So it
+  trusts any chain that contains a certificate with the pinned public key, from any sender; the key is
+  public (every handshake carries it), so "this CA and its leaves" would be a wrong description. **The
+  acceptance is now measured on Chrome 155** (headless, macOS):
+  `tests/impersonate_mitm_chrome.rs::without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key`
+  starts Chrome with the pin and no proxy and it loads a page from a loopback server whose chain is its
+  own self-signed certificate followed by the proxy's leaf. That test does not isolate each skipped check
+  (signature, host name, validity, revocation), which stay as read in the source. Narrowing it is done by pinning only the leaf key and sending the leaf
   alone, so the CA key and an intermediate are no second way in. The rest is WP15's duty: every
   connection of that Chrome profile must end at the MITM (`--proxy-server` with
   `--proxy-bypass-list=<-loopback>` so loopback hosts are intercepted too, `--disable-quic`), a CONNECT
   the MITM cannot intercept is refused rather than tunnelled blind, and no leaf certificate is logged
-  or written into a capture artifact. Its real-Chrome test: a direct server on loopback that presents
-  its own self-signed certificate is never served to the page with that certificate (the request goes
-  through the MITM, whose upstream verification refuses it).
+  or written into a capture artifact. Its real-Chrome test,
+  `a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page`: behind the MITM, a loopback
+  server whose chain carries the pinned leaf key is never served to the page (the request goes through
+  the MITM, whose upstream verification refuses it, and the page sees a `502`).
 - Binds `127.0.0.1:0` only. A random 128-bit token (`ring::rand::SystemRandom`) is required as
   `Proxy-Authorization: Basic` on every CONNECT and absolute-form request (constant-time compare, else
   407); Chrome gets it through `ProxyAuth`, so it is never on Chrome's command line.
 - SNI must equal the CONNECT host or the connection closes. The intercepted leg offers ALPN `http/1.1`.
-- Stripped before replay: `Proxy-Authorization`, `Proxy-Connection`, `Connection` and its listed tokens,
-  `Keep-Alive`, `TE` (but `trailers`), `Trailer`, `Transfer-Encoding`, `Upgrade` (but WebSocket).
-  Chrome's header order is kept; the h2-only `priority` header comes from `priority_by_dest`.
-- Upstream verification always on (webpki roots); failure answers an empty `502`. Automatic
-  decompression is off in the MITM client so `Content-Encoding` passes through.
+- Stripped before replay: `Connection` and its listed tokens, `Keep-Alive`, `Proxy-Connection`,
+  `Proxy-Authorization`, `Proxy-Authenticate`, `TE` (but `trailers`), `Trailer`, `Transfer-Encoding`,
+  `Upgrade`, and `Host` (the upstream client writes it). Chrome's header order is kept; the h2-only
+  `priority` header comes from the measured table.
+- Upstream verification always on (webpki roots, or only the roots added with `trust_upstream_root`);
+  failure answers an empty `502`. The upstream client follows no redirects, decompresses nothing (so
+  `Content-Encoding` passes through) and sets no default headers: the browser's own go out.
 - Bodies stream both ways, never buffered whole; bounds: 256 connections, 64 KiB request head, named
-  idle and connect timeouts. WebSocket upgrades go upstream over h1 with the measured `tls_websocket`
-  spec (ALPN `http/1.1`, as Chrome sends), then `copy_bidirectional`.
+  idle and connect timeouts. WebSocket upgrades are refused with an empty `502` (see above).
 - `swap_upstream` builds the new client first, then swaps an `RwLock<Arc<Upstream>>`; in-flight requests
   keep the old one. Logs carry `RedactedUrl`/`EgressKey` only; `Drop` uses `shutdown::spawn_cleanup`.
 
-### 3.13 `BrowserScraper` and `StealthSession` (WP13, WP16)
+### 3.13 `BrowserScraper` and `StealthSession` (WP13, WP16) — `StealthSession` as built
+
+The `BrowserScraper` sketch is the first design; the deviations section at the top lists what the code
+added (`ScrapeError::{CoolingDown, Navigation, NoEgressAvailable}` and more builder settings). The
+`StealthSession` block further down is the code's surface at `4184e74`.
 
 ```rust
 // scrape::adapters, feature "scrape": CloudScraper parity without TLS spoofing
@@ -643,18 +736,40 @@ pub enum ScrapeError { Egress(EgressError), Geo(GeoError), State(StateError), Id
     Unsolved { url: RedactedUrl, kind: ChallengeKind, attempts: u32 }, GaveUp { url: RedactedUrl, reason: GiveUpReason },
     Browser(SeleniumBaseError) }       // StealthError (WP16) = ScrapeError | HttpError | MitmError | ImpersonateError
 
-// impersonate, feature "impersonate": dual mode
+// impersonate, feature "impersonate": dual mode (impersonate::stealth_session and stealth_session/*)
 impl StealthSession {
-    pub fn builder() -> StealthSessionBuilder;    // the BrowserScraperBuilder options + .policy() .profile() .mitm() .restore(id)
-    pub async fn fetch(&mut self, url: &str) -> Result<Fetched, StealthError>;
+    pub fn builder() -> StealthSessionBuilder;
+    pub async fn fetch(&mut self, url: &str) -> Result<StealthFetch, StealthError>;   // not `Fetched`
     pub async fn escalate(&mut self) -> Result<(), StealthError>;  pub async fn demote(&mut self) -> Result<(), StealthError>;
     pub async fn rotate_profile(&mut self) -> Result<(), StealthError>;  pub async fn rotate_egress(&mut self) -> Result<(), StealthError>;
-    pub fn mode(&self) -> Mode;  pub fn identity(&self) -> &StealthIdentity;  pub async fn close(self) -> Result<(), StealthError>; }
+    pub async fn export_identity(&self) -> Result<StealthIdentity, StealthError>;
+    pub async fn import_identity(&mut self, identity: &StealthIdentity) -> Result<(), StealthError>;
+    pub fn mode(&self) -> Mode;  pub fn identity(&self) -> &StealthIdentity;  pub fn egress(&self) -> Option<&EgressKey>;
+    pub fn seed(&self) -> u64;  pub fn http(&self) -> Option<&HttpSession>;  pub fn page(&self) -> Option<&Page>;
+    pub async fn close(self) -> Result<(), StealthError>; }
+impl StealthSessionBuilder {   // launch_options, launcher, with_geo_proxies, proxy_strategy, with_max_challenge_attempts,
+    // mitigation, policy(SessionPolicy), with_state_store, with_event_sink, geo_resolver, per_site_rate, seed,
+    // fingerprint, restore(identity), http_options(HttpOptions), mitm_options(MitmOptions), solve_timeout, clock
+    pub async fn build(self) -> Result<StealthSession, StealthError>; }
+pub struct StealthFetch { pub url: String, pub status: u16, pub headers: Vec<(String, String)>, pub body: String,
+    pub detection: Detection, pub mode: Mode, pub attempts: u32, pub solved: Option<ChallengeKind>, pub egress: Option<EgressKey> }
+pub enum StealthError { Scrape(ScrapeError), Http(HttpError), Mitm(MitmError), Impersonate(ImpersonateError) }
 ```
 
-`fetch`: (1) `site_of`, `DomainState`, per-site `RateLimiter::acquire`. (2) `before_fetch`; escalate =
-launch Chrome with `fingerprint`, `browser_proxy()`, `chrome_args()`, then `import_identity`; demote =
-`export_identity`, `HttpSession::from_identity` on the same egress, close Chrome. (3) Fetch, `detect`.
+Deviations of `StealthSession` from the sketch: `fetch` returns `StealthFetch` (the plan's `Fetched` is the
+`{ reply, verdict }` of `HttpSession::fetch`); the plan's `.profile()` and `.mitm()` are `fingerprint(..)`
+and `mitm_options(..)`; `StealthError` has no `Spec`-style variant of its own (`Unsolved`, `GaveUp` and
+`CoolingDown` arrive as `StealthError::Scrape`); the attempts default to 4, one more than a browser-only
+scraper (`DEFAULT_ATTEMPTS`: one load meets the challenge over HTTP, one solves it in the browser, one
+uses the clearance over HTTP); and the **MITM proxy is started lazily**, the first time a browser is
+needed (at `build()` when the policy prefers the browser), and lives until `close()`, so its port and its
+certificate stay the same across browsers.
+
+`fetch`: (1) `site_of`, `DomainState`, per-site pacing, a site in cooldown is not requested. (2)
+`before_fetch`; escalate = start the MITM proxy if it is not running (or point it at the identity's
+profile with `swap_profile`), launch Chrome with the identity's fingerprint and cookies through
+`configure_launch`; demote = take the cookies out of Chrome, `HttpSession::from_identity` on the same
+egress, close Chrome. (3) Fetch, `detect`.
 (4) `decide`, then apply `Solve`, `Escalate`, `RotateEgress` (`pick_other`, `swap_upstream`, new
 `identity.egress`, clearances dropped: they belong to the old IP), `RotateProfile`, `Cooldown`, `Retry`
 or `GiveUp`, bounded by `max_challenge_attempts`. (5) Record state; after a solve, demote if
