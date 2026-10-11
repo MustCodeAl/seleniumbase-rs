@@ -101,6 +101,23 @@ async fn wait_for_file(path: &Path, timeout_secs: u64) -> Result<(), SeleniumBas
     .await
 }
 
+/// Turns what [`page_scripts::select_by_index_script`] returned into a result.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::AssertionFailed`] naming `css` and `index`
+/// for anything but `"ok"`.
+fn select_index_outcome(status: &Value, css: &str, index: usize) -> Result<(), SeleniumBaseError> {
+    let problem = match status.as_str() {
+        Some("ok") => return Ok(()),
+        Some("no-option") => format!("'{css}' has no option at index {index}"),
+        Some("no-select") => format!("'{css}' is not a <select> element"),
+        Some("disabled") => format!("option {index} of '{css}' is disabled"),
+        _ => format!("option {index} of '{css}' could not be selected"),
+    };
+    Err(SeleniumBaseError::AssertionFailed(problem))
+}
+
 /// `text` without one trailing newline, and whether it had one: Python's
 /// `press_keys` presses Enter for a trailing `\n` instead of typing it.
 fn split_trailing_enter(text: &str) -> (&str, bool) {
@@ -449,39 +466,84 @@ impl BaseCase {
         }
     }
 
-    /// Returns the first element containing the exact visible `text`, if any.
+    /// Waits up to the default timeout ([`set_timeout`](Self::set_timeout))
+    /// for a displayed element whose visible text, trimmed, is `text`, and
+    /// returns the deepest one. Corresponds to Python's `find_exact_text`,
+    /// which does not take a selector here: it looks under `<body>`, and
+    /// returns the element that holds the text where Python returns the
+    /// `selector` element.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if no displayed element has
+    /// that text when the timeout ends.
     pub async fn find_exact_text(
         &mut self,
         text: &str,
     ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        let script = format!(
-            "return Array.from(document.querySelectorAll('*')).find(el => el.textContent.trim() === '{}');",
-            js_escape(text)
-        );
-        let result = self.execute_script(&script).await?;
-        self.element_from_script_result(result).await
+        self.find_visible_text(TextMatch::Exact, text, &format!("exact text '{text}'"))
+            .await
     }
 
-    /// Returns the first element whose visible text contains `text`, if any.
+    /// Waits up to the default timeout ([`set_timeout`](Self::set_timeout))
+    /// for a displayed element whose visible text contains `text`, and returns
+    /// the deepest one. Text that is hidden (`display: none`) or in a
+    /// `<script>` does not count. Corresponds to Python's `find_text`; see
+    /// [`find_exact_text`](Self::find_exact_text) for how it differs.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if no displayed element has
+    /// that text when the timeout ends.
     pub async fn find_text(
         &mut self,
         text: &str,
     ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        let script = format!(
-            "return Array.from(document.querySelectorAll('*')).find(el => el.textContent.includes('{}'));",
-            js_escape(text)
-        );
-        let result = self.execute_script(&script).await?;
-        self.element_from_script_result(result).await
+        self.find_visible_text(TextMatch::Contains, text, &format!("text '{text}'"))
+            .await
     }
 
-    /// Returns the first element whose visible text is non-empty, if any.
+    /// Waits up to the default timeout ([`set_timeout`](Self::set_timeout))
+    /// for a displayed element with non-blank visible text, and returns the
+    /// deepest first one. Corresponds to Python's `find_non_empty_text`; see
+    /// [`find_exact_text`](Self::find_exact_text) for how it differs.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the page shows no text
+    /// when the timeout ends.
     pub async fn find_non_empty_text(
         &mut self,
     ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        let script = "return Array.from(document.querySelectorAll('*')).find(el => el.textContent.trim().length > 0);";
-        let result = self.execute_script(script).await?;
-        self.element_from_script_result(result).await
+        self.find_visible_text(TextMatch::NonEmpty, "", "non-empty text")
+            .await
+    }
+
+    /// Polls for an element [`page_scripts::find_visible_text_script`] finds.
+    async fn find_visible_text(
+        &mut self,
+        kind: TextMatch,
+        text: &str,
+        what: &str,
+    ) -> Result<Option<WebElement>, SeleniumBaseError> {
+        let script = page_scripts::find_visible_text_script(kind, text);
+        let timeout = self.effective_timeout(self.timeout_secs);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout);
+        loop {
+            let found = self.execute_script(&script).await?;
+            if !found.is_null() {
+                if let Some(element) = self.element_from_script_result(found).await? {
+                    return Ok(Some(element));
+                }
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(SeleniumBaseError::wait_timeout(
+                    format!("{what} to be visible"),
+                    Some(Duration::from_secs(timeout)),
+                ));
+            }
+            tokio::time::sleep(WAIT_POLL_INTERVAL).await;
+        }
     }
 
     /// Returns all currently visible elements matching `css`.
@@ -672,7 +734,15 @@ impl BaseCase {
     // Select helpers
     // ========================================================================
 
-    /// Selects the `<option>` at zero-based `index`.
+    /// Selects the `<option>` at zero-based `index` of the `<select>` `css`,
+    /// and fires `input` and `change` so the page reacts as it would to a
+    /// user's choice. Corresponds to Python's `select_option_by_index`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if `css` is not a
+    /// `<select>`, has no option at `index`, or that option is disabled; the
+    /// selection is left as it was.
     pub async fn select_option_by_index(
         &mut self,
         css: &str,
@@ -680,19 +750,26 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         self.await_ready(css, Ready::Present).await?;
         self.record("select_option_by_index", Some(css), Some(&index.to_string()));
-        let script = format!(
-            "var s = document.querySelector('{}'); if (s && s.options[{}]) s.selectedIndex = {};",
-            js_escape(css),
-            index,
-            index
-        );
-        self.execute_script(&script).await?;
-        Ok(())
+        let status = self
+            .execute_script(&page_scripts::select_by_index_script(css, index))
+            .await?;
+        select_index_outcome(&status, css, index)
+    }
+
+    /// Returns all elements matching `css`, as Python's `select_all` does:
+    /// there it is another name for `find_elements`. To select every option
+    /// of a multi-select, use
+    /// [`select_all_options`](Self::select_all_options).
+    pub async fn select_all(
+        &mut self,
+        css: &str,
+    ) -> Result<Vec<WebElement>, SeleniumBaseError> {
+        self.find_elements(css).await
     }
 
     /// Selects all `<option>` elements in the `<select>` at `css`.
-    pub async fn select_all(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.record("select_all", Some(css), None);
+    pub async fn select_all_options(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("select_all_options", Some(css), None);
         let script = format!(
             "var s = document.querySelector('{}'); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = true; s.dispatchEvent(new Event('change')); }}",
             js_escape(css)
@@ -701,7 +778,7 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Alias for `select_all`.
+    /// Alias for `unselect_all`.
     pub async fn deselect_all(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.unselect_all(css).await
     }
@@ -788,8 +865,29 @@ impl BaseCase {
         Ok(handle.to_string())
     }
 
-    /// Brings the current browser window to the front.
-    pub async fn bring_to_front(&self) -> Result<(), SeleniumBaseError> {
+    /// Raises the z-index of the element `css` to 999999 once it is visible.
+    /// Use it when a click fails with "Other element would receive the
+    /// click". Corresponds to Python's `bring_to_front(selector)`. To bring
+    /// the browser window forward, see
+    /// [`bring_active_window_to_front`](Self::bring_active_window_to_front).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not
+    /// become visible.
+    pub async fn bring_to_front(&self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.await_ready(css, Ready::Visible).await?;
+        let found = self
+            .execute_script(&page_scripts::bring_to_front_script(css))
+            .await?;
+        if found.as_bool() != Some(true) {
+            return Err(SeleniumBaseError::element_not_found(css));
+        }
+        Ok(())
+    }
+
+    /// Focuses the current browser window.
+    pub(crate) async fn focus_window(&self) -> Result<(), SeleniumBaseError> {
         self.session
             .driver()
             .execute("window.focus();", vec![])
@@ -1608,6 +1706,23 @@ mod tests_extra {
         let missing = scratch_dir("never").join("nope.csv");
         let error = wait_for_file(&missing, 2).await.unwrap_err();
         assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
+    }
+
+    #[test]
+    fn selecting_an_option_that_is_not_there_is_an_error_not_a_silent_success() {
+        assert!(select_index_outcome(&serde_json::json!("ok"), "#size", 1).is_ok());
+        for (status, expected) in [
+            ("no-option", "no option at index 99"),
+            ("no-select", "is not a <select>"),
+            ("disabled", "is disabled"),
+        ] {
+            let error = select_index_outcome(&serde_json::json!(status), "#size", 99)
+                .expect_err(status)
+                .to_string();
+            assert!(error.contains("#size") && error.contains(expected), "{status}: {error}");
+        }
+        // A script that returned nothing at all did not select anything either.
+        assert!(select_index_outcome(&Value::Null, "#size", 1).is_err());
     }
 
     #[test]

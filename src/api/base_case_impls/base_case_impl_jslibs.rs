@@ -246,22 +246,13 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Removes common advertising elements from the page.
+    /// Removes the advertising elements of upstream SeleniumBase's
+    /// `AD_BLOCK_LIST` (ad iframes and scripts from known ad networks, and
+    /// elements Google's ad tags mark) from the current page. It removes what
+    /// is in the page now; it blocks no later request. Corresponds to
+    /// Python's `ad_block`.
     pub async fn ad_block(&self) -> Result<(), SeleniumBaseError> {
-        let selectors = [
-            "[id*='google_ads']",
-            "[id*='ad-container']",
-            ".ad",
-            ".ads",
-            ".advertisement",
-            "iframe[src*='ads']",
-            "iframe[src*='doubleclick']",
-        ];
-        let script = format!(
-            "var selectors = {}; selectors.forEach(s => {{ document.querySelectorAll(s).forEach(el => el.remove()); }});",
-            serde_json::to_string(&selectors).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
-        );
-        self.execute_script(&script).await?;
+        self.execute_script(&page_scripts::ad_block_script()).await?;
         Ok(())
     }
 }

@@ -207,7 +207,9 @@ impl BaseCase {
         self.open(&url).await
     }
 
-    /// Alias for `set_text`.
+    /// Sets the text of `css`: the `value` of an `<input>` or `<textarea>`,
+    /// the `textContent` of any other element. The same as
+    /// [`set_text`](Self::set_text), as it is in Python.
     pub async fn set_text_content(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.set_text(css, text).await
     }

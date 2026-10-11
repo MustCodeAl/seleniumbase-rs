@@ -108,27 +108,34 @@ impl BaseCase {
 
     // Console / messaging helpers.
 
-    /// Injects a script that captures console logs into `window.__sbConsoleLogs`.
-    pub async fn console_log_script(&self) -> Result<(), SeleniumBaseError> {
-        self.start_recording_console_logs().await
-    }
-
-    /// Writes `text` to the recorded console log array if it exists.
-    pub async fn console_log_string(&self, text: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "if (window.__sbConsoleLogs) window.__sbConsoleLogs.push({});",
-            serde_json::to_string(text).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
-        );
-        self.execute_script(&script).await?;
+    /// Logs the value of the JavaScript expression `script` to the browser's
+    /// console, as `console.log(script)`. Corresponds to Python's
+    /// `console_log_script`. To capture console output, see
+    /// [`start_recording_console_logs`](Self::start_recording_console_logs).
+    pub async fn console_log_script(&self, script: &str) -> Result<(), SeleniumBaseError> {
+        self.execute_script(&page_scripts::console_log_expression_script(script))
+            .await?;
         Ok(())
     }
 
-    /// Displays a success toast message on the page.
+    /// Logs the string `text` to the browser's console. Corresponds to
+    /// Python's `console_log_string`.
+    pub async fn console_log_string(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.execute_script(&page_scripts::console_log_string_script(text))
+            .await?;
+        Ok(())
+    }
+
+    /// Displays a success toast message on the page for the run's message
+    /// duration ([`RunSettings`](crate::api::run_settings::RunSettings)). It
+    /// is a plain box, not Python's Messenger widget, and replaces the toast
+    /// already showing.
     pub async fn post_success_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
         self.post_styled_message(message, "#28a745").await
     }
 
-    /// Displays an error toast message on the page.
+    /// Displays an error toast message on the page; see
+    /// [`post_success_message`](Self::post_success_message).
     pub async fn post_error_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
         self.post_styled_message(message, "#dc3545").await
     }
@@ -144,14 +151,9 @@ impl BaseCase {
     }
 
     async fn post_styled_message(&self, message: &str, color: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "var d=document.createElement('div'); d.id='sb-toast-message'; d.textContent={}; \
-             d.style.cssText='position:fixed;top:10px;right:10px;padding:12px;background:{};color:#fff;z-index:999999;'; \
-             document.body.appendChild(d);",
-            serde_json::to_string(message).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?,
-            color
-        );
-        self.execute_script(&script).await?;
+        let seconds = self.run_settings.message_seconds();
+        self.execute_script(&page_scripts::toast_script(message, color, seconds))
+            .await?;
         Ok(())
     }
 

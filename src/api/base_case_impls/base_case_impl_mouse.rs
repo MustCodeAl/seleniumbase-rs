@@ -104,14 +104,16 @@ impl BaseCase {
         self.type_text(css, text).await
     }
 
-    /// Highlights `css`, then updates its text content.
+    /// Highlights `css`, then replaces the text of the field with `text` by
+    /// typing, as [`update_text`](Self::update_text) does. Corresponds to
+    /// Python's `highlight_update_text`.
     pub async fn highlight_update_text(
         &mut self,
         css: &str,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.highlight(css).await?;
-        self.set_text(css, text).await
+        self.update_text(css, text).await
     }
 
     /// Flashes a highlight on `css` `times` times.

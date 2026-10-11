@@ -36,6 +36,7 @@ pub mod gui;
 pub mod html;
 pub mod html_inspector;
 pub mod master_qa;
+pub(crate) mod page_scripts;
 pub mod pdf;
 pub mod presentation;
 pub mod recorder;

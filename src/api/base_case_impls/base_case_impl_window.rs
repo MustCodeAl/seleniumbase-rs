@@ -29,8 +29,9 @@ impl BaseCase {
         Ok((w, h))
     }
 
-    /// Brings the active browser window to the front.
+    /// Brings the active browser window to the front. To raise one element
+    /// above the others, see [`bring_to_front`](Self::bring_to_front).
     pub async fn bring_active_window_to_front(&self) -> Result<(), SeleniumBaseError> {
-        self.bring_to_front().await
+        self.focus_window().await
     }
 }

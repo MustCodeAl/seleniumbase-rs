@@ -25,8 +25,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let referral = sb.generate_referral("https://example.com", "rust_docs")?;
     println!("Referral URL: {referral}");
 
-    // Console log capture
-    sb.console_log_script().await?;
+    // Console logging: capture it, then write to it
+    sb.start_recording_console_logs().await?;
+    sb.console_log_script("document.title").await?;
     sb.console_log_string("Manual log entry").await?;
 
     // Multi-series chart

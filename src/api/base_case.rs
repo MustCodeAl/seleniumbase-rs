@@ -11,6 +11,7 @@ use crate::api::chart::{Chart, ChartSeries, ChartType};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
+use crate::api::page_scripts::{self, TextMatch};
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
@@ -29,6 +30,9 @@ use thirtyfour::common::keys::Key;
 #[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::By;
+
+/// How long [`BaseCase::highlight`] leaves its outline on an element.
+const HIGHLIGHT_MILLIS: u32 = 900;
 
 pub struct BaseCase {
     session: BrowserSession,
@@ -916,15 +920,14 @@ impl BaseCase {
         )))
     }
 
-    /// Executes the `highlight` action.
+    /// Scrolls the element `css` into view and outlines it in magenta for
+    /// about a second, then puts back the outline it had. Does nothing if the
+    /// page has no such element. Corresponds to Python's `highlight`, which
+    /// animates the element and restores its style too; this is one outline
+    /// that is restored by a timer in the page, so the call does not block.
     pub async fn highlight(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "var e=document.querySelector({q}); if(e){{e.style.outline='3px solid magenta'; e.style.outlineOffset='2px';}}",
-            q = serde_json::to_string(css).map_err(|e| {
-                SeleniumBaseError::InvalidSelector(format!("failed to escape selector: {e}"))
-            })?
-        );
-        self.execute_script(&script).await?;
+        self.execute_script(&page_scripts::highlight_script(css, HIGHLIGHT_MILLIS))
+            .await?;
         Ok(())
     }
 
@@ -2149,16 +2152,24 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Set the text content of the element.
+    /// Sets the text of the element `css` with a script: the `value` of an
+    /// `<input>` or `<textarea>` (firing `input` and `change`, as a user's
+    /// typing would), the `textContent` of any other element. Waits for the
+    /// element to exist first. Corresponds to Python's `set_text`; unlike
+    /// Python it presses no Enter for a trailing newline.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not
+    /// appear.
     pub async fn set_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "document.querySelector({}).textContent = {};",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(text)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
-        );
-        self.execute_script(&script).await?;
+        self.await_ready(css, Ready::Present).await?;
+        let found = self
+            .execute_script(&page_scripts::set_text_script(css, text))
+            .await?;
+        if found.as_bool() != Some(true) {
+            return Err(SeleniumBaseError::element_not_found(css));
+        }
         Ok(())
     }
 
