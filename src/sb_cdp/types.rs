@@ -149,11 +149,43 @@ pub enum Permission {
     Midi,
     /// Motion and orientation sensors.
     Sensors,
+    /// Background sync.
+    BackgroundSync,
+    /// Background fetch.
+    BackgroundFetch,
+    /// Writing sanitised content to the clipboard.
+    ClipboardSanitizedWrite,
+    /// Capturing a screen, window or tab.
+    DisplayCapture,
+    /// Storage that the browser does not clear under pressure.
+    DurableStorage,
+    /// Detecting when the user is idle.
+    IdleDetection,
+    /// Listing the fonts installed on the machine.
+    LocalFonts,
+    /// MIDI system-exclusive messages.
+    MidiSysex,
+    /// Near-field communication.
+    Nfc,
+    /// Payment handlers.
+    PaymentHandler,
+    /// Periodic background sync.
+    PeriodicBackgroundSync,
+    /// Storage access for embedded content.
+    StorageAccess,
+    /// Storage access requested by a top-level site for its embedded content.
+    TopLevelStorageAccess,
+    /// Keeping the screen awake.
+    WakeLockScreen,
+    /// Keeping the system awake.
+    WakeLockSystem,
+    /// Placing windows on any screen.
+    WindowManagement,
 }
 
 impl Permission {
-    /// Every permission this crate knows how to grant.
-    pub const ALL: [Self; 7] = [
+    /// Every permission Python's `grant_all_permissions` grants.
+    pub const ALL: [Self; 23] = [
         Self::Geolocation,
         Self::Notifications,
         Self::Microphone,
@@ -161,10 +193,28 @@ impl Permission {
         Self::Clipboard,
         Self::Midi,
         Self::Sensors,
+        Self::BackgroundSync,
+        Self::BackgroundFetch,
+        Self::ClipboardSanitizedWrite,
+        Self::DisplayCapture,
+        Self::DurableStorage,
+        Self::IdleDetection,
+        Self::LocalFonts,
+        Self::MidiSysex,
+        Self::Nfc,
+        Self::PaymentHandler,
+        Self::PeriodicBackgroundSync,
+        Self::StorageAccess,
+        Self::TopLevelStorageAccess,
+        Self::WakeLockScreen,
+        Self::WakeLockSystem,
+        Self::WindowManagement,
     ];
 
-    /// The name the DevTools Protocol uses for this permission.
-    pub(crate) fn protocol_name(self) -> &'static str {
+    /// The name the DevTools Protocol uses for this permission, such as
+    /// `audioCapture` for [`Microphone`](Self::Microphone).
+    #[must_use]
+    pub fn name(self) -> &'static str {
         match self {
             Self::Geolocation => "geolocation",
             Self::Notifications => "notifications",
@@ -173,6 +223,22 @@ impl Permission {
             Self::Clipboard => "clipboardReadWrite",
             Self::Midi => "midi",
             Self::Sensors => "sensors",
+            Self::BackgroundSync => "backgroundSync",
+            Self::BackgroundFetch => "backgroundFetch",
+            Self::ClipboardSanitizedWrite => "clipboardSanitizedWrite",
+            Self::DisplayCapture => "displayCapture",
+            Self::DurableStorage => "durableStorage",
+            Self::IdleDetection => "idleDetection",
+            Self::LocalFonts => "localFonts",
+            Self::MidiSysex => "midiSysex",
+            Self::Nfc => "nfc",
+            Self::PaymentHandler => "paymentHandler",
+            Self::PeriodicBackgroundSync => "periodicBackgroundSync",
+            Self::StorageAccess => "storageAccess",
+            Self::TopLevelStorageAccess => "topLevelStorageAccess",
+            Self::WakeLockScreen => "wakeLockScreen",
+            Self::WakeLockSystem => "wakeLockSystem",
+            Self::WindowManagement => "windowManagement",
         }
     }
 }

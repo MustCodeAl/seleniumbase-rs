@@ -560,6 +560,36 @@ impl Window {
 // Emulation
 // ----------------------------------------------------------------------
 
+/// Reads the user agent the page reports now, with its client hints in the
+/// shape `Emulation.setUserAgentOverride` takes them (`metadata` is `null`
+/// where the page has none, such as on a page that is not a secure context).
+const CURRENT_AGENT_SCRIPT: &str = r"(async () => {
+  const data = navigator.userAgentData;
+  let metadata = null;
+  if (data) {
+    try {
+      const high = await data.getHighEntropyValues([
+        'architecture', 'bitness', 'model', 'platformVersion', 'fullVersionList', 'wow64',
+      ]);
+      const versions = (list) => (list || []).map((b) => ({ brand: b.brand, version: b.version }));
+      metadata = {
+        brands: versions(data.brands),
+        fullVersionList: versions(high.fullVersionList),
+        platform: data.platform,
+        platformVersion: high.platformVersion || '',
+        architecture: high.architecture || '',
+        model: high.model || '',
+        mobile: data.mobile,
+        bitness: high.bitness || '',
+        wow64: !!high.wow64,
+      };
+    } catch (e) {
+      metadata = null;
+    }
+  }
+  return { userAgent: navigator.userAgent, metadata };
+})()";
+
 /// Overrides for what the tab reports about its environment.
 #[derive(Debug, Clone)]
 pub struct Emulation {
@@ -585,12 +615,32 @@ impl Emulation {
 
     /// Reports the given locale, such as `de-DE`.
     ///
+    /// Sets the locale `Intl` formats with and also the language the page
+    /// reads from `navigator.language` and the browser sends in `Accept-Language`,
+    /// which is what Python's `set_locale` changes. The override of the
+    /// language takes effect on the next page load. It restates the current
+    /// user agent and client hints along with the language, so those stay as
+    /// they were.
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] for an unknown locale.
     pub async fn locale(&self, locale: &str) -> Result<(), SeleniumBaseError> {
         self.page
             .execute("Emulation.setLocaleOverride", json!({ "locale": locale }))
+            .await?;
+        // The language travels in the user-agent override, which has to name
+        // the user agent too. Keep what the page reports now.
+        let current = self.page.evaluate(CURRENT_AGENT_SCRIPT).await?;
+        let mut params = json!({
+            "userAgent": current["userAgent"].as_str().unwrap_or_default(),
+            "acceptLanguage": locale,
+        });
+        if current["metadata"].is_object() {
+            params["userAgentMetadata"] = current["metadata"].clone();
+        }
+        self.page
+            .execute("Emulation.setUserAgentOverride", params)
             .await?;
         Ok(())
     }

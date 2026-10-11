@@ -22,6 +22,59 @@ use crate::error::SeleniumBaseError;
 /// How long to wait for `Browser.close` to end the process before killing it.
 const GRACEFUL_CLOSE: Duration = Duration::from_secs(3);
 
+/// Where the DevTools endpoint of a browser this process launched listens.
+const LOCAL_HOST: &str = "127.0.0.1";
+
+/// `host:port` for a URL, with an IPv6 address in the brackets a URL needs.
+fn devtools_authority(host: &str, port: u16) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+#[cfg(test)]
+mod host_tests {
+    use super::*;
+    use crate::sb_cdp::mock::MockCtrl;
+
+    fn attached_to(host: &str, port: u16) -> Browser {
+        Browser::from_parts(
+            Arc::new(Client::mocked(MockCtrl::new())),
+            None,
+            None,
+            (host.to_owned(), port),
+            format!("ws://{host}:{port}/devtools/browser/x"),
+            LaunchOptions::default(),
+        )
+    }
+
+    #[test]
+    fn a_browser_attached_on_another_machine_reports_that_machine() {
+        let browser = attached_to("10.0.0.5", 9222);
+
+        assert_eq!(browser.debugging_host(), "10.0.0.5");
+        assert_eq!(browser.debugging_port(), 9222);
+        assert_eq!(browser.http_url(), "http://10.0.0.5:9222");
+    }
+
+    #[test]
+    fn an_ipv6_host_is_bracketed_in_the_url() {
+        assert_eq!(devtools_authority("::1", 9222), "[::1]:9222");
+        assert_eq!(devtools_authority("[::1]", 9222), "[::1]:9222");
+        assert_eq!(devtools_authority("localhost", 9222), "localhost:9222");
+        assert_eq!(attached_to("::1", 9222).http_url(), "http://[::1]:9222");
+    }
+
+    #[test]
+    fn a_mocked_browser_is_local() {
+        let (browser, _mock) = Browser::new_mocked();
+
+        assert_eq!(browser.debugging_host(), LOCAL_HOST);
+    }
+}
+
 /// Hosts blocked by [`LaunchOptionsBuilder::ad_block`](super::LaunchOptionsBuilder::ad_block).
 ///
 /// Deliberately short: well-known advertising and tracking endpoints only.
@@ -81,6 +134,9 @@ pub(crate) struct Inner {
     pub(crate) client: Arc<Client>,
     process: Mutex<Option<Child>>,
     _profile: Option<TempDir>,
+    /// The machine the DevTools endpoint is on: this one for a launched
+    /// browser, the given one for a browser attached with `connect`.
+    host: String,
     port: u16,
     ws_url: String,
     pub(crate) options: LaunchOptions,
@@ -143,7 +199,7 @@ impl Browser {
             client,
             Some(launched.child),
             launched.profile,
-            launched.port,
+            (LOCAL_HOST.to_owned(), launched.port),
             launched.ws_url,
             options.clone(),
         );
@@ -167,12 +223,15 @@ impl Browser {
     /// Returns [`SeleniumBaseError::CdpDriver`] if the endpoint cannot be
     /// reached or does not describe a DevTools browser.
     pub async fn connect(host: &str, port: u16) -> Result<Self, SeleniumBaseError> {
-        let version: Value = reqwest::get(format!("http://{host}:{port}/json/version"))
-            .await
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
-            .json()
-            .await
-            .map_err(|e| SeleniumBaseError::cdp_driver(format!("bad /json/version reply: {e}")))?;
+        let version: Value = reqwest::get(format!(
+            "http://{}/json/version",
+            devtools_authority(host, port)
+        ))
+        .await
+        .map_err(|e| SeleniumBaseError::cdp_driver(format!("cannot reach {host}:{port}: {e}")))?
+        .json()
+        .await
+        .map_err(|e| SeleniumBaseError::cdp_driver(format!("bad /json/version reply: {e}")))?;
         let ws_url = version["webSocketDebuggerUrl"]
             .as_str()
             .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?
@@ -182,7 +241,7 @@ impl Browser {
             client,
             None,
             None,
-            port,
+            (host.to_owned(), port),
             ws_url,
             LaunchOptions::default(),
         ))
@@ -203,7 +262,7 @@ impl Browser {
             client,
             None,
             None,
-            0,
+            (LOCAL_HOST.to_owned(), 0),
             "ws://mock.invalid/devtools/browser/mock".to_owned(),
             LaunchOptions::default(),
         );
@@ -214,7 +273,7 @@ impl Browser {
         client: Arc<Client>,
         process: Option<Child>,
         profile: Option<TempDir>,
-        port: u16,
+        (host, port): (String, u16),
         ws_url: String,
         options: LaunchOptions,
     ) -> Self {
@@ -228,6 +287,7 @@ impl Browser {
                 client,
                 process: Mutex::new(process),
                 _profile: profile,
+                host,
                 port,
                 ws_url,
                 options,
@@ -249,10 +309,24 @@ impl Browser {
         self.inner.port
     }
 
+    /// The machine the DevTools endpoint is on: `127.0.0.1` for a browser this
+    /// handle launched, and the host given to [`connect`](Self::connect) for one
+    /// that was attached.
+    #[must_use]
+    pub fn debugging_host(&self) -> &str {
+        &self.inner.host
+    }
+
     /// The HTTP address of the DevTools endpoint, such as `http://127.0.0.1:9222`.
+    ///
+    /// For a browser attached with [`connect`](Self::connect) the host is the
+    /// one that was given, not `127.0.0.1`.
     #[must_use]
     pub fn http_url(&self) -> String {
-        format!("http://127.0.0.1:{}", self.inner.port)
+        format!(
+            "http://{}",
+            devtools_authority(&self.inner.host, self.inner.port)
+        )
     }
 
     /// The browser-level DevTools WebSocket address.
@@ -575,10 +649,43 @@ impl Browser {
         &self,
         permissions: &[Permission],
     ) -> Result<(), SeleniumBaseError> {
-        let names: Vec<_> = permissions.iter().map(|p| p.protocol_name()).collect();
+        let names: Vec<_> = permissions.iter().map(|p| p.name()).collect();
         self.execute("Browser.grantPermissions", json!({ "permissions": names }))
             .await?;
         Ok(())
+    }
+
+    /// Grants permissions without a prompt, to one origin only.
+    ///
+    /// Python's `grant_permissions(permissions, origin)`; without an origin the
+    /// grant applies to all of them, as [`grant_permissions`](Self::grant_permissions)
+    /// does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects them.
+    pub async fn grant_permissions_for(
+        &self,
+        origin: &str,
+        permissions: &[Permission],
+    ) -> Result<(), SeleniumBaseError> {
+        let names: Vec<_> = permissions.iter().map(|p| p.name()).collect();
+        self.execute(
+            "Browser.grantPermissions",
+            json!({ "permissions": names, "origin": origin }),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Grants every permission in [`Permission::ALL`] for all origins, which is
+    /// the list Python's `grant_all_permissions` grants.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects them.
+    pub async fn grant_all_permissions(&self) -> Result<(), SeleniumBaseError> {
+        self.grant_permissions(&Permission::ALL).await
     }
 
     /// Restores every permission to its default, prompting again.
