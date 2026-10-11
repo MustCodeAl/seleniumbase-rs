@@ -1,6 +1,6 @@
-//! Enforces that the scrape domain layer stays pure: no runtime, no I/O, no clock reads, and only the allowed `sb_cdp` types.
+//! Enforces that the pure modules stay pure: no runtime, no I/O, no clock reads, and only the allowed `sb_cdp` types.
 //!
-//! The check is syntactic. Each file under `src/scrape/domain` is parsed with `syn`, and
+//! The check is syntactic. Each file under the pure directories is parsed with `syn`, and
 //! every path, `use` tree, attribute list and macro body is examined. It sees the names a
 //! file writes, so it cannot judge code reached only through a type alias or a dependency.
 //! The self-tests feed the checker an impure source and a clean one, so the check is shown
@@ -282,16 +282,29 @@ fn rust_files(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// The directories that must stay pure: no runtime, no I/O, no clock reads. The runtime that
+/// does I/O lives in `src/scrape/runtime` and is not listed.
+const PURE_DIRS: &[&str] = &[
+    "src/wire",
+    "src/scrape/challenge",
+    "src/scrape/egress",
+    "src/scrape/jar",
+    "src/scrape/ledger",
+    "src/scrape/passport",
+];
+
 #[test]
-fn scrape_domain_layer_is_pure() {
+fn pure_directories_stay_pure() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let domain = root.join("src/scrape/domain");
-    let files = rust_files(&domain);
-    assert!(
-        !files.is_empty(),
-        "no .rs files under {}: the check would pass without looking at anything",
-        domain.display()
-    );
+    let mut files = Vec::new();
+    for dir in PURE_DIRS {
+        let found = rust_files(&root.join(dir));
+        assert!(
+            !found.is_empty(),
+            "no .rs files under {dir}: the check would pass without looking at anything"
+        );
+        files.extend(found);
+    }
 
     let mut problems = Vec::new();
     for file in &files {
@@ -306,7 +319,7 @@ fn scrape_domain_layer_is_pure() {
     }
     assert!(
         problems.is_empty(),
-        "impure code in the scrape domain layer:\n{}",
+        "impure code in a pure directory:\n{}",
         problems.join("\n")
     );
 }

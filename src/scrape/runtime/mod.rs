@@ -1,4 +1,4 @@
-//! Adapters that do I/O for the scrape layer: JSON files, tracing, captures and the CDP browser leg.
+//! The runtime: everything in the scrape layer that does I/O, from JSON files to the CDP browser.
 
 #![forbid(unsafe_code)]
 

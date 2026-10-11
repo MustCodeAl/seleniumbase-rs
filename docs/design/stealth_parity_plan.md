@@ -56,6 +56,24 @@ http2 0.5.20 and btls 0.5.6 sources in `~/.cargo/registry`, and our code read th
 
 ## 2. Layout, features, dependencies
 
+> **Layout revised (2026-10-11).** The tree below was first written by hexagonal layer
+> (`scrape/domain`, `scrape/adapters`). It is now laid out by concern. Work packages, file
+> owners and the contents of each file are unchanged; only the paths move:
+>
+> - `src/scrape/domain/wire/**` -> `src/wire/**` (pure; `cfg(any(feature = "scrape", feature = "impersonate"))`): `ja3`, `ja4`, `akamai`, `ids`, `tls_spec`, `h2_spec`, `h2_frames`, `header_spec`, `client_hello`, `emulation`; `BrowserKind` stays in `wire/mod.rs`.
+> - `src/scrape/domain/{challenge,markers,mitigation}.rs` -> `src/scrape/challenge/{detect,markers,mitigation}.rs`.
+> - `src/scrape/domain/{egress,proxy_pool,geo,redact}.rs` -> `src/scrape/egress/{route,pool,geo,redact}.rs`.
+> - `src/scrape/domain/{cookie_jar,set_cookie}.rs` -> `src/scrape/jar/{store,set_cookie}.rs`.
+> - `src/scrape/domain/{state,events}.rs` -> `src/scrape/ledger/{state,events}.rs`.
+> - `src/scrape/domain/{identity,session_policy}.rs` -> `src/scrape/passport/{identity,policy}.rs`.
+> - `src/scrape/adapters/**` -> `src/scrape/runtime/**` (everything that does I/O).
+> - `src/impersonate/**` stays where it is.
+>
+> The pure directories checked by `tests/scrape_domain_purity.rs` are `src/wire` and
+> `src/scrape/{challenge,egress,jar,ledger,passport}`. Module names drop "domain", "adapters"
+> and "ports"; the public type names in §3 are unchanged. The paths in §2.1 below and in §5
+> read as the old names until this note is applied; the map above is the authority.
+
 ### 2.1 Files and owners (WP = work package, §5)
 
 ```text

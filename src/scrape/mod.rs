@@ -1,7 +1,11 @@
-//! Stealth scraping without TLS spoofing: a pure domain layer, the adapters that do I/O, and the CDP browser leg.
+//! Stealth scraping without TLS spoofing: one pure module per concern, and the runtime that does the I/O.
 
 #![forbid(unsafe_code)]
 
-pub mod adapters;
-pub mod domain;
+pub mod challenge;
+pub mod egress;
 pub mod error;
+pub mod jar;
+pub mod ledger;
+pub mod passport;
+pub mod runtime;
