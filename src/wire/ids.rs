@@ -306,6 +306,19 @@ pub const BORINGSSL_CLIENT_EXTENSIONS: &[u16] = &[
     0x0023, 0x002B, 0x002D, 0x0033, 0x4469, 0x44CD, 0xFE0D, 0xFF01,
 ];
 
+/// Extensions `BoringSSL` puts in every client hello whatever the options say: `supported_groups`
+/// and `signature_algorithms`. A spec that leaves one out describes a hello no client can send.
+pub const BORINGSSL_ALWAYS_SENT_EXTENSIONS: &[u16] = &[0x000A, 0x000D];
+
+/// Extensions `BoringSSL` sends exactly when the hello offers TLS 1.2 or older (the lowest
+/// offered version is below 1.3): `ec_point_formats`, `extended_master_secret` and
+/// `renegotiation_info`. A TLS 1.3-only hello has none of them.
+pub const BORINGSSL_LEGACY_ONLY_EXTENSIONS: &[u16] = &[0x000B, 0x0017, 0xFF01];
+
+/// Extensions `BoringSSL` sends exactly when the hello offers TLS 1.3 (the highest offered
+/// version is 1.3): `supported_versions`, `psk_key_exchange_modes` and `key_share`.
+pub const BORINGSSL_TLS13_ONLY_EXTENSIONS: &[u16] = &[0x002B, 0x002D, 0x0033];
+
 /// Supported groups `BoringSSL` can emit: x25519, P-256, P-384, P-521, the ML-KEM and Kyber
 /// hybrids, and the FFDHE groups that the probe confirms.
 pub const BORINGSSL_GROUPS: &[u16] = &[
@@ -511,7 +524,10 @@ mod tests {
                 EXTENSIONS.contains(id),
                 "refused extension {id:#06x} is unnamed"
             );
-            assert_ne!(reason, "");
+            assert!(
+                !reason.is_empty(),
+                "refused extension {id:#06x} has no reason"
+            );
         }
         for &id in UNSUPPORTED_GROUPS {
             assert!(GROUPS.contains(id), "refused group {id:#06x} is unnamed");
