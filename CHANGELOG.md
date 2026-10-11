@@ -19,6 +19,20 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   isolated, recycled browsers with in-memory session sharing.
 - **MCP servers**: `seleniumbase-mcp --server cdp|driver|sb` (24, 26 and 88
   tools, plus 8 stealth tools on `sb`), using the upstream tool names.
+- **MCP developer tools** on `cdp` and `sb`: `inspect_page`, `suggest_selectors`,
+  `diagnose_selector`, `get_console_messages`, `get_failed_requests`,
+  `audit_page`, `capture_debug_bundle` (redacted), `export_session_as_test`
+  (a `BaseCase` test from the session's steps) and `diagnose_environment`.
+- **Failure reports**: a failed MCP tool call is answered with its kind, the
+  call, the page's state (URL, title, ready state, script errors, selector
+  matches; read within two seconds), the hint and the next tools to try, as
+  text and structured content. Mistyped choices and tool names get a
+  did-you-mean.
+- **Errors for people**: every `SeleniumBaseError` has a hint, element errors
+  point out a likely mistake in the selector, `exit_code()` maps categories to
+  exit statuses, and `sbase` prints `error:`, `caused by:` and `hint:` lines.
+  `FailureDetails` puts the kind, hint, page and evidence links of a failed test
+  into the JSON and HTML reports (`ReportPlugin::with_evidence`).
 - **Fingerprints**: `Fingerprint::randomized(os, seed)` draws a coherent
   machine and place for all five `OsType`s; `LaunchOptionsBuilder::fingerprint`
   and `Page::apply_fingerprint` apply one to the Pure CDP engine.
@@ -44,6 +58,12 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Changed
 
+- `sbase` exits with a status that follows the error's category instead of
+  always 1, and prints `error: ...` instead of `[ERROR] ...`.
+- `TestResult` has a `failure` field, and `PageEvidence` gains `current_url` and
+  `page_title` (with defaults).
+- The `cdp` MCP server no longer offers `tag:contains("text")` selectors, which
+  its engine never supported; `diagnose_selector` gives the XPath for one.
 - Requires Rust 1.99 (`rust-version`, the `Dockerfile` base image and the CI msrv
   job); `zip` moved to 9.0 and the lockfile is current.
 - `BaseCase` actions wait for their element (up to `set_timeout`, 10 s by

@@ -176,6 +176,46 @@ Action macros expand `.await` internally, so they must be called inside an
 `async` block or function. `sb_test!` generates a `#[tokio::test]` wrapper for
 you. See the [macros guide](../tutorials/macros.md).
 
+## Reading an error
+
+Every `SeleniumBaseError` has a hint: the likely cause and the fix
+(`error.hint()`). Element errors name the selector, the strategy it was read as
+(the same rules the lookup uses), and a likely mistake in it: a mistyped prefix
+(`lnk=Home` for `link=Home`), a prefix from another tool (`css=`, `xpath=`,
+`id=`, `name=`), XPath without its leading `//`, or unbalanced brackets.
+
+`sbase` prints a failure for people, on standard error, with colour only on a
+terminal (and never with `NO_COLOR` set):
+
+```text
+error: invalid configuration: failed to read settings: No such file or directory (os error 2)
+hint: Review the configuration values passed to the builder, the command line or the environment; `sbase doctor` checks the browser setup.
+```
+
+A cause the first line does not already say gets its own `caused by:` line. The
+exit status says which kind of failure it was:
+
+| Status | Meaning |
+| --- | --- |
+| 1 | a check or a test failed, or another error |
+| 2 | the input was wrong (configuration, selector syntax, a value that does not parse); also what a mistyped option gives |
+| 3 | an element could not be found or used, or a wait timed out |
+| 4 | the browser or its driver failed |
+| 5 | the network or a site failed |
+| 6 | a local file or database failed |
+| 7 | the MCP server failed |
+| 130, 143 | stopped by Ctrl-C or SIGTERM |
+
+`sbase test` is the exception: it exits with the status of the `cargo test` it
+ran.
+
+In the HTML report of `ReportPlugin`, a failed test shows its error, the hint,
+the page's URL and title when it failed, and, with
+`ReportPlugin::html(path).with_evidence()`, links to the screenshot and page
+source saved next to the report. The MCP servers answer a failed call with a
+report that includes the page's state and the next tools to try; see the
+[MCP tutorial](../tutorials/mcp_server.md#when-a-call-fails).
+
 ## Errors are not descriptive enough
 
 `SeleniumBaseError::log()` emits a `tracing` error event with the error
