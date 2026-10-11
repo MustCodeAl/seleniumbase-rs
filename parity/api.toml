@@ -295,9 +295,9 @@ status = "implemented"
 rust = "BaseCase::check_if_unchecked"
 
 [basecase."check_window"]
-status = "composed"
+status = "implemented"
 rust = "BaseCase::check_window"
-note = "Compares the window's screenshot byte for byte with visual_baseline/<name>.png instead of comparing the page's HTML tags (Python's tags_level1 to tags_level3 files), so a repainted pixel is a difference and levels 1 to 3 are the same strict check. Level 0 is a dry run that logs a difference without failing, as in Python. The baseline is keyed by name only, not by test name, and the baseline, check_domain and full_diff arguments are not ported."
+divergence = "Saves and compares the page's tag structure as Python does: visual_baseline/<test>/<name> holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below <body> (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so <test> is the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of <body>, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a number and anything but 0, 1, 2 or 3 is an InvalidConfig error."
 
 [basecase."choose_file"]
 status = "implemented"
@@ -5428,12 +5428,12 @@ reason = "MasterQaSession::verify prompts on the terminal, not in a browser pop-
 [options_pytest."--visual-baseline"]
 status = "implemented"
 rust = "RunSettings::with_visual_baseline_reset"
-note = "check_window replaces its stored screenshot instead of comparing."
+note = "check_window saves the page's structure as the new baseline instead of comparing."
 
 [options_pytest."--visual_baseline"]
 status = "implemented"
 rust = "RunSettings::with_visual_baseline_reset"
-note = "check_window replaces its stored screenshot instead of comparing."
+note = "check_window saves the page's structure as the new baseline instead of comparing."
 
 [options_pytest."--wait-for-angularjs"]
 status = "composed"

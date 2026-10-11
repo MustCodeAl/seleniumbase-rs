@@ -15,7 +15,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 432 | 4 | 11 | 6 |
+| [BaseCase methods](#basecase-methods) | 453 | 433 | 3 | 11 | 6 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 195 | 14 | 3 |
 | [Command-line commands](#command-line-commands) | 36 | 16 | 7 | 9 | 4 |
@@ -102,7 +102,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `bring_active_window_to_front` | implemented | `BaseCase::bring_active_window_to_front` |  |
 | `bring_to_front` | implemented | `BaseCase::bring_to_front` |  |
 | `check_if_unchecked` | implemented | `BaseCase::check_if_unchecked` |  |
-| `check_window` | composed | `BaseCase::check_window` | Compares the window's screenshot byte for byte with visual_baseline/<name>.png instead of comparing the page's HTML tags (Python's tags_level1 to tags_level3 files), so a repainted pixel is a difference and levels 1 to 3 are the same strict check. Level 0 is a dry run that logs a difference without failing, as in Python. The baseline is keyed by name only, not by test name, and the baseline, check_domain and full_diff arguments are not ported. |
+| `check_window` | implemented | `BaseCase::check_window` | Differs: Saves and compares the page's tag structure as Python does: visual_baseline/<test>/<name> holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below <body> (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so <test> is the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of <body>, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a number and anything but 0, 1, 2 or 3 is an InvalidConfig error. |
 | `choose_file` | implemented | `BaseCase::choose_file` |  |
 | `clear` | implemented | `BaseCase::clear` |  |
 | `clear_all_cookies` | implemented | `BaseCase::clear_all_cookies` |  |
@@ -1081,8 +1081,8 @@ Python `--option` flags.
 | `--variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--verify-delay` | not-applicable |  | MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override. |
 | `--verify_delay` | not-applicable |  | MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override. |
-| `--visual-baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window replaces its stored screenshot instead of comparing. |
-| `--visual_baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window replaces its stored screenshot instead of comparing. |
+| `--visual-baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
+| `--visual_baseline` | implemented | `RunSettings::with_visual_baseline_reset` | check_window saves the page's structure as the new baseline instead of comparing. |
 | `--wait-for-angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
 | `--wait_for_angularjs` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |
 | `--wfa` | composed | `BaseCase::wait_for_angularjs` | Both default to no waiting; call it where a page needs it. |

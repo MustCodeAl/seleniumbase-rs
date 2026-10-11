@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (861 implemented,
-  375 composed, 112 not-applicable with a reason, 17 planned). The composed and
+- **Parity**: every API in `parity/api.toml` now has a status (862 implemented,
+  374 composed, 112 not-applicable with a reason, 17 planned). The composed and
   not-applicable entries are still to be reviewed.
 - **Stealth scraping, the wire layer** (feature `scrape`, `src/wire`): parsers
   for TLS `ClientHello`s, JA3, JA4 (with `JA4_r` and the original-order
@@ -156,6 +156,13 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `find_exact_text` and `find_non_empty_text` wait for visible text and fail with
   a timeout instead of returning `None`; `DeferredAssert` has three more
   variants. `check_window` at level 0 no longer fails on a difference.
+- **Breaking**: `check_window` saves and compares the page's tag structure, as
+  Python does, not the screenshot byte for byte. The baseline is the folder
+  `visual_baseline/<test>/<name>` (`page_url.txt`, `baseline.png` and
+  `tags_level_1.txt` to `tags_level_3.txt`); levels 1 to 3 compare the tags, the
+  tags with their attribute names and the tags with their attribute values, and
+  a level other than 0 to 3 is an error. A baseline saved as
+  `visual_baseline/<name>.png` is not read; the first run saves a new one.
 - `BaseCase::generate_referral`, `generate_traffic` and their chains,
   `set_content_to_frame` and `install_addon`, the `--reuse-session` options, the
   `caseplans` and `behave-gui` commands and three CDP downloads are now `planned`
