@@ -649,7 +649,7 @@ push using the Chrome/chromedriver preinstalled on GitHub-hosted runners.
 
 - Set `RUST_LOG=seleniumbase_rs=debug` to see driver launch args and CDP traffic.
 - Use `RUST_BACKTRACE=1` with the `error-backtrace` feature for full traces.
-- Run `sbase doctor` (if implemented) to print environment diagnostics.
+- Run `sbase doctor` to print environment diagnostics: the `SB_*` settings, the Chrome it found, and the chromedriver it found with its version next to Chrome's.
 - Inspect generated bootstrap with `sbase stealth-bootstrap --fingerprint ...`.
 - For CI-only failures, reproduce with `--features s3,azure,gcp,playwright,mcp-server`
   because feature gates change code paths.

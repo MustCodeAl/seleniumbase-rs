@@ -38,19 +38,25 @@ Design rules that apply to everything below:
 | `seleniumbase-mcp` binary | `--server cdp\|driver\|sb`, default `sb`. |
 | `sbase` CLI | `encrypt` and `decrypt` (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`). |
 | BaseCase | Actions wait for their element; `nested_click`, `solve_captcha`, `fast_type`, `js_click_if_visible`, `get_gui_element_rect/center`, `jq_format`, `post_message`, `save_as_html_to_logs`, `save_teardown_screenshot`, `switch_to_default_driver`, `wait_for_angularjs`, `get_saved_cookies`. |
+| Toolchain and dependencies | Rust 1.99 (`rust-version`, the `Dockerfile` and the CI msrv job), `zip` 9.0 and a current lockfile. `cargo audit` reports no vulnerabilities (three unmaintained-crate warnings: `bincode` 1.3.3, `fxhash`, `ttf-parser` 0.25.1); `cargo deny check` passes. |
+| Chromedriver that matches Chrome | `browser::driver_version` compares major versions. The launcher downloads the driver of Chrome's milestone when the cached one differs, and `sbase install` and `sbase doctor` make the same check. A replaced driver is written as a new file, because macOS kills a signed binary that is overwritten in place. Driver 155.0.8059.40 is installed here; the real-driver suites in section 1 are still to be run. |
+| Per-file review pass | Bugs found by reading were fixed, each with a test, across the book (`docs/`), `src/api` (the top-level modules and `base_case_impls`), `behave`, `cli`, `common`, `plugins`, the stealth page scripts, `utils/extensions` and the Playwright path. The CLI generators and recorders are run as the real binary in `tests/cli_generators.rs` and `tests/cli_templates.rs`. |
+| Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and the stdin recorder (`ActionRecorder::try_record`) refuses such a line and names the closest known action. |
+| Knowledge map and plans | `CLAUDE.md` (module map, checks, gotchas) and `docs/design/stealth_parity_plan.md` (20 work packages for the stealthscraper-rs feature set, JA3/JA4 and Akamai impersonation). |
 
 ## 1. Finish the parity upgrade (next)
 
 1. **Verify the WebDriver MCP servers on a real driver.**
-   `tests/mcp_webdriver_chrome.rs` is written but unrun: the installed
-   chromedriver (151) does not match Chrome (155). Run it once with a matching
-   driver (`sbase get chromedriver` or a download) and fix whatever it finds.
+   `tests/mcp_webdriver_chrome.rs` is written but unrun. The chromedriver now
+   matches Chrome (155; `sbase install` fetches the right one), so run it,
+   `tests/browser_smoke.rs` and `tests/mcp_cdp_chrome.rs`, one binary at a
+   time, and fix whatever they find.
 2. **BaseCase actions wait (done; verify on a real driver).** `click`,
    `type_text`, `get_text`, `hover`, `submit`, ... now poll for their element up
    to `set_timeout` (10 s default) and fail with `WaitTimeout` naming the
    selector. The three `tests/browser_smoke.rs` tests that prove it
    (`an_action_waits_for_an_element_that_appears_late` and two more) are
-   written but unrun, for the same driver-mismatch reason as item 1. Per-call
+   written but unrun (see item 1). Per-call
    timeout variants are still to do; the MCP layer passes its own timeout by
    waiting first.
 3. **BaseCase semantic differences (documented; decide which to remove).**
@@ -311,12 +317,18 @@ Chrome browser patcher still removes the signature
 start; that needs the same ad hoc signing and a test against a real patched
 Chrome.
 
+Fixed since, with tests (the four `src/api` fixes were also run in a real
+Chrome by the agent that made them): `dialog.rs` `prompt()` asks for text
+(`37981ef`); `CdpDriver` sends its commands to the tab, not the browser socket
+(`21fdbea`); the HTML inspector gives each issue a selector that matches its
+element (`ab4eda5`); deferred assertions check the page they were made for
+(`5c34b88`); chart series line up by label (`7069d42`); the presentation
+escapes its title (`01e5787`); `get_origin` keeps the port (`741f7b3`);
+`display_chart` and `begin_presentation` keep the file whose path they return
+(`a505a0f`).
+
 Open, most serious first:
 
-- `dialog.rs` `prompt()` shows a message box and returns the default; it never
-  asks for text.
-- `cdp_driver.rs` talks to the browser socket without a target session, so it
-  probably cannot work; only docs mention it.
 - `patcher.rs` (the Chrome browser patcher): the cache key ignores the patch
   set; the patched Chrome copy is written non-atomically and probably cannot
   start on macOS or Linux because only the executable is copied (unverified).
@@ -327,13 +339,10 @@ Open, most serious first:
   noise differ on every read despite the "deterministic" claim; page-visible
   globals `__sbNative`, `__sbVendorId`, `__sbBlockedTrackers`. No provider's
   JavaScript has ever been parsed or run in a test.
-- `html_inspector.rs`: the reported selector does not identify the element;
-  radio-group issues come out in `HashMap` order. `deferred.rs` evaluates queued
-  assertions against whichever page is current when they run.
-- `chart.rs`, `tour.rs` and `presentation.rs` splice unescaped text into HTML
-  and JavaScript;
-  `get_origin` drops the port; `charts.rs` and `presentations.rs` return paths
-  inside a temporary directory that is already deleted.
+- `html_inspector.rs`: radio-group issues may still come out in `HashMap`
+  order (not re-checked after the selector fix).
+- `tour.rs` splices unescaped text into HTML and JavaScript (not re-checked;
+  `chart.rs` and `presentation.rs` are fixed above).
 
 The first-wave agents' finished work is all merged and gated: artifacts, shadow
 DOM and the report; the CLI scaffolding; the `sbase test`, `grid-hub` and

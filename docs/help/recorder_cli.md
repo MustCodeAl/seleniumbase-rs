@@ -105,6 +105,31 @@ or replay with `replay_actions`.
 
 `sbase mkrec --file my_recording.rs` writes a small starter program to fill in.
 
+## Type a recording by hand
+
+`sbase recorder` needs no browser. You type one action per line, as `<action>
+<selector> [value]`, and it writes the Rust test:
+
+```text
+> click #login
+Recorded: click #login
+> type #user admin
+Recorded: type #user
+> clik #go
+Not recorded: 'clik #go': unknown action "clik"; did you mean "click"? (usage: <action> <selector> [value])
+> save tests/login.rs
+Saved recorded test to tests/login.rs
+```
+
+`<action>` is the name of a `BaseCase` method the generator knows (`type` stands
+for `type_text`). A line the generator cannot turn into a call, because the
+action is unknown or an argument is missing or malformed, is refused with the
+reason and, for a typo, the closest known action, instead of being acknowledged
+and then missing from the file. `save` never overwrites an existing file: if it
+cannot write, the recording is kept and you can try another name. `quit`, or the
+end of the input, leaves without saving. In code, `ActionRecorder::try_record`
+does the same check.
+
 ## Run a JSON scenario
 
 A scenario is a different file: a hand-written JSON object with a `name` and a

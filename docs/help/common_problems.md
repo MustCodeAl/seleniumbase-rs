@@ -41,8 +41,12 @@ UC mode removes many fingerprints, but detection is layered. Check each defense:
 default (`http://localhost:4444`) and `auto_start_driver` is on (it is by
 default). It first tries to connect to a driver already listening there; if
 none answers, it launches `downloaded_drivers/chromedriver` (`chromedriver.exe`
-on Windows) on a free port, downloading the latest stable chromedriver into
-`downloaded_drivers/` first if it is missing. That download needs network
+on Windows) on a free port. A chromedriver only drives the Chrome of its own
+major version, so before launching it the crate runs `--version` on the driver
+and on your Chrome. If the driver is missing, or is for another major version,
+it downloads the driver of your Chrome's milestone into `downloaded_drivers/`
+first (the latest stable one when Chrome cannot be found). If both downloads
+fail it keeps the old driver and logs a warning. The download needs network
 access to the Chrome for Testing endpoint. To fetch the driver ahead of time:
 
 ```bash
@@ -52,8 +56,9 @@ cargo run --bin sbase -- install
 `sbase install` takes no argument. The auto-start does not look at your `PATH`
 or at `CHROMEDRIVER_PATH`; those are consulted only by `sbase doctor`, which
 prints which chromedriver it finds (`CHROMEDRIVER_PATH`, then
-`downloaded_drivers/`, then `PATH`) and whether it still has automation
-markers.
+`downloaded_drivers/`, then `PATH`), its major version next to Chrome's
+(`Version: 155 (matches Chrome 155)`, or `Version: 151, but Chrome is 155` with
+a hint to run `sbase install`), and whether it still has automation markers.
 
 To use a driver you run yourself, start it and pass its URL. A URL other than
 the default turns auto-start off:
@@ -63,9 +68,11 @@ chromedriver --port=9515 &
 cargo run --bin sbase -- --webdriver http://localhost:9515 open https://example.com
 ```
 
-A driver that does not match your Chrome version fails when the session is
-created, with a WebDriver error. Download a matching one from the
-[Chrome for Testing dashboard](https://googlechromelabs.github.io/chrome-for-testing/).
+A driver you start yourself and pass with `--webdriver` is never replaced. If it
+does not match your Chrome version, the session fails to start with a WebDriver
+error; `sbase doctor` shows both versions, and `sbase install` or the
+[Chrome for Testing dashboard](https://googlechromelabs.github.io/chrome-for-testing/)
+has a matching one.
 
 ## chromedriver is killed or refused on macOS
 

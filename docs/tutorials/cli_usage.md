@@ -89,7 +89,30 @@ version.
 binary, and the patched-binary cache path. For chromedriver it looks, in order,
 at the file named by `CHROMEDRIVER_PATH`, at `downloaded_drivers/` (where
 `sbase install` puts it), and on `PATH`; a `CHROMEDRIVER_PATH` that names no
-file is reported rather than skipped.
+file is reported rather than skipped. It also prints the driver's major version
+next to Chrome's, because a chromedriver only drives the Chrome of its own major
+version:
+
+```text
+Chromedriver
+  Found: downloaded_drivers/chromedriver
+  Version: 151, but Chrome is 155
+  Hint: a chromedriver only drives its own Chrome version; run `sbase install` to fetch the matching one
+```
+
+## Install a chromedriver
+
+```bash
+./target/debug/sbase install
+```
+
+Downloads the chromedriver that matches the installed Chrome from Chrome for
+Testing into `./downloaded_drivers/` and prints its path. When Chrome is not
+found, or Chrome for Testing lists no driver for its version, the latest stable
+driver is fetched instead. It needs network access and fetches only the driver:
+the [Pure CDP engine](pure_cdp.md) needs none. Starting a WebDriver session
+makes the same check by itself, so run `install` ahead of time only to prepare
+an offline machine or a container.
 
 ## Run your tests
 
