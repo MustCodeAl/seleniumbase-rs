@@ -324,10 +324,10 @@ async fn contexts_interception_and_human_input_enable_none_of_them() {
 // ----------------------------------------------------------------------
 
 /// A source file that sends one of the five commands today, with how many
-/// times, so it cannot grow. Each entry is a call the Pure CDP engine does not
-/// make: it belongs to the WebDriver-hosted CDP page in `src/api`, which needs
-/// the DOM agent for its node-id based commands. The count may only go down.
-const KNOWN_SENDERS: [(&str, &str, usize); 1] = [("src/api/cdp_page.rs", "DOM.enable", 2)];
+/// times, so it cannot grow. No file does: the WebDriver-hosted CDP page in
+/// `src/api/cdp_page.rs` was the last one, and it now reads the page with
+/// `Runtime.evaluate`. Adding an entry here is a decision, not a convenience.
+const KNOWN_SENDERS: [(&str, &str, usize); 0] = [];
 
 fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {

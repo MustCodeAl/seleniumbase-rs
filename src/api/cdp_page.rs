@@ -4,6 +4,11 @@
 //! [`BrowserSession`][crate::browser::session::BrowserSession], bypassing the
 //! WebDriver layer for low-level control over navigation, DOM queries, input
 //! events, screenshots, and JavaScript evaluation.
+//!
+//! Elements are found and measured by running JavaScript with
+//! `Runtime.evaluate`. Nothing here switches on the `DOM` protocol domain,
+//! neither with `DOM.enable` nor with `DOM.getDocument`, which enables it as a
+//! side effect: a page can tell that a client is attached to that domain.
 
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -21,10 +26,15 @@ const POLL_INTERVAL: Duration = Duration::from_millis(100);
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CdpNode {
     /// CDP `nodeId` used by DOM-domain commands such as `DOM.getBoxModel`.
+    ///
+    /// It is 0 for a node that [`CdpPage`] found: the page is read without the
+    /// DOM domain, which hands out node ids. Use [`object_id`](Self::object_id)
+    /// to refer to such a node.
     pub node_id: i64,
     /// Optional CDP `backendNodeId`.
     pub backend_node_id: Option<i64>,
-    /// Optional CDP `objectId` from `Runtime` or `DOM` queries.
+    /// Optional CDP `objectId` from `Runtime` or `DOM` queries. A node that
+    /// [`CdpPage`] found has one, for use with `Runtime.callFunctionOn`.
     pub object_id: Option<String>,
     /// Selector that produced this node, when available.
     pub selector: Option<String>,
@@ -56,6 +66,17 @@ impl CdpNode {
             selector: Some(selector.to_owned()),
         }
     }
+
+    /// A node known by its `Runtime` `objectId`, which is how [`CdpPage`] finds
+    /// elements. Its [`node_id`](Self::node_id) is 0.
+    pub fn from_object_id(object_id: &str, selector: &str) -> Self {
+        Self {
+            node_id: 0,
+            backend_node_id: None,
+            object_id: Some(object_id.to_owned()),
+            selector: Some(selector.to_owned()),
+        }
+    }
 }
 
 /// Low-level CDP page automation tied to a [`BrowserSession`].
@@ -80,42 +101,54 @@ impl<'a> CdpPage<'a> {
         Ok(())
     }
 
-    /// Finds the first element matching `selector` via `DOM.querySelector`.
+    /// Finds the first element matching `selector` by running
+    /// `document.querySelector` in the page.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
+    /// [`SeleniumBaseError::InvalidSelector`] if the browser rejects the
+    /// selector.
     pub async fn find_element(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
-        self.session.execute_cdp("DOM.enable").await.ok();
         let response = self
             .execute(
-                "DOM.querySelector",
-                json!({"nodeId": 1, "selector": selector}),
+                "Runtime.evaluate",
+                json!({"expression": query_script(selector), "returnByValue": false}),
             )
             .await?;
-        CdpNode::from_query_result(&response, selector)
-            .ok_or_else(|| SeleniumBaseError::element_not_found(selector))
+        parse_found_node(&response, selector)
     }
 
-    /// Finds all elements matching `selector` via `DOM.querySelectorAll`.
+    /// Finds all elements matching `selector` by running
+    /// `document.querySelectorAll` in the page, in document order.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the browser rejects
+    /// the selector.
     pub async fn find_all(&self, selector: &str) -> Result<Vec<CdpNode>, SeleniumBaseError> {
-        self.session.execute_cdp("DOM.enable").await.ok();
         let response = self
             .execute(
-                "DOM.querySelectorAll",
-                json!({"nodeId": 1, "selector": selector}),
+                "Runtime.evaluate",
+                json!({"expression": query_all_script(selector), "returnByValue": false}),
             )
             .await?;
-        let node_ids = response
-            .get("nodeIds")
-            .and_then(|v| v.as_array())
-            .ok_or_else(|| SeleniumBaseError::cdp_driver("DOM.querySelectorAll missing nodeIds"))?;
-        Ok(node_ids
-            .iter()
-            .filter_map(|v| v.as_i64().map(|id| CdpNode::from_node_id(id, selector)))
-            .collect())
+        let array = parse_found_node(&response, selector)?;
+        let object_id = array.object_id.unwrap_or_default();
+        let properties = self
+            .execute(
+                "Runtime.getProperties",
+                json!({"objectId": object_id, "ownProperties": true}),
+            )
+            .await?;
+        parse_found_nodes(&properties, selector)
     }
 
     /// Waits until an element matching `selector` is present in the DOM.
     ///
-    /// Polls `DOM.querySelector` until the element appears or `timeout`
-    /// elapses, mirroring SeleniumBase's CDP-mode `wait_for_element_present()`.
+    /// Polls [`find_element`][Self::find_element] until the element appears or
+    /// `timeout` elapses, mirroring SeleniumBase's CDP-mode
+    /// `wait_for_element_present()`.
     ///
     /// # Errors
     ///
@@ -140,14 +173,19 @@ impl<'a> CdpPage<'a> {
 
     /// Clicks the center of the element matching `selector`.
     ///
-    /// Uses `DOM.getBoxModel` to compute the element center and dispatches
-    /// `mouseMoved`, `mousePressed`, and `mouseReleased` input events.
+    /// Reads the element's rectangle in the page, takes its center and
+    /// dispatches `mouseMoved`, `mousePressed`, and `mouseReleased` input
+    /// events there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
+    /// [`SeleniumBaseError::ElementNotInteractable`] if the element has no
+    /// size, as with `display: none`.
     pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
-        let node = self.find_element(selector).await?;
-        let model = self
-            .execute("DOM.getBoxModel", json!({"nodeId": node.node_id}))
-            .await?;
-        let (center_x, center_y) = box_model_center(&model)?;
+        let script = center_script(selector);
+        let rectangle = self.evaluate(&script).await?;
+        let (center_x, center_y) = parse_center(&rectangle, selector)?;
 
         for event_type in ["mouseMoved", "mousePressed", "mouseReleased"] {
             let params = json!({
@@ -210,12 +248,11 @@ impl<'a> CdpPage<'a> {
 
     /// Focuses the element matching `selector` and empties its value.
     async fn focus_and_clear(&self, selector: &str) -> Result<(), SeleniumBaseError> {
-        let node = self.find_element(selector).await?;
-        self.execute("DOM.focus", json!({"nodeId": node.node_id}))
-            .await
-            .ok();
-        let script = single_element_script(selector, "el ? (el.value = '', true) : false");
-        self.evaluate(&script).await.ok();
+        let script = single_element_script(selector, FOCUS_AND_CLEAR);
+        let result = self.evaluate(&script).await?;
+        if result.get("value").and_then(Value::as_bool) != Some(true) {
+            return Err(SeleniumBaseError::element_not_found(selector));
+        }
         Ok(())
     }
 
@@ -434,29 +471,107 @@ impl<'a> CdpPage<'a> {
     }
 }
 
-/// Computes the center of an element from a `DOM.getBoxModel` response.
-fn box_model_center(model: &Value) -> Result<(f64, f64), SeleniumBaseError> {
-    let content = model
-        .get("model")
-        .and_then(|m| m.get("content"))
-        .and_then(|c| c.as_array())
+/// The body of the script that focuses an element and empties its value, for
+/// [`single_element_script`]. It gives `true` when the element exists.
+const FOCUS_AND_CLEAR: &str = "el ? (el.focus(), el.value = '', true) : false";
+
+/// `text` as a JavaScript string literal (a JSON string is one).
+fn js_string(text: &str) -> String {
+    Value::String(text.to_owned()).to_string()
+}
+
+/// The expression that gives the first element matching `selector`, or `null`.
+fn query_script(selector: &str) -> String {
+    format!("document.querySelector({})", js_string(selector))
+}
+
+/// The expression that gives an array of every element matching `selector`.
+fn query_all_script(selector: &str) -> String {
+    format!(
+        "Array.from(document.querySelectorAll({}))",
+        js_string(selector)
+    )
+}
+
+/// The expression that gives `[left, top, width, height]` of the first element
+/// matching `selector` in viewport coordinates, or `null`.
+fn center_script(selector: &str) -> String {
+    format!(
+        "(function() {{ var el = document.querySelector({}); \
+         if (!el) return null; \
+         var r = el.getBoundingClientRect(); \
+         return [r.left, r.top, r.width, r.height]; }})()",
+        js_string(selector)
+    )
+}
+
+/// The node in a `Runtime.evaluate` response that was asked for by reference.
+fn parse_found_node(response: &Value, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
+    if let Some(exception) = response.get("exceptionDetails") {
+        let reason = exception
+            .pointer("/exception/description")
+            .or_else(|| exception.get("text"))
+            .and_then(Value::as_str)
+            .unwrap_or("the script threw");
+        return Err(SeleniumBaseError::InvalidSelector(format!(
+            "{selector}: {reason}"
+        )));
+    }
+    response
+        .pointer("/result/objectId")
+        .and_then(Value::as_str)
+        .map(|object_id| CdpNode::from_object_id(object_id, selector))
+        .ok_or_else(|| SeleniumBaseError::element_not_found(selector))
+}
+
+/// The array elements in a `Runtime.getProperties` response, in index order.
+fn parse_found_nodes(
+    properties: &Value,
+    selector: &str,
+) -> Result<Vec<CdpNode>, SeleniumBaseError> {
+    let list = properties
+        .get("result")
+        .and_then(Value::as_array)
         .ok_or_else(|| {
-            SeleniumBaseError::Unsupported("DOM.getBoxModel content missing".to_owned())
+            SeleniumBaseError::cdp_driver("Runtime.getProperties returned no result list")
         })?;
-    if content.len() < 8 {
+    // The elements are the properties named by an index; `length` and
+    // `__proto__` are the others.
+    let mut found: Vec<(usize, CdpNode)> = list
+        .iter()
+        .filter_map(|property| {
+            let index = property.get("name")?.as_str()?.parse::<usize>().ok()?;
+            let object_id = property.pointer("/value/objectId")?.as_str()?;
+            Some((index, CdpNode::from_object_id(object_id, selector)))
+        })
+        .collect();
+    found.sort_by_key(|(index, _)| *index);
+    Ok(found.into_iter().map(|(_, node)| node).collect())
+}
+
+/// The center of the rectangle that [`center_script`] gave, as the `result`
+/// object of a `Runtime.evaluate` response.
+fn parse_center(result: &Value, selector: &str) -> Result<(f64, f64), SeleniumBaseError> {
+    let value = result.get("value").unwrap_or(&Value::Null);
+    if value.is_null() {
+        return Err(SeleniumBaseError::element_not_found(selector));
+    }
+    let numbers: Vec<f64> = value
+        .as_array()
+        .map(|items| items.iter().filter_map(Value::as_f64).collect())
+        .unwrap_or_default();
+    let &[left, top, width, height] = numbers.as_slice() else {
         return Err(SeleniumBaseError::Unsupported(
-            "Invalid box model content".to_owned(),
+            "Invalid element rectangle".to_owned(),
+        ));
+    };
+    if width <= 0.0 && height <= 0.0 {
+        return Err(SeleniumBaseError::element_not_interactable(
+            selector,
+            "it has no size on the page",
         ));
     }
-    let coords: Vec<f64> = content.iter().filter_map(|v| v.as_f64()).collect();
-    if coords.len() < 8 {
-        return Err(SeleniumBaseError::Unsupported(
-            "Invalid box model coordinates".to_owned(),
-        ));
-    }
-    let center_x = (coords[0] + coords[2] + coords[4] + coords[6]) / 4.0;
-    let center_y = (coords[1] + coords[3] + coords[5] + coords[7]) / 4.0;
-    Ok((center_x, center_y))
+    Ok((left + width / 2.0, top + height / 2.0))
 }
 
 /// Builds a script that selects an element and evaluates `inner` on it.
@@ -496,15 +611,114 @@ mod tests {
     }
 
     #[test]
-    fn box_model_center_calculation() {
-        let model = json!({
-            "model": {
-                "content": [0.0, 0.0, 100.0, 0.0, 100.0, 50.0, 0.0, 50.0]
-            }
+    fn a_selector_becomes_a_javascript_string_literal() {
+        assert_eq!(js_string("a'b\"c\\d\n"), r#""a'b\"c\\d\n""#);
+    }
+
+    #[test]
+    fn the_query_scripts_ask_the_page_and_nothing_else() {
+        assert_eq!(query_script("#a'b"), r##"document.querySelector("#a'b")"##);
+        assert_eq!(
+            query_all_script("li"),
+            r#"Array.from(document.querySelectorAll("li"))"#
+        );
+        let center = center_script("button");
+        assert!(center.contains("getBoundingClientRect"), "{center}");
+        assert!(!center.contains("DOM."), "{center}");
+    }
+
+    #[test]
+    fn an_element_found_by_reference_carries_its_object_id() {
+        let response = json!({"result": {
+            "type": "object", "subtype": "node",
+            "className": "HTMLDivElement", "objectId": "obj-1",
+        }});
+
+        let node = parse_found_node(&response, "#id").unwrap();
+
+        assert_eq!(node, CdpNode::from_object_id("obj-1", "#id"));
+        assert_eq!(node.node_id, 0);
+        assert_eq!(node.selector.as_deref(), Some("#id"));
+    }
+
+    #[test]
+    fn nothing_matching_is_element_not_found_and_a_bad_selector_is_not() {
+        let nothing = json!({"result": {"type": "object", "subtype": "null", "value": null}});
+        assert!(matches!(
+            parse_found_node(&nothing, "#gone"),
+            Err(SeleniumBaseError::ElementNotFound { .. })
+        ));
+
+        let thrown = json!({
+            "result": {"type": "object", "subtype": "error"},
+            "exceptionDetails": {"text": "Uncaught", "exception": {
+                "description": "SyntaxError: '#' is not a valid selector.",
+            }},
         });
-        let (x, y) = box_model_center(&model).unwrap();
-        assert!((x - 50.0).abs() < f64::EPSILON);
-        assert!((y - 25.0).abs() < f64::EPSILON);
+        match parse_found_node(&thrown, "#") {
+            Err(SeleniumBaseError::InvalidSelector(reason)) => {
+                assert!(reason.contains("not a valid selector"), "{reason}");
+            }
+            other => panic!("expected InvalidSelector, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_elements_of_an_array_come_back_in_index_order() {
+        let properties = json!({"result": [
+            {"name": "1", "value": {"type": "object", "subtype": "node", "objectId": "o2"}},
+            {"name": "0", "value": {"type": "object", "subtype": "node", "objectId": "o1"}},
+            {"name": "length", "value": {"type": "number", "value": 2}},
+            {"name": "__proto__", "value": {"type": "object", "objectId": "proto"}},
+        ]});
+
+        let nodes = parse_found_nodes(&properties, "li").unwrap();
+
+        assert_eq!(
+            nodes,
+            [
+                CdpNode::from_object_id("o1", "li"),
+                CdpNode::from_object_id("o2", "li")
+            ]
+        );
+        assert!(parse_found_nodes(&json!({"result": []}), "li")
+            .unwrap()
+            .is_empty());
+        assert!(parse_found_nodes(&json!({}), "li").is_err());
+    }
+
+    #[test]
+    fn the_click_point_is_the_center_of_the_rectangle() {
+        let rectangle =
+            json!({"type": "object", "subtype": "array", "value": [10.0, 20.0, 100.0, 50.0]});
+        let (x, y) = parse_center(&rectangle, "#b").unwrap();
+        assert!((x - 60.0).abs() < f64::EPSILON);
+        assert!((y - 45.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn a_rectangle_with_one_empty_side_still_has_a_center() {
+        let line = json!({"type": "object", "value": [5.0, 5.0, 0.0, 10.0]});
+        assert_eq!(parse_center(&line, "#b").unwrap(), (5.0, 10.0));
+    }
+
+    #[test]
+    fn a_missing_or_sizeless_or_odd_rectangle_is_an_error_of_its_own_kind() {
+        let missing = json!({"type": "object", "subtype": "null", "value": null});
+        assert!(matches!(
+            parse_center(&missing, "#b"),
+            Err(SeleniumBaseError::ElementNotFound { .. })
+        ));
+        let hidden = json!({"type": "object", "value": [0.0, 0.0, 0.0, 0.0]});
+        assert!(matches!(
+            parse_center(&hidden, "#b"),
+            Err(SeleniumBaseError::ElementNotInteractable { .. })
+        ));
+        let odd = json!({"type": "object", "value": [1.0, 2.0]});
+        assert!(matches!(
+            parse_center(&odd, "#b"),
+            Err(SeleniumBaseError::Unsupported(_))
+        ));
     }
 
     #[test]
