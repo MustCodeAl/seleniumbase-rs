@@ -102,11 +102,16 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`MitmProxy`** (feature `impersonate`): a loopback proxy that ends a real
   Chrome's TLS with the ephemeral CA and replays each request through the
   impersonating client, behind a random token, with bounded connections, heads and
-  bodies, and a hot-swappable egress and profile. WebSocket upgrades are refused,
-  and a request claiming another Chrome major is refused. Measured on Chrome 155
-  (headless, macOS): a chain carrying the pinned leaf key is accepted by a Chrome
-  that has the SPKI-list switch and no proxy, and is never served to a page behind
-  the proxy.
+  bodies, and a hot-swappable egress and profile. Upgrades other than WebSocket
+  are refused, and a request claiming another Chrome major is refused. Measured on
+  Chrome 155 (headless, macOS): a chain carrying the pinned leaf key is accepted by
+  a Chrome that has the SPKI-list switch and no proxy, and is never served to a
+  page behind the proxy.
+- **WebSocket through `MitmProxy`**: a `wss://` handshake goes upstream over
+  HTTP/1.1 with the measured WebSocket `ClientHello`, the `101` is relayed, and the
+  bytes are copied both ways with idle and per-direction byte bounds
+  (`MitmOptions::websocket_idle_timeout`, `max_websocket_bytes`); half upgrades and
+  other protocols are refused (`MitmError::MalformedUpgrade`, `NotIntercepted`).
 - **`StealthSession`** (feature `impersonate`): the session that moves between
   `HttpSession` and a real Chrome behind `MitmProxy` by the mitigation and session
   policies. It starts the proxy when a browser is first needed, makes up to 4

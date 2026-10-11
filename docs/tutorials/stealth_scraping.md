@@ -914,11 +914,13 @@ launch at the proxy and adds the switches it needs.
    certificate included, is an empty `502`.
 
 An absolute-form `http://` request is checked the same way and forwarded without
-`CONNECT`. The browser only ever sees an empty status (`407`, `400`, `413`, `431` or
-`502`); the reason is a `MitmError` variant in the log (`Unauthorized`,
-`BadTarget`, `NotIntercepted`, `HostMismatch`, `BodyTooLarge`,
-`VersionMismatch`, `UpstreamRequest`). `start` itself can fail with `Bind`, `Tls`,
-`InvalidOptions`, `Random`, `Upstream` or `Egress`.
+`CONNECT`. A WebSocket handshake inside a tunnel is relayed (see
+[WebSocket](#websocket) below). The browser only ever sees an empty status (`407`,
+`400`, `403`, `413`, `431` or `502`); the reason is a `MitmError` variant in the log
+(`Unauthorized`, `BadTarget`, `ForbiddenDestination`, `NotIntercepted`,
+`HostMismatch`, `MalformedUpgrade`, `BodyTooLarge`, `VersionMismatch`,
+`UpstreamRequest`). `start` itself can fail with `Bind`, `Tls`, `InvalidOptions`,
+`Random`, `Upstream` or `Egress`.
 
 ### What Chrome must be told
 
@@ -949,6 +951,8 @@ with `MitmError::InvalidOptions`.
 | `handshake_timeout`, the browser's TLS handshake | 10 s | not zero |
 | `connect_timeout`, the upstream connection | 30 s | not zero |
 | `read_timeout`, one upstream read | 60 s | not zero |
+| `websocket_idle_timeout`, a relayed WebSocket carrying no byte either way | 300 s | not zero |
+| `max_websocket_bytes`, each direction of a relayed WebSocket | 512 MiB | at least 1 |
 
 `trust_upstream_root(der)` adds a root for upstream verification; once one is
 added, only the added roots are trusted, not the built-in web roots, and
@@ -957,7 +961,55 @@ upstream client, and `ca(Arc<EphemeralCa>)` shares a CA.
 
 Bodies stream both ways; nothing is read whole into memory. `mitm.stats()` gives
 counts (`connections`, `tunnels`, `unauthorized`, `refused`, `forwarded`,
-`upstream_errors`).
+`upstream_errors`, `websockets`).
+
+### WebSocket
+
+A page's `wss://` WebSocket reaches the proxy as a `CONNECT` whose TLS the proxy
+ends, followed by the opening handshake (`GET` with `Upgrade: websocket` and
+`Connection: Upgrade`, RFC 6455). The proxy:
+
+1. checks the handshake like any request (the token, the destination, `Host`,
+   the Chrome major), and that it is a whole handshake: a bodiless HTTP/1.1 `GET`
+   with both `Upgrade: websocket` and `Connection: upgrade`. Half of one
+   (`Connection: upgrade` without `Upgrade`, or the other way round), another
+   method, HTTP/1.0 or a body is an empty `400`; an upgrade to anything else
+   (`h2c`, `TLS/1.2`, a list) is an empty `502`;
+2. sends it upstream over HTTP/1.1 with the measured WebSocket `ClientHello`
+   (`tls_websocket` in the measured file, minus the known gaps). Chrome offers
+   only `http/1.1` on a WebSocket connection, so this hello's JA4 is not the
+   ordinary one. The egress, the destination filter, the trusted roots and the
+   timeouts are those of ordinary requests;
+3. keeps the browser's header order without the hop-by-hop and proxy fields, and
+   writes the `Connection: Upgrade` and `Upgrade: websocket` pair itself. Header
+   names take the measured spelling, and the handshake fields the measured lists
+   do not hold take Chrome's (`Sec-WebSocket-Key`, `Sec-WebSocket-Version`,
+   `Sec-WebSocket-Extensions`, `Origin`, ...);
+4. relays the upstream's `101 Switching Protocols` with its own headers.
+   `Sec-WebSocket-Accept` is checked by the browser, as it would be without a
+   proxy. A `101` that switches to another protocol is an empty `502`, and any
+   other answer (a `403`, say) reaches the page as an ordinary answer;
+5. then copies bytes both ways without reading frames, until a side closes, no
+   byte has passed for `websocket_idle_timeout`, one direction has carried more
+   than `max_websocket_bytes` (the read that crosses the limit is not passed on,
+   so one frame larger than the limit ends the connection), or the proxy stops.
+   Both sides are then shut down.
+
+Chrome sends no keep-alive of its own on a WebSocket, so a site that pings less
+often than `websocket_idle_timeout` loses its idle connections. A custom
+profile's WebSocket connections send the measured WebSocket hello of its base
+browser. Only `wss://` gets through: a handshake outside a `CONNECT` tunnel is an
+empty `502`, and a tunnel that does not start with TLS is never relayed. On
+Chrome 155 a page's `ws://` WebSocket is refused by the proxy and never reaches
+its server.
+
+**A WebSocket must not be a tab's first request through the proxy.** Chrome gets
+the proxy's token from `ProxyAuth`, which answers over `Fetch.authRequired`. Measured
+on Chrome 155 (headless): a `wss://` WebSocket opened by a blank tab, before any
+other request had gone through the proxy, got the `407` on its `CONNECT` and Chrome
+did not retry it with the token, so the page saw an error. Once a request has
+taken the proxy's credentials (any navigation through the proxy does, the page that
+opens the WebSocket included), WebSockets work.
 
 ### Changing the upstream, and stopping
 
@@ -969,9 +1021,8 @@ aborts what is left; dropping the last clone stops it too.
 
 ### What is not intercepted
 
-- **WebSocket is refused.** An upgrade request is answered with an empty `502`.
-  A page behind the proxy cannot open a WebSocket, whatever the origin accepts.
-  (`a_websocket_upgrade_is_refused` in `tests/impersonate_mitm/forwarding.rs`.)
+- **Upgrades other than WebSocket are refused**, and so is `ws://` (see
+  [WebSocket](#websocket)).
 - QUIC is off in Chrome, so there is no HTTP/3.
 - **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
   header.** The upstream protocol is settled by ALPN after the request was
@@ -986,12 +1037,24 @@ aborts what is left; dropping the last clone stops it too.
 proxy and raw clients, with no browser: the token and the `407`, targets it
 refuses, the SNI check, the bounds, the measured JA4 and Akamai string and
 `priority` at the origin, header order, the refusals above, a 64 MiB body
-streaming through, swapping the egress, and shutdown leaving no task.
+streaming through, swapping the egress, and shutdown leaving no task. Its
+`websocket` tests run a WebSocket echo site written in the test (raw tokio, no
+WebSocket library on the site's side): the echo, a handshake completed by
+`tokio-tungstenite` as an independent client, the measured WebSocket JA4 at the
+site, the handshake's header order, a WebSocket through an egress proxy with its
+credentials, and the hostile inputs (half upgrades, other
+protocols, a body, an oversize frame, an idle peer, a name resolving to loopback
+without `allow_private_destinations`, a handshake outside a tunnel, and a proxy
+that stops under an open WebSocket).
 
 `tests/impersonate_mitm_chrome.rs` drives the real Chrome 155 on macOS, headless,
 and is `#[ignore]`d. A page loads through the proxy, and the loopback origin
 sees the measured JA4 and Akamai string with the measured `priority` and a
-Chrome user agent; the token reaches Chrome only through the `407`. Two more
+Chrome user agent; the token reaches Chrome only through the `407`. A page
+opens a `wss://` WebSocket through the proxy to a loopback echo site and gets its
+echo back; the site sees the measured WebSocket JA4 and Chrome's handshake fields
+in Chrome's order. A `ws://` WebSocket is refused by the proxy, and a WebSocket
+that is a tab's first request fails on the `407` (pinned, see above). Two more
 tests are about the pin: a loopback server carrying the pinned key is never
 served to the page behind the proxy, and the same server is served to a Chrome
 that has the pin and no proxy. The origin in these tests is a server of the test,

@@ -314,7 +314,7 @@ pub(super) struct Relayed {
 }
 
 /// Copies bytes between `browser` and `upstream` until one of the ends of [`Ended`], then shuts
-/// both down (each within a short grace).
+/// both down together within a short grace.
 pub(super) async fn pump<A, B>(
     browser: A,
     upstream: B,

@@ -10,9 +10,9 @@
 //!   body limit), streaming of a 64 MiB body, and absolute-form `http://` requests;
 //! - [`websocket`]: a WebSocket through the proxy against the [`echo`] site (the echo, an
 //!   independent client's handshake, the measured WebSocket JA4 upstream, the browser's order
-//!   with only the upgrade pair of hop fields), and the hostile inputs (half upgrades, other
-//!   protocols, a body, an oversize frame, an idle peer, loopback without the switch, a handshake
-//!   outside a tunnel, a stopping proxy);
+//!   with only the upgrade pair of hop fields, an egress), and the hostile inputs (half
+//!   upgrades, other protocols, a body, an oversize frame, an idle peer, loopback without the
+//!   switch, a handshake outside a tunnel, a stopping proxy);
 //! - [`socks`]: a SOCKS5 egress gets the host name to resolve, not an address looked up here;
 //! - [`lifecycle`]: swapping the egress between requests on one listener, shutdown and drop
 //!   leaving no task, and the static check that the module writes no files.

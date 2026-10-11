@@ -636,23 +636,51 @@ impl MitmProxy {
     pub fn swap_upstream(&self, egress: Option<EgressRef>) -> Result<(), MitmError>;
     pub fn swap_profile(&self, profile: ImpersonationProfile) -> Result<(), MitmError>; }
 pub struct MitmOptions { /* max_connections, max_header_bytes, max_headers, max_body_bytes, idle_timeout,
-    handshake_timeout, connect_timeout, read_timeout, trust_upstream_root(der), resolve(host, addr), ca(Arc<EphemeralCa>) */ }
+    handshake_timeout, connect_timeout, read_timeout, websocket_idle_timeout, max_websocket_bytes (u64),
+    trust_upstream_root(der), resolve(host, addr), ca(Arc<EphemeralCa>), allow_private_destinations(bool) */ }
 pub enum MitmError { Bind(io::Error), Tls(TlsServerError), InvalidOptions(&'static str), Random,
     Upstream(ImpersonateError), Egress(&'static str), Unauthorized, BadTarget(&'static str),
-    NotIntercepted(&'static str), HostMismatch, BodyTooLarge { limit: usize },
+    ForbiddenDestination(&'static str), NotIntercepted(&'static str), HostMismatch,
+    MalformedUpgrade(&'static str), BodyTooLarge { limit: usize },
     VersionMismatch { browser: u32, measured: u32 }, UpstreamRequest { url: RedactedUrl, kind: &'static str } }
-pub struct MitmStats { connections, tunnels, unauthorized, refused, forwarded, upstream_errors }
+pub struct MitmStats { connections, tunnels, unauthorized, refused, forwarded, upstream_errors, websockets }
 ```
 
 `SniMismatch` of the first sketch is `TlsServerError::SniMismatch`, reached as `MitmError::Tls(..)`. The
 variants after `Egress` are what the proxy logs when it refuses a request; the browser only sees an empty
-`407`, `400`, `413`, `431` or `502`.
+`407`, `400`, `403`, `413`, `431` or `502`.
 
 Differences from the first sketch that matter:
 
-- **WebSocket is refused, not relayed.** An upgrade request is answered with an empty `502`
-  (`a_websocket_upgrade_is_refused`). The plan's relay over HTTP/1.1 with the measured `tls_websocket`
-  spec was not built.
+- **WebSocket is relayed, as the plan sketched, after WP15** (`mitm/websocket.rs`). A `GET` with
+  `Upgrade: websocket` and `Connection: upgrade` inside a `CONNECT` tunnel takes the ordinary checks
+  (token, destination, `Host`, user agent) and goes upstream over HTTP/1.1 through a second wreq client
+  built from the measured `tls_websocket` spec minus its known gaps (ALPN `http/1.1` only), with the
+  same egress, `PublicOnly` resolver, roots and timeouts as the ordinary client. On the wire its JA4 is
+  `t13d1515h1_8daaf6152771_0a20fe35d3a5`: Chrome's measured `t13d1516h1_8daaf6152771_5b37b36a67c0`
+  without the trust-anchors extension and the ML-DSA signature algorithms (the known gaps), which is
+  what `the_upstream_hello_is_the_measured_websocket_hello_minus_exactly_the_known_gaps` asserts.
+  The browser's header order is kept without the hop-by-hop fields; the proxy writes `Connection: Upgrade` and
+  `Upgrade: websocket` itself, and the handshake fields the measured lists lack get Chrome's spelling
+  (`Sec-WebSocket-Key` and the rest). The upstream `101` is relayed with its own headers; the
+  `Sec-WebSocket-Accept` check is left to the browser. A `101` that switches to another protocol is an
+  empty `502`; any other answer reaches the browser as an ordinary answer. The bytes are then copied
+  both ways with `tokio::io::copy_bidirectional` in the browser connection's task (so the accept loop's
+  `JoinSet` still owns everything), bounded by `websocket_idle_timeout` (300 s, no byte either way) and
+  `max_websocket_bytes` per direction (512 MiB; the read that crosses it is not passed on), and both
+  sides are shut down together within one 5 s grace (`common::shutdown::cleanup_within`) when one
+  closes, a bound is hit or the proxy stops. Every other upgrade is an empty `502`; half an upgrade, another
+  method, HTTP/1.0 or a body is an empty `400` (`MalformedUpgrade`); a handshake outside a tunnel is an
+  empty `502`, and a tunnel that does not start with TLS is never relayed, so `ws://` does not get
+  through. A custom profile's WebSocket connections send its base browser's measured WebSocket hello;
+  a profile without one gets a `502` for every handshake. Tests: `tests/impersonate_mitm/websocket.rs`
+  (an echo site written in the test, the measured WebSocket JA4 on the wire, the hostile inputs) and,
+  on headless Chrome 155, `a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo` and
+  `a_plain_ws_websocket_is_refused_by_the_proxy` in `tests/impersonate_mitm_chrome.rs`. **Known limit,
+  measured and pinned** (`a_websocket_before_any_request_through_the_proxy_fails_on_the_407`): a
+  WebSocket that is a tab's first request through the proxy gets the `407` on its `CONNECT`, and Chrome
+  does not retry it with the token `ProxyAuth` hands out over `Fetch.authRequired`; after any request
+  has taken the credentials (a navigation through the proxy), WebSockets work.
 - **A request whose `User-Agent` names another Chrome major than the profile's is refused**
   (`MitmError::VersionMismatch`), because the measured handshake would contradict the header.
 - **The first request to an HTTP/1.1-only origin carries the HTTP/2 `priority` header**: the upstream
@@ -660,7 +688,7 @@ Differences from the first sketch that matter:
   header from then on (asserted: `an_http1_origin_gets_the_measured_spelling_and_no_priority_once_known`).
 - **Options and bounds** (`max_connections` 1 to 4096, default 256; request head 8 KiB to 1 MiB, default
   64 KiB; headers 1 to 1024, default 128; body default 512 MiB; idle 60 s, handshake 10 s, connect 30 s,
-  read 60 s) are checked by `start`.
+  read 60 s; WebSocket idle 300 s and 512 MiB per direction) are checked by `start`.
 - `StealthSession` starts the proxy lazily, the first time a browser is needed (§3.13).
 
 Security rules, each with a WP15 test:
@@ -694,13 +722,14 @@ Security rules, each with a WP15 test:
 - SNI must equal the CONNECT host or the connection closes. The intercepted leg offers ALPN `http/1.1`.
 - Stripped before replay: `Connection` and its listed tokens, `Keep-Alive`, `Proxy-Connection`,
   `Proxy-Authorization`, `Proxy-Authenticate`, `TE` (but `trailers`), `Trailer`, `Transfer-Encoding`,
-  `Upgrade`, and `Host` (the upstream client writes it). Chrome's header order is kept; the h2-only
-  `priority` header comes from the measured table.
+  `Upgrade`, and `Host` (the upstream client writes it). On a WebSocket handshake the proxy writes the
+  `Connection: Upgrade` and `Upgrade: websocket` pair itself, in the browser's places for them. Chrome's
+  header order is kept; the h2-only `priority` header comes from the measured table.
 - Upstream verification always on (webpki roots, or only the roots added with `trust_upstream_root`);
   failure answers an empty `502`. The upstream client follows no redirects, decompresses nothing (so
   `Content-Encoding` passes through) and sets no default headers: the browser's own go out.
 - Bodies stream both ways, never buffered whole; bounds: 256 connections, 64 KiB request head, named
-  idle and connect timeouts. WebSocket upgrades are refused with an empty `502` (see above).
+  idle and connect timeouts. A relayed WebSocket has its own idle and byte bounds (see above).
 - `swap_upstream` builds the new client first, then swaps an `RwLock<Arc<Upstream>>`; in-flight requests
   keep the old one. Logs carry `RedactedUrl`/`EgressKey` only; `Drop` uses `shutdown::spawn_cleanup`.
 

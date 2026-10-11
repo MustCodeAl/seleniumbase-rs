@@ -74,6 +74,11 @@
 //! A custom profile's WebSocket connections send the measured WebSocket hello of its base browser.
 //! A profile without a measured WebSocket hello gets an empty `502` for every handshake.
 //!
+//! Chrome gets the token over `Fetch.authRequired`. Measured on Chrome 155 (headless): a WebSocket
+//! that is a tab's first request through the proxy gets the `407` on its `CONNECT` and is not
+//! retried with the token, so it fails; once any request (a navigation through the proxy) has
+//! taken the credentials, WebSocket connections work.
+//!
 //! # Not intercepted
 //!
 //! Every protocol upgrade other than WebSocket (`h2c`, `TLS/1.2`, a list of protocols) is refused
