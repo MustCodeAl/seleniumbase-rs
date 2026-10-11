@@ -4,11 +4,51 @@
 //! JSON. [`run_scenario`] replays those actions against a [`BaseCase`] and
 //! produces a [`RunSummary`] that can be rendered to HTML with
 //! [`write_dashboard_html`].
+//!
+//! Each step names its action with an `action` field in snake case, and the
+//! rest of its fields are that action's arguments:
+//!
+//! ```json
+//! {
+//!   "name": "login",
+//!   "steps": [
+//!     { "action": "open", "url": "https://seleniumbase.io/simple/login" },
+//!     { "action": "type_text", "css": "#username", "text": "demo_user" },
+//!     { "action": "click", "css": "button" },
+//!     { "action": "wait_for_text", "css": "h1", "text": "Welcome" }
+//!   ]
+//! }
+//! ```
+//!
+//! # Examples
+//!
+//! ```
+//! use seleniumbase_rs::api::scenario::{Scenario, ScenarioStep};
+//!
+//! # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+//! let scenario = Scenario::from_json(
+//!     r#"{"name": "demo", "steps": [
+//!         {"action": "open", "url": "https://example.com"},
+//!         {"action": "assert_text", "css": "h1", "contains": "Example"}
+//!     ]}"#,
+//! )?;
+//! assert_eq!(scenario.steps.len(), 2);
+//! assert!(matches!(scenario.steps[0], ScenarioStep::Open { .. }));
+//! # Ok(())
+//! # }
+//! ```
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::api::base_case::BaseCase;
 use crate::error::SeleniumBaseError;
+
+/// How long a `wait_for_text` step waits when its `timeout` is left out.
+const DEFAULT_WAIT_SECONDS: u64 = 10;
+
+fn default_wait_seconds() -> u64 {
+    DEFAULT_WAIT_SECONDS
+}
 
 /// Result summary for a scenario run.
 #[derive(Debug, Default, Clone)]
@@ -21,12 +61,20 @@ pub struct RunSummary {
     pub passed_steps: usize,
     /// Number of steps that produced an error.
     pub failed_steps: usize,
-    /// Human-readable error messages for failed steps.
+    /// Human-readable error messages for failed steps. Each starts with the
+    /// step's position and action, such as `step 3 (click): ...`.
     pub errors: Vec<String>,
 }
 
+impl RunSummary {
+    /// Whether every step passed.
+    pub fn is_success(&self) -> bool {
+        self.failed_steps == 0
+    }
+}
+
 /// A scenario parsed from JSON, containing a sequence of browser actions.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Scenario {
     /// Human-readable name for the scenario.
     pub name: String,
@@ -34,138 +82,241 @@ pub struct Scenario {
     pub steps: Vec<ScenarioStep>,
 }
 
+impl Scenario {
+    /// Parses a scenario from JSON text.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Json`] if the text is not valid JSON, has
+    /// no `name` or `steps`, or contains a step whose `action` is unknown or
+    /// that lacks one of its arguments. The message names the offending field.
+    pub fn from_json(json: &str) -> Result<Self, SeleniumBaseError> {
+        Ok(serde_json::from_str(json)?)
+    }
+}
+
 /// A single step inside a [`Scenario`].
-#[derive(Debug, Deserialize)]
+///
+/// The JSON `action` field is the variant's name in snake case, and the
+/// variant's fields are the step's other keys.
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ScenarioStep {
     /// Navigate to a URL.
     Open {
+        /// The page to open.
         url: String,
     },
+    /// Click an element.
     Click {
+        /// Selector of the element.
         css: String,
     },
+    /// Type text into a field after clearing it.
     TypeText {
+        /// Selector of the field.
         css: String,
+        /// The text to type.
         text: String,
     },
+    /// Assert that an element's text contains a string.
     AssertText {
+        /// Selector of the element.
         css: String,
+        /// The text the element must contain.
         contains: String,
     },
+    /// Assert that an element exists and is visible.
     AssertElement {
+        /// Selector of the element.
         css: String,
     },
+    /// Wait until an element contains a string.
     WaitForText {
+        /// Selector of the element.
         css: String,
+        /// The text to wait for.
         text: String,
+        /// How long to wait, in seconds. Ten when left out.
+        #[serde(default = "default_wait_seconds")]
         timeout: u64,
     },
+    /// Pause for some seconds.
     Sleep {
+        /// How long to pause; zero or less does not pause.
         seconds: f64,
     },
+    /// Move the pointer over an element.
     Hover {
+        /// Selector of the element.
         css: String,
     },
+    /// Hover over one element, then click another that the hover reveals.
     HoverAndClick {
+        /// Selector of the element to hover.
         hover_css: String,
+        /// Selector of the element to click.
         click_css: String,
     },
+    /// Choose a `<select>` option by its visible text.
     SelectOptionByText {
+        /// Selector of the `<select>`.
         css: String,
+        /// The option's text.
         text: String,
     },
+    /// Choose a `<select>` option by its `value`.
     SelectOptionByValue {
+        /// Selector of the `<select>`.
         css: String,
+        /// The option's value.
         value: String,
     },
+    /// Drag one element onto another.
     DragAndDrop {
+        /// Selector of the element to drag.
         source_css: String,
+        /// Selector of the drop target.
         target_css: String,
     },
+    /// Make an iframe the current context.
     SwitchToFrame {
+        /// Selector of the iframe.
         css: String,
     },
+    /// Return to the top-level document.
     SwitchToDefaultContent,
+    /// Empty a field.
     Clear {
+        /// Selector of the field.
         css: String,
     },
+    /// Click a link by its exact text.
     ClickLinkText {
+        /// The link's text.
         text: String,
     },
+    /// Submit a form.
     Submit {
+        /// Selector of the form or one of its fields.
         css: String,
     },
+    /// Accept the open JavaScript alert.
     AcceptAlert,
+    /// Dismiss the open JavaScript alert.
     DismissAlert,
+    /// Type into the open JavaScript prompt.
     TypeAlertText {
+        /// The text to type.
         text: String,
     },
+    /// Remove every item from `localStorage`.
     ClearLocalStorage,
+    /// Remove one `localStorage` item.
     RemoveLocalStorageItem {
+        /// The item's key.
         key: String,
     },
+    /// Set a `localStorage` item.
     SetLocalStorageItem {
+        /// The item's key.
         key: String,
+        /// The value to store.
         value: String,
     },
+    /// Switch to a window by its handle.
     SwitchToWindow {
+        /// The window handle.
         handle: String,
     },
-
+    /// Click an element with JavaScript instead of a mouse event.
     JsClick {
+        /// Selector of the element.
         css: String,
     },
+    /// Set a field's value with JavaScript instead of key events.
     JsType {
+        /// Selector of the field.
         css: String,
+        /// The text to set.
         text: String,
     },
+    /// Set an attribute on an element.
     SetAttribute {
+        /// Selector of the element.
         css: String,
+        /// The attribute's name.
         attribute: String,
+        /// The value to set.
         value: String,
     },
+    /// Remove an attribute from an element.
     RemoveAttribute {
+        /// Selector of the element.
         css: String,
+        /// The attribute's name.
         attribute: String,
     },
+    /// Choose a file in a file input.
     ChooseFile {
+        /// Selector of the `<input type="file">`.
         css: String,
+        /// Path of the file to upload.
         file_path: String,
     },
+    /// Go back in the history.
     GoBack,
+    /// Go forward in the history.
     GoForward,
+    /// Reload the page.
     Refresh,
+    /// Delete every cookie.
     DeleteAllCookies,
+    /// Open a new window and switch to it.
     SwitchToNewWindow,
-
+    /// Double-click an element.
     DoubleClick {
+        /// Selector of the element.
         css: String,
     },
+    /// Right-click an element.
     ContextClick {
+        /// Selector of the element.
         css: String,
     },
+    /// Maximize the browser window.
     MaximizeWindow,
+    /// Scroll to the bottom of the page.
     ScrollToBottom,
+    /// Scroll to the top of the page.
     ScrollToTop,
+    /// Scroll an element into view.
     ScrollTo {
+        /// Selector of the element.
         css: String,
     },
 }
 
-/// Executes every step of `scenario` against `sb` and returns a summary.
-///
-/// Each step is executed in order; failures are collected and reported in the
-/// returned [`RunSummary`] rather than stopping execution early.
-pub async fn run_scenario(
-    sb: &mut BaseCase,
-    scenario: &Scenario,
-) -> Result<RunSummary, SeleniumBaseError> {
-    let mut passed_steps = 0_usize;
-    let mut errors = Vec::new();
+impl ScenarioStep {
+    /// The step's `action` name, such as `"click"`.
+    pub fn action(&self) -> String {
+        serde_json::to_value(self)
+            .ok()
+            .and_then(|value| value.get("action")?.as_str().map(ToOwned::to_owned))
+            .unwrap_or_else(|| "unknown".to_owned())
+    }
+}
 
-    for step in &scenario.steps {
-        let result = match step {
+/// Something that can carry out a [`ScenarioStep`]. [`BaseCase`] is the real
+/// one; the seam lets the bookkeeping be tested without a browser.
+trait StepRunner {
+    async fn run_step(&mut self, step: &ScenarioStep) -> Result<(), SeleniumBaseError>;
+}
+
+impl StepRunner for BaseCase {
+    async fn run_step(&mut self, step: &ScenarioStep) -> Result<(), SeleniumBaseError> {
+        let sb = self;
+        match step {
             ScenarioStep::Open { url } => sb.open(url).await,
             ScenarioStep::Click { css } => sb.click(css).await,
             ScenarioStep::TypeText { css, text } => sb.type_text(css, text).await,
@@ -207,7 +358,6 @@ pub async fn run_scenario(
                 sb.set_local_storage_item(key, value).await
             }
             ScenarioStep::SwitchToWindow { handle } => sb.switch_to_window(handle).await,
-
             ScenarioStep::JsClick { css } => sb.js_click(css).await,
             ScenarioStep::JsType { css, text } => sb.js_type(css, text).await,
             ScenarioStep::SetAttribute {
@@ -224,32 +374,63 @@ pub async fn run_scenario(
             ScenarioStep::Refresh => sb.refresh().await,
             ScenarioStep::DeleteAllCookies => sb.delete_all_cookies().await,
             ScenarioStep::SwitchToNewWindow => sb.switch_to_new_window().await,
-
             ScenarioStep::DoubleClick { css } => sb.double_click(css).await,
             ScenarioStep::ContextClick { css } => sb.context_click(css).await,
             ScenarioStep::MaximizeWindow => sb.maximize_window().await,
             ScenarioStep::ScrollToBottom => sb.scroll_to_bottom().await,
             ScenarioStep::ScrollToTop => sb.scroll_to_top().await,
             ScenarioStep::ScrollTo { css } => sb.scroll_to(css).await,
-        };
+        }
+    }
+}
 
-        match result {
+/// Executes every step of `scenario` against `sb` and returns a summary.
+///
+/// Each step is executed in order; failures are collected and reported in the
+/// returned [`RunSummary`] rather than stopping execution early. A failure's
+/// message starts with the step's position and action, so it can be matched
+/// to the scenario file.
+///
+/// # Errors
+///
+/// Never fails today: a step that fails is reported in the summary. The
+/// `Result` is kept for steps that may one day abort the run.
+pub async fn run_scenario(
+    sb: &mut BaseCase,
+    scenario: &Scenario,
+) -> Result<RunSummary, SeleniumBaseError> {
+    Ok(run_steps(sb, scenario).await)
+}
+
+async fn run_steps(runner: &mut impl StepRunner, scenario: &Scenario) -> RunSummary {
+    let mut passed_steps = 0_usize;
+    let mut errors = Vec::new();
+
+    for (index, step) in scenario.steps.iter().enumerate() {
+        match runner.run_step(step).await {
             Ok(()) => passed_steps += 1,
-            Err(e) => errors.push(e.to_string()),
+            Err(error) => errors.push(format!("step {} ({}): {error}", index + 1, step.action())),
         }
     }
 
-    let failed_steps = scenario.steps.len().saturating_sub(passed_steps);
-    Ok(RunSummary {
+    RunSummary {
         scenario_name: scenario.name.clone(),
         total_steps: scenario.steps.len(),
         passed_steps,
-        failed_steps,
+        failed_steps: scenario.steps.len().saturating_sub(passed_steps),
         errors,
-    })
+    }
 }
 
 /// Writes a simple HTML dashboard report for `summary` to `path`.
+///
+/// The scenario's name and the error messages are escaped, so they are shown
+/// as written.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] naming the path if the file
+/// cannot be written.
 pub fn write_dashboard_html<P: AsRef<std::path::Path>>(
     summary: &RunSummary,
     path: P,
@@ -306,4 +487,285 @@ fn html_escape(text: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Fails the steps at the given (1-based) positions and records the rest.
+    struct FakeRunner {
+        fail_at: Vec<usize>,
+        ran: Vec<String>,
+    }
+
+    impl FakeRunner {
+        fn failing(fail_at: &[usize]) -> Self {
+            Self {
+                fail_at: fail_at.to_vec(),
+                ran: Vec::new(),
+            }
+        }
+    }
+
+    impl StepRunner for FakeRunner {
+        async fn run_step(&mut self, step: &ScenarioStep) -> Result<(), SeleniumBaseError> {
+            self.ran.push(step.action());
+            if self.fail_at.contains(&self.ran.len()) {
+                Err(SeleniumBaseError::element_not_found("#missing"))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    /// One JSON object per step kind, in the order of the enum.
+    const EVERY_STEP: &str = r##"{"name": "all", "steps": [
+        {"action": "open", "url": "https://example.com"},
+        {"action": "click", "css": "#a"},
+        {"action": "type_text", "css": "#a", "text": "t"},
+        {"action": "assert_text", "css": "#a", "contains": "c"},
+        {"action": "assert_element", "css": "#a"},
+        {"action": "wait_for_text", "css": "#a", "text": "t", "timeout": 3},
+        {"action": "sleep", "seconds": 0.5},
+        {"action": "hover", "css": "#a"},
+        {"action": "hover_and_click", "hover_css": "#a", "click_css": "#b"},
+        {"action": "select_option_by_text", "css": "#s", "text": "One"},
+        {"action": "select_option_by_value", "css": "#s", "value": "1"},
+        {"action": "drag_and_drop", "source_css": "#a", "target_css": "#b"},
+        {"action": "switch_to_frame", "css": "iframe"},
+        {"action": "switch_to_default_content"},
+        {"action": "clear", "css": "#a"},
+        {"action": "click_link_text", "text": "Home"},
+        {"action": "submit", "css": "form"},
+        {"action": "accept_alert"},
+        {"action": "dismiss_alert"},
+        {"action": "type_alert_text", "text": "t"},
+        {"action": "clear_local_storage"},
+        {"action": "remove_local_storage_item", "key": "k"},
+        {"action": "set_local_storage_item", "key": "k", "value": "v"},
+        {"action": "switch_to_window", "handle": "h"},
+        {"action": "js_click", "css": "#a"},
+        {"action": "js_type", "css": "#a", "text": "t"},
+        {"action": "set_attribute", "css": "#a", "attribute": "x", "value": "y"},
+        {"action": "remove_attribute", "css": "#a", "attribute": "x"},
+        {"action": "choose_file", "css": "#f", "file_path": "/tmp/f"},
+        {"action": "go_back"},
+        {"action": "go_forward"},
+        {"action": "refresh"},
+        {"action": "delete_all_cookies"},
+        {"action": "switch_to_new_window"},
+        {"action": "double_click", "css": "#a"},
+        {"action": "context_click", "css": "#a"},
+        {"action": "maximize_window"},
+        {"action": "scroll_to_bottom"},
+        {"action": "scroll_to_top"},
+        {"action": "scroll_to", "css": "#a"}
+    ]}"##;
+
+    #[test]
+    fn every_documented_action_parses_and_keeps_its_name() {
+        let scenario = Scenario::from_json(EVERY_STEP).unwrap();
+        assert_eq!(scenario.name, "all");
+        assert_eq!(scenario.steps.len(), 40);
+        let names: Vec<String> = scenario.steps.iter().map(ScenarioStep::action).collect();
+        let written: Vec<String> = serde_json::from_str::<serde_json::Value>(EVERY_STEP).unwrap()
+            ["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|step| step["action"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(names, written);
+    }
+
+    #[test]
+    fn a_scenario_survives_a_trip_through_json() {
+        let scenario = Scenario::from_json(EVERY_STEP).unwrap();
+        let again = Scenario::from_json(&serde_json::to_string(&scenario).unwrap()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&scenario).unwrap(),
+            serde_json::to_value(&again).unwrap()
+        );
+    }
+
+    #[test]
+    fn wait_for_text_waits_ten_seconds_unless_told_otherwise() {
+        let scenario = Scenario::from_json(
+            r#"{"name": "n", "steps": [
+                {"action": "wait_for_text", "css": "h1", "text": "Hi"},
+                {"action": "wait_for_text", "css": "h1", "text": "Hi", "timeout": 2}
+            ]}"#,
+        )
+        .unwrap();
+        let timeouts: Vec<u64> = scenario
+            .steps
+            .iter()
+            .map(|step| match step {
+                ScenarioStep::WaitForText { timeout, .. } => *timeout,
+                other => panic!("unexpected step {other:?}"),
+            })
+            .collect();
+        assert_eq!(timeouts, [10, 2]);
+    }
+
+    #[test]
+    fn a_bad_scenario_is_rejected_with_a_message_that_names_the_problem() {
+        let unknown = Scenario::from_json(r#"{"name": "n", "steps": [{"action": "levitate"}]}"#)
+            .unwrap_err()
+            .to_string();
+        assert!(unknown.contains("levitate"), "{unknown}");
+
+        let missing = Scenario::from_json(r#"{"name": "n", "steps": [{"action": "click"}]}"#)
+            .unwrap_err()
+            .to_string();
+        assert!(missing.contains("css"), "{missing}");
+
+        assert!(Scenario::from_json("not json").is_err());
+        assert!(Scenario::from_json(r#"{"steps": []}"#).is_err());
+    }
+
+    #[tokio::test]
+    async fn a_failed_step_does_not_stop_the_run_and_the_error_says_which_step() {
+        let scenario = Scenario::from_json(
+            r##"{"name": "five", "steps": [
+                {"action": "open", "url": "https://example.com"},
+                {"action": "click", "css": "#a"},
+                {"action": "refresh"},
+                {"action": "assert_element", "css": "#b"},
+                {"action": "go_back"}
+            ]}"##,
+        )
+        .unwrap();
+        let mut runner = FakeRunner::failing(&[2, 4]);
+
+        let summary = run_steps(&mut runner, &scenario).await;
+
+        assert_eq!(runner.ran.len(), 5, "every step ran: {:?}", runner.ran);
+        assert_eq!(summary.scenario_name, "five");
+        assert_eq!(summary.total_steps, 5);
+        assert_eq!(summary.passed_steps, 3);
+        assert_eq!(summary.failed_steps, 2);
+        assert!(!summary.is_success());
+        assert_eq!(summary.errors.len(), 2);
+        assert!(
+            summary.errors[0].starts_with("step 2 (click): "),
+            "{:?}",
+            summary.errors
+        );
+        assert!(
+            summary.errors[1].starts_with("step 4 (assert_element): "),
+            "{:?}",
+            summary.errors
+        );
+    }
+
+    #[tokio::test]
+    async fn a_scenario_where_everything_passes_is_a_success() {
+        let scenario =
+            Scenario::from_json(r#"{"name": "n", "steps": [{"action": "refresh"}]}"#).unwrap();
+        let summary = run_steps(&mut FakeRunner::failing(&[]), &scenario).await;
+        assert!(summary.is_success());
+        assert!(summary.errors.is_empty());
+
+        let empty = Scenario::from_json(r#"{"name": "none", "steps": []}"#).unwrap();
+        let summary = run_steps(&mut FakeRunner::failing(&[]), &empty).await;
+        assert_eq!((summary.total_steps, summary.passed_steps), (0, 0));
+        assert!(summary.is_success());
+    }
+
+    #[test]
+    fn the_dashboard_shows_the_counts_and_escapes_what_it_was_given() {
+        let summary = RunSummary {
+            scenario_name: "<b>login</b> & \"more\"".to_owned(),
+            total_steps: 3,
+            passed_steps: 1,
+            failed_steps: 2,
+            errors: vec![
+                "step 2 (click): <script>alert(1)</script>".to_owned(),
+                "step 3 (open): a & b".to_owned(),
+            ],
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("dashboard.html");
+        write_dashboard_html(&summary, &path).unwrap();
+        let html = std::fs::read_to_string(&path).unwrap();
+
+        assert!(html
+            .contains("<title>Dashboard: &lt;b&gt;login&lt;/b&gt; &amp; &quot;more&quot;</title>"));
+        assert!(html.contains("<strong>Total steps:</strong> 3"));
+        assert!(html.contains("<strong>Passed:</strong> 1"));
+        assert!(html.contains("<strong>Failed:</strong> 2"));
+        assert!(html.contains("<li>step 2 (click): &lt;script&gt;alert(1)&lt;/script&gt;</li>"));
+        assert!(html.contains("<li>step 3 (open): a &amp; b</li>"));
+        assert!(!html.contains("<script>alert"), "{html}");
+    }
+
+    #[test]
+    fn a_dashboard_that_cannot_be_written_names_the_path() {
+        let error = write_dashboard_html(&RunSummary::default(), "/no-such-folder-for-test/d.html")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("/no-such-folder-for-test/d.html"), "{error}");
+    }
+
+    /// Replays a scenario against a real Chrome through chromedriver.
+    ///
+    /// Run with `cargo test --lib scenario -- --ignored`.
+    #[tokio::test]
+    #[ignore = "launches a real Chrome through chromedriver"]
+    async fn runs_a_scenario_against_a_real_browser() {
+        use crate::browser::config::BrowserConfig;
+        use std::io::{Read, Write};
+
+        const PAGE: &str = r#"<!doctype html><title>Scenario</title>
+            <h1 id="t">Welcome</h1><input id="name">
+            <button id="go" onclick="document.getElementById('t').textContent='Hello '+document.getElementById('name').value">Go</button>"#;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buffer = [0_u8; 2048];
+                let _ = stream.read(&mut buffer);
+                let _ = stream.write_all(
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{PAGE}",
+                        PAGE.len()
+                    )
+                    .as_bytes(),
+                );
+            }
+        });
+
+        let scenario = Scenario::from_json(&format!(
+            r##"{{"name": "real", "steps": [
+                {{"action": "open", "url": "http://{address}/"}},
+                {{"action": "assert_text", "css": "#t", "contains": "Welcome"}},
+                {{"action": "type_text", "css": "#name", "text": "Ada"}},
+                {{"action": "click", "css": "#go"}},
+                {{"action": "wait_for_text", "css": "#t", "text": "Hello Ada", "timeout": 5}},
+                {{"action": "assert_element", "css": "#does-not-exist"}}
+            ]}}"##
+        ))
+        .unwrap();
+
+        let mut sb = BaseCase::new(BrowserConfig {
+            headless: true,
+            ..BrowserConfig::default()
+        })
+        .await
+        .expect("Chrome starts");
+        let summary = run_scenario(&mut sb, &scenario).await.unwrap();
+        sb.quit().await.unwrap();
+
+        assert_eq!(summary.total_steps, 6);
+        assert_eq!(summary.passed_steps, 5, "{:?}", summary.errors);
+        assert_eq!(summary.errors.len(), 1);
+        assert!(
+            summary.errors[0].starts_with("step 6 (assert_element): "),
+            "{:?}",
+            summary.errors
+        );
+    }
 }
