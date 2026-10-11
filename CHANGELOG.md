@@ -217,6 +217,20 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `BrowserSession::reconnect` stops the chromedriver of the previous session when
+  the new one starts its own, so `uc_open_with_reconnect` no longer leaves one
+  chromedriver running per call.
+- `js_click`, `js_type`, `set_attribute`, `remove_attribute`, `scroll_to`, the
+  localStorage helpers and every other `BaseCase` page script quote their
+  selectors and values with the crate's `js_code::quote`; a quote, a newline or
+  U+2028 in test data could break out of the string. Waits that run out of time
+  (`wait_for_title`, `wait_for_attribute`, `wait_for_exact_text`, the link-text
+  waits, `wait_for_any_of_elements_present`, `download_file`) return `WaitTimeout`
+  instead of `AssertionFailed` and name what they waited for.
+  `wait_for_ready_state_complete` takes its default from the configured timeout.
+- The examples run offline against a loopback site (`examples/local_site`) and
+  check what they claim; the `partial link=` selector prefix in the selectors
+  tutorial is `partial_link=`.
 - The native pointer helpers of the `gui` feature (`gui_click_element`,
   `gui_click_with_offset`, `gui_drag_and_drop`, `gui_move_to_element`,
   `gui_hover_and_click` and `uc_gui_handle_captcha`) aim at the element's place on
