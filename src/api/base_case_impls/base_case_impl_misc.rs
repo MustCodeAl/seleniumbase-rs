@@ -3,23 +3,37 @@
 impl BaseCase {
     // Deferred / delayed assertion aliases.
 
-    /// Records a deferred assertion that `css` must be present.
+    /// Checks now that `css` is in the page, visible or not, and records a
+    /// failure for [`process_deferred_asserts`](Self::process_deferred_asserts)
+    /// to report. Corresponds to Python's `deferred_assert_element_present`.
     pub async fn deferred_assert_element_present(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.deferred_assert_element(css).await
+        let mut deferred = std::mem::take(&mut self.deferred);
+        deferred.check_element_present(self, css).await;
+        self.deferred = deferred;
+        Ok(())
     }
 
-    /// Records a deferred assertion for exact text in `css`.
+    /// Checks now that the text of `css` is exactly `text`, and records a
+    /// failure for [`process_deferred_asserts`](Self::process_deferred_asserts)
+    /// to report. Corresponds to Python's `deferred_assert_exact_text`.
     pub async fn deferred_assert_exact_text(
         &mut self,
         css: &str,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.deferred_assert_text(text, css).await
+        let mut deferred = std::mem::take(&mut self.deferred);
+        deferred.check_exact_text(self, text, css).await;
+        self.deferred = deferred;
+        Ok(())
     }
 
-    /// Records a deferred assertion that `css` has non-empty text.
+    /// Checks now that `css` shows some text, and records a failure for
+    /// [`process_deferred_asserts`](Self::process_deferred_asserts) to report.
+    /// Corresponds to Python's `deferred_assert_non_empty_text`.
     pub async fn deferred_assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.deferred.add_element(css);
+        let mut deferred = std::mem::take(&mut self.deferred);
+        deferred.check_non_empty_text(self, css).await;
+        self.deferred = deferred;
         Ok(())
     }
 

@@ -1765,17 +1765,28 @@ impl BaseCase {
 
     // --- Deferred Asserts ---
 
+    /// Checks now that `css` is visible, and records a failure, with the
+    /// page's URL, for [`process_deferred_asserts`](Self::process_deferred_asserts)
+    /// to report. Waits a couple of seconds for the element, as Python does.
+    /// Corresponds to Python's `deferred_assert_element`.
     pub async fn deferred_assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.deferred.add_element(css);
+        let mut deferred = std::mem::take(&mut self.deferred);
+        deferred.check_element(self, css).await;
+        self.deferred = deferred;
         Ok(())
     }
 
+    /// Checks now that `css` contains `text`, and records a failure, with the
+    /// page's URL, for [`process_deferred_asserts`](Self::process_deferred_asserts)
+    /// to report. Corresponds to Python's `deferred_assert_text`.
     pub async fn deferred_assert_text(
         &mut self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.deferred.add_text(text, css);
+        let mut deferred = std::mem::take(&mut self.deferred);
+        deferred.check_text(self, text, css).await;
+        self.deferred = deferred;
         Ok(())
     }
 
