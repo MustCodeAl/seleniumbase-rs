@@ -47,9 +47,15 @@ pub struct BaseCase {
     qa_session: Option<MasterQaSession>,
     #[cfg(feature = "playwright")]
     playwright_session: Option<PlaywrightSession>,
-    time_limit_secs: Option<u64>,
+    /// How long the whole test may run, from [`BaseCase::set_time_limit`].
+    time_limit: Option<Duration>,
+    /// When this test case was created, which is where the time limit counts from.
+    started: std::time::Instant,
     /// Default implicit wait timeout used by [`wait_for_element_visible_default`].
     timeout_secs: u64,
+    /// The default timeout that [`BaseCase::set_default_timeout`] replaced, so
+    /// [`BaseCase::reset_default_timeout`] can put it back.
+    default_timeout_before: Option<u64>,
     #[cfg(feature = "gui")]
     gui_held: Option<(i32, i32)>,
     /// Additional browser sessions created by [`BaseCase::get_new_driver`].
@@ -60,11 +66,27 @@ pub struct BaseCase {
 
 impl BaseCase {
     /// Creates a new test case and connects to the browser described by `config`.
+    ///
+    /// If the configuration names a start page (`start_page`, Python's
+    /// `--start-page`), the browser is taken there before this returns.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the browser cannot be started or the start page
+    /// cannot be opened; the browser is closed again in the second case.
     #[instrument(skip(config))]
     pub async fn new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         info!(browser = ?config.browser, headless = config.headless, "creating BaseCase");
         let session = BrowserSession::connect(config.clone()).await?;
-        Ok(Self::with_session(config, session))
+        let mut case = Self::with_session(config, session);
+        if case.config.start_page.is_some() {
+            if let Err(error) = case.open_start_page().await {
+                // Do not leave a browser running that nobody holds.
+                let _ = case.quit().await;
+                return Err(error);
+            }
+        }
+        Ok(case)
     }
 
     /// Creates a `BaseCase` from an existing browser session. Used internally for
@@ -83,8 +105,10 @@ impl BaseCase {
             qa_session: None,
             #[cfg(feature = "playwright")]
             playwright_session: None,
-            time_limit_secs: None,
+            time_limit: None,
+            started: std::time::Instant::now(),
             timeout_secs: 10,
+            default_timeout_before: None,
             #[cfg(feature = "gui")]
             gui_held: None,
             extra_sessions: Vec::new(),
@@ -129,7 +153,8 @@ impl BaseCase {
     /// Sets the default implicit wait timeout used by helper macros and returns
     /// the previous value.
     ///
-    /// The timeout is capped by the optional overall test time limit.
+    /// The timeout is capped by the time left of the optional test time limit
+    /// ([`set_time_limit`](Self::set_time_limit)).
     pub async fn set_timeout(&mut self, secs: u64) -> Result<u64, SeleniumBaseError> {
         let old = self.timeout_secs;
         self.timeout_secs = secs;
@@ -231,9 +256,10 @@ impl BaseCase {
         if self.run_settings.skip_js_waits() {
             return Ok(());
         }
+        self.check_time_limit()?;
         let script = "return document.readyState;";
         let start = std::time::Instant::now();
-        let timeout_secs = self.time_limit_secs.unwrap_or(10);
+        let timeout_secs = self.effective_timeout(self.timeout_secs);
         loop {
             if start.elapsed().as_secs() > timeout_secs {
                 return Err(SeleniumBaseError::WaitTimeout(
@@ -312,6 +338,7 @@ impl BaseCase {
         css: &str,
         timeout: u64,
     ) -> Result<(), SeleniumBaseError> {
+        self.check_time_limit()?;
         self.record("wait_for_element_not_visible", Some(css), None);
         let by = Selector::auto(css).to_by()?;
         let start = std::time::Instant::now();
@@ -507,6 +534,7 @@ impl BaseCase {
     ///
     /// Returns an error if `url` is empty or cannot be made into a valid URL.
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.check_time_limit()?;
         let url = crate::utils::urls::normalize_page_url(url)?;
         info!(%url, "opening url");
         self.record("open", Some(&url), None);
@@ -2222,10 +2250,38 @@ impl BaseCase {
         crate::utils::selectors::xpath_to_css(xpath)
     }
 
-    /// Set a soft upper bound for wait-based helpers.
+    /// Fails the test once it has run for more than `seconds`.
+    ///
+    /// The clock started when this test case was created. The limit is checked
+    /// whenever the test opens a page, waits for the page to be ready or waits
+    /// for an element, and the next of those fails with a
+    /// [`SeleniumBaseError::TestLifecycle`] error saying that the limit was
+    /// exceeded. Waits are also cut short so that none outlasts the limit by
+    /// more than a second. `0` removes the limit, as in Python.
+    ///
+    /// A test that never does one of those things is not interrupted; wrap
+    /// the test in `tokio::time::timeout` for a hard stop.
+    ///
+    /// # Errors
+    ///
+    /// Never fails; the `Result` keeps the signature the method always had.
     pub fn set_time_limit(&mut self, seconds: u64) -> Result<(), SeleniumBaseError> {
-        self.time_limit_secs = Some(seconds);
+        self.time_limit = (seconds > 0).then(|| Duration::from_secs(seconds));
         Ok(())
+    }
+
+    /// Fails with a time-limit error if the test has run past its limit.
+    fn check_time_limit(&self) -> Result<(), SeleniumBaseError> {
+        match self.time_limit {
+            Some(limit) if self.started.elapsed() > limit => {
+                let plural = if limit.as_secs() == 1 { "" } else { "s" };
+                Err(SeleniumBaseError::test_lifecycle(format!(
+                    "This test has exceeded the time limit of {} second{plural}!",
+                    limit.as_secs()
+                )))
+            }
+            _ => Ok(()),
+        }
     }
 
     /// Return whether a JavaScript alert is currently present.
@@ -2268,10 +2324,17 @@ impl BaseCase {
         self.session.is_enabled(by).await
     }
 
+    /// `requested` seconds, cut to the time the test has left if it has a time
+    /// limit (rounded up to a whole second).
     fn effective_timeout(&self, requested: u64) -> u64 {
-        self.time_limit_secs
-            .map(|limit| limit.min(requested))
-            .unwrap_or(requested)
+        match self.time_limit {
+            Some(limit) => {
+                let left = limit.saturating_sub(self.started.elapsed());
+                let seconds = left.as_secs() + u64::from(left.subsec_nanos() > 0);
+                requested.min(seconds)
+            }
+            None => requested,
+        }
     }
 
     /// Return whether `text` exactly matches the visible text of the element.

@@ -35,8 +35,9 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the selector and the
     /// state it never reached.
     async fn await_ready(&self, css: &str, ready: Ready) -> Result<(), SeleniumBaseError> {
+        self.check_time_limit()?;
         let by = Selector::auto(css).to_by()?;
-        let timeout = self.timeout_secs;
+        let timeout = self.effective_timeout(self.timeout_secs);
         let reached = match ready {
             Ready::Present => self.session.wait_for_element(by, timeout).await.map(drop),
             Ready::Visible => self.session.wait_for_element_visible(by, timeout).await.map(drop),

@@ -291,7 +291,10 @@ impl Plugins {
         };
         let test_result = test(&mut sb).await;
         if let Err(error) = &test_result {
-            self.failed(name, error, &sb).await;
+            // A skipped test did not fail: no screenshot or report entry for it.
+            if !error.is_skipped() {
+                self.failed(name, error, &sb).await;
+            }
         }
         let cleanup_result = sb.quit().await;
         let outcome = combine_outcomes(test_result, cleanup_result);

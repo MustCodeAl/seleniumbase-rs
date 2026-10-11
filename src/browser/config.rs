@@ -122,6 +122,10 @@ pub struct BrowserConfig {
     pub mode: DriverMode,
     pub user_agent: Option<String>,
     pub locale: Option<String>,
+    /// The `--ad-block` setting. In a WebDriver launch this only turns images
+    /// off (`--blink-settings=imagesEnabled=false`); it blocks no ads. Ad hosts
+    /// are blocked by the pure CDP engine's `LaunchOptionsBuilder::ad_block`,
+    /// and `BaseCase::ad_block` removes ad elements from a page that loaded.
     pub ad_block: bool,
     pub proxy: Option<String>,
     pub proxy_pac_url: Option<String>,

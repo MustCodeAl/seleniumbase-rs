@@ -159,14 +159,27 @@ impl BaseCase {
         tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
     }
 
-    /// Sets the default soft timeout used by wait helpers.
+    /// Changes how long actions wait for their element by default, up or down,
+    /// for the rest of the test or until
+    /// [`reset_default_timeout`](Self::reset_default_timeout).
+    ///
+    /// Corresponds to Python's `set_default_timeout`, which allows 0.5 to 60
+    /// seconds; whole seconds here, so `seconds` is held to 1 to 60. Waits that
+    /// are given a timeout of their own keep it. This is the same default
+    /// [`set_timeout`](Self::set_timeout) changes, and it is not the test's
+    /// overall limit (see [`set_time_limit`](Self::set_time_limit)).
     pub fn set_default_timeout(&mut self, seconds: u64) {
-        self.time_limit_secs = Some(seconds);
+        self.default_timeout_before.get_or_insert(self.timeout_secs);
+        self.timeout_secs = seconds.clamp(1, 60);
     }
 
-    /// Clears the default soft timeout.
+    /// Puts back the default timeout that
+    /// [`set_default_timeout`](Self::set_default_timeout) replaced. Does nothing
+    /// if it was never called.
     pub fn reset_default_timeout(&mut self) {
-        self.time_limit_secs = None;
+        if let Some(original) = self.default_timeout_before.take() {
+            self.timeout_secs = original;
+        }
     }
 
     /// Alias for `get_property`.

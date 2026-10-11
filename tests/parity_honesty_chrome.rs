@@ -45,6 +45,18 @@ const FORM_PAGE: &str = "data:text/html,<html><head><title>Form</title></head><b
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
+async fn a_start_page_is_opened_when_the_test_case_starts() {
+    let _guard = BROWSER_LOCK.lock().await;
+    let config = test_config().with_start_page(FORM_PAGE);
+
+    let mut sb = BaseCase::new(config).await.expect("connect to browser");
+
+    assert_eq!(sb.get_title().await.expect("title"), "Form");
+    sb.quit().await.expect("quit");
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome/chromedriver"]
 async fn press_keys_types_text_into_the_element_and_presses_enter_for_a_trailing_newline() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = open(FORM_PAGE).await;
