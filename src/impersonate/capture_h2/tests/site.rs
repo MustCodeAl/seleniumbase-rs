@@ -280,7 +280,10 @@ async fn collecting_stops_at_once_when_nothing_is_wanted() {
 
     let observed = site.collect_until(WITHIN, |_| true).await;
 
-    assert!(observed.is_empty(), "nothing was wanted, so nothing was read");
+    assert!(
+        observed.is_empty(),
+        "nothing was wanted, so nothing was read"
+    );
     assert!(format!("{site:?}").contains("H2"));
 }
 

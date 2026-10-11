@@ -4,6 +4,7 @@
 //! The values below are made up for the tests (a stand-in browser's settings and headers). The
 //! measured values live in `src/wire/measured` and are checked by `tests/wire_emulation.rs`.
 
+mod run;
 mod site;
 
 use std::path::Path;
@@ -167,7 +168,7 @@ pub(super) fn h1_observed(probe: Probe, headers: &[(String, String)]) -> Observe
 }
 
 /// Every probe, observed over HTTP/2.
-fn all_h2() -> Vec<Observed> {
+pub(super) fn all_h2() -> Vec<Observed> {
     PROBES
         .into_iter()
         .map(|probe| h2_observed(probe, &h2_headers(probe, 4433)))
@@ -175,14 +176,14 @@ fn all_h2() -> Vec<Observed> {
 }
 
 /// Every probe, observed over HTTP/1.
-fn all_h1() -> Vec<Observed> {
+pub(super) fn all_h1() -> Vec<Observed> {
     PROBES
         .into_iter()
         .map(|probe| h1_observed(probe, &h2_headers(probe, 4433)))
         .collect()
 }
 
-fn evidence() -> (Vec<H2Evidence>, Vec<H1Evidence>) {
+pub(super) fn evidence() -> (Vec<H2Evidence>, Vec<H1Evidence>) {
     (
         h2_evidence(&all_h2()).expect("h2 evidence"),
         h1_evidence(&all_h1()).expect("h1 evidence"),
@@ -518,7 +519,7 @@ fn flags_pick_the_pass_and_the_rest_goes_to_the_shared_options() {
 }
 
 /// A measured file that holds only a hello, as `capture_tls` leaves it.
-const BASE_JSON: &str = r#"{
+pub(super) const BASE_JSON: &str = r#"{
   "kind": "Chrome", "major": 155, "full_version": "155.0.1.2", "os": "Macos",
   "user_agent": "Mozilla/5.0 Chrome/155.0.0.0", "tls": { "legacy_version": 771 },
   "colour": "kept", "capture": { "tls": { "samples": [] } },
@@ -526,16 +527,16 @@ const BASE_JSON: &str = r#"{
                   "browser": "Chrome 155.0.1.2", "known_gaps": ["TrustAnchorsExtension"] }
 }"#;
 
-fn version(full: &str) -> BrowserVersion {
+pub(super) fn version(full: &str) -> BrowserVersion {
     BrowserVersion {
         product: format!("Chrome/{full}"),
         full_version: full.to_owned(),
         major: 155,
-        user_agent: "Mozilla/5.0 Chrome/155.0.0.0".to_owned(),
+        user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/155.0.0.0".to_owned(),
     }
 }
 
-fn entry() -> EntryId {
+pub(super) fn entry() -> EntryId {
     EntryId {
         kind: BrowserKind::Chrome,
         major: 155,
@@ -543,7 +544,7 @@ fn entry() -> EntryId {
     }
 }
 
-fn write_base(dir: &Path, text: &str) {
+pub(super) fn write_base(dir: &Path, text: &str) {
     std::fs::write(dir.join(entry().file_name()), text).expect("writes the base file");
 }
 

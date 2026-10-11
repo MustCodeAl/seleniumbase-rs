@@ -41,7 +41,7 @@ pub async fn run_pass(
 }
 
 /// The launch options for a measured browser, with `extra` Chrome arguments.
-fn launch_options(
+pub(super) fn launch_options(
     options: &ChromeOptions,
     extra: &[String],
 ) -> Result<LaunchOptions, CaptureError> {
@@ -60,7 +60,7 @@ fn launch_options(
 }
 
 /// Whether every probe has been seen at least once.
-fn all_probes_seen(observed: &[Observed]) -> bool {
+pub(super) fn all_probes_seen(observed: &[Observed]) -> bool {
     PROBES
         .iter()
         .all(|probe| observed.iter().any(|one| one.probe == *probe))
