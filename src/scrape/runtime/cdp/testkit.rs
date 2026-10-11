@@ -59,6 +59,13 @@ struct Script {
     navigations: Vec<String>,
     widget: bool,
     local_storage: Option<Value>,
+    /// Whether the clearance cookie is set.
+    cleared: bool,
+    /// A press of the mouse sets the clearance cookie.
+    click_clears: bool,
+    /// The clearance cookie is set at this many reads of the cookies.
+    polls_to_clear: Option<usize>,
+    cookie_polls: usize,
 }
 
 /// A mocked browser answering like a web server.
@@ -68,17 +75,43 @@ pub(crate) struct Site {
 }
 
 impl Site {
-    /// Makes `mock` answer navigations with `pages`, in order, the last one for ever.
-    pub(crate) fn serve(mock: &MockCtrl, pages: Vec<Served>) -> Self {
-        let site = Self {
+    /// A site that answers navigations with `pages`, in order, the last one for ever. A press of
+    /// the mouse on it sets the Cloudflare clearance cookie.
+    pub(crate) fn new(pages: Vec<Served>) -> Self {
+        Self {
             script: Arc::new(Mutex::new(Script {
                 pages: pages.into(),
+                click_clears: true,
                 ..Script::default()
             })),
-        };
-        site.install_navigation(mock);
-        site.install_evaluation(mock);
+        }
+    }
+
+    /// Makes `mock` answer like this site. Several browsers can be attached to one site: they share
+    /// its queue of answers and its record of navigations.
+    pub(crate) fn attach(&self, mock: &MockCtrl) {
+        self.install_navigation(mock);
+        self.install_evaluation(mock);
+        self.install_cookies(mock);
+    }
+
+    /// A new site attached to `mock`.
+    pub(crate) fn serve(mock: &MockCtrl, pages: Vec<Served>) -> Self {
+        let site = Self::new(pages);
+        site.attach(mock);
         site
+    }
+
+    /// Sets the clearance cookie at the `polls`th read of the cookies, with no click needed.
+    pub(crate) fn clear_at_poll(&self, polls: usize) {
+        let mut state = locked(&self.script);
+        state.click_clears = false;
+        state.polls_to_clear = Some(polls);
+    }
+
+    /// Whether the clearance cookie is set.
+    pub(crate) fn is_cleared(&self) -> bool {
+        locked(&self.script).cleared
     }
 
     /// Queues one more answer after the ones already queued.
@@ -131,6 +164,37 @@ impl Site {
                 Some(MOCK_SESSION),
             );
             Ok(json!({ "frameId": "F1", "loaderId": "L1" }))
+        });
+    }
+
+    fn install_cookies(&self, mock: &MockCtrl) {
+        let script = Arc::clone(&self.script);
+        mock.on("Network.getAllCookies", move |_| {
+            let mut state = locked(&script);
+            state.cookie_polls += 1;
+            if state.polls_to_clear.is_some_and(|polls| state.cookie_polls >= polls) {
+                state.cleared = true;
+            }
+            let host = state
+                .navigations
+                .last()
+                .and_then(|url| url::Url::parse(url).ok())
+                .and_then(|url| url.host_str().map(str::to_owned))
+                .unwrap_or_default();
+            let cookies = if state.cleared {
+                vec![cdp_cookie("cf_clearance", "fresh-token", &format!(".{host}"), -1.0)]
+            } else {
+                Vec::new()
+            };
+            Ok(json!({ "cookies": cookies }))
+        });
+        let script = Arc::clone(&self.script);
+        mock.on("Input.dispatchMouseEvent", move |params| {
+            let mut state = locked(&script);
+            if params["type"] == "mousePressed" && state.click_clears {
+                state.cleared = true;
+            }
+            Ok(json!({}))
         });
     }
 
