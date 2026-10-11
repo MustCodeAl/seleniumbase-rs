@@ -7,11 +7,17 @@
 //! them: `Runtime.evaluate` and `Page.addScriptToEvaluateOnNewDocument` work
 //! without any of them.
 //!
+//! The DOM domain also switches itself on without `DOM.enable`:
+//! `DOM.getDocument` does, and the node-id commands (`DOM.querySelector`,
+//! `DOM.querySelectorAll`, `DOM.requestNode`, ...) only work after it. So no
+//! `DOM.*` command is sent at all; elements are found by running
+//! `document.querySelector` through `Runtime.evaluate`.
+//!
 //! These tests drive the whole launch-and-navigate flow against a scripted
 //! browser and read back every command it received, so a new call that enables
-//! one of the five domains fails here. A last test reads the sources for the
-//! same names, so the other engines are held to the same rule. No Chrome is
-//! needed. Run them with `cargo test --features test-util --test
+//! one of the five domains, or sends a `DOM.*` command, fails here. Two last
+//! tests read the sources for the same names, so the other engines are held to
+//! the same rule. No Chrome is needed. Run them with `cargo test --features test-util --test
 //! sb_cdp_domain_hygiene`.
 
 #![cfg(feature = "test-util")]
@@ -22,6 +28,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use seleniumbase_rs::api::cdp_driver::CdpDriver;
 use seleniumbase_rs::sb_cdp::{
     Browser, Cookie, Key, MockCtrl, Page, Point, ResourceType, Rule, SelectBy,
 };
@@ -53,27 +60,42 @@ async fn quick_page() -> (Browser, Page, MockCtrl) {
 /// visibility, as if one visible element were on the page.
 fn script_one_visible_element(mock: &MockCtrl) {
     mock.on("Runtime.evaluate", |params| {
-        let expression = params["expression"].as_str().unwrap_or_default();
-        Ok(if expression.contains("__sbcdp.center(") {
-            value(json!({ "x": 120.0, "y": 80.0, "covered": false }))
-        } else if expression.contains("window.innerWidth") {
-            value(json!([1000.0, 800.0]))
-        } else if expression.contains("__sbcdp.info(") {
-            value(json!({
-                "tag": "button", "text": "", "html": "", "attributes": {}, "visible": true,
-                "rect": { "x": 70.0, "y": 60.0, "width": 100.0, "height": 40.0 },
-            }))
-        } else if expression.contains(".some(__sbcdp.visible)")
-            || expression.contains(".length > 0")
-            || expression.contains(".some(")
-        {
-            value(json!(true))
-        } else if expression.contains("resolve(") && expression.contains(".length") {
-            value(json!(1))
-        } else {
-            value(Value::Null)
-        })
+        Ok(one_visible_element(
+            params["expression"].as_str().unwrap_or_default(),
+        ))
     });
+}
+
+/// The `Runtime.evaluate` answer for `expression` on a page with one visible
+/// element.
+fn one_visible_element(expression: &str) -> Value {
+    if expression.contains("__sbcdp.center(") {
+        value(json!({ "x": 120.0, "y": 80.0, "covered": false }))
+    } else if expression.contains("window.innerWidth") {
+        value(json!([1000.0, 800.0]))
+    } else if expression.contains("__sbcdp.info(") {
+        value(json!({
+            "tag": "button", "text": "", "html": "", "attributes": {}, "visible": true,
+            "rect": { "x": 70.0, "y": 60.0, "width": 100.0, "height": 40.0 },
+        }))
+    } else if expression.contains(".some(__sbcdp.visible)")
+        || expression.contains(".length > 0")
+        || expression.contains(".some(")
+    {
+        value(json!(true))
+    } else if expression.contains("resolve(") && expression.contains(".length") {
+        value(json!(1))
+    } else {
+        value(Value::Null)
+    }
+}
+
+/// Whether `method` is a `DOM` command. `DOM.getDocument` switches the domain
+/// on as a side effect and the node-id commands need it on, so the engine
+/// sends none. `DOMStorage.*` and the other `DOM...` domains are different
+/// domains.
+fn is_dom_command(method: &str) -> bool {
+    method.starts_with("DOM.")
 }
 
 /// Fails, naming each call, if the browser was ever told to enable a forbidden
@@ -101,6 +123,15 @@ fn assert_nothing_detectable(mock: &MockCtrl, flow: &str) {
     assert!(
         by_predicate.is_empty(),
         "{flow}: the library's own check found {by_predicate:?}"
+    );
+    let dom: Vec<_> = calls
+        .iter()
+        .filter(|call| is_dom_command(&call.method))
+        .map(|call| call.method.as_str())
+        .collect();
+    assert!(
+        dom.is_empty(),
+        "{flow}: DOM commands switch the DOM domain on: {dom:?}"
     );
 }
 
@@ -203,6 +234,35 @@ async fn finding_and_driving_elements_enables_none_of_them() {
 
     assert!(!mock.calls_to("Input.dispatchMouseEvent").is_empty());
     assert_nothing_detectable(&mock, "elements");
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_small_driver_finding_and_driving_elements_enables_none_of_them() {
+    let (browser, mock) = Browser::new_mocked();
+    mock.on("Runtime.evaluate", |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.starts_with("document.querySelector(") {
+            // The element is found by reference, not by a DOM node id.
+            json!({ "result": { "type": "object", "subtype": "node", "objectId": "node-1" } })
+        } else {
+            one_visible_element(expression)
+        })
+    });
+    let mut driver = CdpDriver::new();
+    driver.attach(browser).await.unwrap();
+
+    driver.get("https://example.com/").await.unwrap();
+    let found = driver.find("#go").await.unwrap();
+    driver.click("#go").await.unwrap();
+    driver.type_text("#name", "ada").await.unwrap();
+    driver.evaluate("1 + 1").await.unwrap();
+
+    assert_eq!(found.object_id.as_deref(), Some("node-1"));
+    assert!(mock
+        .calls_to("Runtime.evaluate")
+        .iter()
+        .any(|call| call.params["expression"] == r##"document.querySelector("#go")"##));
+    assert_nothing_detectable(&mock, "driver");
 }
 
 #[tokio::test(start_paused = true)]
@@ -329,6 +389,12 @@ async fn contexts_interception_and_human_input_enable_none_of_them() {
 /// `Runtime.evaluate`. Adding an entry here is a decision, not a convenience.
 const KNOWN_SENDERS: [(&str, &str, usize); 0] = [];
 
+/// A source file that sends a `DOM.*` command today, with the command and how
+/// many times. No file does: `CdpDriver::find` was the last one, and it now
+/// asks the page through `Runtime.evaluate`. Adding an entry here is a
+/// decision, not a convenience.
+const KNOWN_DOM_SENDERS: [(&str, &str, usize); 0] = [];
+
 fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
@@ -360,6 +426,79 @@ fn the_source_scan_sees_a_send_and_skips_comments_and_test_modules() {
 
     assert_eq!(kept.len(), 1, "{kept:?}");
     assert!(kept[0].contains("\"Runtime.enable\""));
+}
+
+/// The `DOM.*` command names that `text` puts in a string literal, in code
+/// outside comments and test modules, in the order they appear.
+///
+/// A literal that only begins with `DOM.` counts too, such as the format
+/// string of a command name built at run time. `DOMStorage.*` and the other
+/// domains whose name merely starts with `DOM` do not.
+fn dom_commands(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for line in production_lines(text) {
+        let mut rest = line;
+        while let Some(at) = rest.find("\"DOM.") {
+            let name = &rest[at + 1..];
+            let end = name
+                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '.' || c == '_'))
+                .unwrap_or(name.len());
+            found.push(name[..end].to_owned());
+            rest = name;
+        }
+    }
+    found
+}
+
+#[test]
+fn the_dom_scan_sees_each_dom_command_and_skips_other_domains_comments_and_tests() {
+    let text = "fn a() { page.execute(\"DOM.getDocument\", json!({})); page.execute(\"DOM.querySelector\", p); }\n\
+                // \"DOM.querySelectorAll\" is only mentioned here\n\
+                /// and \"DOM.requestChildNodes\" here\n\
+                fn b() { \"DOMStorage.getDOMStorageItems\"; \"Page.enable\"; \"DOM.requestNode\"; }\n\
+                fn c(n: &str) { format!(\"DOM.{n}\"); }\n\
+                #[cfg(test)]\n\
+                mod tests { fn t() { \"DOM.getBoxModel\"; } }\n";
+
+    assert_eq!(
+        dom_commands(text),
+        [
+            "DOM.getDocument",
+            "DOM.querySelector",
+            "DOM.requestNode",
+            "DOM."
+        ]
+    );
+}
+
+#[test]
+fn no_source_file_sends_a_dom_command_except_the_known_ones() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    rust_files(&root.join("src"), &mut files);
+    assert!(files.len() > 100, "found only {} source files", files.len());
+
+    for file in files {
+        let relative = file
+            .strip_prefix(root)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let found = dom_commands(&fs::read_to_string(&file).unwrap());
+        for method in &found {
+            let count = found.iter().filter(|other| *other == method).count();
+            let allowed = KNOWN_DOM_SENDERS
+                .iter()
+                .find(|(path, name, _)| *path == relative && *name == method.as_str())
+                .map_or(0, |(_, _, allowed)| *allowed);
+            assert!(
+                count <= allowed,
+                "{relative} sends {method} {count} time(s); {allowed} are known. \
+                 DOM commands switch the DOM domain on; ask the page with \
+                 Runtime.evaluate instead"
+            );
+        }
+    }
 }
 
 #[test]

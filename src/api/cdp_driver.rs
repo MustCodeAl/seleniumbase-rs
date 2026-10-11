@@ -6,11 +6,15 @@
 //!
 //! The browser's own WebSocket (the one `/json/version` advertises) only
 //! understands browser-level commands such as `Target.getTargets`. Page,
-//! DOM, Runtime and Input commands are answered only on a *session* attached
+//! Runtime and Input commands are answered only on a *session* attached
 //! to a tab. A driver that sends them on the bare browser socket gets "method
 //! not found" for every call, so `CdpDriver` is a thin layer over the
 //! [`sb_cdp`](crate::sb_cdp) engine, which attaches to the tab and addresses
 //! each command to its session.
+//!
+//! Elements are found by running JavaScript with `Runtime.evaluate`. Nothing
+//! here uses the `DOM` protocol domain, which a page can detect and which
+//! `DOM.getDocument` switches on as a side effect.
 //!
 //! New code should use [`sb_cdp::Browser`](crate::sb_cdp::Browser) and
 //! [`sb_cdp::Page`](crate::sb_cdp::Page) directly: they cover much more
@@ -137,30 +141,47 @@ impl CdpDriver {
 
     /// Finds the first element matching the CSS `selector`.
     ///
-    /// The node ids in the result belong to the document as it is now:
-    /// navigating invalidates them.
+    /// The page is asked with `document.querySelector` through
+    /// `Runtime.evaluate`. The `DOM` protocol domain is never used, because a
+    /// page can tell that a client is attached to it: `DOM.getDocument` switches
+    /// it on as a side effect. So the node in the result has a
+    /// [`node_id`](CdpNode::node_id) of 0, and its
+    /// [`object_id`](CdpNode::object_id) is how it is used with
+    /// `Runtime.callFunctionOn`. The reference belongs to the document as it is
+    /// now: navigating invalidates it.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches, and
-    /// [`SeleniumBaseError::CdpDriver`] if the browser rejects the selector.
+    /// [`SeleniumBaseError::CdpDriver`] if the page rejects the selector.
     pub async fn find(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
-        let page = self.page()?;
-        // `DOM.querySelector` needs the id of the node to search from. Ids are
-        // handed out per document, so the root is asked for each time.
-        let document = page.execute("DOM.getDocument", json!({"depth": 0})).await?;
-        let root = document["root"]["nodeId"]
-            .as_i64()
-            .ok_or_else(|| SeleniumBaseError::cdp_driver("DOM.getDocument returned no root"))?;
-        let found = page
+        let expression = format!(
+            "document.querySelector({})",
+            Value::String(selector.to_owned())
+        );
+        // By reference: the element itself cannot be sent back as JSON.
+        let response = self
+            .page()?
             .execute(
-                "DOM.querySelector",
-                json!({"nodeId": root, "selector": selector}),
+                "Runtime.evaluate",
+                json!({"expression": expression, "returnByValue": false}),
             )
             .await?;
-        // CDP answers a selector that matches nothing with node id 0.
-        CdpNode::from_query_result(&found, selector)
-            .filter(|node| node.node_id != 0)
+        if let Some(exception) = response.get("exceptionDetails") {
+            let reason = exception
+                .pointer("/exception/description")
+                .or_else(|| exception.get("text"))
+                .and_then(Value::as_str)
+                .unwrap_or("the script threw");
+            return Err(SeleniumBaseError::cdp_driver(format!(
+                "{selector}: {reason}"
+            )));
+        }
+        // `null`, for no match, is an object without a reference.
+        response
+            .pointer("/result/objectId")
+            .and_then(Value::as_str)
+            .map(|object_id| CdpNode::from_object_id(object_id, selector))
             .ok_or_else(|| SeleniumBaseError::element_not_found(selector))
     }
 
@@ -285,32 +306,81 @@ mod tests {
         }
     }
 
+    /// The lookups `find` sent. Attaching also evaluates the page helper
+    /// script, which is not one.
+    fn lookups(mock: &crate::sb_cdp::MockCtrl) -> Vec<crate::sb_cdp::Call> {
+        mock.calls_to("Runtime.evaluate")
+            .into_iter()
+            .filter(|call| {
+                call.params["expression"]
+                    .as_str()
+                    .is_some_and(|expression| expression.starts_with("document.querySelector("))
+            })
+            .collect()
+    }
+
+    /// The `Runtime.evaluate` answer for an element given back by reference.
+    fn element(object_id: &str) -> Value {
+        json!({"result": {
+            "type": "object", "subtype": "node",
+            "className": "HTMLButtonElement", "objectId": object_id,
+        }})
+    }
+
     #[tokio::test]
-    async fn find_searches_from_the_document_root_it_was_given() {
+    async fn find_looks_the_element_up_in_the_page_and_never_asks_the_dom_domain() {
         let (driver, mock) = attached().await;
-        mock.reply("DOM.getDocument", json!({"root": {"nodeId": 42}}));
-        mock.on("DOM.querySelector", |params| {
-            // Node ids are handed out per document; only the real root works.
-            if params["nodeId"] == 42 && params["selector"] == "#go" {
-                Ok(json!({"nodeId": 7}))
+        mock.on("Runtime.evaluate", |params| {
+            // The element comes back as a reference, not by value.
+            if params["expression"] == r##"document.querySelector("#go")"##
+                && params["returnByValue"] == false
+            {
+                Ok(element("node-7"))
             } else {
-                Err("Could not find node with given id".to_owned())
+                Err("unexpected lookup".to_owned())
             }
         });
 
         let node = driver.find("#go").await.unwrap();
-        assert_eq!(node.node_id, 7);
-        assert_eq!(node.selector.as_deref(), Some("#go"));
-        let queries = mock.calls_to("DOM.querySelector");
-        assert_eq!(queries[0].session_id.as_deref(), Some("S1"));
+
+        assert_eq!(node, CdpNode::from_object_id("node-7", "#go"));
+        let lookups = lookups(&mock);
+        assert_eq!(lookups.len(), 1, "{lookups:?}");
+        assert_eq!(lookups[0].session_id.as_deref(), Some("S1"));
+        // `DOM.getDocument` switches the DOM domain on, which a page can feel,
+        // and every node-id command needs it.
+        let dom: Vec<_> = mock
+            .calls()
+            .into_iter()
+            .filter(|call| call.method.starts_with("DOM."))
+            .map(|call| call.method)
+            .collect();
+        assert!(dom.is_empty(), "find sent {dom:?}");
+    }
+
+    #[tokio::test]
+    async fn find_hands_the_selector_to_the_page_as_a_string_literal() {
+        let (driver, mock) = attached().await;
+        mock.reply("Runtime.evaluate", element("node-1"));
+
+        driver.find("a[title=\"x'y\"]").await.unwrap();
+
+        let lookups = lookups(&mock);
+        assert_eq!(
+            lookups[0].params["expression"],
+            r#"document.querySelector("a[title=\"x'y\"]")"#
+        );
     }
 
     #[tokio::test]
     async fn find_reports_a_selector_that_matches_nothing_as_not_found() {
         let (driver, mock) = attached().await;
-        mock.reply("DOM.getDocument", json!({"root": {"nodeId": 1}}));
-        // CDP answers "no match" with node id 0, not with an error.
-        mock.reply("DOM.querySelector", json!({"nodeId": 0}));
+        // `querySelector` gives `null` for no match: an object without a
+        // reference.
+        mock.reply(
+            "Runtime.evaluate",
+            json!({"result": {"type": "object", "subtype": "null", "value": null}}),
+        );
 
         let error = driver.find("#missing").await.unwrap_err();
         assert!(
@@ -320,16 +390,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn find_passes_on_a_browser_error_for_a_bad_selector() {
+    async fn find_passes_on_the_pages_complaint_about_a_bad_selector() {
         let (driver, mock) = attached().await;
-        mock.reply("DOM.getDocument", json!({"root": {"nodeId": 1}}));
-        mock.fail(
-            "DOM.querySelector",
-            "DOM.querySelector: not a valid selector",
+        let reason = "SyntaxError: Failed to execute 'querySelector' on 'Document': \
+                      '[' is not a valid selector.";
+        mock.reply(
+            "Runtime.evaluate",
+            json!({
+                "result": {"type": "object", "subtype": "error", "description": reason},
+                "exceptionDetails": {"text": "Uncaught", "exception": {"description": reason}},
+            }),
         );
 
-        let error = driver.find("[").await.unwrap_err().to_string();
-        assert!(error.contains("not a valid selector"), "{error}");
+        let error = driver.find("[").await.unwrap_err();
+
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        let message = error.to_string();
+        assert!(message.contains("not a valid selector"), "{message}");
+        assert!(message.contains('['), "{message}");
     }
 
     #[tokio::test]
@@ -429,7 +510,24 @@ mod tests {
             driver.evaluate("document.title").await.unwrap()["value"],
             "Driver"
         );
-        assert!(driver.find("#go").await.unwrap().node_id > 0);
+        // The element is found by reference, so the DOM domain stays off.
+        let found = driver.find("#go").await.unwrap();
+        assert_eq!(found.node_id, 0);
+        let object_id = found.object_id.expect("a found element has an object id");
+        let id = driver
+            .page()
+            .unwrap()
+            .execute(
+                "Runtime.callFunctionOn",
+                json!({
+                    "objectId": object_id,
+                    "functionDeclaration": "function() { return this.id; }",
+                    "returnByValue": true,
+                }),
+            )
+            .await
+            .unwrap();
+        assert_eq!(id["result"]["value"], "go");
         assert!(matches!(
             driver.find("#nothing-here").await,
             Err(SeleniumBaseError::ElementNotFound { .. })
