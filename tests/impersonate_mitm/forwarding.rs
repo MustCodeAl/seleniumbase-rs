@@ -2,16 +2,20 @@
 
 use std::sync::Arc;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine as _;
 use futures_util::StreamExt as _;
 use seleniumbase_rs::impersonate::mitm::{MitmOptions, MitmProxy};
 use seleniumbase_rs::impersonate::tls_server::ALPN_HTTP1;
 use seleniumbase_rs::scrape::ledger::events::{CollectingEventSink, ScraperEvent};
+use seleniumbase_rs::wire::header_spec::RequestShape;
 use seleniumbase_rs::wire::ja4::Ja4;
 use tokio::net::TcpStream;
 
 use crate::support::{
     browser_client, der, exchange, measured_user_agent, navigation, new_ca, profile, proxy_auth,
-    start_mitm, tunnel, RecordingOrigin, StreamOrigin, ALPN_H2, CHUNK, PAGE, QUIET, WITHIN,
+    start_mitm, tunnel, Recorded, RecordingOrigin, StreamOrigin, ALPN_H2, CHUNK, PAGE, QUIET,
+    WITHIN,
 };
 
 /// The host every test site is reached by.
@@ -19,12 +23,20 @@ const ORIGIN: &str = "origin.test";
 /// The host of the streaming site; its leaf names it.
 const STREAM: &str = "stream.test";
 
-/// A recording site, a proxy that trusts it and resolves [`ORIGIN`] to it, the proxy's sink,
-/// and the DER of the proxy's CA.
+/// A recording site speaking HTTP/2 and HTTP/1.1, as [`site_speaking`] makes it.
 async fn site_behind_proxy(
     options: MitmOptions,
 ) -> (RecordingOrigin, MitmProxy, CollectingEventSink, Vec<u8>) {
-    let origin = RecordingOrigin::start(&[ALPN_H2, ALPN_HTTP1]).await;
+    site_speaking(&[ALPN_H2, ALPN_HTTP1], options).await
+}
+
+/// A recording site offering `alpn`, a proxy that trusts it and resolves [`ORIGIN`] to it, the
+/// proxy's sink, and the DER of the proxy's CA.
+async fn site_speaking(
+    alpn: &[&[u8]],
+    options: MitmOptions,
+) -> (RecordingOrigin, MitmProxy, CollectingEventSink, Vec<u8>) {
+    let origin = RecordingOrigin::start(alpn).await;
     let ca = new_ca();
     let options = options
         .ca(Arc::clone(&ca))
@@ -73,21 +85,44 @@ async fn a_forwarded_request_carries_the_measured_ja4_and_akamai_string() {
     assert_eq!(mitm.stats().forwarded, 1);
 }
 
+/// A made-up credential the browser leaks into a `Proxy-Authorization` inside the tunnel.
+const LEAKED_PAIR: &str = "user:not-a-real-password";
+
+/// What the browser adds beyond a navigation, after the leaked `Proxy-Authorization`:
+/// hop-by-hop and proxy fields, a field the `Connection` header lists, and one ordinary header.
+const HOP_FIELDS: [&str; 6] = [
+    "Proxy-Connection: keep-alive",
+    "Keep-Alive: timeout=5",
+    "TE: gzip",
+    "Connection: X-Hop",
+    "X-Hop: drop-me",
+    "sec-ch-ua: \"Chromium\";v=\"155\"",
+];
+
+/// The header names the origin must see for that request, in order.
+const FORWARDED_NAMES: [&str; 10] = [
+    "sec-ch-ua",
+    "sec-ch-ua-mobile",
+    "upgrade-insecure-requests",
+    "user-agent",
+    "accept",
+    "sec-fetch-site",
+    "sec-fetch-dest",
+    "accept-encoding",
+    "accept-language",
+    "priority",
+];
+
 #[tokio::test]
 async fn hop_by_hop_and_proxy_headers_never_reach_the_origin_and_the_order_is_kept() {
     let (mut origin, mitm, _sink, ca) = site_behind_proxy(MitmOptions::default()).await;
     let port = origin.addr().port();
     let mut tls = tunnel(&mitm, ORIGIN, port, &ca).await;
-    let extra = [
-        "Proxy-Authorization: Basic dXNlcjpzM2NyZXQ=",
-        "Proxy-Connection: keep-alive",
-        "Keep-Alive: timeout=5",
-        "TE: gzip",
-        "Connection: X-Hop",
-        "X-Hop: drop-me",
-        "sec-ch-ua: \"Chromium\";v=\"155\"",
-    ];
 
+    let leaked = STANDARD.encode(LEAKED_PAIR);
+    let auth_line = format!("Proxy-Authorization: Basic {leaked}");
+    let mut extra = vec![auth_line.as_str()];
+    extra.extend(HOP_FIELDS);
     let request = navigation(ORIGIN, port, &measured_user_agent(), &extra);
     let (head, _body) = exchange(&mut tls, &request).await.expect("an answer");
 
@@ -102,19 +137,7 @@ async fn hop_by_hop_and_proxy_headers_never_reach_the_origin_and_the_order_is_ke
         .map(|field| field.name.as_str())
         .collect();
     assert_eq!(
-        names,
-        [
-            "sec-ch-ua",
-            "sec-ch-ua-mobile",
-            "upgrade-insecure-requests",
-            "user-agent",
-            "accept",
-            "sec-fetch-site",
-            "sec-fetch-dest",
-            "accept-encoding",
-            "accept-language",
-            "priority",
-        ],
+        names, FORWARDED_NAMES,
         "the browser's order, the hop-by-hop fields gone, the measured priority last"
     );
     let measured = profile();
@@ -123,11 +146,58 @@ async fn hop_by_hop_and_proxy_headers_never_reach_the_origin_and_the_order_is_ke
         .priority_for("document")
         .expect("a measured document priority");
     assert_eq!(preface.header("priority"), Some(priority));
-    let secret = "dXNlcjpzM2NyZXQ=";
     assert!(preface
         .headers
         .iter()
-        .all(|field| !field.value.contains(secret)));
+        .all(|field| !field.value.contains(&leaked)));
+}
+
+/// The measured spelling of a lower-case header name, or the name itself.
+fn measured_spelling(lower: &str) -> String {
+    let profile = profile();
+    let spec = profile.header_spec();
+    spec.headers(RequestShape::Document)
+        .iter()
+        .chain(spec.headers(RequestShape::Fetch))
+        .find(|(name, _)| name.eq_ignore_ascii_case(lower))
+        .map_or_else(|| lower.to_owned(), |(name, _)| name.clone())
+}
+
+#[tokio::test]
+async fn an_http1_origin_gets_the_measured_spelling_and_no_priority_once_known() {
+    let (mut origin, mitm, _sink, ca) = site_speaking(&[ALPN_HTTP1], MitmOptions::default()).await;
+    let port = origin.addr().port();
+    let mut seen = Vec::new();
+    for _ in 0..2 {
+        let mut tls = tunnel(&mitm, ORIGIN, port, &ca).await;
+        let request = navigation(ORIGIN, port, &measured_user_agent(), &[]);
+        let (head, _body) = exchange(&mut tls, &request).await.expect("an answer");
+        assert_eq!(head.status(), 200);
+        seen.push(origin.next(WITHIN).await.expect("the origin saw it"));
+    }
+
+    let Recorded::Http1(second) = &seen[1].request else {
+        panic!("the origin speaks HTTP/1.1 only");
+    };
+    let names: Vec<&str> = second
+        .headers
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
+    let mut expected = vec!["Host".to_owned()];
+    expected.extend(
+        FORWARDED_NAMES[1..9]
+            .iter()
+            .map(|name| measured_spelling(name)),
+    );
+    assert_eq!(
+        names, expected,
+        "Host first, then the browser's order in measured spelling"
+    );
+    assert!(
+        second.header("priority").is_none(),
+        "priority is HTTP/2-only"
+    );
 }
 
 #[tokio::test]

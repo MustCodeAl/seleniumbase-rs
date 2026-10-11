@@ -42,12 +42,12 @@ use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, LaunchOptionsBuilder, Page
 use seleniumbase_rs::wire::ja4::Ja4;
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinSet;
 use tokio_btls::SslStream;
 
 use support::{
-    der, new_ca, profile, read_head, start_mitm, tunnel, RecordingOrigin, ALPN_H2, WITHIN,
+    der, new_ca, profile, read_head, start_mitm, tunnel, RecordingOrigin, Seen, ALPN_H2, WITHIN,
 };
 
 /// The host of the origin.
@@ -129,24 +129,7 @@ async fn chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_
         .next(WITHIN)
         .await
         .expect("the origin saw the navigation");
-    let measured = profile();
-    assert_eq!(Ja4::of(&seen.hello), measured.tls_spec().ja4(), "JA4");
-    let preface = seen.h2();
-    assert_eq!(
-        preface.akamai().expect("an Akamai string"),
-        measured.http2_spec().akamai(),
-        "Akamai string"
-    );
-    assert_eq!(preface.header("sec-fetch-dest"), Some("document"));
-    assert_eq!(
-        preface.header("priority"),
-        measured.header_spec().priority_for("document")
-    );
-    let agent = preface.header("user-agent").unwrap_or_default();
-    assert!(
-        agent.contains(&format!("Chrome/{}.", measured.major())),
-        "{agent}"
-    );
+    assert_measured_navigation(&seen);
     let stats = mitm.stats();
     assert!(stats.tunnels >= 1, "{stats:?}");
     assert!(
@@ -213,6 +196,29 @@ async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_k
     mitm.shutdown(Duration::from_secs(5)).await;
 }
 
+/// Checks that a navigation reached the origin with the measured JA4, Akamai string and
+/// priority, and with Chrome's own identity.
+fn assert_measured_navigation(seen: &Seen) {
+    let measured = profile();
+    assert_eq!(Ja4::of(&seen.hello), measured.tls_spec().ja4(), "JA4");
+    let preface = seen.h2();
+    assert_eq!(
+        preface.akamai().expect("an Akamai string"),
+        measured.http2_spec().akamai(),
+        "Akamai string"
+    );
+    assert_eq!(preface.header("sec-fetch-dest"), Some("document"));
+    assert_eq!(
+        preface.header("priority"),
+        measured.header_spec().priority_for("document")
+    );
+    let agent = preface.header("user-agent").unwrap_or_default();
+    assert!(
+        agent.contains(&format!("Chrome/{}.", measured.major())),
+        "{agent}"
+    );
+}
+
 /// The proxy's leaf certificate, as any client of the proxy sees it in the handshake.
 async fn pinned_leaf(mitm: &MitmProxy, ca_der: &[u8]) -> X509 {
     let tls = tunnel(mitm, "any.test", 443, ca_der).await;
@@ -251,28 +257,7 @@ impl Attacker {
             let mut connections = JoinSet::new();
             while let Ok((tcp, _peer)) = listener.accept().await {
                 let (acceptor, counter) = (Arc::clone(&acceptor), Arc::clone(&counter));
-                connections.spawn(async move {
-                    let Ok(ssl) = Ssl::new(acceptor.context()) else {
-                        return;
-                    };
-                    let Ok(mut tls) = SslStream::new(ssl, tcp) else {
-                        return;
-                    };
-                    if Pin::new(&mut tls).accept().await.is_err() {
-                        return;
-                    }
-                    if read_head(&mut tls).await.is_some() {
-                        counter.fetch_add(1, Ordering::SeqCst);
-                        let body = format!("<p>{ATTACKER_MARKER}</p>");
-                        let reply = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\
-                             Connection: close\r\n\r\n{body}",
-                            body.len()
-                        );
-                        let _written = tls.write_all(reply.as_bytes()).await;
-                        let _closed = tls.shutdown().await;
-                    }
-                });
+                connections.spawn(async move { answer_once(&acceptor, tcp, &counter).await });
                 while connections.try_join_next().is_some() {}
             }
         });
@@ -286,6 +271,28 @@ impl Attacker {
     fn requests(&self) -> usize {
         self.requests.load(Ordering::SeqCst)
     }
+}
+
+/// Runs the attacker's handshake and, if a request follows, answers it with its page.
+async fn answer_once(acceptor: &SslAcceptor, tcp: TcpStream, counter: &AtomicUsize) {
+    let Ok(ssl) = Ssl::new(acceptor.context()) else {
+        return;
+    };
+    let Ok(mut tls) = SslStream::new(ssl, tcp) else {
+        return;
+    };
+    if Pin::new(&mut tls).accept().await.is_err() || read_head(&mut tls).await.is_none() {
+        return;
+    }
+    counter.fetch_add(1, Ordering::SeqCst);
+    let body = format!("<p>{ATTACKER_MARKER}</p>");
+    let reply = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\
+         Connection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let _written = tls.write_all(reply.as_bytes()).await;
+    let _closed = tls.shutdown().await;
 }
 
 /// A P-256 key and a self-signed certificate for the IP `127.0.0.1`.
