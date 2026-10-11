@@ -12,6 +12,7 @@ use tracing::{info, instrument};
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_chromedriver, DriverProcess};
+use crate::browser::options::{firefox_preferences, LaunchSettings};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
@@ -35,6 +36,11 @@ impl BrowserSession {
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         validate_mode_support(&config)?;
         let (driver, driver_process) = connect_driver(&config).await?;
+        if config.browser == Browser::Firefox {
+            // Chromium takes its window geometry as launch arguments; Firefox
+            // has to be told once it is running.
+            apply_window_rect(&driver, &config.launch).await?;
+        }
         let cdp = if config.is_cdp_enabled() {
             Some(CdpClient::from_handle(driver.handle().clone()))
         } else {
@@ -841,25 +847,85 @@ async fn connect_with_caps(
 }
 
 async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, SeleniumBaseError> {
-    match config.browser {
+    let caps = session_capabilities(config)?;
+    connect_with_caps(config, url, caps).await
+}
+
+/// The capabilities a session for `config` asks the WebDriver server for: what
+/// the settings produce, with [`LaunchSettings::capabilities`] merged over it.
+fn session_capabilities(
+    config: &BrowserConfig,
+) -> Result<thirtyfour::Capabilities, SeleniumBaseError> {
+    let mut caps: thirtyfour::Capabilities = match config.browser {
         Browser::Chrome | Browser::Chromium => {
             let mut caps = DesiredCapabilities::chrome();
             apply_chromium_capabilities(&mut caps, config)?;
-            connect_with_caps(config, url, caps).await
+            caps.into()
         }
         Browser::Edge => {
             let mut caps = DesiredCapabilities::edge();
             apply_chromium_capabilities(&mut caps, config)?;
-            connect_with_caps(config, url, caps).await
+            caps.into()
         }
         Browser::Firefox => {
             let mut caps = DesiredCapabilities::firefox();
-            if config.headless {
-                caps.add_arg("-headless")?;
-            }
-            connect_with_caps(config, url, caps).await
+            apply_firefox_capabilities(&mut caps, config)?;
+            caps.into()
         }
+    };
+    config.launch.capabilities.apply_to(&mut caps);
+    Ok(caps)
+}
+
+/// Firefox's headless flag, page load strategy, arguments and preferences.
+fn apply_firefox_capabilities(
+    caps: &mut thirtyfour::FirefoxCapabilities,
+    config: &BrowserConfig,
+) -> Result<(), SeleniumBaseError> {
+    use thirtyfour::CapabilitiesHelper;
+    let launch = &config.launch;
+    if config.headless {
+        caps.add_arg("-headless")?;
     }
+    for arg in launch.firefox.args() {
+        caps.add_arg(arg)?;
+    }
+    if let Some(strategy) = launch.page_load_strategy {
+        caps.set_page_load_strategy(strategy.into())?;
+    }
+    let preferences = launch
+        .firefox
+        .preferences_over(firefox_preferences(&launch.switches));
+    if !preferences.is_empty() {
+        let preferences: thirtyfour::common::capabilities::firefox::FirefoxPreferences =
+            serde_json::from_value(Value::Object(preferences))?;
+        caps.set_preferences(preferences)?;
+    }
+    Ok(())
+}
+
+/// Moves and resizes the window of a running session, for the browsers that
+/// cannot be given the geometry as a launch argument.
+async fn apply_window_rect(
+    driver: &WebDriver,
+    launch: &LaunchSettings,
+) -> Result<(), SeleniumBaseError> {
+    if launch.window_size.is_none() && launch.window_position.is_none() {
+        return Ok(());
+    }
+    let current = driver.get_window_rect().await?;
+    let (x, y) = launch
+        .window_position
+        .map_or((current.x, current.y), |p| (i64::from(p.x), i64::from(p.y)));
+    let (width, height) = launch.window_size.map_or(
+        (
+            u32::try_from(current.width).unwrap_or(1),
+            u32::try_from(current.height).unwrap_or(1),
+        ),
+        |s| (s.width, s.height),
+    );
+    driver.set_window_rect(x, y, width, height).await?;
+    Ok(())
 }
 
 async fn connect_driver(
