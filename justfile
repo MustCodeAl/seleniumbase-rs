@@ -90,11 +90,18 @@ scrape-gate:
 
 # NEEDS cmake and a C/C++ toolchain (BoringSSL is built from source) and about 1 GB of target
 # disk. CI runs it on Linux (the `impersonate` job). DO NOT run it on the local 8 GB machine.
+# The gate also runs the tests of HttpSession, the MITM proxy and StealthSession that need no
+# Chrome (loopback servers and the scripted browser, which needs `test-util`). The real-Chrome
+# ones (`impersonate_http_chrome`, `impersonate_mitm_chrome`, `stealth_session_chrome`) are
+# `#[ignore]`d: run them by hand, one binary at a time.
 # Impersonate gate (needs cmake, CI only).
 imp-gate:
     cmake --version
     CMAKE_BUILD_PARALLEL_LEVEL=1 cargo check --features impersonate --all-targets
     CMAKE_BUILD_PARALLEL_LEVEL=1 cargo clippy --all-targets --features impersonate -- -D warnings
+    CMAKE_BUILD_PARALLEL_LEVEL=1 cargo test --features "impersonate test-util" --test impersonate_http
+    CMAKE_BUILD_PARALLEL_LEVEL=1 cargo test --features "impersonate test-util" --test impersonate_mitm
+    CMAKE_BUILD_PARALLEL_LEVEL=1 cargo test --features "impersonate test-util" --test stealth_session
 
 # Time and peak memory of a one-job `cargo check --lib --features scrape`. psl is a large
 # generated crate, so this is the number to watch. macOS uses BSD time (-l), Linux GNU time (-v).
