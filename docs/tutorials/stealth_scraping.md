@@ -1142,6 +1142,48 @@ clearance near its end back to Chrome, and a third shows that a rotated profile
 is what the page sees while the proxy stays. The shop is a stand-in written for
 the test: no vendor's challenge was run.
 
+## Runnable examples
+
+Five small programs in `examples/` run the layers on your own machine. None of them
+reaches the outside network or targets a third-party site, and none tries to pass a
+real detection service: each one needs nothing, or starts its own site on
+`127.0.0.1`. That site, the "shop" of `http_session` and `stealth_session`
+(`examples/stealth_support/shop.rs`), is a stand-in written for the examples. It is
+not any vendor's challenge, and getting past it says nothing about a real service.
+
+| Example | Feature | Needs | What it shows |
+|---|---|---|---|
+| `examples/cookie_jar.rs` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
+| `examples/custom_profile.rs` | `impersonate` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](#what-is-refused). |
+| `examples/http_session.rs` | `impersonate` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](#httpsession) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the JA4 the shop saw next to the measured one. |
+| `examples/stealth_session.rs` | `impersonate` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](#stealthsession) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
+| `examples/browser_scraper.rs` | `scrape` | A Chrome | A [`BrowserScraper`](#browserscraper) detecting and solving the same kind of challenge in a headless Chrome. |
+
+```text
+cargo run --features scrape      --example cookie_jar
+cargo run --features impersonate --example custom_profile
+cargo run --features impersonate --example http_session
+cargo run --features impersonate --example stealth_session
+cargo run --features scrape      --example browser_scraper
+```
+
+The three that use the measured emulation stop at once with the `NotMeasured`
+message on any system but macOS: they do not borrow the values of another system.
+`stealth_session` also needs the installed Chrome to be the measured major, or it is
+refused before it loads a page. The two that drive Chrome should run one at a time,
+and not beside another Chrome-driving program. The `impersonate` ones start from the
+[feature costs](#two-features); the first build compiles BoringSSL.
+
+What was run: each example was run once on macOS with Chrome 155.0.8059.40, the two
+that drive Chrome headless, and each exited with status 0. `browser_scraper` solved
+the challenge in about half a second and loaded the page twice; `stealth_session`
+escalated to Chrome, came back to HTTP, and in two runs the shop saw one JA4 and one
+user agent on every request of both legs (six and seven requests, as Chrome's favicon
+requests come and go);
+`http_session` printed a JA4 that differs from the measured one by the known gaps
+(see [Limits](#limits)). Nothing was run on another system, so the `NotMeasured` stop
+of the three is read from the code and was not observed.
+
 ## Limits
 
 State these plainly to yourself before you build on any of this.
