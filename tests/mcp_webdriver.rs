@@ -164,12 +164,29 @@ fn the_driver_server_offers_exactly_the_tools_of_the_python_driver_server() {
     assert_eq!(sorted(host.tool_names()), UPSTREAM_DRIVER_TOOLS);
 }
 
+/// The tools this crate adds for developing, debugging and testing.
+const DEVELOPER_TOOLS: [&str; 9] = [
+    "audit_page",
+    "capture_debug_bundle",
+    "diagnose_environment",
+    "diagnose_selector",
+    "export_session_as_test",
+    "get_console_messages",
+    "get_failed_requests",
+    "inspect_page",
+    "suggest_selectors",
+];
+
 #[test]
-fn the_sb_server_offers_every_python_sb_tool_plus_the_stealth_tools() {
+fn the_sb_server_offers_every_python_sb_tool_plus_the_stealth_and_developer_tools() {
     let host = sb::host(Settings::new("unused"));
     let offered = sorted(host.tool_names());
 
-    let mut expected: Vec<&str> = UPSTREAM_SB_TOOLS.into_iter().chain(STEALTH_TOOLS).collect();
+    let mut expected: Vec<&str> = UPSTREAM_SB_TOOLS
+        .into_iter()
+        .chain(STEALTH_TOOLS)
+        .chain(DEVELOPER_TOOLS)
+        .collect();
     expected.sort_unstable();
     assert_eq!(offered, expected);
 }

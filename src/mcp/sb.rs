@@ -2,7 +2,7 @@
 //! plus this crate's own stealth tools.
 
 use super::webdriver::{self as w, selector_prop, start_schema, timeout_prop};
-use super::{stealth, Effect, Host, Prop, Schema, Settings, ToolDef};
+use super::{devtools, stealth, Effect, Host, Prop, Schema, Settings, ToolDef};
 use crate::api::base_case::BaseCase;
 
 const SERVER_NAME: &str = "seleniumbase-sb";
@@ -10,16 +10,20 @@ const SERVER_NAME: &str = "seleniumbase-sb";
 const INSTRUCTIONS: &str = "\
 Drives a browser through WebDriver with SeleniumBase's broad toolset, with undetected \
 mode on by default. Call start_browser once, use the other tools, then call \
-close_browser. Failed actions come back as errors you can read and retry; use the \
-wait_for_* tools before acting on content that loads late. The stealth tools at the \
-end work without a browser.";
+close_browser. Failed actions come back as reports you can act on: they name the \
+page's state and the next tools to try. Use the wait_for_* tools before acting on \
+content that loads late. inspect_page, diagnose_selector and suggest_selectors help \
+find elements, and export_session_as_test turns the session into a Rust test. The \
+stealth tools and diagnose_environment work without a browser.";
 
-/// Builds the `sb` server.
+/// Builds the `sb` server, with the stealth and developer tools.
 #[must_use]
 pub fn host(settings: Settings) -> Host<BaseCase> {
     let mut tools = tools();
     tools.extend(stealth::tools());
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
+    tools.extend(devtools::tools());
+    tools.extend(devtools::environment_tools());
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings).with_probe(devtools::probe::<BaseCase>)
 }
 
 #[expect(

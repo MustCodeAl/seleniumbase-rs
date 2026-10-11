@@ -2,7 +2,7 @@
 //! [`BaseCase`].
 
 use super::webdriver::{self as w, selector_prop, start_schema, timeout_prop};
-use super::{Effect, Host, Prop, Schema, Settings, ToolDef};
+use super::{devtools, Effect, Host, Prop, Schema, Settings, ToolDef};
 use crate::api::base_case::BaseCase;
 
 const SERVER_NAME: &str = "seleniumbase-driver";
@@ -14,9 +14,12 @@ come back as errors you can read and retry; use wait_for_element before acting o
 content that loads late.";
 
 /// Builds the `driver` server.
+///
+/// It keeps upstream's tool list; a failed call is still reported with the
+/// page's state, read the same way the `sb` server reads it.
 #[must_use]
 pub fn host(settings: Settings) -> Host<BaseCase> {
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools(), settings)
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools(), settings).with_probe(devtools::probe::<BaseCase>)
 }
 
 fn dropdown_schema(option: Prop) -> Schema {

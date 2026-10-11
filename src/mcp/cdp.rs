@@ -5,10 +5,14 @@
 //! grouped behind one tool with an `action`, `mode` or `state` argument, which
 //! keeps the tool list short enough for a model to choose from.
 
+use std::collections::{HashMap, VecDeque};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use serde_json::{json, Value};
 
+use super::devtools::{self, DevSession};
+use super::failure::shorten;
 use super::support::{cookie_file, is_missing, json_output, nonempty, write_file};
 use super::{
     Args, Closeable, Ctx, Effect, Host, Output, Prop, Schema, Settings, Started, ToolDef, ToolError,
@@ -21,10 +25,11 @@ const SERVER_NAME: &str = "seleniumbase-cdp";
 const INSTRUCTIONS: &str = "\
 Drives Chrome over the DevTools Protocol with no WebDriver, so pages see an \
 ordinary browser. Call start_browser once, use the other tools, then call \
-close_browser. Selectors may be CSS (preferred), XPath, or `tag:contains(\"text\")`. \
-Failed actions come back as errors you can read and retry: fix the selector, wait \
-for the page to settle with wait_for_condition, or look at the page with \
-get_content.";
+close_browser. Selectors may be CSS (preferred), XPath, or link=text. \
+Failed actions come back as reports you can act on: they name the page's state \
+and the next tools to try. inspect_page outlines the page, diagnose_selector says \
+why a selector fails, suggest_selectors finds one that works, and \
+export_session_as_test turns the session into a Rust test.";
 
 /// How long the pointer rests on a menu before the item under it is clicked.
 const HOVER_PAUSE: Duration = Duration::from_millis(250);
@@ -32,11 +37,163 @@ const HOVER_PAUSE: Duration = Duration::from_millis(250);
 /// How long a check that must not wait is allowed to look.
 const NO_WAIT: Duration = Duration::ZERO;
 
+/// The most failed requests a network watch keeps; older ones are dropped.
+const MAX_FAILURES: usize = 200;
+
+/// The most unfinished requests a network watch remembers the URL of.
+const MAX_PENDING: usize = 2000;
+
 /// The session behind the Pure CDP server: a browser and the tab in use.
 #[derive(Debug)]
 pub struct Cdp {
     browser: Browser,
     page: Page,
+    network: Option<NetworkWatch>,
+}
+
+/// The failed requests of one tab, as its `Network` events report them.
+#[derive(Debug, Default)]
+struct NetworkLog {
+    /// URL and resource type of requests that have not finished yet.
+    pending: HashMap<String, (String, String)>,
+    failures: VecDeque<Value>,
+    dropped: usize,
+}
+
+impl NetworkLog {
+    /// Takes note of one `Network` event.
+    fn note(&mut self, method: &str, params: &Value) {
+        let id = params["requestId"].as_str().unwrap_or_default();
+        match method {
+            "Network.requestWillBeSent" => {
+                if self.pending.len() >= MAX_PENDING {
+                    self.pending.clear();
+                }
+                let url = params["request"]["url"].as_str().unwrap_or_default();
+                let kind = params["type"].as_str().unwrap_or_default();
+                self.pending
+                    .insert(id.to_owned(), (url.to_owned(), kind.to_owned()));
+            }
+            "Network.responseReceived" => {
+                let status = params["response"]["status"].as_u64().unwrap_or(0);
+                if status >= 400 {
+                    self.push(&json!({
+                        "url": params["response"]["url"],
+                        "status": status,
+                        "status_text": params["response"]["statusText"],
+                        "type": params["type"],
+                    }));
+                }
+            }
+            "Network.loadingFailed" => {
+                let (url, kind) = self.pending.remove(id).unwrap_or_default();
+                self.push(&json!({
+                    "url": url,
+                    "type": params["type"].as_str().unwrap_or(&kind),
+                    "error": params["errorText"],
+                    "blocked_reason": params["blockedReason"],
+                    "canceled": params["canceled"],
+                }));
+            }
+            "Network.loadingFinished" => {
+                self.pending.remove(id);
+            }
+            _ => {}
+        }
+    }
+
+    fn push(&mut self, failure: &Value) {
+        if self.failures.len() == MAX_FAILURES {
+            self.failures.pop_front();
+            self.dropped += 1;
+        }
+        self.failures.push_back(shorten(failure, 300));
+    }
+}
+
+/// Records the failed requests of one tab until it is dropped.
+#[derive(Debug)]
+struct NetworkWatch {
+    page_id: String,
+    log: Arc<Mutex<NetworkLog>>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for NetworkWatch {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
+impl DevSession for Cdp {
+    fn engine(&self) -> &'static str {
+        "cdp"
+    }
+
+    async fn evaluate(&mut self, expression: &str) -> Result<Value, SeleniumBaseError> {
+        self.page.evaluate(expression).await
+    }
+
+    async fn screenshot(&mut self) -> Result<Vec<u8>, SeleniumBaseError> {
+        self.page.screenshot().await
+    }
+
+    async fn cookie_names(&mut self) -> Result<Vec<String>, SeleniumBaseError> {
+        Ok(self
+            .page
+            .cookies()
+            .all()
+            .await?
+            .into_iter()
+            .map(|cookie| cookie.name)
+            .collect())
+    }
+
+    async fn page_errors(&mut self) -> Result<Vec<String>, SeleniumBaseError> {
+        self.page.js_errors().await
+    }
+
+    async fn watch_network(&mut self) -> Result<bool, SeleniumBaseError> {
+        if self
+            .network
+            .as_ref()
+            .is_some_and(|watch| watch.page_id == self.page.id())
+        {
+            return Ok(true);
+        }
+        // Subscribed first, so no event between the two calls is missed.
+        let mut events = self.page.events();
+        self.page.execute("Network.enable", json!({})).await?;
+        let log = Arc::new(Mutex::new(NetworkLog::default()));
+        let sink = Arc::clone(&log);
+        let task = tokio::spawn(async move {
+            while let Some(event) = events.next().await {
+                if event.method.starts_with("Network.") {
+                    sink.lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .note(&event.method, &event.params);
+                }
+            }
+        });
+        // A watch of another tab is dropped here, which stops it.
+        self.network = Some(NetworkWatch {
+            page_id: self.page.id().to_owned(),
+            log,
+            task,
+        });
+        Ok(true)
+    }
+
+    fn network_failures(&mut self, clear: bool) -> Option<(Vec<Value>, usize)> {
+        let watch = self.network.as_ref()?;
+        let mut log = watch.log.lock().unwrap_or_else(PoisonError::into_inner);
+        let found = (log.failures.iter().cloned().collect(), log.dropped);
+        if clear {
+            log.failures.clear();
+            log.dropped = 0;
+        }
+        Some(found)
+    }
 }
 
 impl Cdp {
@@ -50,7 +207,11 @@ impl Cdp {
     /// Returns an error if the browser has no tab to start on.
     pub async fn attach(browser: Browser) -> Result<Self, SeleniumBaseError> {
         let page = browser.default_page().await?;
-        Ok(Self { browser, page })
+        Ok(Self {
+            browser,
+            page,
+            network: None,
+        })
     }
 }
 
@@ -61,14 +222,17 @@ impl Closeable for Cdp {
     }
 }
 
-/// Builds the Pure CDP server.
+/// Builds the Pure CDP server, with the developer tools.
 #[must_use]
 pub fn host(settings: Settings) -> Host<Cdp> {
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools(), settings)
+    let mut tools = tools();
+    tools.extend(devtools::tools());
+    tools.extend(devtools::environment_tools());
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings).with_probe(devtools::probe::<Cdp>)
 }
 
 fn selector_prop() -> Prop {
-    Prop::string("CSS selector, XPath, or tag:contains(\"text\")")
+    Prop::string("CSS selector, XPath, or link=text")
 }
 
 fn timeout_prop(default: f64) -> Prop {

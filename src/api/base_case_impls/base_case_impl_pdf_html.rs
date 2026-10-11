@@ -523,7 +523,7 @@ impl<'a> CssParser<'a> {
 }
 
 /// Converts the CSS selector `css` to an XPath expression.
-fn css_to_xpath(css: &str) -> Result<String, SeleniumBaseError> {
+pub(crate) fn css_to_xpath(css: &str) -> Result<String, SeleniumBaseError> {
     if css.trim().is_empty() {
         return Err(SeleniumBaseError::InvalidSelector(
             "cannot convert an empty CSS selector to XPath".to_owned(),

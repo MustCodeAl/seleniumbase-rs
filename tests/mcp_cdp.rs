@@ -101,19 +101,37 @@ const UPSTREAM_CDP_TOOLS: [&str; 24] = [
     "wait_for_condition",
 ];
 
+/// The tools this crate adds for developing, debugging and testing.
+const DEVELOPER_TOOLS: [&str; 9] = [
+    "audit_page",
+    "capture_debug_bundle",
+    "diagnose_environment",
+    "diagnose_selector",
+    "export_session_as_test",
+    "get_console_messages",
+    "get_failed_requests",
+    "inspect_page",
+    "suggest_selectors",
+];
+
 // ----------------------------------------------------------------------
 // Catalogue
 // ----------------------------------------------------------------------
 
 #[tokio::test]
-async fn the_server_offers_every_tool_of_the_python_cdp_server() {
+async fn the_server_offers_every_tool_of_the_python_cdp_server_and_the_developer_tools() {
     let dir = tempfile::tempdir().unwrap();
     let host = cdp::host(Settings::new(dir.path()));
 
     let mut offered = host.tool_names();
     offered.sort_unstable();
 
-    assert_eq!(offered, UPSTREAM_CDP_TOOLS);
+    let mut expected: Vec<&str> = UPSTREAM_CDP_TOOLS
+        .into_iter()
+        .chain(DEVELOPER_TOOLS)
+        .collect();
+    expected.sort_unstable();
+    assert_eq!(offered, expected);
 }
 
 #[tokio::test]

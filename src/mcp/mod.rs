@@ -20,6 +20,8 @@
 //! # }
 //! ```
 
+mod devtools;
+mod export;
 mod failure;
 mod host;
 mod journal;

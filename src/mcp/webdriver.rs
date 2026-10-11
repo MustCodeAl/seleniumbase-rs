@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
+use super::devtools::DevSession;
 use super::support::{cookie_file, json_output, nonempty, write_file};
 use super::{Args, Closeable, Ctx, Output, Started, ToolError};
 use crate::api::base_case::BaseCase;
@@ -25,6 +26,49 @@ impl Closeable for BaseCase {
     async fn close(mut self) {
         // The server is shutting down; there is nobody left to report to.
         let _ = self.quit().await;
+    }
+}
+
+impl DevSession for BaseCase {
+    fn engine(&self) -> &'static str {
+        "webdriver"
+    }
+
+    async fn evaluate(&mut self, expression: &str) -> Result<Value, SeleniumBaseError> {
+        self.execute_script(&format!("return {expression};")).await
+    }
+
+    async fn screenshot(&mut self) -> Result<Vec<u8>, SeleniumBaseError> {
+        self.screenshot_as_png().await
+    }
+
+    async fn cookie_names(&mut self) -> Result<Vec<String>, SeleniumBaseError> {
+        let cookies = self.get_cookies().await?;
+        Ok(cookies
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|cookie| cookie["name"].as_str().map(str::to_owned))
+            .collect())
+    }
+
+    /// WebDriver collects no script errors by itself; the console recorder of
+    /// `get_console_messages` does, once started.
+    fn page_errors(
+        &mut self,
+    ) -> impl std::future::Future<Output = Result<Vec<String>, SeleniumBaseError>> + Send {
+        std::future::ready(Ok(Vec::new()))
+    }
+
+    /// WebDriver has no network events to record.
+    fn watch_network(
+        &mut self,
+    ) -> impl std::future::Future<Output = Result<bool, SeleniumBaseError>> + Send {
+        std::future::ready(Ok(false))
+    }
+
+    fn network_failures(&mut self, _clear: bool) -> Option<(Vec<Value>, usize)> {
+        None
     }
 }
 
