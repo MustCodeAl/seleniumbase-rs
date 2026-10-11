@@ -340,3 +340,18 @@ fn fingerprints_round_trip_through_json() {
         raw
     );
 }
+
+#[test]
+fn section_names_read_naturally_in_messages() {
+    let names = [
+        (Ja4Section::A, "a"),
+        (Ja4Section::Ciphers, "ciphers"),
+        (Ja4Section::Extensions, "extensions"),
+        (Ja4Section::SignatureAlgorithms, "signature algorithms"),
+    ];
+    for (section, name) in names {
+        assert_eq!(section.to_string(), name);
+    }
+    let text = Ja4Error::Hash(Ja4Section::Extensions).to_string();
+    assert!(text.contains("extensions"), "{text}");
+}

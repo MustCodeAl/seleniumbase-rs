@@ -1,6 +1,6 @@
 //! Tests of the JA3 and peetprint parsers, the pure MD5 and the published example vectors.
 
-use super::peetprint::{Slot, MAX_PEETPRINT_LEN};
+use super::peetprint::{PeetField, Slot, MAX_PEETPRINT_LEN};
 use super::{md5_hex, Ja3, Ja3Error, Ja3Field, Peetprint, PeetprintError, MAX_JA3_LEN};
 use crate::wire::client_hello::fixtures::HelloBuilder;
 use crate::wire::client_hello::ClientHello;
@@ -234,4 +234,46 @@ fn rejects_malformed_peetprints_with_the_failing_field() {
     }
     let long = "1".repeat(MAX_PEETPRINT_LEN + 1);
     assert_eq!(Peetprint::parse(&long), Err(PeetprintError::TooLong));
+}
+
+#[test]
+fn rejects_malformed_alpn_hex_forms() {
+    for text in ["x683", "xFF", "x+f", "xzz"] {
+        let peet = format!("772|{text}|29|1027|1|2|4865|0");
+        assert_eq!(
+            Peetprint::parse(&peet),
+            Err(PeetprintError::Token {
+                field: PeetField::Alpn,
+                token: text.to_owned()
+            }),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn field_names_read_naturally_in_messages() {
+    let ja3_names = [
+        (Ja3Field::Version, "version"),
+        (Ja3Field::Ciphers, "ciphers"),
+        (Ja3Field::Extensions, "extensions"),
+        (Ja3Field::Groups, "groups"),
+        (Ja3Field::PointFormats, "point formats"),
+    ];
+    for (field, name) in ja3_names {
+        assert_eq!(field.to_string(), name);
+    }
+    let peet_names = [
+        (PeetField::Versions, "versions"),
+        (PeetField::Alpn, "alpn"),
+        (PeetField::Groups, "groups"),
+        (PeetField::SignatureAlgorithms, "signature algorithms"),
+        (PeetField::PskModes, "psk modes"),
+        (PeetField::CertCompression, "certificate compression"),
+        (PeetField::Ciphers, "ciphers"),
+        (PeetField::Extensions, "extensions"),
+    ];
+    for (field, name) in peet_names {
+        assert_eq!(field.to_string(), name);
+    }
 }

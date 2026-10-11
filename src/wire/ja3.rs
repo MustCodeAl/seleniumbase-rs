@@ -284,21 +284,24 @@ fn md5(data: &[u8]) -> [u8; 16] {
         .wrapping_mul(8);
     message.extend_from_slice(&bit_len.to_le_bytes());
     let mut state = MD5_INIT;
-    for block in message.chunks_exact(MD5_BLOCK) {
+    let (blocks, _) = message.as_chunks::<MD5_BLOCK>();
+    for block in blocks {
         md5_block(&mut state, block);
     }
     let mut digest = [0_u8; 16];
-    for (out, word) in digest.chunks_exact_mut(4).zip(state) {
-        out.copy_from_slice(&word.to_le_bytes());
+    let (lanes, _) = digest.as_chunks_mut::<4>();
+    for (out, word) in lanes.iter_mut().zip(state) {
+        *out = word.to_le_bytes();
     }
     digest
 }
 
 /// Folds one 64-byte block into the MD5 state.
-fn md5_block(state: &mut [u32; 4], block: &[u8]) {
+fn md5_block(state: &mut [u32; 4], block: &[u8; MD5_BLOCK]) {
     let mut words = [0_u32; 16];
-    for (word, bytes) in words.iter_mut().zip(block.chunks_exact(4)) {
-        *word = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    let (chunks, _) = block.as_chunks::<4>();
+    for (word, bytes) in words.iter_mut().zip(chunks) {
+        *word = u32::from_le_bytes(*bytes);
     }
     let [mut a, mut b, mut c, mut d] = *state;
     for (round, (&constant, &shift)) in MD5_CONSTANTS.iter().zip(&MD5_SHIFTS).enumerate() {
@@ -345,11 +348,11 @@ pub fn md5_hex(data: &[u8]) -> String {
     hex_lower(&md5(data))
 }
 
-/// The peetprint: a JA3-like TLS fingerprint that also records signature algorithms.
 pub mod peetprint {
-    //! The peetprint format of a public TLS inspection service, read from its description.
+    //! The peetprint: a JA3-like TLS fingerprint that also records signature algorithms.
     //!
-    //! Eight fields joined by `|`, each a `-` separated list: supported versions, ALPN protocols
+    //! The format is that of a public TLS inspection service, read from its description. Eight
+    //! fields joined by `|`, each a `-` separated list: supported versions, ALPN protocols
     //! (`1.0`, `1.1`, `2`), supported groups, signature algorithms, PSK key exchange modes,
     //! certificate compression algorithms, cipher suites and the extensions. GREASE ids are
     //! written as the word `GREASE`. The public description says only that the extension list is
@@ -657,12 +660,16 @@ pub mod peetprint {
         if hex.is_empty() || hex.len() % 2 != 0 {
             return None;
         }
-        let bytes: Option<Vec<u8>> = hex
-            .as_bytes()
-            .chunks_exact(2)
-            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok())
-            .collect();
+        let (pairs, _) = hex.as_bytes().as_chunks::<2>();
+        let bytes: Option<Vec<u8>> = pairs.iter().copied().map(hex_byte).collect();
         String::from_utf8(bytes?).ok()
+    }
+
+    /// The byte two hex digits stand for; signs and other characters are refused.
+    fn hex_byte(pair: [u8; 2]) -> Option<u8> {
+        let high = char::from(pair[0]).to_digit(16)?;
+        let low = char::from(pair[1]).to_digit(16)?;
+        u8::try_from(high * 16 + low).ok()
     }
 }
 

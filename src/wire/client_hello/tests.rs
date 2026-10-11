@@ -320,6 +320,17 @@ fn unknown_extensions_are_kept_raw_and_the_rest_still_decodes() {
     assert_eq!(hello.alpn, vec![b"h2".to_vec()]);
 }
 
+#[test]
+fn only_host_names_feed_the_sni_field() {
+    let mut names = vec![1];
+    names.extend(length16(b"ignored"));
+    names.push(0);
+    names.extend(length16(b"host.test"));
+    let block = extension(ext_id::SERVER_NAME, &length16(&names));
+    let hello = parse(&record_of_body(&with_extensions(minimal_body(), &block))).expect("parses");
+    assert_eq!(hello.sni.as_deref(), Some("host.test"));
+}
+
 /// A small deterministic generator, so the mutation tests are reproducible.
 struct XorShift(u64);
 
