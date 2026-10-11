@@ -765,8 +765,9 @@ impl BrowserSession {
 
     /// Disconnects the current WebDriver session and creates a fresh one.
     ///
-    /// This is useful in undetected (UC) mode to obtain a clean session handle
-    /// while keeping the same chromedriver process alive.
+    /// This is useful in undetected (UC) mode to obtain a clean session handle.
+    /// When the new session started its own chromedriver, the previous
+    /// chromedriver process is stopped, so reconnecting does not leak one each time.
     pub async fn reconnect(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
         if let Some(driver) = self.driver.take() {
             driver.quit().await?;
@@ -775,8 +776,10 @@ impl BrowserSession {
         let display = self.virtual_display.as_ref().map(XvfbProcess::display);
         let (driver, process) = connect_driver(config, display).await?;
         self.driver = Some(driver);
-        if process.is_some() {
-            self.driver_process = process;
+        if let Some(process) = process {
+            if let Some(mut previous) = self.driver_process.replace(process) {
+                previous.kill();
+            }
         }
         self.cdp = if config.is_cdp_enabled() {
             Some(CdpClient::from_handle(
