@@ -79,6 +79,45 @@ fn chrome_on_macos_is_measured() {
 }
 
 #[test]
+fn the_measured_client_hints_agree_with_the_browser_they_describe() {
+    let chrome = chrome_macos();
+    let hints = chrome
+        .client_hints
+        .as_ref()
+        .expect("the hints were measured");
+    let major = chrome.major.to_string();
+
+    let names = |list: &[crate::stealth::fingerprint::BrandVersion]| -> Vec<String> {
+        list.iter().map(|entry| entry.brand.clone()).collect()
+    };
+    assert_eq!(hints.brands.len(), 3, "two real brands and one decoy");
+    assert_eq!(
+        names(&hints.brands),
+        names(&hints.full_version_list),
+        "both lists name the brands in the same order"
+    );
+    let (decoys, real): (Vec<_>, Vec<_>) = hints
+        .brands
+        .iter()
+        .partition(|entry| entry.brand.starts_with("Not"));
+    assert_eq!(decoys.len(), 1, "exactly one GREASE brand");
+    let mut real_names: Vec<&str> = real.iter().map(|entry| entry.brand.as_str()).collect();
+    real_names.sort_unstable();
+    assert_eq!(real_names, ["Chromium", "Google Chrome"]);
+    assert!(real.iter().all(|entry| entry.version == major));
+    for entry in hints
+        .full_version_list
+        .iter()
+        .filter(|entry| !entry.brand.starts_with("Not"))
+    {
+        assert_eq!(entry.version, chrome.full_version, "{}", entry.brand);
+    }
+    assert_eq!(hints.ua_full_version, chrome.full_version);
+    assert_eq!(hints.platform, "macOS");
+    assert!(!hints.mobile);
+}
+
+#[test]
 fn the_known_gaps_are_the_tls_spec_type() {
     let gaps: Vec<TlsKnownGap> = chrome_macos().provenance.known_gaps.clone();
     let same: Vec<KnownGap> = gaps;
