@@ -4,7 +4,9 @@
 use url::{Host, Url};
 
 use super::super::set_cookie::{has_forbidden_control, CookiePrefix, MAX_NAME_VALUE_BYTES};
-use super::{prefix_reason, IgnoreReason, StoredCookie, ROOT_PATH};
+use super::{
+    prefix_reason, IgnoreReason, StoredCookie, MAX_DOMAIN_BYTES, MAX_PATH_BYTES, ROOT_PATH,
+};
 use crate::sb_cdp::SameSite;
 
 /// The URL schemes that carry cookies, each with whether it is secure on its own.
@@ -194,9 +196,9 @@ fn is_loopback(host: &Host<&str>) -> bool {
 }
 
 /// Checks what every cookie in the jar satisfies, whether it came from a header, from CDP or
-/// from a file: safe name and value text within the size bound, a canonical domain, a path that
-/// starts with `/`, no domain cookie on a public suffix or an IP address, `SameSite=None` only
-/// with `Secure`, and the prefix rules.
+/// from a file: safe name and value text within the size bound, a canonical domain within
+/// [`MAX_DOMAIN_BYTES`], a path that starts with `/` and fits [`MAX_PATH_BYTES`], no domain cookie
+/// on a public suffix or an IP address, `SameSite=None` only with `Secure`, and the prefix rules.
 pub(super) fn validate(cookie: &StoredCookie) -> Result<(), IgnoreReason> {
     check_text(&cookie.name, &cookie.value)?;
     check_scope(cookie)?;
@@ -232,8 +234,17 @@ fn check_text(name: &str, value: &str) -> Result<(), IgnoreReason> {
     }
 }
 
-/// The domain is canonical and may carry a domain cookie; the path is absolute.
+/// The domain and the path fit their bounds; the domain is canonical and may carry a domain
+/// cookie; the path is absolute.
 fn check_scope(cookie: &StoredCookie) -> Result<(), IgnoreReason> {
+    let domain_len = cookie
+        .domain
+        .strip_suffix('.')
+        .unwrap_or(&cookie.domain)
+        .len();
+    if domain_len > MAX_DOMAIN_BYTES || cookie.path.len() > MAX_PATH_BYTES {
+        return Err(IgnoreReason::TooLarge);
+    }
     if canonical_domain(&cookie.domain).as_deref() != Some(cookie.domain.as_str()) {
         return Err(IgnoreReason::Malformed);
     }

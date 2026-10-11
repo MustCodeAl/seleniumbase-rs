@@ -3,7 +3,9 @@
 //! [`CookieJar::store`] applies the storage model of RFC 6265 section 5.3 with the RFC 6265bis
 //! rules Chrome ships: a `Secure` cookie needs a secure origin and an insecure origin may not
 //! overwrite or shadow one, the `__Secure-` and `__Host-` prefixes are enforced, `SameSite=None`
-//! needs `Secure`, and a `Domain` on a public suffix or an IP address is refused. The jar holds at
+//! needs `Secure`, and a `Domain` on a public suffix or an IP address is refused. A path longer
+//! than [`MAX_PATH_BYTES`] and a domain longer than [`MAX_DOMAIN_BYTES`] are refused, whether the
+//! path is an attribute or the default path of the request URL. The jar holds at
 //! most [`MAX_COOKIES_PER_SITE`] cookies per site and [`MAX_COOKIES`] in all.
 //! [`CookieJar::header_for`] builds the `Cookie` header of section 5.4. Times are seconds since the
 //! Unix epoch, and every function that needs the time takes `now`.
@@ -22,7 +24,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::set_cookie::{CookiePrefix, SetCookie, SetCookieError};
+use super::set_cookie::{CookiePrefix, SetCookie, SetCookieError, MAX_ATTRIBUTE_VALUE_BYTES};
 use crate::sb_cdp::{Cookie, SameSite};
 use rules::{default_path, domain_match, path_match, site_key, validate, RequestOrigin};
 
@@ -33,6 +35,13 @@ pub const MAX_COOKIES_PER_SITE: usize = 180;
 
 /// The most cookies the jar holds in all. A new cookie beyond it evicts another.
 pub const MAX_COOKIES: usize = 3000;
+
+/// The most bytes a cookie path may hold, whether from the `Path` attribute or from the default
+/// path of the request URL. It is the bound of an attribute value (RFC 6265bis).
+pub const MAX_PATH_BYTES: usize = MAX_ATTRIBUTE_VALUE_BYTES;
+
+/// The most bytes a cookie domain may hold: the longest DNS name, without a trailing dot.
+pub const MAX_DOMAIN_BYTES: usize = 253;
 
 /// The `Path` a `__Host-` cookie must be set with.
 const ROOT_PATH: &str = "/";
@@ -182,7 +191,9 @@ pub enum IgnoreReason {
     HostPrefix,
     /// A `__Secure-` cookie that is not `Secure`.
     SecurePrefix,
-    /// The name and value exceed [`MAX_NAME_VALUE_BYTES`](super::set_cookie::MAX_NAME_VALUE_BYTES).
+    /// The name and value exceed [`MAX_NAME_VALUE_BYTES`](super::set_cookie::MAX_NAME_VALUE_BYTES),
+    /// the path exceeds [`MAX_PATH_BYTES`], or the domain exceeds [`MAX_DOMAIN_BYTES`]. The path
+    /// may be the default path of the request URL, which a site chooses.
     TooLarge,
     /// `SameSite=None` without `Secure`.
     SameSiteNoneInsecure,
