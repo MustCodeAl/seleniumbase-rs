@@ -887,6 +887,34 @@ async fn export_session_as_test<S: DevSession>(
 // Environment
 // ----------------------------------------------------------------------
 
+/// Whether the output directory exists, whether it is writable and how much
+/// disk is free there; a problem is appended for each thing that will hurt.
+async fn check_output_dir(
+    output_dir: &std::path::Path,
+    problems: &mut Vec<String>,
+) -> (bool, Option<bool>, Option<u64>) {
+    let metadata = std::fs::metadata(output_dir).ok();
+    let writable = metadata
+        .as_ref()
+        .map(|meta| meta.is_dir() && !meta.permissions().readonly());
+    if writable == Some(false) {
+        problems.push(format!(
+            "The output directory {} is not a writable directory; set {OUTPUT_DIR_VAR} to one \
+             that is.",
+            output_dir.display()
+        ));
+    }
+    let free = free_disk_bytes(output_dir).await;
+    if free.is_some_and(|bytes| bytes < LOW_DISK) {
+        problems.push(format!(
+            "Less than 1 GiB is free where the output directory is ({}); screenshots, \
+             downloads and the browser profile may fail to save.",
+            output_dir.display()
+        ));
+    }
+    (metadata.is_some(), writable, free)
+}
+
 async fn diagnose_environment<S: Send + 'static>(
     ctx: Ctx<S>,
     _args: Args,
@@ -935,25 +963,7 @@ async fn diagnose_environment<S: Send + 'static>(
     problems.extend(version_problem);
 
     let output_dir = ctx.settings().output_dir().to_path_buf();
-    let metadata = std::fs::metadata(&output_dir).ok();
-    let writable = metadata
-        .as_ref()
-        .map(|meta| meta.is_dir() && !meta.permissions().readonly());
-    if writable == Some(false) {
-        problems.push(format!(
-            "The output directory {} is not a writable directory; set {OUTPUT_DIR_VAR} to one \
-             that is.",
-            output_dir.display()
-        ));
-    }
-    let free = free_disk_bytes(&output_dir).await;
-    if free.is_some_and(|bytes| bytes < LOW_DISK) {
-        problems.push(format!(
-            "Less than 1 GiB is free where the output directory is ({}); screenshots, \
-             downloads and the browser profile may fail to save.",
-            output_dir.display()
-        ));
-    }
+    let (exists, writable, free) = check_output_dir(&output_dir, &mut problems).await;
     let variable =
         |name: &str| std::env::var_os(name).map(|value| value.to_string_lossy().into_owned());
     let settings = sb_settings(std::env::vars_os().map(|(name, value)| {
@@ -989,7 +999,7 @@ async fn diagnose_environment<S: Send + 'static>(
         "versions": versions,
         "output_dir": {
             "path": output_dir.display().to_string(),
-            "exists": metadata.is_some(),
+            "exists": exists,
             "writable": writable,
             "free_disk_bytes": free,
         },
