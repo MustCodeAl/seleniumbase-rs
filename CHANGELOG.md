@@ -66,11 +66,33 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **Parity**: every API in `parity/api.toml` now has a status (861 implemented,
   375 composed, 112 not-applicable with a reason, 17 planned). The composed and
   not-applicable entries are still to be reviewed.
-- **Stealth scraping groundwork** (features `scrape` and `impersonate`, in
-  `src/wire`, `src/scrape` and `src/impersonate`): egress redaction, routes, geo
-  locales and a proxy pool; bot-protection challenge detection and a
-  mitigation policy; per-site state with an atomic JSON store. The JA3/JA4/Akamai
-  wire work and the TLS proxy are not written yet.
+- **Stealth scraping, the wire layer** (feature `scrape`, `src/wire`): parsers
+  for TLS `ClientHello`s, JA3, JA4 (with `JA4_r` and the original-order
+  variants), peetprint and Akamai HTTP/2 strings; `TlsSpec`, `H2Spec` and
+  `HeaderSpec`, which say what BoringSSL and wreq can send and refuse the rest by
+  name; the measured table `wire::emulation`, with one entry, Chrome 155.0.8059.40
+  on macOS (any other browser and system is `NotMeasured`); and the capture tools
+  that write it, `capture_tls` and `capture_hints` (`scrape`) and `capture_h2`
+  (`impersonate`).
+- **Stealth scraping, the impersonating client** (feature `impersonate`):
+  `ImpersonationProfile`, `impersonation_client` (wreq on BoringSSL) and
+  `CustomProfileBuilder`, where every part (JA3, `JA4_r`, peetprint, signature
+  algorithms, Akamai string, header names, order and values, identity) can be
+  supplied and what cannot be sent is refused with a named error before a client
+  exists; and `impersonate::tls_server`, an in-memory CA that issues one leaf
+  per host for loopback TLS. Known gaps against Chrome 155: the `trust_anchors`
+  extension, the ML-DSA signature algorithms and a GREASE signature algorithm.
+- **Stealth scraping, the scrape layer** (feature `scrape`, `src/scrape`): an
+  RFC 6265 cookie jar with public-suffix checks; `StealthIdentity` and its
+  owner-only identity file; `SessionPolicy`; challenge detection for seven
+  vendors and a mitigation policy; a proxy pool with locales by exit country;
+  per-site state with an atomic JSON store; redacted scraper events; and
+  `BrowserScraper`, which fetches through a real Chrome on the pure CDP engine,
+  solves challenges and rotates egress and profile. `Fingerprint::randomized_with_major`
+  fixes the Chromium major an identity claims.
+- **Not written yet**: `HttpSession`, `MitmProxy` and `StealthSession`.
+  Nothing else sends a request through the impersonating client for you.
+- `docs/tutorials/stealth_scraping.md` and `docs/adr/003-stealth-scraping-layout.md`.
 - A `rust-analyzer.toml` that loads the optional features so analysis covers
   `src/mcp` and `src/scrape`.
 - `CLAUDE.md` (a map of the modules, checks and gotchas), `CHANGELOG.md`, and
@@ -85,6 +107,13 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `page_title` (with defaults).
 - The `cdp` MCP server no longer offers `tag:contains("text")` selectors, which
   its engine never supported; `diagnose_selector` gives the XPath for one.
+- The pure CDP engine runs `session_registry` (27 providers: the default
+  registry without `plugins` and `connection`), so a page reads Chrome's own
+  `navigator.plugins`, `mimeTypes`, PDF viewer flag and `navigator.connection`;
+  `navigator.userAgentData` is defined only in a secure context; and a desktop
+  persona's screen is sent as a `0` by `0` device-metrics viewport plus
+  `screenWidth` and `screenHeight`, so the page keeps its real viewport.
+  `default_registry` still holds 29 providers.
 - Requires Rust 1.99 (`rust-version`, the `Dockerfile` base image and the CI msrv
   job); `zip` moved to 9.0 and the lockfile is current.
 - `BaseCase` actions wait for their element (up to `set_timeout`, 10 s by

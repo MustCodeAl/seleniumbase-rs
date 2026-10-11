@@ -44,6 +44,7 @@ Design rules that apply to everything below:
 | Per-file review pass | Bugs found by reading were fixed, each with a test, across the book (`docs/`), `src/api` (the top-level modules and `base_case_impls`), `behave`, `cli`, `common`, `plugins`, the stealth page scripts, `utils/extensions` and the Playwright path. The CLI generators and recorders are run as the real binary in `tests/cli_generators.rs` and `tests/cli_templates.rs`. |
 | Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and the stdin recorder (`ActionRecorder::try_record`) refuses such a line and names the closest known action. |
 | Knowledge map and plans | `CLAUDE.md` (module map, checks, gotchas) and `docs/design/stealth_parity_plan.md` (20 work packages for the stealthscraper-rs feature set, JA3/JA4 and Akamai impersonation). |
+| Stealth scraping foundation (`scrape`, `impersonate`) | Work packages 0 to 13 and 17 of the plan are merged: wire parsers (`ClientHello`, JA3, JA4, peetprint, Akamai); the measured table with one entry, Chrome 155 on macOS, and the capture tools (`capture_tls`, `capture_hints`, `capture_h2`); `ImpersonationProfile`, `CustomProfileBuilder` and the wreq client; an RFC 6265 cookie jar; `StealthIdentity` and its identity file; `SessionPolicy`; challenge detection and a mitigation policy; a proxy pool; per-site state; `BrowserScraper`; the ephemeral-CA TLS server; and the hardening of the pure CDP page script (`session_registry`). Tested with committed captures, a scripted browser and `#[ignore]`d tests that drive a local Chrome (`tests/*_chrome.rs`), not against live bot protection. Only macOS and Chrome 155 are measured. See `docs/tutorials/stealth_scraping.md`. |
 
 ## 1. Finish the parity upgrade (next)
 
@@ -347,6 +348,33 @@ There is still no comparison with Python SeleniumBase, because it is not
 installed here. Not yet looked at: pipelining `drag`'s steps, the combined
 visibility-and-centre evaluate for locators (worth about 0.1 ms), and the
 WebDriver path, which was not measured at all.
+
+## 6. Stealth scraping: what is left
+
+The plan is `docs/design/stealth_parity_plan.md`; its status table says what is
+merged. In order:
+
+1. **`HttpSession`** (work package 14, in progress): an impersonating HTTP
+   session over the jar, with the hand-over from a browser page.
+2. **`MitmProxy`** (work package 15, in progress): a loopback proxy that lets a
+   real Chrome leave with an impersonated handshake, on the ephemeral CA.
+3. **`StealthSession`** (work package 16, in progress): the session that moves
+   between plain HTTP and the browser by `SessionPolicy`.
+4. **Security review** (work package 18, open): a second pass over the MITM,
+   credential handling and egress stickiness once 14 to 16 land.
+5. **Re-exports and final gates** (work package 19, open): re-exports in
+   `lib.rs`, `scrape/mod.rs` and `impersonate/mod.rs`, then clippy over all
+   targets for each feature, doctests, `cargo audit` and `cargo deny`. The
+   tutorial and the corrections to `fingerprint_stealth.md` are written.
+6. **Measure more systems.** Windows, Linux and Safari are refused
+   (`NotMeasured`) until someone runs the capture tools on them. A Chrome update
+   leaves the measured profile behind until `capture_tls`, `capture_hints` and
+   `capture_h2` are run again.
+7. **Known gaps.** `trust_anchors` needs a newer `btls` and `wreq` than the exact
+   pins; the ML-DSA signature algorithms and the GREASE signature algorithm are
+   not sent. A wire test fails by name when one of them closes.
+8. **Not planned for now:** HTTP/3, CHIPS cookies, `Critical-CH` retries, and the
+   `--remote-debugging-pipe` transport.
 
 ## Publishing
 

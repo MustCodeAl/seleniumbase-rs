@@ -430,7 +430,8 @@ cookies, and execute JavaScript in the active page.
 | `test-util` | The scripted mock browser, for tests without Chrome. |
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
-| `scrape`, `impersonate` | Stealth scraping groundwork and TLS/HTTP/2 impersonation; in progress (`impersonate` needs cmake). |
+| `scrape` | Stealth scraping: JA3, JA4 and Akamai parsers, a measured Chrome 155 table (macOS only), a cookie jar, stealth identities, challenge detection, `BrowserScraper` and the capture tools. Pure Rust; adds only `psl`. |
+| `impersonate` | Includes `scrape`. Browser-identical TLS and HTTP/2 through wreq and BoringSSL (`ImpersonationProfile`, `CustomProfileBuilder`) and an ephemeral-CA TLS server. Needs cmake and a C/C++ toolchain. `HttpSession`, `MitmProxy` and `StealthSession` are not available yet. |
 
 No feature is on by default.
 
@@ -456,6 +457,7 @@ No feature is on by default.
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
 - [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
+- [Stealth Scraping](./docs/tutorials/stealth_scraping.md)
 - [Browser Profiles](./docs/tutorials/browser_profiles.md)
 - [Recorder Mode](./docs/tutorials/recorder_mode.md)
 - [GUI Automation](./docs/tutorials/gui_automation.md)
@@ -515,9 +517,9 @@ or re-marked 26 that did less than the Python method. The composed and
 not-applicable entries are still to be independently reviewed, and most
 behaviour is verified against a
 mock or unit tests rather than a real browser. [ROADMAP.md](./ROADMAP.md) lists
-what is done and what is missing (the stealth scraping work, TLS and HTTP/2
-impersonation, is the largest open part) and [CHANGELOG.md](./CHANGELOG.md) what
-changed. The crate needs Rust 1.99; the default test run has 1,600 passing tests.
+what is done and what is missing (the rest of the stealth scraping work, the HTTP
+session, the MITM proxy and the combined session, is the largest open part) and
+[CHANGELOG.md](./CHANGELOG.md) what changed. The crate needs Rust 1.99; the default test run has 1,600 passing tests.
 Work is continuously pushed to two locations:
 
 - Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
