@@ -431,7 +431,7 @@ cookies, and execute JavaScript in the active page.
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
 | `scrape` | Stealth scraping: JA3, JA4 and Akamai parsers, a measured Chrome 155 table (macOS only), a cookie jar, stealth identities, challenge detection, `BrowserScraper` and the capture tools. Pure Rust; adds only `psl`. |
-| `impersonate` | Includes `scrape`. Browser-identical TLS and HTTP/2 through wreq and BoringSSL (`ImpersonationProfile`, `CustomProfileBuilder`), an ephemeral-CA TLS server, `HttpSession` (plain requests that continue a browser's session), `MitmProxy` (a loopback proxy that gives a real Chrome the impersonated handshake; WebSocket is refused) and `StealthSession` (moves between the two). Only macOS and Chrome 155 are measured, and the Chrome-driving tests run headless. Experimental, not a stable API. Needs cmake and a C/C++ toolchain. |
+| `impersonate` | Includes `scrape`. Browser-identical TLS and HTTP/2 through wreq and BoringSSL (`ImpersonationProfile`, `CustomProfileBuilder`), an ephemeral-CA TLS server, `HttpSession` (plain requests that continue a browser's session), `MitmProxy` (a loopback proxy that gives a real Chrome the impersonated handshake; WebSocket is relayed as `wss://` only) and `StealthSession` (moves between the two). Only macOS and Chrome 155 are measured, and the Chrome-driving tests run headless. Experimental, not a stable API. Needs cmake and a C/C++ toolchain. |
 
 No feature is on by default.
 

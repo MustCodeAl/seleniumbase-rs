@@ -4539,12 +4539,12 @@ note = "Loads the bundled Disable CSP extension, which removes the Content-Secur
 [options_pytest."--demo"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo-mode"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo-sleep"]
 status = "implemented"
@@ -4554,7 +4554,7 @@ note = "The pause demo and slow mode make after an action."
 [options_pytest."--demo_mode"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo_sleep"]
 status = "implemented"
@@ -5282,22 +5282,22 @@ note = "Makes wait_for_ready_state_complete return at once."
 [options_pytest."--slow"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text and update_text."
+note = "Pauses after open, click, type_text, update_text and press_keys."
 
 [options_pytest."--slow-mode"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text and update_text."
+note = "Pauses after open, click, type_text, update_text and press_keys."
 
 [options_pytest."--slow_mode"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text and update_text."
+note = "Pauses after open, click, type_text, update_text and press_keys."
 
 [options_pytest."--slowmo"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text and update_text."
+note = "Pauses after open, click, type_text, update_text and press_keys."
 
 [options_pytest."--ss"]
 status = "composed"
@@ -5638,7 +5638,7 @@ reason = "Passes one free-text string into SB() tests as sb.data; a Rust test re
 [options_sb."demo"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
 
 [options_sb."demo_sleep"]
 status = "implemented"
@@ -5962,7 +5962,7 @@ note = "Makes wait_for_ready_state_complete return at once."
 [options_sb."slow"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text and update_text."
+note = "Pauses after open, click, type_text, update_text and press_keys."
 
 [options_sb."start_page"]
 status = "implemented"

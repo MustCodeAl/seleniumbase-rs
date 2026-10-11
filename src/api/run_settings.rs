@@ -49,8 +49,8 @@ pub struct RunSettings {
 }
 
 impl RunSettings {
-    /// Highlight each element and pause after `open`, `click`, `type_text` and
-    /// `update_text`, so a person can follow the run (`--demo`).
+    /// Highlight each element and pause after `open`, `click`, `type_text`,
+    /// `update_text` and `press_keys`, so a person can follow the run (`--demo`).
     #[must_use]
     pub fn with_demo_mode(mut self, on: bool) -> Self {
         self.demo_mode = on;

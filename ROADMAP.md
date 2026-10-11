@@ -45,7 +45,7 @@ Design rules that apply to everything below:
 | Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and the stdin recorder (`ActionRecorder::try_record`) refuses such a line and names the closest known action. |
 | Knowledge map and plans | `CLAUDE.md` (module map, checks, gotchas) and `docs/design/stealth_parity_plan.md` (20 work packages for the stealthscraper-rs feature set, JA3/JA4 and Akamai impersonation). |
 | Stealth scraping foundation (`scrape`, `impersonate`) | Work packages 0 to 17 of the plan are merged: wire parsers (`ClientHello`, JA3, JA4, peetprint, Akamai); the measured table with one entry, Chrome 155 on macOS, and the capture tools (`capture_tls`, `capture_hints`, `capture_h2`); `ImpersonationProfile`, `CustomProfileBuilder` and the wreq client; an RFC 6265 cookie jar; `StealthIdentity` and its identity file; `SessionPolicy`; challenge detection and a mitigation policy; a proxy pool; per-site state; `BrowserScraper`; the ephemeral-CA TLS server; and the hardening of the pure CDP page script (`session_registry`). Tested with committed captures, a scripted browser and `#[ignore]`d tests that drive a local Chrome (`tests/*_chrome.rs`), not against live bot protection. Only macOS and Chrome 155 are measured. See `docs/tutorials/stealth_scraping.md`. |
-| `HttpSession`, `MitmProxy`, `StealthSession` (`impersonate`; work packages 14 to 16) | `HttpSession` continues a browser page's session as plain requests with the measured handshake and headers (an RFC 6265 jar, redirects by hand, bounded bodies, challenge judging, the hand-over from a page and back). `MitmProxy` is a loopback proxy that ends a real Chrome's TLS with the ephemeral CA and replays each request through the impersonating client; WebSocket is refused. `StealthSession` moves between the two by the mitigation and session policies and starts the proxy only when a browser is needed. Tested against loopback sites, a scripted browser and, in `#[ignore]`d tests, a local Chrome 155 on macOS run headless (`tests/impersonate_http_chrome.rs`, `tests/impersonate_mitm_chrome.rs`, `tests/stealth_session_chrome.rs`); the trust of the SPKI-list switch is measured there too. Not run against a live service, and not a stable API. Only macOS and Chrome 155. |
+| `HttpSession`, `MitmProxy`, `StealthSession` (`impersonate`; work packages 14 to 16) | `HttpSession` continues a browser page's session as plain requests with the measured handshake and headers (an RFC 6265 jar, redirects by hand, bounded bodies, challenge judging, the hand-over from a page and back). `MitmProxy` is a loopback proxy that ends a real Chrome's TLS with the ephemeral CA and replays each request through the impersonating client; WebSocket is relayed as `wss://` only. `StealthSession` moves between the two by the mitigation and session policies and starts the proxy only when a browser is needed. Tested against loopback sites, a scripted browser and, in `#[ignore]`d tests, a local Chrome 155 on macOS run headless (`tests/impersonate_http_chrome.rs`, `tests/impersonate_mitm_chrome.rs`, `tests/stealth_session_chrome.rs`); the trust of the SPKI-list switch is measured there too. Not run against a live service, and not a stable API. Only macOS and Chrome 155. |
 
 ## 1. Finish the parity upgrade (next)
 
@@ -107,7 +107,7 @@ Current state against 4.55.2 (`just parity-docs` has the full table): 862 entrie
 - `sbase` (4): `caseplans`, `case-plans`, `behave-gui`, `gui-behave`.
 - CDP engine (4): `download_file`, `assert_downloaded_file`, `save_file_as`, `gui_click_captcha` (a click with the operating system's pointer; `Page::solve_captcha` clicks with DevTools events).
 
-What is left beyond those is depth: the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text` and `update_text` only; and the compositions still want the real-Chrome checks of item 7 above (each composed CDP entry now says how to write it in Rust, but its waits and visibility rules have not been compared with Python's one by one).
+What is left beyond those is depth: the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text`, `update_text` and `press_keys` only; and the compositions still want the real-Chrome checks of item 7 above (each composed CDP entry now says how to write it in Rust, but its waits and visibility rules have not been compared with Python's one by one).
 
 ## 3. Documentation
 
@@ -367,9 +367,10 @@ merged. In order:
 3. **Run it headed and against more than local servers.** The Chrome-driving
    tests of the proxy, the HTTP hand-over and the session run headless on
    macOS with Chrome 155 against servers written for the tests.
-4. **WebSocket through the proxy.** The proxy refuses an upgrade with an empty
-   `502`; relaying it with the measured WebSocket hello was in the plan and is not
-   built.
+4. **WebSocket through the proxy** is relayed for `wss://` with the measured
+   WebSocket hello. Still open: a tab's first request through the proxy cannot
+   open one (its `CONNECT` gets the `407` and Chrome does not retry it), `ws://`
+   is refused, and compression (`permessage-deflate`) is passed through untested.
 5. **The first request to an HTTP/1.1-only origin** carries the HTTP/2
    `priority` header in `HttpSession` and `MitmProxy`; later ones do not. The
    protocol is known only after the connection opens.

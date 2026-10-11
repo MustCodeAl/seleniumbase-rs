@@ -1277,9 +1277,10 @@ State these plainly to yourself before you build on any of this.
   included, and not Chrome's own, which `BrowserScraper` leaves with unchanged.
   That is the price of one wire identity in both modes of a `StealthSession`.
 - **No HTTP/3.** wreq has none, and Chrome behind the proxy has QUIC switched off.
-- **WebSocket does not pass the `MitmProxy`.** An upgrade request is answered with
-  an empty `502`, so a page behind the proxy, and so the browser leg of a
-  `StealthSession`, cannot open a WebSocket. `HttpSession` opens none either.
+- **WebSocket passes the `MitmProxy` as `wss://` only**, and not as a tab's first
+  request through the proxy (its `CONNECT` gets the `407` and Chrome does not retry
+  it; navigate through the proxy first). `ws://` and every other upgrade are
+  refused. `HttpSession` opens no WebSocket.
 - **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
   header**, in `HttpSession` and in `MitmProxy`, because the protocol is known
   only after the connection opens. Later requests to that origin do not carry it.
@@ -1323,7 +1324,7 @@ State these plainly to yourself before you build on any of this.
 | `HttpError::ReservedHeader` | A request set a header the profile owns (`User-Agent`, `Sec-CH-UA*`, `Accept-Language`, `Accept-Encoding`, `Cookie`, `priority`). | Remove it. Change the identity instead. |
 | `HttpError::RedirectRefused`, `TooManyRedirects` | A hop led somewhere the session refuses, or past the limit. | Request the final URL, or raise `max_redirects`. |
 | `HttpError::Identity(EgressMismatch)` | The identity or the page belongs to another egress than the one passed. | Pass the egress the cookies were earned through. |
-| Chrome behind `MitmProxy` shows a `502` page | The proxy refused the request or the upstream failed (an untrusted certificate, a WebSocket upgrade, a version mismatch). | Check `mitm.stats()` and the log; `trust_upstream_root` for a private site. |
+| Chrome behind `MitmProxy` shows a `502` page | The proxy refused the request or the upstream failed (an untrusted certificate, a non-WebSocket upgrade, a version mismatch). | Check `mitm.stats()` and the log; `trust_upstream_root` for a private site. |
 
 ---
 

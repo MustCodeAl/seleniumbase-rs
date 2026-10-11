@@ -772,7 +772,7 @@ automation markers:
   separate building block. It is not applied to `BaseCase` or to the Pure CDP
   engine on its own. `MitmProxy` gives a real Chrome on the Pure CDP engine the
   impersonated handshake, and `StealthSession` uses it (macOS and Chrome 155
-  only; WebSocket is refused by the proxy). The design and the work still open
+  only; WebSocket is relayed for `wss://` only). The design and the work still open
   are in the [Stealth and impersonation plan](../design/stealth_parity_plan.md).
 * Some dimensions (WebGL vendor/renderer, canvas/audio noise, media devices,
   fonts, battery, etc.) have no CDP override and remain JavaScript-based even

@@ -188,9 +188,13 @@ that races that start-up is flaky by construction.
 
 - Most behaviour is covered by unit tests and a mock browser; only part of it has
   been run against a real Chrome (155).
-- The parity entries classified as composed or not-applicable have not been
-  independently reviewed, and the new `RunSettings` pauses have no test beyond
-  compiling.
+- The parity entries classified as composed or not-applicable were audited once
+  (38 problems found and fixed or re-marked), but only by reading the code; the
+  compositions have not been compared with Python's waits and visibility rules one
+  by one.
+- The `RunSettings` pause arithmetic, sleep recording and skip-js-waits are unit
+  tested; the hooks inside `open`, `click`, `type_text`, `update_text` and
+  `press_keys` run under no test.
 
 ## Capture artifacts on failure
 

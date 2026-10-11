@@ -118,8 +118,8 @@ CDP can reduce round trips for some operations, but it also adds complexity:
 
 `BaseCase::set_run_settings` (`RunSettings`) adds or removes deliberate waiting:
 
-- **Demo and slow modes** pause after `open`, `click`, `type_text` and
-  `update_text` (demo mode also outlines the element first), so a person can
+- **Demo and slow modes** pause after `open`, `click`, `type_text`,
+  `update_text` and `press_keys` (demo mode also outlines the element first), so a person can
   follow the run. Never leave them on in CI.
 - **Fast mode** cancels those demo and slow pauses. It does not make the browser
   faster.

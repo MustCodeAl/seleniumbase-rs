@@ -68,9 +68,10 @@ Deviations from the plan that the code made. The plan's text above was not rewri
   `Rules`, `Verdict`, `assess` and `preflight`, and `HttpError` has more variants (§3.11).
 - **`MitmError` is not the sketch's.** It has `Bind`, `Tls`, `InvalidOptions`, `Random`, `Upstream`,
   `Egress`, `Unauthorized`, `BadTarget`, `NotIntercepted`, `HostMismatch`, `BodyTooLarge`,
-  `VersionMismatch` and `UpstreamRequest`; the SNI mismatch is `TlsServerError::SniMismatch` (§3.12).
-- **The MITM proxy refuses WebSocket upgrades** with an empty `502` instead of relaying them, and it
-  refuses a request whose user agent claims another Chrome major than the profile's.
+  `VersionMismatch`, `UpstreamRequest`, `ForbiddenDestination` and `MalformedUpgrade`; the SNI mismatch is `TlsServerError::SniMismatch` (§3.12).
+- **The MITM proxy relays WebSocket (`wss://` only)** with the measured WebSocket hello and refuses every
+  other upgrade with an empty `502` (§3.12); it also refuses a request whose user agent claims another
+  Chrome major than the profile's.
 - **The SPKI-list trust is measured.** What `--ignore-certificate-errors-spki-list` accepts was read from
   the Chromium source; the acceptance of a chain that carries the pinned leaf key is now measured on Chrome
   155 (headless, macOS) by `without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key` in

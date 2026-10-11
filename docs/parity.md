@@ -890,10 +890,10 @@ Python `--option` flags.
 | `--database-env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--database_env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--dcsp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
-| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
 | `--demo-sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
-| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
 | `--demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
@@ -1045,10 +1045,10 @@ Python `--option` flags.
 | `--sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip-js-waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
-| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
-| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
-| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
-| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
+| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
 | `--ss` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--start-page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `--start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
@@ -1127,7 +1127,7 @@ Keyword arguments of `SB()`.
 | `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `data` | not-applicable |  | Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file. |
-| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text and update_text; hand the settings to BaseCase::set_run_settings. |
+| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
 | `demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1194,7 +1194,7 @@ Keyword arguments of `SB()`.
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
-| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text and update_text. |
+| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
 | `start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |
