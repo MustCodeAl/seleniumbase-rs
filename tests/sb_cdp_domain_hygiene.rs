@@ -349,6 +349,20 @@ fn production_lines(text: &str) -> impl Iterator<Item = &str> {
 }
 
 #[test]
+fn the_source_scan_sees_a_send_and_skips_comments_and_test_modules() {
+    let text = "fn send() { client.send(\"Runtime.enable\"); }\n\
+                // \"Log.enable\" is only mentioned here\n\
+                /// and \"Debugger.enable\" here\n\
+                #[cfg(test)]\n\
+                mod tests { fn t() { \"DOM.enable\"; } }\n";
+
+    let kept: Vec<_> = production_lines(text).collect();
+
+    assert_eq!(kept.len(), 1, "{kept:?}");
+    assert!(kept[0].contains("\"Runtime.enable\""));
+}
+
+#[test]
 fn no_source_file_names_one_of_the_commands_except_the_known_ones() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut files = Vec::new();
