@@ -4,7 +4,9 @@
 //! show that the real `navigator.userAgent`, `navigator.languages`, `Browser.getVersion` and
 //! `Network.getAllCookies` are what `HttpSession::from_page` reads, that a host-only cookie set by
 //! a response reaches Chrome as host-only, that a removal reaches it too, and that a page that
-//! announces itself as headless is refused. A Chrome that has updated past the measured major
+//! announces itself as headless is refused, and that a browser started with a browser-wide proxy,
+//! launched here or attached to by its debugging port, is not taken for a direct one: its command
+//! line names the proxy. A Chrome that has updated past the measured major
 //! fails the first test with `VersionMismatch`, which is the drift check the plan asks for: run
 //! the capture tools again.
 //!
@@ -21,6 +23,7 @@ use std::time::Duration;
 use seleniumbase_rs::impersonate::client::ImpersonationProfile;
 use seleniumbase_rs::impersonate::http_session::{HttpError, HttpOptions, HttpSession};
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
+use seleniumbase_rs::scrape::egress::route::EgressRef;
 use seleniumbase_rs::wire::BrowserKind;
 use serde_json::json;
 
@@ -132,6 +135,56 @@ async fn the_cookies_of_a_real_page_go_out_and_what_the_site_sets_comes_back_in(
     assert_eq!(wide.domain, format!(".{HOST}"));
     assert!(find("old").is_none(), "the removal reached Chrome");
     assert_eq!(find("untouched").map(|c| c.value.as_str()), Some("U"));
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_browser_started_with_a_proxy_is_not_taken_for_a_direct_one_launched_or_attached() {
+    // Nothing listens on the discard port; the page never loads anything.
+    let proxy = "http://127.0.0.1:9";
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .no_sandbox(std::env::var_os("CI").is_some())
+        .proxy(proxy)
+        .build()
+        .expect("launch options");
+    let browser = Browser::launch(options).await.expect("Chrome starts");
+    let page = browser
+        .default_page()
+        .await
+        .expect("a tab")
+        .with_timeout(Duration::from_secs(10));
+    announce_as_measured(&page).await;
+    let attached = Browser::connect("127.0.0.1", browser.debugging_port())
+        .await
+        .expect("attaches to the running Chrome");
+    let tab = attached
+        .default_page()
+        .await
+        .expect("a tab")
+        .with_timeout(Duration::from_secs(10));
+
+    let launched_none = HttpSession::from_page(&page, None, HttpOptions::new()).await;
+    let attached_none = HttpSession::from_page(&tab, None, HttpOptions::new()).await;
+    let real = EgressRef::parse(proxy, None).expect("an egress");
+    let named = HttpSession::from_page(&page, Some(real.clone()), HttpOptions::new()).await;
+    let direct = HttpSession::from_page(
+        &page,
+        None,
+        HttpOptions::new().browser_proxy_exits_directly(true),
+    )
+    .await;
+    browser.close().await.expect("Chrome closes");
+
+    for refused in [launched_none, attached_none] {
+        let error = refused.expect_err("the browser has a proxy");
+        assert!(
+            matches!(&error, HttpError::BrowserProxy { proxy: shown } if shown.contains("127.0.0.1:9")),
+            "{error}"
+        );
+    }
+    assert_eq!(named.expect("egress named").egress(), Some(real.key()));
+    assert_eq!(direct.expect("said to be direct").egress(), None);
 }
 
 #[tokio::test]

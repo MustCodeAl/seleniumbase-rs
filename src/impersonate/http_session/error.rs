@@ -31,6 +31,18 @@ pub enum HttpError {
     /// The identity was refused: another egress, another emulation, or an incoherent fingerprint.
     #[error(transparent)]
     Identity(#[from] IdentityError),
+    /// The page's browser has a browser-wide proxy, which a page does not show, and the session
+    /// was not told where that proxy really leaves.
+    ///
+    /// A session built without an egress would go direct and send the cookies the page earned
+    /// through the proxy from this machine's own address, which discloses it and presents a
+    /// clearance from an address that did not earn it. Pass the egress the proxy leaves
+    /// through, or say that it leaves directly. The proxy is named without credentials.
+    #[error("the page's browser leaves through the proxy {proxy}, which a page does not show; pass the egress it really leaves through, or say with HttpOptions::browser_proxy_exits_directly that it leaves directly")]
+    BrowserProxy {
+        /// The proxy of the browser, as its command line names it (no credentials).
+        proxy: String,
+    },
     /// A header the browser profile owns was set on a request.
     #[error("the header `{0}` belongs to the browser profile and cannot be set on a request")]
     ReservedHeader(String),

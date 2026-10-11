@@ -7,8 +7,15 @@
 //! whose user agent or browser is another major version is refused with
 //! [`HttpError::VersionMismatch`], and a system that was not measured is refused with
 //! [`NotMeasured`](crate::wire::emulation::EmulationError::NotMeasured).
+//!
+//! A browser-wide proxy (`--proxy-server`) is not visible to a page, but the command line of the
+//! browser process is: `SystemInfo.getInfo` reports it. A session built from a page of such a
+//! browser must not go direct, because the cookies the page earned through the proxy would then
+//! leave from this machine's own address; it is refused with [`HttpError::BrowserProxy`] unless it
+//! is given the egress the proxy really leaves through, or told that the proxy leaves directly.
 
 use std::fmt::Write as _;
+use std::net::IpAddr;
 
 use serde_json::{json, Value};
 
@@ -220,6 +227,132 @@ pub(super) fn reconcile(
     }
 }
 
+/// The switch that gives a browser its browser-wide proxy.
+const PROXY_SERVER_SWITCH: &str = "--proxy-server=";
+/// The switch that turns every proxy off, whatever other switches say.
+const NO_PROXY_SWITCH: &str = "--no-proxy-server";
+/// The value of `--proxy-server` that means no proxy.
+const DIRECT: &str = "direct://";
+
+/// The browser-wide proxy a browser was started with.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct BrowserProxy {
+    /// The proxy as the command line names it. Chrome takes no credentials there, so it holds
+    /// none.
+    pub(super) server: String,
+    /// Whether the proxy runs on this machine. Then it forwards somewhere else (a MITM proxy, a
+    /// local forwarder), and where is not visible.
+    pub(super) local: bool,
+}
+
+impl BrowserProxy {
+    /// The exit the proxy names, when its address can be read.
+    fn exit(&self) -> Option<EgressKey> {
+        let spec = if self.server.contains("://") {
+            self.server.clone()
+        } else {
+            format!("http://{}", self.server)
+        };
+        EgressRef::parse(&spec, None)
+            .ok()
+            .map(|egress| egress.key().clone())
+    }
+}
+
+/// Whether the host of a proxy address (`[scheme://]host[:port]`) is this machine.
+fn names_this_machine(address: &str) -> bool {
+    let authority = address.split_once("://").map_or(address, |(_, rest)| rest);
+    let authority = authority.split('/').next().unwrap_or_default();
+    let host = match authority.strip_prefix('[') {
+        Some(inner) => inner.split(']').next().unwrap_or_default(),
+        None => authority
+            .rsplit_once(':')
+            .map_or(authority, |(host, _port)| host),
+    };
+    host.eq_ignore_ascii_case("localhost")
+        || host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback())
+}
+
+/// The browser-wide proxy in the command line of a browser process, `None` for a browser that
+/// goes direct.
+///
+/// The last `--proxy-server` counts, as it does for Chrome, `--no-proxy-server` overrides it,
+/// and `direct://` is no proxy. Of a list such as `http=a:1;https=b:2` the first entry is read.
+pub(super) fn browser_proxy_in(command_line: &str) -> Option<BrowserProxy> {
+    let words: Vec<&str> = command_line.split_whitespace().collect();
+    if words.contains(&NO_PROXY_SWITCH) {
+        return None;
+    }
+    let value = words
+        .iter()
+        .rev()
+        .find_map(|word| word.strip_prefix(PROXY_SERVER_SWITCH))?
+        .trim_matches(['"', '\'']);
+    let entry = value.split(';').next().unwrap_or_default();
+    let entry = match entry.split_once('=') {
+        Some((scheme, address)) if !scheme.contains([':', '/']) => address,
+        _ => entry,
+    };
+    if entry.is_empty() || entry.eq_ignore_ascii_case(DIRECT) {
+        return None;
+    }
+    Some(BrowserProxy {
+        server: entry.to_owned(),
+        local: names_this_machine(entry),
+    })
+}
+
+/// The egress a session built from a page of a browser with a browser-wide proxy leaves through.
+///
+/// The proxy does not show on a page, so a session with no egress would go direct, from this
+/// machine's own address, with the cookies the page earned through the proxy. Unless it is told
+/// that the proxy leaves directly, that is refused. An egress given for a proxy on another
+/// machine must be that proxy; for a proxy on this machine (a MITM) it is the exit behind it,
+/// which is taken as given.
+///
+/// # Errors
+///
+/// Returns [`HttpError::BrowserProxy`] when the browser has a proxy and no egress was given, and
+/// [`IdentityError::EgressMismatch`] (as [`HttpError::Identity`]) when the egress given is not a
+/// remote browser proxy.
+pub(super) fn reconcile_browser_wide(
+    given: Option<EgressRef>,
+    browser_proxy: Option<&BrowserProxy>,
+    exits_directly: bool,
+) -> Result<Option<EgressRef>, HttpError> {
+    let Some(wide) = browser_proxy else {
+        return Ok(given);
+    };
+    match given {
+        Some(given) => {
+            let own = wide.exit().filter(|_| !wide.local);
+            match own {
+                Some(own) if !same_exit(given.key(), &own) => Err(IdentityError::EgressMismatch {
+                    expected: Some(own),
+                    found: Some(given.key().clone()),
+                }
+                .into()),
+                _ => Ok(Some(given)),
+            }
+        }
+        None if exits_directly => Ok(None),
+        None => Err(HttpError::BrowserProxy {
+            proxy: wide.server.clone(),
+        }),
+    }
+}
+
+/// The browser-wide proxy the page's browser was started with, read from the command line of its
+/// process. `None` when it has none or will not say.
+async fn browser_proxy(page: &Page) -> Option<BrowserProxy> {
+    let info = page
+        .browser()
+        .execute("SystemInfo.getInfo", json!({}))
+        .await
+        .ok()?;
+    browser_proxy_in(info["commandLine"].as_str()?)
+}
+
 /// Reads the user agent, the languages and the browser version from the page.
 async fn probe(page: &Page) -> Result<Probe, HttpError> {
     let value = page.evaluate(PROBE_JS).await?;
@@ -274,16 +407,23 @@ impl HttpSession {
     /// Copies the cookies of the page's browser profile into the jar, reads the page's
     /// `navigator.userAgent` and `navigator.languages`, and follows the route its traffic takes:
     /// the proxy of its browser context. `egress` is the exit the page leaves through; leave it
-    /// `None` to take the context's own proxy or go direct. A browser-wide proxy, such as a MITM
-    /// proxy the browser was launched with, is not visible to a page, so say so with `egress`.
+    /// `None` to take the context's own proxy or go direct.
+    ///
+    /// A browser-wide proxy, such as a MITM proxy the browser was launched with, is not visible to
+    /// a page, but it is on the command line of the browser, which is read. A browser that has
+    /// one is not taken for a direct one: pass the `egress` it really leaves through (for a proxy
+    /// on another machine, that proxy), or say with
+    /// [`HttpOptions::browser_proxy_exits_directly`] that it leaves directly. A browser that will
+    /// not report its command line is taken as it was before, as a direct one.
     ///
     /// # Errors
     ///
     /// Returns [`HttpError::VersionMismatch`] when the page's Chrome is not the measured major,
     /// [`HttpError::Impersonate`] for another browser or a system that was not measured,
-    /// [`HttpError::Identity`] when `egress` is not the proxy of the page's context,
-    /// [`HttpError::Options`] for a bad option, and [`HttpError::Browser`] when the page cannot
-    /// be read.
+    /// [`HttpError::Identity`] when `egress` is not the proxy of the page's context or of the
+    /// browser, [`HttpError::BrowserProxy`] when the browser has a browser-wide proxy and no
+    /// egress was given, [`HttpError::Options`] for a bad option, and [`HttpError::Browser`] when
+    /// the page cannot be read.
     #[tracing::instrument(level = "debug", skip_all)]
     pub async fn from_page(
         page: &Page,
@@ -293,7 +433,13 @@ impl HttpSession {
         options.validate()?;
         let probe = probe(page).await?;
         let (proxy, bypass) = context_proxy(page).await?;
-        let egress = reconcile(egress, proxy.as_ref())?;
+        let egress = if proxy.is_some() {
+            reconcile(egress, proxy.as_ref())?
+        } else {
+            // The context has no proxy of its own, so it leaves the way the browser does.
+            let wide = browser_proxy(page).await;
+            reconcile_browser_wide(egress, wide.as_ref(), options.direct_behind_browser_proxy)?
+        };
         options.bypass.extend(bypass_hosts(&bypass));
         let profile = profile_of(&probe)?;
         let now = (options.clock)();
@@ -562,5 +708,86 @@ mod tests {
             &key("http://h.example:80"),
             &key("http://h.example:8080")
         ));
+    }
+
+    #[test]
+    fn the_browser_wide_proxy_is_read_from_the_command_line() {
+        let cases = [
+            (
+                "--proxy-server=http://127.0.0.1:43210",
+                Some(("http://127.0.0.1:43210", true)),
+            ),
+            (
+                "--proxy-server=proxy.example:8080",
+                Some(("proxy.example:8080", false)),
+            ),
+            (
+                "--proxy-server=socks5://[::1]:1080",
+                Some(("socks5://[::1]:1080", true)),
+            ),
+            (
+                "--proxy-server=\"http://localhost:9\"",
+                Some(("http://localhost:9", true)),
+            ),
+            (
+                "--proxy-server=http=a.example:1;https=b.example:2",
+                Some(("a.example:1", false)),
+            ),
+            (
+                "--proxy-server=a.example:1 --proxy-server=b.example:2",
+                Some(("b.example:2", false)),
+            ),
+            ("--proxy-server=direct://", None),
+            ("--proxy-server=a.example:1 --no-proxy-server", None),
+            ("--proxy-server=", None),
+            ("--proxy-bypass-list=<-loopback>", None),
+            ("", None),
+        ];
+        for (switches, expected) in cases {
+            let line = format!("/chrome --remote-debugging-port=0 {switches} --disable-quic");
+            let found = browser_proxy_in(&line).map(|p| (p.server, p.local));
+            let expected = expected.map(|(server, local)| (server.to_owned(), local));
+            assert_eq!(found, expected, "{switches}");
+        }
+    }
+
+    #[test]
+    fn a_browser_proxy_needs_an_egress_or_the_word_that_it_leaves_directly() {
+        let remote = browser_proxy_in("--proxy-server=http://proxy.example:8080").expect("a proxy");
+        let local = browser_proxy_in("--proxy-server=http://127.0.0.1:43210").expect("a proxy");
+        let egress = |spec: &str| EgressRef::parse(spec, None).expect(spec);
+
+        for wide in [&remote, &local] {
+            let error = reconcile_browser_wide(None, Some(wide), false).expect_err("not direct");
+            assert!(
+                matches!(&error, HttpError::BrowserProxy { proxy } if *proxy == wide.server),
+                "{error}"
+            );
+            assert!(reconcile_browser_wide(None, Some(wide), true)
+                .expect("said to be direct")
+                .is_none());
+        }
+        let own = egress("http://alice:s3cret@PROXY.example:8080");
+        assert!(reconcile_browser_wide(Some(own), Some(&remote), false)
+            .expect("its own proxy")
+            .is_some());
+        let other = egress("http://alice:s3cret@elsewhere.example:8080");
+        let error = reconcile_browser_wide(Some(other.clone()), Some(&remote), false)
+            .expect_err("not its proxy");
+        assert!(matches!(
+            error,
+            HttpError::Identity(IdentityError::EgressMismatch { .. })
+        ));
+        let shown = format!("{error} {error:?}");
+        assert!(
+            !shown.contains("s3cret") && !shown.contains("alice"),
+            "{shown}"
+        );
+        assert!(reconcile_browser_wide(Some(other), Some(&local), false)
+            .expect("the exit behind a local proxy is taken as given")
+            .is_some());
+        assert!(reconcile_browser_wide(None, None, false)
+            .expect("no proxy")
+            .is_none());
     }
 }

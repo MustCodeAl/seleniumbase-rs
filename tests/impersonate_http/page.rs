@@ -265,3 +265,134 @@ async fn a_page_that_reports_no_user_agent_is_a_browser_error() {
 
     assert!(matches!(error, HttpError::Browser(_)), "{error}");
 }
+
+/// The command line of a Chrome, as `SystemInfo.getInfo` reports it, up to its proxy switches.
+const CHROME_LINE: &str = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome \
+     --remote-debugging-port=0 --user-data-dir=/tmp/profile";
+
+/// A mocked browser, measured Chrome, whose process was started with `switches` after
+/// [`CHROME_LINE`].
+async fn started_with(switches: &str) -> (Browser, Page, MockCtrl) {
+    let (browser, page, mock) = scripted(&measured_agent(), &[], &product(), Vec::new()).await;
+    mock.reply(
+        "SystemInfo.getInfo",
+        json!({ "commandLine": format!("{CHROME_LINE} {switches}"), "gpu": {} }),
+    );
+    (browser, page, mock)
+}
+
+#[tokio::test]
+async fn a_browser_with_a_browser_wide_proxy_is_not_taken_for_a_direct_one() {
+    for proxy in [
+        "http://127.0.0.1:43210",
+        "http://proxy.example:8080",
+        "socks5://proxy.example:1080",
+        "proxy.example:8080",
+        "http=proxy.example:8080;https=proxy.example:8080",
+    ] {
+        let (_browser, page, _mock) =
+            started_with(&format!("--proxy-server={proxy} --disable-quic")).await;
+
+        let error = HttpSession::from_page(&page, None, HttpOptions::new())
+            .await
+            .expect_err(proxy);
+
+        assert!(
+            matches!(error, HttpError::BrowserProxy { .. }),
+            "{proxy}: {error}"
+        );
+        let first = proxy.split(';').next().unwrap_or(proxy);
+        let first = first.split_once('=').map_or(first, |(_, address)| address);
+        assert!(error.to_string().contains(first), "{first} in {error}");
+    }
+}
+
+#[tokio::test]
+async fn the_egress_a_loopback_proxy_really_leaves_through_is_what_the_session_takes() {
+    let site = Site::start(|_| Answer::ok("")).await;
+    let real = egress("http://alice:s3cret@resi.example:8080");
+    let (_browser, page, _mock) = started_with("--proxy-server=http://127.0.0.1:43210").await;
+
+    let session = HttpSession::from_page(&page, Some(real.clone()), site.options(&[HOST]))
+        .await
+        .expect("the caller named the real egress");
+
+    assert_eq!(session.egress(), Some(real.key()));
+    let shown = format!("{session:?}");
+    assert!(
+        !shown.contains("s3cret") && !shown.contains("alice"),
+        "{shown}"
+    );
+}
+
+#[tokio::test]
+async fn an_egress_that_is_not_the_browsers_own_proxy_is_refused() {
+    let (_browser, page, _mock) = started_with("--proxy-server=http://proxy.example:8080").await;
+    let same = egress("http://alice:s3cret@proxy.example:8080");
+    let other = egress("http://alice:s3cret@elsewhere.example:8080");
+
+    let accepted = HttpSession::from_page(&page, Some(same.clone()), HttpOptions::new())
+        .await
+        .expect("its own proxy");
+    let refused = HttpSession::from_page(&page, Some(other), HttpOptions::new())
+        .await
+        .expect_err("another proxy");
+
+    assert_eq!(accepted.egress(), Some(same.key()));
+    assert!(
+        matches!(
+            refused,
+            HttpError::Identity(IdentityError::EgressMismatch { .. })
+        ),
+        "{refused}"
+    );
+    let shown = format!("{refused} {refused:?}");
+    assert!(
+        !shown.contains("s3cret") && !shown.contains("alice"),
+        "{shown}"
+    );
+}
+
+#[tokio::test]
+async fn a_proxy_that_leaves_directly_can_be_said_to_do_so() {
+    let (_browser, page, _mock) = started_with("--proxy-server=http://127.0.0.1:43210").await;
+
+    let session = HttpSession::from_page(
+        &page,
+        None,
+        HttpOptions::new().browser_proxy_exits_directly(true),
+    )
+    .await
+    .expect("said to leave directly");
+
+    assert_eq!(session.egress(), None);
+}
+
+#[tokio::test]
+async fn a_browser_with_no_proxy_switch_or_a_direct_one_is_a_direct_browser() {
+    for switches in [
+        "",
+        "--no-proxy-server",
+        "--proxy-server=direct://",
+        "--proxy-bypass-list=<-loopback>",
+    ] {
+        let (_browser, page, _mock) = started_with(switches).await;
+
+        let session = HttpSession::from_page(&page, None, HttpOptions::new())
+            .await
+            .expect(switches);
+
+        assert_eq!(session.egress(), None, "{switches}");
+    }
+}
+
+#[tokio::test]
+async fn a_browser_that_will_not_say_how_it_was_started_is_taken_as_before() {
+    let (_browser, page, _mock) = scripted(&measured_agent(), &[], &product(), Vec::new()).await;
+
+    let session = HttpSession::from_page(&page, None, HttpOptions::new())
+        .await
+        .expect("nothing to go by");
+
+    assert_eq!(session.egress(), None);
+}

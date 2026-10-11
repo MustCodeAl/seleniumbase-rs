@@ -73,6 +73,7 @@ pub struct HttpOptions {
     pub(super) trust: Option<CertStore>,
     pub(super) resolve: Vec<(String, SocketAddr)>,
     pub(super) bypass: Vec<String>,
+    pub(super) direct_behind_browser_proxy: bool,
     pub(super) installed_major: Option<u32>,
     pub(super) clock: Clock,
 }
@@ -96,6 +97,10 @@ impl fmt::Debug for HttpOptions {
             .field("trust", &self.trust.as_ref().map(|_| "<store>"))
             .field("resolve", &self.resolve.len())
             .field("bypass", &self.bypass)
+            .field(
+                "direct_behind_browser_proxy",
+                &self.direct_behind_browser_proxy,
+            )
             .field("installed_major", &self.installed_major)
             .finish_non_exhaustive()
     }
@@ -118,6 +123,7 @@ impl HttpOptions {
             trust: None,
             resolve: Vec::new(),
             bypass: Vec::new(),
+            direct_behind_browser_proxy: false,
             installed_major: None,
             clock: system_clock(),
         }
@@ -206,6 +212,18 @@ impl HttpOptions {
     #[must_use]
     pub fn bypass(mut self, host: impl Into<String>) -> Self {
         self.bypass.push(host.into());
+        self
+    }
+
+    /// Says that the browser-wide proxy of the page's browser (a MITM proxy without an egress,
+    /// say) leaves directly, so that [`HttpSession::from_page`](super::HttpSession::from_page)
+    /// may build a session without an egress for it. Off by default: a page does not show a
+    /// browser-wide proxy, and a session that silently went direct would send the page's cookies
+    /// from this machine's own address, so `from_page` refuses with [`HttpError::BrowserProxy`]
+    /// unless it is given the egress the proxy really leaves through.
+    #[must_use]
+    pub fn browser_proxy_exits_directly(mut self, direct: bool) -> Self {
+        self.direct_behind_browser_proxy = direct;
         self
     }
 
