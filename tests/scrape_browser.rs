@@ -402,8 +402,8 @@ async fn rotations_change_the_egress_and_the_profile_and_keep_what_is_known_of_t
     );
     assert_eq!(
         world.launcher.count(),
-        3,
-        "a probe, the first browser, the browser of the new profile"
+        4,
+        "a probe, the first browser, one for the other country, one for the new profile"
     );
     assert_eq!(
         scraper.egress().map(|key| key.host.as_str()),

@@ -17,37 +17,45 @@ impl BrowserScraper {
     ///
     /// A new browser context is opened behind the new proxy (see
     /// [`ContextProxySwitch`](super::super::egress_switch::ContextProxySwitch)) and the one before is
-    /// dropped with its cookies: a clearance belongs to the address that earned it. The language
-    /// and the time zone of the tab follow the country of the new egress. The browser is not
-    /// restarted. The profile, the seed and what is known of each site stay.
+    /// dropped with its cookies: a clearance belongs to the address that earned it. The profile, the
+    /// seed and what is known of each site stay.
+    ///
+    /// When the new egress is in another country, the browser is also started again, with the same
+    /// profile in the language and time zone of that country. The fingerprint a tab carries is
+    /// written into every document before its own scripts run, so a time zone set over the protocol
+    /// afterwards would not show. The old browser is closed once the new one is up.
     ///
     /// # Errors
     ///
     /// Returns [`ScrapeError::NoEgressAvailable`] when the pool has no other egress that is in
     /// rotation, [`ScrapeError::Geo`] when the new egress's country has no locale, and
-    /// [`ScrapeError::Browser`] when the browser refuses. Up to the switch the scraper is left as it
-    /// was on an error; a locale override the browser refuses after it is returned with the scraper
-    /// already on the new egress.
+    /// [`ScrapeError::Browser`] when the browser refuses. On an error the scraper is as it was.
     #[tracing::instrument(skip_all)]
     pub async fn rotate_egress(&mut self) -> Result<(), ScrapeError> {
         let next = self.next_egress()?;
         let placed = EgressLocale::resolve(&*self.wiring.geo, &next).await?;
-        let page = self
-            .wiring
-            .switch
-            .switch(&self.browser, Some(&next))
-            .await?;
         let from = self.current_key();
         let to = next.key().clone();
-        self.page = page;
-        self.last = None;
-        placed.apply_to(&mut self.persona.fingerprint);
-        self.egress.current = Some(Current {
+        let current = Current {
             egress: next,
-            placed: placed.clone(),
-        });
+            placed,
+        };
+        if self.presents(&current.placed) {
+            let page = self
+                .wiring
+                .switch
+                .switch(&self.browser, Some(&current.egress))
+                .await?;
+            self.page = page;
+            self.last = None;
+            self.egress.current = Some(current);
+        } else {
+            let mut fingerprint = self.persona.fingerprint.clone();
+            current.placed.apply_to(&mut fingerprint);
+            self.relaunch(fingerprint, Some(current)).await?;
+        }
         self.emit(&ScraperEvent::EgressRotated { from, to: Some(to) });
-        cdp::apply_locale(&self.page, &placed).await
+        Ok(())
     }
 
     /// Presents a new browser profile.
@@ -71,7 +79,8 @@ impl BrowserScraper {
         if let Some(current) = &self.egress.current {
             current.placed.apply_to(&mut fingerprint);
         }
-        self.relaunch(fingerprint).await?;
+        self.relaunch(fingerprint, self.egress.current.clone())
+            .await?;
         self.persona.seed = to_seed;
         self.emit(&ScraperEvent::ProfileRotated { from_seed, to_seed });
         Ok(())
@@ -120,7 +129,8 @@ impl BrowserScraper {
             identity.check_emulation(&self.emulation())?;
         }
         if identity.fingerprint != self.persona.fingerprint {
-            self.relaunch(identity.fingerprint.clone()).await?;
+            self.relaunch(identity.fingerprint.clone(), self.egress.current.clone())
+                .await?;
             self.persona.seed = identity.fingerprint.seed.unwrap_or(self.persona.seed);
         }
         cdp::import_cookies(&self.page, &identity.cookies, self.now()).await?;
@@ -174,16 +184,24 @@ impl BrowserScraper {
         picked.ok_or(ScrapeError::NoEgressAvailable)
     }
 
-    /// Starts a new browser with `fingerprint`, opens its first tab behind the egress in use, and
+    /// Whether the profile already presents the language and the time zone of `placed`, so that a
+    /// new context is enough to move there.
+    fn presents(&self, placed: &EgressLocale) -> bool {
+        let fingerprint = &self.persona.fingerprint;
+        fingerprint.locale.as_deref() == Some(placed.locale.tag)
+            && fingerprint.timezone.as_deref() == Some(placed.timezone.as_str())
+    }
+
+    /// Starts a new browser with `fingerprint`, opens its first tab behind the egress `current`, and
     /// closes the old browser. The old one is kept when anything before that fails.
-    async fn relaunch(&mut self, fingerprint: Fingerprint) -> Result<(), ScrapeError> {
+    async fn relaunch(
+        &mut self,
+        fingerprint: Fingerprint,
+        current: Option<Current>,
+    ) -> Result<(), ScrapeError> {
         let options = self.wiring.launch.clone().fingerprint(&fingerprint);
         let browser = self.wiring.launcher.launch(options.build()?).await?;
-        let page = match self
-            .wiring
-            .open_page(&browser, self.egress.current.as_ref())
-            .await
-        {
+        let page = match self.wiring.open_page(&browser, current.as_ref()).await {
             Ok(page) => page,
             Err(error) => {
                 close_quietly(&browser).await;
@@ -193,6 +211,7 @@ impl BrowserScraper {
         let old = std::mem::replace(&mut self.browser, browser);
         self.page = page;
         self.persona.fingerprint = fingerprint;
+        self.egress.current = current;
         self.last = None;
         close_quietly(&old).await;
         Ok(())

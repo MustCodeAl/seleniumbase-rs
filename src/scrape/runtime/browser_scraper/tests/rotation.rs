@@ -91,10 +91,11 @@ async fn a_profile_that_cannot_start_leaves_the_old_browser_in_place() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn rotating_the_egress_opens_a_context_behind_the_next_proxy_and_localises_the_tab() {
+async fn rotating_to_another_country_restarts_the_browser_in_the_language_and_zone_of_that_country()
+{
     let rig = Rig::new(vec![real_page()]);
     let mut scraper = two_proxies(&rig).build().await.expect("the scraper builds");
-    let kept = rig.launcher.last();
+    let before = scraper.fingerprint().clone();
 
     scraper.rotate_egress().await.expect("the egress rotates");
 
@@ -102,11 +103,67 @@ async fn rotating_the_egress_opens_a_context_behind_the_next_proxy_and_localises
         scraper.egress().map(|key| key.host.as_str()),
         Some("fr.proxy.example")
     );
+    assert_eq!(
+        rig.launcher.count(),
+        3,
+        "a probe, the first browser, the browser for the new country"
+    );
+    assert!(
+        !rig.launcher.nth(1).browser.is_connected(),
+        "the old browser is closed"
+    );
+    let new = rig.launcher.nth(2);
+    assert!(new.browser.is_connected());
+    assert_eq!(new.options.lang.as_deref(), Some("fr-FR"));
+    let created = new.mock.calls_to("Target.createBrowserContext");
+    assert_eq!(created.len(), 1);
+    assert_eq!(
+        created[0].params["proxyServer"],
+        "http://fr.proxy.example:8080"
+    );
+    let after = scraper.fingerprint();
+    assert_eq!(after.locale.as_deref(), Some("fr-FR"));
+    assert_eq!(after.timezone.as_deref(), Some("Europe/Paris"));
+    assert_eq!(scraper.seed(), SEED, "it is the same profile, moved");
+    assert_eq!(after.os_type, before.os_type);
+    assert_eq!(after.hardware_concurrency, before.hardware_concurrency);
+    assert_eq!(after.user_agent, before.user_agent);
+    let event = rig.sink.events().pop().expect("an event");
+    assert!(matches!(
+        &event,
+        ScraperEvent::EgressRotated { from: Some(from), to: Some(to) }
+            if from.host == "de.proxy.example" && to.host == "fr.proxy.example"
+    ));
+}
+
+#[tokio::test(start_paused = true)]
+async fn rotating_within_a_country_only_opens_a_context_behind_the_next_proxy() {
+    let rig = Rig::new(vec![real_page()]);
+    let mut scraper = rig
+        .builder()
+        .with_geo_proxies([
+            ("http://one.proxy.example:8080", country("DE")),
+            ("http://two.proxy.example:8080", country("DE")),
+        ])
+        .expect("valid specs")
+        .build()
+        .await
+        .expect("the scraper builds");
+    let kept = rig.launcher.last();
+    let before = scraper.fingerprint().clone();
+
+    scraper.rotate_egress().await.expect("the egress rotates");
+
+    assert_eq!(rig.launcher.count(), 2, "the browser is not started again");
+    assert_eq!(
+        scraper.egress().map(|key| key.host.as_str()),
+        Some("two.proxy.example")
+    );
     let created = kept.mock.calls_to("Target.createBrowserContext");
     assert_eq!(created.len(), 2);
     assert_eq!(
         created[1].params["proxyServer"],
-        "http://fr.proxy.example:8080"
+        "http://two.proxy.example:8080"
     );
     let gone = kept.mock.calls_to("Target.disposeBrowserContext");
     assert_eq!(
@@ -114,18 +171,33 @@ async fn rotating_the_egress_opens_a_context_behind_the_next_proxy_and_localises
         1,
         "the context of the first egress goes with its cookies"
     );
-    let event = rig.sink.events().pop().expect("an event");
-    assert!(matches!(
-        &event,
-        ScraperEvent::EgressRotated { from: Some(from), to: Some(to) }
-            if from.host == "de.proxy.example" && to.host == "fr.proxy.example"
-    ));
-    let locale = kept.mock.calls_to("Emulation.setLocaleOverride");
+    assert_eq!(scraper.fingerprint(), &before);
+    assert!(kept.browser.is_connected());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_browser_that_cannot_start_for_the_new_country_leaves_the_scraper_as_it_was() {
+    let rig = Rig::new(vec![real_page()]);
+    let mut scraper = two_proxies(&rig).build().await.expect("the scraper builds");
+    let page = scraper.page().id().to_owned();
+    let before = scraper.fingerprint().clone();
+    rig.launcher
+        .on_launch(|_, mock| mock.fail("Target.createBrowserContext", "no contexts"));
+
+    let error = scraper
+        .rotate_egress()
+        .await
+        .expect_err("the new browser has no context");
+
+    assert!(matches!(error, ScrapeError::Browser(_)), "{error:?}");
     assert_eq!(
-        locale.last().expect("an override").params["locale"],
-        "fr-FR"
+        scraper.egress().map(|key| key.host.as_str()),
+        Some("de.proxy.example")
     );
-    assert_eq!(scraper.fingerprint().locale.as_deref(), Some("fr-FR"));
+    assert_eq!(scraper.page().id(), page);
+    assert_eq!(scraper.fingerprint(), &before);
+    assert!(rig.launcher.nth(1).browser.is_connected());
+    assert!(!rig.launcher.nth(2).browser.is_connected());
 }
 
 #[tokio::test(start_paused = true)]

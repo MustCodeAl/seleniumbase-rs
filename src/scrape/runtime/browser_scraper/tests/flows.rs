@@ -220,14 +220,16 @@ async fn repeated_challenges_change_the_egress_and_then_the_profile() {
         .any(|event| matches!(event, ScraperEvent::ProfileRotated { from_seed, .. } if *from_seed == first_seed)));
     assert_eq!(
         rig.launcher.count(),
-        3,
-        "a probe, the first browser, the browser of the new profile"
+        4,
+        "a probe, the first browser, one for the other country, one for the new profile"
     );
-    assert!(
-        !rig.launcher.nth(1).browser.is_connected(),
-        "the old browser is closed"
-    );
-    assert!(rig.launcher.nth(2).browser.is_connected());
+    for old in [1, 2] {
+        assert!(
+            !rig.launcher.nth(old).browser.is_connected(),
+            "browser #{old} is closed"
+        );
+    }
+    assert!(rig.launcher.nth(3).browser.is_connected());
     assert_eq!(
         scraper.egress().map(|key| key.host.as_str()),
         Some("fr.proxy.example")
@@ -297,16 +299,15 @@ async fn a_block_with_another_egress_moves_there_and_tries_again() {
         fetched.egress.map(|key| key.host),
         Some("fr.proxy.example".to_owned())
     );
-    let kept = rig.launcher.last();
-    let locale = kept.mock.calls_to("Emulation.setLocaleOverride");
     assert_eq!(
-        locale.last().expect("a locale override").params["locale"],
-        "fr-FR"
+        rig.launcher.count(),
+        3,
+        "the French egress needed a new browser"
     );
-    let zone = kept.mock.calls_to("Emulation.setTimezoneOverride");
+    assert_eq!(rig.launcher.last().options.lang.as_deref(), Some("fr-FR"));
     assert_eq!(
-        zone.last().expect("a zone override").params["timezoneId"],
-        "Europe/Paris"
+        scraper.fingerprint().timezone.as_deref(),
+        Some("Europe/Paris")
     );
     let state = state_of(&rig, "shop.example").await;
     assert_eq!(

@@ -181,8 +181,12 @@ impl EgressLocale {
 /// Makes `page` report the locale and time zone of `placed` over the protocol, for the documents it
 /// loads from now on.
 ///
-/// This changes `Intl` and the time zone. The `Accept-Language` header and `navigator.languages` of
-/// a tab come from the fingerprint the browser was launched with, which a profile rotation renews.
+/// This changes `Intl` and the time zone as the browser reports them. The `Accept-Language` header
+/// and `navigator.languages` of a tab come from the fingerprint the browser was launched with. A
+/// tab of a browser launched with a fingerprint also has a script written into each document that
+/// sets the time zone itself, and that script runs after this override: such a tab keeps the time
+/// zone of its fingerprint. The browser scraper therefore starts the browser again for an egress in
+/// another country; this function serves a tab that has no fingerprint script.
 ///
 /// # Errors
 ///

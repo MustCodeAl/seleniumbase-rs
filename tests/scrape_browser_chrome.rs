@@ -290,9 +290,9 @@ async fn the_egress_decides_the_language_and_the_time_zone_and_rotating_moves_th
         second.body
     );
     assert_eq!(zone, json!("Europe/Paris"));
-    assert_eq!(
-        france.served.pages.load(Ordering::SeqCst),
-        1,
+    // Chrome sends background requests through a proxy too, so the count is at least the page.
+    assert!(
+        france.served.pages.load(Ordering::SeqCst) >= 1,
         "the second proxy served the page"
     );
     scraper.close().await.expect("Chrome closes");
@@ -300,7 +300,7 @@ async fn the_egress_decides_the_language_and_the_time_zone_and_rotating_moves_th
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
-async fn rotating_the_profile_starts_a_new_chrome_with_another_user_agent() {
+async fn rotating_the_profile_starts_a_new_chrome_that_reports_the_new_profile() {
     let server = Server::start("origin");
     let sink = CollectingEventSink::new();
     let mut scraper = builder(&sink)
@@ -308,33 +308,41 @@ async fn rotating_the_profile_starts_a_new_chrome_with_another_user_agent() {
         .build()
         .await
         .expect("Chrome starts");
-    let before = scraper
-        .page()
-        .evaluate("navigator.userAgent")
-        .await
-        .expect("it reads");
     scraper
         .fetch(&server.url("/plain"))
         .await
         .expect("the first fetch");
-
-    scraper.rotate_profile().await.expect("the profile rotates");
-
-    let after = scraper
+    let before = scraper.fingerprint().clone();
+    let cores_before = scraper
         .page()
-        .evaluate("navigator.userAgent")
+        .evaluate("navigator.hardwareConcurrency")
         .await
         .expect("it reads");
-    assert_eq!(
-        after,
-        json!(scraper.fingerprint().user_agent),
-        "the new profile is what the page reports"
-    );
-    assert_ne!(before, after, "the user agent changed with the profile");
+    assert_eq!(cores_before, json!(before.hardware_concurrency));
+
+    scraper.rotate_profile().await.expect("the profile rotates");
     scraper
         .fetch(&server.url("/plain"))
         .await
         .expect("the fetch after the rotation");
+
+    let after = scraper.fingerprint();
+    assert_ne!(&before, after, "another profile was drawn");
+    let page = scraper.page();
+    let cores = page
+        .evaluate("navigator.hardwareConcurrency")
+        .await
+        .expect("it reads");
+    let agent = page
+        .evaluate("navigator.userAgent")
+        .await
+        .expect("it reads");
+    assert_eq!(
+        cores,
+        json!(after.hardware_concurrency),
+        "the page reports the new profile"
+    );
+    assert_eq!(agent, json!(after.user_agent));
     assert!(sink
         .events()
         .iter()

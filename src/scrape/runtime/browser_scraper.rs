@@ -26,6 +26,8 @@
 //! in a browser context of its own, and the fingerprint, language and time zone follow the country
 //! of that egress. An egress changes only when a rotation is asked for or the policy asks for one;
 //! a clearance cookie belongs to the address that earned it, so the cookies stay with the egress.
+//! An egress in the same country is a new context; one in another country also starts the browser
+//! again, with the profile in that country's language and time zone.
 //!
 //! # Lifetime
 //!
@@ -120,6 +122,7 @@ struct Persona {
 }
 
 /// The egress the browser leaves through now, with the locale of its country.
+#[derive(Clone)]
 struct Current {
     egress: EgressRef,
     placed: EgressLocale,
