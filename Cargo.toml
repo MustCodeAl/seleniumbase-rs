@@ -27,6 +27,15 @@ required-features = ["gui"]
 name = "gui_automation"
 required-features = ["gui"]
 
+# The measurement tools: they run the local Chrome and write src/wire/measured.
+[[example]]
+name = "capture_tls"
+required-features = ["scrape"]
+
+[[example]]
+name = "capture_hints"
+required-features = ["scrape"]
+
 [[bin]]
 name = "seleniumbase-mcp"
 path = "src/bin/mcp_server.rs"
