@@ -172,3 +172,23 @@ pub use utilities::python_importer::{
 };
 pub use utilities::retry::RetryPolicy;
 pub use utils::selectors::Selector;
+
+// The stealth layer, behind the `scrape` feature (pure Rust) and the `impersonate` feature
+// (BoringSSL). It is experimental: these paths and types may change between releases. The
+// modules `wire`, `scrape` and `impersonate` re-export more.
+#[cfg(feature = "impersonate")]
+pub use impersonate::{
+    impersonation_client, CustomProfileBuilder, EphemeralCa, HttpError, HttpOptions, HttpReply,
+    HttpRequest, HttpSession, ImpersonateError, ImpersonationProfile, MitmError, MitmOptions,
+    MitmProxy, StealthError, StealthFetch, StealthSession, StealthSessionBuilder,
+};
+#[cfg(feature = "scrape")]
+pub use scrape::{
+    BrowserFetch, BrowserScraper, BrowserScraperBuilder, ChallengeKind, CollectingEventSink,
+    CookieJar, Detection, EgressSwitch, EventSink, MitigationPolicy, NoopEventSink, ScrapeError,
+    ScraperEvent, SessionPolicy, StealthIdentity, TracingEventSink,
+};
+#[cfg(feature = "scrape")]
+pub use wire::{
+    BrowserKind, Emulation, EmulationError, H2Spec, H2SpecError, HeaderSpec, TlsSpec, TlsSpecError,
+};
