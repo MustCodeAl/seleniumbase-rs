@@ -323,8 +323,10 @@ impl CookieJar {
         jar
     }
 
-    /// The unexpired cookies as CDP cookies, ready for `Network.setCookies`: a domain cookie's
-    /// domain gets a leading dot, and a session cookie has no expiry.
+    /// The unexpired cookies as CDP cookies, in the form `Network.getAllCookies` reports: a domain
+    /// cookie's domain gets a leading dot, a host-only cookie's has none, and a session cookie has
+    /// no expiry. Whether `Network.setCookies` keeps a host-only cookie host-only depends on how the
+    /// caller sends it; a bare domain alone may be read as a `Domain` attribute.
     #[must_use]
     pub fn to_cdp(&self, now: u64) -> Vec<Cookie> {
         self.cookies

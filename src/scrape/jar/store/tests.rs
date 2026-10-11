@@ -371,6 +371,10 @@ fn from_cdp_leaves_out_unsafe_cookies() {
             .expires(f64::NAN),
         Cookie::new("a", "1").domain("example.com").expires(1.0),
         Cookie::new("a", "v".repeat(4096)).domain("example.com"),
+        Cookie::new("", "").domain("example.com"),
+        Cookie::new("", "__Host-x")
+            .domain("example.com")
+            .secure(true),
     ];
     for cookie in &bad {
         assert!(
@@ -385,6 +389,62 @@ fn from_cdp_leaves_out_unsafe_cookies() {
     let far = Cookie::new("far", "1").domain("example.com").expires(1e300);
     let capped = CookieJar::from_cdp(&[far], NOW);
     assert_eq!(only(&capped).expires, Some(NOW + MAX_LIFETIME_SECS));
+    let unrooted = Cookie::new("p", "1").domain("EXAMPLE.com").path("");
+    let rooted = CookieJar::from_cdp(&[unrooted], NOW);
+    assert_eq!(
+        (only(&rooted).path.as_str(), only(&rooted).domain.as_str()),
+        ("/", "example.com"),
+        "an empty path is the root and the domain is lowered"
+    );
+}
+
+/// A valid host-only cookie called `name` on `host`, for building jar files by hand.
+fn stored(name: &str, host: &str) -> StoredCookie {
+    StoredCookie {
+        name: name.to_owned(),
+        value: "1".to_owned(),
+        domain: host.to_owned(),
+        host_only: true,
+        path: "/".to_owned(),
+        expires: None,
+        secure: false,
+        http_only: false,
+        same_site: None,
+        created: NOW,
+        last_access: NOW,
+    }
+}
+
+#[test]
+fn a_jar_file_beyond_the_bounds_is_refused() {
+    let one_site: Vec<StoredCookie> = (0..=MAX_COOKIES_PER_SITE)
+        .map(|i| stored(&format!("c{i}"), "example.com"))
+        .collect();
+    let error = CookieJar::try_from(JarFile { cookies: one_site }).expect_err("site full");
+    assert_eq!(
+        error,
+        JarError::SiteFull {
+            index: MAX_COOKIES_PER_SITE
+        }
+    );
+    let everywhere: Vec<StoredCookie> = (0..=MAX_COOKIES)
+        .map(|i| stored("c", &format!("s{i}.example")))
+        .collect();
+    let error = CookieJar::try_from(JarFile {
+        cookies: everywhere,
+    })
+    .expect_err("too many");
+    assert_eq!(
+        error,
+        JarError::TooMany {
+            count: MAX_COOKIES + 1
+        }
+    );
+    assert!(error.to_string().contains("3001"), "{error}");
+    let fits: Vec<StoredCookie> = (0..MAX_COOKIES_PER_SITE)
+        .map(|i| stored(&format!("c{i}"), "example.com"))
+        .collect();
+    assert!(CookieJar::try_from(JarFile { cookies: fits }).is_ok());
 }
 
 #[test]
@@ -534,7 +594,7 @@ fn check_invariants(jar: &CookieJar, now: u64) {
 
 #[test]
 fn generated_exchanges_keep_every_invariant() {
-    let mut rng = Rng::new(0xC00C1E);
+    let mut rng = Rng::new(0x00C0_0C1E);
     let mut jar = CookieJar::new();
     for step in 0..20_000_u64 {
         let now = NOW + step / 10;

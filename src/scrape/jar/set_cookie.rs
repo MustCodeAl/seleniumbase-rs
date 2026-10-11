@@ -553,6 +553,17 @@ mod tests {
     }
 
     #[test]
+    fn errors_name_what_was_wrong() {
+        let too_large = SetCookieError::TooLarge { len: 5000 }.to_string();
+        assert!(
+            too_large.contains("5000") && too_large.contains("4096"),
+            "{too_large}"
+        );
+        let nameless = SetCookieError::NamelessPrefix(CookiePrefix::Host).to_string();
+        assert!(nameless.contains("Host"), "{nameless}");
+    }
+
+    #[test]
     fn debug_hides_the_value() {
         let c = parse("sid=s3cret-value; Path=/");
         assert!(!format!("{c:?}").contains("s3cret"));

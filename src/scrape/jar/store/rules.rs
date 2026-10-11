@@ -408,9 +408,12 @@ mod tests {
     fn random_path(rng: &mut Rng) -> String {
         const SEGMENTS: [&str; 8] = ["a", "b", "", "..", "%2e", "x y", "é", "index.html"];
         let depth = rng.next_u64() % 6;
-        (0..depth)
-            .map(|_| format!("/{}", rng.pick(&SEGMENTS)))
-            .collect()
+        let mut path = String::new();
+        for _ in 0..depth {
+            path.push('/');
+            path.push_str(rng.pick(&SEGMENTS));
+        }
+        path
     }
 
     #[test]
