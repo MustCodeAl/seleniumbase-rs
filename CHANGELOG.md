@@ -180,6 +180,14 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- The native pointer helpers of the `gui` feature (`gui_click_element`,
+  `gui_click_with_offset`, `gui_drag_and_drop`, `gui_move_to_element`,
+  `gui_hover_and_click` and `uc_gui_handle_captcha`) aim at the element's place on
+  the screen. The script that finds it scrolls the element into view and adds the
+  browser toolbar, the window borders and the offset of each same-origin frame the
+  element is in; it used to add only the window's position, so a click in a headed
+  window landed a toolbar's height too high. `uc_gui_handle_captcha` waits for the
+  element to be visible first. Browser pixels are taken to be screen pixels.
 - `get_domain_url` keeps a port that is not the scheme's default
   (`http://localhost:8080`), as Python's does; it used to drop it.
 - `wait_for_element_present` looks for the element once before it gives up, so an

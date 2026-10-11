@@ -122,7 +122,8 @@ Domain files:
 - `base_case_impl_cdp_page.rs` — CDP-page helpers.
 - `base_case_impl_dialog_inspector.rs` — dialog inspection helpers.
 - `base_case_impl_shadow.rs` — shadow-DOM helpers.
-- `base_case_impl_gui.rs` — GUI automation helpers.
+- `base_case_impl_gui.rs` — GUI automation helpers (compiled only with the `gui`
+  feature, so lint and test it with `--features gui`).
 - `base_case_impl_masterqa.rs` — MasterQA helpers.
 
 ### Adding a new `BaseCase` helper
