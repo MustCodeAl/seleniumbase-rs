@@ -79,8 +79,8 @@ Design rules that apply to everything below:
    aliases `case-plans` and `gui-behave`) write a fixed file instead of
    launching the Case Plans Generator and Behave Commander GUIs. `objectify` is
    not applicable (it rewrites Python source) and `mkrec` is mapped onto
-   `sbase record`. Still to do: `sbase` exits 0 when `objectify`, `caseplans`,
-   `behave-gui` or `mkrec` fail (`src/cli/bin/sbase.rs`).
+   `sbase record`. `sbase` now exits with status 6 and prints the cause when
+   one of the file-writing commands fails.
 6. **pytest-style options and settings.** Compare the Python `--option` list
    and `SB()`/`Driver()` kwargs with `BrowserConfig`/`RuntimeConfig`; add the
    missing ones.

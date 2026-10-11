@@ -148,6 +148,11 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `sbase objectify`, `caseplans`, `behave-gui`, `mkrec`, `mkchart`, `mkpres` and
+  `print` exit with status 6 and print the cause when they cannot write or read
+  their file; they used to exit 0. The WebDriver-hosted CDP page no longer sends
+  `DOM.enable` (it finds elements through `Runtime.evaluate`), so no part of the
+  engine enables a detectable domain.
 - A chromedriver that does not match Chrome (the cause of "chromedriver keeps
   crashing"): the launcher, `sbase install` and `sbase doctor` now agree with the
   installed Chrome, and a replaced driver is written as a new file because macOS
