@@ -235,6 +235,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Print the sbase version, as `sbase --version` does.
+    Version,
     /// Open a URL in the browser.
     Open {
         /// URL to open in the browser.
@@ -420,11 +422,15 @@ enum Commands {
     ///
     /// The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never
     /// from an argument, so it stays out of shell history and process listings.
+    /// Python's `sbase obfuscate` is the same command.
+    #[command(visible_alias = "obfuscate")]
     Encrypt {
         /// The text to encrypt.
         text: Option<String>,
     },
     /// Decrypt a token made by `sbase encrypt`; read from stdin if TOKEN is omitted.
+    /// Python's `sbase unobfuscate` is the same command.
+    #[command(visible_alias = "unobfuscate")]
     Decrypt {
         /// The token to decrypt.
         token: Option<String>,
@@ -1698,6 +1704,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let patched = patcher.patch(EnginePatch::chrome_binary())?;
             println!("Patched Chrome binary available at: {}", patched.display());
         }
+        Commands::Version => println!("sbase {VERSION}"),
         Commands::Encrypt { text } => {
             let passphrase = encryption_passphrase()?;
             let text = text_or_stdin(text)?;
