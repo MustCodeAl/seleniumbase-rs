@@ -390,8 +390,18 @@ mod tests {
             let jar = dir.path().join("selenium-server-test.jar");
             std::fs::write(&jar, b"not a real jar").unwrap();
             let java = dir.path().join("fake-java");
-            std::fs::write(&java, format!("#!/bin/sh\n{java_body}\n")).unwrap();
+            std::fs::write(
+                &java,
+                format!("#!/bin/sh\nif [ \"$1\" = \"--warm\" ]; then exit 0; fi\n{java_body}\n"),
+            )
+            .unwrap();
             std::fs::set_permissions(&java, std::fs::Permissions::from_mode(0o755)).unwrap();
+            // macOS scans a freshly written script on its first run, which can take seconds
+            // under load: run it once now so the Grid under test starts it promptly.
+            std::process::Command::new(&java)
+                .arg("--warm")
+                .status()
+                .unwrap();
             let mut command = GridCommand::new(role, action, dir.path().join("state"));
             command.jar = Some(jar);
             command.java = Some(java);
