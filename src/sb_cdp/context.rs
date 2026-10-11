@@ -77,6 +77,21 @@ impl ContextOptions {
     }
 }
 
+/// The proxy a context routes its tabs through, and the hosts that skip it.
+///
+/// Kept by the browser so that plain HTTP requests made on behalf of a tab can
+/// take the same route. Its `Debug` output never shows the credentials.
+#[cfg(feature = "scrape")]
+#[derive(Debug, Clone)]
+#[allow(
+    dead_code,
+    reason = "the fields are read by the plain-HTTP handoff of the impersonate layer, which is not built with `scrape` alone"
+)]
+pub(crate) struct ContextRoute {
+    pub(crate) proxy: Proxy,
+    pub(crate) bypass: Vec<String>,
+}
+
 /// A set of tabs with their own cookies, storage and cache.
 ///
 /// Cloning gives another handle to the same context. Dropping every handle
@@ -137,6 +152,18 @@ impl Browser {
                 "Target.createBrowserContext returned no browserContextId",
             )
         })?;
+        #[cfg(feature = "scrape")]
+        {
+            if let Some(proxy) = &options.proxy {
+                locked(&self.inner().context_routes).insert(
+                    id.to_owned(),
+                    ContextRoute {
+                        proxy: proxy.clone(),
+                        bypass: options.bypass.clone(),
+                    },
+                );
+            }
+        }
         Ok(BrowserContext {
             browser: self.clone(),
             id: id.into(),
@@ -206,6 +233,98 @@ impl BrowserContext {
         for id in locked(&self.pages).drain(..) {
             self.browser.forget_page(&id);
         }
+        #[cfg(feature = "scrape")]
+        locked(&self.browser.inner().context_routes).remove(&*self.id);
         outcome
+    }
+}
+
+#[cfg(feature = "scrape")]
+impl Browser {
+    /// The own proxy of the context with this id, if it was created with one.
+    #[allow(
+        dead_code,
+        reason = "read by the plain-HTTP handoff of the impersonate layer, which is not built with `scrape` alone"
+    )]
+    pub(crate) fn context_route(&self, id: &str) -> Option<ContextRoute> {
+        locked(&self.inner().context_routes).get(id).cloned()
+    }
+}
+
+#[cfg(all(test, feature = "scrape"))]
+mod route_tests {
+    use super::*;
+
+    fn route_of(browser: &Browser, context: &BrowserContext) -> Option<ContextRoute> {
+        browser.context_route(context.id())
+    }
+
+    #[tokio::test]
+    async fn a_context_with_a_proxy_has_a_route_until_it_is_disposed() {
+        let (browser, mock) = Browser::new_mocked();
+        mock.reply(
+            "Target.createBrowserContext",
+            serde_json::json!({ "browserContextId": "C1" }),
+        );
+        let options = ContextOptions::new()
+            .proxy(Proxy::parse("alice:s3cret@proxy.example:8080").expect("a valid proxy"))
+            .bypass("*.internal.example");
+
+        let context = browser
+            .new_context_with(options)
+            .await
+            .expect("the context");
+
+        let route = route_of(&browser, &context).expect("the context has a route");
+        assert_eq!(route.proxy.server(), "proxy.example:8080");
+        assert!(route.proxy.has_credentials());
+        assert_eq!(route.bypass, ["*.internal.example"]);
+        let shown = format!("{route:?}");
+        assert!(
+            !shown.contains("s3cret") && !shown.contains("alice"),
+            "{shown}"
+        );
+        context.dispose().await.expect("the context is disposed");
+        assert!(
+            route_of(&browser, &context).is_none(),
+            "the route goes with the context"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_context_without_a_proxy_has_no_route() {
+        let (browser, mock) = Browser::new_mocked();
+        mock.reply(
+            "Target.createBrowserContext",
+            serde_json::json!({ "browserContextId": "C1" }),
+        );
+
+        let context = browser.new_context().await.expect("the context");
+
+        assert!(route_of(&browser, &context).is_none());
+    }
+
+    #[tokio::test]
+    async fn routes_are_kept_apart_by_context() {
+        let (browser, mock) = Browser::new_mocked();
+        let made = std::sync::atomic::AtomicUsize::new(0);
+        mock.on("Target.createBrowserContext", move |_| {
+            let id = made.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            Ok(serde_json::json!({ "browserContextId": format!("C{id}") }))
+        });
+        let one = ContextOptions::new().proxy(Proxy::parse("one.example:1").expect("valid"));
+        let two = ContextOptions::new().proxy(Proxy::parse("two.example:2").expect("valid"));
+
+        let first = browser.new_context_with(one).await.expect("the first");
+        let second = browser.new_context_with(two).await.expect("the second");
+
+        assert_eq!(
+            route_of(&browser, &first).expect("route").proxy.server(),
+            "one.example:1"
+        );
+        assert_eq!(
+            route_of(&browser, &second).expect("route").proxy.server(),
+            "two.example:2"
+        );
     }
 }

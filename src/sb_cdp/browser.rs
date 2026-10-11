@@ -89,6 +89,10 @@ pub(crate) struct Inner {
     tasks: StdMutex<Vec<JoinHandle<()>>>,
     /// Who answers which proxy's password prompts.
     pub(super) auth: Arc<ProxyAuth>,
+    /// The proxy of every context created with its own, by context id, so a
+    /// handoff to plain HTTP can follow the route a tab's traffic takes.
+    #[cfg(feature = "scrape")]
+    pub(super) context_routes: StdMutex<HashMap<String, super::context::ContextRoute>>,
 }
 
 impl Drop for Inner {
@@ -229,6 +233,8 @@ impl Browser {
                 options,
                 sessions: StdMutex::new(HashMap::new()),
                 tasks: StdMutex::new(Vec::new()),
+                #[cfg(feature = "scrape")]
+                context_routes: StdMutex::new(HashMap::new()),
             }),
         }
     }
