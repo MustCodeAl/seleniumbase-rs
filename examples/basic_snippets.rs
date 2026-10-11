@@ -1,96 +1,108 @@
-//! # Basic SeleniumBase-rs snippets
+//! A cookbook of the most common [`BaseCase`] actions.
 //!
-//! A cookbook-style example showing how to perform the most common browser
-//! automation actions with [`BaseCase`]. Each snippet is self-contained so you
-//! can copy the pieces you need into your own tests.
+//! Each numbered snippet is self-contained, so you can copy the pieces you need
+//! into your own tests. The snippets drive a page this example serves from
+//! `127.0.0.1` (see `local_site/mod.rs`), so every selector below exists and
+//! every assertion holds.
 //!
-//! Run with:
+//! Run it with:
 //!
 //! ```bash
-//! cargo run --example basic_snippets --features playwright
+//! cargo run --example basic_snippets
 //! ```
 //!
-//! Some snippets target a fictional login form on `example.com`. Adjust the
-//! selectors and URLs to match the site you are testing.
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! checks both) and does not need the network. The browser runs headless; call
+//! `.with_headless(false)` on the config to watch it work. The screenshot is
+//! written to `latest_logs/`.
 
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+mod local_site;
+
+use local_site::{Site, DEMO_PATH};
+use seleniumbase_rs::{BaseCase, BrowserConfig, Result};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
+    let site = Site::serve_demo()?;
+
     // ------------------------------------------------------------------
     // 1. Launch a browser
     // ------------------------------------------------------------------
-    // `BrowserConfig::default()` already picks Chrome + WebDriver mode.
+    // `BrowserConfig::default()` is headless Chrome driven over WebDriver.
     // Switch to `DriverMode::Uc` for undetected-chromium style launch args.
-    let config = BrowserConfig::default();
-    let mut sb = BaseCase::new(config).await?;
+    let mut sb = BaseCase::new(BrowserConfig::default()).await?;
 
+    // Run the snippets, then close the browser whether or not they passed.
+    let outcome = snippets(&mut sb, &site).await;
+    let closed = sb.quit().await;
+    outcome.and(closed)
+}
+
+async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     // ------------------------------------------------------------------
     // 2. Open a URL
     // ------------------------------------------------------------------
-    sb.open("https://example.com").await?;
+    sb.open(&site.url(DEMO_PATH)).await?;
 
     // ------------------------------------------------------------------
-    // 3. Find and click an element
+    // 3. Assertions
     // ------------------------------------------------------------------
-    sb.click("button#submit").await?;
+    sb.assert_title("Web Testing Page").await?;
+    sb.assert_text("h1", "Demo Page").await?;
+    sb.assert_url(&site.url(DEMO_PATH)).await?;
 
     // ------------------------------------------------------------------
-    // 4. Type text into an input
+    // 4. Type text into an input and click a button
     // ------------------------------------------------------------------
-    sb.type_text("input#username", "rustacean").await?;
-    sb.type_text("input#password", "secret").await?;
+    // `click` and `type_text` wait for the element to be clickable or
+    // visible first, so there is no need to sleep before them.
+    sb.type_text("#username", "rustacean").await?;
+    sb.type_text("#password", "not-a-real-password").await?;
+    sb.click("#submit").await?;
+    sb.assert_text("#status", "Signed in as rustacean").await?;
 
     // ------------------------------------------------------------------
-    // 5. Assertions
-    // ------------------------------------------------------------------
-    sb.assert_title("Example Domain").await?;
-    sb.assert_text("h1", "Example Domain").await?;
-    sb.assert_url("https://example.com/").await?;
-
-    // ------------------------------------------------------------------
-    // 6. Hover and scroll
+    // 5. Hover and scroll
     // ------------------------------------------------------------------
     sb.hover("nav .menu").await?;
-    sb.scroll_to("footer").await?;
+    sb.assert_element_visible("#submenu").await?;
+    sb.scroll_to("#footer").await?;
     sb.scroll_to_bottom().await?;
 
     // ------------------------------------------------------------------
-    // 7. Select a dropdown option
+    // 6. Select a dropdown option
     // ------------------------------------------------------------------
-    sb.select("select#country", "United States").await?;
-    sb.select_option_by_value("select#language", "en").await?;
+    sb.select("#country", "Germany").await?;
+    sb.select_option_by_value("#language", "de").await?;
+    println!("country now: {}", sb.get_value("#country").await?);
 
     // ------------------------------------------------------------------
-    // 8. Run JavaScript
+    // 7. Run JavaScript
     // ------------------------------------------------------------------
-    let result = sb.execute_script("return document.title;").await?;
-    println!("page title via JS: {}", result);
+    let title = sb.execute_script("return document.title;").await?;
+    println!("page title via JS: {}", title.as_str().unwrap_or_default());
 
     // ------------------------------------------------------------------
-    // 9. Cookies and storage
+    // 8. Cookies
     // ------------------------------------------------------------------
+    // Cookies need a real origin, which is why the page is served over HTTP.
     sb.add_cookie("session", "abc123").await?;
     let session = sb.get_cookie("session").await?;
-    println!("session cookie: {:?}", session);
-    let cookies = sb.get_cookies().await?;
-    println!("all cookies: {:?}", cookies);
+    println!("session cookie: {}={}", session.name, session.value);
 
     // ------------------------------------------------------------------
-    // 10. Screenshot
+    // 9. Screenshot
     // ------------------------------------------------------------------
-    sb.save_screenshot_to_path("screenshot.png").await?;
+    // The name must be a plain file name; the file lands in `latest_logs/`.
+    let screenshot = sb.save_screenshot("basic_snippets.png").await?;
+    println!("screenshot saved to {}", screenshot.display());
 
     // ------------------------------------------------------------------
-    // 11. Handle a simple alert
+    // 10. Handle an alert
     // ------------------------------------------------------------------
-    sb.execute_script("alert('hello from rust!');").await?;
-    sb.accept_alert().await?;
-
-    // ------------------------------------------------------------------
-    // 12. Clean up
-    // ------------------------------------------------------------------
-    sb.quit().await?;
+    // The page raises the alert a moment after the click, so wait for it.
+    sb.click("#alertButton").await?;
+    sb.wait_for_and_accept_alert(5).await?;
 
     Ok(())
 }
