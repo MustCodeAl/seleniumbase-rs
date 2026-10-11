@@ -228,6 +228,15 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   waits, `wait_for_any_of_elements_present`, `download_file`) return `WaitTimeout`
   instead of `AssertionFailed` and name what they waited for.
   `wait_for_ready_state_complete` takes its default from the configured timeout.
+- `BrowserSession::wait_for_element`, `wait_for_element_visible`,
+  `wait_for_element_clickable`, `wait_for_element_absent` and `wait_for_text`
+  return `WaitTimeout`, not `AssertionFailed`, when the time runs out, and so
+  do the `BaseCase` methods that return their error as it is (`wait_for_element`,
+  `wait_for_element_visible`, `wait_for_element_absent`, `wait_for_text`,
+  `find_element`, `choose_file`, `slow_click`, `get_select_options` and
+  `get_shadow_root`). The message names the locator (`CSS(#a)`) or the text, and
+  the seconds waited. Code that matched `AssertionFailed` on these waits must
+  match `WaitTimeout`.
 - `CdpPage` (the DevTools page of a WebDriver session) quotes the selectors,
   attribute and property names, option texts and values it puts into its page
   scripts with `js_code::quote`, as `BaseCase` does. It escaped only the

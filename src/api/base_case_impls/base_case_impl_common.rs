@@ -772,6 +772,12 @@ pub(crate) mod webdriver_support {
             }
         }
 
+        /// The address of the server, for a [`BrowserConfig`] that is not made
+        /// by [`base_case`](Self::base_case).
+        pub fn url(&self) -> &str {
+            &self.url
+        }
+
         /// The requests received for `path` so far, oldest first.
         pub fn requests(&self, path: &str) -> Vec<Seen> {
             self.seen
