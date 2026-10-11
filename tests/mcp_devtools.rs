@@ -525,6 +525,10 @@ async fn diagnose_environment_needs_no_browser() {
 
     assert_eq!(report["browser_session"], "none");
     assert_eq!(report["output_dir"]["exists"], true);
+    let free = &report["output_dir"]["free_disk_bytes"];
+    assert!(free.is_u64() || free.is_null(), "{free}");
+    assert!(report["platform"]["os"].is_string());
+    assert!(report["sb_settings"].is_object());
+    assert!(report["versions"]["fit"].is_string());
     assert!(report["problems"].is_array());
-    assert!(report["environment"]["SB_PROXY"].is_string());
 }

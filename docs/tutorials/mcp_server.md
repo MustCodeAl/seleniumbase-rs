@@ -227,10 +227,13 @@ When to use it: once a session does what a test should check.
 
 ### `diagnose_environment`
 
-Needs no browser. Reports whether Chrome and chromedriver are found, their
-major versions and whether they match, whether the output directory exists and
-is writable, the relevant settings (`SB_MCP_OUTPUT_DIR`, `CHROMEDRIVER_PATH`;
-`SB_PROXY` only as set or unset), whether a session is running, and a list of
+Needs no browser. Reports the platform, whether Chrome and chromedriver are
+found, their major versions and whether they fit (a mismatch names the fix:
+`sbase install`, then `sbase doctor`), whether the output directory exists and is
+writable and how much disk is free there (from `df`; `null` where there is
+none), `CHROMEDRIVER_PATH`, every `SB_*` setting in the environment (a value
+whose name says it is secret, such as `SB_API_TOKEN`, and the user and password
+in a proxy URL are redacted), whether a session is running, and a list of
 `problems` with the fix for each.
 
 When to use it: before the first `start_browser`, or when one fails.

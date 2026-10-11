@@ -319,9 +319,11 @@ pub(super) fn environment_tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
     vec![ToolDef::new(
         "diagnose_environment",
         "Diagnose Environment",
-        "Check this machine before or after a browser problem: whether Chrome and chromedriver \
-         are found and their versions match, whether the output directory is usable, which \
-         settings are in the environment, and whether a session is running. Needs no browser.",
+        "Check this machine before or after a browser problem: the platform, whether Chrome and \
+         chromedriver are found and their major versions match (with the command that fixes a \
+         mismatch), whether the output directory is writable and how much disk is free, the \
+         SB_* settings in the environment (secret values redacted), and whether a session is \
+         running. Needs no browser.",
         Effect::Inspect,
         Schema::new(),
         diagnose_environment::<S>,
@@ -929,18 +931,8 @@ async fn diagnose_environment<S: Send + 'static>(
         ),
         DriverLookup::Found(_) => {}
     }
-    let versions_match = match (driver_major, chrome_major) {
-        (Some(driver), Some(browser)) => {
-            if driver != browser {
-                problems.push(format!(
-                    "chromedriver {driver} does not match Chrome {browser}; a driver only drives \
-                     its own browser version. Run `sbase install` to fetch chromedriver {browser}."
-                ));
-            }
-            Value::Bool(driver == browser)
-        }
-        _ => Value::Null,
-    };
+    let (versions, version_problem) = version_check(driver_major, chrome_major);
+    problems.extend(version_problem);
 
     let output_dir = ctx.settings().output_dir().to_path_buf();
     let metadata = std::fs::metadata(&output_dir).ok();
@@ -954,13 +946,30 @@ async fn diagnose_environment<S: Send + 'static>(
             output_dir.display()
         ));
     }
+    let free = free_disk_bytes(&output_dir).await;
+    if free.is_some_and(|bytes| bytes < LOW_DISK) {
+        problems.push(format!(
+            "Less than 1 GiB is free where the output directory is ({}); screenshots, \
+             downloads and the browser profile may fail to save.",
+            output_dir.display()
+        ));
+    }
     let variable =
         |name: &str| std::env::var_os(name).map(|value| value.to_string_lossy().into_owned());
+    let settings = sb_settings(std::env::vars_os().map(|(name, value)| {
+        (
+            name.to_string_lossy().into_owned(),
+            value.to_string_lossy().into_owned(),
+        )
+    }));
 
     json_output(json!({
         "seleniumbase_rs": env!("CARGO_PKG_VERSION"),
-        "os": std::env::consts::OS,
-        "arch": std::env::consts::ARCH,
+        "platform": {
+            "os": std::env::consts::OS,
+            "family": std::env::consts::FAMILY,
+            "arch": std::env::consts::ARCH,
+        },
         "browser_session": session,
         "chrome": chrome.as_ref().map_or(json!({ "found": false }), |path| json!({
             "path": path.display().to_string(),
@@ -977,24 +986,180 @@ async fn diagnose_environment<S: Send + 'static>(
             }),
             DriverLookup::NotFound => json!({ "found": false }),
         },
-        "versions_match": versions_match,
+        "versions": versions,
         "output_dir": {
             "path": output_dir.display().to_string(),
             "exists": metadata.is_some(),
             "writable": writable,
+            "free_disk_bytes": free,
         },
-        "environment": {
-            "SB_MCP_OUTPUT_DIR": variable(OUTPUT_DIR_VAR),
-            "CHROMEDRIVER_PATH": variable("CHROMEDRIVER_PATH"),
-            "SB_PROXY": if std::env::var_os("SB_PROXY").is_some() { "set (value not shown)" } else { "unset" },
-        },
+        "chromedriver_path_variable": variable("CHROMEDRIVER_PATH"),
+        "sb_settings": settings,
         "problems": problems,
     }))
+}
+
+/// Below this much free space, saving evidence is likely to fail.
+const LOW_DISK: u64 = 1024 * 1024 * 1024;
+
+/// Words in a setting's name that mark its value as secret.
+const SECRET_NAMES: [&str; 7] = [
+    "PASS",
+    "TOKEN",
+    "SECRET",
+    "KEY",
+    "AUTH",
+    "CREDENTIAL",
+    "COOKIE",
+];
+
+/// Whether chromedriver and Chrome fit, as `match`, `mismatch` or `unknown`,
+/// and for a mismatch the problem with the command that fixes it.
+fn version_check(driver: Option<u32>, browser: Option<u32>) -> (Value, Option<String>) {
+    use crate::browser::driver_version::{fit, Fit};
+
+    let (verdict, problem) = match fit(driver, browser) {
+        Fit::Matches => ("match", None),
+        Fit::Mismatch { driver, browser } => (
+            "mismatch",
+            Some(format!(
+                "chromedriver {driver} does not match Chrome {browser}; a driver only drives its \
+                 own browser version. Run `sbase install` to fetch chromedriver {browser}, then \
+                 `sbase doctor` to check both."
+            )),
+        ),
+        Fit::Unknown => ("unknown", None),
+    };
+    (
+        json!({ "fit": verdict, "chromedriver": driver, "chrome": browser }),
+        problem,
+    )
+}
+
+/// The `SB_*` settings among `vars`, by name, with secret-looking values
+/// redacted (see [`redact_setting`]).
+fn sb_settings(vars: impl IntoIterator<Item = (String, String)>) -> Map<String, Value> {
+    let mut found: Vec<(String, String)> = vars
+        .into_iter()
+        .filter(|(name, _)| name.starts_with("SB_"))
+        .collect();
+    found.sort();
+    found
+        .into_iter()
+        .map(|(name, value)| {
+            let shown = shorten(&Value::from(redact_setting(&name, &value)), 300);
+            (name, shown)
+        })
+        .collect()
+}
+
+/// `value` of the setting `name`, safe to show: the whole value when the
+/// name says it is secret, and the user and password of a URL or proxy.
+fn redact_setting(name: &str, value: &str) -> String {
+    let upper = name.to_ascii_uppercase();
+    if SECRET_NAMES.iter().any(|word| upper.contains(word)) {
+        return "[redacted]".to_owned();
+    }
+    // `scheme://user:password@host` or `user:password@host`.
+    let start = value.find("://").map_or(0, |at| at + 3);
+    match value[start..].rfind('@') {
+        Some(at) if at > 0 => format!("{}[redacted]{}", &value[..start], &value[start + at..]),
+        _ => value.to_owned(),
+    }
+}
+
+/// Free bytes on the file system that holds `dir` (or its nearest existing
+/// parent), from `df -P -k`; `None` where that cannot be asked.
+async fn free_disk_bytes(dir: &std::path::Path) -> Option<u64> {
+    let existing = dir.ancestors().find(|path| path.exists())?;
+    let output = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::process::Command::new("df")
+            .args(["-P", "-k"])
+            .arg(existing)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .ok()?
+    .ok()?;
+    parse_df(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// The available space in the output of `df -P -k`, in bytes.
+fn parse_df(output: &str) -> Option<u64> {
+    let row = output.lines().nth(1)?;
+    let kilobytes: u64 = row.split_whitespace().nth(3)?.parse().ok()?;
+    kilobytes.checked_mul(1024)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_environment_check_names_the_fix_for_a_version_mismatch() {
+        let (fits, problem) = version_check(Some(155), Some(155));
+        assert_eq!(fits["fit"], "match");
+        assert_eq!(problem, None);
+
+        let (fits, problem) = version_check(Some(154), Some(155));
+        assert_eq!(fits["fit"], "mismatch");
+        assert_eq!(
+            (fits["chromedriver"].clone(), fits["chrome"].clone()),
+            (json!(154), json!(155))
+        );
+        let problem = problem.unwrap();
+        assert!(
+            problem.contains("`sbase install`") && problem.contains("`sbase doctor`"),
+            "{problem}"
+        );
+
+        let (fits, problem) = version_check(None, Some(155));
+        assert_eq!(fits["fit"], "unknown");
+        assert_eq!(problem, None);
+    }
+
+    #[test]
+    fn the_environment_check_hides_secrets_in_settings() {
+        assert_eq!(
+            redact_setting("SB_PROXY", "user:pw@proxy.test:8080"),
+            "[redacted]@proxy.test:8080"
+        );
+        assert_eq!(
+            redact_setting("SB_PROXY", "http://user:pw@proxy.test:8080"),
+            "http://[redacted]@proxy.test:8080"
+        );
+        assert_eq!(
+            redact_setting("SB_PROXY", "proxy.test:8080"),
+            "proxy.test:8080"
+        );
+        assert_eq!(redact_setting("SB_API_TOKEN", "abc123"), "[redacted]");
+        assert_eq!(redact_setting("SB_TOTP_KEY", "JBSWY3DP"), "[redacted]");
+        assert_eq!(redact_setting("SB_BROWSER", "chrome"), "chrome");
+
+        let settings = sb_settings([
+            ("SB_HEADLESS".to_owned(), "true".to_owned()),
+            ("PATH".to_owned(), "/usr/bin".to_owned()),
+            ("SB_PROXY".to_owned(), "u:p@h:1".to_owned()),
+            ("SB_BROWSER".to_owned(), "chrome".to_owned()),
+        ]);
+        let names: Vec<&String> = settings.keys().collect();
+        assert_eq!(names, ["SB_BROWSER", "SB_HEADLESS", "SB_PROXY"]);
+        assert_eq!(settings["SB_PROXY"], "[redacted]@h:1");
+    }
+
+    #[test]
+    fn the_environment_check_reads_free_space_from_df() {
+        let macos = "Filesystem   1024-blocks      Used Available Capacity  Mounted on\n\
+                     /dev/disk3s5   482797652 411111111  33333333    93%    /System/Volumes/Data\n";
+        let linux = "Filesystem     1024-blocks    Used Available Capacity Mounted on\n\
+                     /dev/sda1         41152736 9120000  30000000      24% /\n";
+        assert_eq!(parse_df(macos), Some(33_333_333 * 1024));
+        assert_eq!(parse_df(linux), Some(30_000_000 * 1024));
+        assert_eq!(parse_df("df: /nowhere: No such file or directory\n"), None);
+        assert_eq!(parse_df(""), None);
+    }
 
     #[test]
     fn selectors_are_tagged_the_way_the_engines_read_them() {
