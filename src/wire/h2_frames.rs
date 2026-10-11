@@ -23,11 +23,14 @@
 
 pub mod hpack;
 pub mod huffman;
+mod preface;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use hpack::{HeaderField, HpackDecoder, HpackError};
+use hpack::{HeaderField, HpackError};
+
+pub use preface::PrefaceReader;
 
 use super::akamai::{Akamai, PriorityFrame, Pseudo, MAX_STREAM_ID};
 
@@ -43,6 +46,9 @@ pub const MAX_FRAME_PAYLOAD: usize = 0x00ff_ffff;
 pub const MAX_PREFACE_BYTES: usize = 256 * 1024;
 /// The most bytes of HPACK data one header block may span across its frames.
 pub const MAX_HEADER_BLOCK_BYTES: usize = 64 * 1024;
+/// The most frames, of any type, that may come before the end of the first request's header
+/// block. Browsers send three to eight.
+pub const MAX_PREFACE_FRAMES: usize = 64;
 
 /// Bytes of the priority fields in PRIORITY frames and in HEADERS with the PRIORITY flag.
 const PRIORITY_FIELDS_LEN: usize = 5;
@@ -223,6 +229,15 @@ pub enum H2CaptureError {
     /// The first request did not complete within [`MAX_PREFACE_BYTES`].
     #[error("no complete request within {} bytes", MAX_PREFACE_BYTES)]
     PrefaceTooLarge,
+    /// The first request did not complete within [`MAX_PREFACE_FRAMES`] frames.
+    #[error("no complete request within {max} frames")]
+    TooManyFrames {
+        /// The limit in force.
+        max: usize,
+    },
+    /// A [`PrefaceReader`] was asked to read again after it returned a result or an error.
+    #[error("the reader has already returned its result; start a new one")]
+    ReaderFinished,
     /// The first request arrived before any SETTINGS frame.
     #[error("the first request arrived before any SETTINGS frame")]
     MissingSettings,
@@ -539,166 +554,21 @@ fn parse_headers(head: &Head, payload: &[u8]) -> Result<Frame, H2CaptureError> {
     })
 }
 
-/// A header block being collected from a HEADERS frame and its CONTINUATION frames.
-struct PendingBlock {
-    stream_id: u32,
-    priority: Option<HeadersPriority>,
-    block: Vec<u8>,
-}
-
-impl PendingBlock {
-    fn append(&mut self, fragment: &[u8]) -> Result<(), H2CaptureError> {
-        if self.block.len() + fragment.len() > MAX_HEADER_BLOCK_BYTES {
-            return Err(H2CaptureError::HeaderBlockTooLarge);
-        }
-        self.block.extend_from_slice(fragment);
-        Ok(())
-    }
-}
-
-/// What has been seen of the connection so far.
-#[derive(Default)]
-struct PrefaceState {
-    settings: Option<Vec<(u16, u32)>>,
-    window_update: Option<u32>,
-    priority_frames: Vec<PriorityFrame>,
-    pending: Option<PendingBlock>,
-}
-
-impl PrefaceState {
-    /// Takes one frame; returns the finished header block when the frame completes it.
-    fn accept(&mut self, frame: Frame) -> Result<Option<PendingBlock>, H2CaptureError> {
-        if let Some(pending) = self.pending.take() {
-            return self.continue_block(pending, frame);
-        }
-        match frame {
-            Frame::Settings {
-                ack: false,
-                settings,
-            } => {
-                self.settings.get_or_insert(settings);
-            }
-            Frame::WindowUpdate {
-                stream_id: 0,
-                increment,
-            } => {
-                self.window_update.get_or_insert(increment);
-            }
-            Frame::Priority(priority) => self.priority_frames.push(priority),
-            Frame::Headers {
-                stream_id,
-                end_headers,
-                priority,
-                fragment,
-                ..
-            } => {
-                let mut pending = PendingBlock {
-                    stream_id,
-                    priority,
-                    block: Vec::new(),
-                };
-                pending.append(&fragment)?;
-                return Ok(self.finish_or_wait(pending, end_headers));
-            }
-            Frame::Continuation { .. }
-            | Frame::Other {
-                frame_type: frame_type::DATA | frame_type::PUSH_PROMISE,
-                ..
-            } => {
-                return Err(H2CaptureError::UnexpectedFrame {
-                    frame_type: frame.frame_type(),
-                });
-            }
-            _ => {}
-        }
-        Ok(None)
-    }
-
-    fn continue_block(
-        &mut self,
-        mut pending: PendingBlock,
-        frame: Frame,
-    ) -> Result<Option<PendingBlock>, H2CaptureError> {
-        match frame {
-            Frame::Continuation {
-                stream_id,
-                end_headers,
-                fragment,
-            } if stream_id == pending.stream_id => {
-                pending.append(&fragment)?;
-                Ok(self.finish_or_wait(pending, end_headers))
-            }
-            other => Err(H2CaptureError::ExpectedContinuation {
-                frame_type: other.frame_type(),
-            }),
-        }
-    }
-
-    /// Hands back a complete block, or keeps an incomplete one for its next CONTINUATION.
-    fn finish_or_wait(&mut self, pending: PendingBlock, complete: bool) -> Option<PendingBlock> {
-        if complete {
-            Some(pending)
-        } else {
-            self.pending = Some(pending);
-            None
-        }
-    }
-
-    fn finish(self, block: &PendingBlock, consumed: usize) -> Result<H2Preface, H2CaptureError> {
-        let settings = self.settings.ok_or(H2CaptureError::MissingSettings)?;
-        let headers = HpackDecoder::default().decode(&block.block)?;
-        Ok(H2Preface {
-            settings,
-            window_update: self.window_update.unwrap_or(0),
-            priority_frames: self.priority_frames,
-            headers_priority: block.priority,
-            request_stream_id: block.stream_id,
-            headers,
-            consumed,
-        })
-    }
-}
-
-/// Whether `bytes` holds the whole client preface; an error as soon as it cannot be one.
-fn check_magic(bytes: &[u8]) -> Result<bool, H2CaptureError> {
-    let seen = bytes.len().min(CLIENT_PREFACE.len());
-    if bytes.get(..seen) != CLIENT_PREFACE.get(..seen) {
-        return Err(H2CaptureError::BadPreface);
-    }
-    Ok(bytes.len() >= CLIENT_PREFACE.len())
-}
-
 /// Reads the client preface, its SETTINGS, `WINDOW_UPDATE` and PRIORITY frames, and the first
 /// request's header block.
 ///
 /// Returns `Ok(None)` when `bytes` ends before the first request is complete; call it again
-/// with the longer buffer. Each call reads from the start, which the [`MAX_PREFACE_BYTES`]
-/// limit keeps cheap.
+/// with the longer buffer. Each call reads from the start, which the [`MAX_PREFACE_BYTES`] and
+/// [`MAX_PREFACE_FRAMES`] limits keep bounded; a loop that reads a socket and calls this after
+/// every read should use a [`PrefaceReader`], which parses each frame once.
 ///
 /// # Errors
 ///
 /// Returns an [`H2CaptureError`] when the bytes are not an HTTP/2 client start, a frame is
 /// malformed or oversized (above [`DEFAULT_MAX_FRAME_PAYLOAD`]), the request does not arrive
-/// within [`MAX_PREFACE_BYTES`], or its header block does not decode.
+/// within [`MAX_PREFACE_BYTES`] or [`MAX_PREFACE_FRAMES`], or its header block does not decode.
 pub fn read_preface(bytes: &[u8]) -> Result<Option<H2Preface>, H2CaptureError> {
-    if !check_magic(bytes)? {
-        return Ok(None);
-    }
-    let mut state = PrefaceState::default();
-    let mut offset = CLIENT_PREFACE.len();
-    loop {
-        if offset > MAX_PREFACE_BYTES {
-            return Err(H2CaptureError::PrefaceTooLarge);
-        }
-        let rest = bytes.get(offset..).unwrap_or_default();
-        let Some((frame, used)) = read_frame(rest, DEFAULT_MAX_FRAME_PAYLOAD)? else {
-            return Ok(None);
-        };
-        offset += used;
-        if let Some(block) = state.accept(frame)? {
-            return state.finish(&block, offset).map(Some);
-        }
-    }
+    PrefaceReader::new().read(bytes)
 }
 
 #[cfg(test)]

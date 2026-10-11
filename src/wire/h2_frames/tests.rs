@@ -3,6 +3,7 @@
 use super::*;
 
 mod framing;
+mod reader;
 
 /// Builds a frame; the arguments in these tests are always valid.
 fn frame(kind: u8, flags: u8, stream: u32, payload: &[u8]) -> Vec<u8> {
@@ -472,8 +473,10 @@ fn a_header_block_over_the_limit_is_refused() {
 #[test]
 fn a_connection_that_never_sends_a_request_is_cut_off() {
     let mut frames = vec![settings_frame(&SETTINGS)];
-    let ping = frame(frame_type::PING, 0, 0, &[0; 8]);
-    frames.extend(std::iter::repeat_n(ping, MAX_PREFACE_BYTES / 17 + 2));
+    // Full-size frames, so that the byte limit comes long before the frame limit.
+    let full = frame(0x42, 0, 0, &vec![0; DEFAULT_MAX_FRAME_PAYLOAD]);
+    let count = MAX_PREFACE_BYTES / DEFAULT_MAX_FRAME_PAYLOAD + 2;
+    frames.extend(std::iter::repeat_n(full, count));
     assert_eq!(error_of(&start(&frames)), H2CaptureError::PrefaceTooLarge);
 }
 
