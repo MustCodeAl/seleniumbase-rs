@@ -128,6 +128,12 @@ pub struct BrowserConfig {
     pub user_data_dir: Option<String>,
     pub extension_dir: Option<String>,
     pub start_page: Option<String>,
+    /// Python's `--reuse-session`: share one browser across the whole run.
+    ///
+    /// **Not implemented.** The value is stored and passed through (the
+    /// `sbase` flag, `Settings` and `SB_REUSE_SESSION` set it), but nothing
+    /// reads it: every `BaseCase::new` starts its own browser. `parity/api.toml`
+    /// lists the option as planned.
     pub reuse_session: bool,
     pub mobile: bool,
     pub threads: Option<usize>,
@@ -264,6 +270,7 @@ impl BrowserConfig {
         self
     }
 
+    /// Sets [`reuse_session`](Self::reuse_session), which nothing acts on yet.
     pub fn with_reuse_session(mut self, reuse: bool) -> Self {
         self.reuse_session = reuse;
         self

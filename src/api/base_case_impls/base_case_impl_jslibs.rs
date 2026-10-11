@@ -221,7 +221,14 @@ impl BaseCase {
         self.add_css_style(&css).await
     }
 
-    /// Injects a small CSS snippet to customize Messenger theme colors.
+    /// Recolors Messenger messages: sets their background to the CSS colour
+    /// `color`.
+    ///
+    /// This is **not** Python's `set_messenger_theme(theme, location,
+    /// max_messages)`, which picks one of Messenger's themes (`flat`,
+    /// `future`, `block`, `air`, `ice`), where messages appear and how many
+    /// show at once. The pure-CDP engine has that:
+    /// [`Page::set_messenger_theme`](crate::sb_cdp::Page::set_messenger_theme).
     ///
     /// # Errors
     ///

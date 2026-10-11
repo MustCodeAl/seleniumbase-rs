@@ -1,4 +1,10 @@
 //! `sbase objectify`: a starter page object.
+//!
+//! This is not Python's `objectify SB_FILE.py`, which rewrites the selectors of a
+//! Python test file into page-object variables. There is no Python source to
+//! rewrite here, so the command takes no file and writes the same starter
+//! `page_object.rs` every time. `parity/api.toml` lists the upstream command as
+//! not applicable for that reason.
 
 use crate::cli::commands::write_new_file;
 use std::path::{Path, PathBuf};

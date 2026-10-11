@@ -159,7 +159,13 @@ impl BaseCase {
 
     // Referral / traffic generators.
 
-    /// Returns a URL with a referral parameter appended.
+    /// Returns `url` with a `ref=<referrer>` query parameter appended. It
+    /// visits nothing and sends no `Referer` header.
+    ///
+    /// This is **not** Python's `generate_referral(start_page,
+    /// destination_page)`, which opens the start page, adds a link to the
+    /// destination there and clicks it, so that the destination sees a real
+    /// referral. That is not ported; `parity/api.toml` marks it planned.
     pub fn generate_referral(&self, url: &str, referrer: &str) -> Result<String, SeleniumBaseError> {
         let parsed = reqwest::Url::parse(url).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?;
         let mut url = parsed.clone();
@@ -167,7 +173,9 @@ impl BaseCase {
         Ok(url.to_string())
     }
 
-    /// Returns a chain of referral URLs.
+    /// Returns the [`generate_referral`](Self::generate_referral) URL for
+    /// each of `referrers`. Not Python's `generate_referral_chain(pages)`,
+    /// which clicks through a chain of pages.
     pub fn generate_referral_chain(&self, url: &str, referrers: &[&str]) -> Result<Vec<String>, SeleniumBaseError> {
         referrers
             .iter()
@@ -175,13 +183,16 @@ impl BaseCase {
             .collect()
     }
 
-    /// Opens the referral URL in the browser.
+    /// Opens the [`generate_referral`](Self::generate_referral) URL in the
+    /// browser. Not Python's `generate_traffic(start_page,
+    /// destination_page, loops)`, which clicks a real link `loops` times.
     pub async fn generate_traffic(&mut self, url: &str, referrer: &str) -> Result<(), SeleniumBaseError> {
         let referral = self.generate_referral(url, referrer)?;
         self.open(&referral).await
     }
 
-    /// Opens a chain of referral URLs sequentially.
+    /// Opens each of the [`generate_referral`](Self::generate_referral)
+    /// URLs in turn. Not Python's `generate_traffic_chain(pages)`.
     pub async fn generate_traffic_chain(
         &mut self,
         url: &str,
@@ -225,7 +236,13 @@ impl BaseCase {
         Ok(path)
     }
 
-    /// Firefox addons are not supported in this port.
+    /// Always fails with [`SeleniumBaseError::Unsupported`]. Python's
+    /// `install_addon(xpi_file)` installs a Firefox add-on through
+    /// geckodriver; this port has no Firefox add-on support.
+    ///
+    /// # Errors
+    ///
+    /// Always returns [`SeleniumBaseError::Unsupported`].
     pub async fn install_addon(&self, _path: &str) -> Result<(), SeleniumBaseError> {
         Err(SeleniumBaseError::Unsupported(
             "install_addon is not supported in the Rust port".to_owned(),
