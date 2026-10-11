@@ -4,6 +4,7 @@ pub mod sb_install;
 pub mod sb_mkdir;
 pub mod sb_mkfile;
 pub mod sb_recorder;
+pub mod sb_translate;
 // newly added
 pub mod logo_helper;
 pub mod rich_helper;

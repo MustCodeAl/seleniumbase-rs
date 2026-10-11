@@ -5,7 +5,8 @@
 //! word in every [`Language`]. [`translator::translate_action`] looks a name up
 //! by language code or name; each per-language module (`chinese`, `dutch`, ...)
 //! offers the same lookup for one fixed language. A name the dictionary does not
-//! know is returned unchanged.
+//! know is returned unchanged. [`scenario`] translates the action names of a
+//! JSON scenario file, and `sbase translate` does so from the command line.
 //!
 //! # Examples
 //!
@@ -30,6 +31,7 @@ pub mod language;
 pub mod master_dict;
 pub mod portuguese;
 pub mod russian;
+pub mod scenario;
 pub mod spanish;
 pub mod translator;
 

@@ -214,6 +214,66 @@ pub fn translate(action: &str, language: Language) -> Option<&'static str> {
     Some(entry.get(language))
 }
 
+/// The `BaseCase` method that `word` names in `language`, if it names one.
+///
+/// This is [`translate`] read backwards. In English the word may be a method
+/// or an [alias](aliases).
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::{master_dict, Language};
+///
+/// assert_eq!(master_dict::from_language("点击", Language::Chinese), Some("click"));
+/// assert_eq!(master_dict::from_language("type", Language::English), Some("type_text"));
+/// assert_eq!(master_dict::from_language("点击", Language::Spanish), None);
+/// ```
+#[must_use]
+pub fn from_language(word: &str, language: Language) -> Option<&'static str> {
+    if language == Language::English {
+        return entry(word).map(|entry| entry.en);
+    }
+    ENTRIES
+        .iter()
+        .find(|entry| entry.get(language) == word)
+        .map(|entry| entry.en)
+}
+
+/// The `BaseCase` method that `word` names in whichever language it is written.
+///
+/// An English method or alias wins. Otherwise every language is tried, and the
+/// answer is `None` if no language has the word or if two languages give it
+/// different methods, so the choice is never a guess.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::translate::master_dict;
+///
+/// assert_eq!(master_dict::english_of("clic_derecho"), Some("context_click"));
+/// assert_eq!(master_dict::english_of("not_a_word"), None);
+/// // `abrir` is Portuguese and Spanish for the same method.
+/// assert_eq!(master_dict::english_of("abrir"), Some("open"));
+/// ```
+#[must_use]
+pub fn english_of(word: &str) -> Option<&'static str> {
+    if let Some(entry) = entry(word) {
+        return Some(entry.en);
+    }
+    let mut found = None;
+    for language in Language::ALL {
+        let Some(method) = from_language(word, language) else {
+            continue;
+        };
+        match found {
+            None => found = Some(method),
+            Some(earlier) if earlier == method => {}
+            Some(_) => return None,
+        }
+    }
+    found
+}
+
 /// Every name the dictionary accepts, mapped to the `BaseCase` method it
 /// stands for: each method to itself, and each [alias](aliases) to its method.
 #[must_use]

@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::base_case::BaseCase;
 use crate::error::SeleniumBaseError;
+use crate::utils::translate::scenario::scenario_to_english;
 
 /// How long a `wait_for_text` step waits when its `timeout` is left out.
 const DEFAULT_WAIT_SECONDS: u64 = 10;
@@ -85,13 +86,17 @@ pub struct Scenario {
 impl Scenario {
     /// Parses a scenario from JSON text.
     ///
+    /// A step's `action` may be written in any language of the translation
+    /// dictionary (`"点击"` for `"click"`); see
+    /// [`crate::utils::translate::scenario`].
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::Json`] if the text is not valid JSON, has
     /// no `name` or `steps`, or contains a step whose `action` is unknown or
     /// that lacks one of its arguments. The message names the offending field.
     pub fn from_json(json: &str) -> Result<Self, SeleniumBaseError> {
-        Ok(serde_json::from_str(json)?)
+        Ok(serde_json::from_str(&scenario_to_english(json))?)
     }
 }
 
@@ -577,6 +582,27 @@ mod tests {
             .map(|step| step["action"].as_str().unwrap().to_owned())
             .collect();
         assert_eq!(names, written);
+    }
+
+    #[test]
+    fn a_scenario_written_in_any_language_parses_to_the_same_steps() {
+        use crate::utils::translate::{scenario::translate_scenario, Language};
+
+        let english = Scenario::from_json(EVERY_STEP).unwrap();
+        for language in Language::ALL {
+            let written = translate_scenario(EVERY_STEP, language).unwrap();
+            assert!(
+                written.unknown.is_empty(),
+                "{language}: {:?}",
+                written.unknown
+            );
+            let scenario = Scenario::from_json(&written.text).unwrap();
+            assert_eq!(
+                serde_json::to_value(&scenario).unwrap(),
+                serde_json::to_value(&english).unwrap(),
+                "{language}"
+            );
+        }
     }
 
     #[test]

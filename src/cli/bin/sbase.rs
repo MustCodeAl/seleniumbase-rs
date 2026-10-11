@@ -28,6 +28,7 @@ use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::stealth::patcher::find_system_chrome;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
+use seleniumbase_rs::utils::translate::Language;
 use seleniumbase_rs::{
     import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
     ChromedriverPatcher, DriverMode, EnginePatch, ImportOptions, ImportSeverity, PythonSource,
@@ -47,6 +48,20 @@ enum BrowserArg {
     Chromium,
     Edge,
     Firefox,
+    /// Brave, run with chromedriver.
+    Brave,
+    /// Perplexity's Comet, run with chromedriver.
+    Comet,
+    /// Opera, run with operadriver.
+    Opera,
+    /// Safari, run with safaridriver (macOS).
+    Safari,
+    /// Internet Explorer, run with IEDriverServer (Windows).
+    Ie,
+    /// Chrome for Testing, downloaded when missing.
+    Cft,
+    /// chrome-headless-shell, downloaded when missing.
+    Chs,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -125,6 +140,13 @@ impl From<BrowserArg> for Browser {
             BrowserArg::Chromium => Browser::Chromium,
             BrowserArg::Edge => Browser::Edge,
             BrowserArg::Firefox => Browser::Firefox,
+            BrowserArg::Brave => Browser::Brave,
+            BrowserArg::Comet => Browser::Comet,
+            BrowserArg::Opera => Browser::Opera,
+            BrowserArg::Safari => Browser::Safari,
+            BrowserArg::Ie => Browser::InternetExplorer,
+            BrowserArg::Cft => Browser::ChromeForTesting,
+            BrowserArg::Chs => Browser::ChromeHeadlessShell,
         }
     }
 }
@@ -665,6 +687,30 @@ enum Commands {
     ///
     /// A node registers with the hub named by `--hub`, or with this machine's.
     GridNode(GridArgs),
+    /// Write the actions of a JSON scenario in another language.
+    ///
+    /// Rewrites each step's `action` (`click`, `open`, ...) with the translation
+    /// dictionary and changes nothing else in the file; the steps keep running,
+    /// because a scenario can be read in any of the languages. Python
+    /// SeleniumBase translates Python test files; a Rust test is compiled code,
+    /// so this translates the portable JSON scenario instead.
+    Translate {
+        /// The scenario file.
+        file: PathBuf,
+        /// The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its
+        /// English name.
+        #[arg(value_parser = clap::value_parser!(Language))]
+        language: Language,
+        /// Print the translation and write nothing (the default).
+        #[arg(short, long, conflicts_with_all = ["overwrite", "copy"])]
+        print: bool,
+        /// Replace the file with the translation.
+        #[arg(short, long, conflicts_with = "copy")]
+        overwrite: bool,
+        /// Write the translation to a new file next to it, such as `login_es.json`.
+        #[arg(short, long)]
+        copy: bool,
+    },
     /// Create a folder with a runnable browser-test suite.
     ///
     /// Names are relative to the current directory and use letters, digits, `_`,
@@ -956,6 +1002,31 @@ async fn run_grid(role: GridRole, args: &GridArgs) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
+/// Runs `translate` and prints what happened: the scenario for a print, the
+/// file written otherwise, and a note on the actions it did not know.
+fn run_translate(
+    command: &sb_translate::TranslateCommand,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let report = sb_translate::run(command)?;
+    match &report.written {
+        Some(path) => println!(
+            "Wrote {} ({} steps in {})",
+            path.display(),
+            report.translated,
+            command.language
+        ),
+        None => print!("{}", report.text),
+    }
+    if !report.unknown.is_empty() {
+        eprintln!(
+            "sbase: left {} unknown action(s) as they were: {}",
+            report.unknown.len(),
+            report.unknown.join(", ")
+        );
+    }
+    Ok(())
+}
+
 /// Where the file-generating commands create files: the current directory.
 fn here(replace: bool) -> Scaffold {
     Scaffold::new(".").replacing(replace)
@@ -1227,6 +1298,26 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     .map(|path| vec![path]),
             );
             return Ok(());
+        }
+        Commands::Translate {
+            file,
+            language,
+            overwrite,
+            copy,
+            ..
+        } => {
+            let action = if *overwrite {
+                sb_translate::TranslateAction::Overwrite
+            } else if *copy {
+                sb_translate::TranslateAction::Copy
+            } else {
+                sb_translate::TranslateAction::Print
+            };
+            return run_translate(&sb_translate::TranslateCommand {
+                file: file.clone(),
+                language: *language,
+                action,
+            });
         }
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
@@ -1878,6 +1969,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Mkdir { .. }
         | Commands::Mkfile { .. }
+        | Commands::Translate { .. }
         | Commands::GridHub(_)
         | Commands::GridNode(_) => {
             unreachable!("these commands return before browser configuration")
