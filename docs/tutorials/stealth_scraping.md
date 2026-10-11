@@ -7,9 +7,10 @@ covers what a page can read from inside the browser. This page covers the
 other side, the wire, and the pieces that keep an identity, its cookies and its
 exit address together while a scraper works through a site's defences.
 
-Everything here is young. The parts that exist are tested against local
-captures and a local Chrome, on one system. Read [Limits](#limits) before you
-rely on any of it.
+Everything here is young, and it is not a stable API yet: types and paths may
+change between releases. The parts that exist are tested against local captures
+and a local Chrome, on one system. Read [Limits](#limits) before you rely on any
+of it.
 
 ## Status
 
@@ -25,14 +26,14 @@ rely on any of it.
 | Challenge detection, mitigation policy, proxy pool, per-site state, events | `scrape` | Available |
 | `BrowserScraper` (a real Chrome, no TLS spoofing) | `scrape` | Available |
 | Ephemeral-CA TLS server | `impersonate` | Available |
-| `HttpSession` | `impersonate` | NOT AVAILABLE YET (in progress) |
-| `MitmProxy` | `impersonate` | NOT AVAILABLE YET (in progress) |
-| `StealthSession` | `impersonate` | NOT AVAILABLE YET (in progress) |
+| `HttpSession` | `impersonate` | Available |
+| `MitmProxy` | `impersonate` | Available |
+| `StealthSession` | `impersonate` | Available |
 
-The last three are being written. This page does not describe their API, and
-nothing in the crate sends a request through an impersonating client for you
-yet: the client builder below gives you the wire behaviour, and you do the
-rest.
+The last three are tested against loopback sites, a scripted browser and, in
+tests marked `#[ignore]`, a local Chrome 155 on macOS, run headless. None of
+them was checked against a live service. [Limits](#limits) lists what that
+leaves open.
 
 ## What you will learn
 
@@ -47,7 +48,11 @@ rest.
   behave.
 - How `BrowserScraper` fetches, detects a challenge, mitigates, and rotates the
   egress and the profile.
-- What the ephemeral-CA TLS server is for.
+- How `HttpSession` continues a browser's session as plain requests that carry
+  the same wire fingerprint.
+- What the ephemeral-CA TLS server is for, and how `MitmProxy` uses it to put a
+  real Chrome behind the same fingerprint.
+- How `StealthSession` moves between the two as the policies decide.
 
 ## Two features
 
@@ -64,11 +69,15 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/SeleniumBase", features
 | Feature | What it adds | Cost |
 |---|---|---|
 | `scrape` | `seleniumbase_rs::wire` (pure wire formats and the measured tables) and `seleniumbase_rs::scrape` (jar, identity, challenge detection, egress, state, events, `BrowserScraper`, capture tools). | Pure Rust. The default build gains no dependency and no C code. |
-| `impersonate` | `seleniumbase_rs::impersonate`: the wreq client, the conversion from a spec to wreq options, `capture_h2`, and the ephemeral-CA TLS server. | Builds BoringSSL: `cmake` and a C/C++ toolchain, and about 1 GB of build output (the design plan's estimate). `wreq` and `btls` are pinned to exact versions (`=6.0.0-rc.31` and `=0.5.6`). |
+| `impersonate` | `seleniumbase_rs::impersonate`: the wreq client, the conversion from a spec to wreq options, `capture_h2`, the ephemeral-CA TLS server, `HttpSession`, `MitmProxy` and `StealthSession`. | Builds BoringSSL: `cmake` and a C/C++ toolchain, and about 1 GB of build output (the design plan's estimate). `wreq` and `btls` are pinned to exact versions (`=6.0.0-rc.31` and `=0.5.6`). |
 
-Neither feature is on by default. The new types are not re-exported at the crate
-root; use the module paths shown below. The crate links only one BoringSSL, so
-do not add a second crate that links it to the same build.
+Neither feature is on by default. The main types are re-exported at the crate
+root (`seleniumbase_rs::BrowserScraper`, `seleniumbase_rs::HttpSession`, ...) and
+at the top of `wire`, `scrape` and `impersonate`; the examples below use the
+module paths where the module says more. The TLS and HTTP/2 spec error enums are
+both called `SpecError` in their modules, so the re-exports are `TlsSpecError`
+and `H2SpecError`. The crate links only one BoringSSL, so do not add a second
+crate that links it to the same build.
 
 ## What is measured, and what is refused
 
@@ -264,8 +273,7 @@ let response = request.send().await?;
 - The profile carries the measured TLS without its known gaps (see
   [Limits](#limits)) and keeps extension permutation on, as Chrome does.
 - Cookies, redirects, body limits and the hand-over from a browser are not part
-  of this client. That is what `HttpSession` is for, and it is not available
-  yet. You can keep cookies with the [jar](#the-cookie-jar) in the meantime.
+  of this client. That is what [`HttpSession`](#httpsession) is for.
 
 Other ways to get a profile: `ImpersonationProfile::for_system(kind, os)`,
 `ImpersonationProfile::from_fingerprint(&fp)` (a Chromium identity that claims
@@ -471,9 +479,10 @@ The defaults are a margin of 120 seconds before a clearance expires, demotion
 back to HTTP after a solve, and a preference for HTTP. `after_fetch` turns an
 `Action::Escalate` seen in HTTP mode into an escalation and a solved challenge in
 the browser into a demotion when the identity now holds a clearance. The tables
-are in the module documentation. Nothing that is available today applies these
-transitions: `BrowserScraper` stays in the browser, and the sessions that switch
-modes are the part that is not available yet.
+are in the module documentation. `BrowserScraper` stays in the browser and never
+applies them. [`HttpSession`](#httpsession) offers `preflight` and `assess` for a
+caller that runs its own loop, and [`StealthSession`](#stealthsession) applies
+them for you.
 
 ## Challenge detection and mitigation
 
@@ -616,10 +625,187 @@ A launched browser lives until `close()`. There is no idle timeout and no
 deadline in the scraper: it can sit unused for as long as the process lives and
 be used again.
 
+## HttpSession
+
+`impersonate::http_session::HttpSession` sends plain HTTP requests that look like
+the Chrome a browser page came from. A browser spends a second or more on a page;
+a request spends milliseconds. Once a page has earned its cookies (a login, a
+passed check), an `HttpSession` carries them on: the measured TLS `ClientHello`
+and HTTP/2 start, the header names, order and spelling of that Chrome on that
+system, and the user agent, client hints and `Accept-Language` of the page or
+identity. A browser or system that was not measured is refused, not
+approximated.
+
+```rust
+use seleniumbase_rs::impersonate::{HttpOptions, HttpSession};
+use seleniumbase_rs::sb_cdp::Page;
+
+# async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
+let session = HttpSession::from_page(&page, None, HttpOptions::new()).await?;
+let reply = session.get("https://example.com/api/orders").await?;
+let orders: serde_json::Value = reply.json()?;
+println!("{orders}");
+// Write the cookies that responses set back into the browser.
+session.sync_cookies_back(&page).await?;
+# Ok(())
+# }
+```
+
+### Making one
+
+- `HttpSession::from_page(&page, egress, options)` (async) copies the cookies of
+  the page's browser profile into the jar, reads `navigator.userAgent` and
+  `navigator.languages` from the page, and follows the route its traffic takes:
+  the proxy of its browser context. `egress` is the exit the page leaves
+  through; `None` takes the context's own proxy or goes direct. A browser-wide
+  proxy, such as a MITM proxy the browser was launched with, is not visible to a
+  page, so say so with `egress`.
+- `HttpSession::from_identity(&identity, egress, options)` builds one from a
+  [`StealthIdentity`](#identity-session-policy-and-the-identity-file): its
+  fingerprint becomes the user agent, hints and languages, and its cookies fill
+  the jar.
+
+Both refuse, before any request, what would contradict the measured handshake:
+
+- A Chrome of another major version than the measured one:
+  `HttpError::VersionMismatch { browser, measured }`. For a page, both the user
+  agent and `Browser.getVersion` are checked.
+- A browser that is not Chrome (Edge, Opera, Firefox and the like), a Chrome
+  whose user agent says `HeadlessChrome`, or a system that was not measured:
+  `HttpError::Impersonate(..)`. A headless Chrome that was given no fingerprint
+  announces itself, so give it one or run it headed.
+- An identity of another egress than the one passed, or a page whose context
+  proxy is another than `egress`: `HttpError::Identity(..)`.
+
+### Requests
+
+`session.get(url)` sends a `GET`. `session.request(method, url)` returns an
+`HttpRequest`; nothing is sent until `.send().await`, and a mistake in a setter
+is reported there.
+
+```rust
+use seleniumbase_rs::impersonate::{HttpSession, Method};
+use seleniumbase_rs::wire::header_spec::RequestShape;
+
+# async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
+let reply = session
+    .request(Method::POST, "https://example.com/api/search")
+    .shape(RequestShape::Fetch)
+    .header("x-requested-with", "XMLHttpRequest")
+    .json(&serde_json::json!({ "q": "shoes" }))
+    .send()
+    .await?;
+println!("{}: {}", reply.status(), reply.text()?);
+# Ok(())
+# }
+```
+
+- `GET` and `HEAD` carry the headers of a navigation (`RequestShape::Document`),
+  every other method those of a script's request (`RequestShape::Fetch`);
+  `.shape(..)` chooses. `.header`, `.body`, `.json`, `.form` and `.timeout`
+  complete the request. `Method` is `wreq::Method`, re-exported.
+- The profile owns `User-Agent`, `Sec-CH-UA*`, `Accept-Language`,
+  `Accept-Encoding`, `Cookie` and `priority`, and the connection owns `Host`,
+  `Content-Length` and the like. Setting one is `HttpError::ReservedHeader`, not
+  a silent overwrite. Any other header replaces the profile's value in place or is
+  added. `CONNECT`, `TRACE` and `TRACK` are refused, and so is a URL with
+  credentials in it or a scheme other than http and https.
+- A status other than 2xx is a reply, not an error. `HttpReply` has `status()`,
+  `headers()` (`ReplyHeaders`), `bytes()`, `text()`, `json::<T>()`, `url()` after
+  redirects (and `redacted_url()`), `redirects()`, `protocol()`, `elapsed()` and
+  `detect()`.
+
+### What the session does
+
+- **Cookies.** The jar is the RFC 6265 [`CookieJar`](#the-cookie-jar). The
+  session writes the `Cookie` header and reads `Set-Cookie` itself; wreq's own
+  store is off. A cookie for a public suffix, for another host, or against the
+  `Secure`, `__Host-` and `SameSite` rules is refused as a browser refuses it.
+  `sync_cookies_back(&page)` writes only what this session changed into the
+  browser and returns how many cookies it wrote or removed; if the browser
+  refuses, the changes are kept for the next attempt.
+- **Redirects** are followed by hand, up to 10 by default: the cookies of each
+  hop are stored and sent per URL, `303` becomes a `GET`, and the headers you set
+  are dropped when a hop leaves the origin (`Accept` and `Content-Type` stay). A
+  redirect is followed where it points, a private address included, so a session
+  that fetches URLs for someone else must filter them before it asks.
+- **Limits** are `HttpOptions`, with defaults that are safe on the open web:
+
+  | Setting | Default | Largest accepted |
+  |---|---|---|
+  | `timeout`, the whole request, redirects included | 30 s | 1 hour |
+  | `connect_timeout` | 10 s | |
+  | `max_body_bytes`, the reply after decompression | 64 MiB | 1 GiB |
+  | `max_request_bytes` | 64 MiB | |
+  | `max_redirects`, `follow_redirects` | 10, on | 30 |
+  | `pacing(calls, window)`, per site | off | |
+
+  Also `event_sink`, `trust(CertStore)` for a private root (certificate
+  verification is never turned off), `resolve(host, addr)`, `bypass(host)`,
+  `installed_chrome_major(major)` and `clock(..)`. `HttpOptions::validate`
+  refuses a value out of range before a client exists.
+- **Judging replies.** `reply.detect()` runs the [challenge
+  detection](#challenge-detection-and-mitigation). `session.assess(&reply,
+  &Attempt, &Rules, &identity)` adds what the `MitigationPolicy` and the
+  `SessionPolicy` make of it, as a `Verdict { detection, action, transition }`;
+  `session.fetch(url, &attempt, &rules, &identity)` sends a `GET` and judges it
+  in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
+  state, &rules)` asks, before a request, whether the identity's clearance is
+  about to end so that the browser should take the URL first. They are the
+  pieces of your own loop; [`StealthSession`](#stealthsession) is that loop.
+
+  ```rust
+  use seleniumbase_rs::impersonate::http_session::{Attempt, Rules};
+  use seleniumbase_rs::impersonate::HttpSession;
+  use seleniumbase_rs::scrape::StealthIdentity;
+
+  # async fn demo(session: HttpSession, identity: StealthIdentity) -> Result<(), Box<dyn std::error::Error>> {
+  let fetched = session
+      .fetch("https://example.com/", &Attempt::default(), &Rules::default(), &identity)
+      .await?;
+  if fetched.verdict.is_clear() {
+      println!("{}", fetched.reply.text()?);
+  } else {
+      println!("{:?}", fetched.verdict);
+  }
+  # Ok(())
+  # }
+  ```
+- **Identity.** `export_identity(&base)` puts the session's cookies back into a
+  `StealthIdentity` and refreshes its clearances. `egress()` is the exit without
+  credentials, `cookie_count()` and `profile()` read the state. Cloning gives
+  another handle to the same session.
+- **Secrets.** Cookies, credentials and proxy passwords never reach `Debug`, logs,
+  events or errors: URLs are redacted, a failure of the HTTP client is reduced to
+  a word, and header values are not quoted.
+
+### What to know
+
+- **The first request to an origin is written for HTTP/2.** The `priority` header
+  is a Chrome HTTP/2 header. The session cannot know the protocol before it
+  connects, so when an origin turns out to speak HTTP/1.1 only, that first
+  request carries an HTTP/2 `priority` header. The session then remembers the
+  origin and writes the HTTP/1.1 headers from the second request on. The tests
+  assert the second half (the second request has no `priority` header,
+  `the_protocol_an_origin_settled_on_is_remembered` in
+  `tests/impersonate_http/basics.rs`); the first request's header is what the
+  module documentation states, and no test asserts it.
+- It does not run JavaScript, solve a challenge, open a WebSocket, or pass
+  canvas, WebGL or behavioural checks, and it does not make automation permitted
+  by a site's terms. A matching handshake is one signal among many.
+- **What was run against a real Chrome.** `tests/impersonate_http_chrome.rs`
+  (`#[ignore]`d, headless Chrome 155 on macOS, against a loopback TLS site)
+  shows that the real `navigator.userAgent`, `navigator.languages`,
+  `Browser.getVersion` and `Network.getAllCookies` are what `from_page` reads,
+  that a host-only cookie set by a response reaches Chrome as host-only, that a
+  removal reaches it too, and that a page announcing itself as headless is
+  refused. The rest of `HttpSession` is tested against loopback sites
+  (`tests/impersonate_http.rs`) and a scripted browser, with no Chrome.
+
 ## The ephemeral-CA TLS server
 
-`impersonate::tls_server` is the building block under `capture_h2` and under the
-MITM proxy that is being written. `EphemeralCa::generate()` creates a P-256
+`impersonate::tls_server` is the building block under `capture_h2` and under
+[`MitmProxy`](#mitmproxy). `EphemeralCa::generate()` creates a P-256
 certificate authority in memory for the life of one process. `leaf_for(host,
 now)` issues a leaf for one DNS name or IP address (never a wildcard), cached in
 a count-bounded LRU. `acceptor(&[ALPN_HTTP1])` builds the BoringSSL server
@@ -656,11 +842,305 @@ Things to know before you use it:
   public key is not secret, so the pin is safe only while every connection of that
   Chrome profile ends at your server. The module keeps the trusted set as small
   as the switch allows (only the leaf key is pinned, and the server presents the
-  leaf alone), and documents that this behaviour was read from the Chromium source,
-  not measured on Chrome 155.
+  leaf alone). That a chain carrying the pinned key is accepted is **measured on
+  Chrome 155** (headless, macOS). In `tests/impersonate_mitm_chrome.rs`,
+  `without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key`
+  starts Chrome with the pin and no proxy, and Chrome loads a page from a
+  loopback server whose chain is its own self-signed certificate followed by the
+  proxy's leaf. Behind the proxy the same server is never served to the page
+  (`a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page`).
+  Both tests are `#[ignore]`d because they start Chrome. They do not separate the
+  individual checks the switch skips (signature, host name, validity,
+  revocation); those stay as read in the Chromium source.
 - The CA lives seven days by default (at most 90), a leaf one day. Private keys
   stay in BoringSSL memory and never appear in `Debug`, logs or errors. They are
   freed, not wiped, when the CA drops, because BoringSSL offers no zeroize hook.
+
+## MitmProxy
+
+`HttpSession` covers the requests you make yourself. `impersonate::mitm::MitmProxy`
+covers the ones a real Chrome makes. It is a loopback forward proxy that ends
+the browser's TLS with a leaf of the [ephemeral CA](#the-ephemeral-ca-tls-server)
+and replays each request through the impersonating client, so the origin sees the
+`ClientHello`, HTTP/2 start and header spelling of the profile (the measured
+ones, minus the [known gaps](#limits)) instead of whatever the installed browser
+would have sent. Both legs then look alike on the wire, and a clearance earned in
+the browser is valid over `HttpSession`.
+
+```rust
+use std::sync::Arc;
+use std::time::Duration;
+
+use seleniumbase_rs::impersonate::{ImpersonationProfile, MitmOptions, MitmProxy};
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs::scrape::NoopEventSink;
+use seleniumbase_rs::wire::BrowserKind;
+
+# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
+let mitm =
+    MitmProxy::start(profile, None, MitmOptions::default(), Arc::new(NoopEventSink)).await?;
+let options = mitm.configure_launch(LaunchOptions::builder()).build()?;
+let browser = Browser::launch(options).await?;
+let page = browser.new_page(Some("https://example.com/")).await?;
+# drop(page);
+browser.close().await?;
+mitm.shutdown(Duration::from_secs(5)).await;
+# Ok(())
+# }
+```
+
+`MitmProxy::start(profile, egress, options, sink)` binds `127.0.0.1` on a port the
+system picks. `egress` is the proxy the replayed requests leave through (or
+`None`); `sink` receives redacted events. `configure_launch` points a Chrome
+launch at the proxy and adds the switches it needs.
+
+### What the proxy does with each connection
+
+1. It requires `Proxy-Authorization: Basic` with a random 128-bit token (user
+   name `sb`), compared in constant time, and answers `407` otherwise. Chrome
+   gets the token through `ProxyAuth` over `Fetch.authRequired`, so it is never
+   on Chrome's command line.
+2. It refuses a target it cannot intercept with an empty `502` and closes the
+   connection. Nothing is ever tunnelled blind: bytes that are not a TLS
+   handshake for the `CONNECT` host end the connection.
+3. It answers `200` and ends the browser's TLS with a leaf for exactly the
+   `CONNECT` host. The browser leg offers ALPN `http/1.1` only, and the SNI must
+   name the same host.
+4. It reads each request, drops the hop-by-hop and proxy headers, keeps Chrome's
+   header order, adds the HTTP/2-only `priority` header from the measured table,
+   and sends the request upstream with certificate verification on. The reply
+   streams back without being buffered whole. An upstream failure, an untrusted
+   certificate included, is an empty `502`.
+
+An absolute-form `http://` request is checked the same way and forwarded without
+`CONNECT`. The browser only ever sees an empty status (`407`, `400`, `413`, `431` or
+`502`); the reason is a `MitmError` variant in the log (`Unauthorized`,
+`BadTarget`, `NotIntercepted`, `HostMismatch`, `BodyTooLarge`,
+`VersionMismatch`, `UpstreamRequest`). `start` itself can fail with `Bind`, `Tls`,
+`InvalidOptions`, `Random`, `Upstream` or `Egress`.
+
+### What Chrome must be told
+
+`mitm.configure_launch(builder)` sets the proxy and adds `mitm.chrome_args()`:
+the `--ignore-certificate-errors-spki-list` switch with the leaf pin only (never
+the CA pin), `--proxy-bypass-list=<-loopback>` so loopback hosts go through the
+proxy too, and `--disable-quic`. Because that switch trusts any chain that
+carries the pinned key (see [the CA section](#the-ephemeral-ca-tls-server)), the
+pin is safe only while every connection of the profile ends at the proxy.
+Without the last two switches a loopback server or a QUIC connection would reach
+Chrome directly. Chrome honours the pin only together with `--user-data-dir`, so
+do not reuse that profile directory for a Chrome that runs without the proxy. The
+proxy refuses a request whose `User-Agent` claims a Chrome major other than the
+profile's.
+
+### Bounds and options
+
+`MitmOptions` sets the bounds; `MitmProxy::start` refuses a value outside them
+with `MitmError::InvalidOptions`.
+
+| Setting | Default | Range |
+|---|---|---|
+| `max_connections`, served at once (further clients wait in the listen queue) | 256 | 1 to 4096 |
+| `max_header_bytes`, the request head (a larger one is answered `431`) | 64 KiB | 8 KiB to 1 MiB |
+| `max_headers` | 128 | 1 to 1024 |
+| `max_body_bytes`, each body in either direction (`413` when announced larger; cut when it grows past it) | 512 MiB | at least 1 |
+| `idle_timeout`, a connection waiting for its next request | 60 s | not zero |
+| `handshake_timeout`, the browser's TLS handshake | 10 s | not zero |
+| `connect_timeout`, the upstream connection | 30 s | not zero |
+| `read_timeout`, one upstream read | 60 s | not zero |
+
+`trust_upstream_root(der)` adds a root for upstream verification; once one is
+added, only the added roots are trusted, not the built-in web roots, and
+verification is never turned off. `resolve(host, addr)` pins a host name for the
+upstream client, and `ca(Arc<EphemeralCa>)` shares a CA.
+
+Bodies stream both ways; nothing is read whole into memory. `mitm.stats()` gives
+counts (`connections`, `tunnels`, `unauthorized`, `refused`, `forwarded`,
+`upstream_errors`).
+
+### Changing the upstream, and stopping
+
+`swap_upstream(egress)` and `swap_profile(profile)` build the new upstream
+client first and then replace the old one. Requests under way finish on the old
+one, and the listener, its port and the browser's open connections stay.
+`shutdown(grace)` stops accepting, lets requests finish for up to `grace`, then
+aborts what is left; dropping the last clone stops it too.
+
+### What is not intercepted
+
+- **WebSocket is refused.** An upgrade request is answered with an empty `502`.
+  A page behind the proxy cannot open a WebSocket, whatever the origin accepts.
+  (`a_websocket_upgrade_is_refused` in `tests/impersonate_mitm/forwarding.rs`.)
+- QUIC is off in Chrome, so there is no HTTP/3.
+- **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
+  header.** The upstream protocol is settled by ALPN after the request was
+  prepared, and the first request to an origin is prepared for HTTP/2. The proxy
+  then remembers the origin and later requests do not carry it. On HTTP/1.1 the
+  header names take the measured spelling; a name outside the measured lists
+  keeps the lower case the browser leg delivers.
+
+### What was run
+
+`tests/impersonate_mitm.rs` runs the proxy against loopback sites, an egress
+proxy and raw clients, with no browser: the token and the `407`, targets it
+refuses, the SNI check, the bounds, the measured JA4 and Akamai string and
+`priority` at the origin, header order, the refusals above, a 64 MiB body
+streaming through, swapping the egress, and shutdown leaving no task.
+
+`tests/impersonate_mitm_chrome.rs` drives the real Chrome 155 on macOS, headless,
+and is `#[ignore]`d. A page loads through the proxy, and the loopback origin
+sees the measured JA4 and Akamai string with the measured `priority` and a
+Chrome user agent; the token reaches Chrome only through the `407`. Two more
+tests are about the pin: a loopback server carrying the pinned key is never
+served to the page behind the proxy, and the same server is served to a Chrome
+that has the pin and no proxy. The origin in these tests is a server of the test,
+not a live site.
+
+## StealthSession
+
+`impersonate::stealth_session::StealthSession` joins the pieces. It presents one
+`StealthIdentity` (the fingerprint, the measured browser it belongs to, the
+cookies it earned and the egress they were earned through) in one of two modes
+and moves between them by the policies:
+
+- `Mode::Http`: an [`HttpSession`](#httpsession) sends the requests. It is fast
+  and cheap, with the measured handshake and headers.
+- `Mode::Browser`: a real Chrome sends them, behind a
+  [`MitmProxy`](#mitmproxy) that replays each request with the same measured
+  handshake. A clearance earned here is valid in the other mode.
+
+```rust
+use seleniumbase_rs::impersonate::StealthSession;
+use seleniumbase_rs::scrape::CountryCode;
+
+# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+let mut session = StealthSession::builder()
+    .with_geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+    .build()
+    .await?;
+let page = session.fetch("https://example.com/").await?;
+println!("{} bytes, {:?} mode", page.body.len(), page.mode);
+session.close().await?;
+# Ok(())
+# }
+```
+
+### The loop
+
+A session starts in the mode its `SessionPolicy` prefers (HTTP by default).
+`fetch(url)` asks the policies three questions:
+
+1. **Before the request**, `SessionPolicy::before_fetch`: does the identity hold
+   a clearance for the site that is about to end, must it hold one and does not,
+   or does the site's history say plain requests fail? Then the session goes to
+   the browser first.
+2. **After the answer**, `MitigationPolicy::decide`: a real page ends the loop; a
+   challenge met over HTTP sends the session to the browser (an escalation); in
+   the browser the challenge is solved and the cookies move into the identity; a
+   block or a rate limit starts a cooldown, rotates the egress or the profile, or
+   stops the fetch.
+3. **After a solve**, `SessionPolicy::after_fetch`: a browser that earned a
+   clearance hands the identity back to HTTP (a demotion), which carries it on.
+
+Every change of mode emits `ScraperEvent::ModeChanged` with its reason. The
+browser is closed when the session goes back to HTTP and started again, with the
+same identity and egress, when it is needed. **The MITM proxy is started the first
+time a browser is needed** (at `build()` when the policy prefers the browser) and
+lives until `close()`, so its port and its certificate stay the same across
+browsers.
+
+A site in cooldown is not requested at all. The state of the site (successes,
+challenges, cooldown) is read before the first load and saved after the last,
+whether the fetch worked or not. The attempts per fetch default to 4
+(`DEFAULT_ATTEMPTS`, one more than a browser-only scraper): one load meets the
+challenge over HTTP, one in the browser solves it, and one over HTTP uses the
+clearance.
+
+`fetch` returns a `StealthFetch`: `url` after redirects, `status`, `headers`, the
+`body` (the response body over HTTP, the rendered page in the browser), the
+`detection`, the `mode` it was got in, how many loads it took (`attempts`), the
+challenge `solved` on the way, and the `egress`. A page that took a challenge to
+reach is usually an HTTP page: the browser earned the clearance and the session
+went back to HTTP to use it. A body that is not UTF-8 is read lossily.
+
+### Building one
+
+`StealthSession::builder()` has a default for everything: Chrome with the
+platform's launch options, no proxy, state in memory, events written to `tracing`,
+HTTP preferred, and a profile drawn from a random seed.
+
+| Setting | What it does |
+|---|---|
+| `launch_options(builder)`, `launcher(..)` | How the browser starts. A setting made in the options (a user agent, say) wins over the fingerprint's, and the proxy is always the MITM proxy's. |
+| `with_geo_proxies([(spec, country)])`, `proxy_strategy(..)` | The egress pool and how it picks, as for `BrowserScraper`. Both legs leave through the same egress. |
+| `with_max_challenge_attempts(n)`, `mitigation(policy)` | Loads per fetch (zero reads as one) and the whole mitigation policy. |
+| `policy(SessionPolicy)` | The mode it prefers, whether HTTP needs a clearance, the clearance margin, whether a solve sends it back to HTTP. |
+| `with_state_store(..)`, `with_event_sink(..)`, `geo_resolver(..)`, `per_site_rate(calls, window)` | As for `BrowserScraper`. The HTTP leg and the proxy report to the same sink. |
+| `seed(..)`, `fingerprint(..)` | The first profile. A fingerprint must claim the measured Chrome. |
+| `restore(identity)` | Starts from a saved identity: its fingerprint, cookies and clearances. It must belong to one of the proxies added, or to the direct connection when there is none. |
+| `http_options(HttpOptions)`, `mitm_options(MitmOptions)` | The limits of each leg. The session's clock and event sink replace the ones in the HTTP options. |
+| `solve_timeout(..)`, `clock(..)` | How long a solve is waited for, and the clock. |
+
+`build()` fails with `StealthError::Impersonate` when this machine's system has no
+measured Chrome or the profile claims another version, `StealthError::Scrape` for
+an egress whose country has no locale, an identity that belongs to another egress
+or no browser to start, `StealthError::Http` and `StealthError::Mitm` for the
+legs.
+
+### Moving by hand
+
+| Call | What it does |
+|---|---|
+| `escalate()` | Goes to the browser now, with the identity as it stands. The cookies of the HTTP session move into the browser. |
+| `demote()` | Goes back to HTTP now, with the cookies the browser holds, and closes the browser. A browser that cannot be read (it crashed) does not trap the session: the identity as of the last read is used. |
+| `rotate_profile()` | A new seed derived from the old one, a new fingerprint for the same operating system that claims the measured Chrome. Cookies and clearances are dropped; what is known of each site stays. In browser mode a new Chrome starts behind the same proxy, on the same port. |
+| `rotate_egress()` | Another egress of the pool, with the same fingerprint in the language and time zone of the new country. The proxy is pointed at it first, so its port stays. Cookies and clearances are dropped, because a clearance belongs to the address that earned it. `NoEgressAvailable` when the pool has nothing else. |
+| `export_identity()`, `import_identity(&id)` | Take the identity out of the session, or put one in. It must belong to the egress in use. |
+| `mode()`, `identity()`, `egress()`, `seed()`, `http()`, `page()` | Read the state. `http()` is the `HttpSession` in HTTP mode, for requests of your own that carry the earned cookies; `page()` is the tab in browser mode. |
+| `close()` | Closes the browser if one runs and stops the proxy. A dropped session leaves both to their own drop. |
+
+On an error from a rotation, an import or a change of mode the session is as it
+was.
+
+### Errors
+
+`StealthError` has one variant per layer: `Scrape` (the browser leg, the site
+state, an identity or the mitigation policy; `Unsolved`, `GaveUp` and
+`CoolingDown` come as this variant), `Http`, `Mitm` and `Impersonate`. Each
+already keeps URLs redacted and credentials out of its text. At the crate
+boundary it maps to `SeleniumBaseError`.
+
+### What to know
+
+- The measured Chrome and the installed Chrome must have the same major version.
+  A browser that is another version is refused before it loads a page
+  (`StealthError::Impersonate`).
+- A launched browser lives until the session leaves the browser mode or is
+  closed. There is no idle timeout and no deadline in the session.
+- It runs the same fetch loop as `BrowserScraper`, with plain HTTP as the first
+  move. A matching handshake is one signal among many, and a session does not
+  make automation permitted by a site's terms. See [Limits](#limits).
+
+### What was run
+
+`tests/stealth_session.rs` runs the real HTTP leg against a loopback TLS shop
+that trusts only its own ephemeral authority, with a scripted browser
+(`Browser::new_mocked`, feature `test-util`): every transition of the state
+machine and its events, export and restore, rotating the profile and the egress,
+and that secrets stay out of output. The MITM proxy is started and the browser
+is launched behind it, but the traffic of a browser is not made.
+
+`tests/stealth_session_chrome.rs` runs the story with the real Chrome 155 on
+macOS, headless (`#[ignore]`d): the session asks over HTTP and meets a script
+challenge on a loopback TLS shop; it starts the proxy and a Chrome behind it with
+the same fingerprint and egress; Chrome runs the challenge page's script, which
+earns the clearance cookie; the cookies move into the identity, Chrome closes,
+and the session asks again over HTTP with the clearance. The shop sees one
+`ClientHello` shape and one user agent from both legs. A second test takes a
+clearance near its end back to Chrome, and a third shows that a rotated profile
+is what the page sees while the proxy stays. The shop is a stand-in written for
+the test: no vendor's challenge was run.
 
 ## Limits
 
@@ -686,17 +1166,32 @@ State these plainly to yourself before you build on any of this.
   The first two are recorded in the measured file's `provenance.known_gaps`; the
   tests assert that the difference between Chrome and our client is exactly
   these, and fail when one disappears.
-- **No HTTP/3.** wreq has none, and Chrome behind a proxy skips QUIC too.
-- **Three parts are not written yet.** `HttpSession`, `MitmProxy` and
-  `StealthSession` are in progress. Until they land there is no session that
-  carries a clearance from the browser to plain requests, and no proxy that lets
-  a real Chrome leave with an impersonated handshake.
-- **Tested against local captures, not against live services.** The wire layer
-  is tested against committed captures and, in tests marked `#[ignore]`, against
-  a local Chrome. The `BrowserScraper` flows are tested with a scripted browser
-  and with ignored tests that drive a local Chrome. Nothing here was checked
-  against a live bot-protection service. The identity file's permissions check
-  is Unix only.
+
+  `HttpSession` and `MitmProxy` send the handshake of this client, so the gaps
+  apply to them. Behind the `MitmProxy` the origin sees our handshake, gaps
+  included, and not Chrome's own, which `BrowserScraper` leaves with unchanged.
+  That is the price of one wire identity in both modes of a `StealthSession`.
+- **No HTTP/3.** wreq has none, and Chrome behind the proxy has QUIC switched off.
+- **WebSocket does not pass the `MitmProxy`.** An upgrade request is answered with
+  an empty `502`, so a page behind the proxy, and so the browser leg of a
+  `StealthSession`, cannot open a WebSocket. `HttpSession` opens none either.
+- **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
+  header**, in `HttpSession` and in `MitmProxy`, because the protocol is known
+  only after the connection opens. Later requests to that origin do not carry it.
+- **Headless, one system.** The tests that drive Chrome through `MitmProxy`,
+  `HttpSession::from_page` and `StealthSession` launch it headless on macOS with
+  Chrome 155; none drives them headed. The measured tables were captured from a
+  headed Chrome, and headless and headed Chrome differ.
+- **`HttpSession` follows redirects where they point,** a private address
+  included. Filter the URLs before the session sees them if they are not yours.
+- **Tested against local captures and servers, not against live services.** The
+  wire layer is tested against committed captures and, in tests marked
+  `#[ignore]`, against a local Chrome. The `BrowserScraper` flows are tested with
+  a scripted browser and with ignored tests that drive a local Chrome.
+  `HttpSession`, `MitmProxy` and `StealthSession` are tested against loopback TLS
+  sites and a challenge page written for the tests, with a scripted browser, and
+  in ignored tests with the local Chrome. Nothing here was checked against a live
+  bot-protection service. The identity file's permissions check is Unix only.
 - **No guarantee against any detection service.** A matching handshake is one
   signal among many: the IP address, the behaviour, the account and the page's
   own checks all count. Nothing here promises to pass a given service, and
@@ -718,11 +1213,18 @@ State these plainly to yourself before you build on any of this.
 | `ScrapeError::CoolingDown` | The site answered with a block or rate limit and is being left alone. | Wait until the time in the error (seconds since the Unix epoch), or give the scraper another egress. |
 | `ScrapeError::Unsolved` | A challenge was still there after the attempts allowed. | Raise `with_max_challenge_attempts`, add egresses, or accept that this page needs a person. |
 | `ScrapeError::NoEgressAvailable` | A rotation was asked for and the pool has nothing else in rotation. | Add proxies with `with_geo_proxies`. |
+| `HttpError::VersionMismatch`, `StealthError::Impersonate` | The page, the identity or the installed Chrome is another major than the measured one. | Update or downgrade Chrome to the measured major, or run the capture tools again. |
+| `HttpError::Impersonate` for a page | The page announces itself as `HeadlessChrome`, is not Chrome, or runs on a system that was not measured. | Give the browser a fingerprint or run it headed; use the measured system. |
+| `HttpError::ReservedHeader` | A request set a header the profile owns (`User-Agent`, `Sec-CH-UA*`, `Accept-Language`, `Accept-Encoding`, `Cookie`, `priority`). | Remove it. Change the identity instead. |
+| `HttpError::RedirectRefused`, `TooManyRedirects` | A hop led somewhere the session refuses, or past the limit. | Request the final URL, or raise `max_redirects`. |
+| `HttpError::Identity(EgressMismatch)` | The identity or the page belongs to another egress than the one passed. | Pass the egress the cookies were earned through. |
+| Chrome behind `MitmProxy` shows a `502` page | The proxy refused the request or the upstream failed (an untrusted certificate, a WebSocket upgrade, a version mismatch). | Check `mitm.stats()` and the log; `trust_upstream_root` for a private site. |
 
 ---
 
-Verified against commit `c5a6f2f`, by reading `src/wire/**`, `src/scrape/**`,
-`src/impersonate/**`, `examples/capture_*.rs`, `src/wire/measured/chrome-155-macos.json`
-and the tests that pin the behaviour described here. The code samples were
-checked against the signatures in those files; they were not compiled or run for
-this check.
+Verified against commit `4184e74` and the re-exports added after it, by reading
+`src/wire/**`, `src/scrape/**`, `src/impersonate/**`, `examples/capture_*.rs`,
+`src/wire/measured/chrome-155-macos.json` and the tests that pin the behaviour
+described here. The code samples were checked against the signatures in those
+files; they were not compiled or run for this check. The real-Chrome tests named
+here are `#[ignore]`d and were not run for this check.
