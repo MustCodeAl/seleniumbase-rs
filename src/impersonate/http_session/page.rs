@@ -43,6 +43,8 @@ const NOT_CHROME: [&str; 8] = [
 ];
 /// The token that carries the Chrome major version in a user agent.
 const CHROME_TOKEN: &str = "Chrome/";
+/// The token a headless Chrome puts in its user agent in place of `Chrome`.
+const HEADLESS_TOKEN: &str = "HeadlessChrome";
 /// How many languages `Accept-Language` lists, as Chrome writes it.
 const MAX_LANGUAGES: usize = 10;
 
@@ -111,12 +113,19 @@ pub(super) fn accept_language(languages: &[String]) -> Option<String> {
 /// # Errors
 ///
 /// Returns [`HttpError::VersionMismatch`] when the user agent or the browser is another Chrome
-/// major than the measured one, and [`HttpError::Impersonate`] for a browser that is not Chrome or
-/// a system that was not measured.
+/// major than the measured one, and [`HttpError::Impersonate`] for a browser that is not Chrome,
+/// one that announces itself as headless (its user agent would give the session away), or a
+/// system that was not measured.
 pub(super) fn profile_of(probe: &Probe) -> Result<ImpersonationProfile, HttpError> {
     let user_agent = probe.user_agent.as_str();
     if NOT_CHROME.iter().any(|token| user_agent.contains(token)) {
         return Err(ImpersonateError::Fingerprint("the browser is not Chrome").into());
+    }
+    if user_agent.contains(HEADLESS_TOKEN) {
+        return Err(ImpersonateError::Fingerprint(
+            "the browser announces itself as headless Chrome; give it a fingerprint or run it headed",
+        )
+        .into());
     }
     let claimed = chrome_major(user_agent).ok_or(ImpersonateError::Fingerprint(
         "its user agent names no Chrome version",
@@ -474,6 +483,7 @@ mod tests {
             "Mozilla/5.0 (Macintosh) Chrome/155.0.0.0 OPR/110.0.0.0",
             "Mozilla/5.0 (Macintosh; rv:130.0) Gecko/20100101 Firefox/130.0",
             "Mozilla/5.0 (Macintosh) Safari/605.1.15",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
         ] {
             assert!(
                 matches!(
