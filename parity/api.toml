@@ -4290,8 +4290,8 @@ rust = "BrowserConfig::with_window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--account"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Hands a free-text account string to pytest tests as sb.account; a Rust test reads its own values from std::env or a fixture file."
 
 [options_pytest."--ad-block"]
 status = "implemented"
@@ -4310,12 +4310,12 @@ status = "composed"
 rust = "BrowserConfig::user_agent"
 
 [options_pytest."--all-scripts"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend."
 
 [options_pytest."--all_scripts"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Makes pytest collect SB(), DriverContext() and Driver() scripts as tests; cargo test runs only #[test] functions, so there is no collection phase to extend."
 
 [options_pytest."--archive-downloads"]
 status = "planned"
@@ -4405,12 +4405,14 @@ rust = "BrowserConfig::browser"
 note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_pytest."--check-js"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::assert_no_js_errors"
+note = "Call it after the page loads."
 
 [options_pytest."--check_js"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::assert_no_js_errors"
+note = "Call it after the page loads."
 
 [options_pytest."--chrome"]
 status = "composed"
@@ -4438,8 +4440,8 @@ rust = "BrowserConfig::browser"
 note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode."
 
 [options_pytest."--codegen"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::start_recording"
 
 [options_pytest."--comet"]
 status = "implemented"
@@ -4447,8 +4449,8 @@ rust = "BrowserConfig::browser"
 note = "Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess)."
 
 [options_pytest."--crumbs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::delete_all_cookies"
 
 [options_pytest."--crx"]
 status = "implemented"
@@ -4471,28 +4473,28 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--dash-title"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Sets the title of the pytest session dashboard page; write_dashboard_html takes its title from the scenario's name."
 
 [options_pytest."--dash_title"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Sets the title of the pytest session dashboard page; write_dashboard_html takes its title from the scenario's name."
 
 [options_pytest."--dashboard"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Turns on the live dashboard.html that the pytest session rewrites during a run; a scenario run writes a static report with write_dashboard_html instead."
 
 [options_pytest."--data"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Passes one free-text string through the pytest command line as self.data; a Rust test reads its own values from std::env or a fixture file."
 
 [options_pytest."--database-env"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments."
 
 [options_pytest."--database_env"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments."
 
 [options_pytest."--dcsp"]
 status = "implemented"
@@ -4537,8 +4539,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable-beforeunload"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::disable_beforeunload"
+note = "Call it after each navigation."
 
 [options_pytest."--disable-cookies"]
 status = "implemented"
@@ -4576,8 +4579,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable_beforeunload"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::disable_beforeunload"
+note = "Call it after each navigation."
 
 [options_pytest."--disable_cookies"]
 status = "implemented"
@@ -4640,8 +4644,8 @@ rust = "BrowserConfig::browser"
 note = "Choose the Browser variant."
 
 [options_pytest."--ee"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Polls the ESC key inside the Python test loop to skip the running test; cargo test has no hook to skip a running test from the keyboard."
 
 [options_pytest."--enable-3d-apis"]
 status = "composed"
@@ -4679,16 +4683,16 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--env"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Names the test environment (qa, prod, ...) for the pytest plugin; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead."
 
 [options_pytest."--esc-end"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Polls the ESC key inside the Python test loop to skip the running test; cargo test has no hook to skip a running test from the keyboard."
 
 [options_pytest."--esc_end"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Polls the ESC key inside the Python test loop to skip the running test; cargo test has no hook to skip a running test from the keyboard."
 
 [options_pytest."--extension-dir"]
 status = "implemented"
@@ -4731,16 +4735,16 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--fdebug"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
 
 [options_pytest."--final-debug"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
 
 [options_pytest."--final-trace"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
 
 [options_pytest."--firefox"]
 status = "composed"
@@ -4768,12 +4772,13 @@ rust = "FirefoxOptions::add_preferences"
 note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_pytest."--ftrace"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug."
 
 [options_pytest."--fullscreen"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::extra_args"
+note = "Passed to the browser as --start-maximized through BrowserConfig::extra_args."
 
 [options_pytest."--guest"]
 status = "composed"
@@ -4791,8 +4796,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--gui"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::headless"
+note = "Headed is headless = false."
 
 [options_pytest."--headed"]
 status = "composed"
@@ -4860,16 +4866,16 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--lfp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails."
 
 [options_pytest."--list-fail-page"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails."
 
 [options_pytest."--list-fail-pages"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "A pytest report hook that prints the URL of each failing test; a Rust test prints BaseCase::get_current_url itself when it fails."
 
 [options_pytest."--locale"]
 status = "implemented"
@@ -4894,8 +4900,8 @@ rust = "BrowserConfig::with_cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log-path"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
 
 [options_pytest."--log_cdp"]
 status = "implemented"
@@ -4908,8 +4914,8 @@ rust = "BrowserConfig::with_cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log_path"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream and no longer editable: logs always go to latest_logs/, as artifacts::ensure_latest_logs_dir does here."
 
 [options_pytest."--maximize"]
 status = "composed"
@@ -4975,8 +4981,8 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--no-screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
 
 [options_pytest."--no_csp"]
 status = "implemented"
@@ -4989,12 +4995,12 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--no_screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
 
 [options_pytest."--ns"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
 
 [options_pytest."--open-devtools"]
 status = "composed"
@@ -5079,12 +5085,12 @@ rust = "BrowserConfig::with_proxy_for_driver_download"
 note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--rcs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::reuse_session"
 
 [options_pytest."--rec"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::start_recording"
 
 [options_pytest."--rec-behave"]
 status = "planned"
@@ -5095,32 +5101,33 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--rec-print"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::export_recording_as_rust"
+note = "Print the returned text."
 
 [options_pytest."--rec-sb-cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Saves recorded actions as a Python sb_cdp script; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test."
 
 [options_pytest."--rec-sb-mgr"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test."
 
 [options_pytest."--rec-sleep"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--record"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::start_recording"
 
 [options_pytest."--record-sleep"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--recorder"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::start_recording"
 
 [options_pytest."--remote-debug"]
 status = "implemented"
@@ -5138,8 +5145,9 @@ rust = "BrowserConfig::with_remote_debug"
 note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_pytest."--remote_debugger"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_remote_debug"
+note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_pytest."--reuse-class-session"]
 status = "not-applicable"
@@ -5167,16 +5175,19 @@ rust = "BrowserConfig::browser"
 note = "Run with safaridriver, which comes with macOS; Safari needs Allow Remote Automation turned on."
 
 [options_pytest."--save-screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::save_teardown_screenshot"
+note = "Call it at the end of a test."
 
 [options_pytest."--save_screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::save_teardown_screenshot"
+note = "Call it at the end of a test."
 
 [options_pytest."--screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::save_teardown_screenshot"
+note = "Call it at the end of a test."
 
 [options_pytest."--server"]
 status = "composed"
@@ -5224,8 +5235,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--ss"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::save_teardown_screenshot"
+note = "Call it at the end of a test."
 
 [options_pytest."--start-page"]
 status = "implemented"
@@ -5241,24 +5253,26 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--time-limit"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_time_limit"
 
 [options_pytest."--time_limit"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_time_limit"
 
 [options_pytest."--timelimit"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_time_limit"
 
 [options_pytest."--timeout-multiplier"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_default_timeout"
+note = "Multiply the default timeout yourself."
 
 [options_pytest."--timeout_multiplier"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_default_timeout"
+note = "Multiply the default timeout yourself."
 
 [options_pytest."--uc"]
 status = "composed"
@@ -5306,8 +5320,8 @@ rust = "BrowserConfig::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--url"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::start_page"
 
 [options_pytest."--use-auto-ext"]
 status = "implemented"
@@ -5373,16 +5387,19 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--wait-for-angularjs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::wait_for_angularjs"
+note = "Both default to no waiting; call it where a page needs it."
 
 [options_pytest."--wait_for_angularjs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::wait_for_angularjs"
+note = "Both default to no waiting; call it where a page needs it."
 
 [options_pytest."--wfa"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::wait_for_angularjs"
+note = "Both default to no waiting; call it where a page needs it."
 
 [options_pytest."--window-position"]
 status = "composed"
@@ -5413,12 +5430,14 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-db-reporting"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "ResultStore::record_outcome"
+note = "Needs the turso feature; the store is a local database, not MySQL."
 
 [options_pytest."--with-db_reporting"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "ResultStore::record_outcome"
+note = "Needs the turso feature; the store is a local database, not MySQL."
 
 [options_pytest."--with-page-source"]
 status = "not-applicable"
@@ -5429,12 +5448,12 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--with-s3-logging"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "S3LoggingPlugin::upload_file"
 
 [options_pytest."--with-s3_logging"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "S3LoggingPlugin::upload_file"
 
 [options_pytest."--with-screen-shots"]
 status = "not-applicable"
@@ -5472,8 +5491,8 @@ rust = "VirtualDisplay::new"
 note = "WIDTH,HEIGHT of the virtual screen; 1366,768 when not given."
 
 [options_sb."account"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Hands a free-text account string to SB() tests as sb.account; a Rust test reads its own values from std::env or a fixture file."
 
 [options_sb."ad_block"]
 status = "implemented"
@@ -5533,8 +5552,8 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."data"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file."
 
 [options_sb."demo"]
 status = "planned"
@@ -5556,8 +5575,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."disable_beforeunload"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::disable_beforeunload"
+note = "Call it after each navigation."
 
 [options_sb."disable_cookies"]
 status = "implemented"
@@ -5610,8 +5630,8 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."environment"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Names the test environment (qa, prod, ...) for SB() tests; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead."
 
 [options_sb."extension_dir"]
 status = "implemented"
@@ -5694,8 +5714,9 @@ rust = "BrowserConfig::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_sb."js_checking_on"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::assert_no_js_errors"
+note = "Call it after the page loads."
 
 [options_sb."locale"]
 status = "implemented"
@@ -5734,8 +5755,8 @@ rust = "LaunchOptionsBuilder::proxy"
 note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
 
 [options_sb."no_screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one."
 
 [options_sb."page_load_strategy"]
 status = "implemented"
@@ -5776,24 +5797,25 @@ status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
 
 [options_sb."raise_test_failure"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
 
 [options_sb."rec_behave"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."rec_print"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::export_recording_as_rust"
+note = "Print the returned text."
 
 [options_sb."rec_sb_cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Saves recorded actions as a Python sb_cdp script; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test."
 
 [options_sb."rec_sb_mgr"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Saves recorded actions inside a Python `with SB() as sb:` block; the recorder here saves them as a Rust test with ActionRecorder::to_rust_test."
 
 [options_sb."record_sleep"]
 status = "planned"
@@ -5810,12 +5832,13 @@ rust = "BrowserConfig::with_remote_debug"
 note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_sb."rtf"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err."
 
 [options_sb."save_screenshot"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::save_teardown_screenshot"
+note = "Call it at the end of a test."
 
 [options_sb."server"]
 status = "composed"
@@ -5858,16 +5881,17 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."test"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself."
 
 [options_sb."time_limit"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_time_limit"
 
 [options_sb."timeout_multiplier"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::set_default_timeout"
+note = "Multiply the default timeout yourself."
 
 [options_sb."uc"]
 status = "composed"
@@ -5935,12 +5959,14 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."wait_for_angularjs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::wait_for_angularjs"
+note = "Both default to no waiting; call it where a page needs it."
 
 [options_sb."wfa"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BaseCase::wait_for_angularjs"
+note = "Both default to no waiting; call it where a page needs it."
 
 [options_sb."window_position"]
 status = "implemented"
