@@ -13,11 +13,11 @@ use super::connect::ProxyCredentials;
 use super::forward::{
     claimed_chrome_major, forwarded_request_headers, forwarded_response_headers, Origin,
 };
-use super::upstream::egress_proxy;
+use super::upstream::{egress_proxy, websocket_spec};
 use super::{
-    chrome_args_for, hex, random_token, MitmError, MitmOptions, MitmProxy, DISABLE_QUIC_ARG,
-    MAX_CONNECTIONS, MAX_HEADERS, MAX_HEADER_BYTES, MIN_HEADER_BYTES, PROXY_EVERYTHING_ARG,
-    PROXY_USER,
+    chrome_args_for, hex, random_token, MitmError, MitmOptions, MitmProxy,
+    DEFAULT_MAX_WEBSOCKET_BYTES, DEFAULT_WEBSOCKET_IDLE_TIMEOUT, DISABLE_QUIC_ARG, MAX_CONNECTIONS,
+    MAX_HEADERS, MAX_HEADER_BYTES, MIN_HEADER_BYTES, PROXY_EVERYTHING_ARG, PROXY_USER,
 };
 use crate::impersonate::client::ImpersonationProfile;
 use crate::impersonate::tls_server::EphemeralCa;
@@ -25,7 +25,7 @@ use crate::sb_cdp::LaunchOptions;
 use crate::scrape::egress::redact::Secret;
 use crate::scrape::egress::route::EgressRef;
 use crate::scrape::ledger::events::NoopEventSink;
-use crate::wire::BrowserKind;
+use crate::wire::{emulation, BrowserKind};
 
 /// A header map in the order given.
 fn headers(list: &[(&str, &str)]) -> HeaderMap {
@@ -69,6 +69,8 @@ fn options_outside_their_bounds_are_refused() {
         MitmOptions::default().handshake_timeout(Duration::ZERO),
         MitmOptions::default().connect_timeout(Duration::ZERO),
         MitmOptions::default().read_timeout(Duration::ZERO),
+        MitmOptions::default().websocket_idle_timeout(Duration::ZERO),
+        MitmOptions::default().max_websocket_bytes(0),
         MitmOptions::default().resolve(" ", "127.0.0.1:1".parse().expect("an address")),
     ];
     for options in cases {
@@ -77,6 +79,46 @@ fn options_outside_their_bounds_are_refused() {
             "{options:?}"
         );
     }
+}
+
+#[test]
+fn the_websocket_bounds_have_defaults_and_show_in_debug() {
+    let shown = format!("{:?}", MitmOptions::default());
+    assert!(
+        shown.contains(&format!(
+            "websocket_idle_timeout: {DEFAULT_WEBSOCKET_IDLE_TIMEOUT:?}"
+        )),
+        "{shown}"
+    );
+    assert!(
+        shown.contains(&format!(
+            "max_websocket_bytes: {DEFAULT_MAX_WEBSOCKET_BYTES}"
+        )),
+        "{shown}"
+    );
+    MitmOptions::default()
+        .websocket_idle_timeout(Duration::from_millis(1))
+        .max_websocket_bytes(1)
+        .validate()
+        .expect("the smallest bounds hold");
+}
+
+#[test]
+fn the_websocket_hello_is_the_measured_one_without_its_gaps_and_offers_http1_only() {
+    let profile = ImpersonationProfile::measured(BrowserKind::Chrome).expect("measured");
+    let spec = websocket_spec(&profile).expect("a WebSocket hello is measured");
+    let entry = emulation::get(profile.kind(), profile.os()).expect("the entry");
+    let measured = entry.tls_websocket.as_ref().expect("measured");
+    assert_eq!(
+        spec,
+        measured.without_known_gaps(&entry.provenance.known_gaps)
+    );
+    assert_eq!(spec.alpn, ["http/1.1".to_owned()]);
+    assert_ne!(
+        spec.ja4(),
+        profile.tls_spec().ja4(),
+        "the WebSocket hello is not the ordinary one"
+    );
 }
 
 #[test]

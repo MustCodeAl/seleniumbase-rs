@@ -36,8 +36,10 @@
 //! listen queue), the request head ([`MitmOptions::max_header_bytes`] and
 //! [`MitmOptions::max_headers`]), each body in either direction
 //! ([`MitmOptions::max_body_bytes`]), the idle time of a connection waiting for its next request
-//! ([`MitmOptions::idle_timeout`]), the browser's TLS handshake, and the upstream connect and read
-//! phases all have limits.
+//! ([`MitmOptions::idle_timeout`]), the browser's TLS handshake, the upstream connect and read
+//! phases, and a relayed WebSocket's idle time and bytes in each direction
+//! ([`MitmOptions::websocket_idle_timeout`], [`MitmOptions::max_websocket_bytes`]) all have
+//! limits.
 //!
 //! # Destinations
 //!
@@ -55,11 +57,33 @@
 //! first and then replace the old one; requests already under way finish on the old one and the
 //! listener, its port and the browser's open connections stay.
 //!
+//! # WebSocket
+//!
+//! A `wss://` connection reaches the proxy as a `CONNECT` whose TLS the proxy ends, followed by the
+//! RFC 6455 opening handshake (`GET` with `Upgrade: websocket` and `Connection: Upgrade`). The
+//! handshake passes the same checks as any request (token, destination, `Host`, user agent) and
+//! goes upstream over HTTP/1.1 with the measured WebSocket `ClientHello` (Chrome offers only
+//! `http/1.1` there, so its JA4 differs from the ordinary one), in the browser's header order with
+//! the hop-by-hop fields dropped except the `Connection: Upgrade` and `Upgrade: websocket` pair,
+//! which the proxy writes itself. The upstream's `101 Switching Protocols` is relayed as it is;
+//! checking `Sec-WebSocket-Accept` stays with the browser. From then on the proxy copies bytes in
+//! both directions without reading frames, until a side closes, the connection has carried no byte
+//! for [`MitmOptions::websocket_idle_timeout`], one direction has carried more than
+//! [`MitmOptions::max_websocket_bytes`], or the proxy stops; then both sides are shut down.
+//!
+//! A custom profile's WebSocket connections send the measured WebSocket hello of its base browser.
+//! A profile without a measured WebSocket hello gets an empty `502` for every handshake.
+//!
 //! # Not intercepted
 //!
-//! Protocol upgrades (WebSocket) are refused with an empty `502`. QUIC is off in Chrome, so there
-//! is no HTTP/3. Requests whose `User-Agent` claims a Chrome major other than the profile's are
-//! refused, because the measured TLS and HTTP/2 would contradict the header.
+//! Every protocol upgrade other than WebSocket (`h2c`, `TLS/1.2`, a list of protocols) is refused
+//! with an empty `502`, and a request that only half asks for one (`Connection: upgrade` without
+//! `Upgrade`, `Upgrade` without `Connection: upgrade`, a method other than `GET`, a body) with an
+//! empty `400`. A WebSocket handshake outside a `CONNECT` tunnel (an absolute-form `http://`
+//! request) is refused with an empty `502`; Chrome tunnels `ws://` through `CONNECT` as well, and a
+//! tunnel that does not start with TLS is never relayed, so only `wss://` gets through. QUIC is off
+//! in Chrome, so there is no HTTP/3. Requests whose `User-Agent` claims a Chrome major other than
+//! the profile's are refused, because the measured TLS and HTTP/2 would contradict the header.
 //!
 //! # HTTP/1.1 origins
 //!
@@ -108,6 +132,7 @@ mod connect;
 mod destination;
 mod forward;
 mod upstream;
+mod websocket;
 
 #[cfg(test)]
 mod tests;
@@ -166,6 +191,10 @@ pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 /// How long one upstream read may take by default.
 pub const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(60);
+/// How long a relayed WebSocket may carry no byte in either direction by default.
+pub const DEFAULT_WEBSOCKET_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
+/// The most bytes a relayed WebSocket carries in each direction by default.
+pub const DEFAULT_MAX_WEBSOCKET_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Random bytes in a proxy token: 128 bits.
 const TOKEN_BYTES: usize = 16;
@@ -195,6 +224,10 @@ pub struct MitmOptions {
     connect_timeout: Duration,
     /// How long one upstream read may take.
     read_timeout: Duration,
+    /// How long a relayed WebSocket may carry no byte in either direction.
+    websocket_idle_timeout: Duration,
+    /// The most bytes a relayed WebSocket carries in each direction.
+    max_websocket_bytes: u64,
     /// DER roots that replace the built-in web roots for upstream verification, when not empty.
     upstream_roots: Vec<Vec<u8>>,
     /// Host names the upstream client resolves to fixed addresses.
@@ -216,6 +249,8 @@ impl Default for MitmOptions {
             handshake_timeout: DEFAULT_HANDSHAKE_TIMEOUT,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             read_timeout: DEFAULT_READ_TIMEOUT,
+            websocket_idle_timeout: DEFAULT_WEBSOCKET_IDLE_TIMEOUT,
+            max_websocket_bytes: DEFAULT_MAX_WEBSOCKET_BYTES,
             upstream_roots: Vec::new(),
             resolve: Vec::new(),
             ca: None,
@@ -235,6 +270,8 @@ impl fmt::Debug for MitmOptions {
             .field("handshake_timeout", &self.handshake_timeout)
             .field("connect_timeout", &self.connect_timeout)
             .field("read_timeout", &self.read_timeout)
+            .field("websocket_idle_timeout", &self.websocket_idle_timeout)
+            .field("max_websocket_bytes", &self.max_websocket_bytes)
             .field("upstream_roots", &self.upstream_roots.len())
             .field("resolve", &self.resolve.len())
             .field("ca", &self.ca)
@@ -307,6 +344,24 @@ impl MitmOptions {
         self
     }
 
+    /// How long a relayed WebSocket may carry no byte in either direction before both of its
+    /// sides are closed. Not zero. Chrome sends no keep-alive of its own on a WebSocket, so a
+    /// site that pings less often than this loses its idle connections.
+    #[must_use]
+    pub fn websocket_idle_timeout(mut self, timeout: Duration) -> Self {
+        self.websocket_idle_timeout = timeout;
+        self
+    }
+
+    /// The most bytes a relayed WebSocket carries in each direction, at least 1. The read that
+    /// crosses the limit is not passed on, and both sides are closed; frames are not read, so a
+    /// single frame larger than the limit ends the connection.
+    #[must_use]
+    pub fn max_websocket_bytes(mut self, bytes: u64) -> Self {
+        self.max_websocket_bytes = bytes;
+        self
+    }
+
     /// Trusts a DER root for upstream verification. Once one is added, the upstream client
     /// trusts the added roots only, not the built-in web roots: use it for a private site.
     /// Verification is never turned off.
@@ -366,11 +421,14 @@ impl MitmOptions {
             Some("max_headers must be from 1 to MAX_HEADERS")
         } else if self.max_body_bytes == 0 {
             Some("max_body_bytes must be at least 1")
+        } else if self.max_websocket_bytes == 0 {
+            Some("max_websocket_bytes must be at least 1")
         } else if [
             self.idle_timeout,
             self.handshake_timeout,
             self.connect_timeout,
             self.read_timeout,
+            self.websocket_idle_timeout,
         ]
         .contains(&Duration::ZERO)
         {
@@ -387,7 +445,7 @@ impl MitmOptions {
 /// Why the proxy could not start, swap its upstream, or serve one request.
 ///
 /// The per-request variants are what the proxy logs when it refuses; the browser only ever sees
-/// an empty status (`407`, `400`, `403`, `413` or `502`). No variant carries a token, a credential, a
+/// an empty status (`407`, `400`, `403`, `413`, `431` or `502`). No variant carries a token, a credential, a
 /// header value or key material.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -427,6 +485,11 @@ pub enum MitmError {
     /// The `Host` header of a request does not name its `CONNECT` target.
     #[error("the Host header does not name the CONNECT target")]
     HostMismatch,
+    /// A request asks for a protocol upgrade in a malformed way: `Connection: upgrade` without
+    /// `Upgrade`, `Upgrade` without `Connection: upgrade`, or a WebSocket handshake that is not
+    /// a bodiless HTTP/1.1 `GET`.
+    #[error("the upgrade request is malformed: {0}")]
+    MalformedUpgrade(&'static str),
     /// A request announced a body larger than the limit.
     #[error("the body is larger than {limit} bytes")]
     BodyTooLarge {
@@ -467,6 +530,9 @@ pub struct MitmStats {
     pub forwarded: u64,
     /// Requests answered `502` because the upstream failed.
     pub upstream_errors: u64,
+    /// WebSocket handshakes the upstream accepted, whose bytes the proxy then relayed; each is
+    /// counted in `forwarded` too.
+    pub websockets: u64,
 }
 
 /// The live counters behind [`MitmStats`].
@@ -478,6 +544,7 @@ struct Counters {
     refused: AtomicU64,
     forwarded: AtomicU64,
     upstream_errors: AtomicU64,
+    websockets: AtomicU64,
 }
 
 impl Counters {
@@ -496,6 +563,7 @@ impl Counters {
             refused: read(&self.refused),
             forwarded: read(&self.forwarded),
             upstream_errors: read(&self.upstream_errors),
+            websockets: read(&self.websockets),
         }
     }
 }

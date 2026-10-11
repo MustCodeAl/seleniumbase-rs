@@ -2,7 +2,8 @@
 //! leg the proxy ends.
 //!
 //! Every connection task belongs to one [`JoinSet`] owned by the accept loop, so aborting the
-//! loop aborts them all; nothing is spawned anywhere else.
+//! loop aborts them all; nothing is spawned anywhere else. A WebSocket relay runs in the task of
+//! its browser connection, after hyper has handed the connection over.
 
 use std::convert::Infallible;
 use std::future::Future;
@@ -25,6 +26,7 @@ use tokio::sync::{watch, OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinSet;
 
 use super::forward::{self, empty, Origin, ProxyBody};
+use super::websocket::{self, RelaySlot};
 use super::{Counters, MitmError, MitmOptions, Shared};
 use crate::impersonate::tls_server::{self, Leaf, TlsServerError};
 use crate::sb_cdp::sync::locked;
@@ -229,7 +231,7 @@ async fn answer_proxy_request(
         Ok(origin)
     });
     match origin {
-        Ok(origin) => forward::forward(shared, &origin, request).await,
+        Ok(origin) => forward::forward(shared, &origin, request, None).await,
         Err(error) => refuse(
             shared,
             refusal_status(&error, StatusCode::BAD_REQUEST),
@@ -287,7 +289,8 @@ fn refusal_status(error: &MitmError, otherwise: StatusCode) -> StatusCode {
     }
 }
 
-/// Ends the browser's TLS inside a tunnel and serves the requests in it.
+/// Ends the browser's TLS inside a tunnel and serves the requests in it, then the WebSocket a
+/// handshake in it opened, if any.
 async fn intercept(tunnel: Tunnel, shared: Arc<Shared>, mut stop: watch::Receiver<bool>) {
     let upgraded = match tunnel.upgrade.await {
         Ok(upgraded) => upgraded,
@@ -314,8 +317,15 @@ async fn intercept(tunnel: Tunnel, shared: Arc<Shared>, mut stop: watch::Receive
     };
     Counters::bump(&shared.counters.tunnels);
     let builder = server(&shared.options);
-    let service = tunnel_service(shared, Arc::new(tunnel.origin));
-    let connection = builder.serve_connection(TokioIo::new(tls), service);
+    let slot = Arc::new(RelaySlot::default());
+    let service = tunnel_service(
+        Arc::clone(&shared),
+        Arc::new(tunnel.origin),
+        Arc::clone(&slot),
+    );
+    let connection = builder
+        .serve_connection(TokioIo::new(tls), service)
+        .with_upgrades();
     let mut connection = pin!(connection);
     let served = tokio::select! {
         served = connection.as_mut() => served,
@@ -326,13 +336,20 @@ async fn intercept(tunnel: Tunnel, shared: Arc<Shared>, mut stop: watch::Receive
     };
     if let Err(error) = served {
         tracing::debug!(%error, "an intercepted connection ended with an error");
+        return;
+    }
+    let pending = locked(&slot).take();
+    if let Some(pending) = pending {
+        websocket::run(pending, &shared.options, &mut stop).await;
     }
 }
 
-/// The service of the intercepted leg: every request is forwarded to the tunnel's origin.
+/// The service of the intercepted leg: every request is forwarded to the tunnel's origin, and a
+/// WebSocket handshake leaves its relay in `slot`.
 fn tunnel_service(
     shared: Arc<Shared>,
     origin: Arc<Origin>,
+    slot: Arc<RelaySlot>,
 ) -> impl hyper::service::Service<
     Request<Incoming>,
     Response = Response<ProxyBody>,
@@ -342,7 +359,8 @@ fn tunnel_service(
     service_fn(move |request| {
         let shared = Arc::clone(&shared);
         let origin = Arc::clone(&origin);
-        async move { Ok(forward::forward(&shared, &origin, request).await) }
+        let slot = Arc::clone(&slot);
+        async move { Ok(forward::forward(&shared, &origin, request, Some(slot.as_ref())).await) }
     })
 }
 

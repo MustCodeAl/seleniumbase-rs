@@ -163,8 +163,8 @@ fn the_proxy_never_touches_files_or_exports_certificates_and_keys() {
     let sources = proxy_sources();
     assert_eq!(
         sources.len(),
-        6,
-        "mod, body, connect, destination, forward and upstream"
+        7,
+        "mod, body, connect, destination, forward, upstream and websocket"
     );
     for (path, text) in sources {
         for word in forbidden {

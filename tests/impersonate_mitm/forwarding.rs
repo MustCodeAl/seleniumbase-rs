@@ -256,15 +256,16 @@ async fn a_request_claiming_another_chrome_major_is_refused() {
     assert_eq!(status, 502);
 }
 
+/// WebSocket is relayed (see `websocket.rs`); every other upgrade is refused.
 #[tokio::test]
-async fn a_websocket_upgrade_is_refused() {
+async fn an_upgrade_to_another_protocol_than_websocket_is_refused() {
     let status = refused_status(
         |port| {
             navigation(
                 ORIGIN,
                 port,
                 &measured_user_agent(),
-                &["Upgrade: websocket", "Connection: Upgrade"],
+                &["Upgrade: h2c", "Connection: Upgrade"],
             )
         },
         MitmOptions::default(),

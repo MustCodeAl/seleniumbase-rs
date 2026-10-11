@@ -1,5 +1,6 @@
 //! One request through the proxy: the checks, the header rewrite, the upstream call and the
-//! answer, with the body streamed both ways.
+//! answer, with the body streamed both ways. A WebSocket handshake takes the same checks and then
+//! goes to `websocket`.
 //!
 //! The browser's header order is kept: the headers go upstream in the order the browser wrote
 //! them, without the ones that describe the browser-to-proxy hop (RFC 9110 section 7.6.1) and
@@ -8,7 +9,7 @@
 use std::time::Instant;
 
 use bytes::Bytes;
-use http::header::{CONNECTION, CONTENT_LENGTH, HOST, TE, TRANSFER_ENCODING, UPGRADE, USER_AGENT};
+use http::header::{CONNECTION, CONTENT_LENGTH, HOST, TE, TRANSFER_ENCODING, USER_AGENT};
 use http::uri::{Authority, PathAndQuery, Uri};
 use http::{
     Extensions, HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode, Version,
@@ -22,6 +23,7 @@ use super::body::Capped;
 use super::connect::refuse;
 use super::destination;
 use super::upstream::Outbound;
+use super::websocket::{self, Ask, RelaySlot};
 use super::{Counters, MitmError, MitmOptions, Shared};
 use crate::scrape::challenge::mitigation::Mode;
 use crate::scrape::egress::redact::RedactedUrl;
@@ -196,10 +198,14 @@ fn host_text(host: &Host<String>) -> String {
 
 /// Serves one request: checks it, sends it upstream, answers with the upstream's answer, and
 /// reports it to the event sink.
+///
+/// A WebSocket handshake is served only inside a tunnel, which passes the `slot` its relay is
+/// left in; elsewhere it is refused with an empty `502`.
 pub(super) async fn forward(
     shared: &Shared,
     origin: &Origin,
     request: Request<Incoming>,
+    slot: Option<&RelaySlot>,
 ) -> Response<ProxyBody> {
     let started = Instant::now();
     let path = request
@@ -208,9 +214,19 @@ pub(super) async fn forward(
         .map_or(ROOT_PATH, PathAndQuery::as_str);
     let url = origin.url(path);
     let redacted = RedactedUrl::new(&url);
-    let response = match check(shared, origin, request.headers()) {
-        Err((status, error)) => refuse(shared, status, &error, true),
-        Ok(()) => relay(shared, origin, url, &redacted, request).await,
+    let asked = websocket::ask(request.method(), request.version(), request.headers())
+        .and_then(|asked| check(shared, origin, request.headers()).map(|()| asked));
+    let response = match (asked, slot) {
+        (Err((status, error)), _) => refuse(shared, status, &error, true),
+        (Ok(Ask::Plain), _) => relay(shared, origin, url, &redacted, request).await,
+        (Ok(Ask::WebSocket), Some(slot)) => {
+            websocket::open(shared, url, &redacted, request, slot).await
+        }
+        (Ok(Ask::WebSocket), None) => {
+            let error =
+                MitmError::NotIntercepted("WebSocket is relayed inside a CONNECT tunnel only");
+            refuse(shared, StatusCode::BAD_GATEWAY, &error, true)
+        }
     };
     let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
     shared.sink.emit(&ScraperEvent::Request {
@@ -222,19 +238,14 @@ pub(super) async fn forward(
     response
 }
 
-/// The checks before a request may leave: no protocol upgrade, one `Host` naming the origin, an
-/// announced body within the limit, and no user agent that contradicts the profile.
+/// The checks before a request may leave, after `websocket::ask` has judged its upgrade: one
+/// `Host` naming the origin, an announced body within the limit, and no user agent that
+/// contradicts the profile.
 fn check(
     shared: &Shared,
     origin: &Origin,
     headers: &HeaderMap,
 ) -> Result<(), (StatusCode, MitmError)> {
-    if headers.contains_key(UPGRADE) {
-        return Err((
-            StatusCode::BAD_GATEWAY,
-            MitmError::NotIntercepted("protocol upgrades, WebSocket included, are not forwarded"),
-        ));
-    }
     let mut hosts = headers.get_all(HOST).iter();
     let host_ok = hosts
         .next()
@@ -279,7 +290,19 @@ async fn relay(
         body: (!body.is_end_stream()).then(|| Capped::new(body, limit)),
     };
     let upstream = shared.upstream.current();
-    match upstream.send(outbound, limit).await {
+    let sent = upstream.send(outbound, limit).await;
+    answered(shared, redacted, sent)
+}
+
+/// The browser's answer to what the upstream did: its answer when the announced body is within
+/// the limit, an empty `502` otherwise or when it failed.
+pub(super) fn answered(
+    shared: &Shared,
+    redacted: &RedactedUrl,
+    sent: Result<Response<ProxyBody>, &'static str>,
+) -> Response<ProxyBody> {
+    let limit = shared.options.max_body_bytes;
+    match sent {
         Ok(response) if exceeds(response.headers(), limit) => {
             Counters::bump(&shared.counters.upstream_errors);
             let error = MitmError::BodyTooLarge { limit };
@@ -334,7 +357,11 @@ pub(super) fn forwarded_request_headers(headers: &HeaderMap) -> Vec<(HeaderName,
 }
 
 /// Whether one request header goes upstream.
-fn keeps_request_header(name: &HeaderName, value: &HeaderValue, listed: &[String]) -> bool {
+pub(super) fn keeps_request_header(
+    name: &HeaderName,
+    value: &HeaderValue,
+    listed: &[String],
+) -> bool {
     if *name == HOST || listed.iter().any(|token| token == name.as_str()) {
         return false;
     }
@@ -366,7 +393,7 @@ pub(super) fn forwarded_response_headers(headers: &HeaderMap) -> HeaderMap {
 /// `Connection` header lists, and `content-length` when it also has `Transfer-Encoding`. The
 /// new message is framed afresh, so a length that disagreed with the chunking (a smuggling
 /// shape) must not travel with it.
-fn dropped_fields(headers: &HeaderMap) -> Vec<String> {
+pub(super) fn dropped_fields(headers: &HeaderMap) -> Vec<String> {
     let mut fields: Vec<String> = headers
         .get_all(CONNECTION)
         .iter()

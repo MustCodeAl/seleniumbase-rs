@@ -3,7 +3,9 @@
 //! It is the impersonating client of `impersonate::client` with what a proxy needs on top: no
 //! redirects (the browser follows them), no decompression (`Content-Encoding` passes through),
 //! no default headers (the browser's own go out), verification always on, and bounded connect
-//! and read phases. Of the proxy's files, only this one names wreq types.
+//! and read phases. Beside it, a second client sends the measured WebSocket `ClientHello`
+//! (HTTP/1.1 only) for WebSocket handshakes, with the same egress, resolver, roots and timeouts.
+//! Of the proxy's files, only this one names wreq types.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -11,7 +13,7 @@ use std::sync::{Arc, Mutex, PoisonError, RwLock};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
-use http::{HeaderMap, HeaderName, HeaderValue, Method, Response, Version};
+use http::{HeaderMap, HeaderName, HeaderValue, Method, Response, StatusCode, Version};
 use http_body_util::BodyExt as _;
 use hyper::body::Incoming;
 use wreq::header::OrigHeaderMap;
@@ -20,11 +22,16 @@ use wreq::tls::trust::CertStore;
 use super::body::Capped;
 use super::destination::{self, PublicOnly};
 use super::forward::ProxyBody;
+use super::websocket::RelayIo;
 use super::{MitmError, MitmOptions};
 use crate::impersonate::client::{impersonation_client, ImpersonateError, ImpersonationProfile};
+use crate::impersonate::convert;
 use crate::sb_cdp::sync::locked;
 use crate::scrape::egress::route::{EgressKey, EgressRef};
+use crate::wire::client_hello::ext_id;
+use crate::wire::emulation;
 use crate::wire::header_spec::RequestShape;
+use crate::wire::tls_spec::TlsSpec;
 
 /// How `Host` is spelled on HTTP/1.1, where the client writes it first.
 const HOST_SPELLING: &str = "Host";
@@ -36,6 +43,43 @@ const SEC_FETCH_DEST: &str = "sec-fetch-dest";
 const SENSITIVE: [&str; 2] = ["cookie", "authorization"];
 /// How many HTTP/1.1-only origins are remembered before the memory starts over.
 const MAX_REMEMBERED_ORIGINS: usize = 1024;
+/// How Chrome spells the fields of a WebSocket handshake that the measured lists may not hold
+/// (Chromium's `websocket_handshake_constants`).
+const WEBSOCKET_SPELLING: [&str; 9] = [
+    "Connection",
+    "Upgrade",
+    "Pragma",
+    "Cache-Control",
+    "Origin",
+    "Sec-WebSocket-Version",
+    "Sec-WebSocket-Key",
+    "Sec-WebSocket-Extensions",
+    "Sec-WebSocket-Protocol",
+];
+
+/// The connection a request leaves on, which decides the spelling and the extra headers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Leg {
+    /// HTTP/2: lower-case names and the measured `priority`.
+    Http2,
+    /// HTTP/1.1: `Host` first and the measured spelling.
+    Http1,
+    /// A WebSocket handshake: HTTP/1.1, with Chrome's spelling of the handshake fields.
+    WebSocket,
+}
+
+/// What the upstream did with a WebSocket handshake.
+pub(super) enum Handshake {
+    /// It answered `101`: its headers, and the switched connection.
+    Switched {
+        /// The headers of the `101`.
+        headers: HeaderMap,
+        /// The connection, switched.
+        stream: Box<dyn RelayIo>,
+    },
+    /// It answered anything else, which goes to the browser as an ordinary answer.
+    Answered(Response<ProxyBody>),
+}
 
 /// One request as it leaves the proxy, before the wire spelling is applied.
 pub(super) struct Outbound {
@@ -55,6 +99,9 @@ pub(super) struct Outbound {
 pub(super) struct Upstream {
     /// The impersonating client.
     client: wreq::Client,
+    /// The client of WebSocket handshakes, `None` when no WebSocket hello is measured for the
+    /// profile's browser.
+    websocket: Option<wreq::Client>,
     /// The profile whose TLS, HTTP/2 and spelling the client sends.
     profile: ImpersonationProfile,
     /// The egress, `None` for a direct connection.
@@ -83,9 +130,13 @@ impl Upstream {
         options: &MitmOptions,
     ) -> Result<Self, MitmError> {
         let client = client(&profile, egress.as_ref(), options)?;
+        let websocket = websocket_spec(&profile)
+            .map(|spec| websocket_client(&spec, egress.as_ref(), options))
+            .transpose()?;
         let spelling = spelling_of(&profile);
         Ok(Self {
             client,
+            websocket,
             profile,
             egress,
             spelling,
@@ -108,6 +159,51 @@ impl Upstream {
         self.egress.as_ref().map(|egress| egress.key().clone())
     }
 
+    /// Whether WebSocket handshakes can leave with a measured hello.
+    pub(super) fn speaks_websocket(&self) -> bool {
+        self.websocket.is_some()
+    }
+
+    /// Sends a WebSocket handshake over HTTP/1.1 with the measured WebSocket hello. A `101`
+    /// comes back switched; any other answer with its body capped at `max_body`. The error names
+    /// what failed in words, as [`Upstream::send`] does.
+    pub(super) async fn open_websocket(
+        &self,
+        url: String,
+        headers: Vec<(HeaderName, HeaderValue)>,
+        max_body: usize,
+    ) -> Result<Handshake, &'static str> {
+        let client = self
+            .websocket
+            .as_ref()
+            .ok_or("no WebSocket ClientHello is measured for this profile")?;
+        let (headers, order) = self.wire_headers(headers, Leg::WebSocket);
+        let response = client
+            .get(url)
+            .version(Version::HTTP_11)
+            .default_headers(false)
+            .headers(headers)
+            .orig_headers(order)
+            .send()
+            .await
+            .map_err(|error| failure_kind(&error))?;
+        if response.status() != StatusCode::SWITCHING_PROTOCOLS {
+            let response: Response<wreq::Body> = response.into();
+            return Ok(Handshake::Answered(
+                response.map(|body| Capped::new(body, max_body).boxed_unsync()),
+            ));
+        }
+        let headers = response.headers().clone();
+        let stream = response
+            .upgrade()
+            .await
+            .map_err(|_error| "the upstream connection was not handed over after its 101")?;
+        Ok(Handshake::Switched {
+            headers,
+            stream: Box::new(stream),
+        })
+    }
+
     /// Sends one request and returns the answer with its body capped at `max_body`. The error
     /// names what failed in words; the client's own error text, which can hold the URL, is
     /// never kept.
@@ -116,8 +212,12 @@ impl Upstream {
         outbound: Outbound,
         max_body: usize,
     ) -> Result<Response<ProxyBody>, &'static str> {
-        let http1 = locked(&self.http1_origins).contains(&outbound.origin);
-        let (headers, order) = self.wire_headers(outbound.headers, http1);
+        let leg = if locked(&self.http1_origins).contains(&outbound.origin) {
+            Leg::Http1
+        } else {
+            Leg::Http2
+        };
+        let (headers, order) = self.wire_headers(outbound.headers, leg);
         let mut request = self
             .client
             .request(outbound.method, outbound.url)
@@ -134,32 +234,34 @@ impl Upstream {
     }
 
     /// The headers and their wire order: the browser's list with the measured spelling,
-    /// `Host` first on HTTP/1.1 (the client fills it in), and on HTTP/2 the measured `priority`
-    /// for the request's destination at the end, as Chrome sends it.
+    /// `Host` first on HTTP/1.1 (the client fills it in), on HTTP/2 the measured `priority` for
+    /// the request's destination at the end, as Chrome sends it, and on a WebSocket handshake
+    /// Chrome's spelling of the handshake fields the measured lists do not hold.
     fn wire_headers(
         &self,
         list: Vec<(HeaderName, HeaderValue)>,
-        http1: bool,
+        leg: Leg,
     ) -> (HeaderMap, OrigHeaderMap) {
         let mut map = HeaderMap::with_capacity(list.len() + 1);
         let mut order = OrigHeaderMap::with_capacity(list.len() + 2);
-        if http1 {
+        if leg != Leg::Http2 {
             order.insert(HOST_SPELLING);
         }
-        let priority = if http1 {
-            None
-        } else {
+        let priority = if leg == Leg::Http2 {
             self.priority_for(&list)
+        } else {
+            None
         };
         for (name, mut value) in list {
             if SENSITIVE.contains(&name.as_str()) {
                 value.set_sensitive(true);
             }
-            let spelled = self
-                .spelling
-                .get(&name)
-                .cloned()
-                .unwrap_or_else(|| name.as_str().to_owned());
+            let spelled = match self.spelling.get(&name) {
+                Some(measured) => measured.clone(),
+                None if leg == Leg::WebSocket => websocket_spelling(&name)
+                    .map_or_else(|| name.as_str().to_owned(), str::to_owned),
+                None => name.as_str().to_owned(),
+            };
             order.insert(spelled);
             map.append(name, value);
         }
@@ -205,7 +307,43 @@ fn client(
     egress: Option<&EgressRef>,
     options: &MitmOptions,
 ) -> Result<wreq::Client, MitmError> {
-    let mut builder = impersonation_client(profile)?
+    finish(impersonation_client(profile)?, egress, options)
+}
+
+/// The measured WebSocket hello of the profile's browser and system, without the known gaps,
+/// when one is measured for the profile's major version.
+pub(super) fn websocket_spec(profile: &ImpersonationProfile) -> Option<TlsSpec> {
+    let entry = emulation::get(profile.kind(), profile.os()).ok()?;
+    if entry.major != profile.major() {
+        return None;
+    }
+    let spec = entry.tls_websocket.as_ref()?;
+    Some(spec.without_known_gaps(&entry.provenance.known_gaps))
+}
+
+/// The client of WebSocket handshakes: the measured WebSocket hello, HTTP/1.1 only, and the
+/// same proxy settings as [`client`].
+fn websocket_client(
+    spec: &TlsSpec,
+    egress: Option<&EgressRef>,
+    options: &MitmOptions,
+) -> Result<wreq::Client, MitmError> {
+    let tls = convert::tls_options(spec).map_err(ImpersonateError::from)?;
+    let builder = wreq::Client::builder()
+        .tls_options(tls)
+        .tls_sni(spec.has_extension(ext_id::SERVER_NAME))
+        .http1_only();
+    finish(builder, egress, options)
+}
+
+/// Adds what a proxy needs to a started client and builds it: no redirects, no decompression,
+/// bounded phases, the egress or none, the upstream roots, and the destination filter.
+fn finish(
+    builder: wreq::ClientBuilder,
+    egress: Option<&EgressRef>,
+    options: &MitmOptions,
+) -> Result<wreq::Client, MitmError> {
+    let mut builder = builder
         .redirect(wreq::redirect::Policy::none())
         .referer(false)
         .gzip(false)
@@ -289,6 +427,14 @@ pub(super) fn egress_proxy(egress: &EgressRef) -> Result<wreq::Proxy, MitmError>
         Some((user, password)) => target.custom_http_auth(basic_auth(user, password)?),
         None => target,
     })
+}
+
+/// Chrome's spelling of a WebSocket handshake field, when `name` is one.
+fn websocket_spelling(name: &HeaderName) -> Option<&'static str> {
+    WEBSOCKET_SPELLING
+        .iter()
+        .find(|spelled| spelled.eq_ignore_ascii_case(name.as_str()))
+        .copied()
 }
 
 /// The measured spelling of every header name the profile's lists hold.
