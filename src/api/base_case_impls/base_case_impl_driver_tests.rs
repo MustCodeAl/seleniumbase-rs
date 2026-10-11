@@ -587,3 +587,183 @@ mod tests_page_scripts {
         }
     }
 }
+
+mod tests_wait_errors {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::*;
+    use serde_json::{json, Value};
+
+    /// A driver whose page has the given `title`, finds an element for every
+    /// lookup when `found` (and none otherwise), and answers every script with
+    /// `answer`.
+    fn mock_page(title: &str, found: bool, answer: Value) -> MockWebDriver {
+        let title = title.to_owned();
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/title") => Reply::Value(json!(title)),
+                ("POST", "/execute/sync") => Reply::Value(answer.clone()),
+                ("POST", "/element") if found => Reply::Value(element("e1")),
+                ("POST", "/element") => Reply::Error(404, "no such element"),
+                ("POST", "/elements") if found => Reply::Value(json!([element("e1")])),
+                ("POST", "/elements") => Reply::Value(json!([])),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    /// The message of the `WaitTimeout` in `result`; panics with what came
+    /// instead (an `AssertionFailed` is what these waits used to return).
+    fn timed_out<T: std::fmt::Debug>(result: Result<T, SeleniumBaseError>) -> String {
+        match result {
+            Err(SeleniumBaseError::WaitTimeout(message)) => message,
+            other => panic!("expected a WaitTimeout, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_title_that_never_matches_times_out_naming_the_title_it_saw() {
+        let driver = mock_page("Welcome page", false, Value::Null);
+        let mut sb = driver.base_case().await;
+        let message = timed_out(sb.wait_for_title("Dashboard", 0).await);
+        assert!(message.contains("Dashboard"), "{message}");
+        assert!(message.contains("Welcome page"), "{message}");
+    }
+
+    #[tokio::test]
+    async fn a_title_that_matches_ends_the_wait() {
+        let driver = mock_page("My Dashboard", false, Value::Null);
+        let mut sb = driver.base_case().await;
+        sb.wait_for_title("Dashboard", 0).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_attribute_that_never_appears_times_out() {
+        let driver = mock_page("", false, json!(false));
+        let mut sb = driver.base_case().await;
+        let message = timed_out(sb.wait_for_attribute("#app", "data-ready", 0).await);
+        assert!(
+            message.contains("#app") && message.contains("data-ready"),
+            "{message}"
+        );
+
+        let driver = driver_with_answer(true);
+        let mut sb = driver.base_case().await;
+        sb.wait_for_attribute("#app", "data-ready", 0)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_attribute_that_never_goes_away_times_out() {
+        let driver = mock_page("", false, json!(true));
+        let mut sb = driver.base_case().await;
+        let message = timed_out(
+            sb.wait_for_attribute_not_present("#app", "data-busy", 0)
+                .await,
+        );
+        assert!(
+            message.contains("#app") && message.contains("data-busy"),
+            "{message}"
+        );
+
+        let driver = driver_with_answer(false);
+        let mut sb = driver.base_case().await;
+        sb.wait_for_attribute_not_present("#app", "data-busy", 0)
+            .await
+            .unwrap();
+    }
+
+    /// A driver that answers every script with `answer`.
+    fn driver_with_answer(answer: bool) -> MockWebDriver {
+        mock_page("", false, json!(answer))
+    }
+
+    #[tokio::test]
+    async fn text_that_never_appears_times_out() {
+        let driver = mock_page("", false, json!(false));
+        let sb = driver.base_case().await;
+        let message = timed_out(sb.wait_for_exact_text("All done", 0).await);
+        assert!(message.contains("All done"), "{message}");
+
+        let driver = driver_with_answer(true);
+        let sb = driver.base_case().await;
+        sb.wait_for_exact_text("All done", 0).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_link_that_never_appears_times_out() {
+        let driver = mock_page("", false, Value::Null);
+        let sb = driver.base_case().await;
+        let message = timed_out(sb.wait_for_link_text("Sign in", 0).await);
+        assert!(message.contains("Sign in"), "{message}");
+        let message = timed_out(sb.wait_for_partial_link_text("Sign", 0).await);
+        assert!(message.contains("Sign"), "{message}");
+
+        let driver = mock_page("", true, Value::Null);
+        let sb = driver.base_case().await;
+        sb.wait_for_link_text("Sign in", 0).await.unwrap();
+        sb.wait_for_partial_link_text("Sign", 0).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn none_of_the_elements_appearing_times_out_naming_them() {
+        let driver = mock_page("", false, Value::Null);
+        let sb = driver.base_case().await;
+        let message = timed_out(sb.wait_for_any_of_elements_present(&["#a", "#b"], 0).await);
+        assert!(
+            message.contains("#a") && message.contains("#b"),
+            "{message}"
+        );
+
+        let driver = mock_page("", true, Value::Null);
+        let sb = driver.base_case().await;
+        sb.wait_for_any_of_elements_present(&["#a", "#b"], 0)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_selector_that_cannot_match_is_reported_at_once() {
+        let driver = mock_page("", false, Value::Null);
+        let sb = driver.base_case().await;
+        let waited = tokio::time::timeout(
+            Duration::from_secs(5),
+            sb.wait_for_any_of_elements_present(&["#a", ""], 30),
+        )
+        .await
+        .expect("an empty selector is not worth waiting 30 seconds for");
+        assert!(
+            matches!(waited, Err(SeleniumBaseError::InvalidSelector(_))),
+            "{waited:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_download_that_never_arrives_times_out_and_returns_to_the_first_tab() {
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/window") => Reply::Value(json!("first-tab")),
+                ("POST", "/window/new") => {
+                    Reply::Value(json!({ "handle": "download-tab", "type": "tab" }))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+        let name = format!("sbrs-never-downloaded-{}.bin", std::process::id());
+
+        let message = timed_out(
+            sb.download_file("https://example.test/file.bin", &name, 0)
+                .await,
+        );
+
+        assert!(message.contains(&name), "{message}");
+        let switches: Vec<String> = driver
+            .requests("/window")
+            .iter()
+            .filter(|request| request.method == "POST")
+            .filter_map(|request| request.body["handle"].as_str().map(str::to_owned))
+            .collect();
+        assert_eq!(switches, ["download-tab", "first-tab"]);
+    }
+}

@@ -616,7 +616,7 @@ impl BaseCase {
 
     /// Returns true if the element `css` has the attribute `attribute`.
     pub async fn is_attribute_present(
-        &mut self,
+        &self,
         css: &str,
         attribute: &str,
     ) -> Result<bool, SeleniumBaseError> {
@@ -632,47 +632,43 @@ impl BaseCase {
     }
 
     /// Waits up to `timeout_secs` for the attribute `attribute` to be present.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the attribute and the
+    /// selector if it is still absent after the timeout.
     pub async fn wait_for_attribute(
         &mut self,
         css: &str,
         attribute: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        loop {
-            if self.is_attribute_present(css, attribute).await? {
-                return Ok(());
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for attribute '{}' on '{}'",
-                    attribute, css
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until_true(
+            self.effective_timeout(timeout_secs),
+            format!("Attribute '{attribute}' was not present on '{css}'"),
+            || self.is_attribute_present(css, attribute),
+        )
+        .await
     }
 
     /// Waits up to `timeout_secs` for the attribute `attribute` to be absent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the attribute and the
+    /// selector if it is still present after the timeout.
     pub async fn wait_for_attribute_not_present(
         &mut self,
         css: &str,
         attribute: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        loop {
-            if !self.is_attribute_present(css, attribute).await? {
-                return Ok(());
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for attribute '{}' to be absent on '{}'",
-                    attribute, css
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until_true(
+            self.effective_timeout(timeout_secs),
+            format!("Attribute '{attribute}' was still present on '{css}'"),
+            || async { Ok(!self.is_attribute_present(css, attribute).await?) },
+        )
+        .await
     }
 
     // ========================================================================
@@ -1181,7 +1177,13 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Downloads `url` by navigating to it in a new tab and waiting for the file.
+    /// Downloads `url` by navigating to it in a new tab and waiting for the
+    /// file, then returns to the tab it started in.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the file if it has not
+    /// arrived after the timeout; the first tab is current again either way.
     pub async fn download_file(
         &mut self,
         url: &str,
@@ -1191,22 +1193,12 @@ impl BaseCase {
         let original = self.get_current_window_handle().await?;
         self.session.switch_to_new_window().await?;
         self.open(url).await?;
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
         let expected = crate::artifacts::confined_path(&default_download_dir(), filename)?;
-        loop {
-            if expected.exists() {
-                self.session.switch_to_window(&original).await?;
-                return Ok(expected);
-            }
-            if std::time::Instant::now() >= deadline {
-                let _ = self.session.switch_to_window(&original).await;
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for download '{}'",
-                    filename
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
+        let waited = wait_for_file(&expected, self.effective_timeout(timeout_secs)).await;
+        let returned = self.session.switch_to_window(&original).await;
+        waited?;
+        returned?;
+        Ok(expected)
     }
 
     // ========================================================================
@@ -1386,119 +1378,137 @@ impl BaseCase {
     // Wait helpers (additional variants)
     // ========================================================================
 
-    /// Waits up to `timeout_secs` for any element from `css_list` to be present.
+    /// Waits up to `timeout_secs` for any element from `css_list` to be present,
+    /// and returns the first one found (in the order of `css_list`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] at once, without
+    /// waiting, if a selector is empty. Returns
+    /// [`SeleniumBaseError::WaitTimeout`] naming the selectors if none matches
+    /// after the timeout.
     pub async fn wait_for_any_of_elements_present(
         &self,
         css_list: &[&str],
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        loop {
-            for css in css_list {
-                if let Ok(by) = Selector::auto(css).to_by() {
-                    if let Ok(element) = self.session.driver().find(by).await {
-                        return Ok(element);
+        let locators = css_list
+            .iter()
+            .map(|css| Selector::auto(css).to_by())
+            .collect::<Result<Vec<_>, _>>()?;
+        poll_until_found(
+            self.effective_timeout(timeout_secs),
+            format!("None of the selectors [{}] was present", css_list.join(", ")),
+            || async {
+                for by in &locators {
+                    let found = self.session.driver().find_all(by.clone()).await?;
+                    if let Some(element) = found.into_iter().next() {
+                        return Ok(Polled::Found(element));
                     }
                 }
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(
-                    "Timed out waiting for any of the elements".to_owned(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+                Ok(Polled::Pending { seen: None })
+            },
+        )
+        .await
     }
 
-    /// Waits up to `timeout_secs` for a link with exact `text`.
+    /// Waits up to `timeout_secs` for a link with exact `text`, and returns it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text if no such
+    /// link appears.
     pub async fn wait_for_link_text(
         &self,
         text: &str,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        loop {
-            if let Ok(element) = self.session.driver().find(By::LinkText(text)).await {
-                return Ok(element);
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for link text '{}'",
-                    text
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until_found(
+            self.effective_timeout(timeout_secs),
+            format!("Link text '{text}' was not present"),
+            || async {
+                let links = self.session.driver().find_all(By::LinkText(text)).await?;
+                Ok(first_found(links))
+            },
+        )
+        .await
     }
 
-    /// Waits up to `timeout_secs` for a link containing `text`.
+    /// Waits up to `timeout_secs` for a link containing `text`, and returns it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text if no such
+    /// link appears.
     pub async fn wait_for_partial_link_text(
         &self,
         text: &str,
         timeout_secs: u64,
     ) -> Result<WebElement, SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        loop {
-            if let Ok(element) = self.session.driver().find(By::PartialLinkText(text)).await {
-                return Ok(element);
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for partial link text '{}'",
-                    text
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until_found(
+            self.effective_timeout(timeout_secs),
+            format!("Partial link text '{text}' was not present"),
+            || async {
+                let links = self
+                    .session
+                    .driver()
+                    .find_all(By::PartialLinkText(text))
+                    .await?;
+                Ok(first_found(links))
+            },
+        )
+        .await
     }
 
     /// Waits up to `timeout_secs` for an element whose text exactly matches `text`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text if no
+    /// element has it after the timeout.
     pub async fn wait_for_exact_text(
         &self,
         text: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
         let script = format!(
             "return Array.from(document.querySelectorAll('*')).some(el => el.textContent.trim() === {});",
             quote(text)
         );
-        loop {
-            let result = self.execute_script(&script).await?;
-            if result.as_bool() == Some(true) {
-                return Ok(());
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for exact text '{}'",
-                    text
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until_true(
+            self.effective_timeout(timeout_secs),
+            format!("Exact text '{text}' was not found"),
+            || async { Ok(self.execute_script(&script).await?.as_bool() == Some(true)) },
+        )
+        .await
     }
 
     /// Waits up to `timeout_secs` for the page title to contain `substring`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming `substring` and the
+    /// last title seen if the title never contains it.
     pub async fn wait_for_title(
         &mut self,
         substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
-        loop {
-            if let Ok(title) = self.session.current_title().await {
-                if title.contains(substring) {
-                    return Ok(());
-                }
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::AssertionFailed(format!(
-                    "Timed out waiting for title containing '{}'",
-                    substring
-                )));
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
-        }
+        poll_until_found(
+            self.effective_timeout(timeout_secs),
+            format!("Title did not contain '{substring}'"),
+            || async {
+                let title = self.session.driver().title().await?;
+                Ok(if title.contains(substring) {
+                    Polled::Found(())
+                } else {
+                    Polled::Pending {
+                        seen: Some(format!("last title: '{title}'")),
+                    }
+                })
+            },
+        )
+        .await
     }
 
     // ========================================================================

@@ -40,15 +40,68 @@ fn is_permanent_wait_error(error: &SeleniumBaseError) -> bool {
     )
 }
 
-/// Polls `check` until it returns `Ok(true)` or `timeout_secs` have passed.
+/// What one check of a wait found.
+enum Polled<T> {
+    /// What the wait is for: it ends with this.
+    Found(T),
+    /// Not yet. `seen`, if any, says what was there instead (for example
+    /// `last title: 'Home'`) and goes into the timeout message.
+    Pending { seen: Option<String> },
+}
+
+/// Polls `check` until it returns `Ok(Polled::Found(value))` or `timeout_secs`
+/// have passed, and returns the value.
 ///
 /// `check` always runs at least once, even with a zero timeout. A check that
 /// returns `Err` does not end the wait unless the error is permanent (see
 /// [`is_permanent_wait_error`]): a page that is mid-navigation or a stale
 /// element can recover. When the wait times out, the returned
-/// [`SeleniumBaseError::WaitTimeout`] carries `failure`, the time waited and
-/// the last error the check reported, so a broken check is not mistaken for a
-/// condition that never held.
+/// [`SeleniumBaseError::WaitTimeout`] carries `failure`, the time waited, what
+/// the last check saw and the last error it reported, so a broken check is
+/// not mistaken for a condition that never held.
+async fn poll_until_found<T, F, Fut>(
+    timeout_secs: u64,
+    failure: String,
+    mut check: F,
+) -> Result<T, SeleniumBaseError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<Polled<T>, SeleniumBaseError>>,
+{
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
+    loop {
+        let (seen, last_error) = match check().await {
+            Ok(Polled::Found(value)) => return Ok(value),
+            Ok(Polled::Pending { seen }) => (seen, None),
+            Err(error) if is_permanent_wait_error(&error) => return Err(error),
+            Err(error) => (None, Some(error)),
+        };
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
+            let seen = seen.map(|seen| format!(" ({seen})")).unwrap_or_default();
+            let error = last_error
+                .map(|error| format!(" (last error: {error})"))
+                .unwrap_or_default();
+            return Err(SeleniumBaseError::WaitTimeout(format!(
+                "{failure} after {timeout_secs}s{seen}{error}"
+            )));
+        }
+        tokio::time::sleep(WAIT_POLL_INTERVAL.min(deadline - now)).await;
+    }
+}
+
+/// `Found` with the first of `elements`, or `Pending` if there is none.
+fn first_found(elements: Vec<thirtyfour::WebElement>) -> Polled<thirtyfour::WebElement> {
+    elements
+        .into_iter()
+        .next()
+        .map_or(Polled::Pending { seen: None }, Polled::Found)
+}
+
+/// Polls `check` until it returns `Ok(true)` or `timeout_secs` have passed.
+///
+/// A [`poll_until_found`] for a condition that has no value to hand back; see
+/// there for how errors and the timeout are handled.
 async fn poll_until_true<F, Fut>(
     timeout_secs: u64,
     failure: String,
@@ -58,25 +111,17 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<bool, SeleniumBaseError>>,
 {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
-    loop {
-        let last_error = match check().await {
-            Ok(true) => return Ok(()),
-            Ok(false) => None,
-            Err(error) if is_permanent_wait_error(&error) => return Err(error),
-            Err(error) => Some(error),
-        };
-        let now = tokio::time::Instant::now();
-        if now >= deadline {
-            let detail = last_error
-                .map(|error| format!(" (last error: {error})"))
-                .unwrap_or_default();
-            return Err(SeleniumBaseError::WaitTimeout(format!(
-                "{failure} after {timeout_secs}s{detail}"
-            )));
+    poll_until_found(timeout_secs, failure, || {
+        let pending = check();
+        async move {
+            Ok(if pending.await? {
+                Polled::Found(())
+            } else {
+                Polled::Pending { seen: None }
+            })
         }
-        tokio::time::sleep(WAIT_POLL_INTERVAL.min(deadline - now)).await;
-    }
+    })
+    .await
 }
 
 /// The client every link check shares: it does not follow redirects, because
@@ -510,6 +555,39 @@ mod tests_common {
         let started = tokio::time::Instant::now();
         let _ = poll_until_true(1, "slow".to_owned(), || async { Ok(false) }).await;
         assert_eq!(started.elapsed(), Duration::from_secs(1));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn poll_until_found_hands_back_what_it_found() {
+        let calls = AtomicUsize::new(0);
+        let found = poll_until_found(10, "never".to_owned(), || async {
+            Ok(match calls.fetch_add(1, Ordering::SeqCst) {
+                0 | 1 => Polled::Pending { seen: None },
+                n => Polled::Found(n * 10),
+            })
+        })
+        .await;
+        assert_eq!(found.unwrap(), 20);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn poll_timeout_names_what_the_last_check_saw() {
+        let calls = AtomicUsize::new(0);
+        let result: Result<(), _> = poll_until_found(1, "Title did not contain 'B'".to_owned(), || async {
+            let n = calls.fetch_add(1, Ordering::SeqCst);
+            Ok(Polled::Pending {
+                seen: Some(format!("last title: 'A{n}'")),
+            })
+        })
+        .await;
+        let Err(SeleniumBaseError::WaitTimeout(message)) = result else {
+            panic!("expected a timeout, got {result:?}");
+        };
+        assert!(message.starts_with("Title did not contain 'B' after 1s ("), "{message}");
+        // The check that ran last is the one named, not the first.
+        let runs = calls.load(Ordering::SeqCst);
+        assert!(runs > 1);
+        assert!(message.contains(&format!("last title: 'A{}'", runs - 1)), "{message}");
     }
 
     #[tokio::test]
