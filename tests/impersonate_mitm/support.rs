@@ -238,7 +238,7 @@ async fn record_one(
 }
 
 /// Reads the `ClientHello` waiting on `tcp` without consuming it.
-async fn peek_hello(tcp: &TcpStream) -> Result<ClientHello, String> {
+pub async fn peek_hello(tcp: &TcpStream) -> Result<ClientHello, String> {
     let work = async {
         let mut buf = vec![0_u8; MAX_CLIENT_HELLO + PEEK_SLACK];
         loop {
