@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::browser::options::{
-    CapabilityOverrides, CdpEventCapture, DeviceMetrics, ExtensionArchive, FirefoxOptions,
-    LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList, WindowPosition, WindowSize,
+    CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion, ExtensionArchive,
+    FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
+    VirtualDisplay, WindowPosition, WindowSize,
 };
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
@@ -375,6 +376,12 @@ impl BrowserConfig {
         self.with_switch(LaunchSwitch::RecorderExtension, on)
     }
 
+    /// Fetch a driver, or a Chrome build, that has to be downloaded through
+    /// [`proxy`](Self::proxy) (`--proxy-driver`).
+    pub fn with_proxy_for_driver_download(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::ProxyForDriverDownload, on)
+    }
+
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).
     pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
         self.launch.page_load_strategy = Some(strategy);
@@ -426,6 +433,19 @@ impl BrowserConfig {
     /// Capabilities to add to the session's (`--cap-string`, `--cap-file`).
     pub fn with_capabilities(mut self, capabilities: CapabilityOverrides) -> Self {
         self.launch.capabilities = capabilities;
+        self
+    }
+
+    /// Which chromedriver to run (`--driver-version`).
+    pub fn with_driver_version(mut self, version: DriverVersion) -> Self {
+        self.launch.driver_version = Some(version);
+        self
+    }
+
+    /// Open a headed browser on a virtual screen on Linux (`--xvfb`,
+    /// `--xvfb-metrics`).
+    pub fn with_virtual_display(mut self, display: VirtualDisplay) -> Self {
+        self.launch.virtual_display = Some(display);
         self
     }
 

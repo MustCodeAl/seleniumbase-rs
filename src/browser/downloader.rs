@@ -54,7 +54,8 @@ pub async fn download_chrome_driver_for(major: Option<u32>) -> Result<PathBuf, S
     Ok(dest_path)
 }
 
-fn platform_label() -> Result<&'static str, SeleniumBaseError> {
+/// The Chrome for Testing name of this machine's platform, such as `mac-arm64`.
+pub(crate) fn platform_label() -> Result<&'static str, SeleniumBaseError> {
     match (std::env::consts::OS, std::env::consts::ARCH) {
         ("macos", "aarch64") => Ok("mac-arm64"),
         ("macos", "x86_64") => Ok("mac-x64"),

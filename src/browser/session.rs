@@ -11,9 +11,15 @@ use thirtyfour::prelude::{By, DesiredCapabilities, WebDriver, WebElement};
 use tracing::{info, instrument};
 
 use crate::browser::binaries;
+use crate::browser::chrome_for_testing::{
+    install_chrome_for_testing, install_chrome_headless_shell,
+};
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_driver_for, DriverProcess};
-use crate::browser::options::{firefox_preferences, CdpEvent, LaunchSettings};
+use crate::browser::options::{
+    firefox_preferences, CdpEvent, DriverVersion, LaunchSettings, LaunchSwitch, ReleaseChannel,
+};
+use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
@@ -24,6 +30,9 @@ pub struct BrowserSession {
     driver: Option<WebDriver>,
     cdp: Option<CdpClient>,
     driver_process: Option<DriverProcess>,
+    /// The virtual screen of a headed Linux session; dropped, and so stopped,
+    /// after the driver.
+    virtual_display: Option<XvfbProcess>,
 }
 
 impl BrowserSession {
@@ -36,7 +45,9 @@ impl BrowserSession {
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         validate_mode_support(&config)?;
-        let (driver, driver_process) = connect_driver(&config).await?;
+        let virtual_display = start_virtual_display(&config)?;
+        let (driver, driver_process) =
+            connect_driver(&config, virtual_display.as_ref().map(XvfbProcess::display)).await?;
         if !config.browser.is_chromium_based() {
             // Chromium takes its window geometry as launch arguments; the
             // others have to be told once they are running.
@@ -52,6 +63,7 @@ impl BrowserSession {
             driver: Some(driver),
             cdp,
             driver_process,
+            virtual_display,
         };
         session.initialize_mode(&config).await?;
         info!("browser session connected");
@@ -65,6 +77,7 @@ impl BrowserSession {
             driver: None,
             cdp: None,
             driver_process: None,
+            virtual_display: None,
         }
     }
 
@@ -759,7 +772,8 @@ impl BrowserSession {
             driver.quit().await?;
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
-        let (driver, process) = connect_driver(config).await?;
+        let display = self.virtual_display.as_ref().map(XvfbProcess::display);
+        let (driver, process) = connect_driver(config, display).await?;
         self.driver = Some(driver);
         if process.is_some() {
             self.driver_process = process;
@@ -785,6 +799,8 @@ impl BrowserSession {
         if let Some(mut process) = self.driver_process.take() {
             process.kill();
         }
+        // The browser is gone, so its screen can be too.
+        self.virtual_display = None;
         Ok(())
     }
 }
@@ -799,6 +815,7 @@ impl Drop for BrowserSession {
         }
         let driver = self.driver.take();
         let process = self.driver_process.take();
+        let virtual_display = self.virtual_display.take();
         // `drop` cannot await, so the cleanup runs in the background. It is
         // registered so a program that exits next can wait for it with
         // `common::shutdown::drain_cleanups`.
@@ -809,6 +826,7 @@ impl Drop for BrowserSession {
             if let Some(mut process) = process {
                 process.kill();
             }
+            drop(virtual_display);
         });
     }
 }
@@ -979,11 +997,34 @@ async fn apply_window_rect(
     Ok(())
 }
 
+/// Starts the virtual screen the settings ask for, if this session can use one.
+///
+/// Python SeleniumBase's `--xvfb` does the same on Linux and nothing elsewhere. A
+/// session that connects to a driver somebody else started cannot have its
+/// browser moved to another screen, so it gets none either.
+fn start_virtual_display(config: &BrowserConfig) -> Result<Option<XvfbProcess>, SeleniumBaseError> {
+    let Some(screen) = config.launch.virtual_display else {
+        return Ok(None);
+    };
+    if !virtual_display::wanted(Some(screen), config.headless, cfg!(target_os = "linux")) {
+        tracing::info!("a virtual display was asked for, but this session is headless or not on Linux; none is started");
+        return Ok(None);
+    }
+    if !config.auto_start_driver || !config.is_default_webdriver_url() {
+        tracing::warn!(
+            "a virtual display only works with a driver this crate starts; none is started"
+        );
+        return Ok(None);
+    }
+    XvfbProcess::start(screen).map(Some)
+}
+
 async fn connect_driver(
     config: &BrowserConfig,
+    display: Option<&str>,
 ) -> Result<(WebDriver, Option<DriverProcess>), SeleniumBaseError> {
     let mut config = config.clone();
-    resolve_browser_binary(&mut config)?;
+    resolve_browser_binary(&mut config).await?;
     patch_chrome_binary_if_needed(&mut config).await?;
 
     let mut process: Option<DriverProcess> = None;
@@ -993,7 +1034,7 @@ async fn connect_driver(
         match try_connect(&config, &url).await {
             Ok(driver) => return Ok((driver, None)),
             Err(_) => {
-                let launched = launch_driver_for(config.browser).await?;
+                let launched = launch_driver_for(&config, display).await?;
                 url = launched.url.clone();
                 process = Some(launched);
             }
@@ -1009,9 +1050,10 @@ async fn connect_driver(
 ///
 /// # Errors
 ///
-/// Returns an error that says where it looked when Brave, Comet, Opera,
-/// Chrome for Testing or `chrome-headless-shell` cannot be found.
-fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), SeleniumBaseError> {
+/// Returns an error that says where it looked when Brave, Comet or Opera cannot
+/// be found, or the download error when Chrome for Testing or
+/// `chrome-headless-shell`, which are fetched when missing, cannot be.
+async fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), SeleniumBaseError> {
     let needs_program = matches!(
         config.browser,
         Browser::Brave
@@ -1023,9 +1065,32 @@ fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), SeleniumBase
     if !needs_program || config.browser_binary_path.is_some() {
         return Ok(());
     }
-    let found = binaries::locate(config.browser).ok_or_else(|| {
-        SeleniumBaseError::invalid_config(missing_browser_message(config.browser))
-    })?;
+    let found = match binaries::locate(config.browser) {
+        Some(found) => found,
+        // Chrome for Testing is a download, so a missing one is fetched.
+        None if matches!(
+            config.browser,
+            Browser::ChromeForTesting | Browser::ChromeHeadlessShell
+        ) =>
+        {
+            let stable = DriverVersion::Channel(ReleaseChannel::Stable);
+            let proxy = config
+                .launch
+                .has(LaunchSwitch::ProxyForDriverDownload)
+                .then_some(config.proxy.as_deref())
+                .flatten();
+            if config.browser == Browser::ChromeForTesting {
+                install_chrome_for_testing(&stable, proxy).await?
+            } else {
+                install_chrome_headless_shell(&stable, proxy).await?
+            }
+        }
+        None => {
+            return Err(SeleniumBaseError::invalid_config(missing_browser_message(
+                config.browser,
+            )))
+        }
+    };
     config.browser_binary_path = Some(found);
     Ok(())
 }

@@ -3,8 +3,8 @@
 //! These are the Python SeleniumBase options that shape the browser a session
 //! opens: preferences such as `--block-images`, the page load strategy, the
 //! window's size and position, a proxy's bypass list, mobile emulation,
-//! extensions, Firefox arguments and preferences, extra capabilities, and a
-//! remote debugging port. A
+//! extensions, Firefox arguments and preferences, extra capabilities, the driver
+//! version, a remote debugging port, and a virtual display. A
 //! [`LaunchSettings`] holds them, [`BrowserConfig`](crate::BrowserConfig) carries
 //! one, and its `with_*` methods are the usual way to set them.
 //!
@@ -36,22 +36,26 @@ use serde::{Deserialize, Serialize};
 mod capabilities;
 mod cdp_events;
 mod device;
+mod driver;
 mod extensions;
 mod firefox;
 mod page_load;
 mod proxy;
 mod switches;
+mod virtual_display;
 mod window;
 
 pub use capabilities::CapabilityOverrides;
 pub use cdp_events::{CdpEvent, CdpEventCapture};
 pub use device::DeviceMetrics;
+pub use driver::{DriverVersion, ReleaseChannel};
 pub(crate) use extensions::Bundled;
 pub use extensions::ExtensionArchive;
 pub use firefox::{FirefoxOptions, FirefoxPreference};
 pub use page_load::PageLoadStrategy;
 pub use proxy::ProxyBypassList;
 pub use switches::{chrome_preferences, firefox_preferences, nested_preferences, LaunchSwitch};
+pub use virtual_display::VirtualDisplay;
 pub use window::{WindowPosition, WindowSize};
 
 /// The Python SeleniumBase options that shape how a browser or its driver is
@@ -89,12 +93,18 @@ pub struct LaunchSettings {
     /// Capabilities to add to the session's (`--cap-string`, `--cap-file`).
     #[serde(skip_serializing_if = "CapabilityOverrides::is_empty")]
     pub capabilities: CapabilityOverrides,
+    /// Which chromedriver to run (`--driver-version`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub driver_version: Option<DriverVersion>,
     /// The port of Chrome's remote debugger (`--remote-debug`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_debug_port: Option<u16>,
     /// Whether to log DevTools Protocol events (`--log-cdp-events`).
     #[serde(skip_serializing_if = "CdpEventCapture::is_off")]
     pub cdp_events: CdpEventCapture,
+    /// The virtual screen for a headed browser on Linux (`--xvfb`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub virtual_display: Option<VirtualDisplay>,
 }
 
 impl LaunchSettings {
@@ -153,6 +163,8 @@ mod tests {
         settings.extension_archives = ExtensionArchive::parse_list("x.crx").unwrap();
         settings.firefox.add_args("private").unwrap();
         settings.capabilities = CapabilityOverrides::from_text(r#"{"name":"t"}"#).unwrap();
+        settings.driver_version = Some("126".parse().unwrap());
+        settings.virtual_display = Some(VirtualDisplay::new(1024, 768));
         settings.remote_debug_port = Some(9222);
         settings.cdp_events = CdpEventCapture::Always;
 

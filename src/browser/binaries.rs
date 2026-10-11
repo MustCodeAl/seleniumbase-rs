@@ -176,6 +176,12 @@ fn find_file(dir: &Path, names: &[&str], depth: usize) -> Option<PathBuf> {
         .find_map(|folder| find_file(&folder, names, depth - 1))
 }
 
+/// Looks for a file called one of `names` in `dir` and the folders under it, at
+/// most six levels down. Folders are never matched.
+pub(crate) fn find_executable(dir: &Path, names: &[&str]) -> Option<PathBuf> {
+    find_file(dir, names, 6)
+}
+
 /// The program of `browser` on this machine, if it can be found.
 ///
 /// The install locations come first, then the `PATH`; Chrome for Testing and

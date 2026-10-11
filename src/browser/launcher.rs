@@ -8,10 +8,12 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::browser::config::Browser;
+use crate::browser::chrome_for_testing::install_chromedriver;
+use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::downloader::download_chrome_driver_for;
 use crate::browser::driver_access::{killed_by_the_system, make_runnable, spawn_repairing};
 use crate::browser::driver_version::{binary_major, fit, Fit};
+use crate::browser::options::{DriverVersion, LaunchSwitch};
 use crate::error::SeleniumBaseError;
 use crate::stealth::patcher::find_system_chrome;
 
@@ -37,8 +39,20 @@ impl DriverProcess {
 /// kills it as it starts) is signed again. See
 /// [`driver_access`](crate::browser::driver_access).
 pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
-    let port = find_free_port()?;
     let binary = ensure_chromedriver_binary().await?;
+    launch_chromedriver_at(&binary, None).await
+}
+
+/// Launch the chromedriver at `binary` on a free port, with the repairs of
+/// [`launch_chromedriver`].
+///
+/// `display` is the X display (such as `:99`) that the browser the driver starts
+/// opens its window on; `None` leaves the environment as it is.
+pub async fn launch_chromedriver_at(
+    binary: &Path,
+    display: Option<&str>,
+) -> Result<DriverProcess, SeleniumBaseError> {
+    let port = find_free_port()?;
     let url = format!("http://127.0.0.1:{port}");
 
     let binary_str = binary.display().to_string();
@@ -48,8 +62,11 @@ pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
             .arg("--disable-dev-shm-usage")
             .stdout(Stdio::null())
             .stderr(Stdio::null());
+        if let Some(display) = display {
+            command.env("DISPLAY", display);
+        }
     };
-    let mut child = spawn_repairing(&binary, configure).inspect_err(|err| {
+    let mut child = spawn_repairing(binary, configure).inspect_err(|err| {
         err.log_in_context("launch_chromedriver");
     })?;
 
@@ -63,8 +80,8 @@ pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
                 // macOS kills a driver whose signature or quarantine flag it
                 // rejects. Fix the file and start it once more.
                 repaired = true;
-                make_runnable(&binary, true)?;
-                child = spawn_repairing(&binary, configure)?;
+                make_runnable(binary, true)?;
+                child = spawn_repairing(binary, configure)?;
             }
             Waited::Exited(status) => {
                 let err = SeleniumBaseError::browser_launch(
@@ -262,21 +279,109 @@ pub(crate) fn find_driver_program(
         .or_else(|| names.iter().find_map(|name| on_path(name)))
 }
 
-/// Starts the driver `browser` needs on a free port.
+/// Which chromedriver a session runs.
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) enum ChromedriverPlan {
+    /// The one in `downloaded_drivers/` when it fits the installed Chrome,
+    /// otherwise a download for that Chrome.
+    Default,
+    /// The build `version` names, downloaded when it is not on disk.
+    Pinned {
+        /// Which build.
+        version: DriverVersion,
+        /// The browser whose version [`DriverVersion::MatchBrowser`] follows;
+        /// the installed Chrome when unset.
+        browser: Option<PathBuf>,
+        /// The proxy to download through.
+        proxy: Option<String>,
+    },
+}
+
+// By hand: the proxy may carry a password.
+impl std::fmt::Debug for ChromedriverPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Default => f.write_str("Default"),
+            Self::Pinned {
+                version,
+                browser,
+                proxy,
+            } => f
+                .debug_struct("Pinned")
+                .field("version", version)
+                .field("browser", browser)
+                .field("proxy", &proxy.as_ref().map(|_| "<redacted>"))
+                .finish(),
+        }
+    }
+}
+
+/// Which chromedriver `config` calls for.
 ///
-/// Chromedriver goes through [`launch_chromedriver`], which downloads one if
-/// there is none. Operadriver, safaridriver and IEDriverServer are only looked
-/// for, in `downloaded_drivers/`, where the system keeps them, and on the
-/// `PATH`; nothing is downloaded for them.
+/// A driver version named with
+/// [`with_driver_version`](BrowserConfig::with_driver_version) is pinned. Brave,
+/// Comet, Chrome for Testing and `chrome-headless-shell` follow the version of
+/// their own program, since the Chrome that is installed is not the browser they
+/// run. A proxy for downloads
+/// ([`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download))
+/// also needs a download of our own, to put the proxy in front of it.
+pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
+    let proxy = config
+        .launch
+        .has(LaunchSwitch::ProxyForDriverDownload)
+        .then(|| config.proxy.clone())
+        .flatten();
+    let runs_its_own_browser = matches!(
+        config.browser,
+        Browser::Brave | Browser::Comet | Browser::ChromeForTesting | Browser::ChromeHeadlessShell
+    );
+    let version = config.launch.driver_version.clone().or_else(|| {
+        (runs_its_own_browser || proxy.is_some()).then_some(DriverVersion::MatchBrowser)
+    });
+    match version {
+        None => ChromedriverPlan::Default,
+        Some(version) => ChromedriverPlan::Pinned {
+            version,
+            browser: config.browser_binary_path.clone(),
+            proxy,
+        },
+    }
+}
+
+/// Starts the driver `config.browser` needs on a free port.
+///
+/// Chromedriver is the one in `downloaded_drivers/`, or a download, as
+/// [`chromedriver_plan`] says. Operadriver, safaridriver and IEDriverServer are
+/// only looked for, in `downloaded_drivers/`, where the system keeps them, and
+/// on the `PATH`; nothing is downloaded for them. `display` is the X display
+/// (such as `:99`) the browser opens its window on.
 ///
 /// # Errors
 ///
 /// Returns an error that names the driver when it cannot be found, or when it
 /// does not start.
-pub async fn launch_driver_for(browser: Browser) -> Result<DriverProcess, SeleniumBaseError> {
-    let program = DriverProgram::for_browser(browser);
+pub async fn launch_driver_for(
+    config: &BrowserConfig,
+    display: Option<&str>,
+) -> Result<DriverProcess, SeleniumBaseError> {
+    let program = DriverProgram::for_browser(config.browser);
     if program == DriverProgram::Chromedriver {
-        return launch_chromedriver().await;
+        let binary = match chromedriver_plan(config) {
+            ChromedriverPlan::Default => ensure_chromedriver_binary().await?,
+            ChromedriverPlan::Pinned {
+                version,
+                browser,
+                proxy,
+            } => {
+                let program = browser.or_else(find_system_chrome);
+                let major = match &program {
+                    Some(program) => binary_major(program).await,
+                    None => None,
+                };
+                install_chromedriver(&version, major, proxy.as_deref()).await?
+            }
+        };
+        return launch_chromedriver_at(&binary, display).await;
     }
     let name = program.executable_names()[0];
     let binary = find_driver_program(
@@ -296,7 +401,7 @@ pub async fn launch_driver_for(browser: Browser) -> Result<DriverProcess, Seleni
             ),
         )
     })?;
-    launch_driver_binary(&binary, |port| program.port_args(port)).await
+    launch_driver_binary(&binary, |port| program.port_args(port), display).await
 }
 
 /// Starts `binary` with the arguments `args` gives for a free port, and waits
@@ -304,6 +409,7 @@ pub async fn launch_driver_for(browser: Browser) -> Result<DriverProcess, Seleni
 async fn launch_driver_binary(
     binary: &Path,
     args: impl Fn(u16) -> Vec<String>,
+    display: Option<&str>,
 ) -> Result<DriverProcess, SeleniumBaseError> {
     let port = find_free_port()?;
     let url = format!("http://127.0.0.1:{port}");
@@ -314,6 +420,9 @@ async fn launch_driver_binary(
             .args(&arguments)
             .stdout(Stdio::null())
             .stderr(Stdio::null());
+        if let Some(display) = display {
+            command.env("DISPLAY", display);
+        }
     })?;
     match wait_for_port(port, Duration::from_secs(15), &binary_str, &mut child).await? {
         Waited::Ready => Ok(DriverProcess { url, child }),
@@ -345,6 +454,85 @@ mod driver_program_tests {
         ] {
             assert_eq!(DriverProgram::for_browser(browser), program, "{browser}");
         }
+    }
+
+    #[test]
+    fn a_plain_session_keeps_the_default_driver() {
+        assert_eq!(
+            chromedriver_plan(&BrowserConfig::default()),
+            ChromedriverPlan::Default
+        );
+        // A proxy alone changes nothing: it is for the session, not the download.
+        let proxied = BrowserConfig::default().with_proxy("u:p@proxy.test:8080");
+        assert_eq!(chromedriver_plan(&proxied), ChromedriverPlan::Default);
+        // The switch with no proxy to use changes nothing either.
+        let switch_only = BrowserConfig::default().with_proxy_for_driver_download(true);
+        assert_eq!(chromedriver_plan(&switch_only), ChromedriverPlan::Default);
+    }
+
+    #[test]
+    fn a_driver_version_pins_the_driver() {
+        let config = BrowserConfig::default().with_driver_version("126".parse().unwrap());
+        assert_eq!(
+            chromedriver_plan(&config),
+            ChromedriverPlan::Pinned {
+                version: DriverVersion::Milestone(126),
+                browser: None,
+                proxy: None,
+            }
+        );
+    }
+
+    #[test]
+    fn browsers_with_their_own_program_follow_the_version_of_that_program() {
+        for browser in [
+            Browser::Brave,
+            Browser::Comet,
+            Browser::ChromeForTesting,
+            Browser::ChromeHeadlessShell,
+        ] {
+            let config = BrowserConfig::default()
+                .with_browser(browser)
+                .with_browser_binary_path("/opt/browser/program");
+            assert_eq!(
+                chromedriver_plan(&config),
+                ChromedriverPlan::Pinned {
+                    version: DriverVersion::MatchBrowser,
+                    browser: Some("/opt/browser/program".into()),
+                    proxy: None,
+                },
+                "{browser}"
+            );
+        }
+        // An explicit version still wins.
+        let pinned = BrowserConfig::default()
+            .with_browser(Browser::Brave)
+            .with_driver_version(DriverVersion::Milestone(120));
+        assert!(matches!(
+            chromedriver_plan(&pinned),
+            ChromedriverPlan::Pinned {
+                version: DriverVersion::Milestone(120),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn the_session_proxy_is_used_for_downloads_only_when_asked_and_never_printed() {
+        let config = BrowserConfig::default()
+            .with_proxy("user:hunter2@proxy.test:8080")
+            .with_proxy_for_driver_download(true);
+        let plan = chromedriver_plan(&config);
+        assert_eq!(
+            plan,
+            ChromedriverPlan::Pinned {
+                version: DriverVersion::MatchBrowser,
+                browser: None,
+                proxy: Some("user:hunter2@proxy.test:8080".into()),
+            }
+        );
+        let shown = format!("{plan:?}");
+        assert!(!shown.contains("hunter2"), "{shown}");
     }
 
     #[test]
@@ -405,7 +593,8 @@ mod driver_program_tests {
         if which::which("operadriver").is_ok() {
             return;
         }
-        let Err(error) = launch_driver_for(Browser::Opera).await else {
+        let config = BrowserConfig::default().with_browser(Browser::Opera);
+        let Err(error) = launch_driver_for(&config, None).await else {
             panic!("operadriver was found where none should be");
         };
         let text = error.to_string();

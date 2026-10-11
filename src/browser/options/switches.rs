@@ -49,11 +49,14 @@ pub enum LaunchSwitch {
     /// Load the SeleniumBase Recorder extension (`recorder_ext`). Chromium
     /// only.
     RecorderExtension,
+    /// Fetch the driver, and the browser when a build has to be downloaded,
+    /// through the session's proxy (`--proxy-driver`).
+    ProxyForDriverDownload,
 }
 
 impl LaunchSwitch {
     /// Every switch.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::BlockImages,
         Self::DisableJavaScript,
         Self::DisableCookies,
@@ -63,13 +66,14 @@ impl LaunchSwitch {
         Self::DisableCsp,
         Self::AutomationExtension,
         Self::RecorderExtension,
+        Self::ProxyForDriverDownload,
     ];
 
     /// The switch a Python SeleniumBase option name stands for, if any.
     ///
     /// Leading dashes are ignored, dashes and underscores are the same, and the
     /// aliases the Python command line accepts (`--dcsp`, `--no-csp`,
-    /// `--auto-ext`, ...) are known.
+    /// `--auto-ext`, `--proxy_driver`, ...) are known.
     #[must_use]
     pub fn from_python_name(name: &str) -> Option<Self> {
         let name = name.trim_start_matches('-').replace('-', "_");
@@ -83,6 +87,7 @@ impl LaunchSwitch {
             "disable_csp" | "dcsp" | "no_csp" => Self::DisableCsp,
             "use_auto_ext" | "auto_ext" => Self::AutomationExtension,
             "recorder_ext" => Self::RecorderExtension,
+            "proxy_driver" => Self::ProxyForDriverDownload,
             _ => return None,
         })
     }
@@ -271,6 +276,7 @@ mod tests {
             LaunchSwitch::DisableCsp,
             LaunchSwitch::AutomationExtension,
             LaunchSwitch::RecorderExtension,
+            LaunchSwitch::ProxyForDriverDownload,
         ]
         .into();
         assert!(chrome_preferences(&others).is_empty());
@@ -329,6 +335,7 @@ mod tests {
             ("--use-auto-ext", LaunchSwitch::AutomationExtension),
             ("--auto-ext", LaunchSwitch::AutomationExtension),
             ("recorder_ext", LaunchSwitch::RecorderExtension),
+            ("--proxy-driver", LaunchSwitch::ProxyForDriverDownload),
         ];
         for (name, switch) in cases {
             assert_eq!(LaunchSwitch::from_python_name(name), Some(switch), "{name}");
