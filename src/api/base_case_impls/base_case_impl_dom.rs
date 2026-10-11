@@ -168,9 +168,20 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Fetches JavaScript from `url` and injects it into the page.
+    /// Downloads the JavaScript at `url` and injects it into the page as inline
+    /// code. The page itself never requests `url`, so a content security policy
+    /// that blocks the script's host does not block it, and the code has run by
+    /// the time this returns (unlike [`add_js_link`](Self::add_js_link), whose
+    /// script loads asynchronously). Corresponds to Python's
+    /// `add_js_code_from_link`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Network`] if the script cannot be
+    /// downloaded or the server answers with an error status.
     pub async fn add_js_code_from_link(&self, url: &str) -> Result<(), SeleniumBaseError> {
-        self.add_js_link(url).await
+        let code = fetch_text(url).await?;
+        self.add_js_code(&code).await
     }
 
     /// Injects a `<meta>` tag into `<head>`.
@@ -255,6 +266,29 @@ impl BaseCase {
     }
 }
 
+/// Time allowed to download one script for `add_js_code_from_link`.
+const FETCH_TEXT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The body of the page at `url`, as text; redirects are followed.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Network`] if the request fails or the answer
+/// is not a success status.
+async fn fetch_text(url: &str) -> Result<String, SeleniumBaseError> {
+    let failed = |e: reqwest::Error| SeleniumBaseError::network(url, 0, e.to_string());
+    let client = reqwest::Client::builder()
+        .timeout(FETCH_TEXT_TIMEOUT)
+        .build()
+        .map_err(failed)?;
+    let response = client.get(url).send().await.map_err(failed)?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(SeleniumBaseError::network(url, status.as_u16(), status.to_string()));
+    }
+    response.text().await.map_err(failed)
+}
+
 /// The origin of `url`, serialized the way `window.location.origin` does.
 fn origin_of_url(url: &str) -> Result<String, SeleniumBaseError> {
     let parsed = url::Url::parse(url)
@@ -292,6 +326,22 @@ fn element_in_iframe_script(css: &str) -> String {
 mod tests_dom {
     use super::chrome_support::open_html;
     use super::*;
+
+    #[tokio::test]
+    async fn fetch_text_returns_the_body_and_refuses_an_error_status() {
+        let base = chrome_support::serve(vec![
+            ("/lib.js", 200, String::new(), "window.libLoaded = true;".to_owned()),
+            ("/gone.js", 404, String::new(), "not here".to_owned()),
+        ]);
+        assert_eq!(
+            fetch_text(&format!("{base}/lib.js")).await.unwrap(),
+            "window.libLoaded = true;"
+        );
+        let error = fetch_text(&format!("{base}/gone.js")).await.unwrap_err();
+        assert!(matches!(error, SeleniumBaseError::Network { .. }), "{error:?}");
+        let unreachable = fetch_text("http://127.0.0.1:1/x.js").await.unwrap_err();
+        assert!(matches!(unreachable, SeleniumBaseError::Network { .. }), "{unreachable:?}");
+    }
 
     #[test]
     fn origin_keeps_a_port_that_is_not_the_default_for_its_scheme() {
