@@ -74,3 +74,35 @@ parity-check:
 parity-docs:
     python3 -I tools/parity/render_docs.py
     git diff --exit-code docs/parity.md
+
+# On the 8 GB development machine run it with CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0
+# CARGO_PROFILE_DEV_DEBUG=0. It runs format, lint, the domain purity check, the scrape tests,
+# and the default build, which must not need the feature. Scrape gate, pure Rust, runs locally.
+scrape-gate:
+    cargo fmt --all -- --check
+    cargo clippy --all-targets --features "mcp-server test-util scrape" -- -D warnings
+    cargo test --features "mcp-server test-util scrape" --test scrape_domain_purity
+    cargo test --features scrape --lib scrape::
+    cargo test --features scrape --doc scrape
+    cargo check --no-default-features
+
+# NEEDS cmake and a C/C++ toolchain (BoringSSL is built from source) and about 1 GB of target
+# disk. CI runs it on Linux (the `impersonate` job). DO NOT run it on the local 8 GB machine.
+# Impersonate gate (needs cmake, CI only).
+imp-gate:
+    cmake --version
+    CMAKE_BUILD_PARALLEL_LEVEL=1 cargo check --features impersonate --all-targets
+    CMAKE_BUILD_PARALLEL_LEVEL=1 cargo clippy --all-targets --features impersonate -- -D warnings
+
+# Time and peak memory of a one-job `cargo check --lib --features scrape`. psl is a large
+# generated crate, so this is the number to watch. macOS uses BSD time (-l), Linux GNU time (-v).
+# Time and peak memory of the scrape check (one job).
+measure:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export CARGO_BUILD_JOBS=1
+    if [ "$(uname)" = Darwin ]; then
+        /usr/bin/time -l cargo check --lib --features scrape
+    else
+        /usr/bin/time -v cargo check --lib --features scrape
+    fi

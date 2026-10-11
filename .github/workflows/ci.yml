@@ -85,6 +85,13 @@ jobs:
             features: "mcp-server"
           - os: windows-latest
             features: "playwright"
+          # The pure-Rust scrape feature: domain layer, JSON state store and CDP browser leg.
+          - os: ubuntu-latest
+            features: "scrape"
+          - os: macos-latest
+            features: "scrape"
+          - os: windows-latest
+            features: "scrape"
 
     steps:
       - name: Checkout repository
@@ -264,6 +271,43 @@ jobs:
       - name: Run tests
         working-directory: examples/tauri-profile-manager/src-tauri
         run: cargo test
+
+  # NEEDS cmake: BoringSSL is built from source for wreq and btls. Linux only, CI only; the
+  # 8 GB development machine does not build this feature (see `just imp-gate`).
+  impersonate:
+    name: Impersonate (needs cmake, Linux only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cmake and a C/C++ toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Check the impersonate feature
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "1"
+        run: cargo check --features impersonate --all-targets
+
+      - name: Run Clippy
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "1"
+        run: cargo clippy --all-targets --features impersonate -- -D warnings
+
+      - name: Run tests
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "1"
+        run: cargo test --features impersonate
 
   supply-chain:
     name: Supply chain (advisories, licenses, bans, sources)
