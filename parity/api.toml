@@ -661,20 +661,26 @@ status = "implemented"
 rust = "BaseCase::frame_switch"
 
 [basecase."generate_referral"]
-status = "planned"
-note = "BaseCase::generate_referral(url, referrer) only returns the URL with ?ref=<referrer> appended. Python's generate_referral(start_page, destination_page, selector) opens the start page, adds a link to the destination there and clicks it, so the destination sees a real referral. Not ported."
+status = "implemented"
+rust = "BaseCase::generate_referral"
+note = "A real click-through: it opens start_page (an empty string means the current page), builds a link to destination_page in it with a script and clicks it, so the destination receives a Referer header. With a selector, that element is clicked on the destination page too."
+divergence = "Builds the link with DOM calls and quotes the URL, where Python pastes it into markup; waits for the destination's readyState after the click, where Python only pauses 0.15 s. An invalid page is SeleniumBaseError::Parse, checked before the browser is touched."
 
 [basecase."generate_referral_chain"]
-status = "planned"
-note = "BaseCase::generate_referral_chain(url, referrers) only returns one ?ref= URL per referrer. Python's generate_referral_chain(pages) clicks through a chain of at least two pages. Not ported."
+status = "implemented"
+rust = "BaseCase::generate_referral_chain"
+note = "Takes a slice of pages. Builds and clicks a link to each page in turn, starting from the page the browser is on, so each page after the first sees the one before it as its Referer."
+divergence = "Fewer than two pages is SeleniumBaseError::InvalidConfig and an invalid page is SeleniumBaseError::Parse, both before the first click (Python raises plain exceptions)."
 
 [basecase."generate_traffic"]
-status = "planned"
-note = "BaseCase::generate_traffic(url, referrer) only opens the URL with ?ref=<referrer> appended, which sends no Referer header. Python's generate_traffic(start_page, destination_page, loops, selector) clicks a real link `loops` times. Not ported."
+status = "implemented"
+rust = "BaseCase::generate_traffic"
+note = "Runs generate_referral `loops` times (a u32), with a 0.05 s pause after each."
 
 [basecase."generate_traffic_chain"]
-status = "planned"
-note = "BaseCase::generate_traffic_chain(url, referrers) only opens one ?ref= URL per referrer. Python's generate_traffic_chain(pages) clicks through a chain of pages. Not ported."
+status = "implemented"
+rust = "BaseCase::generate_traffic_chain"
+note = "Runs generate_referral_chain `loops` times (a u32), with a 0.05 s pause after each."
 
 [basecase."get"]
 status = "implemented"

@@ -2721,3 +2721,5 @@ include!("base_case_impls/base_case_impl_misc.rs");
 include!("base_case_impls/base_case_impl_parity.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_traffic_tests.rs");

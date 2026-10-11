@@ -1,5 +1,44 @@
 // Miscellaneous remaining helpers.
 
+/// The selector of the link `generate_referral` builds and clicks.
+const REFERRAL_LINK: &str = "a.analytics.referral.test";
+
+/// The style Python gives the link `generate_referral` builds.
+const REFERRAL_LINK_STYLE: &str = "font-family: Arial,sans-serif; font-size: 30px; color: #18a2cd";
+
+/// The script that replaces the page's body with one link to `destination`.
+///
+/// The link is built with the DOM, not pasted into markup, and `destination`
+/// goes in as a string literal, so a URL with a quote in it stays a URL.
+fn referral_link_script(destination: &str) -> String {
+    format!(
+        "var link = document.createElement('a'); \
+         link.className = 'analytics referral test'; \
+         link.setAttribute('href', {href}); \
+         link.setAttribute('style', {style}); \
+         link.textContent = 'Magic Link Button'; \
+         var body = document.createElement('body'); \
+         body.appendChild(link); \
+         document.documentElement.replaceChild(body, document.body);",
+        href = quote(destination),
+        style = quote(REFERRAL_LINK_STYLE),
+    )
+}
+
+/// Checks that `url` is one Python's `is_valid_url` accepts, for the
+/// referral helpers, which refuse a page they could not navigate to before
+/// they touch the browser.
+fn require_page_url(url: &str, role: &str) -> Result<(), SeleniumBaseError> {
+    if is_valid_url_text(url) {
+        Ok(())
+    } else {
+        Err(SeleniumBaseError::Parse {
+            input: url.to_owned(),
+            expected: format!("a valid URL for {role}"),
+        })
+    }
+}
+
 impl BaseCase {
     // Deferred / delayed assertion aliases.
 
@@ -159,47 +198,127 @@ impl BaseCase {
 
     // Referral / traffic generators.
 
-    /// Returns `url` with a `ref=<referrer>` query parameter appended. It
-    /// visits nothing and sends no `Referer` header.
+    /// Opens `start_page`, builds a link to `destination_page` in it and
+    /// clicks the link, so the destination receives a real `Referer` header
+    /// naming the start page. Corresponds to Python's `generate_referral`.
     ///
-    /// This is **not** Python's `generate_referral(start_page,
-    /// destination_page)`, which opens the start page, adds a link to the
-    /// destination there and clicks it, so that the destination sees a real
-    /// referral. That is not ported; `parity/api.toml` marks it planned.
-    pub fn generate_referral(&self, url: &str, referrer: &str) -> Result<String, SeleniumBaseError> {
-        let parsed = reqwest::Url::parse(url).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?;
-        let mut url = parsed.clone();
-        url.query_pairs_mut().append_pair("ref", referrer);
-        Ok(url.to_string())
+    /// An empty `start_page` starts from the page the browser is on. With a
+    /// `selector`, that element is clicked on the destination page too, which
+    /// keeps the visit from counting as a bounce.
+    ///
+    /// The link replaces the whole body of the start page, so the page is
+    /// left on the destination. The browser's referrer policy decides how much
+    /// of the start page's address the destination sees: by default Chrome
+    /// sends all of it to a page of the same origin and the origin alone to
+    /// a page of another origin.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Parse`] if either page is not a URL that
+    /// [`is_valid_url`](Self::is_valid_url) accepts, before anything is sent
+    /// to the browser, and the usual wait and driver errors for the steps.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.generate_referral("https://example.com/blog", "https://example.com/shop", None)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn generate_referral(
+        &mut self,
+        start_page: &str,
+        destination_page: &str,
+        selector: Option<&str>,
+    ) -> Result<(), SeleniumBaseError> {
+        require_page_url(destination_page, "destination_page")?;
+        if !start_page.is_empty() {
+            require_page_url(start_page, "start_page")?;
+            self.open(start_page).await?;
+            self.sleep(0.08).await;
+            self.wait_for_ready_state_complete().await?;
+        }
+        self.execute_script(&referral_link_script(destination_page))
+            .await?;
+        self.click(REFERRAL_LINK).await?;
+        self.sleep(0.15).await;
+        // Python moves on after a pause; waiting for the page the click led to
+        // keeps the next hop of a chain from running on the page being left.
+        self.wait_for_ready_state_complete().await?;
+        if let Some(selector) = selector {
+            self.click(selector).await?;
+            self.sleep(0.15).await;
+        }
+        Ok(())
     }
 
-    /// Returns the [`generate_referral`](Self::generate_referral) URL for
-    /// each of `referrers`. Not Python's `generate_referral_chain(pages)`,
-    /// which clicks through a chain of pages.
-    pub fn generate_referral_chain(&self, url: &str, referrers: &[&str]) -> Result<Vec<String>, SeleniumBaseError> {
-        referrers
-            .iter()
-            .map(|r| self.generate_referral(url, r))
-            .collect()
+    /// Runs [`generate_referral`](Self::generate_referral) `loops` times, so
+    /// the destination receives that many visits from the start page.
+    /// Corresponds to Python's `generate_traffic`.
+    ///
+    /// # Errors
+    ///
+    /// See [`generate_referral`](Self::generate_referral); the first loop that
+    /// fails ends the run.
+    pub async fn generate_traffic(
+        &mut self,
+        start_page: &str,
+        destination_page: &str,
+        loops: u32,
+        selector: Option<&str>,
+    ) -> Result<(), SeleniumBaseError> {
+        for _ in 0..loops {
+            self.generate_referral(start_page, destination_page, selector)
+                .await?;
+            self.sleep(0.05).await;
+        }
+        Ok(())
     }
 
-    /// Opens the [`generate_referral`](Self::generate_referral) URL in the
-    /// browser. Not Python's `generate_traffic(start_page,
-    /// destination_page, loops)`, which clicks a real link `loops` times.
-    pub async fn generate_traffic(&mut self, url: &str, referrer: &str) -> Result<(), SeleniumBaseError> {
-        let referral = self.generate_referral(url, referrer)?;
-        self.open(&referral).await
+    /// Clicks through `pages` in order: a link to the first page is built in
+    /// the page the browser is on and clicked, then a link to the second in the
+    /// first, and so on, so every page after the first sees the one before it
+    /// as its referrer. A visit that goes on to a second page of the site this
+    /// way does not count as a bounce. Corresponds to Python's
+    /// `generate_referral_chain`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if fewer than two pages are
+    /// given and [`SeleniumBaseError::Parse`] if any is not a valid URL; both
+    /// are checked before the first click.
+    pub async fn generate_referral_chain(&mut self, pages: &[&str]) -> Result<(), SeleniumBaseError> {
+        if pages.len() < 2 {
+            return Err(SeleniumBaseError::InvalidConfig(
+                "a referral chain needs at least two website pages".to_owned(),
+            ));
+        }
+        for page in pages {
+            require_page_url(page, "a page of the chain")?;
+        }
+        for page in pages {
+            self.generate_referral("", page, None).await?;
+        }
+        Ok(())
     }
 
-    /// Opens each of the [`generate_referral`](Self::generate_referral)
-    /// URLs in turn. Not Python's `generate_traffic_chain(pages)`.
+    /// Runs [`generate_referral_chain`](Self::generate_referral_chain)
+    /// `loops` times. Corresponds to Python's `generate_traffic_chain`.
+    ///
+    /// # Errors
+    ///
+    /// See [`generate_referral_chain`](Self::generate_referral_chain); the
+    /// first loop that fails ends the run.
     pub async fn generate_traffic_chain(
         &mut self,
-        url: &str,
-        referrers: &[&str],
+        pages: &[&str],
+        loops: u32,
     ) -> Result<(), SeleniumBaseError> {
-        for referrer in referrers {
-            self.generate_traffic(url, referrer).await?;
+        for _ in 0..loops {
+            self.generate_referral_chain(pages).await?;
+            self.sleep(0.05).await;
         }
         Ok(())
     }

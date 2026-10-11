@@ -1,5 +1,6 @@
 //! A tour of the smaller `BaseCase` helpers: window introspection, page
-//! artifacts, on-page messages, referral URLs, console-log capture and charts.
+//! artifacts, on-page messages, referral click-throughs, console-log capture
+//! and charts.
 //!
 //! Each helper is followed by a check on its effect, so a run that finishes has
 //! shown that the helper did what its name says. The written-up version is
@@ -18,17 +19,25 @@
 
 mod local_site;
 
-use local_site::{ensure, Site, DEMO_PATH};
+use local_site::{ensure, Site, DEMO_PAGE, DEMO_PATH};
 use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
 use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result};
 
+/// Where the referral helper below leads, and what that page says.
+const LANDING_PATH: &str = "/landing";
+const LANDING_PAGE: &str = "<!doctype html><title>Landing</title><p id=\"landed\">You arrived.</p>";
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let url = Site::serve_demo()?.url(DEMO_PATH);
-    run_browser_test(BrowserConfig::default(), |sb| Box::pin(demo(sb, url))).await
+    let site = Site::serve(&[(DEMO_PATH, DEMO_PAGE), (LANDING_PATH, LANDING_PAGE)])?;
+    let (url, landing) = (site.url(DEMO_PATH), site.url(LANDING_PATH));
+    run_browser_test(BrowserConfig::default(), |sb| {
+        Box::pin(demo(sb, url, landing))
+    })
+    .await
 }
 
-async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
+async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
     sb.open(&url).await?;
 
     // Window introspection.
@@ -48,13 +57,17 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.assert_exact_text("#sb-toast-message", "All good!")
         .await?;
 
-    // Referral helper: adds a `ref` query parameter.
-    let referral = sb.generate_referral(&url, "rust_docs")?;
-    println!("Referral URL: {referral}");
+    // Referral helper: opens the start page, builds a link to the destination in
+    // it and clicks the link, so the destination is reached by a real
+    // click-through and receives the start page as its `Referer`.
+    sb.generate_referral(&url, &landing, None).await?;
+    println!("Referral led to {}", sb.get_current_url().await?);
     ensure(
-        referral.ends_with("?ref=rust_docs"),
-        "the referral URL carries the ref",
+        sb.get_current_url().await? == landing,
+        "the click led to the landing page",
     )?;
+    sb.assert_exact_text("#landed", "You arrived.").await?;
+    sb.open(&url).await?;
 
     // Console log capture: once recording starts, every `console.log` call is
     // kept, whether the page makes it or you write it from Rust.

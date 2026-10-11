@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (862 implemented,
-  384 composed, 96 not-applicable with a reason, 23 planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (866 implemented,
+  384 composed, 96 not-applicable with a reason, 19 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
@@ -164,6 +164,14 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - `CLAUDE.md` (a map of the modules, checks and gotchas), `CHANGELOG.md`, and
   `docs/design/stealth_parity_plan.md` (the plan for the stealthscraper-rs
   feature set and JA3/JA4/Akamai impersonation).
+- **Real referrals**: `BaseCase::generate_referral(start_page, destination_page,
+  selector)`, `generate_traffic(.., loops, selector)`, `generate_referral_chain(pages)`
+  and `generate_traffic_chain(pages, loops)` open the start page (or use the current
+  one), build a link to the destination in it with a script and click it, so the
+  destination receives a real `Referer`, as Python does. The four parity entries
+  are `implemented`. Mock tests assert the order of the commands and that the URL
+  stays inside its string literal; `tests/generate_referral_chrome.rs` (ignored)
+  has a Chrome 155 visit a loopback site that records the `Referer` it receives.
 
 ### Changed
 
@@ -197,6 +205,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `default_registry` still holds 29 providers.
 - Requires Rust 1.99 (`rust-version`, the `Dockerfile` base image and the CI msrv
   job); `zip` moved to 9.0 and the lockfile is current.
+- **Breaking**: `BaseCase::generate_referral`, `generate_traffic`,
+  `generate_referral_chain` and `generate_traffic_chain` do what the Python
+  methods do (see Added). Their old forms returned or opened a `?ref=<referrer>`
+  URL, which sends no `Referer`; the old `(url, referrer)` signatures are gone.
 - **Breaking**: `ad_block` in a WebDriver launch no longer passes
   `--blink-settings=imagesEnabled=false`. That turned every image off and blocked
   no ad; `with_block_images(true)` is the setting for it.

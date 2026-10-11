@@ -15,7 +15,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 433 | 4 | 10 | 6 |
+| [BaseCase methods](#basecase-methods) | 453 | 437 | 4 | 10 | 2 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 194 | 14 | 4 |
 | [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
@@ -189,10 +189,10 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `flash` | implemented | `BaseCase::flash` |  |
 | `focus` | implemented | `BaseCase::focus` |  |
 | `frame_switch` | implemented | `BaseCase::frame_switch` |  |
-| `generate_referral` | planned |  | BaseCase::generate_referral(url, referrer) only returns the URL with ?ref=<referrer> appended. Python's generate_referral(start_page, destination_page, selector) opens the start page, adds a link to the destination there and clicks it, so the destination sees a real referral. Not ported. |
-| `generate_referral_chain` | planned |  | BaseCase::generate_referral_chain(url, referrers) only returns one ?ref= URL per referrer. Python's generate_referral_chain(pages) clicks through a chain of at least two pages. Not ported. |
-| `generate_traffic` | planned |  | BaseCase::generate_traffic(url, referrer) only opens the URL with ?ref=<referrer> appended, which sends no Referer header. Python's generate_traffic(start_page, destination_page, loops, selector) clicks a real link `loops` times. Not ported. |
-| `generate_traffic_chain` | planned |  | BaseCase::generate_traffic_chain(url, referrers) only opens one ?ref= URL per referrer. Python's generate_traffic_chain(pages) clicks through a chain of pages. Not ported. |
+| `generate_referral` | implemented | `BaseCase::generate_referral` | A real click-through: it opens start_page (an empty string means the current page), builds a link to destination_page in it with a script and clicks it, so the destination receives a Referer header. With a selector, that element is clicked on the destination page too. Differs: Builds the link with DOM calls and quotes the URL, where Python pastes it into markup; waits for the destination's readyState after the click, where Python only pauses 0.15 s. An invalid page is SeleniumBaseError::Parse, checked before the browser is touched. |
+| `generate_referral_chain` | implemented | `BaseCase::generate_referral_chain` | Takes a slice of pages. Builds and clicks a link to each page in turn, starting from the page the browser is on, so each page after the first sees the one before it as its Referer. Differs: Fewer than two pages is SeleniumBaseError::InvalidConfig and an invalid page is SeleniumBaseError::Parse, both before the first click (Python raises plain exceptions). |
+| `generate_traffic` | implemented | `BaseCase::generate_traffic` | Runs generate_referral `loops` times (a u32), with a 0.05 s pause after each. |
+| `generate_traffic_chain` | implemented | `BaseCase::generate_traffic_chain` | Runs generate_referral_chain `loops` times (a u32), with a 0.05 s pause after each. |
 | `get` | implemented | `BaseCase::get` |  |
 | `get_active_element_css` | implemented | `BaseCase::get_active_element_css` |  |
 | `get_attribute` | implemented | `BaseCase::get_attribute` |  |

@@ -60,14 +60,31 @@ let logs = sb.get_recorded_console_logs().await?;
 ## Referral / traffic helpers
 
 ```rust
-let url = sb.generate_referral("https://example.com", "docs")?;
-sb.generate_traffic("https://example.com", "docs").await?;
+// Open the blog, build a link to the shop in it and click the link.
+sb.generate_referral("https://example.com/blog", "https://example.com/shop", None).await?;
+// The same, ten times, and click `#add-to-cart` on the shop page each time.
+sb.generate_traffic(
+    "https://example.com/blog",
+    "https://example.com/shop",
+    10,
+    Some("#add-to-cart"),
+).await?;
+// Click through a list of pages, one link in each page to the next one,
+// starting from the page the browser is on.
+sb.generate_referral_chain(&["https://example.com/a", "https://example.com/b"]).await?;
+sb.generate_traffic_chain(&["https://example.com/a", "https://example.com/b"], 3).await?;
 ```
 
-These only add a `?ref=docs` query parameter to the URL (and open it); they do
-not click a link from one page to another, so the destination sees no real
-referral. Python's `generate_referral(start_page, destination_page)` does that,
-and it is listed as planned in [the parity table](../parity.md).
+These are real click-throughs, as Python's are: the start page gets a link to the
+destination in place of its body, the link is clicked, and the destination
+receives a `Referer` header naming the start page. (Chrome's default referrer
+policy sends the whole address to a page of the same origin and the origin alone
+to a page of another origin.) Pass an empty string as the start page to begin on
+the page the browser is on. A page that is not a valid URL, or a chain of fewer
+than two pages, is refused before anything is clicked.
+
+Earlier versions of this crate returned the URL with a `?ref=` parameter added
+instead, which sends no `Referer` at all.
 
 ## Multi-series charts
 

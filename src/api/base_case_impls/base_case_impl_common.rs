@@ -789,6 +789,12 @@ pub(crate) mod webdriver_support {
                 .collect()
         }
 
+        /// Every request received so far, oldest first, so a test can check
+        /// the order in which commands were sent.
+        pub fn all_requests(&self) -> Vec<Seen> {
+            self.seen.lock().expect("request log").clone()
+        }
+
         /// A [`BaseCase`] whose session is on this server.
         pub async fn base_case(&self) -> BaseCase {
             let mut config = BrowserConfig::default().with_webdriver_url(self.url.clone());
