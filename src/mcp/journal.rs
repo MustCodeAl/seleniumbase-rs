@@ -141,6 +141,10 @@ mod tests {
 
     use super::*;
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "callers pass `json!` temporaries"
+    )]
     fn record(tool: &str, arguments: Value) -> CallRecord {
         CallRecord::new(
             tool,

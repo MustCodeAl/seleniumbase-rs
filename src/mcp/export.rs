@@ -303,7 +303,11 @@ mod tests {
     use super::*;
 
     /// A logged call, with the effect the servers declare for it: readers
-    /// observe, everything else acts.
+    /// observe, everything else acts. Takes the `json!` temporary by value.
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "callers pass `json!` temporaries"
+    )]
     fn call(tool: &str, arguments: Value, ok: bool) -> CallRecord {
         let effect = if tool.starts_with("get_") {
             Effect::Observe
@@ -337,7 +341,7 @@ mod tests {
         let test = export.recorder.to_rust_test("search_works");
 
         assert_eq!(export.steps, 4);
-        assert!(export.skipped.is_empty());
+        assert_eq!(export.skipped, vec![]);
         assert!(
             test.contains("sb.open(\"https://shop.test\").await?;"),
             "{test}"

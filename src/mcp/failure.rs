@@ -381,6 +381,10 @@ fn first_line(text: &str) -> String {
 mod tests {
     use super::*;
 
+    #[allow(
+        clippy::needless_pass_by_value,
+        reason = "callers pass `json!` temporaries"
+    )]
     fn arguments(value: Value) -> Map<String, Value> {
         value.as_object().cloned().unwrap()
     }
