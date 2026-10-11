@@ -149,5 +149,7 @@ cargo test login_succeeds
 - Learn about selectors in the [Selectors Guide](./selectors.md).
 - Understand waits and assertions in [Waits and Assertions](./waits_assertions.md).
 - Explore anti-detection in [Undetected (UC) Mode](./uc_mode.md).
+- Slow a run down so you can watch it, or set the run-wide knobs, in
+  [Run Settings](./run_settings.md).
 - Browse the [API Reference](./api_reference.md) for the full method list.
 - Use the [CLI helper](./cli_usage.md) for quick one-off commands.

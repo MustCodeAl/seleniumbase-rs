@@ -472,6 +472,7 @@ No feature is on by default.
 - [Macros](./docs/tutorials/macros.md)
 - [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
 - [Settings and Configuration](./docs/tutorials/settings_and_config.md)
+- [Run Settings (demo and slow mode)](./docs/tutorials/run_settings.md)
 - [Behave / Gherkin Support](./docs/tutorials/behave.md)
 - [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
 - [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
