@@ -3926,8 +3926,9 @@ status = "implemented"
 rust = "BrowserConfig::ad_block"
 
 [options_driver."ad_block_on"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "Python's ad_block_on is the state the ad-block option sets."
 
 [options_driver."agent"]
 status = "composed"
@@ -3938,24 +3939,29 @@ status = "composed"
 rust = "BrowserConfig::browser_binary_path"
 
 [options_driver."block_images"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_block_images"
+note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_driver."browser"]
 status = "implemented"
 rust = "BrowserConfig::browser"
 
 [options_driver."cap_file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_file"
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_driver."cap_string"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_text"
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
 
 [options_driver."cft"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_driver."chromium_arg"]
 status = "composed"
@@ -3963,20 +3969,21 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."chs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode."
 
 [options_driver."d_height"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "DeviceMetrics::height"
 
 [options_driver."d_p_r"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "DeviceMetrics::pixel_ratio"
 
 [options_driver."d_width"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "DeviceMetrics::width"
 
 [options_driver."dark_mode"]
 status = "composed"
@@ -3989,12 +3996,14 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."disable_cookies"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_cookies"
+note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_driver."disable_csp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_driver."disable_features"]
 status = "composed"
@@ -4007,8 +4016,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."disable_js"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_js"
+note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_driver."disable_ws"]
 status = "composed"
@@ -4016,12 +4026,14 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."do_not_track"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_do_not_track"
+note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_driver."driver_version"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_driver_version"
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_driver."enable_3d_apis"]
 status = "composed"
@@ -4029,8 +4041,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."enable_sync"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_enable_sync"
+note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_driver."enable_ws"]
 status = "composed"
@@ -4042,20 +4055,24 @@ status = "implemented"
 rust = "BrowserConfig::extension_dir"
 
 [options_driver."extension_zip"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_extension_archive"
+note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_driver."external_pdf"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_external_pdf"
+note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_driver."firefox_arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_args"
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_driver."firefox_pref"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_preferences"
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_driver."guest"]
 status = "composed"
@@ -4097,8 +4114,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."is_mobile"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mobile"
+note = "Give the screen with `with_device_metrics`."
 
 [options_driver."locale"]
 status = "implemented"
@@ -4109,20 +4127,23 @@ status = "composed"
 rust = "BrowserConfig::locale"
 
 [options_driver."log_cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_driver."log_cdp_events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_driver."mobile"]
 status = "implemented"
 rust = "BrowserConfig::mobile"
 
 [options_driver."multi_proxy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "LaunchOptionsBuilder::proxy"
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
 
 [options_driver."no_sandbox"]
 status = "composed"
@@ -4130,12 +4151,14 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_driver."page_load_strategy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_driver."pls"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_driver."port"]
 status = "composed"
@@ -4143,8 +4166,9 @@ rust = "BrowserConfig::webdriver_url"
 note = "Give the full WebDriver URL instead of its parts."
 
 [options_driver."position"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_window_position"
+note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_driver."protocol"]
 status = "composed"
@@ -4156,20 +4180,23 @@ status = "implemented"
 rust = "BrowserConfig::proxy"
 
 [options_driver."proxy_bypass_list"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_proxy_bypass_list"
+note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_driver."proxy_pac_url"]
 status = "implemented"
 rust = "BrowserConfig::proxy_pac_url"
 
 [options_driver."recorder_ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_recorder_extension"
+note = "Loads the bundled SeleniumBase Recorder extension. Chromium only."
 
 [options_driver."remote_debug"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_remote_debug"
+note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_driver."server"]
 status = "composed"
@@ -4177,12 +4204,14 @@ rust = "BrowserConfig::webdriver_url"
 note = "Give the full WebDriver URL instead of its parts."
 
 [options_driver."servername"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL, with the Grid's host in it."
 
 [options_driver."size"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_window_size"
+note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_driver."swiftshader"]
 status = "composed"
@@ -4195,20 +4224,24 @@ rust = "BrowserConfig::mode"
 note = "DriverMode::Uc."
 
 [options_driver."uc_cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_driver."uc_cdp_events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_driver."uc_sub"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_driver."uc_subprocess"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_driver."undetectable"]
 status = "composed"
@@ -4221,8 +4254,9 @@ rust = "BrowserConfig::mode"
 note = "DriverMode::Uc."
 
 [options_driver."use_auto_ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_automation_extension"
+note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_driver."use_chromium"]
 status = "composed"
@@ -4234,14 +4268,14 @@ status = "implemented"
 rust = "BrowserConfig::user_data_dir"
 
 [options_driver."window_position"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_window_position"
+note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_driver."window_size"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_window_size"
+note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--account"]
 status = "planned"
@@ -4288,8 +4322,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--auto-ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_automation_extension"
+note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--binary-location"]
 status = "composed"
@@ -4308,44 +4343,54 @@ status = "composed"
 rust = "BrowserConfig::ad_block"
 
 [options_pytest."--block-images"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_block_images"
+note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_pytest."--block_ads"]
 status = "composed"
 rust = "BrowserConfig::ad_block"
 
 [options_pytest."--block_images"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_block_images"
+note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_pytest."--brave"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Run with chromedriver; the program is found in Brave's install locations or on the PATH."
 
 [options_pytest."--browser"]
 status = "implemented"
 rust = "BrowserConfig::browser"
 
 [options_pytest."--cap-file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_file"
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_pytest."--cap-string"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_text"
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
 
 [options_pytest."--cap_file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_file"
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_pytest."--cap_string"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_text"
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
 
 [options_pytest."--cft"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_pytest."--check-js"]
 status = "planned"
@@ -4376,24 +4421,27 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--chs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode."
 
 [options_pytest."--codegen"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--comet"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess)."
 
 [options_pytest."--crumbs"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--crx"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_extension_archive"
+note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--dark"]
 status = "composed"
@@ -4435,8 +4483,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--dcsp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--demo"]
 status = "planned"
@@ -4459,12 +4508,16 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--device-metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_device_metrics"
+note = "Chrome's `mobileEmulation` experimental option."
+divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_pytest."--device_metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_device_metrics"
+note = "Chrome's `mobileEmulation` experimental option."
+divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_pytest."--devtools"]
 status = "composed"
@@ -4476,12 +4529,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--disable-cookies"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_cookies"
+note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_pytest."--disable-csp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--disable-features"]
 status = "composed"
@@ -4494,8 +4549,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable-js"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_js"
+note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_pytest."--disable-web-security"]
 status = "composed"
@@ -4512,12 +4568,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--disable_cookies"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_cookies"
+note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_pytest."--disable_csp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--disable_features"]
 status = "composed"
@@ -4530,8 +4588,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--disable_js"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_js"
+note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_pytest."--disable_ws"]
 status = "composed"
@@ -4539,20 +4598,24 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--do-not-track"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_do_not_track"
+note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_pytest."--do_not_track"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_do_not_track"
+note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_pytest."--driver-version"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_driver_version"
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_pytest."--driver_version"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_driver_version"
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_pytest."--dws"]
 status = "composed"
@@ -4574,8 +4637,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--enable-sync"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_enable_sync"
+note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_pytest."--enable-web-security"]
 status = "composed"
@@ -4593,8 +4657,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--enable_sync"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_enable_sync"
+note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_pytest."--enable_ws"]
 status = "composed"
@@ -4618,24 +4683,28 @@ status = "implemented"
 rust = "BrowserConfig::extension_dir"
 
 [options_pytest."--extension-zip"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_extension_archive"
+note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--extension_dir"]
 status = "implemented"
 rust = "BrowserConfig::extension_dir"
 
 [options_pytest."--extension_zip"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_extension_archive"
+note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--external-pdf"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_external_pdf"
+note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--external_pdf"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_external_pdf"
+note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--fast"]
 status = "planned"
@@ -4667,20 +4736,24 @@ rust = "BrowserConfig::browser"
 note = "Choose the Browser variant."
 
 [options_pytest."--firefox-arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_args"
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_pytest."--firefox-pref"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_preferences"
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_pytest."--firefox_arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_args"
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_pytest."--firefox_pref"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_preferences"
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_pytest."--ftrace"]
 status = "planned"
@@ -4743,8 +4816,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--ie"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows."
 
 [options_pytest."--incognito"]
 status = "composed"
@@ -4798,24 +4872,28 @@ status = "composed"
 rust = "BrowserConfig::locale"
 
 [options_pytest."--log-cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log-cdp-events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log-path"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--log_cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log_cdp_events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log_path"]
 status = "planned"
@@ -4845,32 +4923,39 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_device_metrics"
+note = "Chrome's `mobileEmulation` experimental option."
+divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_pytest."--mobile"]
 status = "implemented"
 rust = "BrowserConfig::mobile"
 
 [options_pytest."--mobile-emulator"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mobile"
+note = "Give the screen with `with_device_metrics`."
 
 [options_pytest."--mobile_emulator"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mobile"
+note = "Give the screen with `with_device_metrics`."
 
 [options_pytest."--multi-proxy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "LaunchOptionsBuilder::proxy"
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
 
 [options_pytest."--multi_proxy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "LaunchOptionsBuilder::proxy"
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
 
 [options_pytest."--no-csp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--no-sandbox"]
 status = "composed"
@@ -4882,8 +4967,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--no_csp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--no_sandbox"]
 status = "composed"
@@ -4909,24 +4995,28 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_pytest."--opera"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Run with operadriver, which must be in downloaded_drivers/ or on the PATH; nothing downloads it."
 
 [options_pytest."--pac-url"]
 status = "composed"
 rust = "BrowserConfig::proxy_pac_url"
 
 [options_pytest."--page-load-strategy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--page_load_strategy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--pls"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--port"]
 status = "composed"
@@ -4943,12 +5033,14 @@ status = "implemented"
 rust = "BrowserConfig::proxy"
 
 [options_pytest."--proxy-bypass-list"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_proxy_bypass_list"
+note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_pytest."--proxy-driver"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_proxy_for_driver_download"
+note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--proxy-pac-url"]
 status = "implemented"
@@ -4965,12 +5057,14 @@ rust = "BrowserConfig::proxy"
 note = "SERVER:PORT or USER:PASS@SERVER:PORT."
 
 [options_pytest."--proxy_bypass_list"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_proxy_bypass_list"
+note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_pytest."--proxy_driver"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_proxy_for_driver_download"
+note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--rcs"]
 status = "planned"
@@ -5017,16 +5111,19 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--remote-debug"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_remote_debug"
+note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_pytest."--remote-debugger"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_remote_debug"
+note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_pytest."--remote_debug"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_remote_debug"
+note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_pytest."--remote_debugger"]
 status = "planned"
@@ -5053,8 +5150,9 @@ status = "composed"
 rust = "BrowserConfig::reuse_session"
 
 [options_pytest."--safari"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Run with safaridriver, which comes with macOS; Safari needs Allow Remote Automation turned on."
 
 [options_pytest."--save-screenshot"]
 status = "planned"
@@ -5156,28 +5254,34 @@ rust = "BrowserConfig::mode"
 note = "DriverMode::Uc."
 
 [options_pytest."--uc-cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_pytest."--uc-cdp-events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_pytest."--uc-sub"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_pytest."--uc-subprocess"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_pytest."--uc_cdp_events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_pytest."--uc_subprocess"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_pytest."--undetectable"]
 status = "composed"
@@ -5194,8 +5298,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_pytest."--use-auto-ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_automation_extension"
+note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--use-chromium"]
 status = "composed"
@@ -5203,8 +5308,9 @@ rust = "BrowserConfig::browser"
 note = "Choose the Browser variant."
 
 [options_pytest."--use_auto_ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_automation_extension"
+note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--user-agent"]
 status = "implemented"
@@ -5339,16 +5445,19 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--xvfb"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_virtual_display"
+note = "Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python."
 
 [options_pytest."--xvfb-metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "VirtualDisplay::new"
+note = "WIDTH,HEIGHT of the virtual screen; 1366,768 when not given."
 
 [options_pytest."--xvfb_metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "VirtualDisplay::new"
+note = "WIDTH,HEIGHT of the virtual screen; 1366,768 when not given."
 
 [options_sb."account"]
 status = "planned"
@@ -5359,8 +5468,9 @@ status = "implemented"
 rust = "BrowserConfig::ad_block"
 
 [options_sb."ad_block_on"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "Python's ad_block_on is the state the ad-block option sets."
 
 [options_sb."agent"]
 status = "composed"
@@ -5371,24 +5481,29 @@ status = "composed"
 rust = "BrowserConfig::browser_binary_path"
 
 [options_sb."block_images"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_block_images"
+note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_sb."browser"]
 status = "implemented"
 rust = "BrowserConfig::browser"
 
 [options_sb."cap_file"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_file"
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_sb."cap_string"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "CapabilityOverrides::from_text"
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
 
 [options_sb."cft"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_sb."chromium_arg"]
 status = "composed"
@@ -5396,8 +5511,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."chs"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::browser"
+note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode."
 
 [options_sb."dark_mode"]
 status = "composed"
@@ -5417,8 +5533,10 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."device_metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_device_metrics"
+note = "Chrome's `mobileEmulation` experimental option."
+divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_sb."devtools"]
 status = "composed"
@@ -5430,12 +5548,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."disable_cookies"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_cookies"
+note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_sb."disable_csp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_csp"
+note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_sb."disable_features"]
 status = "composed"
@@ -5443,8 +5563,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."disable_js"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_disable_js"
+note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_sb."disable_ws"]
 status = "composed"
@@ -5452,12 +5573,14 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."do_not_track"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_do_not_track"
+note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_sb."driver_version"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_driver_version"
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_sb."enable_3d_apis"]
 status = "composed"
@@ -5465,8 +5588,9 @@ rust = "BrowserConfig::extra_args"
 note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
 
 [options_sb."enable_sync"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_enable_sync"
+note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_sb."enable_ws"]
 status = "composed"
@@ -5482,24 +5606,28 @@ status = "implemented"
 rust = "BrowserConfig::extension_dir"
 
 [options_sb."extension_zip"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_extension_archive"
+note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_sb."external_pdf"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_external_pdf"
+note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_sb."fast"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."firefox_arg"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_args"
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_sb."firefox_pref"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "FirefoxOptions::add_preferences"
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
 
 [options_sb."guest"]
 status = "composed"
@@ -5549,8 +5677,9 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."is_mobile"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::mobile"
+note = "Give the screen with `with_device_metrics`."
 
 [options_sb."js_checking_on"]
 status = "planned"
@@ -5565,12 +5694,14 @@ status = "composed"
 rust = "BrowserConfig::locale"
 
 [options_sb."log_cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_sb."log_cdp_events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_sb."maximize"]
 status = "composed"
@@ -5586,20 +5717,23 @@ status = "implemented"
 rust = "BrowserConfig::mobile"
 
 [options_sb."multi_proxy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "LaunchOptionsBuilder::proxy"
+note = "Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one."
 
 [options_sb."no_screenshot"]
 status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."page_load_strategy"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_sb."pls"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_page_load_strategy"
+note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_sb."port"]
 status = "composed"
@@ -5607,8 +5741,9 @@ rust = "BrowserConfig::webdriver_url"
 note = "Give the full WebDriver URL instead of its parts."
 
 [options_sb."position"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_window_position"
+note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_sb."protocol"]
 status = "composed"
@@ -5620,8 +5755,9 @@ status = "implemented"
 rust = "BrowserConfig::proxy"
 
 [options_sb."proxy_bypass_list"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_proxy_bypass_list"
+note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_sb."proxy_pac_url"]
 status = "implemented"
@@ -5652,12 +5788,14 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."recorder_ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_recorder_extension"
+note = "Loads the bundled SeleniumBase Recorder extension. Chromium only."
 
 [options_sb."remote_debug"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_remote_debug"
+note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_sb."rtf"]
 status = "planned"
@@ -5673,16 +5811,18 @@ rust = "BrowserConfig::webdriver_url"
 note = "Give the full WebDriver URL instead of its parts."
 
 [options_sb."servername"]
-status = "planned"
-note = "No Rust setting yet."
+status = "composed"
+rust = "BrowserConfig::webdriver_url"
+note = "Give the full WebDriver URL, with the Grid's host in it."
 
 [options_sb."settings_file"]
 status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."size"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_window_size"
+note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_sb."sjw"]
 status = "planned"
@@ -5723,20 +5863,24 @@ rust = "BrowserConfig::mode"
 note = "DriverMode::Uc."
 
 [options_sb."uc_cdp"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_sb."uc_cdp_events"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_cdp_events"
+note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
+divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_sb."uc_sub"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_sb."uc_subprocess"]
-status = "planned"
-note = "No Rust setting yet."
+status = "not-applicable"
+reason = "Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to."
 
 [options_sb."undetectable"]
 status = "composed"
@@ -5749,8 +5893,9 @@ rust = "BrowserConfig::mode"
 note = "DriverMode::Uc."
 
 [options_sb."use_auto_ext"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_automation_extension"
+note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_sb."use_chromium"]
 status = "composed"
@@ -5786,19 +5931,21 @@ status = "planned"
 note = "No Rust setting yet."
 
 [options_sb."window_position"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_window_position"
+note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_sb."window_size"]
-status = "composed"
-rust = "BrowserConfig::extra_args"
-note = "Passed to the browser as a command-line flag through BrowserConfig::extra_args."
+status = "implemented"
+rust = "BrowserConfig::with_window_size"
+note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_sb."xvfb"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "BrowserConfig::with_virtual_display"
+note = "Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python."
 
 [options_sb."xvfb_metrics"]
-status = "planned"
-note = "No Rust setting yet."
+status = "implemented"
+rust = "VirtualDisplay::new"
+note = "WIDTH,HEIGHT of the virtual screen; 1366,768 when not given."

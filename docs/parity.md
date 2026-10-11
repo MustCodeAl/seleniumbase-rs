@@ -19,9 +19,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 75 | 0 | 0 | 4 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 0 | 196 | 16 | 3 |
 | [Command-line commands](#command-line-commands) | 36 | 17 | 8 | 8 | 3 |
-| [pytest options](#pytest-options) | 263 | 18 | 66 | 20 | 159 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 10 | 28 | 5 | 64 |
-| [`Driver()` arguments](#driver()-arguments) | 74 | 9 | 29 | 0 | 36 |
+| [pytest options](#pytest-options) | 263 | 81 | 70 | 23 | 89 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 42 | 30 | 7 | 28 |
+| [`Driver()` arguments](#driver()-arguments) | 74 | 41 | 31 | 2 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
 | [MCP: SB server](#mcp-sb-server) | 88 | 88 | 0 | 0 | 0 |
@@ -854,32 +854,32 @@ Python `--option` flags.
 | `--archive-logs` | planned |  | No Rust setting yet. |
 | `--archive_downloads` | planned |  | No Rust setting yet. |
 | `--archive_logs` | planned |  | No Rust setting yet. |
-| `--auto-ext` | planned |  | No Rust setting yet. |
+| `--auto-ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--binary-location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--bl` | composed | `BrowserConfig::browser_binary_path` |  |
 | `--block-ads` | composed | `BrowserConfig::ad_block` |  |
-| `--block-images` | planned |  | No Rust setting yet. |
+| `--block-images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
 | `--block_ads` | composed | `BrowserConfig::ad_block` |  |
-| `--block_images` | planned |  | No Rust setting yet. |
-| `--brave` | planned |  | No Rust setting yet. |
+| `--block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
+| `--brave` | implemented | `BrowserConfig::browser` | Run with chromedriver; the program is found in Brave's install locations or on the PATH. |
 | `--browser` | implemented | `BrowserConfig::browser` |  |
-| `--cap-file` | planned |  | No Rust setting yet. |
-| `--cap-string` | planned |  | No Rust setting yet. |
-| `--cap_file` | planned |  | No Rust setting yet. |
-| `--cap_string` | planned |  | No Rust setting yet. |
-| `--cft` | planned |  | No Rust setting yet. |
+| `--cap-file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
+| `--cap-string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
+| `--cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
+| `--cap_string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
+| `--cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
 | `--check-js` | planned |  | No Rust setting yet. |
 | `--check_js` | planned |  | No Rust setting yet. |
 | `--chrome` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--chromium-arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--chs` | planned |  | No Rust setting yet. |
+| `--chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `--codegen` | planned |  | No Rust setting yet. |
-| `--comet` | planned |  | No Rust setting yet. |
+| `--comet` | implemented | `BrowserConfig::browser` | Run with chromedriver; the program is found in Comet's install locations or on the PATH (the Linux location is a guess). |
 | `--crumbs` | planned |  | No Rust setting yet. |
-| `--crx` | planned |  | No Rust setting yet. |
+| `--crx` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--dark` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--dark-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -889,53 +889,53 @@ Python `--option` flags.
 | `--data` | planned |  | No Rust setting yet. |
 | `--database-env` | planned |  | No Rust setting yet. |
 | `--database_env` | planned |  | No Rust setting yet. |
-| `--dcsp` | planned |  | No Rust setting yet. |
+| `--dcsp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--demo` | planned |  | No Rust setting yet. |
 | `--demo-mode` | planned |  | No Rust setting yet. |
 | `--demo-sleep` | planned |  | No Rust setting yet. |
 | `--demo_mode` | planned |  | No Rust setting yet. |
 | `--demo_sleep` | planned |  | No Rust setting yet. |
-| `--device-metrics` | planned |  | No Rust setting yet. |
-| `--device_metrics` | planned |  | No Rust setting yet. |
+| `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
+| `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable-beforeunload` | planned |  | No Rust setting yet. |
-| `--disable-cookies` | planned |  | No Rust setting yet. |
-| `--disable-csp` | planned |  | No Rust setting yet. |
+| `--disable-cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
+| `--disable-csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--disable-features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable-gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--disable-js` | planned |  | No Rust setting yet. |
+| `--disable-js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `--disable-web-security` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable-ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable_beforeunload` | planned |  | No Rust setting yet. |
-| `--disable_cookies` | planned |  | No Rust setting yet. |
-| `--disable_csp` | planned |  | No Rust setting yet. |
+| `--disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
+| `--disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--disable_gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--disable_js` | planned |  | No Rust setting yet. |
+| `--disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `--disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--do-not-track` | planned |  | No Rust setting yet. |
-| `--do_not_track` | planned |  | No Rust setting yet. |
-| `--driver-version` | planned |  | No Rust setting yet. |
-| `--driver_version` | planned |  | No Rust setting yet. |
+| `--do-not-track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
+| `--do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
+| `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
+| `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
 | `--dws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--edge` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `--ee` | planned |  | No Rust setting yet. |
 | `--enable-3d-apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--enable-sync` | planned |  | No Rust setting yet. |
+| `--enable-sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `--enable-web-security` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--enable-ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--enable_sync` | planned |  | No Rust setting yet. |
+| `--enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `--enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--env` | planned |  | No Rust setting yet. |
 | `--esc-end` | planned |  | No Rust setting yet. |
 | `--esc_end` | planned |  | No Rust setting yet. |
 | `--extension-dir` | implemented | `BrowserConfig::extension_dir` |  |
-| `--extension-zip` | planned |  | No Rust setting yet. |
+| `--extension-zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
-| `--extension_zip` | planned |  | No Rust setting yet. |
-| `--external-pdf` | planned |  | No Rust setting yet. |
-| `--external_pdf` | planned |  | No Rust setting yet. |
+| `--extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
+| `--external-pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
+| `--external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
 | `--fast` | planned |  | No Rust setting yet. |
 | `--fast-mode` | planned |  | No Rust setting yet. |
 | `--fast_mode` | planned |  | No Rust setting yet. |
@@ -943,10 +943,10 @@ Python `--option` flags.
 | `--final-debug` | planned |  | No Rust setting yet. |
 | `--final-trace` | planned |  | No Rust setting yet. |
 | `--firefox` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
-| `--firefox-arg` | planned |  | No Rust setting yet. |
-| `--firefox-pref` | planned |  | No Rust setting yet. |
-| `--firefox_arg` | planned |  | No Rust setting yet. |
-| `--firefox_pref` | planned |  | No Rust setting yet. |
+| `--firefox-arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
+| `--firefox-pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
+| `--firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
+| `--firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--ftrace` | planned |  | No Rust setting yet. |
 | `--fullscreen` | planned |  | No Rust setting yet. |
 | `--guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -960,7 +960,7 @@ Python `--option` flags.
 | `--highlights` | planned |  | No Rust setting yet. |
 | `--host-resolver-rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--ie` | planned |  | No Rust setting yet. |
+| `--ie` | implemented | `BrowserConfig::browser` | Run with IEDriverServer, which must be in downloaded_drivers/ or on the PATH, on Windows. |
 | `--incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--incognito-mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--incognito_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -973,47 +973,47 @@ Python `--option` flags.
 | `--locale` | implemented | `BrowserConfig::locale` |  |
 | `--locale-code` | composed | `BrowserConfig::locale` |  |
 | `--locale_code` | composed | `BrowserConfig::locale` |  |
-| `--log-cdp` | planned |  | No Rust setting yet. |
-| `--log-cdp-events` | planned |  | No Rust setting yet. |
+| `--log-cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
+| `--log-cdp-events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `--log-path` | planned |  | No Rust setting yet. |
-| `--log_cdp` | planned |  | No Rust setting yet. |
-| `--log_cdp_events` | planned |  | No Rust setting yet. |
+| `--log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
+| `--log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `--log_path` | planned |  | No Rust setting yet. |
 | `--maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--maximize-window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--maximize_window` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--message-duration` | planned |  | No Rust setting yet. |
 | `--message_duration` | planned |  | No Rust setting yet. |
-| `--metrics` | planned |  | No Rust setting yet. |
+| `--metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--mobile` | implemented | `BrowserConfig::mobile` |  |
-| `--mobile-emulator` | planned |  | No Rust setting yet. |
-| `--mobile_emulator` | planned |  | No Rust setting yet. |
-| `--multi-proxy` | planned |  | No Rust setting yet. |
-| `--multi_proxy` | planned |  | No Rust setting yet. |
-| `--no-csp` | planned |  | No Rust setting yet. |
+| `--mobile-emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
+| `--mobile_emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
+| `--multi-proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
+| `--multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
+| `--no-csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--no-sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--no-screenshot` | planned |  | No Rust setting yet. |
-| `--no_csp` | planned |  | No Rust setting yet. |
+| `--no_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `--no_sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--no_screenshot` | planned |  | No Rust setting yet. |
 | `--ns` | planned |  | No Rust setting yet. |
 | `--open-devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--open_devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--opera` | planned |  | No Rust setting yet. |
+| `--opera` | implemented | `BrowserConfig::browser` | Run with operadriver, which must be in downloaded_drivers/ or on the PATH; nothing downloads it. |
 | `--pac-url` | composed | `BrowserConfig::proxy_pac_url` |  |
-| `--page-load-strategy` | planned |  | No Rust setting yet. |
-| `--page_load_strategy` | planned |  | No Rust setting yet. |
-| `--pls` | planned |  | No Rust setting yet. |
+| `--page-load-strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
+| `--page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
+| `--pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `--port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `--protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `--proxy` | implemented | `BrowserConfig::proxy` |  |
-| `--proxy-bypass-list` | planned |  | No Rust setting yet. |
-| `--proxy-driver` | planned |  | No Rust setting yet. |
+| `--proxy-bypass-list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
+| `--proxy-driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
 | `--proxy-pac-url` | implemented | `BrowserConfig::proxy_pac_url` |  |
 | `--proxy-server` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
 | `--proxy-string` | composed | `BrowserConfig::proxy` | SERVER:PORT or USER:PASS@SERVER:PORT. |
-| `--proxy_bypass_list` | planned |  | No Rust setting yet. |
-| `--proxy_driver` | planned |  | No Rust setting yet. |
+| `--proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
+| `--proxy_driver` | implemented | `BrowserConfig::with_proxy_for_driver_download` | Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy. |
 | `--rcs` | planned |  | No Rust setting yet. |
 | `--rec` | planned |  | No Rust setting yet. |
 | `--rec-behave` | planned |  | No Rust setting yet. |
@@ -1025,16 +1025,16 @@ Python `--option` flags.
 | `--record` | planned |  | No Rust setting yet. |
 | `--record-sleep` | planned |  | No Rust setting yet. |
 | `--recorder` | planned |  | No Rust setting yet. |
-| `--remote-debug` | planned |  | No Rust setting yet. |
-| `--remote-debugger` | planned |  | No Rust setting yet. |
-| `--remote_debug` | planned |  | No Rust setting yet. |
+| `--remote-debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
+| `--remote-debugger` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
+| `--remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `--remote_debugger` | planned |  | No Rust setting yet. |
 | `--reuse-class-session` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--reuse-session` | implemented | `BrowserConfig::reuse_session` |  |
 | `--reuse_class_session` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--reuse_session` | implemented | `BrowserConfig::reuse_session` |  |
 | `--rs` | composed | `BrowserConfig::reuse_session` |  |
-| `--safari` | planned |  | No Rust setting yet. |
+| `--safari` | implemented | `BrowserConfig::browser` | Run with safaridriver, which comes with macOS; Safari needs Allow Remote Automation turned on. |
 | `--save-screenshot` | planned |  | No Rust setting yet. |
 | `--save_screenshot` | planned |  | No Rust setting yet. |
 | `--screenshot` | planned |  | No Rust setting yet. |
@@ -1059,18 +1059,18 @@ Python `--option` flags.
 | `--timeout-multiplier` | planned |  | No Rust setting yet. |
 | `--timeout_multiplier` | planned |  | No Rust setting yet. |
 | `--uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
-| `--uc-cdp` | planned |  | No Rust setting yet. |
-| `--uc-cdp-events` | planned |  | No Rust setting yet. |
-| `--uc-sub` | planned |  | No Rust setting yet. |
-| `--uc-subprocess` | planned |  | No Rust setting yet. |
-| `--uc_cdp_events` | planned |  | No Rust setting yet. |
-| `--uc_subprocess` | planned |  | No Rust setting yet. |
+| `--uc-cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `--uc-cdp-events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `--uc-sub` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
+| `--uc-subprocess` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
+| `--uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `--uc_subprocess` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
 | `--undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `--url` | planned |  | No Rust setting yet. |
-| `--use-auto-ext` | planned |  | No Rust setting yet. |
+| `--use-auto-ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--use-chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
-| `--use_auto_ext` | planned |  | No Rust setting yet. |
+| `--use_auto_ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `--user-agent` | implemented | `BrowserConfig::user_agent` |  |
 | `--user-data-dir` | implemented | `BrowserConfig::user_data_dir` |  |
 | `--user_agent` | implemented | `BrowserConfig::user_agent` |  |
@@ -1103,9 +1103,9 @@ Python `--option` flags.
 | `--with-selenium` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--with-testing-base` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `--with-testing_base` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `--xvfb` | planned |  | No Rust setting yet. |
-| `--xvfb-metrics` | planned |  | No Rust setting yet. |
-| `--xvfb_metrics` | planned |  | No Rust setting yet. |
+| `--xvfb` | implemented | `BrowserConfig::with_virtual_display` | Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python. |
+| `--xvfb-metrics` | implemented | `VirtualDisplay::new` | WIDTH,HEIGHT of the virtual screen; 1366,768 when not given. |
+| `--xvfb_metrics` | implemented | `VirtualDisplay::new` | WIDTH,HEIGHT of the virtual screen; 1366,768 when not given. |
 
 ## `SB()` arguments
 
@@ -1115,40 +1115,40 @@ Keyword arguments of `SB()`.
 | --- | --- | --- | --- |
 | `account` | planned |  | No Rust setting yet. |
 | `ad_block` | implemented | `BrowserConfig::ad_block` |  |
-| `ad_block_on` | planned |  | No Rust setting yet. |
+| `ad_block_on` | composed | `BrowserConfig::ad_block` | Python's ad_block_on is the state the ad-block option sets. |
 | `agent` | composed | `BrowserConfig::user_agent` |  |
 | `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
-| `block_images` | planned |  | No Rust setting yet. |
+| `block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
 | `browser` | implemented | `BrowserConfig::browser` |  |
-| `cap_file` | planned |  | No Rust setting yet. |
-| `cap_string` | planned |  | No Rust setting yet. |
-| `cft` | planned |  | No Rust setting yet. |
+| `cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
+| `cap_string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
+| `cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
 | `chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `chs` | planned |  | No Rust setting yet. |
+| `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `data` | planned |  | No Rust setting yet. |
 | `demo` | planned |  | No Rust setting yet. |
 | `demo_sleep` | planned |  | No Rust setting yet. |
-| `device_metrics` | planned |  | No Rust setting yet. |
+| `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_beforeunload` | planned |  | No Rust setting yet. |
-| `disable_cookies` | planned |  | No Rust setting yet. |
-| `disable_csp` | planned |  | No Rust setting yet. |
+| `disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
+| `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `disable_js` | planned |  | No Rust setting yet. |
+| `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `do_not_track` | planned |  | No Rust setting yet. |
-| `driver_version` | planned |  | No Rust setting yet. |
+| `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
+| `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
 | `enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `enable_sync` | planned |  | No Rust setting yet. |
+| `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `environment` | planned |  | No Rust setting yet. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
-| `extension_zip` | planned |  | No Rust setting yet. |
-| `external_pdf` | planned |  | No Rust setting yet. |
+| `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
+| `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
 | `fast` | planned |  | No Rust setting yet. |
-| `firefox_arg` | planned |  | No Rust setting yet. |
-| `firefox_pref` | planned |  | No Rust setting yet. |
+| `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
+| `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
@@ -1159,24 +1159,24 @@ Keyword arguments of `SB()`.
 | `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `interval` | planned |  | No Rust setting yet. |
-| `is_mobile` | planned |  | No Rust setting yet. |
+| `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `js_checking_on` | planned |  | No Rust setting yet. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
 | `locale_code` | composed | `BrowserConfig::locale` |  |
-| `log_cdp` | planned |  | No Rust setting yet. |
-| `log_cdp_events` | planned |  | No Rust setting yet. |
+| `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
+| `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `maximize` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `message_duration` | planned |  | No Rust setting yet. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
-| `multi_proxy` | planned |  | No Rust setting yet. |
+| `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `no_screenshot` | planned |  | No Rust setting yet. |
-| `page_load_strategy` | planned |  | No Rust setting yet. |
-| `pls` | planned |  | No Rust setting yet. |
+| `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
+| `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `position` | planned |  | No Rust setting yet. |
+| `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `proxy` | implemented | `BrowserConfig::proxy` |  |
-| `proxy_bypass_list` | planned |  | No Rust setting yet. |
+| `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
 | `raise_test_failure` | planned |  | No Rust setting yet. |
 | `rec_behave` | planned |  | No Rust setting yet. |
@@ -1184,14 +1184,14 @@ Keyword arguments of `SB()`.
 | `rec_sb_cdp` | planned |  | No Rust setting yet. |
 | `rec_sb_mgr` | planned |  | No Rust setting yet. |
 | `record_sleep` | planned |  | No Rust setting yet. |
-| `recorder_ext` | planned |  | No Rust setting yet. |
-| `remote_debug` | planned |  | No Rust setting yet. |
+| `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
+| `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `rtf` | planned |  | No Rust setting yet. |
 | `save_screenshot` | planned |  | No Rust setting yet. |
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `servername` | planned |  | No Rust setting yet. |
+| `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
 | `settings_file` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
-| `size` | planned |  | No Rust setting yet. |
+| `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | planned |  | No Rust setting yet. |
 | `skip_js_waits` | planned |  | No Rust setting yet. |
 | `slow` | planned |  | No Rust setting yet. |
@@ -1201,13 +1201,13 @@ Keyword arguments of `SB()`.
 | `time_limit` | planned |  | No Rust setting yet. |
 | `timeout_multiplier` | planned |  | No Rust setting yet. |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
-| `uc_cdp` | planned |  | No Rust setting yet. |
-| `uc_cdp_events` | planned |  | No Rust setting yet. |
-| `uc_sub` | planned |  | No Rust setting yet. |
-| `uc_subprocess` | planned |  | No Rust setting yet. |
+| `uc_cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `uc_sub` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
+| `uc_subprocess` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
 | `undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
-| `use_auto_ext` | planned |  | No Rust setting yet. |
+| `use_auto_ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `use_chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `user_data_dir` | implemented | `BrowserConfig::user_data_dir` |  |
 | `var1` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
@@ -1216,10 +1216,10 @@ Keyword arguments of `SB()`.
 | `variables` | not-applicable |  | pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it. |
 | `wait_for_angularjs` | planned |  | No Rust setting yet. |
 | `wfa` | planned |  | No Rust setting yet. |
-| `window_position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `window_size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `xvfb` | planned |  | No Rust setting yet. |
-| `xvfb_metrics` | planned |  | No Rust setting yet. |
+| `window_position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
+| `window_size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
+| `xvfb` | implemented | `BrowserConfig::with_virtual_display` | Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python. |
+| `xvfb_metrics` | implemented | `VirtualDisplay::new` | WIDTH,HEIGHT of the virtual screen; 1366,768 when not given. |
 
 ## `Driver()` arguments
 
@@ -1228,37 +1228,37 @@ Keyword arguments of `Driver()`.
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
 | `ad_block` | implemented | `BrowserConfig::ad_block` |  |
-| `ad_block_on` | planned |  | No Rust setting yet. |
+| `ad_block_on` | composed | `BrowserConfig::ad_block` | Python's ad_block_on is the state the ad-block option sets. |
 | `agent` | composed | `BrowserConfig::user_agent` |  |
 | `binary_location` | composed | `BrowserConfig::browser_binary_path` |  |
-| `block_images` | planned |  | No Rust setting yet. |
+| `block_images` | implemented | `BrowserConfig::with_block_images` | Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`. |
 | `browser` | implemented | `BrowserConfig::browser` |  |
-| `cap_file` | planned |  | No Rust setting yet. |
-| `cap_string` | planned |  | No Rust setting yet. |
-| `cft` | planned |  | No Rust setting yet. |
+| `cap_file` | implemented | `CapabilityOverrides::from_file` | Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`. Differs: Python's parser reads one key per line; this reads the whole dictionary. |
+| `cap_string` | implemented | `CapabilityOverrides::from_text` | JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`. |
+| `cft` | implemented | `BrowserConfig::browser` | Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version. |
 | `chromium_arg` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `chs` | planned |  | No Rust setting yet. |
-| `d_height` | planned |  | No Rust setting yet. |
-| `d_p_r` | planned |  | No Rust setting yet. |
-| `d_width` | planned |  | No Rust setting yet. |
+| `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
+| `d_height` | implemented | `DeviceMetrics::height` |  |
+| `d_p_r` | implemented | `DeviceMetrics::pixel_ratio` |  |
+| `d_width` | implemented | `DeviceMetrics::width` |  |
 | `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `disable_cookies` | planned |  | No Rust setting yet. |
-| `disable_csp` | planned |  | No Rust setting yet. |
+| `disable_cookies` | implemented | `BrowserConfig::with_disable_cookies` | Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`. |
+| `disable_csp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
 | `disable_features` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `disable_gpu` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `disable_js` | planned |  | No Rust setting yet. |
+| `disable_js` | implemented | `BrowserConfig::with_disable_js` | Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`. |
 | `disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `do_not_track` | planned |  | No Rust setting yet. |
-| `driver_version` | planned |  | No Rust setting yet. |
+| `do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
+| `driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
 | `enable_3d_apis` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `enable_sync` | planned |  | No Rust setting yet. |
+| `enable_sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
 | `enable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
-| `extension_zip` | planned |  | No Rust setting yet. |
-| `external_pdf` | planned |  | No Rust setting yet. |
-| `firefox_arg` | planned |  | No Rust setting yet. |
-| `firefox_pref` | planned |  | No Rust setting yet. |
+| `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
+| `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
+| `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
+| `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `guest_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `headed` | composed | `BrowserConfig::headless` | Headed is headless = false. |
@@ -1267,40 +1267,40 @@ Keyword arguments of `Driver()`.
 | `headless2` | composed | `BrowserConfig::headless` | Headed is headless = false. |
 | `host_resolver_rules` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `incognito` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `is_mobile` | planned |  | No Rust setting yet. |
+| `is_mobile` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
 | `locale` | implemented | `BrowserConfig::locale` |  |
 | `locale_code` | composed | `BrowserConfig::locale` |  |
-| `log_cdp` | planned |  | No Rust setting yet. |
-| `log_cdp_events` | planned |  | No Rust setting yet. |
+| `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
+| `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
-| `multi_proxy` | planned |  | No Rust setting yet. |
+| `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `no_sandbox` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `page_load_strategy` | planned |  | No Rust setting yet. |
-| `pls` | planned |  | No Rust setting yet. |
+| `page_load_strategy` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
+| `pls` | implemented | `BrowserConfig::with_page_load_strategy` | The `pageLoadStrategy` capability: normal, eager or none. |
 | `port` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `position` | planned |  | No Rust setting yet. |
+| `position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
 | `protocol` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `proxy` | implemented | `BrowserConfig::proxy` |  |
-| `proxy_bypass_list` | planned |  | No Rust setting yet. |
+| `proxy_bypass_list` | implemented | `BrowserConfig::with_proxy_bypass_list` | Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. |
 | `proxy_pac_url` | implemented | `BrowserConfig::proxy_pac_url` |  |
-| `recorder_ext` | planned |  | No Rust setting yet. |
-| `remote_debug` | planned |  | No Rust setting yet. |
+| `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |
+| `remote_debug` | implemented | `BrowserConfig::with_remote_debug` | Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another. |
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `servername` | planned |  | No Rust setting yet. |
-| `size` | planned |  | No Rust setting yet. |
+| `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
+| `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `uc` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
-| `uc_cdp` | planned |  | No Rust setting yet. |
-| `uc_cdp_events` | planned |  | No Rust setting yet. |
-| `uc_sub` | planned |  | No Rust setting yet. |
-| `uc_subprocess` | planned |  | No Rust setting yet. |
+| `uc_cdp` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `uc_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`. Differs: Python adds a listener with driver.add_cdp_listener; here the events are read back from the log. |
+| `uc_sub` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
+| `uc_subprocess` | not-applicable |  | Deprecated upstream: UC Mode always launches the browser as a separate process now, and DriverMode::Uc has no other launch path to switch to. |
 | `undetectable` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
 | `undetected` | composed | `BrowserConfig::mode` | DriverMode::Uc. |
-| `use_auto_ext` | planned |  | No Rust setting yet. |
+| `use_auto_ext` | implemented | `BrowserConfig::with_automation_extension` | Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only. |
 | `use_chromium` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
 | `user_data_dir` | implemented | `BrowserConfig::user_data_dir` |  |
-| `window_position` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `window_size` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
+| `window_position` | implemented | `BrowserConfig::with_window_position` | Chrome's `--window-position`; a Firefox window is moved once it runs. |
+| `window_size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 
 ## MCP: CDP server
 

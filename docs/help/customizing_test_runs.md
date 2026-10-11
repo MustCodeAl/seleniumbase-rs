@@ -66,6 +66,40 @@ Two fields have no builder method: `ad_block` and
 `remote_webdriver_timeout_seconds`. Set them on the struct, which has public
 fields.
 
+### Launch settings
+
+The Python SeleniumBase options that shape how a browser or its driver starts
+live in `BrowserConfig::launch` (a `LaunchSettings`) and have builder methods of
+their own. Each value type reads the text the Python command line takes, so
+`"1280,720".parse::<WindowSize>()` and `"eager".parse::<PageLoadStrategy>()`
+work.
+
+| Method | Python option | Effect |
+|---|---|---|
+| `with_block_images(bool)`, `with_disable_js(bool)`, `with_disable_cookies(bool)`, `with_do_not_track(bool)`, `with_external_pdf(bool)` | `--block-images`, `--disable-js`, `--disable-cookies`, `--do-not-track`, `--external-pdf` | Browser preferences (Chrome `prefs`, Firefox preferences). |
+| `with_enable_sync(bool)` | `--enable-sync` | Leave Chrome Sync on; sessions switch it off otherwise. |
+| `with_disable_csp(bool)` | `--disable-csp`, `--dcsp`, `--no-csp` | Remove the Content-Security-Policy headers (bundled extension, Chromium only). |
+| `with_page_load_strategy(s)` | `--page-load-strategy`, `--pls` | `normal`, `eager` or `none`. |
+| `with_window_size(s)`, `with_window_position(p)` | `--window-size`, `--window-position` | Size and place the window. |
+| `with_device_metrics(m)` | `--metrics`, `d_width`, `d_height`, `d_p_r` | Emulate a phone screen (turns `mobile` on). |
+| `with_proxy_bypass_list(l)` | `--proxy-bypass-list` | Hosts that skip the proxy. |
+| `with_proxy_for_driver_download(bool)` | `--proxy-driver` | Download drivers and Chrome for Testing through the proxy. |
+| `with_extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
+| `with_automation_extension(bool)`, `with_recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
+| `with_firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
+| `with_capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
+| `with_driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
+| `with_remote_debug(bool)`, `with_remote_debug_port(p)` | `--remote-debug` | Open Chrome's debugger (9222 or a port you name). |
+| `with_cdp_events(c)` | `--log-cdp-events`, `--uc-cdp-events` | Keep the DevTools events; read them with `BrowserSession::cdp_events`. |
+| `with_virtual_display(d)` | `--xvfb`, `--xvfb-metrics` | Run a headed browser on Xvfb (Linux). |
+
+`with_browser` also takes `Brave`, `Comet`, `Opera`, `Safari`,
+`InternetExplorer`, `ChromeForTesting` and `ChromeHeadlessShell` (the Python
+`--brave`, `--comet`, `--opera`, `--safari`, `--ie`, `--cft` and `--chs`). Chrome
+for Testing and `chrome-headless-shell` are downloaded into `downloaded_drivers/`
+when missing; Opera, Safari and Internet Explorer need their own driver
+(`operadriver`, `safaridriver`, `IEDriverServer`) on the `PATH`.
+
 ## Global config file
 
 Create `sbase_config.toml` in the directory you run from, for shared defaults:
