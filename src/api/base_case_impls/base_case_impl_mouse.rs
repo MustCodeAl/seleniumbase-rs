@@ -79,8 +79,8 @@ impl BaseCase {
     /// Highlights all elements matching `css`.
     pub async fn highlight_elements(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => {{ el.style.outline = '3px solid red'; el.style.background = 'yellow'; }});",
-            js_escape(css)
+            "document.querySelectorAll({}).forEach(el => {{ el.style.outline = '3px solid red'; el.style.background = 'yellow'; }});",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -121,7 +121,7 @@ impl BaseCase {
         let script = format!(
             r#"
             (async function() {{
-                var el = document.querySelector('{}');
+                var el = document.querySelector({});
                 if (!el) return;
                 for (var i = 0; i < {}; i++) {{
                     el.style.outline = '4px solid red';
@@ -131,7 +131,7 @@ impl BaseCase {
                 }}
             }})();
             "#,
-            js_escape(css),
+            quote(css),
             times
         );
         self.execute_script(&script).await?;

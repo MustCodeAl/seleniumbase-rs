@@ -67,7 +67,7 @@ impl ReadScript {
 }
 
 mod tests_page_scripts {
-    use super::webdriver_support::{MockWebDriver, Reply};
+    use super::webdriver_support::{element, MockWebDriver, Reply};
     use super::*;
     use serde_json::json;
 
@@ -84,9 +84,16 @@ mod tests_page_scripts {
         "",
     ];
 
-    /// A driver that answers every command with `null`.
+    /// A driver that finds one element for any selector and answers every
+    /// other command with `null`.
     fn quiet_driver() -> MockWebDriver {
-        MockWebDriver::start(json!({}), |_| Reply::Value(serde_json::Value::Null))
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("POST", "/elements") => Reply::Value(json!([element("e1")])),
+                _ => Reply::Value(serde_json::Value::Null),
+            }
+        })
     }
 
     /// The last script the driver was asked to run.
@@ -98,12 +105,34 @@ mod tests_page_scripts {
             .expect("a script was sent")
     }
 
-    /// Checks that `script` is `skeleton` with exactly `literals` in its
-    /// string literals, so nothing the caller passed became code.
+    /// `text` with every run of white space as one space.
+    fn squash(text: &str) -> String {
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    /// Checks that `script` is `skeleton` (white space aside) with exactly
+    /// `literals` in its string literals, so nothing the caller passed became
+    /// code.
     fn assert_inert(script: &str, skeleton: &str, literals: &[&str]) {
         let read = ReadScript::read(script).unwrap_or_else(|why| panic!("{why}: {script:?}"));
-        assert_eq!(read.skeleton, skeleton, "script: {script:?}");
+        assert_eq!(
+            squash(&read.skeleton),
+            squash(skeleton),
+            "script: {script:?}"
+        );
         assert_eq!(read.literals, literals, "script: {script:?}");
+    }
+
+    /// Calls `$call` once for each text in `HOSTILE` (named `$text` for the
+    /// call and the literals) and checks the script it sent with
+    /// `assert_inert`. The call may fail; the script is what is checked.
+    macro_rules! assert_script {
+        ($driver:expr, $text:ident, $call:expr, $skeleton:expr, $literals:expr) => {
+            for $text in HOSTILE {
+                let _ = $call.await;
+                assert_inert(&last_script(&$driver), $skeleton, &$literals);
+            }
+        };
     }
 
     #[test]
@@ -226,6 +255,335 @@ mod tests_page_scripts {
                 "window.localStorage.removeItem(S);",
                 &[&key],
             );
+        }
+    }
+
+    /// Checks that `script` reads as complete string literals and that each of
+    /// `values` is one of them. For scripts too long to spell out in full.
+    fn assert_carries(script: &str, values: &[&str]) {
+        let read = ReadScript::read(script).unwrap_or_else(|why| panic!("{why}: {script:?}"));
+        for value in values {
+            assert!(
+                read.literals.iter().any(|literal| literal == value),
+                "{value:?} is not a string literal of {script:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn the_element_helpers_keep_their_arguments_inside_strings() {
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
+        assert_script!(
+            driver,
+            css,
+            sb.focus(css),
+            "document.querySelector(S).focus();",
+            [css]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.js_click_all(css),
+            "document.querySelectorAll(S).forEach(e => e.click());",
+            [css]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.jquery_click(css),
+            "(function(){ if (window.jQuery && jQuery(S).length) { jQuery(S)[0].click(); } \
+             else { document.querySelector(S).click(); } })();",
+            [css, css, css]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.hide_element(css),
+            "document.querySelector(S).style.display=S;",
+            [css, "none"]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.show_element(css),
+            "document.querySelector(S).style.display=S;",
+            [css, "block"]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.remove_element(css),
+            "var e=document.querySelector(S); if(e) e.parentNode.removeChild(e);",
+            [css]
+        );
+        assert_script!(
+            driver,
+            value,
+            sb.set_value(&format!("input[value='{value}']"), value),
+            "document.querySelector(S).value = S;",
+            [&format!("input[value='{value}']"), value]
+        );
+        for css in [HOSTILE[0], HOSTILE[4]] {
+            sb.smooth_scroll_to(css).await.unwrap();
+            assert_inert(
+                &last_script(&driver),
+                "document.querySelector(S).scrollIntoView({behavior: S, block: S});",
+                &[css, "smooth", "center"],
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn session_storage_keys_and_values_stay_inside_their_strings() {
+        let driver = quiet_driver();
+        let sb = driver.base_case().await;
+        for text in HOSTILE {
+            let key = format!("key '{text}'");
+            sb.set_session_storage_item(&key, text).await.unwrap();
+            assert_inert(
+                &last_script(&driver),
+                "window.sessionStorage.setItem(S, S);",
+                &[&key, text],
+            );
+            sb.get_session_storage_item(&key).await.unwrap();
+            assert_inert(
+                &last_script(&driver),
+                "return window.sessionStorage.getItem(S);",
+                &[&key],
+            );
+            sb.remove_session_storage_item(&key).await.unwrap();
+            assert_inert(
+                &last_script(&driver),
+                "window.sessionStorage.removeItem(S);",
+                &[&key],
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_posted_message_stays_inside_its_string() {
+        let driver = quiet_driver();
+        let sb = driver.base_case().await;
+        for message in HOSTILE {
+            sb.post_message_for(message, 1).await.unwrap();
+            assert_carries(&last_script(&driver), &[message]);
+        }
+    }
+
+    #[tokio::test]
+    async fn the_dom_helpers_keep_their_arguments_inside_strings() {
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
+        assert_script!(
+            driver,
+            html,
+            sb.set_content(html),
+            "document.body.innerHTML = S;",
+            [html]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.remove_elements(css),
+            "document.querySelectorAll(S).forEach(el => el.remove());",
+            [css]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.hide_elements(css),
+            "document.querySelectorAll(S).forEach(el => el.style.display = S);",
+            [css, "none"]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.show_elements(css),
+            "document.querySelectorAll(S).forEach(el => el.style.display = S);",
+            [css, ""]
+        );
+        assert_script!(
+            driver,
+            name,
+            sb.remove_attributes(name, name),
+            "document.querySelectorAll(S).forEach(el => el.removeAttribute(S));",
+            [name, name]
+        );
+        assert_script!(
+            driver,
+            value,
+            sb.set_attributes(value, value, value),
+            "document.querySelectorAll(S).forEach(el => el.setAttribute(S, S));",
+            [value, value, value]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.get_parent(css),
+            "return document.querySelector(S)?.parentElement;",
+            [css]
+        );
+        assert_script!(
+            driver,
+            href,
+            sb.add_css_link(href),
+            "var l=document.createElement(S); l.rel=S; l.href=S; document.head.appendChild(l);",
+            ["link", "stylesheet", href]
+        );
+        assert_script!(
+            driver,
+            src,
+            sb.add_js_link(src),
+            "var s=document.createElement(S); s.src=S; document.head.appendChild(s);",
+            ["script", src]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.add_css_style(css),
+            "var s=document.createElement(S); s.textContent=S; document.head.appendChild(s);",
+            ["style", css]
+        );
+        assert_script!(
+            driver,
+            js,
+            sb.add_js_code(js),
+            "var s=document.createElement(S); s.textContent=S; document.head.appendChild(s);",
+            ["script", js]
+        );
+        assert_script!(
+            driver,
+            text,
+            sb.add_meta_tag(text, text),
+            "var m=document.createElement(S); m.name=S; m.content=S; \
+             document.head.appendChild(m);",
+            ["meta", text, text]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_attribute_and_select_helpers_keep_their_arguments_inside_strings() {
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
+        assert_script!(
+            driver,
+            text,
+            sb.is_attribute_present(text, text),
+            "var el = document.querySelector(S); return !!(el && el.hasAttribute(S));",
+            [text, text]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.scroll_into_view(css),
+            "document.querySelector(S).scrollIntoView();",
+            [css]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.slow_scroll_to(css),
+            "document.querySelector(S).scrollIntoView({behavior: S});",
+            [css, "smooth"]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.select_all_options(css),
+            "var s = document.querySelector(S); if (s) { for (var i = 0; \
+             i < s.options.length; i++) s.options[i].selected = true; \
+             s.dispatchEvent(new Event(S)); }",
+            [css, "change"]
+        );
+        assert_script!(
+            driver,
+            css,
+            sb.unselect_all(css),
+            "var s = document.querySelector(S); if (s) { for (var i = 0; \
+             i < s.options.length; i++) s.options[i].selected = false; \
+             s.dispatchEvent(new Event(S)); }",
+            [css, "change"]
+        );
+        assert_script!(
+            driver,
+            html,
+            sb.set_content_to_frame(html),
+            "var f = document.createElement(S); f.srcdoc = S; f.style.width = S; \
+             f.style.height = S; document.body.appendChild(f);",
+            ["iframe", html, "100%", "100%"]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_jquery_style_helpers_keep_their_arguments_inside_strings() {
+        let driver = quiet_driver();
+        let mut sb = driver.base_case().await;
+        assert_script!(
+            driver,
+            css,
+            sb.jquery_click_all(css),
+            "document.querySelectorAll(S).forEach(el => el.click());",
+            [css]
+        );
+        assert_script!(
+            driver,
+            text,
+            sb.jquery_type(text, text),
+            "document.querySelectorAll(S).forEach(el => { el.value = S; \
+             el.dispatchEvent(new Event(S)); el.dispatchEvent(new Event(S)); });",
+            [text, text, "input", "change"]
+        );
+        assert_script!(
+            driver,
+            text,
+            sb.jquery_update_text(text, text),
+            "document.querySelectorAll(S).forEach(el => el.textContent = S);",
+            [text, text]
+        );
+        assert_script!(
+            driver,
+            text,
+            sb.js_update_text(text, text),
+            "document.querySelectorAll(S).forEach(el => { if (S in el) el.value = S; \
+             el.dispatchEvent(new Event(S)); el.dispatchEvent(new Event(S)); });",
+            [text, "value", text, "input", "change"]
+        );
+        assert_script!(
+            driver,
+            text,
+            sb.wait_for_exact_text(text, 0),
+            "return Array.from(document.querySelectorAll(S)).some(el => \
+             el.textContent.trim() === S);",
+            ["*", text]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_highlight_helpers_keep_their_arguments_inside_strings() {
+        let driver = quiet_driver();
+        let sb = driver.base_case().await;
+        assert_script!(
+            driver,
+            css,
+            sb.highlight_elements(css),
+            "document.querySelectorAll(S).forEach(el => { el.style.outline = S; \
+             el.style.background = S; });",
+            [css, "3px solid red", "yellow"]
+        );
+        for css in HOSTILE {
+            sb.flash(css, 1).await.unwrap();
+            assert_carries(&last_script(&driver), &[css]);
+        }
+    }
+
+    #[test]
+    fn the_scripts_built_from_a_url_or_a_selector_keep_it_inside_its_string() {
+        for text in HOSTILE {
+            assert_carries(&element_in_iframe_script(text), &[text]);
+            for kind in [PageResource::Script, PageResource::Stylesheet] {
+                assert_carries(&load_resource_script(kind, text, None), &[text]);
+            }
         }
     }
 }

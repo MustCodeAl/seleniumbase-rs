@@ -79,13 +79,6 @@ where
     }
 }
 
-/// `s` as a double-quoted JavaScript string literal, safe to splice into a
-/// script.
-fn js_string_literal(s: &str) -> String {
-    // Serializing a `&str` cannot fail; the fallback only keeps this total.
-    serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_owned())
-}
-
 /// The client every link check shares: it does not follow redirects, because
 /// the status of the link itself is the answer, and gives up after
 /// [`LINK_CHECK_TIMEOUT`].
@@ -366,7 +359,7 @@ impl BaseCase {
     async fn page_text_contains(&self, text: &str) -> Result<bool, SeleniumBaseError> {
         let script = format!(
             "return document.body != null && document.body.innerText.includes({});",
-            js_string_literal(text)
+            quote(text)
         );
         Ok(self.execute_script(&script).await?.as_bool() == Some(true))
     }
@@ -517,13 +510,6 @@ mod tests_common {
         let started = tokio::time::Instant::now();
         let _ = poll_until_true(1, "slow".to_owned(), || async { Ok(false) }).await;
         assert_eq!(started.elapsed(), Duration::from_secs(1));
-    }
-
-    #[test]
-    fn js_string_literal_escapes_everything_a_script_could_trip_on() {
-        assert_eq!(js_string_literal("plain"), "\"plain\"");
-        assert_eq!(js_string_literal("it's"), "\"it's\"");
-        assert_eq!(js_string_literal("a\"b\\c\nd"), "\"a\\\"b\\\\c\\nd\"");
     }
 
     #[tokio::test]

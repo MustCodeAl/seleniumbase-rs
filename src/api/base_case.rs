@@ -969,9 +969,7 @@ impl BaseCase {
         message: &str,
         duration_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let escaped = serde_json::to_string(message).map_err(|e| {
-            SeleniumBaseError::InvalidSelector(format!("failed to escape message: {e}"))
-        })?;
+        let escaped = quote(message);
         let script = format!(
             "(() => {{
                 const id='sb-rs-msg';
@@ -1685,8 +1683,7 @@ impl BaseCase {
     pub async fn smooth_scroll_to(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).scrollIntoView({{behavior: 'smooth', block: 'center'}});",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(css)
         );
         self.execute_script(&script).await?;
         tokio::time::sleep(Duration::from_millis(800)).await;
@@ -1974,11 +1971,7 @@ impl BaseCase {
 
     /// Focus the element matching `css`.
     pub async fn focus(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "document.querySelector({}).focus();",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
-        );
+        let script = format!("document.querySelector({}).focus();", quote(css));
         self.execute_script(&script).await?;
         Ok(())
     }
@@ -2046,8 +2039,7 @@ impl BaseCase {
         self.record("js_click_all", Some(css), None);
         let script = format!(
             "document.querySelectorAll({}).forEach(e => e.click());",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2056,17 +2048,12 @@ impl BaseCase {
     /// Click the element using jQuery if available, otherwise fall back to JS click.
     pub async fn jquery_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("jquery_click", Some(css), None);
+        let literal = quote(css);
         let script = format!(
             "(function(){{
-                if (window.jQuery && jQuery({}).length) {{ jQuery({})[0].click(); }}
-                else {{ document.querySelector({}).click(); }}
-            }})();",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+                if (window.jQuery && jQuery({literal}).length) {{ jQuery({literal})[0].click(); }}
+                else {{ document.querySelector({literal}).click(); }}
+            }})();"
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2076,8 +2063,7 @@ impl BaseCase {
     pub async fn hide_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).style.display='none';",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2087,8 +2073,7 @@ impl BaseCase {
     pub async fn show_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).style.display='block';",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2098,8 +2083,7 @@ impl BaseCase {
     pub async fn remove_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var e=document.querySelector({}); if(e) e.parentNode.removeChild(e);",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2118,8 +2102,7 @@ impl BaseCase {
         let joined = selectors.join(",");
         let script = format!(
             "document.querySelectorAll({}).forEach(e => e.remove());",
-            serde_json::to_string(&joined)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(&joined)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2204,10 +2187,8 @@ impl BaseCase {
         self.await_ready(css, Ready::Present).await?;
         let script = format!(
             "document.querySelector({}).value = {};",
-            serde_json::to_string(css)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(value)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(css),
+            quote(value)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2505,30 +2486,20 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "window.sessionStorage.setItem({}, {});",
-            serde_json::to_string(key)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(value)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            quote(key),
+            quote(value)
         );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     pub async fn get_session_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
-        let script = format!(
-            "return window.sessionStorage.getItem({});",
-            serde_json::to_string(key)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
-        );
+        let script = format!("return window.sessionStorage.getItem({});", quote(key));
         self.execute_script(&script).await
     }
 
     pub async fn remove_session_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "window.sessionStorage.removeItem({});",
-            serde_json::to_string(key)
-                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
-        );
+        let script = format!("window.sessionStorage.removeItem({});", quote(key));
         self.execute_script(&script).await?;
         Ok(())
     }

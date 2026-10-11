@@ -30,11 +30,11 @@ fn load_resource_script(kind: PageResource, url: &str, already_loaded: Option<&s
     let setup = match kind {
         PageResource::Script => format!(
             "var el = document.createElement('script'); el.src = {};",
-            js_string_literal(url)
+            quote(url)
         ),
         PageResource::Stylesheet => format!(
             "var el = document.createElement('link'); el.rel = 'stylesheet'; el.href = {};",
-            js_string_literal(url)
+            quote(url)
         ),
     };
     let guard = already_loaded.map_or_else(String::new, |check| {
@@ -195,7 +195,7 @@ impl BaseCase {
             "if (typeof window.jconfirm === 'undefined') {{ return false; }} \
              window.jconfirm.defaults = window.jconfirm.defaults || {{}}; \
              window.jconfirm.defaults.theme = {}; return true;",
-            js_string_literal(theme)
+            quote(theme)
         );
         if self.execute_script(&script).await?.as_bool() == Some(true) {
             return Ok(());
@@ -302,8 +302,12 @@ mod tests_jslibs {
 
     #[test]
     fn load_script_names_the_url_as_data_not_code() {
-        let script = load_resource_script(PageResource::Script, "https://x/a.js?q=\"'</script>", None);
-        assert!(script.contains(r#"el.src = "https://x/a.js?q=\"'</script>";"#), "{script}");
+        let url = "https://x/a.js?q=\"'</script>";
+        let script = load_resource_script(PageResource::Script, url, None);
+        // The quote and the markup are escaped: the URL cannot end the literal or the element.
+        assert!(script.contains(&format!("el.src = {};", quote(url))), "{script}");
+        assert!(script.contains(r#"?q=\"'"#), "{script}");
+        assert!(!script.contains("</script"), "{script}");
         let sheet = load_resource_script(PageResource::Stylesheet, "https://x/a.css", Some("window.a"));
         assert!(sheet.contains("el.rel = 'stylesheet'"), "{sheet}");
         assert!(sheet.starts_with("var done = arguments[arguments.length - 1]; if (window.a) { done(true); return; }"));

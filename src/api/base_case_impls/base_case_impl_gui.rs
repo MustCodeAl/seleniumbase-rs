@@ -36,7 +36,7 @@ fn element_center_script(css: &str) -> String {
          var border = Math.max(0, (win.outerWidth - win.innerWidth) / 2); \
          var toolbar = Math.max(0, win.outerHeight - win.innerHeight - border); \
          return {{x: Math.round(win.screenX + border + x), y: Math.round(win.screenY + toolbar + y)}};",
-        js_string_literal(css)
+        quote(css)
     )
 }
 
@@ -288,7 +288,7 @@ mod tests_gui {
         .unwrap();
         page.evaluate(format!(
             "{context}.eval({})",
-            js_string_literal(&format!("(function () {{ {} }})()", element_center_script(css)))
+            quote(&format!("(function () {{ {} }})()", element_center_script(css)))
         ))
         .await
         .unwrap()

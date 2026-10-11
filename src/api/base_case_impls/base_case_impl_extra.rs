@@ -8,7 +8,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use thirtyfour::WebElement;
 
-/// Escape a string for safe use inside a single-quoted JavaScript literal.
+/// Escape a string for safe use inside a single-quoted JavaScript literal,
+/// without the quotes. Only [`BaseCase::jq_format`] needs this shape; a page
+/// script puts a caller's text in with [`crate::js_code::quote`], which
+/// builds the whole literal.
 fn js_escape(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('\'', "\\'")
@@ -618,9 +621,9 @@ impl BaseCase {
         attribute: &str,
     ) -> Result<bool, SeleniumBaseError> {
         let script = format!(
-            "var el = document.querySelector('{}'); return !!(el && el.hasAttribute('{}'));",
-            js_escape(css),
-            js_escape(attribute)
+            "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
+            quote(css),
+            quote(attribute)
         );
         match self.execute_script(&script).await? {
             Value::Bool(v) => Ok(v),
@@ -680,8 +683,8 @@ impl BaseCase {
     pub async fn scroll_into_view(&self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("scroll_into_view", Some(css), None);
         let script = format!(
-            "document.querySelector('{}').scrollIntoView();",
-            js_escape(css)
+            "document.querySelector({}).scrollIntoView();",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -696,8 +699,8 @@ impl BaseCase {
     pub async fn slow_scroll_to(&self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("slow_scroll_to", Some(css), None);
         let script = format!(
-            "document.querySelector('{}').scrollIntoView({{behavior: 'smooth'}});",
-            js_escape(css)
+            "document.querySelector({}).scrollIntoView({{behavior: 'smooth'}});",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -777,8 +780,8 @@ impl BaseCase {
     pub async fn select_all_options(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("select_all_options", Some(css), None);
         let script = format!(
-            "var s = document.querySelector('{}'); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = true; s.dispatchEvent(new Event('change')); }}",
-            js_escape(css)
+            "var s = document.querySelector({}); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = true; s.dispatchEvent(new Event('change')); }}",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -793,8 +796,8 @@ impl BaseCase {
     pub async fn unselect_all(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("unselect_all", Some(css), None);
         let script = format!(
-            "var s = document.querySelector('{}'); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = false; s.dispatchEvent(new Event('change')); }}",
-            js_escape(css)
+            "var s = document.querySelector({}); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = false; s.dispatchEvent(new Event('change')); }}",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -965,10 +968,9 @@ impl BaseCase {
         &mut self,
         html: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let escaped = js_escape(html);
         let script = format!(
-            "var f = document.createElement('iframe'); f.srcdoc = '{}'; f.style.width = '100%'; f.style.height = '100%'; document.body.appendChild(f);",
-            escaped
+            "var f = document.createElement('iframe'); f.srcdoc = {}; f.style.width = '100%'; f.style.height = '100%'; document.body.appendChild(f);",
+            quote(html)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1215,8 +1217,8 @@ impl BaseCase {
     pub async fn jquery_click_all(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("jquery_click_all", Some(css), None);
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.click());",
-            js_escape(css)
+            "document.querySelectorAll({}).forEach(el => el.click());",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1230,9 +1232,9 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         self.record("jquery_type", Some(css), Some(text));
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => {{ el.value = '{}'; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }});",
-            js_escape(css),
-            js_escape(text)
+            "document.querySelectorAll({}).forEach(el => {{ el.value = {}; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }});",
+            quote(css),
+            quote(text)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1246,9 +1248,9 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         self.record("jquery_update_text", Some(css), Some(text));
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.textContent = '{}');",
-            js_escape(css),
-            js_escape(text)
+            "document.querySelectorAll({}).forEach(el => el.textContent = {});",
+            quote(css),
+            quote(text)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1262,9 +1264,9 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         self.record("js_update_text", Some(css), Some(text));
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => {{ if ('value' in el) el.value = '{}'; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }});",
-            js_escape(css),
-            js_escape(text)
+            "document.querySelectorAll({}).forEach(el => {{ if ('value' in el) el.value = {}; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }});",
+            quote(css),
+            quote(text)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1458,8 +1460,8 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let deadline = std::time::Instant::now() + Duration::from_secs(self.effective_timeout(timeout_secs));
         let script = format!(
-            "return Array.from(document.querySelectorAll('*')).some(el => el.textContent.trim() === '{}');",
-            js_escape(text)
+            "return Array.from(document.querySelectorAll('*')).some(el => el.textContent.trim() === {});",
+            quote(text)
         );
         loop {
             let result = self.execute_script(&script).await?;

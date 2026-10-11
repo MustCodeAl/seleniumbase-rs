@@ -172,7 +172,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `evaluate` | implemented | `BaseCase::evaluate` |  |
 | `execute_async_script` | implemented | `BaseCase::execute_async_script` |  |
 | `execute_cdp_cmd` | implemented | `BaseCase::execute_cdp_cmd` |  |
-| `execute_script` | implemented | `BaseCase::execute_script` | Differs: Takes the script only; pass values by formatting them in (see js_escape). |
+| `execute_script` | implemented | `BaseCase::execute_script` | Differs: Takes the script only; pass values by formatting them in, each one quoted with js_code::quote. |
 | `export_tour` | implemented | `BaseCase::export_tour` |  |
 | `extract_chart` | implemented | `BaseCase::extract_chart` |  |
 | `fail` | implemented | `BaseCase::fail` |  |

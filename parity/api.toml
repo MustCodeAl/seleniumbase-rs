@@ -589,7 +589,7 @@ rust = "BaseCase::execute_cdp_cmd"
 [basecase."execute_script"]
 status = "implemented"
 rust = "BaseCase::execute_script"
-divergence = "Takes the script only; pass values by formatting them in (see js_escape)."
+divergence = "Takes the script only; pass values by formatting them in, each one quoted with js_code::quote."
 
 [basecase."export_tour"]
 status = "implemented"

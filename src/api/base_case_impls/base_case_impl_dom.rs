@@ -30,8 +30,7 @@ impl BaseCase {
 
     /// Sets `document.body.innerHTML` to `html`.
     pub async fn set_content(&self, html: &str) -> Result<(), SeleniumBaseError> {
-        let escaped = js_escape(html);
-        self.execute_script(&format!("document.body.innerHTML = '{}';", escaped))
+        self.execute_script(&format!("document.body.innerHTML = {};", quote(html)))
             .await?;
         Ok(())
     }
@@ -59,8 +58,8 @@ impl BaseCase {
     /// Removes all elements matching `css` from the DOM.
     pub async fn remove_elements(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.remove());",
-            js_escape(css)
+            "document.querySelectorAll({}).forEach(el => el.remove());",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -69,8 +68,8 @@ impl BaseCase {
     /// Hides all elements matching `css`.
     pub async fn hide_elements(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.style.display = 'none');",
-            js_escape(css)
+            "document.querySelectorAll({}).forEach(el => el.style.display = 'none');",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -79,8 +78,8 @@ impl BaseCase {
     /// Shows all elements matching `css`.
     pub async fn show_elements(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.style.display = '');",
-            js_escape(css)
+            "document.querySelectorAll({}).forEach(el => el.style.display = '');",
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -93,9 +92,9 @@ impl BaseCase {
         attribute: &str,
     ) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.removeAttribute('{}'));",
-            js_escape(css),
-            js_escape(attribute)
+            "document.querySelectorAll({}).forEach(el => el.removeAttribute({}));",
+            quote(css),
+            quote(attribute)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -109,10 +108,10 @@ impl BaseCase {
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelectorAll('{}').forEach(el => el.setAttribute('{}', '{}'));",
-            js_escape(css),
-            js_escape(attribute),
-            js_escape(value)
+            "document.querySelectorAll({}).forEach(el => el.setAttribute({}, {}));",
+            quote(css),
+            quote(attribute),
+            quote(value)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -132,7 +131,7 @@ impl BaseCase {
     pub async fn add_css_link(&self, href: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var l=document.createElement('link'); l.rel='stylesheet'; l.href={}; document.head.appendChild(l);",
-            serde_json::to_string(href).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
+            quote(href)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -142,7 +141,7 @@ impl BaseCase {
     pub async fn add_js_link(&self, src: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var s=document.createElement('script'); s.src={}; document.head.appendChild(s);",
-            serde_json::to_string(src).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
+            quote(src)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -152,7 +151,7 @@ impl BaseCase {
     pub async fn add_css_style(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var s=document.createElement('style'); s.textContent={}; document.head.appendChild(s);",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
+            quote(css)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -162,7 +161,7 @@ impl BaseCase {
     pub async fn add_js_code(&self, js: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var s=document.createElement('script'); s.textContent={}; document.head.appendChild(s);",
-            serde_json::to_string(js).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
+            quote(js)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -188,8 +187,8 @@ impl BaseCase {
     pub async fn add_meta_tag(&self, name: &str, content: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var m=document.createElement('meta'); m.name={}; m.content={}; document.head.appendChild(m);",
-            serde_json::to_string(name).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?,
-            serde_json::to_string(content).map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))?
+            quote(name),
+            quote(content)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -228,8 +227,8 @@ impl BaseCase {
     /// Returns the parent element of `css`.
     pub async fn get_parent(&mut self, css: &str) -> Result<Option<WebElement>, SeleniumBaseError> {
         let script = format!(
-            "return document.querySelector('{}')?.parentElement;",
-            js_escape(css)
+            "return document.querySelector({})?.parentElement;",
+            quote(css)
         );
         let result = self.execute_script(&script).await?;
         self.element_from_script_result(result).await
@@ -320,7 +319,7 @@ fn element_in_iframe_script(css: &str) -> String {
              return false; \
          }} \
          return searchFrames(document, 0);",
-        js_string_literal(css)
+        quote(css)
     )
 }
 
@@ -395,7 +394,7 @@ mod tests_dom {
             "blob:https://example.com/uuid",
         ] {
             let expected: String = page
-                .evaluate_as(format!("new URL({}).origin", js_string_literal(url)))
+                .evaluate_as(format!("new URL({}).origin", quote(url)))
                 .await
                 .unwrap();
             assert_eq!(origin_of_url(url).unwrap(), expected, "{url}");
