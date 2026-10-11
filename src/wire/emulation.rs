@@ -123,6 +123,13 @@ pub enum EmulationError {
     },
 }
 
+/// The design plan's name for [`EmulationError`], whose [`NotMeasured`](EmulationError::NotMeasured)
+/// variant is the plan's `SpecError::NotMeasured`.
+///
+/// `wire::tls_spec::SpecError` and `wire::h2_spec::SpecError` hold the TLS and HTTP/2 variants;
+/// the variant that names an unmeasured browser and system lives here.
+pub type SpecError = EmulationError;
+
 /// Where and how a measured entry was captured.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Provenance {

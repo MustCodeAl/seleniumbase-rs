@@ -2,8 +2,8 @@
 
 use super::{
     for_kind, get, get_version, measured, measured_systems, newest, newest_on, parse_all,
-    source_names, try_measured, Emulation, EmulationError, KnownGap, MAX_MEASURED_JSON_BYTES,
-    SOURCES,
+    source_names, try_measured, Emulation, EmulationError, KnownGap, SpecError,
+    MAX_MEASURED_JSON_BYTES, SOURCES,
 };
 use crate::stealth::fingerprint::OsType;
 use crate::wire::tls_spec::KnownGap as TlsKnownGap;
@@ -138,6 +138,10 @@ fn unmeasured_systems_are_refused_by_name() {
             }
         );
         assert!(error.to_string().contains("has not been measured"));
+        assert!(
+            matches!(error, SpecError::NotMeasured { .. }),
+            "the plan's name for the error works"
+        );
     }
 }
 
