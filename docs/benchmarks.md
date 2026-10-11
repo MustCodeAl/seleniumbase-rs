@@ -13,12 +13,14 @@ cargo bench --bench cpu --features turso   # adds the result store and vault
 cargo bench --bench cdp_latency            # the Pure CDP engine against Chrome
 ```
 
-**Status of these figures.** They were measured before the latest work: the
-`RunSettings` hooks in `open`, `click` and `type_text`, the new MCP developer
-tools and failure reports, and the `scrape` modules. The hot paths measured below
-(the CDP round trip, locator and click, screenshot, pool throughput) were not
-changed by that work, but nothing here has been re-run since, so treat them as
-dated. Re-run the three commands above before quoting a number.
+**Status of these figures.** Re-measured on 2026-10-11 at commit `a3348a8`
+(after the `RunSettings` hooks, the MCP developer tools and the stealth layer
+were added), in one run of each harness, on a machine that was otherwise idle but
+already using about 4.5 GB of its 8 GB. A single run is a sample, not a
+guarantee: the eight-tab figure below came out at roughly half of an earlier run
+(1,634 against 3,223 clicks a second) and the cause was not investigated. The
+`turso` figures were not re-run. Re-run the commands above on your machine
+before quoting a number.
 
 **There is no comparison with Python SeleniumBase here.** It is not installed
 on the machine these numbers came from, so nothing below claims "X times faster
@@ -31,15 +33,15 @@ process and an HTTP request per command; that cost was not measured.
 
 | operation | median | p95 |
 |---|---|---|
-| evaluate `1 + 1` | 137 µs | 358 µs |
-| locator count | 101 µs | 161 µs |
-| read an element's text | 247 µs | 313 µs |
-| click a button | 481 µs | 612 µs |
-| fill a field (11 characters) | 408 µs | 611 µs |
-| type 11 characters key by key | 142 ms | 150 ms |
-| viewport screenshot (PNG) | 33 ms | 69 ms |
-| `goto` a local page | 8.3 ms | 10.8 ms |
-| a wait notices an element that appeared | 7.5 ms | 9.2 ms |
+| evaluate `1 + 1` | 156 µs | 854 µs |
+| locator count | 123 µs | 185 µs |
+| read an element's text | 276 µs | 318 µs |
+| click a button | 458 µs | 702 µs |
+| fill a field (11 characters) | 469 µs | 821 µs |
+| type 11 characters key by key | 142 ms | 152 ms |
+| viewport screenshot (PNG) | 35 ms | 52 ms |
+| `goto` a local page | 9.8 ms | 12.6 ms |
+| a wait notices an element that appeared | 6.5 ms | 9.2 ms |
 
 A protocol round trip costs about 0.1 ms, so almost everything above that is
 Chrome's own work, not the library's. Typing is slow on purpose: each key waits
@@ -52,20 +54,21 @@ Each tab clicks a button 150 times, all tabs at the same time, in one Chrome.
 
 | tabs | clicks / second |
 |---|---|
-| 1 | 1,105 |
-| 2 | 1,791 |
-| 4 | 2,524 |
-| 8 | 3,223 |
+| 1 | 1,133 |
+| 2 | 1,647 |
+| 4 | 2,273 |
+| 8 | 1,634 |
 
 ## Start-up and memory
 
 | step | median | fastest |
 |---|---|---|
-| launch Chrome to a DevTools connection | 482 ms | 467 ms |
-| first page attached and loaded | 48 ms | 24 ms |
+| launch Chrome to a DevTools connection | 570 ms | 493 ms |
+| first page attached and loaded | 51 ms | 43 ms |
 
-The process that drives the browsers uses about 9 MiB of resident memory
-whether it drives one Chrome or eight. (Chrome's own memory is not counted.)
+(Five runs each; the slowest launch took 2.1 s, so a cold start can be much
+slower than the median.) The process that drives the browsers uses about 7 MiB of
+resident memory whether it drives one Chrome or eight. (Chrome's own memory is not counted.)
 
 ## The library's own work
 
@@ -73,14 +76,19 @@ No browser involved (`cargo bench --bench cpu`):
 
 | operation | time |
 |---|---|
-| generate a random fingerprint | 1.6 µs |
-| build the stealth bootstrap script (24 KiB) | 87 µs |
-| check a fingerprint | 96 ns |
-| classify a CSS or XPath selector | 9 ns |
-| plan a human mouse path | 3.7 µs |
-| plan human typing for 100 characters | 5.9 µs |
-| inspect a 6 KiB page for accessibility issues | 268 µs |
-| inspect a 260 KiB page | 9.2 ms |
+| generate a random fingerprint | 1.7 µs |
+| build the stealth bootstrap script (34 KiB) | 32 µs |
+| check a fingerprint | 92 ns |
+| classify a CSS or XPath selector | 60 ns |
+| plan a human mouse path | 2.6 µs |
+| plan human typing for 100 characters | 4.9 µs |
+| inspect a 6 KiB page for accessibility issues | 237 µs |
+| inspect a 260 KiB page | 9.1 ms |
+
+Two rows differ from the first measurement beyond what noise explains: the
+bootstrap script is now 34 KiB (it was 24 KiB) and the selector classifier takes
+60 ns a call (it took 9 ns). The harness or the code changed between the two
+runs; the cause was not investigated.
 
 With the `turso` feature: recording a test result takes about 307 µs, the
 flaky-test query over 2,000 results about 0.8 ms, sealing and storing an
@@ -107,8 +115,9 @@ Before this work, a click took **33.4 ms** and eight tabs together managed
   to back and awaited together. The page sees exactly the same events in the
   same order (checked on a real Chrome: `mouseover`, `mousemove`, `mousedown`,
   `mouseup`, `click`, all trusted, at the right point). A click now takes
-  **0.48 ms**, 69 times less, and eight tabs reach **3,223 clicks a second**,
-  13 times more.
+  **0.48 ms**, 69 times less, and eight tabs reached **3,223 clicks a second** in
+  that run, 13 times more (a later run measured 0.46 ms per click and 1,634
+  clicks a second at eight tabs, still about seven times the starting figure).
 
 ## What was measured and left alone
 
