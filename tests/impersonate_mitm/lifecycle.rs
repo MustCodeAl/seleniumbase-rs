@@ -79,7 +79,8 @@ async fn shutdown_stops_the_listener_and_leaves_no_task_running() {
     let options = MitmOptions::default()
         .ca(Arc::clone(&ca))
         .trust_upstream_root(origin.root())
-        .resolve(ORIGIN, origin.addr());
+        .resolve(ORIGIN, origin.addr())
+        .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
     let client = browser_client(&mitm, &der(&ca));
     let url = format!("https://{ORIGIN}:{}/", origin.addr().port());
@@ -160,7 +161,11 @@ fn the_proxy_never_touches_files_or_exports_certificates_and_keys() {
         "unsafe ",
     ];
     let sources = proxy_sources();
-    assert_eq!(sources.len(), 5, "mod, body, connect, forward and upstream");
+    assert_eq!(
+        sources.len(),
+        6,
+        "mod, body, connect, destination, forward and upstream"
+    );
     for (path, text) in sources {
         for word in forbidden {
             assert!(!text.contains(word), "{path} uses `{word}`");

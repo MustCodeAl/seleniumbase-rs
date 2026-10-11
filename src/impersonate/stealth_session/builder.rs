@@ -235,6 +235,11 @@ impl StealthSessionBuilder {
     }
 
     /// The limits and custom inputs of the MITM proxy that carries the browser leg.
+    ///
+    /// Without an egress the proxy refuses loopback, private and link-local destinations, so a
+    /// page cannot use it to reach the machine's own services. A site on the local network, or a
+    /// loopback test server, needs
+    /// [`MitmOptions::allow_private_destinations`](crate::impersonate::mitm::MitmOptions::allow_private_destinations).
     #[doc(alias = "mitm")]
     #[must_use]
     pub fn mitm_options(mut self, options: MitmOptions) -> Self {

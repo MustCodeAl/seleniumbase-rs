@@ -41,7 +41,8 @@ async fn site_speaking(
     let options = options
         .ca(Arc::clone(&ca))
         .trust_upstream_root(origin.root())
-        .resolve(ORIGIN, origin.addr());
+        .resolve(ORIGIN, origin.addr())
+        .allow_private_destinations(true);
     let (mitm, sink) = start_mitm(None, options).await;
     (origin, mitm, sink, der(&ca))
 }
@@ -307,7 +308,8 @@ async fn stream_behind_proxy(
     let options = options
         .ca(Arc::clone(&ca))
         .trust_upstream_root(origin.root())
-        .resolve(STREAM, origin.addr());
+        .resolve(STREAM, origin.addr())
+        .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
     let client = browser_client(&mitm, &der(&ca));
     (origin, mitm, client)
@@ -390,7 +392,9 @@ async fn an_unannounced_body_past_the_limit_is_cut() {
 #[tokio::test]
 async fn absolute_form_http_requests_are_forwarded_after_the_token_check() {
     let origin = StreamOrigin::start(false, 5, true).await;
-    let options = MitmOptions::default().resolve("plain.test", origin.addr());
+    let options = MitmOptions::default()
+        .resolve("plain.test", origin.addr())
+        .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
     let port = origin.addr().port();
     let request = |auth: Option<String>| {

@@ -9,6 +9,8 @@
 //!   (`--proxy-bypass-list=<-loopback>`), whose upstream verification refuses the chain.
 //! - The control: Chrome with the pin but without the proxy does accept that chain, which is why
 //!   the proxy must cover loopback hosts.
+//! - And because the proxy covers loopback, it must be the one to refuse: a direct proxy never
+//!   connects a page to a loopback or metadata address.
 //!
 //! The tests start Chrome, so they are ignored by default. Only one Chrome-driving test binary may
 //! run on the machine at a time:
@@ -110,7 +112,8 @@ async fn chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_
     let mut origin = RecordingOrigin::start(&[ALPN_H2, ALPN_HTTP1]).await;
     let options = MitmOptions::default()
         .trust_upstream_root(origin.root())
-        .resolve(ORIGIN, origin.addr());
+        .resolve(ORIGIN, origin.addr())
+        .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
     let browser = launch_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
@@ -146,7 +149,11 @@ async fn chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_
 #[ignore = "starts the local Chrome"]
 async fn a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page() {
     let ca = new_ca();
-    let (mitm, _sink) = start_mitm(None, MitmOptions::default().ca(Arc::clone(&ca))).await;
+    // Loopback is allowed here so that the refusal under test is the certificate check.
+    let options = MitmOptions::default()
+        .ca(Arc::clone(&ca))
+        .allow_private_destinations(true);
+    let (mitm, _sink) = start_mitm(None, options).await;
     let attacker = Attacker::start(pinned_leaf(&mitm, &der(&ca)).await).await;
     let browser = launch_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
@@ -192,6 +199,49 @@ async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_k
         html.contains(ATTACKER_MARKER),
         "Chrome refused the chain; the documented trust of the pin switch does not hold: {html}"
     );
+    browser.close().await.expect("Chrome closes");
+    mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "starts the local Chrome"]
+async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
+    let service = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+        .await
+        .expect("binds loopback");
+    let port = service.local_addr().expect("an address").port();
+    let connections = Arc::new(AtomicUsize::new(0));
+    let counted = Arc::clone(&connections);
+    let counting = tokio::spawn(async move {
+        while service.accept().await.is_ok() {
+            counted.fetch_add(1, Ordering::SeqCst);
+        }
+    });
+    let (mitm, _sink) = start_mitm(None, MitmOptions::default()).await;
+    let browser = launch_behind(&mitm).await;
+    let page = browser.new_page(None::<&str>).await.expect("a tab");
+
+    // Chrome sends loopback hosts to the proxy (`--proxy-bypass-list=<-loopback>`), which has
+    // to be the one to say no. A navigation that fails outright is a refusal too.
+    for url in [
+        format!("http://127.0.0.1:{port}/"),
+        format!("http://localhost:{port}/"),
+        format!("https://127.0.0.1:{port}/"),
+        format!("http://[::1]:{port}/"),
+        format!("http://169.254.169.254:{port}/latest/meta-data/"),
+    ] {
+        let _loaded = page.goto(&url).await;
+        assert_ne!(page_status(&page).await, Some(200), "{url}");
+    }
+
+    assert_eq!(
+        connections.load(Ordering::SeqCst),
+        0,
+        "the proxy connected to a loopback service"
+    );
+    assert!(mitm.stats().refused >= 1, "{:?}", mitm.stats());
+    assert_eq!(mitm.stats().forwarded, 0, "{:?}", mitm.stats());
+    counting.abort();
     browser.close().await.expect("Chrome closes");
     mitm.shutdown(Duration::from_secs(5)).await;
 }

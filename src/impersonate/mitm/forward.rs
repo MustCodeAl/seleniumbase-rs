@@ -20,8 +20,9 @@ use url::Host;
 
 use super::body::Capped;
 use super::connect::refuse;
+use super::destination;
 use super::upstream::Outbound;
-use super::{Counters, MitmError, Shared};
+use super::{Counters, MitmError, MitmOptions, Shared};
 use crate::scrape::challenge::mitigation::Mode;
 use crate::scrape::egress::redact::RedactedUrl;
 use crate::scrape::ledger::events::ScraperEvent;
@@ -130,6 +131,18 @@ impl Origin {
             port,
         };
         Ok((origin, host))
+    }
+
+    /// Refuses a literal internal address and a `localhost` name, unless
+    /// [`MitmOptions::allow_private_destinations`] is on. Other names are judged by the resolver
+    /// when they are resolved, because only then is their address known.
+    pub(super) fn check_destination(&self, options: &MitmOptions) -> Result<(), MitmError> {
+        if options.allow_private_destinations {
+            return Ok(());
+        }
+        destination::refused_host(&self.host).map_or(Ok(()), |reason| {
+            Err(MitmError::ForbiddenDestination(reason))
+        })
     }
 
     /// The URL of `path_and_query` at this origin; the default port is left out, as a browser

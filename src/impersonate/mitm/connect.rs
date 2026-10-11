@@ -224,9 +224,18 @@ async fn answer_proxy_request(
     if request.method() == Method::CONNECT {
         return open_tunnel(shared, pending, request);
     }
-    match Origin::from_absolute(request.uri()) {
+    let origin = Origin::from_absolute(request.uri()).and_then(|origin| {
+        origin.check_destination(&shared.options)?;
+        Ok(origin)
+    });
+    match origin {
         Ok(origin) => forward::forward(shared, &origin, request).await,
-        Err(error) => refuse(shared, StatusCode::BAD_REQUEST, &error, true),
+        Err(error) => refuse(
+            shared,
+            refusal_status(&error, StatusCode::BAD_REQUEST),
+            &error,
+            true,
+        ),
     }
 }
 
@@ -238,6 +247,7 @@ fn open_tunnel(
     mut request: Request<Incoming>,
 ) -> Response<ProxyBody> {
     let target = Origin::from_connect(request.uri()).and_then(|(origin, host)| {
+        origin.check_destination(&shared.options)?;
         let leaf = shared
             .ca
             .leaf_for(&host, SystemTime::now())
@@ -259,7 +269,21 @@ fn open_tunnel(
             });
             empty(StatusCode::OK)
         }
-        Err(error) => refuse(shared, StatusCode::BAD_GATEWAY, &error, true),
+        Err(error) => refuse(
+            shared,
+            refusal_status(&error, StatusCode::BAD_GATEWAY),
+            &error,
+            true,
+        ),
+    }
+}
+
+/// The status of a refused target: `403` when the destination is not allowed, `otherwise` for a
+/// target that is malformed or cannot be intercepted.
+fn refusal_status(error: &MitmError, otherwise: StatusCode) -> StatusCode {
+    match error {
+        MitmError::ForbiddenDestination(_) => StatusCode::FORBIDDEN,
+        _ => otherwise,
     }
 }
 

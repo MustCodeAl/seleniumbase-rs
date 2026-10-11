@@ -2,6 +2,8 @@
 //!
 //! - [`access`]: the proxy token (`407`), targets it cannot intercept (empty `502`, never a blind
 //!   tunnel), the SNI check, the leaf cache, and the bounds on heads, connections and idle time;
+//! - [`destinations`]: the addresses a direct proxy will not connect to (loopback, private,
+//!   link-local, metadata), named by a page or reached through a DNS answer;
 //! - [`forwarding`]: what reaches the origin (the measured JA4 and Akamai string, the browser's
 //!   header order without hop-by-hop or proxy headers, the measured `priority`), the refusals
 //!   (untrusted upstream certificate, version mismatch, upgrades, `Host` mismatch, body limit),
@@ -14,6 +16,8 @@
 
 #[path = "impersonate_mitm/access.rs"]
 mod access;
+#[path = "impersonate_mitm/destinations.rs"]
+mod destinations;
 #[path = "impersonate_mitm/forwarding.rs"]
 mod forwarding;
 #[path = "impersonate_mitm/lifecycle.rs"]

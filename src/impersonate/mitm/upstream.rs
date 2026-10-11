@@ -16,6 +16,7 @@ use wreq::header::OrigHeaderMap;
 use wreq::tls::trust::CertStore;
 
 use super::body::Capped;
+use super::destination::{self, PublicOnly};
 use super::forward::ProxyBody;
 use super::{MitmError, MitmOptions};
 use crate::impersonate::client::{impersonation_client, ImpersonateError, ImpersonationProfile};
@@ -216,6 +217,10 @@ fn client(
         Some(egress) => builder.proxy(egress_proxy(egress)?),
         None => builder.no_proxy(),
     };
+    // Without an egress this proxy is the one that resolves names and connects, so it is the
+    // one that must keep a page away from the machine and its network. Through an egress the
+    // names are resolved on the other side.
+    let guarded = egress.is_none() && !options.allow_private_destinations;
     if !options.upstream_roots.is_empty() {
         let roots = options.upstream_roots.iter().map(Vec::as_slice);
         let store = CertStore::from_der_certs(roots).map_err(|_error| {
@@ -223,8 +228,13 @@ fn client(
         })?;
         builder = builder.tls_cert_store(store);
     }
-    for (host, addr) in &options.resolve {
-        builder = builder.resolve(host.clone(), *addr);
+    if guarded {
+        // The fixed answers go through the resolver too, so they get the same check.
+        builder = builder.dns_resolver(PublicOnly::system(&options.resolve));
+    } else {
+        for (host, addr) in &options.resolve {
+            builder = builder.resolve(host.clone(), *addr);
+        }
     }
     builder.build().map_err(|_error| {
         MitmError::Upstream(ImpersonateError::Build(
@@ -260,7 +270,9 @@ fn spelling_of(profile: &ImpersonationProfile) -> HashMap<HeaderName, String> {
 
 /// What failed, in words.
 fn failure_kind(error: &wreq::Error) -> &'static str {
-    if error.is_timeout() {
+    if destination::is_internal_destination(error) {
+        "the destination is a local, private or reserved address"
+    } else if error.is_timeout() {
         "the upstream timed out"
     } else if error.is_proxy_connect() {
         "the egress proxy refused the tunnel"

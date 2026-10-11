@@ -152,6 +152,7 @@ impl ChallengeSite {
         MitmOptions::default()
             .trust_upstream_root(der)
             .resolve(HOST, self.addr)
+            .allow_private_destinations(true)
     }
 
     /// The value of the clearance the site accepts now.

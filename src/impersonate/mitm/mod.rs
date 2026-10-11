@@ -39,6 +39,16 @@
 //! ([`MitmOptions::idle_timeout`]), the browser's TLS handshake, and the upstream connect and read
 //! phases all have limits.
 //!
+//! # Destinations
+//!
+//! A page must not be able to use the proxy to reach the machine itself or its network. A direct
+//! proxy (no egress) connects only to public addresses: a name is resolved by the proxy, every
+//! internal address in the answer (loopback, private, link-local, carrier-grade NAT, multicast,
+//! reserved, cloud metadata, and the IPv6 forms that wrap them) is dropped, and the connection
+//! goes to one of the addresses that passed, so DNS rebinding has nothing to swap. Literal
+//! addresses and `localhost` names are refused at the `CONNECT` or in the request line, with or
+//! without an egress. [`MitmOptions::allow_private_destinations`] turns the rule off.
+//!
 //! # Hot-swappable upstream
 //!
 //! [`MitmProxy::swap_upstream`] and [`MitmProxy::swap_profile`] build the new upstream client
@@ -95,6 +105,7 @@
 
 mod body;
 mod connect;
+mod destination;
 mod forward;
 mod upstream;
 
@@ -190,6 +201,8 @@ pub struct MitmOptions {
     resolve: Vec<(String, SocketAddr)>,
     /// The CA to issue leaves with, instead of a new one.
     ca: Option<Arc<EphemeralCa>>,
+    /// Whether loopback, private, link-local and similar addresses may be destinations.
+    allow_private_destinations: bool,
 }
 
 impl Default for MitmOptions {
@@ -206,6 +219,7 @@ impl Default for MitmOptions {
             upstream_roots: Vec::new(),
             resolve: Vec::new(),
             ca: None,
+            allow_private_destinations: false,
         }
     }
 }
@@ -224,6 +238,10 @@ impl fmt::Debug for MitmOptions {
             .field("upstream_roots", &self.upstream_roots.len())
             .field("resolve", &self.resolve.len())
             .field("ca", &self.ca)
+            .field(
+                "allow_private_destinations",
+                &self.allow_private_destinations,
+            )
             .finish()
     }
 }
@@ -300,9 +318,33 @@ impl MitmOptions {
 
     /// Makes the upstream client resolve `host` to `addr`. The port of `addr` is ignored: the
     /// request's own port is used, as the browser asked for it.
+    ///
+    /// An address that is loopback, private or otherwise internal is refused like any other
+    /// answer, unless [`MitmOptions::allow_private_destinations`] is on.
     #[must_use]
     pub fn resolve(mut self, host: impl Into<String>, addr: SocketAddr) -> Self {
         self.resolve.push((host.into(), addr));
+        self
+    }
+
+    /// Lets requests go to loopback, private, link-local, shared (carrier-grade NAT), multicast
+    /// and reserved addresses, the cloud metadata addresses, and to `localhost`. Off by default.
+    ///
+    /// Chrome never resolves a name it gives a proxy, so only this proxy can tell that a page
+    /// is asking for the machine's own services or for the local network. With the switch off,
+    /// a direct proxy (no egress) connects to public addresses only: it checks every address a
+    /// name resolves to and connects to the checked address itself, so a DNS answer that
+    /// changes between a check and the connection gains nothing, and it refuses literal internal
+    /// addresses and `localhost` names with an empty `502`. Through an egress the names are
+    /// resolved on the egress's side, so only the literal addresses and `localhost` names are
+    /// refused.
+    ///
+    /// Turn it on for a site on the local network, a test server on loopback, or addresses named
+    /// with [`MitmOptions::resolve`] that are internal. Everything the browser loads can then
+    /// reach those addresses: do it only for a browser that loads nothing else.
+    #[must_use]
+    pub fn allow_private_destinations(mut self, allow: bool) -> Self {
+        self.allow_private_destinations = allow;
         self
     }
 
@@ -375,6 +417,10 @@ pub enum MitmError {
     /// A `CONNECT` or absolute-form target cannot be intercepted, so it is refused.
     #[error("the target cannot be intercepted: {0}")]
     BadTarget(&'static str),
+    /// The target is a local, private or reserved address, or a `localhost` name, and
+    /// [`MitmOptions::allow_private_destinations`] is off.
+    #[error("the destination is not allowed: {0}")]
+    ForbiddenDestination(&'static str),
     /// A connection or request cannot be intercepted, so it is refused instead of tunnelled.
     #[error("the request cannot be intercepted: {0}")]
     NotIntercepted(&'static str),
