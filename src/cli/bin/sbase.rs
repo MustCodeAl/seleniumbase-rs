@@ -195,7 +195,7 @@ struct Cli {
     #[arg(
         long,
         default_value_t = false,
-        help = "Enable the built-in ad-block extension"
+        help = "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)"
     )]
     ad_block: bool,
     #[arg(

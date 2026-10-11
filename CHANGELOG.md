@@ -64,9 +64,27 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
 - **Parity**: every API in `parity/api.toml` now has a status (862 implemented,
-  375 composed, 96 not-applicable with a reason, 32 planned). Two audits
+  384 composed, 96 not-applicable with a reason, 23 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
+- **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
+  session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing,
+  `chrome-headless-shell`) refuse the requests of ad and tracker hosts. When the
+  session connects, reconnects or switches to a window, it sends
+  `Network.enable` and `Network.setBlockedURLs` through chromedriver's DevTools
+  channel. The hosts are the built-in `AdBlockList`, or a list of your own set
+  with `BrowserConfig::with_ad_block_list` (new, as is `with_ad_block`), which
+  replaces it. `AdBlockList::bounded_url_patterns` leaves out a host whose parent
+  domain is listed and refuses a list that needs more than `MAX_URL_PATTERNS`
+  (2,000) patterns, before any browser starts; an `AdBlockList` reads and writes
+  as an array of hosts. `BrowserSession::apply_ad_block` repeats the block for a
+  window reached some other way. Firefox, Safari and Internet Explorer have no
+  DevTools channel through WebDriver and block nothing (a warning says so).
+  Checked in a real Chrome 155 (`tests/ad_block_chrome.rs`): a page's own
+  requests to listed hosts never reach the server; a frame of another site still
+  loads and makes its own requests; a URL that names a port is not matched. The
+  nine ad-block entries of the parity manifest moved from `planned` to
+  `composed`.
 - **Parity audit of the composed and not-applicable entries**, the Rust that
   came out of it:
   - Text selectors: `SelectorBuf::containing_text(text, tag)`, and a CSS selector
@@ -166,9 +184,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `skip_test` as passed and log the reason. `Emulation::locale` also sets
   `navigator.language` and `Accept-Language`, keeping the user agent and client
   hints. `Permission::ALL` has 23 entries instead of 7 and `Permission` has more
-  variants. The parity entries for the ad-block options (a WebDriver launch only
-  turns images off), `--esc-end`, `--rec-sb-cdp` and `gui_click_captcha` are now
-  `planned`; the notes of many composed entries say what differs from Python.
+  variants. The parity entries for `--esc-end`, `--rec-sb-cdp` and
+  `gui_click_captcha` are now `planned` (so were the ad-block options, until the
+  WebDriver ad block above); the notes of many composed entries say what differs
+  from Python.
 - The pure CDP engine runs `session_registry` (27 providers: the default
   registry without `plugins` and `connection`), so a page reads Chrome's own
   `navigator.plugins`, `mimeTypes`, PDF viewer flag and `navigator.connection`;
@@ -178,6 +197,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `default_registry` still holds 29 providers.
 - Requires Rust 1.99 (`rust-version`, the `Dockerfile` base image and the CI msrv
   job); `zip` moved to 9.0 and the lockfile is current.
+- **Breaking**: `ad_block` in a WebDriver launch no longer passes
+  `--blink-settings=imagesEnabled=false`. That turned every image off and blocked
+  no ad; `with_block_images(true)` is the setting for it.
 - `BaseCase` actions wait for their element (up to `set_timeout`, 10 s by
   default) and fail with `WaitTimeout` naming the selector.
 - **Breaking**, from a parity audit (each method now does what the Python

@@ -275,8 +275,8 @@ OPTION_GROUPS = [
     (("locale_code", "locale"), "composed", "BrowserConfig::locale", ""),
     (("binary_location", "bl"), "composed", "BrowserConfig::browser_binary_path", ""),
     (
-        ("ad_block", "adblock", "block_ads", "ad_block_on"), "planned", "",
-        "BrowserConfig::ad_block only turns images off in a WebDriver launch and blocks no ads.",
+        ("ad_block", "adblock", "block_ads", "ad_block_on"), "composed", "BrowserConfig::ad_block",
+        "A Chromium WebDriver session refuses the ad hosts of an AdBlockList with Network.setBlockedURLs; Firefox and Safari block nothing.",
     ),
     (("rs", "reuse_session"), "composed", "BrowserConfig::reuse_session", ""),
     (("user_data_dir",), "composed", "BrowserConfig::user_data_dir", ""),

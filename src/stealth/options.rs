@@ -30,6 +30,8 @@ pub struct StealthOptions {
     pub user_data_dir: Option<String>,
     pub extension_dir: Option<String>,
     pub mobile: bool,
+    /// Whether the session blocks ad hosts. It adds no launch argument; see
+    /// `BrowserSession::apply_ad_block`.
     pub ad_block: bool,
     pub uc: bool,
     /// Optional anti-detection fingerprint profile.
@@ -143,9 +145,9 @@ impl StealthOptions {
             caps.add_arg(&format!("--window-position={position}"))?;
         }
 
-        if self.ad_block {
-            caps.add_arg("--blink-settings=imagesEnabled=false")?;
-        }
+        // `ad_block` adds no argument: the hosts are refused over the DevTools
+        // channel once the session is connected (`BrowserSession::apply_ad_block`).
+        // It used to turn images off here, which blocked no ad.
 
         if let Some(locale) = self.locale.as_deref() {
             caps.add_arg(&format!("--lang={locale}"))?;
@@ -401,6 +403,23 @@ mod tests {
         assert!(args.contains(&"--disable-blink-features=AutomationControlled".to_owned()));
         assert!(args.contains(&"--window-size=1920,1080".to_owned()));
         assert!(!args.iter().any(|a| a.contains("enable-automation")));
+    }
+
+    #[test]
+    fn ad_blocking_does_not_turn_images_off() {
+        // The hosts are refused over the DevTools channel once the session is
+        // connected (`BrowserSession::apply_ad_block`); a launch argument that
+        // turned images off would also stop the images of every other site.
+        // `--block-images` is the setting for that.
+        let blocking = StealthOptions {
+            ad_block: true,
+            ..Default::default()
+        };
+        let args = blocking.args().unwrap();
+        assert!(
+            !args.iter().any(|a| a.contains("imagesEnabled")),
+            "{args:?}"
+        );
     }
 
     #[test]

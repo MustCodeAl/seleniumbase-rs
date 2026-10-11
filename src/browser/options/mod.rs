@@ -33,6 +33,8 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::ad_block_list::AdBlockList;
+
 mod capabilities;
 mod cdp_events;
 mod device;
@@ -105,6 +107,10 @@ pub struct LaunchSettings {
     /// The virtual screen for a headed browser on Linux (`--xvfb`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub virtual_display: Option<VirtualDisplay>,
+    /// The hosts to refuse when `ad_block` is on. Unset, the built-in list is
+    /// used; see [`AdBlockList`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ad_block_list: Option<AdBlockList>,
 }
 
 impl LaunchSettings {
@@ -167,6 +173,7 @@ mod tests {
         settings.virtual_display = Some(VirtualDisplay::new(1024, 768));
         settings.remote_debug_port = Some(9222);
         settings.cdp_events = CdpEventCapture::Always;
+        settings.ad_block_list = Some(AdBlockList::from_hosts(["ads.example.com"]).unwrap());
 
         let text = serde_json::to_string(&settings).unwrap();
         assert_eq!(

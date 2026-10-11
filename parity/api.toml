@@ -3967,12 +3967,14 @@ status = "implemented"
 rust = "mcp::sb"
 
 [options_driver."ad_block"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_driver."ad_block_on"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_driver."agent"]
 status = "composed"
@@ -4328,16 +4330,19 @@ status = "not-applicable"
 reason = "Hands a free-text account string to pytest tests as sb.account; a Rust test reads its own values from std::env or a fixture file."
 
 [options_pytest."--ad-block"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "`sbase --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--ad_block"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--adblock"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--agent"]
 status = "composed"
@@ -4385,8 +4390,9 @@ status = "composed"
 rust = "BrowserConfig::browser_binary_path"
 
 [options_pytest."--block-ads"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block-images"]
 status = "implemented"
@@ -4394,8 +4400,9 @@ rust = "BrowserConfig::with_block_images"
 note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_pytest."--block_ads"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block_images"]
 status = "implemented"
@@ -5576,12 +5583,14 @@ status = "not-applicable"
 reason = "Hands a free-text account string to SB() tests as sb.account; a Rust test reads its own values from std::env or a fixture file."
 
 [options_sb."ad_block"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."ad_block_on"]
-status = "planned"
-note = "Not done for the WebDriver engine. BrowserConfig::ad_block only turns images off in a WebDriver launch (`--blink-settings=imagesEnabled=false`) and blocks no ads. The pure CDP engine blocks ad hosts with LaunchOptionsBuilder::ad_block (Network.setBlockedURLs), and BaseCase::ad_block removes ad elements from a page that has loaded."
+status = "composed"
+rust = "BrowserConfig::ad_block"
+note = "Set BrowserConfig::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."agent"]
 status = "composed"

@@ -98,14 +98,15 @@ Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
 `docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
 workflow (untested: Actions are billing-locked).
 
-Current state against 4.55.2 (`just parity-docs` has the full table): 862 entries are implemented, 375 composed from existing Rust APIs, 96 not applicable with a stated reason and 32 `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` (now the tag-structure levels, as Python 4.55.2 does), and others), and the entries were re-marked where it was not. A second audit of the composed and not-applicable entries found 34 that said more than the Rust does. Fixed in the code: text selectors (`SelectorBuf::containing_text`, and `:contains()` in any selector), `Page::evaluate` dropping a final `return`, `goto_if_not_url`, `active_element`, `Locator::{all_waiting, viewport_rect, click_and_hold, flash_with}`, `Browser::{debugging_host, grant_all_permissions, grant_permissions_for}` with all 23 permissions, `Emulation::locale` setting the language, a real test time limit and `set_default_timeout`, the start page opening with `BaseCase::new`, skipped tests, `sbase version`, `obfuscate` and `unobfuscate`. Re-marked: the ad-block options (the WebDriver engine only turns images off), `--esc-end`, `--rec-sb-cdp` and `gui_click_captcha` became `planned`; the settings file, the failure-artifact options, `skip` and `--rec-sb-mgr` became `composed`; `enable_ws` and `sbase download` became not applicable; and many notes now say what differs. The 32 `planned` entries are the work still to do:
+Current state against 4.55.2 (`just parity-docs` has the full table): 862 entries are implemented, 384 composed from existing Rust APIs, 96 not applicable with a stated reason and 23 `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` (now the tag-structure levels, as Python 4.55.2 does), and others), and the entries were re-marked where it was not. A second audit of the composed and not-applicable entries found 34 that said more than the Rust does. Fixed in the code: text selectors (`SelectorBuf::containing_text`, and `:contains()` in any selector), `Page::evaluate` dropping a final `return`, `goto_if_not_url`, `active_element`, `Locator::{all_waiting, viewport_rect, click_and_hold, flash_with}`, `Browser::{debugging_host, grant_all_permissions, grant_permissions_for}` with all 23 permissions, `Emulation::locale` setting the language, a real test time limit and `set_default_timeout`, the start page opening with `BaseCase::new`, skipped tests, `sbase version`, `obfuscate` and `unobfuscate`. Re-marked: the ad-block options (the WebDriver engine then only turned images off; they are `composed` now, see below), `--esc-end`, `--rec-sb-cdp` and `gui_click_captcha` became `planned`; the settings file, the failure-artifact options, `skip` and `--rec-sb-mgr` became `composed`; `enable_ws` and `sbase download` became not applicable; and many notes now say what differs. The 23 `planned` entries are the work still to do:
 
 - `BaseCase` (6): `generate_referral`, `generate_referral_chain`, `generate_traffic`, `generate_traffic_chain` (a real click-through between two pages, not a `?ref=` parameter), `set_content_to_frame` (swap the page for an iframe's content) and `install_addon` (Firefox add-ons through geckodriver).
-- pytest options (13): `--reuse-session`, `--reuse_session`, `--rs`, `--rcs`: `BrowserConfig::reuse_session` is stored but nothing shares a browser across a run. `--ad-block`, `--ad_block`, `--adblock`, `--block-ads`, `--block_ads`: a WebDriver launch only turns images off and blocks no ads (the pure CDP engine and `BaseCase::ad_block` do). `--ee`, `--esc-end`, `--esc_end`: nothing injects the ESC listener that skips the test. `--rec-sb-cdp`: no recording is written as pure CDP code.
-- `SB()` arguments (3): `ad_block`, `ad_block_on`, `rec_sb_cdp` (same reasons).
-- `Driver()` arguments (2): `ad_block`, `ad_block_on`.
+- pytest options (8): `--reuse-session`, `--reuse_session`, `--rs`, `--rcs`: `BrowserConfig::reuse_session` is stored but nothing shares a browser across a run. `--ee`, `--esc-end`, `--esc_end`: nothing injects the ESC listener that skips the test. `--rec-sb-cdp`: no recording is written as pure CDP code.
+- `SB()` arguments (1): `rec_sb_cdp` (same reason).
 - `sbase` (4): `caseplans`, `case-plans`, `behave-gui`, `gui-behave`.
 - CDP engine (4): `download_file`, `assert_downloaded_file`, `save_file_as`, `gui_click_captcha` (a click with the operating system's pointer; `Page::solve_captcha` clicks with DevTools events).
+
+The nine ad-block options are `composed`, not finished: a Chromium WebDriver session refuses the page's own requests to the listed hosts (checked in Chrome 155, `tests/ad_block_chrome.rs`), but a frame of another site still loads and makes its own requests, a URL that names a port is not matched, and Firefox and Safari block nothing. Covering frames needs another mechanism, such as intercepting requests with the Fetch domain (chromedriver gives no event stream for it) or a browser-wide host-resolver rule; neither has been tried.
 
 What is left beyond those is depth: the run-wide knobs (`RunSettings`) cover demo, slow and fast pauses on `open`, `click`, `type_text`, `update_text` and `press_keys` only; and the compositions still want the real-Chrome checks of item 7 above (each composed CDP entry now says how to write it in Rust, but its waits and visibility rules have not been compared with Python's one by one).
 
@@ -229,12 +230,11 @@ step 2.
 A scan found 23 source files whose public items are referenced from nowhere
 else in the crate, its tests, examples or docs, all unchanged since the first
 import on 2026-08-04. Four were the old plugin files, now rebuilt or removed;
-19 remain. Nothing here has been deleted, because some are intentional library
+18 remain. Nothing here has been deleted, because some are intentional library
 surface. Decide each:
 
 - `src/api/playwright.rs` (free functions for the `playwright` feature)
 - `src/behave/common_steps.rs` (`CommonSteps`)
-- `src/config/ad_block_list.rs` (re-exported, used by nothing else)
 - `src/plugins/driver_manager.rs` (`DriverStack`)
 - `src/utils/extensions/{ad_block,disable_csp,proxy_auth,recorder,sbase_ext}.rs`
 - `src/utils/translate/master_dict.rs` (the `translate` CLI command is also
@@ -242,6 +242,7 @@ surface. Decide each:
 
 Now wired in and tested: `cli/scripts/{logo_helper,rich_helper,run}.rs` (the
 `sbase test` command and the banner), `config/proxy_list.rs`,
+`config/ad_block_list.rs` (the WebDriver ad block of `BrowserSession`),
 `resources/assets.rs`, and `utilities/selenium_grid.rs` with the new
 `grid_server.rs` and `sbase grid` (it starts a Selenium Server jar you supply;
 nothing is downloaded). It has not been run against a real Selenium Server jar

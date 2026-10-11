@@ -58,13 +58,51 @@ Key builder methods:
 | `with_start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
 | `with_reuse_session(bool)` | Sets `reuse_session`. Nothing in the crate reads it yet, so it does not attach to an existing session. |
 | `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbase test` acts on a thread count (`-n`, as `--test-threads`). |
+| `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
+| `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
 | `with_fingerprint(fp)` | Apply a [`Fingerprint`](../tutorials/fingerprint_stealth.md). |
 | `with_browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
 | `with_extra_args(vec)` / `push_extra_arg(s)` | Pass extra Chromium launch flags. |
 
-Two fields have no builder method: `ad_block` and
-`remote_webdriver_timeout_seconds`. Set them on the struct, which has public
-fields.
+`remote_webdriver_timeout_seconds` has no builder method. Set it on the struct,
+which has public fields.
+
+### Blocking ads
+
+`ad_block` makes a Chromium WebDriver session (Chrome, Chromium, Edge, Brave,
+Comet, Opera, Chrome for Testing, `chrome-headless-shell`) refuse every request
+to a listed advertising or tracking host and its subdomains. Once the session is
+connected it sends the hosts to the browser with `Network.setBlockedURLs`
+through chromedriver's DevTools channel. The list is the built-in
+`AdBlockList::builtin()`, or your own:
+
+```rust
+use seleniumbase_rs::config::ad_block_list::AdBlockList;
+use seleniumbase_rs::BrowserConfig;
+
+let list = AdBlockList::from_hosts(["ads.example.com", "tracker.example.net"])?;
+let config = BrowserConfig::default().with_ad_block_list(list);
+# Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+```
+
+A list of your own replaces the built-in one. A list that needs more than 2,000
+URL patterns is refused when the session starts. Limits:
+
+- The block belongs to a window. The session repeats it for the window it opens
+  with and for each window it switches to (`switch_to_window`,
+  `switch_to_new_window`); a window reached any other way needs
+  `BrowserSession::apply_ad_block()`.
+- A URL that names a port (`https://ads.example.com:8443/`) is not matched.
+- A frame of another site is not stopped from loading, and what it requests is
+  not blocked (checked in Chrome 155). A frame of the page's own site is blocked
+  like the page. Ad frames are usually of another site, so this blocks the
+  scripts, pixels and images a page asks for, and not the frames that carry the
+  ads.
+- Firefox, Safari and Internet Explorer have no DevTools channel through
+  WebDriver, so the setting blocks nothing there and a warning says so.
+- Python hides the ad elements of a page once it has loaded; `BaseCase::ad_block`
+  does that, when called. The pure CDP engine blocks hosts with
+  `LaunchOptionsBuilder::ad_block`.
 
 ### Launch settings
 
@@ -214,7 +252,7 @@ Common flags:
 | `--extension-dir DIR` | Load a Chromium extension. |
 | `--user-agent STRING` / `-a STRING` | Override the user agent. |
 | `--locale LOCALE` | Set the browser locale. |
-| `--ad-block` | Sets `ad_block`. In a WebDriver launch this passes `--blink-settings=imagesEnabled=false` (images off); no ad-block extension is loaded. |
+| `--ad-block` | Sets `ad_block`: a Chromium WebDriver session refuses the built-in list of ad and tracker hosts (`Network.setBlockedURLs`). Firefox and Safari block nothing. Images stay on; `--block-images` turns them off. |
 | `--reuse-session` / `--rs` | Sets `reuse_session`, which nothing reads yet (the `sbase --help` text for `--rs`, "Record the session actions", is wrong: it is the same flag). |
 | `-n NUM` / `--threads NUM` | With `sbase test`, run that many tests at once (`--test-threads`), so that many browsers. |
 | `--browser NAME` | Select `chrome`, `chromium`, `edge`, or `firefox`. |

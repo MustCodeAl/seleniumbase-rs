@@ -210,6 +210,13 @@ an Adblock Plus list (and counts the rules it cannot express), and
 `Network.setBlockedURLs`. `is_blocked(url)` matches on the parsed host, so a
 blocked name inside a query string does not block the page.
 
+A Chromium WebDriver session sends such a list to the browser when
+`BrowserConfig::ad_block` is on: the built-in list, or yours through
+`with_ad_block_list(list)`, which replaces it. `bounded_url_patterns()` is what
+is sent. It leaves out a host whose parent domain is also listed and refuses a
+list that needs more than 2,000 patterns, so the browser is never given half of
+what you asked for. See [Blocking ads](../help/customizing_test_runs.md#blocking-ads).
+
 ## Best practices
 
 - Commit a sample config file (e.g., `sbase_config.example.toml`) to the repo so

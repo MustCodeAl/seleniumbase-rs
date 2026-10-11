@@ -6,6 +6,7 @@ use crate::browser::options::{
     FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
     VirtualDisplay, WindowPosition, WindowSize,
 };
+use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 
@@ -122,9 +123,27 @@ pub struct BrowserConfig {
     pub mode: DriverMode,
     pub user_agent: Option<String>,
     pub locale: Option<String>,
-    /// The `--ad-block` setting. In a WebDriver launch this only turns images
-    /// off (`--blink-settings=imagesEnabled=false`); it blocks no ads. Ad hosts
-    /// are blocked by the pure CDP engine's `LaunchOptionsBuilder::ad_block`,
+    /// The `--ad-block` setting: refuse the requests of advertising and
+    /// tracking hosts.
+    ///
+    /// A Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet,
+    /// Opera, Chrome for Testing, `chrome-headless-shell`) sends the hosts of
+    /// an [`AdBlockList`] to the browser with `Network.setBlockedURLs` once it
+    /// is connected: the built-in list, or the one set with
+    /// [`with_ad_block_list`](Self::with_ad_block_list). The block belongs to
+    /// a window, so the session repeats it for each window it switches to with
+    /// `switch_to_window` or `switch_to_new_window`; a window reached some
+    /// other way needs
+    /// [`BrowserSession::apply_ad_block`](crate::browser::session::BrowserSession::apply_ad_block).
+    ///
+    /// What it does not reach, as seen in Chrome 155 (`tests/ad_block_chrome.rs`):
+    /// a URL that names a port is not matched, and a frame of another site is
+    /// not stopped from loading, nor are its own requests blocked. A frame of
+    /// the page's own site is blocked like the page.
+    ///
+    /// Firefox, Safari and Internet Explorer have no DevTools channel through
+    /// WebDriver, so the setting blocks nothing there (a warning says so).
+    /// The pure CDP engine blocks hosts with `LaunchOptionsBuilder::ad_block`,
     /// and `BaseCase::ad_block` removes ad elements from a page that loaded.
     pub ad_block: bool,
     pub proxy: Option<String>,
@@ -277,6 +296,21 @@ impl BrowserConfig {
     /// Sets [`reuse_session`](Self::reuse_session), which nothing acts on yet.
     pub fn with_reuse_session(mut self, reuse: bool) -> Self {
         self.reuse_session = reuse;
+        self
+    }
+
+    /// Turns [`ad_block`](Self::ad_block) on or off (`--ad-block`).
+    pub fn with_ad_block(mut self, on: bool) -> Self {
+        self.ad_block = on;
+        self
+    }
+
+    /// Blocks the hosts of `list` instead of the built-in list, and turns
+    /// [`ad_block`](Self::ad_block) on. Set `ad_block` to `false` afterwards to
+    /// keep the list but block nothing.
+    pub fn with_ad_block_list(mut self, list: AdBlockList) -> Self {
+        self.launch.ad_block_list = Some(list);
+        self.ad_block = true;
         self
     }
 

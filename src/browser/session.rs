@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 #[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
@@ -20,6 +20,7 @@ use crate::browser::options::{
     firefox_preferences, CdpEvent, DriverVersion, LaunchSettings, LaunchSwitch, ReleaseChannel,
 };
 use crate::browser::virtual_display::{self, XvfbProcess};
+use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
@@ -33,6 +34,10 @@ pub struct BrowserSession {
     /// The virtual screen of a headed Linux session; dropped, and so stopped,
     /// after the driver.
     virtual_display: Option<XvfbProcess>,
+    /// The DevTools commands that make a window refuse the ad hosts of the
+    /// configuration, or none if it blocks nothing. They are sent to the first
+    /// window and to each window the session switches to.
+    ad_block: Vec<(&'static str, Value)>,
 }
 
 impl BrowserSession {
@@ -45,6 +50,9 @@ impl BrowserSession {
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         validate_mode_support(&config)?;
+        // Worked out first, so a list the browser cannot be given is refused
+        // before a browser starts.
+        let ad_block = ad_block_commands(&config)?;
         let virtual_display = start_virtual_display(&config)?;
         let (driver, driver_process) =
             connect_driver(&config, virtual_display.as_ref().map(XvfbProcess::display)).await?;
@@ -64,6 +72,7 @@ impl BrowserSession {
             cdp,
             driver_process,
             virtual_display,
+            ad_block,
         };
         session.initialize_mode(&config).await?;
         info!("browser session connected");
@@ -78,6 +87,7 @@ impl BrowserSession {
             cdp: None,
             driver_process: None,
             virtual_display: None,
+            ad_block: Vec::new(),
         }
     }
 
@@ -373,12 +383,16 @@ impl BrowserSession {
     }
 
     /// Switches to the window/tab identified by `handle`.
+    ///
+    /// A session that blocks ads makes the window refuse the ad hosts too; see
+    /// [`apply_ad_block`](Self::apply_ad_block).
     pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
         let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
         self.driver()
             .switch_to_window(h)
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::WebDriver)?;
+        self.apply_ad_block().await
     }
 
     /// Double-clicks the element located by `locator`.
@@ -524,6 +538,9 @@ impl BrowserSession {
     }
 
     /// Opens and switches to a new browser window/tab.
+    ///
+    /// A session that blocks ads makes the new window refuse the ad hosts too;
+    /// see [`apply_ad_block`](Self::apply_ad_block).
     pub async fn switch_to_new_window(&self) -> Result<(), SeleniumBaseError> {
         let handle = self
             .driver()
@@ -534,7 +551,7 @@ impl BrowserSession {
             .switch_to_window(handle)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
-        Ok(())
+        self.apply_ad_block().await
     }
 
     /// Waits up to `timeout` seconds for `locator` to be removed.
@@ -776,12 +793,59 @@ impl BrowserSession {
         Ok(())
     }
 
+    /// Makes the window the session is on refuse the ad and tracker hosts of
+    /// the configuration, when [`BrowserConfig::ad_block`] was on.
+    ///
+    /// The session does this itself: for the window it opens with, again when
+    /// it reconnects, and for each window it switches to with
+    /// [`switch_to_window`](Self::switch_to_window) or
+    /// [`switch_to_new_window`](Self::switch_to_new_window), because the block
+    /// belongs to a window. Call it after switching windows some other way.
+    /// It does nothing when no ads are blocked.
+    ///
+    /// The hosts are the built-in [`AdBlockList`], or the list set with
+    /// [`BrowserConfig::with_ad_block_list`]. They go to the browser as
+    /// `Network.enable` and `Network.setBlockedURLs`, through chromedriver's
+    /// DevTools channel, which exists in every Chromium session whatever its
+    /// mode. Firefox, Safari and Internet Explorer have none: nothing is sent
+    /// and a warning is logged when the session connects.
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's refusal if it rejects a command, and
+    /// [`SeleniumBaseError::Unsupported`] if the session is not connected.
+    pub async fn apply_ad_block(&self) -> Result<(), SeleniumBaseError> {
+        if self.ad_block.is_empty() {
+            return Ok(());
+        }
+        let driver = self.driver.as_ref().ok_or_else(|| {
+            SeleniumBaseError::Unsupported("the session is not connected".to_owned())
+        })?;
+        // A WebDriver session of any mode can send DevTools commands; only the
+        // CDP and UC modes keep a client for it.
+        let own;
+        let cdp = match self.cdp.as_ref() {
+            Some(cdp) => cdp,
+            None => {
+                own = CdpClient::from_handle(driver.handle().clone());
+                &own
+            }
+        };
+        for (method, params) in &self.ad_block {
+            cdp.execute_with_params(method, params.clone()).await?;
+        }
+        Ok(())
+    }
+
     /// Disconnects the current WebDriver session and creates a fresh one.
     ///
     /// This is useful in undetected (UC) mode to obtain a clean session handle.
     /// When the new session started its own chromedriver, the previous
     /// chromedriver process is stopped, so reconnecting does not leak one each time.
     pub async fn reconnect(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+        // Worked out before anything is torn down, so a bad list leaves the
+        // session as it was.
+        let ad_block = ad_block_commands(config)?;
         if let Some(driver) = self.driver.take() {
             driver.quit().await?;
         }
@@ -801,6 +865,7 @@ impl BrowserSession {
         } else {
             None
         };
+        self.ad_block = ad_block;
         self.initialize_mode(config).await?;
         Ok(())
     }
@@ -858,6 +923,7 @@ impl BrowserSession {
             // CDP-only mode still benefits from fingerprint spoofing.
             self.apply_fingerprint(config).await?;
         }
+        self.apply_ad_block().await?;
         Ok(())
     }
 
@@ -1030,6 +1096,38 @@ async fn apply_window_rect(
 /// every site the browser visits, and hand the proxy's login to all of them.
 fn fingerprint_overrides(fp: &crate::stealth::fingerprint::Fingerprint) -> Vec<(String, Value)> {
     crate::stealth::evasions::safe_cdp_overrides(fp)
+}
+
+/// The DevTools commands that make a session refuse the hosts `config` blocks,
+/// in the order they are sent; none if `config` blocks nothing or the browser
+/// has no DevTools channel.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] for a list that needs more
+/// patterns than the browser is given.
+fn ad_block_commands(
+    config: &BrowserConfig,
+) -> Result<Vec<(&'static str, Value)>, SeleniumBaseError> {
+    let Some(list) = AdBlockList::for_config(config) else {
+        return Ok(Vec::new());
+    };
+    if !config.browser.is_chromium_based() {
+        tracing::warn!(
+            browser = %config.browser,
+            "ad_block needs the DevTools Protocol, which WebDriver does not give this browser; \
+             nothing is blocked"
+        );
+        return Ok(Vec::new());
+    }
+    let patterns = list.bounded_url_patterns()?;
+    if patterns.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(vec![
+        ("Network.enable", json!({})),
+        ("Network.setBlockedURLs", json!({ "urls": patterns })),
+    ])
 }
 
 /// Starts the virtual screen the settings ask for, if this session can use one.
@@ -1353,6 +1451,305 @@ mod capability_tests {
                 CapabilityOverrides::from_text(r#"{"pageLoadStrategy": "none"}"#).unwrap(),
             );
         assert_eq!(caps_json(&config)["pageLoadStrategy"], "none");
+    }
+}
+
+/// Ad blocking in a WebDriver session, against the mock WebDriver in
+/// `webdriver_support` (no browser): which DevTools commands a session sends.
+#[cfg(test)]
+mod ad_block_tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::config::ad_block_list::MAX_URL_PATTERNS;
+
+    const CHROMIUM: [Browser; 8] = [
+        Browser::Chrome,
+        Browser::Chromium,
+        Browser::Edge,
+        Browser::Brave,
+        Browser::Comet,
+        Browser::Opera,
+        Browser::ChromeForTesting,
+        Browser::ChromeHeadlessShell,
+    ];
+
+    fn own_list() -> AdBlockList {
+        AdBlockList::from_hosts(["tracker.example.net", "ads.example.com"]).unwrap()
+    }
+
+    fn own_patterns() -> Value {
+        json!([
+            "*://ads.example.com/*",
+            "*://*.ads.example.com/*",
+            "*://tracker.example.net/*",
+            "*://*.tracker.example.net/*",
+        ])
+    }
+
+    /// A session on `driver` that starts no driver of its own.
+    fn config_for(driver: &MockWebDriver) -> BrowserConfig {
+        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        config.auto_start_driver = false;
+        config
+    }
+
+    /// A WebDriver that answers every command, DevTools commands included.
+    fn driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |_| Reply::Value(json!({})))
+    }
+
+    /// The bodies of the DevTools commands the driver was sent, oldest first.
+    fn devtools_commands(driver: &MockWebDriver) -> Vec<Value> {
+        driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .map(|request| request.body)
+            .collect()
+    }
+
+    #[test]
+    fn nothing_is_sent_while_ad_blocking_is_off() {
+        assert!(ad_block_commands(&BrowserConfig::default())
+            .unwrap()
+            .is_empty());
+
+        // A list that is set but not asked for blocks nothing.
+        let mut config = BrowserConfig::default().with_ad_block_list(own_list());
+        config.ad_block = false;
+        assert!(ad_block_commands(&config).unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_builtin_list_goes_to_the_browser_after_network_enable() {
+        let commands = ad_block_commands(&BrowserConfig::default().with_ad_block(true)).unwrap();
+
+        let patterns = AdBlockList::builtin().bounded_url_patterns().unwrap();
+        assert_eq!(
+            commands,
+            [
+                ("Network.enable", json!({})),
+                ("Network.setBlockedURLs", json!({ "urls": patterns })),
+            ]
+        );
+        let urls = commands[1].1["urls"].as_array().unwrap();
+        assert!(urls.contains(&json!("*://doubleclick.net/*")));
+        assert!(urls.contains(&json!("*://*.doubleclick.net/*")));
+    }
+
+    #[test]
+    fn a_list_of_the_callers_own_is_sent_in_place_of_the_builtin_one() {
+        let config = BrowserConfig::default().with_ad_block_list(own_list());
+        let commands = ad_block_commands(&config).unwrap();
+
+        assert_eq!(
+            commands,
+            [
+                ("Network.enable", json!({})),
+                ("Network.setBlockedURLs", json!({ "urls": own_patterns() })),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_empty_list_of_the_callers_own_sends_nothing() {
+        let config = BrowserConfig::default().with_ad_block_list(AdBlockList::new());
+        assert!(ad_block_commands(&config).unwrap().is_empty());
+    }
+
+    #[test]
+    fn every_chromium_browser_is_sent_the_block_and_the_others_nothing() {
+        for browser in CHROMIUM {
+            let config = BrowserConfig::default()
+                .with_browser(browser)
+                .with_ad_block(true);
+            assert_eq!(ad_block_commands(&config).unwrap().len(), 2, "{browser}");
+        }
+        for browser in [Browser::Firefox, Browser::Safari, Browser::InternetExplorer] {
+            let config = BrowserConfig::default()
+                .with_browser(browser)
+                .with_ad_block(true);
+            assert!(ad_block_commands(&config).unwrap().is_empty(), "{browser}");
+        }
+    }
+
+    #[test]
+    fn a_list_too_long_for_the_browser_is_refused() {
+        let hosts: Vec<String> = (0..=MAX_URL_PATTERNS / 2)
+            .map(|i| format!("host{i}.com"))
+            .collect();
+        let config =
+            BrowserConfig::default().with_ad_block_list(AdBlockList::from_hosts(hosts).unwrap());
+        assert!(matches!(
+            ad_block_commands(&config),
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_chromium_session_sends_the_two_commands_once_it_is_connected() {
+        let driver = driver();
+        let config = config_for(&driver).with_ad_block_list(own_list());
+
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+
+        assert_eq!(
+            devtools_commands(&driver),
+            [
+                json!({ "cmd": "Network.enable", "params": {} }),
+                json!({ "cmd": "Network.setBlockedURLs", "params": { "urls": own_patterns() } }),
+            ]
+        );
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_session_that_does_not_block_ads_sends_no_devtools_command() {
+        let driver = driver();
+
+        let mut session = BrowserSession::connect(config_for(&driver))
+            .await
+            .expect("connects");
+
+        assert!(devtools_commands(&driver).is_empty());
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_browser_without_a_devtools_channel_is_sent_nothing() {
+        let driver = driver();
+        let config = config_for(&driver)
+            .with_browser(Browser::Firefox)
+            .with_ad_block(true);
+
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+
+        assert!(devtools_commands(&driver).is_empty());
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn the_builtin_list_is_sent_when_no_list_of_ones_own_is_set() {
+        let driver = driver();
+        let config = config_for(&driver).with_ad_block(true);
+
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+
+        let sent = devtools_commands(&driver);
+        let patterns = AdBlockList::builtin().bounded_url_patterns().unwrap();
+        assert_eq!(sent.len(), 2, "{sent:?}");
+        assert_eq!(sent[1]["params"], json!({ "urls": patterns }));
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_reconnected_session_blocks_again() {
+        let driver = driver();
+        let config = config_for(&driver).with_ad_block_list(own_list());
+        let mut session = BrowserSession::connect(config.clone())
+            .await
+            .expect("connects");
+
+        session.reconnect(&config).await.expect("reconnects");
+
+        assert_eq!(devtools_commands(&driver).len(), 4);
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_window_reached_some_other_way_can_be_blocked_with_apply_ad_block() {
+        let driver = driver();
+        let config = config_for(&driver).with_ad_block_list(own_list());
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+
+        session.apply_ad_block().await.expect("blocks again");
+
+        assert_eq!(devtools_commands(&driver).len(), 4);
+        session.quit().await.expect("quits");
+    }
+
+    /// A WebDriver that opens windows and switches to them.
+    fn window_driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/window/new") => Reply::Value(json!({ "handle": "w2", "type": "tab" })),
+                ("POST", "/window") => Reply::Value(Value::Null),
+                _ => Reply::Value(json!({})),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn each_window_the_session_switches_to_is_blocked_too() {
+        let driver = window_driver();
+        let config = config_for(&driver).with_ad_block_list(own_list());
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+        assert_eq!(devtools_commands(&driver).len(), 2, "the first window");
+
+        session.switch_to_new_window().await.expect("a new window");
+        assert_eq!(devtools_commands(&driver).len(), 4, "the new window");
+
+        session.switch_to_window("w2").await.expect("a switch");
+        let sent = devtools_commands(&driver);
+        assert_eq!(sent.len(), 6, "the window switched to");
+        assert_eq!(sent[4], sent[0]);
+        assert_eq!(sent[5], sent[1]);
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn switching_windows_sends_nothing_when_no_ads_are_blocked() {
+        let driver = window_driver();
+        let mut session = BrowserSession::connect(config_for(&driver))
+            .await
+            .expect("connects");
+
+        session.switch_to_new_window().await.expect("a new window");
+        session.switch_to_window("w2").await.expect("a switch");
+
+        assert!(devtools_commands(&driver).is_empty());
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_browser_that_refuses_the_block_fails_the_connection() {
+        let driver = MockWebDriver::start(json!({}), |request| {
+            if request.path == "/goog/cdp/execute" {
+                Reply::Error(500, "unknown error")
+            } else {
+                Reply::Value(json!({}))
+            }
+        });
+        let config = config_for(&driver).with_ad_block(true);
+
+        let connected = BrowserSession::connect(config).await;
+
+        assert!(
+            matches!(connected, Err(SeleniumBaseError::Unsupported(_))),
+            "a block that is not in place must not look like one that is"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_list_too_long_is_refused_before_a_browser_is_asked_for() {
+        let driver = driver();
+        let hosts: Vec<String> = (0..=MAX_URL_PATTERNS / 2)
+            .map(|i| format!("host{i}.com"))
+            .collect();
+        let config =
+            config_for(&driver).with_ad_block_list(AdBlockList::from_hosts(hosts).unwrap());
+
+        let connected = BrowserSession::connect(config).await;
+
+        assert!(matches!(
+            connected,
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+        assert!(
+            driver.requests("/session").is_empty(),
+            "no session was opened for a configuration that cannot work"
+        );
     }
 }
 

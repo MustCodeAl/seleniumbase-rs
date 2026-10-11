@@ -12,6 +12,13 @@
 //! common list formats, and [`AdBlockList::url_patterns`] turns a list into
 //! the patterns Chrome wants.
 //!
+//! A [`BrowserConfig`] with `ad_block` set gives the built-in list to a
+//! Chromium WebDriver session, which sends it to the browser with
+//! `Network.setBlockedURLs`; a list of your own, set with
+//! [`BrowserConfig::with_ad_block_list`], replaces the built-in one. The
+//! browser is sent [`AdBlockList::bounded_url_patterns`], which refuses a list
+//! too long to match every request against.
+//!
 //! # Examples
 //!
 //! ```
@@ -29,6 +36,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use url::{Host, Url};
 
 use super::strip_comment;
@@ -65,6 +73,15 @@ const BUILTIN_HOSTS: [&str; 22] = [
     "segment.io",
     "taboola.com",
 ];
+
+/// The most patterns one `Network.setBlockedURLs` call carries, which is
+/// 1,000 hosts at two patterns each.
+///
+/// Chrome compares every request with every pattern in turn, so a long list
+/// slows each request down. A list that needs more is refused rather than cut
+/// short, because a block list applied in part would look like one applied in
+/// full.
+pub const MAX_URL_PATTERNS: usize = 2_000;
 
 /// Names that hosts files map to the loopback address; they are not ad hosts.
 const LOOPBACK_NAMES: [&str; 6] = [
@@ -114,10 +131,22 @@ impl AdBlockList {
         }
     }
 
-    /// The built-in list when `config` asks for ad blocking, otherwise `None`.
+    /// The list `config` asks to block, otherwise `None`: the list set with
+    /// [`BrowserConfig::with_ad_block_list`] if there is one, else the built-in
+    /// list, when `config.ad_block` is on.
+    ///
+    /// A list that is set but not asked for (`ad_block` is `false`) blocks
+    /// nothing. A list of one's own that is empty blocks nothing either; it is
+    /// not replaced by the built-in one.
     #[must_use]
     pub fn for_config(config: &BrowserConfig) -> Option<Self> {
-        config.ad_block.then(Self::builtin)
+        config.ad_block.then(|| {
+            config
+                .launch
+                .ad_block_list
+                .clone()
+                .unwrap_or_else(Self::builtin)
+        })
     }
 
     /// A list of the given hosts.
@@ -293,12 +322,61 @@ impl AdBlockList {
     ///
     /// Each host gives two patterns, `*://host/*` and `*://*.host/*`: the
     /// second alone would let the bare domain through.
+    ///
+    /// A pattern ends the host with a `/`, so it does not match a URL that
+    /// names a port (`https://host:8443/`); ad and tracker hosts are served on
+    /// the default ports. [`is_blocked`](Self::is_blocked) ignores the port.
     #[must_use]
     pub fn url_patterns(&self) -> Vec<String> {
         self.hosts
             .iter()
             .flat_map(|host| [format!("*://{host}/*"), format!("*://*.{host}/*")])
             .collect()
+    }
+
+    /// The patterns to give `Network.setBlockedURLs`: [`url_patterns`] without
+    /// the hosts that a parent domain in the list already covers, and never
+    /// more than [`MAX_URL_PATTERNS`].
+    ///
+    /// `ads.example.com` is left out when `example.com` is in the list, because
+    /// `*://*.example.com/*` matches it.
+    ///
+    /// [`url_patterns`]: Self::url_patterns
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if more than
+    /// [`MAX_URL_PATTERNS`] patterns are left, naming the count. The list is
+    /// not cut short: trim it, or block fewer hosts.
+    pub fn bounded_url_patterns(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        let patterns: Vec<String> = self
+            .hosts
+            .iter()
+            .filter(|host| !self.has_listed_parent(host))
+            .flat_map(|host| [format!("*://{host}/*"), format!("*://*.{host}/*")])
+            .collect();
+        if patterns.len() > MAX_URL_PATTERNS {
+            return Err(SeleniumBaseError::invalid_config(format!(
+                "the ad-block list needs {} URL patterns, more than the {MAX_URL_PATTERNS} \
+                 the browser is given; remove hosts, or list a parent domain in place \
+                 of its subdomains",
+                patterns.len()
+            )));
+        }
+        Ok(patterns)
+    }
+
+    /// Whether a parent domain of `host` is in the list, so that the parent's
+    /// wildcard already covers `host`.
+    fn has_listed_parent(&self, host: &str) -> bool {
+        let mut rest = host;
+        while let Some((_, parent)) = rest.split_once('.') {
+            if self.hosts.contains(parent) {
+                return true;
+            }
+            rest = parent;
+        }
+        false
     }
 
     /// How many hosts are in the list.
@@ -311,6 +389,23 @@ impl AdBlockList {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.hosts.is_empty()
+    }
+}
+
+/// Written as the sorted array of its hosts, which is how a configuration file
+/// holds one: `["ads.example.com", "tracker.example.net"]`.
+impl Serialize for AdBlockList {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(&self.hosts)
+    }
+}
+
+/// Read from an array of hosts; an entry that is not a host name is an error,
+/// as with [`AdBlockList::from_hosts`].
+impl<'de> Deserialize<'de> for AdBlockList {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let hosts = Vec::<String>::deserialize(deserializer)?;
+        Self::from_hosts(hosts).map_err(serde::de::Error::custom)
     }
 }
 
@@ -556,5 +651,108 @@ mod tests {
             ..BrowserConfig::default()
         };
         assert_eq!(AdBlockList::for_config(&on), Some(AdBlockList::builtin()));
+    }
+
+    #[test]
+    fn a_list_of_the_callers_own_replaces_the_builtin_one() {
+        let own = AdBlockList::from_hosts(["ads.example.com"]).unwrap();
+        let on = BrowserConfig::default()
+            .with_ad_block(true)
+            .with_ad_block_list(own.clone());
+        assert_eq!(AdBlockList::for_config(&on), Some(own.clone()));
+
+        // A list that is set but not asked for blocks nothing.
+        let mut off = on.clone();
+        off.ad_block = false;
+        assert!(AdBlockList::for_config(&off).is_none());
+
+        // An empty list of one's own is not the built-in list in disguise.
+        let empty = BrowserConfig::default().with_ad_block_list(AdBlockList::new());
+        assert_eq!(AdBlockList::for_config(&empty), Some(AdBlockList::new()));
+    }
+
+    #[test]
+    fn setting_a_list_of_ones_own_turns_ad_blocking_on() {
+        let config = BrowserConfig::default()
+            .with_ad_block_list(AdBlockList::from_hosts(["ads.example.com"]).unwrap());
+        assert!(config.ad_block);
+    }
+
+    #[test]
+    fn bounded_patterns_are_the_url_patterns_when_no_host_is_covered() {
+        let list = AdBlockList::from_hosts(["b.example.com", "a.example.net"]).unwrap();
+        assert_eq!(list.bounded_url_patterns().unwrap(), list.url_patterns());
+        assert_eq!(
+            AdBlockList::builtin().bounded_url_patterns().unwrap().len(),
+            2 * BUILTIN_HOSTS.len()
+        );
+        assert!(AdBlockList::new()
+            .bounded_url_patterns()
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn bounded_patterns_leave_out_a_host_that_a_parent_in_the_list_covers() {
+        let list = AdBlockList::from_hosts([
+            "example.com",
+            "ads.example.com",
+            "x.ads.example.com",
+            "example.org",
+            "badexample.com",
+        ])
+        .unwrap();
+        assert_eq!(
+            list.bounded_url_patterns().unwrap(),
+            [
+                "*://badexample.com/*",
+                "*://*.badexample.com/*",
+                "*://example.com/*",
+                "*://*.example.com/*",
+                "*://example.org/*",
+                "*://*.example.org/*",
+            ]
+        );
+        // What was left out is still blocked, by the parent's wildcard.
+        assert!(list.is_blocked("https://x.ads.example.com/a.js"));
+    }
+
+    #[test]
+    fn a_list_over_the_limit_is_refused_and_one_at_it_is_not() {
+        let hosts = |count: usize| {
+            AdBlockList::from_hosts((0..count).map(|i| format!("host{i}.com"))).unwrap()
+        };
+        let at_limit = hosts(MAX_URL_PATTERNS / 2);
+        assert_eq!(
+            at_limit.bounded_url_patterns().unwrap().len(),
+            MAX_URL_PATTERNS
+        );
+
+        let over = hosts(MAX_URL_PATTERNS / 2 + 1);
+        let Err(SeleniumBaseError::InvalidConfig(message)) = over.bounded_url_patterns() else {
+            panic!("a list over the limit must be refused");
+        };
+        assert!(
+            message.contains(&(MAX_URL_PATTERNS + 2).to_string()),
+            "names the pattern count: {message}"
+        );
+        assert!(
+            message.contains(&MAX_URL_PATTERNS.to_string()),
+            "names the limit: {message}"
+        );
+    }
+
+    #[test]
+    fn a_list_is_written_and_read_as_an_array_of_hosts() {
+        let list = AdBlockList::from_hosts(["b.example.com", "a.example.com"]).unwrap();
+        let text = serde_json::to_string(&list).unwrap();
+        assert_eq!(text, r#"["a.example.com","b.example.com"]"#);
+        assert_eq!(serde_json::from_str::<AdBlockList>(&text).unwrap(), list);
+        // Entries are read like `add_host` reads them.
+        let loose: AdBlockList =
+            serde_json::from_str(r#"["*.Tracker.IO", ".tracker.io."]"#).unwrap();
+        assert_eq!(loose.hosts().collect::<Vec<_>>(), ["tracker.io"]);
+        assert!(serde_json::from_str::<AdBlockList>(r#"["not a host"]"#).is_err());
+        assert!(serde_json::from_str::<AdBlockList>(r#"{"hosts":[]}"#).is_err());
     }
 }
