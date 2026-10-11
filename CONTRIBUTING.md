@@ -456,8 +456,9 @@ binary-signature detection.
 
 ## Working with AI Assistants
 
-Assistants are welcome, and the repository is set up for them: `CLAUDE.md` is
-the module map and rule list, `rust-analyzer.toml` makes analysis cover the
+Assistants are welcome, and the repository is set up for them: `AGENTS.md` is the
+short rule sheet any agent can read, `llms.txt` indexes the docs for models,
+`CLAUDE.md` is the module map and rule list, `rust-analyzer.toml` makes analysis cover the
 optional features, and `docs/tutorials/vibe_coding.md` shows how to use the MCP
 servers to explore a page and export a test. Whoever opens the pull request owns
 the result:

@@ -1,0 +1,35 @@
+# seleniumbase-rs
+
+> A Rust port of Python SeleniumBase 4.55.2 and its MCP server: a `BaseCase` test API over WebDriver, a pure Chrome DevTools Protocol engine with no driver, stealth and fingerprinting, a browser pool, request interception, and MCP servers that let AI agents drive, debug and write browser tests. Young (0.1.0, not on crates.io); most behaviour is verified against a mock or unit tests rather than a real browser.
+
+Start here if you are an AI agent working in the repository or using the crate.
+
+## Working on the repository
+
+- [AGENTS.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/AGENTS.md): commands, rules, boundaries.
+- [CLAUDE.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CLAUDE.md): the module map and gotchas.
+- [CONTRIBUTING.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CONTRIBUTING.md): the checks and how to add things.
+- [docs/building.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/building.md): features, binaries, Docker.
+
+## Using the crate
+
+- [README.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/README.md): what it is and the project status.
+- [docs/tutorials/getting_started.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/getting_started.md): a first test.
+- [docs/tutorials/pure_cdp.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/pure_cdp.md): the driver-free engine.
+- [docs/tutorials/mcp_server.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/mcp_server.md): the MCP servers and their tools.
+- [docs/tutorials/vibe_coding.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/vibe_coding.md): explore a page, export a test, read a failure.
+- [docs/reliability.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/reliability.md): waits, errors, cleanup.
+- [docs/help/common_problems.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/help/common_problems.md): troubleshooting.
+
+## Reference
+
+- [docs/parity.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/parity.md): the status of every upstream API (generated from `parity/api.toml`).
+- [docs/tutorials/api_reference.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/api_reference.md): the `BaseCase` API.
+- [docs/tutorials/fingerprint_stealth.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/fingerprint_stealth.md): fingerprints and masking.
+- [docs/comparison.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/comparison.md) and [docs/faq.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/faq.md): when to use it, and answers to common questions.
+
+## Optional
+
+- [docs/design/stealth_parity_plan.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/design/stealth_parity_plan.md): the plan for TLS/HTTP/2 impersonation and stealth scraping (in progress).
+- [docs/benchmarks.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/benchmarks.md) and [docs/performance.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/performance.md).
+- [ROADMAP.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/ROADMAP.md) and [CHANGELOG.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CHANGELOG.md).
