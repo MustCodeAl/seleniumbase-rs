@@ -75,17 +75,22 @@ for suites that belong in Rust or that ship as a native binary.
 These Python and Node tools focus on not looking automated. This crate has the
 same family of features from SeleniumBase (UC mode, fingerprints, masking
 providers, human-paced input) and a driver-free engine that leaves no webdriver
-markers. What it does not have yet is TLS (JA3/JA4) and HTTP/2 impersonation, a
-stealth scraping session and measured fingerprint data beyond macOS; those are in
-progress ([the plan](design/stealth_parity_plan.md)). No tool, this one included,
-can promise to pass a given detection service.
+markers. It has a TLS (JA3/JA4) and HTTP/2 impersonation client behind the
+`impersonate` feature, built from measured data for one browser and system (Chrome
+155 on macOS) or from your own strings ([Stealth Scraping](tutorials/stealth_scraping.md)).
+What it does not have yet is the impersonating HTTP session, the proxy that gives a
+real Chrome an impersonated handshake, the combined stealth session, and measured
+data beyond macOS; those are in progress ([the plan](design/stealth_parity_plan.md)).
+No tool, this one included, can promise to pass a given detection service.
 
 ### HTTP impersonation clients (curl-impersonate, wreq and similar)
 
 They make a plain HTTP client look like a browser at the TLS level, without a
-browser. This crate plans the same inside the `impersonate` feature, plus a way to
-solve a challenge in Chrome and continue over HTTP. Today, use one of those
-libraries directly if TLS fidelity is the only thing you need.
+browser. This crate has the same building block inside the `impersonate` feature
+(wreq on BoringSSL, with a measured Chrome 155 profile for macOS and custom
+JA3/JA4/Akamai inputs), and plans a way to solve a challenge in Chrome and continue
+over HTTP, which is not written yet. If TLS fidelity for another browser or system
+is what you need today, use one of those libraries directly.
 
 ## At a glance
 
@@ -110,4 +115,6 @@ Be honest with yourself about these before choosing it:
 - Chrome-centred: no WebKit, and no bundled browser downloads beyond the
   chromedriver.
 - No trace viewer, no cross-language ecosystem, a small community.
-- TLS and HTTP/2 impersonation are not written yet.
+- TLS and HTTP/2 impersonation exist as a client for one measured browser and
+  system (Chrome 155 on macOS); the sessions and the proxy that would use it with
+  a browser are not written yet.

@@ -18,6 +18,7 @@ Start here if you are an AI agent working in the repository or using the crate.
 - [docs/tutorials/pure_cdp.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/pure_cdp.md): the driver-free engine.
 - [docs/tutorials/mcp_server.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/mcp_server.md): the MCP servers and their tools.
 - [docs/tutorials/vibe_coding.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/vibe_coding.md): explore a page, export a test, read a failure.
+- [docs/tutorials/stealth_scraping.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/stealth_scraping.md): the `scrape` and `impersonate` features: wire fingerprints (Chrome 155 on macOS only), custom JA3/JA4/Akamai inputs, cookie jar, identities, `BrowserScraper`. `HttpSession`, `MitmProxy` and `StealthSession` are not available yet.
 - [docs/reliability.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/reliability.md): waits, errors, cleanup.
 - [docs/help/common_problems.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/help/common_problems.md): troubleshooting.
 
@@ -30,6 +31,6 @@ Start here if you are an AI agent working in the repository or using the crate.
 
 ## Optional
 
-- [docs/design/stealth_parity_plan.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/design/stealth_parity_plan.md): the plan for TLS/HTTP/2 impersonation and stealth scraping (in progress).
+- [docs/design/stealth_parity_plan.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/design/stealth_parity_plan.md): the plan for TLS/HTTP/2 impersonation and stealth scraping, with the status of each work package (partly merged, in progress).
 - [docs/benchmarks.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/benchmarks.md) and [docs/performance.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/performance.md).
 - [ROADMAP.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/ROADMAP.md) and [CHANGELOG.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CHANGELOG.md).

@@ -22,6 +22,7 @@
   - [Pure CDP](tutorials/pure_cdp.md)
   - [Playwright Mode](help/playwright_mode.md)
   - [Fingerprint & Stealth Profiles](tutorials/fingerprint_stealth.md)
+  - [Stealth Scraping](tutorials/stealth_scraping.md)
   - [Binary Patching](tutorials/binary_patching.md)
 - [Shadow DOM](tutorials/shadow_dom.md)
 - [Recorder Mode](tutorials/recorder_mode.md)
@@ -45,5 +46,6 @@
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
   - [Multi-Driver & Playwright](adr/002-multi-driver-and-playwright.md)
+  - [Stealth Scraping Layout](adr/003-stealth-scraping-layout.md)
 - [Contributing](CONTRIBUTING.md)
 

@@ -64,9 +64,11 @@ have. The pure CDP engine (`sb_cdp`) needs no chromedriver on any system.
 - Long paths: build in a short directory (`C:\src\seleniumbase-rs`) if a deep
   `target\` path trips the 260-character limit.
 - The `impersonate` feature builds BoringSSL and needs `cmake` and a C/C++
-  toolchain (Visual Studio Build Tools). That feature is still being written.
-- Measured browser fingerprint data is macOS-only for now; presets for other
-  systems are plausible values, not measurements.
+  toolchain (Visual Studio Build Tools). Only part of that feature is written (see
+  [Stealth Scraping](tutorials/stealth_scraping.md)).
+- Measured browser fingerprint data is macOS-only for now (Chrome 155); presets
+  for other systems are plausible values, not measurements, and the TLS and
+  HTTP/2 tables refuse any other system with `NotMeasured`.
 
 ## WSL and remote machines
 

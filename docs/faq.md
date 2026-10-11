@@ -73,8 +73,11 @@ Yes: `SB_HEADLESS=true`. Always use it in containers and CI.
 It reduces the obvious signs (no webdriver markers in the pure CDP engine,
 coherent fingerprints, human-paced input), but there is no guarantee against any
 particular service, and the randomised identities have not been tested against
-live detection. TLS (JA3/JA4) and HTTP/2 impersonation are not written yet. See
-[the stealth tutorial](tutorials/fingerprint_stealth.md).
+live detection. A TLS (JA3/JA4) and HTTP/2 impersonation client exists behind the
+`impersonate` feature for one measured browser and system (Chrome 155 on macOS),
+but nothing yet applies it to a browser session. See
+[the stealth tutorial](tutorials/fingerprint_stealth.md) and
+[Stealth Scraping](tutorials/stealth_scraping.md).
 
 **Is scraping with it allowed?**
 That depends on the site's terms and the law where you are. The library does not

@@ -13,8 +13,8 @@ run it in a container. For writing and running tests with it, start with
   nothing else; the WebDriver engine also needs a chromedriver of the same major
   version, which `sbase install` downloads and `sbase doctor` checks.
 - **For the optional `impersonate` feature only:** `cmake` and a C/C++ toolchain,
-  because it builds BoringSSL. (That feature is still being written; see
-  [Why Rust?](why-rust.md).)
+  because it builds BoringSSL. (Part of that feature exists; see
+  [Stealth Scraping](tutorials/stealth_scraping.md) for what.)
 
 ## Build
 
@@ -52,8 +52,8 @@ desktop or cloud stacks.
 | `turso` | `ResultStore`, `ProfileVault`, `sbase report` | an embedded database |
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
-| `scrape` | stealth scraping groundwork (adds `psl`) | in progress |
-| `impersonate` | browser-identical TLS and HTTP/2 (BoringSSL) | in progress; needs cmake |
+| `scrape` | wire fingerprints (JA3, JA4, Akamai), cookie jar, stealth identities, `BrowserScraper` (adds `psl`) | pure Rust; see [Stealth Scraping](tutorials/stealth_scraping.md) |
+| `impersonate` | browser-identical TLS and HTTP/2 (BoringSSL) | client and TLS server exist; `HttpSession`, `MitmProxy` and `StealthSession` do not yet; needs cmake |
 
 Combine them with `--features "mcp-server tui"`.
 

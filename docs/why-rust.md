@@ -117,9 +117,11 @@ three real-Chrome tests (`diagnose_environment` ran only against a mock):
   follows the error's category, and failed tests carry their page and evidence
   into the reports.
 
-Not there yet: TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation and the stealth
-scraping session are under construction behind the `scrape` and `impersonate`
-features. See [the plan](design/stealth_parity_plan.md).
+Not there yet: the impersonating HTTP session, the MITM proxy and the combined
+stealth session are under construction behind the `impersonate` feature. The
+TLS (JA3/JA4) and HTTP/2 (Akamai) client exists for one measured browser and
+system (Chrome 155 on macOS). See [Stealth Scraping](tutorials/stealth_scraping.md)
+and [the plan](design/stealth_parity_plan.md).
 
 ## Evidence from this crate
 
@@ -160,8 +162,9 @@ also flaked until they were made to wait for what they check.
   and the borrow checker.
 - **A smaller ecosystem.** Python SeleniumBase has far more examples and
   plugins; Python plugins cannot be reused here.
-- **Unfinished parts.** TLS and HTTP/2 impersonation and the stealth scraping
-  session are not written yet, and the parity table's `composed` and
+- **Unfinished parts.** The impersonating HTTP session, the MITM proxy and the
+  combined stealth session are not written yet, only one browser and system is
+  measured for TLS and HTTP/2, and the parity table's `composed` and
   `not-applicable` entries are still to be independently reviewed.
 
 ## What does not change
