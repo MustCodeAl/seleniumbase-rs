@@ -39,20 +39,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+A fingerprint reaches the page only through a launch path that applies it:
+
+- With `DriverMode::Uc` (above) or `DriverMode::Cdp`, the session registers the
+  evasion script and sends the protocol overrides described under
+  [Native-level (CDP) spoofing](#native-level-cdp-spoofing), and the launch
+  arguments apply.
+- With the default `DriverMode::WebDriver`, only the launch arguments apply (user
+  agent, `--lang`, `--window-size`, the WebRTC policy, and the QUIC and proxy
+  flags). No script is injected and no protocol override is sent.
+- The Pure CDP engine and the Playwright session have their own paths, described
+  below.
+
 ## Fingerprint presets
 
 Built-in presets set a coherent combination of user agent, platform, screen,
-WebGL strings, and masking flags:
+WebGL strings, and masking flags (`StealthFlags::balanced()`):
 
-| Preset | Best for |
-|---|---|---|
-| `Fingerprint::windows_desktop()` | Chrome on Windows. |
-| `Fingerprint::macos_desktop()` | Chrome or Safari on macOS. |
-| `Fingerprint::linux_desktop()` | Chrome on Linux. |
-| `Fingerprint::android_mobile()` | Chrome on Android. |
-| `Fingerprint::ios_mobile_safari()` | Mobile Safari on iOS. |
+| Preset | What it claims |
+|---|---|
+| `Fingerprint::windows_desktop()` | Chrome 124 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York`, an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
+| `Fingerprint::macos_desktop()` | Chrome 124 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, WebGL `Apple Inc.` / `Apple M3`. The user agent is Chrome's, not Safari's. |
+| `Fingerprint::linux_desktop()` | Chrome 124 on Linux x86_64, 1920x1080, `America/Chicago`, and the same Direct3D 11 NVIDIA renderer string as the Windows preset, which a Linux machine would not report. Set `.webgl(..)` or use `Fingerprint::randomized` for a believable Linux GPU. |
+| `Fingerprint::android_mobile()` | Chrome 124 on Android 14 (`SM-S918B`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
+| `Fingerprint::ios_mobile_safari()` | Mobile Safari 17.4.1 on an iPhone, 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`, Safari-style Client Hints. |
 
-Use the `fingerprint!` macro for shorter syntax:
+Every preset sets a time zone but no geolocation, so `validate()` reports the
+warning "timezone set without geolocation" for each of them (warnings do not
+make a report incoherent). Add `.geolocation(lat, lon)` to silence it.
+
+Use the `fingerprint!` macro for shorter syntax. `safari` is an alias for `ios`,
+and `edge` returns the Windows preset, whose user agent is Chrome's, not
+Edge's:
 
 ```rust
 use seleniumbase_rs::fingerprint;
@@ -62,6 +80,8 @@ let fp = fingerprint!(macos);
 let fp = fingerprint!(linux);
 let fp = fingerprint!(android);
 let fp = fingerprint!(ios);
+let fp = fingerprint!(safari); // same as ios
+let fp = fingerprint!(edge);   // same as windows
 ```
 
 ## Randomised identities
@@ -82,9 +102,9 @@ assert_eq!(fp, Fingerprint::randomized(OsType::Windows, 42));
 let report = fp.validate();
 assert!(report.is_coherent() && report.warnings.is_empty());
 
-// Another seed is another machine, in another place.
+// Another seed is another identity.
 let other = Fingerprint::randomized(OsType::Windows, 43);
-assert_ne!(fp.webgl_renderer, other.webgl_renderer);
+assert_ne!(fp, other);
 ```
 
 Detectors check that signals agree with each other, so the generator never
@@ -108,23 +128,30 @@ Things to know:
   of the crate. Adding a table row changes what a seed maps to, so store the
   generated `Fingerprint` (it is `Serialize`), not the seed, if an identity has
   to outlive an upgrade.
-- **The Chromium version is a fixed window.** The user agent claims one of a few
-  recent Chromium releases. Pair the identity with a browser of that era, or
-  change `user_agent`, `client_hints` and `core_version` together.
+- **The Chromium version is a fixed window.** At this version of the crate the
+  user agent claims Chromium 153, 154 or 155 (an iPhone identity claims Mobile
+  Safari 17.7, 18.1, 18.3.1 or 18.5). Pair the identity with a browser of that
+  era, or change `user_agent`, `client_hints` and `core_version` together.
+- **iOS differs.** Safari has no `navigator.deviceMemory` and no
+  `navigator.userAgentData`, so an iOS identity sets neither (`device_memory` and
+  `client_hints` are `None`).
 - **Client Hints use `major.0.0.0`** for full versions, the form the user agent
   itself uses.
 - **Not set:** fonts, media devices and the proxy. Set them on the result if you
   need them.
-- **Not launched for you yet.** Pass the result to
-  `BrowserConfig::with_fingerprint` or to the evasion registry; `sb_cdp::Browser`
-  does not take a fingerprint yet.
+- **Applying it.** For the Pure CDP engine, hand it to the launch options with
+  `LaunchOptions::builder().fingerprint(&fp)` (see
+  [Pure CDP](pure_cdp.md#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
+  does the same for one tab. For `BaseCase`, pass it to
+  `BrowserConfig::with_fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
+  You can also feed it to the evasion registry yourself.
 
 ## Building a custom fingerprint
 
 For full control, use the builder:
 
 ```rust
-use seleniumbase_rs::Fingerprint;
+use seleniumbase_rs::{Fingerprint, StealthFlags};
 
 let fp = Fingerprint::builder()
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...")
@@ -136,9 +163,18 @@ let fp = Fingerprint::builder()
     .timezone("America/New_York")
     .webgl("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 ...)")
     .geolocation(40.7128, -74.0060)
-    .media_devices(1, 1, 2)
+    .media_devices(1, 1, 2) // audio inputs, audio outputs, video inputs
+    .flags(StealthFlags::balanced())
     .build();
 ```
+
+`Fingerprint::builder()` starts from `StealthFlags::default()`, where every
+masking mode is `Natural`, so the JavaScript providers for navigator, screen,
+WebGL, time zone and the like do not run until you set the modes: either
+`.flags(StealthFlags::balanced())` as above, or one flag at a time as in the
+examples below. The protocol overrides do not depend on the modes; they are sent
+for every field that is set (see
+[Native-level (CDP) spoofing](#native-level-cdp-spoofing)).
 
 ## Masking modes
 
