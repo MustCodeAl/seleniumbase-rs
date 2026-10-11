@@ -813,9 +813,7 @@ async fn capture_debug_bundle<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<
         },
         "cookie_names": outcome("cookies", cookies.map(Value::from).map_err(ToolError::from)),
         "tool_calls": { "recent": recent, "older_dropped": dropped },
-        "redaction": "Cookie and storage values are left out, password and hidden input values \
-                      are replaced in page.html, and typed text and scripts in tool calls are \
-                      replaced by their length.",
+        "redaction": REDACTION_NOTE,
         "problems": problems,
     });
     let path = path_of("bundle.json")?;
@@ -1046,6 +1044,13 @@ fn version_check(driver: Option<u32>, browser: Option<u32>) -> (Value, Option<St
     )
 }
 
+/// What `bundle.json` says it leaves out. It has to match what
+/// `CallRecord::redacted` in `journal.rs` does to a tool call.
+const REDACTION_NOTE: &str = "Cookie and storage values are left out, password and hidden input values \
+                              are replaced in page.html, typed text and scripts in tool calls are \
+                              replaced by their length, the results of successful tool calls are \
+                              replaced by their length, and only the error text of a failed call is kept.";
+
 /// The `SB_*` settings among `vars`, by name, with secret-looking values
 /// redacted (see [`redact_setting`]).
 fn sb_settings(vars: impl IntoIterator<Item = (String, String)>) -> Map<String, Value> {
@@ -1128,6 +1133,19 @@ mod tests {
         let (fits, problem) = version_check(None, Some(155));
         assert_eq!(fits["fit"], "unknown");
         assert_eq!(problem, None);
+    }
+
+    #[test]
+    fn the_redaction_note_says_what_a_bug_report_keeps_of_a_tool_call() {
+        assert!(
+            REDACTION_NOTE
+                .contains("results of successful tool calls are replaced by their length"),
+            "{REDACTION_NOTE}"
+        );
+        assert!(
+            REDACTION_NOTE.contains("only the error text of a failed call is kept"),
+            "{REDACTION_NOTE}"
+        );
     }
 
     #[test]
