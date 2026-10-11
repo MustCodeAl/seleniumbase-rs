@@ -511,7 +511,7 @@ mod tests {
                 EXTENSIONS.contains(id),
                 "refused extension {id:#06x} is unnamed"
             );
-            assert!(!reason.is_empty());
+            assert_ne!(reason, "");
         }
         for &id in UNSUPPORTED_GROUPS {
             assert!(GROUPS.contains(id), "refused group {id:#06x} is unnamed");
