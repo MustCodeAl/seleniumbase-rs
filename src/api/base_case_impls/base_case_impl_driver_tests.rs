@@ -767,3 +767,106 @@ mod tests_wait_errors {
         assert_eq!(switches, ["download-tab", "first-tab"]);
     }
 }
+
+mod tests_ready_state {
+    use super::webdriver_support::{MockWebDriver, Reply};
+    use super::*;
+    use serde_json::{json, Value};
+    use std::time::Instant;
+
+    /// A driver whose page is in `state`.
+    fn page_in(state: &'static str) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync") => Reply::Value(json!(state)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    /// Waits for the ready state of a page that stays `loading`, and says how
+    /// long the wait lasted. Gives up on the wait itself after five seconds so
+    /// a wait that ignores its limit fails the test instead of hanging it.
+    async fn wait_on_a_loading_page(sb: &BaseCase) -> (Result<(), SeleniumBaseError>, Duration) {
+        let started = Instant::now();
+        let waited =
+            tokio::time::timeout(Duration::from_secs(5), sb.wait_for_ready_state_complete())
+                .await
+                .expect("the wait ran past five seconds: it is not using the configured timeout");
+        (waited, started.elapsed())
+    }
+
+    #[tokio::test]
+    async fn a_complete_page_is_ready_at_once() {
+        let driver = page_in("complete");
+        let sb = driver.base_case().await;
+        sb.wait_for_ready_state_complete().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn the_wait_lasts_as_long_as_the_timeout_the_test_set() {
+        let driver = page_in("loading");
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+
+        let (waited, lasted) = wait_on_a_loading_page(&sb).await;
+
+        let Err(SeleniumBaseError::WaitTimeout(message)) = waited else {
+            panic!("expected a WaitTimeout, got {waited:?}");
+        };
+        assert!(message.contains("readyState"), "{message}");
+        assert!(lasted >= Duration::from_secs(1), "gave up after {lasted:?}");
+    }
+
+    #[tokio::test]
+    async fn the_time_limit_still_cuts_the_wait_short() {
+        let driver = page_in("loading");
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(30).await.unwrap();
+        sb.set_time_limit(1).unwrap();
+
+        let (waited, lasted) = wait_on_a_loading_page(&sb).await;
+
+        assert!(
+            matches!(waited, Err(SeleniumBaseError::WaitTimeout(_))),
+            "{waited:?}"
+        );
+        assert!(lasted >= Duration::from_secs(1), "gave up after {lasted:?}");
+    }
+
+    #[tokio::test]
+    async fn skipping_js_waits_returns_at_once_on_a_loading_page() {
+        let driver = page_in("loading");
+        let mut sb = driver.base_case().await;
+        sb.set_run_settings(RunSettings::default().with_skip_js_waits(true));
+        let (waited, lasted) = wait_on_a_loading_page(&sb).await;
+        waited.unwrap();
+        assert!(lasted < Duration::from_secs(1), "waited {lasted:?}");
+    }
+
+    #[tokio::test]
+    async fn a_test_that_sets_nothing_waits_ten_seconds() {
+        let sb = BaseCase::without_session(BrowserConfig::default());
+        assert_eq!(sb.timeout_secs(), 10);
+        assert_eq!(sb.default_wait_secs(), 10);
+    }
+
+    #[tokio::test]
+    async fn the_default_wait_follows_the_default_timeout_and_is_cut_to_the_time_left() {
+        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        sb.set_timeout(25).await.unwrap();
+        assert_eq!(sb.default_wait_secs(), 25);
+        sb.set_default_timeout(3);
+        assert_eq!(sb.default_wait_secs(), 3);
+        sb.reset_default_timeout();
+        assert_eq!(sb.default_wait_secs(), 25);
+        // A test with five seconds left does not wait longer for anything.
+        sb.set_time_limit(5).unwrap();
+        assert_eq!(sb.default_wait_secs(), 5);
+        // A limit above the default does not stretch it.
+        sb.set_time_limit(600).unwrap();
+        assert_eq!(sb.default_wait_secs(), 25);
+        sb.set_time_limit(0).unwrap();
+        assert_eq!(sb.default_wait_secs(), 25);
+    }
+}

@@ -252,28 +252,32 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Waits until `document.readyState` is `complete`.
+    /// Waits until `document.readyState` is `complete`, for up to the default
+    /// wait: the timeout [`set_timeout`](Self::set_timeout) and
+    /// [`set_default_timeout`](Self::set_default_timeout) set (10 seconds
+    /// until either is called), cut to the time the test has left if it has a
+    /// [time limit](Self::set_time_limit). Returns at once if the run settings
+    /// skip the JavaScript waits.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::TestLifecycle`] if the test is already
+    /// past its time limit, and [`SeleniumBaseError::WaitTimeout`] if the page
+    /// is still loading when the wait ends.
     pub async fn wait_for_ready_state_complete(&self) -> Result<(), SeleniumBaseError> {
         if self.run_settings.skip_js_waits() {
             return Ok(());
         }
         self.check_time_limit()?;
-        let script = "return document.readyState;";
-        let start = std::time::Instant::now();
-        let timeout_secs = self.effective_timeout(self.timeout_secs);
-        loop {
-            if start.elapsed().as_secs() > timeout_secs {
-                return Err(SeleniumBaseError::WaitTimeout(
-                    "Page readyState did not become 'complete'".into(),
-                ));
-            }
-            if let Ok(Value::String(state)) = self.execute_script(script).await {
-                if state == "complete" {
-                    return Ok(());
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+        poll_until_true(
+            self.default_wait_secs(),
+            "Page readyState did not become 'complete'".to_owned(),
+            || async {
+                let state = self.execute_script("return document.readyState;").await?;
+                Ok(state.as_str() == Some("complete"))
+            },
+        )
+        .await
     }
 
     /// Returns the current browser window position as `(x, y)`.
@@ -881,7 +885,7 @@ impl BaseCase {
         &self,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.wait_for_element_visible(css, self.effective_timeout(self.timeout_secs))
+        self.wait_for_element_visible(css, self.default_wait_secs())
             .await
     }
 
@@ -2328,6 +2332,15 @@ impl BaseCase {
             }
             None => requested,
         }
+    }
+
+    /// How long a wait that has no time of its own lasts, in seconds: the
+    /// default [`set_timeout`](Self::set_timeout) and
+    /// [`set_default_timeout`](Self::set_default_timeout) set (10 until either
+    /// is called), cut to the time the test has left if it has a
+    /// [time limit](Self::set_time_limit).
+    fn default_wait_secs(&self) -> u64 {
+        self.effective_timeout(self.timeout_secs)
     }
 
     /// Return whether `text` exactly matches the visible text of the element.

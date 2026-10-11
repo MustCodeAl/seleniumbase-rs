@@ -536,7 +536,7 @@ impl BaseCase {
         what: &str,
     ) -> Result<Option<WebElement>, SeleniumBaseError> {
         let script = page_scripts::find_visible_text_script(kind, text);
-        let timeout = self.effective_timeout(self.timeout_secs);
+        let timeout = self.default_wait_secs();
         let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout);
         loop {
             let found = self.execute_script(&script).await?;
@@ -1159,7 +1159,7 @@ impl BaseCase {
     /// when the timeout ends.
     pub async fn assert_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
         let path = crate::artifacts::confined_path(&default_download_dir(), filename)?;
-        let timeout = self.effective_timeout(self.timeout_secs);
+        let timeout = self.default_wait_secs();
         wait_for_file(&path, timeout).await.map_err(|_| {
             SeleniumBaseError::AssertionFailed(format!(
                 "Downloaded file '{}' was not found after {timeout}s",
