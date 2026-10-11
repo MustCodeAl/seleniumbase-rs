@@ -17,6 +17,7 @@
 - [Selectors](tutorials/selectors.md)
 - [Waits and Assertions](tutorials/waits_assertions.md)
 - [Settings and Configuration](tutorials/settings_and_config.md)
+  - [Run Settings (demo and slow mode)](tutorials/run_settings.md)
 - [Stealth and Browser Modes](tutorials/uc_mode.md)
   - [CDP Mode](tutorials/cdp_mode.md)
   - [Pure CDP](tutorials/pure_cdp.md)
