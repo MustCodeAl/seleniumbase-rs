@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use super::expect::LocatorExpect;
-use super::input::Key;
+use super::input::{Button, Key};
 use super::page::Page;
 use super::types::{ElementInfo, Point, Rect, SelectBy, State};
 use crate::error::SeleniumBaseError;
@@ -311,6 +311,26 @@ impl Locator {
             .collect())
     }
 
+    /// Waits up to the locator's timeout for a first match, then returns one
+    /// locator per match, as [`all`](Self::all) does.
+    ///
+    /// This is what Python's `find_elements`, `find_all` and `select_all` do:
+    /// they poll until something matches. Where they raise nothing and give an
+    /// empty list when the time runs out, so does this. Use
+    /// [`wait_for`](Self::wait_for) to get an error for that instead.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    pub async fn all_waiting(&self) -> Result<Vec<Self>, SeleniumBaseError> {
+        self.page
+            .poll(self.timeout, || async {
+                self.is_in_state(State::Present).await
+            })
+            .await?;
+        self.all().await
+    }
+
     // ------------------------------------------------------------------
     // Reading
     // ------------------------------------------------------------------
@@ -391,6 +411,32 @@ impl Locator {
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches in time.
     pub async fn bounding_box(&self) -> Result<Rect, SeleniumBaseError> {
         Ok(self.info().await?.rect)
+    }
+
+    /// Position and size of the first match relative to the window's visible
+    /// area, whatever the page is scrolled to.
+    ///
+    /// This is what Python's `get_element_rect` and `get_element_position`
+    /// return. [`bounding_box`](Self::bounding_box) measures from the top of
+    /// the document instead, so the two differ by how far the page is scrolled.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches in time.
+    pub async fn viewport_rect(&self) -> Result<Rect, SeleniumBaseError> {
+        self.wait_present().await?;
+        let rect = self
+            .with_element(
+                "const r = el.getBoundingClientRect(); \
+                 return { x: r.left, y: r.top, width: r.width, height: r.height };",
+            )
+            .await?;
+        Ok(Rect {
+            x: rect["x"].as_f64().unwrap_or_default(),
+            y: rect["y"].as_f64().unwrap_or_default(),
+            width: rect["width"].as_f64().unwrap_or_default(),
+            height: rect["height"].as_f64().unwrap_or_default(),
+        })
     }
 
     /// Whether any match is visible right now. Does not wait.
@@ -491,6 +537,23 @@ impl Locator {
     pub async fn hover(&self) -> Result<(), SeleniumBaseError> {
         let at = self.actionable_center().await?;
         self.page.mouse().move_to(at).await
+    }
+
+    /// Presses the primary button on the first match, holds it for `hold`, and
+    /// releases it there.
+    ///
+    /// Corresponds to Python's `click_and_hold(selector, timeframe=2)`.
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn click_and_hold(&self, hold: Duration) -> Result<(), SeleniumBaseError> {
+        let at = self.actionable_center().await?;
+        let mouse = self.page.mouse();
+        mouse.move_to(at).await?;
+        mouse.down(at, Button::Left).await?;
+        tokio::time::sleep(hold).await;
+        mouse.up(at, Button::Left).await
     }
 
     /// Drags the first match onto the first match of `target`.
@@ -719,6 +782,31 @@ impl Locator {
     pub async fn flash(&self) -> Result<(), SeleniumBaseError> {
         self.wait_present().await?;
         self.with_element("__sbcdp.flash(el); return null;").await?;
+        Ok(())
+    }
+
+    /// Outlines the first match in `color` (any CSS colour, such as `#44CC88`)
+    /// for `duration`, then restores its style.
+    ///
+    /// The outline is removed in the page; this returns at once. Python's
+    /// `flash(duration, color, pause)` waits `pause` seconds afterwards, which
+    /// here is a `tokio::time::sleep`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches in time.
+    pub async fn flash_with(
+        &self,
+        color: &str,
+        duration: Duration,
+    ) -> Result<(), SeleniumBaseError> {
+        self.wait_present().await?;
+        let color = serde_json::to_string(color)?;
+        let millis = duration.as_millis();
+        self.with_element(&format!(
+            "__sbcdp.flash(el, {color}, {millis}); return null;"
+        ))
+        .await?;
         Ok(())
     }
 
