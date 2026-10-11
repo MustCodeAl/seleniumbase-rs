@@ -366,6 +366,90 @@ async fn a_challenge_that_cannot_be_solved_gives_up_after_the_attempts_allowed()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_block_with_no_other_egress_starts_a_cooldown() {
+    let world = World::new().await;
+    let mut session = world.session().build().await.expect("a session");
+    let start = world.clock.load(std::sync::atomic::Ordering::SeqCst);
+
+    let error = session
+        .fetch(&world.site.url("/blocked"))
+        .await
+        .expect_err("blocked");
+
+    // The default policy leaves a blocked site alone for 900 s when it cannot change egress.
+    assert!(
+        matches!(
+            error,
+            StealthError::Scrape(ScrapeError::CoolingDown { until, .. }) if until == start + 900
+        ),
+        "{error:?}"
+    );
+    assert_eq!(
+        world.launcher.count(),
+        0,
+        "a block is not a challenge a browser solves"
+    );
+    session.close().await.expect("closes");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn challenges_in_a_row_climb_the_ladder_from_solving_to_a_new_egress_to_a_new_profile() {
+    let world = World::new().await;
+    world.launcher.never_solve();
+    let policy = SessionPolicy {
+        prefer: Mode::Browser,
+        ..SessionPolicy::default()
+    };
+    let mut session = world
+        .session()
+        .policy(policy)
+        .with_geo_proxies([
+            ("http://one.proxy.test:8080", crate::world::country("US")),
+            ("http://two.proxy.test:8080", crate::world::country("DE")),
+        ])
+        .expect("two proxies")
+        .with_max_challenge_attempts(6)
+        .solve_timeout(crate::world::BRIEF_SOLVE)
+        .build()
+        .await
+        .expect("a session");
+
+    let error = session
+        .fetch(&world.site.url("/"))
+        .await
+        .expect_err("nothing clears");
+
+    assert!(
+        matches!(
+            error,
+            StealthError::Scrape(ScrapeError::Unsolved { attempts: 6, .. })
+        ),
+        "{error:?}"
+    );
+    let count = |name: &str| world.names().iter().filter(|seen| **seen == name).count();
+    assert_eq!(
+        count("egress_rotated"),
+        1,
+        "the second challenge in a row changes the egress"
+    );
+    assert_eq!(
+        count("profile_rotated"),
+        3,
+        "from the third on, the profile"
+    );
+    assert_eq!(
+        world.launcher.count(),
+        5,
+        "the first browser, one more per rotation"
+    );
+    assert!(
+        world.changes().is_empty(),
+        "the session never left the browser"
+    );
+    session.close().await.expect("closes");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_rate_limited_site_is_left_alone_until_the_wait_is_over() {
     let world = World::new().await;
     let mut session = world.session().build().await.expect("a session");
