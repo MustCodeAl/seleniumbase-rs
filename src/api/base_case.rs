@@ -23,6 +23,7 @@ use crate::browser::config::BrowserConfig;
 use crate::browser::playwright::PlaywrightSession;
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
+use crate::js_code::quote;
 use crate::utils::selectors::Selector;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -1249,20 +1250,24 @@ impl BaseCase {
         key: &str,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let script = format!("window.localStorage.setItem('{}', '{}');", key, value);
+        let script = format!(
+            "window.localStorage.setItem({}, {});",
+            quote(key),
+            quote(value)
+        );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     /// Executes the `get_local_storage_item` action.
     pub async fn get_local_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
-        let script = format!("return window.localStorage.getItem('{}');", key);
+        let script = format!("return window.localStorage.getItem({});", quote(key));
         self.execute_script(&script).await
     }
 
     /// Executes the `remove_local_storage_item` action.
     pub async fn remove_local_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
-        let script = format!("window.localStorage.removeItem('{}');", key);
+        let script = format!("window.localStorage.removeItem({});", quote(key));
         self.execute_script(&script).await?;
         Ok(())
     }
@@ -1291,7 +1296,7 @@ impl BaseCase {
     /// Executes the `scroll_to` action.
     pub async fn scroll_to(&self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("scroll_to", Some(css), None);
-        let script = format!("document.querySelector('{}').scrollIntoView();", css);
+        let script = format!("document.querySelector({}).scrollIntoView();", quote(css));
         self.execute_script(&script).await?;
         Ok(())
     }
@@ -1378,7 +1383,7 @@ impl BaseCase {
     /// Executes the `js_click` action.
     pub async fn js_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("js_click", Some(css), None);
-        let script = format!("document.querySelector('{}').click();", css);
+        let script = format!("document.querySelector({}).click();", quote(css));
         self.execute_script(&script).await?;
         Ok(())
     }
@@ -1386,7 +1391,11 @@ impl BaseCase {
     /// Executes the `js_type` action.
     pub async fn js_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("js_type", Some(css), Some(text));
-        let script = format!("document.querySelector('{}').value = '{}';", css, text);
+        let script = format!(
+            "document.querySelector({}).value = {};",
+            quote(css),
+            quote(text)
+        );
         self.execute_script(&script).await?;
         Ok(())
     }
@@ -1404,8 +1413,10 @@ impl BaseCase {
             Some(&format!("{}={}", attribute, value)),
         );
         let script = format!(
-            "document.querySelector('{}').setAttribute('{}', '{}');",
-            css, attribute, value
+            "document.querySelector({}).setAttribute({}, {});",
+            quote(css),
+            quote(attribute),
+            quote(value)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1419,8 +1430,9 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         self.record("remove_attribute", Some(css), Some(attribute));
         let script = format!(
-            "document.querySelector('{}').removeAttribute('{}');",
-            css, attribute
+            "document.querySelector({}).removeAttribute({});",
+            quote(css),
+            quote(attribute)
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2723,3 +2735,5 @@ include!("base_case_impls/base_case_impl_presentations.rs");
 include!("base_case_impls/base_case_impl_jslibs.rs");
 include!("base_case_impls/base_case_impl_misc.rs");
 include!("base_case_impls/base_case_impl_parity.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_driver_tests.rs");
