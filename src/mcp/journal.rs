@@ -3,7 +3,8 @@
 //! The log is what `export_session_as_test` turns into a test and what
 //! `capture_debug_bundle` puts in a bug report. It keeps the last
 //! [`CAPACITY`] calls, each with its arguments (long text shortened) and a
-//! short note of how it ended.
+//! short note of how it ended. A bug report gets each call without the typed
+//! text and scripts, and without what a successful call returned.
 
 use std::collections::VecDeque;
 
@@ -49,6 +50,8 @@ pub(crate) struct CallRecord {
     pub(crate) ok: bool,
     /// The start of the result, or of the error.
     pub(crate) outcome: String,
+    /// How many characters the whole result, or error, had before `outcome` cut it.
+    outcome_chars: usize,
     /// When the call ended, as RFC 3339 local time.
     pub(crate) at: String,
 }
@@ -76,12 +79,15 @@ impl CallRecord {
             arguments,
             ok,
             outcome: kept,
+            outcome_chars: outcome.chars().count(),
             at: chrono::Local::now().to_rfc3339(),
         }
     }
 
     /// The record as JSON for a bug report: the values of arguments that may
-    /// hold secrets are replaced by their length.
+    /// hold secrets are replaced by their length, and so is the result of a call
+    /// that succeeded, which can be a cookie, a stored token or a page's text.
+    /// The error of a call that failed is kept, since it says what went wrong.
     pub(crate) fn redacted(&self) -> Value {
         let arguments: Map<String, Value> = self
             .arguments
@@ -100,7 +106,11 @@ impl CallRecord {
             "tool": self.tool,
             "arguments": arguments,
             "ok": self.ok,
-            "outcome": if self.ok { Value::String(self.outcome.clone()) } else { Value::Null },
+            "outcome": if self.ok {
+                Value::String(format!("[redacted, {} characters]", self.outcome_chars))
+            } else {
+                Value::Null
+            },
             "error": if self.ok { Value::Null } else { Value::String(self.outcome.clone()) },
             "at": self.at,
         })
@@ -181,6 +191,42 @@ mod tests {
         assert_eq!(typed["arguments"]["text"], "[redacted, 7 characters]");
         assert!(!typed.to_string().contains("hunter2"));
         assert!(!script.redacted().to_string().contains("token()"));
+    }
+
+    #[test]
+    fn a_bug_report_never_repeats_what_a_tool_returned() {
+        // A cookie, a storage value or a page's text can be a session token.
+        let cookies = r#"[{"name":"sid","value":"s3cret-session"}]"#;
+        let call = CallRecord::new("get_cookies", Effect::Observe, &Map::new(), true, cookies);
+        let report = call.redacted();
+        assert!(!report.to_string().contains("s3cret"), "{report}");
+        assert_eq!(report["ok"], true);
+        assert_eq!(report["tool"], "get_cookies");
+        assert_eq!(
+            report["outcome"],
+            format!("[redacted, {} characters]", cookies.chars().count())
+        );
+        assert_eq!(report["error"], Value::Null);
+
+        // The size is that of the whole result, not of the part the log kept.
+        let long = format!("{}s3cret-late", "z".repeat(5000));
+        let call = CallRecord::new("get_content", Effect::Observe, &Map::new(), true, &long);
+        assert_eq!(call.redacted()["outcome"], "[redacted, 5011 characters]");
+        assert_eq!(long.chars().count(), 5011);
+    }
+
+    #[test]
+    fn a_failed_call_keeps_its_error_in_a_bug_report() {
+        let call = CallRecord::new(
+            "click_element",
+            Effect::Act,
+            &Map::new(),
+            false,
+            "element not found: #buy",
+        );
+        let report = call.redacted();
+        assert_eq!(report["error"], "element not found: #buy");
+        assert_eq!(report["outcome"], Value::Null);
     }
 
     #[test]

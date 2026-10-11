@@ -470,6 +470,43 @@ async fn a_debug_bundle_holds_the_evidence_but_no_secrets() {
 }
 
 #[tokio::test]
+async fn a_debug_bundle_does_not_repeat_a_value_an_earlier_tool_returned() {
+    let dir = tempfile::tempdir().unwrap();
+    let (host, mock) = running(dir.path()).await;
+    script_page(&mock, json!([]), |op, _| match op {
+        "environment" => json!({ "url": "https://shop.test/", "title": "Shop" }),
+        "source" => json!({ "html": "<html></html>", "redacted_inputs": 0 }),
+        "console" => json!({ "recording": false, "entries": [] }),
+        "resources" => json!({ "supported": true, "failed": [] }),
+        _ => Value::Null,
+    });
+    mock.reply("Page.captureScreenshot", json!({ "data": "iVBORw0KGgo=" }));
+    mock.reply(
+        "Network.getAllCookies",
+        json!({ "cookies": [{ "name": "session", "value": "s3cret-cookie", "domain": "shop.test", "path": "/" }] }),
+    );
+
+    // The agent reads the cookies, as it does after logging in.
+    let cookies = json_of(&host, "manage_cookies", json!({ "action": "get_all" })).await;
+    assert!(
+        cookies.to_string().contains("s3cret-cookie"),
+        "the caller gets the value: {cookies}"
+    );
+
+    let saved = json_of(&host, "capture_debug_bundle", json!({ "name": "login" })).await;
+    let folder = Path::new(saved["folder"].as_str().unwrap());
+    let bundle = std::fs::read_to_string(folder.join("bundle.json")).unwrap();
+    assert!(
+        !bundle.contains("s3cret"),
+        "a cookie value from an earlier call leaked:\n{bundle}"
+    );
+    let bundle: Value = serde_json::from_str(&bundle).unwrap();
+    let recent = bundle["tool_calls"]["recent"].as_array().unwrap();
+    assert_eq!(recent[0]["tool"], "manage_cookies");
+    assert_eq!(recent[0]["ok"], true);
+}
+
+#[tokio::test]
 async fn the_session_is_exported_as_a_test_inside_the_output_directory() {
     let dir = tempfile::tempdir().unwrap();
     let (host, _mock) = running(dir.path()).await;

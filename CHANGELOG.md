@@ -139,3 +139,7 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - `ActionRecorder::to_gherkin` escapes the name of an action it cannot turn into
   a step, so a recorded name with a line break can no longer end the
   `# skipped:` comment and add a Scenario or steps to the feature.
+- `capture_debug_bundle` no longer copies what earlier tool calls returned into
+  `bundle.json`: the result of a successful call is replaced by its length, so a
+  cookie, a stored token or a page's text read by `get_cookies`,
+  `manage_cookies` or a storage tool is not saved with the bug report.
