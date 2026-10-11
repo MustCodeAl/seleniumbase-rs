@@ -1,0 +1,4 @@
+# Load the optional features so rust-analyzer links src/mcp, src/scrape and the test helpers
+# (without them it reports those files as "unlinked-file" and gives no diagnostics).
+[cargo]
+features = ["mcp-server", "test-util", "scrape"]
