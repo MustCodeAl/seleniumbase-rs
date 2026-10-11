@@ -124,17 +124,17 @@ pub(crate) fn wrap_records(message: &[u8], chunk: usize) -> Vec<u8> {
     out
 }
 
+/// A `ClientHello` handshake message: the four-byte header and `body`.
+pub(crate) fn handshake_message(body: &[u8]) -> Vec<u8> {
+    let len = u32::try_from(body.len()).expect("short body").to_be_bytes();
+    let mut message = vec![1, len[1], len[2], len[3]];
+    message.extend_from_slice(body);
+    message
+}
+
 /// Wraps a raw `ClientHello` body (no handshake header) in one record.
 pub(crate) fn record_of_body(body: &[u8]) -> Vec<u8> {
-    let len = body.len();
-    let mut message = vec![
-        1,
-        0,
-        u8::try_from(len >> 8).expect("short body"),
-        (len & 0xFF) as u8,
-    ];
-    message.extend_from_slice(body);
-    wrap_records(&message, usize::MAX)
+    wrap_records(&handshake_message(body), usize::MAX)
 }
 
 /// Assembles a `ClientHello` from a cipher list and a list of extensions with raw bodies.
@@ -211,15 +211,7 @@ impl HelloBuilder {
             block.extend(length16(data));
         }
         body.extend(length16(&block));
-        let len = body.len();
-        let mut message = vec![
-            1,
-            0,
-            u8::try_from(len >> 8).expect("short body"),
-            (len & 0xFF) as u8,
-        ];
-        message.extend(body);
-        message
+        handshake_message(&body)
     }
 
     /// The hello in a single record.

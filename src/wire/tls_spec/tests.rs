@@ -151,9 +151,18 @@ pub(super) fn sigalg(id: u16, name: &'static str) -> SpecError {
 
 type Mutation = fn(&mut TlsSpec);
 
+/// Applies each mutation to the base spec and expects the named error.
+fn assert_rejected(cases: Vec<(&str, Mutation, SpecError)>) {
+    for (label, mutate, want) in cases {
+        let mut spec = chrome();
+        mutate(&mut spec);
+        assert_eq!(spec.check_reproducible(), Err(want), "{label}");
+    }
+}
+
 #[test]
-fn rejects_what_boringssl_cannot_emit_with_a_named_error() {
-    let cases: Vec<(&str, Mutation, SpecError)> = vec![
+fn rejects_versions_ciphers_and_extensions_boringssl_cannot_emit() {
+    assert_rejected(vec![
         (
             "TLS 1.3 as the legacy version",
             |s| s.legacy_version = 0x0304,
@@ -239,6 +248,12 @@ fn rejects_what_boringssl_cannot_emit_with_a_named_error() {
             |s| s.extensions.push(0x0000),
             SpecError::DuplicateExtension(0),
         ),
+    ]);
+}
+
+#[test]
+fn rejects_groups_formats_signature_algorithms_and_alpn_boringssl_cannot_emit() {
+    assert_rejected(vec![
         (
             "x448",
             |s| s.supported_groups.push(0x001E),
@@ -314,12 +329,7 @@ fn rejects_what_boringssl_cannot_emit_with_a_named_error() {
             |s| s.alpn[0] = "x".repeat(256),
             SpecError::Alpn("x".repeat(256)),
         ),
-    ];
-    for (label, mutate, want) in cases {
-        let mut spec = chrome();
-        mutate(&mut spec);
-        assert_eq!(spec.check_reproducible(), Err(want), "{label}");
-    }
+    ]);
 }
 
 #[test]
@@ -373,7 +383,7 @@ fn rejects_an_extension_and_its_content_that_disagree() {
             "ALPS on the other codepoint",
             |s| {
                 if let Some(alps) = s.alps.as_mut() {
-                    alps.new_codepoint = true
+                    alps.new_codepoint = true;
                 }
             },
             0x44CD,
@@ -382,7 +392,7 @@ fn rejects_an_extension_and_its_content_that_disagree() {
             "ALPS without protocols",
             |s| {
                 if let Some(alps) = s.alps.as_mut() {
-                    alps.protocols.clear()
+                    alps.protocols.clear();
                 }
             },
             0x4469,

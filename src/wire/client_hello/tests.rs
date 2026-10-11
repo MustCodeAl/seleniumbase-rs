@@ -222,7 +222,7 @@ fn extension(id: u16, data: &[u8]) -> Vec<u8> {
 fn a_hello_without_an_extension_block_parses() {
     let hello = parse(&record_of_body(&minimal_body())).expect("a TLS 1.2 style hello parses");
     assert_eq!(hello.cipher_suites, vec![0x002F]);
-    assert!(hello.extensions.is_empty());
+    assert_eq!(hello.extensions, Vec::new());
     assert!(hello.sni.is_none() && hello.alpn.is_empty());
 }
 

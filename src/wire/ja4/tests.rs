@@ -199,10 +199,10 @@ fn raw_strings_parse_and_print_unchanged() {
 #[test]
 fn raw_strings_without_signature_algorithms_have_three_sections() {
     let raw = Ja4Raw::parse("t13d0101h2_1301_000a,000b").expect("parses");
-    assert!(raw.signature_algorithms.is_empty());
+    assert_eq!(raw.signature_algorithms, Vec::<u16>::new());
     assert_eq!(raw.to_string(), "t13d0101h2_1301_000a,000b");
     let gap = Ja4Raw::parse("t13d0101h2_1301__0403").expect("an empty extension section parses");
-    assert!(gap.extensions.is_empty());
+    assert_eq!(gap.extensions, Vec::<u16>::new());
     assert_eq!(gap.to_string(), "t13d0101h2_1301__0403");
 }
 
