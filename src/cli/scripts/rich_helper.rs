@@ -15,6 +15,15 @@
 //! The `format_*` functions are pure and are what the tests exercise; the
 //! `print_*` functions add the stream and the colour decision.
 //!
+//! A command that fails prints a report made by [`format_error_report`]:
+//!
+//! ```text
+//! error: element not found: #buy (strategy: css selector)
+//! hint: Nothing on the page matched the css selector `#buy` in time. ...
+//! ```
+//!
+//! and exits with [`exit_code_for`] the error, which follows its category.
+//!
 //! # Examples
 //!
 //! ```
@@ -24,12 +33,17 @@
 //! assert!(format_message(Level::Error, "failed", true).starts_with("\x1b[1;31m[ERROR]"));
 //! ```
 
+use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt::Write as _;
 use std::io::IsTerminal;
 
+use crate::error::SeleniumBaseError;
+
 const RESET: &str = "\x1b[0m";
 const BOLD_GREEN: &str = "\x1b[1;32m";
+const BOLD_RED: &str = "\x1b[1;31m";
+const BOLD_CYAN: &str = "\x1b[1;36m";
 
 /// What a message says about the run.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -195,6 +209,88 @@ pub fn print_error(text: &str) {
     );
 }
 
+/// Formats a failed command's error for a person reading a terminal or a log.
+///
+/// The first line is `error: ` and what failed. Each underlying cause follows
+/// on its own `caused by: ` line, leaving out a cause whose text the lines
+/// above already contain. Last comes `hint: ` with the likely cause and the
+/// fix, taken from the first of this crate's own errors in the chain. With
+/// `color` the `error` and `hint` labels are coloured, and the text is
+/// [sanitized](sanitize) either way.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::cli::scripts::rich_helper::format_error_report;
+/// use seleniumbase_rs::SeleniumBaseError;
+///
+/// let report = format_error_report(&SeleniumBaseError::element_not_found("#buy"), false);
+/// assert!(report.starts_with("error: element not found: #buy (strategy: css selector)\n"));
+/// assert!(report.contains("\nhint: "));
+/// ```
+#[must_use]
+pub fn format_error_report(error: &(dyn Error + 'static), color: bool) -> String {
+    let label = |name: &str, style: &str| {
+        if color && !style.is_empty() {
+            format!("{style}{name}:{RESET} ")
+        } else {
+            format!("{name}: ")
+        }
+    };
+    let summary = error.to_string();
+    let mut report = format!("{}{}\n", label("error", BOLD_RED), sanitize(&summary));
+    let mut said = vec![summary];
+    let mut cause = error.source();
+    while let Some(inner) = cause {
+        let text = inner.to_string();
+        if !text.is_empty() && !said.iter().any(|line| line.contains(&text)) {
+            let _ = writeln!(report, "  {}{}", label("caused by", ""), sanitize(&text));
+            said.push(text);
+        }
+        cause = inner.source();
+    }
+    if let Some(hint) = own_error(error).and_then(SeleniumBaseError::hint) {
+        let _ = writeln!(report, "{}{}", label("hint", BOLD_CYAN), sanitize(&hint));
+    }
+    report
+}
+
+/// The exit status for a command that failed with `error`.
+///
+/// The first of this crate's errors in the chain decides, through
+/// [`SeleniumBaseError::exit_code`]; otherwise an I/O error uses the same code
+/// as [`SeleniumBaseError::Io`], and anything else is 1.
+#[must_use]
+pub fn exit_code_for(error: &(dyn Error + 'static)) -> u8 {
+    if let Some(error) = own_error(error) {
+        error.exit_code()
+    } else if error.is::<std::io::Error>() {
+        SeleniumBaseError::Io(std::io::Error::other("")).exit_code()
+    } else {
+        1
+    }
+}
+
+/// The first [`SeleniumBaseError`] in `error`'s chain of causes, itself included.
+fn own_error<'a>(error: &'a (dyn Error + 'static)) -> Option<&'a SeleniumBaseError> {
+    let mut next = Some(error);
+    while let Some(current) = next {
+        if let Some(own) = current.downcast_ref::<SeleniumBaseError>() {
+            return Some(own);
+        }
+        next = current.source();
+    }
+    None
+}
+
+/// Prints [`format_error_report`] of `error` to standard error.
+pub fn print_error_report(error: &(dyn Error + 'static)) {
+    eprint!(
+        "{}",
+        format_error_report(error, use_color(Stream::Stderr))
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,6 +368,82 @@ mod tests {
     fn a_dumb_terminal_gets_no_colour() {
         assert!(!color_allowed(true, None, Some(OsStr::new("dumb"))));
         assert!(color_allowed(true, None, Some(OsStr::new("xterm"))));
+    }
+
+    #[test]
+    fn an_error_report_has_the_summary_the_causes_and_the_hint() {
+        let error = SeleniumBaseError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "settings.toml is missing",
+        ));
+
+        let report = format_error_report(&error, false);
+
+        let lines: Vec<&str> = report.lines().collect();
+        assert_eq!(lines[0], "error: I/O error: settings.toml is missing");
+        assert!(
+            !report.contains("caused by"),
+            "a cause the summary already says is not repeated:\n{report}"
+        );
+        assert!(lines[1].starts_with("hint: A file or directory"), "{report}");
+        assert_eq!(lines.len(), 2);
+    }
+
+    #[derive(Debug)]
+    struct Wrapped(SeleniumBaseError);
+
+    impl std::fmt::Display for Wrapped {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("could not open the page")
+        }
+    }
+
+    impl Error for Wrapped {
+        fn source(&self) -> Option<&(dyn Error + 'static)> {
+            Some(&self.0)
+        }
+    }
+
+    #[test]
+    fn a_cause_that_adds_something_gets_its_own_line() {
+        let error = Wrapped(SeleniumBaseError::navigation("https://a.test", "dns"));
+
+        let report = format_error_report(&error, false);
+
+        assert!(
+            report.contains("\n  caused by: navigation to 'https://a.test' failed: dns\n"),
+            "{report}"
+        );
+        assert!(
+            report.contains("\nhint: Check that 'https://a.test' is spelled right"),
+            "the hint comes from the crate's error further down:\n{report}"
+        );
+        assert_eq!(exit_code_for(&error), 5);
+    }
+
+    #[test]
+    fn a_coloured_report_colours_the_labels_and_defuses_the_text() {
+        let error = SeleniumBaseError::assertion_failed("title was \x1b[2Jowned");
+
+        let report = format_error_report(&error, true);
+
+        assert!(report.starts_with("\x1b[1;31merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"));
+        assert!(report.contains("\x1b[1;36mhint:\x1b[0m "), "{report:?}");
+        assert_eq!(report.matches('\x1b').count(), 4, "{report:?}");
+    }
+
+    #[test]
+    fn the_exit_code_follows_the_error_category() {
+        assert_eq!(
+            exit_code_for(&SeleniumBaseError::element_not_found("#x")),
+            3
+        );
+        assert_eq!(
+            exit_code_for(&std::io::Error::from(std::io::ErrorKind::NotFound)),
+            6
+        );
+        let other: Box<dyn Error> = "plain text".into();
+        assert_eq!(exit_code_for(other.as_ref()), 1);
     }
 
     #[test]

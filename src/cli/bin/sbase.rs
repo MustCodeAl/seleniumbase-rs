@@ -1115,8 +1115,10 @@ async fn main() -> std::process::ExitCode {
     match execute().await {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
-            rich_helper::print_error(&error.to_string());
-            std::process::ExitCode::FAILURE
+            // `error:`, its causes and a `hint:`, and an exit status that
+            // says which kind of failure it was (see `exit_code_for`).
+            rich_helper::print_error_report(error.as_ref());
+            std::process::ExitCode::from(rich_helper::exit_code_for(error.as_ref()))
         }
     }
 }

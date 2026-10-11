@@ -63,22 +63,50 @@ fn the_long_help_starts_with_the_banner() {
 }
 
 #[test]
-fn a_failure_is_reported_with_an_error_tag_and_a_failing_exit_code() {
+fn a_failure_is_reported_with_an_error_label_and_a_failing_exit_code() {
     let output = sbase(&["--cdp", "--uc", "open", "https://example.test"])
         .output()
         .expect("sbase runs");
 
     assert_eq!(output.status.code(), Some(1));
     assert!(
-        stderr(&output).contains("[ERROR] Choose either --cdp or --uc, not both."),
+        stderr(&output).contains("error: Choose either --cdp or --uc, not both.\n"),
         "{}",
         stderr(&output)
+    );
+    assert!(
+        !stderr(&output).contains("hint:"),
+        "a plain message has no hint to give"
     );
     assert!(
         !stderr(&output).contains('\x1b'),
         "no colour when stderr is not a terminal"
     );
     assert!(stdout(&output).is_empty());
+}
+
+#[test]
+fn a_crate_error_says_what_to_do_and_exits_with_its_category() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let missing = dir.path().join("no_such_settings.json");
+
+    let output = sbase(&[
+        "--config",
+        missing.to_str().expect("a UTF-8 path"),
+        "open",
+        "https://example.test",
+    ])
+    .output()
+    .expect("sbase runs");
+
+    let stderr = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "bad input exits 2:\n{stderr}");
+    assert!(
+        stderr.contains("error: invalid configuration: failed to read settings:"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("\nhint: Review the configuration"), "{stderr}");
+    assert!(!stderr.contains("[ERROR]"), "{stderr}");
 }
 
 fn doctor_in(dir: &std::path::Path, chromedriver_path: Option<&str>) -> String {
