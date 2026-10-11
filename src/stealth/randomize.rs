@@ -383,65 +383,72 @@ static IPHONE_SCREENS: [Screen; 6] = [
     Screen::new(430, 932, 3.0),
 ];
 
-/// A place: a locale, the time zone it is spoken in, and a city in that zone.
-#[derive(Clone, Copy, Debug)]
-struct Region {
-    /// `navigator.language`, such as `de-DE`.
-    locale: &'static str,
+/// A place a generated identity may be in: a locale, its country, the time zone it is spoken
+/// in, and a city in that zone. The table is [`LOCALES`]; the scrape layer's geo code reads it too.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Locale {
+    /// The BCP 47 tag that `navigator.language` reports, such as `de-DE`.
+    pub tag: &'static str,
+    /// The ISO 3166-1 alpha-2 country code, upper case.
+    pub country: &'static str,
     /// The IANA time zone.
-    timezone: &'static str,
-    latitude: f64,
-    longitude: f64,
+    pub timezone: &'static str,
+    /// Latitude of the city centre, in degrees.
+    pub latitude: f64,
+    /// Longitude of the city centre, in degrees.
+    pub longitude: f64,
 }
 
-impl Region {
+impl Locale {
     const fn new(
-        locale: &'static str,
+        tag: &'static str,
+        country: &'static str,
         timezone: &'static str,
         latitude: f64,
         longitude: f64,
     ) -> Self {
         Self {
-            locale,
+            tag,
+            country,
             timezone,
             latitude,
             longitude,
         }
     }
 
-    /// `navigator.languages` and `Accept-Language`, most preferred first, in the
-    /// shape Chrome sends them: the locale, its bare language, then English.
-    fn languages(&self) -> String {
-        let locale = self.locale;
-        let language = locale.split('-').next().unwrap_or(locale);
+    /// `navigator.languages` and `Accept-Language`, most preferred first, in the shape Chrome
+    /// sends them: the tag, its bare language, then English.
+    #[must_use]
+    pub fn accept_language(&self) -> String {
+        let language = self.tag.split('-').next().unwrap_or(self.tag);
         if language == "en" {
-            format!("{locale},en;q=0.9")
+            format!("{},en;q=0.9", self.tag)
         } else {
-            format!("{locale},{language};q=0.9,en-US;q=0.8,en;q=0.7")
+            format!("{},{language};q=0.9,en-US;q=0.8,en;q=0.7", self.tag)
         }
     }
 }
 
-/// The places a generated identity may be in. The US appears once per time zone
-/// so that it is the most common, as it is on the web.
-static REGIONS: [Region; 17] = [
-    Region::new("en-US", "America/New_York", 40.7128, -74.0060),
-    Region::new("en-US", "America/Chicago", 41.8781, -87.6298),
-    Region::new("en-US", "America/Denver", 39.7392, -104.9903),
-    Region::new("en-US", "America/Los_Angeles", 34.0522, -118.2437),
-    Region::new("en-GB", "Europe/London", 51.5074, -0.1278),
-    Region::new("en-CA", "America/Toronto", 43.6532, -79.3832),
-    Region::new("en-AU", "Australia/Sydney", -33.8688, 151.2093),
-    Region::new("en-IN", "Asia/Kolkata", 19.0760, 72.8777),
-    Region::new("de-DE", "Europe/Berlin", 52.5200, 13.4050),
-    Region::new("fr-FR", "Europe/Paris", 48.8566, 2.3522),
-    Region::new("es-ES", "Europe/Madrid", 40.4168, -3.7038),
-    Region::new("it-IT", "Europe/Rome", 41.9028, 12.4964),
-    Region::new("nl-NL", "Europe/Amsterdam", 52.3676, 4.9041),
-    Region::new("pt-BR", "America/Sao_Paulo", -23.5505, -46.6333),
-    Region::new("ja-JP", "Asia/Tokyo", 35.6762, 139.6503),
-    Region::new("pl-PL", "Europe/Warsaw", 52.2297, 21.0122),
-    Region::new("sv-SE", "Europe/Stockholm", 59.3293, 18.0686),
+/// The places a generated identity may be in. The US appears once per time zone so that it is
+/// the most common, as it is on the web.
+pub static LOCALES: [Locale; 17] = [
+    Locale::new("en-US", "US", "America/New_York", 40.7128, -74.0060),
+    Locale::new("en-US", "US", "America/Chicago", 41.8781, -87.6298),
+    Locale::new("en-US", "US", "America/Denver", 39.7392, -104.9903),
+    Locale::new("en-US", "US", "America/Los_Angeles", 34.0522, -118.2437),
+    Locale::new("en-GB", "GB", "Europe/London", 51.5074, -0.1278),
+    Locale::new("en-CA", "CA", "America/Toronto", 43.6532, -79.3832),
+    Locale::new("en-AU", "AU", "Australia/Sydney", -33.8688, 151.2093),
+    Locale::new("en-IN", "IN", "Asia/Kolkata", 19.0760, 72.8777),
+    Locale::new("de-DE", "DE", "Europe/Berlin", 52.5200, 13.4050),
+    Locale::new("fr-FR", "FR", "Europe/Paris", 48.8566, 2.3522),
+    Locale::new("es-ES", "ES", "Europe/Madrid", 40.4168, -3.7038),
+    Locale::new("it-IT", "IT", "Europe/Rome", 41.9028, 12.4964),
+    Locale::new("nl-NL", "NL", "Europe/Amsterdam", 52.3676, 4.9041),
+    Locale::new("pt-BR", "BR", "America/Sao_Paulo", -23.5505, -46.6333),
+    Locale::new("ja-JP", "JP", "Asia/Tokyo", 35.6762, 139.6503),
+    Locale::new("pl-PL", "PL", "Europe/Warsaw", 52.2297, 21.0122),
+    Locale::new("sv-SE", "SE", "Europe/Stockholm", 59.3293, 18.0686),
 ];
 
 /// How far a reported position may sit from the city centre, in degrees
@@ -497,16 +504,19 @@ struct Profile {
 }
 
 /// Builds an identity for `os` that is fully determined by `seed`.
-pub(super) fn generate(os: OsType, seed: u64) -> Fingerprint {
+/// Builds an identity for `os` that is fully determined by `seed`. With `forced_major`, the
+/// Chromium major is that value instead of a draw; the draw still happens, so the rest of the
+/// identity is the same as for the unforced seed.
+pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fingerprint {
     let mut rng = Rng::new(seed);
     // The noise seed gets a draw of its own, so it is not simply the caller's seed.
     let noise_seed = rng.next_u64();
-    let region = *rng.pick(&REGIONS);
+    let region = *rng.pick(&LOCALES);
     let profile = match os {
-        OsType::Windows => windows(&mut rng),
-        OsType::Macos => macos(&mut rng),
-        OsType::Linux => linux(&mut rng),
-        OsType::Android => android(&mut rng),
+        OsType::Windows => windows(&mut rng, forced_major),
+        OsType::Macos => macos(&mut rng, forced_major),
+        OsType::Linux => linux(&mut rng, forced_major),
+        OsType::Android => android(&mut rng, forced_major),
         OsType::Ios => ios(&mut rng),
     };
 
@@ -517,7 +527,7 @@ pub(super) fn generate(os: OsType, seed: u64) -> Fingerprint {
         region.longitude + rng.range(-POSITION_JITTER_DEGREES, POSITION_JITTER_DEGREES),
     );
     let accuracy = rng.range(20.0, 150.0).round();
-    let languages = region.languages();
+    let languages = region.accept_language();
 
     Fingerprint {
         browser_type: profile.browser_type,
@@ -529,7 +539,7 @@ pub(super) fn generate(os: OsType, seed: u64) -> Fingerprint {
         device_memory: profile.memory_gb,
         max_touch_points: Some(profile.touch_points),
         vendor: Some(profile.vendor.to_owned()),
-        locale: Some(region.locale.to_owned()),
+        locale: Some(region.tag.to_owned()),
         accept_languages: Some(languages.clone()),
         languages: Some(languages),
         timezone: Some(region.timezone.to_owned()),
@@ -556,8 +566,15 @@ fn round_degrees(degrees: f64) -> f64 {
     (degrees * 10_000.0).round() / 10_000.0
 }
 
-fn windows(rng: &mut Rng) -> Profile {
-    let major = *rng.pick(&CHROMIUM_MAJORS);
+/// The Chromium major for a profile: the forced one when given, else a draw. The draw always
+/// happens, so that a forced identity keeps every other field of its seed.
+fn chromium_major(rng: &mut Rng, forced: Option<u32>) -> u32 {
+    let drawn = *rng.pick(&CHROMIUM_MAJORS);
+    forced.unwrap_or(drawn)
+}
+
+fn windows(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
+    let major = chromium_major(rng, forced_major);
     let adapter = rng.pick(&WINDOWS_ADAPTERS);
     let spec = adapter.tier.spec();
     let maker = adapter.vendor.direct3d_name();
@@ -587,8 +604,8 @@ fn windows(rng: &mut Rng) -> Profile {
     }
 }
 
-fn macos(rng: &mut Rng) -> Profile {
-    let major = *rng.pick(&CHROMIUM_MAJORS);
+fn macos(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
+    let major = chromium_major(rng, forced_major);
     let model = rng.pick(&MAC_MODELS);
     let client_hints = ClientHints {
         platform: "macOS".to_owned(),
@@ -627,8 +644,8 @@ fn macos(rng: &mut Rng) -> Profile {
     }
 }
 
-fn linux(rng: &mut Rng) -> Profile {
-    let major = *rng.pick(&CHROMIUM_MAJORS);
+fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
+    let major = chromium_major(rng, forced_major);
     let adapter = rng.pick(&LINUX_ADAPTERS);
     let spec = adapter.tier.spec();
     let maker = adapter.vendor.opengl_name();
@@ -655,8 +672,8 @@ fn linux(rng: &mut Rng) -> Profile {
     }
 }
 
-fn android(rng: &mut Rng) -> Profile {
-    let major = *rng.pick(&CHROMIUM_MAJORS);
+fn android(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
+    let major = chromium_major(rng, forced_major);
     let device = rng.pick(&ANDROID_DEVICES);
     let client_hints = ClientHints {
         platform: "Android".to_owned(),
@@ -880,28 +897,42 @@ mod tests {
         assert_distinct(&macs, "MAC_MODELS");
         let phones: Vec<_> = ANDROID_DEVICES.iter().map(|d| d.model).collect();
         assert_distinct(&phones, "ANDROID_DEVICES");
-        let places: Vec<_> = REGIONS.iter().map(|r| r.timezone).collect();
-        assert_distinct(&places, "REGIONS");
+        let places: Vec<_> = LOCALES.iter().map(|r| r.timezone).collect();
+        assert_distinct(&places, "LOCALES");
     }
 
     #[test]
     fn languages_take_the_shape_chrome_sends() {
-        let region = |locale| Region::new(locale, "Zone/Name", 0.0, 0.0);
-        assert_eq!(region("en-US").languages(), "en-US,en;q=0.9");
-        assert_eq!(region("en-GB").languages(), "en-GB,en;q=0.9");
+        let region = |tag| Locale::new(tag, "XX", "Zone/Name", 0.0, 0.0);
+        assert_eq!(region("en-US").accept_language(), "en-US,en;q=0.9");
+        assert_eq!(region("en-GB").accept_language(), "en-GB,en;q=0.9");
         assert_eq!(
-            region("de-DE").languages(),
+            region("de-DE").accept_language(),
             "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7"
         );
     }
 
     #[test]
+    fn a_forced_major_changes_the_version_and_keeps_the_rest_of_the_seed() {
+        let free = generate(OsType::Windows, 9, None);
+        let pinned = generate(OsType::Windows, 9, Some(155));
+        assert_eq!(pinned.core_version, Some(155));
+        assert!(pinned
+            .user_agent
+            .as_deref()
+            .is_some_and(|ua| ua.contains("Chrome/155.")));
+        assert_eq!(free.screen_width, pinned.screen_width);
+        assert_eq!(free.latitude, pinned.latitude);
+        assert_eq!(free.seed, pinned.seed);
+    }
+
+    #[test]
     fn every_region_is_internally_consistent() {
-        for region in &REGIONS {
+        for region in &LOCALES {
             assert!(
-                region.languages().starts_with(region.locale),
+                region.accept_language().starts_with(region.tag),
                 "{} must lead its own language list",
-                region.locale
+                region.tag
             );
             assert!(
                 region.timezone.contains('/'),
@@ -944,7 +975,7 @@ mod tests {
             OsType::Android,
             OsType::Ios,
         ] {
-            let fp = generate(os, 1);
+            let fp = generate(os, 1, None);
             assert_eq!(fp.os_type, os);
             assert!(fp.validate().is_coherent());
         }
@@ -952,7 +983,7 @@ mod tests {
 
     #[test]
     fn the_noise_seed_is_not_the_callers_seed() {
-        assert_ne!(generate(OsType::Windows, 0).seed, Some(0));
-        assert_ne!(generate(OsType::Windows, 42).seed, Some(42));
+        assert_ne!(generate(OsType::Windows, 0, None).seed, Some(0));
+        assert_ne!(generate(OsType::Windows, 42, None).seed, Some(42));
     }
 }

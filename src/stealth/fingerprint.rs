@@ -512,6 +512,12 @@ pub struct ClientHints {
     pub model: String,
     pub ua_full_version: String,
     pub mobile: bool,
+    /// Whether the browser runs as a 32-bit process on a 64-bit system (`Sec-CH-UA-WoW64`).
+    #[serde(default)]
+    pub wow64: bool,
+    /// Client Hints form factors, such as `Desktop` or `Mobile` (`Sec-CH-UA-Form-Factors`).
+    #[serde(default)]
+    pub form_factors: Vec<String>,
 }
 
 /// Humanized input-timing configuration.
@@ -897,7 +903,15 @@ impl Fingerprint {
     ///   system does not change the binary's real behaviour.
     #[must_use]
     pub fn randomized(os: OsType, seed: u64) -> Self {
-        super::randomize::generate(os, seed)
+        super::randomize::generate(os, seed, None)
+    }
+
+    /// Like [`Fingerprint::randomized`], but with the Chromium major fixed to `major`, so the
+    /// user agent and Client Hints claim the release that the measured TLS and HTTP/2 of the
+    /// identity come from. Safari and iOS have no Chromium major and ignore `major`.
+    #[must_use]
+    pub fn randomized_with_major(os: OsType, seed: u64, major: u32) -> Self {
+        super::randomize::generate(os, seed, Some(major))
     }
 
     /// Returns the tracker host block list, defaulting to
@@ -1006,6 +1020,7 @@ impl Fingerprint {
                 model: "iPhone".to_owned(),
                 ua_full_version: "17.4.1".to_owned(),
                 mobile: true,
+                ..ClientHints::default()
             })
             .flags(StealthFlags::balanced())
             .build()

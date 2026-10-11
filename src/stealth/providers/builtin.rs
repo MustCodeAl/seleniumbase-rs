@@ -1805,6 +1805,7 @@ mod tests {
             model: String::new(),
             ua_full_version: "124.0.0.0".to_owned(),
             mobile: false,
+            ..ClientHints::default()
         });
         fp
     }
