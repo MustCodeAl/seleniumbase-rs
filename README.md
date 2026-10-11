@@ -514,12 +514,15 @@ status: 862 implemented, 374 composed from existing Rust calls, 112 not
 applicable with a reason, and 17 still planned
 ([docs/parity.md](./docs/parity.md)). An audit of the entries marked done fixed
 or re-marked 26 that did less than the Python method. The composed and
-not-applicable entries are still to be independently reviewed, and most
-behaviour is verified against a
-mock or unit tests rather than a real browser. [ROADMAP.md](./ROADMAP.md) lists
-what is done and what is missing (for the stealth scraping work: the review
-fixes, the final gates, and measuring more browsers and systems) and
-[CHANGELOG.md](./CHANGELOG.md) what changed. The crate needs Rust 1.99; the default test run has 1,600 passing tests.
+not-applicable entries have only been sampled, not independently reviewed, and
+most behaviour is verified against a mock or unit tests rather than a real
+browser (the 17 real-Chrome test binaries, run on Chrome 155 on macOS, are
+`#[ignore]`d and run on request). [ROADMAP.md](./ROADMAP.md) lists what is done
+and what is missing (for the stealth scraping layer, which is written and gated:
+measuring more browsers and systems than Chrome 155 on macOS, headed runs, and
+WebSocket through the proxy) and [CHANGELOG.md](./CHANGELOG.md) what changed. The
+crate needs Rust 1.99; a test run with the `scrape` feature has about 2,500
+passing tests.
 Work is continuously pushed to two locations:
 
 - Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
