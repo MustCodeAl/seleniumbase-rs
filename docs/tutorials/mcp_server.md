@@ -193,8 +193,13 @@ its rule, severity, message and a selector. Arguments: `severity` (`all` or
 Writes a folder under `debug_bundles/` in the output directory with
 `screenshot.png`, `page.html` (values of password and hidden inputs replaced)
 and `bundle.json`: URL, title, viewport, user agent, console messages, failed
-requests, cookie and storage *names* (never values), and the last tool calls
-(typed text, scripts and proxy settings replaced by their length). Arguments:
+requests, cookie and storage *names* (never values), and the last tool calls.
+In those calls the arguments that can hold a secret (`text`, `value`,
+`password`, `secret`, `token`, `totp_key`, `expression`, `script` and `proxy`)
+are replaced by their length, and so is the result of every call that
+succeeded: it reads `[redacted, N characters]`, so what `get_cookies`,
+`manage_cookies` or a storage tool returned is not saved with the report. A call
+that failed keeps its error text, since that says what went wrong. Arguments:
 `name` (a label; only letters, digits, `-` and `_` are kept), `calls` (how many
 recent calls, default 20).
 
@@ -250,8 +255,8 @@ These tools let a model drive a real browser as you.
   from this machine's network.
 - `patch_chromedriver` (in `sb`) modifies a binary on disk.
 - `capture_debug_bundle` saves a screenshot and the page's markup, which can show
-  personal data; values of password and hidden inputs, cookies and storage are
-  left out. `export_session_as_test` writes the text the model typed into the
+  personal data; values of password and hidden inputs, cookies and storage, and
+  the results of earlier tool calls are left out. `export_session_as_test` writes the text the model typed into the
   test, since the test must type it again.
 
 Only connect clients you trust, and prefer a throwaway browser profile.
