@@ -629,8 +629,9 @@ impl SeleniumBaseError {
                  Chromium-based browser; reading one needs a valid file, and its password if it \
                  is encrypted."
                 .to_owned(),
-            Self::Authentication(_) => "Check credentials, TOTP seed, and clock skew for MFA."
-                .to_owned(),
+            Self::Authentication(_) => {
+                "Check credentials, TOTP seed, and clock skew for MFA.".to_owned()
+            }
             Self::Mcp { tool, .. } => {
                 format!("Inspect the MCP tool '{tool}' arguments and server logs.")
             }
@@ -693,10 +694,8 @@ pub(crate) fn selector_advice(selector: &str) -> Option<String> {
         return Some("The selector is empty.".to_owned());
     }
     if let Some((prefix, rest)) = trimmed.split_once('=') {
-        let is_word = !prefix.is_empty()
-            && prefix
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c == '_');
+        let is_word =
+            !prefix.is_empty() && prefix.chars().all(|c| c.is_ascii_lowercase() || c == '_');
         let known = KNOWN_PREFIXES
             .iter()
             .any(|known| known.trim_end_matches('=') == prefix);
@@ -734,7 +733,10 @@ pub(crate) fn selector_advice(selector: &str) -> Option<String> {
     }
     use crate::utils::selectors::{is_xpath_selector, Selector};
     // Link text is plain text: brackets and quotes in it mean nothing.
-    if !matches!(Selector::auto(trimmed), Selector::Css(_) | Selector::XPath(_)) {
+    if !matches!(
+        Selector::auto(trimmed),
+        Selector::Css(_) | Selector::XPath(_)
+    ) {
         return None;
     }
     let looks_like_xpath = trimmed.contains("[@") || trimmed.contains("text()");
@@ -887,9 +889,7 @@ fn io_hint(kind: std::io::ErrorKind) -> &'static str {
         ErrorKind::AlreadyExists => {
             "A file is already there. Choose another name, or remove the old file first."
         }
-        _ => {
-            "A read or write failed. Check the path, the free disk space and the permissions."
-        }
+        _ => "A read or write failed. Check the path, the free disk space and the permissions.",
     }
 }
 
@@ -1072,7 +1072,11 @@ mod tests {
     #[test]
     fn a_likely_mistake_in_a_selector_is_pointed_out() {
         let advice = |selector: &str| selector_advice(selector).unwrap_or_default();
-        assert!(advice("lnk=Home").contains("`link=Home`"), "{}", advice("lnk=Home"));
+        assert!(
+            advice("lnk=Home").contains("`link=Home`"),
+            "{}",
+            advice("lnk=Home")
+        );
         assert!(advice("css=#a").contains("Drop the `css=` prefix"));
         assert!(advice("xpath=//a").contains("Drop the `xpath=` prefix"));
         assert!(advice("id=main").contains("`#main`"));
@@ -1080,7 +1084,13 @@ mod tests {
         assert!(advice("div[@id='x']").contains("`//div[@id='x']`"));
         assert!(advice("#a[").contains("not balanced"));
         assert!(advice("  ").contains("empty"));
-        for fine in ["#ok", "a[href='x']", "//a[@id='(']", "link=Foo (bar", "input[name=q]"] {
+        for fine in [
+            "#ok",
+            "a[href='x']",
+            "//a[@id='(']",
+            "link=Foo (bar",
+            "input[name=q]",
+        ] {
             assert_eq!(selector_advice(fine), None, "{fine}");
         }
     }
@@ -1090,7 +1100,10 @@ mod tests {
         let hint = SeleniumBaseError::element_not_found("lnk=Home")
             .hint()
             .unwrap();
-        assert!(hint.contains("lnk=Home") && hint.contains("`link=Home`"), "{hint}");
+        assert!(
+            hint.contains("lnk=Home") && hint.contains("`link=Home`"),
+            "{hint}"
+        );
     }
 
     #[test]
@@ -1107,12 +1120,20 @@ mod tests {
     #[test]
     fn hints_follow_what_the_backend_said() {
         let hint = |error: SeleniumBaseError| error.hint().unwrap();
-        assert!(hint(SeleniumBaseError::cdp_driver("Execution context was destroyed"))
-            .contains("navigated away"));
-        assert!(hint(SeleniumBaseError::cdp_driver("ReferenceError: x is not defined"))
-            .contains("script threw"));
-        assert!(hint(SeleniumBaseError::network("https://a.test", 403, "no")).contains("credentials"));
-        assert!(hint(SeleniumBaseError::network("https://a.test", 503, "no")).contains("Server error"));
+        assert!(hint(SeleniumBaseError::cdp_driver(
+            "Execution context was destroyed"
+        ))
+        .contains("navigated away"));
+        assert!(hint(SeleniumBaseError::cdp_driver(
+            "ReferenceError: x is not defined"
+        ))
+        .contains("script threw"));
+        assert!(
+            hint(SeleniumBaseError::network("https://a.test", 403, "no")).contains("credentials")
+        );
+        assert!(
+            hint(SeleniumBaseError::network("https://a.test", 503, "no")).contains("Server error")
+        );
         assert!(hint(SeleniumBaseError::Io(std::io::Error::from(
             std::io::ErrorKind::NotFound
         )))

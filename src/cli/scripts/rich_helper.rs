@@ -285,10 +285,7 @@ fn own_error<'a>(error: &'a (dyn Error + 'static)) -> Option<&'a SeleniumBaseErr
 
 /// Prints [`format_error_report`] of `error` to standard error.
 pub fn print_error_report(error: &(dyn Error + 'static)) {
-    eprint!(
-        "{}",
-        format_error_report(error, use_color(Stream::Stderr))
-    );
+    eprint!("{}", format_error_report(error, use_color(Stream::Stderr)));
 }
 
 #[cfg(test)]
@@ -385,7 +382,10 @@ mod tests {
             !report.contains("caused by"),
             "a cause the summary already says is not repeated:\n{report}"
         );
-        assert!(lines[1].starts_with("hint: A file or directory"), "{report}");
+        assert!(
+            lines[1].starts_with("hint: A file or directory"),
+            "{report}"
+        );
         assert_eq!(lines.len(), 2);
     }
 
@@ -427,7 +427,8 @@ mod tests {
 
         let report = format_error_report(&error, true);
 
-        assert!(report.starts_with("\x1b[1;31merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"));
+        assert!(report
+            .starts_with("\x1b[1;31merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"));
         assert!(report.contains("\x1b[1;36mhint:\x1b[0m "), "{report:?}");
         assert_eq!(report.matches('\x1b').count(), 4, "{report:?}");
     }

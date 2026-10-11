@@ -100,12 +100,19 @@ fn a_crate_error_says_what_to_do_and_exits_with_its_category() {
     .expect("sbase runs");
 
     let stderr = stderr(&output);
-    assert_eq!(output.status.code(), Some(2), "bad input exits 2:\n{stderr}");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "bad input exits 2:\n{stderr}"
+    );
     assert!(
         stderr.contains("error: invalid configuration: failed to read settings:"),
         "{stderr}"
     );
-    assert!(stderr.contains("\nhint: Review the configuration"), "{stderr}");
+    assert!(
+        stderr.contains("\nhint: Review the configuration"),
+        "{stderr}"
+    );
     assert!(!stderr.contains("[ERROR]"), "{stderr}");
 }
 
