@@ -486,9 +486,12 @@ comments for manual review.
 
 ## Project status
 
-The initial Rust port plan is complete. The crate builds and tests cleanly on
-stable Rust with all feature flags enabled. Work is continuously pushed to two
-locations:
+The initial Rust port plan is complete, and the upgrade to feature parity with
+Python SeleniumBase 4.55.2 is under way: [ROADMAP.md](./ROADMAP.md) lists what
+is done and what is missing, [CHANGELOG.md](./CHANGELOG.md) what changed, and
+[docs/parity.md](./docs/parity.md) the status of every upstream API. The crate
+needs Rust 1.99 and builds and tests cleanly on stable Rust. Work is
+continuously pushed to two locations:
 
 - Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
 - Crate-only orphan branch: `MustCodeAl/seleniumbase-rs/main`
