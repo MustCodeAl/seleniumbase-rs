@@ -1,4 +1,15 @@
-# Load the optional features so rust-analyzer links src/mcp, src/scrape and the test helpers
-# (without them it reports those files as "unlinked-file" and gives no diagnostics).
+# rust-analyzer settings for this repository (read by the editor and by the Rust MCP).
+#
+# Features: without them src/mcp, src/scrape and the test helpers are "unlinked-file" and
+# get no diagnostics.
+# targetDir: check into <target>/rust-analyzer, so analysis never waits on the cargo build lock
+# that builds and test runs hold in <target>.
+# cachePriming/numThreads: keep memory and CPU low on an 8 GB machine that is also compiling.
+numThreads = 2
+
 [cargo]
 features = ["mcp-server", "test-util", "scrape"]
+targetDir = true
+
+[cachePriming]
+enable = false
