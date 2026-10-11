@@ -1048,6 +1048,14 @@ fn report_created(outcome: Result<Vec<PathBuf>, ScaffoldError>) {
     }
 }
 
+/// `error` with what the command was doing in front of its message.
+///
+/// The result is an I/O error of the same kind, so `main` still gives it the
+/// exit status of a failed local file operation.
+fn context(doing: &str, error: std::io::Error) -> std::io::Error {
+    std::io::Error::new(error.kind(), format!("failed to {doing}: {error}"))
+}
+
 async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
@@ -1989,34 +1997,43 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             );
             std::process::exit(2);
         }
-        Commands::Caseplans => match sb_caseplans::run_caseplans() {
-            Ok(path) => println!("Generated {}", path.display()),
-            Err(e) => eprintln!("Failed to generate case plans: {}", e),
-        },
-        Commands::BehaveGui => match sb_behave_gui::run_gui() {
-            Ok(path) => println!("Created BDD feature file at {}", path.display()),
-            Err(e) => eprintln!("Failed to create BDD feature file: {}", e),
-        },
-        Commands::Print { file } => match sb_print::print_file(&file) {
-            Ok(content) => println!("{}", content),
-            Err(e) => eprintln!("Failed to read file {}: {}", file, e),
-        },
-        Commands::Objectify => match sb_objectify::objectify_page() {
-            Ok(path) => println!("Generated {}", path.display()),
-            Err(e) => eprintln!("Failed to generate page object: {}", e),
-        },
-        Commands::Mkpres { file } => match sb_mkpres::make_presentation(&file) {
-            Ok(path) => println!("Created presentation at {}", path.display()),
-            Err(e) => eprintln!("Failed to create presentation: {}", e),
-        },
-        Commands::Mkchart { file } => match sb_mkchart::make_chart(&file) {
-            Ok(path) => println!("Created chart at {}", path.display()),
-            Err(e) => eprintln!("Failed to create chart: {}", e),
-        },
-        Commands::Mkrec { file } => match sb_recorder::make_recorder_file(&file) {
-            Ok(path) => println!("Created recorder file at {}", path.display()),
-            Err(e) => eprintln!("Failed to create recorder file: {}", e),
-        },
+        // The file-writing commands below hand their error to `main`, which
+        // prints `error: ...` and exits with the status of its kind (6 for a
+        // local file), instead of printing it here and exiting with 0.
+        Commands::Caseplans => {
+            let path =
+                sb_caseplans::run_caseplans().map_err(|e| context("generate case plans", e))?;
+            println!("Generated {}", path.display());
+        }
+        Commands::BehaveGui => {
+            let path =
+                sb_behave_gui::run_gui().map_err(|e| context("create the BDD feature file", e))?;
+            println!("Created BDD feature file at {}", path.display());
+        }
+        Commands::Print { file } => {
+            let content =
+                sb_print::print_file(&file).map_err(|e| context(&format!("read {file}"), e))?;
+            println!("{}", content);
+        }
+        Commands::Objectify => {
+            let path = sb_objectify::objectify_page()
+                .map_err(|e| context("generate the page object", e))?;
+            println!("Generated {}", path.display());
+        }
+        Commands::Mkpres { file } => {
+            let path = sb_mkpres::make_presentation(&file)
+                .map_err(|e| context("create the presentation", e))?;
+            println!("Created presentation at {}", path.display());
+        }
+        Commands::Mkchart { file } => {
+            let path = sb_mkchart::make_chart(&file).map_err(|e| context("create the chart", e))?;
+            println!("Created chart at {}", path.display());
+        }
+        Commands::Mkrec { file } => {
+            let path = sb_recorder::make_recorder_file(&file)
+                .map_err(|e| context("create the recorder file", e))?;
+            println!("Created recorder file at {}", path.display());
+        }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;
             let scenario: Scenario = serde_json::from_str(&scenario_json)?;

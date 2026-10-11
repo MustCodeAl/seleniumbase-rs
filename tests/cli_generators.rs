@@ -3,6 +3,9 @@
 //! binary in a scratch folder.
 //!
 //! None of them starts a browser or touches the network.
+//!
+//! A command that fails exits with the status of `SeleniumBaseError::exit_code`
+//! for its kind of failure (6 for a local file), never 0.
 
 use std::io::Write;
 use std::path::Path;
@@ -10,6 +13,9 @@ use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
 const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+
+/// The exit status for a failed local file operation (`SeleniumBaseError::Io`).
+const IO_FAILURE: i32 = 6;
 
 fn command(dir: &Path, args: &[&str]) -> Command {
     let mut command = Command::new(SBASE);
@@ -79,6 +85,7 @@ fn the_starter_file_commands_do_not_replace_a_file_that_is_there() {
         let dir = tempfile::tempdir().expect("temp dir");
 
         let first = run(dir.path(), args);
+        assert!(first.status.success(), "{args:?}: {}", stderr(&first));
         assert!(
             stdout(&first).contains(success),
             "{args:?}: {}",
@@ -89,6 +96,12 @@ fn the_starter_file_commands_do_not_replace_a_file_that_is_there() {
         std::fs::write(dir.path().join(file), "my own work").expect("edit the file");
         let second = run(dir.path(), args);
 
+        assert_eq!(
+            second.status.code(),
+            Some(IO_FAILURE),
+            "{args:?} must fail, not exit 0: {}",
+            stderr(&second)
+        );
         assert!(
             stderr(&second).contains("already exists"),
             "{args:?}: {}",
@@ -175,6 +188,12 @@ fn behave_gui_gives_up_when_its_input_ends_instead_of_asking_for_ever() {
     let output = finish_within(child, Duration::from_secs(30))
         .expect("behave-gui must end when its input ends, not wait or loop");
 
+    assert_eq!(
+        output.status.code(),
+        Some(IO_FAILURE),
+        "a half-answered feature is a failure: {}",
+        stderr(&output)
+    );
     assert!(
         stderr(&output).contains("input ended"),
         "{}",
@@ -183,6 +202,54 @@ fn behave_gui_gives_up_when_its_input_ends_instead_of_asking_for_ever() {
     assert!(
         !dir.path().join("features/login.feature").exists(),
         "a half-answered feature is not written"
+    );
+}
+
+#[test]
+fn behave_gui_fails_when_the_feature_name_is_a_path() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let mut child = command(dir.path(), &["behave-gui"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("sbase starts");
+    {
+        let mut stdin = child.stdin.take().expect("piped stdin");
+        stdin.write_all(b"../escape\n").expect("write the answers");
+    }
+
+    let output = finish_within(child, Duration::from_secs(30)).expect("behave-gui finishes");
+
+    assert_eq!(
+        output.status.code(),
+        Some(IO_FAILURE),
+        "a refused name is a failure: {}",
+        stderr(&output)
+    );
+    assert!(
+        stderr(&output).contains("not a plain file name"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn print_fails_for_a_file_that_is_not_there() {
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    let output = run(dir.path(), &["print", "--file", "missing.txt"]);
+
+    assert_eq!(
+        output.status.code(),
+        Some(IO_FAILURE),
+        "{}",
+        stderr(&output)
+    );
+    assert!(
+        stderr(&output).contains("missing.txt") || stderr(&output).contains("No such file"),
+        "{}",
+        stderr(&output)
     );
 }
 
