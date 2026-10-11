@@ -5,6 +5,10 @@
 //! sit behind different proxies, so the answer depends on the tab: this
 //! registry maps a tab's protocol session to its credentials, falling back to
 //! the ones the browser was launched with.
+//!
+//! The credentials go to the proxy only. A password prompt whose
+//! `authChallenge.source` is not `Proxy` (a website answering `401`) is handed
+//! back to the browser's default handling, never given the proxy account.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -17,6 +21,10 @@ use super::sync::locked;
 
 /// A proxy username and password.
 pub(super) type Credentials = (String, String);
+
+/// The `authChallenge.source` of a password prompt sent by a proxy (the other
+/// value, `Server`, is a website).
+const PROXY_CHALLENGE: &str = "Proxy";
 
 #[derive(Default)]
 pub(super) struct ProxyAuth {
@@ -100,6 +108,23 @@ impl ProxyAuth {
         match method {
             "Fetch.authRequired" => {
                 let (username, password) = self.credentials(session)?;
+                // The proxy account belongs to the proxy alone. A website can
+                // answer any request, even an image, with `401` and
+                // `WWW-Authenticate: Basic`, and Chrome then repeats the
+                // request to that site with whatever is supplied here. Only a
+                // challenge that says it comes from a proxy gets credentials;
+                // one that does not say (or says anything else) is answered
+                // with the browser's default so the request is not left
+                // paused.
+                if params["authChallenge"]["source"].as_str() != Some(PROXY_CHALLENGE) {
+                    return Some((
+                        "Fetch.continueWithAuth",
+                        json!({
+                            "requestId": request_id,
+                            "authChallengeResponse": { "response": "Default" },
+                        }),
+                    ));
+                }
                 Some((
                     "Fetch.continueWithAuth",
                     json!({
@@ -133,8 +158,70 @@ mod tests {
         (user.to_owned(), "pw".to_owned())
     }
 
+    /// A password prompt from the proxy.
     fn challenge() -> Value {
-        json!({ "requestId": "R1" })
+        json!({
+            "requestId": "R1",
+            "authChallenge": { "source": "Proxy", "origin": "http://proxy.test:8080" },
+        })
+    }
+
+    /// A password prompt from a website (`401` with `WWW-Authenticate`).
+    fn website_challenge() -> Value {
+        json!({
+            "requestId": "R9",
+            "authChallenge": { "source": "Server", "origin": "http://evil.test" },
+        })
+    }
+
+    #[test]
+    fn a_website_prompt_is_never_given_the_proxy_credentials() {
+        let auth = ProxyAuth::new(Some(creds("launch")));
+        auth.register("S1", creds("mine"));
+
+        for session in ["S1", "S2"] {
+            let (method, params) = auth
+                .reply(session, "Fetch.authRequired", &website_challenge())
+                .expect("the request must be answered or the tab hangs");
+
+            assert_eq!(method, "Fetch.continueWithAuth");
+            assert_eq!(params["requestId"], "R9");
+            assert_eq!(params["authChallengeResponse"]["response"], "Default");
+            let sent = params.to_string();
+            assert!(
+                !sent.contains("pw") && !sent.contains("mine") && !sent.contains("launch"),
+                "{sent}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_prompt_with_no_known_asker_is_not_given_the_credentials() {
+        let auth = ProxyAuth::new(Some(creds("launch")));
+        for challenge in [
+            json!({ "requestId": "R1" }),
+            json!({ "requestId": "R1", "authChallenge": {} }),
+            json!({ "requestId": "R1", "authChallenge": { "source": "proxy" } }),
+            json!({ "requestId": "R1", "authChallenge": { "source": 7 } }),
+            json!({ "requestId": "R1", "authChallenge": { "source": null } }),
+        ] {
+            let (_, params) = auth
+                .reply("S1", "Fetch.authRequired", &challenge)
+                .expect("still answered, so the tab does not hang");
+            assert_ne!(
+                params["authChallengeResponse"]["response"], "ProvideCredentials",
+                "{challenge}"
+            );
+            assert!(!params.to_string().contains("launch"), "{challenge}");
+        }
+    }
+
+    #[test]
+    fn a_website_prompt_on_a_tab_without_credentials_is_left_alone() {
+        let auth = ProxyAuth::new(None);
+        assert!(auth
+            .reply("S1", "Fetch.authRequired", &website_challenge())
+            .is_none());
     }
 
     #[test]

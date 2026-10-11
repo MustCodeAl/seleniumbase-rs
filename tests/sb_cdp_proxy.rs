@@ -21,10 +21,36 @@ async fn settle() {
     tokio::time::sleep(Duration::from_millis(20)).await;
 }
 
+/// The proxy asks for a password (`401`/`407` from the proxy itself).
 fn challenge(mock: &MockCtrl) {
     mock.emit(
         "Fetch.authRequired",
-        json!({ "requestId": "AUTH1" }),
+        json!({
+            "requestId": "AUTH1",
+            "authChallenge": {
+                "source": "Proxy",
+                "origin": "http://proxy.test:8080",
+                "scheme": "basic",
+                "realm": "proxy",
+            },
+        }),
+        Some("S1"),
+    );
+}
+
+/// A website answers a request with `401` and `WWW-Authenticate: Basic`.
+fn website_challenge(mock: &MockCtrl, id: &str) {
+    mock.emit(
+        "Fetch.authRequired",
+        json!({
+            "requestId": id,
+            "authChallenge": {
+                "source": "Server",
+                "origin": "http://evil.test",
+                "scheme": "basic",
+                "realm": "x",
+            },
+        }),
         Some("S1"),
     );
 }
@@ -109,6 +135,83 @@ async fn the_proxys_password_prompt_is_answered_with_its_credentials() {
     assert_eq!(answer["requestId"], "AUTH1");
     assert_eq!(answer["authChallengeResponse"]["username"], "alice");
     assert_eq!(answer["authChallengeResponse"]["password"], "s3cret");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_websites_password_prompt_never_gets_the_proxys_credentials() {
+    let (browser, mock) = browser();
+    let context = browser.new_context_with(proxied()).await.unwrap();
+    context.new_page(None::<&str>).await.unwrap();
+
+    website_challenge(&mock, "WEB1");
+    settle().await;
+
+    let answers = mock.calls_to("Fetch.continueWithAuth");
+    assert_eq!(
+        answers.len(),
+        1,
+        "the request must be answered, or the tab would hang"
+    );
+    assert_eq!(answers[0].params["requestId"], "WEB1");
+    assert_eq!(
+        answers[0].params["authChallengeResponse"]["response"],
+        "Default"
+    );
+    let sent = answers[0].params.to_string();
+    assert!(
+        !sent.contains("s3cret") && !sent.contains("alice"),
+        "the proxy account went to a website: {sent}"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_prompt_that_does_not_say_who_asks_is_not_given_the_credentials() {
+    let (browser, mock) = browser();
+    let context = browser.new_context_with(proxied()).await.unwrap();
+    context.new_page(None::<&str>).await.unwrap();
+
+    mock.emit(
+        "Fetch.authRequired",
+        json!({ "requestId": "ODD1" }),
+        Some("S1"),
+    );
+    mock.emit(
+        "Fetch.authRequired",
+        json!({ "requestId": "ODD2", "authChallenge": { "source": "proxy" } }),
+        Some("S1"),
+    );
+    settle().await;
+
+    for call in mock.calls_to("Fetch.continueWithAuth") {
+        let sent = call.params.to_string();
+        assert!(
+            !sent.contains("s3cret"),
+            "unverified asker got the password: {sent}"
+        );
+        assert_ne!(
+            call.params["authChallengeResponse"]["response"],
+            "ProvideCredentials"
+        );
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_proxy_is_still_answered_after_a_website_asked_first() {
+    let (browser, mock) = browser();
+    let context = browser.new_context_with(proxied()).await.unwrap();
+    context.new_page(None::<&str>).await.unwrap();
+
+    website_challenge(&mock, "WEB1");
+    challenge(&mock);
+    settle().await;
+
+    let answers = mock.calls_to("Fetch.continueWithAuth");
+    assert_eq!(answers.len(), 2);
+    assert_eq!(answers[1].params["requestId"], "AUTH1");
+    assert_eq!(
+        answers[1].params["authChallengeResponse"]["password"],
+        "s3cret"
+    );
 }
 
 #[tokio::test(start_paused = true)]
