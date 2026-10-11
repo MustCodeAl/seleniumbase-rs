@@ -7,10 +7,11 @@
 //! passed. It also holds a clearance it is handed with `Network.setCookies`, if the value is
 //! the one the site accepts. No Chrome is started and no traffic reaches the site.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use async_trait::async_trait;
+use seleniumbase_rs::error::SeleniumBaseError;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, MockCtrl};
 use seleniumbase_rs::scrape::error::ScrapeError;
 use seleniumbase_rs::scrape::runtime::browser_scraper::BrowserLauncher;
@@ -80,6 +81,10 @@ pub struct ScriptedLauncher {
     clock: Arc<AtomicU64>,
     knobs: Mutex<Knobs>,
     launched: Mutex<Vec<Launched>>,
+    /// How many launches from now on fail.
+    failing: AtomicUsize,
+    /// For each launch, how many earlier browsers were still connected when it was asked for.
+    alive_at_launch: Mutex<Vec<usize>>,
 }
 
 impl ScriptedLauncher {
@@ -100,7 +105,20 @@ impl ScriptedLauncher {
                 ttl_secs: DEFAULT_TTL_SECS,
             }),
             launched: Mutex::new(Vec::new()),
+            failing: AtomicUsize::new(0),
+            alive_at_launch: Mutex::new(Vec::new()),
         }
+    }
+
+    /// Makes the next `count` launches fail, as a Chrome that cannot start does.
+    pub fn fail_next_launches(&self, count: usize) {
+        self.failing.store(count, Ordering::SeqCst);
+    }
+
+    /// For each launch asked for, oldest first, how many browsers launched before it were still
+    /// connected at that moment.
+    pub fn alive_at_launch(&self) -> Vec<usize> {
+        locked(&self.alive_at_launch).clone()
     }
 
     /// Makes the browsers launched from now on fail every challenge.
@@ -135,6 +153,21 @@ impl ScriptedLauncher {
 #[async_trait]
 impl BrowserLauncher for ScriptedLauncher {
     async fn launch(&self, options: LaunchOptions) -> Result<Browser, ScrapeError> {
+        let alive = locked(&self.launched)
+            .iter()
+            .filter(|launched| launched.browser.is_connected())
+            .count();
+        locked(&self.alive_at_launch).push(alive);
+        let failing = self
+            .failing
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                left.checked_sub(1)
+            });
+        if failing.is_ok() {
+            return Err(ScrapeError::Browser(SeleniumBaseError::stealth(
+                "the scripted Chrome cannot start",
+            )));
+        }
         let (browser, mock) = Browser::new_mocked();
         let product = locked(&self.product).clone();
         mock.reply("Browser.getVersion", json!({ "product": product }));

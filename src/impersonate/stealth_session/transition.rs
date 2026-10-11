@@ -150,11 +150,20 @@ impl StealthSession {
 
     /// Starts the leg for `mode` presenting `identity` and replaces the leg in use with it. The
     /// old leg is closed once the new one is up; on an error the old one stays.
+    ///
+    /// A running browser is the exception: it shares the MITM proxy with whatever replaces it,
+    /// so it is closed first ([`replace_browser`](Self::replace_browser)).
     pub(super) async fn enter(
         &mut self,
         mode: Mode,
         identity: StealthIdentity,
     ) -> Result<(), StealthError> {
+        if mode == Mode::Browser && self.mode() == Mode::Browser {
+            // Boxed: the future holds a stand-in leg and two launches, and the fetch loop that
+            // reaches it through its mitigation steps would otherwise carry all of it.
+            Box::pin(self.replace_browser(identity, None)).await?;
+            return Ok(());
+        }
         let leg = open_leg(
             &self.wiring,
             &mut self.mitm,
@@ -167,6 +176,112 @@ impl StealthSession {
         self.identity = identity;
         old.close().await;
         Ok(())
+    }
+
+    /// Replaces the running browser by one presenting `identity`, through the egress `reroute`
+    /// when one is given and through the one in use otherwise. Returns whether the MITM proxy
+    /// reported the change of egress.
+    ///
+    /// The old browser and the new one share the MITM proxy, and a browser that is still open
+    /// keeps loading pages, sending its cookies and the clearances it earned. So the order is:
+    /// close the old browser, point the proxy at the new egress and profile, start the new
+    /// browser. Pointing the proxy first would send the old identity through the new address.
+    ///
+    /// The session needs a transport all the while, so an HTTP leg for the old identity stands
+    /// in until the new browser is up. If the new browser cannot be started, the egress and the
+    /// profile are put back and a browser is started again for the old identity, with the
+    /// cookies it held; the error is returned. If that cannot be started either, the stand-in
+    /// stays: the session goes on over HTTP with its old identity.
+    pub(super) async fn replace_browser(
+        &mut self,
+        identity: StealthIdentity,
+        reroute: Option<EgressRef>,
+    ) -> Result<bool, StealthError> {
+        let old_identity = self.identity_with_cookies().await;
+        let old_egress = self.egress.current.clone();
+        let standby = open_leg(
+            &self.wiring,
+            &mut self.mitm,
+            Mode::Http,
+            &old_identity,
+            old_egress.as_ref(),
+        )
+        .await?;
+        std::mem::replace(&mut self.leg, standby).close().await;
+
+        let mut pointed = false;
+        if let Some(next) = &reroute {
+            self.egress.current = Some(next.clone());
+            match self.route_proxy(Some(next.clone())) {
+                Ok(routed) => pointed = routed,
+                Err(error) => {
+                    self.bring_back(old_identity, old_egress).await;
+                    return Err(error);
+                }
+            }
+        }
+        let started = open_leg(
+            &self.wiring,
+            &mut self.mitm,
+            Mode::Browser,
+            &identity,
+            self.egress.current.as_ref(),
+        )
+        .await;
+        match started {
+            Ok(leg) => {
+                self.leg = leg;
+                self.identity = identity;
+                Ok(pointed)
+            }
+            Err(error) => {
+                if pointed {
+                    self.undo_route(old_egress.clone());
+                }
+                self.bring_back(old_identity, old_egress).await;
+                Err(error)
+            }
+        }
+    }
+
+    /// Puts the egress back and starts a browser again for `identity` after a replacement failed.
+    /// If that fails too, the HTTP stand-in stays the leg in use.
+    async fn bring_back(&mut self, identity: StealthIdentity, egress: Option<EgressRef>) {
+        self.egress.current.clone_from(&egress);
+        let started = open_leg(
+            &self.wiring,
+            &mut self.mitm,
+            Mode::Browser,
+            &identity,
+            egress.as_ref(),
+        )
+        .await;
+        match started {
+            Ok(leg) => self.leg = leg,
+            Err(error) => {
+                tracing::warn!(%error, "the browser could not be started again; going on over HTTP");
+            }
+        }
+        self.identity = identity;
+    }
+
+    /// The identity as it stands with the cookies the browser in use holds now. Nothing is emitted
+    /// and nothing fails: a browser that cannot be read leaves the identity as it was.
+    async fn identity_with_cookies(&self) -> StealthIdentity {
+        let now = self.now();
+        let mut identity = self.identity.clone();
+        if let Leg::Browser(leg) = &self.leg {
+            match leg.cookies(now).await {
+                Ok(cookies) => {
+                    identity.cookies = cookies;
+                    identity.refresh_clearances(now);
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "the browser could not be read; using the last known cookies");
+                }
+            }
+        }
+        identity
     }
 
     /// The identity with the cookies the leg in use holds now, and its clearances refreshed. The

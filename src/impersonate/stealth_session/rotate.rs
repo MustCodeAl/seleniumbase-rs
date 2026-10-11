@@ -2,6 +2,7 @@
 
 use super::{StealthError, StealthSession};
 use crate::impersonate::client::ImpersonationProfile;
+use crate::scrape::challenge::mitigation::Mode;
 use crate::scrape::egress::route::{EgressKey, EgressRef};
 use crate::scrape::error::ScrapeError;
 use crate::scrape::ledger::events::ScraperEvent;
@@ -48,15 +49,17 @@ impl StealthSession {
     ///
     /// The seed is replaced by one derived from it, and a new fingerprint is drawn for the same
     /// operating system, claiming the measured Chrome, in the locale of the egress. The cookies
-    /// and the clearances are dropped: they belong to the old profile. In browser mode a new
-    /// Chrome is started behind the same MITM proxy, on the same port and through the same egress,
-    /// and the old one is closed. What is known of each site stays.
+    /// and the clearances are dropped: they belong to the old profile. In browser mode the old
+    /// Chrome is closed first, and then a new one is started behind the same MITM proxy, on the
+    /// same port and through the same egress, so the old profile never sends through the new one.
+    /// What is known of each site stays.
     ///
     /// # Errors
     ///
     /// Returns [`StealthError::Scrape`] when the locale of the egress is not known or no browser
     /// can be started, and the errors of [`escalate`](Self::escalate) in browser mode. On an error
-    /// the session is as it was.
+    /// the session is as it was; in browser mode that means a new Chrome with the old profile and
+    /// its cookies, or, if even that cannot be started, HTTP mode with the old identity.
     #[tracing::instrument(skip_all)]
     pub async fn rotate_profile(&mut self) -> Result<(), StealthError> {
         let from_seed = self.persona.seed;
@@ -85,17 +88,19 @@ impl StealthSession {
     /// time zone of the new country.
     ///
     /// The cookies and the clearances are dropped: a clearance belongs to the address that earned
-    /// it. The MITM proxy, when one runs, is pointed at the new egress first, so its port stays;
-    /// in browser mode a new Chrome is started, because the fingerprint a tab carries is written
-    /// into every document before its own scripts run. [`ScraperEvent::EgressRotated`] is emitted
-    /// once.
+    /// it. The MITM proxy, when one runs, is pointed at the new egress, so its port stays. In
+    /// browser mode the old Chrome is closed before that, so that nothing it holds is sent
+    /// through the new address, and a new Chrome is started afterwards, because the fingerprint a
+    /// tab carries is written into every document before its own scripts run.
+    /// [`ScraperEvent::EgressRotated`] is emitted once.
     ///
     /// # Errors
     ///
     /// Returns [`StealthError::Scrape`] with [`ScrapeError::NoEgressAvailable`] when the pool has
     /// no other egress that is in rotation, [`StealthError::Mitm`] when the proxy cannot use the
     /// new egress, and the errors of [`rotate_profile`](Self::rotate_profile). On an error the
-    /// session is as it was.
+    /// session is as it was; in browser mode that means a new Chrome through the old egress with
+    /// the old cookies, or, if even that cannot be started, HTTP mode with the old identity.
     #[tracing::instrument(skip_all)]
     pub async fn rotate_egress(&mut self) -> Result<(), StealthError> {
         let next = self.next_egress()?;
@@ -110,6 +115,15 @@ impl StealthSession {
         )?;
         let from = self.egress_key().cloned();
         let to = next.key().clone();
+        if self.mode() == Mode::Browser {
+            // The old Chrome shares the proxy with the new one: it is closed before the proxy
+            // is pointed anywhere else.
+            let routed = Box::pin(self.replace_browser(identity, Some(next))).await?;
+            if !routed {
+                self.emit(&ScraperEvent::EgressRotated { from, to: Some(to) });
+            }
+            return Ok(());
+        }
         let previous = self.egress.current.replace(next.clone());
         let routed = match self.route_proxy(Some(next)) {
             Ok(routed) => routed,
@@ -203,7 +217,7 @@ impl StealthSession {
 
     /// Points the MITM proxy at `egress`, when one runs. Returns whether it did, in which case
     /// the proxy has reported the change.
-    fn route_proxy(&self, egress: Option<EgressRef>) -> Result<bool, StealthError> {
+    pub(super) fn route_proxy(&self, egress: Option<EgressRef>) -> Result<bool, StealthError> {
         match &self.mitm {
             Some(mitm) => {
                 mitm.swap_upstream(egress)?;
@@ -215,7 +229,7 @@ impl StealthSession {
 
     /// Points the proxy back at `egress` after a rotation that did not work. The proxy answers
     /// for the egress it was given before, so a failure here is only logged.
-    fn undo_route(&self, egress: Option<EgressRef>) {
+    pub(super) fn undo_route(&self, egress: Option<EgressRef>) {
         if let Err(error) = self.route_proxy(egress) {
             tracing::debug!(%error, "the proxy could not be pointed back at the old egress");
         }

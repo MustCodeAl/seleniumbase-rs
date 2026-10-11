@@ -8,6 +8,8 @@
 //!
 //! - `flows`: every transition of the state machine and the events that tell of it.
 //! - `identity`: export and restore, rotating the profile and the egress, and secrets.
+//! - `rotation`: the order of a rotation in the browser (the old Chrome is closed first) and a
+//!   rotation whose new Chrome cannot start.
 #![cfg(all(feature = "impersonate", feature = "test-util"))]
 
 #[path = "stealth_session/browser.rs"]
@@ -16,6 +18,8 @@ mod browser;
 mod flows;
 #[path = "stealth_session/identity.rs"]
 mod identity;
+#[path = "stealth_session/rotation.rs"]
+mod rotation;
 #[path = "stealth_session/site.rs"]
 mod site;
 #[path = "stealth_session/world.rs"]
