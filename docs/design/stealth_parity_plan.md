@@ -505,6 +505,8 @@ pub struct EphemeralCa { /* btls PKey + X509, memory only */ }
 impl EphemeralCa {
     pub fn generate() -> Result<Self, TlsServerError>;
     pub fn spki_pins(&self) -> [String; 2];        // base64(SHA-256(SPKI)) of the CA key and the shared leaf key
+    pub fn leaf_spki_pin(&self) -> &str;           // the leaf pin alone: the only pin Chrome gets
+    pub fn chrome_spki_arg(&self) -> String;       // "--ignore-certificate-errors-spki-list=<leaf pin>"
     pub fn leaf_for(&self, host: &url::Host<String>) -> Result<Arc<Leaf>, TlsServerError>; }  // LRU of 256
 pub fn acceptor(ca: &EphemeralCa, alpn: &[&[u8]]) -> Result<btls::ssl::SslAcceptor, TlsServerError>;
 #[doc(alias = "TlsSpoofingProxy")] pub struct MitmProxy { /* Arc<Inner>; Clone */ }
@@ -513,7 +515,7 @@ impl MitmProxy {
                        sink: Arc<dyn EventSink>) -> Result<Self, MitmError>;
     pub fn port(&self) -> u16;  pub async fn shutdown(self, grace: Duration);
     pub fn browser_proxy(&self) -> sb_cdp::Proxy;  // http://sb:<token>@127.0.0.1:<port>; password-free Debug
-    pub fn chrome_args(&self) -> Vec<String>;      // ["--ignore-certificate-errors-spki-list=<ca>,<leaf>"]
+    pub fn chrome_args(&self) -> Vec<String>;      // [EphemeralCa::chrome_spki_arg()]: the leaf pin only
     pub fn swap_upstream(&self, egress: Option<EgressRef>) -> Result<(), MitmError>;
     pub fn swap_profile(&self, profile: ImpersonationProfile) -> Result<(), MitmError>; }
 pub enum MitmError { Bind(io::Error), Tls(TlsServerError), BadTarget(String),
@@ -523,9 +525,23 @@ pub enum MitmError { Bind(io::Error), Tls(TlsServerError), BadTarget(String),
 Security rules, each with a WP15 test:
 - CA: P-256, critical `CA:TRUE, pathlen:0`, `keyCertSign|cRLSign`, random serial, per process, never on
   disk. Leaves: one shared per-process key, SAN exactly the CONNECT host (DNS or IP via
-  `url::Host::parse`, no wildcard, max 253 chars), EKU `serverAuth`, short validity, chain leaf + CA.
-- Chrome trusts it only through `--ignore-certificate-errors-spki-list` (both pins; honoured only with
-  `--user-data-dir`, which `browser_args` always passes), never `--ignore-certificate-errors`.
+  `url::Host::parse`, no wildcard, max 253 chars), EKU `serverAuth`, short validity. The server
+  presents the leaf alone (no CA certificate in the chain).
+- Chrome gets `--ignore-certificate-errors-spki-list=<leaf pin>` (honoured only with `--user-data-dir`,
+  which `browser_args` always passes), never `--ignore-certificate-errors`, and never the CA pin.
+  What the switch trusts, read from Chromium's `services/network/ignore_errors_cert_verifier.cc`
+  (not measured on Chrome 155): Chrome hashes the SPKI of every certificate in the presented chain and,
+  when one hash is in the list, accepts the connection with no other check (no signature, host name,
+  validity or revocation). So it trusts any chain that contains a certificate with the pinned public
+  key, from any sender; the key is public (every handshake carries it), so "this CA and its leaves"
+  would be a wrong description. Narrowing it is done by pinning only the leaf key and sending the leaf
+  alone, so the CA key and an intermediate are no second way in. The rest is WP15's duty: every
+  connection of that Chrome profile must end at the MITM (`--proxy-server` with
+  `--proxy-bypass-list=<-loopback>` so loopback hosts are intercepted too, `--disable-quic`), a CONNECT
+  the MITM cannot intercept is refused rather than tunnelled blind, and no leaf certificate is logged
+  or written into a capture artifact. Its real-Chrome test: a direct server on loopback that presents
+  its own self-signed certificate is never served to the page with that certificate (the request goes
+  through the MITM, whose upstream verification refuses it).
 - Binds `127.0.0.1:0` only. A random 128-bit token (`ring::rand::SystemRandom`) is required as
   `Proxy-Authorization: Basic` on every CONNECT and absolute-form request (constant-time compare, else
   407); Chrome gets it through `ProxyAuth`, so it is never on Chrome's command line.

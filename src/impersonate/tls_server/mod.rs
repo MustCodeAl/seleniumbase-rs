@@ -9,9 +9,26 @@
 //! [`accept`] runs the handshake of one connection with the leaf of its CONNECT host, then
 //! refuses the connection when the client's SNI names another host.
 //!
-//! Chrome trusts the CA only through `--ignore-certificate-errors-spki-list` with the two pins of
-//! [`EphemeralCa::spki_pins`] (see [`EphemeralCa::chrome_spki_arg`]). The CA is never installed
-//! in a trust store, and `--ignore-certificate-errors` is never used.
+//! Chrome trusts the leaves only through `--ignore-certificate-errors-spki-list` with the leaf
+//! pin of [`EphemeralCa::chrome_spki_arg`]. The CA is never installed in a trust store, and
+//! `--ignore-certificate-errors` is never used.
+//!
+//! # What the Chrome switch trusts
+//!
+//! Chrome hashes the `SubjectPublicKeyInfo` of every certificate in the chain the server
+//! presents. When one hash is in the list it accepts the connection and runs no other check: no
+//! signature, host name, validity or revocation. The switch therefore trusts every chain that
+//! contains a certificate carrying the pinned public key, from any sender, and a public key is
+//! not secret. It is not "this CA and its leaves".
+//!
+//! This module keeps that set as small as the switch allows: only the shared leaf key is pinned,
+//! and [`accept`] presents the leaf alone, so neither the CA key nor an intermediate is a second
+//! way in. It cannot go further, because Chrome must know the pin at launch. The pin is safe
+//! only while every connection of that Chrome profile ends at the proxy: the proxy must also
+//! cover loopback hosts and QUIC, must refuse a CONNECT it cannot intercept instead of tunnelling
+//! it blind, and nobody may log or export a leaf certificate. The behaviour is that of the
+//! Chromium source (`services/network/ignore_errors_cert_verifier.cc`, read on 2026-10-11); it
+//! has not been measured on Chrome 155.
 //!
 //! # Loopback only
 //!
@@ -205,8 +222,8 @@ pub fn acceptor(alpn: &[&[u8]]) -> Result<SslAcceptor, TlsServerError> {
 
 /// Runs the server side of one TLS handshake with `leaf` and checks the client's SNI.
 ///
-/// The leaf, the shared leaf key and the CA certificate (as the chain) are set on this
-/// connection only, so one [`acceptor`] serves every host, IP hosts included. After the
+/// The leaf and the shared leaf key are set on this connection only, so one [`acceptor`]
+/// serves every host, IP hosts included. The chain the server presents is the leaf alone. After the
 /// handshake, a DNS host requires an SNI equal to it (ASCII case-insensitive) and an IP host
 /// requires no SNI; otherwise the stream is dropped before any application byte is read.
 ///

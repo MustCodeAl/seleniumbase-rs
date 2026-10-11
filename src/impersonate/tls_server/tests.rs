@@ -134,24 +134,49 @@ fn ip_addresses(cert: &X509Ref) -> Vec<Vec<u8>> {
 }
 
 #[tokio::test]
-async fn a_client_pinned_to_either_spki_reaches_the_leaf_of_its_host() {
+async fn a_client_pinned_to_the_leaf_key_reaches_the_leaf_of_its_host() {
     let ca = EphemeralCa::generate().expect("CA");
     let leaf = ca
         .leaf_for(&host("example.test"), SystemTime::now())
         .expect("leaf");
-    for pin in ca.spki_pins() {
-        let (port, server) = serve_once(Arc::clone(&leaf)).await;
-        let connector = pinned_connector(vec![pin], CHROME_ALPN);
-        let mut tls = connect(port, client_ssl(&connector, "example.test", true))
-            .await
-            .expect("handshake with a pinned key");
-        assert_eq!(tls.ssl().selected_alpn_protocol(), Some(ALPN_HTTP1));
-        let peer = tls.ssl().peer_certificate().expect("server certificate");
-        assert_eq!(dns_names(&peer), vec!["example.test".to_owned()]);
-        assert_eq!(ip_addresses(&peer), Vec::<Vec<u8>>::new());
-        ping(&mut tls).await;
-        server.await.expect("server task").expect("server side");
-    }
+    let (port, server) = serve_once(Arc::clone(&leaf)).await;
+    let connector = pinned_connector(vec![ca.leaf_spki_pin().to_owned()], CHROME_ALPN);
+    let mut tls = connect(port, client_ssl(&connector, "example.test", true))
+        .await
+        .expect("handshake with the pinned leaf key");
+    assert_eq!(tls.ssl().selected_alpn_protocol(), Some(ALPN_HTTP1));
+    let peer = tls.ssl().peer_certificate().expect("server certificate");
+    assert_eq!(dns_names(&peer), vec!["example.test".to_owned()]);
+    assert_eq!(ip_addresses(&peer), Vec::<Vec<u8>>::new());
+    ping(&mut tls).await;
+    server.await.expect("server task").expect("server side");
+}
+
+#[tokio::test]
+async fn the_server_presents_the_leaf_alone_so_the_ca_key_is_not_a_way_in() {
+    let ca = EphemeralCa::generate().expect("CA");
+    let leaf = ca
+        .leaf_for(&host("example.test"), SystemTime::now())
+        .expect("leaf");
+    let (port, server) = serve_once(Arc::clone(&leaf)).await;
+    let connector = pinned_connector(vec![ca.leaf_spki_pin().to_owned()], CHROME_ALPN);
+    let mut tls = connect(port, client_ssl(&connector, "example.test", true))
+        .await
+        .expect("handshake");
+    let chain = tls.ssl().peer_cert_chain().expect("presented chain");
+    assert_eq!(chain.len(), 1, "the CA certificate is not sent");
+    ping(&mut tls).await;
+    server.await.expect("server task").expect("server side");
+    // A client that trusts the CA key alone is refused: no certificate in the chain carries it.
+    let (port, server) = serve_once(leaf).await;
+    let connector = pinned_connector(vec![ca.spki_pins()[0].clone()], CHROME_ALPN);
+    let client = connect(port, client_ssl(&connector, "example.test", true)).await;
+    assert!(client.is_err(), "the CA pin alone must fail the handshake");
+    let outcome = server.await.expect("server task");
+    assert!(
+        matches!(outcome, Err(TlsServerError::Handshake(_))),
+        "{outcome:?}"
+    );
 }
 
 #[tokio::test]
@@ -276,8 +301,10 @@ fn the_ca_is_a_p256_root_and_its_leaves_chain_to_it() {
     assert_eq!(decoded.len(), 32, "a pin is a SHA-256 digest");
     assert_eq!(
         ca.chrome_spki_arg(),
-        format!("--ignore-certificate-errors-spki-list={ca_pin},{leaf_pin}")
+        format!("--ignore-certificate-errors-spki-list={leaf_pin}"),
+        "Chrome gets the leaf pin only"
     );
+    assert_eq!(ca.leaf_spki_pin(), leaf_pin);
     let other = ca
         .leaf_for(&host("other.test"), SystemTime::now())
         .expect("leaf");

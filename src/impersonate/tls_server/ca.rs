@@ -102,20 +102,45 @@ impl EphemeralCa {
         })
     }
 
-    /// The pins Chrome needs: base64 of the SHA-256 of the `SubjectPublicKeyInfo` of the CA key
-    /// and of the shared leaf key, in that order.
+    /// The pins of the two public keys: base64 of the SHA-256 of the `SubjectPublicKeyInfo` of
+    /// the CA key and of the shared leaf key, in that order.
+    ///
+    /// Chrome needs the leaf pin only (see [`EphemeralCa::chrome_spki_arg`]). Do not put the CA
+    /// pin in Chrome's list: the server never sends the CA certificate, and a pinned key is a key
+    /// that any chain carrying a certificate with it passes with.
     #[must_use]
     pub fn spki_pins(&self) -> [String; 2] {
         self.pins.clone()
     }
 
-    /// The Chrome switch that trusts this CA and its leaves, and nothing else:
-    /// `--ignore-certificate-errors-spki-list=<ca pin>,<leaf pin>`. Chrome honours it only
-    /// together with `--user-data-dir`.
+    /// The Chrome switch for this CA's leaves:
+    /// `--ignore-certificate-errors-spki-list=<leaf pin>`. Chrome honours it only together with
+    /// `--user-data-dir`.
+    ///
+    /// # What the switch trusts
+    ///
+    /// Chrome hashes the `SubjectPublicKeyInfo` of every certificate in the chain the server
+    /// presents. If one hash is in the list, Chrome accepts the connection and runs no other
+    /// check: no signature, host name, validity or revocation. So the switch trusts every
+    /// chain that contains a certificate with the leaf public key, whoever sends it and whether
+    /// or not they hold the private key. The public key is not secret: it is in every
+    /// handshake and in [`Leaf::certificate`]. The pin is safe only while every connection of
+    /// that Chrome profile ends at this server, so the proxy that uses it must keep all of
+    /// Chrome's traffic, loopback hosts and QUIC included, on the MITM, and nobody may log
+    /// or export a leaf certificate. This follows the Chromium source
+    /// (`services/network/ignore_errors_cert_verifier.cc`); it was not measured on Chrome 155.
+    ///
+    /// Only the leaf key is pinned and the server presents the leaf alone, so the CA key is not
+    /// a second way in.
     #[must_use]
     pub fn chrome_spki_arg(&self) -> String {
-        let [ca, leaf] = &self.pins;
-        format!("{CHROME_SPKI_SWITCH}={ca},{leaf}")
+        format!("{CHROME_SPKI_SWITCH}={}", self.leaf_spki_pin())
+    }
+
+    /// The pin of the shared leaf key: base64 of the SHA-256 of its `SubjectPublicKeyInfo`.
+    #[must_use]
+    pub fn leaf_spki_pin(&self) -> &str {
+        &self.pins[1]
     }
 
     /// The self-signed CA certificate.
@@ -211,7 +236,7 @@ pub struct Leaf {
     name: LeafName,
     /// The leaf certificate.
     cert: X509,
-    /// The CA certificate, sent as the chain.
+    /// The CA certificate that signed the leaf. It is never sent: the server presents the leaf alone.
     issuer: X509,
     /// The shared leaf key.
     pub(super) key: PKey<Private>,
@@ -226,7 +251,8 @@ impl Leaf {
         &self.cert
     }
 
-    /// The CA certificate that signed it, sent after it as the chain.
+    /// The CA certificate that signed it. The server does not send it: the chain it presents
+    /// holds the leaf alone, so a client must trust the CA by other means.
     #[must_use]
     pub fn issuer(&self) -> &X509Ref {
         &self.issuer
@@ -255,11 +281,11 @@ impl Leaf {
         &self.name
     }
 
-    /// Sets the certificate, the key and the chain on one connection.
+    /// Sets the certificate and the key on one connection. No chain is added: the leaf goes
+    /// alone, so no certificate other than the leaf carries a key Chrome has pinned.
     pub(super) fn install(&self, ssl: &mut SslRef) -> Result<(), TlsServerError> {
         ssl.set_certificate(&self.cert)?;
         ssl.set_private_key(&self.key)?;
-        ssl.add_chain_cert(&self.issuer)?;
         Ok(())
     }
 }
