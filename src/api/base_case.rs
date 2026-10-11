@@ -2320,8 +2320,41 @@ impl BaseCase {
         Ok(elem.text().await.unwrap_or_default())
     }
 
-    /// Press a named key on the active element.
-    pub async fn press_keys(&self, key_name: &str) -> Result<(), SeleniumBaseError> {
+    /// Types `text` into the element `css`, one key at a time, so the page
+    /// sees every key press. A trailing newline presses Enter instead of
+    /// being typed. Corresponds to Python's `press_keys(selector, text)`.
+    ///
+    /// To press one named key such as `Escape` on whatever has focus, use
+    /// [`press_key`](Self::press_key).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not
+    /// appear.
+    pub async fn press_keys(&self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.await_ready(css, Ready::Present).await?;
+        let by = Selector::auto(css).to_by()?;
+        let element = self.session.driver().find(by).await?;
+        self.demo_highlight(css).await;
+        let (body, enter) = split_trailing_enter(text);
+        for key in body.chars() {
+            element.send_keys(key.to_string()).await?;
+        }
+        if enter {
+            element.send_keys(Key::Enter.value().to_string()).await?;
+        }
+        self.demo_pause(true).await;
+        Ok(())
+    }
+
+    /// Presses one named key on the element that has focus: `enter`,
+    /// `return`, `tab`, `escape` (or `esc`), `space`, `up`, `down`, `left` or
+    /// `right`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] for any other name.
+    pub async fn press_key(&self, key_name: &str) -> Result<(), SeleniumBaseError> {
         let key = match key_name.to_ascii_lowercase().as_str() {
             "enter" => Key::Enter,
             "return" => Key::Return,

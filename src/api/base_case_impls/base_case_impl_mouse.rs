@@ -24,24 +24,29 @@ impl BaseCase {
         el.click().await.map_err(SeleniumBaseError::WebDriver)
     }
 
-    /// Presses the Up arrow key on the active element.
+    /// Presses the Up arrow key on the active element. Python's
+    /// `press_up_arrow(selector="body", times=1)` also takes an element and a
+    /// repeat count; this presses once, on whatever has focus.
     pub async fn press_up_arrow(&self) -> Result<(), SeleniumBaseError> {
-        self.press_keys("up").await
+        self.press_key("up").await
     }
 
-    /// Presses the Down arrow key on the active element.
+    /// Presses the Down arrow key on the active element; see
+    /// [`press_up_arrow`](Self::press_up_arrow).
     pub async fn press_down_arrow(&self) -> Result<(), SeleniumBaseError> {
-        self.press_keys("down").await
+        self.press_key("down").await
     }
 
-    /// Presses the Left arrow key on the active element.
+    /// Presses the Left arrow key on the active element; see
+    /// [`press_up_arrow`](Self::press_up_arrow).
     pub async fn press_left_arrow(&self) -> Result<(), SeleniumBaseError> {
-        self.press_keys("left").await
+        self.press_key("left").await
     }
 
-    /// Presses the Right arrow key on the active element.
+    /// Presses the Right arrow key on the active element; see
+    /// [`press_up_arrow`](Self::press_up_arrow).
     pub async fn press_right_arrow(&self) -> Result<(), SeleniumBaseError> {
-        self.press_keys("right").await
+        self.press_key("right").await
     }
 
     /// Alias for `hover`.

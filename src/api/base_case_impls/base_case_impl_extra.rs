@@ -68,6 +68,15 @@ fn default_download_dir() -> PathBuf {
     dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }
 
+/// `text` without one trailing newline, and whether it had one: Python's
+/// `press_keys` presses Enter for a trailing `\n` instead of typing it.
+fn split_trailing_enter(text: &str) -> (&str, bool) {
+    match text.strip_suffix('\n') {
+        Some(body) => (body, true),
+        None => (text, false),
+    }
+}
+
 impl BaseCase {
     // ========================================================================
     // Pure assertion helpers (no browser required)
@@ -1473,6 +1482,16 @@ mod tests_extra {
         assert_eq!(js_escape("hello"), "hello");
         assert_eq!(js_escape("it's"), "it\\'s");
         assert_eq!(js_escape("a\nb"), "a\\nb");
+    }
+
+    #[test]
+    fn only_one_trailing_newline_is_taken_for_the_enter_key() {
+        assert_eq!(split_trailing_enter("rust\n"), ("rust", true));
+        assert_eq!(split_trailing_enter("rust"), ("rust", false));
+        assert_eq!(split_trailing_enter("a\nb"), ("a\nb", false));
+        assert_eq!(split_trailing_enter("a\n\n"), ("a\n", true));
+        assert_eq!(split_trailing_enter("\n"), ("", true));
+        assert_eq!(split_trailing_enter(""), ("", false));
     }
 
     #[test]
