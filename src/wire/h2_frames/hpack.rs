@@ -15,6 +15,9 @@ use super::huffman::{self, HuffmanError};
 /// The initial `SETTINGS_HEADER_TABLE_SIZE`, which is also the largest table an encoder may
 /// use until the decoder advertises a different value.
 pub const DEFAULT_TABLE_SIZE: usize = 4096;
+/// The largest dynamic table [`HpackDecoder::new`] allows its peer, sixteen times the 64 KiB that
+/// browsers announce. A larger request is lowered to it.
+pub const MAX_TABLE_SIZE: usize = 1024 * 1024;
 /// The most decoded bytes (names plus values) one header block may produce.
 pub const MAX_HEADER_LIST_BYTES: usize = 64 * 1024;
 /// The most header fields one header block may produce.
@@ -255,9 +258,11 @@ impl Default for HpackDecoder {
 }
 
 impl HpackDecoder {
-    /// A decoder whose peer may use a dynamic table of up to `max_table_size` bytes.
+    /// A decoder whose peer may use a dynamic table of up to `max_table_size` bytes, lowered to
+    /// [`MAX_TABLE_SIZE`] when it is larger, so that no caller can make the table unbounded.
     #[must_use]
     pub fn new(max_table_size: usize) -> Self {
+        let max_table_size = max_table_size.min(MAX_TABLE_SIZE);
         Self {
             dynamic: VecDeque::new(),
             dynamic_size: 0,

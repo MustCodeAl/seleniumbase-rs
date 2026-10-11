@@ -255,6 +255,47 @@ fn size_update_must_open_the_block_and_stay_within_the_limit() {
     );
 }
 
+/// A dynamic table size update block for `size` (RFC 7541, section 6.3: 5-bit prefix `001`).
+fn size_update(size: usize) -> Vec<u8> {
+    const PREFIX_MAX: usize = 31;
+    if size < PREFIX_MAX {
+        return vec![0x20 | u8::try_from(size).expect("below 31")];
+    }
+    let mut out = vec![0x20 | 0x1f];
+    let mut rest = size - PREFIX_MAX;
+    while rest >= 0x80 {
+        out.push(u8::try_from(rest & 0x7f).expect("seven bits") | 0x80);
+        rest >>= 7;
+    }
+    out.push(u8::try_from(rest).expect("below 128"));
+    out
+}
+
+#[test]
+fn a_decoder_never_allows_its_peer_a_table_above_the_ceiling() {
+    for asked in [MAX_TABLE_SIZE, MAX_TABLE_SIZE + 1, usize::MAX] {
+        let mut d = HpackDecoder::new(asked);
+        assert_eq!(d.decode(&size_update(MAX_TABLE_SIZE)), Ok(Vec::new()));
+        assert_eq!(
+            d.decode(&size_update(MAX_TABLE_SIZE + 1)),
+            Err(HpackError::SizeUpdateTooLarge {
+                requested: MAX_TABLE_SIZE + 1,
+                max: MAX_TABLE_SIZE
+            }),
+            "asked for {asked}"
+        );
+    }
+    let mut d = HpackDecoder::new(MAX_TABLE_SIZE - 1);
+    assert_eq!(
+        d.decode(&size_update(MAX_TABLE_SIZE)),
+        Err(HpackError::SizeUpdateTooLarge {
+            requested: MAX_TABLE_SIZE,
+            max: MAX_TABLE_SIZE - 1
+        }),
+        "a request below the ceiling is kept as it is"
+    );
+}
+
 #[test]
 fn an_entry_larger_than_the_table_empties_it() {
     let mut d = HpackDecoder::new(64);
