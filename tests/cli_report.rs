@@ -18,6 +18,7 @@ fn result(name: &str, passed: bool) -> TestResult {
         passed,
         duration_secs: 0.75,
         message: if passed { "ok" } else { "timed out waiting" }.to_owned(),
+        failure: None,
     }
 }
 

@@ -57,6 +57,24 @@ pub trait PageEvidence: Sync {
 
     /// The current document's HTML.
     async fn page_source(&self) -> Result<String>;
+
+    /// The current page's URL.
+    ///
+    /// The default is an [`Unsupported`](SeleniumBaseError::Unsupported)
+    /// error, for page types that cannot tell; reports then leave it out.
+    async fn current_url(&self) -> Result<String> {
+        Err(SeleniumBaseError::unsupported(
+            "this page cannot report its URL",
+        ))
+    }
+
+    /// The current page's title. The default is an error, as for
+    /// [`current_url`](Self::current_url).
+    async fn page_title(&self) -> Result<String> {
+        Err(SeleniumBaseError::unsupported(
+            "this page cannot report its title",
+        ))
+    }
 }
 
 #[async_trait]
@@ -68,6 +86,24 @@ impl PageEvidence for BaseCase {
     async fn page_source(&self) -> Result<String> {
         self.get_page_source().await
     }
+
+    // `get_current_url` and `get_title` need `&mut self`; asking the page
+    // needs only a look.
+    async fn current_url(&self) -> Result<String> {
+        script_text(self, "return location.href;").await
+    }
+
+    async fn page_title(&self) -> Result<String> {
+        script_text(self, "return document.title;").await
+    }
+}
+
+/// The text a script returns, or an error if it returns something else.
+async fn script_text(case: &BaseCase, script: &str) -> Result<String> {
+    match case.execute_script(script).await? {
+        serde_json::Value::String(text) => Ok(text),
+        other => Err(SeleniumBaseError::parse(other.to_string(), "text")),
+    }
 }
 
 #[async_trait]
@@ -78,6 +114,14 @@ impl PageEvidence for crate::sb_cdp::Page {
 
     async fn page_source(&self) -> Result<String> {
         self.evaluate_as("document.documentElement.outerHTML").await
+    }
+
+    async fn current_url(&self) -> Result<String> {
+        self.url().await
+    }
+
+    async fn page_title(&self) -> Result<String> {
+        self.title().await
     }
 }
 

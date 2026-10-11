@@ -150,6 +150,7 @@ fn database() {
             passed: true,
             duration_secs: 1.25,
             message: "ok".into(),
+            failure: None,
         };
         let n = 2_000_u32;
         let started = Instant::now();

@@ -10,27 +10,38 @@
 //! Everything a test printed is escaped before it reaches the HTML, so a
 //! failing assertion that contains markup cannot inject any into the report.
 //!
+//! A failure can carry [`FailureDetails`]: the kind of error, the hint, the
+//! page's URL and title, and the screenshot and page source taken when it
+//! failed. The HTML report shows them the way a person debugs: the error,
+//! how to fix it, the page, links to the evidence, and the technical detail
+//! folded away.
+//!
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::core::report_helper::{render_html_report, TestResult};
+//! use seleniumbase_rs::core::report_helper::{render_html_report, FailureDetails, TestResult};
+//! use seleniumbase_rs::SeleniumBaseError;
 //!
+//! let error = SeleniumBaseError::element_not_found("#buy");
 //! let results = [TestResult {
 //!     name: "login_works".to_owned(),
 //!     passed: false,
 //!     duration_secs: 1.5,
-//!     message: "expected <h1>".to_owned(),
+//!     message: error.to_string(),
+//!     failure: Some(FailureDetails::from_error(&error)),
 //! }];
 //! let html = render_html_report(&results);
 //! assert!(html.contains("1 test: 0 passed, 1 failed"));
-//! assert!(html.contains("expected &lt;h1&gt;"));
+//! assert!(html.contains("How to fix:"));
 //! ```
 
 use std::fmt::{self, Write as _};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::error::SeleniumBaseError;
 
 /// Result of a single test.
 ///
@@ -46,6 +57,59 @@ pub struct TestResult {
     pub duration_secs: f64,
     /// `"ok"` for a pass, or the error for a failure.
     pub message: String,
+    /// What is known about a failure beyond its message. Absent from the
+    /// JSON when there is none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<FailureDetails>,
+}
+
+/// What a person needs to debug a failed test.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FailureDetails {
+    /// The error's category, such as `element_not_found`; see
+    /// [`SeleniumBaseError::category`].
+    pub kind: String,
+    /// The likely cause and the fix.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    /// The page's URL when the test failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// The page's title when the test failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// The failure screenshot, relative to the report's folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub screenshot: Option<String>,
+    /// The page source saved at the failure, relative to the report's folder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page_source: Option<String>,
+    /// The full error with each of its causes, one per line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+impl FailureDetails {
+    /// The kind, hint and detail of `error`; the page facts are left for the
+    /// caller to fill in.
+    #[must_use]
+    pub fn from_error(error: &SeleniumBaseError) -> Self {
+        let mut detail = error.to_string();
+        let mut cause = std::error::Error::source(error);
+        while let Some(inner) = cause {
+            let text = inner.to_string();
+            if !detail.contains(&text) {
+                let _ = write!(detail, "\ncaused by: {text}");
+            }
+            cause = inner.source();
+        }
+        Self {
+            kind: error.category().to_owned(),
+            hint: error.hint(),
+            detail: Some(detail),
+            ..Self::default()
+        }
+    }
 }
 
 /// How many tests passed and failed, and how long they took altogether.
@@ -110,6 +174,11 @@ th,td{border:1px solid var(--line);padding:.35rem .6rem;text-align:left;vertical
 th{color:var(--muted);font-weight:600}\
 td.num{text-align:right;white-space:nowrap}\
 td.msg{white-space:pre-wrap;overflow-wrap:anywhere}\
+td.msg .kind{font:600 12px/1.6 ui-monospace,monospace;color:var(--muted)}\
+td.msg .error{font-weight:600}\
+td.msg .hint,td.msg .page,td.msg .evidence{margin-top:.25rem}\
+td.msg details{margin-top:.35rem;color:var(--muted)}\
+td.msg pre{margin:.25rem 0 0;white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace}\
 td.status{font-weight:700;white-space:nowrap}\
 tr.pass td.status{color:var(--pass)}\
 tr.fail td.status{color:var(--fail)}\
@@ -147,13 +216,16 @@ pub fn render_html_report(results: &[TestResult]) -> String {
             } else {
                 ("fail", "FAIL")
             };
+            let message = match (&result.failure, result.passed) {
+                (Some(failure), false) => failure_cell(&result.message, failure),
+                _ => html_escape(&result.message),
+            };
             let _ = writeln!(
                 html,
                 "<tr class=\"{class}\"><td>{}</td><td class=\"status\">{status}</td>\
-                 <td class=\"num\">{:.3}s</td><td class=\"msg\">{}</td></tr>",
+                 <td class=\"num\">{:.3}s</td><td class=\"msg\">{message}</td></tr>",
                 html_escape(&result.name),
                 result.duration_secs,
-                html_escape(&result.message),
             );
         }
         html.push_str("</tbody>\n</table>\n");
@@ -260,6 +332,84 @@ async fn write_atomically_async(path: &Path, bytes: &[u8]) -> io::Result<()> {
     written
 }
 
+/// The message cell of a failed test with details: the error, how to fix it,
+/// the page, links to the evidence, and the full detail folded away.
+/// Everything in it is escaped.
+fn failure_cell(message: &str, failure: &FailureDetails) -> String {
+    let mut cell = String::new();
+    if !failure.kind.is_empty() {
+        let _ = write!(
+            cell,
+            "<span class=\"kind\">{}</span>",
+            html_escape(&failure.kind)
+        );
+    }
+    let summary = message.lines().next().unwrap_or_default();
+    let _ = write!(cell, "<div class=\"error\">{}</div>", html_escape(summary));
+    if let Some(hint) = &failure.hint {
+        let _ = write!(
+            cell,
+            "<div class=\"hint\"><b>How to fix:</b> {}</div>",
+            html_escape(hint)
+        );
+    }
+    if failure.url.is_some() || failure.title.is_some() {
+        cell.push_str("<div class=\"page\"><b>Page:</b> ");
+        if let Some(url) = &failure.url {
+            let lower = url.to_ascii_lowercase();
+            if lower.starts_with("http://") || lower.starts_with("https://") {
+                let _ = write!(
+                    cell,
+                    "<a href=\"{0}\" rel=\"noreferrer\">{0}</a>",
+                    html_escape(url)
+                );
+            } else {
+                cell.push_str(&html_escape(url));
+            }
+        }
+        if let Some(title) = &failure.title {
+            let _ = write!(cell, " &ldquo;{}&rdquo;", html_escape(title));
+        }
+        cell.push_str("</div>");
+    }
+    let evidence: Vec<String> = [
+        ("Screenshot", &failure.screenshot),
+        ("Page source", &failure.page_source),
+    ]
+    .into_iter()
+    .filter_map(|(label, path)| path.as_deref().map(|path| evidence_link(label, path)))
+    .collect();
+    if !evidence.is_empty() {
+        let _ = write!(
+            cell,
+            "<div class=\"evidence\"><b>Evidence:</b> {}</div>",
+            evidence.join(" &middot; ")
+        );
+    }
+    let detail = failure.detail.as_deref().unwrap_or(message);
+    let _ = write!(
+        cell,
+        "<details><summary>Technical detail</summary><pre>{}</pre></details>",
+        html_escape(detail)
+    );
+    cell
+}
+
+/// A link to an evidence file next to the report, or its path as text when
+/// it is not a plain relative path (a link must not lead elsewhere).
+fn evidence_link(label: &str, path: &str) -> String {
+    let relative = !path.is_empty()
+        && !path.contains(':')
+        && Path::new(path)
+            .components()
+            .all(|part| matches!(part, Component::Normal(_) | Component::CurDir));
+    if relative {
+        format!("<a href=\"{}\">{label}</a>", html_escape(path))
+    } else {
+        format!("{label}: {}", html_escape(path))
+    }
+}
+
 /// `s` safe to put in HTML text or in a quoted attribute.
 fn html_escape(s: &str) -> String {
     let mut escaped = String::with_capacity(s.len());
@@ -286,7 +436,92 @@ mod tests {
             passed,
             duration_secs: secs,
             message: message.to_owned(),
+            failure: None,
         }
+    }
+
+    fn failed_with(details: FailureDetails) -> TestResult {
+        TestResult {
+            failure: Some(details),
+            ..result("checkout", false, 2.0, "element not found: #buy\nmore")
+        }
+    }
+
+    #[test]
+    fn a_failure_shows_the_error_the_fix_the_page_and_the_evidence() {
+        let error = SeleniumBaseError::element_not_found("#buy");
+        let html = render_html_report(&[failed_with(FailureDetails {
+            url: Some("https://shop.test/cart".to_owned()),
+            title: Some("Cart".to_owned()),
+            screenshot: Some("checkout_20261010_101500.png".to_owned()),
+            page_source: Some("checkout_20261010_101500.html".to_owned()),
+            ..FailureDetails::from_error(&error)
+        })]);
+
+        assert!(html.contains("<span class=\"kind\">element_not_found</span>"));
+        assert!(html.contains("<div class=\"error\">element not found: #buy</div>"));
+        assert!(
+            html.contains("<b>How to fix:</b> Nothing on the page matched"),
+            "{html}"
+        );
+        assert!(html.contains(
+            "<a href=\"https://shop.test/cart\" rel=\"noreferrer\">https://shop.test/cart</a> &ldquo;Cart&rdquo;"
+        ));
+        assert!(html.contains("<a href=\"checkout_20261010_101500.png\">Screenshot</a>"));
+        assert!(html.contains("<a href=\"checkout_20261010_101500.html\">Page source</a>"));
+        assert!(html.contains("<details><summary>Technical detail</summary><pre>"));
+        assert!(!html.contains("<script"), "the report needs no script");
+    }
+
+    #[test]
+    fn hostile_failure_details_cannot_inject_markup_or_links() {
+        let html = render_html_report(&[failed_with(FailureDetails {
+            kind: "<b>kind</b>".to_owned(),
+            hint: Some("<script>alert(1)</script>".to_owned()),
+            url: Some("javascript:alert(1)".to_owned()),
+            title: Some("\"><img src=x onerror=alert(1)>".to_owned()),
+            screenshot: Some("../../etc/passwd".to_owned()),
+            page_source: Some("\" onmouseover=\"alert(1)".to_owned()),
+            detail: Some("</pre><script>alert(2)</script>".to_owned()),
+        })]);
+
+        assert!(!html.contains("<script"), "{html}");
+        assert!(!html.contains("<img"), "{html}");
+        assert!(!html.contains("<b>kind"), "{html}");
+        assert!(!html.contains("href=\"javascript"), "{html}");
+        assert!(
+            !html.contains("href=\"../"),
+            "a path that climbs out is not linked"
+        );
+        assert!(!html.contains("\" onmouseover"), "{html}");
+        assert!(html.contains("Screenshot: ../../etc/passwd"));
+    }
+
+    #[test]
+    fn a_failure_without_details_keeps_the_plain_message() {
+        let html = render_html_report(&[result("t", false, 0.0, "plain <b>")]);
+        assert!(html.contains("<td class=\"msg\">plain &lt;b&gt;</td>"));
+        assert!(!html.contains("How to fix"));
+    }
+
+    #[test]
+    fn failure_details_travel_in_the_json_report() {
+        let error = SeleniumBaseError::assertion_failed("title");
+        let rows = vec![failed_with(FailureDetails {
+            url: Some("https://a.test/".to_owned()),
+            ..FailureDetails::from_error(&error)
+        })];
+
+        let json = render_json_report(&rows).unwrap();
+        let back: Vec<TestResult> = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(back, rows);
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value[0]["failure"]["kind"], "assertion_failed");
+        assert!(
+            value[0]["failure"].get("screenshot").is_none(),
+            "absent, not null"
+        );
     }
 
     fn mixed() -> Vec<TestResult> {

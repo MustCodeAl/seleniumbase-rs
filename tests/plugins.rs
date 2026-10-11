@@ -17,6 +17,7 @@ use seleniumbase_rs::SeleniumBaseError;
 struct FakePage {
     png: Option<Vec<u8>>,
     html: Option<String>,
+    url: Option<String>,
 }
 
 impl FakePage {
@@ -24,6 +25,7 @@ impl FakePage {
         Self {
             png: Some(b"\x89PNG-bytes".to_vec()),
             html: Some("<html><body>broken page</body></html>".to_owned()),
+            url: Some("https://shop.test/cart".to_owned()),
         }
     }
 
@@ -31,6 +33,7 @@ impl FakePage {
         Self {
             png: None,
             html: None,
+            url: None,
         }
     }
 }
@@ -46,6 +49,19 @@ impl PageEvidence for FakePage {
     async fn page_source(&self) -> Result<String, SeleniumBaseError> {
         self.html
             .clone()
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("the browser has gone away"))
+    }
+
+    async fn current_url(&self) -> Result<String, SeleniumBaseError> {
+        self.url
+            .clone()
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("the browser has gone away"))
+    }
+
+    async fn page_title(&self) -> Result<String, SeleniumBaseError> {
+        self.url
+            .as_ref()
+            .map(|_| "Cart".to_owned())
             .ok_or_else(|| SeleniumBaseError::cdp_driver("the browser has gone away"))
     }
 }
@@ -398,6 +414,77 @@ async fn the_html_report_escapes_what_a_test_printed() {
     assert!(
         html.contains("&lt;script&gt;") && html.contains("&lt;b&gt;name"),
         "{html}"
+    );
+}
+
+#[tokio::test]
+async fn a_failed_test_is_reported_with_its_page_its_hint_and_linked_evidence() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("report.html");
+    let mut plugins = Plugins::new().with(ReportPlugin::html(&path).with_evidence());
+
+    plugins
+        .failed("checkout", &boom(), &FakePage::working())
+        .await;
+    plugins
+        .finished("checkout", Duration::from_secs(2), &Err(boom()))
+        .await;
+
+    let html = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        html.contains("<span class=\"kind\">assertion_failed</span>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<b>How to fix:</b> The page did not match"),
+        "{html}"
+    );
+    assert!(
+        html.contains(">https://shop.test/cart</a> &ldquo;Cart&rdquo;"),
+        "{html}"
+    );
+    let files = files_in(dir.path());
+    let names: Vec<String> = files
+        .iter()
+        .map(|file| file.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    let png = names.iter().find(|name| name.ends_with(".png")).unwrap();
+    let source = names
+        .iter()
+        .find(|name| name.ends_with(".html") && name.starts_with("checkout_"))
+        .unwrap();
+    assert!(
+        html.contains(&format!("<a href=\"{png}\">Screenshot</a>")),
+        "{html}"
+    );
+    assert!(
+        html.contains(&format!("<a href=\"{source}\">Page source</a>")),
+        "{html}"
+    );
+}
+
+#[tokio::test]
+async fn a_failure_on_a_page_that_has_gone_is_still_explained() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("report.json");
+    let mut plugins = Plugins::new().with(ReportPlugin::json(&path).with_evidence());
+
+    plugins.failed("checkout", &boom(), &FakePage::gone()).await;
+    plugins
+        .finished("checkout", Duration::ZERO, &Err(boom()))
+        .await;
+
+    let rows: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let failure = &rows[0]["failure"];
+    assert_eq!(failure["kind"], "assertion_failed");
+    assert!(failure["hint"].is_string());
+    assert!(failure.get("url").is_none(), "{failure}");
+    assert!(failure.get("screenshot").is_none(), "{failure}");
+    assert_eq!(
+        files_in(dir.path()).len(),
+        1,
+        "no evidence files, only the report"
     );
 }
 

@@ -22,6 +22,7 @@
 //!         passed: true,
 //!         duration_secs: 1.8,
 //!         message: "ok".into(),
+//!         failure: None,
 //!     })
 //!     .await?;
 //!
@@ -371,6 +372,8 @@ impl ResultStore {
                 passed: db::integer(&row, 1)? != 0,
                 duration_secs: db::real(&row, 2)?,
                 message: db::text(&row, 3)?,
+                // The database keeps the message, not the failure details.
+                failure: None,
             });
         }
         Ok(results)
@@ -423,6 +426,7 @@ fn outcome_to_result<E: fmt::Display>(
             Ok(()) => "ok".to_owned(),
             Err(error) => error.to_string(),
         },
+        failure: None,
     }
 }
 
@@ -455,6 +459,7 @@ mod tests {
             passed,
             duration_secs: 0.5,
             message: if passed { "ok" } else { "boom" }.to_owned(),
+            failure: None,
         }
     }
 
@@ -648,6 +653,7 @@ mod tests {
             passed: false,
             duration_secs: 0.0,
             message: "expected 'a' but got \"b\"\nsecond line ✗".to_owned(),
+            failure: None,
         };
         store.record(run, &tricky).await.unwrap();
 

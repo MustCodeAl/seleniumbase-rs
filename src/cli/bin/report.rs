@@ -212,6 +212,7 @@ mod tests {
                             "no such element\nsecond line"
                         }
                         .to_owned(),
+                        failure: None,
                     },
                 )
                 .await
