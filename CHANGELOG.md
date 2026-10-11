@@ -180,6 +180,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `Page::close` (pure CDP) waits, for at most two seconds, until the browser no
+  longer lists the tab; `Browser::list_pages` right after a close could still show
+  it, which made a real-Chrome test fail one run in five.
 - `sbase objectify`, `caseplans`, `behave-gui`, `mkrec`, `mkchart`, `mkpres` and
   `print` exit with status 6 and print the cause when they cannot write or read
   their file; they used to exit 0. The WebDriver-hosted CDP page no longer sends

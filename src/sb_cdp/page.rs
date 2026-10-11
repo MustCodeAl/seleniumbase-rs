@@ -15,6 +15,7 @@ use super::locator::Locator;
 use super::sync::locked;
 use super::types::{PageInfo, Scroll, State};
 use crate::error::SeleniumBaseError;
+use crate::utilities::retry::{poll_until, RetryPolicy};
 use crate::utils::selectors::SelectorBuf;
 use crate::utils::urls::normalize_page_url;
 
@@ -38,6 +39,12 @@ const LOAD_FALLBACK: Duration = Duration::from_secs(2);
 /// How often waits re-check their condition. Short enough to feel instant,
 /// long enough not to flood the protocol connection.
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+/// How long [`Page::close`] waits for the browser to drop the tab from its target list.
+const CLOSE_WAIT: Duration = Duration::from_secs(2);
+
+/// How often [`Page::close`] looks at the target list while it waits.
+const CLOSE_POLL: Duration = Duration::from_millis(20);
 
 /// One browser tab.
 ///
@@ -604,7 +611,10 @@ impl Page {
         Ok(())
     }
 
-    /// Closes the tab.
+    /// Closes the tab, and waits (for up to [`CLOSE_WAIT`]) until the browser no longer lists it.
+    ///
+    /// Chrome answers `Target.closeTarget` before the tab has left its target list, so without
+    /// the wait a [`Browser::list_pages`] right after `close` could still show the tab.
     ///
     /// # Errors
     ///
@@ -614,6 +624,14 @@ impl Page {
             .execute("Target.closeTarget", json!({ "targetId": &*self.id }))
             .await?;
         self.browser.forget_page(&self.id);
+        poll_until(CLOSE_WAIT, RetryPolicy::every(CLOSE_POLL), || async {
+            // A browser that cannot be asked has nothing left to wait for.
+            match self.browser.list_pages().await {
+                Ok(pages) if pages.iter().any(|page| page.id == *self.id) => None,
+                _ => Some(()),
+            }
+        })
+        .await;
         Ok(())
     }
 
