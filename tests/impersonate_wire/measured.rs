@@ -28,9 +28,10 @@ fn profile() -> ImpersonationProfile {
     ImpersonationProfile::measured(BrowserKind::Chrome).expect("the measured profile")
 }
 
-/// The spec a hello shows, with the order Chrome shuffles removed and any GREASE signature
-/// algorithm taken out (`TlsSpec::from_client_hello` keeps it; the vendored `BoringSSL` writes
-/// none, see the peetprint test), so it can be compared with a measured spec.
+/// The spec a hello shows, with the order Chrome shuffles removed, so it can be compared with a
+/// measured spec. `TlsSpec::from_client_hello` already drops GREASE signature algorithms, as it
+/// drops GREASE everywhere else (the vendored `BoringSSL` writes none, and the peetprint test
+/// pins that), so the `without_grease` call below changes nothing today and stays as a guard.
 fn comparable(hello: &ClientHello, permute: bool) -> TlsSpec {
     let mut spec = TlsSpec::from_client_hello(hello);
     spec.extensions.sort_unstable();

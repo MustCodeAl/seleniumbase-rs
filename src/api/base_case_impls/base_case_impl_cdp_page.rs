@@ -10,12 +10,30 @@ impl BaseCase {
         CdpPage::new(&self.session).open(url).await
     }
 
-    /// Finds the first element matching `selector` via CDP `DOM.querySelector`.
+    /// Finds the first element matching `selector` by running `document.querySelector` in the
+    /// page through `Runtime.evaluate`. The `DOM` protocol domain is never switched on, because a
+    /// page can tell that a client is attached to it.
+    ///
+    /// The returned [`CdpNode`] has a `node_id` of 0 and carries an `object_id`, which is how it
+    /// is used with `Runtime.callFunctionOn`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
+    /// [`SeleniumBaseError::InvalidSelector`] if the browser rejects the selector.
     pub async fn cdp_find_element(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
         CdpPage::new(&self.session).find_element(selector).await
     }
 
-    /// Finds all elements matching `selector` via CDP `DOM.querySelectorAll`.
+    /// Finds all elements matching `selector` by running `document.querySelectorAll` in the page
+    /// through `Runtime.evaluate` and `Runtime.getProperties`, in document order. The `DOM`
+    /// protocol domain is never switched on.
+    ///
+    /// Each returned [`CdpNode`] has a `node_id` of 0 and carries an `object_id`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the browser rejects the selector.
     pub async fn cdp_find_all(&self, selector: &str) -> Result<Vec<CdpNode>, SeleniumBaseError> {
         CdpPage::new(&self.session).find_all(selector).await
     }
