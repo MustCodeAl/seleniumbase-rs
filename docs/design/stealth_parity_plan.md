@@ -1,9 +1,67 @@
 # Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation
 
-Status: design only, 2026-10-10, branch `feat/pure-cdp-and-mcp-parity` at `8c1394d`.
+Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `c5a6f2f`): **WP0 to WP13 and WP17 are
+merged. WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`) are in progress. WP18 and
+WP19 are open.** The plan was written on 2026-10-10 as design only, at `8c1394d`. Where the code differs
+from what is written below, [the next section](#status-and-what-the-code-changed) says how, and the code
+wins. The user-facing description of what exists is [Stealth Scraping](../tutorials/stealth_scraping.md);
+the layout rules are recorded in [ADR 003](../adr/003-stealth-scraping-layout.md).
 Sources: the project memory (`stealthscraper-feature-parity`, `project-priorities-2026-10-10`),
 three Context7 reads of `/ypno/stealthscraper-rs`, the wreq 6.0.0-rc.31, wreq-proto 0.2.6,
 http2 0.5.20 and btls 0.5.6 sources in `~/.cargo/registry`, and our code read through TokenSave.
+
+## Status and what the code changed
+
+| WP | Scope | State |
+|---|---|---|
+| 0 | Scaffold, features, lint block, purity test | Merged |
+| 1 | `egress` (redact, route, geo, pool), `randomized_with_major` | Merged |
+| 2 | `challenge` (detect, markers, mitigation) | Merged |
+| 3 | `ledger::state`, `runtime::json_store` | Merged |
+| 4 | `jar` (cookie store, `Set-Cookie`) | Merged |
+| 5 | `wire::ids` | Merged |
+| 6 | `wire::{client_hello, ja3, ja4, tls_spec}` | Merged |
+| 7 | `wire::{akamai, h2_frames, h2_spec, header_spec}` | Merged |
+| 8 | `passport` (identity, policy), `ledger::events`, tracing sink, identity file | Merged |
+| 9 | `runtime::capture`, `capture_tls`, `capture_hints`, first Chrome measurement | Merged |
+| 10 | `impersonate::tls_server` | Merged |
+| 11 | `impersonate::capture_h2`, `wire::emulation`, Chrome HTTP/2 and header measurement | Merged |
+| 12 | `impersonate::{convert, client}`, `CustomProfileBuilder`, wire probe | Merged |
+| 13 | `scrape::error`, `runtime::{cdp, egress_switch, browser_scraper}` | Merged |
+| 14 | `impersonate::http_session` | In progress (the file is a placeholder) |
+| 15 | `impersonate::mitm` | In progress (the files are placeholders) |
+| 16 | `impersonate::stealth_session` | In progress (the file is a placeholder) |
+| 17 | Hardening: `session_registry`, secure-context `userAgentData`, screen through the device metrics, no `Runtime.enable` | Merged |
+| 18 | Split-role security review | Open |
+| 19 | Re-exports, final gates, documentation. The tutorial, the `fingerprint_stealth.md` fixes, ADR 003, ROADMAP and CHANGELOG are written; the re-exports in `lib.rs`, `scrape/mod.rs` and `impersonate/mod.rs`, and the full `--all-targets` gates, are not | Open |
+
+Deviations from the plan that the code made. The plan's text above was not rewritten; read it with these:
+
+- **`SpecError` is split per module.** The plan has one `SpecError` that holds every variant. In the code
+  `wire::tls_spec::SpecError` holds the TLS variants, `wire::h2_spec::SpecError` the HTTP/2 variants, and
+  the variant that names an unmeasured browser and system, `NotMeasured { kind, os }`, lives in
+  `wire::emulation::EmulationError` (with `VersionNotMeasured`, `Parse`, `TooLarge`, `Inconsistent`,
+  `Headers` and `Duplicate`). `wire::emulation::SpecError` is an alias for `EmulationError`, so the plan's
+  `SpecError::NotMeasured` is reachable under that name. `ImpersonateError` wraps each of them as `Tls`,
+  `Http2` and `Emulation`, next to `Ja3`, `Ja4`, `Peetprint`, `Akamai`, `Headers`, `Convert`,
+  `VersionMismatch`, `Incomplete`, `Fingerprint`, `UnknownHeader` and `Build`; there is no single `Spec`
+  variant.
+- **`KnownGap` lives in `wire::tls_spec`**, not in `emulation`. `wire::emulation` re-exports it. The plan's
+  name for the HTTP/2 spec, `Http2Spec`, is an alias of `H2Spec`.
+- **`BrowserKind` has no serde.** The enum in `wire/mod.rs` derives only `Debug`, `Clone`, `Copy`,
+  `PartialEq` and `Eq`. `EmulationRef` in `scrape::passport::identity` serializes it through a private
+  module that knows the one spelling, `chrome`, so a new variant breaks the build there until it is handled.
+- **`Mode` lives in `scrape::challenge::mitigation`.** `scrape::ledger::state` and
+  `scrape::passport::policy` import it from there.
+- **Chrome 155 sends a GREASE signature algorithm that the vendored BoringSSL does not write.** It is not a
+  `KnownGap` variant (those are `TrustAnchorsExtension` and `MlDsaSignatureAlgorithms`). JA3 and JA4 strip
+  GREASE, so only the peetprint shows it, and a wire test pins the difference and fails once a newer
+  BoringSSL closes it. A `TlsSpec` read from a hello drops GREASE signature algorithms.
+- **`ScrapeError` has three more variants** than §3.13 lists: `CoolingDown`, `Navigation` and
+  `NoEgressAvailable`. `BrowserScraperBuilder` has more settings than the sketch: `mitigation`,
+  `solve_timeout`, `clock`, `launcher` (the `BrowserLauncher` port), `fingerprint` and `session_store`.
+- **`impersonate` also enables `brotli`**, for the certificate compressor of the impersonated hello (Chrome
+  offers brotli certificate compression).
 
 ## 0. Decisions
 
