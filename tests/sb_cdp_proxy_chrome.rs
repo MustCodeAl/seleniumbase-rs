@@ -109,7 +109,7 @@ async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
     let options = LaunchOptions::builder()
         .headless(true)
         .no_sandbox(std::env::var_os("CI").is_some())
-        .proxy(&format!("http://{USER}:{PASSWORD}@127.0.0.1:{port}"))
+        .proxy(format!("http://{USER}:{PASSWORD}@127.0.0.1:{port}"))
         .build()
         .expect("launch options");
     let browser = Browser::launch(options).await.expect("Chrome starts");
