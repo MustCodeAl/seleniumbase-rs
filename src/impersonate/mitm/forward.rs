@@ -8,7 +8,7 @@
 use std::time::Instant;
 
 use bytes::Bytes;
-use http::header::{CONNECTION, CONTENT_LENGTH, HOST, TE, UPGRADE, USER_AGENT};
+use http::header::{CONNECTION, CONTENT_LENGTH, HOST, TE, TRANSFER_ENCODING, UPGRADE, USER_AGENT};
 use http::uri::{Authority, PathAndQuery, Uri};
 use http::{
     Extensions, HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode, Version,
@@ -309,10 +309,10 @@ pub(super) fn empty(status: StatusCode) -> Response<ProxyBody> {
 }
 
 /// The request headers that go upstream, in the browser's order: everything but `Host`, the
-/// hop-by-hop and proxy fields, the fields `Connection` names, and a `TE` other than
-/// `trailers`.
+/// hop-by-hop and proxy fields, the fields `Connection` names, a `TE` other than `trailers`,
+/// and a `Content-Length` that came together with `Transfer-Encoding`.
 pub(super) fn forwarded_request_headers(headers: &HeaderMap) -> Vec<(HeaderName, HeaderValue)> {
-    let listed = connection_tokens(headers);
+    let listed = dropped_fields(headers);
     headers
         .iter()
         .filter(|(name, value)| keeps_request_header(name, value, &listed))
@@ -334,9 +334,10 @@ fn keeps_request_header(name: &HeaderName, value: &HeaderValue, listed: &[String
 }
 
 /// The response headers that go to the browser: everything but the hop-by-hop and proxy
-/// fields and the fields `Connection` names.
+/// fields, the fields `Connection` names, and a `Content-Length` that came together with
+/// `Transfer-Encoding`.
 pub(super) fn forwarded_response_headers(headers: &HeaderMap) -> HeaderMap {
-    let listed = connection_tokens(headers);
+    let listed = dropped_fields(headers);
     let mut kept = HeaderMap::with_capacity(headers.len());
     for (name, value) in headers {
         let hop = HOP_BY_HOP.contains(&name.as_str())
@@ -348,16 +349,23 @@ pub(super) fn forwarded_response_headers(headers: &HeaderMap) -> HeaderMap {
     kept
 }
 
-/// The field names a `Connection` header lists, lower case.
-fn connection_tokens(headers: &HeaderMap) -> Vec<String> {
-    headers
+/// The field names a message loses besides the fixed hop-by-hop list, lower case: those its
+/// `Connection` header lists, and `content-length` when it also has `Transfer-Encoding`. The
+/// new message is framed afresh, so a length that disagreed with the chunking (a smuggling
+/// shape) must not travel with it.
+fn dropped_fields(headers: &HeaderMap) -> Vec<String> {
+    let mut fields: Vec<String> = headers
         .get_all(CONNECTION)
         .iter()
         .filter_map(|value| value.to_str().ok())
         .flat_map(|value| value.split(','))
         .map(|token| token.trim().to_ascii_lowercase())
         .filter(|token| !token.is_empty())
-        .collect()
+        .collect();
+    if headers.contains_key(TRANSFER_ENCODING) {
+        fields.push(CONTENT_LENGTH.as_str().to_owned());
+    }
+    fields
 }
 
 /// Whether a message announces a body longer than `limit` bytes.

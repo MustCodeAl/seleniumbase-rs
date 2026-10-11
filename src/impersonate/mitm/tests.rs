@@ -245,7 +245,7 @@ fn response_hop_by_hop_headers_are_dropped() {
         ("content-type", "text/html"),
         ("connection", "close, x-private"),
         ("x-private", "1"),
-        ("transfer-encoding", "chunked"),
+        ("keep-alive", "timeout=5"),
         ("proxy-authenticate", "Basic"),
         ("content-encoding", "br"),
         ("content-length", "10"),
@@ -255,6 +255,27 @@ fn response_hop_by_hop_headers_are_dropped() {
     assert_eq!(
         names,
         ["content-type", "content-encoding", "content-length"]
+    );
+}
+
+#[test]
+fn a_length_that_came_with_chunking_is_dropped_both_ways() {
+    let smuggling = headers(&[
+        ("content-length", "4"),
+        ("transfer-encoding", "chunked"),
+        ("accept", "*/*"),
+    ]);
+    assert_eq!(names(&forwarded_request_headers(&smuggling)), ["accept"]);
+    let kept = forwarded_response_headers(&smuggling);
+    assert_eq!(
+        kept.keys().map(HeaderName::as_str).collect::<Vec<_>>(),
+        ["accept"]
+    );
+
+    let plain = headers(&[("content-length", "4"), ("accept", "*/*")]);
+    assert_eq!(
+        names(&forwarded_request_headers(&plain)),
+        ["content-length", "accept"]
     );
 }
 
