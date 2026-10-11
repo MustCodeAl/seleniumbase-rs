@@ -83,9 +83,12 @@ impl ContextOptions {
 /// take the same route. Its `Debug` output never shows the credentials.
 #[cfg(feature = "scrape")]
 #[derive(Debug, Clone)]
-#[allow(
-    dead_code,
-    reason = "the fields are read by the plain-HTTP handoff of the impersonate layer, which is not built with `scrape` alone"
+#[cfg_attr(
+    not(feature = "impersonate"),
+    allow(
+        dead_code,
+        reason = "the fields are read by the plain-HTTP session of the impersonate layer, which is not built with `scrape` alone"
+    )
 )]
 pub(crate) struct ContextRoute {
     pub(crate) proxy: Proxy,
@@ -242,9 +245,12 @@ impl BrowserContext {
 #[cfg(feature = "scrape")]
 impl Browser {
     /// The own proxy of the context with this id, if it was created with one.
-    #[allow(
-        dead_code,
-        reason = "read by the plain-HTTP handoff of the impersonate layer, which is not built with `scrape` alone"
+    #[cfg_attr(
+        not(feature = "impersonate"),
+        allow(
+            dead_code,
+            reason = "read by the plain-HTTP session of the impersonate layer, which is not built with `scrape` alone"
+        )
     )]
     pub(crate) fn context_route(&self, id: &str) -> Option<ContextRoute> {
         locked(&self.inner().context_routes).get(id).cloned()
