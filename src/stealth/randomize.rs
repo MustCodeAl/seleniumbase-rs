@@ -869,6 +869,10 @@ const LOCALE_TABLE: &[Locale] = &[
 ];
 
 /// The table, for lookups by country and tag and for the geo resolver.
+#[cfg_attr(
+    not(feature = "scrape"),
+    allow(dead_code, reason = "only the `scrape` feature looks locales up")
+)]
 pub static LOCALES: &[Locale] = LOCALE_TABLE;
 
 /// The places [`generate`] draws from: the first [`RANDOM_REGION_COUNT`] entries of [`LOCALES`].
