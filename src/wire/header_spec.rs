@@ -49,6 +49,7 @@ pub const MAX_PRIORITY_DESTINATIONS: usize = 32;
 /// Headers that belong to the connection, not to a profile: the transport sets them.
 ///
 /// [`HeaderSpec::from_captured`] drops them from captures; [`HeaderSpec::validate`] refuses them.
+/// The credential headers in [`CREDENTIAL_HEADERS`] are treated the same way.
 pub const TRANSPORT_HEADERS: [&str; 9] = [
     "host",
     "connection",
@@ -60,6 +61,10 @@ pub const TRANSPORT_HEADERS: [&str; 9] = [
     "content-length",
     "te",
 ];
+
+/// Headers that carry credentials. A profile never holds one: a capture may have seen it, and
+/// the caller adds it to the requests that need it.
+pub const CREDENTIAL_HEADERS: [&str; 1] = ["authorization"];
 
 /// What a request is, for the purpose of choosing its headers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -145,8 +150,10 @@ pub enum HeaderSpecError {
     /// A pseudo-header, which belongs to the HTTP/2 spec.
     #[error("`{0}` is a pseudo-header; pseudo-headers belong to the HTTP/2 spec")]
     PseudoHeader(String),
-    /// A connection-level header, or `priority`, which has its own table.
-    #[error("`{0}` is set by the transport or by the priority table, not by the header lists")]
+    /// A connection-level or credential header, or `priority`, which has its own table.
+    #[error(
+        "`{0}` is set by the transport, the caller or the priority table, not by the header lists"
+    )]
     ReservedHeader(String),
     /// The same header twice in one list.
     #[error("header `{0}` appears more than once")]
@@ -454,7 +461,7 @@ fn captured_list<N: AsRef<str>, V: AsRef<str>>(
     for (name, value) in raw {
         let (name, value) = (name.as_ref(), value.as_ref());
         let lower = name.to_ascii_lowercase();
-        if name.starts_with(':') || TRANSPORT_HEADERS.contains(&lower.as_str()) {
+        if name.starts_with(':') || is_set_elsewhere(&lower) {
             continue;
         }
         match lower.as_str() {
@@ -496,6 +503,11 @@ fn record_priority(
             Ok(())
         }
     }
+}
+
+/// Whether a lowercase header name is set by the transport or supplied by the caller.
+fn is_set_elsewhere(lower_name: &str) -> bool {
+    TRANSPORT_HEADERS.contains(&lower_name) || CREDENTIAL_HEADERS.contains(&lower_name)
 }
 
 fn is_token(text: &str) -> bool {
@@ -541,7 +553,7 @@ fn validate_list(list: &[(String, HeaderValue)]) -> Result<(), HeaderSpecError> 
     for (name, value) in list {
         validate_name(name)?;
         let lower = name.to_ascii_lowercase();
-        if lower == "priority" || TRANSPORT_HEADERS.contains(&lower.as_str()) {
+        if lower == "priority" || is_set_elsewhere(&lower) {
             return Err(HeaderSpecError::ReservedHeader(lower));
         }
         if seen.contains(&lower) {

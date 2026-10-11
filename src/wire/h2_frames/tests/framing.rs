@@ -214,3 +214,25 @@ fn padded_headers_with_priority_yield_the_bare_fragment() {
         }
     );
 }
+
+#[test]
+fn every_parsed_frame_reports_its_type_code() {
+    let cases = [
+        (settings_frame(&SETTINGS), frame_type::SETTINGS),
+        (window_update_frame(0, 10), frame_type::WINDOW_UPDATE),
+        (priority_frame(3, false, 0, 16), frame_type::PRIORITY),
+        (
+            frame(frame_type::HEADERS, flag::END_HEADERS, 1, &[0x82]),
+            frame_type::HEADERS,
+        ),
+        (
+            frame(frame_type::CONTINUATION, 0, 1, &[0x82]),
+            frame_type::CONTINUATION,
+        ),
+        (frame(frame_type::GOAWAY, 0, 0, &[0; 8]), frame_type::GOAWAY),
+    ];
+    for (bytes, want) in cases {
+        let (parsed, _) = read_frame(&bytes, 100).expect("valid").expect("complete");
+        assert_eq!(parsed.frame_type(), want);
+    }
+}

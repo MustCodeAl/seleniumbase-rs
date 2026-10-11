@@ -395,6 +395,27 @@ fn validation_names_each_kind_of_problem() {
 }
 
 #[test]
+fn credentials_never_enter_a_spec() {
+    let seen = [
+        ("User-Agent", "A/1"),
+        ("Authorization", "Bearer SECRET"),
+        ("Accept", "*/*"),
+    ];
+    let spec = HeaderSpec::from_captured(&seen, &seen).expect("valid");
+    assert_eq!(names(&spec.document), ["User-Agent", "Accept"]);
+    assert!(!format!(
+        "{spec:?}{}",
+        serde_json::to_string(&spec).expect("serialises")
+    )
+    .contains("SECRET"));
+    let by_hand = with_document(vec![("Authorization", lit("Bearer x"))]);
+    assert_eq!(
+        by_hand.validate(),
+        Err(HeaderSpecError::ReservedHeader("authorization".to_owned()))
+    );
+}
+
+#[test]
 fn the_priority_table_is_validated_too() {
     let table = |entries: &[(&str, &str)]| HeaderSpec {
         priority_by_dest: owned(entries),

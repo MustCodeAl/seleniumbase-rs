@@ -104,7 +104,8 @@ pub enum HuffmanError {
     /// The padding is not the most significant bits of the end-of-string symbol (all ones).
     #[error("Huffman padding is not made of ones")]
     PaddingNotOnes,
-    /// Bits that match no code.
+    /// Bits that match no code. The HPACK code is complete, so well-formed tables never
+    /// produce this; the variant keeps the decoder total whatever the input.
     #[error("Huffman data matches no code")]
     InvalidCode,
 }

@@ -27,7 +27,7 @@ pub mod huffman;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub use hpack::{HeaderField, HpackDecoder, HpackError};
+use hpack::{HeaderField, HpackDecoder, HpackError};
 
 use super::akamai::{Akamai, PriorityFrame, Pseudo, MAX_STREAM_ID};
 
