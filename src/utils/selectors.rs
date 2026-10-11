@@ -584,6 +584,28 @@ mod tests {
     }
 
     #[test]
+    fn css_with_contains_runs_as_xpath_for_the_driver() {
+        let by = Selector::auto("button:contains(\"Go on\")")
+            .to_by()
+            .unwrap();
+        assert_eq!(
+            variant_name(by),
+            variant_name(By::XPath("//button[contains(., 'Go on')]".to_owned()))
+        );
+    }
+
+    #[test]
+    fn contains_css_the_converter_cannot_read_stays_css() {
+        // An unterminated string is not something it can turn into XPath.
+        let by = Selector::Css("a:contains(\"open").to_by().unwrap();
+        assert!(variant_name(by).contains("Css"));
+        assert_eq!(
+            SelectorBuf::from("a:contains(\"open"),
+            SelectorBuf::css("a:contains(\"open")
+        );
+    }
+
+    #[test]
     fn every_kind_refuses_an_empty_or_blank_value() {
         for selector in [
             Selector::Css(""),

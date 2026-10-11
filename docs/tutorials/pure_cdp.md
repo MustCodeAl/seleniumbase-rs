@@ -54,12 +54,18 @@ element again and waits for it, so it keeps working when the page re-renders.
 
 Selectors are classified the way SeleniumBase does it: `"#id"` is CSS, `"//div"`
 is XPath, `"link=Home"` is a link. Use `SelectorBuf::css`/`xpath` to be explicit.
+A CSS selector may use SeleniumBase's `button:contains("Sign in")`, which runs as
+XPath. To find any element by its text, use
+`SelectorBuf::containing_text("Sign in", Some("button"))` (with `None` for the
+tag, the innermost elements holding the text); a `text=` prefix means link text.
 
-Reading: `text`, `html`, `attribute`, `count`, `info`, `bounding_box`,
-`is_visible`, `exists`, `is_checked`, `urls`. Acting: `click`, `click_at`,
-`double_click`, `right_click`, `hover`, `drag_to`, `fill`, `type_text`,
-`set_value`, `clear`, `press`, `select_option`, `check`, `submit`,
-`scroll_into_view`, `screenshot`.
+Reading: `text`, `html`, `attribute`, `count`, `info`, `bounding_box` (from the
+top of the document), `viewport_rect` (from the window, as Python's
+`get_element_rect`), `is_visible`, `exists`, `is_checked`, `urls`. `all` lists
+the current matches; `all_waiting` waits for a first one. Acting: `click`,
+`click_at`, `click_and_hold`, `double_click`, `right_click`, `hover`, `drag_to`,
+`fill`, `type_text`, `set_value`, `clear`, `press`, `select_option`, `check`,
+`submit`, `scroll_into_view`, `flash_with`, `screenshot`.
 
 `fill` inserts the text in one step (fast, still real `input` events);
 `type_text` sends one trusted key event per character, for pages that listen to
