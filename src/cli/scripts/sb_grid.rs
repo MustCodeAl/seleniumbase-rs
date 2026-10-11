@@ -459,14 +459,20 @@ mod tests {
                 started.iter().any(|l| l.starts_with("Console: ")),
                 "{started:?}"
             );
-            let log = std::fs::read_to_string(
-                GridProcess::new(&f.command.state_dir, GridRole::Hub).log_path(),
-            )
-            .unwrap();
-            assert!(
-                log.contains(&format!("hub --port {port} --session-timeout 230")),
-                "{log}"
-            );
+            // The stand-in `java` writes its arguments to the log after the
+            // ready stub has already answered, so under load (a freshly written
+            // script is slow to start on macOS) the log can still be empty here.
+            let log_path = GridProcess::new(&f.command.state_dir, GridRole::Hub).log_path();
+            let wanted = format!("hub --port {port} --session-timeout 230");
+            let mut log = String::new();
+            for _ in 0..100 {
+                log = std::fs::read_to_string(&log_path).unwrap_or_default();
+                if log.contains(&wanted) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            assert!(log.contains(&wanted), "{log}");
 
             let status = run(&with_action(&f, GridAction::Status)).await.unwrap();
             assert!(status[0].contains("is running (process"), "{status:?}");
