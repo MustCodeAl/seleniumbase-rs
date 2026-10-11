@@ -14,10 +14,11 @@ use http::{
     Extensions, HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode, Version,
 };
 use http_body_util::combinators::UnsyncBoxBody;
-use http_body_util::{BodyExt as _, Empty, Limited};
+use http_body_util::{BodyExt as _, Empty};
 use hyper::body::{Body as _, Incoming};
 use url::Host;
 
+use super::body::Capped;
 use super::connect::refuse;
 use super::upstream::Outbound;
 use super::{Counters, MitmError, Shared};
@@ -116,9 +117,13 @@ impl Origin {
     }
 
     /// Reads host and port; user information, port 0 and an unparseable host are refused.
-    fn from_authority(scheme: Scheme, authority: &Authority) -> Result<(Self, Host<String>), MitmError> {
-        let (host, port) = parse_authority(authority, scheme.default_port())
-            .ok_or(MitmError::BadTarget("the target is not a valid host and port"))?;
+    fn from_authority(
+        scheme: Scheme,
+        authority: &Authority,
+    ) -> Result<(Self, Host<String>), MitmError> {
+        let (host, port) = parse_authority(authority, scheme.default_port()).ok_or(
+            MitmError::BadTarget("the target is not a valid host and port"),
+        )?;
         let origin = Self {
             scheme,
             host: host_text(&host),
@@ -226,8 +231,11 @@ fn check(
         return Err((StatusCode::BAD_REQUEST, MitmError::HostMismatch));
     }
     let limit = shared.options.max_body_bytes;
-    if announced_length(headers).is_some_and(|length| length > u64::try_from(limit).unwrap_or(u64::MAX)) {
-        return Err((StatusCode::PAYLOAD_TOO_LARGE, MitmError::BodyTooLarge { limit }));
+    if exceeds(headers, limit) {
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            MitmError::BodyTooLarge { limit },
+        ));
     }
     let measured = shared.upstream.current().major();
     if let Some(browser) = claimed_chrome_major(headers).filter(|claimed| *claimed != measured) {
@@ -255,10 +263,16 @@ async fn relay(
         url,
         origin: origin.key(),
         headers: forwarded_request_headers(&parts.headers),
-        body: (!body.is_end_stream()).then(|| Limited::new(body, limit)),
+        body: (!body.is_end_stream()).then(|| Capped::new(body, limit)),
     };
     let upstream = shared.upstream.current();
     match upstream.send(outbound, limit).await {
+        Ok(response) if exceeds(response.headers(), limit) => {
+            Counters::bump(&shared.counters.upstream_errors);
+            let error = MitmError::BodyTooLarge { limit };
+            tracing::debug!(%error, url = %redacted, "upstream answer refused");
+            empty(StatusCode::BAD_GATEWAY)
+        }
         Ok(response) => {
             Counters::bump(&shared.counters.forwarded);
             for_browser(response)
@@ -312,7 +326,9 @@ fn keeps_request_header(name: &HeaderName, value: &HeaderValue, listed: &[String
         return false;
     }
     if *name == TE {
-        return value.as_bytes().eq_ignore_ascii_case(TE_TRAILERS.as_bytes());
+        return value
+            .as_bytes()
+            .eq_ignore_ascii_case(TE_TRAILERS.as_bytes());
     }
     !HOP_BY_HOP.contains(&name.as_str())
 }
@@ -344,7 +360,13 @@ fn connection_tokens(headers: &HeaderMap) -> Vec<String> {
         .collect()
 }
 
-/// The body length a request announces, when it announces one that parses.
+/// Whether a message announces a body longer than `limit` bytes.
+fn exceeds(headers: &HeaderMap, limit: usize) -> bool {
+    let limit = u64::try_from(limit).unwrap_or(u64::MAX);
+    announced_length(headers).is_some_and(|length| length > limit)
+}
+
+/// The body length a message announces, when it announces one that parses.
 fn announced_length(headers: &HeaderMap) -> Option<u64> {
     headers
         .get(CONTENT_LENGTH)?

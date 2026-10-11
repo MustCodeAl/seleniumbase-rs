@@ -84,6 +84,7 @@
 
 #![forbid(unsafe_code)]
 
+mod body;
 mod connect;
 mod forward;
 mod upstream;
@@ -107,9 +108,7 @@ use tokio::task::JoinHandle;
 use self::connect::ProxyCredentials;
 use self::upstream::{Upstream, UpstreamSlot};
 use super::client::{ImpersonateError, ImpersonationProfile};
-use super::tls_server::{
-    self, EphemeralCa, TlsServerError, ALPN_HTTP1, DEFAULT_HANDSHAKE_TIMEOUT,
-};
+use super::tls_server::{self, EphemeralCa, TlsServerError, ALPN_HTTP1, DEFAULT_HANDSHAKE_TIMEOUT};
 use crate::common::shutdown::{cleanup_within, spawn_cleanup, timeout_from_env};
 use crate::sb_cdp::sync::locked;
 use crate::sb_cdp::{LaunchOptionsBuilder, Proxy};

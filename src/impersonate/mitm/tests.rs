@@ -48,7 +48,9 @@ fn basic(user: &str, password: &str) -> String {
 
 #[test]
 fn default_options_are_valid() {
-    MitmOptions::default().validate().expect("the defaults hold");
+    MitmOptions::default()
+        .validate()
+        .expect("the defaults hold");
 }
 
 #[test]
@@ -158,7 +160,9 @@ fn connect_targets_without_a_port_or_with_port_zero_are_refused() {
 
 #[test]
 fn connect_targets_with_user_information_are_refused() {
-    let uri: Uri = "user@example.test:443".parse().expect("hyper accepts userinfo");
+    let uri: Uri = "user@example.test:443"
+        .parse()
+        .expect("hyper accepts userinfo");
     assert!(matches!(
         Origin::from_connect(&uri),
         Err(MitmError::BadTarget(_))
@@ -223,7 +227,10 @@ fn hop_by_hop_proxy_and_listed_headers_are_dropped_and_the_order_kept() {
         ("cookie", "a=1"),
     ]);
     let kept = forwarded_request_headers(&request);
-    assert_eq!(names(&kept), ["sec-ch-ua", "user-agent", "accept", "cookie"]);
+    assert_eq!(
+        names(&kept),
+        ["sec-ch-ua", "user-agent", "accept", "cookie"]
+    );
 }
 
 #[test]
@@ -245,7 +252,10 @@ fn response_hop_by_hop_headers_are_dropped() {
     ]);
     let kept = forwarded_response_headers(&response);
     let names: Vec<&str> = kept.keys().map(HeaderName::as_str).collect();
-    assert_eq!(names, ["content-type", "content-encoding", "content-length"]);
+    assert_eq!(
+        names,
+        ["content-type", "content-encoding", "content-length"]
+    );
 }
 
 #[test]
@@ -308,7 +318,10 @@ async fn the_launch_line_has_the_proxy_and_switches_but_never_the_token() {
     for wanted in mitm.chrome_args() {
         assert!(args.contains(&wanted), "{wanted} missing from {args:?}");
     }
-    assert!(args.iter().all(|arg| !arg.contains(&token)), "the token is on the command line");
+    assert!(
+        args.iter().all(|arg| !arg.contains(&token)),
+        "the token is on the command line"
+    );
     assert!(mitm.local_addr().ip().is_loopback());
     for shown in [
         format!("{mitm:?}"),

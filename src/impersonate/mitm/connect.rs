@@ -169,7 +169,10 @@ async fn serve_client(tcp: TcpStream, shared: Arc<Shared>, mut stop: watch::Rece
     let pending = PendingTunnel::default();
     let for_tunnel = Arc::clone(&shared);
     let connection = server(&shared.options)
-        .serve_connection(TokioIo::new(tcp), proxy_service(shared, Arc::clone(&pending)))
+        .serve_connection(
+            TokioIo::new(tcp),
+            proxy_service(shared, Arc::clone(&pending)),
+        )
         .with_upgrades();
     let mut connection = pin!(connection);
     let served = tokio::select! {
@@ -270,17 +273,21 @@ async fn intercept(tunnel: Tunnel, shared: Arc<Shared>, mut stop: watch::Receive
         }
     };
     let timeout = shared.options.handshake_timeout;
-    let tls =
-        match tls_server::accept(&shared.acceptor, &tunnel.leaf, TokioIo::new(upgraded), timeout)
-            .await
-        {
-            Ok(tls) => tls,
-            Err(error) => {
-                Counters::bump(&shared.counters.refused);
-                tracing::debug!(error = %MitmError::Tls(error), "TLS interception refused");
-                return;
-            }
-        };
+    let tls = match tls_server::accept(
+        &shared.acceptor,
+        &tunnel.leaf,
+        TokioIo::new(upgraded),
+        timeout,
+    )
+    .await
+    {
+        Ok(tls) => tls,
+        Err(error) => {
+            Counters::bump(&shared.counters.refused);
+            tracing::debug!(error = %MitmError::Tls(error), "TLS interception refused");
+            return;
+        }
+    };
     Counters::bump(&shared.counters.tunnels);
     let builder = server(&shared.options);
     let service = tunnel_service(shared, Arc::new(tunnel.origin));

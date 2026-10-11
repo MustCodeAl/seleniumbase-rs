@@ -10,11 +10,12 @@ use std::fmt;
 use std::sync::{Arc, Mutex, PoisonError, RwLock};
 
 use http::{HeaderMap, HeaderName, HeaderValue, Method, Response, Version};
-use http_body_util::{BodyExt as _, Limited};
+use http_body_util::BodyExt as _;
 use hyper::body::Incoming;
 use wreq::header::OrigHeaderMap;
 use wreq::tls::trust::CertStore;
 
+use super::body::Capped;
 use super::forward::ProxyBody;
 use super::{MitmError, MitmOptions};
 use crate::impersonate::client::{impersonation_client, ImpersonateError, ImpersonationProfile};
@@ -44,7 +45,7 @@ pub(super) struct Outbound {
     /// The browser's headers in its order, hop-by-hop fields removed.
     pub(super) headers: Vec<(HeaderName, HeaderValue)>,
     /// The body, unless the browser sent none.
-    pub(super) body: Option<Limited<Incoming>>,
+    pub(super) body: Option<Capped<Incoming>>,
 }
 
 /// The client requests leave through, with the profile and egress it was built from.
@@ -123,13 +124,10 @@ impl Upstream {
         if let Some(body) = outbound.body {
             request = request.body(wreq::Body::wrap(body));
         }
-        let response = request
-            .send()
-            .await
-            .map_err(|error| failure_kind(&error))?;
+        let response = request.send().await.map_err(|error| failure_kind(&error))?;
         self.remember(outbound.origin, response.version());
         let response: Response<wreq::Body> = response.into();
-        Ok(response.map(|body| Limited::new(body, max_body).boxed_unsync()))
+        Ok(response.map(|body| Capped::new(body, max_body).boxed_unsync()))
     }
 
     /// The headers and their wire order: the browser's list with the measured spelling,
