@@ -7,9 +7,13 @@
 //!   one, and an older file with wider permissions is replaced by one that has `0600`. An identity
 //!   that [`StealthIdentity::verify`] would refuse (another schema, an incoherent fingerprint, a
 //!   proxy) is not written.
-//! - **Reading** refuses a file that group or others can access (mode bits `0o077`) on Unix, as
-//!   `ssh` does for a private key. The file is **not** corrected: wider permissions mean the
-//!   cookies may already have been read, and the owner should decide what to do. The schema is read
+//! - **Reading** opens the file first and judges the open file, not the path: on Unix it must be a
+//!   regular file, owned by the user running the process, that group and others cannot access
+//!   (mode bits `0o077`), as `ssh` demands of a private key. A path that is swapped between a
+//!   look and an open cannot get past it, and a named pipe put in the file's place is refused
+//!   instead of waited for. A symlink is followed and what it leads to is judged. The file is
+//!   **not** corrected: wider permissions mean the cookies may already have been read, and the
+//!   owner should decide what to do. The schema is read
 //!   first, so a file from another version is reported as that. The jar validates itself while it
 //!   is read, so a file with a cookie the jar would never store is refused. Last, the identity is
 //!   verified as it is before it is written.
@@ -22,6 +26,8 @@
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::sync::OnceLock;
 
 use serde::Deserialize;
 
@@ -83,6 +89,12 @@ pub enum IdentityFileError {
         path: PathBuf,
         /// The most it may hold.
         limit: u64,
+    },
+    /// The file belongs to another user than the one running the process.
+    #[error("the identity file {} belongs to another user and holds cookies; only the user running this process may own it", .path.display())]
+    Owner {
+        /// The identity file.
+        path: PathBuf,
     },
     /// The file can be read or written by someone other than its owner.
     #[error("the identity file {} has mode {mode:03o} and holds cookies; run `chmod 600` on it, or delete it", .path.display())]
@@ -191,16 +203,15 @@ fn load_with_limit(path: &Path, limit: u64) -> Result<StealthIdentity, IdentityF
     Ok(identity)
 }
 
-/// Opens the identity file, checks that it is a regular file only its owner can reach, and reads
-/// at most `limit` bytes of it.
+/// Opens the identity file, checks the open file (not the path it was found by) and reads at most
+/// `limit` bytes of it.
+///
+/// The checks are made on the handle that is read: a path can be made to name another file
+/// between a check and the open that follows it, a handle cannot. The file is opened first, so
+/// nothing about the path is trusted.
 fn read_checked(path: &Path, limit: u64) -> Result<Vec<u8>, IdentityFileError> {
-    let metadata = fs::metadata(path).map_err(|source| io_error(path, source))?;
-    if !metadata.is_file() {
-        let source = io::Error::new(io::ErrorKind::InvalidInput, "not a regular file");
-        return Err(io_error(path, source));
-    }
-    let file = fs::File::open(path).map_err(|source| io_error(path, source))?;
-    check_permissions(path, &file)?;
+    let file = open_for_reading(path).map_err(|source| io_error(path, source))?;
+    check_handle(path, &file)?;
     let mut bytes = Vec::new();
     file.take(limit.saturating_add(1))
         .read_to_end(&mut bytes)
@@ -214,13 +225,127 @@ fn read_checked(path: &Path, limit: u64) -> Result<Vec<u8>, IdentityFileError> {
     Ok(bytes)
 }
 
-/// Refuses a file that group or others can access. The mode is read from the open file, so it is
-/// the one of the file that is about to be read.
+/// `O_NONBLOCK`, so that opening a named pipe does not wait for a writer.
+///
+/// A file replaced by a FIFO between the moment someone looked at it and the open would otherwise
+/// stop the reader for good. With the flag the open returns at once and the check of the handle
+/// finds out that it is not a regular file. The value is written out because the standard library
+/// has no name for it; a platform not listed here opens without the flag, and then only a FIFO
+/// swapped in at the last moment can delay a load.
+#[cfg(all(
+    unix,
+    any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    )
+))]
+const OPEN_NONBLOCK: i32 = 0x0004;
+
+/// `O_NONBLOCK` on Linux and Android, where it is the same on the architectures named.
+#[cfg(all(
+    unix,
+    any(target_os = "linux", target_os = "android"),
+    any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "arm",
+        target_arch = "riscv64",
+        target_arch = "loongarch64",
+        target_arch = "s390x",
+        target_arch = "powerpc64"
+    )
+))]
+const OPEN_NONBLOCK: i32 = 0o4000;
+
+/// No flag on a platform whose value is not known here.
+#[cfg(all(
+    unix,
+    not(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly",
+        all(
+            any(target_os = "linux", target_os = "android"),
+            any(
+                target_arch = "x86",
+                target_arch = "x86_64",
+                target_arch = "aarch64",
+                target_arch = "arm",
+                target_arch = "riscv64",
+                target_arch = "loongarch64",
+                target_arch = "s390x",
+                target_arch = "powerpc64"
+            )
+        )
+    ))
+))]
+const OPEN_NONBLOCK: i32 = 0;
+
+/// Opens `path` for reading without waiting on a named pipe. A symlink is followed, as it is for
+/// any file a person points a tool at; what it leads to is checked like any other file.
 #[cfg(unix)]
-fn check_permissions(path: &Path, file: &fs::File) -> Result<(), IdentityFileError> {
-    use std::os::unix::fs::PermissionsExt;
+fn open_for_reading(path: &Path) -> io::Result<fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(OPEN_NONBLOCK)
+        .open(path)
+}
+
+#[cfg(not(unix))]
+fn open_for_reading(path: &Path) -> io::Result<fs::File> {
+    fs::File::open(path)
+}
+
+/// The user the process runs as, read from the owner of a file it just made.
+///
+/// The standard library has no call for it and this crate links no system-call bindings, so an
+/// anonymous temporary file stands in: its owner is the effective user. Asked once per process.
+#[cfg(unix)]
+fn current_user() -> io::Result<u32> {
+    use std::os::unix::fs::MetadataExt;
+
+    static USER: OnceLock<u32> = OnceLock::new();
+    if let Some(user) = USER.get() {
+        return Ok(*user);
+    }
+    let user = tempfile::tempfile()?.metadata()?.uid();
+    Ok(*USER.get_or_init(|| user))
+}
+
+/// Checks the open file against the user the process runs as.
+#[cfg(unix)]
+fn check_handle(path: &Path, file: &fs::File) -> Result<(), IdentityFileError> {
+    let user = current_user().map_err(|source| io_error(path, source))?;
+    check_handle_as(path, file, user)
+}
+
+/// Refuses an open file that is not a regular file, that someone other than `user` owns, or that
+/// group or others can access. Everything is read from the handle, so it describes the file that
+/// is about to be read.
+#[cfg(unix)]
+fn check_handle_as(path: &Path, file: &fs::File, user: u32) -> Result<(), IdentityFileError> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
     let metadata = file.metadata().map_err(|source| io_error(path, source))?;
+    if !metadata.is_file() {
+        let source = io::Error::new(io::ErrorKind::InvalidInput, "not a regular file");
+        return Err(io_error(path, source));
+    }
+    if metadata.uid() != user {
+        return Err(IdentityFileError::Owner {
+            path: path.to_path_buf(),
+        });
+    }
     let mode = metadata.permissions().mode() & PERMISSION_BITS;
     if mode & GROUP_AND_OTHER_BITS == 0 {
         Ok(())
@@ -232,10 +357,17 @@ fn check_permissions(path: &Path, file: &fs::File) -> Result<(), IdentityFileErr
     }
 }
 
-/// Other systems have no mode to check; the file there has the permissions of its directory.
+/// Other systems have no owner or mode to check; the file there has the permissions of its
+/// directory. It still has to be a regular file.
 #[cfg(not(unix))]
-fn check_permissions(_path: &Path, _file: &fs::File) -> Result<(), IdentityFileError> {
-    Ok(())
+fn check_handle(path: &Path, file: &fs::File) -> Result<(), IdentityFileError> {
+    let metadata = file.metadata().map_err(|source| io_error(path, source))?;
+    if metadata.is_file() {
+        Ok(())
+    } else {
+        let source = io::Error::new(io::ErrorKind::InvalidInput, "not a regular file");
+        Err(io_error(path, source))
+    }
 }
 
 /// Writes `identity` to `path` without blocking the async threads. See [`save_blocking`].

@@ -123,7 +123,7 @@ fn saving_again_replaces_the_file() {
 
 #[cfg(unix)]
 mod unix {
-    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
     use super::*;
 
@@ -194,6 +194,115 @@ mod unix {
             load(&path).await,
             Err(IdentityFileError::Permissions { .. })
         ));
+    }
+
+    #[test]
+    fn the_user_is_the_owner_of_the_files_the_process_makes() {
+        let dir = temp();
+        let made = dir.path().join("made");
+        fs::write(&made, "x").expect("writes");
+        let owner = fs::metadata(&made).expect("metadata").uid();
+        assert_eq!(current_user().expect("a user"), owner);
+        assert_eq!(current_user().expect("a user"), owner, "asked again");
+    }
+
+    #[test]
+    fn a_file_owned_by_another_user_is_refused_by_the_check_of_the_handle() {
+        let (_dir, path, _identity) = saved();
+        let file = fs::File::open(&path).expect("opens");
+        let owner = fs::metadata(&path).expect("metadata").uid();
+
+        assert!(check_handle_as(&path, &file, owner).is_ok());
+        for other in [owner.wrapping_add(1), owner.wrapping_sub(1)] {
+            let error = check_handle_as(&path, &file, other).expect_err("another user");
+            assert!(
+                matches!(error, IdentityFileError::Owner { .. }),
+                "{error:?}"
+            );
+            assert_clean(&error);
+        }
+    }
+
+    #[test]
+    fn the_owner_is_checked_on_the_open_file_before_anything_is_read() {
+        let (_dir, path, _identity) = saved();
+        let file = open_for_reading(&path).expect("opens");
+        let owner = fs::metadata(&path).expect("metadata").uid();
+
+        // A file that is neither the user's nor private is reported for what it is first.
+        set_mode(&path, 0o644);
+        let error = check_handle_as(&path, &file, owner.wrapping_add(1)).expect_err("refused");
+
+        assert!(
+            matches!(error, IdentityFileError::Owner { .. }),
+            "{error:?}"
+        );
+        assert!(matches!(
+            check_handle_as(&path, &file, owner),
+            Err(IdentityFileError::Permissions { mode: 0o644, .. })
+        ));
+    }
+
+    /// Loads `path` on another thread, so that a load that waits for a writer fails the test
+    /// instead of stopping it.
+    fn load_without_waiting(path: &Path) -> Result<StealthIdentity, IdentityFileError> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let target = path.to_path_buf();
+        std::thread::spawn(move || {
+            let _sent = sender.send(load_blocking(&target));
+        });
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("the load waited for a writer")
+    }
+
+    #[test]
+    fn a_named_pipe_in_place_of_the_file_is_refused_and_not_waited_for() {
+        if OPEN_NONBLOCK == 0 {
+            return; // This platform opens without the flag; see the constant.
+        }
+        let dir = temp();
+        let path = dir.path().join("identity.json");
+        let made = std::process::Command::new("mkfifo")
+            .arg(&path)
+            .status()
+            .expect("mkfifo runs");
+        assert!(made.success());
+
+        match load_without_waiting(&path) {
+            Err(IdentityFileError::Io { source, .. }) => {
+                assert_eq!(source.kind(), io::ErrorKind::InvalidInput);
+            }
+            other => panic!("a named pipe must be refused, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_directory_is_not_an_identity_file() {
+        let dir = temp();
+        match load_without_waiting(dir.path()) {
+            Err(IdentityFileError::Io { source, .. }) => {
+                assert_eq!(source.kind(), io::ErrorKind::InvalidInput);
+            }
+            other => panic!("a directory must be refused, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_symlink_to_a_private_file_of_the_user_is_read_like_the_file() {
+        let (dir, path, identity) = saved();
+        let link = dir.path().join("link.json");
+        std::os::unix::fs::symlink(&path, &link).expect("symlinks");
+
+        assert_eq!(load_blocking(&link).expect("loads"), identity);
+        set_mode(&path, 0o644);
+        assert!(
+            matches!(
+                load_blocking(&link),
+                Err(IdentityFileError::Permissions { .. })
+            ),
+            "the file the link leads to is the one checked"
+        );
     }
 }
 
