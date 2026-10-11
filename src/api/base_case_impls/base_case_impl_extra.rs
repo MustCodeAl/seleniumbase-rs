@@ -68,6 +68,39 @@ fn default_download_dir() -> PathBuf {
     dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }
 
+/// Deletes the file called `filename` from each directory of `dirs` that has
+/// one, and returns how many files it removed.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` is not a bare
+/// file name, and the I/O error if a file exists but cannot be removed.
+fn remove_saved_files(dirs: &[PathBuf], filename: &str) -> Result<usize, SeleniumBaseError> {
+    let mut removed = 0;
+    for dir in dirs {
+        let path = crate::artifacts::confined_path(dir, filename)?;
+        if path.is_file() {
+            fs::remove_file(&path)?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+/// Waits up to `timeout_secs` for the file at `path` to exist.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::WaitTimeout`] if it is still missing then.
+async fn wait_for_file(path: &Path, timeout_secs: u64) -> Result<(), SeleniumBaseError> {
+    poll_until_true(
+        timeout_secs,
+        format!("File '{}' was not found", path.display()),
+        || async { Ok(path.exists()) },
+    )
+    .await
+}
+
 /// `text` without one trailing newline, and whether it had one: Python's
 /// `press_keys` presses Enter for a trailing `\n` instead of typing it.
 fn split_trailing_enter(text: &str) -> (&str, bool) {
@@ -954,13 +987,19 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Deletes the saved cookies file from the logs directory.
+    /// Deletes the cookies file called `filename`, wherever this crate saved
+    /// it: in the logs directory, where
+    /// [`save_saved_cookies`](Self::save_saved_cookies) writes, and in the
+    /// working directory, where [`save_cookies`](Self::save_cookies) writes a
+    /// bare file name. It does not delete the cookies from the browser.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` has a
+    /// directory part.
     pub async fn delete_saved_cookies(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let dir = ensure_latest_logs_dir()?;
-        let path = crate::artifacts::confined_path(&dir, filename)?;
-        if path.exists() {
-            fs::remove_file(&path)?;
-        }
+        let dirs = [ensure_latest_logs_dir()?, std::env::current_dir()?];
+        remove_saved_files(&dirs, filename)?;
         Ok(())
     }
 
@@ -986,16 +1025,24 @@ impl BaseCase {
         Ok(files)
     }
 
-    /// Asserts that `filename` exists in the downloads folder.
-    pub fn assert_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
+    /// Asserts that `filename` exists in the downloads folder, waiting up to
+    /// the default timeout ([`set_timeout`](Self::set_timeout)) for a download
+    /// that is still being written. Corresponds to Python's
+    /// `assert_downloaded_file`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the file is not there
+    /// when the timeout ends.
+    pub async fn assert_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
         let path = crate::artifacts::confined_path(&default_download_dir(), filename)?;
-        if !path.exists() {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Downloaded file '{}' was not found",
+        let timeout = self.effective_timeout(self.timeout_secs);
+        wait_for_file(&path, timeout).await.map_err(|_| {
+            SeleniumBaseError::AssertionFailed(format!(
+                "Downloaded file '{}' was not found after {timeout}s",
                 path.display()
-            )));
-        }
-        Ok(())
+            ))
+        })
     }
 
     /// Deletes `filename` from the downloads folder.
@@ -1482,6 +1529,64 @@ mod tests_extra {
         assert_eq!(js_escape("hello"), "hello");
         assert_eq!(js_escape("it's"), "it\\'s");
         assert_eq!(js_escape("a\nb"), "a\\nb");
+    }
+
+    fn scratch_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sbrs-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_saved_file_is_removed_from_every_folder_that_has_it() {
+        let (logs, cwd, other) = (scratch_dir("logs"), scratch_dir("cwd"), scratch_dir("other"));
+        fs::write(logs.join("cookies.json"), "[]").unwrap();
+        fs::write(cwd.join("cookies.json"), "[]").unwrap();
+        fs::write(other.join("cookies.json"), "[]").unwrap();
+
+        let removed = remove_saved_files(&[logs.clone(), cwd.clone()], "cookies.json").unwrap();
+
+        assert_eq!(removed, 2);
+        assert!(!logs.join("cookies.json").exists());
+        assert!(!cwd.join("cookies.json").exists(), "the file save_cookies wrote is gone");
+        assert!(other.join("cookies.json").exists(), "a folder not listed is left alone");
+        // Nothing left to remove is not an error.
+        assert_eq!(remove_saved_files(&[logs, cwd], "cookies.json").unwrap(), 0);
+    }
+
+    #[test]
+    fn removing_a_saved_file_refuses_a_path_instead_of_a_name() {
+        let dir = scratch_dir("confined");
+        let victim = dir.join("victim.txt");
+        fs::write(&victim, "keep").unwrap();
+        for name in ["../victim.txt", "sub/victim.txt", "/etc/hosts", ""] {
+            let result = remove_saved_files(&[dir.join("inner")], name);
+            assert!(
+                matches!(result, Err(SeleniumBaseError::InvalidConfig(_))),
+                "{name:?}: {result:?}"
+            );
+        }
+        assert!(victim.exists());
+    }
+
+    #[tokio::test]
+    async fn waiting_for_a_file_sees_one_that_appears_later() {
+        let dir = scratch_dir("late");
+        let path = dir.join("report.csv");
+        let writer = path.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(400));
+            fs::write(writer, "a,b").unwrap();
+        });
+        wait_for_file(&path, 5).await.expect("the file appears within the timeout");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn waiting_for_a_file_that_never_appears_times_out() {
+        let missing = scratch_dir("never").join("nope.csv");
+        let error = wait_for_file(&missing, 2).await.unwrap_err();
+        assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
     }
 
     #[test]
