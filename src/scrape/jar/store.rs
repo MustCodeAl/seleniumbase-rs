@@ -6,7 +6,8 @@
 //! needs `Secure`, and a `Domain` on a public suffix or an IP address is refused. A path longer
 //! than [`MAX_PATH_BYTES`] and a domain longer than [`MAX_DOMAIN_BYTES`] are refused, whether the
 //! path is an attribute or the default path of the request URL. The jar holds at
-//! most [`MAX_COOKIES_PER_SITE`] cookies per site and [`MAX_COOKIES`] in all.
+//! most [`MAX_COOKIES_PER_SITE`] cookies and [`MAX_BYTES_PER_SITE`] bytes per site and
+//! [`MAX_COOKIES`] cookies in all.
 //! [`CookieJar::header_for`] builds the `Cookie` header of section 5.4. Times are seconds since the
 //! Unix epoch, and every function that needs the time takes `now`.
 //!
@@ -35,6 +36,12 @@ pub const MAX_COOKIES_PER_SITE: usize = 180;
 
 /// The most cookies the jar holds in all. A new cookie beyond it evicts another.
 pub const MAX_COOKIES: usize = 3000;
+
+/// The most bytes the cookies of one site may hold in all, counting each cookie's name, value,
+/// domain and path. A new cookie beyond it evicts others of the same site, like the count bound.
+/// The jar as a whole is bounded by [`MAX_COOKIES`] cookies of at most 5,373 bytes each (a name
+/// and value of 4096, a path of 1024 and a domain of 253).
+pub const MAX_BYTES_PER_SITE: usize = 256 * 1024;
 
 /// The most bytes a cookie path may hold, whether from the `Path` attribute or from the default
 /// path of the request URL. It is the bound of an attribute value (RFC 6265bis).
@@ -83,6 +90,12 @@ impl StoredCookie {
     #[must_use]
     pub fn is_expired(&self, now: u64) -> bool {
         self.expires.is_some_and(|at| at <= now)
+    }
+
+    /// The bytes the cookie counts for against [`MAX_BYTES_PER_SITE`]: name, value, domain, path.
+    #[must_use]
+    pub fn size_bytes(&self) -> usize {
+        self.name.len() + self.value.len() + self.domain.len() + self.path.len()
     }
 
     /// Whether `other` has the same name, domain, host-only flag and path, so one replaces the other.
@@ -392,50 +405,65 @@ impl CookieJar {
         if let Some(index) = old {
             cookie.created = self.cookies[index].created;
             self.cookies[index] = cookie;
+            self.evict_beyond_bounds(index);
             return StoreOutcome::Replaced;
         }
         self.cookies.push(cookie);
-        self.evict_beyond_bounds();
+        self.evict_beyond_bounds(self.cookies.len() - 1);
         StoreOutcome::Stored
     }
 
-    /// Evicts until the site of the newest cookie, which is last and never evicted, holds at most
-    /// [`MAX_COOKIES_PER_SITE`] and the jar at most [`MAX_COOKIES`].
-    fn evict_beyond_bounds(&mut self) {
-        let Some(newest) = self.cookies.last() else {
+    /// Evicts until the site of the cookie at `keep`, which is never evicted, holds at most
+    /// [`MAX_COOKIES_PER_SITE`] cookies and [`MAX_BYTES_PER_SITE`] bytes, and the jar at most
+    /// [`MAX_COOKIES`] cookies. A replacement can grow a cookie, so `keep` is not always the last.
+    fn evict_beyond_bounds(&mut self, mut keep: usize) {
+        let Some(kept) = self.cookies.get(keep) else {
             return;
         };
-        let site = site_key(&newest.domain);
+        let site = site_key(&kept.domain);
         let on_site = |cookie: &StoredCookie| counts_for(&cookie.domain, &site);
-        while self
+        while self.site_over_bound(on_site) && self.evict_one(&mut keep, on_site) {}
+        while self.cookies.len() > MAX_COOKIES && self.evict_one(&mut keep, |_| true) {}
+    }
+
+    /// Whether the cookies `on_site` hold more than [`MAX_COOKIES_PER_SITE`] cookies or
+    /// [`MAX_BYTES_PER_SITE`] bytes.
+    fn site_over_bound(&self, on_site: impl Fn(&StoredCookie) -> bool) -> bool {
+        let (count, bytes) = self
             .cookies
             .iter()
             .filter(|&cookie| on_site(cookie))
-            .count()
-            > MAX_COOKIES_PER_SITE
-        {
-            let Some(victim) = self.eviction_victim(on_site) else {
-                break;
-            };
-            self.cookies.remove(victim);
-        }
-        while self.cookies.len() > MAX_COOKIES {
-            let Some(victim) = self.eviction_victim(|_| true) else {
-                break;
-            };
-            self.cookies.remove(victim);
-        }
+            .fold((0_usize, 0_usize), |(count, bytes), cookie| {
+                (count + 1, bytes + cookie.size_bytes())
+            });
+        count > MAX_COOKIES_PER_SITE || bytes > MAX_BYTES_PER_SITE
     }
 
-    /// The index of the cookie to evict first among the `eligible` ones other than the newest
-    /// (last): an insecure cookie before a `Secure` one, then the least recently accessed, then the
+    /// Removes the eviction victim among the `eligible` cookies and moves `keep` along with the
+    /// cookies after it. `false` when no cookie other than `keep` is eligible.
+    fn evict_one(&mut self, keep: &mut usize, eligible: impl Fn(&StoredCookie) -> bool) -> bool {
+        let Some(victim) = self.eviction_victim(*keep, eligible) else {
+            return false;
+        };
+        self.cookies.remove(victim);
+        if victim < *keep {
+            *keep -= 1;
+        }
+        true
+    }
+
+    /// The index of the cookie to evict first among the `eligible` ones other than the one at
+    /// `keep`: an insecure cookie before a `Secure` one, then the least recently accessed, then the
     /// oldest, then the first stored.
-    fn eviction_victim(&self, eligible: impl Fn(&StoredCookie) -> bool) -> Option<usize> {
-        let newest = self.cookies.len().checked_sub(1)?;
-        self.cookies[..newest]
+    fn eviction_victim(
+        &self,
+        keep: usize,
+        eligible: impl Fn(&StoredCookie) -> bool,
+    ) -> Option<usize> {
+        self.cookies
             .iter()
             .enumerate()
-            .filter(|&(_, cookie)| eligible(cookie))
+            .filter(|&(index, cookie)| index != keep && eligible(cookie))
             .min_by_key(|(_, cookie)| (cookie.secure, cookie.last_access, cookie.created))
             .map(|(index, _)| index)
     }
@@ -529,17 +557,21 @@ fn check_file(cookies: &[StoredCookie]) -> Result<(), JarError> {
         return Err(JarError::TooMany { count });
     }
     let mut identities = HashSet::new();
-    let mut per_site: HashMap<String, usize> = HashMap::new();
+    let mut per_site: HashMap<String, (usize, usize)> = HashMap::new();
     for (index, cookie) in cookies.iter().enumerate() {
         validate(cookie).map_err(|reason| JarError::Invalid { index, reason })?;
         let identity = (&cookie.name, &cookie.domain, cookie.host_only, &cookie.path);
         if !identities.insert(identity) {
             return Err(JarError::Duplicate { index });
         }
-        let on_site = per_site.entry(site_key(&cookie.domain)).or_default();
-        *on_site += 1;
-        if *on_site > MAX_COOKIES_PER_SITE {
+        let (held, bytes) = per_site.entry(site_key(&cookie.domain)).or_default();
+        *held += 1;
+        *bytes += cookie.size_bytes();
+        if *held > MAX_COOKIES_PER_SITE {
             return Err(JarError::SiteFull { index });
+        }
+        if *bytes > MAX_BYTES_PER_SITE {
+            return Err(JarError::SiteBytes { index });
         }
     }
     Ok(())
@@ -571,6 +603,12 @@ pub enum JarError {
     /// A site holds more than [`MAX_COOKIES_PER_SITE`] cookies.
     #[error("stored cookie {index} is one too many for its site; at most {max} are allowed", max = MAX_COOKIES_PER_SITE)]
     SiteFull {
+        /// The position of the first cookie beyond the bound.
+        index: usize,
+    },
+    /// A site holds more than [`MAX_BYTES_PER_SITE`] bytes of cookies.
+    #[error("stored cookie {index} is one too many for the bytes its site may hold; at most {max} are allowed", max = MAX_BYTES_PER_SITE)]
+    SiteBytes {
         /// The position of the first cookie beyond the bound.
         index: usize,
     },

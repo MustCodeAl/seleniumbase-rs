@@ -1,8 +1,10 @@
 //! Behaviour tests of the cookie jar, plus properties checked over generated input. The abuse
-//! cases live in `abuse`, the path and domain bounds in `bounds`.
+//! cases live in `abuse`, the path and domain bounds in `bounds`, the bytes a site may hold in
+//! `site_bytes`.
 
 mod abuse;
 mod bounds;
+mod site_bytes;
 
 use super::super::set_cookie::MAX_LIFETIME_SECS;
 use super::rules::is_public_suffix;
