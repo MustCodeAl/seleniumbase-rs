@@ -12,7 +12,7 @@ use tracing::{info, instrument};
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_chromedriver, DriverProcess};
-use crate::browser::options::{firefox_preferences, LaunchSettings};
+use crate::browser::options::{firefox_preferences, CdpEvent, LaunchSettings};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
@@ -634,6 +634,25 @@ impl BrowserSession {
     pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.get_cookies().await
+    }
+
+    /// Drains the DevTools Protocol events logged since the last call, oldest
+    /// first (Python's `driver.get_log("performance")`).
+    ///
+    /// The log exists only when the session was started with
+    /// [`BrowserConfig::with_cdp_events`] (`--log-cdp-events`,
+    /// `--uc-cdp-events`); chromedriver keeps nothing otherwise and the result
+    /// is an error from the driver. Entries that are not events are skipped.
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver's error when it keeps no `performance` log.
+    pub async fn cdp_events(&self) -> Result<Vec<CdpEvent>, SeleniumBaseError> {
+        let entries = self.driver().get_log("performance").await?;
+        Ok(entries
+            .iter()
+            .filter_map(|entry| CdpEvent::from_log_message(&entry.message, entry.timestamp))
+            .collect())
     }
 
     /// Dispatches a CDP mouse click at `(x, y)`.
