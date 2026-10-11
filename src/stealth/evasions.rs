@@ -216,7 +216,34 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     args
 }
 
+/// The command that would add a `Proxy-Authorization` header to every request.
+///
+/// [`cdp_overrides`] contains it for a fingerprint whose proxy has a user name
+/// and a password. A header added this way goes to every site the browser
+/// visits, which hands the proxy's login to the sites; the proxy is answered
+/// through its own challenge instead. [`safe_cdp_overrides`] leaves it out.
+pub const CREDENTIAL_HEADER_METHOD: &str = "Network.setExtraHTTPHeaders";
+
+/// The overrides from [`cdp_overrides`] that are safe to send to a browser, in
+/// the order of their command names.
+///
+/// Both ways of giving a browser a fingerprint, the pure CDP engine and the
+/// WebDriver session, send these and never the raw overrides. The map has no
+/// order; sorting makes the commands, and so any trace of them, the same on
+/// every run.
+pub fn safe_cdp_overrides(fp: &Fingerprint) -> Vec<(String, serde_json::Value)> {
+    let mut overrides: Vec<(String, serde_json::Value)> = cdp_overrides(fp)
+        .into_iter()
+        .filter(|(method, _)| method != CREDENTIAL_HEADER_METHOD)
+        .collect();
+    overrides.sort_by(|a, b| a.0.cmp(&b.0));
+    overrides
+}
+
 /// Returns CDP parameter overrides recommended for a fingerprint.
+///
+/// Do not send these as they are: see [`CREDENTIAL_HEADER_METHOD`], and use
+/// [`safe_cdp_overrides`].
 pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     let mut map = HashMap::new();
 

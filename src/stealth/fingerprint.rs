@@ -888,9 +888,13 @@ impl Fingerprint {
     /// - Client Hints report full versions as `major.0.0.0`, the form the
     ///   user agent itself uses.
     /// - Fonts and media devices are left unset, and the proxy is left off.
-    /// - Nothing launches a browser with the identity yet; apply it with
+    /// - It describes an identity, not a browser. Give it to a browser with
     ///   [`BrowserConfig::with_fingerprint`](crate::BrowserConfig::with_fingerprint)
-    ///   or the evasion registry.
+    ///   (WebDriver and UC sessions), with
+    ///   [`LaunchOptionsBuilder::fingerprint`](crate::sb_cdp::LaunchOptionsBuilder::fingerprint)
+    ///   (the pure CDP engine, for every tab), or with the evasion registry. The
+    ///   browser itself stays what it is: a fingerprint of another operating
+    ///   system does not change the binary's real behaviour.
     #[must_use]
     pub fn randomized(os: OsType, seed: u64) -> Self {
         super::randomize::generate(os, seed)

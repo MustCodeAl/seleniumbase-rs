@@ -32,15 +32,8 @@ use serde_json::{json, Value};
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::evasions::{bootstrap_script, cdp_overrides};
+use crate::stealth::evasions::{bootstrap_script, safe_cdp_overrides};
 use crate::stealth::fingerprint::Fingerprint;
-
-/// The override that adds a `Proxy-Authorization` header to every request.
-///
-/// A fingerprint can ask for it, but a header added this way goes to every
-/// site the tab visits, which would hand the proxy's password to the sites.
-/// The tab's proxy is answered through the proxy's own challenge instead.
-const CREDENTIAL_HEADER: &str = "Network.setExtraHTTPHeaders";
 
 /// The override that grants permissions. It is browser-wide, so it needs the
 /// context of the tab it is for and is sent separately.
@@ -76,16 +69,11 @@ impl Identity {
             // the network domain is on.
             ("Network.enable".to_owned(), json!({})),
         ];
-        let mut overrides: Vec<(String, Value)> = cdp_overrides(fingerprint)
-            .into_iter()
-            .filter(|(method, _)| method != CREDENTIAL_HEADER)
-            .collect();
-        // A map has no order; sorting makes the commands, and so the tests and
-        // any trace of them, the same on every run.
-        overrides.sort_by(|a, b| a.0.cmp(&b.0));
-
+        // Without the proxy's `Proxy-Authorization` header, which would reach
+        // every site the tab visits: the tab's proxy is answered through the
+        // proxy's own challenge instead.
         let mut permissions = None;
-        for (method, params) in overrides {
+        for (method, params) in safe_cdp_overrides(fingerprint) {
             if method == PERMISSIONS {
                 permissions = params["permissions"].as_array().map(|names| {
                     names
@@ -180,6 +168,7 @@ pub(super) fn refused(method: &str, error: &SeleniumBaseError) -> SeleniumBaseEr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::stealth::evasions::{cdp_overrides, CREDENTIAL_HEADER_METHOD};
     use crate::stealth::fingerprint::{OsType, ProxyConfig};
 
     fn methods(identity: &Identity) -> Vec<&str> {
@@ -235,11 +224,11 @@ mod tests {
             save_traffic: false,
         });
         // The WebDriver path would send it; confirm the source does ask for it.
-        assert!(cdp_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER));
+        assert!(cdp_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
 
         let identity = Identity::of(&fingerprint);
 
-        assert!(!methods(&identity).contains(&CREDENTIAL_HEADER));
+        assert!(!methods(&identity).contains(&CREDENTIAL_HEADER_METHOD));
         let everything = format!(
             "{:?}{:?}",
             identity.tab_commands(),

@@ -754,7 +754,7 @@ impl BrowserSession {
 
         if let Ok(cdp) = self.cdp_client() {
             cdp.add_init_script(&script).await?;
-            for (method, params) in crate::stealth::evasions::cdp_overrides(fp) {
+            for (method, params) in fingerprint_overrides(fp) {
                 cdp.execute_with_params(&method, params).await.ok();
             }
         } else {
@@ -997,6 +997,16 @@ async fn apply_window_rect(
     Ok(())
 }
 
+/// The protocol commands, after the init script, that make a WebDriver session
+/// match `fp`.
+///
+/// The `Proxy-Authorization` header a fingerprint with a proxy password can ask
+/// for is left out: set through `Network.setExtraHTTPHeaders` it would reach
+/// every site the browser visits, and hand the proxy's login to all of them.
+fn fingerprint_overrides(fp: &crate::stealth::fingerprint::Fingerprint) -> Vec<(String, Value)> {
+    crate::stealth::evasions::safe_cdp_overrides(fp)
+}
+
 /// Starts the virtual screen the settings ask for, if this session can use one.
 ///
 /// Python SeleniumBase's `--xvfb` does the same on Linux and nothing elsewhere. A
@@ -1168,6 +1178,64 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
     crate::stealth::options::StealthOptions::from(config).apply_to(caps)
+}
+
+#[cfg(test)]
+mod fingerprint_tests {
+    use super::*;
+    use crate::stealth::evasions::{cdp_overrides, CREDENTIAL_HEADER_METHOD};
+    use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyConfig};
+
+    fn with_proxy_login() -> Fingerprint {
+        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+        fingerprint.proxy = Some(ProxyConfig {
+            r#type: "http".to_owned(),
+            host: "proxy.example.com".to_owned(),
+            port: 8080,
+            username: Some("alice".to_owned()),
+            password: Some("fake-proxy-password".to_owned()),
+            save_traffic: false,
+        });
+        fingerprint
+    }
+
+    #[test]
+    fn the_proxy_login_is_never_sent_to_every_site() {
+        let fingerprint = with_proxy_login();
+        // The source of the overrides does ask for the header.
+        assert!(cdp_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
+
+        let sent = fingerprint_overrides(&fingerprint);
+
+        assert!(sent
+            .iter()
+            .all(|(method, _)| method != CREDENTIAL_HEADER_METHOD));
+        let everything = format!("{sent:?}");
+        assert!(!everything.contains("Proxy-Authorization"), "{everything}");
+        assert!(!everything.contains("fake-proxy-password"), "{everything}");
+        assert!(
+            !everything.contains("YWxpY2U6ZmFrZS1wcm94eS1wYXNzd29yZA"),
+            "{everything}"
+        );
+    }
+
+    #[test]
+    fn the_other_overrides_are_still_sent_in_a_stable_order() {
+        let fingerprint = with_proxy_login();
+        let sent = fingerprint_overrides(&fingerprint);
+        let methods: Vec<_> = sent.iter().map(|(method, _)| method.as_str()).collect();
+        assert!(
+            methods.contains(&"Network.setUserAgentOverride"),
+            "{methods:?}"
+        );
+        assert!(
+            methods.contains(&"Emulation.setTimezoneOverride"),
+            "{methods:?}"
+        );
+        let mut sorted = methods.clone();
+        sorted.sort_unstable();
+        assert_eq!(methods, sorted);
+    }
 }
 
 #[cfg(test)]
