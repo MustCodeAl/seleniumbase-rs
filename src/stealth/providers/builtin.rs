@@ -312,6 +312,9 @@ impl EvasionProvider for ChromeRuntimeProvider {
 }
 
 /// Overrides navigator properties (UA, platform, cores, memory, vendor, etc.).
+///
+/// The PDF viewer flag, `plugins` and `mimeTypes` are not touched: Chrome
+/// answers for them itself, and a replaced getter is a hook it does not have.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NavigatorPropsProvider;
 
@@ -379,9 +382,6 @@ impl EvasionProvider for NavigatorPropsProvider {
         if let Some(build) = fp.build_id.as_deref() {
             define("buildID", quoted(build));
         }
-        // pdfViewerEnabled is expected true on modern desktop Chrome.
-        define("pdfViewerEnabled", "true".to_owned());
-
         Some(render(
             "(function () {\n  @SB@\n  const proto = Object.getPrototypeOf(navigator);\n@BODY@})();",
             &[("BODY", &body)],
@@ -1309,6 +1309,10 @@ impl EvasionProvider for MediaCodecsProvider {
 }
 
 /// Overrides `navigator.userAgentData` (Client Hints).
+///
+/// Only in a secure context, which is the only place Chrome has the property:
+/// on a plain `http:` page there is no `userAgentData` to read, so none is
+/// added. `localhost` and `127.0.0.1` are secure contexts.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ClientHintsProvider;
 
@@ -1341,6 +1345,7 @@ impl EvasionProvider for ClientHintsProvider {
         Some(render(
             r##"(function () {
   @SB@
+  if (!window.isSecureContext) { return; }
   const brands = [@BRANDS@];
   const fullList = [@FULL@];
   const highEntropy = {
