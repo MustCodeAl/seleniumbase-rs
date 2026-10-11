@@ -72,6 +72,17 @@ async fn a_chrome_that_does_not_say_its_version_still_gets_a_profile() {
 }
 
 #[tokio::test]
+async fn a_browser_that_refuses_to_report_a_version_is_read_as_unknown() {
+    let rig = Rig::new(vec![real_page()]);
+    rig.launcher
+        .on_launch(|_, mock| mock.fail("Browser.getVersion", "not supported"));
+
+    let scraper = rig.builder().build().await.expect("the scraper builds");
+
+    assert_eq!(scraper.persona.major, None);
+}
+
+#[tokio::test]
 async fn a_given_fingerprint_skips_the_probe_and_reads_the_version_after_the_launch() {
     let rig = Rig::new(vec![real_page()]);
     let mine = Fingerprint::randomized_with_major(OsType::Macos, 99, 150);

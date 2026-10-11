@@ -114,11 +114,6 @@ impl Site {
         locked(&self.script).cleared
     }
 
-    /// Queues one more answer after the ones already queued.
-    pub(crate) fn push(&self, served: Served) {
-        locked(&self.script).pages.push_back(served);
-    }
-
     /// Every URL navigated to so far, oldest first.
     pub(crate) fn navigations(&self) -> Vec<String> {
         locked(&self.script).navigations.clone()
@@ -172,7 +167,10 @@ impl Site {
         mock.on("Network.getAllCookies", move |_| {
             let mut state = locked(&script);
             state.cookie_polls += 1;
-            if state.polls_to_clear.is_some_and(|polls| state.cookie_polls >= polls) {
+            if state
+                .polls_to_clear
+                .is_some_and(|polls| state.cookie_polls >= polls)
+            {
                 state.cleared = true;
             }
             let host = state
@@ -182,7 +180,12 @@ impl Site {
                 .and_then(|url| url.host_str().map(str::to_owned))
                 .unwrap_or_default();
             let cookies = if state.cleared {
-                vec![cdp_cookie("cf_clearance", "fresh-token", &format!(".{host}"), -1.0)]
+                vec![cdp_cookie(
+                    "cf_clearance",
+                    "fresh-token",
+                    &format!(".{host}"),
+                    -1.0,
+                )]
             } else {
                 Vec::new()
             };

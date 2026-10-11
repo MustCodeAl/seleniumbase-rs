@@ -179,7 +179,7 @@ async fn a_refused_context_is_an_error_and_disposes_nothing() {
         .expect_err("the context is refused");
 
     assert!(matches!(error, ScrapeError::Browser(_)), "{error:?}");
-    assert!(mock.calls_to("Target.disposeBrowserContext").is_empty());
+    assert_eq!(mock.calls_to("Target.disposeBrowserContext").len(), 0);
 }
 
 #[tokio::test]

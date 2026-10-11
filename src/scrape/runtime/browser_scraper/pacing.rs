@@ -74,7 +74,7 @@ mod tests {
         );
         limits.acquire("shop.example").await;
 
-        assert!(start.elapsed() >= WINDOW - Duration::from_millis(50));
+        assert!(start.elapsed() >= WINDOW.saturating_sub(Duration::from_millis(50)));
     }
 
     #[tokio::test(start_paused = true)]

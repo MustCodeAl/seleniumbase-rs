@@ -137,6 +137,7 @@ impl BrowserScraper {
     /// # Errors
     ///
     /// Returns [`ScrapeError::Browser`] when the browser cannot be read.
+    #[tracing::instrument(skip_all)]
     pub async fn save_session(&self, name: impl Into<String>) -> Result<(), ScrapeError> {
         let session = cdp::capture_session(&self.page).await?;
         self.wiring.sessions.save(name, session);
@@ -149,6 +150,7 @@ impl BrowserScraper {
     /// # Errors
     ///
     /// Returns [`ScrapeError::Browser`] when the browser refuses.
+    #[tracing::instrument(skip_all)]
     pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError> {
         let Some(session) = self.wiring.sessions.load(name) else {
             return Ok(false);

@@ -240,36 +240,15 @@ impl BrowserScraperBuilder {
             }
             None => None,
         };
-        let mut persona =
+        let persona =
             start_persona(&wiring, start.fingerprint, start.seed, current.as_ref()).await?;
-        let options = wiring.launch.clone().fingerprint(&persona.fingerprint);
-        let browser = wiring.launcher.launch(options.build()?).await?;
-        let page = match wiring.open_page(&browser, current.as_ref()).await {
-            Ok(page) => page,
-            Err(error) => {
-                if let Err(close) = browser.close().await {
-                    tracing::debug!(error = %close, "the browser did not close cleanly");
-                }
-                return Err(error);
-            }
-        };
-        if persona.major.is_none() {
-            persona.major = browser_major(&browser).await;
-        }
         let egress = Egress {
             pool,
             size,
             current,
             site: None,
         };
-        Ok(BrowserScraper {
-            browser,
-            page,
-            wiring,
-            persona,
-            egress,
-            last: None,
-        })
+        start_browser(wiring, persona, egress).await
     }
 
     /// Fills the defaults and splits the builder into the fixed wiring and the start settings.
@@ -307,6 +286,36 @@ impl BrowserScraperBuilder {
     }
 }
 
+/// Starts the browser that stays, in the first egress's context when there is one.
+async fn start_browser(
+    wiring: Wiring,
+    mut persona: Persona,
+    egress: Egress,
+) -> Result<BrowserScraper, ScrapeError> {
+    let options = wiring.launch.clone().fingerprint(&persona.fingerprint);
+    let browser = wiring.launcher.launch(options.build()?).await?;
+    let page = match wiring.open_page(&browser, egress.current.as_ref()).await {
+        Ok(page) => page,
+        Err(error) => {
+            if let Err(close) = browser.close().await {
+                tracing::debug!(error = %close, "the browser did not close cleanly");
+            }
+            return Err(error);
+        }
+    };
+    if persona.major.is_none() {
+        persona.major = browser_major(&browser).await;
+    }
+    Ok(BrowserScraper {
+        browser,
+        page,
+        wiring,
+        persona,
+        egress,
+        last: None,
+    })
+}
+
 /// The settings that only matter while the scraper starts.
 struct Start {
     egresses: Vec<EgressRef>,
@@ -323,12 +332,11 @@ async fn start_persona(
     seed: u64,
     current: Option<&Current>,
 ) -> Result<Persona, ScrapeError> {
-    let (mut fingerprint, major) = match explicit {
-        Some(fingerprint) => (fingerprint, None),
-        None => {
-            let major = probe_major(wiring).await?;
-            (persona_for(host_os(), seed, major), major)
-        }
+    let (mut fingerprint, major) = if let Some(fingerprint) = explicit {
+        (fingerprint, None)
+    } else {
+        let major = probe_major(wiring).await?;
+        (persona_for(host_os(), seed, major), major)
     };
     if let Some(current) = current {
         current.placed.apply_to(&mut fingerprint);

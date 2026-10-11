@@ -310,12 +310,15 @@ async fn an_identity_of_another_egress_is_refused_and_nothing_is_set() {
         "{error:?}"
     );
     assert_eq!(rig.launcher.count(), 2, "no browser was started for it");
-    assert!(rig
-        .launcher
-        .last()
-        .mock
-        .calls_to("Network.setCookies")
-        .is_empty());
+    assert_eq!(
+        rig.launcher
+            .last()
+            .mock
+            .calls_to("Network.setCookies")
+            .len(),
+        0,
+        "no cookie was set"
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -355,6 +358,29 @@ async fn an_identity_for_another_chrome_or_layout_is_refused() {
         matches!(layout, ScrapeError::Identity(IdentityError::Schema(9))),
         "{layout:?}"
     );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_version_of_chrome_is_not_checked_when_the_running_one_is_unknown() {
+    let source = Rig::new(vec![real_page()]);
+    let mut identity = source
+        .builder()
+        .build()
+        .await
+        .expect("builds")
+        .export_identity()
+        .await
+        .expect("the identity exports");
+    identity.emulation.major = 150;
+    let rig = Rig::with_product(vec![real_page()], "");
+    let mut scraper = rig.builder().seed(SEED + 3).build().await.expect("builds");
+
+    scraper
+        .import_identity(&identity)
+        .await
+        .expect("nothing to compare the version with");
+
+    assert_eq!(scraper.fingerprint(), &identity.fingerprint);
 }
 
 #[tokio::test(start_paused = true)]

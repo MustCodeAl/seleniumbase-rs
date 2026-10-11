@@ -325,9 +325,10 @@ pub async fn restore_session(page: &Page, session: Session, now: f64) -> Result<
     Ok(())
 }
 
-/// Lets the pointer arrive on the page the way a person's would: it is placed somewhere plausible
-/// and the page is scrolled a little, with the pace of [`Page::human`]. It is cosmetic, so a failure
-/// is logged and does not stop the caller.
+/// Lets the pointer arrive on the page the way a person's would.
+///
+/// The pointer is placed somewhere plausible and the page is scrolled a little, with the pace of
+/// [`Page::human`]. It is cosmetic, so a failure is logged and does not stop the caller.
 pub async fn human_warm_up(page: &Page, seed: u64) {
     let behavior = match Behavior::builder().seed(seed).build() {
         Ok(behavior) => behavior,

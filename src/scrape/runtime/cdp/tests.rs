@@ -185,7 +185,7 @@ async fn a_navigation_without_an_answer_reports_status_zero_and_the_url_asked_fo
 
     assert_eq!(answer.status, 0);
     assert_eq!(answer.url, "https://shop.example/a");
-    assert!(answer.headers.is_empty());
+    assert_eq!(answer.headers.len(), 0);
 }
 
 #[tokio::test]
@@ -208,6 +208,30 @@ async fn a_failed_navigation_names_the_url_redacted() {
     for secret in ["alice", "s3cret", "hunter2"] {
         assert!(!shown.contains(secret), "{secret} in {shown}");
     }
+}
+
+#[tokio::test]
+async fn a_url_the_browser_cannot_be_given_is_refused_without_being_echoed() {
+    let (page, mock) = mocked_page().await;
+
+    for raw in ["", "   ", "ualpha s3cret hunter2"] {
+        let error = goto_with_response(&page, raw)
+            .await
+            .expect_err("the text is not a URL");
+        let shown = format!("{error} {error:?}");
+        assert!(
+            matches!(&error, ScrapeError::Navigation { .. }),
+            "{error:?}"
+        );
+        for secret in ["ualpha", "s3cret", "hunter2"] {
+            assert!(!shown.contains(secret), "{secret} in {shown}");
+        }
+    }
+    assert_eq!(
+        mock.calls_to("Page.navigate").len(),
+        0,
+        "nothing was navigated"
+    );
 }
 
 #[tokio::test]
@@ -420,7 +444,7 @@ async fn an_empty_jar_sends_nothing() {
         .expect("nothing to do");
 
     assert_eq!(count, 0);
-    assert!(mock.calls_to("Network.setCookies").is_empty());
+    assert_eq!(mock.calls_to("Network.setCookies").len(), 0);
 }
 
 #[tokio::test]
@@ -611,7 +635,7 @@ async fn the_warm_up_scrolls_the_page_and_never_fails() {
 
     human_warm_up(&page, 11).await;
 
-    assert!(!mock.calls_to("Input.dispatchMouseEvent").is_empty());
+    assert_ne!(mock.calls_to("Input.dispatchMouseEvent").len(), 0);
 }
 
 #[tokio::test(start_paused = true)]
@@ -625,5 +649,5 @@ async fn a_warm_up_the_browser_refuses_is_only_logged() {
 
     human_warm_up(&page, 11).await;
 
-    assert!(!mock.calls_to("Input.dispatchMouseEvent").is_empty());
+    assert_ne!(mock.calls_to("Input.dispatchMouseEvent").len(), 0);
 }

@@ -12,7 +12,7 @@ use crate::sb_cdp::sync::locked;
 use crate::sb_cdp::{Browser, LaunchOptions, MockCtrl};
 use crate::scrape::egress::geo::CountryCode;
 use crate::scrape::error::ScrapeError;
-use crate::scrape::ledger::events::CollectingEventSink;
+use crate::scrape::ledger::events::{CollectingEventSink, ScraperEvent};
 use crate::scrape::ledger::state::InMemoryStateStore;
 use crate::scrape::runtime::browser_scraper::{BrowserLauncher, BrowserScraperBuilder};
 use crate::scrape::runtime::cdp::testkit::{Served, Site};
@@ -153,8 +153,9 @@ impl Rig {
     /// A builder wired to this rig, with the seed and a short solve timeout.
     pub(super) fn builder(&self) -> BrowserScraperBuilder {
         let clock = Arc::clone(&self.clock);
+        let launcher = Arc::clone(&self.launcher);
         crate::scrape::runtime::browser_scraper::BrowserScraper::builder()
-            .launcher(self.launcher.clone())
+            .launcher(launcher)
             .with_event_sink(Arc::new(self.sink.clone()))
             .with_state_store(Arc::new(self.store.clone()))
             .clock(Arc::new(move || clock.load(Ordering::SeqCst)))
@@ -169,11 +170,7 @@ impl Rig {
 
     /// The names of the events so far, oldest first.
     pub(super) fn event_names(&self) -> Vec<&'static str> {
-        self.sink
-            .events()
-            .iter()
-            .map(|event| event.name())
-            .collect()
+        self.sink.events().iter().map(ScraperEvent::name).collect()
     }
 }
 

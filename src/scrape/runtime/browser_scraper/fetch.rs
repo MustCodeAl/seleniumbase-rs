@@ -48,7 +48,7 @@ impl Target {
 }
 
 /// What to do after an action was carried out.
-enum Step {
+pub(super) enum Step {
     /// The page is real; return it.
     Finish,
     /// Load the page again.
@@ -251,7 +251,7 @@ impl BrowserScraper {
     }
 
     /// Carries out `action`.
-    async fn act(
+    pub(super) async fn act(
         &mut self,
         action: Action,
         target: &Target,
@@ -358,7 +358,7 @@ fn outcome_of(kind: ChallengeKind) -> EgressOutcome {
 }
 
 /// The error for a policy that stopped: an unpassed challenge is [`ScrapeError::Unsolved`].
-fn give_up(
+pub(super) fn give_up(
     target: &Target,
     detection: &Detection,
     reason: GiveUpReason,

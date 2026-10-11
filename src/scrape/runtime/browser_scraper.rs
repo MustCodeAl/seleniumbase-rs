@@ -163,6 +163,7 @@ impl fmt::Debug for BrowserFetch {
             .field("status", &self.status)
             .field("headers", &self.headers.len())
             .field("body_bytes", &self.body.len())
+            .field("detection", &self.detection.kind)
             .field("attempts", &self.attempts)
             .field("solved", &self.solved)
             .field("egress", &self.egress)

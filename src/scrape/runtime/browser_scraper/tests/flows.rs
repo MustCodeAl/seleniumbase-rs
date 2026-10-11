@@ -8,12 +8,14 @@ use async_trait::async_trait;
 use tokio::time::Instant;
 
 use super::rig::{block, country, real_page, script_challenge, widget_challenge, Rig, NOW};
-use crate::scrape::challenge::detect::ChallengeKind;
+use crate::scrape::challenge::detect::{ChallengeKind, Detection, Evidence};
 use crate::scrape::challenge::mitigation::{Action, GiveUpReason};
 use crate::scrape::error::ScrapeError;
 use crate::scrape::ledger::events::ScraperEvent;
 use crate::scrape::ledger::state::{DomainState, StateError, StateStore};
+use crate::scrape::runtime::browser_scraper::fetch::{give_up, Step, Target};
 use crate::scrape::runtime::cdp::testkit::Served;
+use crate::scrape::runtime::cdp::PageSnapshot;
 
 const URL: &str = "https://shop.example/";
 
@@ -362,7 +364,7 @@ async fn a_site_in_cooldown_in_the_store_is_not_requested() {
     let error = scraper.fetch(URL).await.expect_err("left alone");
 
     assert!(matches!(error, ScrapeError::CoolingDown { until, .. } if until == NOW + 100));
-    assert!(rig.site.navigations().is_empty());
+    assert_eq!(rig.site.navigations().len(), 0);
 }
 
 #[tokio::test(start_paused = true)]
@@ -400,7 +402,7 @@ async fn a_scraper_left_idle_for_a_week_still_works() {
     let mut scraper = rig.builder().build().await.expect("the scraper builds");
     scraper.fetch(URL).await.expect("the first fetch");
 
-    tokio::time::advance(Duration::from_secs(7 * 24 * 60 * 60)).await;
+    tokio::time::advance(Duration::from_hours(7 * 24)).await;
 
     let kept = rig.launcher.last();
     assert!(kept.browser.is_connected(), "nothing closed the browser");
@@ -430,6 +432,103 @@ async fn solving_a_page_that_is_not_a_challenge_changes_nothing() {
 
     assert_eq!(detection.kind, ChallengeKind::None);
     assert_eq!(mouse_events(&rig, "mousePressed"), 0);
+}
+
+fn snapshot(kind: ChallengeKind) -> PageSnapshot {
+    PageSnapshot {
+        detection: Detection {
+            kind,
+            evidence: Evidence::default(),
+        },
+        body: String::new(),
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_retry_waits_the_time_it_was_given_and_asks_for_another_load() {
+    let rig = Rig::new(vec![real_page()]);
+    let mut scraper = rig.builder().build().await.expect("the scraper builds");
+    let target = Target::parse(URL).expect("a valid URL");
+    let mut state = DomainState::new("shop.example");
+    let start = Instant::now();
+
+    let step = scraper
+        .act(
+            Action::Retry {
+                after: Duration::from_secs(5),
+            },
+            &target,
+            &mut state,
+            &snapshot(ChallengeKind::JsChallenge),
+            1,
+        )
+        .await
+        .expect("a retry is not an error");
+
+    assert!(matches!(step, Step::Again));
+    assert!(start.elapsed() >= Duration::from_secs(5));
+}
+
+#[tokio::test(start_paused = true)]
+async fn an_action_the_loop_does_not_know_ends_it_instead_of_being_guessed_at() {
+    let rig = Rig::new(vec![real_page()]);
+    let mut scraper = rig.builder().build().await.expect("the scraper builds");
+    let target = Target::parse(URL).expect("a valid URL");
+    let mut state = DomainState::new("shop.example");
+
+    let result = scraper
+        .act(
+            Action::Escalate,
+            &target,
+            &mut state,
+            &snapshot(ChallengeKind::JsChallenge),
+            2,
+        )
+        .await;
+
+    assert!(
+        matches!(
+            result,
+            Err(ScrapeError::Unsolved {
+                kind: ChallengeKind::JsChallenge,
+                attempts: 2,
+                ..
+            })
+        ),
+        "{:?}",
+        result.err()
+    );
+    assert_eq!(rig.site.navigations().len(), 0, "nothing was loaded for it");
+}
+
+#[test]
+fn a_policy_that_stops_is_an_unsolved_challenge_only_when_a_challenge_stood() {
+    let target = Target::parse(URL).expect("a valid URL");
+    let stop = |reason: GiveUpReason, kind: ChallengeKind| {
+        give_up(&target, &snapshot(kind).detection, reason, 3)
+    };
+    let limited = ChallengeKind::RateLimited {
+        retry_after_secs: None,
+    };
+
+    for kind in [ChallengeKind::JsChallenge, ChallengeKind::Interactive] {
+        let unsolved = stop(GiveUpReason::AttemptsExhausted, kind);
+        assert!(
+            matches!(unsolved, ScrapeError::Unsolved { attempts: 3, .. }),
+            "{unsolved:?}"
+        );
+    }
+    for (reason, kind) in [
+        (GiveUpReason::AttemptsExhausted, limited),
+        (GiveUpReason::Blocked, ChallengeKind::Blocked),
+        (GiveUpReason::NoEgressLeft, ChallengeKind::JsChallenge),
+    ] {
+        let gave_up = stop(reason, kind);
+        assert!(
+            matches!(&gave_up, ScrapeError::GaveUp { reason: found, .. } if *found == reason),
+            "{gave_up:?}"
+        );
+    }
 }
 
 /// A store that reads fine and cannot write.
