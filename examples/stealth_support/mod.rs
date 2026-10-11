@@ -14,6 +14,9 @@ use seleniumbase_rs::stealth::fingerprint::OsType;
 use seleniumbase_rs::wire::emulation;
 use seleniumbase_rs::wire::BrowserKind;
 
+#[cfg(feature = "impersonate")]
+pub mod shop;
+
 /// The operating system this machine runs, as the persona of a real browser on it.
 pub fn host_os() -> OsType {
     if cfg!(target_os = "macos") {
