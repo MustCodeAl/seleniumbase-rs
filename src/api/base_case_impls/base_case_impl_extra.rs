@@ -1755,4 +1755,41 @@ mod tests_extra {
         let code2 = generate_totp("JBSWY3DPEHPK3PXP", 1234567).unwrap();
         assert_eq!(code1, code2);
     }
+
+    #[test]
+    fn totp_matches_the_rfc_6238_sha1_test_vectors() {
+        // RFC 6238, appendix B: the secret is the ASCII string
+        // "12345678901234567890"; its codes have eight digits there, and the
+        // six-digit code is the last six of those.
+        let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+        for (time, code) in [
+            (59, "287082"),
+            (1_111_111_109, "081804"),
+            (1_111_111_111, "050471"),
+            (1_234_567_890, "005924"),
+            (2_000_000_000, "279037"),
+            (20_000_000_000, "353130"),
+        ] {
+            assert_eq!(generate_totp(secret, time).unwrap(), code, "at {time}");
+        }
+    }
+
+    #[test]
+    fn totp_ignores_spaces_dashes_and_case_in_the_secret() {
+        let plain = generate_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", 59).unwrap();
+        assert_eq!(
+            generate_totp("gezd gnbv-gy3t qojq gezd gnbv-gy3t qojq", 59).unwrap(),
+            plain
+        );
+    }
+
+    #[test]
+    fn totp_refuses_a_secret_that_is_not_base32() {
+        for secret in ["not base32!", "GEZD1", "ÄÖÜ"] {
+            assert!(
+                matches!(generate_totp(secret, 59), Err(SeleniumBaseError::AssertionFailed(_))),
+                "{secret:?}"
+            );
+        }
+    }
 }
