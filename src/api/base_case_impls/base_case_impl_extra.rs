@@ -808,34 +808,55 @@ impl BaseCase {
         self.session.switch_to_frame(by).await
     }
 
-    /// Sets the frame context to the frame containing `css`.
+    /// Switches into the `<iframe>` or `<frame>` that holds the element `css`
+    /// and returns the frame's `name` (or its `id`, or an empty string if it
+    /// has neither). Returns `None`, and switches nothing, when the element is
+    /// in the current document. Corresponds to Python's
+    /// `switch_to_frame_of_element`.
+    ///
+    /// Like Python's, it looks one level down: an element inside frames
+    /// nested in each other is not found. Frames from other origins are
+    /// searched too, because the browser driver can enter them.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if no frame of the
+    /// current document holds the element; the frame context is then as it
+    /// was.
     pub async fn switch_to_frame_of_element(
         &mut self,
         css: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "var el = document.querySelector('{}'); var frame = el ? el.closest('iframe, frame') : null; if (frame) {{ frame.setAttribute('data-sb-frame-target', '1'); return true; }} return false;",
-            js_escape(css)
-        );
-        let found = self.execute_script(&script).await?;
-        if found.as_bool() != Some(true) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Element '{}' is not inside a frame",
-                css
-            )));
+    ) -> Result<Option<String>, SeleniumBaseError> {
+        if self.is_element_present(css).await? {
+            return Ok(None);
         }
-        self.session
-            .switch_to_frame(By::Css("[data-sb-frame-target='1']"))
-            .await?;
-        let _ = self
-            .session
-            .driver()
-            .execute("arguments[0].removeAttribute('data-sb-frame-target');", vec![])
-            .await;
-        Ok(())
+        let frames = self.session.find_all(By::Css("iframe, frame")).await?;
+        for frame in frames {
+            let name = frame.attr("name").await?.filter(|name| !name.is_empty());
+            let identifier = match name {
+                Some(name) => name,
+                None => frame.attr("id").await?.unwrap_or_default(),
+            };
+            if frame.enter_frame().await.is_err() {
+                continue;
+            }
+            if self.is_element_present(css).await.unwrap_or(false) {
+                return Ok(Some(identifier));
+            }
+            self.switch_to_parent_frame().await?;
+        }
+        Err(SeleniumBaseError::AssertionFailed(format!(
+            "Could not switch to an iframe containing element '{css}'"
+        )))
     }
 
-    /// Sets the current document body HTML to `html` inside a new frame.
+    /// Appends a new `<iframe>` whose document is the HTML `html` to the
+    /// page body.
+    ///
+    /// This is **not** Python's `set_content_to_frame(frame)`, which replaces
+    /// the page with the content of an iframe already on it (or opens its
+    /// `src`) and lets `set_content_to_default` restore the page. That is not
+    /// ported; `parity/api.toml` marks it planned.
     pub async fn set_content_to_frame(
         &mut self,
         html: &str,
