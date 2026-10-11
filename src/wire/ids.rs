@@ -213,6 +213,7 @@ const GROUP_ROWS: &[Row] = &[
     (0x11EB, "SecP256r1MLKEM768"),
     (0x11EC, "X25519MLKEM768"),
     (0x6399, "X25519Kyber768Draft00"),
+    (0xFE32, "P256Kyber768Draft00"),
 ];
 
 /// The supported groups registry, by wire id.
@@ -287,13 +288,17 @@ pub const H2_SETTINGS_ACCEPTED: &[u16] = &[
     0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0008, 0x0009,
 ];
 
-/// Cipher suites `BoringSSL` can emit in a client hello.
+/// Cipher suites the policy of the spec layer lets through, all of which `BoringSSL` writes into
+/// a client hello (the wire probe of `tests/impersonate_wire.rs` checks each).
 ///
-/// The TLS 1.3 trio and the ECDHE and RSA AEAD and CBC-SHA suites that Chrome offers. PSK, 3DES
-/// and SHA-256/384 CBC suites are left out until the probe confirms them.
+/// The TLS 1.3 trio, the ECDHE and RSA AEAD suites, and the CBC suites with SHA-1, SHA-256 and
+/// SHA-384 (3DES included). The TLS 1.2 DHE suites reach the wire too, but [`DHE_CIPHERS`] keeps
+/// them out by policy; PSK, CCM, RC4, NULL, export, anonymous and signalling suites do not reach
+/// the wire at all.
 pub const BORINGSSL_CIPHERS: &[u16] = &[
     0x1301, 0x1302, 0x1303, 0xC02B, 0xC02F, 0xC02C, 0xC030, 0xCCA9, 0xCCA8, 0xC009, 0xC013, 0xC00A,
-    0xC014, 0x009C, 0x009D, 0x002F, 0x0035,
+    0xC014, 0x009C, 0x009D, 0x002F, 0x0035, 0x000A, 0x003C, 0x003D, 0xC008, 0xC012, 0xC023, 0xC024,
+    0xC027, 0xC028,
 ];
 
 /// The TLS 1.3 suites. A spec may reorder them but never drop one (plan 3.8).
@@ -322,7 +327,14 @@ pub const BORINGSSL_TLS13_ONLY_EXTENSIONS: &[u16] = &[0x002B, 0x002D, 0x0033];
 /// Supported groups `BoringSSL` can emit: x25519, P-256, P-384, P-521, the ML-KEM and Kyber
 /// hybrids, and the FFDHE groups that the probe confirms.
 pub const BORINGSSL_GROUPS: &[u16] = &[
-    0x001D, 0x0017, 0x0018, 0x0019, 0x0202, 0x0100, 0x0101, 0x11EC, 0x6399,
+    0x001D, 0x0017, 0x0018, 0x0019, 0x0202, 0x0100, 0x0101, 0x11EC, 0x6399, 0xFE32,
+];
+
+/// Groups `BoringSSL` can send a key share for. The FFDHE groups can be offered in
+/// `supported_groups` but have no key share implementation, so a hello that asks for a share of
+/// one is never sent.
+pub const BORINGSSL_KEY_SHARE_GROUPS: &[u16] = &[
+    0x001D, 0x0017, 0x0018, 0x0019, 0x0202, 0x11EC, 0x6399, 0xFE32,
 ];
 
 /// Signature schemes `BoringSSL` can emit. The internal MD5-SHA1 code `0xFF01` is not an IANA
@@ -333,6 +345,9 @@ pub const BORINGSSL_SIGALGS: &[u16] = &[
 ];
 
 /// The TLS 1.2 DHE cipher suites, which the spec refuses (plan 3.8).
+///
+/// This is a policy, not a limit: the wire probe shows that the vendored `BoringSSL` writes them
+/// into a hello when asked, and the probe test keeps this list as the one exception it allows.
 pub const DHE_CIPHERS: &[u16] = &[0x0033, 0x0039, 0x009E, 0x009F];
 
 /// The TLS 1.3 CCM cipher suites, which the spec refuses (plan 3.8).
@@ -359,8 +374,11 @@ pub const REFUSED_EXTENSIONS: &[(u16, &str)] = &[
     ),
 ];
 
-/// Supported groups the spec refuses: x448, brainpool, secp256k1 and the larger FFDHE groups.
-pub const UNSUPPORTED_GROUPS: &[u16] = &[0x0016, 0x001A, 0x001B, 0x001C, 0x001E, 0x0103, 0x0104];
+/// Supported groups the spec refuses: x448, brainpool, secp256k1, the larger FFDHE groups and the
+/// ML-KEM groups `BoringSSL` does not name (512, 768, and the P-256 hybrid).
+pub const UNSUPPORTED_GROUPS: &[u16] = &[
+    0x0016, 0x001A, 0x001B, 0x001C, 0x001E, 0x0102, 0x0103, 0x0104, 0x0200, 0x0201, 0x11EB,
+];
 
 /// ML-DSA signature schemes, which the spec refuses (plan 3.8).
 pub const ML_DSA_SIGALGS: &[u16] = &[0x0904, 0x0905, 0x0906];
@@ -368,11 +386,13 @@ pub const ML_DSA_SIGALGS: &[u16] = &[0x0904, 0x0905, 0x0906];
 #[cfg(test)]
 mod tests {
     use super::{
-        is_alpn, is_grease, Registry, ALPN_H2, ALPN_HTTP_1_1, BORINGSSL_CIPHERS,
-        BORINGSSL_CLIENT_EXTENSIONS, BORINGSSL_GROUPS, BORINGSSL_SIGALGS, CCM_CIPHERS,
-        CIPHER_SUITES, DHE_CIPHERS, EC_POINT_FORMATS, EXTENSIONS, GROUPS, H2_SETTINGS_ACCEPTED,
-        HTTP2_SETTINGS, ML_DSA_SIGALGS, REFUSED_EXTENSIONS, SCSV_CIPHERS, SIGNATURE_ALGORITHMS,
-        TLS13_CIPHERS, TLS_VERSIONS, UNSUPPORTED_GROUPS,
+        is_alpn, is_grease, Registry, ALPN_H2, ALPN_HTTP_1_1, BORINGSSL_ALWAYS_SENT_EXTENSIONS,
+        BORINGSSL_CIPHERS, BORINGSSL_CLIENT_EXTENSIONS, BORINGSSL_GROUPS,
+        BORINGSSL_KEY_SHARE_GROUPS, BORINGSSL_LEGACY_ONLY_EXTENSIONS, BORINGSSL_SIGALGS,
+        BORINGSSL_TLS13_ONLY_EXTENSIONS, CCM_CIPHERS, CIPHER_SUITES, DHE_CIPHERS, EC_POINT_FORMATS,
+        EXTENSIONS, GROUPS, H2_SETTINGS_ACCEPTED, HTTP2_SETTINGS, ML_DSA_SIGALGS,
+        REFUSED_EXTENSIONS, SCSV_CIPHERS, SIGNATURE_ALGORITHMS, TLS13_CIPHERS, TLS_VERSIONS,
+        UNSUPPORTED_GROUPS,
     };
     use std::collections::HashSet;
 
@@ -468,7 +488,7 @@ mod tests {
 
     #[test]
     fn capability_seeds_are_unique_and_named() {
-        let seeds: [(&str, &[u16], Registry); 5] = [
+        let seeds: [(&str, &[u16], Registry); 6] = [
             ("BORINGSSL_CIPHERS", BORINGSSL_CIPHERS, CIPHER_SUITES),
             (
                 "BORINGSSL_CLIENT_EXTENSIONS",
@@ -476,6 +496,11 @@ mod tests {
                 EXTENSIONS,
             ),
             ("BORINGSSL_GROUPS", BORINGSSL_GROUPS, GROUPS),
+            (
+                "BORINGSSL_KEY_SHARE_GROUPS",
+                BORINGSSL_KEY_SHARE_GROUPS,
+                GROUPS,
+            ),
             ("BORINGSSL_SIGALGS", BORINGSSL_SIGALGS, SIGNATURE_ALGORITHMS),
             ("H2_SETTINGS_ACCEPTED", H2_SETTINGS_ACCEPTED, HTTP2_SETTINGS),
         ];
@@ -491,6 +516,33 @@ mod tests {
                 BORINGSSL_CIPHERS.contains(&id),
                 "TLS 1.3 suite {id:#06x} not seeded"
             );
+        }
+        for &id in BORINGSSL_KEY_SHARE_GROUPS {
+            assert!(
+                BORINGSSL_GROUPS.contains(&id),
+                "a key share for {id:#06x} needs the group to be offerable"
+            );
+        }
+    }
+
+    #[test]
+    fn the_version_rules_name_extensions_the_seed_allows() {
+        let rules = [
+            BORINGSSL_ALWAYS_SENT_EXTENSIONS,
+            BORINGSSL_LEGACY_ONLY_EXTENSIONS,
+            BORINGSSL_TLS13_ONLY_EXTENSIONS,
+        ];
+        for ids in rules {
+            for &id in ids {
+                assert!(
+                    BORINGSSL_CLIENT_EXTENSIONS.contains(&id),
+                    "{id:#06x} is in a version rule but not in the extension seed"
+                );
+            }
+        }
+        for &id in BORINGSSL_LEGACY_ONLY_EXTENSIONS {
+            assert!(!BORINGSSL_TLS13_ONLY_EXTENSIONS.contains(&id));
+            assert!(!BORINGSSL_ALWAYS_SENT_EXTENSIONS.contains(&id));
         }
     }
 
