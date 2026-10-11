@@ -227,7 +227,10 @@ mod tests {
 
         assert_eq!(report.written.as_deref(), Some(link.as_path()));
         assert!(
-            fs::symlink_metadata(&link).unwrap().file_type().is_symlink(),
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink(),
             "the link was replaced by a regular file"
         );
         assert_eq!(fs::read_to_string(&real).unwrap(), report.text);
