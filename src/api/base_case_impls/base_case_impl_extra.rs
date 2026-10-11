@@ -303,7 +303,11 @@ impl BaseCase {
     }
 
     /// Asserts that `value` is an instance of the type named by `type_name`.
-    pub fn assert_is_instance(&self, value: &dyn std::any::Any, type_name: &str) -> Result<(), SeleniumBaseError> {
+    ///
+    /// `type_name` is looked for in the full name of the value's type, so
+    /// `"String"` matches `alloc::string::String`. Pass the value itself
+    /// (`&count`): a `&dyn Any` has already lost its type.
+    pub fn assert_is_instance<T: ?Sized>(&self, value: &T, type_name: &str) -> Result<(), SeleniumBaseError> {
         let actual = std::any::type_name_of_val(value);
         if !actual.contains(type_name) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
@@ -315,9 +319,11 @@ impl BaseCase {
     }
 
     /// Asserts that `value` is not an instance of the type named by `type_name`.
-    pub fn assert_not_is_instance(
+    ///
+    /// The name is matched as in [`assert_is_instance`](Self::assert_is_instance).
+    pub fn assert_not_is_instance<T: ?Sized>(
         &self,
-        value: &dyn std::any::Any,
+        value: &T,
         type_name: &str,
     ) -> Result<(), SeleniumBaseError> {
         let actual = std::any::type_name_of_val(value);
@@ -1791,5 +1797,17 @@ mod tests_extra {
                 "{secret:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_value_is_an_instance_of_its_own_type() {
+        let sb = BaseCase::with_session(BrowserConfig::default(), BrowserSession::disconnected());
+        sb.assert_is_instance(&5_i32, "i32").unwrap();
+        sb.assert_is_instance(&String::from("x"), "String").unwrap();
+        sb.assert_is_instance(&vec![1_u8], "Vec").unwrap();
+        assert!(sb.assert_is_instance(&5_i32, "String").is_err());
+
+        sb.assert_not_is_instance(&5_i32, "String").unwrap();
+        assert!(sb.assert_not_is_instance(&5_i32, "i32").is_err());
     }
 }

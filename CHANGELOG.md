@@ -180,6 +180,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `assert_is_instance` and `assert_not_is_instance` look at the type of the value
+  passed. They read the name of a `&dyn Any`, which is always `dyn core::any::Any`,
+  so the first never passed and the second never failed. They take `&T` now; a
+  call that passes `&value` compiles as before.
 - `xpath_to_css` (so `convert_xpath_to_css` and the Python importer) converts only
   what has an exact CSS equivalent, a tag or `*` with attribute tests joined by
   `and`, and returns `InvalidSelector` for the rest. It used to drop a predicate it
