@@ -75,7 +75,7 @@ mod pool;
 mod proxy_auth;
 mod session_store;
 mod state;
-mod sync;
+pub(crate) mod sync;
 mod types;
 mod webrtc;
 

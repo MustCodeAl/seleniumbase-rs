@@ -43,6 +43,23 @@ pub mod common;
 pub mod config;
 pub mod core;
 pub mod error;
+// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
+#[cfg(feature = "impersonate")]
+#[warn(
+    clippy::pedantic,
+    clippy::allow_attributes_without_reason,
+    clippy::clone_on_ref_ptr,
+    clippy::map_err_ignore,
+    clippy::semicolon_outside_block,
+    clippy::unused_result_ok,
+    clippy::too_long_first_doc_paragraph,
+    missing_debug_implementations,
+    redundant_imports,
+    redundant_lifetimes,
+    trivial_numeric_casts,
+    unused_lifetimes
+)]
+pub mod impersonate;
 pub mod js_code;
 pub mod macros;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
@@ -83,6 +100,23 @@ pub mod storage;
     unused_lifetimes
 )]
 pub mod sb_cdp;
+// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
+#[cfg(feature = "scrape")]
+#[warn(
+    clippy::pedantic,
+    clippy::allow_attributes_without_reason,
+    clippy::clone_on_ref_ptr,
+    clippy::map_err_ignore,
+    clippy::semicolon_outside_block,
+    clippy::unused_result_ok,
+    clippy::too_long_first_doc_paragraph,
+    missing_debug_implementations,
+    redundant_imports,
+    redundant_lifetimes,
+    trivial_numeric_casts,
+    unused_lifetimes
+)]
+pub mod scrape;
 pub mod stealth;
 pub mod tracing_util;
 pub mod utilities;
