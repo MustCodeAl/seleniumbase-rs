@@ -15,9 +15,11 @@ pub const DEFAULT_QUARANTINE_AFTER: u32 = 3;
 /// Seconds a quarantined egress stays out of rotation, unless the pool says otherwise.
 pub const DEFAULT_QUARANTINE_SECS: u64 = 600;
 
-/// How many sites [`RotationStrategy::StickyPerSite`] remembers. A scrape can touch an unbounded
-/// number of sites, so past this the table drops its alphabetically first entry for each new
-/// site: that site is simply given a fresh egress the next time.
+/// How many sites [`RotationStrategy::StickyPerSite`] remembers.
+///
+/// A scrape can touch an unbounded number of sites, so past this the table drops its
+/// alphabetically first entry for each new site: that site is simply given a fresh egress the
+/// next time.
 pub const MAX_STICKY_SITES: usize = 4096;
 
 /// How the pool chooses among the egresses that are available.
@@ -101,9 +103,10 @@ impl State {
     }
 }
 
-/// A rotating set of egresses, with failure counting and quarantine. Every decision takes the
-/// current time in seconds as an argument, so the pool itself reads no clock. It is `Send` and
-/// `Sync`: share it behind an `Arc`.
+/// A rotating set of egresses, with failure counting and quarantine.
+///
+/// Every decision takes the current time in seconds as an argument, so the pool itself reads no
+/// clock. It is `Send` and `Sync`: share it behind an `Arc`.
 pub struct ProxyPool {
     strategy: RotationStrategy,
     quarantine_after: u32,
