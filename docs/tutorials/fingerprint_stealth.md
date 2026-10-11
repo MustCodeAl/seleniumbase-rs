@@ -406,14 +406,35 @@ Two settings act on WebRTC, and they are independent:
 
 ## Native-level (CDP) spoofing
 
-By default, most spoofed values are injected through JavaScript providers. This
-works everywhere, but page scripts can *in principle* detect the patch through
-`Function.prototype.toString`, `Object.getOwnPropertyNames`, or descriptor
-inspection.
+When a session has a CDP connection (`DriverMode::Uc`, `DriverMode::Cdp`, or the
+Pure CDP engine), a fingerprint is applied in two layers:
 
-Enable `StealthFlags::native_spoofing` to move every spoofing dimension that
-can be driven by the Chrome DevTools Protocol (CDP) or Chromium launch args out
-of JavaScript and into the browser's own implementation:
+1. The evasion script, assembled from the providers below and registered with
+   `Page.addScriptToEvaluateOnNewDocument`. Page scripts can *in principle*
+   detect a JavaScript patch through `Function.prototype.toString`,
+   `Object.getOwnPropertyNames`, or descriptor inspection, which is why the
+   providers use the `sb` helpers to look native.
+2. The protocol overrides from `evasions::cdp_overrides`. They are driven by which
+   fields are set, not by the masking modes, except where the table says so:
+
+| Command | Sent when |
+|---|---|
+| `Network.setUserAgentOverride` (user agent, `acceptLanguage`, platform, `userAgentMetadata`) | `user_agent` is set. `acceptLanguage` is `accept_languages`, else `locale`, else `en-US,en;q=0.9`. The metadata comes from `client_hints` when set and is derived from the OS and user agent otherwise. |
+| `Emulation.setDeviceMetricsOverride` | `screen_width` and `screen_height` are set. `pixel_ratio` is the scale factor (1.0 if unset) and `mobile` follows `os_type`. |
+| `Emulation.setLocaleOverride` | `locale` is set. |
+| `Emulation.setTimezoneOverride` | `timezone` is set. |
+| `Emulation.setGeolocationOverride` | `latitude` and `longitude` are set (accuracy 100 and altitude 0 unless set). |
+| `Browser.grantPermissions` | `grant_permissions` is on. |
+| `Network.setBlockedURLs` | `block_trackers` is on. |
+| `Page.setBypassCSP` | `disable_csp` is on. |
+| `Emulation.setFocusEmulationEnabled` | `headless_masking` is `Mask` or `Custom`. |
+| `Network.setExtraHTTPHeaders` | The proxy has a user name and a password (WebDriver path only; see the proxy caveat above). |
+
+So a UC or CDP session already gets these overrides without `native_spoofing`,
+and the JavaScript providers patch the same properties on top of them.
+`StealthFlags::native_spoofing` makes the providers stand down where a protocol
+override covers the property, so the browser reports the value itself instead of
+a replaced JavaScript getter:
 
 ```rust
 use seleniumbase_rs::Fingerprint;
@@ -429,53 +450,81 @@ let fp = Fingerprint::builder()
     .build();
 ```
 
-When `native_spoofing` is true the framework:
+When `native_spoofing` is true:
 
-* Sends `Network.setUserAgentOverride` with `userAgent`, `acceptLanguage`,
-  `platform`, and `userAgentMetadata` so `navigator.userAgent`,
-  `navigator.platform`, `navigator.languages`, and Client Hints come from the
-  browser itself.
-* Sends `Emulation.setDeviceMetricsOverride` so `screen.width/height`,
-  `window.outerWidth/Height`, and `devicePixelRatio` are native values.
-* Sends `Emulation.setTimezoneOverride` and `Emulation.setLocaleOverride` for
-  time-zone and localization semantics.
-* Sends `Emulation.setGeolocationOverride` for `navigator.geolocation`.
-* Keeps JS providers only for dimensions that have no CDP equivalent:
-  `hardwareConcurrency`, `deviceMemory`, WebGL vendor/renderer, canvas/audio
-  noise, media devices, fonts, battery, connection, speech, Bluetooth, and
-  `navigator.webdriver` cleanup.
-
-Because the browser returns the fake values directly, there is no JS-visible
-override to inspect. `toString()`, `getOwnPropertyNames()`, and descriptor
-probes see the native getter/property, making the spoof effectively invisible
-to page-side introspection.
+* `navigator_props` leaves out `platform`, `userAgent` and `appVersion`.
+* `window_geometry` emits only `colorDepth` and `pixelDepth`; the size and scale
+  come from `Emulation.setDeviceMetricsOverride`.
+* `localization`, the JavaScript `geolocation` provider and `client_hints` are
+  skipped, and `timezone` is skipped when a `timezone` is set.
+* The JS providers stay for everything the protocol does not cover:
+  `hardwareConcurrency`, `deviceMemory`, `maxTouchPoints`, `vendor`, WebGL
+  vendor and renderer, canvas and audio noise, media devices, fonts, battery,
+  connection, speech, Bluetooth, the `navigator.webdriver` getter and the
+  marker cleanup.
+* A WebDriver session (Chrome, Chromium or Edge) also launches a patched copy of
+  the browser. If `BrowserConfig::browser_binary_path` is unset, the session
+  finds the system Chrome (`SB_CHROME_BIN`, else `find_system_chrome()`), writes a
+  patched copy through `ChromeBinaryPatcher` with `EnginePatch::chrome_binary()`
+  (webdriver markers, `navigator.webdriver` assignments and the `HeadlessChrome`
+  user-agent marker), and sets `browser_binary_path` to it. It returns an
+  `InvalidConfig` error naming `SB_CHROME_BIN` if no Chrome is found.
 
 ### Caveats
 
-* Native spoofing requires a CDP session. In pure WebDriver fallback mode the
-  framework falls back to the JS providers.
-* `colorDepth` / `pixelDepth` are not covered by CDP device metrics, so a
+* The protocol overrides and the script need a CDP connection. In
+  `DriverMode::WebDriver`, neither is applied whether or not `native_spoofing` is
+  set: only the launch arguments (and, with `native_spoofing`, the patched
+  binary) take effect.
+* `colorDepth` and `pixelDepth` are not covered by the device metrics, so a
   minimal JS patch is still emitted for them.
-* Some signals (WebGL, canvas noise, audio noise) have no CDP override and
-  remain JS-based even in native mode.
+* Some signals (WebGL, canvas noise, audio noise) have no protocol override and
+  stay JavaScript-based in native mode.
+* Whether a given detector can still tell is not something this crate measures;
+  the Pure CDP guide records what was checked against a real Chrome.
 
 ## rustwright / Playwright mode
+
+This mode needs the `playwright` Cargo feature (`rustwright`); it is not on by
+default.
 
 ```rust
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
 use seleniumbase_rs::Fingerprint;
 
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let fp = Fingerprint::windows_desktop();
 let session = PlaywrightSession::launch_with_fingerprint(&fp).await?;
 session.goto("https://example.com").await?;
+session.close().await?;
+# Ok(())
+# }
 ```
+
+`launch_with_fingerprint` opens a headed browser; use
+`launch_headless_with_fingerprint` for headless. The session passes the
+fingerprint's launch arguments, then evaluates the evasion script in the first
+page and again after every `goto` and `new_page`, because rustwright cannot
+register a script to run in each new document. The script therefore runs after
+navigation, not before the page's own scripts, so a page that reads the identity
+while it loads can see the browser's real one. The protocol overrides listed above
+are not sent in this mode.
 
 ## External profile payloads
 
 The `profile_payloads::ProfileParams` type maps to a `Fingerprint` via
-`ProfileParams::to_fingerprint()`. `ProfileParams::to_browser_config()` attaches
-the fingerprint to the returned `BrowserConfig`, so the spoofed values are
-applied automatically at launch.
+`ProfileParams::to_fingerprint()`. `ProfileParams::to_browser_config(webdriver_url)`
+returns a `BrowserConfig` with that fingerprint attached.
+
+The returned `mode` follows the payload's `automation` field: `playwright` and
+`puppeteer` give `DriverMode::Cdp`; `selenium` (the default when the field is
+absent) and the Firefox browser types give `DriverMode::WebDriver`; anything else
+gives `DriverMode::Uc`. The script and protocol overrides are applied only in
+`Cdp` and `Uc` mode, so a payload that keeps `selenium` is launched with the launch
+arguments only. The payload's `cmd_params` become Chrome flags, except switches
+that run a program, load an extension, set the profile directory, a proxy or
+remote debugging, or ignore certificate errors; those are refused. The Pure CDP
+engine does not pass `cmd_params` at all.
 
 ## Provider architecture
 
