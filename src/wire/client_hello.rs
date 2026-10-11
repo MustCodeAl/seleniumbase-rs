@@ -16,9 +16,11 @@ pub use super::ids::is_grease;
 /// Largest `ClientHello` handshake message, header included, that the parser accepts.
 pub const MAX_CLIENT_HELLO: usize = 64 * 1024;
 
-/// The most TLS records one `ClientHello` may span. A 64 KiB message fits four full records, so
-/// this allows any fragmentation a client stack would use, and no peer can make the readers walk
-/// more than this many record headers per call, however slowly it sends.
+/// The most TLS records one `ClientHello` may span.
+///
+/// A 64 KiB message fits four full records, so this allows any fragmentation a client stack would
+/// use, and no peer can make the readers walk more than this many record headers per call,
+/// however slowly it sends.
 pub const MAX_HELLO_RECORDS: usize = 1024;
 
 /// Bytes in a TLS record header: content type, legacy version and payload length.

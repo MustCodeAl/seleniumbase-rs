@@ -102,9 +102,11 @@ const SECONDS_PER_DAY: u64 = 24 * SECONDS_PER_HOUR;
 /// The longest protocol id an ALPN list can carry (its length is one byte).
 const MAX_ALPN_PROTOCOL_LEN: usize = 255;
 
-/// Lifetimes and the cache bound of an [`EphemeralCa`]. Every field is a custom input, checked
-/// by [`EphemeralCa::generate_at`]. The durations count in whole seconds: a certificate is
-/// issued for the whole seconds of its validity, and the bounds below are checked on those.
+/// Lifetimes and the cache bound of an [`EphemeralCa`].
+///
+/// Every field is a custom input, checked by [`EphemeralCa::generate_at`]. The durations count in
+/// whole seconds: a certificate is issued for the whole seconds of its validity, and the bounds
+/// below are checked on those.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CaOptions {
     /// How long the CA certificate is valid, from creation. At most [`MAX_CA_VALIDITY`].

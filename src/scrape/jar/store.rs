@@ -39,10 +39,12 @@ pub const MAX_COOKIES_PER_SITE: usize = 180;
 /// The most cookies the jar holds in all. A new cookie beyond it evicts another.
 pub const MAX_COOKIES: usize = 3000;
 
-/// The most bytes the cookies of one site may hold in all, counting each cookie's name, value,
-/// domain and path. A new cookie beyond it evicts others of the same site, like the count bound.
-/// The jar as a whole is bounded by [`MAX_COOKIES`] cookies of at most 5,373 bytes each (a name
-/// and value of 4096, a path of 1024 and a domain of 253).
+/// The most bytes the cookies of one site may hold in all.
+///
+/// Each cookie counts its name, value, domain and path. A new cookie beyond the bound evicts
+/// others of the same site, like the count bound. The jar as a whole is bounded by
+/// [`MAX_COOKIES`] cookies of at most 5,373 bytes each (a name and value of 4096, a path of 1024
+/// and a domain of 253).
 pub const MAX_BYTES_PER_SITE: usize = 256 * 1024;
 
 /// The most bytes a cookie path may hold, whether from the `Path` attribute or from the default

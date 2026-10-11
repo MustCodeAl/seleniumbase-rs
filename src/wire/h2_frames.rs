@@ -7,8 +7,10 @@
 //! full HPACK decode of the block, the header order and the pseudo-header order.
 //!
 //! The reader works on bytes already in memory and never waits: an incomplete frame means
-//! `Ok(None)` ("read more"), and hostile input is bounded (frame size, preface size, header
-//! block size) so that no input makes it allocate without limit or panic.
+//! `Ok(None)` ("read more"), and hostile input is bounded (frame size, frame count, preface size,
+//! header block size) so that no input makes it allocate without limit or panic. [`read_preface`]
+//! reads from the start on each call; a loop that calls it after every socket read should keep a
+//! [`PrefaceReader`], which parses each frame once.
 //!
 //! The HPACK decoder is in [`hpack`] and its Huffman decoder in [`huffman`].
 //!
