@@ -515,7 +515,7 @@ comments for manual review.
 ## Project status
 
 Every API of Python SeleniumBase 4.55.2 and of its MCP server now has a recorded
-status: 887 implemented, 384 composed from existing Rust calls, 94 not
+status: 888 implemented, 383 composed from existing Rust calls, 94 not
 applicable with a reason, and none still planned
 ([docs/parity.md](./docs/parity.md)). An audit of the entries marked done fixed
 or re-marked 26 that did less than the Python method, and a second audit of the

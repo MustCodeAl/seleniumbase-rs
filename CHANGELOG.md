@@ -10,6 +10,27 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Added
 
+- **geckodriver and msedgedriver**: a Firefox session starts geckodriver and an
+  Edge session msedgedriver itself, as Python SeleniumBase does, where both
+  used to be handed chromedriver. Each is looked for in `downloaded_drivers/`
+  and on the `PATH`, and downloaded when missing: geckodriver's newest GitHub
+  release, and the msedgedriver of the installed Edge's major version from
+  `msedgedriver.microsoft.com` (`LATEST_RELEASE_<major>_<OS>`); an msedgedriver
+  that does not fit the installed Edge is replaced, and `with_driver_version`
+  pins one. Downloads are capped at 64 MB, unpacked (zip or tar.gz) without
+  writing outside their folder, and made runnable as chromedriver is. Both are
+  started with the orphan guard and the macOS re-sign retry; geckodriver gets
+  `--websocket-port 0` so Firefox sessions can run side by side. Firefox
+  sessions now also send `browser_binary_path` as `moz:firefoxOptions.binary`,
+  `user_data_dir` as `-profile`, and the user agent and locale as preferences.
+  `sbase install` takes a driver and a version (`sbase install geckodriver
+  0.36.0`, `sbase get edgedriver`), and `sbase get` is its alias. Checked on
+  macOS with a real headless Edge 155 and the msedgedriver the crate downloaded
+  (`tests/edge_msedgedriver.rs`); the crate also found and started Homebrew's
+  geckodriver there, and downloaded geckodriver 0.37.1 and 0.36.0. A headless
+  Firefox 153 ESR took the new `moz:firefoxOptions` through the geckodriver of
+  the `docker/firefox-check` container (`tests/firefox_geckodriver.rs`); the
+  crate itself ran on the Mac, not in the container.
 - **Playwright and Puppeteer importers**: `sbase import-playwright` (alias
   `import-pw`) converts `@playwright/test` files, `playwright codegen` output and
   pytest-playwright, sync and async Python scripts; `sbase import-puppeteer`
@@ -94,8 +115,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   frame and the vendor's checkbox offset; `Page::gui_captcha_plan` gives the point
   without moving the pointer. Tested with unit tests and a mocked browser only: it
   has not moved the real pointer or been tried on a live CAPTCHA.
-- **Parity**: every API in `parity/api.toml` now has a status (887 implemented,
-  384 composed, 94 not-applicable with a reason, none planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (888 implemented,
+  383 composed, 94 not-applicable with a reason, none planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **`--esc-end`** (`--esc_end`, `--ee`): `BrowserConfig::with_esc_end`,

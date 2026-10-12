@@ -100,19 +100,32 @@ Chromedriver
   Hint: a chromedriver only drives its own Chrome version; run `sbase install` to fetch the matching one
 ```
 
-## Install a chromedriver
+## Install a driver
 
 ```bash
-./target/debug/sbase install
+./target/debug/sbase install                    # chromedriver for the installed Chrome
+./target/debug/sbase install chromedriver 155   # the newest chromedriver of Chrome 155
+./target/debug/sbase get geckodriver            # the newest geckodriver release
+./target/debug/sbase get geckodriver 0.36.0     # one geckodriver release
+./target/debug/sbase get edgedriver             # msedgedriver for the installed Edge
+./target/debug/sbase get edgedriver latest      # the stable msedgedriver
 ```
 
-Downloads the chromedriver that matches the installed Chrome from Chrome for
-Testing into `./downloaded_drivers/` and prints its path. When Chrome is not
-found, or Chrome for Testing lists no driver for its version, the latest stable
-driver is fetched instead. It needs network access and fetches only the driver:
-the [Pure CDP engine](pure_cdp.md) needs none. Starting a WebDriver session
-makes the same check by itself, so run `install` ahead of time only to prepare
-an offline machine or a container.
+`sbase get` is another name for `sbase install`, as in Python SeleniumBase. The
+driver is `chromedriver` (the default), `geckodriver` (or `firefoxdriver`) or
+`edgedriver` (or `msedgedriver`); the version is `latest`, a major version or a
+full build, and for geckodriver a release such as `0.36.0`. The driver goes to
+`./downloaded_drivers/` and its path is printed.
+
+Without a version, chromedriver is the one that matches the installed Chrome,
+from Chrome for Testing (the latest stable one when Chrome is not found or no
+driver is listed for its version), msedgedriver the one for the installed
+Edge's major version from `msedgedriver.microsoft.com`, and geckodriver the
+newest GitHub release. It needs network access and fetches only the driver: the
+[Pure CDP engine](pure_cdp.md) needs none. Starting a WebDriver session finds or
+fetches the driver by itself, so run `install` ahead of time only to prepare an
+offline machine or a container. Python's `--path` (copy the driver to a folder
+on the `PATH`) is not supported.
 
 ## Run your tests
 

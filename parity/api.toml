@@ -3008,9 +3008,10 @@ status = "not-applicable"
 reason = "Edits the structure of Python test files."
 
 [cli."get"]
-status = "composed"
-rust = "sbase install"
-note = "Python treats `get` and `install` as the same command, with a driver name, a version or channel, and `--path`. `sbase install` takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). There is no choice of driver, no version, no edgedriver or geckodriver and no copy to a folder on the PATH. Chrome for Testing and chrome-headless-shell are fetched when the session starts and one of them is chosen as the browser."
+status = "implemented"
+rust = "sbase get"
+note = "An alias of `sbase install`, as in Python: `sbase get chromedriver|geckodriver|edgedriver [VERSION]` (also `firefoxdriver` and `msedgedriver`). chromedriver and edgedriver default to the driver for the installed Chrome and Edge, geckodriver to the newest GitHub release; VERSION is `latest`, a major version or a full build (a geckodriver version such as 0.36.0). Each driver goes to downloaded_drivers/<driver>-<version>/."
+divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. Chrome for Testing and chrome-headless-shell are not fetched by name here; they are fetched when a session chooses one of them as the browser."
 
 [cli."grid-hub"]
 status = "implemented"
@@ -3044,7 +3045,8 @@ reason = "Edits the structure of Python test files."
 [cli."install"]
 status = "implemented"
 rust = "sbase install"
-divergence = "Takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). No driver name, version or --path, and no edgedriver or geckodriver."
+note = "`sbase install chromedriver|geckodriver|edgedriver [VERSION]`; with no argument it fetches the chromedriver that matches the installed Chrome (or the stable one). The same command as `sbase get`."
+divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH."
 
 [cli."methods"]
 status = "not-applicable"
@@ -4703,12 +4705,12 @@ note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottr
 [options_pytest."--driver-version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbase get geckodriver VERSION` pins one."
 
 [options_pytest."--driver_version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbase get geckodriver VERSION` pins one."
 
 [options_pytest."--dws"]
 status = "composed"
@@ -4718,7 +4720,7 @@ note = "Passed to the browser as a command-line flag through BrowserConfig::extr
 [options_pytest."--edge"]
 status = "composed"
 rust = "BrowserConfig::browser"
-note = "Choose the Browser variant."
+note = "Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions."
 
 [options_pytest."--ee"]
 status = "implemented"
@@ -4834,7 +4836,7 @@ reason = "Starts Python's pdb trace at the end of each test; Rust has no pdb. At
 [options_pytest."--firefox"]
 status = "composed"
 rust = "BrowserConfig::browser"
-note = "Choose the Browser variant."
+note = "Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions."
 
 [options_pytest."--firefox-arg"]
 status = "implemented"

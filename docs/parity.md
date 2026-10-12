@@ -18,7 +18,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 7 | 194 | 14 | 0 |
-| [Command-line commands](#command-line-commands) | 36 | 20 | 8 | 8 | 0 |
+| [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
@@ -811,14 +811,14 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `download` | not-applicable |  | Python's `download server` fetches the Selenium Standalone Server. `sbase` never downloads it: `sbase grid-hub` and `sbase grid-node` run a jar you supply with --jar or SB_SELENIUM_SERVER_JAR. (`sbase download-file` downloads a file from a URL, which is another command.) |
 | `encrypt` | implemented | `sbase encrypt` | Differs: AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable. |
 | `extract-objects` | not-applicable |  | Edits the structure of Python test files. |
-| `get` | composed | `sbase install` | Python treats `get` and `install` as the same command, with a driver name, a version or channel, and `--path`. `sbase install` takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). There is no choice of driver, no version, no edgedriver or geckodriver and no copy to a folder on the PATH. Chrome for Testing and chrome-headless-shell are fetched when the session starts and one of them is chosen as the browser. |
+| `get` | implemented | `sbase get` | An alias of `sbase install`, as in Python: `sbase get chromedriver\|geckodriver\|edgedriver [VERSION]` (also `firefoxdriver` and `msedgedriver`). chromedriver and edgedriver default to the driver for the installed Chrome and Edge, geckodriver to the newest GitHub release; VERSION is `latest`, a major version or a full build (a geckodriver version such as 0.36.0). Each driver goes to downloaded_drivers/<driver>-<version>/. Differs: No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. Chrome for Testing and chrome-headless-shell are not fetched by name here; they are fetched when a session chooses one of them as the browser. |
 | `grid-hub` | implemented | `sbase grid-hub` | start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. |
 | `grid-node` | implemented | `sbase grid-node` | start, stop, restart and status; registers with the hub named by --hub. |
 | `gui` | composed | `sbase commander` | Python's `gui` is the same test runner as `commander`. |
 | `gui-behave` | implemented | `sbase behave-gui` | Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sbase behave-gui`, and `sbase gui-behave` is an alias of it here too. |
 | `help` | composed | `clap` | Provided by the argument parser. |
 | `inject-objects` | not-applicable |  | Edits the structure of Python test files. |
-| `install` | implemented | `sbase install` | Differs: Takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). No driver name, version or --path, and no edgedriver or geckodriver. |
+| `install` | implemented | `sbase install` | `sbase install chromedriver\|geckodriver\|edgedriver [VERSION]`; with no argument it fetches the chromedriver that matches the installed Chrome (or the stable one). The same command as `sbase get`. Differs: No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. |
 | `methods` | not-applicable |  | Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API. |
 | `mkchart` | implemented | `sbase mkchart` |  |
 | `mkdir` | implemented | `sbase mkdir` |  |
@@ -915,10 +915,10 @@ Python `--option` flags.
 | `--disable_ws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `--do-not-track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
 | `--do_not_track` | implemented | `BrowserConfig::with_do_not_track` | Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`. |
-| `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
-| `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/. |
+| `--driver-version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbase get geckodriver VERSION` pins one. |
+| `--driver_version` | implemented | `BrowserConfig::with_driver_version` | browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbase get geckodriver VERSION` pins one. |
 | `--dws` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
-| `--edge` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
+| `--edge` | composed | `BrowserConfig::browser` | Choose Browser::Edge. The session starts msedgedriver itself, from downloaded_drivers/ or the PATH when it fits the installed Edge, else downloaded for that Edge from msedgedriver.microsoft.com; options go in ms:edgeOptions. |
 | `--ee` | implemented | `BrowserConfig::with_esc_end` | Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test. Differs: Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option. |
 | `--enable-3d-apis` | composed | `BrowserConfig::headless` | Python adds --disable-3d-apis and --disable-gpu unless this is set. A Rust session never adds --disable-3d-apis, and adds --disable-gpu only when it is headless, so a headed session already has 3D APIs on. Differs: A headless session always adds --disable-gpu, and there is no option to leave it out. |
 | `--enable-sync` | implemented | `BrowserConfig::with_enable_sync` | Chrome Sync is switched off with `--disable-sync` unless this is set. |
@@ -942,7 +942,7 @@ Python `--option` flags.
 | `--fdebug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-debug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-trace` | not-applicable |  | Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
-| `--firefox` | composed | `BrowserConfig::browser` | Choose the Browser variant. |
+| `--firefox` | composed | `BrowserConfig::browser` | Choose Browser::Firefox. The session starts geckodriver itself, from downloaded_drivers/ or the PATH, else the newest release downloaded from GitHub; options go in moz:firefoxOptions. |
 | `--firefox-arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--firefox-pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `--firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |

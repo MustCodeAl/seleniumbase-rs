@@ -35,6 +35,36 @@ network is needed:
 mkdir -p downloaded_drivers && ln -s /usr/bin/chromedriver downloaded_drivers/chromedriver
 ```
 
+### Firefox and Edge
+
+A Firefox session starts **geckodriver** and an Edge session **msedgedriver**,
+as Python SeleniumBase does. Each is looked for in `downloaded_drivers/` (right
+in it, or in the newest `geckodriver-v<version>/` or
+`msedgedriver-<version>/` folder there) and then on the `PATH`, so a Homebrew or
+distribution geckodriver is used as it is. When none is found:
+
+| Driver | Downloaded from | Which build |
+|---|---|---|
+| geckodriver | `github.com/mozilla/geckodriver/releases` | The newest release; one geckodriver drives a range of Firefox versions, so it is not matched to Firefox. `sbase get geckodriver 0.36.0` pins one. |
+| msedgedriver | `msedgedriver.microsoft.com` | The newest build for the installed Edge's major version (`LATEST_RELEASE_<major>_<OS>`), or the stable one when Edge cannot be found. A driver on disk or on the `PATH` for another Edge major version is replaced; `with_driver_version` pins one. |
+
+The archives (tar.gz for geckodriver on Linux and macOS, zip otherwise) are
+capped at 64 MB, unpacked without writing outside their folder, and made
+runnable the way chromedriver is: the execute bit, and on macOS no quarantine
+flag and, if the system kills the driver as it starts, a new ad-hoc signature.
+Edge is looked for at `/Applications/Microsoft Edge.app` on macOS,
+`Microsoft\Edge\Application\msedge.exe` under `Program Files`,
+`Program Files (x86)` and the per-user folder on Windows, and
+`microsoft-edge`, `microsoft-edge-stable` or `/opt/microsoft/msedge/msedge` on
+Linux. Microsoft publishes no msedgedriver for arm64 Linux.
+
+The session's options go in `moz:firefoxOptions` (headless, arguments,
+preferences, the user agent and locale as preferences, `browser_binary_path` as
+the Firefox program and `user_data_dir` as `-profile`) and `ms:edgeOptions` (the
+same options Chrome gets). Chrome-only settings such as extensions, mobile
+emulation and the CDP and UC modes have no Firefox
+equivalent and are not sent; the session proxy is not passed to Firefox either.
+
 ## macOS
 
 - **A freshly written or replaced executable is slow the first time.** macOS

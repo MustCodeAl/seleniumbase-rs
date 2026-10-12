@@ -73,7 +73,10 @@ access to the Chrome for Testing endpoint. To fetch the driver ahead of time:
 cargo run --bin sbase -- install
 ```
 
-`sbase install` takes no argument. The auto-start does not look at your `PATH`
+`sbase install` with no argument fetches chromedriver; `sbase install geckodriver`
+and `sbase install edgedriver` fetch the drivers of Firefox and Edge (see the
+[CLI page](../tutorials/cli_usage.md#install-a-driver)). For Chrome the
+auto-start does not look at your `PATH`
 or at `CHROMEDRIVER_PATH`; those are consulted only by `sbase doctor`, which
 prints which chromedriver it finds (`CHROMEDRIVER_PATH`, then
 `downloaded_drivers/`, then `PATH`), its major version next to Chrome's
