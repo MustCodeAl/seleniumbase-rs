@@ -390,10 +390,16 @@ async fn contexts_interception_and_human_input_enable_none_of_them() {
 const KNOWN_SENDERS: [(&str, &str, usize); 0] = [];
 
 /// A source file that sends a `DOM.*` command today, with the command and how
-/// many times. No file does: `CdpDriver::find` was the last one, and it now
-/// asks the page through `Runtime.evaluate`. Adding an entry here is a
+/// many times. No library code does: `CdpDriver::find` was the last one, and it
+/// now asks the page through `Runtime.evaluate`. Adding an entry here is a
 /// decision, not a convenience.
-const KNOWN_DOM_SENDERS: [(&str, &str, usize); 0] = [];
+///
+/// The one entry is not sent by this crate: it is text the Playwright and
+/// Puppeteer importers write into the test they generate, in the helper that
+/// fills a file input. A page cannot set a file input's files from script, so
+/// `setInputFiles` and `uploadFile` have no `Runtime.evaluate` equivalent.
+const KNOWN_DOM_SENDERS: [(&str, &str, usize); 1] =
+    [("src/utilities/importer/emit.rs", "DOM.setFileInputFiles", 1)];
 
 fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {

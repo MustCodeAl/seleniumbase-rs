@@ -182,12 +182,23 @@ mod tests {
             ])
             .env("SB_ORPHAN_GUARD_HELPER", "1")
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn()
             .unwrap();
 
         let mut out = parent.stdout.take().unwrap();
-        let pid = read_pid(&mut out);
+        let pid = match read_pid(&mut out) {
+            Ok(pid) => pid,
+            Err(seen) => {
+                let _ = parent.kill();
+                let mut errors = String::new();
+                if let Some(mut stderr) = parent.stderr.take() {
+                    let _ = std::io::Read::read_to_string(&mut stderr, &mut errors);
+                }
+                let _ = parent.wait();
+                panic!("the helper printed no process id\nstdout:\n{seen}\nstderr:\n{errors}");
+            }
+        };
         assert!(running(pid), "the helper's guarded process runs");
 
         parent.kill().unwrap();
@@ -198,24 +209,37 @@ mod tests {
         );
     }
 
-    fn read_pid(out: &mut impl std::io::Read) -> u32 {
-        let mut text = String::new();
+    /// The id the helper prints, or everything it printed when it printed none.
+    fn read_pid(out: &mut impl std::io::Read) -> Result<u32, String> {
+        let mut seen = String::new();
+        let mut line = String::new();
         let mut byte = [0_u8; 1];
-        let deadline = Instant::now() + Duration::from_secs(30);
+        let deadline = Instant::now() + Duration::from_secs(60);
         while Instant::now() < deadline {
-            if out.read(&mut byte).unwrap_or(0) == 0 {
-                break;
-            }
-            if byte[0] == b'\n' {
-                if let Some(pid) = text.trim().strip_prefix("guarded=") {
-                    return pid.parse().unwrap();
+            match out.read(&mut byte) {
+                Ok(0) => break,
+                Ok(_) => {}
+                // Another test in this binary signals the process (the
+                // shutdown test sends it SIGINT and SIGTERM), which can
+                // interrupt the read.
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => {
+                    seen.push_str(&format!("\n[read failed: {error}]"));
+                    break;
                 }
-                text.clear();
+            }
+            let c = char::from(byte[0]);
+            seen.push(c);
+            if c == '\n' {
+                if let Some(pid) = line.trim().strip_prefix("guarded=") {
+                    return pid.parse().map_err(|_| seen.clone());
+                }
+                line.clear();
             } else {
-                text.push(char::from(byte[0]));
+                line.push(c);
             }
         }
-        panic!("the helper printed no process id: {text}");
+        Err(seen)
     }
 
     /// Run only as the helper of the test above: starts a guarded `sleep`,
