@@ -284,6 +284,12 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   WebDriver engine failed with "chromedriver exited as it started". The build
   exists from Chrome 153 on; on Linux machines of any other architecture the
   error now says that no build is published and where to put a driver.
+- The wire test `a_custom_ja3_arrives_exactly_as_given` failed on about two runs in
+  five, on any system: BoringSSL pads a ClientHello of 256 to 511 bytes up to 512
+  with a padding extension, and the "classical groups only" variant falls on either
+  side of that limit with the random size of the ECH GREASE payload. The test now
+  asserts that rule (a padded hello is 512 bytes, an unpadded one is not in the
+  range) and compares the JA3 and JA4 without the padding.
 - `BrowserSession::reconnect` stops the chromedriver of the previous session when
   the new one starts its own, so `uc_open_with_reconnect` no longer leaves one
   chromedriver running per call.

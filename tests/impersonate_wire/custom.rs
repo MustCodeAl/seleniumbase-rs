@@ -9,6 +9,7 @@ use seleniumbase_rs::impersonate::client::{ImpersonateError, ImpersonationProfil
 use seleniumbase_rs::impersonate::convert::ConvertError;
 use seleniumbase_rs::stealth::fingerprint::{BrandVersion, ClientHints};
 use seleniumbase_rs::wire::akamai::Akamai;
+use seleniumbase_rs::wire::client_hello::{ext_id, ClientHello};
 use seleniumbase_rs::wire::h2_spec::SpecError as H2SpecError;
 use seleniumbase_rs::wire::header_spec::{HeaderValue, RequestShape};
 use seleniumbase_rs::wire::ja3::peetprint::Slot;
@@ -74,6 +75,49 @@ fn ja3_variants() -> Vec<(&'static str, Ja3)> {
     variants
 }
 
+/// The length in bytes of the handshake message `hello` was parsed from: its 4-byte header, then
+/// the fields in the order the wire carries them.
+fn message_len(hello: &ClientHello) -> usize {
+    let extensions: usize = hello.extensions.iter().map(|ext| 4 + ext.data.len()).sum();
+    4 + 2
+        + hello.random.len()
+        + (1 + hello.session_id.len())
+        + (2 + 2 * hello.cipher_suites.len())
+        + (1 + hello.compression_methods.len())
+        + (2 + extensions)
+}
+
+/// `hello` as the profile describes it: BoringSSL's own padding taken off.
+///
+/// BoringSSL fills a hello of 256 to 511 bytes up to 512 with a padding extension, a workaround for
+/// old F5 servers that no input can switch off. How long a hello is depends on the random size of
+/// its ECH GREASE payload (144 to 240 bytes), so a short variant such as the classical groups
+/// alone is padded on some connections and not on others. The rule is asserted rather than
+/// ignored: the extension is removed only from a hello that BoringSSL's rule pads (the padded
+/// message is 512 bytes, or a few more when the gap was under five bytes), and an unpadded hello
+/// must not be one the rule would have padded.
+fn without_boringssl_padding(what: &str, hello: &ClientHello) -> ClientHello {
+    let length = message_len(hello);
+    let padded = hello
+        .extensions
+        .last()
+        .is_some_and(|ext| ext.id == ext_id::PADDING);
+    let mut hello = hello.clone();
+    if padded {
+        assert!(
+            (512..=516).contains(&length),
+            "{what}: a padded hello is 512 bytes, not {length}"
+        );
+        hello.extensions.pop();
+    } else {
+        assert!(
+            !(256..512).contains(&length),
+            "{what}: BoringSSL pads a hello of {length} bytes, and this one has no padding"
+        );
+    }
+    hello
+}
+
 #[tokio::test]
 async fn a_custom_ja3_arrives_exactly_as_given() {
     for (what, ja3) in ja3_variants() {
@@ -83,9 +127,10 @@ async fn a_custom_ja3_arrives_exactly_as_given() {
             .build()
             .unwrap_or_else(|error| panic!("{what}: {error}"));
         let served = send(&profile).await;
-        assert_eq!(Ja3::of(&served.hello), ja3, "{what}");
+        let hello = without_boringssl_padding(what, &served.hello);
+        assert_eq!(Ja3::of(&hello), ja3, "{what}");
         assert_eq!(
-            Ja4::raw_original_order(&served.hello),
+            Ja4::raw_original_order(&hello),
             profile.tls_spec().ja4_raw(Ja4Order::Original).to_string(),
             "{what}: the JA4_ro of the wire must be the profile's"
         );
