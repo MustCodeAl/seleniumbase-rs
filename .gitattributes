@@ -1,0 +1,13 @@
+# Text files are checked out with LF line endings on every system. Tests compare
+# golden files byte for byte, and templates are compiled in with include_str!, so
+# a Windows checkout with core.autocrlf=true must not turn them into CRLF.
+* text=auto eol=lf
+
+# Binary files are never converted.
+*.png binary
+*.ico binary
+*.icns binary
+*.bin binary
+*.zip binary
+*.xpi binary
+*.pdf binary
