@@ -1026,7 +1026,8 @@ Chrome gets the proxy's token from `ProxyAuth`, which answers `Fetch.authRequire
 for a tab's requests. A WebSocket's own `CONNECT` never gets there. Measured on
 Chrome 155 (headless): a `wss://` WebSocket opened before any other request had
 gone through the proxy got the `407` on its `CONNECT`, Chrome did not retry it
-with the token, and the page saw an error. Credentials Chrome was given are kept
+with the token, and the page saw an error; a `Fetch.enable` sent to the browser
+target saw nothing of it either. Credentials Chrome was given are kept
 in a cache that every tab of the browser context shares, and every later
 `CONNECT` carries them, a WebSocket's included: one tab's navigation, then a
 WebSocket as another tab's first request, goes through.
@@ -1039,9 +1040,8 @@ counts it). Any other request for that host, Chrome's `favicon.ico` included,
 gets an empty `404`. Nothing for that host goes upstream and the event sink hears
 nothing of it. The path holds no token; it is random so that a page that was not
 given it only ever sees the `404`. `configure_launch` makes the priming page the
-start page, so
-`Browser::launch` loads it in the first tab before it returns, and a WebSocket
-may then be a new tab's first request. A start page you set before
+start page, so `Browser::launch` loads it in the first tab before it returns, and
+a WebSocket may then be a new tab's first request. A start page you set before
 `configure_launch` is kept (an `http(s)://` one takes the credentials just as
 well; an `about:` or `data:` one does not), and one set after it replaces the
 priming page.
