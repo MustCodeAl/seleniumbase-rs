@@ -1162,7 +1162,10 @@ fn apply_generic_capabilities(
     Ok(())
 }
 
-/// Firefox's headless flag, page load strategy, arguments and preferences.
+/// Firefox's `moz:firefoxOptions` and page load strategy from the settings: the
+/// headless flag, the browser program, the profile folder (`-profile`, from
+/// `user_data_dir`), the arguments, and the preferences, among them the user
+/// agent and the language as Python SeleniumBase sets them.
 fn apply_firefox_capabilities(
     caps: &mut thirtyfour::FirefoxCapabilities,
     config: &BrowserConfig,
@@ -1175,12 +1178,24 @@ fn apply_firefox_capabilities(
     for arg in launch.firefox.args() {
         caps.add_arg(arg)?;
     }
+    if let Some(profile) = &config.user_data_dir {
+        caps.add_arg("-profile")?;
+        caps.add_arg(profile)?;
+    }
+    if let Some(binary) = &config.browser_binary_path {
+        caps.set_firefox_binary(&binary.to_string_lossy())?;
+    }
     if let Some(strategy) = launch.page_load_strategy {
         caps.set_page_load_strategy(strategy.into())?;
     }
-    let preferences = launch
-        .firefox
-        .preferences_over(firefox_preferences(&launch.switches));
+    let mut from_settings = firefox_preferences(&launch.switches);
+    if let Some(agent) = &config.user_agent {
+        from_settings.insert("general.useragent.override".into(), json!(agent));
+    }
+    if let Some(locale) = &config.locale {
+        from_settings.insert("intl.accept_languages".into(), json!(locale));
+    }
+    let preferences = launch.firefox.preferences_over(from_settings);
     if !preferences.is_empty() {
         let preferences: thirtyfour::common::capabilities::firefox::FirefoxPreferences =
             serde_json::from_value(Value::Object(preferences))?;
@@ -1537,7 +1552,51 @@ mod capability_tests {
         let caps = caps_json(&BrowserConfig::default().with_browser(Browser::Firefox));
         let options = &caps["moz:firefoxOptions"];
         assert!(options.get("prefs").is_none(), "{options}");
+        assert!(options.get("binary").is_none(), "{options}");
         assert!(caps.get("pageLoadStrategy").is_none());
+    }
+
+    #[test]
+    fn firefox_gets_its_program_profile_user_agent_and_language() {
+        let mut firefox = FirefoxOptions::default();
+        firefox.add_preferences("intl.accept_languages:de").unwrap();
+        let config = BrowserConfig::default()
+            .with_browser(Browser::Firefox)
+            .with_headless(true)
+            .with_browser_binary_path("/opt/firefox/firefox")
+            .with_user_data_dir("/tmp/ff-profile")
+            .with_user_agent("Agent/1.0")
+            .with_locale("fr")
+            .with_firefox_options(firefox);
+        let options = &caps_json(&config)["moz:firefoxOptions"];
+        assert_eq!(options["binary"], "/opt/firefox/firefox");
+        assert_eq!(
+            options["args"],
+            json!(["-headless", "-profile", "/tmp/ff-profile"])
+        );
+        assert_eq!(options["prefs"]["general.useragent.override"], "Agent/1.0");
+        // A preference named outright wins over the one the locale sets.
+        assert_eq!(options["prefs"]["intl.accept_languages"], "de");
+    }
+
+    #[test]
+    fn edge_is_asked_for_as_microsoft_edge_with_its_own_options() {
+        let config = BrowserConfig::default()
+            .with_browser(Browser::Edge)
+            .with_headless(true)
+            .with_browser_binary_path("/opt/edge/msedge");
+        let caps = caps_json(&config);
+        assert_eq!(caps["browserName"], "MicrosoftEdge");
+        assert!(caps.get("goog:chromeOptions").is_none(), "{caps}");
+        let options = &caps["ms:edgeOptions"];
+        assert_eq!(options["binary"], "/opt/edge/msedge");
+        let args = options["args"].as_array().unwrap();
+        assert!(
+            args.iter().any(|arg| arg
+                .as_str()
+                .is_some_and(|arg| arg.starts_with("--headless"))),
+            "{args:?}"
+        );
     }
 
     #[test]
