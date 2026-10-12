@@ -9,6 +9,7 @@ pub mod driver_access;
 pub mod driver_version;
 pub mod launcher;
 pub mod options;
+pub mod reuse;
 pub mod session;
 pub mod virtual_display;
 

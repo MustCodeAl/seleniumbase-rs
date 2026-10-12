@@ -25,11 +25,16 @@ impl BaseCase {
     /// becomes the active session. Returns the index at which the previous
     /// driver was parked; pass it to [`BaseCase::switch_to_driver`] to go back
     /// to that driver.
+    ///
+    /// The new browser is never one kept for reuse, as in Python: the
+    /// configuration's reuse settings are switched off for it.
     pub async fn get_new_driver(
         &mut self,
         config: Option<BrowserConfig>,
     ) -> Result<usize, SeleniumBaseError> {
-        let cfg = config.unwrap_or_else(|| self.config.clone());
+        let mut cfg = config.unwrap_or_else(|| self.config.clone());
+        cfg.reuse_session = false;
+        cfg.launch.reuse_class = None;
         let session = BrowserSession::connect(cfg.clone()).await?;
         self.extra_sessions.push(std::mem::replace(&mut self.session, session));
         let index = self.extra_sessions.len() - 1;

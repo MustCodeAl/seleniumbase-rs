@@ -6,6 +6,7 @@ use crate::browser::options::{
     FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
     VirtualDisplay, WindowPosition, WindowSize,
 };
+use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
@@ -151,12 +152,23 @@ pub struct BrowserConfig {
     pub user_data_dir: Option<String>,
     pub extension_dir: Option<String>,
     pub start_page: Option<String>,
-    /// Python's `--reuse-session`: share one browser across the whole run.
+    /// Python's `--reuse-session` (`--rs`): the tests of a run share browsers.
     ///
-    /// **Not implemented.** The value is stored and passed through (the
-    /// `sbase` flag, `Settings` and `SB_REUSE_SESSION` set it), but nothing
-    /// reads it: every `BaseCase::new` starts its own browser. `parity/api.toml`
-    /// lists the option as planned.
+    /// With it on, [`BrowserSession::connect`](crate::BrowserSession::connect)
+    /// (and so `BaseCase::new`) attaches to a browser that an earlier test
+    /// started with the same configuration and has given back, after cleaning
+    /// it (other windows closed, cookies and the page's storage deleted,
+    /// `about:blank`), and `BaseCase::quit` gives the browser back instead of
+    /// closing it. One test holds a browser at a time; a test that starts while
+    /// every matching browser is held gets one of its own, kept for reuse too.
+    /// Idle browsers close after
+    /// [`reuse::idle_timeout`](crate::browser::reuse::idle_timeout) or at
+    /// [`shutdown_reused_sessions`](crate::shutdown_reused_sessions). The
+    /// `sbase` flag, `Settings` and `SB_REUSE_SESSION` set it;
+    /// [`with_reuse_class_session`](Self::with_reuse_class_session) and
+    /// [`with_reuse_module_session`](Self::with_reuse_module_session) narrow
+    /// who shares (`--rcs`). See [`crate::browser::reuse`] for how it works and
+    /// what differs from Python.
     pub reuse_session: bool,
     pub mobile: bool,
     pub threads: Option<usize>,
@@ -293,9 +305,36 @@ impl BrowserConfig {
         self
     }
 
-    /// Sets [`reuse_session`](Self::reuse_session), which nothing acts on yet.
+    /// Shares browsers among the tests of the run (`--reuse-session`, `--rs`).
+    /// See [`reuse_session`](Self::reuse_session).
     pub fn with_reuse_session(mut self, reuse: bool) -> Self {
         self.reuse_session = reuse;
+        self
+    }
+
+    /// Shares a browser only among the tests that pass the same `class`
+    /// (Python's `--reuse-class-session` for the tests of one class). It turns
+    /// [`reuse_session`](Self::reuse_session) on.
+    pub fn with_reuse_class_session(mut self, class: impl Into<String>) -> Self {
+        self.reuse_session = true;
+        self.launch.reuse_class = Some(ReuseClass::Named(class.into()));
+        self
+    }
+
+    /// Shares a browser among the tests of one Rust module (`--rcs`,
+    /// `--reuse-class-session`, `SB_REUSE_CLASS_SESSION`): the module plays the
+    /// part of Python's test class, and is read from the name of the thread
+    /// the test runs on ([`ReuseClass::TestModule`]).
+    ///
+    /// On, it turns [`reuse_session`](Self::reuse_session) on as well. Off, it
+    /// removes a per-module setting and leaves `reuse_session` as it is.
+    pub fn with_reuse_module_session(mut self, on: bool) -> Self {
+        if on {
+            self.reuse_session = true;
+            self.launch.reuse_class = Some(ReuseClass::TestModule);
+        } else if self.launch.reuse_class == Some(ReuseClass::TestModule) {
+            self.launch.reuse_class = None;
+        }
         self
     }
 
@@ -568,6 +607,56 @@ impl BrowserConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reuse_is_off_until_asked_for() {
+        let config = BrowserConfig::default();
+        assert!(!config.reuse_session);
+        assert_eq!(config.launch.reuse_class, None);
+    }
+
+    #[test]
+    fn a_class_session_is_a_reused_session_for_one_class() {
+        let config = BrowserConfig::default().with_reuse_class_session("Login");
+        assert!(config.reuse_session);
+        assert_eq!(
+            config.launch.reuse_class,
+            Some(ReuseClass::Named("Login".to_owned()))
+        );
+    }
+
+    #[test]
+    fn the_module_flag_turns_reuse_on_and_comes_off_alone() {
+        let on = BrowserConfig::default().with_reuse_module_session(true);
+        assert!(on.reuse_session);
+        assert_eq!(on.launch.reuse_class, Some(ReuseClass::TestModule));
+        let off = on.with_reuse_module_session(false);
+        assert!(off.reuse_session, "--rs stays on");
+        assert_eq!(off.launch.reuse_class, None);
+        let named = BrowserConfig::default()
+            .with_reuse_class_session("Login")
+            .with_reuse_module_session(false);
+        assert_eq!(
+            named.launch.reuse_class,
+            Some(ReuseClass::Named("Login".to_owned())),
+            "a named class is not the module flag"
+        );
+    }
+
+    #[test]
+    fn the_reuse_class_round_trips_through_a_config_file() {
+        let config = BrowserConfig::default().with_reuse_class_session("Login");
+        let text = serde_json::to_string(&config).unwrap();
+        assert!(
+            text.contains(r#""reuse_class":{"named":"Login"}"#),
+            "{text}"
+        );
+        let back: BrowserConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back, config);
+        let module = BrowserConfig::default().with_reuse_module_session(true);
+        let text = serde_json::to_string(&module).unwrap();
+        assert!(text.contains(r#""reuse_class":"test_module""#), "{text}");
+    }
 
     const ALL: [Browser; 11] = [
         Browser::Chrome,

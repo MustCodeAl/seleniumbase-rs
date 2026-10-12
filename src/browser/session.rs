@@ -19,6 +19,7 @@ use crate::browser::launcher::{launch_driver_for, DriverProcess};
 use crate::browser::options::{
     firefox_preferences, CdpEvent, DriverVersion, LaunchSettings, LaunchSwitch, ReleaseChannel,
 };
+use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
@@ -38,6 +39,11 @@ pub struct BrowserSession {
     /// configuration, or none if it blocks nothing. They are sent to the first
     /// window and to each window the session switches to.
     ad_block: Vec<(&'static str, Value)>,
+    /// The hold on a browser kept for reuse (`--reuse-session`). With one,
+    /// quitting or dropping the session gives the browser back instead of
+    /// closing it, and the reuse registry owns the driver process and the
+    /// virtual display.
+    reuse: Option<Lease>,
 }
 
 impl BrowserSession {
@@ -46,8 +52,20 @@ impl BrowserSession {
         self.driver.as_ref().unwrap()
     }
 
+    /// Starts a browser for `config` and connects to it, or, with
+    /// [`BrowserConfig::reuse_session`] on, attaches to a browser kept for
+    /// reuse (see [`crate::browser::reuse`]).
     #[instrument(skip(config))]
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        if config.reuse_session {
+            return reuse::connect(config).await;
+        }
+        Self::connect_new(config).await
+    }
+
+    /// Starts a browser for `config` and connects to it, whatever its reuse
+    /// setting says.
+    pub(crate) async fn connect_new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         validate_mode_support(&config)?;
         // Worked out first, so a list the browser cannot be given is refused
@@ -73,10 +91,78 @@ impl BrowserSession {
             driver_process,
             virtual_display,
             ad_block,
+            reuse: None,
         };
         session.initialize_mode(&config).await?;
         info!("browser session connected");
         Ok(session)
+    }
+
+    /// A session on a browser leased for reuse, which was set up when it
+    /// started and has just been cleaned: its mode is not set up again.
+    pub(crate) fn attached(
+        config: &BrowserConfig,
+        driver: WebDriver,
+        lease: Lease,
+    ) -> Result<Self, SeleniumBaseError> {
+        let ad_block = match ad_block_commands(config) {
+            Ok(commands) => commands,
+            Err(error) => {
+                // The browser stays open for the next test.
+                let _ = driver.leak();
+                return Err(error);
+            }
+        };
+        let cdp = config
+            .is_cdp_enabled()
+            .then(|| CdpClient::from_handle(driver.handle().clone()));
+        Ok(Self {
+            driver: Some(driver),
+            cdp,
+            driver_process: None,
+            virtual_display: None,
+            ad_block,
+            reuse: Some(lease),
+        })
+    }
+
+    /// Keeps the browser of this new session for reuse under `key`, held by
+    /// this session. The registry takes the driver process and the virtual
+    /// display, which live as long as the browser.
+    pub(crate) fn share(&mut self, key: ReuseKey) {
+        let Some(driver) = self.driver.as_ref() else {
+            return;
+        };
+        let handle = driver.handle();
+        let address = SessionAddress {
+            server_url: handle.server_url().to_string(),
+            session_id: handle.session_id().to_string(),
+            capabilities: serde_json::to_value(handle.capabilities()).unwrap_or(Value::Null),
+        };
+        self.reuse = Some(reuse::register(
+            key,
+            address,
+            self.driver_process.take(),
+            self.virtual_display.take(),
+        ));
+    }
+
+    /// The WebDriver session id (Python's `driver.session_id`), or `None` for
+    /// a session that is not connected.
+    #[must_use]
+    pub fn session_id(&self) -> Option<String> {
+        self.driver
+            .as_ref()
+            .map(|driver| driver.handle().session_id().to_string())
+    }
+
+    /// Lets go of the driver without ending its session: the browser stays
+    /// open for the next test.
+    fn keep_browser_open(&mut self) {
+        self.cdp = None;
+        if let Some(driver) = self.driver.take() {
+            let _ = driver.leak();
+        }
     }
 
     /// Creates a disconnected session for test-only use. Any WebDriver call will
@@ -88,6 +174,7 @@ impl BrowserSession {
             driver_process: None,
             virtual_display: None,
             ad_block: Vec::new(),
+            reuse: None,
         }
     }
 
@@ -867,6 +954,11 @@ impl BrowserSession {
         if let Some(driver) = self.driver.take() {
             driver.quit().await?;
         }
+        // A reused browser has just been closed: it leaves the registry, which
+        // stops its driver. The new session is this test's own.
+        if let Some(lease) = self.reuse.take() {
+            lease.discard();
+        }
         tokio::time::sleep(Duration::from_millis(500)).await;
         let display = self.virtual_display.as_ref().map(XvfbProcess::display);
         let (driver, process) = connect_driver(config, display).await?;
@@ -889,8 +981,17 @@ impl BrowserSession {
     }
 
     /// Closes the browser session and any auto-started driver process.
+    ///
+    /// A session on a browser kept for reuse gives the browser back instead,
+    /// open, for the next test.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
+        if let Some(lease) = self.reuse.take() {
+            info!("giving the browser back for reuse");
+            self.keep_browser_open();
+            drop(lease);
+            return Ok(());
+        }
         info!("quitting browser session");
         if let Some(driver) = self.driver.take() {
             driver.quit().await?;
@@ -909,6 +1010,12 @@ impl Drop for BrowserSession {
     /// `quit()` call. This improves disposability (Twelve-Factor IX) by
     /// reducing leaked browser/driver processes in short-lived scripts.
     fn drop(&mut self) {
+        if self.reuse.is_some() {
+            // The browser stays open; the lease, dropped with the session,
+            // gives it back.
+            self.keep_browser_open();
+            return;
+        }
         if self.driver.is_none() {
             return;
         }

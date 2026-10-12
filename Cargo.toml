@@ -137,8 +137,11 @@ tokio-btls = { version = "=0.5.6", optional = true }
 hyper = { version = "1.12", optional = true, default-features = false, features = ["server", "http1"] }
 hyper-util = { version = "0.1.21", optional = true, default-features = false, features = ["tokio"] }
 http-body-util = { version = "0.1.5", optional = true }
-http = { version = "1.5", optional = true }
-bytes = { version = "1.12", optional = true }
+# `http` and `bytes` name the types of thirtyfour's `HttpClient` trait, which
+# `browser::reuse` implements to attach to a running session. Both are already
+# in the graph through thirtyfour.
+http = "1.5"
+bytes = "1.12"
 # Optional Playwright-compatible engine via rustwright. Disabled by default
 # because it pulls a large Chromium automation core.
 rustwright = { version = "0.3", optional = true }
@@ -181,7 +184,7 @@ scrape = ["dep:psl"]
 # Browser-identical TLS, HTTP/2 and headers through wreq and BoringSSL: the MITM proxy,
 # HttpSession and StealthSession. Needs cmake and a C/C++ toolchain.
 impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls", "dep:hyper", "dep:hyper-util",
-               "dep:http-body-util", "dep:http", "dep:bytes"]
+               "dep:http-body-util"]
 
 [dev-dependencies]
 # Paused clocks let tests play out human-paced input instantly.

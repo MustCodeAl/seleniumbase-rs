@@ -1545,10 +1545,21 @@ impl BaseCase {
     }
 
     /// Closes the browser and ends the session.
+    ///
+    /// With [`BrowserConfig::reuse_session`] on, the browser is given back,
+    /// open, for the next test instead (see [`crate::browser::reuse`]).
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
         self.session.quit().await
+    }
+
+    /// The WebDriver session id of the active browser (Python's
+    /// `self.driver.session_id`), or `None` without a session. Tests that
+    /// reuse a browser see the same id.
+    #[must_use]
+    pub fn session_id(&self) -> Option<String> {
+        self.session.session_id()
     }
 
     fn record(&self, name: &str, target: Option<&str>, value: Option<&str>) {

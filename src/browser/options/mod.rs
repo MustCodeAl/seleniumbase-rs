@@ -33,6 +33,7 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 
 mod capabilities;
@@ -111,6 +112,12 @@ pub struct LaunchSettings {
     /// used; see [`AdBlockList`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ad_block_list: Option<AdBlockList>,
+    /// Which tests share a browser when
+    /// [`reuse_session`](crate::BrowserConfig::reuse_session) is on (Python's
+    /// `--rcs`). Unset, every test of the run with the same configuration may
+    /// get the same browser. See [`crate::browser::reuse`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reuse_class: Option<ReuseClass>,
 }
 
 impl LaunchSettings {

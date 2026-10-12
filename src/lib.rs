@@ -147,6 +147,7 @@ pub use api::runner::{run_browser_test, BrowserTestFuture};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
+pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};

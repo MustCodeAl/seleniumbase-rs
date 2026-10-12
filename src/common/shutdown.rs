@@ -333,9 +333,13 @@ where
     true
 }
 
-/// Waits up to `grace` for every cleanup from [`spawn_cleanup`].
+/// Waits up to `grace` for every cleanup from [`spawn_cleanup`], then closes
+/// the browsers kept for reuse (`--reuse-session`) that no test holds, as
+/// [`shutdown_reused_sessions`](crate::shutdown_reused_sessions) does, within
+/// the same grace period.
 ///
-/// Returns how many had not finished when the time ran out.
+/// Returns how many had not finished when the time ran out; closing the
+/// reused browsers counts as one.
 pub async fn drain_cleanups(grace: Duration) -> usize {
     let tasks = std::mem::take(&mut *cleanups());
     debug!(count = tasks.len(), "waiting for shutdown cleanups");
@@ -347,6 +351,9 @@ pub async fn drain_cleanups(grace: Duration) -> usize {
             Ok(Err(error)) => warn!(%error, "a shutdown cleanup panicked"),
             Err(_) => unfinished += 1,
         }
+    }
+    if !crate::browser::reuse::close_idle_until(deadline).await {
+        unfinished += 1;
     }
     if unfinished > 0 {
         warn!(
