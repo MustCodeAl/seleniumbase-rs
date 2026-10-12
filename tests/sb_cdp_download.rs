@@ -23,6 +23,15 @@ use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page};
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::{json, Value};
 
+/// `path` made absolute the way the crate reports download paths: canonical,
+/// without the `\\?\` prefix Windows' canonical paths have.
+fn canonical(path: &Path) -> PathBuf {
+    let full = path.canonicalize().unwrap();
+    full.to_str()
+        .and_then(|text| text.strip_prefix(r"\\?\"))
+        .map_or(full.clone(), PathBuf::from)
+}
+
 /// How the scripted browser ends a download.
 #[derive(Clone, Copy)]
 enum Ending {
@@ -271,7 +280,7 @@ async fn downloading_a_url_tells_the_browser_where_to_save_and_returns_the_saved
         .await
         .unwrap();
 
-    let dir = folder.path().canonicalize().unwrap();
+    let dir = canonical(folder.path());
     assert_eq!(saved, dir.join("report.csv"));
     assert_eq!(fs::read_to_string(&saved).unwrap(), "a,b\n1,2\n");
     assert_eq!(
@@ -318,10 +327,7 @@ async fn without_a_reported_path_the_file_is_the_suggested_name_in_the_folder() 
         .await
         .unwrap();
 
-    assert_eq!(
-        saved,
-        folder.path().canonicalize().unwrap().join("notes.txt")
-    );
+    assert_eq!(saved, canonical(folder.path()).join("notes.txt"));
 }
 
 #[tokio::test]
@@ -488,12 +494,7 @@ async fn saving_a_file_as_a_path_names_the_file_and_returns_that_path() {
 
     assert_eq!(
         saved,
-        folder
-            .path()
-            .canonicalize()
-            .unwrap()
-            .join("exports")
-            .join("renamed.csv")
+        canonical(folder.path()).join("exports").join("renamed.csv")
     );
     assert_eq!(fs::read_to_string(&saved).unwrap(), "rows");
     let scripts = fetching_scripts(&mock);
@@ -518,7 +519,7 @@ async fn saving_over_a_file_replaces_it_whatever_name_the_browser_gave_the_new_o
         .await
         .unwrap();
 
-    assert_eq!(saved, target.canonicalize().unwrap());
+    assert_eq!(saved, canonical(&target));
     assert_eq!(fs::read_to_string(&saved).unwrap(), "new");
     let names: Vec<_> = fs::read_dir(folder.path())
         .unwrap()
@@ -562,10 +563,7 @@ async fn clicking_a_link_downloads_what_the_browser_saves() {
         .await
         .unwrap();
 
-    assert_eq!(
-        saved,
-        folder.path().canonicalize().unwrap().join("invoice.pdf")
-    );
+    assert_eq!(saved, canonical(folder.path()).join("invoice.pdf"));
     assert_eq!(fs::read_to_string(&saved).unwrap(), "%PDF");
     assert_eq!(
         steps(&mock),
@@ -613,10 +611,7 @@ async fn a_downloaded_file_is_found_in_the_folder_downloads_go_to() {
         .await
         .unwrap();
 
-    assert_eq!(
-        found,
-        folder.path().canonicalize().unwrap().join("late.txt")
-    );
+    assert_eq!(found, canonical(folder.path()).join("late.txt"));
 }
 
 #[tokio::test]
@@ -640,7 +635,7 @@ async fn a_file_that_does_not_arrive_times_out_naming_it_and_the_folder() {
     };
     assert!(message.contains("half.zip"), "{message}");
     assert!(
-        message.contains(&folder.path().canonicalize().unwrap().display().to_string()),
+        message.contains(&canonical(folder.path()).display().to_string()),
         "{message}"
     );
 }
