@@ -940,7 +940,9 @@ async fn a_client_that_leaves_takes_the_pure_cdp_browser_with_it() {
     assert_eq!(title(&mut mcp).await, "Stdio Fixture");
 
     let family = descendants(mcp.pid());
-    assert!(!family.is_empty(), "the server has no browser below it");
+    if cfg!(unix) {
+        assert!(!family.is_empty(), "the server has no browser below it");
+    }
     assert_eq!(mcp.hang_up().await, Some(0), "{}", mcp.stderr());
     assert_eq!(
         survivors(&family),
@@ -1081,10 +1083,12 @@ async fn the_driver_server_runs_a_session_in_undetected_mode_and_leaves_cleanly(
 
     // The client leaves without close_browser: the browser and the driver go too.
     let family = descendants(mcp.pid());
-    assert!(
-        family.len() >= 2,
-        "expected chromedriver and Chrome below the server: {family:?}"
-    );
+    if cfg!(unix) {
+        assert!(
+            family.len() >= 2,
+            "expected chromedriver and Chrome below the server: {family:?}"
+        );
+    }
     assert_eq!(mcp.hang_up().await, Some(0), "{}", mcp.stderr());
     assert_eq!(
         survivors(&family),

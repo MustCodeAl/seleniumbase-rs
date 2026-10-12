@@ -89,7 +89,13 @@ async fn files_are_downloaded_by_address_by_click_and_under_a_chosen_name() {
     let base = serve();
     let (browser, page) = open(&base).await;
     let folder = tempfile::tempdir().unwrap();
-    let dir = folder.path().canonicalize().unwrap();
+    // Without the `\\?\` prefix Windows' canonical paths have: the crate hands
+    // Chrome, and reports, plain `C:\...` paths.
+    let canonical = folder.path().canonicalize().unwrap();
+    let dir = canonical
+        .to_str()
+        .and_then(|text| text.strip_prefix(r"\\?\"))
+        .map_or(canonical.clone(), std::path::PathBuf::from);
 
     // By address: the name comes from the address when the server gives none.
     let notes = page
