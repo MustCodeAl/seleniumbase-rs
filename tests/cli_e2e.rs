@@ -222,6 +222,193 @@ fn import_python_names_a_file_it_cannot_read() {
     assert!(stdout(&output).is_empty());
 }
 
+const PLAYWRIGHT_TEST: &str = r#"import { test, expect } from '@playwright/test';
+
+test('signs in', async ({ page }) => {
+  await page.goto('https://example.test/login');
+  await page.getByLabel('Email').fill('demo@example.test');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('h1')).toHaveText('Welcome');
+});
+"#;
+
+const PLAYWRIGHT_SCRIPT: &str = r#"const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('https://example.test/');
+  await browser.close();
+})();
+"#;
+
+#[test]
+fn import_playwright_writes_rust_tests_that_parse() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("login.spec.ts"), PLAYWRIGHT_TEST).unwrap();
+
+    let output = run(dir.path(), &["import-playwright", "login.spec.ts"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stderr(&output).is_empty(),
+        "nothing to report: {}",
+        stderr(&output)
+    );
+    let rust = stdout(&output);
+    syn::parse_file(&rust).unwrap_or_else(|error| panic!("{error}:\n{rust}"));
+    assert!(
+        rust.contains("#[tokio::test]\nasync fn signs_in()"),
+        "{rust}"
+    );
+    assert!(
+        rust.contains("page.goto(\"https://example.test/login\").await?;"),
+        "{rust}"
+    );
+    assert!(
+        rust.contains("page.locator(\"h1\").expect().to_have_text(\"Welcome\").await?;"),
+        "{rust}"
+    );
+
+    // The alias, `-o`, and `--test-name` for a script without test titles.
+    std::fs::write(dir.path().join("script.js"), PLAYWRIGHT_SCRIPT).unwrap();
+    let written = run(
+        dir.path(),
+        &[
+            "import-pw",
+            "script.js",
+            "-o",
+            "out.rs",
+            "--test-name",
+            "home page",
+        ],
+    );
+    assert!(written.status.success(), "{}", stderr(&written));
+    assert!(stdout(&written).is_empty(), "{}", stdout(&written));
+    let saved = std::fs::read_to_string(dir.path().join("out.rs")).unwrap();
+    assert!(saved.contains("async fn home_page()"), "{saved}");
+    syn::parse_file(&saved).unwrap();
+
+    // `--language` reads a file whose extension says nothing.
+    std::fs::write(dir.path().join("login.txt"), PLAYWRIGHT_TEST).unwrap();
+    let typed = run(
+        dir.path(),
+        &["import-playwright", "login.txt", "--language", "ts"],
+    );
+    assert!(typed.status.success(), "{}", stderr(&typed));
+    assert!(stdout(&typed).contains("async fn signs_in()"));
+}
+
+#[test]
+fn import_playwright_leaves_a_todo_and_names_it_on_stderr() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("mocked.spec.js"),
+        "test('mocks', async ({ page }) => {\n  await page.route('**/api', r => r.abort());\n  await page.goto('https://example.test/');\n});\n",
+    )
+    .unwrap();
+
+    let output = run(dir.path(), &["import-playwright", "mocked.spec.js"]);
+
+    assert!(output.status.success(), "a gap is a warning, not a failure");
+    assert!(
+        stdout(&output)
+            .contains("// TODO(playwright): await page.route('**/api', r => r.abort());"),
+        "the gap is marked in the code: {}",
+        stdout(&output)
+    );
+    assert!(
+        stderr(&output).contains("Warning at line 2:") && stderr(&output).contains("route"),
+        "and named on stderr: {}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn import_playwright_exit_statuses() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let missing = run(dir.path(), &["import-playwright", "no_such_test.spec.ts"]);
+    assert_eq!(missing.status.code(), Some(6), "a local file failed");
+    assert!(
+        stderr(&missing).contains("no_such_test.spec.ts"),
+        "the error says which file: {}",
+        stderr(&missing)
+    );
+    assert!(stdout(&missing).is_empty());
+
+    // A statement the importer cannot read at all is an error, as in import-python.
+    std::fs::write(
+        dir.path().join("broken.spec.js"),
+        "test('t', async ({ page }) => {\n  await page.goto(;\n});\n",
+    )
+    .unwrap();
+    let broken = run(dir.path(), &["import-playwright", "broken.spec.js"]);
+    assert_eq!(broken.status.code(), Some(1), "{}", stderr(&broken));
+    assert!(
+        stderr(&broken).contains("Error at line 2"),
+        "{}",
+        stderr(&broken)
+    );
+    assert!(stdout(&broken).contains("TODO(playwright)"));
+
+    // A Recorder export is for import-puppeteer.
+    std::fs::write(
+        dir.path().join("rec.json"),
+        "{\"title\": \"r\", \"steps\": []}",
+    )
+    .unwrap();
+    let wrong = run(dir.path(), &["import-playwright", "rec.json"]);
+    assert_eq!(wrong.status.code(), Some(2), "{}", stderr(&wrong));
+    assert!(
+        stderr(&wrong).contains("import-puppeteer"),
+        "{}",
+        stderr(&wrong)
+    );
+}
+
+#[test]
+fn import_puppeteer_reads_scripts_and_recorder_exports() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("visit.js"),
+        "const puppeteer = require('puppeteer');\n(async () => {\n  const browser = await puppeteer.launch();\n  const page = await browser.newPage();\n  await page.goto('https://example.test/');\n  await page.type('#q', 'rust');\n  await page.click('button[type=submit]');\n  await browser.close();\n})();\n",
+    )
+    .unwrap();
+    let output = run(dir.path(), &["import-puppeteer", "visit.js"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let rust = stdout(&output);
+    syn::parse_file(&rust).unwrap_or_else(|error| panic!("{error}:\n{rust}"));
+    assert!(rust.contains("async fn visit()"), "{rust}");
+    assert!(
+        rust.contains("page.locator(\"#q\").type_text(\"rust\").await?;"),
+        "{rust}"
+    );
+
+    std::fs::write(
+        dir.path().join("recording.json"),
+        "{\n  \"title\": \"Search\",\n  \"steps\": [\n    {\"type\": \"navigate\", \"url\": \"https://example.test/\"},\n    {\"type\": \"click\", \"selectors\": [[\"#go\"]]},\n    {\"type\": \"customStep\", \"name\": \"x\"}\n  ]\n}\n",
+    )
+    .unwrap();
+    let recorded = run(dir.path(), &["import-pptr", "recording.json"]);
+    assert!(recorded.status.success(), "{}", stderr(&recorded));
+    assert!(stdout(&recorded).contains("async fn search()"));
+    assert!(stdout(&recorded).contains("page.locator(\"#go\").click().await?;"));
+    assert!(stdout(&recorded).contains("TODO(puppeteer)"));
+    assert!(
+        stderr(&recorded).contains("Warning at line 6:"),
+        "{}",
+        stderr(&recorded)
+    );
+
+    let missing = run(dir.path(), &["import-puppeteer", "nowhere.js"]);
+    assert_eq!(missing.status.code(), Some(6));
+    assert!(
+        stderr(&missing).contains("nowhere.js"),
+        "{}",
+        stderr(&missing)
+    );
+}
+
 #[test]
 fn mkfile_then_print_shows_the_file_that_was_written() {
     let dir = tempfile::tempdir().unwrap();

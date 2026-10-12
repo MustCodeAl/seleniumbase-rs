@@ -28,6 +28,9 @@ use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::stealth::patcher::find_system_chrome;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
+use seleniumbase_rs::utilities::importer::{
+    import_playwright, import_puppeteer, ScriptImportOptions, ScriptLanguage,
+};
 use seleniumbase_rs::utils::translate::Language;
 use seleniumbase_rs::{
     import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
@@ -131,6 +134,48 @@ enum ImportSourceArg {
     Auto,
     SeleniumBase,
     Selenium,
+}
+
+/// The languages `sbase import-playwright` reads.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PlaywrightLanguageArg {
+    /// JavaScript.
+    Js,
+    /// TypeScript.
+    Ts,
+    /// Python.
+    Python,
+}
+
+impl From<PlaywrightLanguageArg> for ScriptLanguage {
+    fn from(value: PlaywrightLanguageArg) -> Self {
+        match value {
+            PlaywrightLanguageArg::Js => ScriptLanguage::JavaScript,
+            PlaywrightLanguageArg::Ts => ScriptLanguage::TypeScript,
+            PlaywrightLanguageArg::Python => ScriptLanguage::Python,
+        }
+    }
+}
+
+/// The languages `sbase import-puppeteer` reads.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum PuppeteerLanguageArg {
+    /// JavaScript.
+    Js,
+    /// TypeScript.
+    Ts,
+    /// A Chrome DevTools Recorder JSON export.
+    Json,
+}
+
+impl From<PuppeteerLanguageArg> for ScriptLanguage {
+    fn from(value: PuppeteerLanguageArg) -> Self {
+        match value {
+            PuppeteerLanguageArg::Js => ScriptLanguage::JavaScript,
+            PuppeteerLanguageArg::Ts => ScriptLanguage::TypeScript,
+            PuppeteerLanguageArg::Json => ScriptLanguage::RecorderJson,
+        }
+    }
 }
 
 impl From<BrowserArg> for Browser {
@@ -865,6 +910,44 @@ enum Commands {
         #[arg(long, help = "Name of the generated test function")]
         test_name: Option<String>,
     },
+    /// Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
+    #[command(visible_alias = "import-pw")]
+    ImportPlaywright {
+        /// Playwright source file to convert.
+        file: String,
+        #[arg(short, long, help = "Output file for the generated Rust tests")]
+        output: Option<String>,
+        #[arg(
+            long,
+            value_enum,
+            help = "Source language (default: from the file extension, else from the content)"
+        )]
+        language: Option<PlaywrightLanguageArg>,
+        #[arg(
+            long,
+            help = "Name of the test generated for a script without test titles (default: the file name)"
+        )]
+        test_name: Option<String>,
+    },
+    /// Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.
+    #[command(visible_alias = "import-pptr")]
+    ImportPuppeteer {
+        /// Puppeteer source file (or Recorder `.json` export) to convert.
+        file: String,
+        #[arg(short, long, help = "Output file for the generated Rust tests")]
+        output: Option<String>,
+        #[arg(
+            long,
+            value_enum,
+            help = "Source language (default: from the file extension, else from the content)"
+        )]
+        language: Option<PuppeteerLanguageArg>,
+        #[arg(
+            long,
+            help = "Name of the test generated for a script without test titles (default: the file name)"
+        )]
+        test_name: Option<String>,
+    },
 
     /// Download a file from a URL (browser download with an HTTP fallback).
     DownloadFile {
@@ -1354,6 +1437,63 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+/// Which importer `import_script` runs.
+#[derive(Clone, Copy, Debug)]
+enum ScriptTool {
+    Playwright,
+    Puppeteer,
+}
+
+/// `sbase import-playwright` and `sbase import-puppeteer`: the Rust goes to
+/// `output` or standard output, one diagnostic line per `TODO` to standard
+/// error. As with `import-python`, a gap is a warning and the exit status is
+/// 0; a statement the importer could not read at all is an error (status 1);
+/// a file it cannot read fails with the I/O status, and a source it refuses
+/// (too large, the wrong tool) with status 2.
+fn import_script(
+    tool: ScriptTool,
+    file: &str,
+    output: Option<&str>,
+    language: Option<ScriptLanguage>,
+    test_name: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string(file).map_err(|error| {
+        std::io::Error::new(error.kind(), format!("failed to read {file}: {error}"))
+    })?;
+    let path = Path::new(file);
+    let default_name = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("imported_test");
+    let options = ScriptImportOptions {
+        language: language.or_else(|| ScriptLanguage::from_path(path)),
+        test_name: test_name.unwrap_or(default_name).to_owned(),
+    };
+    let (result, name) = match tool {
+        ScriptTool::Playwright => (import_playwright(&source, &options)?, "Playwright"),
+        ScriptTool::Puppeteer => (import_puppeteer(&source, &options)?, "Puppeteer"),
+    };
+    if let Some(path) = output {
+        std::fs::write(path, &result.rust)?;
+    } else {
+        print!("{}", result.rust);
+    }
+    for diagnostic in &result.diagnostics {
+        eprintln!(
+            "{:?} at line {}: {}",
+            diagnostic.severity, diagnostic.line, diagnostic.message
+        );
+    }
+    if result
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == ImportSeverity::Error)
+    {
+        return Err(format!("{name} import completed with errors; review generated TODOs.").into());
+    }
+    Ok(())
+}
+
 async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
@@ -1407,6 +1547,34 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 return Err("Python import completed with errors; review generated TODOs.".into());
             }
             return Ok(());
+        }
+        Commands::ImportPlaywright {
+            file,
+            output,
+            language,
+            test_name,
+        } => {
+            return import_script(
+                ScriptTool::Playwright,
+                file,
+                output.as_deref(),
+                language.map(ScriptLanguage::from),
+                test_name.as_deref(),
+            );
+        }
+        Commands::ImportPuppeteer {
+            file,
+            output,
+            language,
+            test_name,
+        } => {
+            return import_script(
+                ScriptTool::Puppeteer,
+                file,
+                output.as_deref(),
+                language.map(ScriptLanguage::from),
+                test_name.as_deref(),
+            );
         }
         Commands::Mkdir { dir, basic, force } => {
             report_created(
@@ -2442,7 +2610,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
         }
-        Commands::Completions { .. } | Commands::ImportPython { .. } => {
+        Commands::Completions { .. }
+        | Commands::ImportPython { .. }
+        | Commands::ImportPlaywright { .. }
+        | Commands::ImportPuppeteer { .. } => {
             unreachable!("pure CLI commands return before browser configuration")
         }
     }
