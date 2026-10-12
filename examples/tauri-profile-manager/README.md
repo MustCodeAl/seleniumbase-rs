@@ -4,7 +4,9 @@ A desktop multi-profile browser manager built with [Tauri](https://tauri.app) an
 
 ## Architecture
 
-- **Tauri desktop app** — Rust backend + vanilla HTML/JS frontend.
+- **Tauri desktop app** — Rust backend + vanilla HTML/JS frontend, on Tauri 3
+  (`3.0.0-alpha.4`, pinned exactly, since alphas may break each other). See
+  [Tauri versions](#tauri-versions).
 - **Profile store** — an encrypted vault (`profiles.vault`) in the OS app-data directory. See [Profile storage](#profile-storage).
 - **Two engines** — each profile picks one. See [Engines](#engines).
   - **WebDriver** — `seleniumbase-rs::BaseCase` connects to a `selenium/standalone-chrome` container with per-profile `user_agent`, `proxy`, `locale`, and `headless` settings.
@@ -83,19 +85,30 @@ VNC password is `secret` by default.
 
 ## Start the Tauri app
 
-Needs Rust 1.90 or newer, because the encrypted vault uses Turso.
+Needs Rust 1.99 or newer, the version `seleniumbase-rs` requires (Tauri 3
+needs 1.95). The Tauri CLI comes from npm, pinned to the same alpha:
 
 ```bash
-cd src-tauri
-cargo tauri dev
+npm ci
+npx tauri dev
 ```
 
 ## Build a release bundle
 
 ```bash
-cd src-tauri
-cargo tauri build
+npx tauri build
 ```
+
+## Tauri versions
+
+The app builds on Tauri `3.0.0-alpha.4` (`tauri`, `tauri-build` `3.0.0-alpha.3`,
+`tauri-plugin-opener` `3.0.0-alpha.2`, `@tauri-apps/cli` `3.0.0-alpha.4`). On
+macOS its 115 tests pass and `npx tauri build --debug --bundles app` makes the
+`.app`; the window was not opened in that check. Moving from Tauri 2 needed no
+code change: the frontend's `window.__TAURI__.core.invoke`, the `core:default`
+and `opener:default` permissions and the configuration all carried over, with
+the schema URL moved to `https://schema.tauri.app/config/3`. To build on Tauri
+2 instead, set those versions back to `2` and the schema to `config/2`.
 
 ## Features
 

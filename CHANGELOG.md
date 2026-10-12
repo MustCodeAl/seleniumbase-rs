@@ -294,6 +294,13 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Changed
 
+- `examples/tauri-profile-manager` is on Tauri 3: `tauri` `3.0.0-alpha.4`,
+  `tauri-build` `3.0.0-alpha.3`, `tauri-plugin-opener` `3.0.0-alpha.2` and
+  `@tauri-apps/cli` `3.0.0-alpha.4`, pinned exactly. No code had to change; on
+  macOS its 115 tests pass and the Tauri 3 CLI builds the `.app` (the window was
+  not opened in that check). One test of the example had gone stale when
+  `Emulation::locale` started setting the language too; it now checks the last
+  user-agent override.
 - The `Dockerfile` links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
   the working directory, so the WebDriver engine in the image starts a browser with no
   network instead of downloading a driver, and its builder stage takes a
