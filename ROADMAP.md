@@ -369,9 +369,10 @@ merged. In order:
    tests of the proxy, the HTTP hand-over and the session run headless on
    macOS with Chrome 155 against servers written for the tests.
 4. **WebSocket through the proxy** is relayed for `wss://` with the measured
-   WebSocket hello. Still open: a tab's first request through the proxy cannot
-   open one (its `CONNECT` gets the `407` and Chrome does not retry it), `ws://`
-   is refused, and compression (`permessage-deflate`) is passed through untested.
+   WebSocket hello, and may be a tab's first request: the launch loads the
+   proxy's priming page, which leaves the proxy's credentials in Chrome (a
+   browser context created later loads it itself). Still open: `ws://` is
+   refused, and compression (`permessage-deflate`) is passed through untested.
 5. **The first request to an HTTP/1.1-only origin** carries the HTTP/2
    `priority` header in `HttpSession` and `MitmProxy`; later ones do not. The
    protocol is known only after the connection opens.

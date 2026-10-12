@@ -4,15 +4,27 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use seleniumbase_rs::impersonate::mitm::{MitmOptions, MIN_HEADER_BYTES};
+use seleniumbase_rs::impersonate::mitm::{MitmOptions, MitmProxy, MIN_HEADER_BYTES, PRIME_HOST};
 use seleniumbase_rs::impersonate::tls_server::{CaOptions, EphemeralCa};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::support::{
-    closes, der, eventually, exchange, proxy_auth, raw_connect, read_head, start_mitm, tls_client,
-    tunnel, QUIET,
+    closes, der, eventually, exchange, new_ca, proxy_auth, raw_connect, read_head, start_mitm,
+    tls_client, tunnel, QUIET,
 };
+
+/// How long an upstream connection may take in the tests that send one to a name that does not
+/// resolve.
+const SHORT_CONNECT: Duration = Duration::from_secs(5);
+
+/// The path of a proxy's priming page.
+fn prime_path(mitm: &MitmProxy) -> String {
+    mitm.prime_url()
+        .strip_prefix(&format!("https://{PRIME_HOST}"))
+        .expect("the priming page is on the priming host")
+        .to_owned()
+}
 
 /// Writes a `CONNECT` on an open connection and reads the answer.
 async fn connect_on(tcp: &mut TcpStream, target: &str, auth: &str) -> u16 {
@@ -141,6 +153,110 @@ async fn the_leaf_cache_stays_bounded() {
     }
     assert_eq!(ca.cached_leaves(), capacity);
     assert!(eventually(|| mitm.stats().tunnels == 10).await);
+}
+
+#[tokio::test]
+async fn the_priming_page_is_answered_by_the_proxy_itself_behind_the_token() {
+    let ca = new_ca();
+    let (mitm, sink) = start_mitm(None, MitmOptions::default().ca(Arc::clone(&ca))).await;
+    let path = prime_path(&mitm);
+    let target = format!("{PRIME_HOST}:443");
+
+    let (_tcp, head) = raw_connect(mitm.local_addr(), &target, None).await;
+    assert_eq!(head.expect("an answer").status(), 407);
+
+    let mut tls = tunnel(&mitm, PRIME_HOST, 443, &der(&ca)).await;
+    let request = format!("GET {path} HTTP/1.1\r\nHost: {PRIME_HOST}\r\n\r\n");
+    let (head, body) = exchange(&mut tls, &request).await.expect("an answer");
+
+    assert_eq!(head.status(), 200);
+    assert_eq!(head.content_length(), Some(0));
+    assert!(body.is_empty());
+    assert_eq!(
+        head.header("content-type"),
+        Some("text/html; charset=utf-8")
+    );
+    assert_eq!(head.header("cache-control"), Some("no-store"));
+    let stats = mitm.stats();
+    assert_eq!(stats.primed, 1, "{stats:?}");
+    assert_eq!(
+        (stats.forwarded, stats.upstream_errors, stats.refused),
+        (0, 0, 0),
+        "nothing went upstream: {stats:?}"
+    );
+    assert!(sink.is_empty(), "not a site request: {:?}", sink.events());
+}
+
+#[tokio::test]
+async fn the_priming_page_is_answered_over_plain_http_too_and_only_with_the_token() {
+    let (mitm, _sink) = start_mitm(None, MitmOptions::default()).await;
+    let path = prime_path(&mitm);
+    let mut tcp = TcpStream::connect(mitm.local_addr())
+        .await
+        .expect("reaches the proxy");
+    let line = format!("GET http://{PRIME_HOST}{path} HTTP/1.1\r\nHost: {PRIME_HOST}\r\n");
+
+    let (refused, _) = exchange(&mut tcp, &format!("{line}\r\n"))
+        .await
+        .expect("an answer");
+    let auth = format!("Proxy-Authorization: {}\r\n", proxy_auth(&mitm));
+    let (answered, _) = exchange(&mut tcp, &format!("{line}{auth}\r\n"))
+        .await
+        .expect("an answer on the same connection");
+
+    assert_eq!(refused.status(), 407);
+    assert_eq!(answered.status(), 200);
+    assert_eq!(mitm.stats().primed, 1, "{:?}", mitm.stats());
+    assert_eq!(mitm.stats().forwarded, 0, "{:?}", mitm.stats());
+}
+
+#[tokio::test]
+async fn the_priming_host_serves_its_page_only_and_nothing_for_it_goes_upstream() {
+    let ca = new_ca();
+    let options = MitmOptions::default()
+        .ca(Arc::clone(&ca))
+        .connect_timeout(SHORT_CONNECT);
+    let (mitm, sink) = start_mitm(None, options).await;
+    let path = prime_path(&mitm);
+    let other_path = format!("/{}", "0".repeat(32));
+
+    for request in [
+        format!("GET {other_path} HTTP/1.1\r\nHost: {PRIME_HOST}\r\n\r\n"),
+        format!("GET /favicon.ico HTTP/1.1\r\nHost: {PRIME_HOST}\r\n\r\n"),
+        format!("GET {path}?x=1 HTTP/1.1\r\nHost: {PRIME_HOST}\r\n\r\n"),
+        format!("POST {path} HTTP/1.1\r\nHost: {PRIME_HOST}\r\nContent-Length: 0\r\n\r\n"),
+        format!(
+            "GET {path} HTTP/1.1\r\nHost: {PRIME_HOST}\r\nConnection: Upgrade\r\n\
+             Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n\
+             Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+        ),
+    ] {
+        let mut tls = tunnel(&mitm, PRIME_HOST, 443, &der(&ca)).await;
+        let (head, body) = exchange(&mut tls, &request).await.expect("an answer");
+        assert_eq!(head.status(), 404, "{request}");
+        assert!(body.is_empty(), "{request}");
+    }
+    let stats = mitm.stats();
+    assert_eq!(
+        (
+            stats.primed,
+            stats.refused,
+            stats.forwarded,
+            stats.upstream_errors
+        ),
+        (0, 5, 0, 0),
+        "{stats:?}"
+    );
+    assert!(sink.is_empty(), "{:?}", sink.events());
+
+    // The priming path on another host is an ordinary request: it goes upstream, where the
+    // name does not resolve.
+    let mut tls = tunnel(&mitm, "other.invalid", 443, &der(&ca)).await;
+    let request = format!("GET {path} HTTP/1.1\r\nHost: other.invalid\r\n\r\n");
+    let (head, _) = exchange(&mut tls, &request).await.expect("an answer");
+    assert_eq!(head.status(), 502);
+    assert_eq!(mitm.stats().upstream_errors, 1, "{:?}", mitm.stats());
+    assert_eq!(mitm.stats().primed, 0, "{:?}", mitm.stats());
 }
 
 #[tokio::test]

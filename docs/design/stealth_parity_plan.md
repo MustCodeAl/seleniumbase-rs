@@ -632,7 +632,8 @@ impl MitmProxy {
     pub fn proxy_spec(&self) -> Secret;            // http://sb:<token>@127.0.0.1:<port>; holds the token
     pub fn browser_proxy(&self) -> sb_cdp::Proxy;  // the same, parsed; password-free Debug
     pub fn chrome_args(&self) -> Vec<String>;      // [leaf pin switch, "--proxy-bypass-list=<-loopback>", "--disable-quic"]
-    pub fn configure_launch(&self, builder: LaunchOptionsBuilder) -> LaunchOptionsBuilder;  // proxy + chrome_args
+    pub fn configure_launch(&self, builder: LaunchOptionsBuilder) -> LaunchOptionsBuilder;  // proxy + chrome_args + priming start page
+    pub fn prime_url(&self) -> String;             // https://sb-mitm.invalid/<128 random bits>, answered by the proxy
     pub fn stats(&self) -> MitmStats;  pub fn egress(&self) -> Option<EgressKey>;
     pub fn swap_upstream(&self, egress: Option<EgressRef>) -> Result<(), MitmError>;
     pub fn swap_profile(&self, profile: ImpersonationProfile) -> Result<(), MitmError>; }
@@ -644,12 +645,13 @@ pub enum MitmError { Bind(io::Error), Tls(TlsServerError), InvalidOptions(&'stat
     ForbiddenDestination(&'static str), NotIntercepted(&'static str), HostMismatch,
     MalformedUpgrade(&'static str), BodyTooLarge { limit: usize },
     VersionMismatch { browser: u32, measured: u32 }, UpstreamRequest { url: RedactedUrl, kind: &'static str } }
-pub struct MitmStats { connections, tunnels, unauthorized, refused, forwarded, upstream_errors, websockets }
+pub struct MitmStats { connections, tunnels, unauthorized, refused, forwarded, upstream_errors, websockets, primed }
+pub const PRIME_HOST: &str = "sb-mitm.invalid";
 ```
 
 `SniMismatch` of the first sketch is `TlsServerError::SniMismatch`, reached as `MitmError::Tls(..)`. The
 variants after `Egress` are what the proxy logs when it refuses a request; the browser only sees an empty
-`407`, `400`, `403`, `413`, `431` or `502`.
+`407`, `400`, `403`, `404` (on the priming host only), `413`, `431` or `502`.
 
 Differences from the first sketch that matter:
 
@@ -677,11 +679,27 @@ Differences from the first sketch that matter:
   a profile without one gets a `502` for every handshake. Tests: `tests/impersonate_mitm/websocket.rs`
   (an echo site written in the test, the measured WebSocket JA4 on the wire, the hostile inputs) and,
   on headless Chrome 155, `a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo` and
-  `a_plain_ws_websocket_is_refused_by_the_proxy` in `tests/impersonate_mitm_chrome.rs`. **Known limit,
-  measured and pinned** (`a_websocket_before_any_request_through_the_proxy_fails_on_the_407`): a
-  WebSocket that is a tab's first request through the proxy gets the `407` on its `CONNECT`, and Chrome
-  does not retry it with the token `ProxyAuth` hands out over `Fetch.authRequired`; after any request
-  has taken the credentials (a navigation through the proxy), WebSockets work.
+  `a_plain_ws_websocket_is_refused_by_the_proxy` in `tests/impersonate_mitm_chrome.rs`.
+- **The priming page** (closes the limit that a WebSocket could not be a tab's first request). Measured
+  on Chrome 155 (headless): a WebSocket's `CONNECT` that gets the `407` is never surfaced as
+  `Fetch.authRequired`, so `ProxyAuth` cannot answer it and Chrome does not retry it; credentials Chrome
+  was given for any tab's request are cached for the whole browser context and sent preemptively on
+  every later `CONNECT`, WebSockets included (a navigation in one tab, then a WebSocket as another tab's
+  first request, goes through); a browser context created afterwards has a cache of its own and does
+  not inherit the default context's. So the proxy owns `https://sb-mitm.invalid/<128 random bits>`
+  (`PRIME_HOST` under the reserved `.invalid`, `MitmProxy::prime_url`): after the token check a `GET`
+  of exactly that is answered by the proxy with an empty, `no-store` HTML page (`MitmStats::primed`);
+  anything else for that host, Chrome's `favicon.ico` included, is an empty `404`; nothing for it goes
+  upstream or to the event sink. `configure_launch` makes it the start page unless the builder already
+  has one, so `Browser::launch` loads it through the `407` and `ProxyAuth` before returning; a context
+  behind the proxy loads it in its first tab. A browser-level answer was tried and is not possible:
+  with `Fetch.enable { handleAuthRequests: true }` sent to the browser target as well, no
+  `Fetch.authRequired` (nor any `Fetch` event) arrives there for the WebSocket's `407`, and the
+  WebSocket still fails (measured on Chrome 155). Measured as well: the default tab's `history.length`
+  after the priming page and one navigation is 2, as without it (the start page replaces the initial
+  `about:blank`). Tests: `a_websocket_as_a_new_tabs_first_request_through_the_proxy_gets_its_echo`
+  and `a_context_behind_the_proxy_takes_the_credentials_from_the_priming_page` (Chrome), and the
+  priming tests in `tests/impersonate_mitm/access.rs`.
 - **A request whose `User-Agent` names another Chrome major than the profile's is refused**
   (`MitmError::VersionMismatch`), because the measured handshake would contradict the header.
 - **The first request to an HTTP/1.1-only origin carries the HTTP/2 `priority` header**: the upstream

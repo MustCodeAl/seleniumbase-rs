@@ -9,6 +9,13 @@
 //! The credentials go to the proxy only. A password prompt whose
 //! `authChallenge.source` is not `Proxy` (a website answering `401`) is handed
 //! back to the browser's default handling, never given the proxy account.
+//!
+//! A WebSocket's prompt never arrives here. Measured on Chrome 155: the `407`
+//! on a WebSocket's `CONNECT` reaches no `Fetch` session, neither the tab's nor
+//! one on the browser target, and is not retried. A WebSocket therefore passes
+//! a password-protected proxy only with credentials Chrome already holds for
+//! that browser context from an earlier request of one of its tabs, which is
+//! why the MITM proxy of `impersonate::mitm` has a start page of its own.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;

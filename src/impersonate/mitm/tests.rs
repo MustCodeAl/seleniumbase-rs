@@ -17,7 +17,7 @@ use super::upstream::{egress_proxy, websocket_spec};
 use super::{
     chrome_args_for, hex, random_token, MitmError, MitmOptions, MitmProxy,
     DEFAULT_MAX_WEBSOCKET_BYTES, DEFAULT_WEBSOCKET_IDLE_TIMEOUT, DISABLE_QUIC_ARG, MAX_CONNECTIONS,
-    MAX_HEADERS, MAX_HEADER_BYTES, MIN_HEADER_BYTES, PROXY_EVERYTHING_ARG, PROXY_USER,
+    MAX_HEADERS, MAX_HEADER_BYTES, MIN_HEADER_BYTES, PRIME_HOST, PROXY_EVERYTHING_ARG, PROXY_USER,
 };
 use crate::impersonate::client::ImpersonationProfile;
 use crate::impersonate::tls_server::EphemeralCa;
@@ -396,6 +396,74 @@ async fn the_launch_line_has_the_proxy_and_switches_but_never_the_token() {
     ] {
         assert!(!shown.contains(&token), "token in {shown}");
     }
+    mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+/// A proxy with the measured profile and the default options.
+async fn started() -> MitmProxy {
+    let profile = ImpersonationProfile::measured(BrowserKind::Chrome).expect("measured");
+    MitmProxy::start(
+        profile,
+        None,
+        MitmOptions::default(),
+        Arc::new(NoopEventSink),
+    )
+    .await
+    .expect("starts")
+}
+
+#[tokio::test]
+async fn the_priming_page_is_on_the_priming_host_under_a_random_path_without_the_token() {
+    let (mitm, other) = (started().await, started().await);
+    let url = mitm.prime_url();
+    let token = mitm
+        .proxy_spec()
+        .expose()
+        .rsplit_once('@')
+        .and_then(|(userinfo, _)| userinfo.rsplit_once(':'))
+        .map(|(_, token)| token.to_owned())
+        .expect("a token in the spec");
+
+    let path = url
+        .strip_prefix(&format!("https://{PRIME_HOST}/"))
+        .expect("https on the priming host");
+    assert_eq!(path.len(), 32, "{url}");
+    assert!(
+        path.bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+        "{url}"
+    );
+    assert!(!url.contains(&token), "the token is in the priming URL");
+    assert_ne!(url, other.prime_url(), "two proxies share a priming path");
+    assert!(
+        !format!("{mitm:?}").contains(path),
+        "Debug shows the priming path"
+    );
+    mitm.shutdown(Duration::from_secs(5)).await;
+    other.shutdown(Duration::from_secs(5)).await;
+}
+
+#[tokio::test]
+async fn the_launch_opens_the_priming_page_unless_it_has_a_start_page_already() {
+    let mitm = started().await;
+
+    let primed = mitm
+        .configure_launch(LaunchOptions::builder())
+        .build()
+        .expect("valid launch options");
+    let kept = mitm
+        .configure_launch(LaunchOptions::builder().url("https://example.com/"))
+        .build()
+        .expect("valid launch options");
+    let replaced = mitm
+        .configure_launch(LaunchOptions::builder())
+        .url("https://example.org/")
+        .build()
+        .expect("valid launch options");
+
+    assert_eq!(primed.url.as_deref(), Some(mitm.prime_url().as_str()));
+    assert_eq!(kept.url.as_deref(), Some("https://example.com/"));
+    assert_eq!(replaced.url.as_deref(), Some("https://example.org/"));
     mitm.shutdown(Duration::from_secs(5)).await;
 }
 

@@ -148,6 +148,14 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   bytes are copied both ways with idle and per-direction byte bounds
   (`MitmOptions::websocket_idle_timeout`, `max_websocket_bytes`); half upgrades and
   other protocols are refused (`MitmError::MalformedUpgrade`, `NotIntercepted`).
+- **The `MitmProxy` priming page**: a WebSocket may now be a tab's first request
+  through the proxy. Chrome never shows a WebSocket's `407` to `Fetch` (measured
+  on Chrome 155, tab and browser target alike), so `configure_launch` makes
+  `MitmProxy::prime_url()` (`https://sb-mitm.invalid/` and a random path) the
+  start page; the proxy answers it itself behind the token, and Chrome keeps the
+  credentials for the browser context. A context created later loads the page
+  itself. Anything else for that host is an empty `404`; nothing for it goes
+  upstream. `MitmStats::primed` counts the loads.
 - **`StealthSession`** (feature `impersonate`): the session that moves between
   `HttpSession` and a real Chrome behind `MitmProxy` by the mitigation and session
   policies. It starts the proxy when a browser is first needed, makes up to 4

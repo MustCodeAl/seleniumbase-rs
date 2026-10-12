@@ -13,9 +13,9 @@
 //!   connects a page to a loopback or metadata address.
 //! - A page opens a `wss://` WebSocket through the proxy to a loopback echo site and receives its
 //!   echo; the site sees the measured WebSocket JA4 and Chrome's own handshake fields. A `ws://`
-//!   WebSocket is refused by the proxy and never reaches its server. A WebSocket that is a tab's
-//!   first request through the proxy fails on the `407`, which Chrome does not retry with the
-//!   token (pinned as a known limit).
+//!   WebSocket is refused by the proxy and never reaches its server. A WebSocket that is a new
+//!   tab's first request through the proxy works, because the launch loaded the proxy's priming
+//!   page; a browser context keeps credentials of its own and takes them the same way.
 //!
 //! Only the first test compares the browser with the measured persona, so only it needs the
 //! measured system (Chrome 155 on macOS) and skips elsewhere (`support/measured_host.rs`). The
@@ -55,7 +55,7 @@ use btls::x509::extension::SubjectAlternativeName;
 use btls::x509::{X509Name, X509};
 use seleniumbase_rs::impersonate::mitm::{MitmOptions, MitmProxy};
 use seleniumbase_rs::impersonate::tls_server::ALPN_HTTP1;
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, LaunchOptionsBuilder, Page};
+use seleniumbase_rs::sb_cdp::{Browser, ContextOptions, LaunchOptions, LaunchOptionsBuilder, Page};
 use seleniumbase_rs::stealth::fingerprint::OsType;
 use seleniumbase_rs::wire::emulation;
 use seleniumbase_rs::wire::ja4::Ja4;
@@ -423,14 +423,14 @@ async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
     mitm.shutdown(Duration::from_secs(5)).await;
 }
 
-/// A known limit, pinned: `ProxyAuth` gives Chrome the token over `Fetch.authRequired`, and a
-/// WebSocket's `CONNECT` that gets the `407` is not retried with it. A WebSocket therefore works
-/// once an earlier request has taken the proxy's credentials (any navigation through the proxy
-/// does), and fails when it is a tab's first request. When this test fails because the echo
-/// came back, the limit is gone: update the tutorial's MITM section.
+/// Chrome hands the proxy's token over only when a tab's request meets the `407` (`ProxyAuth`
+/// answers `Fetch.authRequired`), and a WebSocket's own `CONNECT` is not such a request: alone, a
+/// WebSocket that is the first request through the proxy gets the `407` and fails. The launch
+/// opens the proxy's priming page, which leaves the credentials in the browser context's cache,
+/// so a WebSocket that is a new tab's very first request goes through.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
-async fn a_websocket_before_any_request_through_the_proxy_fails_on_the_407() {
+async fn a_websocket_as_a_new_tabs_first_request_through_the_proxy_gets_its_echo() {
     let echo = EchoOrigin::start().await;
     let options = MitmOptions::default()
         .trust_upstream_root(echo.root())
@@ -438,24 +438,63 @@ async fn a_websocket_before_any_request_through_the_proxy_fails_on_the_407() {
         .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
     let browser = launch_any_behind(&mitm).await;
+    let launched = mitm.stats();
     let page = browser.new_page(None::<&str>).await.expect("a tab");
-    let before = mitm.stats();
 
     let outcome = open_websocket(&page, &format!("wss://{WS}:{}/echo", echo.addr().port())).await;
 
     let after = mitm.stats();
     eprintln!(
-        "a wss:// WebSocket as a tab's first request through the proxy: {outcome}; \
-         before {before:?}, after {after:?}; the echo site read {} handshakes",
-        echo.handshakes()
+        "a wss:// WebSocket as a new tab's first request through the proxy: {outcome}; \
+         after the launch {launched:?}, after the WebSocket {after:?}"
     );
-    assert_eq!(outcome, "error");
+    assert_eq!(outcome, format!("echo:{GREETING}"), "{after:?}");
     assert!(
-        after.unauthorized > before.unauthorized,
-        "the CONNECT got the 407: {after:?}"
+        launched.primed >= 1,
+        "the launch loaded the priming page: {launched:?}"
     );
-    assert_eq!(echo.handshakes(), 0, "the handshake reached the site");
-    assert_eq!(after.websockets, 0, "{after:?}");
+    assert_eq!(echo.handshakes(), 1, "the handshake reached the site once");
+    assert!(after.websockets >= 1, "{after:?}");
+    browser.close().await.expect("Chrome closes");
+    mitm.shutdown(Duration::from_secs(5)).await;
+}
+
+/// A browser context keeps credentials of its own: one created after the launch does not have
+/// the default context's (measured, the first half of the test), so its WebSocket fails until a
+/// tab of it has loaded the priming page.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "starts the local Chrome"]
+async fn a_context_behind_the_proxy_takes_the_credentials_from_the_priming_page() {
+    let echo = EchoOrigin::start().await;
+    let options = MitmOptions::default()
+        .trust_upstream_root(echo.root())
+        .resolve(WS, echo.addr())
+        .allow_private_destinations(true);
+    let (mitm, _sink) = start_mitm(None, options).await;
+    let browser = launch_any_behind(&mitm).await;
+    let context = browser
+        .new_context_with(ContextOptions::new().proxy(mitm.browser_proxy()))
+        .await
+        .expect("a context");
+    let url = format!("wss://{WS}:{}/echo", echo.addr().port());
+    let first = context.new_page(None::<&str>).await.expect("a tab");
+
+    let unprimed = open_websocket(&first, &url).await;
+    first
+        .goto(mitm.prime_url())
+        .await
+        .expect("the priming page loads");
+    let second = context.new_page(None::<&str>).await.expect("a second tab");
+    let primed = open_websocket(&second, &url).await;
+
+    eprintln!(
+        "a context behind the proxy: before its priming page {unprimed}, after it {primed}; {:?}",
+        mitm.stats()
+    );
+    assert_eq!(unprimed, "error", "the context had the credentials already");
+    assert_eq!(primed, format!("echo:{GREETING}"), "{:?}", mitm.stats());
+    assert_eq!(echo.handshakes(), 1, "{:?}", mitm.stats());
+    context.dispose().await.expect("the context goes");
     browser.close().await.expect("Chrome closes");
     mitm.shutdown(Duration::from_secs(5)).await;
 }

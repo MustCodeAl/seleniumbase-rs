@@ -916,7 +916,8 @@ launch at the proxy and adds the switches it needs.
 An absolute-form `http://` request is checked the same way and forwarded without
 `CONNECT`. A WebSocket handshake inside a tunnel is relayed (see
 [WebSocket](#websocket) below). The browser only ever sees an empty status (`407`,
-`400`, `403`, `413`, `431` or `502`); the reason is a `MitmError` variant in the log
+`400`, `403`, `404`, `413`, `431` or `502`; the `404` only on the proxy's
+[priming host](#the-priming-page)); the reason is a `MitmError` variant in the log
 (`Unauthorized`, `BadTarget`, `ForbiddenDestination`, `NotIntercepted`,
 `HostMismatch`, `MalformedUpgrade`, `BodyTooLarge`, `VersionMismatch`,
 `UpstreamRequest`). `start` itself can fail with `Bind`, `Tls`, `InvalidOptions`,
@@ -924,8 +925,10 @@ An absolute-form `http://` request is checked the same way and forwarded without
 
 ### What Chrome must be told
 
-`mitm.configure_launch(builder)` sets the proxy and adds `mitm.chrome_args()`:
-the `--ignore-certificate-errors-spki-list` switch with the leaf pin only (never
+`mitm.configure_launch(builder)` sets the proxy, makes the proxy's priming page
+the start page (see [the priming page](#the-priming-page)) and adds
+`mitm.chrome_args()`: the `--ignore-certificate-errors-spki-list` switch with the
+leaf pin only (never
 the CA pin), `--proxy-bypass-list=<-loopback>` so loopback hosts go through the
 proxy too, and `--disable-quic`. Because that switch trusts any chain that
 carries the pinned key (see [the CA section](#the-ephemeral-ca-tls-server)), the
@@ -961,7 +964,7 @@ upstream client, and `ca(Arc<EphemeralCa>)` shares a CA.
 
 Bodies stream both ways; nothing is read whole into memory. `mitm.stats()` gives
 counts (`connections`, `tunnels`, `unauthorized`, `refused`, `forwarded`,
-`upstream_errors`, `websockets`).
+`upstream_errors`, `websockets`, `primed`).
 
 ### WebSocket
 
@@ -1003,13 +1006,50 @@ empty `502`, and a tunnel that does not start with TLS is never relayed. On
 Chrome 155 a page's `ws://` WebSocket is refused by the proxy and never reaches
 its server.
 
-**A WebSocket must not be a tab's first request through the proxy.** Chrome gets
-the proxy's token from `ProxyAuth`, which answers over `Fetch.authRequired`. Measured
-on Chrome 155 (headless): a `wss://` WebSocket opened by a blank tab, before any
-other request had gone through the proxy, got the `407` on its `CONNECT` and Chrome
-did not retry it with the token, so the page saw an error. Once a request has
-taken the proxy's credentials (any navigation through the proxy does, the page that
-opens the WebSocket included), WebSockets work.
+#### The priming page
+
+Chrome gets the proxy's token from `ProxyAuth`, which answers `Fetch.authRequired`
+for a tab's requests. A WebSocket's own `CONNECT` never gets there. Measured on
+Chrome 155 (headless): a `wss://` WebSocket opened before any other request had
+gone through the proxy got the `407` on its `CONNECT`, Chrome did not retry it
+with the token, and the page saw an error. Credentials Chrome was given are kept
+in a cache that every tab of the browser context shares, and every later
+`CONNECT` carries them, a WebSocket's included: one tab's navigation, then a
+WebSocket as another tab's first request, goes through.
+
+So the proxy owns one page, `mitm.prime_url()`: `https://sb-mitm.invalid/`
+(`impersonate::mitm::PRIME_HOST`, under the reserved `.invalid` name) and a path
+of 128 random bits. After the token check, a `GET` of exactly that is answered by
+the proxy itself with an empty page that is never cached (`mitm.stats().primed`
+counts it). Any other request for that host, Chrome's `favicon.ico` included,
+gets an empty `404`. Nothing for that host goes upstream and the event sink hears
+nothing of it. The path holds no token; it is random so that a page that was not
+given it only ever sees the `404`. `configure_launch` makes the priming page the
+start page, so
+`Browser::launch` loads it in the first tab before it returns, and a WebSocket
+may then be a new tab's first request. A start page you set before
+`configure_launch` is kept (an `http(s)://` one takes the credentials just as
+well; an `about:` or `data:` one does not), and one set after it replaces the
+priming page.
+
+A browser context keeps a cache of its own, and one created after the launch
+does not share the default context's (measured). Before a WebSocket in a context
+behind the proxy, load the priming page in its first tab:
+
+```rust
+use seleniumbase_rs::impersonate::MitmProxy;
+use seleniumbase_rs::sb_cdp::{Browser, ContextOptions};
+
+# async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::error::Error>> {
+let context = browser
+    .new_context_with(ContextOptions::new().proxy(mitm.browser_proxy()))
+    .await?;
+let page = context.new_page(Some(mitm.prime_url())).await?;
+// WebSockets of this context now carry the proxy's credentials.
+# drop(page);
+# Ok(())
+# }
+```
 
 ### Changing the upstream, and stopping
 
@@ -1034,8 +1074,9 @@ aborts what is left; dropping the last clone stops it too.
 ### What was run
 
 `tests/impersonate_mitm.rs` runs the proxy against loopback sites, an egress
-proxy and raw clients, with no browser: the token and the `407`, targets it
-refuses, the SNI check, the bounds, the measured JA4 and Akamai string and
+proxy and raw clients, with no browser: the token and the `407`, the priming
+page (answered behind the token, a `404` for anything else on its host, nothing
+upstream), targets it refuses, the SNI check, the bounds, the measured JA4 and Akamai string and
 `priority` at the origin, header order, the refusals above, a 64 MiB body
 streaming through, swapping the egress, and shutdown leaving no task. Its
 `websocket` tests run a WebSocket echo site written in the test (raw tokio, no
@@ -1053,8 +1094,11 @@ sees the measured JA4 and Akamai string with the measured `priority` and a
 Chrome user agent; the token reaches Chrome only through the `407`. A page
 opens a `wss://` WebSocket through the proxy to a loopback echo site and gets its
 echo back; the site sees the measured WebSocket JA4 and Chrome's handshake fields
-in Chrome's order. A `ws://` WebSocket is refused by the proxy, and a WebSocket
-that is a tab's first request fails on the `407` (pinned, see above). Two more
+in Chrome's order. A `ws://` WebSocket is refused by the proxy. A WebSocket that
+is a new tab's first request gets its echo, because the launch loaded the
+priming page; a context created after the launch fails its first WebSocket on the
+`407` until one of its tabs has loaded the priming page, and then gets the echo.
+Two more
 tests are about the pin: a loopback server carrying the pinned key is never
 served to the page behind the proxy, and the same server is served to a Chrome
 that has the pin and no proxy. The origin in these tests is a server of the test,
@@ -1281,10 +1325,11 @@ State these plainly to yourself before you build on any of this.
   included, and not Chrome's own, which `BrowserScraper` leaves with unchanged.
   That is the price of one wire identity in both modes of a `StealthSession`.
 - **No HTTP/3.** wreq has none, and Chrome behind the proxy has QUIC switched off.
-- **WebSocket passes the `MitmProxy` as `wss://` only**, and not as a tab's first
-  request through the proxy (its `CONNECT` gets the `407` and Chrome does not retry
-  it; navigate through the proxy first). `ws://` and every other upgrade are
-  refused. `HttpSession` opens no WebSocket.
+- **WebSocket passes the `MitmProxy` as `wss://` only.** It needs the proxy's
+  credentials in Chrome first: `configure_launch` loads the priming page at the
+  launch, but a browser context created later has to load `mitm.prime_url()`
+  itself (see [the priming page](#the-priming-page)). `ws://` and every other
+  upgrade are refused. `HttpSession` opens no WebSocket.
 - **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
   header**, in `HttpSession` and in `MitmProxy`, because the protocol is known
   only after the connection opens. Later requests to that origin do not carry it.

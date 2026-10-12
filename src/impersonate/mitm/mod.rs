@@ -74,10 +74,27 @@
 //! A custom profile's WebSocket connections send the measured WebSocket hello of its base browser.
 //! A profile without a measured WebSocket hello gets an empty `502` for every handshake.
 //!
-//! Chrome gets the token over `Fetch.authRequired`. Measured on Chrome 155 (headless): a WebSocket
-//! that is a tab's first request through the proxy gets the `407` on its `CONNECT` and is not
-//! retried with the token, so it fails; once any request (a navigation through the proxy) has
-//! taken the credentials, WebSocket connections work.
+//! # The priming page
+//!
+//! Chrome gets the token over `Fetch.authRequired`, which `ProxyAuth` answers for the requests of
+//! a tab. A WebSocket's `CONNECT` never reaches it: measured on Chrome 155 (headless), a WebSocket
+//! that is the first request through the proxy gets the `407` and is not retried with the token,
+//! so it fails, and `Fetch.enable` on the browser target sees nothing of it either. Credentials
+//! Chrome was given are kept in a cache that every tab of the browser context shares, and are sent
+//! with each later `CONNECT`, a WebSocket's included (measured: one tab's navigation, then another
+//! tab's first-request WebSocket goes through). A browser context created later does not share
+//! the default context's cache (measured as well).
+//!
+//! So the proxy owns one page, [`MitmProxy::prime_url`]: `https://` [`PRIME_HOST`] and a random
+//! path. After the token check, a `GET` of exactly that is answered by the proxy itself with an
+//! empty page that is never cached. Any other request for that host (another path, the browser's
+//! `favicon.ico`) gets an empty `404`; nothing for that host goes upstream, and no event is
+//! emitted. [`MitmProxy::configure_launch`] makes the priming page the start page, so
+//! `Browser::launch` loads it in the first tab (through the `407` and `ProxyAuth`) before it
+//! returns, and from then on a WebSocket may be a new tab's first request. A context created with
+//! [`MitmProxy::browser_proxy`] takes the credentials the same way, by loading the priming page in
+//! its first tab. The priming URL holds no token, and the token still reaches Chrome only through
+//! `ProxyAuth`.
 //!
 //! # Not intercepted
 //!
@@ -168,6 +185,9 @@ use crate::scrape::ledger::events::{EventSink, ScraperEvent};
 
 /// The user name the browser gives the proxy; the proxy's token is the password.
 pub const PROXY_USER: &str = "sb";
+/// The host of the proxy's priming page ([`MitmProxy::prime_url`]). Under `.invalid` (RFC 6761),
+/// so it never names a real site.
+pub const PRIME_HOST: &str = "sb-mitm.invalid";
 /// The Chrome switch that removes the implicit bypass of loopback hosts, so `localhost` and
 /// `127.0.0.1` go through the proxy as well.
 pub const PROXY_EVERYTHING_ARG: &str = "--proxy-bypass-list=<-loopback>";
@@ -450,8 +470,8 @@ impl MitmOptions {
 /// Why the proxy could not start, swap its upstream, or serve one request.
 ///
 /// The per-request variants are what the proxy logs when it refuses; the browser only ever sees
-/// an empty status (`407`, `400`, `403`, `413`, `431` or `502`). No variant carries a token, a credential, a
-/// header value or key material.
+/// an empty status (`407`, `400`, `403`, `404`, `413`, `431` or `502`). No variant carries a
+/// token, a credential, a header value or key material.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum MitmError {
@@ -538,6 +558,8 @@ pub struct MitmStats {
     /// WebSocket handshakes the upstream accepted, whose bytes the proxy then relayed; each is
     /// counted in `forwarded` too.
     pub websockets: u64,
+    /// Loads of the priming page ([`MitmProxy::prime_url`]), answered by the proxy itself.
+    pub primed: u64,
 }
 
 /// The live counters behind [`MitmStats`].
@@ -550,6 +572,7 @@ struct Counters {
     forwarded: AtomicU64,
     upstream_errors: AtomicU64,
     websockets: AtomicU64,
+    primed: AtomicU64,
 }
 
 impl Counters {
@@ -569,6 +592,7 @@ impl Counters {
             forwarded: read(&self.forwarded),
             upstream_errors: read(&self.upstream_errors),
             websockets: read(&self.websockets),
+            primed: read(&self.primed),
         }
     }
 }
@@ -589,6 +613,8 @@ struct Shared {
     sink: Arc<dyn EventSink>,
     /// What happened so far.
     counters: Counters,
+    /// The path of the priming page on [`PRIME_HOST`]: `/` and 128 random bits in hex.
+    prime_path: String,
 }
 
 /// The state behind every clone of a [`MitmProxy`].
@@ -677,6 +703,7 @@ impl MitmProxy {
             .map_err(MitmError::Bind)?;
         let addr = listener.local_addr().map_err(MitmError::Bind)?;
         let token = random_token()?;
+        let prime_path = format!("/{}", random_hex()?);
         let spec = Secret::new(format!(
             "{PROXY_SCHEME}://{PROXY_USER}:{}@{addr}",
             token.expose()
@@ -691,6 +718,7 @@ impl MitmProxy {
             options,
             sink,
             counters: Counters::default(),
+            prime_path,
         });
         let (stop, stopped) = watch::channel(false);
         let task = tokio::spawn(connect::run(listener, Arc::clone(&shared), stopped));
@@ -705,6 +733,24 @@ impl MitmProxy {
                 task: Mutex::new(Some(task)),
             }),
         })
+    }
+
+    /// The address of the proxy's priming page: `https://` [`PRIME_HOST`] and a path of 128
+    /// random bits drawn when the proxy started.
+    ///
+    /// The proxy answers a `GET` of it itself, with an empty page that is never cached, and sends
+    /// nothing for that host upstream (any other request for it gets an empty `404`). Loading it is
+    /// how a browser context takes the proxy's credentials before its first WebSocket: Chrome hands
+    /// the token over only when a tab's request meets the `407`, and a WebSocket's own `CONNECT` is
+    /// not such a request (see the module documentation). [`MitmProxy::configure_launch`] makes it
+    /// the start page; a context created with [`MitmProxy::browser_proxy`] loads it in its first
+    /// tab.
+    ///
+    /// The path holds no token and is not a secret, but it cannot be guessed, so a page that was
+    /// not given it only ever sees the `404`.
+    #[must_use]
+    pub fn prime_url(&self) -> String {
+        format!("https://{PRIME_HOST}{}", self.inner.shared.prime_path)
     }
 
     /// The loopback port the proxy listens on.
@@ -740,14 +786,31 @@ impl MitmProxy {
     }
 
     /// Points a Chrome launch at this proxy: the proxy with its token (answered over
-    /// `Fetch.authRequired`, never put on the command line) and [`MitmProxy::chrome_args`].
+    /// `Fetch.authRequired`, never put on the command line), [`MitmProxy::chrome_args`], and
+    /// [`MitmProxy::prime_url`] as the start page, so that the browser holds the proxy's
+    /// credentials before any WebSocket.
+    ///
+    /// A start page already set on `builder` is kept; an `http://` or `https://` one takes the
+    /// credentials as well, as any page through the proxy does, but an `about:` or `data:` one does
+    /// not. A start page set after this call replaces the priming page.
     #[must_use]
     pub fn configure_launch(&self, builder: LaunchOptionsBuilder) -> LaunchOptionsBuilder {
-        self.chrome_args()
+        // The builder has no getter, so its start page is read from a copy of what it builds.
+        let has_start_page = builder
+            .clone()
+            .build()
+            .is_ok_and(|options| options.url.is_some());
+        let builder = self
+            .chrome_args()
             .into_iter()
             .fold(builder.proxy(self.inner.spec.expose()), |builder, arg| {
                 builder.arg(arg)
-            })
+            });
+        if has_start_page {
+            builder
+        } else {
+            builder.url(self.prime_url())
+        }
     }
 
     /// The counts so far.
@@ -825,11 +888,16 @@ async fn finish(mut task: JoinHandle<()>, grace: Duration) {
 
 /// A new proxy password: 128 random bits, hex encoded.
 fn random_token() -> Result<Secret, MitmError> {
+    random_hex().map(Secret::new)
+}
+
+/// 128 random bits, hex encoded.
+fn random_hex() -> Result<String, MitmError> {
     let mut bytes = [0_u8; TOKEN_BYTES];
     SystemRandom::new()
         .fill(&mut bytes)
         .map_err(|_unspecified| MitmError::Random)?;
-    Ok(Secret::new(hex(&bytes)))
+    Ok(hex(&bytes))
 }
 
 /// Lower-case hex of `bytes`.

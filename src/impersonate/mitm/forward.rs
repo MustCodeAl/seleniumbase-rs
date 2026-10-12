@@ -9,10 +9,13 @@
 use std::time::Instant;
 
 use bytes::Bytes;
-use http::header::{CONNECTION, CONTENT_LENGTH, HOST, TE, TRANSFER_ENCODING, USER_AGENT};
+use http::header::{
+    CACHE_CONTROL, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, HOST, TE, TRANSFER_ENCODING, UPGRADE,
+    USER_AGENT,
+};
 use http::uri::{Authority, PathAndQuery, Uri};
 use http::{
-    Extensions, HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode, Version,
+    Extensions, HeaderMap, HeaderName, HeaderValue, Method, Request, Response, StatusCode, Version,
 };
 use http_body_util::combinators::UnsyncBoxBody;
 use http_body_util::{BodyExt as _, Empty};
@@ -24,7 +27,7 @@ use super::connect::refuse;
 use super::destination;
 use super::upstream::Outbound;
 use super::websocket::{self, Ask, RelaySlot};
-use super::{Counters, MitmError, MitmOptions, Shared};
+use super::{Counters, MitmError, MitmOptions, Shared, PRIME_HOST};
 use crate::scrape::challenge::mitigation::Mode;
 use crate::scrape::egress::redact::RedactedUrl;
 use crate::scrape::ledger::events::ScraperEvent;
@@ -56,6 +59,10 @@ const ROOT_PATH: &str = "/";
 const HTTP_PORT: u16 = 80;
 /// The default port of `https`.
 const HTTPS_PORT: u16 = 443;
+/// The `Content-Type` of the priming page.
+const PRIMING_TYPE: &str = "text/html; charset=utf-8";
+/// The priming page is never cached, so every load reaches the proxy.
+const NO_STORE: &str = "no-store";
 
 /// The scheme requests to an [`Origin`] use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,13 +207,17 @@ fn host_text(host: &Host<String>) -> String {
 /// reports it to the event sink.
 ///
 /// A WebSocket handshake is served only inside a tunnel, which passes the `slot` its relay is
-/// left in; elsewhere it is refused with an empty `502`.
+/// left in; elsewhere it is refused with an empty `502`. A request for [`PRIME_HOST`] is answered
+/// by the proxy itself ([`answer_priming_host`]) and never leaves.
 pub(super) async fn forward(
     shared: &Shared,
     origin: &Origin,
     request: Request<Incoming>,
     slot: Option<&RelaySlot>,
 ) -> Response<ProxyBody> {
+    if origin.host == PRIME_HOST {
+        return answer_priming_host(shared, &request);
+    }
     let started = Instant::now();
     let path = request
         .uri()
@@ -235,6 +246,30 @@ pub(super) async fn forward(
         mode: Mode::Browser,
         elapsed_ms,
     });
+    response
+}
+
+/// Answers a request for [`PRIME_HOST`], over either scheme; the token was checked before (at the
+/// `CONNECT`, or on the absolute-form request). A `GET` of exactly the priming path that asks for
+/// no upgrade gets the priming page: empty HTML that is never cached. Anything else (another path,
+/// a query, another method, a WebSocket handshake, the browser's own `favicon.ico`) gets an empty
+/// `404`. Nothing for that host goes
+/// upstream, and nothing is reported to the event sink, which hears of site requests only.
+fn answer_priming_host(shared: &Shared, request: &Request<Incoming>) -> Response<ProxyBody> {
+    let priming = request.method() == Method::GET
+        && !request.headers().contains_key(UPGRADE)
+        && request.uri().path_and_query().map(PathAndQuery::as_str)
+            == Some(shared.prime_path.as_str());
+    if !priming {
+        let error = MitmError::NotIntercepted("the priming host serves its priming page only");
+        return refuse(shared, StatusCode::NOT_FOUND, &error, true);
+    }
+    Counters::bump(&shared.counters.primed);
+    tracing::debug!("the priming page was answered by the proxy");
+    let mut response = empty(StatusCode::OK);
+    let headers = response.headers_mut();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static(PRIMING_TYPE));
+    headers.insert(CACHE_CONTROL, HeaderValue::from_static(NO_STORE));
     response
 }
 
