@@ -56,15 +56,26 @@ pub async fn download_chrome_driver_for(major: Option<u32>) -> Result<PathBuf, S
 
 /// The Chrome for Testing name of this machine's platform, such as `mac-arm64`.
 pub(crate) fn platform_label() -> Result<&'static str, SeleniumBaseError> {
-    match (std::env::consts::OS, std::env::consts::ARCH) {
+    label_for(std::env::consts::OS, std::env::consts::ARCH)
+}
+
+/// The Chrome for Testing name of the platform `os` and `arch` (as `std::env::consts` spells
+/// them) make up.
+fn label_for(os: &str, arch: &str) -> Result<&'static str, SeleniumBaseError> {
+    match (os, arch) {
         ("macos", "aarch64") => Ok("mac-arm64"),
         ("macos", "x86_64") => Ok("mac-x64"),
-        ("linux", _) => Ok("linux64"),
+        ("linux", "x86_64") => Ok("linux64"),
+        // Chrome for Testing has published an arm64 Linux build since Chrome 153.
+        ("linux", "aarch64") => Ok("linux-arm64"),
+        ("linux", arch) => Err(SeleniumBaseError::Unsupported(format!(
+            "unsupported platform: linux-{arch}; Chrome for Testing publishes no build for it, \
+             so put a chromedriver for this machine at downloaded_drivers/chromedriver"
+        ))),
         ("windows", "x86_64") => Ok("win64"),
         ("windows", "x86") => Ok("win32"),
-        other => Err(SeleniumBaseError::Unsupported(format!(
-            "unsupported platform: {}-{}",
-            other.0, other.1
+        (os, arch) => Err(SeleniumBaseError::Unsupported(format!(
+            "unsupported platform: {os}-{arch}"
         ))),
     }
 }
@@ -223,6 +234,34 @@ mod tests {
     fn the_milestone_listing_gives_the_driver_for_that_chrome_and_platform() {
         let url = chromedriver_milestone_url(&listing(), 155, "mac-arm64").unwrap();
         assert_eq!(url, "https://example.test/155/mac-arm64.zip");
+    }
+
+    #[test]
+    fn linux_on_arm_gets_the_arm_build_and_never_the_x86_one() {
+        // An x86-64 chromedriver cannot run on an arm64 machine, so a Docker image on an
+        // Apple-silicon or Graviton host failed to start its driver.
+        assert_eq!(label_for("linux", "aarch64").unwrap(), "linux-arm64");
+        assert_eq!(label_for("linux", "x86_64").unwrap(), "linux64");
+    }
+
+    #[test]
+    fn a_linux_architecture_with_no_build_is_refused_and_named() {
+        for arch in ["x86", "riscv64", "s390x"] {
+            let error = label_for("linux", arch).unwrap_err();
+            assert!(
+                error.to_string().contains(&format!("linux-{arch}")),
+                "{arch}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_other_systems_keep_their_labels() {
+        assert_eq!(label_for("macos", "aarch64").unwrap(), "mac-arm64");
+        assert_eq!(label_for("macos", "x86_64").unwrap(), "mac-x64");
+        assert_eq!(label_for("windows", "x86_64").unwrap(), "win64");
+        assert_eq!(label_for("windows", "x86").unwrap(), "win32");
+        assert!(label_for("freebsd", "x86_64").is_err());
     }
 
     #[test]

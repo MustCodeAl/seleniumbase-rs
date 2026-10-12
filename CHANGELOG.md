@@ -278,6 +278,12 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- The chromedriver download asks Chrome for Testing for the `linux-arm64` build on
+  an arm64 Linux machine (a Docker container on an Apple-silicon Mac, or on
+  Graviton) instead of the x86-64 `linux64` one, which cannot run there: the
+  WebDriver engine failed with "chromedriver exited as it started". The build
+  exists from Chrome 153 on; on Linux machines of any other architecture the
+  error now says that no build is published and where to put a driver.
 - `BrowserSession::reconnect` stops the chromedriver of the previous session when
   the new one starts its own, so `uc_open_with_reconnect` no longer leaves one
   chromedriver running per call.
