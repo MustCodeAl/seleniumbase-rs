@@ -299,6 +299,11 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   removed from the trait; `From<AsyncStepRegistry> for StepRegistry` was removed;
   `common::{decorators, exceptions}` remain as `#[deprecated]` shims over
   `utilities::retry`.
+- The real-Chrome tests of `MitmProxy` (`tests/impersonate_mitm_chrome.rs`) no
+  longer all skip off the measured system: only the one that compares the browser
+  with the measured persona does. The pin, loopback and SSRF refusal and
+  WebSocket tests run on any Chrome or Chromium, one of another major being
+  started with the profile's user agent.
 
 ### Fixed
 

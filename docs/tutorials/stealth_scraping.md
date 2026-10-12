@@ -1058,7 +1058,11 @@ that is a tab's first request fails on the `407` (pinned, see above). Two more
 tests are about the pin: a loopback server carrying the pinned key is never
 served to the page behind the proxy, and the same server is served to a Chrome
 that has the pin and no proxy. The origin in these tests is a server of the test,
-not a live site.
+not a live site. Only the first test compares the browser with the measured
+persona, so only it skips on a system that is not measured. The others are about
+the proxy's own rules and run on any Chrome or Chromium; one whose major is not
+the measured one is started with the profile's user agent, because the proxy
+refuses a request that claims another Chrome major.
 
 ## StealthSession
 

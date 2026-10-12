@@ -17,6 +17,12 @@
 //!   first request through the proxy fails on the `407`, which Chrome does not retry with the
 //!   token (pinned as a known limit).
 //!
+//! Only the first test compares the browser with the measured persona, so only it needs the
+//! measured system (Chrome 155 on macOS) and skips elsewhere (`support/measured_host.rs`). The
+//! others are about the proxy's rules and run on any Chrome or Chromium: one whose major is not the
+//! measured one is started with the profile's user agent, because the proxy refuses a request that
+//! claims another Chrome major, and that refusal is not what these tests are about.
+//!
 //! The tests start Chrome, so they are ignored by default. Only one Chrome-driving test binary may
 //! run on the machine at a time:
 //!
@@ -80,23 +86,12 @@ const BACKDATE_SECS: i64 = 3600;
 /// How long the attacker's certificate lasts.
 const LIFETIME_SECS: i64 = 86_400;
 
-/// Starts Chrome with `builder` and checks it is the measured major.
+/// Starts Chrome with `builder` and checks it is the measured major, for the tests that compare
+/// the browser with the measured persona. Those skip on a system that is not measured
+/// (`measured_host`), and fail on a measured one whose Chrome has moved on.
 async fn launch(builder: LaunchOptionsBuilder) -> Browser {
-    let options = builder
-        .headless(true)
-        .build()
-        .expect("valid launch options");
-    let browser = Browser::launch(options).await.expect("Chrome starts");
-    let version = browser
-        .execute("Browser.getVersion", json!({}))
-        .await
-        .expect("a version");
-    let product = version["product"].as_str().unwrap_or_default().to_owned();
-    let major: Option<u32> = product
-        .split('/')
-        .nth(1)
-        .and_then(|full| full.split('.').next())
-        .and_then(|major| major.parse().ok());
+    let browser = start(builder).await;
+    let (major, product) = browser_major(&browser).await;
     assert_eq!(
         major,
         Some(profile().major()),
@@ -105,9 +100,60 @@ async fn launch(builder: LaunchOptionsBuilder) -> Browser {
     browser
 }
 
-/// Chrome behind `mitm`.
+/// Starts the installed Chrome or Chromium with `builder`, whatever its major, for the tests that
+/// do not depend on the persona: the pin, the destination filter and the WebSocket relay. They run
+/// on any system.
+///
+/// The proxy refuses a request whose user agent claims another Chrome major than its profile
+/// (`MitmError::VersionMismatch`), which none of these tests is about. A browser of another major
+/// (Chromium 154 on Linux, say) is therefore started again with the profile's user agent; the
+/// measured Chrome keeps its own.
+async fn launch_any(builder: LaunchOptionsBuilder) -> Browser {
+    let browser = start(builder.clone()).await;
+    let (major, product) = browser_major(&browser).await;
+    if major == Some(profile().major()) {
+        return browser;
+    }
+    eprintln!(
+        "{product} is not the measured Chrome {}: started again with the profile's user agent",
+        profile().major()
+    );
+    browser.close().await.expect("Chrome closes");
+    start(builder.user_agent(profile().user_agent())).await
+}
+
+/// Starts a headless browser with `builder`.
+async fn start(builder: LaunchOptionsBuilder) -> Browser {
+    let options = builder
+        .headless(true)
+        .build()
+        .expect("valid launch options");
+    Browser::launch(options).await.expect("Chrome starts")
+}
+
+/// The major version the browser reports, and the product it names.
+async fn browser_major(browser: &Browser) -> (Option<u32>, String) {
+    let version = browser
+        .execute("Browser.getVersion", json!({}))
+        .await
+        .expect("a version");
+    let product = version["product"].as_str().unwrap_or_default().to_owned();
+    let major = product
+        .split('/')
+        .nth(1)
+        .and_then(|full| full.split('.').next())
+        .and_then(|major| major.parse().ok());
+    (major, product)
+}
+
+/// The measured Chrome behind `mitm`.
 async fn launch_behind(mitm: &MitmProxy) -> Browser {
     launch(mitm.configure_launch(LaunchOptions::builder())).await
+}
+
+/// Any Chrome or Chromium behind `mitm` (see [`launch_any`]).
+async fn launch_any_behind(mitm: &MitmProxy) -> Browser {
+    launch_any(mitm.configure_launch(LaunchOptions::builder())).await
 }
 
 /// The text of the page, or an empty string.
@@ -172,11 +218,6 @@ async fn chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page() {
-    if !measured_host::measured_or_skip(
-        "a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page",
-    ) {
-        return;
-    }
     let ca = new_ca();
     // Loopback is allowed here so that the refusal under test is the certificate check.
     let options = MitmOptions::default()
@@ -184,7 +225,7 @@ async fn a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page()
         .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
     let attacker = Attacker::start(pinned_leaf(&mitm, &der(&ca)).await).await;
-    let browser = launch_behind(&mitm).await;
+    let browser = launch_any_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
 
     // A navigation that fails outright is a refusal too; only what loads matters.
@@ -208,11 +249,6 @@ async fn a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page()
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key() {
-    if !measured_host::measured_or_skip(
-        "without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key",
-    ) {
-        return;
-    }
     let ca = new_ca();
     let (mitm, _sink) = start_mitm(None, MitmOptions::default().ca(Arc::clone(&ca))).await;
     let attacker = Attacker::start(pinned_leaf(&mitm, &der(&ca)).await).await;
@@ -221,7 +257,7 @@ async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_k
         .into_iter()
         .find(|arg| arg.starts_with("--ignore-certificate-errors-spki-list="))
         .expect("the pin switch");
-    let browser = launch(LaunchOptions::builder().arg(pin)).await;
+    let browser = launch_any(LaunchOptions::builder().arg(pin)).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
 
     let _loaded = page
@@ -240,11 +276,6 @@ async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_k
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
-    if !measured_host::measured_or_skip(
-        "a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service",
-    ) {
-        return;
-    }
     let service = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("binds loopback");
@@ -257,7 +288,7 @@ async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
         }
     });
     let (mitm, _sink) = start_mitm(None, MitmOptions::default()).await;
-    let browser = launch_behind(&mitm).await;
+    let browser = launch_any_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
 
     // Chrome sends loopback hosts to the proxy (`--proxy-bypass-list=<-loopback>`), which has
@@ -288,18 +319,13 @@ async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo() {
-    if !measured_host::measured_or_skip(
-        "a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo",
-    ) {
-        return;
-    }
     let mut echo = EchoOrigin::start().await;
     let options = MitmOptions::default()
         .trust_upstream_root(echo.root())
         .resolve(WS, echo.addr())
         .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
-    let browser = launch_behind(&mitm).await;
+    let browser = launch_any_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
     let port = echo.addr().port();
     page.goto(format!("https://{WS}:{port}/"))
@@ -349,9 +375,6 @@ async fn a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
-    if !measured_host::measured_or_skip("a_plain_ws_websocket_is_refused_by_the_proxy") {
-        return;
-    }
     let echo = EchoOrigin::start().await;
     let plain = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await
@@ -370,7 +393,7 @@ async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
         .resolve(PLAIN, plain_addr)
         .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
-    let browser = launch_behind(&mitm).await;
+    let browser = launch_any_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
     // A navigation through the proxy first, so that Chrome holds the proxy's credentials; then
     // a blank page, which is not a secure context and so may try `ws://`.
@@ -408,18 +431,13 @@ async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_websocket_before_any_request_through_the_proxy_fails_on_the_407() {
-    if !measured_host::measured_or_skip(
-        "a_websocket_before_any_request_through_the_proxy_fails_on_the_407",
-    ) {
-        return;
-    }
     let echo = EchoOrigin::start().await;
     let options = MitmOptions::default()
         .trust_upstream_root(echo.root())
         .resolve(WS, echo.addr())
         .allow_private_destinations(true);
     let (mitm, _sink) = start_mitm(None, options).await;
-    let browser = launch_behind(&mitm).await;
+    let browser = launch_any_behind(&mitm).await;
     let page = browser.new_page(None::<&str>).await.expect("a tab");
     let before = mitm.stats();
 
