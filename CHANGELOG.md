@@ -196,6 +196,14 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Changed
 
+- The `Dockerfile` links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
+  the working directory, so the WebDriver engine in the image starts a browser with no
+  network instead of downloading a driver, and its builder stage takes a
+  `CARGO_BUILD_JOBS` build argument for small machines. `docker/Dockerfile.verify` and
+  `docker/verify-linux.sh` run the test suite on Linux in a container (the sources
+  mounted read-only, the build output in a volume, a virtual display for the headed
+  tests). The suite, run that way on linux/arm64 with Chromium 154, is in
+  `docs/platforms.md`.
 - `sbase` exits with a status that follows the error's category instead of
   always 1, and prints `error: ...` instead of `[ERROR] ...`.
 - `TestResult` has a `failure` field, and `PageEvidence` gains `current_url` and

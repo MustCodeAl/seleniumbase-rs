@@ -12,9 +12,11 @@ run it in a container. For writing and running tests with it, start with
 - **A Chrome or Chromium** to drive. The pure CDP engine (`sb_cdp`) needs
   nothing else; the WebDriver engine also needs a chromedriver of the same major
   version, which `sbase install` downloads and `sbase doctor` checks.
-- **For the optional `impersonate` feature only:** `cmake` and a C/C++ toolchain,
-  because it builds BoringSSL. (Part of that feature exists; see
-  [Stealth Scraping](tutorials/stealth_scraping.md) for what.)
+- **For the optional `impersonate` feature only:** `cmake`, a C/C++ toolchain and
+  libclang (the BoringSSL crate generates its bindings with bindgen), because it
+  builds BoringSSL. On Debian 12 that is `apt-get install cmake clang libclang-dev`
+  on top of the `rust` image, which built it on arm64. (Part of that feature
+  exists; see [Stealth Scraping](tutorials/stealth_scraping.md) for what.)
 
 ## Build
 
@@ -69,18 +71,98 @@ sbase install         # fetches the chromedriver that matches your Chrome
 
 The `Dockerfile` builds `sbase` with locked dependencies in a Rust 1.99 stage and
 copies it into a `debian:bookworm-slim` image with Chromium and its driver. It
-runs as a non-root user and has no `EXPOSE`, because `sbase` is a command-line
-tool.
+runs as a non-root user (`sbase`) and has no `EXPOSE`, because `sbase` is a
+command-line tool. The driver in `/usr/bin` is linked as
+`downloaded_drivers/chromedriver` in the working directory, which is where the
+WebDriver engine looks first, so the image needs no network to start a browser.
 
 ```bash
-docker build -t seleniumbase-rs .
+docker build --no-slim -t seleniumbase-rs .
 docker run --rm seleniumbase-rs --help
+docker run --rm seleniumbase-rs doctor
+docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
+    'data:text/html,<title>Smoke</title><h1>hi</h1>' --title-contains Smoke
 ```
 
-If you build through an image optimiser that decides what to keep by watching a
-run (Docker Slim, for example), exclude this image: `sbase --help` never starts
-Chromium, so the optimised image would lose the browser. Drop `chromium-driver`
-from the `Dockerfile` if you only use the pure CDP engine.
+- On a machine with little memory, limit Cargo's parallelism in the build:
+  `docker build --build-arg CARGO_BUILD_JOBS=2 -t seleniumbase-rs .`
+- `--no-slim` belongs to the local build wrapper that runs Slim (see below). Plain
+  `docker build` does not know it ("unknown flag: --no-slim"), so leave it out there.
+- The arguments after the image name are `sbase` arguments. `--headless` comes
+  before the subcommand. `sbase open` and `smoke` do not read `SB_HEADLESS` (only
+  `--config` makes `sbase` apply the `SB_*` variables), and without `--headless`
+  Chromium fails in a container for lack of a display.
+- If you build through an image optimiser that decides what to keep by watching a
+  run (Docker Slim, for example), exclude this image: `sbase --help` never starts
+  Chromium, so the optimised image would lose the browser. Drop `chromium-driver`
+  from the `Dockerfile` if you only use the pure CDP engine (and then drop the
+  `ln -s` step that links it).
+
+Verified on an Apple-silicon Mac under OrbStack (so linux/arm64, Debian 12,
+Chromium 154.0.8037.92): the build succeeds in about four minutes with two Cargo
+jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
+`doctor` finds `/usr/bin/chromium` and a chromedriver of the same major version;
+the `smoke` command above exits with status 0 with no network. `sbase install` in
+the image downloads an aarch64 chromedriver (Chrome for Testing publishes
+`linux-arm64` from Chrome 153 on).
+
+### Run the tests in a container
+
+`docker/Dockerfile.verify` is a throwaway image for the test suite: the Rust
+toolchain, Debian's Chromium and chromedriver, `cmake` and `clang` for the
+`impersonate` feature's BoringSSL, and Xvfb. `docker/verify-linux.sh` is its entry
+point: it copies the read-only checkout mounted at `/src` to `/work`, so tests that
+write beside their sources cannot touch your tree, and then runs your command there.
+The build output lives in a named volume (about 4.4 GB for the runs below), and the
+Cargo registry in another.
+
+```bash
+docker build --no-slim -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .
+docker volume create sbrs-verify-target
+docker volume create sbrs-verify-registry
+
+# Run a command on a copy of this checkout. 4 GB and two Cargo jobs fit an 8 GB machine.
+run() {
+  docker run --rm --memory=4g --memory-swap=4g --shm-size=1g -e CARGO_BUILD_JOBS=2 \
+    -v "$PWD":/src:ro -v sbrs-verify-target:/target \
+    -v sbrs-verify-registry:/usr/local/cargo/registry \
+    seleniumbase-rs:verify-tools "$@"
+}
+
+run cargo test --locked --features "mcp-server test-util scrape" --no-fail-fast --lib --tests
+run cargo test --locked --features "mcp-server test-util scrape" --no-fail-fast --doc \
+    -- --test-threads=2
+run cargo test --locked --features "impersonate test-util" --lib impersonate
+run cargo test --locked --features "impersonate test-util" --no-fail-fast \
+    --test impersonate_http --test impersonate_mitm --test stealth_session \
+    --test impersonate_wire --test impersonate_capture_h2
+
+# A real-browser binary, one at a time:
+run cargo test --locked --features "mcp-server test-util scrape" --test sb_cdp_chrome \
+    -- --ignored --test-threads=1
+
+# The tests that need a headed Chrome get a virtual display:
+docker run --rm --memory=4g --memory-swap=4g --shm-size=1g -e SBRS_XVFB=1 \
+    -e CARGO_BUILD_JOBS=2 -v "$PWD":/src:ro -v sbrs-verify-target:/target \
+    -v sbrs-verify-registry:/usr/local/cargo/registry seleniumbase-rs:verify-tools \
+    cargo test --locked --features "mcp-server test-util scrape" --test scrape_capture_chrome \
+    -- --ignored --test-threads=1
+```
+
+The doc tests need `-- --test-threads=2` in 4 GB: with the default of one thread per
+CPU, the linker was killed for lack of memory in 66 of them. Give the container more
+memory instead if you have it.
+
+The image sets `CI=true` and `SB_NO_SANDBOX=1` (Chromium cannot start its sandbox as
+root in a container, and the real-browser tests read `CI`) and `SB_HEADLESS=true`.
+The results, and what they showed, are under
+[Verified on Linux](platforms.md#verified-on-linux). Remove everything when you are
+done:
+
+```bash
+docker rmi seleniumbase-rs:verify-tools seleniumbase-rs
+docker volume rm sbrs-verify-target sbrs-verify-registry
+```
 
 Adding a `[[bin]]`, `[[example]]`, `[[bench]]` or `[[test]]` to `Cargo.toml`
 also needs a line in the `Dockerfile` skeleton step, or the image build fails;
@@ -119,6 +201,7 @@ rebuilds it from `parity/api.toml`.
 ## Platforms
 
 CI builds and tests on Linux, macOS and Windows (`.github/workflows/ci.yml`);
-development and the project's own checks run on macOS (Apple silicon). Measured
-browser fingerprint data is macOS only for now. Per-system notes are in
+development and the project's own checks run on macOS (Apple silicon). The suite
+was also run on Linux arm64 (Debian 12, Chromium 154) in a container, as above.
+Measured browser fingerprint data is macOS only for now. Per-system notes are in
 [Operating systems](platforms.md).

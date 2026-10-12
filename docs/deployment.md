@@ -34,7 +34,7 @@ different values. The ones to know:
 | `SB_USER_AGENT`, `SB_LOCALE`, `SB_MOBILE` | identity settings |
 | `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT` | window size |
 | `SB_SCREENSHOT_DIR`, `SB_USER_DATA_DIR` | where artifacts and profiles go |
-| `SB_NO_SANDBOX` | pass `--no-sandbox` to Chrome (see below) |
+| `SB_NO_SANDBOX` | pass `--no-sandbox` to Chrome in the pure CDP engine (see below) |
 | `SB_MCP_OUTPUT_DIR` | where the MCP server may write files (default `./mcp_output`) |
 
 Pass secrets (proxy logins, cloud credentials) through your platform's secret
@@ -50,19 +50,38 @@ The repository's `Dockerfile` builds `sbase` and copies it into a
 user, listens on no port, and its entry point is `sbase`:
 
 ```bash
-docker build -t seleniumbase-rs .
+docker build --no-slim -t seleniumbase-rs .
 docker run --rm seleniumbase-rs --help
-docker run --rm -e SB_HEADLESS=true -e SB_NO_SANDBOX=1 seleniumbase-rs doctor
+docker run --rm seleniumbase-rs doctor
+docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
+    'data:text/html,<title>Smoke</title><h1>hi</h1>' --title-contains Smoke
 ```
+
+These four commands exited with status 0 on linux/arm64 (Debian 12, Chromium
+154), and the last one starts a headless Chromium with no network. The full
+commands, the build time and the test results are in
+[Building and installing](building.md#container) and
+[Operating systems](platforms.md#verified-on-linux).
 
 Notes:
 
 - Because the entry point is `sbase`, the arguments after the image name are
-  `sbase` arguments. Do not repeat `sbase`.
-- Chrome refuses to start its sandbox in many container setups. `SB_NO_SANDBOX=1`
-  (or `LaunchOptionsBuilder::no_sandbox(true)` in the pure CDP engine) passes
-  `--no-sandbox`. That weakens the browser's isolation, so use it only in a
-  container you control and give the container no more privileges than it needs.
+  `sbase` arguments. Do not repeat `sbase`. The browser commands (`open`,
+  `smoke`, ...) do not read `SB_HEADLESS` unless you pass `--config`, so give them
+  `--headless` before the subcommand; a container has no display.
+- `--no-slim` is the flag of a local build wrapper that runs Docker Slim; plain
+  `docker build` does not know it. Slim finds what to keep by watching a run, so it
+  must not optimise this image (see the last note).
+- The image links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
+  the working directory, where the WebDriver engine looks first, so it downloads
+  nothing. Without that link it would download the matching Chrome for Testing
+  driver (`linux64` or `linux-arm64`) on first use.
+- Chrome refuses to start its sandbox in many container setups. The WebDriver
+  engine always passes `--no-sandbox` on Linux. For the pure CDP engine,
+  `SB_NO_SANDBOX=1` (any value counts, `0` included) or
+  `LaunchOptionsBuilder::no_sandbox(true)` passes it. That weakens the browser's
+  isolation, so use it only in a container you control and give the container no
+  more privileges than it needs.
 - Chromium in Docker often needs a larger shared-memory area than the default;
   `docker run --shm-size=1g ...` is the usual remedy for crashes under load.
   This is general Chromium advice, not something this project measured.
@@ -86,6 +105,13 @@ export SB_HEADLESS=true
 cargo test --features "test-util" # tests that need no browser
 cargo test -- --ignored           # the tests that launch Chrome, if you want them
 ```
+
+On a CI runner that is a container, or runs as root, also set `CI=true`: the
+real-browser tests of this repository read it and then pass `--no-sandbox`. Give
+the doc tests `-- --test-threads=2` on a runner with 4 GB or less; with one linker
+per CPU they were killed for lack of memory. The tests that start the
+measurement tools need a headed Chrome, so run those under a virtual display
+(`Xvfb`). `docker/Dockerfile.verify` is a ready-made image for all of this.
 
 Run browser tests in a controlled number of parallel workers and keep
 `cargo nextest`'s zero-retry profile: retries hide flaky tests (see

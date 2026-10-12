@@ -22,6 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# clippy and rustfmt: the official image carries neither, and the lint and format checks of the
+# gate (`cargo clippy ... -D warnings`, `cargo fmt --all -- --check`) run in it too.
+RUN rustup component add clippy rustfmt
+
 # xvfb and xauth: a virtual display for the few tests that need a headed browser (the
 # measurement tools run the real, headed Chrome because a headless one reports another
 # identity). Run those under `xvfb-run -a`.
