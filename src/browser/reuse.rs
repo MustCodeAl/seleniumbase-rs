@@ -44,12 +44,13 @@
 //! [`drain_cleanups`](crate::common::shutdown::drain_cleanups), which `sbase`
 //! and the MCP server call before they exit.
 //!
-//! **A browser can be left running.** When the process ends sooner than the
-//! idle timeout after the last test that used a browser, as a test binary
-//! usually does, nothing gets the chance to close that browser or its driver.
-//! Call [`shutdown_reused_sessions`] where the run ends (the `main` of a
-//! `harness = false` test target, or the end of a program), or stop the
-//! leftover `chromedriver` by hand.
+//! When the process ends sooner than the idle timeout after the last test that
+//! used a browser, as a test binary usually does, nothing in the process gets
+//! the chance to close that browser. On Unix it ends anyway: the driver and the
+//! browser belong to a process group that a watcher ends when this process
+//! exits, by any means. On Windows nothing watches them; call
+//! [`shutdown_reused_sessions`] where the run ends (the `main` of a
+//! `harness = false` test target, or the end of a program).
 //!
 //! # What plays the role of a test class
 //!

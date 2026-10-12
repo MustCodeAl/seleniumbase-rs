@@ -14,13 +14,18 @@ use crate::browser::downloader::download_chrome_driver_for;
 use crate::browser::driver_access::{killed_by_the_system, make_runnable, spawn_repairing};
 use crate::browser::driver_version::{binary_major, fit, Fit};
 use crate::browser::options::{DriverVersion, LaunchSwitch};
+use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
 use crate::stealth::patcher::find_system_chrome;
 
 /// A running WebDriver process launched by the crate.
+///
+/// On Unix the driver and the browser it starts end with this program, also
+/// when the program is killed without quitting them.
 pub struct DriverProcess {
     pub url: String,
     child: Child,
+    _guard: OrphanGuard,
 }
 
 impl DriverProcess {
@@ -56,6 +61,7 @@ pub async fn launch_chromedriver_at(
     let url = format!("http://127.0.0.1:{port}");
 
     let binary_str = binary.display().to_string();
+    let guard = OrphanGuard::start();
     let configure = |command: &mut std::process::Command| {
         command
             .arg(format!("--port={port}"))
@@ -65,6 +71,7 @@ pub async fn launch_chromedriver_at(
         if let Some(display) = display {
             command.env("DISPLAY", display);
         }
+        guard.enroll(command);
     };
     let mut child = spawn_repairing(binary, configure).inspect_err(|err| {
         err.log_in_context("launch_chromedriver");
@@ -94,7 +101,11 @@ pub async fn launch_chromedriver_at(
         }
     }
 
-    Ok(DriverProcess { url, child })
+    Ok(DriverProcess {
+        url,
+        child,
+        _guard: guard,
+    })
 }
 
 /// How waiting for the driver's port ended.
@@ -415,6 +426,7 @@ async fn launch_driver_binary(
     let url = format!("http://127.0.0.1:{port}");
     let binary_str = binary.display().to_string();
     let arguments = args(port);
+    let guard = OrphanGuard::start();
     let mut child = spawn_repairing(binary, |command| {
         command
             .args(&arguments)
@@ -423,9 +435,14 @@ async fn launch_driver_binary(
         if let Some(display) = display {
             command.env("DISPLAY", display);
         }
+        guard.enroll(command);
     })?;
     match wait_for_port(port, Duration::from_secs(15), &binary_str, &mut child).await? {
-        Waited::Ready => Ok(DriverProcess { url, child }),
+        Waited::Ready => Ok(DriverProcess {
+            url,
+            child,
+            _guard: guard,
+        }),
         Waited::Exited(status) => Err(SeleniumBaseError::browser_launch(
             binary_str,
             format!("the driver exited as it started ({status})"),

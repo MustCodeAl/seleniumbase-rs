@@ -17,6 +17,7 @@ use super::page::{Page, DEFAULT_TIMEOUT};
 use super::proxy_auth::{Credentials, ProxyAuth};
 use super::sync::locked;
 use super::types::{PageInfo, Permission};
+use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
 
 /// How long to wait for `Browser.close` to end the process before killing it.
@@ -46,6 +47,7 @@ mod host_tests {
     fn attached_to(host: &str, port: u16) -> Browser {
         Browser::from_parts(
             Arc::new(Client::mocked(MockCtrl::new())),
+            None,
             None,
             None,
             (host.to_owned(), port),
@@ -138,6 +140,8 @@ pub(crate) struct Inner {
     pub(crate) client: Arc<Client>,
     process: Mutex<Option<Child>>,
     _profile: Option<TempDir>,
+    /// Ends the launched browser if this program ends without closing it.
+    _guard: Option<OrphanGuard>,
     /// The machine the DevTools endpoint is on: this one for a launched
     /// browser, the given one for a browser attached with `connect`.
     host: String,
@@ -205,6 +209,7 @@ impl Browser {
             client,
             Some(launched.child),
             launched.profile,
+            Some(launched.guard),
             (LOCAL_HOST.to_owned(), launched.port),
             launched.ws_url,
             options.clone(),
@@ -247,6 +252,7 @@ impl Browser {
             client,
             None,
             None,
+            None,
             (host.to_owned(), port),
             ws_url,
             LaunchOptions::default(),
@@ -268,6 +274,7 @@ impl Browser {
             client,
             None,
             None,
+            None,
             (LOCAL_HOST.to_owned(), 0),
             "ws://mock.invalid/devtools/browser/mock".to_owned(),
             LaunchOptions::default(),
@@ -279,6 +286,7 @@ impl Browser {
         client: Arc<Client>,
         process: Option<Child>,
         profile: Option<TempDir>,
+        guard: Option<OrphanGuard>,
         (host, port): (String, u16),
         ws_url: String,
         options: LaunchOptions,
@@ -293,6 +301,7 @@ impl Browser {
                 client,
                 process: Mutex::new(process),
                 _profile: profile,
+                _guard: guard,
                 host,
                 port,
                 ws_url,

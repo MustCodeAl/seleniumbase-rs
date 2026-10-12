@@ -10,6 +10,7 @@ use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
 use super::identity::Identity;
+use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::{Fingerprint, ProxyConfig, ProxyMaskingMode, WebRtcPolicy};
 use crate::stealth::patcher::find_system_chrome;
@@ -586,6 +587,8 @@ pub(crate) struct LaunchedBrowser {
     pub(crate) ws_url: String,
     /// Keeps a throwaway profile alive until the browser is dropped.
     pub(crate) profile: Option<TempDir>,
+    /// Ends the browser if this program ends without closing it.
+    pub(crate) guard: OrphanGuard,
 }
 
 /// Finds a browser binary according to `options`.
@@ -643,12 +646,16 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
     // A stale file from an earlier run would be read as the new endpoint.
     let _ = std::fs::remove_file(&endpoint_file);
 
-    let mut child = Command::new(&binary)
+    let guard = OrphanGuard::start();
+    let mut command = Command::new(&binary);
+    command
         .args(options.browser_args(&profile_dir))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .kill_on_drop(true)
+        .kill_on_drop(true);
+    guard.enroll_tokio(&mut command);
+    let mut child = command
         .spawn()
         .map_err(|e| SeleniumBaseError::browser_launch(binary_name.clone(), e.to_string()))?;
 
@@ -663,6 +670,7 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
                 port,
                 ws_url: format!("ws://127.0.0.1:{port}{path}"),
                 profile,
+                guard,
             });
         }
         if let Ok(Some(status)) = child.try_wait() {
