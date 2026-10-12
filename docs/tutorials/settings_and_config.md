@@ -37,6 +37,7 @@ proxy = "http://proxy.example.com:8080"
 proxy_pac_url = ""
 mode = "webdriver"
 reuse_session = false
+reuse_class_session = false
 mobile = false
 threads = 2
 locale = "en-US"
@@ -103,6 +104,7 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 | `SB_MODE` | `mode` (`webdriver`, `cdp`, or `uc`) |
 | `SB_AD_BLOCK` | `ad_block` |
 | `SB_REUSE_SESSION` | `reuse_session` |
+| `SB_REUSE_CLASS_SESSION` | `reuse_class_session` |
 | `SB_MOBILE` | `mobile` |
 | `SB_THREADS` | `threads` |
 | `SB_ESC_END` | `esc_end`: pressing ESC in the browser ends the test (Python's `--esc-end`) |

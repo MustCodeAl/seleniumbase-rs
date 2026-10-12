@@ -4514,6 +4514,7 @@ note = "Run with chromedriver; the program is found in Comet's install locations
 [options_pytest."--crumbs"]
 status = "composed"
 rust = "BaseCase::delete_all_cookies"
+note = "With --reuse-session or --rcs, a browser handed to the next test always has its cookies deleted (every cookie, through DevTools, on Chromium) and goes to about:blank, so --crumbs is in effect whenever a browser is reused. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test."
 
 [options_pytest."--crx"]
 status = "implemented"
@@ -5166,8 +5167,10 @@ rust = "BrowserConfig::with_proxy_for_driver_download"
 note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--rcs"]
-status = "planned"
-note = "Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
+status = "implemented"
+rust = "BrowserConfig::with_reuse_module_session"
+note = "Alias of --reuse-class-session upstream. Also `sbase --rcs` (aliases `--reuse-class-session`, `--reuse_class_session`), `Settings::reuse_class_session` and SB_REUSE_CLASS_SESSION; like upstream it turns --reuse-session on. Rust has no test classes, so the module that holds the test plays the part: it is read from the name libtest gives the test's thread (`login::tests::valid` is in `login::tests`; the tests at the root of an integration test file share the root module). BrowserConfig::with_reuse_class_session(name) shares a browser among the tests that pass the same name instead. Tests of different classes never share a browser; the rest is as for --reuse-session."
+divergence = "Python quits the class's browser when the next class starts (setUpClass and tearDownClass); here it stays open until the idle timeout, so the browsers of several modules can be open at once. A BaseCase made outside a libtest thread (a custom harness, a spawned task on a Tokio worker) counts as the root module."
 
 [options_pytest."--rec"]
 status = "composed"
@@ -5241,24 +5244,34 @@ rust = "BrowserConfig::with_remote_debug"
 note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names another."
 
 [options_pytest."--reuse-class-session"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "BrowserConfig::with_reuse_module_session"
+note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbase --reuse-class-session` and SB_REUSE_CLASS_SESSION. See --rcs."
+divergence = "See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts."
 
 [options_pytest."--reuse-session"]
-status = "planned"
-note = "BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
+status = "implemented"
+rust = "BrowserConfig::with_reuse_session"
+note = "Also `sbase --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbase calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout."
+divergence = "Python keeps the previous test's cookies and page unless --crumbs is given; here a reused browser is always cleaned, because Rust tests run in any order and side by side. Python quits the shared browser when pytest ends; a Rust test binary has no end-of-run hook, so the idle timeout does it, and a binary that exits sooner after its last test leaves that browser and its chromedriver running unless shutdown_reused_sessions() is called. Under cargo-nextest each test is a process of its own and nothing is shared."
 
 [options_pytest."--reuse_class_session"]
-status = "not-applicable"
-reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
+status = "implemented"
+rust = "BrowserConfig::with_reuse_module_session"
+note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbase --reuse_class_session` and SB_REUSE_CLASS_SESSION. See --rcs."
+divergence = "See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts."
 
 [options_pytest."--reuse_session"]
-status = "planned"
-note = "BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
+status = "implemented"
+rust = "BrowserConfig::with_reuse_session"
+note = "The same option as --reuse-session: the tests of a run share browsers, cleaned between tests. Also `sbase --reuse_session` and SB_REUSE_SESSION. See --reuse-session."
+divergence = "See --reuse-session: the browser is always cleaned (Python needs --crumbs), and it closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--rs"]
-status = "planned"
-note = "Alias of --reuse-session upstream. BrowserConfig::reuse_session is stored and passed through (the sbase flag, Settings and SB_REUSE_SESSION set it) but nothing reads it: a new BaseCase always starts a new browser. Python keeps one browser for the whole run."
+status = "implemented"
+rust = "BrowserConfig::with_reuse_session"
+note = "Alias of --reuse-session upstream: the tests of a run share browsers, cleaned between tests. Also `sbase --rs` and SB_REUSE_SESSION. See --reuse-session."
+divergence = "See --reuse-session: the browser is always cleaned (Python needs --crumbs), and it closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--safari"]
 status = "implemented"

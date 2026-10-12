@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (876 implemented,
-  384 composed, 96 not-applicable with a reason, 9 planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (882 implemented,
+  384 composed, 94 not-applicable with a reason, 5 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **`--esc-end`** (`--esc_end`, `--ee`): `BrowserConfig::with_esc_end`,
@@ -82,6 +82,28 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `BaseCase::export_recording_as_cdp_rust` asks for it by name.
   `tests/recorder_cdp_compiles.rs` compiles the program written for every
   supported action.
+- **`--reuse-session`** (`--reuse_session`, `--rs`) and **`--rcs`**
+  (`--reuse-class-session`, `--reuse_class_session`): `BrowserConfig::with_reuse_session`,
+  `with_reuse_module_session` and `with_reuse_class_session(name)`,
+  `Settings::reuse_session` and `reuse_class_session`, `SB_REUSE_SESSION`,
+  `SB_REUSE_CLASS_SESSION` and the `sbase` flags. A process-wide registry
+  (`browser::reuse`) keeps each shared browser's WebDriver server, session id and
+  chromedriver; `BaseCase::new` leases an idle browser started with the same
+  configuration and attaches to it with a client made in its own Tokio runtime
+  (each `#[tokio::test]` has one), after cleaning it: other windows closed, every
+  cookie and the open page's storage deleted, `about:blank`. `BaseCase::quit`
+  gives it back. One test holds a browser at a time; a second one at the same
+  time gets its own. Idle browsers close with their chromedriver after
+  `reuse::idle_timeout` (5 s, `SB_REUSE_IDLE_SECS`), at
+  `seleniumbase_rs::shutdown_reused_sessions()` and in `drain_cleanups`; a test
+  binary that exits sooner leaves its last browser running. `--rcs` shares a
+  browser per Rust module, read from the test thread's name.
+  `BaseCase::session_id` and `BrowserSession::session_id` are new. `http` and
+  `bytes` are now regular dependencies (they were optional, for `impersonate`).
+  Checked against a mock WebDriver and in Chrome 155
+  (`tests/reuse_session_chrome.rs`: two `#[tokio::test]` share one Chrome, the
+  first test's cookie and storage are gone in the second, and the reaper stops
+  chromedriver after the idle timeout).
 - **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
   session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing,
   `chrome-headless-shell`) refuse the requests of ad and tracker hosts. When the
@@ -315,9 +337,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `set_content_to_frame` and `install_addon`, the `--reuse-session` options, the
   `caseplans` and `behave-gui` commands and three CDP downloads were marked
   `planned` in `parity/api.toml`, because the Rust code only looked like the
-  Python one. The referral helpers, `set_content_to_frame`, `install_addon` and
-  the CDP downloads have since been written (see Added); the others are still
-  `planned`.
+  Python one. The referral helpers, `set_content_to_frame`, `install_addon`, the
+  CDP downloads and the `--reuse-session` options have since been written (see
+  Added); the others are still `planned`.
   `objectify` is not applicable and `mkrec` is mapped onto `sbase record`.
 - Waits report the error that stopped them, and link checks report real status
   codes.

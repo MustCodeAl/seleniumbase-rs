@@ -56,7 +56,8 @@ Key builder methods:
 | `with_user_data_dir(path)` | Launch with an existing Chromium profile. |
 | `with_extension_dir(path)` | Load an unpacked extension. |
 | `with_start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
-| `with_reuse_session(bool)` | Sets `reuse_session`. Nothing in the crate reads it yet, so it does not attach to an existing session. |
+| `with_reuse_session(bool)` | Share browsers among the tests of the run (`--reuse-session`, `--rs`); see [Sharing a browser between tests](#sharing-a-browser-between-tests). |
+| `with_reuse_module_session(bool)` / `with_reuse_class_session(name)` | Share a browser only among the tests of one module, or of one name (`--rcs`). Both turn `reuse_session` on. |
 | `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbase test` acts on a thread count (`-n`, as `--test-threads`). |
 | `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
 | `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
@@ -153,6 +154,67 @@ counts that as a skipped test, not a failure. A new page loses the listener, so
 `addEventListener`, so the page keeps its own key handlers. Only the WebDriver
 engine (`BaseCase`) has the option.
 
+### Sharing a browser between tests
+
+`with_reuse_session(true)` (`--reuse-session`, `--reuse_session`, `--rs`,
+`SB_REUSE_SESSION`) keeps a browser open from one test to the next, as Python's
+option does. `BaseCase::new` attaches to a browser that an earlier test of the
+same process started with the same configuration (everything but the start
+page) and has given back, and `BaseCase::quit`, `run_browser_test` or dropping
+the case gives it back open instead of closing it:
+
+```rust,no_run
+use seleniumbase_rs::{run_browser_test, BrowserConfig};
+
+#[tokio::test]
+async fn login_page_loads() -> seleniumbase_rs::Result<()> {
+    let config = BrowserConfig::default().with_reuse_session(true);
+    run_browser_test(config, |sb| {
+        Box::pin(async move { sb.open("https://example.com/login").await })
+    })
+    .await
+}
+```
+
+Each `#[tokio::test]` has its own Tokio runtime, so what is shared is the
+browser's WebDriver session, not a client: a process-wide registry keeps the
+address of its WebDriver server, its session id and the chromedriver this crate
+started, and each test attaches with a client of its own.
+
+- Before a test gets a browser back it is cleaned: an open dialog is dismissed,
+  every window but the first is closed, every cookie is deleted (through
+  DevTools on a Chromium browser), the open page's local and session storage is
+  cleared, and it goes to `about:blank` (then to the start page, if there is
+  one). Python keeps the cookies and the page unless `--crumbs` is given; here a
+  browser is always cleaned, because Rust tests run in any order and side by
+  side.
+- One test holds a browser at a time. A test that starts while every matching
+  browser is held gets a browser of its own, kept for reuse too, so a run with
+  four test threads ends up with up to four browsers. A browser that no longer
+  answers is closed and replaced.
+- `get_new_driver` browsers are never shared.
+- `BaseCase::session_id()` tells which browser a test has.
+
+`with_reuse_module_session(true)` (`--rcs`, `--reuse-class-session`,
+`SB_REUSE_CLASS_SESSION`) shares a browser only among the tests of one Rust
+module, which plays the part of Python's test class. The module is read from
+the name libtest gives the thread a test runs on: `login::tests::valid_password`
+is in `login::tests`, and every test at the root of an integration test file is
+in the root module. `with_reuse_class_session("Login")` shares one among the
+tests that pass the same name instead.
+
+Idle browsers are closed, with their chromedriver, by a background thread once
+no test has held them for five seconds (`seleniumbase_rs::browser::reuse::set_idle_timeout`,
+or `SB_REUSE_IDLE_SECS` in whole seconds), by
+`seleniumbase_rs::shutdown_reused_sessions()`, and by
+`common::shutdown::drain_cleanups`, which `sbase` calls before it exits. A Rust
+test binary has no hook that runs after its last test, and it usually exits
+sooner than the idle timeout: **the browser of the last tests and its
+chromedriver are then left running.** Call `shutdown_reused_sessions()` where
+your run ends (the `main` of a `harness = false` test target, or the end of a
+program), or stop the leftover `chromedriver` yourself. Under cargo-nextest each
+test is a process of its own, so nothing is shared.
+
 ## Global config file
 
 Create `sbase_config.toml` in the directory you run from, for shared defaults:
@@ -172,7 +234,7 @@ Every key is optional and any key you leave out keeps its default. The keys are
 the fields of `Settings`: `browser`, `headless`, `timeout_seconds`,
 `screenshot_dir`, `proxy`, `proxy_pac_url`, `window_width`, `window_height`,
 `user_data_dir`, `extension_dir`, `locale`, `user_agent`, `mode` (`webdriver`,
-`cdp` or `uc`), `ad_block`, `reuse_session`, `mobile`, `threads`, `esc_end`,
+`cdp` or `uc`), `ad_block`, `reuse_session`, `reuse_class_session`, `mobile`, `threads`, `esc_end`,
 `rec_sb_cdp` and `remote_webdriver_timeout_seconds`. Note that `timeout_seconds` is a whole
 number of seconds.
 
@@ -232,8 +294,8 @@ field of the same name: `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
 `SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_SCREENSHOT_DIR`, `SB_PROXY`,
 `SB_PROXY_PAC_URL`, `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`,
 `SB_EXTENSION_DIR`, `SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`,
-`SB_REUSE_SESSION`, `SB_MOBILE`, `SB_THREADS`, `SB_ESC_END` and
-`SB_REC_SB_CDP`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
+`SB_REUSE_SESSION`, `SB_REUSE_CLASS_SESSION`, `SB_MOBILE`, `SB_THREADS`,
+`SB_ESC_END` and `SB_REC_SB_CDP`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
 `on`/`off`. There is no automatic name mapping: a
 variable that is not in this list, such as `SB_LOGGING__LOG_LEVEL`, does
 nothing. See [Settings and Global Configuration](../tutorials/settings_and_config.md)
@@ -277,7 +339,8 @@ Common flags:
 | `--user-agent STRING` / `-a STRING` | Override the user agent. |
 | `--locale LOCALE` | Set the browser locale. |
 | `--ad-block` | Sets `ad_block`: a Chromium WebDriver session refuses the built-in list of ad and tracker hosts (`Network.setBlockedURLs`). Firefox and Safari block nothing. Images stay on; `--block-images` turns them off. |
-| `--reuse-session` / `--rs` | Sets `reuse_session`, which nothing reads yet (the `sbase --help` text for `--rs`, "Record the session actions", is wrong: it is the same flag). |
+| `--reuse-session` / `--reuse_session` / `--rs` | Share browsers among the tests of the run (see [Sharing a browser between tests](#sharing-a-browser-between-tests)); `sbase test` passes it on as `SB_REUSE_SESSION`. |
+| `--rcs` / `--reuse-class-session` / `--reuse_class_session` | Share a browser among the tests of one Rust module; `sbase test` passes it on as `SB_REUSE_CLASS_SESSION`. |
 | `-n NUM` / `--threads NUM` | With `sbase test`, run that many tests at once (`--test-threads`), so that many browsers. |
 | `--browser NAME` | Select `chrome`, `chromium`, `edge`, or `firefox`. |
 | `--cdp` / `--uc` | Select CDP or UC mode (they cannot be combined). |
