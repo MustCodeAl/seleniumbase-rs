@@ -399,6 +399,13 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- **The `playwright` feature no longer needs Python.** `rustwright-core` was a
+  direct dependency with its default `python` feature, which adds Python
+  bindings through pyo3, so every program built with `playwright` linked
+  `libpython` and failed to start without it (`dyld: Library not loaded:
+  @rpath/libpython3.14.dylib`). It is now used with `default-features = false`,
+  as `rustwright` itself does: pyo3 is gone from the dependency tree, the 54
+  `playwright` library tests pass, and the test binary links no `libpython`.
 - **Browsers no longer outlive the program that started them.** A chromedriver,
   the Chrome it starts, and a Chrome launched by the pure CDP engine kept running
   when the program that started them was killed (an interrupted test run, a

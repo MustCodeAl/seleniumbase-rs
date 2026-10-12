@@ -17,7 +17,8 @@ Design rules that apply to everything below:
 - Quality gate: `cargo fmt --all -- --check`, `cargo clippy --all-targets
   --features "mcp-server test-util" -- -D warnings`, `cargo test --features
   "mcp-server test-util"`, `cargo check --no-default-features`, `cargo deny
-  check`. (`--all-features` needs a `libpython` for the `playwright` feature.)
+  check`. (`playwright` no longer needs a `libpython`: `rustwright-core` is used
+  without its `python` feature, which only added Python bindings.)
 
 ## Done
 

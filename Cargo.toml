@@ -145,7 +145,9 @@ bytes = "1.12"
 # Optional Playwright-compatible engine via rustwright. Disabled by default
 # because it pulls a large Chromium automation core.
 rustwright = { version = "0.3", optional = true }
-rustwright-core = { version = "0.3", optional = true }
+# Without its default `python` feature: that one only adds Python bindings, and
+# would make every program built with `playwright` link libpython.
+rustwright-core = { version = "0.3", optional = true, default-features = false }
 rust-s3 = { version = "0.38", features = ["tokio-native-tls"], optional = true }
 azure_storage_blob = { version = "1.1", optional = true }
 azure_core = { version = "1.1", optional = true }
@@ -163,7 +165,7 @@ default = []
 tui = ["dep:ratatui", "dep:crossterm"]
 # Native OS dialogs and GUI automation (enigo/rfd).
 gui = ["dep:enigo", "dep:rfd"]
-# Playwright-compatible automation mode powered by rustwright.
+# Playwright-compatible automation mode powered by rustwright (pure Rust; no Python).
 playwright = ["dep:rustwright", "dep:rustwright-core"]
 # Extra tracing integrations (timing histograms, actix actor instrumentation).
 full-tracing = ["dep:tracing-timing", "dep:tracing-actix"]
@@ -191,3 +193,4 @@ impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls",
 tokio = { version = "1.53", features = ["test-util"] }
 printpdf = "0.12"
 syn = { version = "3", features = ["full", "visit"] }
+

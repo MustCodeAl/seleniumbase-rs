@@ -99,5 +99,5 @@ session.close().await?;
 |---|---|---|
 | `activate_playwright_mode` or `PlaywrightSession` not found | Feature not enabled | Build with `--features playwright`. |
 | Chromium download fails | Network restricted | Make a Chromium available to `rustwright` ahead of time; this crate cannot pass it a path. |
-| Test binary cannot load a `libpython` | `rustwright` needs one at link or run time (see `ROADMAP.md`) | Install a Python and add its `lib` folder to the loader path. |
+| A program built with `playwright` cannot load a `libpython` | A dependency of yours turns on `rustwright-core`'s default `python` feature (Python bindings); this crate leaves it off | Depend on `rustwright-core` with `default-features = false` too; nothing here needs Python. |
 | Session methods missing | API mismatch | Check the rustdocs for the installed `rustwright` version. |

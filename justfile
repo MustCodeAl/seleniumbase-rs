@@ -15,7 +15,6 @@ test:
     cargo test
 
 # Run tests with all optional features enabled
-# On macOS you may need to export DYLD_LIBRARY_PATH for the playwright feature.
 test-all:
     cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
 

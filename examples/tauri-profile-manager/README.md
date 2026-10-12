@@ -113,9 +113,8 @@ the schema URL moved to `https://schema.tauri.app/config/3`. To build on Tauri
 The whole library fits in a Tauri 3 app, not only the `turso` feature this
 example uses: with every `seleniumbase-rs` feature switched on
 (`cargo build --features seleniumbase-rs/impersonate,seleniumbase-rs/mcp-server,...`),
-the app builds and links, and the 115 tests pass with all of them except
-`playwright`. That feature embeds Python, so a binary built with it needs
-`libpython3.14.dylib` where the loader can find it, in any app, Tauri or not.
+the app builds and links, and its 115 tests pass. No feature needs Python:
+`playwright` uses `rustwright-core` without its Python bindings.
 
 ## Features
 
