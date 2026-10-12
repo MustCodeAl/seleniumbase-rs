@@ -669,15 +669,33 @@ impl BrowserSession {
     }
 
     /// Clears all browser cookies via CDP.
+    ///
+    /// A session without a DevTools connection (plain WebDriver mode) clears the
+    /// cookies of the current domain through WebDriver instead.
     pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
-        let cdp = self.cdp_client()?;
-        cdp.clear_cookies().await
+        if let Ok(cdp) = self.cdp_client() {
+            return cdp.clear_cookies().await;
+        }
+        self.driver()
+            .delete_all_cookies()
+            .await
+            .map_err(SeleniumBaseError::WebDriver)
     }
 
-    /// Returns all cookies via CDP as JSON.
+    /// Returns all cookies via CDP as JSON: `{"cookies": [...]}`.
+    ///
+    /// A session without a DevTools connection (plain WebDriver mode) answers
+    /// the same shape from WebDriver, with the cookies of the current page.
     pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
-        let cdp = self.cdp_client()?;
-        cdp.get_cookies().await
+        if let Ok(cdp) = self.cdp_client() {
+            return cdp.get_cookies().await;
+        }
+        let cookies = self
+            .driver()
+            .get_all_cookies()
+            .await
+            .map_err(SeleniumBaseError::WebDriver)?;
+        Ok(serde_json::json!({ "cookies": cookies }))
     }
 
     /// Drains the DevTools Protocol events logged since the last call, oldest

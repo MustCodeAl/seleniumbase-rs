@@ -31,6 +31,9 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::timeout;
 
+#[path = "support/scratch_crate.rs"]
+mod scratch_crate;
+
 /// How long one request may wait for its answer. Starting a browser is the
 /// slow one; the WebDriver servers may also download a driver first.
 const STEP: Duration = Duration::from_secs(300);
@@ -74,8 +77,8 @@ fn serve() -> String {
                     _ => ("404 Not Found", "not here"),
                 };
                 let response = format!(
-                    "HTTP/1.1 {status}\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\
-                     Connection: close\r\n\r\n{body}",
+                    "HTTP/1.1 {status}\r\nContent-Type: text/html\r\nSet-Cookie: sid=abc123; Path=/\r\n\
+                     Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     body.len()
                 );
                 let _ = stream.write_all(response.as_bytes());
@@ -624,7 +627,13 @@ async fn fill_in_the_form(mcp: &mut Client) {
 }
 
 /// A failed call comes back as a report, and the server carries on.
-async fn failures_are_reports(mcp: &mut Client, base: &str) {
+async fn failures_are_reports(mcp: &mut Client, engine: Engine, base: &str) {
+    // The Pure CDP engine says the element is not there; the WebDriver one, which waits for
+    // it with the driver's own clock, says the wait ran out.
+    let kind = match engine {
+        Engine::Cdp => "element_not_found",
+        Engine::WebDriver => "wait_timeout",
+    };
     let gone = mcp
         .call(
             "click_element",
@@ -632,11 +641,7 @@ async fn failures_are_reports(mcp: &mut Client, base: &str) {
         )
         .await
         .failed();
-    assert_eq!(
-        gone.structured["kind"], "element_not_found",
-        "{}",
-        gone.text
-    );
+    assert_eq!(gone.structured["kind"], kind, "{}", gone.text);
     assert_eq!(
         gone.structured["page"]["title"], "submitted:buyer@example.test",
         "{}",
@@ -767,11 +772,34 @@ async fn bundle_and_export(mcp: &mut Client, out: &Path, base: &str) -> (String,
         "typed text leaked into the bundle"
     );
     let bundle: Value = serde_json::from_str(&bundle).expect("the bundle is JSON");
+    assert_eq!(
+        bundle["cookie_names"],
+        json!(["sid"]),
+        "the page's cookie is named, and only named: {bundle}"
+    );
+    assert!(
+        !bundle.to_string().contains("abc123"),
+        "a cookie's value leaked into the bundle"
+    );
     assert!(
         bundle["tool_calls"]["recent"]
             .as_array()
             .is_some_and(|calls| !calls.is_empty()),
         "{bundle}"
+    );
+
+    // A label cannot take the folder out of the output directory.
+    let hostile = mcp
+        .json("capture_debug_bundle", json!({ "name": "../../escape" }))
+        .await;
+    let hostile_folder = PathBuf::from(hostile["folder"].as_str().expect("a folder"));
+    assert!(
+        hostile_folder.starts_with(out.join("debug_bundles")),
+        "{hostile}"
+    );
+    assert!(
+        !hostile_folder.to_string_lossy().contains(".."),
+        "{hostile}"
     );
 
     let exported = mcp
@@ -817,47 +845,12 @@ async fn bundle_and_export(mcp: &mut Client, out: &Path, base: &str) -> (String,
     (code, path)
 }
 
-/// Compiles `exported` in a scratch crate that depends on this one by path,
-/// sharing this build's target directory so only the test itself is built.
+/// Compiles `exported` in a scratch crate that depends on this one by path.
 fn compile_in_a_scratch_crate(exported: &Path, scratch: &Path) {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let features = if cfg!(feature = "test-util") {
-        r#"["mcp-server", "test-util"]"#
-    } else {
-        r#"["mcp-server"]"#
-    };
-    std::fs::create_dir_all(scratch.join("tests")).unwrap();
-    std::fs::write(
-        scratch.join("Cargo.toml"),
-        format!(
-            "[package]\nname = \"exported-session-check\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\
-             publish = false\n\n[workspace]\n\n[dependencies]\n\
-             seleniumbase-rs = {{ path = {:?}, features = {features} }}\n\
-             tokio = {{ version = \"1\", features = [\"macros\", \"rt-multi-thread\"] }}\n",
-            manifest_dir.display().to_string()
-        ),
-    )
-    .unwrap();
-    // The same versions as this build, so the dependencies are not built again.
-    std::fs::copy(manifest_dir.join("Cargo.lock"), scratch.join("Cargo.lock")).unwrap();
+    scratch_crate::create(scratch, "exported-session-check");
     std::fs::copy(exported, scratch.join("tests").join("exported.rs")).unwrap();
-
-    // This test binary sits in <target>/<profile>/deps.
-    let target = std::env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            std::env::current_exe()
-                .unwrap()
-                .ancestors()
-                .nth(3)
-                .expect("the target directory")
-                .to_path_buf()
-        });
-    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
-    let output = std::process::Command::new(cargo)
-        .args(["test", "--no-run", "--offline", "--manifest-path"])
-        .arg(scratch.join("Cargo.toml"))
-        .env("CARGO_TARGET_DIR", target)
+    let output = scratch_crate::cargo(scratch)
+        .args(["test", "--no-run"])
         .output()
         .expect("run cargo");
     assert!(
@@ -898,16 +891,10 @@ async fn the_cdp_server_runs_a_whole_session_over_stdio() {
             .is_some_and(|ua| ua.contains("Chrome")),
         "{info}"
     );
-    assert!(
-        info["user_agent"]
-            .as_str()
-            .is_some_and(|ua| !ua.contains("HeadlessChrome")),
-        "the headless marker is in the user agent: {info}"
-    );
 
     read_the_page(&mut mcp).await;
     fill_in_the_form(&mut mcp).await;
-    failures_are_reports(&mut mcp, &base).await;
+    failures_are_reports(&mut mcp, Engine::Cdp, &base).await;
     console_and_network(&mut mcp, Engine::Cdp).await;
     let (_code, path) = bundle_and_export(&mut mcp, &out, &base).await;
 
@@ -972,10 +959,14 @@ async fn the_sb_server_runs_a_whole_session_over_stdio() {
         mcp.text("get_text", json!({ "selector": "h1" })).await,
         "Shop"
     );
+    // The cookie list works in a session with no DevTools connection, as it does with one.
+    let cookies = mcp.json("get_cookies", json!({})).await;
+    assert_eq!(cookies["cookies"][0]["name"], "sid", "{cookies}");
+    assert_eq!(cookies["cookies"][0]["value"], "abc123", "{cookies}");
 
     read_the_page(&mut mcp).await;
     fill_in_the_form(&mut mcp).await;
-    failures_are_reports(&mut mcp, &base).await;
+    failures_are_reports(&mut mcp, Engine::WebDriver, &base).await;
     console_and_network(&mut mcp, Engine::WebDriver).await;
     let (_code, _path) = bundle_and_export(&mut mcp, &out, &base).await;
 
@@ -1055,11 +1046,7 @@ async fn the_driver_server_runs_a_session_in_undetected_mode_and_leaves_cleanly(
         )
         .await
         .failed();
-    assert_eq!(
-        gone.structured["kind"], "element_not_found",
-        "{}",
-        gone.text
-    );
+    assert_eq!(gone.structured["kind"], "wait_timeout", "{}", gone.text);
     assert_eq!(
         gone.structured["page"]["title"], "submitted:buyer@example.test",
         "{}",

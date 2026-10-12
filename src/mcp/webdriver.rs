@@ -43,12 +43,12 @@ impl DevSession for BaseCase {
     }
 
     async fn cookie_names(&mut self) -> Result<Vec<String>, SeleniumBaseError> {
-        let cookies = self.get_cookies().await?;
-        Ok(cookies
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|cookie| cookie["name"].as_str().map(str::to_owned))
+        // `get_cookies` answers `{"cookies": [...]}`, not an array, so the names are read from
+        // WebDriver's own list, which every session has and which includes HttpOnly cookies.
+        let header = self.get_cookie_string().await?;
+        Ok(header
+            .split("; ")
+            .filter_map(|pair| pair.split_once('=').map(|(name, _)| name.to_owned()))
             .collect())
     }
 
