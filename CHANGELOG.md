@@ -156,6 +156,12 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   credentials for the browser context. A context created later loads the page
   itself. Anything else for that host is an empty `404`; nothing for it goes
   upstream. `MitmStats::primed` counts the loads.
+- **`ws://` through `MitmProxy`**: Chrome sends a `ws://` WebSocket to an HTTP
+  proxy as a `CONNECT` whose tunnel carries the handshake in plain text (measured
+  on Chrome 155). The proxy now reads a tunnel's first bytes: a TLS handshake is
+  ended as before, and a plain-text WebSocket handshake takes the checks, header
+  rewrite, bounds and relay of a `wss://` one, upstream as `http://`. Any other
+  plain text in a tunnel is still refused and never relayed.
 - **`StealthSession`** (feature `impersonate`): the session that moves between
   `HttpSession` and a real Chrome behind `MitmProxy` by the mitigation and session
   policies. It starts the proxy when a browser is first needed, makes up to 4

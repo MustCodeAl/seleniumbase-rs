@@ -8,8 +8,9 @@
 //!    constant time, and answers `407` otherwise. Chrome gets the token from `ProxyAuth` over
 //!    `Fetch.authRequired`, so it never appears on Chrome's command line;
 //! 2. refuses a target it cannot intercept with an empty `502` and closes the connection. Nothing
-//!    is ever tunnelled blind: bytes that are not a TLS handshake for the `CONNECT` host end the
-//!    connection;
+//!    is ever tunnelled blind: a tunnel whose first bytes are neither a TLS handshake for the
+//!    `CONNECT` host nor a plain-text WebSocket handshake (`ws://`, see [WebSocket](#websocket))
+//!    is closed;
 //! 3. answers `200` and ends the browser's TLS with a leaf of the ephemeral CA for exactly the
 //!    `CONNECT` host (ALPN `http/1.1`; the SNI must name the same host);
 //! 4. reads each request, drops the hop-by-hop and proxy headers, keeps Chrome's header order,
@@ -71,8 +72,22 @@
 //! for [`MitmOptions::websocket_idle_timeout`], one direction has carried more than
 //! [`MitmOptions::max_websocket_bytes`], or the proxy stops; then both sides are shut down.
 //!
+//! A `ws://` connection reaches the proxy as a `CONNECT` too (measured on Chrome 155: to port 80
+//! when the URL names none), but the tunnel then carries the opening handshake in plain text, with
+//! the same fields in the same order. The proxy reads the tunnel's first bytes: a TLS handshake is
+//! ended as above; `GET ` is read as HTTP/1.1, and a WebSocket handshake in it takes exactly the
+//! path of a `wss://` one (the same checks, `Host` against the `CONNECT` target, the same header
+//! rewrite, bounds and relay), sent upstream as `http://` over a plain connection, so no
+//! `ClientHello` is involved. Any other plain-text request is refused with an empty `502` (`400`
+//! for half an upgrade) and the tunnel closed, and bytes that start neither way close it
+//! unanswered: plain text is relayed only after an upgrade the upstream accepted, as for `wss://`.
+//! Through an egress, the plain handshake leaves the way the upstream client sends any `http://`
+//! request, so an HTTP egress has to relay the upgrade itself; a `ws://` WebSocket through an
+//! egress is not tested.
+//!
 //! A custom profile's WebSocket connections send the measured WebSocket hello of its base browser.
-//! A profile without a measured WebSocket hello gets an empty `502` for every handshake.
+//! A profile without a measured WebSocket hello gets an empty `502` for every handshake, `ws://`
+//! included.
 //!
 //! # The priming page
 //!
@@ -102,9 +117,8 @@
 //! with an empty `502`, and a request that only half asks for one (`Connection: upgrade` without
 //! `Upgrade`, `Upgrade` without `Connection: upgrade`, a method other than `GET`, a body) with an
 //! empty `400`. A WebSocket handshake outside a `CONNECT` tunnel (an absolute-form `http://`
-//! request) is refused with an empty `502`; Chrome tunnels `ws://` through `CONNECT` as well, and a
-//! tunnel that does not start with TLS is never relayed, so only `wss://` gets through. QUIC is off
-//! in Chrome, so there is no HTTP/3. Requests whose `User-Agent` claims a Chrome major other than
+//! request, which Chrome never sends for `ws://`) is refused with an empty `502`. QUIC is off in
+//! Chrome, so there is no HTTP/3. Requests whose `User-Agent` claims a Chrome major other than
 //! the profile's are refused, because the measured TLS and HTTP/2 would contradict the header.
 //!
 //! # HTTP/1.1 origins
@@ -153,6 +167,7 @@ mod body;
 mod connect;
 mod destination;
 mod forward;
+mod sniff;
 mod upstream;
 mod websocket;
 

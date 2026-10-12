@@ -1,6 +1,7 @@
 //! WebSocket through the proxy: the handshake and the echo, what the origin sees (the measured
 //! WebSocket JA4, the browser's order with only the upgrade pair of hop fields), and the inputs
-//! the proxy must refuse or cut short.
+//! the proxy must refuse or cut short. The last section is `ws://`: a plain-text handshake inside
+//! a `CONNECT` tunnel, as Chrome sends it to an HTTP proxy, and the plain text that is refused.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -15,18 +16,18 @@ use seleniumbase_rs::stealth::fingerprint::OsType;
 use seleniumbase_rs::wire::emulation::{self, Emulation};
 use seleniumbase_rs::wire::ja4::{Ja4, Ja4AField};
 use seleniumbase_rs::wire::BrowserKind;
-use tokio::io::AsyncWriteExt as _;
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt as _};
 use tokio::net::TcpStream;
 use tokio_btls::SslStream;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::echo::{
-    accept_for, client_frame, read_frame, websocket_handshake, EchoOrigin, BINARY, CLOSE, KEY,
-    REFUSED_BODY, REFUSED_PATH, TEXT,
+    accept_for, client_frame, read_frame, websocket_handshake, EchoOrigin, PlainEchoOrigin, BINARY,
+    CLOSE, KEY, REFUSED_BODY, REFUSED_PATH, TEXT,
 };
 use crate::support::{
-    closes, der, eventually, exchange, measured_user_agent, new_ca, proxy_auth, read_head,
-    start_mitm, tunnel, EgressProxy, Head, QUIET, WITHIN,
+    closes, der, eventually, exchange, measured_user_agent, new_ca, proxy_auth, raw_connect,
+    read_head, start_mitm, tunnel, EgressProxy, Head, QUIET, WITHIN,
 };
 
 /// The host the echo site is reached by.
@@ -77,7 +78,11 @@ async fn open_echo(mitm: &MitmProxy, ca: &[u8], port: u16) -> SslStream<TcpStrea
 }
 
 /// Sends one masked frame and reads the frame that comes back.
-async fn round_trip(tls: &mut SslStream<TcpStream>, opcode: u8, payload: &[u8]) -> (u8, Vec<u8>) {
+async fn round_trip<S: AsyncRead + AsyncWrite + Unpin>(
+    tls: &mut S,
+    opcode: u8,
+    payload: &[u8],
+) -> (u8, Vec<u8>) {
     tls.write_all(&client_frame(opcode, payload))
         .await
         .expect("writes");
@@ -553,4 +558,206 @@ async fn stopping_the_proxy_closes_an_open_websocket_at_once() {
         eventually(|| origin.closed() == 1).await,
         "and the origin's"
     );
+}
+
+// ===== ws://: a plain-text handshake inside a CONNECT tunnel =====
+
+/// A plain-text echo site, a proxy that resolves [`WS`] to it (loopback allowed), and its sink.
+async fn plain_echo_behind_proxy(
+    options: MitmOptions,
+) -> (PlainEchoOrigin, MitmProxy, CollectingEventSink) {
+    let origin = PlainEchoOrigin::start().await;
+    let options = options
+        .resolve(WS, origin.addr())
+        .allow_private_destinations(true);
+    let (mitm, sink) = start_mitm(None, options).await;
+    (origin, mitm, sink)
+}
+
+/// A `CONNECT` to `WS:port` with the token, answered `200`: the tunnel, nothing sent in it yet.
+async fn plain_tunnel(mitm: &MitmProxy, port: u16) -> TcpStream {
+    let target = format!("{WS}:{port}");
+    let (tcp, head) = raw_connect(mitm.local_addr(), &target, Some(&proxy_auth(mitm))).await;
+    assert_eq!(head.expect("an answer to CONNECT").status(), 200);
+    tcp
+}
+
+/// The handshake Chrome writes into a tunnel for `ws://WS:port{path}`: the `wss://` one with an
+/// `http` origin (measured on Chrome 155: the same fields in the same order).
+fn plain_handshake(port: u16, path: &str) -> String {
+    websocket_handshake(WS, port, path, &measured_user_agent(), &[]).replace(
+        &format!("Origin: https://{WS}:{port}"),
+        &format!("Origin: http://{WS}:{port}"),
+    )
+}
+
+#[tokio::test]
+async fn a_plain_ws_handshake_in_a_tunnel_is_relayed_without_tls_and_echoes() {
+    let (mut origin, mitm, sink) = plain_echo_behind_proxy(MitmOptions::default()).await;
+    let port = origin.addr().port();
+    let mut tcp = plain_tunnel(&mitm, port).await;
+    let leaked = "Proxy-Authorization: Basic dXNlcjpub3QtYS1yZWFsLXBhc3N3b3Jk";
+    let request = plain_handshake(port, ECHO_PATH).replace(
+        "\r\n\r\n",
+        &format!("\r\n{leaked}\r\nX-Hop: drop-me\r\nConnection: X-Hop\r\n\r\n"),
+    );
+    tcp.write_all(request.as_bytes()).await.expect("writes");
+    let head = read_head(&mut tcp).await.expect("an answer");
+
+    assert_eq!(head.status(), 101, "{head:?}");
+    assert_eq!(
+        head.header("sec-websocket-accept"),
+        Some(accept_for(KEY).as_str())
+    );
+    assert!(head.rest.is_empty(), "no frame arrives before one is sent");
+    let seen = origin
+        .next(WITHIN)
+        .await
+        .expect("the origin took the handshake");
+    let names: Vec<String> = seen
+        .headers
+        .iter()
+        .map(|(name, _)| name.to_ascii_lowercase())
+        .collect();
+    assert_eq!(
+        names,
+        [
+            "host",
+            "connection",
+            "pragma",
+            "cache-control",
+            "user-agent",
+            "upgrade",
+            "origin",
+            "sec-websocket-version",
+            "accept-encoding",
+            "accept-language",
+            "sec-websocket-key",
+            "sec-websocket-extensions",
+        ],
+        "the browser's order without the hop-by-hop and proxy fields"
+    );
+    assert_eq!(seen.header("connection"), Some("Upgrade"));
+    assert_eq!(seen.header("upgrade"), Some("websocket"));
+    let host = format!("{WS}:{port}");
+    assert_eq!(seen.header("host"), Some(host.as_str()));
+    assert_eq!(seen.target, ECHO_PATH);
+
+    let text = b"plain text through the proxy";
+    assert_eq!(
+        round_trip(&mut tcp, TEXT, text).await,
+        (TEXT, text.to_vec())
+    );
+    assert_eq!(round_trip(&mut tcp, CLOSE, &[0x03, 0xe8]).await.0, CLOSE);
+    assert!(closes(&mut tcp).await, "the relay ends after the close");
+    let stats = mitm.stats();
+    assert_eq!(
+        (
+            stats.websockets,
+            stats.forwarded,
+            stats.tunnels,
+            stats.refused
+        ),
+        (1, 1, 0, 0),
+        "a WebSocket relayed, and no TLS ended: {stats:?}"
+    );
+    let url = format!("http://{WS}:{port}{ECHO_PATH}");
+    assert!(
+        sink.events().iter().any(|event| matches!(
+            event,
+            ScraperEvent::Request { status: 101, url: reported, .. } if reported.as_str() == url
+        )),
+        "{:?}",
+        sink.events()
+    );
+    assert!(eventually(|| origin.closed() == 1).await);
+}
+
+/// Sends `request` as the first bytes of a fresh tunnel to the plain site and returns the status
+/// of the answer; the site must see no connection, and the proxy counts one refusal.
+async fn plain_refused_status(request: impl Fn(u16) -> String) -> u16 {
+    let (origin, mitm, _sink) = plain_echo_behind_proxy(MitmOptions::default()).await;
+    let port = origin.addr().port();
+    let mut tcp = plain_tunnel(&mitm, port).await;
+    let (head, body) = exchange(&mut tcp, &request(port)).await.expect("an answer");
+    assert!(body.is_empty(), "a refusal carries no detail");
+    assert!(
+        closes(&mut tcp).await,
+        "the tunnel stays open after a refusal"
+    );
+    tokio::time::sleep(QUIET).await;
+    assert_eq!(origin.connections(), 0, "the proxy reached the site");
+    let stats = mitm.stats();
+    assert_eq!(
+        (stats.refused, stats.websockets, stats.forwarded),
+        (1, 0, 0),
+        "{stats:?}"
+    );
+    head.status()
+}
+
+#[tokio::test]
+async fn a_plain_request_that_is_not_a_websocket_handshake_is_never_relayed() {
+    let ordinary = plain_refused_status(|port| {
+        format!("GET {ECHO_PATH} HTTP/1.1\r\nHost: {WS}:{port}\r\nUser-Agent: x\r\n\r\n")
+    })
+    .await;
+    let other_upgrade = plain_refused_status(|port| {
+        plain_handshake(port, ECHO_PATH).replace("Upgrade: websocket", "Upgrade: h2c")
+    })
+    .await;
+    assert_eq!(ordinary, 502, "a plain GET");
+    assert_eq!(other_upgrade, 502, "an upgrade to h2c");
+
+    // Bytes that do not start with `GET ` are not read as HTTP at all: the tunnel just ends.
+    let (origin, mitm, _sink) = plain_echo_behind_proxy(MitmOptions::default()).await;
+    let port = origin.addr().port();
+    let mut tcp = plain_tunnel(&mitm, port).await;
+    let post =
+        format!("POST {ECHO_PATH} HTTP/1.1\r\nHost: {WS}:{port}\r\nContent-Length: 2\r\n\r\nhi");
+    tcp.write_all(post.as_bytes()).await.expect("writes");
+    assert!(
+        read_head(&mut tcp).await.is_none(),
+        "a plain POST got an answer"
+    );
+    tokio::time::sleep(QUIET).await;
+    assert_eq!(origin.connections(), 0, "the proxy reached the site");
+    assert_eq!(mitm.stats().refused, 1, "{:?}", mitm.stats());
+}
+
+#[tokio::test]
+async fn a_malformed_or_misaddressed_plain_handshake_is_refused() {
+    let half = plain_refused_status(|port| {
+        plain_handshake(port, ECHO_PATH).replace("Upgrade: websocket\r\n", "")
+    })
+    .await;
+    let elsewhere = plain_refused_status(|port| {
+        plain_handshake(port, ECHO_PATH).replace(
+            &format!("Host: {WS}:{port}"),
+            &format!("Host: other.test:{port}"),
+        )
+    })
+    .await;
+
+    assert_eq!(half, 400, "Connection: Upgrade without Upgrade");
+    assert_eq!(elsewhere, 400, "a Host other than the CONNECT target");
+}
+
+#[tokio::test]
+async fn without_the_switch_a_plain_handshake_to_a_loopback_name_is_never_reached() {
+    let origin = PlainEchoOrigin::start().await;
+    let options = MitmOptions::default().resolve(WS, origin.addr());
+    let (mitm, _sink) = start_mitm(None, options).await;
+    let port = origin.addr().port();
+    let mut tcp = plain_tunnel(&mitm, port).await;
+
+    let (head, _body) = exchange(&mut tcp, &plain_handshake(port, ECHO_PATH))
+        .await
+        .expect("an answer");
+
+    assert_eq!(head.status(), 502);
+    tokio::time::sleep(QUIET).await;
+    assert_eq!(origin.connections(), 0, "the proxy connected to loopback");
+    assert_eq!(mitm.stats().upstream_errors, 1, "{:?}", mitm.stats());
+    assert_eq!(mitm.stats().websockets, 0, "{:?}", mitm.stats());
 }

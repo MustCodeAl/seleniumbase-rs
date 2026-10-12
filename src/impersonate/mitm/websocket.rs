@@ -1,6 +1,7 @@
 //! WebSocket through the proxy: the RFC 6455 opening handshake inside a `CONNECT` tunnel, sent
-//! upstream over HTTP/1.1 with the measured WebSocket `ClientHello`, then the bytes of both
-//! directions copied as they are.
+//! upstream over HTTP/1.1 with the measured WebSocket `ClientHello` (for `wss://`; a `ws://`
+//! handshake read in plain text goes upstream in plain text, with no hello), then the bytes of
+//! both directions copied as they are.
 //!
 //! The proxy reads no frame. It checks the handshake ([`ask`]), writes the `Connection: Upgrade`
 //! and `Upgrade: websocket` pair itself ([`handshake_headers`]), relays the upstream's

@@ -674,12 +674,27 @@ Differences from the first sketch that matter:
   sides are shut down together within one 5 s grace (`common::shutdown::cleanup_within`) when one
   closes, a bound is hit or the proxy stops. Every other upgrade is an empty `502`; half an upgrade, another
   method, HTTP/1.0 or a body is an empty `400` (`MalformedUpgrade`); a handshake outside a tunnel is an
-  empty `502`, and a tunnel that does not start with TLS is never relayed, so `ws://` does not get
-  through. A custom profile's WebSocket connections send its base browser's measured WebSocket hello;
+  empty `502`. A custom profile's WebSocket connections send its base browser's measured WebSocket hello;
   a profile without one gets a `502` for every handshake. Tests: `tests/impersonate_mitm/websocket.rs`
   (an echo site written in the test, the measured WebSocket JA4 on the wire, the hostile inputs) and,
   on headless Chrome 155, `a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo` and
-  `a_plain_ws_websocket_is_refused_by_the_proxy` in `tests/impersonate_mitm_chrome.rs`.
+  `a_plain_ws_websocket_goes_through_the_proxy_to_its_site` in `tests/impersonate_mitm_chrome.rs`.
+- **`ws://` is relayed in plain text, the handshake only** (`mitm/sniff.rs`, `forward::forward_plain`).
+  Measured on Chrome 155 with a recording proxy: a `ws://` WebSocket reaches an HTTP proxy as `CONNECT
+  host:port` (port 80 when the URL names none), never as an absolute-form `GET`, and the tunnel then
+  carries the handshake in plain text, with the `wss://` fields in the same order (`Origin` is the
+  page's, `null` on a blank tab). The proxy reads the first 4 bytes of every tunnel and puts them back:
+  `0x16` (a TLS record) goes to the TLS leg as before; `GET ` is served as HTTP/1.1 with the same head
+  limits, and a WebSocket handshake in it goes through `forward` exactly as a `wss://` one (token at the
+  `CONNECT`, destination filter at the `CONNECT` and in the resolver, `Host` against the target with
+  the `http` default port, user-agent major, header rewrite, the relay bounds), upstream as `http://` on
+  a plain connection, so no `ClientHello` applies. Any other plain-text request is an empty `502` (`400`
+  for half an upgrade) and closes the tunnel; first bytes that are neither close it unanswered and count
+  as refused. This keeps the intercept-only rule: nothing is relayed before the proxy has parsed and
+  checked a WebSocket handshake and the upstream has answered `101`, which is also when `wss://` bytes
+  start to be copied. `tunnels` still counts TLS legs only; a `ws://` WebSocket counts in `websockets`.
+  Not tested: a `ws://` WebSocket through an egress (the plain handshake leaves the way any `http://`
+  request does, so an HTTP egress has to relay the upgrade itself).
 - **The priming page** (closes the limit that a WebSocket could not be a tab's first request). Measured
   on Chrome 155 (headless): a WebSocket's `CONNECT` that gets the `407` is never surfaced as
   `Fetch.authRequired`, so `ProxyAuth` cannot answer it and Chrome does not retry it; credentials Chrome

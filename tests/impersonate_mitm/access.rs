@@ -236,6 +236,7 @@ async fn the_priming_host_serves_its_page_only_and_nothing_for_it_goes_upstream(
         assert_eq!(head.status(), 404, "{request}");
         assert!(body.is_empty(), "{request}");
     }
+    // Not counted as refusals either: Chrome asks for the priming page's `favicon.ico` itself.
     let stats = mitm.stats();
     assert_eq!(
         (
@@ -244,7 +245,7 @@ async fn the_priming_host_serves_its_page_only_and_nothing_for_it_goes_upstream(
             stats.forwarded,
             stats.upstream_errors
         ),
-        (0, 5, 0, 0),
+        (0, 0, 0, 0),
         "{stats:?}"
     );
     assert!(sink.is_empty(), "{:?}", sink.events());

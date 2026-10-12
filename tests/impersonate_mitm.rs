@@ -1,7 +1,8 @@
 //! The MITM proxy against loopback sites, an egress proxy and raw clients; no browser.
 //!
-//! - [`access`]: the proxy token (`407`), targets it cannot intercept (empty `502`, never a blind
-//!   tunnel), the SNI check, the leaf cache, and the bounds on heads, connections and idle time;
+//! - [`access`]: the proxy token (`407`), the priming page, targets it cannot intercept (empty
+//!   `502`, never a blind tunnel), the SNI check, the leaf cache, and the bounds on heads,
+//!   connections and idle time;
 //! - [`destinations`]: the addresses a direct proxy will not connect to (loopback, private,
 //!   link-local, metadata), named by a page or reached through a DNS answer;
 //! - [`forwarding`]: what reaches the origin (the measured JA4 and Akamai string, the browser's
@@ -12,7 +13,9 @@
 //!   independent client's handshake, the measured WebSocket JA4 upstream, the browser's order
 //!   with only the upgrade pair of hop fields, an egress), and the hostile inputs (half
 //!   upgrades, other protocols, a body, an oversize frame, an idle peer, loopback without the
-//!   switch, a handshake outside a tunnel, a stopping proxy);
+//!   switch, a handshake outside a tunnel, a stopping proxy), and `ws://`: the plain-text
+//!   handshake Chrome writes into a tunnel, relayed to a plain echo site, and the plain text that
+//!   is refused;
 //! - [`socks`]: a SOCKS5 egress gets the host name to resolve, not an address looked up here;
 //! - [`lifecycle`]: swapping the egress between requests on one listener, shutdown and drop
 //!   leaving no task, and the static check that the module writes no files.

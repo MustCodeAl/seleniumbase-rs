@@ -371,8 +371,11 @@ merged. In order:
 4. **WebSocket through the proxy** is relayed for `wss://` with the measured
    WebSocket hello, and may be a tab's first request: the launch loads the
    proxy's priming page, which leaves the proxy's credentials in Chrome (a
-   browser context created later loads it itself). Still open: `ws://` is
-   refused, and compression (`permessage-deflate`) is passed through untested.
+   browser context created later loads it itself). `ws://` is relayed too: Chrome
+   sends it as a `CONNECT` whose tunnel carries the handshake in plain text, and
+   the proxy takes that handshake and nothing else. Still open: compression
+   (`permessage-deflate`) is passed through untested, and so is a `ws://`
+   WebSocket through an egress.
 5. **The first request to an HTTP/1.1-only origin** carries the HTTP/2
    `priority` header in `HttpSession` and `MitmProxy`; later ones do not. The
    protocol is known only after the connection opens.

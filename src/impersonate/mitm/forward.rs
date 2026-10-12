@@ -63,6 +63,8 @@ const HTTPS_PORT: u16 = 443;
 const PRIMING_TYPE: &str = "text/html; charset=utf-8";
 /// The priming page is never cached, so every load reaches the proxy.
 const NO_STORE: &str = "no-store";
+/// The `Connection` value that ends a connection after an answer.
+const CLOSE: &str = "close";
 
 /// The scheme requests to an [`Origin`] use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,6 +113,15 @@ impl Origin {
             .filter(|authority| uri.scheme().is_none() && authority.port_u16().is_some())
             .ok_or(MitmError::BadTarget("CONNECT takes host:port"))?;
         Self::from_authority(Scheme::Https, authority)
+    }
+
+    /// The same host and port reached in plain text: the origin of a `ws://` handshake inside a
+    /// tunnel that does not start with TLS.
+    pub(super) fn without_tls(self) -> Self {
+        Self {
+            scheme: Scheme::Http,
+            ..self
+        }
     }
 
     /// The origin of an absolute-form `http://` request.
@@ -249,6 +260,29 @@ pub(super) async fn forward(
     response
 }
 
+/// Serves a request read in plain text from a tunnel, as Chrome sends a `ws://` WebSocket: a
+/// WebSocket handshake goes on as one inside TLS would ([`forward`], with the same checks and the
+/// same relay; there is no TLS, so no hello to impersonate). Every other request is refused with
+/// an empty `502` (`400` for half an upgrade) and the tunnel closed, so plain text is never relayed
+/// as anything but a WebSocket.
+pub(super) async fn forward_plain(
+    shared: &Shared,
+    origin: &Origin,
+    request: Request<Incoming>,
+    slot: &RelaySlot,
+) -> Response<ProxyBody> {
+    match websocket::ask(request.method(), request.version(), request.headers()) {
+        Ok(Ask::WebSocket) => forward(shared, origin, request, Some(slot)).await,
+        Ok(Ask::Plain) => {
+            let error = MitmError::NotIntercepted(
+                "a tunnel without TLS carries a WebSocket handshake and nothing else",
+            );
+            refuse(shared, StatusCode::BAD_GATEWAY, &error, true)
+        }
+        Err((status, error)) => refuse(shared, status, &error, true),
+    }
+}
+
 /// Answers a request for [`PRIME_HOST`], over either scheme; the token was checked before (at the
 /// `CONNECT`, or on the absolute-form request). A `GET` of exactly the priming path that asks for
 /// no upgrade gets the priming page: empty HTML that is never cached. Anything else (another path,
@@ -261,8 +295,13 @@ fn answer_priming_host(shared: &Shared, request: &Request<Incoming>) -> Response
         && request.uri().path_and_query().map(PathAndQuery::as_str)
             == Some(shared.prime_path.as_str());
     if !priming {
-        let error = MitmError::NotIntercepted("the priming host serves its priming page only");
-        return refuse(shared, StatusCode::NOT_FOUND, &error, true);
+        // Not counted as a refusal: Chrome asks for the priming page's `favicon.ico` itself.
+        tracing::debug!("a request for the priming host other than its page got a 404");
+        let mut response = empty(StatusCode::NOT_FOUND);
+        response
+            .headers_mut()
+            .insert(CONNECTION, HeaderValue::from_static(CLOSE));
+        return response;
     }
     Counters::bump(&shared.counters.primed);
     tracing::debug!("the priming page was answered by the proxy");

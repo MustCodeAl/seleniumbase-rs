@@ -168,6 +168,129 @@ impl EchoOrigin {
     }
 }
 
+/// A plain-text (`ws://`) WebSocket echo site: the same answers as [`EchoOrigin`], with no TLS.
+pub struct PlainEchoOrigin {
+    addr: SocketAddr,
+    seen: mpsc::Receiver<Http1Request>,
+    counts: Arc<Counts>,
+    _tasks: JoinSet<()>,
+}
+
+impl PlainEchoOrigin {
+    /// Starts the site on loopback.
+    pub async fn start() -> Self {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .expect("binds loopback");
+        let addr = listener.local_addr().expect("an address");
+        let counts = Arc::new(Counts::default());
+        let (sender, seen) = mpsc::channel(64);
+        let mut tasks = JoinSet::new();
+        let site_counts = Arc::clone(&counts);
+        tasks.spawn(async move {
+            let mut connections = JoinSet::new();
+            while let Ok((tcp, _peer)) = listener.accept().await {
+                site_counts.connections.fetch_add(1, Ordering::SeqCst);
+                let (sender, counts) = (sender.clone(), Arc::clone(&site_counts));
+                connections.spawn(async move {
+                    let _served = serve_plain(tcp, &sender, &counts).await;
+                });
+                while connections.try_join_next().is_some() {}
+            }
+        });
+        Self {
+            addr,
+            seen,
+            counts,
+            _tasks: tasks,
+        }
+    }
+
+    /// The site's address.
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    /// The next accepted handshake, or `None` when none comes within `within`.
+    pub async fn next(&mut self, within: Duration) -> Option<Http1Request> {
+        tokio::time::timeout(within, self.seen.recv())
+            .await
+            .ok()
+            .flatten()
+    }
+
+    /// TCP connections the site accepted.
+    pub fn connections(&self) -> usize {
+        self.counts.connections.load(Ordering::SeqCst)
+    }
+
+    /// Handshakes the site read, accepted or refused.
+    pub fn handshakes(&self) -> usize {
+        self.counts.handshakes.load(Ordering::SeqCst)
+    }
+
+    /// Accepted WebSocket connections that ended.
+    pub fn closed(&self) -> usize {
+        self.counts.closed.load(Ordering::SeqCst)
+    }
+}
+
+/// Serves one plain-text connection: one request; a handshake it accepts is echoed until it ends.
+async fn serve_plain(
+    mut tcp: TcpStream,
+    sender: &mpsc::Sender<Http1Request>,
+    counts: &Counts,
+) -> Result<(), String> {
+    let request = read_http1_request(&mut tcp, WITHIN)
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(answer) = answer_handshake(&request, counts) else {
+        let reply = http1_response(200, "OK", &[("Content-Type", "text/html")], ECHO_PAGE);
+        tcp.write_all(&reply).await.map_err(|e| e.to_string())?;
+        let _closed = tcp.shutdown().await;
+        return Ok(());
+    };
+    tcp.write_all(&answer).await.map_err(|e| e.to_string())?;
+    tcp.flush().await.map_err(|e| e.to_string())?;
+    if request.path() == REFUSED_PATH {
+        let _closed = tcp.shutdown().await;
+        return Ok(());
+    }
+    let _sent = sender.send(request).await;
+    echo(&mut tcp, &counts.received).await;
+    counts.closed.fetch_add(1, Ordering::SeqCst);
+    Ok(())
+}
+
+/// What the plain site answers a handshake with (`None` for an ordinary request): the `403` for
+/// [`REFUSED_PATH`], the `101` otherwise. Counts the handshake.
+fn answer_handshake(request: &Http1Request, counts: &Counts) -> Option<Vec<u8>> {
+    let upgrade = request
+        .header("upgrade")
+        .is_some_and(|value| value.eq_ignore_ascii_case("websocket"));
+    if !upgrade {
+        return None;
+    }
+    counts.handshakes.fetch_add(1, Ordering::SeqCst);
+    if request.path() == REFUSED_PATH {
+        return Some(http1_response(
+            403,
+            "Forbidden",
+            &[("Content-Type", "text/plain")],
+            REFUSED_BODY,
+        ));
+    }
+    let key = request.header("sec-websocket-key").unwrap_or_default();
+    Some(
+        format!(
+            "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
+             Sec-WebSocket-Accept: {}\r\n\r\n",
+            accept_for(key)
+        )
+        .into_bytes(),
+    )
+}
+
 /// Serves one connection: TLS, then one request; a handshake it accepts is echoed until it ends.
 async fn serve(
     tcp: TcpStream,

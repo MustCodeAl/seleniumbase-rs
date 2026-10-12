@@ -902,8 +902,9 @@ launch at the proxy and adds the switches it needs.
    gets the token through `ProxyAuth` over `Fetch.authRequired`, so it is never
    on Chrome's command line.
 2. It refuses a target it cannot intercept with an empty `502` and closes the
-   connection. Nothing is ever tunnelled blind: bytes that are not a TLS
-   handshake for the `CONNECT` host end the connection.
+   connection. Nothing is ever tunnelled blind: a tunnel whose first bytes are
+   neither a TLS handshake for the `CONNECT` host nor a plain-text WebSocket
+   handshake (`ws://`, see [WebSocket](#websocket)) is closed.
 3. It answers `200` and ends the browser's TLS with a leaf for exactly the
    `CONNECT` host. The browser leg offers ALPN `http/1.1` only, and the SNI must
    name the same host.
@@ -1001,10 +1002,23 @@ ends, followed by the opening handshake (`GET` with `Upgrade: websocket` and
 Chrome sends no keep-alive of its own on a WebSocket, so a site that pings less
 often than `websocket_idle_timeout` loses its idle connections. A custom
 profile's WebSocket connections send the measured WebSocket hello of its base
-browser. Only `wss://` gets through: a handshake outside a `CONNECT` tunnel is an
-empty `502`, and a tunnel that does not start with TLS is never relayed. On
-Chrome 155 a page's `ws://` WebSocket is refused by the proxy and never reaches
-its server.
+browser.
+
+`ws://` takes the same road without TLS. Measured on Chrome 155: a page's
+`ws://` WebSocket reaches an HTTP proxy as a `CONNECT` (to port 80 when the URL
+names none) whose tunnel then carries the opening handshake in plain text, with
+the fields of a `wss://` one in the same order. The proxy reads the tunnel's
+first bytes. A TLS handshake is ended as above. `GET ` is read as HTTP/1.1, and
+a WebSocket handshake in it takes steps 1 and 3 to 5 like a `wss://` one, with
+`Host` checked against the `CONNECT` target; it goes upstream as `http://` over
+a plain connection, so there is no `ClientHello` to impersonate. Any other
+plain-text request gets an empty `502` (`400` for half an upgrade) and the
+tunnel is closed, and bytes that start neither way close it unanswered: plain
+text is relayed only after an upgrade the site accepted, as for `wss://`. A
+handshake outside a tunnel (an absolute-form `http://` request, which Chrome does
+not send for `ws://`) is an empty `502`. Through an egress, the plain handshake
+leaves the way any `http://` request does, so an HTTP egress has to relay the
+upgrade itself; that is not tested.
 
 #### The priming page
 
@@ -1061,8 +1075,8 @@ aborts what is left; dropping the last clone stops it too.
 
 ### What is not intercepted
 
-- **Upgrades other than WebSocket are refused**, and so is `ws://` (see
-  [WebSocket](#websocket)).
+- **Upgrades other than WebSocket are refused**, and so is plain text in a
+  tunnel that is not a WebSocket handshake (see [WebSocket](#websocket)).
 - QUIC is off in Chrome, so there is no HTTP/3.
 - **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
   header.** The upstream protocol is settled by ALPN after the request was
@@ -1086,7 +1100,11 @@ site, the handshake's header order, a WebSocket through an egress proxy with its
 credentials, and the hostile inputs (half upgrades, other
 protocols, a body, an oversize frame, an idle peer, a name resolving to loopback
 without `allow_private_destinations`, a handshake outside a tunnel, and a proxy
-that stops under an open WebSocket).
+that stops under an open WebSocket). For `ws://` they run a plain-text echo site:
+the handshake in a tunnel without TLS is relayed in the browser's order and
+echoes, and a plain `GET`, a `POST`, an `h2c` upgrade, half an upgrade, a `Host`
+other than the target and a loopback name without the switch are refused without
+reaching the site.
 
 `tests/impersonate_mitm_chrome.rs` drives the real Chrome 155 on macOS, headless,
 and is `#[ignore]`d. A page loads through the proxy, and the loopback origin
@@ -1094,8 +1112,9 @@ sees the measured JA4 and Akamai string with the measured `priority` and a
 Chrome user agent; the token reaches Chrome only through the `407`. A page
 opens a `wss://` WebSocket through the proxy to a loopback echo site and gets its
 echo back; the site sees the measured WebSocket JA4 and Chrome's handshake fields
-in Chrome's order. A `ws://` WebSocket is refused by the proxy. A WebSocket that
-is a new tab's first request gets its echo, because the launch loaded the
+in Chrome's order. A `ws://` WebSocket reaches a plain loopback echo site through
+the proxy and gets its echo, without a TLS tunnel. A WebSocket that is a new
+tab's first request gets its echo, because the launch loaded the
 priming page; a context created after the launch fails its first WebSocket on the
 `407` until one of its tabs has loaded the priming page, and then gets the echo.
 Two more
@@ -1325,11 +1344,12 @@ State these plainly to yourself before you build on any of this.
   included, and not Chrome's own, which `BrowserScraper` leaves with unchanged.
   That is the price of one wire identity in both modes of a `StealthSession`.
 - **No HTTP/3.** wreq has none, and Chrome behind the proxy has QUIC switched off.
-- **WebSocket passes the `MitmProxy` as `wss://` only.** It needs the proxy's
-  credentials in Chrome first: `configure_launch` loads the priming page at the
-  launch, but a browser context created later has to load `mitm.prime_url()`
-  itself (see [the priming page](#the-priming-page)). `ws://` and every other
-  upgrade are refused. `HttpSession` opens no WebSocket.
+- **WebSocket passes the `MitmProxy` as `wss://` and `ws://`** (the latter in
+  plain text, so with no hello to impersonate); every other upgrade is refused.
+  It needs the proxy's credentials in Chrome first: `configure_launch` loads the
+  priming page at the launch, but a browser context created later has to load
+  `mitm.prime_url()` itself (see [the priming page](#the-priming-page)).
+  `HttpSession` opens no WebSocket.
 - **The first request to an HTTP/1.1-only origin carries an HTTP/2 `priority`
   header**, in `HttpSession` and in `MitmProxy`, because the protocol is known
   only after the connection opens. Later requests to that origin do not carry it.
