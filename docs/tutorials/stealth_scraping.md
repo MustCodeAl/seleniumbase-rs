@@ -1125,7 +1125,10 @@ not a live site. Only the first test compares the browser with the measured
 persona, so only it skips on a system that is not measured. The others are about
 the proxy's own rules and run on any Chrome or Chromium; one whose major is not
 the measured one is started with the profile's user agent, because the proxy
-refuses a request that claims another Chrome major.
+refuses a request that claims another Chrome major. Run that way on linux/arm64
+with Debian's Chromium 154 (`docker/Dockerfile.verify`, headless, no sandbox),
+the seven ran and passed and the persona test skipped; before the split every
+test of the file skipped there.
 
 ## StealthSession
 

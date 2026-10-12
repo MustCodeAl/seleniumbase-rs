@@ -317,7 +317,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   longer all skip off the measured system: only the one that compares the browser
   with the measured persona does. The pin, loopback and SSRF refusal and
   WebSocket tests run on any Chrome or Chromium, one of another major being
-  started with the profile's user agent.
+  started with the profile's user agent. On linux/arm64 with Chromium 154
+  (`docker/Dockerfile.verify`) seven of the eight now run and pass.
 
 ### Fixed
 
