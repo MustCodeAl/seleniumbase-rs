@@ -446,7 +446,10 @@ fn mkfile_then_print_shows_the_file_that_was_written() {
     );
     assert!(made.status.success(), "{}", stderr(&made));
     assert!(
-        stdout(&made).contains("Created tests/login.rs"),
+        stdout(&made).contains(&format!(
+            "Created {}",
+            "tests/login.rs".replace('/', std::path::MAIN_SEPARATOR_STR)
+        )),
         "{}",
         stdout(&made)
     );

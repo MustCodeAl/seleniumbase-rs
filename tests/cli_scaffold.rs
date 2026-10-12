@@ -21,6 +21,12 @@ fn sbase(dir: &Path, args: &[&str]) -> Output {
         .expect("sbase starts")
 }
 
+/// `path` with the platform's separator, the way `sbase` prints it
+/// (`ui\helpers.rs` on Windows).
+fn native(path: &str) -> String {
+    path.replace('/', std::path::MAIN_SEPARATOR_STR)
+}
+
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
@@ -122,7 +128,10 @@ fn mkfile_creates_missing_folders_and_new_is_an_alias() {
 
     let printed = succeeds(dir.path(), &["new", "tests/deep/Login-Flow.rs"]);
 
-    assert_eq!(printed.trim(), "Created tests/deep/Login-Flow.rs");
+    assert_eq!(
+        printed.trim(),
+        format!("Created {}", native("tests/deep/Login-Flow.rs"))
+    );
     let source = read(dir.path(), "tests/deep/Login-Flow.rs");
     assert!(source.contains("async fn login_flow()"), "{source}");
     assert!(source.contains("cargo test --test Login-Flow"), "{source}");
@@ -159,7 +168,10 @@ fn mkdir_writes_the_suite() {
         "my_first_test.rs",
         "parameterized_test.rs",
     ] {
-        assert!(printed.contains(&format!("Created ui/{file}")), "{printed}");
+        assert!(
+            printed.contains(&format!("Created {}", native(&format!("ui/{file}")))),
+            "{printed}"
+        );
         let contents = read(dir.path(), &format!("ui/{file}"));
         assert_golden(&contents, &format!("mkdir/{file}.golden"));
         if file.ends_with(".rs") {
@@ -214,7 +226,7 @@ fn a_suite_with_one_existing_file_is_left_untouched() {
 
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("ui/helpers.rs"),
+        stderr(&output).contains(&native("ui/helpers.rs")),
         "{}",
         stderr(&output)
     );

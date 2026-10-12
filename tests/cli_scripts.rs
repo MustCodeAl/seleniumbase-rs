@@ -137,8 +137,13 @@ fn doctor_in(dir: &std::path::Path, chromedriver_path: Option<&str>) -> String {
 fn doctor_finds_the_driver_that_sbase_install_downloads() {
     let dir = tempfile::tempdir().expect("temp dir");
     // The process's working directory is reported canonicalised (on macOS
-    // /var is /private/var), so compare against the canonical path.
-    let root = dir.path().canonicalize().expect("canonical path");
+    // /var is /private/var), so compare against the canonical path. Windows
+    // canonicalises to a `\\?\C:\...` path that the report does not use.
+    let root = if cfg!(windows) {
+        dir.path().to_path_buf()
+    } else {
+        dir.path().canonicalize().expect("canonical path")
+    };
     let drivers = root.join("downloaded_drivers");
     std::fs::create_dir(&drivers).expect("drivers dir");
     let name = if cfg!(windows) {
