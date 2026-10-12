@@ -215,10 +215,20 @@ struct Cli {
     user_data_dir: Option<String>,
     #[arg(long, help = "Path to an unpacked extension directory")]
     extension_dir: Option<String>,
-    #[arg(long, help = "Reuse an existing browser session when possible")]
+    #[arg(
+        long = "reuse-session",
+        visible_aliases = ["reuse_session", "rs"],
+        default_value_t = false,
+        help = "Share browsers among the tests of the run (SB_REUSE_SESSION)"
+    )]
     reuse_session: bool,
-    #[arg(long, help = "Record the session actions")]
-    rs: bool,
+    #[arg(
+        long = "rcs",
+        visible_aliases = ["reuse-class-session", "reuse_class_session"],
+        default_value_t = false,
+        help = "Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)"
+    )]
+    reuse_class_session: bool,
     #[arg(
         long,
         default_value_t = false,
@@ -1416,7 +1426,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         proxy_pac_url: args.proxy_pac_url,
         user_data_dir: args.user_data_dir,
         extension_dir: args.extension_dir,
-        reuse_session: (args.reuse_session || args.rs).then_some(true),
+        reuse_session: args.reuse_session.then_some(true),
+        reuse_class_session: args.reuse_class_session.then_some(true),
         mobile: args.mobile.then_some(true),
         threads: args.threads,
         esc_end: args.esc_end.then_some(true),

@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::browser::options::{LaunchSettings, LaunchSwitch};
+use crate::browser::reuse::ReuseClass;
 use crate::error::SeleniumBaseError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -23,7 +24,13 @@ pub struct Settings {
     pub user_agent: Option<String>,
     pub mode: Option<String>,
     pub ad_block: bool,
+    /// Share browsers among the tests of a run (`SB_REUSE_SESSION`, Python's
+    /// `--reuse-session`). See [`BrowserConfig::reuse_session`].
     pub reuse_session: bool,
+    /// Share a browser among the tests of one Rust module
+    /// (`SB_REUSE_CLASS_SESSION`, Python's `--rcs`). It implies
+    /// `reuse_session`. See [`BrowserConfig::with_reuse_module_session`].
+    pub reuse_class_session: bool,
     pub mobile: bool,
     pub threads: Option<usize>,
     /// Let the person end the current test by pressing ESC in the browser
@@ -89,8 +96,11 @@ pub struct SettingsOverrides {
     pub user_data_dir: Option<String>,
     /// Unpacked extension directory (`SB_EXTENSION_DIR`).
     pub extension_dir: Option<String>,
-    /// Reuse an existing browser session (`SB_REUSE_SESSION`).
+    /// Share browsers among the tests of a run (`SB_REUSE_SESSION`).
     pub reuse_session: Option<bool>,
+    /// Share a browser among the tests of one module
+    /// (`SB_REUSE_CLASS_SESSION`).
+    pub reuse_class_session: Option<bool>,
     /// Emulate a mobile device (`SB_MOBILE`).
     pub mobile: Option<bool>,
     /// Number of parallel threads (`SB_THREADS`).
@@ -138,6 +148,9 @@ impl SettingsOverrides {
         if let Some(reuse) = self.reuse_session {
             settings.reuse_session = reuse;
         }
+        if let Some(reuse) = self.reuse_class_session {
+            settings.reuse_class_session = reuse;
+        }
         if let Some(mobile) = self.mobile {
             settings.mobile = mobile;
         }
@@ -175,6 +188,7 @@ impl SettingsOverrides {
             text("SB_USER_DATA_DIR", &self.user_data_dir),
             text("SB_EXTENSION_DIR", &self.extension_dir),
             flag("SB_REUSE_SESSION", self.reuse_session),
+            flag("SB_REUSE_CLASS_SESSION", self.reuse_class_session),
             flag("SB_MOBILE", self.mobile),
             self.threads
                 .map(|threads| ("SB_THREADS", threads.to_string())),
@@ -205,6 +219,7 @@ impl Default for Settings {
             mode: None,
             ad_block: false,
             reuse_session: false,
+            reuse_class_session: false,
             mobile: false,
             threads: None,
             esc_end: false,
@@ -286,6 +301,7 @@ impl Settings {
         let mut launch = LaunchSettings::default();
         launch.set(LaunchSwitch::EscEnd, self.esc_end);
         launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
+        launch.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
         BrowserConfig {
             webdriver_url: "http://localhost:4444".to_owned(),
             browser,
@@ -298,7 +314,7 @@ impl Settings {
             proxy_pac_url: self.proxy_pac_url.clone(),
             user_data_dir: self.user_data_dir.clone(),
             extension_dir: self.extension_dir.clone(),
-            reuse_session: self.reuse_session,
+            reuse_session: self.reuse_session || self.reuse_class_session,
             mobile: self.mobile,
             threads: self.threads,
             auto_start_driver: true,
@@ -375,6 +391,9 @@ impl Settings {
         }
         if let Some(v) = var("SB_REUSE_SESSION") {
             settings.reuse_session = parse_bool(&v)?;
+        }
+        if let Some(v) = var("SB_REUSE_CLASS_SESSION") {
+            settings.reuse_class_session = parse_bool(&v)?;
         }
         if let Some(v) = var("SB_MOBILE") {
             settings.mobile = parse_bool(&v)?;
@@ -536,11 +555,43 @@ threads = 4
             user_data_dir: Some("/tmp/profile".to_owned()),
             extension_dir: Some("/tmp/ext".to_owned()),
             reuse_session: Some(true),
+            reuse_class_session: Some(true),
             mobile: Some(true),
             threads: Some(4),
             esc_end: Some(true),
             rec_sb_cdp: Some(true),
         }
+    }
+
+    #[test]
+    fn reuse_follows_its_variables_and_reaches_the_browser_config() {
+        let off = Settings::default().to_browser_config();
+        assert!(!off.reuse_session);
+        assert_eq!(off.launch.reuse_class, None);
+
+        let run = Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_REUSE_SESSION").then(|| "true".to_owned())
+        })
+        .unwrap()
+        .to_browser_config();
+        assert!(run.reuse_session);
+        assert_eq!(run.launch.reuse_class, None, "--rs shares across the run");
+
+        let module = Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_REUSE_CLASS_SESSION").then(|| "1".to_owned())
+        })
+        .unwrap()
+        .to_browser_config();
+        assert!(module.reuse_session, "--rcs implies --rs, as in Python");
+        assert_eq!(module.launch.reuse_class, Some(ReuseClass::TestModule));
+
+        let from_toml: Settings = toml::from_str("reuse_class_session = true").unwrap();
+        assert!(from_toml.reuse_class_session);
+        let only = SettingsOverrides {
+            reuse_class_session: Some(true),
+            ..SettingsOverrides::default()
+        };
+        assert_eq!(only.env(), [("SB_REUSE_CLASS_SESSION", "true".to_owned())]);
     }
 
     #[test]
@@ -660,7 +711,7 @@ threads = 4
     fn the_environment_form_means_the_same_as_applying_directly() {
         let overrides = every_option();
         let vars: std::collections::HashMap<_, _> = overrides.env().into_iter().collect();
-        assert_eq!(vars.len(), 15, "one variable per option");
+        assert_eq!(vars.len(), 16, "one variable per option");
 
         let via_env =
             Settings::apply_overrides(Settings::default(), |name| vars.get(name).cloned()).unwrap();

@@ -192,7 +192,7 @@ mod test_command {
         let body = format!(
             "#!/bin/sh\n\
              echo \"args=$*\"\n\
-             for name in SB_BROWSER SB_HEADLESS SB_MODE SB_PROXY SB_MOBILE SB_THREADS SB_ESC_END SB_REC_SB_CDP SB_WEBDRIVER_URL; do\n\
+             for name in SB_BROWSER SB_HEADLESS SB_MODE SB_PROXY SB_MOBILE SB_THREADS SB_ESC_END SB_REC_SB_CDP SB_REUSE_SESSION SB_REUSE_CLASS_SESSION SB_WEBDRIVER_URL; do\n\
                eval \"value=\\${{$name-UNSET}}\"\n\
                echo \"$name=$value\"\n\
              done\n\
@@ -258,6 +258,8 @@ mod test_command {
             "SB_THREADS",
             "SB_ESC_END",
             "SB_REC_SB_CDP",
+            "SB_REUSE_SESSION",
+            "SB_REUSE_CLASS_SESSION",
             "SB_WEBDRIVER_URL",
         ] {
             assert!(out.contains(&format!("{name}=UNSET")), "{name} in {out}");
@@ -277,6 +279,36 @@ mod test_command {
                 "{flag}: {}",
                 stdout(&output)
             );
+        }
+    }
+
+    #[test]
+    fn reuse_session_reaches_the_tests_under_each_of_its_names() {
+        for flag in ["--reuse-session", "--reuse_session", "--rs"] {
+            let cargo = fake_cargo(0);
+
+            let output = run_with_fake_cargo(&cargo, &[flag, "test"]);
+
+            assert!(output.status.success(), "{flag}: {}", stderr(&output));
+            let out = stdout(&output);
+            assert!(out.contains("SB_REUSE_SESSION=true"), "{flag}: {out}");
+            assert!(
+                out.contains("SB_REUSE_CLASS_SESSION=UNSET"),
+                "{flag}: {out}"
+            );
+        }
+    }
+
+    #[test]
+    fn rcs_reaches_the_tests_under_each_of_its_names() {
+        for flag in ["--rcs", "--reuse-class-session", "--reuse_class_session"] {
+            let cargo = fake_cargo(0);
+
+            let output = run_with_fake_cargo(&cargo, &[flag, "test"]);
+
+            assert!(output.status.success(), "{flag}: {}", stderr(&output));
+            let out = stdout(&output);
+            assert!(out.contains("SB_REUSE_CLASS_SESSION=true"), "{flag}: {out}");
         }
     }
 
