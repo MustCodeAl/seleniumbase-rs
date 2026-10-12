@@ -427,6 +427,25 @@ impl BrowserConfig {
         self.with_switch(LaunchSwitch::ProxyForDriverDownload, on)
     }
 
+    /// Let the person end the current test by pressing ESC in the browser
+    /// (`--esc-end`, `--esc_end`, `--ee`).
+    ///
+    /// `BaseCase` puts a key listener in the page and, before it clicks,
+    /// highlights, waits for a page to be ready or waits for an element to be
+    /// visible, looks whether ESC was pressed; if so the call returns
+    /// [`SeleniumBaseError::Skipped`], which `run_browser_test` treats as a
+    /// skipped test and not a failure.
+    pub fn with_esc_end(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::EscEnd, on)
+    }
+
+    /// Whether pressing ESC in the browser ends the test
+    /// ([`with_esc_end`](Self::with_esc_end)).
+    #[must_use]
+    pub fn esc_end(&self) -> bool {
+        self.launch.has(LaunchSwitch::EscEnd)
+    }
+
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).
     pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
         self.launch.page_load_strategy = Some(strategy);
@@ -622,6 +641,24 @@ mod tests {
             config.launch.device_metrics,
             Some(DeviceMetrics::new(360, 640, 2.0))
         );
+    }
+
+    #[test]
+    fn esc_end_is_off_until_it_is_asked_for() {
+        assert!(!BrowserConfig::default().esc_end());
+        let on = BrowserConfig::default().with_esc_end(true);
+        assert!(on.esc_end());
+        assert!(on.launch.has(LaunchSwitch::EscEnd));
+        assert!(!on.with_esc_end(false).esc_end());
+    }
+
+    #[test]
+    fn esc_end_is_written_beside_the_other_switches() {
+        let config = BrowserConfig::default().with_esc_end(true);
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["switches"], serde_json::json!(["esc-end"]));
+        let back: BrowserConfig = serde_json::from_value(json).unwrap();
+        assert!(back.esc_end());
     }
 
     #[test]

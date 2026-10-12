@@ -88,8 +88,8 @@ make that decision for you.
 ## Contributing and project status
 
 **How complete is the port?**
-Every upstream API has a status (871 implemented, 384 composed, 96
-not-applicable, 14 planned), and most behaviour is tested against a mock or
+Every upstream API has a status (874 implemented, 384 composed, 96
+not-applicable, 11 planned), and most behaviour is tested against a mock or
 unit tests rather than a real browser. An audit of the entries marked
 implemented found 26 that did less than the Python method, and a second audit of
 the composed and not-applicable entries found 34 more that said more than the

@@ -4712,8 +4712,10 @@ rust = "BrowserConfig::browser"
 note = "Choose the Browser variant."
 
 [options_pytest."--ee"]
-status = "planned"
-note = "Python injects a page script whose keydown handler sets `document.sb_esc_end` when ESC is pressed, and skips the test at the next page-ready wait. The pieces exist (BaseCase::wait_for_ready_state_complete, BaseCase::skip_test), but nothing injects the listener or checks the flag."
+status = "implemented"
+rust = "BrowserConfig::with_esc_end"
+note = "Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
+divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--enable-3d-apis"]
 status = "composed"
@@ -4754,12 +4756,16 @@ status = "not-applicable"
 reason = "Names the test environment (qa, prod, ...) for the pytest plugin; this crate takes per-deploy configuration from SB_* environment variables (RuntimeConfig) instead."
 
 [options_pytest."--esc-end"]
-status = "planned"
-note = "Python injects a page script whose keydown handler sets `document.sb_esc_end` when ESC is pressed, and skips the test at the next page-ready wait. The pieces exist (BaseCase::wait_for_ready_state_complete, BaseCase::skip_test), but nothing injects the listener or checks the flag."
+status = "implemented"
+rust = "BrowserConfig::with_esc_end"
+note = "Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
+divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--esc_end"]
-status = "planned"
-note = "Python injects a page script whose keydown handler sets `document.sb_esc_end` when ESC is pressed, and skips the test at the next page-ready wait. The pieces exist (BaseCase::wait_for_ready_state_complete, BaseCase::skip_test), but nothing injects the listener or checks the flag."
+status = "implemented"
+rust = "BrowserConfig::with_esc_end"
+note = "Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
+divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--extension-dir"]
 status = "implemented"

@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
+use crate::browser::options::{LaunchSettings, LaunchSwitch};
 use crate::error::SeleniumBaseError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -25,6 +26,10 @@ pub struct Settings {
     pub reuse_session: bool,
     pub mobile: bool,
     pub threads: Option<usize>,
+    /// Let the person end the current test by pressing ESC in the browser
+    /// (`SB_ESC_END`, Python's `--esc-end`). See
+    /// [`BrowserConfig::with_esc_end`].
+    pub esc_end: bool,
     /// Client-side timeout, in seconds, for each HTTP request sent to a Remote
     /// WebDriver server. `None` keeps the WebDriver client's own default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -87,6 +92,9 @@ pub struct SettingsOverrides {
     pub mobile: Option<bool>,
     /// Number of parallel threads (`SB_THREADS`).
     pub threads: Option<usize>,
+    /// End the current test when ESC is pressed in the browser
+    /// (`SB_ESC_END`).
+    pub esc_end: Option<bool>,
 }
 
 impl SettingsOverrides {
@@ -131,6 +139,9 @@ impl SettingsOverrides {
         if let Some(threads) = self.threads {
             settings.threads = Some(threads);
         }
+        if let Some(esc_end) = self.esc_end {
+            settings.esc_end = esc_end;
+        }
     }
 
     /// The `SB_*` environment variables that carry these options to a child
@@ -159,6 +170,7 @@ impl SettingsOverrides {
             flag("SB_MOBILE", self.mobile),
             self.threads
                 .map(|threads| ("SB_THREADS", threads.to_string())),
+            flag("SB_ESC_END", self.esc_end),
         ]
         .into_iter()
         .flatten()
@@ -186,6 +198,7 @@ impl Default for Settings {
             reuse_session: false,
             mobile: false,
             threads: None,
+            esc_end: false,
             remote_webdriver_timeout_seconds: None,
         }
     }
@@ -260,6 +273,8 @@ impl Settings {
                 _ => DriverMode::WebDriver,
             })
             .unwrap_or(DriverMode::WebDriver);
+        let mut launch = LaunchSettings::default();
+        launch.set(LaunchSwitch::EscEnd, self.esc_end);
         BrowserConfig {
             webdriver_url: "http://localhost:4444".to_owned(),
             browser,
@@ -281,7 +296,7 @@ impl Settings {
             fingerprint: None,
             browser_binary_path: None,
             remote_webdriver_timeout_seconds: self.remote_webdriver_timeout_seconds,
-            launch: Default::default(),
+            launch,
         }
     }
 
@@ -361,6 +376,9 @@ impl Settings {
         }
         if let Some(v) = var("SB_PROXY_PAC_URL") {
             settings.proxy_pac_url = Some(v);
+        }
+        if let Some(v) = var("SB_ESC_END") {
+            settings.esc_end = parse_bool(&v)?;
         }
         Ok(settings)
     }
@@ -506,6 +524,7 @@ threads = 4
             reuse_session: Some(true),
             mobile: Some(true),
             threads: Some(4),
+            esc_end: Some(true),
         }
     }
 
@@ -529,6 +548,47 @@ threads = 4
         assert_eq!(settings.user_data_dir.as_deref(), Some("/tmp/profile"));
         assert_eq!(settings.extension_dir.as_deref(), Some("/tmp/ext"));
         assert_eq!(settings.threads, Some(4));
+        assert!(settings.esc_end);
+    }
+
+    #[test]
+    fn esc_end_is_off_by_default_and_reaches_the_browser_config() {
+        assert!(!Settings::default().esc_end);
+        assert!(!Settings::default().to_browser_config().esc_end());
+        let settings = Settings {
+            esc_end: true,
+            ..Settings::default()
+        };
+        assert!(settings.to_browser_config().esc_end());
+    }
+
+    #[test]
+    fn the_esc_end_variable_and_the_config_file_key_turn_it_on() {
+        for (value, expected) in [("true", true), ("1", true), ("off", false)] {
+            let settings = Settings::apply_overrides(Settings::default(), |name| {
+                (name == "SB_ESC_END").then(|| value.to_owned())
+            })
+            .unwrap();
+            assert_eq!(settings.esc_end, expected, "{value}");
+        }
+        assert!(Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_ESC_END").then(|| "maybe".to_owned())
+        })
+        .is_err());
+
+        let from_toml: Settings = toml::from_str("esc_end = true").unwrap();
+        assert!(from_toml.esc_end);
+        let old: Settings = serde_json::from_str(r#"{"browser":"edge"}"#).unwrap();
+        assert!(!old.esc_end, "a file without the key leaves it off");
+    }
+
+    #[test]
+    fn the_esc_end_override_is_exported_as_its_variable() {
+        let only = SettingsOverrides {
+            esc_end: Some(true),
+            ..SettingsOverrides::default()
+        };
+        assert_eq!(only.env(), [("SB_ESC_END", "true".to_owned())]);
     }
 
     #[test]
@@ -565,7 +625,7 @@ threads = 4
     fn the_environment_form_means_the_same_as_applying_directly() {
         let overrides = every_option();
         let vars: std::collections::HashMap<_, _> = overrides.env().into_iter().collect();
-        assert_eq!(vars.len(), 13, "one variable per option");
+        assert_eq!(vars.len(), 14, "one variable per option");
 
         let via_env =
             Settings::apply_overrides(Settings::default(), |name| vars.get(name).cloned()).unwrap();

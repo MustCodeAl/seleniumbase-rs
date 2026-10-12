@@ -52,11 +52,15 @@ pub enum LaunchSwitch {
     /// Fetch the driver, and the browser when a build has to be downloaded,
     /// through the session's proxy (`--proxy-driver`).
     ProxyForDriverDownload,
+    /// End the current test when the person presses ESC in the browser
+    /// (`--esc-end`, `--ee`). Nothing about the launch changes; `BaseCase`
+    /// reads the switch to install the key listener.
+    EscEnd,
 }
 
 impl LaunchSwitch {
     /// Every switch.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::BlockImages,
         Self::DisableJavaScript,
         Self::DisableCookies,
@@ -67,6 +71,7 @@ impl LaunchSwitch {
         Self::AutomationExtension,
         Self::RecorderExtension,
         Self::ProxyForDriverDownload,
+        Self::EscEnd,
     ];
 
     /// The switch a Python SeleniumBase option name stands for, if any.
@@ -88,6 +93,7 @@ impl LaunchSwitch {
             "use_auto_ext" | "auto_ext" => Self::AutomationExtension,
             "recorder_ext" => Self::RecorderExtension,
             "proxy_driver" => Self::ProxyForDriverDownload,
+            "esc_end" | "ee" => Self::EscEnd,
             _ => return None,
         })
     }
@@ -277,6 +283,7 @@ mod tests {
             LaunchSwitch::AutomationExtension,
             LaunchSwitch::RecorderExtension,
             LaunchSwitch::ProxyForDriverDownload,
+            LaunchSwitch::EscEnd,
         ]
         .into();
         assert!(chrome_preferences(&others).is_empty());
@@ -336,6 +343,9 @@ mod tests {
             ("--auto-ext", LaunchSwitch::AutomationExtension),
             ("recorder_ext", LaunchSwitch::RecorderExtension),
             ("--proxy-driver", LaunchSwitch::ProxyForDriverDownload),
+            ("--esc-end", LaunchSwitch::EscEnd),
+            ("--esc_end", LaunchSwitch::EscEnd),
+            ("--ee", LaunchSwitch::EscEnd),
         ];
         for (name, switch) in cases {
             assert_eq!(LaunchSwitch::from_python_name(name), Some(switch), "{name}");

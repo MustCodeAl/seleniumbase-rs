@@ -133,12 +133,17 @@ impl BaseCase {
         self.run_settings = settings;
     }
 
-    /// In demo mode, outlines the element `css` picks, if the page has it.
-    async fn demo_highlight(&self, css: &str) {
+    /// Ends the test if ESC was pressed (`--esc-end`), then, in demo mode,
+    /// outlines the element `css` picks, if the page has it.
+    async fn demo_highlight(&self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.skip_if_esc().await?;
         if self.run_settings.demo_mode() {
             // A selector the outline script cannot use must not fail the action.
-            let _ = self.highlight(css).await;
+            let _ = self
+                .execute_script(&page_scripts::highlight_script(css, HIGHLIGHT_MILLIS))
+                .await;
         }
+        Ok(())
     }
 
     /// Pauses for the time demo or slow mode asks for after an action.
@@ -269,7 +274,9 @@ impl BaseCase {
     /// past its time limit, and [`SeleniumBaseError::WaitTimeout`] if the page
     /// is still loading when the wait ends.
     pub async fn wait_for_ready_state_complete(&self) -> Result<(), SeleniumBaseError> {
+        self.skip_if_esc().await?;
         if self.run_settings.skip_js_waits() {
+            self.arm_esc_end().await;
             return Ok(());
         }
         self.check_time_limit()?;
@@ -281,7 +288,9 @@ impl BaseCase {
                 Ok(state.as_str() == Some("complete"))
             },
         )
-        .await
+        .await?;
+        self.arm_esc_end().await;
+        Ok(())
     }
 
     /// Returns the current browser window position as `(x, y)`.
@@ -544,39 +553,49 @@ impl BaseCase {
     /// Returns an error if `url` is empty or cannot be made into a valid URL.
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.check_time_limit()?;
+        self.skip_if_esc().await?;
         let url = crate::utils::urls::normalize_page_url(url)?;
         info!(%url, "opening url");
         self.record("open", Some(&url), None);
         self.session.goto(&url).await?;
         self.demo_pause(false).await;
+        self.arm_esc_end().await;
         Ok(())
     }
 
     /// Executes the `refresh` action.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
-        self.session.refresh().await
+        self.session.refresh().await?;
+        self.arm_esc_end().await;
+        Ok(())
     }
 
     /// Navigates back in browser history.
     pub async fn go_back(&self) -> Result<(), SeleniumBaseError> {
-        self.session.back().await
+        self.session.back().await?;
+        self.arm_esc_end().await;
+        Ok(())
     }
 
     /// Navigates forward in browser history.
     pub async fn go_forward(&self) -> Result<(), SeleniumBaseError> {
-        self.session.forward().await
+        self.session.forward().await?;
+        self.arm_esc_end().await;
+        Ok(())
     }
 
     /// Clicks the element selected by `css`.
     #[instrument(skip(self))]
     pub async fn click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         debug!(%css, "clicking element");
+        self.skip_if_esc().await?;
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Clickable).await?;
         self.record("click", Some(css), None);
-        self.demo_highlight(css).await;
+        self.demo_highlight(css).await?;
         self.session.click(by).await?;
         self.demo_pause(false).await;
+        self.arm_esc_end().await;
         Ok(())
     }
 
@@ -587,7 +606,7 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Visible).await?;
         self.record("type_text", Some(css), Some(text));
-        self.demo_highlight(css).await;
+        self.demo_highlight(css).await?;
         self.session.type_text(by, text).await?;
         self.demo_pause(true).await;
         Ok(())
@@ -603,9 +622,12 @@ impl BaseCase {
 
     /// Executes the `click_link_text` action.
     pub async fn click_link_text(&mut self, link_text: &str) -> Result<(), SeleniumBaseError> {
+        self.skip_if_esc().await?;
         let by = thirtyfour::prelude::By::LinkText(link_text.to_owned());
         self.record("click_link_text", Some(link_text), None);
-        self.session.click(by).await
+        self.session.click(by).await?;
+        self.arm_esc_end().await;
+        Ok(())
     }
 
     /// Submits the form containing the element selected by `css`.
@@ -873,6 +895,7 @@ impl BaseCase {
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
+        self.skip_if_esc().await?;
         let by = Selector::auto(css).to_by()?;
         self.record("wait_for_element_visible", Some(css), None);
         self.session
@@ -966,6 +989,7 @@ impl BaseCase {
     /// animates the element and restores its style too; this is one outline
     /// that is restored by a timer in the page, so the call does not block.
     pub async fn highlight(&self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.skip_if_esc().await?;
         self.execute_script(&page_scripts::highlight_script(css, HIGHLIGHT_MILLIS))
             .await?;
         Ok(())
@@ -1971,7 +1995,7 @@ impl BaseCase {
     pub async fn update_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("update_text", Some(css), Some(text));
         let by = Selector::auto(css).to_by()?;
-        self.demo_highlight(css).await;
+        self.demo_highlight(css).await?;
         self.session.type_text(by, text).await?;
         self.demo_pause(true).await;
         Ok(())
@@ -2448,7 +2472,7 @@ impl BaseCase {
         self.await_ready(css, Ready::Present).await?;
         let by = Selector::auto(css).to_by()?;
         let element = self.session.driver().find(by).await?;
-        self.demo_highlight(css).await;
+        self.demo_highlight(css).await?;
         let (body, enter) = split_trailing_enter(text);
         for key in body.chars() {
             element.send_keys(key.to_string()).await?;
@@ -2724,6 +2748,7 @@ include!("base_case_impls/base_case_impl_jslibs.rs");
 include!("base_case_impls/base_case_impl_misc.rs");
 include!("base_case_impls/base_case_impl_addon.rs");
 include!("base_case_impls/base_case_impl_parity.rs");
+include!("base_case_impls/base_case_impl_esc.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]

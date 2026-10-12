@@ -63,10 +63,16 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (871 implemented,
-  384 composed, 96 not-applicable with a reason, 14 planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (874 implemented,
+  384 composed, 96 not-applicable with a reason, 11 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
+- **`--esc-end`** (`--esc_end`, `--ee`): `BrowserConfig::with_esc_end`,
+  `Settings::esc_end`, `SB_ESC_END` and `sbase --esc-end`. `BaseCase` puts a key
+  listener in the page; once ESC is pressed, `open`, `click`, `click_link_text`,
+  `highlight`, `wait_for_element_visible`, `wait_for_ready_state_complete` and the
+  typing calls return `SeleniumBaseError::Skipped`, which `run_browser_test`
+  counts as a skipped test.
 - **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
   session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing,
   `chrome-headless-shell`) refuse the requests of ad and tracker hosts. When the

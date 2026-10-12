@@ -12,7 +12,7 @@ const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
 
 /// Every `SB_*` variable `sbase test` may set, cleared so the host's own
 /// settings cannot leak into a test.
-const SETTINGS_VARS: [&str; 14] = [
+const SETTINGS_VARS: [&str; 15] = [
     "SB_BROWSER",
     "SB_HEADLESS",
     "SB_MODE",
@@ -26,6 +26,7 @@ const SETTINGS_VARS: [&str; 14] = [
     "SB_REUSE_SESSION",
     "SB_MOBILE",
     "SB_THREADS",
+    "SB_ESC_END",
     "SB_WEBDRIVER_URL",
 ];
 
@@ -190,7 +191,7 @@ mod test_command {
         let body = format!(
             "#!/bin/sh\n\
              echo \"args=$*\"\n\
-             for name in SB_BROWSER SB_HEADLESS SB_MODE SB_PROXY SB_MOBILE SB_THREADS SB_WEBDRIVER_URL; do\n\
+             for name in SB_BROWSER SB_HEADLESS SB_MODE SB_PROXY SB_MOBILE SB_THREADS SB_ESC_END SB_WEBDRIVER_URL; do\n\
                eval \"value=\\${{$name-UNSET}}\"\n\
                echo \"$name=$value\"\n\
              done\n\
@@ -254,9 +255,26 @@ mod test_command {
             "SB_PROXY",
             "SB_MOBILE",
             "SB_THREADS",
+            "SB_ESC_END",
             "SB_WEBDRIVER_URL",
         ] {
             assert!(out.contains(&format!("{name}=UNSET")), "{name} in {out}");
+        }
+    }
+
+    #[test]
+    fn esc_end_reaches_the_tests_under_each_of_its_names() {
+        for flag in ["--esc-end", "--esc_end", "--ee"] {
+            let cargo = fake_cargo(0);
+
+            let output = run_with_fake_cargo(&cargo, &[flag, "test"]);
+
+            assert!(output.status.success(), "{flag}: {}", stderr(&output));
+            assert!(
+                stdout(&output).contains("SB_ESC_END=true"),
+                "{flag}: {}",
+                stdout(&output)
+            );
         }
     }
 

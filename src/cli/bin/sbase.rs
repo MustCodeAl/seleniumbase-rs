@@ -225,6 +225,13 @@ struct Cli {
         help = "Use a mobile device emulation profile"
     )]
     mobile: bool,
+    #[arg(
+        long = "esc-end",
+        visible_aliases = ["esc_end", "ee"],
+        default_value_t = false,
+        help = "End the current test when ESC is pressed in the browser"
+    )]
+    esc_end: bool,
     #[arg(short = 'n', long, help = "Number of parallel threads for test runs")]
     threads: Option<usize>,
     #[arg(short = 'c', long, help = "Path to a TOML/JSON settings file")]
@@ -1387,6 +1394,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         reuse_session: (args.reuse_session || args.rs).then_some(true),
         mobile: args.mobile.then_some(true),
         threads: args.threads,
+        esc_end: args.esc_end.then_some(true),
     };
     overrides.apply(&mut settings);
 

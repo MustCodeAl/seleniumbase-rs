@@ -44,6 +44,7 @@ user_agent = ""
 user_data_dir = ""
 extension_dir = ""
 ad_block = false
+esc_end = false
 ```
 
 The file is optional. If it is missing, built-in defaults are used. The
@@ -103,6 +104,7 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 | `SB_REUSE_SESSION` | `reuse_session` |
 | `SB_MOBILE` | `mobile` |
 | `SB_THREADS` | `threads` |
+| `SB_ESC_END` | `esc_end`: pressing ESC in the browser ends the test (Python's `--esc-end`) |
 | `SB_REMOTE_WEBDRIVER_TIMEOUT` | `remote_webdriver_timeout_seconds` |
 
 Boolean values accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.
