@@ -80,6 +80,11 @@ pub fn fit(driver: Option<u32>, browser: Option<u32>) -> Fit {
 /// Otherwise `binary --version` is run, and `None` comes back when it does not
 /// start, takes longer than ten seconds, or prints no version.
 pub async fn binary_major(binary: &Path) -> Option<u32> {
+    if cfg!(windows) {
+        if let Some(major) = windows_product_major(binary).await {
+            return Some(major);
+        }
+    }
     if let Some(major) = major_from_install_dir(binary) {
         return Some(major);
     }
@@ -96,16 +101,53 @@ pub async fn binary_major(binary: &Path) -> Option<u32> {
     major_version(&String::from_utf8_lossy(&output.stdout))
 }
 
+/// The product version Windows records in the program file itself: the browser
+/// that really starts. While an update waits for a restart, its folder is
+/// already there but `chrome.exe` is still the old one. Read through
+/// PowerShell, given the path in a variable so it is never parsed as code.
+async fn windows_product_major(binary: &Path) -> Option<u32> {
+    let output = tokio::time::timeout(
+        VERSION_TIMEOUT,
+        Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "(Get-Item -LiteralPath $env:SB_VERSION_OF).VersionInfo.ProductVersion",
+            ])
+            .env("SB_VERSION_OF", binary)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .ok()?
+    .ok()?;
+    major_version(&String::from_utf8_lossy(&output.stdout))
+}
+
 /// The major version of the newest folder beside `binary` whose name is a
-/// whole version such as `154.0.8037.98`.
+/// whole version such as `154.0.8037.98`. When an update waits for a restart
+/// (`new_chrome.exe` beside `chrome.exe`), the newest folder is the update's,
+/// so the one before it counts.
 fn major_from_install_dir(binary: &Path) -> Option<u32> {
-    std::fs::read_dir(binary.parent()?)
+    let mut versions: Vec<[u32; 4]> = std::fs::read_dir(binary.parent()?)
         .ok()?
         .filter_map(Result::ok)
         .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
         .filter_map(|entry| entry.file_name().to_str().and_then(version_parts))
-        .max()
-        .map(|parts| parts[0])
+        .collect();
+    versions.sort_unstable();
+    let update_waiting = binary
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| binary.with_file_name(format!("new_{name}")).exists());
+    let newest = versions.len().checked_sub(1)?;
+    let index = if update_waiting {
+        newest.saturating_sub(1)
+    } else {
+        newest
+    };
+    versions.get(index).map(|parts| parts[0])
 }
 
 /// The four numbers of a folder name like `154.0.8037.98`, and nothing else.
@@ -215,6 +257,22 @@ mod tests {
             std::fs::create_dir(dir.path().join(folder)).unwrap();
         }
         assert_eq!(binary_major(&chrome).await, Some(154));
+    }
+
+    /// Chrome on Windows with an update waiting: the 155 folder and
+    /// `new_chrome.exe` are there, but `chrome.exe` is still 154.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_waiting_update_does_not_count_until_it_replaces_the_program() {
+        let dir = tempfile::tempdir().unwrap();
+        let chrome = stand_in(dir.path(), "chrome", "exit 0");
+        for folder in ["154.0.8037.98", "155.0.8059.40"] {
+            std::fs::create_dir(dir.path().join(folder)).unwrap();
+        }
+        std::fs::write(dir.path().join("new_chrome"), b"").unwrap();
+        assert_eq!(binary_major(&chrome).await, Some(154));
+        std::fs::remove_file(dir.path().join("new_chrome")).unwrap();
+        assert_eq!(binary_major(&chrome).await, Some(155));
     }
 
     #[cfg(unix)]
