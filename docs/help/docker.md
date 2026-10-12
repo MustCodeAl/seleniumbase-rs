@@ -16,20 +16,29 @@ configuring CI.
 From the repository root:
 
 ```bash
-docker build -t seleniumbase-rs .
+docker build --no-slim -t seleniumbase-rs .
 ```
+
+`--no-slim` matters if your `docker` is wrapped by an image optimiser (Docker
+Slim, for example): `sbase --help` never starts Chromium, so an optimiser that
+watches a run would drop the browser. A plain `docker build` does not need it.
 
 ## Run the CLI
 
-The runtime image contains the compiled `sbase` binary and Chromium. Run a
-headless command, for example:
-
-The image's entry point is `sbase`, so the arguments after the image name are
-`sbase` arguments:
+The runtime image contains the compiled `sbase` binary, Chromium and a matching
+chromedriver. The image's entry point is `sbase`, so the arguments after the image
+name are `sbase` arguments. Run it headless:
 
 ```bash
 docker run --rm seleniumbase-rs --help
+docker run --rm seleniumbase-rs doctor
+docker run --rm --shm-size=1g seleniumbase-rs --headless smoke 'data:text/html,<title>Smoke</title><h1>hi</h1>' --title-contains Smoke
 ```
+
+`sbase open` and `smoke` need `--headless` in a container; `SB_HEADLESS` alone is
+not read by them without `--config`. The build, the test results on Linux arm64
+and the commands that worked are in [Building](../building.md#container) and
+[Operating systems](../platforms.md).
 
 ## Docker Compose
 

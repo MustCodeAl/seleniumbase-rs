@@ -309,6 +309,8 @@ is called. Useful for soft assertions.
 | `uc_click(selector)` | Stealth click with delay. |
 | `uc_type(selector, text)` | Stealth type with delay. |
 | `uc_open_with_reconnect(url)` | Opens `url` after reconnecting the session. |
+| `install_addon(path, temporary)` | Firefox only: installs an add-on (an `.xpi` file or an unpacked directory on the machine geckodriver runs on) through geckodriver and returns its id. An unsigned add-on needs `temporary = true`. Other browsers get `Unsupported`; use `with_extension_dir` for Chrome. |
+| `uninstall_addon(id)` | Firefox only: removes an add-on by the id `install_addon` returned. |
 | `uc_open_with_disconnect(url)` | Opens `url` with a fresh session. |
 | `human_click(selector)` | Human-like click. |
 | `human_type(selector, text)` | Human-like type. |
