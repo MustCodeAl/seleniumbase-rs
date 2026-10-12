@@ -113,23 +113,14 @@ impl App {
 /// `read_dir` depends on the file system, and a menu that reshuffles itself on
 /// every refresh is hard to use.
 fn discover_tests(dir: &Path, kind: TestKind, out: &mut Vec<TestItem>) -> io::Result<()> {
-    if !dir.exists() {
-        return Ok(());
-    }
-    let first_new = out.len();
-    for entry in std::fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("rs") {
-            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                out.push(TestItem {
-                    name: stem.to_owned(),
-                    kind,
-                });
-            }
+    for path in super::discovery::rust_files(dir)? {
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+            out.push(TestItem {
+                name: stem.to_owned(),
+                kind,
+            });
         }
     }
-    out[first_new..].sort_by(|a, b| a.name.cmp(&b.name));
     Ok(())
 }
 

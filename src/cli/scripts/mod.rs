@@ -6,6 +6,7 @@ pub mod sb_mkfile;
 pub mod sb_recorder;
 pub mod sb_translate;
 // newly added
+pub mod discovery;
 pub mod logo_helper;
 pub mod rich_helper;
 pub mod sb_behave_gui;
