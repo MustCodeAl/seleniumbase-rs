@@ -232,8 +232,9 @@ field of the same name: `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
 `SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_SCREENSHOT_DIR`, `SB_PROXY`,
 `SB_PROXY_PAC_URL`, `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`,
 `SB_EXTENSION_DIR`, `SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`,
-`SB_REUSE_SESSION`, `SB_MOBILE`, `SB_THREADS`, `SB_ESC_END` and `SB_REC_SB_CDP`. Booleans accept `true`/`false`,
-`1`/`0`, `yes`/`no` and `on`/`off`. There is no automatic name mapping: a
+`SB_REUSE_SESSION`, `SB_MOBILE`, `SB_THREADS`, `SB_ESC_END` and
+`SB_REC_SB_CDP`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
+`on`/`off`. There is no automatic name mapping: a
 variable that is not in this list, such as `SB_LOGGING__LOG_LEVEL`, does
 nothing. See [Settings and Global Configuration](../tutorials/settings_and_config.md)
 for the table, including the separate runtime variables (`SB_WEBDRIVER_URL`,
@@ -243,6 +244,12 @@ for the table, including the separate runtime variables (`SB_WEBDRIVER_URL`,
 ```bash
 export SB_WEBDRIVER_URL=http://localhost:4444/wd/hub
 ```
+
+The `sbase` binary reads both kinds when it drives a browser (`sbase open`,
+`smoke` and the other browser commands): the settings variables above, and
+`SB_WEBDRIVER_URL` and `SB_CHROME_BIN` from the runtime ones. A bad value, such
+as `SB_HEADLESS=maybe`, stops the command with an error before any browser
+starts.
 
 ## CLI flags
 
@@ -274,7 +281,7 @@ Common flags:
 | `-n NUM` / `--threads NUM` | With `sbase test`, run that many tests at once (`--test-threads`), so that many browsers. |
 | `--browser NAME` | Select `chrome`, `chromium`, `edge`, or `firefox`. |
 | `--cdp` / `--uc` | Select CDP or UC mode (they cannot be combined). |
-| `--webdriver URL` | WebDriver server URL (default `http://localhost:4444`). |
+| `--webdriver URL` | WebDriver server URL (default `SB_WEBDRIVER_URL`, else `http://localhost:4444`). |
 | `-c FILE` / `--config FILE` | Read settings from this TOML or JSON file instead of the global config file. |
 
 Run `sbase --help` and `sbase <subcommand> --help` for the full list of flags.
@@ -308,10 +315,11 @@ it, later sources win:
 4. Programmatic changes, such as `BrowserConfig` builder calls.
 
 `sbase test` adds the command-line flags as step 3 for its tests. The `sbase`
-binary itself works differently when it drives a browser directly (`sbase open`
+binary follows the same order when it drives a browser directly (`sbase open`
 and the like): it starts from the config file (the global one, or the one named
-by `--config`; only with `--config` are the `SB_*` variables applied on top),
-and then CLI flags override it.
+by `--config`), applies the `SB_*` variables on top, and then the CLI flags
+override both. So `SB_HEADLESS=true sbase open URL` runs headless, and
+`SB_HEADLESS=true sbase --headed open URL` shows the window.
 
 Use the config file for stable defaults, environment variables for CI-specific
 overrides, and the builder or CLI flags for one-off experiments.
@@ -321,7 +329,7 @@ overrides, and the builder or CLI flags for one-off experiments.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Environment variable ignored | Used `SBASE_` instead of `SB_`, or the variable is not one `Settings` reads | Use the `SB_` prefix and a name from the list above. |
-| `sbase open` ignores `SB_HEADLESS` | `sbase` applies `SB_*` settings variables only with `--config` | Pass `--headless` or `--config FILE`. |
+| `sbase open` still shows a window with `SB_HEADLESS=true` | A `--headed` flag beats the variable, or the variable is not exported to `sbase` | Drop `--headed`, and `export` the variable (or put it before the command on the same line). |
 | Config file not loaded | File is in a parent directory, or has another name | Put it in the directory you run from, named `sbase_config.toml`. |
 | Config file fails to parse | A flat `key=value` file, or a float for `timeout_seconds` | Use TOML (`.toml` name) or JSON, and whole numbers of seconds. |
 | CLI flag rejected as unexpected | The flag was placed after the subcommand | Put it before: `sbase --headless open URL`. |

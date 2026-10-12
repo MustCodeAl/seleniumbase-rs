@@ -348,9 +348,10 @@ Where a variable is read depends on how you build the configuration:
   (`SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`, and the rest of the list in
   [Customizing Test Runs](./customizing_test_runs.md)). `sbase test` passes the
   flags you give it to the tests as such variables.
-- The `sbase` binary applies the settings variables only when you give it
-  `--config FILE`. Without that option it uses the global config file and its
-  own flags, and it takes the WebDriver URL from `--webdriver`, not from
-  `SB_WEBDRIVER_URL`.
+- The `sbase` binary reads both kinds. Its browser commands (`open`, `smoke`,
+  and the rest) start from the config file (`--config FILE`, else the global
+  one), apply the settings variables on top, and then its own flags, which win.
+  The WebDriver URL is `--webdriver`, else `SB_WEBDRIVER_URL`, else
+  `http://localhost:4444`; the browser binary is `SB_CHROME_BIN`.
 
 See [Customizing Test Runs](./customizing_test_runs.md) for the full list.

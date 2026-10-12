@@ -67,7 +67,7 @@ use seleniumbase_rs::config::settings::Settings;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load the global config file (if present) and apply SB_* env overrides.
-    let settings = Settings::load_global()?;
+    let settings = Settings::load(None::<&str>)?;
 
     // Or load from a specific file.
     let settings = Settings::from_file("staging.toml")?;

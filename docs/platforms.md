@@ -64,8 +64,8 @@ mkdir -p downloaded_drivers && ln -s /usr/bin/chromedriver downloaded_drivers/ch
   sandbox off), or call `LaunchOptionsBuilder::no_sandbox(true)`. The real-browser
   tests of this repository read `CI` instead and pass `--no-sandbox` when it is
   set. That weakens Chrome's isolation, so use it only in a container you control.
-- **No display.** Run headless (`SB_HEADLESS=true`; `sbase open` and the other
-  browser commands read it only with `--config`, so pass `--headless` to them). To
+- **No display.** Run headless (`SB_HEADLESS=true`, which `sbase open` and the other
+  browser commands read, or `--headless` before the subcommand). To
   see a window on a server, or to run the few tests that need a headed Chrome (the
   measurement tools), run under a virtual display such as Xvfb. Start `Xvfb` in the
   background and export `DISPLAY`; `xvfb-run` can wait forever for a signal that a

@@ -67,8 +67,9 @@ Notes:
 
 - Because the entry point is `sbase`, the arguments after the image name are
   `sbase` arguments. Do not repeat `sbase`. The browser commands (`open`,
-  `smoke`, ...) do not read `SB_HEADLESS` unless you pass `--config`, so give them
-  `--headless` before the subcommand; a container has no display.
+  `smoke`, ...) read `SB_HEADLESS` and the other `SB_*` variables, and a
+  `--headless` before the subcommand beats the variable; a container has no
+  display, so set one of them.
 - `--no-slim` is the flag of a local build wrapper that runs Docker Slim; plain
   `docker build` does not know it. Slim finds what to keep by watching a run, so it
   must not optimise this image (see the last note).

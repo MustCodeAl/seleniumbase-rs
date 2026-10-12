@@ -156,10 +156,10 @@ impl From<BrowserArg> for Browser {
 struct Cli {
     #[arg(
         long,
-        default_value = "http://localhost:4444",
-        help = "WebDriver server URL (e.g. http://localhost:4444)"
+        value_name = "URL",
+        help = "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)"
     )]
-    webdriver: String,
+    webdriver: Option<String>,
     #[arg(
         long,
         value_enum,
@@ -1356,12 +1356,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         return Err("Choose either --cdp or --uc, not both.".into());
     }
 
-    // Start from the global config file (if any), then apply only what the
-    // command line asked for, so an option left alone keeps the file's value.
-    let mut settings = match args.config.as_deref() {
-        Some(path) => Settings::load(Some(path))?,
-        None => Settings::load_global()?,
-    };
+    // Start from the config file (the one `--config` names, else the global
+    // one) with the `SB_*` variables on top, as `Settings::load` does for the
+    // tests `sbase test` runs, then apply only what the command line asked for
+    // explicitly. An option left alone keeps the environment's value or, failing
+    // that, the file's, and one that was passed beats both.
+    let mut settings = Settings::load(args.config.as_deref())?;
     let proxy = match args.proxy_list.as_deref() {
         Some(path) => {
             let list = ProxyList::from_file(path)?;
@@ -1415,8 +1415,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             _ => DriverMode::WebDriver,
         })
         .unwrap_or(DriverMode::WebDriver);
+    // The runtime variables the library reads for a `BrowserConfig`: the
+    // WebDriver server (unless `--webdriver` names one) and the browser binary.
+    let runtime = RuntimeConfig::from_env()?;
     let mut config = settings.to_browser_config();
-    config.webdriver_url = args.webdriver;
+    config.webdriver_url = args.webdriver.unwrap_or(runtime.webdriver_url);
+    config.browser_binary_path = runtime.chrome_bin;
     config.mode = mode;
     config.auto_start_driver = true;
 

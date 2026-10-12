@@ -35,8 +35,8 @@ docker run --rm seleniumbase-rs doctor
 docker run --rm --shm-size=1g seleniumbase-rs --headless smoke 'data:text/html,<title>Smoke</title><h1>hi</h1>' --title-contains Smoke
 ```
 
-`sbase open` and `smoke` need `--headless` in a container; `SB_HEADLESS` alone is
-not read by them without `--config`. The build, the test results on Linux arm64
+`sbase open` and `smoke` need `--headless` or `SB_HEADLESS=true` in a container
+(the flag beats the variable). The build, the test results on Linux arm64
 and the commands that worked are in [Building](../building.md#container) and
 [Operating systems](../platforms.md).
 

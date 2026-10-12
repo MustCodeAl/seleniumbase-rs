@@ -89,9 +89,9 @@ docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
 - `--no-slim` belongs to the local build wrapper that runs Slim (see below). Plain
   `docker build` does not know it ("unknown flag: --no-slim"), so leave it out there.
 - The arguments after the image name are `sbase` arguments. `--headless` comes
-  before the subcommand. `sbase open` and `smoke` do not read `SB_HEADLESS` (only
-  `--config` makes `sbase` apply the `SB_*` variables), and without `--headless`
-  Chromium fails in a container for lack of a display.
+  before the subcommand. `sbase open` and `smoke` also read `SB_HEADLESS` (and the
+  other `SB_*` variables; `--headless` beats the variable), and without one of
+  them Chromium fails in a container for lack of a display.
 - If you build through an image optimiser that decides what to keep by watching a
   run (Docker Slim, for example), exclude this image: `sbase --help` never starts
   Chromium, so the optimised image would lose the browser. Drop `chromium-driver`

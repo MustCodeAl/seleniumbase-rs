@@ -337,6 +337,16 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `sbase open`, `smoke` and the other commands that drive a browser ignored
+  `SB_HEADLESS` and the other `SB_*` settings variables unless `--config` was
+  given, and ignored `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`; in a container that
+  made `--headless` mandatory. They now start from the config file, apply the
+  variables on top, and then the command-line options, so an explicit
+  `--headless` or `--headed` still beats the environment. `--webdriver` now
+  defaults to `SB_WEBDRIVER_URL`, then `http://localhost:4444`, and a bad
+  variable value (`SB_HEADLESS=maybe`) stops the command with an error before
+  a browser starts. `tests/cli_env.rs` runs the real binary against a fake
+  WebDriver server.
 - The chromedriver download asks Chrome for Testing for the `linux-arm64` build on
   an arm64 Linux machine (a Docker container on an Apple-silicon Mac, or on
   Graviton) instead of the x86-64 `linux64` one, which cannot run there: the
