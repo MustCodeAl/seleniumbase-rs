@@ -419,7 +419,7 @@ cookies, and execute JavaScript in the active page.
 
 | Feature | Purpose |
 |---------|---------|
-| `tui` | The `sbase commander` terminal UI. |
+| `tui` | The terminal apps `sbase commander`, `sbase caseplans` and `sbase behave-gui`. |
 | `gui` | Native OS dialogs and GUI automation (links GTK and X11 on Linux). |
 | `playwright` | `rustwright` Playwright-compatible engine. |
 | `s3` | AWS S3 artifact uploads. |
@@ -483,6 +483,8 @@ No feature is on by default.
 - [Customizing Test Runs](./docs/help/customizing_test_runs.md)
 - [Syntax Formats](./docs/help/syntax_formats.md)
 - [Commander TUI](./docs/help/commander.md)
+- [Case Plans Generator](./docs/help/caseplans.md)
+- [Behave Commander](./docs/help/behave-gui.md)
 - [Recorder CLI](./docs/help/recorder_cli.md)
 - [Playwright Mode](./docs/help/playwright_mode.md)
 - [Docker Guide](./docs/help/docker.md)
@@ -511,8 +513,8 @@ comments for manual review.
 ## Project status
 
 Every API of Python SeleniumBase 4.55.2 and of its MCP server now has a recorded
-status: 882 implemented, 384 composed from existing Rust calls, 94 not
-applicable with a reason, and 5 still planned
+status: 887 implemented, 384 composed from existing Rust calls, 94 not
+applicable with a reason, and none still planned
 ([docs/parity.md](./docs/parity.md)). An audit of the entries marked done fixed
 or re-marked 26 that did less than the Python method, and a second audit of the
 composed and not-applicable entries found 34 more that said more than the Rust

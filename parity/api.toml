@@ -2441,8 +2441,10 @@ rust = "Gui::mouse_down"
 note = "Feature `gui`. Gui::mouse_down presses at the pointer's current position without moving it, so move first: take `let r = page.locator(selector).screen_rect().await?`, `gui.move_mouse(x, y)?` to the centre `(r.x + r.width / 2.0, r.y + r.height / 2.0)`, then `gui.mouse_down()?`, sleep for the hold time and `gui.mouse_up()?`."
 
 [cdp."gui_click_captcha"]
-status = "planned"
-note = "Python clicks the widget with the operating system's pointer (PyAutoGUI), which works where synthesised clicks into the cross-origin challenge frame are refused. `Page::solve_captcha` is not that: it clicks with DevTools mouse events and the OS pointer never moves. The parts for a real-input click exist (`Locator::screen_rect` for the widget's frame, `Gui::move_mouse`, `Gui::click`, feature `gui`), but nothing combines them with the captcha plan yet."
+status = "implemented"
+rust = "Page::gui_click_captcha"
+note = "Feature `gui`. Page::gui_click_captcha finds the widget as `Page::solve_captcha` does, works out the checkbox's screen point (the window from `Browser.getWindowForTarget`, where the page starts inside it, the widget's frame, the vendor's checkbox offset), moves the real pointer there along a human path and presses; the DataDome slider is dragged. `Page::gui_captcha_plan` gives the point without moving anything. It has unit and mock coverage only: the arithmetic, the vendor offsets, the CDP calls and the pointer steps are tested against a mocked browser and a recording pointer; it has never moved the real pointer or been tried on a live CAPTCHA."
+divergence = "Python's DataDome flow opens the challenge frame in a new tab and drags between the page's own slider elements; here the handle is taken to be 30 pixels in from the frame's left edge and is dragged to 30 pixels from its right edge. A headless browser and a minimised window are refused, and a point outside the main display is refused as PyAutoGUI refuses it."
 
 [cdp."gui_click_element"]
 status = "composed"
@@ -2954,20 +2956,25 @@ rust = "LocatorExpect::to_contain_text"
 note = "`page.locator(selector).expect().not().to_contain_text(text)` waits for the text to go."
 
 [cli."behave-gui"]
-status = "planned"
-note = "Python launches Behave Commander, a GUI that runs behave tests. `sbase behave-gui` only prompts for a name and writes a new .feature file; it runs nothing."
+status = "implemented"
+rust = "sbase behave-gui"
+note = "Terminal UI instead of Tkinter (feature `tui`): lists the .feature files with their scenarios, runs the ones you mark through the crate's behave runner and shows the results; without `tui` it prints a hint and exits with status 2, as `sbase commander` does. `--new` keeps the earlier prompt that writes a new feature file."
+divergence = "Python starts `python -m behave` with the browser, session, demo, dashboard, headless, screenshot and extra options. Here the only run option is a tag filter, and the steps are the built-in ones: steps written in Rust cannot be loaded, so a scenario that uses one is reported as undefined."
 
 [cli."behave-options"]
 status = "not-applicable"
 reason = "Lists behave (Python BDD) options; this crate has its own Gherkin runner."
 
 [cli."case-plans"]
-status = "planned"
-note = "Alias of caseplans upstream; see that entry."
+status = "implemented"
+rust = "sbase caseplans"
+note = "Alias of caseplans upstream; terminal UI instead of Tkinter, as for `sbase caseplans`, and `sbase case-plans` is an alias of it here too."
 
 [cli."caseplans"]
-status = "planned"
-note = "Python launches the Case Plans Generator over the test files. `sbase caseplans` only writes a fixed CASE_PLANS.md checklist."
+status = "implemented"
+rust = "sbase caseplans"
+note = "Terminal UI instead of Tkinter (feature `tui`): lists the Rust test functions under a folder, creates, edits and saves `case_plans/<test>.md` for each and writes `case_summary.md`; without `tui` it prints a hint and exits with status 2, as `sbase commander` does. `--starter` keeps the earlier command that writes a fixed CASE_PLANS.md checklist."
+divergence = "Python lists what pytest collects (`file.py::Class::method`); here the test functions are found by reading the files, so a `#[test]` inside a string looks like a test. Plans and the summary are written with LF line ends, not CRLF."
 
 [cli."codegen"]
 status = "composed"
@@ -3021,8 +3028,9 @@ rust = "sbase commander"
 note = "Python's `gui` is the same test runner as `commander`."
 
 [cli."gui-behave"]
-status = "planned"
-note = "Alias of behave-gui upstream; see that entry."
+status = "implemented"
+rust = "sbase behave-gui"
+note = "Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sbase behave-gui`, and `sbase gui-behave` is an alias of it here too."
 
 [cli."help"]
 status = "composed"

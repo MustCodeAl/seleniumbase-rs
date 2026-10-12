@@ -17,8 +17,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 6 | 194 | 14 | 1 |
-| [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 7 | 194 | 14 | 0 |
+| [Command-line commands](#command-line-commands) | 36 | 20 | 8 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
@@ -690,7 +690,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `grant_all_permissions` | composed | `Browser::grant_all_permissions` | A method of the Browser, not of one page: `browser.grant_all_permissions()` grants the 23 kinds in `Permission::ALL`, which are the ones Python grants. |
 | `grant_permissions` | composed | `Browser::grant_permissions_for` | A method of the Browser, not of one page: `browser.grant_permissions(&[..])` for all origins, `browser.grant_permissions_for(origin, &[..])` for one. Permissions are the `Permission` enum, not free-form names. |
 | `gui_click_and_hold` | composed | `Gui::mouse_down` | Feature `gui`. Gui::mouse_down presses at the pointer's current position without moving it, so move first: take `let r = page.locator(selector).screen_rect().await?`, `gui.move_mouse(x, y)?` to the centre `(r.x + r.width / 2.0, r.y + r.height / 2.0)`, then `gui.mouse_down()?`, sleep for the hold time and `gui.mouse_up()?`. |
-| `gui_click_captcha` | planned |  | Python clicks the widget with the operating system's pointer (PyAutoGUI), which works where synthesised clicks into the cross-origin challenge frame are refused. `Page::solve_captcha` is not that: it clicks with DevTools mouse events and the OS pointer never moves. The parts for a real-input click exist (`Locator::screen_rect` for the widget's frame, `Gui::move_mouse`, `Gui::click`, feature `gui`), but nothing combines them with the captcha plan yet. |
+| `gui_click_captcha` | implemented | `Page::gui_click_captcha` | Feature `gui`. Page::gui_click_captcha finds the widget as `Page::solve_captcha` does, works out the checkbox's screen point (the window from `Browser.getWindowForTarget`, where the page starts inside it, the widget's frame, the vendor's checkbox offset), moves the real pointer there along a human path and presses; the DataDome slider is dragged. `Page::gui_captcha_plan` gives the point without moving anything. It has unit and mock coverage only: the arithmetic, the vendor offsets, the CDP calls and the pointer steps are tested against a mocked browser and a recording pointer; it has never moved the real pointer or been tried on a live CAPTCHA. Differs: Python's DataDome flow opens the challenge frame in a new tab and drags between the page's own slider elements; here the handle is taken to be 30 pixels in from the frame's left edge and is dragged to 30 pixels from its right edge. A headless browser and a minimised window are refused, and a point outside the main display is refused as PyAutoGUI refuses it. |
 | `gui_click_element` | composed | `Gui::click` | Feature `gui`. Gui::click clicks where the pointer already is, so move first: `let r = page.locator(selector).screen_rect().await?; gui.move_mouse((r.x + r.width / 2.0) as i32, (r.y + r.height / 2.0) as i32)?; gui.click()?`. Python also glides the pointer over `timeframe` seconds. |
 | `gui_click_with_offset` | composed | `Gui::click` | Feature `gui`. Move to the offset from the element's top-left corner, then click: `let r = page.locator(selector).screen_rect().await?; gui.move_mouse(r.x as i32 + dx, r.y as i32 + dy)?; gui.click()?`. |
 | `gui_click_x_y` | composed | `Gui::click` | Feature `gui`. Gui::click does not move the pointer: `gui.move_mouse(x, y)?; gui.click()?`. |
@@ -800,10 +800,10 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 
 | Upstream | Status | Rust | Notes |
 | --- | --- | --- | --- |
-| `behave-gui` | planned |  | Python launches Behave Commander, a GUI that runs behave tests. `sbase behave-gui` only prompts for a name and writes a new .feature file; it runs nothing. |
+| `behave-gui` | implemented | `sbase behave-gui` | Terminal UI instead of Tkinter (feature `tui`): lists the .feature files with their scenarios, runs the ones you mark through the crate's behave runner and shows the results; without `tui` it prints a hint and exits with status 2, as `sbase commander` does. `--new` keeps the earlier prompt that writes a new feature file. Differs: Python starts `python -m behave` with the browser, session, demo, dashboard, headless, screenshot and extra options. Here the only run option is a tag filter, and the steps are the built-in ones: steps written in Rust cannot be loaded, so a scenario that uses one is reported as undefined. |
 | `behave-options` | not-applicable |  | Lists behave (Python BDD) options; this crate has its own Gherkin runner. |
-| `case-plans` | planned |  | Alias of caseplans upstream; see that entry. |
-| `caseplans` | planned |  | Python launches the Case Plans Generator over the test files. `sbase caseplans` only writes a fixed CASE_PLANS.md checklist. |
+| `case-plans` | implemented | `sbase caseplans` | Alias of caseplans upstream; terminal UI instead of Tkinter, as for `sbase caseplans`, and `sbase case-plans` is an alias of it here too. |
+| `caseplans` | implemented | `sbase caseplans` | Terminal UI instead of Tkinter (feature `tui`): lists the Rust test functions under a folder, creates, edits and saves `case_plans/<test>.md` for each and writes `case_summary.md`; without `tui` it prints a hint and exits with status 2, as `sbase commander` does. `--starter` keeps the earlier command that writes a fixed CASE_PLANS.md checklist. Differs: Python lists what pytest collects (`file.py::Class::method`); here the test functions are found by reading the files, so a `#[test]` inside a string looks like a test. Plans and the summary are written with LF line ends, not CRLF. |
 | `codegen` | composed | `sbase record` | `sbase record URL -o FILE` writes the recorded actions as a JSON or YAML list that `sbase replay` runs. It does not write a test file; ActionRecorder::to_rust_test does that, from code. |
 | `commander` | implemented | `sbase commander` |  |
 | `convert` | implemented | `sbase convert` |  |
@@ -815,7 +815,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `grid-hub` | implemented | `sbase grid-hub` | start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing. |
 | `grid-node` | implemented | `sbase grid-node` | start, stop, restart and status; registers with the hub named by --hub. |
 | `gui` | composed | `sbase commander` | Python's `gui` is the same test runner as `commander`. |
-| `gui-behave` | planned |  | Alias of behave-gui upstream; see that entry. |
+| `gui-behave` | implemented | `sbase behave-gui` | Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sbase behave-gui`, and `sbase gui-behave` is an alias of it here too. |
 | `help` | composed | `clap` | Provided by the argument parser. |
 | `inject-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `install` | implemented | `sbase install` | Differs: Takes no argument: it fetches the chromedriver that matches the installed Chrome (or the stable one). No driver name, version or --path, and no edgedriver or geckodriver. |

@@ -63,8 +63,27 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (882 implemented,
-  384 composed, 94 not-applicable with a reason, 5 planned). Two audits
+- **`sbase caseplans` and `sbase behave-gui` as terminal apps** (feature `tui`,
+  aliases `case-plans` and `gui-behave`): the Python Case Plans Generator and
+  Behave Commander without Tkinter. The first lists the Rust test functions under
+  a folder and creates, edits and saves `case_plans/<test>.md` for each, and
+  writes `case_summary.md`; the second lists `.feature` files and their
+  scenarios, runs the marked ones (or all) through the behave runner with the
+  built-in steps, with a tag filter, and shows PASS, FAIL, UNDEF and SKIP per
+  scenario. The state of each is a pure state machine tested with plain values,
+  and the screens are tested as exact `TestBackend` text. Without `tui` both
+  print a hint and exit with status 2, as `commander` does. **Breaking**: the
+  earlier file-writing behaviour moved to `sbase caseplans --starter` (the
+  `CASE_PLANS.md` checklist) and `sbase behave-gui --new` (the prompt that writes a
+  feature file), which work in every build.
+- **`Page::gui_click_captcha`** (feature `gui`): clicks a CAPTCHA with the
+  operating system's pointer, along a human path, at the screen point worked out
+  from the window (`Browser.getWindowForTarget`), the viewport offset, the widget
+  frame and the vendor's checkbox offset; `Page::gui_captcha_plan` gives the point
+  without moving the pointer. Tested with unit tests and a mocked browser only: it
+  has not moved the real pointer or been tried on a live CAPTCHA.
+- **Parity**: every API in `parity/api.toml` now has a status (887 implemented,
+  384 composed, 94 not-applicable with a reason, none planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **`--esc-end`** (`--esc_end`, `--ee`): `BrowserConfig::with_esc_end`,
@@ -338,8 +357,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `caseplans` and `behave-gui` commands and three CDP downloads were marked
   `planned` in `parity/api.toml`, because the Rust code only looked like the
   Python one. The referral helpers, `set_content_to_frame`, `install_addon`, the
-  CDP downloads and the `--reuse-session` options have since been written (see
-  Added); the others are still `planned`.
+  CDP downloads, the `--reuse-session` options, the `caseplans` and `behave-gui`
+  terminal apps and `gui_click_captcha` have since been written (see Added), so
+  no entry is `planned` now.
   `objectify` is not applicable and `mkrec` is mapped onto `sbase record`.
 - Waits report the error that stopped them, and link checks report real status
   codes.
