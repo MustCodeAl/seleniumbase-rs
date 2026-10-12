@@ -8,6 +8,28 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+## [0.1.1] - 2026-10-12
+
+Windows fixes from a second round of runs on a Windows 11 PC (Chrome 154 and
+155, Edge 155, Firefox 153). There, formatting, clippy, the whole test suite,
+the real-Chrome tests, Edge, Firefox and the Tauri 3 installer build now pass.
+
+### Fixed
+
+- The browser version on Windows comes from the `chrome.exe` (or `msedge.exe`)
+  that really runs, read from its file version: while an update waited for a
+  restart, the newest version folder named a Chrome that was not running yet and
+  the wrong chromedriver was fetched. The folder rule also skips a waiting update.
+- Download folders are handed to Chrome as plain `C:\...` paths, not with the
+  `\\?\` prefix `canonicalize` adds on Windows; a `blob:` download was cancelled.
+- The tests that list processes with `pgrep` skip those checks on Windows.
+
+### Added
+
+- `rust-toolchain.toml`, so rustup uses Rust 1.99 in the repository by itself.
+- The Windows status in `docs/platforms.md`. Known gap: on Windows nothing ends a
+  browser whose program was killed (macOS and Linux have a process-group watcher).
+
 ## [0.1.0] - 2026-10-12
 
 The first release, tagged `v0.1.0` on GitHub (not published to crates.io).
