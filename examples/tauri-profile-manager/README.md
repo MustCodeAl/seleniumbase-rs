@@ -110,6 +110,13 @@ and `opener:default` permissions and the configuration all carried over, with
 the schema URL moved to `https://schema.tauri.app/config/3`. To build on Tauri
 2 instead, set those versions back to `2` and the schema to `config/2`.
 
+The whole library fits in a Tauri 3 app, not only the `turso` feature this
+example uses: with every `seleniumbase-rs` feature switched on
+(`cargo build --features seleniumbase-rs/impersonate,seleniumbase-rs/mcp-server,...`),
+the app builds and links, and the 115 tests pass with all of them except
+`playwright`. That feature embeds Python, so a binary built with it needs
+`libpython3.14.dylib` where the loader can find it, in any app, Tauri or not.
+
 ## Features
 
 - Create / delete isolated browser profiles, stored encrypted at rest.
