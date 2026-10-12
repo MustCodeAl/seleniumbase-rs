@@ -10,6 +10,18 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Added
 
+- **Playwright and Puppeteer importers**: `sbase import-playwright` (alias
+  `import-pw`) converts `@playwright/test` files, `playwright codegen` output and
+  pytest-playwright, sync and async Python scripts; `sbase import-puppeteer`
+  (alias `import-pptr`) converts Puppeteer scripts, jest-puppeteer and Mocha
+  tests and Chrome DevTools Recorder JSON exports. Both write one
+  `#[tokio::test]` per test on the pure CDP engine, keep every statement they
+  do not convert as a `TODO` with a diagnostic naming its line, and read the
+  input with a bounded hand-written parser whose text reaches the Rust only in
+  escaped literals and comments (`utilities::importer`,
+  `docs/playwright-migration.md`, `docs/puppeteer-migration.md`).
+  `SelectorBuf::role`, `text`, `label` and `has_text` approximate `getByRole`,
+  `getByText`, `getByLabel` and `filter({ hasText })` in XPath.
 - **Pure CDP engine** (`sb_cdp`): `Browser`, `Page`, `Locator`, input, cookies,
   storage, window and emulation, retrying assertions, same-origin frames, CAPTCHA
   solving, a mock browser for tests without Chrome, request interception

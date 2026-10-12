@@ -14,6 +14,8 @@
   - [Benchmarks](benchmarks.md)
 - [Writing Browser Tests](rust-test-tooling.md)
 - [Migrate Python Tests](python-migration.md)
+  - [Migrate Playwright Tests](playwright-migration.md)
+  - [Migrate Puppeteer Tests](puppeteer-migration.md)
 - [Selectors](tutorials/selectors.md)
 - [Waits and Assertions](tutorials/waits_assertions.md)
 - [Settings and Configuration](tutorials/settings_and_config.md)

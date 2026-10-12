@@ -269,6 +269,35 @@ detection. Use `--test-name user_can_log_in` to choose the generated function
 name. Unsupported statements are retained as `TODO` comments and diagnostics.
 Review generated code before compiling or running it.
 
+## Import Playwright and Puppeteer tests
+
+Convert Playwright tests or scripts (JavaScript, TypeScript or Python) and
+Puppeteer scripts or tests (JavaScript or TypeScript, or a Chrome DevTools
+Recorder `.json` export) into Rust tests for the pure CDP engine:
+
+```bash
+./target/debug/sbase import-playwright ./e2e/login.spec.ts --output ./tests/login.rs
+./target/debug/sbase import-playwright ./tests/test_login.py   # pytest-playwright
+./target/debug/sbase import-puppeteer ./scripts/checkout.js --output ./tests/checkout.rs
+./target/debug/sbase import-puppeteer ./recordings/checkout.json  # Recorder export
+```
+
+`import-pw` and `import-pptr` are short names for the two commands. The
+language comes from the file extension (`.js`, `.mjs`, `.cjs`, `.ts`, `.mts`,
+`.py`, `.json`), else from the content; `--language js|ts|python` (Puppeteer:
+`js|ts|json`) overrides it. Each `test()`/`it()` becomes one `#[tokio::test]`
+named after its `describe` and test titles; a script without titles (codegen
+output, a plain script) becomes one test named after the file, or after
+`--test-name`. Without `--output` the Rust goes to standard output; one line
+per statement that became a `TODO(playwright)` or `TODO(puppeteer)` comment
+goes to standard error. As with `import-python`, a gap is a warning (exit
+status 0), a statement the importer could not read is an error (status 1), a
+file it cannot read fails with status 6, and a source it refuses (over 2 MB, or
+a Recorder export given to `import-playwright`) with status 2. Run the
+generated tests headless with `SB_HEADLESS=true cargo test`. See
+[Migrate Playwright Tests](../playwright-migration.md) and
+[Migrate Puppeteer Tests](../puppeteer-migration.md) for every mapping.
+
 ## Install shell completions
 
 The supported values are `bash`, `elvish`, `fish`, `powershell`, and `zsh`.

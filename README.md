@@ -509,6 +509,8 @@ cargo run --bin sbase -- import-python tests/login_test.py \
 The static importer handles common SeleniumBase and Selenium WebDriver calls.
 Unsupported or dynamic Python remains visible as diagnostics and `TODO`
 comments for manual review.
+`sbase import-playwright` converts Playwright tests and scripts (JavaScript, TypeScript, Python) into pure CDP Rust tests the same way ([docs/playwright-migration.md](./docs/playwright-migration.md)).
+`sbase import-puppeteer` does it for Puppeteer scripts, jest-puppeteer and Mocha tests, and Chrome Recorder JSON exports ([docs/puppeteer-migration.md](./docs/puppeteer-migration.md)).
 
 ## Project status
 
