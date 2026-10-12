@@ -27,8 +27,10 @@ use crate::stealth::patcher::find_system_chrome;
 
 /// A running WebDriver process launched by the crate.
 ///
-/// On Unix the driver and the browser it starts end with this program, also
-/// when the program is killed without quitting them.
+/// The driver is ended when this value is dropped, so a session that failed to
+/// start does not leave it running, on every system. On Unix the driver and the
+/// browser it starts also end with this program when the program is killed
+/// without quitting them.
 pub struct DriverProcess {
     pub url: String,
     child: Child,
@@ -46,6 +48,46 @@ impl DriverProcess {
     pub fn kill(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+impl Drop for DriverProcess {
+    fn drop(&mut self) {
+        // Ending an exited process again only returns an error, ignored here.
+        self.kill();
+    }
+}
+
+#[cfg(all(test, unix))]
+mod driver_process_tests {
+    use super::*;
+
+    fn running(pid: u32) -> bool {
+        std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success())
+    }
+
+    /// A driver whose session failed to start is dropped, never quit; it must
+    /// end too (Windows has no process-group watcher to do it).
+    #[test]
+    fn a_dropped_driver_process_is_ended() {
+        let child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        let driver = DriverProcess {
+            url: "http://127.0.0.1:1".to_owned(),
+            child,
+            // A watcher with nothing enrolled, so only the drop can end `sleep`.
+            _guard: OrphanGuard::start(),
+        };
+        assert!(running(pid));
+        drop(driver);
+        assert!(!running(pid), "the driver outlived its handle");
     }
 }
 
