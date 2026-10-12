@@ -38,6 +38,38 @@ use super::page::Page;
 use crate::artifacts::{bare_file_name, confined_path};
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
+
+/// `path` without the `\\?\` prefix `canonicalize` gives on Windows
+/// (`\\?\C:\x` becomes `C:\x`). Chrome takes the plain form as a download
+/// folder and reports downloads under it, so paths compare equal. Network
+/// paths (`\\?\UNC\...`) and every other path are left as they are.
+pub(crate) fn plain_path(path: PathBuf) -> PathBuf {
+    match path.to_str().and_then(|text| text.strip_prefix(r"\\?\")) {
+        Some(rest) if !rest.starts_with(r"UNC\") => PathBuf::from(rest),
+        _ => path,
+    }
+}
+
+#[cfg(test)]
+mod plain_path_tests {
+    use super::*;
+
+    #[test]
+    fn the_windows_verbatim_prefix_is_dropped_from_a_drive_path_only() {
+        assert_eq!(
+            plain_path(PathBuf::from(r"\\?\C:\Users\a\dl")),
+            PathBuf::from(r"C:\Users\a\dl")
+        );
+        assert_eq!(
+            plain_path(PathBuf::from(r"\\?\UNC\srv\share")),
+            PathBuf::from(r"\\?\UNC\srv\share")
+        );
+        assert_eq!(
+            plain_path(PathBuf::from("/private/var/x")),
+            PathBuf::from("/private/var/x")
+        );
+    }
+}
 use crate::utils::selectors::SelectorBuf;
 
 /// How often [`Page::assert_downloaded_file`] looks in the folder.
@@ -259,7 +291,7 @@ impl Page {
             .filter(|parent| !parent.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."));
         let saved = self.fetch_into(url, dir, Some(name)).await?;
-        let target = fs::canonicalize(dir)?.join(name);
+        let target = plain_path(fs::canonicalize(dir)?).join(name);
         if saved != target {
             // The browser saved the file under another name than it was asked to,
             // for example because it numbered it to keep one that was there.
@@ -324,7 +356,7 @@ impl Page {
         let deadline = Instant::now() + timeout;
         loop {
             if path.is_file() {
-                return Ok(fs::canonicalize(&path).unwrap_or(path));
+                return Ok(fs::canonicalize(&path).map_or(path, plain_path));
             }
             if Instant::now() >= deadline {
                 return Err(SeleniumBaseError::wait_timeout(

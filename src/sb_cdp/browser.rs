@@ -737,8 +737,8 @@ impl Browser {
         dir: &Path,
     ) -> Result<PathBuf, SeleniumBaseError> {
         std::fs::create_dir_all(dir)?;
-        // Chrome requires an absolute path.
-        let absolute = std::fs::canonicalize(dir)?;
+        // Chrome requires an absolute path, and on Windows a plain `C:\...` one.
+        let absolute = super::download::plain_path(std::fs::canonicalize(dir)?);
         self.execute(
             "Browser.setDownloadBehavior",
             json!({ "behavior": "allow", "downloadPath": absolute, "eventsEnabled": true }),
