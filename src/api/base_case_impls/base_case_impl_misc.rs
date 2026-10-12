@@ -355,19 +355,6 @@ impl BaseCase {
         Ok(path)
     }
 
-    /// Always fails with [`SeleniumBaseError::Unsupported`]. Python's
-    /// `install_addon(xpi_file)` installs a Firefox add-on through
-    /// geckodriver; this port has no Firefox add-on support.
-    ///
-    /// # Errors
-    ///
-    /// Always returns [`SeleniumBaseError::Unsupported`].
-    pub async fn install_addon(&self, _path: &str) -> Result<(), SeleniumBaseError> {
-        Err(SeleniumBaseError::Unsupported(
-            "install_addon is not supported in the Rust port".to_owned(),
-        ))
-    }
-
     /// Ensures hidden file inputs are visible for automation.
     pub async fn show_file_choosers(&self) -> Result<(), SeleniumBaseError> {
         self.execute_script(

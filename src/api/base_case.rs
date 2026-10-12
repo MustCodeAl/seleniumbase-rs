@@ -2722,6 +2722,7 @@ include!("base_case_impls/base_case_impl_charts.rs");
 include!("base_case_impls/base_case_impl_presentations.rs");
 include!("base_case_impls/base_case_impl_jslibs.rs");
 include!("base_case_impls/base_case_impl_misc.rs");
+include!("base_case_impls/base_case_impl_addon.rs");
 include!("base_case_impls/base_case_impl_parity.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
