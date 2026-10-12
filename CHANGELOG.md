@@ -337,6 +337,13 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- Log lines went to standard output, in colour even when the output was a file or
+  a pipe. `seleniumbase-mcp` therefore wrote them into the JSON-RPC stream (three
+  lines in a session that did nothing but connect), which a client reads as
+  corrupt messages, and `sbase get-title | ...` carried the logs with the
+  answer. The `init_tracing*` functions now write to standard error, with colour
+  only on a terminal and not when `NO_COLOR` is set. `tests/mcp_stdio_chrome.rs`
+  speaks JSON-RPC to the real binary and fails on any line that is not a message.
 - The three MCP servers answered `initialize` with the server name `rmcp` and the
   library's version (`3.5.1`), so a client listed `cdp`, `driver` and `sb` as the
   MCP library. They now report `seleniumbase-cdp`, `seleniumbase-driver` and

@@ -8,6 +8,12 @@
 //! * [`tracing-timing`] (when the `full-tracing` feature is enabled) for
 //!   histogram timing of spans/events.
 //!
+//! Logs go to standard error, never to standard output. Standard output is for
+//! what a program produces: the answer of an `sbase` command, or the JSON-RPC
+//! messages of `seleniumbase-mcp`, which a log line in the stream would break.
+//! Colour is used only when standard error is a terminal and `NO_COLOR` is not
+//! set.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -19,6 +25,8 @@
 //!     // tracing_util::init_tracing_json();
 //! }
 //! ```
+
+use std::io::IsTerminal;
 
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -39,6 +47,13 @@ fn filter_from(directives: &str) -> EnvFilter {
     EnvFilter::try_new(directives).unwrap_or_else(|_| env_filter())
 }
 
+/// Whether log lines may carry colour: standard error is a terminal and the
+/// user has not asked for none (<https://no-color.org>).
+fn colour_allowed() -> bool {
+    std::io::stderr().is_terminal()
+        && std::env::var_os("NO_COLOR").is_none_or(|value| value.is_empty())
+}
+
 /// Installs the global subscriber, ignoring a second call.
 fn install(filter: EnvFilter, format: &LogFormat) {
     let _ = tracing_log::LogTracer::init();
@@ -46,6 +61,7 @@ fn install(filter: EnvFilter, format: &LogFormat) {
     match format {
         LogFormat::Json => {
             let layer = json_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
                 .with_current_span(true)
                 .with_span_list(false)
                 .with_filter(filter);
@@ -53,6 +69,8 @@ fn install(filter: EnvFilter, format: &LogFormat) {
         }
         LogFormat::Pretty => {
             let layer = tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_ansi(colour_allowed())
                 .with_target(true)
                 .with_thread_ids(false)
                 .with_filter(filter);
