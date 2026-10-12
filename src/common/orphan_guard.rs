@@ -230,9 +230,10 @@ mod tests {
         let mut command = Command::new("sleep");
         command.arg("60").stdout(Stdio::null());
         guard.enroll(&mut command);
-        let child = command.spawn().unwrap();
+        let mut child = command.spawn().unwrap();
         println!("guarded={}", child.id());
         std::thread::sleep(Duration::from_secs(60));
         drop(guard);
+        let _ = child.wait();
     }
 }
