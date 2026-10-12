@@ -8,7 +8,8 @@ use std::sync::{Arc, PoisonError};
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
-    ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig, Tool,
+    Implementation, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig,
+    Tool,
 };
 use rmcp::service::{RequestContext, RoleServer};
 use serde_json::{Map, Value};
@@ -430,7 +431,13 @@ fn error_result(report: &FailureReport) -> CallToolResponse {
 )]
 impl<S: Send + 'static> ServerHandler for Host<S> {
     fn get_info(&self) -> ServerConfig {
+        // A client names the server by this: without it, every server of this
+        // crate introduces itself as the MCP library.
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new(
+                self.shared.name,
+                env!("CARGO_PKG_VERSION"),
+            ))
             .with_instructions(self.shared.instructions)
     }
 
@@ -515,6 +522,22 @@ mod tests {
             host.unknown_tool("make_coffee"),
             "unknown tool: make_coffee"
         );
+    }
+
+    #[test]
+    fn the_initialize_reply_names_the_server_and_this_crates_version() {
+        let host: Host<()> = Host::new(
+            "seleniumbase-test",
+            "Instructions.",
+            Vec::new(),
+            Settings::new("out"),
+        );
+
+        let info = host.get_info();
+
+        assert_eq!(info.server_info.name, "seleniumbase-test");
+        assert_eq!(info.server_info.version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(info.instructions.as_deref(), Some("Instructions."));
     }
 
     #[tokio::test]

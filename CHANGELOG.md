@@ -337,6 +337,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- The three MCP servers answered `initialize` with the server name `rmcp` and the
+  library's version (`3.5.1`), so a client listed `cdp`, `driver` and `sb` as the
+  MCP library. They now report `seleniumbase-cdp`, `seleniumbase-driver` and
+  `seleniumbase-sb` with this crate's version.
 - `sbase open`, `smoke` and the other commands that drive a browser ignored
   `SB_HEADLESS` and the other `SB_*` settings variables unless `--config` was
   given, and ignored `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`; in a container that
