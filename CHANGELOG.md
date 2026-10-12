@@ -1,12 +1,18 @@
 # Changelog
 
 All notable changes to `seleniumbase-rs`. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The crate has not been
-released yet (`0.1.0`), so everything below is under *Unreleased*; the target is
-feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
-(`ROADMAP.md` has the open work, `docs/parity.md` the per-API status).
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/). The target is feature parity with
+Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
+work, `docs/parity.md` the per-API status).
 
 ## Unreleased
+
+## [0.1.0] - 2026-10-12
+
+The first release, tagged `v0.1.0` on GitHub (not published to crates.io).
+Windows is being verified: the first runs on a Windows PC found the problems
+listed first under *Fixed*.
 
 ### Added
 
@@ -420,6 +426,16 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- **Windows**, found by the first runs on a Windows PC: every `sbase` command
+  crashed at start with a stack overflow (a debug build needs more than the 1 MB
+  a Windows main thread gets; `sbase` now runs on a 16 MB thread, and
+  `tests/cli_e2e.rs` starts it under a 1 MB stack); the chromedriver for an older
+  Chrome was never fetched, because `chrome.exe --version` prints nothing there
+  (the version now comes from the folder beside the program, as in Python
+  SeleniumBase); a driver whose session failed to start kept running (a dropped
+  `DriverProcess` now ends it); text files were checked out with CRLF
+  (`.gitattributes` makes them LF) and the parity scripts wrote CRLF; and four
+  tests expected `/` in printed paths.
 - **The `playwright` feature no longer needs Python.** `rustwright-core` was a
   direct dependency with its default `python` feature, which adds Python
   bindings through pyo3, so every program built with `playwright` linked
