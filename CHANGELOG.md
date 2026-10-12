@@ -206,6 +206,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   container (`docker/firefox-check`, which holds nothing of this crate): both
   an unpacked directory and an `.xpi` installed with `temporary: true`, the
   add-on's content script ran, and the uninstall stopped it.
+  `tests/install_addon_firefox.rs` (ignored) runs `BaseCase` against that
+  geckodriver and installs and removes an add-on.
 
 ### Changed
 
