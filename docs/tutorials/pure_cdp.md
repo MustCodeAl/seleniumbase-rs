@@ -452,6 +452,34 @@ Friendly Captcha or DataDome widget with trusted mouse events and returns which
 one it tried. The widgets live in cross-origin frames, so success is up to the
 site: check the page afterwards.
 
+Some challenge frames refuse events that did not come from the operating
+system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt
+with the machine's own pointer, as Python's `gui_click_captcha` does with
+PyAutoGUI:
+
+```rust,no_run
+# #[cfg(feature = "gui")]
+# async fn demo(page: seleniumbase_rs::sb_cdp::Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+// Where the pointer would go, without moving it (and without a click):
+if let Some(plan) = page.gui_captcha_plan().await? {
+    println!("{} at {:?}", plan.captcha, plan.press);
+}
+// Move the real pointer there along a human path and click.
+page.gui_click_captcha().await?;
+# Ok(())
+# }
+```
+
+It brings the window to the front, works out the checkbox's position on the
+screen from the window (`Browser.getWindowForTarget`), the toolbar above the
+page, the widget's frame and where each vendor draws its box, and takes over
+the mouse for about a second. The click goes to whatever window is on top at
+that point. A headless browser and a minimised window are refused, as is a
+point outside the main display. The position is exact for a window at 100
+percent zoom on an unscaled display; a page zoom or a docked browser panel
+shifts it. It is covered by unit tests and a mocked browser, and has not been
+tried on a live CAPTCHA.
+
 ## Testing without Chrome
 
 With the `test-util` feature, `Browser::new_mocked()` returns a browser backed by

@@ -63,6 +63,8 @@ mod client;
 mod context;
 mod download;
 mod expect;
+#[cfg(feature = "gui")]
+pub mod gui_captcha;
 mod human;
 mod identity;
 mod input;
