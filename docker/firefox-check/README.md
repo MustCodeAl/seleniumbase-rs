@@ -48,6 +48,11 @@ of its manifest. What geckodriver refuses, all as `{"value":{"error":...}}`:
 | uninstall `{"id":"never-installed@example.org"}` | 500 `unknown error` | `Add-on with ID "never-installed@example.org" is not installed.` |
 | `{"temporary":true}` (no `path`) | 400 `invalid argument` | `data did not match any variant of untagged enum AddonInstallParameters` |
 
+`tests/install_addon_firefox.rs` (ignored) runs `BaseCase::install_addon` and
+`uninstall_addon` from the host against the geckodriver in this image, with a host
+folder mounted at the same path inside the container; the commands are in its
+header. It passed on 2026-10-11 against geckodriver 0.37.1 and Firefox 153.4.0 ESR.
+
 The `path` is read by geckodriver, so it has to be a path on geckodriver's own
 machine. geckodriver also takes the add-on as base64 in an `addon` field, which
 is what Python's Selenium sends so that a remote driver works; this crate does not
