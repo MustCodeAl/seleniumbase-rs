@@ -540,9 +540,18 @@ Feature: Log in
 
         let found = find_feature_files(&dir.path().join("features")).unwrap();
 
-        let shown: Vec<_> = found
+        // Joined with `/` whatever the platform's separator, so the names read
+        // the same on Windows.
+        let shown: Vec<String> = found
             .iter()
-            .map(|p| p.strip_prefix(dir.path()).unwrap().to_str().unwrap())
+            .map(|p| {
+                p.strip_prefix(dir.path())
+                    .unwrap()
+                    .components()
+                    .map(|part| part.as_os_str().to_str().unwrap())
+                    .collect::<Vec<_>>()
+                    .join("/")
+            })
             .collect();
         assert_eq!(
             shown,
