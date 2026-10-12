@@ -9,7 +9,7 @@ retries = 0
 chrome = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = "binary(/_chrome$/) | binary(browser_smoke)"
+filter = "binary(/_chrome$/) | binary(browser_smoke) | binary(edge_msedgedriver) | binary(firefox_geckodriver)"
 test-group = "chrome"
 slow-timeout = { period = "60s", terminate-after = 3 }
 
