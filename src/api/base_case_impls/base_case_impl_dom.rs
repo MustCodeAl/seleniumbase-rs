@@ -1,5 +1,58 @@
 // HTML / DOM helpers.
 
+/// A page that `set_content_to_frame` replaced, kept so that
+/// `set_content_to_default` and `set_content_to_parent` can bring it back.
+#[derive(Clone, Debug)]
+struct SwappedPage {
+    /// The page's address.
+    url: String,
+    /// The page's source when it was replaced.
+    source: String,
+    /// The window or tab the page was in.
+    window: String,
+}
+
+/// Reads `[document.cframe_swap, document.cframe_tab]` from the page. The first
+/// counts the frames the page now shows in place of itself, the second is `1`
+/// in a page that opened a frame in another tab or is that tab. Both are page
+/// variables, as in Python, so a navigation drops them.
+const FRAME_SWAP_STATE_SCRIPT: &str =
+    "return [Number(document.cframe_swap) || 0, Number(document.cframe_tab) || 0];";
+/// Counts one more frame swapped into the page.
+const FRAME_SWAP_UP_SCRIPT: &str =
+    "document.cframe_swap = (Number(document.cframe_swap) || 0) + 1;";
+/// Counts one frame fewer swapped into the page.
+const FRAME_SWAP_DOWN_SCRIPT: &str =
+    "document.cframe_swap = Math.max((Number(document.cframe_swap) || 0) - 1, 0);";
+/// Forgets that frames were swapped into the page.
+const FRAME_SWAP_RESET_SCRIPT: &str = "document.cframe_swap = 0;";
+/// Marks the page as one that has to do with a frame opened in a tab.
+const FRAME_TAB_SCRIPT: &str = "document.cframe_tab = 1;";
+
+/// The script that makes the page show the document `html`: the head and the
+/// body of the page are replaced with those of `html`.
+///
+/// `html` is parsed as a whole document, so its `<html>`, `<head>` and
+/// `<body>` tags do not end up inside the body, and its styles come with it.
+/// Scripts in it do not run, as with any `innerHTML`.
+fn replace_document_script(html: &str) -> String {
+    format!(
+        "var next = new DOMParser().parseFromString({html}, 'text/html'); \
+         document.head.innerHTML = next.head.innerHTML; \
+         document.body.innerHTML = next.body.innerHTML;",
+        html = quote(html)
+    )
+}
+
+/// Whether an iframe with this `src` property is opened in a tab by
+/// `set_content_to_frame` instead of being swapped into the page: the
+/// property is the resolved address, so this is a web or file address.
+fn opens_in_a_tab(src: &str) -> bool {
+    ["http:", "https:", "file:"]
+        .iter()
+        .any(|scheme| src.starts_with(scheme))
+}
+
 impl BaseCase {
     /// Returns the current page source.
     pub async fn get_html(&self) -> Result<String, SeleniumBaseError> {
@@ -35,24 +88,197 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Alias for `switch_to_default_content`.
+    /// Makes the page show what the iframe `frame` shows, in place of the
+    /// page's own content. Corresponds to Python's `set_content_to_frame`.
+    ///
+    /// `frame` selects the iframe, or is its `name`. The iframe's document
+    /// replaces the head and the body of the page, so the page's commands
+    /// (`click`, `get_text`, ...) work on it without entering the frame; the
+    /// address does not change. If the iframe's `src` is a web or file
+    /// address, that address is opened in a new tab instead, which becomes the
+    /// current one.
+    ///
+    /// [`set_content_to_default`](Self::set_content_to_default) brings the page
+    /// back, and [`set_content_to_parent`](Self::set_content_to_parent) undoes
+    /// one swap of several. Scripts of the frame's document do not run once it
+    /// is swapped in.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the iframe does not appear
+    /// within the default wait, and the driver's error if it cannot be entered.
+    /// The page is left as it was in both cases.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// sb.set_content_to_frame("iframe#payment").await?;
+    /// sb.click("button#pay").await?;
+    /// sb.set_content_to_default().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn set_content_to_frame(&mut self, frame: &str) -> Result<(), SeleniumBaseError> {
+        let selector = self.frame_selector(frame).await?;
+        let by = Selector::auto(&selector).to_by()?;
+        let url = self.get_current_url().await?;
+        let window = self.get_current_window_handle().await?;
+        let source = self.get_page_source().await?;
+        self.session.switch_to_frame(by.clone()).await?;
+        let frame_source = self.get_page_source().await;
+        // Leave the frame whether or not its source could be read.
+        self.session.switch_to_default_content().await?;
+        let frame_source = frame_source?;
+        self.wait_for_ready_state_complete().await?;
+        let src = self
+            .session
+            .get_property(by, "src")
+            .await?
+            .unwrap_or_default();
+        if opens_in_a_tab(&src) {
+            self.execute_script(FRAME_TAB_SCRIPT).await?;
+            self.open_new_window().await?;
+            self.open(&src).await?;
+            self.execute_script(FRAME_TAB_SCRIPT).await?;
+        } else {
+            self.execute_script(&replace_document_script(&frame_source))
+                .await?;
+            self.execute_script(FRAME_SWAP_UP_SCRIPT).await?;
+        }
+        self.swapped_pages
+            .push(SwappedPage { url, source, window });
+        Ok(())
+    }
+
+    /// The selector of the iframe `frame` names: `frame` itself if it selects
+    /// an element, else the iframe whose `name` it is. Waits for `frame`
+    /// otherwise.
+    async fn frame_selector(&self, frame: &str) -> Result<String, SeleniumBaseError> {
+        if self.is_element_present(frame).await? {
+            return Ok(frame.to_owned());
+        }
+        if !frame.contains(' ') {
+            let by_name = format!(
+                "iframe[name=\"{}\"]",
+                frame.replace('\\', "\\\\").replace('"', "\\\"")
+            );
+            if self.is_element_present(&by_name).await? {
+                return Ok(by_name);
+            }
+        }
+        self.await_ready(frame, Ready::Present).await?;
+        Ok(frame.to_owned())
+    }
+
+    /// How many frames the page shows in place of itself, and whether it is
+    /// tied to a frame opened in a tab: the page's `document.cframe_swap` and
+    /// `document.cframe_tab`.
+    async fn frame_swap_state(&self) -> Result<(u64, u64), SeleniumBaseError> {
+        let state = self.execute_script(FRAME_SWAP_STATE_SCRIPT).await?;
+        let count = |index: usize| state.get(index).and_then(Value::as_u64).unwrap_or(0);
+        Ok((count(0), count(1)))
+    }
+
+    /// Brings `past` back: its tab if it is still open, then its content, or a
+    /// refresh if the tab has been somewhere else since.
+    async fn restore_swapped_page(&mut self, past: &SwappedPage) -> Result<(), SeleniumBaseError> {
+        if self.get_current_window_handle().await? != past.window
+            && self.get_all_window_handles().await?.contains(&past.window)
+        {
+            self.session.switch_to_window(&past.window).await?;
+        }
+        if self.get_current_url().await? == past.url {
+            self.execute_script(&replace_document_script(&past.source))
+                .await?;
+            Ok(())
+        } else {
+            self.refresh_page().await
+        }
+    }
+
+    /// Brings back the page that [`set_content_to_frame`](Self::set_content_to_frame)
+    /// replaced, however many frames were swapped in. Corresponds to Python's
+    /// `set_content_to_default`.
+    ///
+    /// If a swap was made but the page has since been navigated away from (its
+    /// counters are gone), the page is refreshed instead, as Python does.
+    /// If no frame was swapped in, this only leaves the frame the driver is in
+    /// (see [`switch_to_default_content`](Self::switch_to_default_content));
+    /// Python refreshes the page in that case.
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver's error if the page or its tab cannot be reached.
     pub async fn set_content_to_default(&mut self) -> Result<(), SeleniumBaseError> {
-        self.switch_to_default_content().await
+        if self.swapped_pages.is_empty() {
+            return self.switch_to_default_content().await;
+        }
+        let (swaps, tabs) = self.frame_swap_state().await?;
+        match self.swapped_pages.first().cloned() {
+            Some(past) if swaps > 0 || tabs > 0 => self.restore_swapped_page(&past).await?,
+            _ => self.refresh_page().await?,
+        }
+        self.execute_script(FRAME_SWAP_RESET_SCRIPT).await?;
+        self.swapped_pages.clear();
+        Ok(())
     }
 
-    /// Alias for `switch_to_default_content`.
+    /// Same as [`set_content_to_default`](Self::set_content_to_default).
     pub async fn set_content_to_default_content(&mut self) -> Result<(), SeleniumBaseError> {
-        self.switch_to_default_content().await
+        self.set_content_to_default().await
     }
 
-    /// Alias for `switch_to_parent_frame`.
+    /// Undoes the last [`set_content_to_frame`](Self::set_content_to_frame), so
+    /// the page shows what it showed before that swap. Corresponds to Python's
+    /// `set_content_to_parent`.
+    ///
+    /// Like [`set_content_to_default`](Self::set_content_to_default), it
+    /// refreshes the page when the swap was forgotten, and only leaves the
+    /// current frame (see
+    /// [`switch_to_parent_frame`](Self::switch_to_parent_frame)) when no frame
+    /// was swapped in.
+    ///
+    /// # Errors
+    ///
+    /// Returns the driver's error if the page or its tab cannot be reached.
     pub async fn set_content_to_parent(&mut self) -> Result<(), SeleniumBaseError> {
-        self.switch_to_parent_frame().await
+        if self.swapped_pages.is_empty() {
+            return self.switch_to_parent_frame().await;
+        }
+        let (swaps, tabs) = self.frame_swap_state().await?;
+        let mut refresh = false;
+        if swaps > 0 {
+            self.execute_script(FRAME_SWAP_DOWN_SCRIPT).await?;
+            let past = self.swapped_pages.pop();
+            match past {
+                Some(past) if self.get_current_url().await? == past.url => {
+                    self.execute_script(&replace_document_script(&past.source))
+                        .await?;
+                }
+                _ => refresh = true,
+            }
+        } else if tabs > 0 {
+            match self.swapped_pages.pop() {
+                Some(past) if self.get_all_window_handles().await?.contains(&past.window) => {
+                    self.session.switch_to_window(&past.window).await?;
+                }
+                _ => refresh = true,
+            }
+        } else {
+            refresh = true;
+        }
+        if refresh {
+            self.refresh_page().await?;
+            self.execute_script(FRAME_SWAP_RESET_SCRIPT).await?;
+            self.swapped_pages.clear();
+        }
+        Ok(())
     }
 
-    /// Alias for `switch_to_parent_frame`.
+    /// Same as [`set_content_to_parent`](Self::set_content_to_parent).
     pub async fn set_content_to_parent_frame(&mut self) -> Result<(), SeleniumBaseError> {
-        self.switch_to_parent_frame().await
+        self.set_content_to_parent().await
     }
 
     /// Removes all elements matching `css` from the DOM.

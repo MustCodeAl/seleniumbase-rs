@@ -63,6 +63,9 @@ pub struct BaseCase {
     extra_sessions: Vec<BrowserSession>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
+    /// The pages [`BaseCase::set_content_to_frame`] replaced, oldest first, for
+    /// [`BaseCase::set_content_to_default`] to bring back.
+    swapped_pages: Vec<SwappedPage>,
 }
 
 impl BaseCase {
@@ -114,6 +117,7 @@ impl BaseCase {
             gui_held: None,
             extra_sessions: Vec::new(),
             run_settings: RunSettings::default(),
+            swapped_pages: Vec::new(),
         }
     }
 
@@ -2723,3 +2727,5 @@ include!("base_case_impls/base_case_impl_parity.rs");
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_frame_tests.rs");

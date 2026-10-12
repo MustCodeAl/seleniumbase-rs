@@ -953,25 +953,6 @@ impl BaseCase {
         )))
     }
 
-    /// Appends a new `<iframe>` whose document is the HTML `html` to the
-    /// page body.
-    ///
-    /// This is **not** Python's `set_content_to_frame(frame)`, which replaces
-    /// the page with the content of an iframe already on it (or opens its
-    /// `src`) and lets `set_content_to_default` restore the page. That is not
-    /// ported; `parity/api.toml` marks it planned.
-    pub async fn set_content_to_frame(
-        &mut self,
-        html: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "var f = document.createElement('iframe'); f.srcdoc = {}; f.style.width = '100%'; f.style.height = '100%'; document.body.appendChild(f);",
-            quote(html)
-        );
-        self.execute_script(&script).await?;
-        Ok(())
-    }
-
     // ========================================================================
     // Console log capture (JS-based, no CDP required)
     // ========================================================================

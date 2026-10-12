@@ -505,14 +505,6 @@ mod tests_page_scripts {
              s.dispatchEvent(new Event(S)); }",
             [css, "change"]
         );
-        assert_script!(
-            driver,
-            html,
-            sb.set_content_to_frame(html),
-            "var f = document.createElement(S); f.srcdoc = S; f.style.width = S; \
-             f.style.height = S; document.body.appendChild(f);",
-            ["iframe", html, "100%", "100%"]
-        );
     }
 
     #[tokio::test]

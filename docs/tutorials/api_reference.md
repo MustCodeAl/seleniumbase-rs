@@ -197,9 +197,10 @@ is called. Useful for soft assertions.
 | `switch_to_frame(selector)` | Enters a frame. |
 | `switch_to_default_content()` | Returns to top document. |
 | `switch_to_parent_frame()` | Goes to parent frame. |
-| `set_content_to_frame(html)` | Appends an iframe holding `html` to the page. Not Python's `set_content_to_frame(frame)`; see [the parity table](../parity.md). |
+| `set_content_to_frame(frame)` | Replaces the page with the content of an iframe on it, selected or named (an iframe with a web `src` opens in a new tab instead). |
 | `switch_to_frame_of_element(selector)` | Enters the frame that holds the element; `None` if it is in this document. |
-| `set_content_to_default()` | Alias for `switch_to_default_content`. |
+| `set_content_to_default()` | Brings back the page `set_content_to_frame` replaced; with nothing swapped, leaves the current frame like `switch_to_default_content`. |
+| `set_content_to_parent()` | Undoes the last `set_content_to_frame`; with nothing swapped, like `switch_to_parent_frame`. |
 | `switch_to_window(handle)` | Switches to a window. |
 | `switch_to_new_window()` | Opens and switches to new window. |
 | `switch_to_newest_window()` | Switches to the most recently opened window. |

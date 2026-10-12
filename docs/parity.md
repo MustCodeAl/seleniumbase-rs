@@ -15,7 +15,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 437 | 4 | 10 | 2 |
+| [BaseCase methods](#basecase-methods) | 453 | 438 | 4 | 10 | 1 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 194 | 14 | 4 |
 | [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
@@ -402,11 +402,11 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_attribute_all` | implemented | `BaseCase::set_attribute_all` |  |
 | `set_attributes` | implemented | `BaseCase::set_attributes` |  |
 | `set_content` | implemented | `BaseCase::set_content` |  |
-| `set_content_to_default` | implemented | `BaseCase::set_content_to_default` | Differs: Leaves the frame context (switch_to_default_content); Python also restores the page that set_content_to_frame replaced, which Rust has no counterpart of. |
-| `set_content_to_default_content` | implemented | `BaseCase::set_content_to_default_content` |  |
-| `set_content_to_frame` | planned |  | BaseCase::set_content_to_frame(html) appends an iframe holding the given HTML to the page. Python's set_content_to_frame(frame) replaces the page with the content of an iframe already on it (or opens its src in a new tab) and set_content_to_default restores the page. Not ported. |
-| `set_content_to_parent` | implemented | `BaseCase::set_content_to_parent` |  |
-| `set_content_to_parent_frame` | implemented | `BaseCase::set_content_to_parent_frame` |  |
+| `set_content_to_default` | implemented | `BaseCase::set_content_to_default` | Brings back the page that set_content_to_frame replaced (all swaps at once). Python's nested=True is the separate method set_content_to_parent. Differs: With no frame swapped in it only leaves the frame the driver is in (switch_to_default_content), where Python refreshes the page. A swap whose page counters were lost to a navigation is answered with a refresh, as in Python. |
+| `set_content_to_default_content` | implemented | `BaseCase::set_content_to_default_content` | Same as set_content_to_default. |
+| `set_content_to_frame` | implemented | `BaseCase::set_content_to_frame` | Replaces the page with the content of an iframe that is on it, selected or named; an iframe whose src is a web or file address opens in a new tab instead. set_content_to_default and set_content_to_parent bring the page back. Differs: Swaps the frame's head and body in with a parsed document instead of Python's set_content, and its scripts do not run. Counts nested swaps correctly: Python resets its page counter on every call, so there a second set_content_to_parent only refreshes. Nothing is added to the recording. |
+| `set_content_to_parent` | implemented | `BaseCase::set_content_to_parent` | Undoes the last set_content_to_frame (Python's set_content_to_default(nested=True)). Differs: With no frame swapped in it only leaves the current frame (switch_to_parent_frame), where Python refreshes the page. |
+| `set_content_to_parent_frame` | implemented | `BaseCase::set_content_to_parent_frame` | Same as set_content_to_parent. |
 | `set_default_timeout` | implemented | `BaseCase::set_default_timeout` | Raises or lowers how long actions wait by default; whole seconds, 1 to 60 (Python allows 0.5 to 60). |
 | `set_introjs_colors` | implemented | `BaseCase::set_introjs_colors` |  |
 | `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` |  |

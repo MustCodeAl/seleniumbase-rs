@@ -1539,23 +1539,30 @@ rust = "BaseCase::set_content"
 [basecase."set_content_to_default"]
 status = "implemented"
 rust = "BaseCase::set_content_to_default"
-divergence = "Leaves the frame context (switch_to_default_content); Python also restores the page that set_content_to_frame replaced, which Rust has no counterpart of."
+note = "Brings back the page that set_content_to_frame replaced (all swaps at once). Python's nested=True is the separate method set_content_to_parent."
+divergence = "With no frame swapped in it only leaves the frame the driver is in (switch_to_default_content), where Python refreshes the page. A swap whose page counters were lost to a navigation is answered with a refresh, as in Python."
 
 [basecase."set_content_to_default_content"]
 status = "implemented"
 rust = "BaseCase::set_content_to_default_content"
+note = "Same as set_content_to_default."
 
 [basecase."set_content_to_frame"]
-status = "planned"
-note = "BaseCase::set_content_to_frame(html) appends an iframe holding the given HTML to the page. Python's set_content_to_frame(frame) replaces the page with the content of an iframe already on it (or opens its src in a new tab) and set_content_to_default restores the page. Not ported."
+status = "implemented"
+rust = "BaseCase::set_content_to_frame"
+note = "Replaces the page with the content of an iframe that is on it, selected or named; an iframe whose src is a web or file address opens in a new tab instead. set_content_to_default and set_content_to_parent bring the page back."
+divergence = "Swaps the frame's head and body in with a parsed document instead of Python's set_content, and its scripts do not run. Counts nested swaps correctly: Python resets its page counter on every call, so there a second set_content_to_parent only refreshes. Nothing is added to the recording."
 
 [basecase."set_content_to_parent"]
 status = "implemented"
 rust = "BaseCase::set_content_to_parent"
+note = "Undoes the last set_content_to_frame (Python's set_content_to_default(nested=True))."
+divergence = "With no frame swapped in it only leaves the current frame (switch_to_parent_frame), where Python refreshes the page."
 
 [basecase."set_content_to_parent_frame"]
 status = "implemented"
 rust = "BaseCase::set_content_to_parent_frame"
+note = "Same as set_content_to_parent."
 
 [basecase."set_default_timeout"]
 status = "implemented"

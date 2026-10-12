@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (866 implemented,
-  384 composed, 96 not-applicable with a reason, 19 planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (867 implemented,
+  384 composed, 96 not-applicable with a reason, 18 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
@@ -172,6 +172,15 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   are `implemented`. Mock tests assert the order of the commands and that the URL
   stays inside its string literal; `tests/generate_referral_chrome.rs` (ignored)
   has a Chrome 155 visit a loopback site that records the `Referer` it receives.
+- **`BaseCase::set_content_to_frame(frame)`** replaces the page with the content
+  of an iframe on it, selected or named, as Python does; an iframe whose `src`
+  is a web or file address opens in a new tab instead. `set_content_to_default`
+  brings the page back (all swaps at once) and `set_content_to_parent` undoes
+  one swap. With nothing swapped they still only leave the frame, as before.
+  Tests against a fake browser behind the mock WebDriver cover the swap, the
+  tab, nested swaps, a swap the page forgot and a missing frame;
+  `tests/set_content_to_frame_chrome.rs` (ignored) does it in Chrome 155. The
+  parity entry is `implemented`.
 
 ### Changed
 
@@ -209,6 +218,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `generate_referral_chain` and `generate_traffic_chain` do what the Python
   methods do (see Added). Their old forms returned or opened a `?ref=<referrer>`
   URL, which sends no `Referer`; the old `(url, referrer)` signatures are gone.
+- **Breaking**: `BaseCase::set_content_to_frame` takes the iframe to show (a
+  selector or a name), not HTML to append as a new iframe; there is no
+  replacement for the old behaviour, which `set_content` and `execute_script`
+  cover.
 - **Breaking**: `ad_block` in a WebDriver launch no longer passes
   `--blink-settings=imagesEnabled=false`. That turned every image off and blocked
   no ad; `with_block_images(true)` is the setting for it.
