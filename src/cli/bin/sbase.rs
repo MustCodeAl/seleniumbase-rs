@@ -731,8 +731,20 @@ enum Commands {
         #[arg(long, help = "Text to type in UC mode")]
         text: String,
     },
-    /// Install required dependencies and artifacts.
-    Install,
+    /// Download a driver into ./downloaded_drivers/ (Python's `sbase get`).
+    ///
+    /// Without a version, chromedriver and edgedriver are the drivers for the
+    /// installed Chrome and Edge, and geckodriver is the newest release.
+    #[command(visible_alias = "get")]
+    Install {
+        /// The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver
+        /// (or msedgedriver).
+        #[arg(default_value = "chromedriver")]
+        driver: String,
+        /// `latest`, a major version (chromedriver, edgedriver), a full build,
+        /// or a geckodriver version such as 0.36.0.
+        version: Option<String>,
+    },
     /// Run the project's tests, or one example, through Cargo.
     ///
     /// The global options reach the tests as SB_* environment variables (for
@@ -2245,10 +2257,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.uc_type(&css, &text).await?;
             println!("UC typed into '{}'", css);
         }
-        Commands::Install => match sb_install::install_drivers().await {
-            Ok(path) => println!("Drivers installed successfully at {}", path.display()),
-            Err(e) => eprintln!("Failed to install driver: {}", e),
-        },
+        Commands::Install { driver, version } => {
+            let name: sb_install::DriverName = driver.parse()?;
+            let path = sb_install::install_driver(name, version.as_deref()).await?;
+            println!("{name} installed at {}", path.display());
+        }
         Commands::Test {
             filter,
             test,

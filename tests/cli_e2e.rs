@@ -62,6 +62,33 @@ fn subcommands(dir: &Path) -> Vec<String> {
 }
 
 #[test]
+fn get_is_install_and_names_the_firefox_and_edge_drivers() {
+    let dir = tempfile::tempdir().unwrap();
+    let help = run(dir.path(), &["get", "--help"]);
+    assert!(help.status.success(), "{}", stderr(&help));
+    let text = stdout(&help);
+    for driver in ["chromedriver", "geckodriver", "edgedriver"] {
+        assert!(text.contains(driver), "{driver} in:\n{text}");
+    }
+
+    // A driver it does not know, and a version that names no geckodriver, fail
+    // with a status and a message before anything is downloaded.
+    for args in [
+        &["install", "operadriver"][..],
+        &["get", "geckodriver", "v1"],
+    ] {
+        let output = run(dir.path(), args);
+        assert!(!output.status.success(), "{args:?} succeeded");
+        let message = stderr(&output);
+        assert!(
+            message.contains(args[args.len() - 1]),
+            "{args:?}: {message}"
+        );
+    }
+    assert!(!dir.path().join("downloaded_drivers").exists());
+}
+
+#[test]
 fn every_subcommand_prints_its_help_and_exits_0() {
     let dir = tempfile::tempdir().unwrap();
     let names = subcommands(dir.path());
