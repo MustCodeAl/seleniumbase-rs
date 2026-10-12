@@ -15,7 +15,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 438 | 4 | 10 | 1 |
+| [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 6 | 194 | 14 | 1 |
 | [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
@@ -281,7 +281,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `hover_over_element` | implemented | `BaseCase::hover_over_element` |  |
 | `input` | implemented | `BaseCase::input` |  |
 | `inspect_html` | implemented | `BaseCase::inspect_html` |  |
-| `install_addon` | planned |  | BaseCase::install_addon always returns SeleniumBaseError::Unsupported. Python installs a Firefox .xpi through geckodriver (install_addon, temporary=True); that needs geckodriver's moz/addon/install endpoint, which this crate does not call. |
+| `install_addon` | implemented | `BaseCase::install_addon` | Installs a Firefox add-on, an .xpi file or an unpacked add-on directory, through geckodriver's moz/addon/install command and returns the add-on id; BaseCase::uninstall_addon removes it again. A session that is not Firefox gets an Unsupported error. Tested against a mock WebDriver for the exact endpoint and JSON body; the same bodies were sent with curl to a real geckodriver 0.37.1 and Firefox 153 ESR in Docker (docker/firefox-check): a directory and an .xpi both installed, the add-on's content script ran, and the uninstall stopped it. Differs: Takes a temporary flag where Python's install_addon always installs a temporary add-on, and returns the id. Sends geckodriver the path, where Python's Selenium reads the file and sends it as base64, so the file has to be on the machine geckodriver runs on. A path with .. in it, one that does not exist, and one that is neither an .xpi file nor a directory are refused before anything is sent. |
 | `internalize_links` | implemented | `BaseCase::internalize_links` |  |
 | `is_alert_present` | implemented | `BaseCase::is_alert_present` |  |
 | `is_attribute_present` | implemented | `BaseCase::is_attribute_present` |  |

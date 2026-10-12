@@ -1039,8 +1039,10 @@ status = "implemented"
 rust = "BaseCase::inspect_html"
 
 [basecase."install_addon"]
-status = "planned"
-note = "BaseCase::install_addon always returns SeleniumBaseError::Unsupported. Python installs a Firefox .xpi through geckodriver (install_addon, temporary=True); that needs geckodriver's moz/addon/install endpoint, which this crate does not call."
+status = "implemented"
+rust = "BaseCase::install_addon"
+note = "Installs a Firefox add-on, an .xpi file or an unpacked add-on directory, through geckodriver's moz/addon/install command and returns the add-on id; BaseCase::uninstall_addon removes it again. A session that is not Firefox gets an Unsupported error. Tested against a mock WebDriver for the exact endpoint and JSON body; the same bodies were sent with curl to a real geckodriver 0.37.1 and Firefox 153 ESR in Docker (docker/firefox-check): a directory and an .xpi both installed, the add-on's content script ran, and the uninstall stopped it."
+divergence = "Takes a temporary flag where Python's install_addon always installs a temporary add-on, and returns the id. Sends geckodriver the path, where Python's Selenium reads the file and sends it as base64, so the file has to be on the machine geckodriver runs on. A path with .. in it, one that does not exist, and one that is neither an .xpi file nor a directory are refused before anything is sent."
 
 [basecase."internalize_links"]
 status = "implemented"

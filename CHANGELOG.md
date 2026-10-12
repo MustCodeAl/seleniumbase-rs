@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (870 implemented,
-  384 composed, 96 not-applicable with a reason, 15 planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (871 implemented,
+  384 composed, 96 not-applicable with a reason, 14 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
@@ -193,6 +193,19 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   three parity entries are `implemented`. Mock tests are in
   `tests/sb_cdp_download.rs`, Chrome 155 tests in
   `tests/sb_cdp_download_chrome.rs`.
+- **Firefox add-ons**: `BaseCase::install_addon(path, temporary)` installs an
+  `.xpi` file or an unpacked add-on directory through geckodriver's
+  `moz/addon/install` command and returns the add-on id, and
+  `uninstall_addon(id)` removes it with `moz/addon/uninstall`. Any other browser
+  gets `SeleniumBaseError::Unsupported`; an empty path, one with `..` in it, one
+  that does not exist and one that is neither an `.xpi` nor a directory are
+  `InvalidConfig`, before anything is sent. The parity entry is `implemented`
+  (it was `planned` and always returned `Unsupported`). Unit tests assert the
+  exact endpoint and JSON body against the mock WebDriver. The same bodies were
+  sent with `curl` to a real geckodriver 0.37.1 and Firefox 153 ESR in a Docker
+  container (`docker/firefox-check`, which holds nothing of this crate): both
+  an unpacked directory and an `.xpi` installed with `temporary: true`, the
+  add-on's content script ran, and the uninstall stopped it.
 
 ### Changed
 
@@ -271,8 +284,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `set_content_to_frame` and `install_addon`, the `--reuse-session` options, the
   `caseplans` and `behave-gui` commands and three CDP downloads were marked
   `planned` in `parity/api.toml`, because the Rust code only looked like the
-  Python one. The referral helpers, `set_content_to_frame` and the CDP downloads
-  have since been written (see Added); the others are still `planned`.
+  Python one. The referral helpers, `set_content_to_frame`, `install_addon` and
+  the CDP downloads have since been written (see Added); the others are still
+  `planned`.
   `objectify` is not applicable and `mkrec` is mapped onto `sbase record`.
 - Waits report the error that stopped them, and link checks report real status
   codes.
