@@ -76,13 +76,19 @@ library and doctests then fail with "extern location does not exist".
 
 ## Development Environment
 
+With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
+`mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
+scripts, Node for the Tauri example, cmake, mdBook, just and cargo-deny), and
+`mise run gate` runs the checks a change has to pass; `mise tasks` lists the
+rest (`chrome`, `scrape-gate`, `imp-gate`, `parity-docs`, `docs`, `smoke`).
+
 ### Required
 
 - [Rust](https://rustup.rs/) 1.99 or newer (stable channel); `rust-version` in
   `Cargo.toml` is the newest stable release and the `msrv` CI job enforces it.
 - `cargo`, `rustfmt` and `clippy`.
-- Python 3.10+ with `setuptools` if you want to run Python-side examples or use
-  the importer tooling.
+- Python 3.10+ only for the scripts in `tools/` (the parity tables). The crate
+  itself, every feature included, needs no Python.
 
 ### Optional but recommended
 
@@ -99,15 +105,6 @@ library and doctests then fail with "extern location does not exist".
   install`) for the tests marked `#[ignore]`.
 - `libwebkit2gtk-4.1-dev` (Linux) or Xcode (macOS) if you build the Tauri
   example.
-
-### macOS note
-
-If tests fail to load `libpython3.14.dylib`, set the library path before running
-binaries:
-
-```bash
-export DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib"
-```
 
 ## Project Layout
 

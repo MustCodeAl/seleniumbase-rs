@@ -1,0 +1,86 @@
+# Tools and tasks for working on seleniumbase-rs with mise (https://mise.jdx.dev).
+#
+#   mise install     the toolchain below
+#   mise run gate    the checks a change has to pass: format, lint, tests, dependency policy
+#   mise tasks       every task
+#
+# The justfile has the same recipes for people who use `just`; the longer ones are
+# called from here rather than written twice.
+
+[tools]
+# The crate's rust-version; the msrv CI job and the Dockerfile move with it.
+rust = { version = "1.99", components = "clippy,rustfmt" }
+# tools/parity scripts, run as `python3 -I`. The crate itself needs no Python.
+python = "3.14"
+# The Tauri example's CLI (`npm ci`, `npx tauri`).
+node = "lts"
+# Only for the `impersonate` feature, which builds BoringSSL from source.
+cmake = "4"
+mdbook = "0.5"
+just = "1"
+cargo-deny = "0.20"
+
+[env]
+# Settings every build here uses, so build artifacts are shared between runs.
+CARGO_INCREMENTAL = "0"
+CARGO_PROFILE_DEV_DEBUG = "0"
+
+[tasks.fmt]
+description = "Check formatting"
+run = "cargo fmt --all -- --check"
+
+[tasks.lint]
+description = "Clippy with warnings as errors, default and scrape features"
+run = [
+  'cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings',
+  'cargo clippy --all-targets --features "scrape mcp-server test-util" -- -D warnings',
+]
+
+[tasks.test]
+description = "The test suite; tests that need a real browser are ignored"
+run = 'cargo test --features "scrape mcp-server test-util"'
+
+[tasks.deny]
+description = "Dependency licences, advisories and sources"
+run = "cargo deny check"
+
+[tasks.gate]
+description = "Format, lint, tests and dependency policy, one after the other"
+run = [
+  "cargo fmt --all -- --check",
+  'cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings',
+  'cargo clippy --all-targets --features "scrape mcp-server test-util" -- -D warnings',
+  'cargo test --features "scrape mcp-server test-util"',
+  "cargo deny check",
+]
+
+[tasks.chrome]
+description = "Real-Chrome tests, one test binary at a time (needs Google Chrome)"
+run = '''
+set -e
+for file in tests/*_chrome.rs tests/browser_smoke.rs; do
+  name=$(basename "$file" .rs)
+  [ "$name" = playwright_chrome ] && continue
+  cargo test --features "scrape mcp-server test-util" --test "$name" -- --ignored --test-threads=1
+done
+'''
+
+[tasks.scrape-gate]
+description = "The scrape feature's checks (pure Rust)"
+run = "just scrape-gate"
+
+[tasks.imp-gate]
+description = "The impersonate feature's checks (needs cmake and about 1 GB of disk)"
+run = "just imp-gate"
+
+[tasks.parity-docs]
+description = "Regenerate docs/parity.md and fail if it was out of date"
+run = "just parity-docs"
+
+[tasks.docs]
+description = "Build the mdBook documentation"
+run = "mdbook build"
+
+[tasks.smoke]
+description = "sbase --help, --version and doctor"
+run = "just smoke"
