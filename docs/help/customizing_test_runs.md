@@ -209,11 +209,13 @@ or `SB_REUSE_IDLE_SECS` in whole seconds), by
 `seleniumbase_rs::shutdown_reused_sessions()`, and by
 `common::shutdown::drain_cleanups`, which `sbase` calls before it exits. A Rust
 test binary has no hook that runs after its last test, and it usually exits
-sooner than the idle timeout: **the browser of the last tests and its
-chromedriver are then left running.** Call `shutdown_reused_sessions()` where
-your run ends (the `main` of a `harness = false` test target, or the end of a
-program), or stop the leftover `chromedriver` yourself. Under cargo-nextest each
-test is a process of its own, so nothing is shared.
+sooner than the idle timeout. On macOS and Linux the browser of the last tests
+still ends with the binary: every chromedriver and browser this crate starts
+belongs to a process group that a small watcher ends when the program that
+started it exits, also when that program is killed. On Windows nothing watches
+them, so call `shutdown_reused_sessions()` where your run ends (the `main` of a
+`harness = false` test target, or the end of a program). Under cargo-nextest
+each test is a process of its own, so nothing is shared.
 
 ## Global config file
 

@@ -114,8 +114,9 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   gives it back. One test holds a browser at a time; a second one at the same
   time gets its own. Idle browsers close with their chromedriver after
   `reuse::idle_timeout` (5 s, `SB_REUSE_IDLE_SECS`), at
-  `seleniumbase_rs::shutdown_reused_sessions()` and in `drain_cleanups`; a test
-  binary that exits sooner leaves its last browser running. `--rcs` shares a
+  `seleniumbase_rs::shutdown_reused_sessions()` and in `drain_cleanups`; on Unix
+  the last one also ends with the test binary (see the process-group watcher
+  under Fixed), on Windows it is left running. `--rcs` shares a
   browser per Rust module, read from the test thread's name.
   `BaseCase::session_id` and `BrowserSession::session_id` are new. `http` and
   `bytes` are now regular dependencies (they were optional, for `impersonate`).
@@ -379,6 +380,27 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- **Browsers no longer outlive the program that started them.** A chromedriver,
+  the Chrome it starts, and a Chrome launched by the pure CDP engine kept running
+  when the program that started them was killed (an interrupted test run, a
+  stopped MCP server) or, for `--reuse-session`, simply ended. On macOS a leftover
+  Chrome could hold the person's own profile, so the Chrome they opened closed at
+  once. On Unix each launched driver or browser now joins a process group led by
+  a small `/bin/sh` watcher that reads a pipe this program holds; when the
+  program ends, by any means, the watcher sends the group SIGTERM and then
+  SIGKILL. Checked by killing `sbase` and `seleniumbase-mcp --server cdp` with
+  SIGKILL while Chrome 155 was open (nothing was left), and by unit tests,
+  including one whose parent process is killed. Windows is not covered.
+- `sbase cdp`, `cache-clear`, `throttle3g`, `cdp-click-element`, `cdp-type-text`,
+  `print-pdf`, `pdf-text` and `assert-pdf-text` failed with "CDP is unavailable"
+  unless `--cdp` was given; with no mode asked for they now use cdp mode on a
+  Chromium browser. `screenshot --path` and `save-source --path` wrote into
+  `latest_logs/` while printing the path given; they now write that path.
+  `run-scenario` exited 0 when a step failed; it now exits 1. Text read from a
+  PDF spells the ligatures U+FB00 to U+FB06 as their letters, so "fixture"
+  printed by Chrome with an fi glyph is found. Found by the new
+  `tests/cli_e2e_chrome.rs`, which runs the browser commands as the real binary
+  on headless Chrome.
 - `sbase decrypt` with the wrong passphrase said `unsupported operation:
   decryption failed: ring::error::Unspecified` and advised on browsers and engines;
   it now says the passphrase in `SB_ENCRYPTION_KEY` is wrong or the token was
