@@ -207,10 +207,7 @@ fn is_build(text: &str) -> bool {
 /// Returns a download error when the first line is not a full build number.
 pub fn read_release_text(bytes: &[u8]) -> Result<String, SeleniumBaseError> {
     fn utf16(bytes: &[u8], word: fn([u8; 2]) -> u16) -> String {
-        let units: Vec<u16> = bytes
-            .chunks_exact(2)
-            .map(|pair| word([pair[0], pair[1]]))
-            .collect();
+        let units: Vec<u16> = bytes.as_chunks::<2>().0.iter().copied().map(word).collect();
         String::from_utf16_lossy(&units)
     }
     let text = match bytes {
