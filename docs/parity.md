@@ -17,7 +17,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 438 | 4 | 10 | 1 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 3 | 194 | 14 | 4 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 6 | 194 | 14 | 1 |
 | [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
 | [pytest options](#pytest-options) | 263 | 105 | 105 | 45 | 8 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 16 | 1 |
@@ -584,7 +584,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `append_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
 | `assert_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises. |
 | `assert_any_of_elements_visible` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises. |
-| `assert_downloaded_file` | planned |  | Browser::set_download_dir only chooses the folder; nothing waits for a file to appear in it. Poll the folder yourself (BaseCase::assert_downloaded_file does it for the WebDriver engine). |
+| `assert_downloaded_file` | implemented | `Page::assert_downloaded_file` | `page.assert_downloaded_file(name, timeout)` waits for the file in Browser::download_dir (the folder last given to set_download_dir or to a Page download method) and returns its path. A download the browser has not finished does not count. Differs: Looks in the folder the browser was told to save in, where Python always looks in ./downloaded_files (that is the default until a folder is chosen). Fails with SeleniumBaseError::WaitTimeout, where Python raises NoSuchFileException, and takes a Duration. The name must be a plain file name. |
 | `assert_element` | composed | `LocatorExpect::to_be_visible` | Assert with `page.locator(selector).expect().to_be_visible(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
 | `assert_element_absent` | composed | `LocatorExpect::to_exist` | `page.locator(selector).expect().not().to_exist()`; the wait is the expect timeout. |
 | `assert_element_attribute` | composed | `LocatorExpect::to_have_attribute` | Assert with `page.locator(selector).expect().to_have_attribute(..)`; add `.not()` to negate and `.timeout(d)` to set the wait. A failed expectation returns an error where Python raises AssertionError. |
@@ -620,7 +620,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `click_visible_elements` | composed | `Locator::visible` | `page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`. |
 | `click_with_offset` | composed | `Locator::click_at` | `page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner. |
 | `close_active_tab` | composed | `Page::close` | `page.close()` closes that Page's tab. |
-| `download_file` | planned |  | Browser::set_download_dir only chooses the folder downloads go to; nothing fetches the URL. Python's download_file(url, filename) downloads it and renames the file. |
+| `download_file` | implemented | `Page::download_file` | `page.download_file(url, dir)` has the page fetch the address and save the response, as Python does, then waits for the browser to finish and returns the saved path. `page.download_by_click(selector, dir)` follows a download that a click starts. Differs: Takes the folder to save in (Python uses ./downloaded_files) and waits for the browser's own download events, bounded by the page timeout; a bad HTTP status, a fetch the page refuses (CORS) or a cancelled download is SeleniumBaseError::Download. The name comes from the Content-Disposition header when the server sends one, else from the address (Python: the address only). |
 | `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `enter_mfa_code` | composed | `BaseCase::enter_mfa_code` | BaseCase::enter_mfa_code is a WebDriver-engine method; on the CDP engine compute the code with BaseCase::get_mfa_code and type it with Locator::type_text. |
 | `evaluate` | composed | `Page::evaluate` | `page.evaluate(script)`; values come back as serde_json::Value, so an element comes back as `{}`. As in Python, a `return ` that starts the last line is dropped; a `return` anywhere else is a syntax error, so wrap such a script in `(() => { ... })()`. |
@@ -744,7 +744,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `save_as_pdf_to_logs` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
 | `save_cookies` | composed | `Cookies::save` | `page.cookies().save(..)`. |
 | `save_data_to_logs` | not-applicable |  | Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder. |
-| `save_file_as` | planned |  | Python downloads a URL and saves it under a name in a folder. Nothing on the CDP engine fetches a URL for you; fetch it with an HTTP client and write it with std::fs. |
+| `save_file_as` | implemented | `Page::save_file_as` | `page.save_file_as(url, path)` downloads the address like download_file, saves it at exactly `path` (creating the folders, replacing a file there) and returns that path. Differs: Takes a whole path, where Python takes a new file name and saves in ./downloaded_files. |
 | `save_page_source` | composed | `Page::content` | `page.content()` returns the HTML; write it with std::fs. |
 | `save_page_source_to_logs` | composed | `Page::content` | `page.content()` returns the HTML; write it into artifacts::ensure_latest_logs_dir() with std::fs. |
 | `save_screenshot` | composed | `Page::screenshot` | `page.screenshot(..)` returns the viewport as image bytes; write them with std::fs. For Python's `selector` argument use `page.locator(selector).screenshot()`. |

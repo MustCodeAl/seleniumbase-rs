@@ -110,6 +110,42 @@ cross-origin frame cannot be entered from page script, so it matches nothing.
 `browser.new_page`, `pages`, `newest_page` and `page.bring_to_front` manage
 tabs. Cookie values are redacted in `Debug`.
 
+## Downloads
+
+The browser saves downloads into a folder you choose, and tells the page API
+when each one begins and ends, so a download call returns the path of the saved
+file or says why there is none:
+
+```rust,no_run
+use std::time::Duration;
+use seleniumbase_rs::sb_cdp::Page;
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+// A longer wait for big files: the wait is bounded by the page's timeout.
+let page = page.with_timeout(Duration::from_secs(60));
+page.goto("https://example.com/reports").await?;
+// Have the page fetch an address and save it (the page's cookies go along).
+let csv = page.download_file("https://example.com/export?id=3", "downloaded_files").await?;
+// Save it under a name you choose, replacing a file that is there.
+page.save_file_as("https://example.com/export?id=3", "out/report.csv").await?;
+// Click a link the server answers with `Content-Disposition: attachment`.
+let invoice = page.download_by_click("a#invoice", "downloaded_files").await?;
+// Wait for a file in the folder the browser saves to.
+page.assert_downloaded_file("invoice.pdf", Duration::from_secs(10)).await?;
+# let _ = (csv, invoice);
+# Ok(())
+# }
+```
+
+`download_file` names the file after the server's `Content-Disposition` header,
+or the end of the address, and keeps a file already of that name by saving the
+new one as `name (1).ext`. A bad status, a cancelled download or an address the
+page may not fetch (CORS) is `SeleniumBaseError::Download`; a download that
+does not begin or end in time is `WaitTimeout`. The download methods and
+`browser.set_download_dir` choose the folder; until one is chosen the browser
+saves wherever it would by default, and `browser.download_dir()` (what
+`assert_downloaded_file` searches) is `downloaded_files`, as in SeleniumBase.
+
 ## Human-paced input
 
 `page.human(behavior)` returns a `Human` whose clicks, typing and scrolling are

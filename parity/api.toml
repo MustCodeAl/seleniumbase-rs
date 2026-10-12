@@ -1915,8 +1915,10 @@ rust = "Page::wait_for_any"
 note = "`page.wait_for_any(..)` waits until one of several locators is ready and says which; it returns a timeout error where Python raises."
 
 [cdp."assert_downloaded_file"]
-status = "planned"
-note = "Browser::set_download_dir only chooses the folder; nothing waits for a file to appear in it. Poll the folder yourself (BaseCase::assert_downloaded_file does it for the WebDriver engine)."
+status = "implemented"
+rust = "Page::assert_downloaded_file"
+note = "`page.assert_downloaded_file(name, timeout)` waits for the file in Browser::download_dir (the folder last given to set_download_dir or to a Page download method) and returns its path. A download the browser has not finished does not count."
+divergence = "Looks in the folder the browser was told to save in, where Python always looks in ./downloaded_files (that is the default until a folder is chosen). Fails with SeleniumBaseError::WaitTimeout, where Python raises NoSuchFileException, and takes a Duration. The name must be a plain file name."
 
 [cdp."assert_element"]
 status = "composed"
@@ -2088,8 +2090,10 @@ rust = "Page::close"
 note = "`page.close()` closes that Page's tab."
 
 [cdp."download_file"]
-status = "planned"
-note = "Browser::set_download_dir only chooses the folder downloads go to; nothing fetches the URL. Python's download_file(url, filename) downloads it and renames the file."
+status = "implemented"
+rust = "Page::download_file"
+note = "`page.download_file(url, dir)` has the page fetch the address and save the response, as Python does, then waits for the browser to finish and returns the saved path. `page.download_by_click(selector, dir)` follows a download that a click starts."
+divergence = "Takes the folder to save in (Python uses ./downloaded_files) and waits for the browser's own download events, bounded by the page timeout; a bad HTTP status, a fetch the page refuses (CORS) or a cancelled download is SeleniumBaseError::Download. The name comes from the Content-Disposition header when the server sends one, else from the address (Python: the address only)."
 
 [cdp."drag_and_drop"]
 status = "composed"
@@ -2703,8 +2707,10 @@ status = "not-applicable"
 reason = "Write files with std::fs; artifacts::ensure_latest_logs_dir gives the logs folder."
 
 [cdp."save_file_as"]
-status = "planned"
-note = "Python downloads a URL and saves it under a name in a folder. Nothing on the CDP engine fetches a URL for you; fetch it with an HTTP client and write it with std::fs."
+status = "implemented"
+rust = "Page::save_file_as"
+note = "`page.save_file_as(url, path)` downloads the address like download_file, saves it at exactly `path` (creating the folders, replacing a file there) and returns that path."
+divergence = "Takes a whole path, where Python takes a new file name and saves in ./downloaded_files."
 
 [cdp."save_page_source"]
 status = "composed"

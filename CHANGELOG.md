@@ -63,8 +63,8 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 - **`sbase translate`** writes a JSON scenario's actions in another language, and
   the pure CDP `Page` gained `post_message`, `activate_messenger` and
   `set_messenger_theme`.
-- **Parity**: every API in `parity/api.toml` now has a status (867 implemented,
-  384 composed, 96 not-applicable with a reason, 18 planned). Two audits
+- **Parity**: every API in `parity/api.toml` now has a status (870 implemented,
+  384 composed, 96 not-applicable with a reason, 15 planned). Two audits
   corrected it: 26 entries marked done, and 34 composed or not-applicable ones
   (see below).
 - **WebDriver ad blocking**: `BrowserConfig::ad_block` makes a Chromium WebDriver
@@ -181,6 +181,18 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   tab, nested swaps, a swap the page forgot and a missing frame;
   `tests/set_content_to_frame_chrome.rs` (ignored) does it in Chrome 155. The
   parity entry is `implemented`.
+- **Downloads on the pure CDP engine**: `Page::download_file(url, dir)` has the
+  page fetch an address and save it, `download_by_click(selector, dir)` follows
+  the download a click starts, `save_file_as(url, path)` saves at an exact path
+  and `assert_downloaded_file(name, timeout)` waits for a file in the folder the
+  browser saves to; each returns the final path. They follow the browser's own
+  download events (`Browser.setDownloadBehavior` with events), so a cancelled
+  download, a bad HTTP status or a fetch the page may not make is
+  `SeleniumBaseError::Download`, and a download that does not begin or end in
+  time is `WaitTimeout`. `Browser::download_dir` says where downloads go. The
+  three parity entries are `implemented`. Mock tests are in
+  `tests/sb_cdp_download.rs`, Chrome 155 tests in
+  `tests/sb_cdp_download_chrome.rs`.
 
 ### Changed
 

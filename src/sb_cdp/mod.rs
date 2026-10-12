@@ -61,6 +61,7 @@ mod browser;
 mod captcha;
 mod client;
 mod context;
+mod download;
 mod expect;
 mod human;
 mod identity;

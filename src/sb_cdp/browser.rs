@@ -1,7 +1,7 @@
 //! The [`Browser`]: a Chrome process, its tabs, and browser-wide settings.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
@@ -24,6 +24,10 @@ const GRACEFUL_CLOSE: Duration = Duration::from_secs(3);
 
 /// Where the DevTools endpoint of a browser this process launched listens.
 const LOCAL_HOST: &str = "127.0.0.1";
+
+/// Where downloads are expected until [`Browser::set_download_dir`] says
+/// otherwise: the folder SeleniumBase's CDP Mode uses, in the working directory.
+pub(super) const DEFAULT_DOWNLOAD_DIR: &str = "downloaded_files";
 
 /// `host:port` for a URL, with an IPv6 address in the brackets a URL needs.
 fn devtools_authority(host: &str, port: u16) -> String {
@@ -145,6 +149,8 @@ pub(crate) struct Inner {
     tasks: StdMutex<Vec<JoinHandle<()>>>,
     /// Who answers which proxy's password prompts.
     pub(super) auth: Arc<ProxyAuth>,
+    /// The folder the browser was last told to save downloads in.
+    download_dir: StdMutex<Option<PathBuf>>,
     /// The proxy of every context created with its own, by context id, so a
     /// handoff to plain HTTP can follow the route a tab's traffic takes.
     #[cfg(feature = "scrape")]
@@ -293,6 +299,7 @@ impl Browser {
                 options,
                 sessions: StdMutex::new(HashMap::new()),
                 tasks: StdMutex::new(Vec::new()),
+                download_dir: StdMutex::new(None),
                 #[cfg(feature = "scrape")]
                 context_routes: StdMutex::new(HashMap::new()),
             }),
@@ -700,20 +707,52 @@ impl Browser {
 
     /// Saves downloads into `dir` instead of asking.
     ///
+    /// The browser also reports each download as it begins and ends, which
+    /// [`Page::download_file`](super::Page::download_file) and its relatives
+    /// wait for. [`download_dir`](Self::download_dir) says where downloads go
+    /// from now on.
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::Io`] if `dir` cannot be created, or
     /// [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn set_download_dir(&self, dir: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
-        std::fs::create_dir_all(dir.as_ref())?;
+        self.start_downloads_in(dir.as_ref()).await?;
+        Ok(())
+    }
+
+    /// [`set_download_dir`](Self::set_download_dir), returning the absolute path
+    /// of the folder.
+    pub(super) async fn start_downloads_in(
+        &self,
+        dir: &Path,
+    ) -> Result<PathBuf, SeleniumBaseError> {
+        std::fs::create_dir_all(dir)?;
         // Chrome requires an absolute path.
-        let absolute = std::fs::canonicalize(dir.as_ref())?;
+        let absolute = std::fs::canonicalize(dir)?;
         self.execute(
             "Browser.setDownloadBehavior",
             json!({ "behavior": "allow", "downloadPath": absolute, "eventsEnabled": true }),
         )
         .await?;
-        Ok(())
+        *locked(&self.inner.download_dir) = Some(absolute.clone());
+        Ok(absolute)
+    }
+
+    /// The folder downloads are saved in: the last one given to
+    /// [`set_download_dir`](Self::set_download_dir) or to one of the `Page`
+    /// download methods, as an absolute path.
+    ///
+    /// Until one is given this is `downloaded_files`, relative to the working
+    /// directory, the folder SeleniumBase's CDP Mode uses. That is only where
+    /// [`Page::assert_downloaded_file`](super::Page::assert_downloaded_file)
+    /// looks: the browser saves wherever it would by default until it is told
+    /// otherwise.
+    #[must_use]
+    pub fn download_dir(&self) -> PathBuf {
+        locked(&self.inner.download_dir)
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(DEFAULT_DOWNLOAD_DIR))
     }
 
     /// Closes the browser if this handle launched it.
