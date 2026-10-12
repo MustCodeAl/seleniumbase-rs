@@ -538,3 +538,27 @@ fn a_grid_command_without_java_or_a_jar_fails_with_a_clear_message() {
     );
     assert!(stdout(&output).is_empty());
 }
+
+/// Windows gives a program's main thread a 1 MB stack, where Linux and macOS
+/// give 8 MB. A debug `sbase` once overflowed it before printing anything, so
+/// every command crashed there. On Unix the main thread's stack follows
+/// `ulimit -s`, which lets this check run without Windows.
+#[cfg(unix)]
+#[test]
+fn sbase_starts_with_the_stack_a_windows_main_thread_gets() {
+    for args in ["--version", "--help", "doctor --help"] {
+        let output = Command::new("/bin/sh")
+            .arg("-c")
+            .arg(format!("ulimit -s 1024 && exec \"$0\" {args}"))
+            .arg(SBASE)
+            .stdin(Stdio::null())
+            .output()
+            .expect("run sbase under a 1 MB stack");
+        assert!(
+            output.status.success(),
+            "sbase {args} with a 1 MB stack: {:?}\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}

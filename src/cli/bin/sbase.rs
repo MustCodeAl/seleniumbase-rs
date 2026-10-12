@@ -1406,9 +1406,41 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> std::process::ExitCode {
-    match execute().await {
+/// The stack `sbase` runs on. Building the parser for every command and
+/// matching them needs more than the 1 MB a main thread gets on Windows (a
+/// debug build overflowed it before printing anything), so `sbase` runs on a
+/// thread of its own with a stack of a known size on every system.
+const STACK_BYTES: usize = 16 * 1024 * 1024;
+
+fn main() -> std::process::ExitCode {
+    let worker = std::thread::Builder::new()
+        .name("sbase".to_owned())
+        .stack_size(STACK_BYTES)
+        .spawn(run_command);
+    match worker.map(std::thread::JoinHandle::join) {
+        Ok(Ok(code)) => code,
+        // The thread panicked; the panic message has been printed already.
+        Ok(Err(_)) => std::process::ExitCode::FAILURE,
+        Err(error) => {
+            eprintln!("error: could not start sbase: {error}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
+
+/// Runs the command on a Tokio runtime and turns its result into an exit status.
+fn run_command() -> std::process::ExitCode {
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("error: could not start the async runtime: {error}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    match runtime.block_on(execute()) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
             // `error:`, its causes and a `hint:`, and an exit status that
