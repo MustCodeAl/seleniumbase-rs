@@ -6,6 +6,9 @@ pub mod sb_mkfile;
 pub mod sb_recorder;
 pub mod sb_translate;
 // newly added
+pub mod case_plans;
+#[cfg(feature = "tui")]
+pub mod caseplans_tui;
 pub mod discovery;
 pub mod logo_helper;
 pub mod rich_helper;
@@ -17,3 +20,5 @@ pub mod sb_mkchart;
 pub mod sb_mkpres;
 pub mod sb_objectify;
 pub mod sb_print;
+#[cfg(feature = "tui")]
+pub(crate) mod tui_kit;
