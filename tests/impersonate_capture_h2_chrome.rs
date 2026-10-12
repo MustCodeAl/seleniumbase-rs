@@ -11,6 +11,9 @@
 //! ```
 #![cfg(feature = "impersonate")]
 
+#[path = "support/measured_host.rs"]
+mod measured_host;
+
 use std::fs;
 use std::path::Path;
 
@@ -30,6 +33,11 @@ fn root() -> &'static Path {
 #[tokio::test]
 #[ignore = "starts the local Chrome"]
 async fn chrome_http2_and_headers_have_the_chrome_shape_and_the_json_round_trips() {
+    if !measured_host::measured_or_skip(
+        "chrome_http2_and_headers_have_the_chrome_shape_and_the_json_round_trips",
+    ) {
+        return;
+    }
     let committed = emulation::get(BrowserKind::Chrome, OsType::Macos).expect("measured");
     let dir = tempfile::tempdir().expect("a temporary directory");
     let name = format!("{}.json", committed.file_stem());

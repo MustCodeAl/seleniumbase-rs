@@ -27,6 +27,8 @@
 
 #[path = "impersonate_mitm/echo.rs"]
 mod echo;
+#[path = "support/measured_host.rs"]
+mod measured_host;
 #[path = "impersonate_mitm/support.rs"]
 mod support;
 
@@ -126,6 +128,11 @@ async fn page_status(page: &Page) -> Option<u64> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_fingerprint() {
+    if !measured_host::measured_or_skip(
+        "chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_fingerprint",
+    ) {
+        return;
+    }
     let mut origin = RecordingOrigin::start(&[ALPN_H2, ALPN_HTTP1]).await;
     let options = MitmOptions::default()
         .trust_upstream_root(origin.root())
@@ -165,6 +172,11 @@ async fn chrome_loads_a_page_through_the_proxy_and_the_origin_sees_the_measured_
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page() {
+    if !measured_host::measured_or_skip(
+        "a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page",
+    ) {
+        return;
+    }
     let ca = new_ca();
     // Loopback is allowed here so that the refusal under test is the certificate check.
     let options = MitmOptions::default()
@@ -196,6 +208,11 @@ async fn a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page()
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key() {
+    if !measured_host::measured_or_skip(
+        "without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key",
+    ) {
+        return;
+    }
     let ca = new_ca();
     let (mitm, _sink) = start_mitm(None, MitmOptions::default().ca(Arc::clone(&ca))).await;
     let attacker = Attacker::start(pinned_leaf(&mitm, &der(&ca)).await).await;
@@ -223,6 +240,11 @@ async fn without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_k
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
+    if !measured_host::measured_or_skip(
+        "a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service",
+    ) {
+        return;
+    }
     let service = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("binds loopback");
@@ -266,6 +288,11 @@ async fn a_page_cannot_use_the_direct_proxy_to_reach_a_loopback_service() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo() {
+    if !measured_host::measured_or_skip(
+        "a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo",
+    ) {
+        return;
+    }
     let mut echo = EchoOrigin::start().await;
     let options = MitmOptions::default()
         .trust_upstream_root(echo.root())
@@ -322,6 +349,9 @@ async fn a_page_opens_a_websocket_through_the_proxy_and_receives_its_echo() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
+    if !measured_host::measured_or_skip("a_plain_ws_websocket_is_refused_by_the_proxy") {
+        return;
+    }
     let echo = EchoOrigin::start().await;
     let plain = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
         .await
@@ -378,6 +408,11 @@ async fn a_plain_ws_websocket_is_refused_by_the_proxy() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_websocket_before_any_request_through_the_proxy_fails_on_the_407() {
+    if !measured_host::measured_or_skip(
+        "a_websocket_before_any_request_through_the_proxy_fails_on_the_407",
+    ) {
+        return;
+    }
     let echo = EchoOrigin::start().await;
     let options = MitmOptions::default()
         .trust_upstream_root(echo.root())

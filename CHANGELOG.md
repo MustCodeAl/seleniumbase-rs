@@ -284,6 +284,11 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   WebDriver engine failed with "chromedriver exited as it started". The build
   exists from Chrome 153 on; on Linux machines of any other architecture the
   error now says that no build is published and where to put a driver.
+- The real-Chrome tests that compare a browser with the measured Chrome 155 on macOS
+  (`impersonate_capture_h2_chrome`, `impersonate_http_chrome`, `impersonate_mitm_chrome`,
+  `stealth_session_chrome`) say they are skipped and pass on a system that has no
+  measurement (Linux, Windows), instead of failing on `NotMeasured`. A macOS machine whose
+  Chrome has another major version still fails them: that is the drift check.
 - The wire test `a_custom_ja3_arrives_exactly_as_given` failed on about two runs in
   five, on any system: BoringSSL pads a ClientHello of 256 to 511 bytes up to 512
   with a padding extension, and the "classical groups only" variant falls on either

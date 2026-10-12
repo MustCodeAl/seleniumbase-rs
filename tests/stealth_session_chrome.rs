@@ -17,6 +17,8 @@
 //! ```
 #![cfg(feature = "impersonate")]
 
+#[path = "support/measured_host.rs"]
+mod measured_host;
 #[path = "stealth_session/site.rs"]
 mod site;
 
@@ -61,6 +63,11 @@ fn changes(sink: &CollectingEventSink) -> Vec<(Mode, Mode, Transition)> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_challenge_is_passed_in_chrome_and_the_clearance_is_used_over_http() {
+    if !measured_host::measured_or_skip(
+        "a_challenge_is_passed_in_chrome_and_the_clearance_is_used_over_http",
+    ) {
+        return;
+    }
     let site = ChallengeSite::start().await;
     let sink = CollectingEventSink::new();
     let mut session = builder(&site, &sink).build().await.expect("a session");
@@ -173,6 +180,11 @@ async fn assert_clearance_moved(session: &StealthSession, site: &ChallengeSite) 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_clearance_near_its_end_is_taken_back_to_chrome_which_loads_the_page_with_it() {
+    if !measured_host::measured_or_skip(
+        "a_clearance_near_its_end_is_taken_back_to_chrome_which_loads_the_page_with_it",
+    ) {
+        return;
+    }
     let site = ChallengeSite::start().await;
     let sink = CollectingEventSink::new();
     // An hour of margin against ten minutes of clearance: the next fetch is always "near the end".
@@ -224,6 +236,9 @@ async fn a_clearance_near_its_end_is_taken_back_to_chrome_which_loads_the_page_w
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "starts the local Chrome"]
 async fn a_new_profile_is_what_the_page_sees_and_the_proxy_stays() {
+    if !measured_host::measured_or_skip("a_new_profile_is_what_the_page_sees_and_the_proxy_stays") {
+        return;
+    }
     let site = ChallengeSite::start().await;
     let sink = CollectingEventSink::new();
     let mut session = builder(&site, &sink)

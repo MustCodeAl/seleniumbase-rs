@@ -18,6 +18,9 @@
 //! ```
 #![cfg(feature = "impersonate")]
 
+#[path = "support/measured_host.rs"]
+mod measured_host;
+
 use std::time::Duration;
 
 use seleniumbase_rs::impersonate::client::ImpersonationProfile;
@@ -91,6 +94,11 @@ async fn hold(page: &Page, pairs: &[(&str, &str)]) {
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn the_cookies_of_a_real_page_go_out_and_what_the_site_sets_comes_back_in() {
+    if !measured_host::measured_or_skip(
+        "the_cookies_of_a_real_page_go_out_and_what_the_site_sets_comes_back_in",
+    ) {
+        return;
+    }
     let (browser, page) = open().await;
     let agent = announce_as_measured(&page).await;
     hold(&page, &[("old", "O"), ("untouched", "U")]).await;
@@ -140,6 +148,11 @@ async fn the_cookies_of_a_real_page_go_out_and_what_the_site_sets_comes_back_in(
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn a_browser_started_with_a_proxy_is_not_taken_for_a_direct_one_launched_or_attached() {
+    if !measured_host::measured_or_skip(
+        "a_browser_started_with_a_proxy_is_not_taken_for_a_direct_one_launched_or_attached",
+    ) {
+        return;
+    }
     // Nothing listens on the discard port; the page never loads anything.
     let proxy = "http://127.0.0.1:9";
     let options = LaunchOptions::builder()
