@@ -908,6 +908,22 @@ enum Commands {
     },
 }
 
+/// The error of a token that would not open. The library's own error names the cipher and its
+/// hint is about browsers; the usual cause is the passphrase, which the person gave.
+fn wrong_passphrase(
+    error: seleniumbase_rs::SeleniumBaseError,
+) -> seleniumbase_rs::SeleniumBaseError {
+    match error {
+        seleniumbase_rs::SeleniumBaseError::Unsupported(_) => {
+            seleniumbase_rs::SeleniumBaseError::invalid_config(
+                "decryption failed: the passphrase in SB_ENCRYPTION_KEY is wrong, or the token \
+                 was modified",
+            )
+        }
+        other => other,
+    }
+}
+
 /// Return the on-disk path a URL-ish argument points at, when it is local.
 fn local_path_for(url: &str) -> Option<PathBuf> {
     let candidate = match url.strip_prefix("file://") {
@@ -1268,7 +1284,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             source,
             test_name,
         } => {
-            let python = std::fs::read_to_string(file)?;
+            let python = std::fs::read_to_string(file).map_err(|error| {
+                std::io::Error::new(error.kind(), format!("failed to read {file}: {error}"))
+            })?;
             let default_name = std::path::Path::new(file)
                 .file_stem()
                 .and_then(|name| name.to_str())
@@ -1733,7 +1751,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Decrypt { token } => {
             let passphrase = encryption_passphrase()?;
             let token = text_or_stdin(token)?;
-            println!("{}", decrypt_with_passphrase(&token, &passphrase)?);
+            let plain = decrypt_with_passphrase(&token, &passphrase).map_err(wrong_passphrase)?;
+            println!("{plain}");
         }
         #[cfg(feature = "turso")]
         Commands::Report {

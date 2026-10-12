@@ -337,6 +337,12 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
 
 ### Fixed
 
+- `sbase decrypt` with the wrong passphrase said `unsupported operation:
+  decryption failed: ring::error::Unspecified` and advised on browsers and engines;
+  it now says the passphrase in `SB_ENCRYPTION_KEY` is wrong or the token was
+  modified (exit status 2 as before). `sbase import-python` with a file it cannot
+  read said only `No such file or directory (os error 2)`; it now names the file.
+  `tests/cli_e2e.rs` runs every subcommand's `--help` and the offline commands.
 - Log lines went to standard output, in colour even when the output was a file or
   a pipe. `seleniumbase-mcp` therefore wrote them into the JSON-RPC stream (three
   lines in a session that did nothing but connect), which a client reads as
