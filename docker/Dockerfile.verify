@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+
+# A throwaway image for running the test suite on Linux. It is not the product image (that is
+# the `Dockerfile` at the repository root, which only builds `sbase`). This one holds the Rust
+# toolchain, Debian's Chromium with its driver, and what the `impersonate` feature needs to
+# build BoringSSL.
+#
+# Build it with `docker build --no-slim -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .`
+# and run the suites with `docker/verify-linux.sh`, which says how. Remove it with
+# `docker rmi seleniumbase-rs:verify-tools` when you are done.
+FROM rust:1.99-bookworm
+
+# chromium and chromium-driver: the real-browser tests. cmake, clang and libclang-dev: BoringSSL
+# (`btls`) is built from source and its bindings are generated with bindgen. ca-certificates:
+# the registry downloads.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    chromium-driver \
+    cmake \
+    clang \
+    libclang-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# xvfb and xauth: a virtual display for the few tests that need a headed browser (the
+# measurement tools run the real, headed Chrome because a headless one reports another
+# identity). Run those under `xvfb-run -a`.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb \
+    xauth \
+    && rm -rf /var/lib/apt/lists/*
+
+# The sources are mounted read-only at /src and copied to /work by the helper script. The
+# build output goes to a named volume at /target, so it survives between runs.
+#
+# CI: the real-browser tests pass `--no-sandbox` when `CI` is set (Chromium cannot start its
+# sandbox as root in a container); SB_NO_SANDBOX does the same for code that builds its own
+# launch options.
+ENV CARGO_TARGET_DIR=/target \
+    CARGO_INCREMENTAL=0 \
+    CARGO_PROFILE_DEV_DEBUG=0 \
+    CARGO_TERM_COLOR=never \
+    CI=true \
+    SB_HEADLESS=true \
+    SB_NO_SANDBOX=1
+
+COPY docker/verify-linux.sh /usr/local/bin/verify-linux
+ENTRYPOINT ["/usr/local/bin/verify-linux"]
+CMD ["cargo", "--version"]

@@ -7,6 +7,10 @@ FROM rust:1.99-bookworm AS builder
 
 WORKDIR /usr/src/seleniumbase-rs
 
+# Cargo reads CARGO_BUILD_JOBS from the environment. Left unset, a build uses every core;
+# pass `--build-arg CARGO_BUILD_JOBS=2` on a machine with little memory.
+ARG CARGO_BUILD_JOBS
+
 # The default build has no `gui` or `tui` feature, and none of its crates link
 # a system library (the TLS stack is rustls), so the toolchain image is enough:
 # no GTK, X11 or OpenSSL packages are installed.
@@ -54,6 +58,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -r sbase && useradd -r -g sbase -m -d /home/sbase sbase
 
 WORKDIR /home/sbase
+
+# The WebDriver engine uses `downloaded_drivers/chromedriver` in the working directory when its
+# version fits the browser, and downloads a driver only when that file is missing or does not
+# fit. Debian's chromium-driver is built with the Chromium installed above, so link it there:
+# the image then needs no network to start a browser.
+RUN mkdir -p downloaded_drivers && \
+    ln -s /usr/bin/chromedriver downloaded_drivers/chromedriver && \
+    chown -R sbase:sbase downloaded_drivers
 
 # Copy the compiled binary.
 COPY --from=builder /usr/src/seleniumbase-rs/target/release/sbase /usr/local/bin/sbase
