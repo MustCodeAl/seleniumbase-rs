@@ -396,7 +396,8 @@ async fn an_idle_relay_is_closed() {
     assert!(ends(&mut upstream).await, "the site side was closed");
 }
 
-#[tokio::test]
+// The clock is paused, so a busy machine cannot stretch a half-limit pause past the limit.
+#[tokio::test(start_paused = true)]
 async fn traffic_keeps_a_relay_from_going_idle() {
     let bounds = Bounds {
         idle: SHORT_IDLE,
