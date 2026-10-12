@@ -9,6 +9,15 @@
 //! it injects a small JavaScript listener into the page, drains the captured
 //! navigation/click/type events into an action list, serializes them to JSON or
 //! YAML, and replays them against a [`BaseCase`](crate::BaseCase).
+//!
+//! A recording of `BaseCase` calls can be written for either engine:
+//! [`to_rust_script`](ActionRecorder::to_rust_script) and
+//! [`to_rust_test`](ActionRecorder::to_rust_test) call `BaseCase`, and
+//! [`to_cdp_script`](ActionRecorder::to_cdp_script) and
+//! [`to_cdp_test`](ActionRecorder::to_cdp_test) call the pure CDP engine
+//! ([`sb_cdp`](crate::sb_cdp)), as Python's `--rec-sb-cdp` does.
+
+mod cdp;
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -180,6 +189,62 @@ impl ActionRecorder {
         std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{name}.feature"));
         std::fs::write(&path, self.to_gherkin(name))?;
+        Ok(path)
+    }
+
+    /// Generates a standalone `#[tokio::main]` program for the pure CDP engine
+    /// ([`sb_cdp`](crate::sb_cdp)) from the recording: it launches a
+    /// [`Browser`](crate::sb_cdp::Browser), takes its first
+    /// [`Page`](crate::sb_cdp::Page), and replays the actions as `Page` and
+    /// `Locator` calls. This is what Python's `--rec-sb-cdp` writes with
+    /// `sb_cdp` calls.
+    ///
+    /// Every selector and value is written as a Rust string literal. An action
+    /// with no pure CDP call (a frame switch, a JavaScript click, an alert, ...),
+    /// an unknown action, or one missing an argument becomes a `// skipped: ...`
+    /// comment, so a gap in the program is never silent.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::api::recorder::ActionRecorder;
+    ///
+    /// let mut recorder = ActionRecorder::default();
+    /// recorder.record("open", Some("https://example.com"), None);
+    /// recorder.record("click", Some("#go"), None);
+    ///
+    /// let program = recorder.to_cdp_script();
+    /// assert!(program.contains("page.goto(\"https://example.com\").await?;"));
+    /// assert!(program.contains("page.locator(\"#go\").click().await?;"));
+    /// ```
+    pub fn to_cdp_script(&self) -> String {
+        cdp::program(&self.actions, "#[tokio::main]\nasync fn main()")
+    }
+
+    /// Generates a `#[tokio::test]` async function for the pure CDP engine from
+    /// the recording. See [`to_cdp_script`](Self::to_cdp_script) for the calls
+    /// and for actions that cannot be generated.
+    pub fn to_cdp_test(&self, test_name: &str) -> String {
+        let entry = format!("#[tokio::test]\nasync fn {}()", rust_identifier(test_name));
+        cdp::program(&self.actions, &entry)
+    }
+
+    /// Writes the recording as a pure CDP test file into `dir/{name}.rs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is empty or
+    /// contains a path separator, and [`SeleniumBaseError::Io`] if the file
+    /// cannot be written.
+    pub fn save_recording_as_cdp_test(
+        &self,
+        dir: &Path,
+        name: &str,
+    ) -> Result<PathBuf, SeleniumBaseError> {
+        check_file_name(name)?;
+        std::fs::create_dir_all(dir)?;
+        let path = dir.join(format!("{name}.rs"));
+        std::fs::write(&path, self.to_cdp_test(name))?;
         Ok(path)
     }
 
@@ -549,6 +614,15 @@ fn edit_distance(a: &str, b: &str) -> usize {
     row[b.len()]
 }
 
+/// The name `CALLS` knows an action by: `recorded` itself unless it is one of
+/// the `ALIASES`.
+fn canonical_name(recorded: &str) -> &str {
+    ALIASES
+        .iter()
+        .find(|(alias, _)| *alias == recorded)
+        .map_or(recorded, |(_, canonical)| *canonical)
+}
+
 /// A string as a Rust literal.
 fn literal(text: &str) -> String {
     format!("{text:?}")
@@ -568,11 +642,7 @@ fn number<T: std::str::FromStr + std::fmt::Display>(
 
 /// The line of Rust that replays `action`, or why there is none.
 fn rust_call(action: &RecordedAction) -> Result<String, String> {
-    let recorded = action.name.as_str();
-    let name = ALIASES
-        .iter()
-        .find(|(alias, _)| *alias == recorded)
-        .map_or(recorded, |(_, canonical)| *canonical);
+    let name = canonical_name(&action.name);
     if let Some((_, reason)) = UNEXPORTABLE
         .iter()
         .find(|(unexportable, _)| *unexportable == name)

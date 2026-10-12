@@ -446,6 +446,26 @@ impl BrowserConfig {
         self.launch.has(LaunchSwitch::EscEnd)
     }
 
+    /// Write the recording as a program for the pure CDP engine instead of one
+    /// for `BaseCase` (`--rec-sb-cdp`, `rec_sb_cdp`).
+    ///
+    /// With it on, [`BaseCase::export_recording_as_rust`](crate::BaseCase::export_recording_as_rust)
+    /// (and so `save_recording_to_logs`, `sbase run-scenario` and
+    /// `sbase export-recording`) returns
+    /// [`ActionRecorder::to_cdp_script`](crate::api::recorder::ActionRecorder::to_cdp_script).
+    /// The session itself still runs on WebDriver; only the generated code
+    /// changes.
+    pub fn with_rec_sb_cdp(self, on: bool) -> Self {
+        self.with_switch(LaunchSwitch::RecSbCdp, on)
+    }
+
+    /// Whether recordings are written as pure CDP code
+    /// ([`with_rec_sb_cdp`](Self::with_rec_sb_cdp)).
+    #[must_use]
+    pub fn rec_sb_cdp(&self) -> bool {
+        self.launch.has(LaunchSwitch::RecSbCdp)
+    }
+
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).
     pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
         self.launch.page_load_strategy = Some(strategy);
@@ -650,6 +670,19 @@ mod tests {
         assert!(on.esc_end());
         assert!(on.launch.has(LaunchSwitch::EscEnd));
         assert!(!on.with_esc_end(false).esc_end());
+    }
+
+    #[test]
+    fn rec_sb_cdp_is_off_until_it_is_asked_for_and_is_written_as_a_switch() {
+        assert!(!BrowserConfig::default().rec_sb_cdp());
+        let on = BrowserConfig::default().with_rec_sb_cdp(true);
+        assert!(on.rec_sb_cdp());
+        assert!(!on.esc_end(), "the switches are independent");
+        let json = serde_json::to_value(&on).unwrap();
+        assert_eq!(json["switches"], serde_json::json!(["rec-sb-cdp"]));
+        let back: BrowserConfig = serde_json::from_value(json).unwrap();
+        assert!(back.rec_sb_cdp());
+        assert!(!on.with_rec_sb_cdp(false).rec_sb_cdp());
     }
 
     #[test]

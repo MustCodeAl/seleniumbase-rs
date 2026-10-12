@@ -45,6 +45,7 @@ user_data_dir = ""
 extension_dir = ""
 ad_block = false
 esc_end = false
+rec_sb_cdp = false
 ```
 
 The file is optional. If it is missing, built-in defaults are used. The
@@ -105,6 +106,7 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 | `SB_MOBILE` | `mobile` |
 | `SB_THREADS` | `threads` |
 | `SB_ESC_END` | `esc_end`: pressing ESC in the browser ends the test (Python's `--esc-end`) |
+| `SB_REC_SB_CDP` | `rec_sb_cdp`: recordings are written as pure CDP code (Python's `--rec-sb-cdp`) |
 | `SB_REMOTE_WEBDRIVER_TIMEOUT` | `remote_webdriver_timeout_seconds` |
 
 Boolean values accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.

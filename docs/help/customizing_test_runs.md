@@ -125,6 +125,7 @@ work.
 | `with_extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
 | `with_automation_extension(bool)`, `with_recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
 | `with_esc_end(bool)` | `--esc-end`, `--esc_end`, `--ee` | End the test when ESC is pressed in the browser (see below). |
+| `with_rec_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](../tutorials/recorder_mode.md#pure-cdp-code---rec-sb-cdp)). |
 | `with_firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
 | `with_capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
 | `with_driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
@@ -171,8 +172,8 @@ Every key is optional and any key you leave out keeps its default. The keys are
 the fields of `Settings`: `browser`, `headless`, `timeout_seconds`,
 `screenshot_dir`, `proxy`, `proxy_pac_url`, `window_width`, `window_height`,
 `user_data_dir`, `extension_dir`, `locale`, `user_agent`, `mode` (`webdriver`,
-`cdp` or `uc`), `ad_block`, `reuse_session`, `mobile`, `threads`, `esc_end` and
-`remote_webdriver_timeout_seconds`. Note that `timeout_seconds` is a whole
+`cdp` or `uc`), `ad_block`, `reuse_session`, `mobile`, `threads`, `esc_end`,
+`rec_sb_cdp` and `remote_webdriver_timeout_seconds`. Note that `timeout_seconds` is a whole
 number of seconds.
 
 `Settings::load_global()` looks for these names, in this order, in the
@@ -231,7 +232,7 @@ field of the same name: `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
 `SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_SCREENSHOT_DIR`, `SB_PROXY`,
 `SB_PROXY_PAC_URL`, `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`,
 `SB_EXTENSION_DIR`, `SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`,
-`SB_REUSE_SESSION`, `SB_MOBILE`, `SB_THREADS` and `SB_ESC_END`. Booleans accept `true`/`false`,
+`SB_REUSE_SESSION`, `SB_MOBILE`, `SB_THREADS`, `SB_ESC_END` and `SB_REC_SB_CDP`. Booleans accept `true`/`false`,
 `1`/`0`, `yes`/`no` and `on`/`off`. There is no automatic name mapping: a
 variable that is not in this list, such as `SB_LOGGING__LOG_LEVEL`, does
 nothing. See [Settings and Global Configuration](../tutorials/settings_and_config.md)
@@ -260,6 +261,7 @@ Common flags:
 | `--headless` / `--headed` | Run the browser without or with a visible window. |
 | `--mobile` | Emulate a mobile device (see `with_mobile`). |
 | `--esc-end` / `--esc_end` / `--ee` | End the test when ESC is pressed in the browser (see `with_esc_end`). |
+| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `with_rec_sb_cdp`); `sbase run-scenario` then saves a pure CDP program. |
 | `--proxy HOST:PORT` | Route traffic through a proxy (`scheme://host:port` also works). |
 | `--proxy-list FILE` | Choose from a file of proxies: a random one, or the entry named by `--proxy`. |
 | `--proxy-pac-url URL` | Use a PAC file for proxy configuration. |

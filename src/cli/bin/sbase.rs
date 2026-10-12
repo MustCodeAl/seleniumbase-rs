@@ -232,6 +232,13 @@ struct Cli {
         help = "End the current test when ESC is pressed in the browser"
     )]
     esc_end: bool,
+    #[arg(
+        long = "rec-sb-cdp",
+        visible_alias = "rec_sb_cdp",
+        default_value_t = false,
+        help = "Write recordings as pure CDP code (sb_cdp Page and Locator calls)"
+    )]
+    rec_sb_cdp: bool,
     #[arg(short = 'n', long, help = "Number of parallel threads for test runs")]
     threads: Option<usize>,
     #[arg(short = 'c', long, help = "Path to a TOML/JSON settings file")]
@@ -1395,6 +1402,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         mobile: args.mobile.then_some(true),
         threads: args.threads,
         esc_end: args.esc_end.then_some(true),
+        rec_sb_cdp: args.rec_sb_cdp.then_some(true),
     };
     overrides.apply(&mut settings);
 

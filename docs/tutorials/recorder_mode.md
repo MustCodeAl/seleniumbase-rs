@@ -89,6 +89,49 @@ write it to `dir/name.rs`. The generated code has no custom timeout and does not
 use the `sb_test!` macro. Always review the output before committing it to your
 suite.
 
+## Pure CDP code (`--rec-sb-cdp`)
+
+The same recording can be written for the pure CDP engine (`sb_cdp`, no
+chromedriver) instead of `BaseCase`, as Python's `--rec-sb-cdp` does with
+`sb_cdp` calls. `ActionRecorder::to_cdp_script()` returns a standalone
+`#[tokio::main]` program, `to_cdp_test(name)` a `#[tokio::test]` function, and
+`save_recording_as_cdp_test(dir, name)` writes that to `dir/name.rs`. For the
+recording above the program is:
+
+```rust,ignore
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let browser = Browser::launch(LaunchOptions::builder().build()?).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://seleniumbase.io/demo_page").await?;
+    page.locator("#myButton").click().await?;
+    page.locator("#myInput").clear().await?;
+    page.locator("#myInput").type_text("hello").await?;
+    browser.close().await?;
+    Ok(())
+}
+```
+
+`BaseCase::export_recording_as_cdp_rust()` returns it from a live test. To make
+`export_recording_as_rust` and `save_recording_to_logs` write it, as the Python
+flag does, turn the setting on with `BrowserConfig::with_rec_sb_cdp(true)`, the
+`sbase --rec-sb-cdp` flag or `SB_REC_SB_CDP=true`; the test itself still runs on
+WebDriver, and only the generated code changes.
+
+Every selector and value is written as a Rust string literal. 51 recorded
+actions have a pure CDP call: `open`, the clicks, typing (a `clear` and then
+`type_text`, as `BaseCase::type_text` does), the `select_option_*` methods, link
+clicks (`link=` and `p_link=` selectors), drag and drop, the element waits, the
+text, attribute and title assertions, history and reload, scrolling, cookies,
+`localStorage`, `maximize_window`, `click_with_offset` and `sleep`. The rest
+(frame, window and alert switching, JavaScript clicks, `set_window_size`, and
+so on) become a `// skipped:` comment that quotes the `BaseCase` call, so a gap
+is never silent. Differences from the WebDriver program: a wait uses the pure
+CDP engine's own timeout, not ten seconds, and the program is not written when
+the test ends; you ask for it.
+
 ## JSON action files
 
 Recorded actions can also be saved as JSON. From code:

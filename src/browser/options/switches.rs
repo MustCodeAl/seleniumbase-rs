@@ -56,11 +56,15 @@ pub enum LaunchSwitch {
     /// (`--esc-end`, `--ee`). Nothing about the launch changes; `BaseCase`
     /// reads the switch to install the key listener.
     EscEnd,
+    /// Write the recording as pure CDP code (`--rec-sb-cdp`, `rec_sb_cdp`).
+    /// Nothing about the launch changes; `BaseCase::export_recording_as_rust`
+    /// reads the switch to choose the generator.
+    RecSbCdp,
 }
 
 impl LaunchSwitch {
     /// Every switch.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::BlockImages,
         Self::DisableJavaScript,
         Self::DisableCookies,
@@ -72,6 +76,7 @@ impl LaunchSwitch {
         Self::RecorderExtension,
         Self::ProxyForDriverDownload,
         Self::EscEnd,
+        Self::RecSbCdp,
     ];
 
     /// The switch a Python SeleniumBase option name stands for, if any.
@@ -94,6 +99,7 @@ impl LaunchSwitch {
             "recorder_ext" => Self::RecorderExtension,
             "proxy_driver" => Self::ProxyForDriverDownload,
             "esc_end" | "ee" => Self::EscEnd,
+            "rec_sb_cdp" => Self::RecSbCdp,
             _ => return None,
         })
     }
@@ -284,6 +290,7 @@ mod tests {
             LaunchSwitch::RecorderExtension,
             LaunchSwitch::ProxyForDriverDownload,
             LaunchSwitch::EscEnd,
+            LaunchSwitch::RecSbCdp,
         ]
         .into();
         assert!(chrome_preferences(&others).is_empty());
@@ -346,6 +353,8 @@ mod tests {
             ("--esc-end", LaunchSwitch::EscEnd),
             ("--esc_end", LaunchSwitch::EscEnd),
             ("--ee", LaunchSwitch::EscEnd),
+            ("--rec-sb-cdp", LaunchSwitch::RecSbCdp),
+            ("rec_sb_cdp", LaunchSwitch::RecSbCdp),
         ];
         for (name, switch) in cases {
             assert_eq!(LaunchSwitch::from_python_name(name), Some(switch), "{name}");

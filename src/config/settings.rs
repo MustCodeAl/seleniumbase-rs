@@ -30,6 +30,9 @@ pub struct Settings {
     /// (`SB_ESC_END`, Python's `--esc-end`). See
     /// [`BrowserConfig::with_esc_end`].
     pub esc_end: bool,
+    /// Write recordings as pure CDP code (`SB_REC_SB_CDP`, Python's
+    /// `--rec-sb-cdp`). See [`BrowserConfig::with_rec_sb_cdp`].
+    pub rec_sb_cdp: bool,
     /// Client-side timeout, in seconds, for each HTTP request sent to a Remote
     /// WebDriver server. `None` keeps the WebDriver client's own default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -95,6 +98,8 @@ pub struct SettingsOverrides {
     /// End the current test when ESC is pressed in the browser
     /// (`SB_ESC_END`).
     pub esc_end: Option<bool>,
+    /// Write recordings as pure CDP code (`SB_REC_SB_CDP`).
+    pub rec_sb_cdp: Option<bool>,
 }
 
 impl SettingsOverrides {
@@ -142,6 +147,9 @@ impl SettingsOverrides {
         if let Some(esc_end) = self.esc_end {
             settings.esc_end = esc_end;
         }
+        if let Some(rec_sb_cdp) = self.rec_sb_cdp {
+            settings.rec_sb_cdp = rec_sb_cdp;
+        }
     }
 
     /// The `SB_*` environment variables that carry these options to a child
@@ -171,6 +179,7 @@ impl SettingsOverrides {
             self.threads
                 .map(|threads| ("SB_THREADS", threads.to_string())),
             flag("SB_ESC_END", self.esc_end),
+            flag("SB_REC_SB_CDP", self.rec_sb_cdp),
         ]
         .into_iter()
         .flatten()
@@ -199,6 +208,7 @@ impl Default for Settings {
             mobile: false,
             threads: None,
             esc_end: false,
+            rec_sb_cdp: false,
             remote_webdriver_timeout_seconds: None,
         }
     }
@@ -275,6 +285,7 @@ impl Settings {
             .unwrap_or(DriverMode::WebDriver);
         let mut launch = LaunchSettings::default();
         launch.set(LaunchSwitch::EscEnd, self.esc_end);
+        launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
         BrowserConfig {
             webdriver_url: "http://localhost:4444".to_owned(),
             browser,
@@ -379,6 +390,9 @@ impl Settings {
         }
         if let Some(v) = var("SB_ESC_END") {
             settings.esc_end = parse_bool(&v)?;
+        }
+        if let Some(v) = var("SB_REC_SB_CDP") {
+            settings.rec_sb_cdp = parse_bool(&v)?;
         }
         Ok(settings)
     }
@@ -525,6 +539,7 @@ threads = 4
             mobile: Some(true),
             threads: Some(4),
             esc_end: Some(true),
+            rec_sb_cdp: Some(true),
         }
     }
 
@@ -548,7 +563,27 @@ threads = 4
         assert_eq!(settings.user_data_dir.as_deref(), Some("/tmp/profile"));
         assert_eq!(settings.extension_dir.as_deref(), Some("/tmp/ext"));
         assert_eq!(settings.threads, Some(4));
-        assert!(settings.esc_end);
+        assert!(settings.esc_end && settings.rec_sb_cdp);
+    }
+
+    #[test]
+    fn rec_sb_cdp_is_off_by_default_and_follows_its_variable_and_key() {
+        assert!(!Settings::default().rec_sb_cdp);
+        assert!(!Settings::default().to_browser_config().rec_sb_cdp());
+        let settings = Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_REC_SB_CDP").then(|| "yes".to_owned())
+        })
+        .unwrap();
+        assert!(settings.rec_sb_cdp);
+        assert!(settings.to_browser_config().rec_sb_cdp());
+        assert!(!settings.to_browser_config().esc_end());
+        let from_toml: Settings = toml::from_str("rec_sb_cdp = true").unwrap();
+        assert!(from_toml.rec_sb_cdp);
+        let only = SettingsOverrides {
+            rec_sb_cdp: Some(true),
+            ..SettingsOverrides::default()
+        };
+        assert_eq!(only.env(), [("SB_REC_SB_CDP", "true".to_owned())]);
     }
 
     #[test]
@@ -625,7 +660,7 @@ threads = 4
     fn the_environment_form_means_the_same_as_applying_directly() {
         let overrides = every_option();
         let vars: std::collections::HashMap<_, _> = overrides.env().into_iter().collect();
-        assert_eq!(vars.len(), 14, "one variable per option");
+        assert_eq!(vars.len(), 15, "one variable per option");
 
         let via_env =
             Settings::apply_overrides(Settings::default(), |name| vars.get(name).cloned()).unwrap();

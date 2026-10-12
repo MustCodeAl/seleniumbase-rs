@@ -19,8 +19,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 6 | 194 | 14 | 1 |
 | [Command-line commands](#command-line-commands) | 36 | 16 | 8 | 8 | 4 |
-| [pytest options](#pytest-options) | 263 | 108 | 105 | 45 | 5 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 16 | 1 |
+| [pytest options](#pytest-options) | 263 | 109 | 105 | 45 | 4 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
@@ -1019,7 +1019,7 @@ Python `--option` flags.
 | `--rec-behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `--rec-gherkin` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `--rec-print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
-| `--rec-sb-cdp` | planned |  | The recorder writes code for the WebDriver engine (BaseCase calls), with ActionRecorder::to_rust_script and to_rust_test. Nothing writes Pure CDP code (Page and Locator calls) from a recording, although that engine exists. |
+| `--rec-sb-cdp` | implemented | `BrowserConfig::with_rec_sb_cdp` | Also `sbase --rec-sb-cdp` (alias `--rec_sb_cdp`), `Settings::rec_sb_cdp` and SB_REC_SB_CDP. With it on, BaseCase::export_recording_as_rust (and so save_recording_to_logs, `sbase run-scenario`, `sbase export-recording` and the `save` command of record_live_session) returns ActionRecorder::to_cdp_script: a #[tokio::main] program of sb_cdp Page and Locator calls, every selector and value a Rust string literal. to_cdp_test and save_recording_as_cdp_test write a test; BaseCase::export_recording_as_cdp_rust asks for it whatever the setting is. 51 recorded actions have a pure CDP call, and the program written for all of them is compiled against the real sb_cdp API by tests/recorder_cdp_compiles.rs; any other action becomes a `// skipped:` comment that quotes its BaseCase call. Differs: Python writes the recording file when the test ends; here it is written when export_recording_as_rust, save_recording_to_logs or a CLI command asks. The test itself still runs on WebDriver, and the generated program launches a pure CDP Browser. Waits use the pure CDP engine's own timeout, not ten seconds, and actions with no pure CDP call (frame, window and alert switching, JavaScript clicks, set_window_size) are comments, where Python comments out the actions CDPMethods lacks. |
 | `--rec-sb-mgr` | composed | `ActionRecorder::to_rust_script` | Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead. |
 | `--rec-sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `--record` | composed | `RecorderSession::install` | `RecorderSession::install(&sb)` injects the page recorder, so clicks and typing done by hand in the browser are captured; `drain(&mut sb)` collects them, and `ActionRecorder::to_rust_test` or `save_recording_as_test` writes the test. Nothing is saved when the test ends. BaseCase::start_recording only marks where the log of the test's own BaseCase calls begins. |
@@ -1181,7 +1181,7 @@ Keyword arguments of `SB()`.
 | `raise_test_failure` | not-applicable |  | Makes the SB() context manager re-raise a failing test; every Rust BaseCase method returns Result, so a failure already reaches the caller as an Err. |
 | `rec_behave` | implemented | `ActionRecorder::to_gherkin` | Writes a feature for the common browser steps; save_recording_as_feature saves it. |
 | `rec_print` | composed | `BaseCase::export_recording_as_rust` | Print the returned text. |
-| `rec_sb_cdp` | planned |  | The recorder writes code for the WebDriver engine (BaseCase calls), with ActionRecorder::to_rust_script and to_rust_test. Nothing writes Pure CDP code (Page and Locator calls) from a recording, although that engine exists. |
+| `rec_sb_cdp` | implemented | `BrowserConfig::with_rec_sb_cdp` | Also Settings::rec_sb_cdp, SB_REC_SB_CDP and `sbase --rec-sb-cdp`. With it on, BaseCase::export_recording_as_rust and save_recording_to_logs write ActionRecorder::to_cdp_script, a pure CDP program; see `--rec-sb-cdp`. Differs: Python writes the file when the SB() block ends; here you ask for it (export_recording_as_rust, save_recording_to_logs). |
 | `rec_sb_mgr` | composed | `ActionRecorder::to_rust_script` | Python's `with SB() as sb:` form is a standalone script. `ActionRecorder::to_rust_script` writes the recording as a standalone `#[tokio::main]` Rust program (BaseCase::export_recording_as_rust returns it); to_rust_test writes a test instead. |
 | `record_sleep` | implemented | `RunSettings::with_record_sleep` | BaseCase::sleep goes into the recording, and the generated Rust calls sb.sleep. |
 | `recorder_ext` | implemented | `BrowserConfig::with_recorder_extension` | Loads the bundled SeleniumBase Recorder extension. Chromium only. |

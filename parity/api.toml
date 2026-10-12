@@ -5190,8 +5190,10 @@ rust = "BaseCase::export_recording_as_rust"
 note = "Print the returned text."
 
 [options_pytest."--rec-sb-cdp"]
-status = "planned"
-note = "The recorder writes code for the WebDriver engine (BaseCase calls), with ActionRecorder::to_rust_script and to_rust_test. Nothing writes Pure CDP code (Page and Locator calls) from a recording, although that engine exists."
+status = "implemented"
+rust = "BrowserConfig::with_rec_sb_cdp"
+note = "Also `sbase --rec-sb-cdp` (alias `--rec_sb_cdp`), `Settings::rec_sb_cdp` and SB_REC_SB_CDP. With it on, BaseCase::export_recording_as_rust (and so save_recording_to_logs, `sbase run-scenario`, `sbase export-recording` and the `save` command of record_live_session) returns ActionRecorder::to_cdp_script: a #[tokio::main] program of sb_cdp Page and Locator calls, every selector and value a Rust string literal. to_cdp_test and save_recording_as_cdp_test write a test; BaseCase::export_recording_as_cdp_rust asks for it whatever the setting is. 51 recorded actions have a pure CDP call, and the program written for all of them is compiled against the real sb_cdp API by tests/recorder_cdp_compiles.rs; any other action becomes a `// skipped:` comment that quotes its BaseCase call."
+divergence = "Python writes the recording file when the test ends; here it is written when export_recording_as_rust, save_recording_to_logs or a CLI command asks. The test itself still runs on WebDriver, and the generated program launches a pure CDP Browser. Waits use the pure CDP engine's own timeout, not ten seconds, and actions with no pure CDP call (frame, window and alert switching, JavaScript clicks, set_window_size) are comments, where Python comments out the actions CDPMethods lacks."
 
 [options_pytest."--rec-sb-mgr"]
 status = "composed"
@@ -5933,8 +5935,10 @@ rust = "BaseCase::export_recording_as_rust"
 note = "Print the returned text."
 
 [options_sb."rec_sb_cdp"]
-status = "planned"
-note = "The recorder writes code for the WebDriver engine (BaseCase calls), with ActionRecorder::to_rust_script and to_rust_test. Nothing writes Pure CDP code (Page and Locator calls) from a recording, although that engine exists."
+status = "implemented"
+rust = "BrowserConfig::with_rec_sb_cdp"
+note = "Also Settings::rec_sb_cdp, SB_REC_SB_CDP and `sbase --rec-sb-cdp`. With it on, BaseCase::export_recording_as_rust and save_recording_to_logs write ActionRecorder::to_cdp_script, a pure CDP program; see `--rec-sb-cdp`."
+divergence = "Python writes the file when the SB() block ends; here you ask for it (export_recording_as_rust, save_recording_to_logs)."
 
 [options_sb."rec_sb_mgr"]
 status = "composed"

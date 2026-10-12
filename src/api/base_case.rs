@@ -1138,8 +1138,16 @@ impl BaseCase {
         RecorderSession::replay(self, actions).await
     }
 
-    /// Executes the `export_recording_as_rust` action.
+    /// Executes the `export_recording_as_rust` action: the recording as a
+    /// standalone Rust program that calls `BaseCase`. When
+    /// [`rec_sb_cdp`](Self::rec_sb_cdp) is on (`--rec-sb-cdp`) the program
+    /// calls the pure CDP engine instead, as
+    /// [`export_recording_as_cdp_rust`](Self::export_recording_as_cdp_rust)
+    /// writes it.
     pub fn export_recording_as_rust(&self) -> Result<String, SeleniumBaseError> {
+        if self.rec_sb_cdp() {
+            return self.export_recording_as_cdp_rust();
+        }
         let recorder = self
             .recorder
             .lock()
@@ -2749,6 +2757,7 @@ include!("base_case_impls/base_case_impl_misc.rs");
 include!("base_case_impls/base_case_impl_addon.rs");
 include!("base_case_impls/base_case_impl_parity.rs");
 include!("base_case_impls/base_case_impl_esc.rs");
+include!("base_case_impls/base_case_impl_rec_cdp.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]

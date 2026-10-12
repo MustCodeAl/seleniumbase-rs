@@ -1,0 +1,64 @@
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Point, Scroll, SelectBy, State};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let browser = Browser::launch(LaunchOptions::builder().build()?).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com/a?b=1").await?;
+    page.locator("#go").click().await?;
+    page.locator("#shadow").click().await?;
+    page.locator("#go").click().await?;
+    page.locator("#menu").hover().await?;
+    page.locator("#row").double_click().await?;
+    page.locator("#row").right_click().await?;
+    page.locator("#q").clear().await?;
+    page.locator("form").submit().await?;
+    page.locator("#end").scroll_into_view().await?;
+    page.locator("#end").scroll_into_view().await?;
+    page.locator("#end").scroll_into_view().await?;
+    page.locator("#end").scroll_into_view().await?;
+    page.locator("#agree").check().await?;
+    page.locator("#spam").uncheck().await?;
+    page.locator("#q").clear().await?;
+    page.locator("#q").type_text("rust").await?;
+    page.locator("#q").clear().await?;
+    page.locator("#q").type_text("rust").await?;
+    page.locator("#q").type_text(" more").await?;
+    page.locator("#q").type_text("abc").await?;
+    page.locator("link=Log out").click().await?;
+    page.locator("link=Log out").click().await?;
+    page.locator("p_link=Log").click().await?;
+    page.locator("p_link=Log").click().await?;
+    page.locator("#c").select_option(SelectBy::Text("Canada")).await?;
+    page.locator("#c").select_option(SelectBy::Value("ca")).await?;
+    page.locator("#c").select_option(SelectBy::Index(2)).await?;
+    page.locator("#a").drag_to(&page.locator("#b")).await?;
+    page.locator("#x").wait_for(State::Visible).await?;
+    page.locator("#x").wait_for(State::Present).await?;
+    page.locator("#x").wait_for(State::Hidden).await?;
+    page.locator("#x").wait_for(State::Absent).await?;
+    page.wait_for_load().await?;
+    page.locator("#m").expect().to_contain_text("Welcome").await?;
+    page.locator("#m").expect().to_contain_text("Welcome").await?;
+    page.locator("#m").expect().not().to_contain_text("Failed").await?;
+    page.locator("#m").expect().to_have_text("Welcome").await?;
+    page.locator("a").expect().to_have_attribute("href", "/home").await?;
+    page.expect().to_have_title("Home").await?;
+    page.expect().to_contain_title("Ho").await?;
+    page.back().await?;
+    page.forward().await?;
+    page.reload().await?;
+    page.window().maximize().await?;
+    page.scroll(Scroll::Bottom).await?;
+    page.scroll(Scroll::Top).await?;
+    page.cookies().clear().await?;
+    page.local_storage().set("theme", "dark").await?;
+    page.local_storage().remove("theme").await?;
+    page.local_storage().clear().await?;
+    page.locator("#c").click_at(Point::new(5.0, -7.0)).await?;
+    tokio::time::sleep(std::time::Duration::from_secs_f64(1.5)).await;
+    // skipped: switch_to_frame: no pure CDP call for this action; the WebDriver form is sb.switch_to_frame("#frame").await?;
+    // skipped: js_click: no pure CDP call for this action; the WebDriver form is sb.js_click("#hidden").await?;
+    browser.close().await?;
+    Ok(())
+}
