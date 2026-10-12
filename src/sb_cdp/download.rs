@@ -14,8 +14,10 @@
 //!   attachment` downloads; a link to a page or an image is shown instead,
 //!   and the wait ends in a timeout.
 //!
-//! `downloadWillBegin` names the file and `downloadProgress` ends in
-//! `completed`, with the path of the file, or `canceled`. The wait is bounded
+//! `Browser.downloadWillBegin` names the file and `Browser.downloadProgress`
+//! ends in `completed`, with the path of the file, or `canceled`. (Chrome sends
+//! the `Page.` twins of these events too, but its `completed` one carries no
+//! path, so they are ignored.) The wait is bounded
 //! by [`Page::timeout`], so a slow download wants
 //! [`with_timeout`](Page::with_timeout). Downloads are followed one at a time
 //! per browser: the first one to begin after the call starts is the one that
@@ -105,14 +107,14 @@ async fn follow(
     while let Some(event) = events.next().await {
         let text = |key: &str| event.params[key].as_str().unwrap_or_default().to_owned();
         match event.method.as_str() {
-            "Browser.downloadWillBegin" | "Page.downloadWillBegin" if started.is_none() => {
+            "Browser.downloadWillBegin" if started.is_none() => {
                 *started = Some(Started {
                     guid: text("guid"),
                     suggested: text("suggestedFilename"),
                     source: text("url"),
                 });
             }
-            "Browser.downloadProgress" | "Page.downloadProgress" => {
+            "Browser.downloadProgress" => {
                 if let Some(download) = started.as_ref().filter(|d| d.guid == text("guid")) {
                     match event.params["state"].as_str() {
                         Some("completed") => return saved_file(dir, download, &event.params),
@@ -192,8 +194,8 @@ impl Page {
     /// of the site first. The file is named by the server's
     /// `Content-Disposition` header if it sends one, else by the last part of
     /// the address, else `download`. A file of that name already in `dir` is
-    /// kept, and the new one is saved as `name (1).ext`; the path returned is
-    /// the new file's.
+    /// replaced: Chrome does not number files whose downloads are controlled
+    /// over DevTools. The path returned is the one the browser reports.
     ///
     /// `dir` is created if needed, and from now on is the folder the browser
     /// saves downloads in (see
@@ -259,7 +261,8 @@ impl Page {
         let saved = self.fetch_into(url, dir, Some(name)).await?;
         let target = fs::canonicalize(dir)?.join(name);
         if saved != target {
-            // The browser numbered the file because one was there already.
+            // The browser saved the file under another name than it was asked to,
+            // for example because it numbered it to keep one that was there.
             if target.exists() {
                 fs::remove_file(&target)?;
             }
@@ -273,9 +276,9 @@ impl Page {
     ///
     /// Use it for a link or button that the server answers with a download,
     /// such as `Content-Disposition: attachment`. The file keeps the name the
-    /// browser gives it; a name taken in `dir` gets a number, as for
-    /// [`download_file`](Self::download_file), which also says what happens to
-    /// `dir` and how long the wait lasts.
+    /// browser gives it. [`download_file`](Self::download_file) says what
+    /// happens to a file of that name already in `dir`, what happens to `dir`
+    /// and how long the wait lasts.
     ///
     /// # Errors
     ///

@@ -3,8 +3,10 @@
 //! The scripted browser behaves as Chrome does where it matters here: it
 //! remembers the folder it was told to save in, starts a download when the page
 //! runs the fetching script or the mouse is released over a link, writes the
-//! file (adding a number to the name if one of that name is already there),
-//! and reports the download's progress as events. The tests assert which
+//! file (adding a number to the name if one of that name is already there,
+//! which Chrome 155 does not do for downloads it is told to allow, but which
+//! the code must follow if a browser reports it), and reports the download's
+//! progress as events, as Chrome does. The tests assert which
 //! commands are sent and in what order, and how the browser's events become a
 //! path or an error. The test with a real Chrome is `sb_cdp_download_chrome.rs`.
 //! Run these with `cargo test --features test-util`.
@@ -121,6 +123,10 @@ fn named_in(expression: &str) -> Option<String> {
 }
 
 /// Starts the scripted download: the events, and the file.
+///
+/// Chrome 155 sends each event twice, as `Page.` events for the tab and as
+/// `Browser.` events, and only the `Browser.` event that ends a download
+/// carries the path of the file. The `Page.` one comes first.
 fn begin(
     mock: &MockCtrl,
     folder: &Mutex<Option<PathBuf>>,
@@ -133,6 +139,12 @@ fn begin(
         .clone()
         .expect("the browser was told where to save before the download began");
     let name = named.unwrap_or_else(|| download.suggested.to_owned());
+    mock.emit(
+        "Page.downloadWillBegin",
+        json!({ "frameId": "F1", "guid": "g1", "url": "blob:https://files.test/1",
+                "suggestedFilename": name }),
+        Some("S1"),
+    );
     mock.emit(
         "Browser.downloadWillBegin",
         json!({ "frameId": "F1", "guid": "g1", "url": "blob:https://files.test/1",
@@ -152,16 +164,18 @@ fn begin(
             }
             let mut done = json!({ "guid": "g1", "totalBytes": 8, "receivedBytes": 8,
                                    "state": "completed" });
+            mock.emit("Page.downloadProgress", done.clone(), Some("S1"));
             if download.reports_path {
                 done["filePath"] = json!(saved);
             }
             mock.emit("Browser.downloadProgress", done, None);
         }
-        Ending::Cancelled => mock.emit(
-            "Browser.downloadProgress",
-            json!({ "guid": "g1", "totalBytes": 8, "receivedBytes": 4, "state": "canceled" }),
-            None,
-        ),
+        Ending::Cancelled => {
+            let cancelled =
+                json!({ "guid": "g1", "totalBytes": 8, "receivedBytes": 4, "state": "canceled" });
+            mock.emit("Page.downloadProgress", cancelled.clone(), Some("S1"));
+            mock.emit("Browser.downloadProgress", cancelled, None);
+        }
         Ending::NeverFinishes => {}
     }
 }
@@ -350,7 +364,7 @@ async fn a_download_the_browser_says_finished_but_left_no_file_for_is_an_error()
 }
 
 #[tokio::test]
-async fn a_second_download_of_a_name_keeps_the_first_and_returns_the_numbered_file() {
+async fn the_path_the_browser_reports_is_returned_even_when_it_is_not_the_suggested_name() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
     script_browser(
@@ -492,7 +506,7 @@ async fn saving_a_file_as_a_path_names_the_file_and_returns_that_path() {
 }
 
 #[tokio::test]
-async fn saving_over_a_file_replaces_it_and_leaves_no_numbered_copy() {
+async fn saving_over_a_file_replaces_it_whatever_name_the_browser_gave_the_new_one() {
     let (page, mock) = quick_page().await;
     let folder = tempfile::tempdir().unwrap();
     script_browser(&mock, &Download::completing("x.csv", "new"), Trigger::Fetch);

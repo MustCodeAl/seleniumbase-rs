@@ -107,15 +107,19 @@ async fn files_are_downloaded_by_address_by_click_and_under_a_chosen_name() {
     assert_eq!(export, dir.join("export-3.csv"));
     assert_eq!(fs::read_to_string(&export).unwrap(), "id\n3\n");
 
-    // A name already taken is kept, and the new file is numbered.
+    // A name already taken is replaced: Chrome does not number a download it
+    // was told to allow.
+    fs::write(&notes, "stale").unwrap();
     let again = page
         .download_file(&format!("{base}/files/notes.txt"), &dir)
         .await
         .expect("the notes download again");
-    assert_eq!(again.file_name().unwrap(), "notes (1).txt");
+    assert_eq!(again, notes);
+    assert_eq!(fs::read_to_string(&notes).unwrap(), "plain notes");
     assert_eq!(
-        fs::read_to_string(dir.join("notes.txt")).unwrap(),
-        "plain notes"
+        fs::read_dir(&dir).unwrap().count(),
+        2,
+        "notes.txt and export-3.csv, nothing numbered"
     );
 
     // Under a name of your choosing, replacing what is there.

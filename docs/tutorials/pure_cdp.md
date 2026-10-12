@@ -138,8 +138,8 @@ page.assert_downloaded_file("invoice.pdf", Duration::from_secs(10)).await?;
 ```
 
 `download_file` names the file after the server's `Content-Disposition` header,
-or the end of the address, and keeps a file already of that name by saving the
-new one as `name (1).ext`. A bad status, a cancelled download or an address the
+or the end of the address, and replaces a file already of that name (Chrome
+does not number downloads that are controlled over DevTools). A bad status, a cancelled download or an address the
 page may not fetch (CORS) is `SeleniumBaseError::Download`; a download that
 does not begin or end in time is `WaitTimeout`. The download methods and
 `browser.set_download_dir` choose the folder; until one is chosen the browser

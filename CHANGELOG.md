@@ -261,8 +261,10 @@ feature parity with Python SeleniumBase 4.55.2 and `seleniumbase-mcp`
   `visual_baseline/<name>.png` is not read; the first run saves a new one.
 - `BaseCase::generate_referral`, `generate_traffic` and their chains,
   `set_content_to_frame` and `install_addon`, the `--reuse-session` options, the
-  `caseplans` and `behave-gui` commands and three CDP downloads are now `planned`
-  in `parity/api.toml`, because the Rust code only looked like the Python one.
+  `caseplans` and `behave-gui` commands and three CDP downloads were marked
+  `planned` in `parity/api.toml`, because the Rust code only looked like the
+  Python one. The referral helpers, `set_content_to_frame` and the CDP downloads
+  have since been written (see Added); the others are still `planned`.
   `objectify` is not applicable and `mkrec` is mapped onto `sbase record`.
 - Waits report the error that stopped them, and link checks report real status
   codes.
