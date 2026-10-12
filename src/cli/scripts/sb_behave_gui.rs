@@ -1,4 +1,9 @@
-//! `sbase behave-gui`: a prompt-driven writer for Gherkin feature files.
+//! `sbase behave-gui --new`: a prompt-driven writer for Gherkin feature files.
+//!
+//! This is the command that only writes a file, and it works in every build.
+//! `sbase behave-gui` on its own is the Behave Commander terminal app
+//! (`behave_gui_tui`, feature `tui`), which lists feature files and runs their
+//! scenarios.
 
 use crate::behave::Step;
 use crate::cli::commands::write_new_file;

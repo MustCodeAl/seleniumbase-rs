@@ -1,6 +1,9 @@
 //! The `sbase` commands that write starter files (`mkchart`, `mkpres`, `mkrec`,
-//! `objectify`, `caseplans`, `behave-gui`) and `sbase print`, run as the real
-//! binary in a scratch folder.
+//! `objectify`, `caseplans --starter`, `behave-gui --new`) and `sbase print`,
+//! run as the real binary in a scratch folder.
+//!
+//! `caseplans` and `behave-gui` on their own are terminal apps (feature `tui`);
+//! `tests/cli_terminal_apps.rs` covers them.
 //!
 //! None of them starts a browser or touches the network.
 //!
@@ -79,7 +82,7 @@ fn the_starter_file_commands_do_not_replace_a_file_that_is_there() {
             "Created recorder file",
         ),
         (&["objectify"], "page_object.rs", "Generated"),
-        (&["caseplans"], "CASE_PLANS.md", "Generated"),
+        (&["caseplans", "--starter"], "CASE_PLANS.md", "Generated"),
     ];
     for (args, file, success) in generators {
         let dir = tempfile::tempdir().expect("temp dir");
@@ -137,7 +140,7 @@ fn behave_gui_writes_the_feature_it_is_told_about() {
     let dir = tempfile::tempdir().expect("temp dir");
     let answers = "login\nLog in\nuser\nto log in\nI can work\n1\nvalid login\n\
                    Given I am on the login page\nThen I see my account\ndone\n";
-    let mut child = command(dir.path(), &["behave-gui"])
+    let mut child = command(dir.path(), &["behave-gui", "--new"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -171,7 +174,7 @@ fn behave_gui_gives_up_when_its_input_ends_instead_of_asking_for_ever() {
     let dir = tempfile::tempdir().expect("temp dir");
     // The answers stop in the middle of a scenario's steps.
     let answers = "login\nT\na\nb\nc\n1\ns\nGiven a step\n";
-    let mut child = command(dir.path(), &["behave-gui"])
+    let mut child = command(dir.path(), &["behave-gui", "--new"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -208,7 +211,7 @@ fn behave_gui_gives_up_when_its_input_ends_instead_of_asking_for_ever() {
 #[test]
 fn behave_gui_fails_when_the_feature_name_is_a_path() {
     let dir = tempfile::tempdir().expect("temp dir");
-    let mut child = command(dir.path(), &["behave-gui"])
+    let mut child = command(dir.path(), &["behave-gui", "--new"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

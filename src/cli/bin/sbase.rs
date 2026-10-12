@@ -776,10 +776,41 @@ enum Commands {
     },
     /// Launch the interactive commander (needs a build with the `tui` feature).
     Commander,
-    /// Generate case plans.
-    Caseplans,
-    /// Launch the behave/Gherkin GUI.
-    BehaveGui,
+    /// Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
+    ///
+    /// Lists the tests under PATH and creates, edits and saves a case plan for
+    /// each, `case_plans/<test>.md` next to its file, and writes a summary of the
+    /// plans to `case_summary.md`. PATH is a folder of tests or one test file;
+    /// by default the `tests/` and `examples/` folders of the current folder.
+    ///
+    /// The Python command opens a Tkinter window; this one runs in the terminal.
+    #[command(visible_alias = "case-plans")]
+    Caseplans {
+        /// A folder of tests, or one test file.
+        path: Option<String>,
+        /// Write the starter checklist `CASE_PLANS.md` instead; this needs no
+        /// `tui` feature.
+        #[arg(long, conflicts_with = "path")]
+        starter: bool,
+    },
+    /// Launch the Behave Commander, a terminal app (needs a build with the `tui` feature).
+    ///
+    /// Lists the `.feature` files under PATH with their scenarios, runs the ones
+    /// you mark through the crate's behave runner and shows the results. PATH is
+    /// a folder of feature files or one file; by default `features`.
+    ///
+    /// The runner has only the built-in steps: steps written in Rust are not
+    /// loaded, and a scenario that uses one is reported as undefined. The Python
+    /// command opens a Tkinter window; this one runs in the terminal.
+    #[command(visible_alias = "gui-behave")]
+    BehaveGui {
+        /// A folder of feature files, or one `.feature` file.
+        path: Option<String>,
+        /// Prompt for a name, a title and scenarios and write a new feature
+        /// file instead; this needs no `tui` feature.
+        #[arg(long, conflicts_with = "path")]
+        new: bool,
+    },
     /// Print a file.
     Print {
         #[arg(long, help = "File path to print")]
@@ -1071,6 +1102,17 @@ fn run_translate(
         );
     }
     Ok(())
+}
+
+/// What the commands that are terminal apps do in a build without the `tui`
+/// feature: say how to get it, and leave the terminal alone.
+#[cfg(not(feature = "tui"))]
+fn no_terminal_ui() -> ! {
+    eprintln!(
+        "this sbase was built without the terminal UI; \
+         reinstall it with `cargo install seleniumbase-rs --features tui`"
+    );
+    std::process::exit(2);
 }
 
 /// Where the file-generating commands create files: the current directory.
@@ -2047,26 +2089,40 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         #[cfg(not(feature = "tui"))]
-        Commands::Commander => {
-            eprintln!(
-                "this sbase was built without the terminal UI; \
-                 reinstall it with `cargo install seleniumbase-rs --features tui`"
-            );
-            std::process::exit(2);
-        }
+        Commands::Commander => no_terminal_ui(),
         // The file-writing commands below hand their error to `main`, which
         // prints `error: ...` and exits with the status of its kind (6 for a
         // local file), instead of printing it here and exiting with 0.
-        Commands::Caseplans => {
+        Commands::Caseplans { starter: true, .. } => {
             let path =
                 sb_caseplans::run_caseplans().map_err(|e| context("generate case plans", e))?;
             println!("Generated {}", path.display());
         }
-        Commands::BehaveGui => {
+        #[cfg(feature = "tui")]
+        Commands::Caseplans { path, .. } => {
+            let target = PathBuf::from(path.as_deref().unwrap_or("."));
+            if let Err(e) = caseplans_tui::run(&target) {
+                eprintln!("Failed to run the case plans generator: {}", e);
+                std::process::exit(1);
+            }
+        }
+        #[cfg(not(feature = "tui"))]
+        Commands::Caseplans { .. } => no_terminal_ui(),
+        Commands::BehaveGui { new: true, .. } => {
             let path =
                 sb_behave_gui::run_gui().map_err(|e| context("create the BDD feature file", e))?;
             println!("Created BDD feature file at {}", path.display());
         }
+        #[cfg(feature = "tui")]
+        Commands::BehaveGui { path, .. } => {
+            let target = PathBuf::from(path.as_deref().unwrap_or(feature_files::DEFAULT_FOLDER));
+            if let Err(e) = behave_gui_tui::run(&target) {
+                eprintln!("Failed to run the behave commander: {}", e);
+                std::process::exit(1);
+            }
+        }
+        #[cfg(not(feature = "tui"))]
+        Commands::BehaveGui { .. } => no_terminal_ui(),
         Commands::Print { file } => {
             let content =
                 sb_print::print_file(&file).map_err(|e| context(&format!("read {file}"), e))?;

@@ -1,4 +1,8 @@
-//! `sbase caseplans`: a starter test-plan checklist.
+//! `sbase caseplans --starter`: a starter test-plan checklist.
+//!
+//! This is the command that only writes a file, and it works in every build.
+//! `sbase caseplans` on its own is the Case Plans Generator terminal app
+//! (`caseplans_tui`, feature `tui`), which writes a plan for each test.
 
 use crate::cli::commands::write_new_file;
 use std::path::{Path, PathBuf};
