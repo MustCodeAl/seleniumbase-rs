@@ -482,7 +482,7 @@ def write(entries, path, header):
                 if key in e:
                     lines.append(f"{key} = {toml_value(e[key])}")
             lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 HEADER = """\

@@ -74,7 +74,7 @@ def main():
             rust = f"`{e['rust']}`" if "rust" in e else ""
             out.append(f"| `{cell(name)}` | {e['status']} | {cell(rust)} | {cell(notes)} |")
     out.append("")
-    out_path.write_text("\n".join(out), encoding="utf-8")
+    out_path.write_text("\n".join(out), encoding="utf-8", newline="\n")
 
 
 if __name__ == "__main__":

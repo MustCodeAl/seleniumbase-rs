@@ -140,7 +140,7 @@ def main():
         },
     }
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    a.out.write_text(json.dumps(api, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    a.out.write_text(json.dumps(api, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     counts = {
         "basecase": len(api["basecase"]), "cdp": len(api["cdp"]),
         "driver": len(api["driver"]), "cli": len(api["cli"]),
