@@ -1,0 +1,20 @@
+{
+  "title": "Recorder order",
+  "steps": [
+    {"type": "setViewport", "width": 1000, "height": 700, "deviceScaleFactor": 1, "isMobile": false, "hasTouch": false, "isLandscape": false},
+    {"type": "navigate", "url": "http://127.0.0.1:4173/", "assertedEvents": [{"type": "navigation", "url": "http://127.0.0.1:4173/", "title": "Shop Fixture"}]},
+    {"type": "click", "target": "main", "selectors": [["aria/Email"], ["#email"], ["xpath///*[@id=\"email\"]"], ["pierce/#email"]], "offsetY": 10, "offsetX": 30},
+    {"type": "change", "value": "recorder@example.test", "selectors": [["aria/Email"], ["#email"]], "target": "main"},
+    {"type": "change", "value": "cherry", "selectors": [["#fruit"]], "target": "main"},
+    {"type": "click", "target": "main", "selectors": [["#gift"]], "offsetX": 5, "offsetY": 5},
+    {"type": "keyDown", "target": "main", "key": "Tab"},
+    {"type": "keyUp", "target": "main", "key": "Tab"},
+    {"type": "click", "target": "main", "selectors": [["aria/Place order"], ["[data-testid=\"place-order\"]"], ["text/Place order"]], "offsetX": 20, "offsetY": 10},
+    {"type": "waitForElement", "selectors": [["::-p-text(Ordered 1 cherry as a gift)"]]},
+    {"type": "scroll", "x": 0, "y": 100},
+    {"type": "waitForExpression", "expression": "document.title === 'Ordered'"},
+    {"type": "click", "target": "main", "selectors": [["aria/About us"], ["a"]], "offsetX": 5, "offsetY": 5, "assertedEvents": [{"type": "navigation", "url": "http://127.0.0.1:4173/about", "title": ""}]},
+    {"type": "waitForElement", "selectors": [["xpath///h1"]], "visible": true},
+    {"type": "emulateNetworkConditions", "download": 1000, "upload": 1000, "latency": 10}
+  ]
+}
