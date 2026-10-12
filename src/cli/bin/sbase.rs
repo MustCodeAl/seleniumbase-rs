@@ -286,12 +286,18 @@ enum Commands {
     Throttle3g,
     /// Capture a screenshot of the current page.
     Screenshot {
-        #[arg(long, help = "Output image file path")]
+        #[arg(
+            long,
+            help = "Output image file path (default: a new file in latest_logs/)"
+        )]
         path: Option<String>,
     },
     /// Save the current page source to a file.
     SaveSource {
-        #[arg(long, help = "Output HTML file path")]
+        #[arg(
+            long,
+            help = "Output HTML file path (default: a new file in latest_logs/)"
+        )]
         path: Option<String>,
     },
     /// Assert that an element exists.
@@ -986,6 +992,34 @@ fn navigable_url(url: &str) -> Result<String, Box<dyn std::error::Error>> {
     }
 }
 
+/// Writes `bytes` to `path`, creating the folder it names first.
+fn write_creating_parent(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    std::fs::write(path, bytes)
+}
+
+impl Commands {
+    /// Whether the command speaks the DevTools Protocol, so that it needs a
+    /// session with a DevTools connection when no mode was asked for.
+    fn needs_devtools(&self) -> bool {
+        matches!(
+            self,
+            Self::Cdp { .. }
+                | Self::CacheClear
+                | Self::Throttle3g
+                | Self::CdpClickElement { .. }
+                | Self::CdpTypeText { .. }
+                | Self::PrintPdf { .. }
+                | Self::PdfText { .. }
+                | Self::AssertPdfText { .. }
+        )
+    }
+}
+
 /// Download `url` to `dest` over plain HTTP. Returns the number of bytes written.
 async fn http_download(url: &str, dest: &Path) -> Result<u64, Box<dyn std::error::Error>> {
     let bytes = reqwest::get(url).await?.error_for_status()?.bytes().await?;
@@ -1477,6 +1511,17 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     };
     overrides.apply(&mut settings);
 
+    // The runtime variables the library reads for a `BrowserConfig`: the
+    // WebDriver server (unless `--webdriver` names one) and the browser binary.
+    let runtime = RuntimeConfig::from_env()?;
+    let mut config = settings.to_browser_config();
+    // A command that speaks the DevTools Protocol gets a session that has a
+    // DevTools connection when no mode was asked for, on a Chromium browser.
+    let default_mode = if args.command.needs_devtools() && config.browser.is_chromium_based() {
+        DriverMode::Cdp
+    } else {
+        DriverMode::WebDriver
+    };
     let mode = settings
         .mode
         .as_deref()
@@ -1485,11 +1530,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             "cdp" => DriverMode::Cdp,
             _ => DriverMode::WebDriver,
         })
-        .unwrap_or(DriverMode::WebDriver);
-    // The runtime variables the library reads for a `BrowserConfig`: the
-    // WebDriver server (unless `--webdriver` names one) and the browser binary.
-    let runtime = RuntimeConfig::from_env()?;
-    let mut config = settings.to_browser_config();
+        .unwrap_or(default_mode);
     config.webdriver_url = args.webdriver.unwrap_or(runtime.webdriver_url);
     config.browser_binary_path = runtime.chrome_bin;
     config.mode = mode;
@@ -1551,7 +1592,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Screenshot { path } => {
             let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
-                sb.save_screenshot(target_path).await?;
+                // The path the user named on the command line, not one in the logs folder.
+                let png = sb.screenshot_as_png().await?;
+                write_creating_parent(Path::new(target_path), &png)?;
                 println!("Saved screenshot: {target_path}");
             } else {
                 let out = sb.save_screenshot_to_logs().await?;
@@ -1562,7 +1605,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::SaveSource { path } => {
             let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
-                sb.save_page_source(target_path).await?;
+                let source = sb.get_page_source().await?;
+                write_creating_parent(Path::new(target_path), source.as_bytes())?;
                 println!("Saved page source: {target_path}");
             } else {
                 let out = sb.save_page_source_to_logs().await?;
@@ -2181,6 +2225,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("Recording json: {}", json_file.display());
             println!("Recording script: {}", rust_file.display());
             sb.quit().await?;
+            if summary.failed_steps > 0 {
+                return Err(format!(
+                    "scenario '{}' failed: {} of {} steps failed",
+                    summary.scenario_name, summary.failed_steps, summary.total_steps
+                )
+                .into());
+            }
         }
         Commands::DownloadFile {
             url,
