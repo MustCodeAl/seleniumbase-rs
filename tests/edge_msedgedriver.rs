@@ -20,7 +20,12 @@ use seleniumbase_rs::browser::session::BrowserSession;
 use seleniumbase_rs::{Browser, BrowserConfig};
 
 /// The ids of the running processes whose command line holds `pattern`.
+/// Windows has no `pgrep`: there the process checks are skipped and the
+/// session itself is still tested.
 fn processes_matching(pattern: &str) -> Vec<String> {
+    if !cfg!(unix) {
+        return Vec::new();
+    }
     let output = Command::new("pgrep")
         .args(["-f", pattern])
         .output()
@@ -59,15 +64,17 @@ async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
         .await
         .expect("an Edge session through a crate-started msedgedriver");
 
-    let drivers_during = processes_matching("msedgedriver --port=");
-    assert!(
-        drivers_during.len() > drivers_before.len(),
-        "no msedgedriver was started: before {drivers_before:?}, during {drivers_during:?}"
-    );
-    assert!(
-        !processes_matching(&marker).is_empty(),
-        "no Edge runs with the profile {marker}"
-    );
+    if cfg!(unix) {
+        let drivers_during = processes_matching("msedgedriver --port=");
+        assert!(
+            drivers_during.len() > drivers_before.len(),
+            "no msedgedriver was started: before {drivers_before:?}, during {drivers_during:?}"
+        );
+        assert!(
+            !processes_matching(&marker).is_empty(),
+            "no Edge runs with the profile {marker}"
+        );
+    }
 
     session
         .goto("data:text/html,<title>edge%20driver%20ok</title><p>hi</p>")

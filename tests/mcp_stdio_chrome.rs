@@ -323,7 +323,14 @@ impl Client {
 // ----------------------------------------------------------------------
 
 /// Every process below `pid`: for a server, its browser and its driver.
+///
+/// Windows has no `pgrep`, so there no process is listed and the check that
+/// the browser ends with its server is skipped (on Windows nothing yet ends a
+/// browser whose server is killed; see `docs/platforms.md`).
 fn descendants(pid: u32) -> Vec<u32> {
+    if !cfg!(unix) {
+        return Vec::new();
+    }
     let mut found = Vec::new();
     let mut queue = vec![pid];
     while let Some(parent) = queue.pop() {

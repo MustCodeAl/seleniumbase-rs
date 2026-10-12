@@ -55,16 +55,25 @@ async fn the_crate_starts_the_geckodriver_it_finds() {
 
     let port = driver.url.rsplit(':').next().expect("a port").to_owned();
     let pattern = format!("geckodriver --port {port}");
-    assert!(running(&pattern), "no {pattern}");
+    // Windows has no `pgrep`; there the /status answer above is the check.
+    if cfg!(unix) {
+        assert!(running(&pattern), "no {pattern}");
+    }
     driver.kill();
-    assert!(!running(&pattern), "{pattern} is still running");
+    if cfg!(unix) {
+        assert!(!running(&pattern), "{pattern} is still running");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "needs SB_WEBDRIVER_URL to name a geckodriver with Firefox; see the module docs"]
 async fn a_headless_firefox_session_takes_its_options() {
-    let url = std::env::var("SB_WEBDRIVER_URL")
-        .expect("SB_WEBDRIVER_URL names a geckodriver; see the module documentation");
+    let Ok(url) = std::env::var("SB_WEBDRIVER_URL") else {
+        eprintln!(
+            "skipped: set SB_WEBDRIVER_URL to a geckodriver with Firefox (see the module docs)"
+        );
+        return;
+    };
     let mut config = BrowserConfig::default()
         .with_browser(Browser::Firefox)
         .with_webdriver_url(url)

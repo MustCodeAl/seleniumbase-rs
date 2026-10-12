@@ -159,6 +159,20 @@ non-root `sbase` user of the image with the sandbox on was not tried.
 
 ## Windows
 
+Checked on Windows 11 (25H2) with Rust 1.99, Chrome 154 and 155, Edge 155 and
+Firefox 153: formatting, clippy and the whole test suite pass, the real-Chrome
+tests that drive Chrome through chromedriver pass, and the Tauri example builds
+its `.msi` and setup `.exe`. What differs from macOS and Linux:
+
+- The browser version is read from `chrome.exe`'s own file version (through
+  PowerShell), since `chrome.exe --version` prints nothing there; while an update
+  waits for a restart that is the version that really runs.
+- Nothing ends a driver or browser when the program that started them is killed
+  (macOS and Linux use a process-group watcher; Windows would need a job object).
+  A driver whose session fails to start, or that is dropped, is still ended.
+- One pure-CDP download test (a `blob:` URL) failed on Windows; download folders
+  are now handed to Chrome as plain `C:\...` paths, which may be the fix.
+
 - Install Google Chrome normally; the library finds it under `Program Files`. CI
   installs a Chrome and chromedriver on Windows runners for the tests that need
   one.

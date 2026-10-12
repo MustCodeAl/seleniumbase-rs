@@ -1,0 +1,4 @@
+# The crate's rust-version (Cargo.toml), so rustup picks it in this folder.
+[toolchain]
+channel = "1.99"
+components = ["clippy", "rustfmt"]
