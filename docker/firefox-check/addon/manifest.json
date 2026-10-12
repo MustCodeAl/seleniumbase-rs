@@ -1,0 +1,16 @@
+{
+  "manifest_version": 2,
+  "name": "sbrs install_addon check",
+  "version": "1.0",
+  "description": "Marks the pages it runs on, so a check can see that it is installed.",
+  "browser_specific_settings": {
+    "gecko": { "id": "sbrs-check@example.org" }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

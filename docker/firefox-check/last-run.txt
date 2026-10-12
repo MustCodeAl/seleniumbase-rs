@@ -1,0 +1,72 @@
+
+== versions
+geckodriver 0.37.1 (300705c65d1b 2026-07-17 09:25 +0000)
+[8] Sandbox: CanCreateUserNamespace() clone() failure: EPERM
+Mozilla Firefox 153.4.0esr
+
+== start a page server and geckodriver
+
+== new headless Firefox session
+>>> POST /session {"capabilities":{"alwaysMatch":{"browserName":"firefox","moz:firefoxOptions":{"args":["-headless"]}}}}
+<<< HTTP 200 {"value":{"sessionId":"a43a945f-0bd4-4bd6-aa4e-89b87b597a4a","capabilities":{"acceptInsecureCerts":false,"browserName":"firefox","browserVersion":"153.4.0","moz:accessibilityChecks":false,"moz:buildID":"20260923073912","moz:geckodriverVersion":"0.37.1","moz:headless":true,"moz:platformVersion":"7.0.14-orbstack-00380-ga7e0a2dc9535","moz:processID":24,"moz:profile":"/tmp/rust_mozprofile81tger","moz:shutdownTimeout":60000,"moz:webdriverClick":true,"moz:windowless":false,"pageLoadStrategy":"normal","platformName":"linux","proxy":{},"setWindowRect":true,"strictFileInteractability":false,"timeouts":{"implicit":0,"pageLoad":300000,"script":30000},"unhandledPromptBehavior":"dismiss and notify","userAgent":"Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0"}}}
+session id: a43a945f-0bd4-4bd6-aa4e-89b87b597a4a
+
+== before the install the page carries no mark
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/url {"url":"http://127.0.0.1:8000/index.html"}
+<<< HTTP 200 {"value":null}
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/execute/sync {"script":"return document.documentElement.getAttribute(\"data-sbrs-addon\");","args":[]}
+<<< HTTP 200 {"value":null}
+mark: null
+
+== install the unpacked add-on directory, temporary
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/install {"path":"/opt/addon","temporary":true}
+<<< HTTP 200 {"value":"sbrs-check@example.org"}
+add-on id: sbrs-check@example.org
+
+== with the add-on installed the page carries its mark
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/url {"url":"http://127.0.0.1:8000/index.html"}
+<<< HTTP 200 {"value":null}
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/execute/sync {"script":"return document.documentElement.getAttribute(\"data-sbrs-addon\");","args":[]}
+<<< HTTP 200 {"value":"installed"}
+mark: "installed"
+
+== uninstall it
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/uninstall {"id":"sbrs-check@example.org"}
+<<< HTTP 200 {"value":null}
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/url {"url":"http://127.0.0.1:8000/index.html"}
+<<< HTTP 200 {"value":null}
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/execute/sync {"script":"return document.documentElement.getAttribute(\"data-sbrs-addon\");","args":[]}
+<<< HTTP 200 {"value":null}
+mark: null
+
+== install the same add-on packed as an .xpi file, temporary
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/install {"path":"/tmp/sbrs-check.xpi","temporary":true}
+<<< HTTP 200 {"value":"sbrs-check@example.org"}
+add-on id: sbrs-check@example.org
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/url {"url":"http://127.0.0.1:8000/index.html"}
+<<< HTTP 200 {"value":null}
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/execute/sync {"script":"return document.documentElement.getAttribute(\"data-sbrs-addon\");","args":[]}
+<<< HTTP 200 {"value":"installed"}
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/uninstall {"id":"sbrs-check@example.org"}
+<<< HTTP 200 {"value":null}
+
+== what geckodriver answers when it refuses (for the error cases)
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/install {"path":"/opt/no-such-addon.xpi","temporary":true}
+<<< HTTP 500 {"value":{"error":"unknown error","message":"No such file or directory: /opt/no-such-addon.xpi","stacktrace":"RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8\nWebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5\nUnknownError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:944:5\ninstallWithPath@chrome://remote/content/shared/Addon.sys.mjs:186:13\ninstallAddon@chrome://remote/content/marionette/driver.sys.mjs:2110:25\ndispatch@chrome://remote/content/marionette/server.sys.mjs:317:49\nexecute@chrome://remote/content/marionette/server.sys.mjs:289:16\nonPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20\nonPacket@chrome://remote/content/marionette/server.sys.mjs:263:9\n_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20\n"}}
+(refused: status 500)
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/install {"path":"/tmp/sbrs-check.xpi","temporary":false}
+<<< HTTP 500 {"value":{"error":"unknown error","message":"Could not install Add-on: ERROR_SIGNEDSTATE_REQUIRED: The addon must be signed and isn't.","stacktrace":"RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8\nWebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5\nInvalidWebExtensionError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:455:5\ninstallAddon@chrome://remote/content/shared/Addon.sys.mjs:70:11\n"}}
+(refused: status 500)
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/uninstall {"id":"never-installed@example.org"}
+<<< HTTP 500 {"value":{"error":"unknown error","message":"Add-on with ID \"never-installed@example.org\" is not installed.","stacktrace":"RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8\nWebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:169:5\nNoSuchWebExtensionError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:748:5\nuninstall@chrome://remote/content/shared/Addon.sys.mjs:223:13\n"}}
+(status 500)
+>>> POST /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a/moz/addon/install {"temporary":true}
+<<< HTTP 400 {"value":{"error":"invalid argument","message":"data did not match any variant of untagged enum AddonInstallParameters","stacktrace":""}}
+(refused: status 400)
+
+== end the session
+>>> DELETE /session/a43a945f-0bd4-4bd6-aa4e-89b87b597a4a 
+<<< HTTP 200 {"value":null}
+
+ALL CHECKS PASSED
+exit 0
