@@ -335,6 +335,230 @@ impl SelectorBuf {
             Self::PartialLinkText(value) => Selector::PartialLinkText(value),
         }
     }
+
+    /// Elements that show `text`, the way Playwright's `getByText` finds them:
+    /// the innermost elements whose text contains `text`, ignoring ASCII case,
+    /// or (with `exact`) whose whole text is `text`, case and all. Buttons made
+    /// with `<input type="submit">` (and `button`, `reset`) match by their
+    /// value. Runs of white space count as one space, and `<script>` and
+    /// `<style>` never match.
+    ///
+    /// This is an approximation written in XPath 1.0: only ASCII letters are
+    /// folded for the case-insensitive match.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// let SelectorBuf::XPath(xpath) = SelectorBuf::text("Sign in", true) else {
+    ///     unreachable!()
+    /// };
+    /// assert!(xpath.contains("normalize-space(.)='Sign in'"));
+    /// ```
+    pub fn text(text: impl AsRef<str>, exact: bool) -> Self {
+        let text = text.as_ref();
+        let content = text_match(".", text, exact);
+        let value = text_match("@value", text, exact);
+        Self::XPath(format!(
+            "//body/descendant-or-self::*\
+             [not(self::script or self::style or self::noscript or self::template)]\
+             [({content} and not(.//*[{content}])) or \
+             (self::input and (@type='button' or @type='submit' or @type='reset') and {value})]"
+        ))
+    }
+
+    /// The element itself when its text contains `text`, ignoring ASCII case:
+    /// Playwright's `filter({ hasText })`. As a step after another selector
+    /// (`page.locator("li").locator(SelectorBuf::has_text("Shoes"))`) it keeps
+    /// the matches of that selector whose text contains `text`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// assert!(matches!(SelectorBuf::has_text("Shoes"), SelectorBuf::XPath(x) if x.starts_with("self::*[")));
+    /// ```
+    pub fn has_text(text: impl AsRef<str>) -> Self {
+        Self::XPath(format!(
+            "self::*[{}]",
+            text_match(".", text.as_ref(), false)
+        ))
+    }
+
+    /// Form controls labelled `text`, the way Playwright's `getByLabel` finds
+    /// them: by a `<label for>` that names the control's id, by a `<label>`
+    /// around the control, or by its `aria-label`. The label matches as in
+    /// [`text`](Self::text): containing `text` with ASCII case ignored, or the
+    /// whole label when `exact`. `aria-labelledby` is not followed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// let SelectorBuf::XPath(xpath) = SelectorBuf::label("Email", false) else {
+    ///     unreachable!()
+    /// };
+    /// assert!(xpath.contains("//label["));
+    /// ```
+    pub fn label(text: impl AsRef<str>, exact: bool) -> Self {
+        let text = text.as_ref();
+        let by_label = text_match(".", text, exact);
+        let by_aria = text_match("@aria-label", text, exact);
+        Self::XPath(format!(
+            "//*[(self::input and not(@type='hidden')) or self::textarea or self::select or \
+             self::button or self::meter or self::output or self::progress or \
+             @role='textbox' or @role='combobox' or @role='checkbox' or @role='radio' or \
+             @role='switch' or @role='slider' or @role='spinbutton' or @role='listbox']\
+             [(@id and @id=//label[{by_label}]/@for) or ancestor::label[{by_label}] or \
+             (@aria-label and {by_aria})]"
+        ))
+    }
+
+    /// Elements with the ARIA `role`, and with `name` as their accessible name
+    /// when one is given: an approximation of Playwright's `getByRole` (and of
+    /// Puppeteer's `aria/` selectors) in XPath, for engines without an
+    /// accessibility tree query.
+    ///
+    /// An element has the role when its `role` attribute says so, or when it
+    /// has no `role` attribute and is the native element for it: `<button>`
+    /// and `<input type="submit">` for `button`, `<a href>` for `link`,
+    /// `<input type="checkbox">` for `checkbox`, `<h1>` to `<h6>` for
+    /// `heading`, `<select>` for `combobox`, and so on for the common roles.
+    /// An empty `role` matches any element.
+    ///
+    /// The name matches the `aria-label`, the text, the `value`, the `title` or
+    /// the `alt` of the element, or the text of its `<label>`: containing
+    /// `name` with ASCII case ignored, or the whole of it when `exact`. With no
+    /// role, the text match takes the innermost element, so the page's
+    /// `<body>` does not match because it contains everything.
+    ///
+    /// Not covered: `aria-labelledby`, hidden elements being skipped, roles
+    /// that depend on context (a `<header>` inside an `<article>` is not a
+    /// banner), and states such as `checked` or `level`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// let SelectorBuf::XPath(xpath) = SelectorBuf::role("button", Some("Sign in"), false) else {
+    ///     unreachable!()
+    /// };
+    /// assert!(xpath.starts_with("//*[@role='button' or (not(@role) and (self::button"));
+    /// assert!(xpath.contains("'sign in'"));
+    /// ```
+    pub fn role(role: &str, name: Option<&str>, exact: bool) -> Self {
+        let role = role.trim();
+        let mut xpath = String::from("//*");
+        if !role.is_empty() {
+            let explicit = format!("@role={}", xpath_string_literal(role));
+            match implicit_role(role) {
+                Some(native) => {
+                    xpath.push_str(&format!("[{explicit} or (not(@role) and ({native}))]"));
+                }
+                None => xpath.push_str(&format!("[{explicit}]")),
+            }
+        }
+        if let Some(name) = name {
+            let by = |value: &str| text_match(value, name, exact);
+            let content = by(".");
+            let content = if role.is_empty() {
+                format!("({content} and not(.//*[{content}]))")
+            } else {
+                content
+            };
+            xpath.push_str(&format!(
+                "[{} or {content} or {} or {} or {} or (@id and @id=//label[{}]/@for) or \
+                 ancestor::label[{}]]",
+                by("@aria-label"),
+                by("@value"),
+                by("@title"),
+                by("@alt"),
+                by("."),
+                by("."),
+            ));
+        }
+        Self::XPath(xpath)
+    }
+}
+
+/// The ASCII capitals and their lower-case forms, for XPath's `translate()`:
+/// XPath 1.0 has no `lower-case()`, so case-insensitive matching folds ASCII
+/// letters only.
+const XPATH_UPPER: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+/// See [`XPATH_UPPER`].
+const XPATH_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
+
+/// An XPath test that the string of `value` (an XPath expression such as `.`
+/// or `@title`) matches `text`, white space collapsed on both sides: equal
+/// when `exact`, otherwise containing `text` with ASCII case ignored.
+fn text_match(value: &str, text: &str, exact: bool) -> String {
+    let wanted = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if exact {
+        format!("normalize-space({value})={}", xpath_string_literal(&wanted))
+    } else {
+        format!(
+            "contains(translate(normalize-space({value}), '{XPATH_UPPER}', '{XPATH_LOWER}'), {})",
+            xpath_string_literal(&wanted.to_ascii_lowercase())
+        )
+    }
+}
+
+/// The XPath test, on the element itself, for the native elements that have
+/// `role` without a `role` attribute, or `None` for a role no native element
+/// has.
+fn implicit_role(role: &str) -> Option<&'static str> {
+    Some(match role {
+        "article" => "self::article",
+        "banner" => "self::header",
+        "button" => {
+            "self::button or self::summary or (self::input and (@type='button' or \
+             @type='submit' or @type='reset' or @type='image'))"
+        }
+        "cell" => "self::td",
+        "checkbox" => "self::input and @type='checkbox'",
+        "columnheader" => "self::th",
+        "combobox" => {
+            "(self::select and not(@multiple) and not(@size > 1)) or (self::input and @list)"
+        }
+        "complementary" => "self::aside",
+        "contentinfo" => "self::footer",
+        "definition" => "self::dd",
+        "dialog" => "self::dialog",
+        "figure" => "self::figure",
+        "form" => "self::form",
+        "group" => "self::fieldset or self::details or self::optgroup",
+        "heading" => "self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6",
+        "img" => "self::img and not(@alt='')",
+        "link" => "(self::a or self::area) and @href",
+        "list" => "self::ul or self::ol or self::menu",
+        "listbox" => "(self::select and (@multiple or @size > 1)) or self::datalist",
+        "listitem" => "self::li",
+        "main" => "self::main",
+        "meter" => "self::meter",
+        "navigation" => "self::nav",
+        "option" => "self::option",
+        "progressbar" => "self::progress",
+        "radio" => "self::input and @type='radio'",
+        "region" => "self::section",
+        "row" => "self::tr",
+        "rowgroup" => "self::thead or self::tbody or self::tfoot",
+        "searchbox" => "self::input and @type='search'",
+        "separator" => "self::hr",
+        "slider" => "self::input and @type='range'",
+        "spinbutton" => "self::input and @type='number'",
+        "status" => "self::output",
+        "table" => "self::table",
+        "term" => "self::dt or self::dfn",
+        "textbox" => {
+            "self::textarea or (self::input and (not(@type) or @type='' or @type='text' or \
+             @type='email' or @type='tel' or @type='url' or @type='password'))"
+        }
+        _ => return None,
+    })
 }
 
 impl From<Selector<'_>> for SelectorBuf {
@@ -389,7 +613,7 @@ impl std::fmt::Display for SelectorBuf {
 ///
 /// Backslashes, the quote character and line breaks are escaped, so no value
 /// can end the string early and change the selector around it.
-fn css_quoted(value: &str, quote: char) -> String {
+pub(crate) fn css_quoted(value: &str, quote: char) -> String {
     let mut quoted = String::with_capacity(value.len() + 2);
     quoted.push(quote);
     for c in value.chars() {
@@ -893,5 +1117,126 @@ mod tests {
         assert!(message.contains("//a[text()='Home']"), "{message}");
         let empty = xpath_to_css("").unwrap_err().to_string();
         assert!(empty.contains("empty xpath"), "{empty}");
+    }
+
+    fn xpath_of(selector: SelectorBuf) -> String {
+        match selector {
+            SelectorBuf::XPath(xpath) => xpath,
+            other => panic!("not XPath: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn text_matches_ignore_ascii_case_unless_exact() {
+        assert_eq!(
+            text_match(".", "  Sign   In ", false),
+            "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', \
+             'abcdefghijklmnopqrstuvwxyz'), 'sign in')"
+        );
+        assert_eq!(
+            text_match("@title", "Sign In", true),
+            "normalize-space(@title)='Sign In'"
+        );
+    }
+
+    #[test]
+    fn a_quote_in_the_text_cannot_end_the_xpath_string() {
+        let xpath = xpath_of(SelectorBuf::text(r#"it's "quoted"']"#, true));
+        assert!(
+            xpath.contains(r#"concat('it', "'", 's "quoted"', "'", ']')"#),
+            "{xpath}"
+        );
+        let xpath = xpath_of(SelectorBuf::role("x'] | //script[('", Some("n"), false));
+        assert!(
+            xpath.starts_with(r#"//*[@role="x'] | //script[('"]["#),
+            "{xpath}"
+        );
+    }
+
+    #[test]
+    fn text_takes_the_innermost_element_and_input_buttons() {
+        let xpath = xpath_of(SelectorBuf::text("Go", false));
+        assert!(xpath.starts_with("//body/descendant-or-self::*"), "{xpath}");
+        assert!(xpath.contains("and not(.//*[contains("), "{xpath}");
+        assert!(xpath.contains("@type='submit'"), "{xpath}");
+        assert!(xpath.contains("normalize-space(@value)"), "{xpath}");
+    }
+
+    #[test]
+    fn has_text_tests_the_element_itself() {
+        assert_eq!(
+            xpath_of(SelectorBuf::has_text("Shoes")),
+            "self::*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', \
+             'abcdefghijklmnopqrstuvwxyz'), 'shoes')]"
+        );
+        assert!(matches!(
+            Selector::auto(&xpath_of(SelectorBuf::has_text("x"))),
+            Selector::XPath(_)
+        ));
+    }
+
+    #[test]
+    fn label_follows_for_wrapping_labels_and_aria_label() {
+        let xpath = xpath_of(SelectorBuf::label("Email", true));
+        assert!(
+            xpath.contains("@id=//label[normalize-space(.)='Email']/@for"),
+            "{xpath}"
+        );
+        assert!(
+            xpath.contains("ancestor::label[normalize-space(.)='Email']"),
+            "{xpath}"
+        );
+        assert!(
+            xpath.contains("normalize-space(@aria-label)='Email'"),
+            "{xpath}"
+        );
+        assert!(xpath.contains("not(@type='hidden')"), "{xpath}");
+    }
+
+    #[test]
+    fn role_uses_the_role_attribute_or_the_native_element() {
+        let button = xpath_of(SelectorBuf::role("button", None, false));
+        assert_eq!(
+            button,
+            "//*[@role='button' or (not(@role) and (self::button or self::summary or \
+             (self::input and (@type='button' or @type='submit' or @type='reset' or \
+             @type='image'))))]"
+        );
+        let custom = xpath_of(SelectorBuf::role("tab", None, false));
+        assert_eq!(custom, "//*[@role='tab']");
+        let any = xpath_of(SelectorBuf::role("", Some("Sign in"), true));
+        assert!(any.starts_with("//*[normalize-space(@aria-label)='Sign in' or (normalize-space(.)='Sign in' and not(.//*["), "{any}");
+    }
+
+    #[test]
+    fn role_names_match_text_label_value_title_and_alt() {
+        let xpath = xpath_of(SelectorBuf::role("link", Some("About"), false));
+        for source in ["@aria-label", ".", "@value", "@title", "@alt"] {
+            assert!(
+                xpath.contains(&format!("normalize-space({source})")),
+                "{source}: {xpath}"
+            );
+        }
+        assert!(xpath.contains("ancestor::label["), "{xpath}");
+        assert!(
+            xpath.contains("(self::a or self::area) and @href"),
+            "{xpath}"
+        );
+    }
+
+    #[test]
+    fn every_role_helper_xpath_is_read_as_xpath() {
+        for selector in [
+            SelectorBuf::text("a", false),
+            SelectorBuf::label("a", false),
+            SelectorBuf::role("button", Some("a"), false),
+            SelectorBuf::role("", None, false),
+        ] {
+            let xpath = xpath_of(selector);
+            assert!(
+                matches!(Selector::auto(&xpath), Selector::XPath(_)),
+                "{xpath}"
+            );
+        }
     }
 }
