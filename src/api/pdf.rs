@@ -111,7 +111,7 @@ impl PdfReader {
                 let mut output = pdf_extract::PlainTextOutput::new(&mut text);
                 pdf_extract::output_doc(&self.document, &mut output)?;
             }
-            Ok(text)
+            Ok(expand_ligatures(&text))
         })
     }
 
@@ -137,7 +137,7 @@ impl PdfReader {
                 let mut output = pdf_extract::PlainTextOutput::new(&mut text);
                 pdf_extract::output_doc_page(&self.document, &mut output, number)?;
             }
-            Ok(text)
+            Ok(expand_ligatures(&text))
         })
     }
 
@@ -191,6 +191,25 @@ fn output_error(error: pdf_extract::OutputError) -> SeleniumBaseError {
         ),
         other => SeleniumBaseError::Pdf(other.to_string()),
     }
+}
+
+/// Writes the typographic ligatures a PDF often stores (`ﬁ`, `ﬂ`, `ﬀ`, `ﬃ`,
+/// `ﬄ`, `ﬅ`, `ﬆ`) as the letters they join, so that text found in a page can be
+/// searched for as it reads: Chrome prints "fixture" with a single `ﬁ` glyph.
+fn expand_ligatures(text: &str) -> String {
+    let mut expanded = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '\u{FB00}' => expanded.push_str("ff"),
+            '\u{FB01}' => expanded.push_str("fi"),
+            '\u{FB02}' => expanded.push_str("fl"),
+            '\u{FB03}' => expanded.push_str("ffi"),
+            '\u{FB04}' => expanded.push_str("ffl"),
+            '\u{FB05}' | '\u{FB06}' => expanded.push_str("st"),
+            other => expanded.push(other),
+        }
+    }
+    expanded
 }
 
 /// Extracts text from a PDF file.
@@ -291,6 +310,15 @@ mod tests {
 
     fn write_sample_pdf<P: AsRef<Path>>(path: P) {
         std::fs::write(path, pdf_bytes(&["Hello SeleniumBase"])).unwrap();
+    }
+
+    #[test]
+    fn ligatures_are_written_as_the_letters_they_join() {
+        assert_eq!(
+            expand_ligatures("Welcome to the \u{FB01}xture, \u{FB02}at \u{FB00} \u{FB03} \u{FB04} \u{FB05}\u{FB06}"),
+            "Welcome to the fixture, flat ff ffi ffl stst"
+        );
+        assert_eq!(expand_ligatures("plain ✓ text"), "plain ✓ text");
     }
 
     #[test]
