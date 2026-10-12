@@ -135,7 +135,7 @@ Nothing is enabled by default. These pieces exist only when their feature is on:
 
 | Feature | What it adds |
 |---------|--------------|
-| `tui` | `sbase commander` (without it the command prints an error and exits with status 2) |
+| `tui` | `sbase commander`, `sbase caseplans` and `sbase behave-gui` (without it each command prints an error and exits with status 2) |
 | `gui` | `Gui`, `api::dialog`, `api::gui` and the `dialog`, `dialogs` and `gui_automation` examples (on Linux it links GTK and X11) |
 | `playwright` | `PlaywrightSession`, `BaseCase::activate_playwright_mode` |
 | `mcp-server` | the `seleniumbase_rs::mcp` module and the `seleniumbase-mcp` binary |

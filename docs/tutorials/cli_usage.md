@@ -235,6 +235,26 @@ The generators are careful with what they write:
 - They need no browser and ignore `sbase_config.toml`, so they work in an empty
   folder.
 
+## Terminal apps
+
+Three commands are full-screen terminal apps. They are part of the opt-in `tui`
+feature (`cargo install seleniumbase-rs --features tui`); an `sbase` built
+without it prints a hint and exits with status 2.
+
+```bash
+sbase commander                  # browse and run the tests and examples of the project
+sbase caseplans                  # write, edit and summarise a case plan for each test
+sbase behave-gui features/       # pick Gherkin scenarios, run them, see the results
+```
+
+`caseplans` (alias `case-plans`) and `behave-gui` (alias `gui-behave`) are the
+Python Case Plans Generator and Behave Commander, which open Tkinter windows
+there. Each takes an optional folder or file; see [Case Plans
+Generator](../help/caseplans.md) and [Behave Commander](../help/behave-gui.md).
+`sbase caseplans --starter` and `sbase behave-gui --new` are the earlier
+commands that only write a file (a checklist, a new feature); they need no
+feature.
+
 ## Import Python tests
 
 Convert a SeleniumBase or Selenium WebDriver Python file:

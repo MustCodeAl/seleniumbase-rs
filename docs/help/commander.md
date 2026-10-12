@@ -72,3 +72,9 @@ last 20 lines of the combined standard output and standard error.
   cannot pass `--features`. Use `sbase test --example <name> --features gui`.
 - If a file is missing from the list, check that it sits directly in `tests/` or
   `examples/` and ends in `.rs`, then press `r`.
+
+## See also
+
+The same feature builds two more terminal apps: the
+[Case Plans Generator](./caseplans.md) (`sbase caseplans`) and the
+[Behave Commander](./behave-gui.md) (`sbase behave-gui`).

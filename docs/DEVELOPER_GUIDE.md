@@ -241,7 +241,7 @@ contained:
 
 | Feature | Default | Purpose |
 |---|---|---|
-| `tui` | off | Interactive Commander TUI (`sbase commander`). Pulls `ratatui`/`crossterm`. |
+| `tui` | off | Terminal apps: `sbase commander`, `sbase caseplans`, `sbase behave-gui`. Pulls `ratatui`/`crossterm`. |
 | `gui` | off | Native OS dialogs and GUI automation. Pulls `rfd`/`enigo`; on Linux it needs GTK and X11 development packages. |
 | `playwright` | off | Enables the `rustwright`-based Playwright-compatible engine. |
 | `s3` | off | Enables AWS S3 artifact uploads. |

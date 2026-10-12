@@ -144,10 +144,17 @@ empty) and none of the `exclude_tags`. `RunFilter::all()` matches everything.
 
 ## From the command line
 
-There is no `sbase` command that runs a feature file. `sbase behave-gui`
-prompts for a feature name, title, scenarios and steps and writes
-`features/<name>.feature` (plus a `features/README.md` that suggests the
-`cucumber` crate for a fuller BDD runner).
+`sbase behave-gui` (build with the `tui` feature) is a terminal app that lists
+the feature files under `features/`, runs the scenarios you mark through the
+runner above and shows the results. It only has the built-in steps, since steps
+written in Rust cannot be loaded into `sbase`, so a scenario that uses your own
+steps is reported as undefined there; run those from a test of your own, as in
+this chapter. See [Behave Commander](../help/behave-gui.md).
+
+`sbase behave-gui --new` needs no feature: it prompts for a feature name, title,
+scenarios and steps and writes `features/<name>.feature` (plus a
+`features/README.md` that suggests the `cucumber` crate for a fuller BDD
+runner).
 
 ## Best practices
 
