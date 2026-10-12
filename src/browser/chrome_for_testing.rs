@@ -135,9 +135,14 @@ async fn fetch_json(client: &Client, url: &str) -> Result<Value, SeleniumBaseErr
         .map_err(|error| SeleniumBaseError::download(url, error.to_string()))
 }
 
-/// Fetches `url` and returns its bytes.
-async fn fetch_bytes(client: &Client, url: &str) -> Result<Vec<u8>, SeleniumBaseError> {
-    let response = client
+/// Fetches `url` and returns its bytes, refusing a body of more than
+/// `max_bytes` when a limit is given.
+pub(crate) async fn fetch_bytes(
+    client: &Client,
+    url: &str,
+    max_bytes: Option<u64>,
+) -> Result<Vec<u8>, SeleniumBaseError> {
+    let mut response = client
         .get(url)
         .send()
         .await
@@ -149,11 +154,30 @@ async fn fetch_bytes(client: &Client, url: &str) -> Result<Vec<u8>, SeleniumBase
             response.status().to_string(),
         ));
     }
-    let bytes = response
-        .bytes()
+    let too_big = |limit: u64| {
+        SeleniumBaseError::download(url, format!("the download is larger than {limit} bytes"))
+    };
+    if let (Some(limit), Some(length)) = (max_bytes, response.content_length()) {
+        if length > limit {
+            return Err(too_big(limit));
+        }
+    }
+    let mut bytes = Vec::new();
+    // Read piece by piece, so a server that sends more than it announced is
+    // stopped at the limit instead of filling the memory.
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|error| SeleniumBaseError::download(url, error.to_string()))?;
-    Ok(bytes.to_vec())
+        .map_err(|error| SeleniumBaseError::download(url, error.to_string()))?
+    {
+        bytes.extend_from_slice(&chunk);
+        if let Some(limit) = max_bytes {
+            if bytes.len() as u64 > limit {
+                return Err(too_big(limit));
+            }
+        }
+    }
+    Ok(bytes)
 }
 
 /// The URL of `artifact` for `platform` in the `downloads` object of a listing.
@@ -265,8 +289,15 @@ pub async fn resolve_build(
     }
 }
 
-/// Unpacks a zip archive into `dest`, which must not exist yet.
+/// The most a gzip-compressed tar archive may unpack to.
+const MAX_UNPACKED_TAR_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Unpacks a zip archive, or a gzip-compressed tar archive (geckodriver's form
+/// on Linux and macOS), into `dest`, which must not exist yet.
 fn unpack(archive: &[u8], dest: &Path) -> Result<(), SeleniumBaseError> {
+    if archive.starts_with(&[0x1f, 0x8b]) {
+        return unpack_tar_gz(archive, dest);
+    }
     let mut zip = zip::ZipArchive::new(Cursor::new(archive)).map_err(|error| {
         SeleniumBaseError::download("(archive)", format!("not a readable ZIP archive: {error}"))
     })?;
@@ -274,6 +305,22 @@ fn unpack(archive: &[u8], dest: &Path) -> Result<(), SeleniumBaseError> {
     // `extract` refuses entries that climb out of `dest` and keeps the unix
     // permissions and symbolic links, which a browser bundle needs.
     zip.extract(dest).map_err(|error| {
+        SeleniumBaseError::download("(archive)", format!("cannot unpack the archive: {error}"))
+    })
+}
+
+/// Unpacks a gzip-compressed tar archive into `dest`.
+///
+/// `tar` skips an entry whose path holds `..` and never writes outside `dest`;
+/// the unpacked size is capped at [`MAX_UNPACKED_TAR_BYTES`], so a small
+/// archive cannot fill the disk.
+fn unpack_tar_gz(archive: &[u8], dest: &Path) -> Result<(), SeleniumBaseError> {
+    use std::io::Read as _;
+    fs::create_dir_all(dest)?;
+    let decoder = flate2::read::GzDecoder::new(archive).take(MAX_UNPACKED_TAR_BYTES);
+    let mut tar = tar::Archive::new(decoder);
+    tar.set_overwrite(true);
+    tar.unpack(dest).map_err(|error| {
         SeleniumBaseError::download("(archive)", format!("cannot unpack the archive: {error}"))
     })
 }
@@ -295,7 +342,7 @@ fn remove_dir_if_exists(path: &Path) -> Result<(), SeleniumBaseError> {
 
 /// Unpacks `archive` into `dest`, replacing what was there. The old folder goes
 /// only after the new one unpacked completely.
-fn replace_with_unpacked(archive: &[u8], dest: &Path) -> Result<(), SeleniumBaseError> {
+pub(crate) fn replace_with_unpacked(archive: &[u8], dest: &Path) -> Result<(), SeleniumBaseError> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -310,9 +357,15 @@ fn replace_with_unpacked(archive: &[u8], dest: &Path) -> Result<(), SeleniumBase
     Ok(())
 }
 
-/// Downloads the archive at `url` and unpacks it into `dest`.
-async fn install_archive(client: &Client, url: &str, dest: &Path) -> Result<(), SeleniumBaseError> {
-    let bytes = fetch_bytes(client, url).await?;
+/// Downloads the archive at `url`, at most `max_bytes` of it when a limit is
+/// given, and unpacks it into `dest`.
+pub(crate) async fn install_archive(
+    client: &Client,
+    url: &str,
+    dest: &Path,
+    max_bytes: Option<u64>,
+) -> Result<(), SeleniumBaseError> {
+    let bytes = fetch_bytes(client, url, max_bytes).await?;
     let dest = dest.to_owned();
     tokio::task::spawn_blocking(move || replace_with_unpacked(&bytes, &dest))
         .await
@@ -322,7 +375,18 @@ async fn install_archive(client: &Client, url: &str, dest: &Path) -> Result<(), 
 /// A chromedriver of Chrome `major` already in `root`, if any: a folder called
 /// `chromedriver-<major>.<...>` that holds the executable.
 fn downloaded_chromedriver_for_major(root: &Path, major: u32) -> Option<PathBuf> {
-    let prefix = format!("chromedriver-{major}.");
+    downloaded_for_major(root, "chromedriver", major, &CHROMEDRIVER_NAMES)
+}
+
+/// A driver of browser `major` already in `root`, if any: the newest folder
+/// called `<stem>-<major>.<...>` that holds an executable called one of `names`.
+pub(crate) fn downloaded_for_major(
+    root: &Path,
+    stem: &str,
+    major: u32,
+    names: &[&str],
+) -> Option<PathBuf> {
+    let prefix = format!("{stem}-{major}.");
     let mut folders: Vec<PathBuf> = fs::read_dir(root)
         .ok()?
         .filter_map(Result::ok)
@@ -339,7 +403,7 @@ fn downloaded_chromedriver_for_major(root: &Path, major: u32) -> Option<PathBuf>
     folders
         .iter()
         .rev()
-        .find_map(|folder| find_executable(folder, &CHROMEDRIVER_NAMES))
+        .find_map(|folder| find_executable(folder, names))
 }
 
 /// Makes sure the chromedriver `version` means is in `downloaded_drivers/`, and
@@ -401,7 +465,7 @@ pub(crate) async fn install_chromedriver_in(
     if let Some(found) = find_executable(&folder, &CHROMEDRIVER_NAMES) {
         return Ok(found);
     }
-    install_archive(&client, &build.url, &folder).await?;
+    install_archive(&client, &build.url, &folder, None).await?;
     let executable = find_executable(&folder, &CHROMEDRIVER_NAMES).ok_or_else(|| {
         SeleniumBaseError::download(&build.url, "the archive holds no chromedriver")
     })?;
@@ -469,7 +533,7 @@ pub(crate) async fn install_browser_in(
     let client = http_client(proxy)?;
     let build = resolve_build(&client, version, artifact, platform_label()?, None).await?;
     let dest = root.join(folder);
-    install_archive(&client, &build.url, &dest).await?;
+    install_archive(&client, &build.url, &dest, None).await?;
     let executable = downloaded_executable(browser, &dest).ok_or_else(|| {
         SeleniumBaseError::download(&build.url, "the archive holds no browser program")
     })?;
