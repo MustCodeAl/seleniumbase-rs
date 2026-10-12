@@ -767,11 +767,18 @@ async fn bundle_and_export(mcp: &mut Client, out: &Path, base: &str) -> (String,
         "{source}"
     );
     let bundle = std::fs::read_to_string(folder.join("bundle.json")).expect("the bundle");
-    assert!(
-        !bundle.contains("buyer@example.test"),
-        "typed text leaked into the bundle"
-    );
     let bundle: Value = serde_json::from_str(&bundle).expect("the bundle is JSON");
+    // The page's own title may repeat what was typed (this fixture's form puts it there,
+    // and the bundle records the title); the log of tool calls must not.
+    let calls = bundle["tool_calls"].to_string();
+    assert!(
+        !calls.contains("buyer@example.test"),
+        "typed text leaked into the logged tool calls: {calls}"
+    );
+    assert!(
+        calls.contains("[redacted, 18 characters]"),
+        "the typed text is logged by its length: {calls}"
+    );
     assert_eq!(
         bundle["cookie_names"],
         json!(["sid"]),
