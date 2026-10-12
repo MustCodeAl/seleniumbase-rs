@@ -170,8 +170,10 @@ its `.msi` and setup `.exe`. What differs from macOS and Linux:
 - Nothing ends a driver or browser when the program that started them is killed
   (macOS and Linux use a process-group watcher; Windows would need a job object).
   A driver whose session fails to start, or that is dropped, is still ended.
-- One pure-CDP download test (a `blob:` URL) failed on Windows; download folders
-  are now handed to Chrome as plain `C:\...` paths, which may be the fix.
+- Download folders are handed to Chrome as plain `C:\...` paths (without the
+  `\\?\` prefix `canonicalize` adds); with that, the pure-CDP download tests pass.
+- The tests' checks for leftover processes use `pgrep` and are skipped on
+  Windows, so there they do not prove that nothing is left running.
 
 - Install Google Chrome normally; the library finds it under `Program Files`. CI
   installs a Chrome and chromedriver on Windows runners for the tests that need
