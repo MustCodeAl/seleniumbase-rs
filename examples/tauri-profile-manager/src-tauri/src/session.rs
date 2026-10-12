@@ -809,11 +809,15 @@ mod tests {
         let locale = mock.calls_to("Emulation.setLocaleOverride");
         assert_eq!(locale.len(), 1);
         assert_eq!(locale[0].params["locale"], "de-DE");
+        // `Emulation::locale` restates the user agent with the bare locale as the
+        // language; the session then overrides it once more, with the language
+        // a browser sends and without the headless marker. The last one counts.
         let language = mock.calls_to("Emulation.setUserAgentOverride");
-        assert_eq!(language.len(), 1);
-        assert_eq!(language[0].params["acceptLanguage"], "de-DE,de;q=0.9");
+        assert_eq!(language.len(), 2);
+        let last = &language[1].params;
+        assert_eq!(last["acceptLanguage"], "de-DE,de;q=0.9");
         assert_eq!(
-            language[0].params["userAgent"], "Mozilla/5.0 Chrome/130.0.0.0",
+            last["userAgent"], "Mozilla/5.0 Chrome/130.0.0.0",
             "a headless browser must not name itself"
         );
     }
