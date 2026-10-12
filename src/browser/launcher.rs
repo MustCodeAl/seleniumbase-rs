@@ -1,17 +1,24 @@
 //! Local WebDriver binary launcher and port discovery.
 //!
-//! This module is responsible for starting a local `chromedriver` process on a
-//! free port when the crate is configured to manage its own driver lifecycle.
+//! This module starts the driver a browser needs (`chromedriver`, `geckodriver`
+//! for Firefox, `msedgedriver` for Edge, and the drivers of Opera, Safari and
+//! Internet Explorer) on a free port when the crate manages the driver's
+//! lifecycle, downloading chromedriver, geckodriver and msedgedriver when none
+//! is found.
 
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
+use crate::browser::binaries::{locate, DOWNLOADS_DIR};
 use crate::browser::chrome_for_testing::install_chromedriver;
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::downloader::download_chrome_driver_for;
 use crate::browser::driver_access::{killed_by_the_system, make_runnable, spawn_repairing};
+use crate::browser::driver_install::{
+    downloaded_driver, install_geckodriver, install_msedgedriver,
+};
 use crate::browser::driver_version::{binary_major, fit, Fit};
 use crate::browser::options::{DriverVersion, LaunchSwitch};
 use crate::common::orphan_guard::OrphanGuard;
@@ -29,7 +36,13 @@ pub struct DriverProcess {
 }
 
 impl DriverProcess {
-    /// Best-effort kill of the underlying chromedriver process.
+    /// The operating system's id of the driver process.
+    #[must_use]
+    pub fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    /// Best-effort kill of the underlying driver process.
     pub fn kill(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -149,7 +162,7 @@ async fn wait_for_port(
         if Instant::now() >= deadline {
             let err = SeleniumBaseError::browser_launch(
                 binary.to_owned(),
-                format!("chromedriver did not accept connections on {addr} within {timeout:?}"),
+                format!("the driver did not accept connections on {addr} within {timeout:?}"),
             );
             err.log_in_context("wait_for_port");
             return Err(err);
@@ -225,6 +238,10 @@ pub enum DriverProgram {
     /// `chromedriver`, for Chrome and every browser built on it that does not
     /// ship a driver of its own.
     Chromedriver,
+    /// `geckodriver`, for Firefox.
+    Geckodriver,
+    /// `msedgedriver`, for Microsoft Edge.
+    Msedgedriver,
     /// `operadriver`, Opera's build of chromedriver.
     Operadriver,
     /// `safaridriver`, which comes with macOS.
@@ -234,12 +251,14 @@ pub enum DriverProgram {
 }
 
 impl DriverProgram {
-    /// The driver `browser` needs. Edge and Firefox are given chromedriver too,
-    /// as they always were here; run them against a driver you started and
-    /// named with [`BrowserConfig::with_webdriver_url`](crate::BrowserConfig::with_webdriver_url).
+    /// The driver `browser` needs: geckodriver for Firefox, msedgedriver for
+    /// Edge, and chromedriver for Chrome and the Chromium browsers that have no
+    /// driver of their own.
     #[must_use]
     pub const fn for_browser(browser: Browser) -> Self {
         match browser {
+            Browser::Firefox => Self::Geckodriver,
+            Browser::Edge => Self::Msedgedriver,
             Browser::Opera => Self::Operadriver,
             Browser::Safari => Self::Safaridriver,
             Browser::InternetExplorer => Self::InternetExplorerDriver,
@@ -252,6 +271,8 @@ impl DriverProgram {
     pub const fn executable_names(self) -> &'static [&'static str] {
         match self {
             Self::Chromedriver => &["chromedriver", "chromedriver.exe"],
+            Self::Geckodriver => &["geckodriver", "geckodriver.exe"],
+            Self::Msedgedriver => &["msedgedriver", "msedgedriver.exe"],
             Self::Operadriver => &["operadriver", "operadriver.exe"],
             Self::Safaridriver => &["safaridriver"],
             Self::InternetExplorerDriver => &["IEDriverServer.exe", "IEDriverServer"],
@@ -259,10 +280,20 @@ impl DriverProgram {
     }
 
     /// The arguments that make the driver listen on `port`.
+    ///
+    /// geckodriver is also given `--websocket-port 0`, so the system picks the
+    /// WebDriver BiDi port: its default, 9222, would let only one Firefox run at
+    /// a time.
     #[must_use]
     pub fn port_args(self, port: u16) -> Vec<String> {
         match self {
             Self::Safaridriver => vec!["-p".to_owned(), port.to_string()],
+            Self::Geckodriver => vec![
+                "--port".to_owned(),
+                port.to_string(),
+                "--websocket-port".to_owned(),
+                "0".to_owned(),
+            ],
             _ => vec![format!("--port={port}")],
         }
     }
@@ -288,6 +319,100 @@ pub(crate) fn find_driver_program(
         .chain(program.system_location().map(PathBuf::from))
         .find(|path| is_file(path))
         .or_else(|| names.iter().find_map(|name| on_path(name)))
+}
+
+/// Finds a downloaded driver program: right in `downloads`, or in the newest
+/// `<name>-<version>/` folder there; then on the `PATH`.
+pub(crate) fn find_downloaded_or_on_path(
+    program: DriverProgram,
+    downloads: &Path,
+    on_path: &dyn Fn(&str) -> Option<PathBuf>,
+) -> Option<PathBuf> {
+    let names = program.executable_names();
+    downloaded_driver(downloads, names[0], names)
+        .or_else(|| names.iter().find_map(|name| on_path(name)))
+}
+
+/// The proxy downloads go through: the session's, when
+/// [`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download)
+/// asks for it.
+fn download_proxy(config: &BrowserConfig) -> Option<String> {
+    config
+        .launch
+        .has(LaunchSwitch::ProxyForDriverDownload)
+        .then(|| config.proxy.clone())
+        .flatten()
+}
+
+/// The geckodriver a Firefox session runs: one in `downloaded_drivers/`, else
+/// the one on the `PATH`, else the newest release, downloaded.
+///
+/// One geckodriver drives a range of Firefox versions, so no version is
+/// compared.
+async fn ensure_geckodriver(config: &BrowserConfig) -> Result<PathBuf, SeleniumBaseError> {
+    let found = find_downloaded_or_on_path(
+        DriverProgram::Geckodriver,
+        Path::new(DOWNLOADS_DIR),
+        &|name| which::which(name).ok(),
+    );
+    match found {
+        Some(found) => Ok(found),
+        None => install_geckodriver(None, download_proxy(config).as_deref()).await,
+    }
+}
+
+/// The msedgedriver an Edge session runs.
+///
+/// msedgedriver only drives the Edge of its own major version. A version named
+/// with [`with_driver_version`](BrowserConfig::with_driver_version) is fetched
+/// as [`install_msedgedriver`] says. Otherwise the driver in
+/// `downloaded_drivers/` or on the `PATH` is used when it fits the installed
+/// Edge (or when either version cannot be read), and the driver for that Edge
+/// is downloaded when it does not, or when there is none; a driver that does
+/// not fit is the last resort when nothing could be downloaded.
+async fn ensure_msedgedriver(config: &BrowserConfig) -> Result<PathBuf, SeleniumBaseError> {
+    let edge = match config
+        .browser_binary_path
+        .clone()
+        .or_else(|| locate(Browser::Edge))
+    {
+        Some(program) => binary_major(&program).await,
+        None => None,
+    };
+    let proxy = download_proxy(config);
+    if let Some(version) = &config.launch.driver_version {
+        return install_msedgedriver(version, edge, proxy.as_deref()).await;
+    }
+    let found = find_downloaded_or_on_path(
+        DriverProgram::Msedgedriver,
+        Path::new(DOWNLOADS_DIR),
+        &|name| which::which(name).ok(),
+    );
+    let stale = match found {
+        Some(found) => match fit(binary_major(&found).await, edge) {
+            Fit::Mismatch { driver, browser } => {
+                tracing::warn!(
+                    driver,
+                    browser,
+                    path = %found.display(),
+                    "msedgedriver {driver} cannot drive Edge {browser}; fetching the matching driver"
+                );
+                Some(found)
+            }
+            _ => return Ok(found),
+        },
+        None => None,
+    };
+    match install_msedgedriver(&DriverVersion::MatchBrowser, edge, proxy.as_deref()).await {
+        Ok(path) => Ok(path),
+        Err(error) => match stale {
+            Some(stale) => {
+                tracing::warn!(%error, "using the msedgedriver found although its version does not match");
+                Ok(stale)
+            }
+            None => Err(error),
+        },
+    }
 }
 
 /// Which chromedriver a session runs.
@@ -337,11 +462,7 @@ impl std::fmt::Debug for ChromedriverPlan {
 /// ([`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download))
 /// also needs a download of our own, to put the proxy in front of it.
 pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
-    let proxy = config
-        .launch
-        .has(LaunchSwitch::ProxyForDriverDownload)
-        .then(|| config.proxy.clone())
-        .flatten();
+    let proxy = download_proxy(config);
     let runs_its_own_browser = matches!(
         config.browser,
         Browser::Brave | Browser::Comet | Browser::ChromeForTesting | Browser::ChromeHeadlessShell
@@ -362,10 +483,13 @@ pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
 /// Starts the driver `config.browser` needs on a free port.
 ///
 /// Chromedriver is the one in `downloaded_drivers/`, or a download, as
-/// [`chromedriver_plan`] says. Operadriver, safaridriver and IEDriverServer are
-/// only looked for, in `downloaded_drivers/`, where the system keeps them, and
-/// on the `PATH`; nothing is downloaded for them. `display` is the X display
-/// (such as `:99`) the browser opens its window on.
+/// [`chromedriver_plan`] says. geckodriver (Firefox) and msedgedriver (Edge)
+/// are looked for in `downloaded_drivers/` and on the `PATH`, and downloaded
+/// when missing; msedgedriver is also replaced when it does not fit the
+/// installed Edge. Operadriver, safaridriver and IEDriverServer are only looked
+/// for, in `downloaded_drivers/`, where the system keeps them, and on the
+/// `PATH`; nothing is downloaded for them. `display` is the X display (such as
+/// `:99`) the browser opens its window on.
 ///
 /// # Errors
 ///
@@ -394,29 +518,38 @@ pub async fn launch_driver_for(
         };
         return launch_chromedriver_at(&binary, display).await;
     }
-    let name = program.executable_names()[0];
-    let binary = find_driver_program(
-        program,
-        Path::new(crate::browser::binaries::DOWNLOADS_DIR),
-        &|path| path.is_file(),
-        &|name| which::which(name).ok(),
-    )
-    .ok_or_else(|| {
-        SeleniumBaseError::browser_launch(
-            name,
-            format!(
-                "{name} was not found in {}/, where the system keeps it, or on the PATH; \
-                 put it in one of them, or start it and name its URL with \
-                 BrowserConfig::with_webdriver_url",
-                crate::browser::binaries::DOWNLOADS_DIR
-            ),
-        )
-    })?;
+    let binary = match program {
+        DriverProgram::Geckodriver => ensure_geckodriver(config).await?,
+        DriverProgram::Msedgedriver => ensure_msedgedriver(config).await?,
+        _ => {
+            let name = program.executable_names()[0];
+            find_driver_program(
+                program,
+                Path::new(DOWNLOADS_DIR),
+                &|path| path.is_file(),
+                &|name| which::which(name).ok(),
+            )
+            .ok_or_else(|| {
+                SeleniumBaseError::browser_launch(
+                    name,
+                    format!(
+                        "{name} was not found in {DOWNLOADS_DIR}/, where the system keeps it, \
+                         or on the PATH; put it in one of them, or start it and name its URL \
+                         with BrowserConfig::with_webdriver_url"
+                    ),
+                )
+            })?
+        }
+    };
     launch_driver_binary(&binary, |port| program.port_args(port), display).await
 }
 
 /// Starts `binary` with the arguments `args` gives for a free port, and waits
 /// until it accepts connections.
+///
+/// The driver and the browser it starts get the [`OrphanGuard`], and the
+/// repairs of [`launch_chromedriver`] apply: on macOS a driver the system kills
+/// as it starts is signed again and started once more.
 async fn launch_driver_binary(
     binary: &Path,
     args: impl Fn(u16) -> Vec<String>,
@@ -427,7 +560,7 @@ async fn launch_driver_binary(
     let binary_str = binary.display().to_string();
     let arguments = args(port);
     let guard = OrphanGuard::start();
-    let mut child = spawn_repairing(binary, |command| {
+    let configure = |command: &mut std::process::Command| {
         command
             .args(&arguments)
             .stdout(Stdio::null())
@@ -436,18 +569,32 @@ async fn launch_driver_binary(
             command.env("DISPLAY", display);
         }
         guard.enroll(command);
-    })?;
-    match wait_for_port(port, Duration::from_secs(15), &binary_str, &mut child).await? {
-        Waited::Ready => Ok(DriverProcess {
-            url,
-            child,
-            _guard: guard,
-        }),
-        Waited::Exited(status) => Err(SeleniumBaseError::browser_launch(
-            binary_str,
-            format!("the driver exited as it started ({status})"),
-        )),
+    };
+    let mut child = spawn_repairing(binary, configure)?;
+    let mut repaired = false;
+    loop {
+        match wait_for_port(port, Duration::from_secs(15), &binary_str, &mut child).await? {
+            Waited::Ready => break,
+            Waited::Exited(status)
+                if cfg!(target_os = "macos") && !repaired && killed_by_the_system(status) =>
+            {
+                repaired = true;
+                make_runnable(binary, true)?;
+                child = spawn_repairing(binary, configure)?;
+            }
+            Waited::Exited(status) => {
+                return Err(SeleniumBaseError::browser_launch(
+                    binary_str,
+                    format!("the driver exited as it started ({status})"),
+                ))
+            }
+        }
     }
+    Ok(DriverProcess {
+        url,
+        child,
+        _guard: guard,
+    })
 }
 
 #[cfg(test)]
@@ -458,6 +605,9 @@ mod driver_program_tests {
     fn each_browser_gets_its_own_driver() {
         for (browser, program) in [
             (Browser::Chrome, DriverProgram::Chromedriver),
+            (Browser::Chromium, DriverProgram::Chromedriver),
+            (Browser::Firefox, DriverProgram::Geckodriver),
+            (Browser::Edge, DriverProgram::Msedgedriver),
             (Browser::Brave, DriverProgram::Chromedriver),
             (Browser::Comet, DriverProgram::Chromedriver),
             (Browser::ChromeForTesting, DriverProgram::Chromedriver),
@@ -559,6 +709,61 @@ mod driver_program_tests {
         assert_eq!(
             DriverProgram::InternetExplorerDriver.port_args(1),
             ["--port=1"]
+        );
+        assert_eq!(DriverProgram::Msedgedriver.port_args(9515), ["--port=9515"]);
+        // geckodriver takes the port as a separate word, and its BiDi port is
+        // left to the system so two Firefox sessions can run at once.
+        assert_eq!(
+            DriverProgram::Geckodriver.port_args(4444),
+            ["--port", "4444", "--websocket-port", "0"]
+        );
+    }
+
+    #[test]
+    fn firefox_and_edge_drivers_go_by_their_own_names() {
+        assert_eq!(
+            DriverProgram::Geckodriver.executable_names(),
+            ["geckodriver", "geckodriver.exe"]
+        );
+        assert_eq!(
+            DriverProgram::Msedgedriver.executable_names(),
+            ["msedgedriver", "msedgedriver.exe"]
+        );
+    }
+
+    #[test]
+    fn a_downloaded_driver_wins_over_the_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let on_path = |name: &str| {
+            (name == "geckodriver").then(|| PathBuf::from("/opt/homebrew/bin/geckodriver"))
+        };
+        // Nothing downloaded: the PATH answers.
+        assert_eq!(
+            find_downloaded_or_on_path(DriverProgram::Geckodriver, dir.path(), &on_path),
+            Some("/opt/homebrew/bin/geckodriver".into())
+        );
+        assert_eq!(
+            find_downloaded_or_on_path(DriverProgram::Msedgedriver, dir.path(), &on_path),
+            None
+        );
+        // A download in its versioned folder wins.
+        let folder = dir.path().join("geckodriver-v0.37.1");
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("geckodriver"), b"x").unwrap();
+        assert_eq!(
+            find_downloaded_or_on_path(DriverProgram::Geckodriver, dir.path(), &on_path),
+            Some(folder.join("geckodriver"))
+        );
+    }
+
+    #[test]
+    fn the_download_proxy_is_the_session_proxy_only_when_asked() {
+        let proxied = BrowserConfig::default().with_proxy("u:p@proxy.test:8080");
+        assert_eq!(download_proxy(&proxied), None);
+        let asked = proxied.with_proxy_for_driver_download(true);
+        assert_eq!(
+            download_proxy(&asked).as_deref(),
+            Some("u:p@proxy.test:8080")
         );
     }
 

@@ -101,6 +101,15 @@ pub fn install_locations(
         }
         (Browser::Comet, Platform::Windows) => windows(r"Perplexity\Comet\Application\comet.exe"),
         (Browser::Comet, Platform::Linux) => paths(&["/usr/bin/comet"]),
+        (Browser::Edge, Platform::MacOs) => {
+            paths(&["/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"])
+        }
+        (Browser::Edge, Platform::Windows) => windows(r"Microsoft\Edge\Application\msedge.exe"),
+        (Browser::Edge, Platform::Linux) => paths(&[
+            "/usr/bin/microsoft-edge",
+            "/usr/bin/microsoft-edge-stable",
+            "/opt/microsoft/msedge/msedge",
+        ]),
         _ => Vec::new(),
     }
 }
@@ -112,6 +121,7 @@ pub fn path_names(browser: Browser) -> &'static [&'static str] {
         Browser::Brave => &["brave-browser", "brave"],
         Browser::Opera => &["opera"],
         Browser::Comet => &["comet"],
+        Browser::Edge => &["microsoft-edge", "microsoft-edge-stable", "msedge"],
         Browser::ChromeHeadlessShell => &["chrome-headless-shell"],
         _ => &[],
     }
@@ -267,6 +277,20 @@ mod tests {
         assert_eq!(
             first(Browser::Opera, Platform::Linux),
             Some("/usr/bin/opera".into())
+        );
+        // Edge is found so its version picks the msedgedriver to run.
+        assert_eq!(
+            first(Browser::Edge, Platform::MacOs),
+            Some("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge".into())
+        );
+        assert_eq!(
+            first(Browser::Edge, Platform::Linux),
+            Some("/usr/bin/microsoft-edge".into())
+        );
+        assert_eq!(
+            install_locations(Browser::Edge, Platform::Windows, &windows_env)[0],
+            PathBuf::from(r"C:\Users\me\AppData\Local")
+                .join(r"Microsoft\Edge\Application\msedge.exe")
         );
     }
 
