@@ -70,10 +70,19 @@ pub fn fit(driver: Option<u32>, browser: Option<u32>) -> Fit {
     }
 }
 
-/// Runs `binary --version` and returns the major version it reports, or `None`
-/// when the program does not start, takes longer than ten seconds, or prints
-/// no version.
+/// The major version of the program at `binary`, or `None` when it cannot be
+/// told.
+///
+/// The folder the program sits in is looked at first: Chrome and Edge on
+/// Windows keep their files in a folder named after the version beside the
+/// program (`Application\154.0.8037.98\`), and there `chrome.exe --version`
+/// prints nothing. The newest such folder counts, as in Python SeleniumBase.
+/// Otherwise `binary --version` is run, and `None` comes back when it does not
+/// start, takes longer than ten seconds, or prints no version.
 pub async fn binary_major(binary: &Path) -> Option<u32> {
+    if let Some(major) = major_from_install_dir(binary) {
+        return Some(major);
+    }
     let output = tokio::time::timeout(
         VERSION_TIMEOUT,
         Command::new(binary)
@@ -85,6 +94,32 @@ pub async fn binary_major(binary: &Path) -> Option<u32> {
     .ok()?
     .ok()?;
     major_version(&String::from_utf8_lossy(&output.stdout))
+}
+
+/// The major version of the newest folder beside `binary` whose name is a
+/// whole version such as `154.0.8037.98`.
+fn major_from_install_dir(binary: &Path) -> Option<u32> {
+    std::fs::read_dir(binary.parent()?)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        .filter_map(|entry| entry.file_name().to_str().and_then(version_parts))
+        .max()
+        .map(|parts| parts[0])
+}
+
+/// The four numbers of a folder name like `154.0.8037.98`, and nothing else.
+fn version_parts(name: &str) -> Option<[u32; 4]> {
+    let mut parts = [0_u32; 4];
+    let mut count = 0;
+    for part in name.split('.') {
+        if count == parts.len() || part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        parts[count] = part.parse().ok()?;
+        count += 1;
+    }
+    (count == parts.len()).then_some(parts)
 }
 
 #[cfg(test)]
@@ -152,6 +187,34 @@ mod tests {
             "echo 'ChromeDriver 155.0.8059.40 (abc)'",
         );
         assert_eq!(binary_major(&driver).await, Some(155));
+    }
+
+    #[test]
+    fn only_whole_four_part_versions_name_an_install_folder() {
+        assert_eq!(version_parts("154.0.8037.98"), Some([154, 0, 8037, 98]));
+        for name in [
+            "154.0.8037",
+            "154.0.8037.98.1",
+            "v154.0.8037.98",
+            "msedgedriver-155.0.4283.45",
+            "Locales",
+            "1..2.3",
+        ] {
+            assert_eq!(version_parts(name), None, "{name}");
+        }
+    }
+
+    /// Chrome on Windows: `chrome.exe --version` prints nothing, and the
+    /// version is the name of the folder beside it.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_silent_browser_is_known_by_the_newest_version_folder_beside_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let chrome = stand_in(dir.path(), "chrome", "exit 0");
+        for folder in ["153.0.7999.12", "154.0.8037.98", "Locales", "SetupMetrics"] {
+            std::fs::create_dir(dir.path().join(folder)).unwrap();
+        }
+        assert_eq!(binary_major(&chrome).await, Some(154));
     }
 
     #[cfg(unix)]
