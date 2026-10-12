@@ -87,19 +87,16 @@ fn split_chain(selector: &str) -> Result<Vec<String>, String> {
     let mut depth = 0_usize;
     let mut chars = selector.chars().peekable();
     while let Some(c) = chars.next() {
-        match quote {
-            Some(q) => {
-                current.push(c);
-                if c == '\\' {
-                    if let Some(next) = chars.next() {
-                        current.push(next);
-                    }
-                } else if c == q {
-                    quote = None;
+        if let Some(q) = quote {
+            current.push(c);
+            if c == '\\' {
+                if let Some(next) = chars.next() {
+                    current.push(next);
                 }
-                continue;
+            } else if c == q {
+                quote = None;
             }
-            None => {}
+            continue;
         }
         match c {
             '"' | '\'' => {

@@ -85,6 +85,13 @@ pub(super) enum Pattern {
 pub(super) struct Function {
     pub(super) params: Vec<Param>,
     pub(super) body: FnBody,
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "recorded by the parser and read by its tests; every emitted test is async"
+        )
+    )]
     pub(super) is_async: bool,
     /// Byte span of the whole function in the source.
     pub(super) start: usize,
@@ -1035,8 +1042,7 @@ impl Parser<'_> {
     // ------------------------------------------------------------------
 
     fn py_block(&mut self, out: &mut Vec<Stmt>, indent: usize) {
-        loop {
-            let Some(token) = self.peek() else { break };
+        while let Some(token) = self.peek() {
             if token.col < indent && token.line_start {
                 break;
             }

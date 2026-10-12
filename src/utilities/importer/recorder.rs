@@ -23,13 +23,14 @@ pub(super) fn step_spans(lexed: &Lexed) -> Vec<(usize, usize, usize)> {
         match &tokens[index].tok {
             Tok::Punct("{" | "[") => depth += 1,
             Tok::Punct("}" | "]") => depth = depth.saturating_sub(1),
-            Tok::Str(key) if depth == 1 && key == "steps" => {
-                if matches!(tokens.get(index + 1).map(|t| &t.tok), Some(Tok::Punct(":")))
-                    && matches!(tokens.get(index + 2).map(|t| &t.tok), Some(Tok::Punct("[")))
-                {
-                    array_start = Some(index + 3);
-                    break;
-                }
+            Tok::Str(key)
+                if depth == 1
+                    && key == "steps"
+                    && matches!(tokens.get(index + 1).map(|t| &t.tok), Some(Tok::Punct(":")))
+                    && matches!(tokens.get(index + 2).map(|t| &t.tok), Some(Tok::Punct("["))) =>
+            {
+                array_start = Some(index + 3);
+                break;
             }
             _ => {}
         }
