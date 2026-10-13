@@ -128,7 +128,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 │  Stealth layer: patcher, evasion registry, fingerprint       │
 │  presets, CDP overrides, engine-spoofing args                │
 ├─────────────────────────────────────────────────────────────┤
-│  Driver: chromedriver / geckodriver / Playwright engine      │
+│  Drivers: chromedriver, msedgedriver, geckodriver, Playwright │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -142,7 +142,7 @@ navigation, storage, PDF, tours, charts, and more). See the
 
 ### BaseCase API
 
-`BaseCase` is the single entry point for tests. It wraps a `BrowserSession` and
+`BaseCase` is the test API on WebDriver; `sb_cdp` is its driverless counterpart. It wraps a `BrowserSession` and
 exposes capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`,
 `ScreenshotApi`) so helpers can depend on behavior rather than the concrete type.
 
@@ -540,36 +540,38 @@ comments for manual review.
 
 ## Project status
 
-Every API of Python SeleniumBase 4.55.2 and of its MCP server now has a recorded
-status: 888 implemented, 383 composed from existing Rust calls, 94 not
-applicable with a reason, and none still planned
-([docs/parity.md](./docs/parity.md)). An audit of the entries marked done fixed
-or re-marked 26 that did less than the Python method, and a second audit of the
-composed and not-applicable entries found 34 more that said more than the Rust
-does; they were fixed in the code where the change was modest and re-marked
-otherwise. Most behaviour is verified against a mock or unit tests rather than a
-real browser (the 26 real-Chrome test binaries, run on Chrome 155 on macOS, are
-`#[ignore]`d and run on request). [ROADMAP.md](./ROADMAP.md) lists what is done
-and what is missing (for the stealth scraping layer, which is written and gated:
-measuring more browsers and systems than Chrome 155 on macOS, headed runs, and
-WebSocket through the proxy) and [CHANGELOG.md](./CHANGELOG.md) what changed. The
-crate needs Rust 1.99; a test run with the `scrape` feature has about 2,500
-passing tests.
-Work is continuously pushed to two locations:
+**Parity.** Every API of Python SeleniumBase 4.55.2 and its MCP server has a
+recorded status in [docs/parity.md](./docs/parity.md):
 
-- Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
-- Crate-only orphan branch: `MustCodeAl/seleniumbase-rs/main`
+| Implemented | Composed from other calls | Not applicable (with the reason) | Still planned |
+|---:|---:|---:|---:|
+| 888 | 383 | 94 | 0 |
+
+Two audits checked those claims: one fixed or re-marked 26 entries that did less
+than the Python method, the other 34 that promised more than the Rust did.
+
+**Testing.** About 3,000 automated tests run on every change, most of them
+against a mock browser or as unit tests. On top of that, 28 test files drive a
+real Chrome 155, and two more drive real Edge and Firefox; they are `#[ignore]`d
+and run on request. The real-browser suite has passed on macOS and Windows 11,
+and the main suite on Linux (arm64, in Docker).
+
+**What's next** is in [ROADMAP.md](./ROADMAP.md), and what changed in
+[CHANGELOG.md](./CHANGELOG.md). Releases are tagged on
+[GitHub](https://github.com/MustCodeAl/seleniumbase-rs/releases).
 
 ### Why use the Rust crate?
 
-Rust provides compile-time type checking, explicit error handling, controlled
-concurrency, and native CLI distribution. Those properties can make large test
-harnesses easier to refactor and operate reliably. Browser and network work
-still dominate many end-to-end tests, so the project does not claim universal
-speedups over Python or JavaScript. See [Why Rust?](./docs/why-rust.md) for the
-tradeoffs and measurement guidance.
+Rust gives you compile-time type checking, explicit error handling, safe
+concurrency and a single native binary for the CLI, which makes large test
+suites easier to refactor and run reliably. The browser and the network still
+take most of the time in an end-to-end test, so this project does not promise to
+be faster than Python or JavaScript. [Why Rust?](./docs/why-rust.md) covers the
+trade-offs and how to measure them.
 
 ## Verified commands
+
+Every release passes these checks:
 
 ```bash
 cargo fmt --all -- --check
@@ -579,21 +581,20 @@ cargo clippy --features scrape --lib -- -D warnings
 cargo check --features turso --all-targets
 ```
 
-These were the checks run on the last published commit. The `playwright`, `s3`,
-`azure`, `gcp` and `full-tracing` features and `mdbook build` are not part of
-that run.
-
-On macOS with Python 3.14 from [mise](https://mise.jdx.dev), the `playwright`
-feature tests need the Python library path exported:
-
-```bash
-export DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib:$DYLD_LIBRARY_PATH"
-```
+The `s3`, `azure`, `gcp` and `full-tracing` features and the mdBook build are
+not part of that run. With [mise](https://mise.jdx.dev), `mise run gate` runs
+the full set.
 
 ## Known limitations
 
-`cargo publish --dry-run` currently fails because the `playwright` feature
-depends on `rustwright` from a Git tag (`v0.2.0`) that is newer than the
-version published on crates.io (`0.1.1`). Publishing requires an upstream
-`rustwright 0.2.0` release or replacing the git dependency with a published
-crate.
+> [!WARNING]
+> - **Not on crates.io.** Install from GitHub with a release tag (see
+>   [Installation](#installation)).
+> - **Windows:** if the program that started a browser is killed, the browser
+>   can keep running; macOS and Linux end it. See
+>   [Operating systems](./docs/platforms.md#windows).
+> - **Firefox** sessions do not get a proxy, extensions, mobile emulation or the
+>   CDP and UC modes yet.
+> - **Ad blocking** does not reach frames loaded from other sites.
+> - **Stealth fingerprints** are measured for Chrome 155 on macOS only; the TLS
+>   and HTTP/2 layer refuses other browsers and systems rather than guess.

@@ -373,6 +373,26 @@ mdbook serve --open    # live preview while editing
 The generated `docs/parity.md` is not edited by hand: `just parity-docs`
 rebuilds it from `parity/api.toml`.
 
+### The Docs7 site
+
+The same pages also publish as a [Docs7](https://context7.com/docs/docs7/quickstart)
+site. `docs/docs.json` is its configuration, and its navigation follows
+`docs/SUMMARY.md`; regenerate it after changing the table of contents:
+
+```bash
+python3 -I tools/docs7_nav.py
+```
+
+Preview it locally (needs Node), then open http://localhost:4317:
+
+```bash
+npx --yes @upstash/docs7 dev ./docs --port 4317
+```
+
+To publish, open the Docs7 tab of your Context7 teamspace, choose **Add New
+Site**, pick this repository, and set the branch to `main` and the folder to
+`docs`. Every push to `main` then rebuilds the site.
+
 ## Platforms
 
 CI builds and tests on Linux, macOS and Windows (`.github/workflows/ci.yml`);

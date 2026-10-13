@@ -1,0 +1,115 @@
+{
+  "$schema": "https://context7.com/schema/docs7.json",
+  "name": "SeleniumBase for Rust",
+  "colors": {
+    "primary": "#CE422B"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Documentation",
+        "pages": [
+          "README",
+          "tutorials/getting_started",
+          {
+            "group": "Building and installing",
+            "pages": [
+              "building",
+              "deployment",
+              "platforms"
+            ]
+          },
+          "faq",
+          {
+            "group": "Why Rust?",
+            "pages": [
+              "why-rust",
+              "comparison",
+              "security",
+              "reliability",
+              "performance",
+              "benchmarks"
+            ]
+          },
+          "rust-test-tooling",
+          {
+            "group": "Migrate Python Tests",
+            "pages": [
+              "python-migration",
+              "playwright-migration",
+              "puppeteer-migration"
+            ]
+          },
+          "tutorials/selectors",
+          "tutorials/waits_assertions",
+          {
+            "group": "Settings and Configuration",
+            "pages": [
+              "tutorials/settings_and_config",
+              "tutorials/run_settings"
+            ]
+          },
+          {
+            "group": "Stealth and Browser Modes",
+            "pages": [
+              "tutorials/uc_mode",
+              "tutorials/cdp_mode",
+              "tutorials/pure_cdp",
+              "help/playwright_mode",
+              "tutorials/fingerprint_stealth",
+              "tutorials/stealth_scraping",
+              "tutorials/binary_patching"
+            ]
+          },
+          "tutorials/shadow_dom",
+          "tutorials/recorder_mode",
+          "tutorials/selenium_ide",
+          "tutorials/behave",
+          "help/html_inspector",
+          "help/common_problems",
+          {
+            "group": "CLI Usage",
+            "pages": [
+              "tutorials/cli_usage",
+              "help/commander",
+              "help/caseplans",
+              "help/behave-gui"
+            ]
+          },
+          {
+            "group": "MCP Servers",
+            "pages": [
+              "tutorials/mcp_server",
+              "tutorials/vibe_coding"
+            ]
+          },
+          "tutorials/api_reference",
+          "tutorials/macros",
+          "tutorials/browser_profiles",
+          "tutorials/tracing",
+          "tutorials/test_plugins",
+          "tutorials/results_and_profiles",
+          {
+            "group": "Developer Guide",
+            "pages": [
+              "DEVELOPER_GUIDE",
+              "UPSTREAM_SYNC",
+              "parity",
+              "design/stealth_parity_plan"
+            ]
+          },
+          "ABI_API",
+          {
+            "group": "Architecture Decision Records",
+            "pages": [
+              "adr/001-stealth-architecture",
+              "adr/002-multi-driver-and-playwright",
+              "adr/003-stealth-scraping-layout"
+            ]
+          },
+          "CONTRIBUTING"
+        ]
+      }
+    ]
+  }
+}
