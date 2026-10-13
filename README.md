@@ -1,15 +1,27 @@
+<div align="center">
+
 # SeleniumBase for Rust
 
-`seleniumbase-rs` is a Rust port of the Python SeleniumBase browser-automation
-framework and of its MCP server. It layers an ergonomic, Python-parity
-`BaseCase` API on top of the `thirtyfour` WebDriver crate, adds a pure Chrome
-DevTools Protocol engine that needs no driver, and brings stealth, a browser
-pool, request interception and tools for AI agents that develop and debug tests.
-It is young (`0.1.0`, not on crates.io); see [Project status](#project-status)
-for what is verified and what is not.
+**Browser automation and testing in Rust, with the SeleniumBase API you know.**
 
-This README is the project landing page. If you are reading the mdBook, see the
-[book overview](./docs/README.md) for a narrative introduction.
+[![Release](https://img.shields.io/github/v/release/MustCodeAl/seleniumbase-rs?label=release)](https://github.com/MustCodeAl/seleniumbase-rs/releases)
+[![Rust 1.99](https://img.shields.io/badge/rust-1.99-orange?logo=rust)](./rust-toolchain.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./Cargo.toml)
+[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](./docs/platforms.md)
+[![Parity](https://img.shields.io/badge/SeleniumBase%204.55.2-parity%20tracked-brightgreen)](./docs/parity.md)
+
+[Quick start](#quick-start) · [Install](#installation) · [Docs](./docs/README.md) · [Examples](#examples) · [Status](#project-status)
+
+</div>
+
+`seleniumbase-rs` is a Rust port of the Python SeleniumBase framework and its MCP
+server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pure
+Chrome DevTools engine that needs no driver at all.
+
+> [!NOTE]
+> Young and moving fast: version `0.1.1`, installed from GitHub (not on
+> crates.io). See [Project status](#project-status) for what is verified and what
+> is not.
 
 ## Table of contents
 
@@ -32,60 +44,74 @@ This README is the project landing page. If you are reading the mdBook, see the
 
 ## What you get
 
-- **A familiar test API**: `open`, `click`, `type_text`, assertions, waits,
-  frames, windows, cookies, local storage, uploads, PDF handling, and more than
-  200 helper methods.
-- **Multiple browser backends**: WebDriver, Undetected Chromedriver (UC) mode,
-  an optional `rustwright`-based Playwright-compatible engine, and the pure CDP
-  engine (`sb_cdp`) that drives Chrome directly with no chromedriver, with
-  locators that wait, request interception, per-context proxies, a browser pool
-  and a mock browser for tests without Chrome.
-- **Tools for AI agents**: MCP servers (`cdp`, `driver`, `sb`) with page
-  inspection, selector diagnosis, console and network views, an accessibility
-  audit, a debug bundle and export of a session as a Rust test; failures come back
-  with the page's state and a hint. See [Vibe coding](./docs/tutorials/vibe_coding.md).
-- **Errors that say what to do**: every error has a hint, and `sbase` exits with a
-  status that follows the error's category.
-- **Anti-detection tooling**: binary patching for `chromedriver` and Chrome, a
-  priority-ordered JavaScript evasion registry, fingerprint presets, and
-  CDP-level spoofing.
-- **Low-code and migration tools**: JSON scenario runner, Python-to-Rust
-  importer, Selenium IDE parser, Gherkin runner, and a recorder that emits Rust
-  tests.
-- **Operational helpers**: `sbase` CLI, shell completions, Docker image,
-  Twelve-Factor `SB_*` configuration, structured tracing, and cloud artifact
-  uploads.
+| | |
+|---|---|
+| 🧪 **A familiar test API** | `open`, `click`, `type_text`, assertions, waits, frames, windows, cookies, storage, uploads, PDFs: more than 200 `BaseCase` methods. |
+| ⚡ **No driver needed** | The pure CDP engine (`sb_cdp`) drives Chrome directly, with waiting locators, request interception, per-context proxies, a browser pool and a mock browser for tests. |
+| 🌐 **Every major browser** | Chrome, Edge, Firefox, Safari, Brave and Opera on WebDriver; chromedriver, msedgedriver and geckodriver are downloaded to match your browser. |
+| 🤖 **Built for AI agents** | MCP servers (`cdp`, `driver`, `sb`) with page inspection, selector diagnosis, console and network views, a debug bundle and export to a Rust test. See [Vibe coding](./docs/tutorials/vibe_coding.md). |
+| 🔁 **Bring your old tests** | Importers for Python SeleniumBase and Selenium, Playwright (JS, TS, Python), Puppeteer and Chrome Recorder files, plus a recorder that writes Rust. |
+| 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, fingerprint presets and evasions; an experimental layer with browser-identical TLS and HTTP/2. |
+| 🛠️ **Batteries included** | The `sbase` CLI, shell completions, a Docker image, `SB_*` configuration, tracing and cloud artifact uploads. |
+| 🧩 **Errors that help** | Every error carries a hint, and `sbase` exits with a status that says what kind of failure it was. |
 
 ## Quick start
 
-```bash
-# Run a UC-mode smoke test against seleniumbase.io
-cargo run --bin sbase -- --uc open https://seleniumbase.io
+**1. Set up your machine.** One copy-paste box per system (macOS, Linux,
+Windows), or a prompt for your AI assistant, in
+[Building and installing](./docs/building.md#what-you-need).
 
-# Or assert on title from the CLI
-cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
+**2. Try the CLI** from a checkout:
+
+```bash
+git clone https://github.com/MustCodeAl/seleniumbase-rs.git
+cd seleniumbase-rs
+cargo run --bin sbase -- --headless smoke https://seleniumbase.io --title-contains SeleniumBase
 ```
+
+**3. Write your first script** with the pure CDP engine:
+
+```rust
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+#[tokio::main]
+async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let browser = Browser::launch(LaunchOptions::builder().headless(true).build()?).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://seleniumbase.io/simple/login").await?;
+    page.locator("#username").fill("demo_user").await?;
+    page.locator("button").click().await?;
+    browser.close().await?;
+    Ok(())
+}
+```
+
+> [!TIP]
+> Coming from Playwright or Puppeteer? `sbase import-playwright my.spec.ts` and
+> `sbase import-puppeteer script.js` write the Rust test for you.
 
 ## Installation
 
-The crate is not published to crates.io. Add it from the repository:
+Add the crate from GitHub (it is not on crates.io), with Tokio to run it:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.1.1" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-Optional features are enabled in `Cargo.toml`:
+Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-[dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.1.1", features = ["mcp-server", "s3"] }
 ```
 
-To build the `sbase` CLI and the MCP server from a checkout, which Rust version
-you need, the Docker image and the platform notes, see
-[Building and installing](./docs/building.md), [Deployment](./docs/deployment.md)
-and [Operating systems](./docs/platforms.md).
+> [!IMPORTANT]
+> Building needs Rust 1.99 and a C compiler, and some features need system
+> packages (`impersonate` needs CMake, for example). Every command is in
+> [Building and installing](./docs/building.md#what-you-need); the platform
+> notes are in [Operating systems](./docs/platforms.md), and the Docker image in
+> [Deployment](./docs/deployment.md).
 
 ## Architecture at a glance
 

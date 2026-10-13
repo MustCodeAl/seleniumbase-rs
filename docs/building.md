@@ -12,6 +12,10 @@ every build needs: Rust 1.99 (the repository's `rust-toolchain.toml` selects it)
 a C compiler, and Google Chrome. The extras for single features come after.
 Nothing here needs Python.
 
+> [!TIP]
+> In a hurry? Give the prompt below to your AI coding assistant and let it
+> install and check everything.
+
 ### Let an AI assistant do it
 
 Paste this into an AI coding assistant that can run commands on your machine

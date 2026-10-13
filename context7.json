@@ -1,7 +1,7 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "seleniumbase-rs",
-  "description": "Rust port of Python SeleniumBase for browser automation and testing: BaseCase on a WebDriver engine, a driverless Chrome DevTools Protocol engine (sb_cdp: Browser, Page, Locator), undetected-Chrome and stealth modes, an MCP server (seleniumbase-mcp) and the sbase command-line tool.",
+  "description": "Rust port of Python SeleniumBase for browser automation and testing: BaseCase on WebDriver (Chrome, Edge, Firefox, Safari, with drivers downloaded automatically), a driverless Chrome DevTools Protocol engine (sb_cdp: Browser, Page, Locator), undetected-Chrome and stealth modes, an MCP server (seleniumbase-mcp), the sbase CLI, and importers that turn Playwright, Puppeteer and Python SeleniumBase tests into Rust. Runs on macOS, Linux and Windows.",
   "branch": "main",
   "folders": ["docs", "examples"],
   "excludeFolders": [
@@ -34,6 +34,9 @@
     "Selectors are strings: CSS by default, XPath when they start with / or (, and :contains(text) works inside any selector.",
     "Errors are SeleniumBaseError; match on its variants rather than on message text.",
     "Call quit() on a BaseCase and close() on an sb_cdp::Browser when done; dropping the last Browser handle kills the process it launched.",
-    "docs/parity.md maps each Python SeleniumBase method to its Rust name and says whether it is implemented, composed from other calls, or not applicable."
+    "docs/parity.md maps each Python SeleniumBase method to its Rust name and says whether it is implemented, composed from other calls, or not applicable.",
+    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.1.1\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
+    "chromedriver, msedgedriver and geckodriver are downloaded to match the installed browser when a session starts; sbase install <driver> fetches one ahead of time, and the sb_cdp engine needs none.",
+    "To migrate tests, sbase import-playwright, sbase import-puppeteer and sbase import-python write Rust tests; statements they cannot convert stay as TODO comments with their line numbers."
   ]
 }
