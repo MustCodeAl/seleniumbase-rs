@@ -1018,6 +1018,7 @@ pub(super) async fn download_file(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     let folder = nonempty(&args, "destination_folder")?.unwrap_or("downloaded_files");
     let path = ctx.settings().output_path(Some(folder), &name)?;
 
+    crate::install_tls_provider();
     let mut response = reqwest::get(parsed.clone())
         .await
         .and_then(reqwest::Response::error_for_status)

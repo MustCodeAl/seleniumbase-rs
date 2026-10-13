@@ -33,6 +33,7 @@ pub async fn download_chrome_driver() -> Result<PathBuf, SeleniumBaseError> {
 /// published for `major` on this platform, or when the archive cannot be read.
 pub async fn download_chrome_driver_for(major: Option<u32>) -> Result<PathBuf, SeleniumBaseError> {
     let platform = platform_label()?;
+    crate::install_tls_provider();
     let client = Client::new();
     let download_url = match major {
         None => {

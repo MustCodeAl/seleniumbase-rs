@@ -16,6 +16,10 @@ work, `docs/parity.md` the per-API status).
   separate `json-subscriber` crate.
 - The `playwright` feature no longer lists `rustwright-core` itself; `rustwright`
   already brings it without Python.
+- HTTPS uses rustls with the `ring` crypto provider for every client, so the
+  `aws-lc-sys` C library is no longer compiled. A program that builds its own
+  reqwest client next to this crate calls `seleniumbase_rs::install_tls_provider()`
+  first.
 - reqwest no longer builds its `blocking` client: ending reused sessions at
   exit uses the async client on a small runtime of its own.
 - `thirtyfour` is built without its `component` derive macros and its own

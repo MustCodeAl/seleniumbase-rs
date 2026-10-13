@@ -504,6 +504,7 @@ const FETCH_TEXT_TIMEOUT: Duration = Duration::from_secs(30);
 /// is not a success status.
 async fn fetch_text(url: &str) -> Result<String, SeleniumBaseError> {
     let failed = |e: reqwest::Error| SeleniumBaseError::network(url, 0, e.to_string());
+    crate::install_tls_provider();
     let client = reqwest::Client::builder()
         .timeout(FETCH_TEXT_TIMEOUT)
         .build()

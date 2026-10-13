@@ -149,6 +149,7 @@ pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;
+pub use common::tls::install_tls_provider;
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use stealth::fingerprint::{

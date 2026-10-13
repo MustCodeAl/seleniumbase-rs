@@ -2189,6 +2189,7 @@ impl BaseCase {
     /// Fail if any link on the page returns HTTP 404.
     pub async fn assert_no_404_errors(&mut self) -> Result<(), SeleniumBaseError> {
         let links = self.get_unique_links().await?;
+        crate::install_tls_provider();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()

@@ -1092,6 +1092,7 @@ async fn connect_with_caps(
     url: &str,
     caps: impl Into<thirtyfour::Capabilities>,
 ) -> Result<WebDriver, SeleniumBaseError> {
+    crate::install_tls_provider();
     match config.remote_webdriver_timeout_seconds {
         Some(seconds) => Ok(WebDriver::builder(url, caps)
             .request_timeout(Duration::from_secs(seconds))

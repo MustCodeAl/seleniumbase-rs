@@ -99,6 +99,7 @@ pub fn proxy_url(spec: &str) -> String {
 ///
 /// Returns an error if the proxy is not a URL the client accepts.
 pub fn http_client(proxy: Option<&str>) -> Result<Client, SeleniumBaseError> {
+    crate::install_tls_provider();
     let mut builder = Client::builder();
     if let Some(proxy) = proxy {
         let url = proxy_url(proxy);

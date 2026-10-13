@@ -370,6 +370,7 @@ impl GridStatus {
 /// with an HTTP error, or answers with something that is not a Grid status.
 pub async fn fetch_status(grid: &GridUrl) -> Result<GridStatus, SeleniumBaseError> {
     let url = grid.status_url();
+    crate::install_tls_provider();
     let mut client = reqwest::Client::builder().timeout(Duration::from_secs(5));
     if grid.is_local() {
         // A proxy in the environment is for the outside world.

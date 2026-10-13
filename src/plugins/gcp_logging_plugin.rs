@@ -68,6 +68,7 @@ impl GcpLoggingPlugin {
             body: format!("invalid URL: {}", e),
         })?;
 
+        crate::install_tls_provider();
         let client = Client::new();
         let response = client
             .post(url.as_str())

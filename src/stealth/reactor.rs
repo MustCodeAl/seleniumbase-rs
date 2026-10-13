@@ -137,6 +137,7 @@ async fn answer_paused_requests<R, W>(
 
 async fn discover_ws_url(host: &str, port: u16) -> Result<String, SeleniumBaseError> {
     let url = format!("http://{host}:{port}/json/version");
+    crate::install_tls_provider();
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()

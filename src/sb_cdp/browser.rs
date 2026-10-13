@@ -234,6 +234,7 @@ impl Browser {
     /// Returns [`SeleniumBaseError::CdpDriver`] if the endpoint cannot be
     /// reached or does not describe a DevTools browser.
     pub async fn connect(host: &str, port: u16) -> Result<Self, SeleniumBaseError> {
+        crate::install_tls_provider();
         let version: Value = reqwest::get(format!(
             "http://{}/json/version",
             devtools_authority(host, port)

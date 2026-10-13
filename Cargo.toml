@@ -97,7 +97,7 @@ serde_json = "1.0"
 thiserror = "2.0"
 # Without the defaults `component` (derive macros) and `manager` (thirtyfour's own
 # driver downloader): this crate has its own, and SelectElement needs neither.
-thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "rustls", "cdp"] }
+thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "cdp"] }
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
@@ -106,7 +106,10 @@ tracing-timing = { version = "0.7", optional = true }
 regex = "1.13"
 rand = "0.10"
 base64 = "0.23"
-reqwest = { version = "0.13", features = ["json"] }
+# No crypto provider of reqwest's own: rustls uses `ring` (see `common::tls`), so
+# the aws-lc-sys C library is not built.
+reqwest = { version = "0.13", default-features = false, features = ["json", "charset", "http2", "system-proxy", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 url = "2.5"
 tokio-tungstenite = "0.30"
 futures-util = "0.3"

@@ -45,6 +45,7 @@ async fn the_crate_starts_the_geckodriver_it_finds() {
     let mut driver = launch_driver_for(&config, None)
         .await
         .expect("geckodriver is found and started");
+    seleniumbase_rs::install_tls_provider();
     let status: serde_json::Value = reqwest::get(format!("{}/status", driver.url))
         .await
         .expect("geckodriver answers")

@@ -242,6 +242,7 @@ pub async fn extract_text_from_url(url: &str) -> Result<String, SeleniumBaseErro
         url: url.to_owned(),
         reason,
     };
+    crate::install_tls_provider();
     let mut response = reqwest::get(url)
         .await
         .map_err(|error| download(error.to_string()))?;

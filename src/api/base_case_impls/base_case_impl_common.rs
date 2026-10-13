@@ -132,6 +132,7 @@ fn link_check_client() -> Result<&'static reqwest::Client, SeleniumBaseError> {
         std::sync::OnceLock::new();
     CLIENT
         .get_or_init(|| {
+            crate::install_tls_provider();
             reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .timeout(LINK_CHECK_TIMEOUT)

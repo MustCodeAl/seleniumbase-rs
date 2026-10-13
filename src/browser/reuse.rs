@@ -423,6 +423,7 @@ fn close_all(entries: Vec<Entry>) {
     if entries.is_empty() {
         return;
     }
+    crate::install_tls_provider();
     // A runtime of its own: this runs on a plain thread, often while the
     // program exits, never inside another runtime.
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -635,6 +636,7 @@ async fn attach(
         .remote_webdriver_timeout_seconds
         .map_or(DEFAULT_REQUEST_TIMEOUT, Duration::from_secs);
     let client = AttachClient::new(address, timeout)?;
+    crate::install_tls_provider();
     let driver = WebDriver::builder(address.server_url.as_str(), thirtyfour::Capabilities::new())
         .client(client)
         .request_timeout(timeout)
@@ -707,6 +709,7 @@ impl AttachClient {
 }
 
 fn http_client(timeout: Duration) -> reqwest::Result<reqwest::Client> {
+    crate::install_tls_provider();
     reqwest::Client::builder().timeout(timeout).build()
 }
 

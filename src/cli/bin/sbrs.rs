@@ -1120,6 +1120,7 @@ impl Commands {
 
 /// Download `url` to `dest` over plain HTTP. Returns the number of bytes written.
 async fn http_download(url: &str, dest: &Path) -> Result<u64, Box<dyn std::error::Error>> {
+    seleniumbase_rs::install_tls_provider();
     let bytes = reqwest::get(url).await?.error_for_status()?.bytes().await?;
     if let Some(parent) = dest.parent() {
         if !parent.as_os_str().is_empty() {
