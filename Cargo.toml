@@ -100,10 +100,8 @@ tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "si
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
 tracing-log = "0.2"
-tracing-futures = "0.2"
 json-subscriber = "0.3"
 tracing-timing = { version = "0.7", optional = true }
-tracing-actix = { version = "0.4", optional = true }
 regex = "1.13"
 rand = "0.10"
 base64 = "0.23"
@@ -114,7 +112,7 @@ futures-util = "0.3"
 chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"
-zip = "9.0"
+zip = { version = "9.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 flate2 = "1.1"
 tar = "0.4"
 dirs = "7.0"
@@ -169,7 +167,7 @@ gui = ["dep:enigo", "dep:rfd"]
 # Playwright-compatible automation mode powered by rustwright (pure Rust; no Python).
 playwright = ["dep:rustwright", "dep:rustwright-core"]
 # Extra tracing integrations (timing histograms, actix actor instrumentation).
-full-tracing = ["dep:tracing-timing", "dep:tracing-actix"]
+full-tracing = ["dep:tracing-timing"]
 # Capture a backtrace for every SeleniumBaseError (useful for debugging).
 error-backtrace = []
 s3 = ["dep:rust-s3"]

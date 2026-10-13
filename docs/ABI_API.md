@@ -136,7 +136,7 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 | `mcp-server` | Enables the `mcp` module and builds the `sbrs-mcp` binary using `rmcp`. | no |
 | `test-util` | Exposes `sb_cdp::Browser::new_mocked` and `MockCtrl` for testing code that drives pages without Chrome. | no |
 | `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbrs report` command. A Turso dependency needs Rust 1.90, which the crate's `rust-version` (1.99) already covers. | no |
-| `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. | no |
+| `full-tracing` | Enables `tracing-timing` histograms. | no |
 | `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
 | `scrape` | Enables `wire` and `scrape` (pure Rust; adds `psl`). Experimental. | no |
 | `impersonate` | Includes `scrape`; enables `impersonate` (wreq and BoringSSL; needs cmake). Experimental. | no |

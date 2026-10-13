@@ -8,6 +8,14 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Removed
+
+- The unused `tracing-futures` dependency (every build compiled it) and the
+  unused `tracing-actix` one from the `full-tracing` feature.
+- `zip` is built with deflate only (the format of driver downloads and the
+  bundled extensions) instead of every format; zstd (a C library), bzip2, lzma,
+  xz, ppmd and AES no longer compile.
+
 ## [0.2.0] - 2026-10-12
 
 ### Changed
