@@ -7,6 +7,10 @@ on all three; day-to-day development and the project's own checks run on macOS
 on Linux (arm64, Debian 12, Chromium 154) in a container; what passed, and what
 was not run, is under [Verified on Linux](#verified-on-linux).
 
+The packages each system and each feature needs, with the commands that install
+them (Homebrew, apt, dnf, winget), are in
+[Building and installing](building.md#what-you-need).
+
 ## Which Chrome it finds
 
 The library looks in the usual install locations, and you can always name one:

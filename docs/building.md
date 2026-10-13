@@ -7,16 +7,61 @@ run it in a container. For writing and running tests with it, start with
 
 ## What you need
 
-- **Rust 1.99 or newer** (stable). `rust-version` in `Cargo.toml` is the newest
-  stable release, and the CI `msrv` job builds with exactly that toolchain.
-- **A Chrome or Chromium** to drive. The pure CDP engine (`sb_cdp`) needs
-  nothing else; the WebDriver engine also needs a chromedriver of the same major
-  version, which `sbase install` downloads and `sbase doctor` checks.
-- **For the optional `impersonate` feature only:** `cmake`, a C/C++ toolchain and
-  libclang (the BoringSSL crate generates its bindings with bindgen), because it
-  builds BoringSSL. On Debian 12 that is `apt-get install cmake clang libclang-dev`
-  on top of the `rust` image, which built it on arm64. (Part of that feature
-  exists; see [Stealth Scraping](tutorials/stealth_scraping.md) for what.)
+With [mise](https://mise.jdx.dev), `mise install` in the repository sets up Rust,
+Python, Node, CMake, Ninja, mdBook, just and cargo-deny from `mise.toml`. The
+system libraries and browsers below still come from your system's package
+manager.
+
+### Every build
+
+| | macOS | Debian / Ubuntu | Fedora | Windows |
+|---|---|---|---|---|
+| Rust 1.99 (`rust-toolchain.toml` picks it) | `brew install rustup && rustup-init` | `curl https://sh.rustup.rs -sSf \| sh` | same as Debian | `winget install Rustlang.Rustup` |
+| C compiler (TLS crates `aws-lc-sys`, `ring` compile C) | `xcode-select --install` | `sudo apt-get install build-essential pkg-config` | `sudo dnf install gcc gcc-c++ make pkgconf-pkg-config` | Visual Studio 2022 Build Tools with C++: `winget install Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"` |
+
+### Browsers and drivers
+
+| | macOS | Debian / Ubuntu | Windows |
+|---|---|---|---|
+| Google Chrome | `brew install --cask google-chrome` | `wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt-get install ./google-chrome-stable_current_amd64.deb` (x86-64), or `sudo apt-get install chromium` | `winget install Google.Chrome` |
+| Microsoft Edge | `brew install --cask microsoft-edge` | Microsoft's `packages.microsoft.com` repository | installed with Windows |
+| Firefox | `brew install --cask firefox` | `sudo apt-get install firefox-esr` (Debian) or `firefox` | `winget install Mozilla.Firefox` |
+| Safari | built in; once: `sudo safaridriver --enable`, then Safari ▸ Develop ▸ Allow Remote Automation | — | — |
+| Headed browsers on a server | — | `sudo apt-get install xvfb` | — |
+
+chromedriver, msedgedriver and geckodriver are downloaded to match the
+installed browser when a session starts, or ahead of time with `sbase install
+chromedriver|edgedriver|geckodriver`. `brew install chromedriver geckodriver`
+works too. The pure CDP engine (`sb_cdp`) needs no driver at all.
+
+### By feature
+
+Every feature not listed (`tui`, `scrape`, `mcp-server`, `turso`, `playwright`,
+`azure`, `gcp`, `full-tracing`, `test-util`) needs nothing beyond the C compiler.
+None needs Python.
+
+| Feature | macOS | Debian / Ubuntu | Windows |
+|---|---|---|---|
+| `s3` (native TLS) | nothing | `sudo apt-get install libssl-dev pkg-config` | nothing |
+| `gui` (desktop input, native dialogs) | nothing to build; at run time allow the app in System Settings ▸ Privacy & Security ▸ Accessibility | `sudo apt-get install libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config` | nothing |
+| `impersonate` (builds BoringSSL; bindings need libclang) | `brew install cmake` (Xcode's tools bring clang and libclang) | `sudo apt-get install cmake clang libclang-dev` (Fedora: `sudo dnf install cmake clang clang-devel`) | Build Tools as above, then `winget install Kitware.CMake NASM.NASM LLVM.LLVM` and `$env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"` |
+| Faster `impersonate` builds (optional) | `brew install ninja`, `export CMAKE_GENERATOR=Ninja` | `sudo apt-get install ninja-build`, same variable | `winget install Ninja-build.Ninja`, set `CMAKE_GENERATOR=Ninja`, and build from a Developer PowerShell |
+
+### Tools for the rest of the repository
+
+| | macOS | Debian / Ubuntu | Windows |
+|---|---|---|---|
+| Tauri example (`examples/tauri-profile-manager`) | `xcode-select --install`, `brew install node` | `sudo apt-get install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libssl-dev libx11-dev libxdo-dev` and Node LTS | Build Tools as above, WebView2 (part of Windows 10 and 11), `winget install OpenJS.NodeJS.LTS` |
+| Docs (`mdbook build`) | `brew install mdbook` | `cargo install mdbook` | `cargo install mdbook` |
+| Parity tables (`tools/parity`, Python 3.10+) | `brew install python` | `sudo apt-get install python3` | Python from python.org or `winget search Python.Python` |
+| Recipes, dependency checks | `brew install just cargo-deny` | `cargo install just cargo-deny` | `cargo install just cargo-deny` |
+
+What has been built where: everything on macOS (Apple Silicon); the default
+build, the test features and `impersonate` on Debian 12 arm64 (in Docker);
+the default build, the test features, the real-browser tests and the Tauri
+example on Windows 11 x64. `impersonate` has not been built on Windows yet, and
+the Linux `gui` and Tauri lists come from the CI configuration, which has not
+been able to run (see `docs/platforms.md`).
 
 ## Build
 
