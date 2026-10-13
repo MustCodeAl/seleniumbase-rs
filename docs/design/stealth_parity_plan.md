@@ -847,9 +847,9 @@ dropped, `DomainState` kept. A launched browser lives until we close it: no idle
 `stealth::providers::session_registry(fp: &Fingerprint) -> EvasionRegistry`: the default registry
 without `PluginsProvider` and `ConnectionProvider`; a test checks the assembled script never names
 `plugins`, `mimeTypes`, `pdfViewerEnabled` or `connection`. `ClientHintsProvider` returns early when
-`!isSecureContext`. `sb_cdp::identity` sends the screen through `Emulation.setDeviceMetricsOverride
-{ width: 0, height: 0, screenWidth, screenHeight, ... }`. `stealth::cdp::enable_default_domains` stops
-sending `Runtime.enable`.
+`!isSecureContext`. `sb_cdp::identity` sends the screen through
+`Emulation.setDeviceMetricsOverride { width: 0, height: 0, screenWidth, screenHeight, ... }`.
+`stealth::cdp::enable_default_domains` stops sending `Runtime.enable`.
 
 ## 4. Tests and gates
 
