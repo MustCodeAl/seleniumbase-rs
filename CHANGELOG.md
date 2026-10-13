@@ -8,6 +8,12 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Added
+
+- Feature `tokio-console` (off by default): `sbrs`, `sbrs-mcp` and programs that
+  use the crate's logging serve [tokio-console](https://github.com/tokio-rs/console)
+  for watching async tasks. Build with `RUSTFLAGS="--cfg tokio_unstable"`.
+
 ### Removed
 
 - The unused `tracing-futures` dependency (every build compiled it) and the

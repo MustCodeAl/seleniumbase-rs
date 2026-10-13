@@ -91,6 +91,9 @@ where
 {
     #[cfg(feature = "full-tracing")]
     let subscriber = subscriber.with(timing_layer());
+    // tokio-console attaches on 127.0.0.1:6669; the layer filters on its own.
+    #[cfg(feature = "tokio-console")]
+    let subscriber = subscriber.with(console_subscriber::spawn());
     let _ = subscriber.try_init();
 }
 
