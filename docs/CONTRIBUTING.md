@@ -1,3 +1,7 @@
+---
+title: "Contributing to SeleniumBase-rs"
+---
+
 # Contributing to SeleniumBase-rs
 
 Thank you for helping make `seleniumbase-rs` a powerful, idiomatic Rust

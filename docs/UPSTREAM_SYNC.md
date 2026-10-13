@@ -1,3 +1,7 @@
+---
+title: "Syncing with upstream SeleniumBase"
+---
+
 # Syncing with upstream SeleniumBase
 
 This crate follows the Python [SeleniumBase](https://github.com/seleniumbase/SeleniumBase)

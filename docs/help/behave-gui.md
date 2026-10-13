@@ -1,3 +1,7 @@
+---
+title: "Behave Commander"
+---
+
 # Behave Commander
 
 `sbase behave-gui` (also `sbase gui-behave`) is a terminal app that lists the

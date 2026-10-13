@@ -1,3 +1,7 @@
+---
+title: "ADR 003: Stealth Scraping Layout"
+---
+
 # ADR 003: Stealth Scraping Layout
 
 ## Status

@@ -1,3 +1,7 @@
+---
+title: "How it compares"
+---
+
 # How it compares
 
 Where `seleniumbase-rs` fits among the tools people use to automate a browser,
