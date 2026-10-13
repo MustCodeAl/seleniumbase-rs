@@ -71,13 +71,9 @@ RUN mkdir -p downloaded_drivers && \
 COPY --from=builder /usr/src/seleniumbase-rs/target/release/sbase /usr/local/bin/sbase
 
 # Nothing in this image listens on a port: `sbase` is a command-line tool and
-# drives the browser over a local pipe or socket, so there is no EXPOSE. (An
-# EXPOSE line also makes the build wrapper treat the image as a web app and
-# probe a port that nobody answers.)
+# drives the browser over a local pipe or socket, so there is no EXPOSE.
 #
-# Build it with `docker build --no-slim -t seleniumbase-rs .`. Slim finds what to
-# keep by watching a run of the image, and `sbase --help` never starts Chromium,
-# so a slimmed image would lose the browser.
+# Build it with `docker build -t seleniumbase-rs .`.
 
 USER sbase
 

@@ -9,7 +9,7 @@
 #
 # From the repository root (the numbers are the ones this project was verified with):
 #
-#   docker build --no-slim -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .
+#   docker build -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .
 #   docker volume create sbrs-verify-target
 #   docker volume create sbrs-verify-registry
 #   docker run --rm --memory=4g --shm-size=1g -e CARGO_BUILD_JOBS=2 \

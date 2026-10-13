@@ -4,8 +4,7 @@
 # geckodriver with curl, so the Rust request is compared with what a real
 # geckodriver accepts. See README.md for how to build and run it.
 #
-# Build with the local wrapper's --no-slim: Slim would strip the browser.
-# No EXPOSE: the wrapper would take this for a web app and probe the port.
+# No EXPOSE: geckodriver is only reached from inside the container.
 FROM debian:bookworm-slim
 
 # geckodriver's linux-aarch64 release and the SHA-256 GitHub lists for that

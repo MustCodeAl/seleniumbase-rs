@@ -341,7 +341,7 @@ DOM and the report; the CLI scaffolding; the `sbase test`, `grid-hub` and
 handler (SIGTERM and SIGINT close browsers); and the one retry/polling API in
 `utilities::retry`. That last one replaced `common::{decorators,exceptions}`;
 those two public modules are kept as `#[deprecated]` shims, so nothing breaks.
-The worktrees under `.claude/worktrees/` can be removed. Merging the shutdown
+Merging the shutdown
 handler also exposed a stack overflow in `sbase` (its large `run` future was
 copied on the 8 MiB main stack in debug builds); the future is now boxed.
 

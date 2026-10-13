@@ -253,7 +253,7 @@ command-line tool. The driver in `/usr/bin` is linked as
 WebDriver engine looks first, so the image needs no network to start a browser.
 
 ```bash
-docker build --no-slim -t seleniumbase-rs .
+docker build -t seleniumbase-rs .
 docker run --rm seleniumbase-rs --help
 docker run --rm seleniumbase-rs doctor
 docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
@@ -262,19 +262,14 @@ docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
 
 - On a machine with little memory, limit Cargo's parallelism in the build:
   `docker build --build-arg CARGO_BUILD_JOBS=2 -t seleniumbase-rs .`
-- `--no-slim` belongs to the local build wrapper that runs Slim (see below). Plain
-  `docker build` does not know it ("unknown flag: --no-slim"), so leave it out there.
 - The arguments after the image name are `sbase` arguments. `--headless` comes
   before the subcommand. `sbase open` and `smoke` also read `SB_HEADLESS` (and the
   other `SB_*` variables; `--headless` beats the variable), and without one of
   them Chromium fails in a container for lack of a display.
-- If you build through an image optimiser that decides what to keep by watching a
-  run (Docker Slim, for example), exclude this image: `sbase --help` never starts
-  Chromium, so the optimised image would lose the browser. Drop `chromium-driver`
-  from the `Dockerfile` if you only use the pure CDP engine (and then drop the
-  `ln -s` step that links it).
+- Drop `chromium-driver` from the `Dockerfile` if you only use the pure CDP
+  engine (and then drop the `ln -s` step that links it).
 
-Verified on an Apple-silicon Mac under OrbStack (so linux/arm64, Debian 12,
+Verified on an Apple-silicon Mac with Docker (so linux/arm64, Debian 12,
 Chromium 154.0.8037.92): the build succeeds in about four minutes with two Cargo
 jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
 `doctor` finds `/usr/bin/chromium` and a chromedriver of the same major version;
@@ -293,7 +288,7 @@ The build output lives in a named volume (about 4.4 GB for the runs below), and 
 Cargo registry in another.
 
 ```bash
-docker build --no-slim -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .
+docker build -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .
 docker volume create sbrs-verify-target
 docker volume create sbrs-verify-registry
 

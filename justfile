@@ -74,7 +74,7 @@ parity-docs:
     python3 -I tools/parity/render_docs.py
     git diff --exit-code docs/parity.md
 
-# On the 8 GB development machine run it with CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0
+# On a machine with little memory run it with CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0
 # CARGO_PROFILE_DEV_DEBUG=0. It runs format, lint, the domain purity check, the scrape tests,
 # and the default build, which must not need the feature. Scrape gate, pure Rust, runs locally.
 scrape-gate:
@@ -88,7 +88,7 @@ scrape-gate:
     cargo check --no-default-features
 
 # NEEDS cmake and a C/C++ toolchain (BoringSSL is built from source) and about 1 GB of target
-# disk. CI runs it on Linux (the `impersonate` job). DO NOT run it on the local 8 GB machine.
+# disk. CI runs it on Linux (the `impersonate` job). It needs a few GB of memory.
 # The gate also runs the tests of HttpSession, the MITM proxy and StealthSession that need no
 # Chrome (loopback servers and the scripted browser, which needs `test-util`). The real-Chrome
 # ones (`impersonate_http_chrome`, `impersonate_mitm_chrome`, `stealth_session_chrome`) are

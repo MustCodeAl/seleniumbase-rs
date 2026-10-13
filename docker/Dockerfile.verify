@@ -5,7 +5,7 @@
 # toolchain, Debian's Chromium with its driver, and what the `impersonate` feature needs to
 # build BoringSSL.
 #
-# Build it with `docker build --no-slim -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .`
+# Build it with `docker build -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .`
 # and run the suites with `docker/verify-linux.sh`, which says how. Remove it with
 # `docker rmi seleniumbase-rs:verify-tools` when you are done.
 FROM rust:1.99-bookworm

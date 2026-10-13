@@ -7,31 +7,16 @@ fix a line here when the code stops matching it. Human contributors want
 
 ## How to work here (read this first)
 
-- **Always use TokenSave for code.** Find a symbol with `tokensave_search`
-  (`literal: true` for exact text such as `unsafe {`), a concept with
-  `tokensave_context`, read with `tokensave_read` (parameter `file`; `mode: "map"`
-  for a file's symbols, `mode: "lines"` with `lines: "120-180"` for a slice),
-  trace with `tokensave_callers`, `tokensave_callees` and `tokensave_impact`, list
-  files with `tokensave_files`. Always pass `graph_root` = the repository root.
-  Edit with `tokensave_str_replace` or `tokensave_multi_str_replace`. Never use
-  `grep`, `find`, `cat`, `sed` or `head` on source. The index skips `yml`,
-  `golden`, `png` and `zip` files; search those with `rtk grep`.
-- Run every shell command through `rtk`. The Rust variants go behind it: `rtk rg`
-  searches text, `rtk fd` finds files, `rtk sd` edits text, `rtk eza` lists
-  directories, `rtk procs` lists processes. Forbidden: `grep`, `egrep`, `fgrep`,
-  `ug`, `rtk grep`, `find`, `bfs`, `rtk find`, `ls`, `rtk ls`, `sed`, `ps`, `cat`.
-  Homebrew GNU tools only by full path under `/opt/homebrew/opt/<pkg>/libexec/gnubin`,
-  never `/usr/bin`.
-- Use the Rust MCP (`mcp__rust-analyzer__rust_analyzer_*`: `set_workspace` to your
-  worktree, then `diagnostics`, `references`, `definition`, `hover`, `rename`)
-  before running cargo; it does not take the build lock. Cargo is for the gate of a
-  work package.
-- Machine limits (8 GB M1, little disk): agents use `CARGO_BUILD_JOBS=1`, the shared
-  `CARGO_TARGET_DIR`, one cargo command at a time, and about three cargo-using
-  agents at once. Agents commit often in their own worktree and never push; the lead
-  merges, gates once per batch and publishes.
-- Subagents get this file injected, but the user still wants the rules above
-  restated at the top of every agent prompt.
+- Start from the module map below rather than a repository-wide search, and use
+  rust-analyzer (or `cargo check`) for types and references before a full build.
+- Check a change with the commands under *Build and check*; count failures from
+  the `test result` lines, never from a filtered search of the output.
+- Tests that start a real browser are `#[ignore]`d `*_chrome.rs` files: run them one
+  binary at a time. Mock-driven tests need no browser.
+- Builds are heavy; on a machine with little memory use the environment under
+  *Build and check* and one cargo command at a time.
+- Commit small, one concern per commit; a bug fix comes with a test that fails
+  without it.
 
 ## What this is
 
@@ -125,8 +110,6 @@ mdbook build
   `java` run it once with `--warm` before timing it.
 - `sbase commander` exits with status 2 and a hint when built without `tui`.
 - `thirtyfour` still depends on `zip` 8.6, so two `zip` versions are in the tree.
-- The local Docker wrapper treats `EXPOSE` as a web app and probes the port;
-  this image has none. Build it with `--no-slim`.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.
 

@@ -7,13 +7,12 @@ and `uninstall_addon` can be compared with what a real geckodriver accepts. Chro
 cannot answer this: only geckodriver has the `moz/addon` commands.
 
 ```sh
-docker build --no-slim -t sbrs-firefox-check docker/firefox-check
+docker build -t sbrs-firefox-check docker/firefox-check
 docker run --rm --shm-size 512m sbrs-firefox-check
 docker rmi sbrs-firefox-check        # when done
 ```
 
-`--no-slim` keeps the local Docker wrapper from stripping the browser out of the
-image. The image is `linux/arm64` (geckodriver's `linux-aarch64` release, whose
+The image is `linux/arm64` (geckodriver's `linux-aarch64` release, whose
 SHA-256 the build checks); on an `amd64` host change the release name and the
 checksum in the `Dockerfile` together. Nothing is exposed: geckodriver and a tiny
 page server listen on loopback inside the container.

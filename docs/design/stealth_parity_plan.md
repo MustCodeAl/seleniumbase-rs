@@ -892,14 +892,14 @@ sending `Runtime.enable`.
 ```sh
 # lane A (pure Rust). Lane B: CARGO_TARGET_DIR=$SCRATCH/target-imp CMAKE_BUILD_PARALLEL_LEVEL=1, --features impersonate
 export CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=$SCRATCH/target-scrape
-rtk cargo fmt --all -- --check
-rtk cargo clippy --features scrape --profile test --lib -- -D warnings      # lib incl. #[cfg(test)]
-rtk cargo clippy --features scrape --test <wp_test> --example <wp_example> -- -D warnings
-rtk cargo test --features scrape --lib scrape::          # impersonate:: in lane B
-rtk cargo test --features scrape --test <wp_test>
-rtk cargo test --features scrape --doc scrape
+cargo fmt --all -- --check
+cargo clippy --features scrape --profile test --lib -- -D warnings      # lib incl. #[cfg(test)]
+cargo clippy --features scrape --test <wp_test> --example <wp_example> -- -D warnings
+cargo test --features scrape --lib scrape::          # impersonate:: in lane B
+cargo test --features scrape --test <wp_test>
+cargo test --features scrape --doc scrape
 cargo llvm-cov --features scrape --lib --summary-only    # domain packages: >= 80 % lines on owned files
-rtk cargo audit && cargo deny check                      # WP0, any package that changes Cargo.lock, WP18, WP19
+cargo audit && cargo deny check                      # WP0, any package that changes Cargo.lock, WP18, WP19
 ripsecrets <owned files>                                 # packages that handle credentials or cookies
 ```
 
@@ -936,7 +936,7 @@ design and audits. Size: S up to 400 lines with tests, M 400-900, L 900-1600. Bu
 | 18 | split-role security review. Pass 1 after WP4, 8, 10 (cookies, identity files, CA); pass 2 after WP14-16 (MITM, credentials, egress stickiness); audit, deny, ripsecrets; may patch only a reviewed package's files after it merged | - | see scope | M | opus | B |
 | 19 | re-exports in `scrape/mod.rs`, `impersonate/mod.rs`, `lib.rs`; `docs/tutorials/stealth_scraping.md`; fix `fingerprint_stealth.md` lines 529-530 ("not implemented", "consider wreq-util"); ROADMAP; full `--all-targets` clippy per feature, doctests, audit, deny | - | all | S | haiku | test + B |
 
-Schedule: at most two agents at once (8 GB M1), `CARGO_BUILD_JOBS=1`, two shared target dirs:
+Schedule: at most two builds at once, `CARGO_BUILD_JOBS=1`, two shared target dirs:
 `target-scrape` (lane A) and `target-imp` (lane B, the only place BoringSSL compiles). Cargo's dir lock
 serialises builds per lane, so at most two compilations run at once; real Chrome runs one test binary
 at a time across both agents (waves 7-8 take turns). Delete both dirs after WP19.
@@ -946,7 +946,7 @@ at a time across both agents (waves 7-8 take turns). Delete both dirs after WP19
 | Agent 1 | WP0 | WP1 (A) | WP2 (A) | WP5 (A) | WP6 (A) | WP8 (A) | WP9 (A, chrome) | WP13 (A, chrome) | WP13 | WP14 (B) | WP16 (B) | WP18 pass 2 |
 | Agent 2 | - | WP10 (B) | WP4 (A) | WP7 (A) | WP3 (A) | WP17 (A, chrome) | WP18 pass 1 | WP11 (B, chrome, Safari by the user) | WP12 (B) | WP15 (B) | - | WP19 (after pass 2 fixes) |
 
-Every agent prompt carries the tool order (TokenSave, then rtk, then rg/fd/sd/eza) and its file list;
+Every work package names its file list;
 a package that needs a file it does not own stops and reports instead of editing it.
 
 ## 6. Risks, open questions, not copied

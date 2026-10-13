@@ -16,12 +16,8 @@ configuring CI.
 From the repository root:
 
 ```bash
-docker build --no-slim -t seleniumbase-rs .
+docker build -t seleniumbase-rs .
 ```
-
-`--no-slim` matters if your `docker` is wrapped by an image optimiser (Docker
-Slim, for example): `sbase --help` never starts Chromium, so an optimiser that
-watches a run would drop the browser. A plain `docker build` does not need it.
 
 ## Run the CLI
 

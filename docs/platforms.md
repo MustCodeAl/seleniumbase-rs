@@ -114,7 +114,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
 
 Run on 2026-10-11 to 12 with `docker/Dockerfile.verify` and `docker/verify-linux.sh`
 (commands in [Building and installing](building.md#run-the-tests-in-a-container)).
-The machine was an 8 GB Apple M1 Mac running OrbStack, so the containers were
+The host was an Apple-silicon Mac, so the containers were
 **linux/arm64** on **Debian 12 (bookworm)** with **Rust 1.99** and **Chromium
 154.0.8037.92** from Debian's `chromium` and `chromium-driver` packages. Cargo ran
 with `CARGO_BUILD_JOBS=2` in a container limited to 4 GB.

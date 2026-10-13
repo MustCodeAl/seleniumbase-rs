@@ -50,7 +50,7 @@ The repository's `Dockerfile` builds `sbase` and copies it into a
 user, listens on no port, and its entry point is `sbase`:
 
 ```bash
-docker build --no-slim -t seleniumbase-rs .
+docker build -t seleniumbase-rs .
 docker run --rm seleniumbase-rs --help
 docker run --rm seleniumbase-rs doctor
 docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
@@ -70,9 +70,6 @@ Notes:
   `smoke`, ...) read `SB_HEADLESS` and the other `SB_*` variables, and a
   `--headless` before the subcommand beats the variable; a container has no
   display, so set one of them.
-- `--no-slim` is the flag of a local build wrapper that runs Docker Slim; plain
-  `docker build` does not know it. Slim finds what to keep by watching a run, so it
-  must not optimise this image (see the last note).
 - The image links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
   the working directory, where the WebDriver engine looks first, so it downloads
   nothing. Without that link it would download the matching Chrome for Testing
@@ -88,9 +85,6 @@ Notes:
   This is general Chromium advice, not something this project measured.
 - Use `sbase doctor` as a readiness check: it compares the chromedriver's major
   version with Chrome's.
-- If your build pipeline optimises images by watching a run (Docker Slim),
-  exclude this one; `sbase --help` never starts Chromium, so the browser would be
-  removed.
 
 ## CI
 
