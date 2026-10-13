@@ -1,0 +1,9 @@
+---
+name: Check browsers and drivers with sbrs
+command: sbrs doctor
+tags: ["sbrs", "seleniumbase-rs"]
+description: Lists the browsers sbrs found and whether their drivers match.
+arguments: []
+source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
+author: seleniumbase-rs
+shells: []

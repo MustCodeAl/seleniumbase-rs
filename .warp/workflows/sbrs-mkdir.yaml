@@ -1,0 +1,12 @@
+---
+name: Create a test folder with sbrs
+command: "sbrs mkdir {{dir}}"
+tags: ["sbrs", "seleniumbase-rs", "scaffold"]
+description: Creates a folder of example Rust browser tests to start from.
+arguments:
+  - name: dir
+    description: The folder to create
+    default_value: ui_tests
+source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
+author: seleniumbase-rs
+shells: []

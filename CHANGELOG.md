@@ -8,6 +8,8 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+## [0.2.0] - 2026-10-12
+
 ### Changed
 
 - **The binaries are renamed** so they no longer clash with Python
@@ -19,6 +21,13 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- `sbrs completions fig` writes a Fig completion spec, the format of
+  withfig/autocomplete that Warp's built-in completions, inshellisense and Amazon
+  Q use. Warp also uses the shell's own completions by default.
+- `sbrs completions usage` prints a usage (KDL) spec for jdx/usage and mise,
+  kept in `completions/sbrs.usage.kdl` and checked against the CLI by a test.
+- Warp Workflows for common `sbrs` commands in `.warp/workflows/`.
+- Every docs page has a title in front matter for Docs7; the mdBook build strips it.
 - ADR 004 proposes a plugin framework for community crates, in the style of
   puppeteer-extra and Zorilla.
 

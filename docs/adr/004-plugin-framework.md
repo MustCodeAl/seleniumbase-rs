@@ -29,7 +29,7 @@ third-party crate change how a browser starts or what every page gets:
 | `LaunchOptions` flags (`ad_block`, `shield_webrtc`, `identity`) | Fixed built-in behaviours | New behaviours without changing this crate |
 
 The Chrome extension in
-[seleniumbase-rs-companion](https://github.com/MustCodeAl/seleniumbase-rs-companion)
+[seleniumbase-rs-browser-extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension)
 is a different thing: it runs inside the browser. This ADR is about Rust code
 that runs in the program driving the browser.
 

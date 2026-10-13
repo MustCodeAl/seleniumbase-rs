@@ -1,0 +1,15 @@
+---
+name: Smoke-test a page with sbrs
+command: "sbrs --headless smoke {{url}} --title-contains {{title}}"
+tags: ["sbrs", "seleniumbase-rs", "testing"]
+description: Opens the page in a headless browser and checks that its title contains the given text.
+arguments:
+  - name: url
+    description: The page to open
+    default_value: https://seleniumbase.io
+  - name: title
+    description: Text the page title must contain
+    default_value: SeleniumBase
+source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
+author: seleniumbase-rs
+shells: []

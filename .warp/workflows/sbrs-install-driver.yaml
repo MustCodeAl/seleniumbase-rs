@@ -1,0 +1,12 @@
+---
+name: Install a browser driver with sbrs
+command: "sbrs install {{driver}}"
+tags: ["sbrs", "seleniumbase-rs", "drivers"]
+description: Downloads the driver that matches the installed browser (chromedriver, edgedriver or geckodriver).
+arguments:
+  - name: driver
+    description: chromedriver, edgedriver or geckodriver
+    default_value: chromedriver
+source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
+author: seleniumbase-rs
+shells: []

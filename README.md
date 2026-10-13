@@ -19,7 +19,7 @@ server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pur
 Chrome DevTools engine that needs no driver at all.
 
 > [!NOTE]
-> Young and moving fast: version `0.1.1`, installed from GitHub (not on
+> Young and moving fast: version `0.2.0`, installed from GitHub (not on
 > crates.io). See [Project status](#project-status) for what is verified and what
 > is not.
 
@@ -92,18 +92,26 @@ async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 
 ## Installation
 
-Add the crate from GitHub (it is not on crates.io), with Tokio to run it:
+**The CLI** (`sbrs` and `sbrs-mcp`) on macOS or Linux, with completions for
+bash, zsh, fish and PowerShell that Warp uses too, plus Warp Workflows:
+
+```bash
+brew install mustcodeal/tap/sbrs
+```
+
+**The library:** add the crate from GitHub (it is not on crates.io), with Tokio
+to run it:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.1.1" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.2.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.1.1", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.2.0", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]

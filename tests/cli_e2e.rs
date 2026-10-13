@@ -138,13 +138,24 @@ fn every_subcommand_prints_its_help_and_exits_0() {
 #[test]
 fn completions_are_written_for_every_shell_and_an_unknown_shell_is_refused() {
     let dir = tempfile::tempdir().unwrap();
-    for shell in ["bash", "zsh", "fish", "powershell", "elvish"] {
+    for shell in [
+        "bash",
+        "zsh",
+        "fish",
+        "powershell",
+        "elvish",
+        "fig",
+        "usage",
+    ] {
         let output = run(dir.path(), &["completions", shell]);
         assert!(output.status.success(), "{shell}: {}", stderr(&output));
         let script = stdout(&output);
         assert!(script.contains("sbrs"), "{shell}: {script}");
         assert!(script.contains("mkfile"), "{shell} knows the subcommands");
     }
+    // The Fig spec is what Warp's built-in specs, inshellisense and Amazon Q read.
+    let fig = stdout(&run(dir.path(), &["completions", "fig"]));
+    assert!(fig.contains(": Fig.Spec = {"), "{fig}");
 
     let unknown = run(dir.path(), &["completions", "tcsh"]);
     assert_eq!(unknown.status.code(), Some(2));

@@ -903,10 +903,13 @@ enum Commands {
         #[arg(long, help = "Optional path to write a scenario dashboard")]
         dashboard: Option<String>,
     },
-    /// Generate a completion script for a supported shell.
+    /// Generate a completion script for a supported shell, or a Fig spec.
     Completions {
-        #[arg(value_enum, help = "Shell to generate a completion script for")]
-        shell: Shell,
+        #[arg(
+            value_enum,
+            help = "Shell (or `fig` for a Fig spec) to generate completions for"
+        )]
+        shell: CompletionFormat,
     },
     /// Convert common SeleniumBase or Selenium Python code into a Rust test.
     ImportPython {
@@ -1538,13 +1541,52 @@ fn import_script(
     Ok(())
 }
 
+/// What `sbrs completions` writes: a shell's completion script, or a Fig spec.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum CompletionFormat {
+    Bash,
+    Zsh,
+    Fish,
+    Elvish,
+    Powershell,
+    /// A Fig completion spec (TypeScript), the format of the withfig/autocomplete
+    /// repository that Warp's built-in completions, inshellisense and Amazon Q use.
+    Fig,
+    /// A usage spec (KDL) for jdx/usage and mise, which turn it into completions,
+    /// Markdown and man pages.
+    Usage,
+}
+
+/// The usage spec, generated from the clap definitions by a test in this file.
+const USAGE_SPEC: &str = include_str!("../../../completions/sbrs.usage.kdl");
+
+impl CompletionFormat {
+    /// The shell this format is for, or `None` for the Fig and usage specs.
+    fn shell(self) -> Option<Shell> {
+        match self {
+            Self::Bash => Some(Shell::Bash),
+            Self::Zsh => Some(Shell::Zsh),
+            Self::Fish => Some(Shell::Fish),
+            Self::Elvish => Some(Shell::Elvish),
+            Self::Powershell => Some(Shell::PowerShell),
+            Self::Fig | Self::Usage => None,
+        }
+    }
+}
+
 async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
             let mut command = Cli::command();
             let name = command.get_name().to_owned();
             let mut completion = Vec::new();
-            generate(*shell, &mut command, name, &mut completion);
+            match (shell, shell.shell()) {
+                (_, Some(shell)) => generate(shell, &mut command, name, &mut completion),
+                (CompletionFormat::Usage, None) => {
+                    completion.extend_from_slice(USAGE_SPEC.as_bytes())
+                }
+                (_, None) => generate(clap_complete_fig::Fig, &mut command, name, &mut completion),
+            }
             std::io::stdout().write_all(&completion)?;
             return Ok(());
         }
@@ -2664,4 +2706,28 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod usage_spec_tests {
+    use super::*;
+
+    /// `completions/sbrs.usage.kdl` is generated from the clap definitions. After
+    /// changing the CLI, write it again with
+    /// `SB_UPDATE_COMPLETIONS=1 cargo test --bin sbrs usage_spec`.
+    #[test]
+    fn the_committed_usage_spec_matches_the_cli() {
+        let mut spec = Vec::new();
+        clap_usage::generate(&mut Cli::command(), "sbrs", &mut spec);
+        let spec = String::from_utf8(spec).expect("the spec is UTF-8");
+        if std::env::var_os("SB_UPDATE_COMPLETIONS").is_some() {
+            let path = concat!(env!("CARGO_MANIFEST_DIR"), "/completions/sbrs.usage.kdl");
+            std::fs::write(path, &spec).expect("write the usage spec");
+        } else {
+            assert!(
+                USAGE_SPEC == spec,
+                "completions/sbrs.usage.kdl is stale: run SB_UPDATE_COMPLETIONS=1 cargo test --bin sbrs usage_spec"
+            );
+        }
+    }
 }

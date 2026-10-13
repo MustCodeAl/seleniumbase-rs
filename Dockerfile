@@ -38,6 +38,8 @@ RUN cargo build --release --locked --bin sbrs && rm -rf src
 # binary (the `sbrs mkdir` and `sbrs mkfile` templates), so it comes along.
 COPY src ./src
 COPY tests/golden ./tests/golden
+# The usage spec is embedded in the binary (`sbrs completions usage`).
+COPY completions ./completions
 RUN touch src/lib.rs src/cli/bin/sbrs.rs
 RUN cargo build --release --locked --bin sbrs
 

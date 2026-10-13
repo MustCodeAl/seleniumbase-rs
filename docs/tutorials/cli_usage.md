@@ -317,7 +317,7 @@ generated tests headless with `SB_HEADLESS=true cargo test`. See
 
 ## Install shell completions
 
-The supported values are `bash`, `elvish`, `fish`, `powershell`, and `zsh`.
+The supported values are `bash`, `elvish`, `fish`, `powershell`, `zsh`, `fig` (a Fig spec) and `usage` (a usage spec), see below.
 
 ```bash
 # Bash
@@ -335,6 +335,38 @@ mkdir -p "$HOME/.zfunc"
 
 Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
 `fpath` before running `compinit`.
+
+### usage and mise
+
+`sbrs completions usage` prints a [usage](https://usage.jdx.dev) spec (KDL),
+the same file as `completions/sbrs.usage.kdl` in the repository. The `usage` CLI
+turns it into completions for more shells, Markdown and man pages:
+
+```bash
+./target/debug/sbrs completions usage > sbrs.usage.kdl
+usage generate completion zsh sbrs --file sbrs.usage.kdl
+```
+
+### Warp, inshellisense and Amazon Q
+
+**Warp** uses your shell's own completions for commands it has no built-in spec
+for (the "native shell completions" setting, on by default), so once the Bash,
+Zsh or Fish completion above is installed, `sbrs` completes in Warp too.
+
+Warp's built-in specs, [inshellisense](https://github.com/microsoft/inshellisense)
+and Amazon Q read Fig completion specs
+([withfig/autocomplete](https://github.com/withfig/autocomplete)).
+`sbrs completions fig` writes one:
+
+```bash
+./target/debug/sbrs completions fig > sbrs.ts
+```
+
+**Warp Workflows:** the repository has ready-made `sbrs` commands in
+`.warp/workflows/` (smoke test, install a driver, doctor, record, import
+Playwright or Puppeteer tests, create a test folder). Warp shows them in the
+command palette when you are inside the repository; copy them to
+`~/.warp/workflows/` to have them everywhere.
 
 ## Common global flags
 

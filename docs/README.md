@@ -74,17 +74,11 @@ For day-to-day command-line usage, keep [CLI Usage](tutorials/cli_usage.md) and
 
 ## Current status
 
-The initial Rust port plan is complete. The crate builds, passes Clippy, and
-tests cleanly on stable Rust with all feature flags enabled. Active work is
-pushed to two locations:
-
-- Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
-- Crate-only orphan branch: `MustCodeAl/seleniumbase-rs/main`
-
-`cargo publish --dry-run` is blocked only by the `playwright` feature's
-`rustwright` git dependency. The tracked tag (`v0.2.0`) is newer than the version
-published on crates.io (`0.1.1`), so an upstream release is needed before the
-crate can be published.
+Every API of Python SeleniumBase 4.55.2 has a recorded status in the
+[parity table](parity.md). Development happens on
+[MustCodeAl/seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs),
+and releases are tagged there. The crate is not on crates.io yet: install it
+from a release tag (see [Building and installing](building.md)).
 
 ## Build this book locally
 

@@ -1,0 +1,15 @@
+---
+name: Convert a Playwright test to Rust with sbrs
+command: "sbrs import-playwright {{file}} -o {{output}}"
+tags: ["sbrs", "seleniumbase-rs", "migration", "playwright"]
+description: Writes a Rust test from a Playwright test (JavaScript, TypeScript or Python). Statements it cannot convert stay as TODO comments.
+arguments:
+  - name: file
+    description: The Playwright test file
+    default_value: tests/example.spec.ts
+  - name: output
+    description: The Rust file to write
+    default_value: tests/example.rs
+source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
+author: seleniumbase-rs
+shells: []
