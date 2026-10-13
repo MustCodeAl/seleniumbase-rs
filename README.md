@@ -38,6 +38,7 @@ Chrome DevTools engine that needs no driver at all.
 - [Examples](#examples)
 - [Feature flags](#feature-flags)
 - [Documentation](#documentation)
+- [Related repositories](#related-repositories)
 - [Project status](#project-status)
 - [Verified commands](#verified-commands)
 - [Known limitations](#known-limitations)
@@ -545,6 +546,15 @@ Unsupported or dynamic Python remains visible as diagnostics and `TODO`
 comments for manual review.
 `sbrs import-playwright` converts Playwright tests and scripts (JavaScript, TypeScript, Python) into pure CDP Rust tests the same way ([docs/playwright-migration.md](./docs/playwright-migration.md)).
 `sbrs import-puppeteer` does it for Puppeteer scripts, jest-puppeteer and Mocha tests, and Chrome Recorder JSON exports ([docs/puppeteer-migration.md](./docs/puppeteer-migration.md)).
+
+## Related repositories
+
+| Repository | What it is |
+|---|---|
+| [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) | The plugin API (`seleniumbase-rs-plugin`), test fakes, official plugins and a template for your own ([ADR 004](./docs/adr/004-plugin-framework.md)) |
+| [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation) | Test a Tauri app's window with `BaseCase` on macOS, Windows and Linux (a WebDriver endpoint inside the app) |
+| [seleniumbase-rs-browser-extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension) | Browser extension: recorder, inspector, export to Rust tests |
+| [homebrew-tap](https://github.com/MustCodeAl/homebrew-tap) | `brew install mustcodeal/tap/sbrs` |
 
 ## Project status
 
