@@ -164,7 +164,10 @@ non-root `sbase` user of the image with the sandbox on was not tried.
 
 **Status:** on Windows 11 x64 (Rust 1.99, Chrome 154 and 155, Edge 155, Firefox
 153) formatting, clippy, the whole test suite and the real-browser tests pass,
-and the Tauri example builds its `.msi` and setup `.exe`. Install steps:
+and the Tauri example builds its `.msi` and setup `.exe`. The `impersonate`
+feature builds there too (CMake, NASM and LLVM installed with winget, CMake's
+default Visual Studio generator): its 296 library tests, its five integration
+test files and its four real-Chrome files pass. Install steps:
 [Building and installing](building.md#windows-powershell).
 
 **What works differently**
@@ -182,8 +185,6 @@ and the Tauri example builds its `.msi` and setup `.exe`. Install steps:
   (macOS and Linux end it; Windows needs a job object). A driver whose session
   fails, or that is dropped, is ended.
 - The tests' leftover-process checks need `pgrep`, so they are skipped on Windows.
-- `impersonate` has not been built on Windows. It needs CMake, NASM and LLVM
-  (see [Extras for single features](building.md#extras-for-single-features)).
 - Measured fingerprints exist for Chrome 155 on macOS only; the TLS and HTTP/2
   tables refuse other systems with `NotMeasured`.
 

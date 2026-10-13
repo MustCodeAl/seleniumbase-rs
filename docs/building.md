@@ -189,8 +189,8 @@ Python, Node, CMake, Ninja, mdBook, just and cargo-deny in one step.
 
 Everything on macOS (Apple Silicon). The default build, the test features and
 `impersonate` on Debian 12 arm64 in Docker. The default build, the test
-features, the real-browser tests and the Tauri example on Windows 11 x64.
-`impersonate` has not been built on Windows yet. The Linux `gui` and Tauri
+features, `impersonate`, the real-browser tests and the Tauri example on
+Windows 11 x64. The Linux `gui` and Tauri
 package lists come from the CI configuration, which has not been able to run
 (see [Operating systems](platforms.md)).
 
