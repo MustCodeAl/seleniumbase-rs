@@ -1,3 +1,7 @@
+---
+title: "Case Plans Generator"
+---
+
 # Case Plans Generator
 
 `sbase caseplans` (also `sbase case-plans`) is a terminal app for writing a

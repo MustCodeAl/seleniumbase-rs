@@ -1,3 +1,7 @@
+---
+title: "Developer Guide"
+---
+
 # Developer Guide
 
 This guide is for anyone who wants to understand, extend, or maintain the Rust
