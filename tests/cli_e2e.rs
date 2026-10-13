@@ -1,4 +1,4 @@
-//! The whole `sbase` command line as a person meets it, run as the real binary.
+//! The whole `sbrs` command line as a person meets it, run as the real binary.
 //!
 //! `cli_scaffold.rs`, `cli_generators.rs`, `cli_crypto.rs` and the other `cli_*` files
 //! check one family of commands closely. This file checks across them: every
@@ -10,7 +10,7 @@
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 /// A command in `dir`, with the host's settings variables removed so they cannot
 /// leak into a run.
@@ -28,7 +28,7 @@ fn command(dir: &Path, args: &[&str]) -> Command {
 }
 
 fn run(dir: &Path, args: &[&str]) -> Output {
-    command(dir, args).output().expect("sbase runs")
+    command(dir, args).output().expect("sbrs runs")
 }
 
 fn stdout(output: &Output) -> String {
@@ -39,7 +39,7 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
-/// The subcommands `sbase --help` lists, in the order it lists them.
+/// The subcommands `sbrs --help` lists, in the order it lists them.
 fn subcommands(dir: &Path) -> Vec<String> {
     let output = run(dir, &["--help"]);
     assert!(output.status.success(), "{}", stderr(&output));
@@ -142,7 +142,7 @@ fn completions_are_written_for_every_shell_and_an_unknown_shell_is_refused() {
         let output = run(dir.path(), &["completions", shell]);
         assert!(output.status.success(), "{shell}: {}", stderr(&output));
         let script = stdout(&output);
-        assert!(script.contains("sbase"), "{shell}: {script}");
+        assert!(script.contains("sbrs"), "{shell}: {script}");
         assert!(script.contains("mkfile"), "{shell} knows the subcommands");
     }
 
@@ -543,7 +543,7 @@ fn a_grid_command_without_java_or_a_jar_fails_with_a_clear_message() {
 }
 
 /// Windows gives a program's main thread a 1 MB stack, where Linux and macOS
-/// give 8 MB. A debug `sbase` once overflowed it before printing anything, so
+/// give 8 MB. A debug `sbrs` once overflowed it before printing anything, so
 /// every command crashed there. On Unix the main thread's stack follows
 /// `ulimit -s`, which lets this check run without Windows.
 #[cfg(unix)]
@@ -556,10 +556,10 @@ fn sbase_starts_with_the_stack_a_windows_main_thread_gets() {
             .arg(SBASE)
             .stdin(Stdio::null())
             .output()
-            .expect("run sbase under a 1 MB stack");
+            .expect("run sbrs under a 1 MB stack");
         assert!(
             output.status.success(),
-            "sbase {args} with a 1 MB stack: {:?}\n{}",
+            "sbrs {args} with a 1 MB stack: {:?}\n{}",
             output.status,
             String::from_utf8_lossy(&output.stderr)
         );

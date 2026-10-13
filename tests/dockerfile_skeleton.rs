@@ -26,7 +26,7 @@ const TARGET_SECTIONS: [&str; 4] = ["bin", "example", "bench", "test"];
 /// A source file Cargo insists on finding before it reads the manifest.
 #[derive(Debug)]
 struct Needed {
-    /// What asked for it, such as "bin `sbase`".
+    /// What asked for it, such as "bin `sbrs`".
     wanted_by: String,
     file: String,
 }

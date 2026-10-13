@@ -41,7 +41,7 @@
 //! thread once no test has held it for [`idle_timeout`] (five seconds unless
 //! [`set_idle_timeout`] or `SB_REUSE_IDLE_SECS` says otherwise), by
 //! [`shutdown_reused_sessions`], and by
-//! [`drain_cleanups`](crate::common::shutdown::drain_cleanups), which `sbase`
+//! [`drain_cleanups`](crate::common::shutdown::drain_cleanups), which `sbrs`
 //! and the MCP server call before they exit.
 //!
 //! When the process ends sooner than the idle timeout after the last test that
@@ -57,7 +57,7 @@
 //! Python's `--rcs` shares a browser among the tests of one class. Rust tests
 //! have no classes; the nearest thing is the module that holds them. With
 //! [`ReuseClass::TestModule`] (`BrowserConfig::with_reuse_module_session`,
-//! `sbase --rcs`, `SB_REUSE_CLASS_SESSION`) the tests of one module share a
+//! `sbrs --rcs`, `SB_REUSE_CLASS_SESSION`) the tests of one module share a
 //! browser: the module is read from the name libtest gives the thread a test
 //! runs on (`login::tests::valid_password` is in `login::tests`, and a test at
 //! the root of an integration test file is in the root module, which the whole

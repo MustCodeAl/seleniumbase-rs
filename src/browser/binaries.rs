@@ -4,7 +4,7 @@
 //! through a driver like Chrome is, but the driver has to be told where the
 //! browser lives. [`locate`] looks in the places each is installed, then on the
 //! `PATH`, and for the two Chrome builds in the `downloaded_drivers` folder
-//! that `sbase get cft` and `sbase get chs` fill.
+//! that `sbrs get cft` and `sbrs get chs` fill.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -144,7 +144,7 @@ fn downloaded_names(browser: Browser) -> &'static [&'static str] {
 /// Looks for the executable of a downloaded build in `root` and the folders
 /// under it, at most six levels down.
 ///
-/// `root` is the folder `sbase get cft` or `sbase get chs` unpacked a build
+/// `root` is the folder `sbrs get cft` or `sbrs get chs` unpacked a build
 /// into; the build's own folder name (`chrome-mac-arm64`, ...) depends on the
 /// platform, so every folder is searched. A directory that happens to carry
 /// the executable's name (the `Google Chrome for Testing.app` bundle's folder

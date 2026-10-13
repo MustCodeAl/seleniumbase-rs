@@ -3,7 +3,7 @@
 Moving an existing Python SeleniumBase or Selenium WebDriver test suite to Rust
 is rarely a pure translation exercise. Tests often contain dynamic expressions,
 custom helpers, fixtures, and framework plugins that cannot be converted
-automatically. The `sbase import-python` command is designed to handle the
+automatically. The `sbrs import-python` command is designed to handle the
 mechanical parts and surface the parts that need human review.
 
 This page explains how to use the importer, what it can and cannot translate,
@@ -11,7 +11,7 @@ and how to validate the generated Rust.
 
 ## When to use the importer
 
-Use `sbase import-python` when:
+Use `sbrs import-python` when:
 
 - You have many simple, linear tests that mostly navigate, click, type, and
   assert.
@@ -24,7 +24,7 @@ without review. Treat its output as a first draft.
 ## Convert a file from the CLI
 
 ```bash
-cargo run --bin sbase -- import-python tests/login_test.py --output tests/login_test.rs
+cargo run --bin sbrs -- import-python tests/login_test.py --output tests/login_test.rs
 ```
 
 The tool reads the Python file, detects whether it looks like SeleniumBase or
@@ -48,7 +48,7 @@ The importer tries to detect the source API automatically, but you can override
 it:
 
 ```bash
-cargo run --bin sbase -- import-python tests/login_test.py \
+cargo run --bin sbrs -- import-python tests/login_test.py \
   --source selenium \
   --test-name user_can_log_in \
   --output tests/login_test.rs
@@ -205,7 +205,7 @@ For large suites, a full automated migration is usually not practical. A more
 realistic approach is:
 
 1. Pick a small, stable subset of tests to migrate first.
-2. Use `sbase import-python` to generate drafts.
+2. Use `sbrs import-python` to generate drafts.
 3. Refactor the generated code into helpers and page objects in Rust.
 4. Run both Python and Rust suites in parallel until confidence is high.
 5. Gradually migrate the remaining tests, prioritizing the most valuable ones.

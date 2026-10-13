@@ -18,7 +18,7 @@
 //! ```
 //!
 //! It needs no browser and no network. To patch a real chromedriver, use
-//! `sbase patch-chromedriver --path /path/to/chromedriver`, which keeps the
+//! `sbrs patch-chromedriver --path /path/to/chromedriver`, which keeps the
 //! same `.orig` backup.
 
 use std::fs;

@@ -1,13 +1,13 @@
-//! `sbase caseplans --starter`: a starter test-plan checklist.
+//! `sbrs caseplans --starter`: a starter test-plan checklist.
 //!
 //! This is the command that only writes a file, and it works in every build.
-//! `sbase caseplans` on its own is the Case Plans Generator terminal app
+//! `sbrs caseplans` on its own is the Case Plans Generator terminal app
 //! (`caseplans_tui`, feature `tui`), which writes a plan for each test.
 
 use crate::cli::commands::write_new_file;
 use std::path::{Path, PathBuf};
 
-/// The file `sbase caseplans` writes, in the current folder.
+/// The file `sbrs caseplans` writes, in the current folder.
 pub const FILE_NAME: &str = "CASE_PLANS.md";
 
 const CASE_PLANS: &str = r#"# Test Case Plans

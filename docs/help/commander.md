@@ -15,16 +15,16 @@ Commander is an opt-in feature. The default build leaves out the terminal UI
 (`ratatui` and `crossterm`), so enable the `tui` feature:
 
 ```bash
-cargo run --features tui --bin sbase -- commander
+cargo run --features tui --bin sbrs -- commander
 # or install the binary with it
 cargo install seleniumbase-rs --features tui
 ```
 
-An `sbase` built without the feature still has the subcommand, but it only
+An `sbrs` built without the feature still has the subcommand, but it only
 prints the following message and exits with status 2:
 
 ```text
-this sbase was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
+this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
 ```
 
 Run it from the project root: Commander looks for `tests/` and `examples/` in
@@ -66,15 +66,15 @@ last 20 lines of the combined standard output and standard error.
 - Use the filter key (`/`) to quickly find a test by name.
 - Commander passes no flags of its own to Cargo. The child process inherits
   Commander's environment, so set `SB_*` variables (for example `SB_HEADLESS`)
-  before launching it, or use `sbase test` for per-run flags.
+  before launching it, or use `sbrs test` for per-run flags.
 - A test or example that needs an opt-in Cargo feature (for instance the
   examples that require `gui`) cannot be built from Commander, because it
-  cannot pass `--features`. Use `sbase test --example <name> --features gui`.
+  cannot pass `--features`. Use `sbrs test --example <name> --features gui`.
 - If a file is missing from the list, check that it sits directly in `tests/` or
   `examples/` and ends in `.rs`, then press `r`.
 
 ## See also
 
 The same feature builds two more terminal apps: the
-[Case Plans Generator](./caseplans.md) (`sbase caseplans`) and the
-[Behave Commander](./behave-gui.md) (`sbase behave-gui`).
+[Case Plans Generator](./caseplans.md) (`sbrs caseplans`) and the
+[Behave Commander](./behave-gui.md) (`sbrs behave-gui`).

@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 `BrowserConfig::default()` is headless; `with_headless(false)` opens a window.
-On the command line, `sbase --uc open URL` selects UC mode (a global option, so
+On the command line, `sbrs --uc open URL` selects UC mode (a global option, so
 it goes before the subcommand; `--cdp` and `--uc` cannot be combined).
 
 UC mode drives Chrome through CDP, so it needs a Chromium-based browser (Chrome,
@@ -130,7 +130,7 @@ Even in UC mode, a stock `chromedriver` may inject `cdc_` variables into every
 page. Patch the executable to strip those signatures:
 
 ```bash
-cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
+cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
 ```
 
 From code:
@@ -147,7 +147,7 @@ if patcher.needs_patch()? {
 # }
 ```
 
-The auto-started driver is `downloaded_drivers/chromedriver` (`sbase install`
+The auto-started driver is `downloaded_drivers/chromedriver` (`sbrs install`
 puts it there), so that is the file to patch. See
 [Binary Patching](./binary_patching.md) for backup, restore, and safety notes.
 

@@ -28,7 +28,7 @@ Design rules that apply to everything below:
 | Request interception and per-context proxies | `Page::intercept` with typed rules; `ContextOptions` and `BrowserPool::acquire_with` give a lease its own proxy, with the password answered per session. Verified on real Chrome. |
 | Fingerprint on Pure CDP, shared traits | `LaunchOptionsBuilder::fingerprint`, `Page::apply_fingerprint`, `Page::js_errors`, and the four capability traits implemented for `sb_cdp::Page`. Verified on real Chrome 155. |
 | Test plugins | `plugins::observer::{Plugins, TestPlugin, PageEvidence}`, with `ScreenshotOnFailurePlugin`, `PageSourceOnFailurePlugin`, `ReportPlugin` and `ResultStorePlugin`. Hooks run around a test and see the page on failure, with `BaseCase` and `sb_cdp::Page`. Tested without a browser and through the Pure CDP mock; the `BaseCase` runner is not yet run on a real driver. |
-| Turso storage (`turso` feature) | `ResultStore` and `sbase report` for test-run history and flaky tests; `ProfileVault` for encrypted profiles. |
+| Turso storage (`turso` feature) | `ResultStore` and `sbrs report` for test-run history and flaky tests; `ProfileVault` for encrypted profiles. |
 | Browser pool | `BrowserPool`, `Lease`, `BrowserContext`, `SessionStore`: bounded, fair, isolated, recycled, with in-memory session sharing. Verified on real Chrome. |
 | WebRTC leak shield | `Page::webrtc_report`, `Page::shield_webrtc`, `LaunchOptionsBuilder::{shield_webrtc, webrtc_policy}` (the existing `WebRtcPolicy`). Verified on real Chrome. |
 | Behavioural stealth engine | `stealth::behavior` (pure, seedable) and `Page::human` (click, type, scroll at a human pace). Verified on real Chrome. |
@@ -36,11 +36,11 @@ Design rules that apply to everything below:
 | Pure CDP engine (`sb_cdp`) | `Browser`, `Page`, `Locator`, input, cookies/storage/window/emulation, retrying assertions, mock browser, CAPTCHA solving, same-origin frames (`page.locator("#frame").locator("button")`). Verified on real Chrome (`tests/sb_cdp_chrome.rs`). |
 | MCP `cdp` server | 24 tools, mock-tested (`tests/mcp_cdp.rs`) and verified on real Chrome (`tests/mcp_cdp_chrome.rs`). |
 | MCP `driver` / `sb` servers | 26 and 88 tools plus 8 stealth tools; catalogue and offline behaviour tested (`tests/mcp_webdriver.rs`). |
-| `seleniumbase-mcp` binary | `--server cdp\|driver\|sb`, default `sb`. |
-| `sbase` CLI | `encrypt` and `decrypt` (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`). |
+| `sbrs-mcp` binary | `--server cdp\|driver\|sb`, default `sb`. |
+| `sbrs` CLI | `encrypt` and `decrypt` (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`). |
 | BaseCase | Actions wait for their element; `nested_click`, `solve_captcha`, `fast_type`, `js_click_if_visible`, `get_gui_element_rect/center`, `jq_format`, `post_message`, `save_as_html_to_logs`, `save_teardown_screenshot`, `switch_to_default_driver`, `wait_for_angularjs`, `get_saved_cookies`. |
 | Toolchain and dependencies | Rust 1.99 (`rust-version`, the `Dockerfile` and the CI msrv job), `zip` 9.0 and a current lockfile. `cargo audit` reports no vulnerabilities (three unmaintained-crate warnings: `bincode` 1.3.3, `fxhash`, `ttf-parser` 0.25.1); `cargo deny check` passes. |
-| Chromedriver that matches Chrome | `browser::driver_version` compares major versions. The launcher downloads the driver of Chrome's milestone when the cached one differs, and `sbase install` and `sbase doctor` make the same check. A replaced driver is written as a new file, because macOS kills a signed binary that is overwritten in place. Driver 155.0.8059.40 is installed here; the real-driver suites in section 1 are still to be run. |
+| Chromedriver that matches Chrome | `browser::driver_version` compares major versions. The launcher downloads the driver of Chrome's milestone when the cached one differs, and `sbrs install` and `sbrs doctor` make the same check. A replaced driver is written as a new file, because macOS kills a signed binary that is overwritten in place. Driver 155.0.8059.40 is installed here; the real-driver suites in section 1 are still to be run. |
 | Parity honesty audit | 26 manifest entries that did less than their Python method were fixed (with tests; the page scripts are in `src/api/page_scripts.rs`) or re-marked in `parity/api.toml`; the 196 composed CDP entries carry a real note each. Unit tests run without a browser; the real-browser checks are `#[ignore]`d in `src/api/page_scripts.rs` (pure CDP) and `tests/parity_honesty_chrome.rs` (chromedriver). |
 | Per-file review pass | Bugs found by reading were fixed, each with a test, across the book (`docs/`), `src/api` (the top-level modules and `base_case_impls`), `behave`, `cli`, `common`, `plugins`, the stealth page scripts, `utils/extensions` and the Playwright path. The CLI generators and recorders are run as the real binary in `tests/cli_generators.rs` and `tests/cli_templates.rs`. |
 | Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and the stdin recorder (`ActionRecorder::try_record`) refuses such a line and names the closest known action. |
@@ -52,7 +52,7 @@ Design rules that apply to everything below:
 
 1. **Verify the WebDriver MCP servers on a real driver.**
    `tests/mcp_webdriver_chrome.rs` is written but unrun. The chromedriver now
-   matches Chrome (155; `sbase install` fetches the right one), so run it,
+   matches Chrome (155; `sbrs install` fetches the right one), so run it,
    `tests/browser_smoke.rs` and `tests/mcp_cdp_chrome.rs`, one binary at a
    time, and fix whatever they find.
 2. **BaseCase actions wait (done; verify on a real driver).** `click`,
@@ -76,14 +76,14 @@ Design rules that apply to everything below:
    `get_jqc_text_input` and the unittest harness (`setUp`, `tearDown`,
    `setUpClass`, `tearDownClass`, `main`, `run`, `skip`, `has_exception`) are not
    applicable; `get_google_auth_password` and `type` are composed.
-5. **`sbase` CLI gaps (done).** `caseplans` and `behave-gui` (and their
+5. **`sbrs` CLI gaps (done).** `caseplans` and `behave-gui` (and their
    aliases `case-plans` and `gui-behave`) are terminal apps, behind the `tui`
    feature, instead of the Tkinter Case Plans Generator and Behave Commander;
    the earlier file-writing commands are `caseplans --starter` and
    `behave-gui --new`. The Behave Commander runs scenarios with the built-in
-   steps only, since steps written in Rust cannot be loaded into `sbase`.
+   steps only, since steps written in Rust cannot be loaded into `sbrs`.
    `objectify` is not applicable (it rewrites Python source) and `mkrec` is
-   mapped onto `sbase record`. `sbase` now exits with status 6 and prints the cause when
+   mapped onto `sbrs record`. `sbrs` now exits with status 6 and prints the cause when
    one of the file-writing commands fails.
 6. **pytest-style options and settings.** Compare the Python `--option` list
    and `SB()`/`Driver()` kwargs with `BrowserConfig`/`RuntimeConfig`; add the
@@ -101,12 +101,12 @@ Built: `parity/upstream.toml`, `tools/parity/extract_api.py`,
 `docs/parity.md`, `just parity-*` recipes and a weekly `upstream-watch`
 workflow (untested: Actions are billing-locked).
 
-Current state against 4.55.2 (`just parity-docs` has the full table): 888 entries are implemented, 383 composed from existing Rust APIs, 94 not applicable with a stated reason and none `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` (now the tag-structure levels, as Python 4.55.2 does), and others), and the entries were re-marked where it was not. A second audit of the composed and not-applicable entries found 34 that said more than the Rust does. Fixed in the code: text selectors (`SelectorBuf::containing_text`, and `:contains()` in any selector), `Page::evaluate` dropping a final `return`, `goto_if_not_url`, `active_element`, `Locator::{all_waiting, viewport_rect, click_and_hold, flash_with}`, `Browser::{debugging_host, grant_all_permissions, grant_permissions_for}` with all 23 permissions, `Emulation::locale` setting the language, a real test time limit and `set_default_timeout`, the start page opening with `BaseCase::new`, skipped tests, `sbase version`, `obfuscate` and `unobfuscate`. Re-marked: the ad-block options (the WebDriver engine then only turned images off; they are `composed` now, see below), `--esc-end`, `--rec-sb-cdp` and `gui_click_captcha` became `planned`; the settings file, the failure-artifact options, `skip` and `--rec-sb-mgr` became `composed`; `enable_ws` and `sbase download` became not applicable; and many notes now say what differs. No entry is `planned` now (the `--reuse-session` options, `caseplans`, `case-plans`, `behave-gui`, `gui-behave` and `gui_click_captcha` were the last, and are done, see below; `--esc-end` and its aliases are done since: `BrowserConfig::with_esc_end`, checked against a mock WebDriver and in Chrome 155 by `tests/esc_end_chrome.rs`; so are `--rec-sb-cdp` and `rec_sb_cdp`: `ActionRecorder::to_cdp_script` writes a recording as pure CDP code for 51 recorded actions, and `tests/recorder_cdp_compiles.rs` compiles the program written for all of them):
+Current state against 4.55.2 (`just parity-docs` has the full table): 888 entries are implemented, 383 composed from existing Rust APIs, 94 not applicable with a stated reason and none `planned`. An audit of the entries marked done (three reviewers, two skeptics per finding) found 26 whose Rust did less than, or something other than, the Python method. The methods were fixed where the change was modest (`press_keys`, `select_all`, `set_text`, the deferred asserts, `switch_to_frame_of_element`, `select_option_by_index`, `bring_to_front`, `find_text`, `highlight`, `ad_block`, `check_window` (now the tag-structure levels, as Python 4.55.2 does), and others), and the entries were re-marked where it was not. A second audit of the composed and not-applicable entries found 34 that said more than the Rust does. Fixed in the code: text selectors (`SelectorBuf::containing_text`, and `:contains()` in any selector), `Page::evaluate` dropping a final `return`, `goto_if_not_url`, `active_element`, `Locator::{all_waiting, viewport_rect, click_and_hold, flash_with}`, `Browser::{debugging_host, grant_all_permissions, grant_permissions_for}` with all 23 permissions, `Emulation::locale` setting the language, a real test time limit and `set_default_timeout`, the start page opening with `BaseCase::new`, skipped tests, `sbrs version`, `obfuscate` and `unobfuscate`. Re-marked: the ad-block options (the WebDriver engine then only turned images off; they are `composed` now, see below), `--esc-end`, `--rec-sb-cdp` and `gui_click_captcha` became `planned`; the settings file, the failure-artifact options, `skip` and `--rec-sb-mgr` became `composed`; `enable_ws` and `sbrs download` became not applicable; and many notes now say what differs. No entry is `planned` now (the `--reuse-session` options, `caseplans`, `case-plans`, `behave-gui`, `gui-behave` and `gui_click_captcha` were the last, and are done, see below; `--esc-end` and its aliases are done since: `BrowserConfig::with_esc_end`, checked against a mock WebDriver and in Chrome 155 by `tests/esc_end_chrome.rs`; so are `--rec-sb-cdp` and `rec_sb_cdp`: `ActionRecorder::to_cdp_script` writes a recording as pure CDP code for 51 recorded actions, and `tests/recorder_cdp_compiles.rs` compiles the program written for all of them):
 
 - `BaseCase` (0). `install_addon` is done, with `uninstall_addon`: they send geckodriver's `moz/addon` commands to a Firefox session, tested against a mock WebDriver and against a real geckodriver 0.37.1 and Firefox 153 ESR in Docker (`docker/firefox-check`: the request bodies sent by `curl`, and `tests/install_addon_firefox.rs`, which is ignored, from `BaseCase`). `generate_referral`, `generate_referral_chain`, `generate_traffic` and `generate_traffic_chain` are done: real click-throughs that send a `Referer`, checked in Chrome 155 (`tests/generate_referral_chrome.rs`). So is `set_content_to_frame`, which swaps the page for an iframe's content (`tests/set_content_to_frame_chrome.rs`).
 - pytest options (0). `--reuse-session`, `--reuse_session`, `--rs` and `--rcs` (with `--reuse-class-session` and `--reuse_class_session`, until then marked not applicable) are done: `BrowserConfig::with_reuse_session` and `with_reuse_module_session` share browsers through a process-wide registry of WebDriver sessions that each test attaches to from its own Tokio runtime, cleaned between tests and closed by an idle reaper (`browser::reuse`). A test binary has no end-of-run hook; on macOS and Linux the browser of its last tests still ends with it, because every driver and browser the crate starts is in a process group that a watcher ends when the starting program exits (also when it is killed). On Windows it outlives the binary unless `shutdown_reused_sessions()` is called.
 - `SB()` arguments (0).
-- `sbase` (0). `caseplans`, `case-plans`, `behave-gui` and `gui-behave` are done as terminal apps (feature `tui`), tested as state machines and as exact `TestBackend` screens; they have not been run in a real terminal by an automated test, since a `tui` build takes over the terminal.
+- `sbrs` (0). `caseplans`, `case-plans`, `behave-gui` and `gui-behave` are done as terminal apps (feature `tui`), tested as state machines and as exact `TestBackend` screens; they have not been run in a real terminal by an automated test, since a `tui` build takes over the terminal.
 - CDP engine (0). `gui_click_captcha` is done: `Page::gui_click_captcha` moves the operating system's pointer to the checkbox along a human path (feature `gui`); the screen arithmetic, the vendor offsets and the DevTools calls are tested against a mock, and **it has never moved the real pointer or been tried on a live CAPTCHA**. `download_file`, `assert_downloaded_file` and `save_file_as` are done: `Page::download_file`, `download_by_click`, `save_file_as` and `assert_downloaded_file` follow the browser's own download events (`tests/sb_cdp_download.rs` against a mock, `tests/sb_cdp_download_chrome.rs` in Chrome 155).
 
 The nine ad-block options are `composed`, not finished: a Chromium WebDriver session refuses the page's own requests to the listed hosts (checked in Chrome 155, `tests/ad_block_chrome.rs`), but a frame of another site still loads and makes its own requests, a URL that names a port is not matched, and Firefox and Safari block nothing. Covering frames needs another mechanism, such as intercepting requests with the Fetch domain (chromedriver gives no event stream for it) or a browser-wide host-resolver rule; neither has been tried.
@@ -134,7 +134,7 @@ step 2.
 ### Turso (optional `turso` feature, off by default)
 
 - Done: `storage::ResultStore` (runs, results, flaky-test detection), the
-  `sbase report` command, and `storage::ProfileVault` (profiles sealed with
+  `sbrs report` command, and `storage::ProfileVault` (profiles sealed with
   AES-256-GCM, bound to their id, passphrase changeable in one transaction).
   Covered by unit tests, `tests/cli_report.rs` and doctests. See
   `docs/tutorials/results_and_profiles.md`.
@@ -244,10 +244,10 @@ surface. Decide each:
   still planned, so this one probably wants wiring in)
 
 Now wired in and tested: `cli/scripts/{logo_helper,rich_helper,run}.rs` (the
-`sbase test` command and the banner), `config/proxy_list.rs`,
+`sbrs test` command and the banner), `config/proxy_list.rs`,
 `config/ad_block_list.rs` (the WebDriver ad block of `BrowserSession`),
 `resources/assets.rs`, and `utilities/selenium_grid.rs` with the new
-`grid_server.rs` and `sbase grid` (it starts a Selenium Server jar you supply;
+`grid_server.rs` and `sbrs grid` (it starts a Selenium Server jar you supply;
 nothing is downloaded). It has not been run against a real Selenium Server jar
 or Java on this machine; the tests do not need one. The translate vocabulary work
 was left out because it was unfinished when its agent stopped
@@ -336,13 +336,13 @@ Open, most serious first:
   `chart.rs` and `presentation.rs` are fixed above).
 
 The first-wave agents' finished work is all merged and gated: artifacts, shadow
-DOM and the report; the CLI scaffolding; the `sbase test`, `grid-hub` and
+DOM and the report; the CLI scaffolding; the `sbrs test`, `grid-hub` and
 `grid-node` commands with the config and resources work; the graceful shutdown
 handler (SIGTERM and SIGINT close browsers); and the one retry/polling API in
 `utilities::retry`. That last one replaced `common::{decorators,exceptions}`;
 those two public modules are kept as `#[deprecated]` shims, so nothing breaks.
 Merging the shutdown
-handler also exposed a stack overflow in `sbase` (its large `run` future was
+handler also exposed a stack overflow in `sbrs` (its large `run` future was
 copied on the 8 MiB main stack in debug builds); the future is now boxed.
 
 Performance harnesses are in `benches/` (`cargo bench --bench cpu`, `--bench

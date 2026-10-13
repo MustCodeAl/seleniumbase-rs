@@ -31,7 +31,7 @@ const BOILERPLATE_ROW: &str = "| 1 | Perform Action 1 | Verify Action 1 |";
 ///
 /// `target` is a folder (relative to `base`, or absolute) or one `.rs` file.
 /// A folder that has a `tests` or an `examples` folder is searched there, as
-/// `sbase commander` does; any other folder is searched itself. Only the
+/// `sbrs commander` does; any other folder is searched itself. Only the
 /// `*.rs` files directly inside a folder count, in name order. In a file, each
 /// test function is one id, in source order; a file with none is one id.
 ///

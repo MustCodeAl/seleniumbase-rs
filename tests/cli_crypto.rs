@@ -1,9 +1,9 @@
-//! `sbase encrypt` and `sbase decrypt`, run as the real binary.
+//! `sbrs encrypt` and `sbrs decrypt`, run as the real binary.
 
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 fn run(args: &[&str], passphrase: Option<&str>, stdin: Option<&str>) -> Output {
     let mut command = Command::new(SBASE);
@@ -20,7 +20,7 @@ fn run(args: &[&str], passphrase: Option<&str>, stdin: Option<&str>) -> Output {
     if let Some(passphrase) = passphrase {
         command.env("SB_ENCRYPTION_KEY", passphrase);
     }
-    let mut child = command.spawn().expect("sbase starts");
+    let mut child = command.spawn().expect("sbrs starts");
     if let Some(text) = stdin {
         child
             .stdin
@@ -29,7 +29,7 @@ fn run(args: &[&str], passphrase: Option<&str>, stdin: Option<&str>) -> Output {
             .write_all(text.as_bytes())
             .expect("write stdin");
     }
-    child.wait_with_output().expect("sbase finishes")
+    child.wait_with_output().expect("sbrs finishes")
 }
 
 fn stdout(output: &Output) -> String {

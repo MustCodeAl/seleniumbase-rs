@@ -1,4 +1,4 @@
-//! Styled terminal messages for `sbase`.
+//! Styled terminal messages for `sbrs`.
 //!
 //! The Python SeleniumBase console scripts print through the `rich` library.
 //! This module is the Rust counterpart: a handful of message kinds with a

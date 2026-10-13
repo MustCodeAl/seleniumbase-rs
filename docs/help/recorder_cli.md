@@ -1,27 +1,27 @@
 # Recorder CLI
 
-There are three ways to produce something you can replay. `sbase record` watches
-you use a real browser and saves what you did; `sbase replay` plays that file
+There are three ways to produce something you can replay. `sbrs record` watches
+you use a real browser and saves what you did; `sbrs replay` plays that file
 back. The `BaseCase` recorder is code-driven: every action you perform through
 the API is stored in an internal `ActionRecorder`, which you can turn into Rust
-source or the same action file. And `sbase run-scenario` runs a hand-written JSON
+source or the same action file. And `sbrs run-scenario` runs a hand-written JSON
 scenario, which is a different, richer format.
 
 ## What you will learn
 
-- How to record manual browsing with `sbase record` and replay it.
+- How to record manual browsing with `sbrs record` and replay it.
 - How `BaseCase` records actions automatically, and how to export them.
 - The two JSON formats: recorded actions, and scenarios for `run-scenario`.
 
 ## Record manual browsing
 
 ```bash
-cargo run --bin sbase -- record https://seleniumbase.io/demo_page -o actions.json
+cargo run --bin sbrs -- record https://seleniumbase.io/demo_page -o actions.json
 ```
 
 `record` opens a browser on the URL, injects a small listener into the page,
 and saves what you do in that window. Run it headed (the default; do not pass
-`--headless`) and, as for every `sbase` option, put any flags such as
+`--headless`) and, as for every `sbrs` option, put any flags such as
 `--browser` before `record`. It captures:
 
 - clicks, as `click` with a CSS path to the element;
@@ -38,7 +38,7 @@ replayed.
 ## Replay a recording
 
 ```bash
-cargo run --bin sbase -- replay actions.json
+cargo run --bin sbrs -- replay actions.json
 ```
 
 `replay` starts a fresh browser, runs each step, and prints `ok` or `FAIL` for
@@ -95,13 +95,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `save_recorded_actions` takes a plain file name, with no directory part, and
 writes it into the `latest_logs` folder of the working directory.
 `save_recording_to_logs` writes a timestamped `recording` JSON and `.rs` pair
-there. The JSON is the action array above, so `sbase replay
+there. The JSON is the action array above, so `sbrs replay
 latest_logs/recorded.json` plays it back.
 
 With `--rec-sb-cdp` (`BrowserConfig::with_rec_sb_cdp(true)`, `SB_REC_SB_CDP=true`)
 the Rust program that `export_recording_as_rust` and `save_recording_to_logs`
 write calls the pure CDP engine (`Page` and `Locator`) instead of `BaseCase`;
-`sbase --rec-sb-cdp run-scenario --file scenario.json` saves such a program. See
+`sbrs --rec-sb-cdp run-scenario --file scenario.json` saves such a program. See
 [Recorder Mode](../tutorials/recorder_mode.md#pure-cdp-code---rec-sb-cdp).
 
 `start_recording()` and `stop_recording()` mark a window inside the action log:
@@ -109,11 +109,11 @@ write calls the pure CDP engine (`Page` and `Locator`) instead of `BaseCase`;
 `recorder_session()` wraps that window as a `RecorderSession` you can serialize
 or replay with `replay_actions`.
 
-`sbase mkrec --file my_recording.rs` writes a small starter program to fill in.
+`sbrs mkrec --file my_recording.rs` writes a small starter program to fill in.
 
 ## Type a recording by hand
 
-`sbase recorder` needs no browser. You type one action per line, as `<action>
+`sbrs recorder` needs no browser. You type one action per line, as `<action>
 <selector> [value]`, and it writes the Rust test:
 
 ```text
@@ -143,13 +143,13 @@ list of `steps`, each step an `action` plus the fields that action needs. It is
 not the array that `record` writes. Run it with:
 
 ```bash
-cargo run --bin sbase -- run-scenario --file scenario.json
+cargo run --bin sbrs -- run-scenario --file scenario.json
 ```
 
 You can also choose where the HTML dashboard goes:
 
 ```bash
-cargo run --bin sbase -- run-scenario --file scenario.json --dashboard dashboard.html
+cargo run --bin sbrs -- run-scenario --file scenario.json --dashboard dashboard.html
 ```
 
 ```json

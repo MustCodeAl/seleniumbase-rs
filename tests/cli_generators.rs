@@ -1,5 +1,5 @@
-//! The `sbase` commands that write starter files (`mkchart`, `mkpres`, `mkrec`,
-//! `objectify`, `caseplans --starter`, `behave-gui --new`) and `sbase print`,
+//! The `sbrs` commands that write starter files (`mkchart`, `mkpres`, `mkrec`,
+//! `objectify`, `caseplans --starter`, `behave-gui --new`) and `sbrs print`,
 //! run as the real binary in a scratch folder.
 //!
 //! `caseplans` and `behave-gui` on their own are terminal apps (feature `tui`);
@@ -15,7 +15,7 @@ use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 /// The exit status for a failed local file operation (`SeleniumBaseError::Io`).
 const IO_FAILURE: i32 = 6;
@@ -35,7 +35,7 @@ fn run(dir: &Path, args: &[&str]) -> Output {
     command(dir, args)
         .stdin(Stdio::null())
         .output()
-        .expect("sbase runs")
+        .expect("sbrs runs")
 }
 
 fn stdout(output: &Output) -> String {
@@ -50,7 +50,7 @@ fn stderr(output: &Output) -> String {
 fn finish_within(mut child: std::process::Child, limit: Duration) -> Option<Output> {
     let start = Instant::now();
     loop {
-        if child.try_wait().expect("poll sbase").is_some() {
+        if child.try_wait().expect("poll sbrs").is_some() {
             return Some(child.wait_with_output().expect("collect output"));
         }
         if start.elapsed() > limit {
@@ -145,7 +145,7 @@ fn behave_gui_writes_the_feature_it_is_told_about() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("sbase starts");
+        .expect("sbrs starts");
     child
         .stdin
         .take()
@@ -179,7 +179,7 @@ fn behave_gui_gives_up_when_its_input_ends_instead_of_asking_for_ever() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("sbase starts");
+        .expect("sbrs starts");
     {
         let mut stdin = child.stdin.take().expect("piped stdin");
         stdin
@@ -216,7 +216,7 @@ fn behave_gui_fails_when_the_feature_name_is_a_path() {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("sbase starts");
+        .expect("sbrs starts");
     {
         let mut stdin = child.stdin.take().expect("piped stdin");
         stdin.write_all(b"../escape\n").expect("write the answers");

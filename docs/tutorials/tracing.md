@@ -1,7 +1,7 @@
 # Tracing and Logging
 
 `seleniumbase-rs` uses the `tracing` ecosystem for structured logging. Both the
-`sbase` CLI and the `seleniumbase-mcp` server initialize a default
+`sbrs` CLI and the `sbrs-mcp` server initialize a default
 `tracing_subscriber::fmt()` subscriber on startup. This page explains how to
 control verbosity, configure runtime settings through the environment, and use
 tracing in your own tests.
@@ -18,9 +18,9 @@ tracing in your own tests.
 Set the `RUST_LOG` environment variable to control verbosity:
 
 ```bash
-RUST_LOG=info cargo run --bin sbase -- open https://example.com
+RUST_LOG=info cargo run --bin sbrs -- open https://example.com
 RUST_LOG=seleniumbase_rs=debug cargo test
-RUST_LOG=warn cargo run --bin seleniumbase-mcp
+RUST_LOG=warn cargo run --bin sbrs-mcp
 ```
 
 `RUST_LOG` follows the standard `env_logger`/`tracing-subscriber` syntax:
@@ -33,7 +33,7 @@ RUST_LOG=error,seleniumbase_rs=debug cargo test
 ## Runtime configuration (`SB_*` environment variables)
 
 Following [Twelve-Factor III (config in the environment)](https://12factor.net/config),
-`sbase` and the library read runtime settings from `SB_*` variables:
+`sbrs` and the library read runtime settings from `SB_*` variables:
 
 | Variable | Default | Description |
 |---|---|---|
@@ -47,7 +47,7 @@ Following [Twelve-Factor III (config in the environment)](https://12factor.net/c
 | `SB_IMPLICIT_WAIT_SECS` | `30` | Default implicit wait timeout. |
 
 ```bash
-SB_WEBDRIVER_URL=http://localhost:9515 SB_LOG_LEVEL=debug sbase open https://example.com
+SB_WEBDRIVER_URL=http://localhost:9515 SB_LOG_LEVEL=debug sbrs open https://example.com
 ```
 
 ## Spans in the library
@@ -126,7 +126,7 @@ actor instrumentation.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| No log output | Subscriber not initialized | Run through `sbase`, `seleniumbase-mcp`, or call `tracing_subscriber::fmt::init()` in your `main()`. |
+| No log output | Subscriber not initialized | Run through `sbrs`, `sbrs-mcp`, or call `tracing_subscriber::fmt::init()` in your `main()`. |
 | Too much noise from dependencies | `RUST_LOG=debug` includes all crates | Scope to `seleniumbase_rs=debug`. |
 | JSON format not working | `SB_LOG_FORMAT=json` unsupported by default subscriber | Use a custom subscriber or enable the `full-tracing` feature. |
 | Shutdown timeout errors | `SB_SHUTDOWN_TIMEOUT_SECS` too low | Increase it for slow CI agents. |

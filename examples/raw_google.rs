@@ -20,7 +20,7 @@
 //! with a message saying so, instead of carrying on with a page that has no
 //! search box.
 //!
-//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both); a public URL also needs internet access. The screenshot and
 //! the page source are written to `latest_logs/`.
 

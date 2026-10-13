@@ -34,19 +34,19 @@ docs:
 serve-docs:
     mdbook serve --open
 
-# Run sbase CLI smoke checks
+# Run sbrs CLI smoke checks
 smoke:
-    cargo run --quiet --bin sbase -- --help
-    cargo run --quiet --bin sbase -- --version
-    cargo run --quiet --bin sbase -- doctor
+    cargo run --quiet --bin sbrs -- --help
+    cargo run --quiet --bin sbrs -- --version
+    cargo run --quiet --bin sbrs -- doctor
 
 # Generate shell completions for Bash, Zsh, Fish, Elvish, and PowerShell
 completions outdir="target/completions":
-    cargo run --quiet --bin sbase -- completions bash > {{outdir}}/sbase.bash
-    cargo run --quiet --bin sbase -- completions zsh > {{outdir}}/_sbase
-    cargo run --quiet --bin sbase -- completions fish > {{outdir}}/sbase.fish
-    cargo run --quiet --bin sbase -- completions elvish > {{outdir}}/sbase.elv
-    cargo run --quiet --bin sbase -- completions powershell > {{outdir}}/_sbase.ps1
+    cargo run --quiet --bin sbrs -- completions bash > {{outdir}}/sbrs.bash
+    cargo run --quiet --bin sbrs -- completions zsh > {{outdir}}/_sbrs
+    cargo run --quiet --bin sbrs -- completions fish > {{outdir}}/sbrs.fish
+    cargo run --quiet --bin sbrs -- completions elvish > {{outdir}}/sbrs.elv
+    cargo run --quiet --bin sbrs -- completions powershell > {{outdir}}/_sbrs.ps1
 
 # Clean build artifacts and patch cache
 clean:

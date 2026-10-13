@@ -16,7 +16,7 @@ system, async runtime, and native distribution model.
   similar API while gaining compile-time guarantees.
 - **Automation engineers** who need undetected browser execution, CDP control,
   or cloud artifact uploads.
-- **Operators** who want a small native CLI (`sbase`) and Docker image for CI/CD.
+- **Operators** who want a small native CLI (`sbrs`) and Docker image for CI/CD.
 
 ## What you will learn
 
@@ -30,7 +30,7 @@ By reading this book you will learn how to:
 5. Apply anti-detection measures including fingerprints, binary patching, and
    engine spoofing arguments.
 6. Integrate with cloud storage, Gherkin, Selenium IDE, PDF tools, charts, tours,
-   and the `sbase` CLI.
+   and the `sbrs` CLI.
 7. Operate the test suite reliably in CI/CD with tracing, Docker, and shell
    completions.
 
@@ -46,7 +46,7 @@ By reading this book you will learn how to:
   `EvasionProvider` registry.
 - **Low-code tooling**: JSON scenario runner, Python importer, Selenium IDE
   parser, Gherkin runner, and action recorder.
-- **Operational tooling**: `sbase` CLI, Commander TUI, shell completions, Docker
+- **Operational tooling**: `sbrs` CLI, Commander TUI, shell completions, Docker
   image, `SB_*` environment configuration, and structured `tracing` output.
 - **Optional integrations**: S3, Azure Blob Storage, Google Cloud Storage, and an
   MCP server, each behind a Cargo feature flag.

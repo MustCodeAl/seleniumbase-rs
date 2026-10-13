@@ -52,8 +52,8 @@ Chrome DevTools engine that needs no driver at all.
 | 🤖 **Built for AI agents** | MCP servers (`cdp`, `driver`, `sb`) with page inspection, selector diagnosis, console and network views, a debug bundle and export to a Rust test. See [Vibe coding](./docs/tutorials/vibe_coding.md). |
 | 🔁 **Bring your old tests** | Importers for Python SeleniumBase and Selenium, Playwright (JS, TS, Python), Puppeteer and Chrome Recorder files, plus a recorder that writes Rust. |
 | 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, fingerprint presets and evasions; an experimental layer with browser-identical TLS and HTTP/2. |
-| 🛠️ **Batteries included** | The `sbase` CLI, shell completions, a Docker image, `SB_*` configuration, tracing and cloud artifact uploads. |
-| 🧩 **Errors that help** | Every error carries a hint, and `sbase` exits with a status that says what kind of failure it was. |
+| 🛠️ **Batteries included** | The `sbrs` CLI, shell completions, a Docker image, `SB_*` configuration, tracing and cloud artifact uploads. |
+| 🧩 **Errors that help** | Every error carries a hint, and `sbrs` exits with a status that says what kind of failure it was. |
 
 ## Quick start
 
@@ -66,7 +66,7 @@ Windows), or a prompt for your AI assistant, in
 ```bash
 git clone https://github.com/MustCodeAl/seleniumbase-rs.git
 cd seleniumbase-rs
-cargo run --bin sbase -- --headless smoke https://seleniumbase.io --title-contains SeleniumBase
+cargo run --bin sbrs -- --headless smoke https://seleniumbase.io --title-contains SeleniumBase
 ```
 
 **3. Write your first script** with the pure CDP engine:
@@ -87,8 +87,8 @@ async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 ```
 
 > [!TIP]
-> Coming from Playwright or Puppeteer? `sbase import-playwright my.spec.ts` and
-> `sbase import-puppeteer script.js` write the Rust test for you.
+> Coming from Playwright or Puppeteer? `sbrs import-playwright my.spec.ts` and
+> `sbrs import-puppeteer script.js` write the Rust test for you.
 
 ## Installation
 
@@ -212,13 +212,13 @@ recipe.
 Record interactions from the CLI:
 
 ```bash
-cargo run --bin sbase -- recorder --output my_test.rs
+cargo run --bin sbrs -- recorder --output my_test.rs
 ```
 
 Or write a JSON scenario and run it:
 
 ```bash
-cargo run --bin sbase -- run-scenario --file ./scenario.json --dashboard ./report.html
+cargo run --bin sbrs -- run-scenario --file ./scenario.json --dashboard ./report.html
 ```
 
 Scenario files support navigation, clicks, typing, assertions, waits, hover,
@@ -228,31 +228,31 @@ steps.
 
 ## CLI highlights
 
-The `sbase` binary supports one-off browser commands, admin utilities, code
+The `sbrs` binary supports one-off browser commands, admin utilities, code
 generation, and shell completions.
 
 ```bash
 # Browser one-offs
-cargo run --bin sbase -- --uc open https://seleniumbase.io
-cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
-cargo run --bin sbase -- screenshot
-cargo run --bin sbase -- save-source
+cargo run --bin sbrs -- --uc open https://seleniumbase.io
+cargo run --bin sbrs -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
+cargo run --bin sbrs -- screenshot
+cargo run --bin sbrs -- save-source
 
 # Assertions and waits
-cargo run --bin sbase -- open https://seleniumbase.io
-cargo run --bin sbase -- assert-element --css "body"
-cargo run --bin sbase -- wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+cargo run --bin sbrs -- open https://seleniumbase.io
+cargo run --bin sbrs -- assert-element --css "body"
+cargo run --bin sbrs -- wait-for-text --css "body" --text "SeleniumBase" --timeout 15
 
 # Admin / binary patching
-cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
-cargo run --bin sbase -- doctor
+cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
+cargo run --bin sbrs -- doctor
 
 # Shell completions
-cargo run --bin sbase -- completions bash > sbase.bash
-cargo run --bin sbase -- completions zsh > _sbase
+cargo run --bin sbrs -- completions bash > sbrs.bash
+cargo run --bin sbrs -- completions zsh > _sbrs
 
 # Interactive commander TUI (build with the `tui` feature)
-cargo run --features tui --bin sbase -- commander
+cargo run --features tui --bin sbrs -- commander
 ```
 
 See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
@@ -271,7 +271,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Stealth options | `cargo run --example stealth_options` |
 | Engine patching | `cargo run --example engine_patching` |
 | Macros demo | `cargo run --example macros_demo` |
-| Recorder | `cargo run --bin sbase -- recorder --output my_test.rs` |
+| Recorder | `cargo run --bin sbrs -- recorder --output my_test.rs` |
 | Screenshots & source | `cargo run --example screenshots` |
 | PDF parsing | `cargo run --example pdf_example` |
 | Cookies & storage | `cargo run --example cookies_storage` |
@@ -351,7 +351,7 @@ sb.gui_press_keys(&["command", "a"])?;
 ### Run JSON scenario and generate dashboard
 
 ```bash
-cargo run --bin sbase -- run-scenario --file ./scenario.json
+cargo run --bin sbrs -- run-scenario --file ./scenario.json
 ```
 
 Example `scenario.json`:
@@ -404,7 +404,7 @@ If Chromium download fails, use the default CDP or UC modes instead.
 
 ### MCP servers (optional feature)
 
-`seleniumbase-mcp` serves a browser to any Model Context Protocol client over
+`sbrs-mcp` serves a browser to any Model Context Protocol client over
 stdio. Pick a toolset with `--server`:
 
 | `--server` | Engine | Tools |
@@ -414,7 +414,7 @@ stdio. Pick a toolset with `--server`:
 | `sb` (default) | WebDriver, the `SB()` toolset, plus stealth tools | 88 + 8 |
 
 ```bash
-cargo build --release --bin seleniumbase-mcp --features mcp-server
+cargo build --release --bin sbrs-mcp --features mcp-server
 ```
 
 Configure the client with the absolute path to the binary:
@@ -423,7 +423,7 @@ Configure the client with the absolute path to the binary:
 {
   "mcpServers": {
     "seleniumbase": {
-      "command": "/absolute/path/to/target/release/seleniumbase-mcp",
+      "command": "/absolute/path/to/target/release/sbrs-mcp",
       "args": ["--server", "cdp"],
       "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
     }
@@ -445,14 +445,14 @@ cookies, and execute JavaScript in the active page.
 
 | Feature | Purpose |
 |---------|---------|
-| `tui` | The terminal apps `sbase commander`, `sbase caseplans` and `sbase behave-gui`. |
+| `tui` | The terminal apps `sbrs commander`, `sbrs caseplans` and `sbrs behave-gui`. |
 | `gui` | Native OS dialogs and GUI automation (links GTK and X11 on Linux). |
 | `playwright` | `rustwright` Playwright-compatible engine. |
 | `s3` | AWS S3 artifact uploads. |
 | `azure` | Azure Blob Storage artifact uploads. |
 | `gcp` | Google Cloud Storage artifact uploads. |
-| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
-| `turso` | Embedded database: `ResultStore`, `ProfileVault`, `sbase report`. |
+| `mcp-server` | Builds the `sbrs-mcp` binary using `rmcp`. |
+| `turso` | Embedded database: `ResultStore`, `ProfileVault`, `sbrs report`. |
 | `test-util` | The scripted mock browser, for tests without Chrome. |
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
@@ -528,15 +528,15 @@ mdbook serve --open
 ### Import Python tests
 
 ```bash
-cargo run --bin sbase -- import-python tests/login_test.py \
+cargo run --bin sbrs -- import-python tests/login_test.py \
   --output tests/login_test.rs
 ```
 
 The static importer handles common SeleniumBase and Selenium WebDriver calls.
 Unsupported or dynamic Python remains visible as diagnostics and `TODO`
 comments for manual review.
-`sbase import-playwright` converts Playwright tests and scripts (JavaScript, TypeScript, Python) into pure CDP Rust tests the same way ([docs/playwright-migration.md](./docs/playwright-migration.md)).
-`sbase import-puppeteer` does it for Puppeteer scripts, jest-puppeteer and Mocha tests, and Chrome Recorder JSON exports ([docs/puppeteer-migration.md](./docs/puppeteer-migration.md)).
+`sbrs import-playwright` converts Playwright tests and scripts (JavaScript, TypeScript, Python) into pure CDP Rust tests the same way ([docs/playwright-migration.md](./docs/playwright-migration.md)).
+`sbrs import-puppeteer` does it for Puppeteer scripts, jest-puppeteer and Mocha tests, and Chrome Recorder JSON exports ([docs/puppeteer-migration.md](./docs/puppeteer-migration.md)).
 
 ## Project status
 

@@ -1,5 +1,5 @@
 //! A scratch crate that depends on this one by path, for tests that must build or run code the
-//! program under test wrote: the Rust test an MCP server exports, a file `sbase mkfile` made.
+//! program under test wrote: the Rust test an MCP server exports, a file `sbrs mkfile` made.
 //!
 //! The crate shares this build's target directory and lockfile, with the features of the test
 //! build, so Cargo reuses the dependencies and builds only the crate itself (and this one once,

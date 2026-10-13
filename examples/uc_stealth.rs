@@ -22,7 +22,7 @@
 //! nothing about a page it does not control: look at the screenshot. For a
 //! deterministic check of UC mode itself, run `uc_mode_test`.
 //!
-//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both); a public URL also needs internet access.
 
 mod local_site;

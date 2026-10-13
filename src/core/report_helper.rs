@@ -46,7 +46,7 @@ use crate::error::SeleniumBaseError;
 /// Result of a single test.
 ///
 /// The field names are the JSON keys of [`write_json_report`] and of the
-/// results `sbase report` reads back, so they are part of the report format.
+/// results `sbrs report` reads back, so they are part of the report format.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TestResult {
     /// The test's name.

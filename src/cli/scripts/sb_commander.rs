@@ -1,4 +1,4 @@
-//! `sbase commander`: a terminal menu that runs the project's tests and
+//! `sbrs commander`: a terminal menu that runs the project's tests and
 //! examples with Cargo.
 
 use std::{

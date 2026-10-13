@@ -236,7 +236,7 @@ What `check_window` compares, and its levels 0 to 3, are in the rustdoc of
 ## Limits
 
 - **Code only.** Nothing reads these from the command line, the environment, a
-  config file or `Settings`. The `sbase` CLI and the MCP servers do not set them.
+  config file or `Settings`. The `sbrs` CLI and the MCP servers do not set them.
   Use a helper like the one above.
 - **One `BaseCase`.** The settings belong to the `BaseCase` you called
   `set_run_settings` on. The extra browsers that `get_new_driver` opens belong to

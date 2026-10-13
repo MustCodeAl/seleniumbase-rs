@@ -12,7 +12,7 @@
 //! cargo run --example cookies_storage
 //! ```
 //!
-//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both) and does not need the network. Cookies and `localStorage` need
 //! a real origin, so the page is served over HTTP from `127.0.0.1` by
 //! `local_site/mod.rs`; a `data:` or `about:blank` page would refuse both.

@@ -4,7 +4,7 @@ This file is the single source of truth for AI agents working on this repository
 
 ## What this project is
 
-A Rust port of the Python [SeleniumBase](https://github.com/seleniumbase/SeleniumBase) testing framework. It provides a `BaseCase` API, undetected/stealth browser modes, CDP automation, an `sbase` CLI, an MCP server, and migration tools.
+A Rust port of the Python [SeleniumBase](https://github.com/seleniumbase/SeleniumBase) testing framework. It provides a `BaseCase` API, undetected/stealth browser modes, CDP automation, an `sbrs` CLI, an MCP server, and migration tools.
 
 ## Quick verification commands
 
@@ -34,8 +34,8 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 | `src/macros.rs` | User-facing macros (`selector!`, `sb_test!`, `sb_click!`, `fingerprint!`, etc.). |
 | `src/behave/` | Gherkin/BDD runner and async step registry. |
 | `src/utilities/` | Python importer, Selenium IDE parser, Grid helpers. |
-| `src/bin/mcp_server.rs` | `seleniumbase-mcp` MCP server (gated by `mcp-server` feature). |
-| `src/cli/bin/sbase.rs` | Main `sbase` CLI binary. |
+| `src/bin/mcp_server.rs` | `sbrs-mcp` MCP server (gated by `mcp-server` feature). |
+| `src/cli/bin/sbrs.rs` | Main `sbrs` CLI binary. |
 | `docs/` | mdBook source. Add new tutorials/help pages to `SUMMARY.md`. |
 | `examples/` | Runnable examples. Add new examples to `Cargo.toml` automatically via filename. |
 

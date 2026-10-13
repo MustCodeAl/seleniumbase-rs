@@ -19,7 +19,7 @@
 //! cargo run --example cdp_mode
 //! ```
 //!
-//! Part 1 needs Chrome and a matching chromedriver on your `PATH` (`sbase
+//! Part 1 needs Chrome and a matching chromedriver on your `PATH` (`sbrs
 //! doctor` checks both); part 2 needs only Chrome. Neither needs the network:
 //! the page is served from `127.0.0.1` by `local_site/mod.rs`. The screenshot is
 //! written to `latest_logs/`.

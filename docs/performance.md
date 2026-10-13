@@ -80,7 +80,7 @@ Start with a small number of workers and increase only when measurements show a
 benefit. The `SB_THREADS` setting and the `-n` CLI flag control parallelism:
 
 ```bash
-cargo run --bin sbase -- -n 4 run-scenario --file suite.json
+cargo run --bin sbrs -- -n 4 run-scenario --file suite.json
 ```
 
 ## Prefer intent-driven actions
@@ -140,7 +140,7 @@ browser, but their cost has not been benchmarked.
   measured.
 - The **WebDriver engine** is the choice when you need Selenium Grid, Firefox or
   an existing `BaseCase` suite. Match the chromedriver to Chrome's major version
-  (the launcher and `sbase install` do this); a mismatch costs far more than any
+  (the launcher and `sbrs install` do this); a mismatch costs far more than any
   tuning.
 - Launching Chrome to a DevTools connection takes about 0.5 s, while attaching
   and loading a first page takes about 50 ms, so reuse a browser through

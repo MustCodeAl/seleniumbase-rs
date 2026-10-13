@@ -3,8 +3,8 @@
 //! Python SeleniumBase tests are started with `pytest` and its options.
 //! A Rust test is an ordinary Cargo test, so this module builds the matching
 //! `cargo` command: which test file or example, a name filter, how many tests
-//! run at once, and the `SB_*` environment that carries `sbase`'s own options
-//! (such as `--headless`) into the tests. `sbase test` is built on it, and so
+//! run at once, and the `SB_*` environment that carries `sbrs`'s own options
+//! (such as `--headless`) into the tests. `sbrs test` is built on it, and so
 //! can any other launcher, such as the commander TUI.
 //!
 //! [`TestRun::command`] only builds the command, so its arguments and

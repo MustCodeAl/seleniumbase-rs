@@ -1,6 +1,6 @@
 # Behave Commander
 
-`sbase behave-gui` (also `sbase gui-behave`) is a terminal app that lists the
+`sbrs behave-gui` (also `sbrs gui-behave`) is a terminal app that lists the
 Gherkin feature files of a project, runs the scenarios you mark through this
 crate's behave runner and shows what came of each. It is the Python Behave
 Commander without the Tkinter window.
@@ -13,30 +13,30 @@ Commander without the Tkinter window.
 
 ## Build and launch
 
-The app is part of the opt-in `tui` feature, with `sbase commander`:
+The app is part of the opt-in `tui` feature, with `sbrs commander`:
 
 ```bash
-cargo run --features tui --bin sbase -- behave-gui
+cargo run --features tui --bin sbrs -- behave-gui
 # or install the binary with it
 cargo install seleniumbase-rs --features tui
 ```
 
-An `sbase` built without the feature still has the subcommand, but it only
+An `sbrs` built without the feature still has the subcommand, but it only
 prints the following message and exits with status 2, as `commander` does:
 
 ```text
-this sbase was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
+this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
 ```
 
 The folder to look in is the optional argument:
 
 ```bash
-sbase behave-gui                         # the features/ folder
-sbase behave-gui features/shop           # one folder, and its subfolders
-sbase behave-gui features/login.feature  # one file
+sbrs behave-gui                         # the features/ folder
+sbrs behave-gui features/shop           # one folder, and its subfolders
+sbrs behave-gui features/login.feature  # one file
 ```
 
-`sbase behave-gui --new` skips the app and asks for a feature name, a title and
+`sbrs behave-gui --new` skips the app and asks for a feature name, a title and
 scenarios, then writes `features/<name>.feature`. It never replaces a file that
 is there, and it works in every build.
 
@@ -82,7 +82,7 @@ below shows the messages of the scenario under the cursor, and `Esc` (or `q` or
 
 Each scenario is run with the crate's behave runner, `run_feature_text`, with
 the feature's background first. The runner needs step definitions, and those
-are Rust code in your own program, which `sbase` cannot load. The app has only
+are Rust code in your own program, which `sbrs` cannot load. The app has only
 the built-in steps:
 
 - `I do nothing` and `the system is ready`, which pass,

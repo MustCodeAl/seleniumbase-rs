@@ -10,7 +10,7 @@
 //! The example performs a few actions on a local page, prints the code the
 //! recording generates, and checks that the code contains each action. The
 //! interactive recorder, which captures a person's clicks in the browser, is
-//! `sbase recorder`; the `record_replay` example shows replaying a recording.
+//! `sbrs recorder`; the `record_replay` example shows replaying a recording.
 //!
 //! Run it with:
 //!
@@ -18,7 +18,7 @@
 //! cargo run --example recorder_test
 //! ```
 //!
-//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both) and does not need the network: the page is served from
 //! `127.0.0.1` by `local_site/mod.rs`.
 

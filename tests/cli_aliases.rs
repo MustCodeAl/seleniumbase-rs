@@ -1,9 +1,9 @@
-//! Upstream command names that `sbase` accepts: `version`, `obfuscate` and
+//! Upstream command names that `sbrs` accepts: `version`, `obfuscate` and
 //! `unobfuscate`, run as the real binary.
 
 use std::process::{Command, Output, Stdio};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 fn run(args: &[&str], passphrase: Option<&str>) -> Output {
     let mut command = Command::new(SBASE);
@@ -16,7 +16,7 @@ fn run(args: &[&str], passphrase: Option<&str>) -> Output {
     if let Some(passphrase) = passphrase {
         command.env("SB_ENCRYPTION_KEY", passphrase);
     }
-    command.output().expect("sbase runs")
+    command.output().expect("sbrs runs")
 }
 
 fn stdout(output: &Output) -> String {

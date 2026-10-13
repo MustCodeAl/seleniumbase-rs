@@ -9,8 +9,8 @@
 //!   histogram timing of spans/events.
 //!
 //! Logs go to standard error, never to standard output. Standard output is for
-//! what a program produces: the answer of an `sbase` command, or the JSON-RPC
-//! messages of `seleniumbase-mcp`, which a log line in the stream would break.
+//! what a program produces: the answer of an `sbrs` command, or the JSON-RPC
+//! messages of `sbrs-mcp`, which a log line in the stream would break.
 //! Colour is used only when standard error is a terminal and `NO_COLOR` is not
 //! set.
 //!

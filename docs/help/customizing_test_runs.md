@@ -11,7 +11,7 @@ workflow.
 - How to create a global TOML config file.
 - How to override settings with `SB_*` environment variables.
 - How CLI flags interact with programmatic and file configuration, and how
-  `sbase test` hands them to your tests.
+  `sbrs test` hands them to your tests.
 
 ## BrowserConfig builder
 
@@ -58,7 +58,7 @@ Key builder methods:
 | `with_start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
 | `with_reuse_session(bool)` | Share browsers among the tests of the run (`--reuse-session`, `--rs`); see [Sharing a browser between tests](#sharing-a-browser-between-tests). |
 | `with_reuse_module_session(bool)` / `with_reuse_class_session(name)` | Share a browser only among the tests of one module, or of one name (`--rcs`). Both turn `reuse_session` on. |
-| `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbase test` acts on a thread count (`-n`, as `--test-threads`). |
+| `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbrs test` acts on a thread count (`-n`, as `--test-threads`). |
 | `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
 | `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
 | `with_fingerprint(fp)` | Apply a [`Fingerprint`](../tutorials/fingerprint_stealth.md). |
@@ -207,7 +207,7 @@ Idle browsers are closed, with their chromedriver, by a background thread once
 no test has held them for five seconds (`seleniumbase_rs::browser::reuse::set_idle_timeout`,
 or `SB_REUSE_IDLE_SECS` in whole seconds), by
 `seleniumbase_rs::shutdown_reused_sessions()`, and by
-`common::shutdown::drain_cleanups`, which `sbase` calls before it exits. A Rust
+`common::shutdown::drain_cleanups`, which `sbrs` calls before it exits. A Rust
 test binary has no hook that runs after its last test, and it usually exits
 sooner than the idle timeout. On macOS and Linux the browser of the last tests
 still ends with the binary: every chromedriver and browser this crate starts
@@ -250,7 +250,7 @@ read as JSON:
 { "browser": "chrome", "headless": false, "timeout_seconds": 10 }
 ```
 
-A flat `key=value` file is not supported. `sbase --config FILE` (or
+A flat `key=value` file is not supported. `sbrs --config FILE` (or
 `-c FILE`) reads one specific file by the same rule.
 
 `timeout_seconds`, `screenshot_dir`, `window_width` and `window_height` are
@@ -309,7 +309,7 @@ for the table, including the separate runtime variables (`SB_WEBDRIVER_URL`,
 export SB_WEBDRIVER_URL=http://localhost:4444/wd/hub
 ```
 
-The `sbase` binary reads both kinds when it drives a browser (`sbase open`,
+The `sbrs` binary reads both kinds when it drives a browser (`sbrs open`,
 `smoke` and the other browser commands): the settings variables above, and
 `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` from the runtime ones. A bad value, such
 as `SB_HEADLESS=maybe`, stops the command with an error before any browser
@@ -317,12 +317,12 @@ starts.
 
 ## CLI flags
 
-When using the `sbase` binary, put its options **before** the subcommand. They
-belong to `sbase` itself, not to the subcommand, so `sbase open URL --headless`
+When using the `sbrs` binary, put its options **before** the subcommand. They
+belong to `sbrs` itself, not to the subcommand, so `sbrs open URL --headless`
 is rejected:
 
 ```bash
-cargo run --bin sbase -- --headless --proxy http://proxy.example.com:8080 open https://seleniumbase.io
+cargo run --bin sbrs -- --headless --proxy http://proxy.example.com:8080 open https://seleniumbase.io
 ```
 
 Common flags:
@@ -332,7 +332,7 @@ Common flags:
 | `--headless` / `--headed` | Run the browser without or with a visible window. |
 | `--mobile` | Emulate a mobile device (see `with_mobile`). |
 | `--esc-end` / `--esc_end` / `--ee` | End the test when ESC is pressed in the browser (see `with_esc_end`). |
-| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `with_rec_sb_cdp`); `sbase run-scenario` then saves a pure CDP program. |
+| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `with_rec_sb_cdp`); `sbrs run-scenario` then saves a pure CDP program. |
 | `--proxy HOST:PORT` | Route traffic through a proxy (`scheme://host:port` also works). |
 | `--proxy-list FILE` | Choose from a file of proxies: a random one, or the entry named by `--proxy`. |
 | `--proxy-pac-url URL` | Use a PAC file for proxy configuration. |
@@ -341,26 +341,26 @@ Common flags:
 | `--user-agent STRING` / `-a STRING` | Override the user agent. |
 | `--locale LOCALE` | Set the browser locale. |
 | `--ad-block` | Sets `ad_block`: a Chromium WebDriver session refuses the built-in list of ad and tracker hosts (`Network.setBlockedURLs`). Firefox and Safari block nothing. Images stay on; `--block-images` turns them off. |
-| `--reuse-session` / `--reuse_session` / `--rs` | Share browsers among the tests of the run (see [Sharing a browser between tests](#sharing-a-browser-between-tests)); `sbase test` passes it on as `SB_REUSE_SESSION`. |
-| `--rcs` / `--reuse-class-session` / `--reuse_class_session` | Share a browser among the tests of one Rust module; `sbase test` passes it on as `SB_REUSE_CLASS_SESSION`. |
-| `-n NUM` / `--threads NUM` | With `sbase test`, run that many tests at once (`--test-threads`), so that many browsers. |
+| `--reuse-session` / `--reuse_session` / `--rs` | Share browsers among the tests of the run (see [Sharing a browser between tests](#sharing-a-browser-between-tests)); `sbrs test` passes it on as `SB_REUSE_SESSION`. |
+| `--rcs` / `--reuse-class-session` / `--reuse_class_session` | Share a browser among the tests of one Rust module; `sbrs test` passes it on as `SB_REUSE_CLASS_SESSION`. |
+| `-n NUM` / `--threads NUM` | With `sbrs test`, run that many tests at once (`--test-threads`), so that many browsers. |
 | `--browser NAME` | Select `chrome`, `chromium`, `edge`, or `firefox`. |
 | `--cdp` / `--uc` | Select CDP or UC mode (they cannot be combined). |
 | `--webdriver URL` | WebDriver server URL (default `SB_WEBDRIVER_URL`, else `http://localhost:4444`). |
 | `-c FILE` / `--config FILE` | Read settings from this TOML or JSON file instead of the global config file. |
 
-Run `sbase --help` and `sbase <subcommand> --help` for the full list of flags.
+Run `sbrs --help` and `sbrs <subcommand> --help` for the full list of flags.
 
-### Running tests with `sbase test`
+### Running tests with `sbrs test`
 
-`sbase test` runs `cargo test` (or one example) and carries the global options
+`sbrs test` runs `cargo test` (or one example) and carries the global options
 into the tests as `SB_*` environment variables, so a test that loads `Settings`
 sees them:
 
 ```bash
 # Sets SB_HEADLESS=true and SB_BROWSER=firefox, and runs 2 tests at a time.
-cargo run --bin sbase -- --headless --browser firefox -n 2 test
-cargo run --bin sbase -- test login --test checkout --release --features turso
+cargo run --bin sbrs -- --headless --browser firefox -n 2 test
+cargo run --bin sbrs -- test login --test checkout --release --features turso
 ```
 
 It accepts a name filter, `--test NAME` (one file from `tests/`),
@@ -379,12 +379,12 @@ it, later sources win:
 3. Environment variables (`SB_*`).
 4. Programmatic changes, such as `BrowserConfig` builder calls.
 
-`sbase test` adds the command-line flags as step 3 for its tests. The `sbase`
-binary follows the same order when it drives a browser directly (`sbase open`
+`sbrs test` adds the command-line flags as step 3 for its tests. The `sbrs`
+binary follows the same order when it drives a browser directly (`sbrs open`
 and the like): it starts from the config file (the global one, or the one named
 by `--config`), applies the `SB_*` variables on top, and then the CLI flags
-override both. So `SB_HEADLESS=true sbase open URL` runs headless, and
-`SB_HEADLESS=true sbase --headed open URL` shows the window.
+override both. So `SB_HEADLESS=true sbrs open URL` runs headless, and
+`SB_HEADLESS=true sbrs --headed open URL` shows the window.
 
 Use the config file for stable defaults, environment variables for CI-specific
 overrides, and the builder or CLI flags for one-off experiments.
@@ -394,8 +394,8 @@ overrides, and the builder or CLI flags for one-off experiments.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Environment variable ignored | Used `SBASE_` instead of `SB_`, or the variable is not one `Settings` reads | Use the `SB_` prefix and a name from the list above. |
-| `sbase open` still shows a window with `SB_HEADLESS=true` | A `--headed` flag beats the variable, or the variable is not exported to `sbase` | Drop `--headed`, and `export` the variable (or put it before the command on the same line). |
+| `sbrs open` still shows a window with `SB_HEADLESS=true` | A `--headed` flag beats the variable, or the variable is not exported to `sbrs` | Drop `--headed`, and `export` the variable (or put it before the command on the same line). |
 | Config file not loaded | File is in a parent directory, or has another name | Put it in the directory you run from, named `sbase_config.toml`. |
 | Config file fails to parse | A flat `key=value` file, or a float for `timeout_seconds` | Use TOML (`.toml` name) or JSON, and whole numbers of seconds. |
-| CLI flag rejected as unexpected | The flag was placed after the subcommand | Put it before: `sbase --headless open URL`. |
+| CLI flag rejected as unexpected | The flag was placed after the subcommand | Put it before: `sbrs --headless open URL`. |
 | Proxy not used | Format is invalid | Pass a full URL such as `http://host:8080`. |

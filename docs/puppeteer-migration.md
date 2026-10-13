@@ -1,6 +1,6 @@
 # Migrate Puppeteer Tests
 
-`sbase import-puppeteer` converts Puppeteer code into Rust tests for the
+`sbrs import-puppeteer` converts Puppeteer code into Rust tests for the
 [pure CDP engine](tutorials/pure_cdp.md). It reads JavaScript and TypeScript:
 
 - plain scripts on `puppeteer`, `puppeteer-core` and `puppeteer-extra`
@@ -13,7 +13,7 @@
 - the Chrome DevTools Recorder's JSON export (the `@puppeteer/replay` format).
 
 It shares its tokenizer, parser, escaping and Rust writer with
-[`sbase import-playwright`](playwright-migration.md), so the generated file
+[`sbrs import-playwright`](playwright-migration.md), so the generated file
 has the same shape: one `#[tokio::test]` per test (a script or a recording is
 one test), each launching a browser and driving its page with `Page` and
 `Locator` calls. What is not converted stays in place as a
@@ -22,9 +22,9 @@ one test), each launching a browser and driving its page with `Page` and
 ## Convert a file
 
 ```bash
-cargo run --bin sbase -- import-puppeteer scripts/checkout.js --output tests/checkout.rs
-cargo run --bin sbase -- import-pptr __tests__/shop.test.ts
-cargo run --bin sbase -- import-puppeteer recordings/checkout.json   # a Recorder export
+cargo run --bin sbrs -- import-puppeteer scripts/checkout.js --output tests/checkout.rs
+cargo run --bin sbrs -- import-pptr __tests__/shop.test.ts
+cargo run --bin sbrs -- import-puppeteer recordings/checkout.json   # a Recorder export
 ```
 
 | Option | Values | Purpose |

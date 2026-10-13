@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 `BrowserConfig::default()` is headless. UC mode needs Chrome, Chromium or Edge.
-On the command line, `sbase --uc open https://example.com` does the same (put
+On the command line, `sbrs --uc open https://example.com` does the same (put
 `--uc` before the subcommand).
 
 ## Binary patching
@@ -41,7 +41,7 @@ page. UC mode does not patch the driver for you. Patch the executable before
 launch to strip those signatures:
 
 ```bash
-cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
+cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
 ```
 
 You can also patch from code:
@@ -92,5 +92,5 @@ If a site still flags the browser:
 |---|---|---|
 | `navigator.webdriver` still `true` | chromedriver not patched | Run `patch-chromedriver` and verify `needs_patch()`. |
 | Detection after patching | Missing engine args | Add `engine_spoofing_args()` to launch flags. |
-| Detection only in headless | Headless artifacts | Run headful with `with_headless(false)` (or `sbase --headed`). |
+| Detection only in headless | Headless artifacts | Run headful with `with_headless(false)` (or `sbrs --headed`). |
 | Inconsistent signals | Fingerprint values mismatch | Validate with `Fingerprint::validate()`. |

@@ -1,9 +1,9 @@
-//! The feature files `sbase behave-gui` lists and runs: finding them, telling
+//! The feature files `sbrs behave-gui` lists and runs: finding them, telling
 //! each scenario by its line, and running chosen scenarios through the crate's
 //! behave runner ([`crate::behave`]).
 //!
 //! The runner needs step definitions, and those are Rust code in the user's own
-//! program, which `sbase` cannot load. The app therefore runs with the built-in
+//! program, which `sbrs` cannot load. The app therefore runs with the built-in
 //! steps ([`builtin_steps`]); a scenario that uses a step nobody defined is
 //! reported as [`Verdict::Undefined`], as `behave` does, not as a failure.
 

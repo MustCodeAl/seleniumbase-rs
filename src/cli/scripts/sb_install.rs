@@ -1,6 +1,6 @@
-//! `sbase install` (also `sbase get`): fetch a driver.
+//! `sbrs install` (also `sbrs get`): fetch a driver.
 //!
-//! Python SeleniumBase's `sbase get` and `sbase install` take a driver name and
+//! Python SeleniumBase's `sbrs get` and `sbrs install` take a driver name and
 //! a version; so does this one, for chromedriver, geckodriver and msedgedriver.
 
 use std::fmt;
@@ -17,7 +17,7 @@ use crate::browser::options::DriverVersion;
 use crate::error::SeleniumBaseError;
 use crate::stealth::patcher::find_system_chrome;
 
-/// A driver `sbase install` can fetch.
+/// A driver `sbrs install` can fetch.
 ///
 /// The names Python SeleniumBase takes are read by [`FromStr`]: `chromedriver`,
 /// `geckodriver` (also `firefoxdriver`), and `edgedriver` (also
@@ -69,7 +69,7 @@ async fn major_of(program: Option<PathBuf>) -> Option<u32> {
 /// Downloads driver `name` into `./downloaded_drivers/` and returns the path of
 /// the executable.
 ///
-/// `version` is what Python's `sbase get NAME VERSION` takes. Without one,
+/// `version` is what Python's `sbrs get NAME VERSION` takes. Without one,
 /// chromedriver and msedgedriver are the drivers for the installed Chrome and
 /// Edge (the latest stable ones when the browser is not found), and geckodriver
 /// is the newest release. With one: `latest`, a major version (`155`) or a full

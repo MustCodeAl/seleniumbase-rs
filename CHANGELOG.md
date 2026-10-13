@@ -8,6 +8,20 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Changed
+
+- **The binaries are renamed** so they no longer clash with Python
+  SeleniumBase, which installs its own `sbase`: the CLI is now `sbrs` and the
+  MCP server `sbrs-mcp` (was `seleniumbase-mcp`). Commands and flags are
+  unchanged; replace the name in scripts and MCP client settings, and generate
+  the shell completions again (`sbrs completions zsh > _sbrs`). The Docker
+  image runs `sbrs` as user `sbrs`. `sbase_config.toml` keeps its name.
+
+### Added
+
+- ADR 004 proposes a plugin framework for community crates, in the style of
+  puppeteer-extra and Zorilla.
+
 ## [0.1.1] - 2026-10-12
 
 Windows fixes from a second round of runs on a Windows 11 PC (Chrome 154 and

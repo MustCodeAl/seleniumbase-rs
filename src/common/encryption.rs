@@ -127,7 +127,7 @@ fn encrypt_with_iterations(
 /// token fails to decrypt rather than yielding garbage. The token is
 /// `sbenc1:<iterations>:<salt>:<nonce and ciphertext>`, all printable.
 ///
-/// This is not compatible with Python SeleniumBase's `sbase encrypt`, which is
+/// This is not compatible with Python SeleniumBase's `sbrs encrypt`, which is
 /// a reversible obfuscation with a fixed key.
 ///
 /// # Errors
@@ -149,7 +149,7 @@ pub fn encrypt_with_passphrase(
 /// was modified.
 pub fn decrypt_with_passphrase(token: &str, passphrase: &str) -> Result<String, SeleniumBaseError> {
     let malformed =
-        || SeleniumBaseError::InvalidConfig("not a token made by `sbase encrypt`".to_string());
+        || SeleniumBaseError::InvalidConfig("not a token made by `sbrs encrypt`".to_string());
     let mut parts = token.trim().splitn(4, ':');
     if parts.next() != Some(TOKEN_PREFIX) {
         return Err(malformed());

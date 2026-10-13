@@ -21,7 +21,7 @@ you oriented quickly.
 12. [Adding a Masking Mode or Fingerprint Field](#adding-a-masking-mode-or-fingerprint-field)
 13. [Adding a Macro](#adding-a-macro)
 14. [Adding an MCP Tool](#adding-an-mcp-tool)
-15. [Adding an `sbase` Subcommand](#adding-an-sbase-subcommand)
+15. [Adding an `sbrs` Subcommand](#adding-an-sbrs-subcommand)
 16. [Adding a Profile Payload Field](#adding-a-profile-payload-field)
 17. [Binary Patching](#binary-patching)
 18. [Writing Documentation](#writing-documentation)
@@ -101,7 +101,7 @@ rest (`chrome`, `scrape-gate`, `imp-gate`, `parity-docs`, `docs`, `smoke`).
 - `cargo-deny` and `cargo-audit` for the dependency checks, and `just` for the
   recipes in the `justfile`.
 - `uv` to regenerate the parity docs (`just parity-docs`).
-- A Chrome (and, for the WebDriver engine, a matching chromedriver: `sbase
+- A Chrome (and, for the WebDriver engine, a matching chromedriver: `sbrs
   install`) for the tests marked `#[ignore]`.
 - `libwebkit2gtk-4.1-dev` (Linux) or Xcode (macOS) if you build the Tauri
   example.
@@ -122,12 +122,12 @@ seleniumbase-rs/
 │   ├── impersonate/           # (feature impersonate) client, http_session/, mitm/,
 │   │                          # stealth_session/, tls_server/ (ephemeral CA), capture_h2
 │   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
-│   ├── cli/                   # sbase: bin/sbase.rs (clap), commands.rs, scripts/
+│   ├── cli/                   # sbrs: bin/sbrs.rs (clap), commands.rs, scripts/
 │   ├── behave/                # Gherkin/BDD runner
 │   ├── plugins/               # Reporting and logging plugins
 │   ├── config/, core/, common/, storage/, utilities/, utils/, profile_payloads/
 │   ├── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
-│   └── bin/mcp_server.rs      # The seleniumbase-mcp binary
+│   └── bin/mcp_server.rs      # The sbrs-mcp binary
 ├── tests/                     # Integration tests (tests/golden is compiled in)
 ├── benches/                   # cpu, cdp_latency
 ├── examples/                  # Runnable examples
@@ -152,7 +152,7 @@ seleniumbase-rs/
    `EvasionProvider`s generate the JavaScript bootstrap; `ChromedriverPatcher`
    mutates the local driver binary; `StealthReactor` intercepts network requests
    via CDP.
-4. **Tooling layer** — `sbase` CLI, the MCP server, the behave runner, and the
+4. **Tooling layer** — `sbrs` CLI, the MCP server, the behave runner, and the
    Python importer.
 
 When adding a feature, try to keep each layer independent. For example, a new
@@ -225,7 +225,7 @@ Feature flags control subscriber output:
 Run the CLI with tracing enabled:
 
 ```bash
-RUST_LOG=info cargo run --bin sbase --features full-tracing -- open https://example.com
+RUST_LOG=info cargo run --bin sbrs --features full-tracing -- open https://example.com
 ```
 
 See `docs/tutorials/tracing.md` for subscriber configuration examples.
@@ -407,9 +407,9 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
 5. Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and
    give it an entry in `parity/api.toml` if upstream has the same tool.
 
-## Adding an `sbase` Subcommand
+## Adding an `sbrs` Subcommand
 
-1. Add the new variant to `SbaseCommand` in `src/cli/bin/sbase.rs` with an
+1. Add the new variant to `SbaseCommand` in `src/cli/bin/sbrs.rs` with an
    idiomatic `///` description.
 2. Add argument parsing in the `clap` derive macro.
 3. Add a handler branch in `async fn main()`.

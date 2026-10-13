@@ -1,6 +1,6 @@
 //! The MCP servers the way an AI client uses them.
 //!
-//! The `seleniumbase-mcp` binary is spawned, spoken to in JSON-RPC over its stdin
+//! The `sbrs-mcp` binary is spawned, spoken to in JSON-RPC over its stdin
 //! and stdout (the `initialize` handshake, `tools/list`, `tools/call`), and drives
 //! a real headless Chrome against a loopback page. Nothing here calls the library
 //! API: `tests/mcp_cdp_chrome.rs` and its neighbours do that. What these tests add
@@ -146,7 +146,7 @@ impl Reply {
     }
 }
 
-/// An MCP client on a spawned `seleniumbase-mcp`.
+/// An MCP client on a spawned `sbrs-mcp`.
 struct Client {
     child: Child,
     stdin: Option<ChildStdin>,
@@ -156,12 +156,12 @@ struct Client {
 }
 
 impl Client {
-    /// Starts `seleniumbase-mcp --server <server>`, with its files going to
+    /// Starts `sbrs-mcp --server <server>`, with its files going to
     /// `dir/out` and its log to `dir/server.log`.
     fn spawn(server: &str, dir: &Path) -> Self {
         std::fs::create_dir_all(dir).expect("create the server's folder");
         let log = dir.join("server.log");
-        let mut child = Command::new(env!("CARGO_BIN_EXE_seleniumbase-mcp"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_sbrs-mcp"))
             .args(["--server", server])
             .env("SB_MCP_OUTPUT_DIR", dir.join("out"))
             .env("SB_SHUTDOWN_TIMEOUT_SECS", "20")
@@ -172,7 +172,7 @@ impl Client {
             ))
             .kill_on_drop(true)
             .spawn()
-            .expect("start seleniumbase-mcp");
+            .expect("start sbrs-mcp");
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().expect("piped stdout"));
         Self {

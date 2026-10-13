@@ -38,14 +38,14 @@ let text = page.locator("h1").text().await?;
 
 ## CLI commands
 
-Useful for quick checks, CI one-liners, and ad-hoc debugging. Every `sbase`
+Useful for quick checks, CI one-liners, and ad-hoc debugging. Every `sbrs`
 command starts its own browser and closes it when it finishes, so the one-liners
 that make sense are the ones that take a URL:
 
 ```bash
-cargo run --bin sbase -- open https://seleniumbase.io
-cargo run --bin sbase -- smoke https://seleniumbase.io --title-contains SeleniumBase
-cargo run --bin sbase -- deferred --url https://seleniumbase.io \
+cargo run --bin sbrs -- open https://seleniumbase.io
+cargo run --bin sbrs -- smoke https://seleniumbase.io --title-contains SeleniumBase
+cargo run --bin sbrs -- deferred --url https://seleniumbase.io \
     --assert element=h1 --assert title=SeleniumBase
 ```
 
@@ -71,12 +71,12 @@ the fields that action takes (`url`, `css`, `text`, `contains`, ...):
 Run the scenario:
 
 ```bash
-cargo run --bin sbase -- run-scenario --file scenario.json
+cargo run --bin sbrs -- run-scenario --file scenario.json
 ```
 
 The list of actions is in [Recorder CLI](./recorder_cli.md#run-a-json-scenario).
-`sbase record` writes a different file, an array of recorded actions, which you
-replay with `sbase replay`.
+`sbrs record` writes a different file, an array of recorded actions, which you
+replay with `sbrs replay`.
 
 ## Selector syntax
 

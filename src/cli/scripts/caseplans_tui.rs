@@ -1,4 +1,4 @@
-//! `sbase caseplans` as a terminal app (feature `tui`): the Python Case Plans
+//! `sbrs caseplans` as a terminal app (feature `tui`): the Python Case Plans
 //! Generator without Tkinter.
 //!
 //! It lists the tests found under a folder, marks which already have a case
@@ -617,7 +617,7 @@ impl CasePlans {
                 "",
                 &format!("Looked in: {}", self.looked_in),
                 "Test files are the *.rs files of tests/ and examples/,",
-                "or of the folder given: sbase caseplans <folder>",
+                "or of the folder given: sbrs caseplans <folder>",
             ]
             .join("\n");
             let empty = Paragraph::new(text)
@@ -1762,7 +1762,7 @@ mod tests {
                 "",
                 &centered_in_frame("Looked in: tests"),
                 &centered_in_frame("Test files are the *.rs files of tests/ and examples/,"),
-                &centered_in_frame("or of the folder given: sbase caseplans <folder>"),
+                &centered_in_frame("or of the folder given: sbrs caseplans <folder>"),
                 "",
             ],
         ));

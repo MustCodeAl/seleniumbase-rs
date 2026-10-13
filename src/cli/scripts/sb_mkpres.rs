@@ -1,4 +1,4 @@
-//! `sbase mkpres`: a starter reveal.js slide deck.
+//! `sbrs mkpres`: a starter reveal.js slide deck.
 
 use crate::cli::commands::write_new_file;
 use std::path::PathBuf;

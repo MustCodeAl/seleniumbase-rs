@@ -1,4 +1,4 @@
-//! `sbase report`: reading a results database from the command line.
+//! `sbrs report`: reading a results database from the command line.
 
 use std::path::PathBuf;
 

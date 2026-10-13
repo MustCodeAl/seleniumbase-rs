@@ -1,4 +1,4 @@
-//! `sbase print`: show a file's text.
+//! `sbrs print`: show a file's text.
 
 use std::fs;
 

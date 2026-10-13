@@ -103,7 +103,7 @@ pub fn module_name(name: &str) -> String {
     stem.replace(['.', '-'], "_")
 }
 
-/// The options `sbase import-*` would use for the fixture file `name`.
+/// The options `sbrs import-*` would use for the fixture file `name`.
 pub fn options(name: &str) -> ScriptImportOptions {
     ScriptImportOptions {
         language: ScriptLanguage::from_path(Path::new(name)),

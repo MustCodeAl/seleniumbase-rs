@@ -6,7 +6,7 @@
 //! by language code or name; each per-language module (`chinese`, `dutch`, ...)
 //! offers the same lookup for one fixed language. A name the dictionary does not
 //! know is returned unchanged. [`scenario`] translates the action names of a
-//! JSON scenario file, and `sbase translate` does so from the command line.
+//! JSON scenario file, and `sbrs translate` does so from the command line.
 //!
 //! # Examples
 //!

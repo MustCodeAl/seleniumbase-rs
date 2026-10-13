@@ -166,24 +166,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Command Line Interface (CLI)
 
-`seleniumbase-rs` comes with a powerful CLI tool named `sbase` to record scripts, run scenarios, and perform quick interactions.
+`seleniumbase-rs` comes with a powerful CLI tool named `sbrs` to record scripts, run scenarios, and perform quick interactions.
 
 ### Recording a Script
 Translates your browser actions into a ready-to-run Rust script:
 ```bash
-sbase record --url https://wikipedia.org --output my_test.rs
+sbrs record --url https://wikipedia.org --output my_test.rs
 ```
 
 ### Running JSON Scenarios
 ```bash
-sbase run-scenario --file tests/login_flow.json
+sbrs run-scenario --file tests/login_flow.json
 ```
 
 ### Quick Commands
 ```bash
-sbase open --url https://rust-lang.org
-sbase click --css "#get-started"
-sbase human-type --css "#search" --text "Concurrency"
+sbrs open --url https://rust-lang.org
+sbrs click --css "#get-started"
+sbrs human-type --css "#search" --text "Concurrency"
 ```
 
 ---
@@ -271,14 +271,14 @@ extension_dir = "/path/to/extension"
 threads = 4
 ```
 
-Override any value with CLI flags, e.g. `sbase --mobile --proxy-pac-url http://proxy/proxy.pac open https://example.com`.
+Override any value with CLI flags, e.g. `sbrs --mobile --proxy-pac-url http://proxy/proxy.pac open https://example.com`.
 
 ## SeleniumBase Commander
 
 Launch the TUI test runner with:
 
 ```bash
-sbase commander
+sbrs commander
 ```
 
 Use arrow keys to navigate discovered tests, press Enter to run them, and `q` to quit.
@@ -288,17 +288,17 @@ Use arrow keys to navigate discovered tests, press Enter to run them, and `q` to
 Record browser actions and export them as a Rust test:
 
 ```bash
-sbase mkrec my_test.rs
-sbase recorder
+sbrs mkrec my_test.rs
+sbrs recorder
 ```
 
 ## MCP Server
 
-The optional `seleniumbase-mcp` binary exposes browser actions to trusted MCP
+The optional `sbrs-mcp` binary exposes browser actions to trusted MCP
 clients over stdio:
 
 ```bash
-cargo build --release --bin seleniumbase-mcp --features mcp-server
+cargo build --release --bin sbrs-mcp --features mcp-server
 ```
 
 Choose a toolset with `--server cdp|driver|sb`. The browser starts when

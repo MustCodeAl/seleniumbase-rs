@@ -15,7 +15,7 @@ seleniumbase-rs = { version = "0.1", features = ["turso"] }
 ## What you will learn
 
 - Record test runs and results, and ask which tests are flaky
-- Read them from the command line with `sbase report`
+- Read them from the command line with `sbrs report`
 - Keep browser profiles encrypted at rest
 
 ## Recording test runs
@@ -72,16 +72,16 @@ A test that always fails is broken, not flaky, so `flaky_tests` leaves it out.
 Test messages are stored as written; if an assertion message can contain a
 secret, redact it before recording.
 
-## `sbase report`
+## `sbrs report`
 
 Build the CLI with the feature, and read a database without writing any code:
 
 ```bash
 cargo build --features turso
-sbase report --db reports/results.db            # the latest runs, newest first
-sbase report --db reports/results.db --run 12   # one run, with failure messages
-sbase report --db reports/results.db --flaky
-sbase report --db reports/results.db --json
+sbrs report --db reports/results.db            # the latest runs, newest first
+sbrs report --db reports/results.db --run 12   # one run, with failure messages
+sbrs report --db reports/results.db --flaky
+sbrs report --db reports/results.db --json
 ```
 
 ## Encrypted profiles

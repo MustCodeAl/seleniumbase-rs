@@ -23,7 +23,7 @@
 //! ```
 //!
 //! The browser part needs Chrome and a matching chromedriver on your `PATH`
-//! (`sbase doctor` checks both). Neither part needs the network.
+//! (`sbrs doctor` checks both). Neither part needs the network.
 
 mod local_site;
 

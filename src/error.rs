@@ -445,7 +445,7 @@ impl SeleniumBaseError {
         );
     }
 
-    /// The process exit status that `sbase` uses for this error, by category.
+    /// The process exit status that `sbrs` uses for this error, by category.
     ///
     /// | Code | Meaning | Categories |
     /// |---|---|---|
@@ -562,8 +562,8 @@ impl SeleniumBaseError {
             ),
             Self::BrowserLaunch { binary, .. } => format!(
                 "The browser at '{binary}' could not be started. It may be missing or not \
-                 executable, or another browser may be using the same profile: run `sbase \
-                 doctor`, install one with `sbase install`, or set an explicit binary path in \
+                 executable, or another browser may be using the same profile: run `sbrs \
+                 doctor`, install one with `sbrs install`, or set an explicit binary path in \
                  BrowserConfig."
             ),
             Self::BrowserDisconnected { .. } => "The browser crashed, was closed, or stopped \
@@ -607,7 +607,7 @@ impl SeleniumBaseError {
                  configuration file or an environment variable) and give it in the expected form."
                 .to_owned(),
             Self::InvalidConfig(_) => "Review the configuration values passed to the builder, \
-                 the command line or the environment; `sbase doctor` checks the browser setup."
+                 the command line or the environment; `sbrs doctor` checks the browser setup."
                 .to_owned(),
             Self::AssertionFailed(_) => "The page did not match what the test expected. Compare \
                  the expected value with what the page shows now (a screenshot or the page \
@@ -819,7 +819,7 @@ fn webdriver_hint(message: &str) -> &'static str {
          dialog in the way, scroll the target into view, or wait until it is enabled."
     } else if message.contains("session not created") || message.contains("only supports") {
         "The driver could not start the browser; a chromedriver whose version does not match \
-         the browser is the usual cause. Run `sbase doctor` to compare them and `sbase install` \
+         the browser is the usual cause. Run `sbrs doctor` to compare them and `sbrs install` \
          to fetch a matching driver."
     } else if message.contains("invalid session") || message.contains("disconnected") {
         "The browser behind this session has closed or crashed. Start a new session."
@@ -828,7 +828,7 @@ fn webdriver_hint(message: &str) -> &'static str {
          load, or raise the timeout."
     } else {
         "The WebDriver server failed the command. Check that the browser is still open and \
-         that the driver matches its version (`sbase doctor`)."
+         that the driver matches its version (`sbrs doctor`)."
     }
 }
 

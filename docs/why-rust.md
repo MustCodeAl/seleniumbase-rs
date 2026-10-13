@@ -9,7 +9,7 @@ pace (see [Performance](performance.md)).
 | You are... | Then |
 |---|---|
 | A Rust team testing a Rust service | Use it: share types and run tests with `cargo test` |
-| Shipping a test runner to CI or to people who do not write Rust | Use it: `sbase` is one binary |
+| Shipping a test runner to CI or to people who do not write Rust | Use it: `sbrs` is one binary |
 | Building AI-agent tooling around a browser | Use it: the MCP servers explain failures and inspect pages |
 | A Python team with a large SeleniumBase suite | Stay on Python unless you have another reason |
 | Wanting speed from the same tests | Measure first; expect little change |
@@ -68,7 +68,7 @@ the WebDriver session, reporting cleanup failures instead of dropping them.
 
 ### Native distribution
 
-The `sbase` CLI compiles to a single native binary. You do not need to manage a
+The `sbrs` CLI compiles to a single native binary. You do not need to manage a
 Python virtual environment, resolve pip conflicts, or ship a Node runtime. This
 is especially useful in CI/CD images, on restricted machines, or when tests are
 run by operators who are not Rust developers.
@@ -113,7 +113,7 @@ three real-Chrome tests (`diagnose_environment` ran only against a mock):
   page inspection, selector diagnosis, a console and failed-request view, an
   accessibility audit, a debug bundle, an environment check and an export of the
   session as a Rust test.
-- **Errors for people.** Every error has a hint, `sbase` exits with a status that
+- **Errors for people.** Every error has a hint, `sbrs` exits with a status that
   follows the error's category, and failed tests carry their page and evidence
   into the reports.
 

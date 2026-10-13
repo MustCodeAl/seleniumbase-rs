@@ -8,7 +8,7 @@
 //!   stealth tools (the default).
 //!
 //! ```bash
-//! cargo run --bin seleniumbase-mcp --features mcp-server -- --server cdp
+//! cargo run --bin sbrs-mcp --features mcp-server -- --server cdp
 //! ```
 //!
 //! Files the tools write go to `./mcp_output`, or to the directory named by

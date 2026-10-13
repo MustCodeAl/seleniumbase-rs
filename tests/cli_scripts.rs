@@ -1,6 +1,6 @@
-//! The `sbase` banner, error reporting and `sbase test`, run as the real binary.
+//! The `sbrs` banner, error reporting and `sbrs test`, run as the real binary.
 //!
-//! `sbase test` starts Cargo, so these tests put a stand-in `cargo` first on
+//! `sbrs test` starts Cargo, so these tests put a stand-in `cargo` first on
 //! `PATH` that reports how it was called. No browser, network or real Cargo
 //! run is involved.
 
@@ -8,9 +8,9 @@ use std::process::{Command, Output};
 
 use seleniumbase_rs::cli::scripts::logo_helper::LOGO;
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
-/// Every `SB_*` variable `sbase test` may set, cleared so the host's own
+/// Every `SB_*` variable `sbrs test` may set, cleared so the host's own
 /// settings cannot leak into a test.
 const SETTINGS_VARS: [&str; 16] = [
     "SB_BROWSER",
@@ -31,7 +31,7 @@ const SETTINGS_VARS: [&str; 16] = [
     "SB_WEBDRIVER_URL",
 ];
 
-fn sbase(args: &[&str]) -> Command {
+fn sbrs(args: &[&str]) -> Command {
     let mut command = Command::new(SBASE);
     command
         .args(args)
@@ -54,7 +54,7 @@ fn stderr(output: &Output) -> String {
 
 #[test]
 fn the_long_help_starts_with_the_banner() {
-    let output = sbase(&["--help"]).output().expect("sbase runs");
+    let output = sbrs(&["--help"]).output().expect("sbrs runs");
 
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
@@ -66,9 +66,9 @@ fn the_long_help_starts_with_the_banner() {
 
 #[test]
 fn a_failure_is_reported_with_an_error_label_and_a_failing_exit_code() {
-    let output = sbase(&["--cdp", "--uc", "open", "https://example.test"])
+    let output = sbrs(&["--cdp", "--uc", "open", "https://example.test"])
         .output()
-        .expect("sbase runs");
+        .expect("sbrs runs");
 
     assert_eq!(output.status.code(), Some(1));
     assert!(
@@ -92,14 +92,14 @@ fn a_crate_error_says_what_to_do_and_exits_with_its_category() {
     let dir = tempfile::tempdir().expect("temp dir");
     let missing = dir.path().join("no_such_settings.json");
 
-    let output = sbase(&[
+    let output = sbrs(&[
         "--config",
         missing.to_str().expect("a UTF-8 path"),
         "open",
         "https://example.test",
     ])
     .output()
-    .expect("sbase runs");
+    .expect("sbrs runs");
 
     let stderr = stderr(&output);
     assert_eq!(
@@ -119,7 +119,7 @@ fn a_crate_error_says_what_to_do_and_exits_with_its_category() {
 }
 
 fn doctor_in(dir: &std::path::Path, chromedriver_path: Option<&str>) -> String {
-    let mut command = sbase(&["doctor"]);
+    let mut command = sbrs(&["doctor"]);
     // An empty PATH, so a chromedriver installed on this machine cannot be found.
     command
         .current_dir(dir)
@@ -128,7 +128,7 @@ fn doctor_in(dir: &std::path::Path, chromedriver_path: Option<&str>) -> String {
     if let Some(path) = chromedriver_path {
         command.env("CHROMEDRIVER_PATH", path);
     }
-    let output = command.output().expect("sbase runs");
+    let output = command.output().expect("sbrs runs");
     assert!(output.status.success(), "{}", stderr(&output));
     stdout(&output)
 }
@@ -168,7 +168,7 @@ fn doctor_says_where_it_looked_when_there_is_no_driver() {
     let report = doctor_in(dir.path(), None);
 
     assert!(report.contains("downloaded_drivers/"), "{report}");
-    assert!(report.contains("sbase install"), "{report}");
+    assert!(report.contains("sbrs install"), "{report}");
 }
 
 #[test]
@@ -211,7 +211,7 @@ mod test_command {
 
     fn run_with_fake_cargo(dir: &tempfile::TempDir, args: &[&str]) -> Output {
         let path = format!("{}:/usr/bin:/bin", dir.path().display());
-        sbase(args).env("PATH", path).output().expect("sbase runs")
+        sbrs(args).env("PATH", path).output().expect("sbrs runs")
     }
 
     #[test]

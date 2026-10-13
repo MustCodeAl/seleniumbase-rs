@@ -1,4 +1,4 @@
-//! `sbase open`, `sbase smoke` and the other commands that drive a browser read
+//! `sbrs open`, `sbrs smoke` and the other commands that drive a browser read
 //! the `SB_*` variables, as the test runner does, with an explicit option
 //! stronger than the environment and the environment stronger than the config
 //! file.
@@ -15,9 +15,9 @@ use std::process::{Command, Output};
 
 use fake_webdriver::FakeWebDriver;
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
-/// Every `SB_*` variable `sbase` reads, cleared so the host's own cannot leak
+/// Every `SB_*` variable `sbrs` reads, cleared so the host's own cannot leak
 /// into a test.
 const SB_VARS: [&str; 24] = [
     "SB_BROWSER",
@@ -46,7 +46,7 @@ const SB_VARS: [&str; 24] = [
     "SB_CHROMEDRIVER_PORT",
 ];
 
-/// Runs `sbase` in `dir` with `env` set and `args` after the executable's name.
+/// Runs `sbrs` in `dir` with `env` set and `args` after the executable's name.
 fn run(dir: &Path, env: &[(&str, &str)], args: &[&str]) -> Output {
     let mut command = Command::new(SBASE);
     command
@@ -61,10 +61,10 @@ fn run(dir: &Path, env: &[(&str, &str)], args: &[&str]) -> Output {
     for (name, value) in env {
         command.env(name, value);
     }
-    command.output().expect("sbase runs")
+    command.output().expect("sbrs runs")
 }
 
-/// What `sbase` did against a fake server.
+/// What `sbrs` did against a fake server.
 struct Run {
     driver: FakeWebDriver,
     output: Output,
@@ -90,7 +90,7 @@ impl Run {
     }
 }
 
-/// Runs `sbase <flags> --webdriver <fake> <command...>` with `env` set.
+/// Runs `sbrs <flags> --webdriver <fake> <command...>` with `env` set.
 fn against_a_fake_server(env: &[(&str, &str)], flags: &[&str], command: &[&str]) -> Run {
     let dir = tempfile::tempdir().expect("temp dir");
     against_a_fake_server_in(dir.path(), env, flags, command)

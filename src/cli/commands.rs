@@ -1,8 +1,8 @@
-//! Reusable, browser-independent helpers backing the `sbase` CLI subcommands.
+//! Reusable, browser-independent helpers backing the `sbrs` CLI subcommands.
 //!
 //! The logic here is deliberately free of any WebDriver dependency so it can be
 //! unit tested without a live browser: deferred assertion parsing, download file
-//! name resolution, and the synthetic upload page used by `sbase choose-file`.
+//! name resolution, and the synthetic upload page used by `sbrs choose-file`.
 
 use std::io::{self, Write};
 use std::path::Path;
@@ -106,7 +106,7 @@ fn split_text_spec(rest: &str) -> Option<(&str, &str)> {
     first_colon.map(|index| (&rest[..index], &rest[index + 1..]))
 }
 
-/// A single assertion requested through `sbase deferred`.
+/// A single assertion requested through `sbrs deferred`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DeferredSpec {
     /// Assert that an element matching the selector exists.
@@ -435,7 +435,7 @@ pub fn blank_file_input_page(selector: &str) -> String {
 
     format!(
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
-<title>sbase choose-file</title></head><body><main>\
+<title>sbrs choose-file</title></head><body><main>\
 <h1>File upload check</h1>\
 <label for=\"{input_id}\">Select a file</label>\
 <input type=\"file\" id=\"{input_id}\"{attrs}>\
@@ -460,7 +460,7 @@ pub fn html_data_url(html: &str) -> String {
 /// Creates `path` holding `contents`, and refuses to replace a file that
 /// already exists.
 ///
-/// The `sbase mk*` commands write starter files into the current folder; a
+/// The `sbrs mk*` commands write starter files into the current folder; a
 /// second run must not erase the test or page the user has since edited.
 /// Missing parent folders are created. An existing file (or a link at that
 /// path) is an [`io::ErrorKind::AlreadyExists`] error that names the path.

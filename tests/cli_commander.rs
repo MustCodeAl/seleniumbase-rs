@@ -1,4 +1,4 @@
-//! `sbase commander`, run as the real binary.
+//! `sbrs commander`, run as the real binary.
 //!
 //! The Commander is a full-screen terminal menu that exists only in a build
 //! with the `tui` feature. A build without it must not touch the terminal: the
@@ -10,9 +10,9 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
-/// Every `SB_*` variable `sbase` reads, cleared so the host's own settings
+/// Every `SB_*` variable `sbrs` reads, cleared so the host's own settings
 /// cannot reach a test.
 const SETTINGS_VARS: [&str; 14] = [
     "SB_BROWSER",
@@ -31,9 +31,9 @@ const SETTINGS_VARS: [&str; 14] = [
     "SB_WEBDRIVER_URL",
 ];
 
-/// Runs `sbase` in `dir`, an empty folder, so no `sbase_config.toml` of the
+/// Runs `sbrs` in `dir`, an empty folder, so no `sbase_config.toml` of the
 /// host is picked up, and without the user's `SB_*` settings.
-fn sbase(dir: &Path, args: &[&str]) -> Output {
+fn sbrs(dir: &Path, args: &[&str]) -> Output {
     let mut command = Command::new(SBASE);
     command
         .args(args)
@@ -44,7 +44,7 @@ fn sbase(dir: &Path, args: &[&str]) -> Output {
     for var in SETTINGS_VARS {
         command.env_remove(var);
     }
-    command.output().expect("sbase runs")
+    command.output().expect("sbrs runs")
 }
 
 fn stdout(output: &Output) -> String {
@@ -59,11 +59,11 @@ fn stderr(output: &Output) -> String {
 fn the_help_lists_commander_and_says_it_needs_the_tui_feature() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let list = sbase(dir.path(), &["--help"]);
+    let list = sbrs(dir.path(), &["--help"]);
     assert!(list.status.success(), "{}", stderr(&list));
     assert!(stdout(&list).contains("commander"), "{}", stdout(&list));
 
-    let help = sbase(dir.path(), &["commander", "--help"]);
+    let help = sbrs(dir.path(), &["commander", "--help"]);
     assert!(help.status.success(), "{}", stderr(&help));
     assert!(
         stdout(&help).contains("`tui` feature"),
@@ -77,7 +77,7 @@ fn the_help_lists_commander_and_says_it_needs_the_tui_feature() {
 fn without_the_tui_feature_commander_exits_with_status_2_and_a_hint() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let output = sbase(dir.path(), &["commander"]);
+    let output = sbrs(dir.path(), &["commander"]);
 
     assert_eq!(output.status.code(), Some(2), "{}", stderr(&output));
     let hint = stderr(&output);
@@ -93,7 +93,7 @@ fn without_the_tui_feature_commander_exits_with_status_2_and_a_hint() {
 fn without_the_tui_feature_commander_leaves_the_terminal_alone() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let output = sbase(dir.path(), &["commander"]);
+    let output = sbrs(dir.path(), &["commander"]);
 
     // Nothing on stdout, and no escape sequence on either stream: the
     // alternate screen and raw mode of the real UI were never entered.

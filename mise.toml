@@ -85,5 +85,5 @@ description = "Build the mdBook documentation"
 run = "mdbook build"
 
 [tasks.smoke]
-description = "sbase --help, --version and doctor"
+description = "sbrs --help, --version and doctor"
 run = "just smoke"

@@ -6,13 +6,13 @@ and hint:
 
 - In your own program, call `init_tracing()` and run with
   `RUST_LOG=seleniumbase_rs=debug`.
-- With the `sbase` and `seleniumbase-mcp` binaries, `RUST_LOG` is ignored. They
+- With the `sbrs` and `sbrs-mcp` binaries, `RUST_LOG` is ignored. They
   read `SB_LOG_LEVEL` (default `info`), for example
   `SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
 
 ## Start here
 
-Run `sbase doctor` first. It reports which Chrome and chromedriver it finds and
+Run `sbrs doctor` first. It reports which Chrome and chromedriver it finds and
 whether their major versions match, and most start-up problems show up there. In
 an AI-agent session the MCP tool `diagnose_environment` reports the same, plus the
 platform and the redacted `SB_*` settings, without starting a browser.
@@ -36,7 +36,7 @@ UC mode removes many fingerprints, but detection is layered. Check each defense:
 
 1. **Patch the chromedriver binary.** Use
    [`ChromedriverPatcher`](../tutorials/binary_patching.md) or
-   `cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver`.
+   `cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver`.
    Verify with `needs_patch()`.
 2. **Add engine spoofing args.** Pass `engine_spoofing_args()` through
    `BrowserConfig::with_extra_args` or `StealthOptions::extra_args`.
@@ -70,30 +70,30 @@ fail it keeps the old driver and logs a warning. The download needs network
 access to the Chrome for Testing endpoint. To fetch the driver ahead of time:
 
 ```bash
-cargo run --bin sbase -- install
+cargo run --bin sbrs -- install
 ```
 
-`sbase install` with no argument fetches chromedriver; `sbase install geckodriver`
-and `sbase install edgedriver` fetch the drivers of Firefox and Edge (see the
+`sbrs install` with no argument fetches chromedriver; `sbrs install geckodriver`
+and `sbrs install edgedriver` fetch the drivers of Firefox and Edge (see the
 [CLI page](../tutorials/cli_usage.md#install-a-driver)). For Chrome the
 auto-start does not look at your `PATH`
-or at `CHROMEDRIVER_PATH`; those are consulted only by `sbase doctor`, which
+or at `CHROMEDRIVER_PATH`; those are consulted only by `sbrs doctor`, which
 prints which chromedriver it finds (`CHROMEDRIVER_PATH`, then
 `downloaded_drivers/`, then `PATH`), its major version next to Chrome's
 (`Version: 155 (matches Chrome 155)`, or `Version: 151, but Chrome is 155` with
-a hint to run `sbase install`), and whether it still has automation markers.
+a hint to run `sbrs install`), and whether it still has automation markers.
 
 To use a driver you run yourself, start it and pass its URL. A URL other than
 the default turns auto-start off:
 
 ```bash
 chromedriver --port=9515 &
-cargo run --bin sbase -- --webdriver http://localhost:9515 open https://example.com
+cargo run --bin sbrs -- --webdriver http://localhost:9515 open https://example.com
 ```
 
 A driver you start yourself and pass with `--webdriver` is never replaced. If it
 does not match your Chrome version, the session fails to start with a WebDriver
-error; `sbase doctor` shows both versions, and `sbase install` or the
+error; `sbrs doctor` shows both versions, and `sbrs install` or the
 [Chrome for Testing dashboard](https://googlechromelabs.github.io/chrome-for-testing/)
 has a matching one.
 
@@ -117,7 +117,7 @@ codesign --force --sign - /path/to/chromedriver
 ## Headless detected
 
 `BrowserConfig::default()` is **headless**, while the global config file and the
-`sbase` command line default to headed. A headless session passes
+`sbrs` command line default to headed. A headless session passes
 `--headless=new` (and `--disable-gpu`) to Chrome. Switch to headed mode for
 sites that still refuse it:
 
@@ -138,11 +138,11 @@ Nothing is enabled by default. These pieces exist only when their feature is on:
 
 | Feature | What it adds |
 |---------|--------------|
-| `tui` | `sbase commander`, `sbase caseplans` and `sbase behave-gui` (without it each command prints an error and exits with status 2) |
+| `tui` | `sbrs commander`, `sbrs caseplans` and `sbrs behave-gui` (without it each command prints an error and exits with status 2) |
 | `gui` | `Gui`, `api::dialog`, `api::gui` and the `dialog`, `dialogs` and `gui_automation` examples (on Linux it links GTK and X11) |
 | `playwright` | `PlaywrightSession`, `BaseCase::activate_playwright_mode` |
-| `mcp-server` | the `seleniumbase_rs::mcp` module and the `seleniumbase-mcp` binary |
-| `turso` | `seleniumbase_rs::storage` (`ResultStore`, `ProfileVault`) and `sbase report` |
+| `mcp-server` | the `seleniumbase_rs::mcp` module and the `sbrs-mcp` binary |
+| `turso` | `seleniumbase_rs::storage` (`ResultStore`, `ProfileVault`) and `sbrs report` |
 | `test-util` | the scripted mock browser for `sb_cdp` (`Browser::new_mocked`, `MockCtrl`) |
 | `s3`, `azure`, `gcp` | the cloud logging plugins |
 | `full-tracing` | a timing-histogram layer in the subscriber the `init_tracing*` functions install |
@@ -172,11 +172,11 @@ DYLD_LIBRARY_PATH=/path/to/python/lib cargo test --features playwright
 
 ## MCP server not listing tools
 
-The `seleniumbase-mcp` binary only exists when the `mcp-server` feature is
+The `sbrs-mcp` binary only exists when the `mcp-server` feature is
 enabled:
 
 ```bash
-cargo build --bin seleniumbase-mcp --features mcp-server
+cargo build --bin sbrs-mcp --features mcp-server
 ```
 
 The server communicates over stdio. Configure your MCP client with the absolute
@@ -209,7 +209,7 @@ specific build, name it:
 export SB_CHROME_BIN="/path/to/chrome"      # CHROME_BIN also works
 ```
 
-Run `sbase doctor` to confirm which one was picked. The pure CDP engine also takes
+Run `sbrs doctor` to confirm which one was picked. The pure CDP engine also takes
 the path in `LaunchOptions`.
 
 ## Chrome will not start in a container
@@ -254,12 +254,12 @@ Every `SeleniumBaseError` has a hint: the likely cause and the fix
 (`lnk=Home` for `link=Home`), a prefix from another tool (`css=`, `xpath=`,
 `id=`, `name=`), XPath without its leading `//`, or unbalanced brackets.
 
-`sbase` prints a failure for people, on standard error, with colour only on a
+`sbrs` prints a failure for people, on standard error, with colour only on a
 terminal (and never with `NO_COLOR` set):
 
 ```text
 error: invalid configuration: failed to read settings: No such file or directory (os error 2)
-hint: Review the configuration values passed to the builder, the command line or the environment; `sbase doctor` checks the browser setup.
+hint: Review the configuration values passed to the builder, the command line or the environment; `sbrs doctor` checks the browser setup.
 ```
 
 A cause the first line does not already say gets its own `caused by:` line. The
@@ -276,7 +276,7 @@ exit status says which kind of failure it was:
 | 7 | the MCP server failed |
 | 130, 143 | stopped by Ctrl-C or SIGTERM |
 
-`sbase test` is the exception: it exits with the status of the `cargo test` it
+`sbrs test` is the exception: it exits with the status of the `cargo test` it
 ran.
 
 In the HTML report of `ReportPlugin`, a failed test shows its error, the hint,
@@ -307,10 +307,10 @@ if let Err(err) = case.click("#missing").await {
 # }
 ```
 
-Or configure the log level before running `sbase` / `seleniumbase-mcp`:
+Or configure the log level before running `sbrs` / `sbrs-mcp`:
 
 ```bash
-SB_LOG_LEVEL=seleniumbase_rs=info,error cargo run --bin sbase -- open https://example.com
+SB_LOG_LEVEL=seleniumbase_rs=info,error cargo run --bin sbrs -- open https://example.com
 ```
 
 `SeleniumBaseError` provides helpers for programmatic handling:
@@ -349,9 +349,9 @@ Where a variable is read depends on how you build the configuration:
   `SB_REMOTE_WEBDRIVER_TIMEOUT`, and so on).
 - `Settings::load()` and `Settings::from_env()` read the settings ones
   (`SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`, and the rest of the list in
-  [Customizing Test Runs](./customizing_test_runs.md)). `sbase test` passes the
+  [Customizing Test Runs](./customizing_test_runs.md)). `sbrs test` passes the
   flags you give it to the tests as such variables.
-- The `sbase` binary reads both kinds. Its browser commands (`open`, `smoke`,
+- The `sbrs` binary reads both kinds. Its browser commands (`open`, `smoke`,
   and the rest) start from the config file (`--config FILE`, else the global
   one), apply the settings variables on top, and then its own flags, which win.
   The WebDriver URL is `--webdriver`, else `SB_WEBDRIVER_URL`, else

@@ -103,7 +103,7 @@ Related methods on `BaseCase`:
 - `extract_chart()` returns the chart as a JSON string with the title, type,
   labels and datasets.
 
-`sbase mkchart --file results.html` writes a small fixed example chart (a
+`sbrs mkchart --file results.html` writes a small fixed example chart (a
 Passed/Failed/Skipped bar chart) to edit by hand.
 
 ## Troubleshooting

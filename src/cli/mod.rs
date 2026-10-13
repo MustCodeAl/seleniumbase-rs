@@ -1,4 +1,4 @@
-//! Command-line surface: `sbase` subcommand helpers and bundled scripts.
+//! Command-line surface: `sbrs` subcommand helpers and bundled scripts.
 
 pub mod commands;
 pub mod scaffold;

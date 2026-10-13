@@ -7,7 +7,7 @@ configuring CI.
 ## What you will learn
 
 - How to build the Docker image.
-- How to run `sbase` inside a container.
+- How to run `sbrs` inside a container.
 - How to write a Docker Compose service.
 - How to run headless browsers in Docker.
 
@@ -21,9 +21,9 @@ docker build -t seleniumbase-rs .
 
 ## Run the CLI
 
-The runtime image contains the compiled `sbase` binary, Chromium and a matching
-chromedriver. The image's entry point is `sbase`, so the arguments after the image
-name are `sbase` arguments. Run it headless:
+The runtime image contains the compiled `sbrs` binary, Chromium and a matching
+chromedriver. The image's entry point is `sbrs`, so the arguments after the image
+name are `sbrs` arguments. Run it headless:
 
 ```bash
 docker run --rm seleniumbase-rs --help
@@ -31,7 +31,7 @@ docker run --rm seleniumbase-rs doctor
 docker run --rm --shm-size=1g seleniumbase-rs --headless smoke 'data:text/html,<title>Smoke</title><h1>hi</h1>' --title-contains Smoke
 ```
 
-`sbase open` and `smoke` need `--headless` or `SB_HEADLESS=true` in a container
+`sbrs open` and `smoke` need `--headless` or `SB_HEADLESS=true` in a container
 (the flag beats the variable). The build, the test results on Linux arm64
 and the commands that worked are in [Building](../building.md#container) and
 [Operating systems](../platforms.md).

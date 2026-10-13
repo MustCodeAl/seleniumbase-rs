@@ -23,7 +23,7 @@ The library looks in the usual install locations, and you can always name one:
 | Linux | `google-chrome`, `google-chrome-stable`, `chromium` and `chromium-browser` in `/usr/bin` (and `/snap/bin/chromium`), then the same names on the `PATH` | `SB_CHROME_BIN`, `CHROME_BIN` or `CHROMIUM_BIN` |
 | Windows | `Program Files`, `Program Files (x86)` and the per-user `Google\Chrome\Application\chrome.exe` | `SB_CHROME_BIN` or `CHROME_BIN` |
 
-For the WebDriver engine, `sbase install` downloads the chromedriver that matches
+For the WebDriver engine, `sbrs install` downloads the chromedriver that matches
 your Chrome's major version, and `CHROMEDRIVER_PATH` points at one you already
 have. The pure CDP engine (`sb_cdp`) needs no chromedriver on any system.
 
@@ -51,7 +51,7 @@ distribution geckodriver is used as it is. When none is found:
 
 | Driver | Downloaded from | Which build |
 |---|---|---|
-| geckodriver | `github.com/mozilla/geckodriver/releases` | The newest release; one geckodriver drives a range of Firefox versions, so it is not matched to Firefox. `sbase get geckodriver 0.36.0` pins one. |
+| geckodriver | `github.com/mozilla/geckodriver/releases` | The newest release; one geckodriver drives a range of Firefox versions, so it is not matched to Firefox. `sbrs get geckodriver 0.36.0` pins one. |
 | msedgedriver | `msedgedriver.microsoft.com` | The newest build for the installed Edge's major version (`LATEST_RELEASE_<major>_<OS>`), or the stable one when Edge cannot be found. A driver on disk or on the `PATH` for another Edge major version is replaced; `with_driver_version` pins one. |
 
 The archives (tar.gz for geckodriver on Linux and macOS, zip otherwise) are
@@ -76,7 +76,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
 - **A freshly written or replaced executable is slow the first time.** macOS
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
-  overwritten in place; if a driver is "killed" or refused, run `sbase install`
+  overwritten in place; if a driver is "killed" or refused, run `sbrs install`
   again and see [Common problems](help/common_problems.md).
 - **Gatekeeper and quarantine.** A browser or driver downloaded by another tool
   can carry a quarantine flag; clear it with
@@ -97,7 +97,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   sandbox off), or call `LaunchOptionsBuilder::no_sandbox(true)`. The real-browser
   tests of this repository read `CI` instead and pass `--no-sandbox` when it is
   set. That weakens Chrome's isolation, so use it only in a container you control.
-- **No display.** Run headless (`SB_HEADLESS=true`, which `sbase open` and the other
+- **No display.** Run headless (`SB_HEADLESS=true`, which `sbrs open` and the other
   browser commands read, or `--headless` before the subcommand). To
   see a window on a server, or to run the few tests that need a headed Chrome (the
   measurement tools), run under a virtual display such as Xvfb. Start `Xvfb` in the
@@ -134,7 +134,7 @@ What the runs showed:
 
 - **A real bug, fixed:** the chromedriver download used the x86-64 `linux64` build on
   every Linux machine, so an arm64 container failed with "chromedriver exited as it
-  started". It now asks for `linux-arm64`: `sbase install` in the arm64 image
+  started". It now asks for `linux-arm64`: `sbrs install` in the arm64 image
   fetches an aarch64 executable, and `browser_smoke` (7 tests) starts Chromium
   through a driver it downloaded that way.
 - **A flaky test, fixed (not Linux-specific):** `a_custom_ja3_arrives_exactly_as_given`
@@ -158,7 +158,7 @@ Not run: x86-64 Linux, Google Chrome (only Debian's Chromium), other Linux
 distributions, the `playwright`, `gui`, `tui`, `s3`, `azure`, `turso` and `gcp`
 features, `stealth_audit_network` (it needs outside sites), `playwright_chrome`, and
 the macOS-only `driver_repair_macos`. Whether the pure CDP engine starts as the
-non-root `sbase` user of the image with the sandbox on was not tried.
+non-root `sbrs` user of the image with the sandbox on was not tried.
 
 ## Windows
 
@@ -194,14 +194,14 @@ test files and its four real-Chrome files pass. Install steps:
 
 Run the Linux steps inside WSL. A browser inside WSL has no display unless you
 use WSLg or run headless. To drive a browser on another machine, run
-`seleniumbase-mcp` or your tests there, or point the WebDriver engine at a
-Selenium Grid (`sbase grid`) with `BrowserConfig::webdriver_url`.
+`sbrs-mcp` or your tests there, or point the WebDriver engine at a
+Selenium Grid (`sbrs grid`) with `BrowserConfig::webdriver_url`.
 
 ## Check the setup on any system
 
 ```bash
-sbase doctor       # Chrome and chromedriver versions, and whether they match
-sbase install      # fetch the matching chromedriver
+sbrs doctor       # Chrome and chromedriver versions, and whether they match
+sbrs install      # fetch the matching chromedriver
 ```
 
 From an AI agent, the MCP tool `diagnose_environment` reports the same plus the

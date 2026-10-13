@@ -1,8 +1,8 @@
 //! Where the crate keeps the browser drivers it manages, and how it finds one.
 //!
 //! Python SeleniumBase installs drivers into a `drivers` folder next to the
-//! package (`sbase get chromedriver`). The Rust counterpart is
-//! [`DRIVERS_DIR`], a folder in the current directory that `sbase install`
+//! package (`sbrs get chromedriver`). The Rust counterpart is
+//! [`DRIVERS_DIR`], a folder in the current directory that `sbrs install`
 //! fills and the local driver launcher reads. [`lookup_chromedriver`] answers
 //! "which chromedriver would be used?" the same way everywhere.
 //!

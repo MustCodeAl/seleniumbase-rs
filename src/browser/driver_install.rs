@@ -1,8 +1,8 @@
 //! Downloading geckodriver, the driver of Firefox, and msedgedriver, the driver
 //! of Microsoft Edge.
 //!
-//! Python SeleniumBase fetches both itself (`sbase get geckodriver`,
-//! `sbase get edgedriver`, and its launcher when a session needs one), and so
+//! Python SeleniumBase fetches both itself (`sbrs get geckodriver`,
+//! `sbrs get edgedriver`, and its launcher when a session needs one), and so
 //! does this module:
 //!
 //! - geckodriver comes from its GitHub releases: the newest one, or a version

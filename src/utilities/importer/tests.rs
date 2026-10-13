@@ -919,7 +919,7 @@ fn a_puppeteer_script() {
     }
     assert!(import
         .rust
-        .contains("// Imported from Puppeteer code by `sbase import-puppeteer`."));
+        .contains("// Imported from Puppeteer code by `sbrs import-puppeteer`."));
 }
 
 #[test]

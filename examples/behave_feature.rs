@@ -18,7 +18,7 @@
 //! ```
 //!
 //! The browser part needs Chrome and a matching chromedriver on your `PATH`
-//! (`sbase doctor` checks both); neither part needs the network. The process
+//! (`sbrs doctor` checks both); neither part needs the network. The process
 //! exits with an error if a scenario that should pass fails, or the other way
 //! round.
 

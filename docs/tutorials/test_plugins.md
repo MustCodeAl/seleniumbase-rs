@@ -54,7 +54,7 @@ valid even if the run stops part-way.
 | `ScreenshotOnFailurePlugin` | a test fails | Saves a PNG named after the test and the time. |
 | `PageSourceOnFailurePlugin` | a test fails | Saves the page's HTML the same way. |
 | `ReportPlugin::json` / `::html` | a test finishes | Rewrites a JSON or HTML report of all tests so far. |
-| `ResultStorePlugin` (`turso` feature) | a test finishes | Records the test in a [`ResultStore`](results_and_profiles.md), for trends and `sbase report`. |
+| `ResultStorePlugin` (`turso` feature) | a test finishes | Records the test in a [`ResultStore`](results_and_profiles.md), for trends and `sbrs report`. |
 
 Details worth knowing:
 

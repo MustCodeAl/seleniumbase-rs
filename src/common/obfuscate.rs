@@ -9,7 +9,7 @@
 //! Do not use it to protect a password, a token or anything else that must stay
 //! secret. For that use
 //! [`encrypt_with_passphrase`](super::encryption::encrypt_with_passphrase), which
-//! is AES-256-GCM under a key derived from a passphrase and is what `sbase
+//! is AES-256-GCM under a key derived from a passphrase and is what `sbrs
 //! encrypt` produces.
 //!
 //! ```

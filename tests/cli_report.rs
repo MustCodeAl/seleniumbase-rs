@@ -1,4 +1,4 @@
-//! `sbase report`, run as the real binary against a database made with the
+//! `sbrs report`, run as the real binary against a database made with the
 //! library. Needs the `turso` feature: `cargo test --features turso`.
 
 #![cfg(feature = "turso")]
@@ -10,7 +10,7 @@ use seleniumbase_rs::core::report_helper::TestResult;
 use seleniumbase_rs::storage::{ResultStore, RunInfo};
 use serde_json::Value;
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 fn result(name: &str, passed: bool) -> TestResult {
     TestResult {
@@ -38,7 +38,7 @@ async fn database(path: &Path) {
     }
 }
 
-fn sbase(args: &[&str], db: Option<&Path>) -> Output {
+fn sbrs(args: &[&str], db: Option<&Path>) -> Output {
     let mut command = Command::new(SBASE);
     command
         .args(["report"])
@@ -47,7 +47,7 @@ fn sbase(args: &[&str], db: Option<&Path>) -> Output {
     if let Some(db) = db {
         command.arg("--db").arg(db);
     }
-    command.output().expect("sbase starts")
+    command.output().expect("sbrs starts")
 }
 
 fn out(output: &Output) -> String {
@@ -64,7 +64,7 @@ async fn it_lists_the_runs_newest_first() {
     let db = dir.path().join("results.db");
     database(&db).await;
 
-    let output = sbase(&[], Some(&db));
+    let output = sbrs(&[], Some(&db));
 
     assert!(output.status.success(), "{}", err(&output));
     let table = out(&output);
@@ -82,8 +82,8 @@ async fn it_shows_one_run_and_can_show_only_its_failures() {
     let db = dir.path().join("results.db");
     database(&db).await;
 
-    let all = out(&sbase(&["--run", "1"], Some(&db)));
-    let failed = out(&sbase(&["--run", "1", "--failed"], Some(&db)));
+    let all = out(&sbrs(&["--run", "1"], Some(&db)));
+    let failed = out(&sbrs(&["--run", "1", "--failed"], Some(&db)));
 
     assert!(all.contains("PASS") && all.contains("login"), "{all}");
     assert!(all.contains("FAIL") && all.contains("checkout"), "{all}");
@@ -100,7 +100,7 @@ async fn it_finds_the_flaky_test_and_not_the_broken_one() {
     let db = dir.path().join("results.db");
     database(&db).await;
 
-    let output = sbase(&["--flaky"], Some(&db));
+    let output = sbrs(&["--flaky"], Some(&db));
 
     let text = out(&output);
     assert!(text.contains("login"), "{text}");
@@ -116,9 +116,9 @@ async fn json_output_parses() {
     let db = dir.path().join("results.db");
     database(&db).await;
 
-    let runs: Value = serde_json::from_str(&out(&sbase(&["--json"], Some(&db)))).unwrap();
+    let runs: Value = serde_json::from_str(&out(&sbrs(&["--json"], Some(&db)))).unwrap();
     let run: Value =
-        serde_json::from_str(&out(&sbase(&["--run", "2", "--json"], Some(&db)))).unwrap();
+        serde_json::from_str(&out(&sbrs(&["--run", "2", "--json"], Some(&db)))).unwrap();
 
     assert_eq!(runs.as_array().unwrap().len(), 2);
     assert_eq!(runs[0]["label"], "hotfix");
@@ -148,7 +148,7 @@ fn a_missing_database_is_an_error_and_is_not_created() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("typo.db");
 
-    let output = sbase(&[], Some(&db));
+    let output = sbrs(&[], Some(&db));
 
     assert!(!output.status.success());
     assert!(
@@ -165,7 +165,7 @@ async fn an_unknown_run_is_an_error() {
     let db = dir.path().join("results.db");
     database(&db).await;
 
-    let output = sbase(&["--run", "99"], Some(&db));
+    let output = sbrs(&["--run", "99"], Some(&db));
 
     assert!(!output.status.success());
     assert!(err(&output).contains("no run 99"), "{}", err(&output));
@@ -178,17 +178,15 @@ async fn options_that_make_no_sense_together_are_refused() {
     database(&db).await;
 
     assert!(
-        !sbase(&["--failed"], Some(&db)).status.success(),
+        !sbrs(&["--failed"], Some(&db)).status.success(),
         "--failed needs --run"
     );
     assert!(
-        !sbase(&["--run", "1", "--flaky"], Some(&db))
-            .status
-            .success(),
+        !sbrs(&["--run", "1", "--flaky"], Some(&db)).status.success(),
         "--run and --flaky conflict"
     );
     assert!(
-        !sbase(&["--run", "0"], Some(&db)).status.success(),
+        !sbrs(&["--run", "0"], Some(&db)).status.success(),
         "run numbers start at 1"
     );
 }

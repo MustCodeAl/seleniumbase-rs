@@ -81,7 +81,7 @@ patch_chromedriver("/path/to/chromedriver")?;
 ```
 
 It is equivalent to `ChromedriverPatcher::new(path).patch(EnginePatch::all())`,
-and `sbase patch-chromedriver --path /path/to/chromedriver` calls it.
+and `sbrs patch-chromedriver --path /path/to/chromedriver` calls it.
 
 ## Backup and restore
 
@@ -180,12 +180,12 @@ from `SB_CHROME_BIN`, or else a Chrome it finds on the system (`CHROME_BIN`,
 You can also patch from the CLI. Quote a path that contains spaces:
 
 ```bash
-sbase patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-sbase patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
+sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+sbrs patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
 ```
 
 Without `--cache-dir` the CLI caches under `sb-chrome-patches` in the platform
-cache directory. `sbase doctor` reports the Chrome binary it finds, where the
+cache directory. `sbrs doctor` reports the Chrome binary it finds, where the
 patched copy would be, and whether your chromedriver still has automation markers.
 
 ## Safety and licensing
@@ -200,7 +200,7 @@ non-production environment first.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `needs_patch()` still true after patching | Driver was replaced by a newer version | Re-run the patcher after driver downloads (`sbase install` downloads a fresh, unpatched one). |
+| `needs_patch()` still true after patching | Driver was replaced by a newer version | Re-run the patcher after driver downloads (`sbrs install` downloads a fresh, unpatched one). |
 | Browser crashes after Chrome binary patch | Patch incompatible with Chromium version | Delete the cached copy under `chrome-patches/` and use the original browser; the original is never modified. |
 | Driver is killed as it starts on macOS | Its signature no longer matches | `patch` signs it again; if it still fails, run `codesign --force --sign - <driver>`. |
 | `restore` fails with "no .orig backup found" | Used `EnginePatch::no_backup()` | Re-download the original binary before patching again. |

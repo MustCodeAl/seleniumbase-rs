@@ -1,9 +1,9 @@
 //! A minimal W3C WebDriver server on a loopback port, for tests that run the
-//! real `sbase` binary and need to see what it sent to its browser.
+//! real `sbrs` binary and need to see what it sent to its browser.
 //!
 //! It answers the new-session, delete-session and a few element commands
 //! itself and returns `null` for every other command. Every request is
-//! recorded, so a test can read the capabilities `sbase` asked for. No browser
+//! recorded, so a test can read the capabilities `sbrs` asked for. No browser
 //! or driver is involved.
 
 // A test that includes this file uses only some of what it offers.
@@ -55,7 +55,7 @@ impl FakeWebDriver {
         }
     }
 
-    /// The address to give `sbase --webdriver`.
+    /// The address to give `sbrs --webdriver`.
     pub fn url(&self) -> &str {
         &self.url
     }

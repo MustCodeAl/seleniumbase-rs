@@ -1,4 +1,4 @@
-//! `sbase mkrec` and the two interactive recorders.
+//! `sbrs mkrec` and the two interactive recorders.
 //!
 //! [`make_recorder_file`] writes a starter test. [`start_recorder`] and
 //! [`record_live_session`] read commands from the terminal; their loops are
@@ -13,7 +13,7 @@ use crate::SeleniumBaseError;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 
-/// The test `sbase mkrec` writes. The file is kept apart so a test can compile
+/// The test `sbrs mkrec` writes. The file is kept apart so a test can compile
 /// it against the real `BaseCase` API.
 const STARTER_TEMPLATE: &str = include_str!("templates/starter_recording.tpl");
 

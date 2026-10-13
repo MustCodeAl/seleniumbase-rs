@@ -1,4 +1,4 @@
-//! `sbase --rec-sb-cdp`: the recording that `sbase run-scenario` saves, run as
+//! `sbrs --rec-sb-cdp`: the recording that `sbrs run-scenario` saves, run as
 //! the real binary against a fake WebDriver server (no browser).
 //!
 //! The scenario's steps run through `BaseCase`, which records them; with the
@@ -12,7 +12,7 @@ use std::process::{Command, Output};
 
 use fake_webdriver::FakeWebDriver;
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 const SCENARIO: &str = r##"{
     "name": "search",
@@ -46,8 +46,8 @@ const SETTINGS_VARS: [&str; 18] = [
     "SB_THREADS",
 ];
 
-/// Runs `sbase` with `args` in `dir`, which holds the scenario.
-fn sbase(dir: &Path, webdriver: &FakeWebDriver, args: &[&str]) -> Output {
+/// Runs `sbrs` with `args` in `dir`, which holds the scenario.
+fn sbrs(dir: &Path, webdriver: &FakeWebDriver, args: &[&str]) -> Output {
     let mut command = Command::new(SBASE);
     command
         .current_dir(dir)
@@ -63,7 +63,7 @@ fn sbase(dir: &Path, webdriver: &FakeWebDriver, args: &[&str]) -> Output {
     for var in SETTINGS_VARS {
         command.env_remove(var);
     }
-    command.output().expect("sbase runs")
+    command.output().expect("sbrs runs")
 }
 
 /// Runs the scenario with the global `flags`, and returns the recording script
@@ -75,7 +75,7 @@ fn recorded_script(flags: &[&str]) -> String {
     let mut args = flags.to_vec();
     args.extend(["run-scenario", "--file", "scenario.json"]);
 
-    let output = sbase(dir.path(), &driver, &args);
+    let output = sbrs(dir.path(), &driver, &args);
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -87,7 +87,7 @@ fn recorded_script(flags: &[&str]) -> String {
         .lines()
         .find_map(|line| line.strip_prefix("Recording script: "))
         .unwrap_or_else(|| panic!("no recording script was reported:\n{stdout}"));
-    // The path is relative to the folder `sbase` ran in.
+    // The path is relative to the folder `sbrs` ran in.
     std::fs::read_to_string(dir.path().join(saved)).unwrap_or_else(|e| panic!("{saved}: {e}"))
 }
 

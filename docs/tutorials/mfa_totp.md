@@ -67,7 +67,7 @@ that uses another length, step or hash will not accept these codes.
 ## Security notes
 
 - Keep MFA secrets out of source code; load them from environment variables or a
-  secrets manager. If you keep one in a file, `sbase encrypt` and `sbase decrypt`
+  secrets manager. If you keep one in a file, `sbrs encrypt` and `sbrs decrypt`
   (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`) can protect it at rest.
 - Codes are generated locally; no network request is required.
 - Treat TOTP secrets with the same care as passwords. Rotate them if exposed.

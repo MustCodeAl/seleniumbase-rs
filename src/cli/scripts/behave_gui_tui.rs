@@ -1,4 +1,4 @@
-//! `sbase behave-gui` as a terminal app (feature `tui`): the Python Behave
+//! `sbrs behave-gui` as a terminal app (feature `tui`): the Python Behave
 //! Commander without Tkinter.
 //!
 //! It lists the feature files under a folder with their scenarios, lets the
@@ -581,7 +581,7 @@ impl BehaveGui {
                 "",
                 &format!("Looked in: {}", self.looked_in),
                 "Feature files are the *.feature files of a folder (default: features/),",
-                "or pass a folder or a file: sbase behave-gui <path>",
+                "or pass a folder or a file: sbrs behave-gui <path>",
             ]
             .join("\n");
             frame.render_widget(
@@ -1486,7 +1486,7 @@ mod tests {
                 &centered_in_frame(
                     "Feature files are the *.feature files of a folder (default: features/),",
                 ),
-                &centered_in_frame("or pass a folder or a file: sbase behave-gui <path>"),
+                &centered_in_frame("or pass a folder or a file: sbrs behave-gui <path>"),
                 "",
             ],
         ));

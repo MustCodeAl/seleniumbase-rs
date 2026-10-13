@@ -164,7 +164,7 @@ pub struct BrowserConfig {
     /// Idle browsers close after
     /// [`reuse::idle_timeout`](crate::browser::reuse::idle_timeout) or at
     /// [`shutdown_reused_sessions`](crate::shutdown_reused_sessions). The
-    /// `sbase` flag, `Settings` and `SB_REUSE_SESSION` set it;
+    /// `sbrs` flag, `Settings` and `SB_REUSE_SESSION` set it;
     /// [`with_reuse_class_session`](Self::with_reuse_class_session) and
     /// [`with_reuse_module_session`](Self::with_reuse_module_session) narrow
     /// who shares (`--rcs`). See [`crate::browser::reuse`] for how it works and
@@ -489,8 +489,8 @@ impl BrowserConfig {
     /// for `BaseCase` (`--rec-sb-cdp`, `rec_sb_cdp`).
     ///
     /// With it on, [`BaseCase::export_recording_as_rust`](crate::BaseCase::export_recording_as_rust)
-    /// (and so `save_recording_to_logs`, `sbase run-scenario` and
-    /// `sbase export-recording`) returns
+    /// (and so `save_recording_to_logs`, `sbrs run-scenario` and
+    /// `sbrs export-recording`) returns
     /// [`ActionRecorder::to_cdp_script`](crate::api::recorder::ActionRecorder::to_cdp_script).
     /// The session itself still runs on WebDriver; only the generated code
     /// changes.

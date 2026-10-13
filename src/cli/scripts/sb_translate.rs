@@ -1,4 +1,4 @@
-//! `sbase translate`: write a JSON scenario's actions in another language.
+//! `sbrs translate`: write a JSON scenario's actions in another language.
 //!
 //! Python SeleniumBase translates the method calls of a Python test file between
 //! languages. A Rust test is compiled code with English method names, so here

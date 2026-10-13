@@ -1,4 +1,4 @@
-//! `sbase translate`, run as the real binary.
+//! `sbrs translate`, run as the real binary.
 //!
 //! The command needs no browser: it rewrites the action names of a JSON
 //! scenario file with the translation dictionary.
@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 const SCENARIO: &str = r##"{"name": "login", "steps": [
   {"action": "open", "url": "https://example.com"},
@@ -16,12 +16,12 @@ const SCENARIO: &str = r##"{"name": "login", "steps": [
 ]}
 "##;
 
-fn sbase(dir: &Path, args: &[&str]) -> Output {
+fn sbrs(dir: &Path, args: &[&str]) -> Output {
     Command::new(SBASE)
         .current_dir(dir)
         .args(args)
         .output()
-        .expect("sbase starts")
+        .expect("sbrs starts")
 }
 
 fn text(bytes: &[u8]) -> String {
@@ -37,7 +37,7 @@ fn with_scenario() -> tempfile::TempDir {
 #[test]
 fn the_command_is_listed_and_describes_its_options() {
     let dir = tempfile::tempdir().unwrap();
-    let out = sbase(dir.path(), &["translate", "--help"]);
+    let out = sbrs(dir.path(), &["translate", "--help"]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     let help = text(&out.stdout);
     for word in ["--print", "--overwrite", "--copy", "LANGUAGE", "scenario"] {
@@ -48,7 +48,7 @@ fn the_command_is_listed_and_describes_its_options() {
 #[test]
 fn by_default_it_prints_the_translation_and_changes_no_file() {
     let dir = with_scenario();
-    let out = sbase(dir.path(), &["translate", "login.json", "es"]);
+    let out = sbrs(dir.path(), &["translate", "login.json", "es"]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     assert_eq!(
         text(&out.stdout),
@@ -66,7 +66,7 @@ fn by_default_it_prints_the_translation_and_changes_no_file() {
 #[test]
 fn a_language_may_be_given_by_name_and_translations_chain() {
     let dir = with_scenario();
-    let out = sbase(
+    let out = sbrs(
         dir.path(),
         &["translate", "login.json", "Japanese", "--overwrite"],
     );
@@ -78,7 +78,7 @@ fn a_language_may_be_given_by_name_and_translations_chain() {
     );
 
     // From Japanese straight to English restores the original file.
-    let back = sbase(dir.path(), &["translate", "login.json", "en", "-o"]);
+    let back = sbrs(dir.path(), &["translate", "login.json", "en", "-o"]);
     assert!(back.status.success(), "{}", text(&back.stderr));
     assert_eq!(
         fs::read_to_string(dir.path().join("login.json")).unwrap(),
@@ -89,7 +89,7 @@ fn a_language_may_be_given_by_name_and_translations_chain() {
 #[test]
 fn copy_writes_a_new_file_and_refuses_to_replace_one() {
     let dir = with_scenario();
-    let out = sbase(dir.path(), &["translate", "login.json", "fr", "--copy"]);
+    let out = sbrs(dir.path(), &["translate", "login.json", "fr", "--copy"]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     assert!(
         text(&out.stdout).contains("login_fr.json"),
@@ -106,7 +106,7 @@ fn copy_writes_a_new_file_and_refuses_to_replace_one() {
         SCENARIO
     );
 
-    let again = sbase(dir.path(), &["translate", "login.json", "fr", "-c"]);
+    let again = sbrs(dir.path(), &["translate", "login.json", "fr", "-c"]);
     assert!(!again.status.success());
     assert!(
         text(&again.stderr).contains("already exists"),
@@ -119,7 +119,7 @@ fn copy_writes_a_new_file_and_refuses_to_replace_one() {
 fn a_bad_language_a_missing_file_and_clashing_options_are_refused() {
     let dir = with_scenario();
 
-    let language = sbase(dir.path(), &["translate", "login.json", "klingon"]);
+    let language = sbrs(dir.path(), &["translate", "login.json", "klingon"]);
     assert!(!language.status.success());
     let message = text(&language.stderr);
     assert!(
@@ -127,7 +127,7 @@ fn a_bad_language_a_missing_file_and_clashing_options_are_refused() {
         "{message}"
     );
 
-    let missing = sbase(dir.path(), &["translate", "none.json", "es"]);
+    let missing = sbrs(dir.path(), &["translate", "none.json", "es"]);
     assert!(!missing.status.success());
     assert!(
         text(&missing.stderr).contains("none.json"),
@@ -135,7 +135,7 @@ fn a_bad_language_a_missing_file_and_clashing_options_are_refused() {
         text(&missing.stderr)
     );
 
-    let clash = sbase(dir.path(), &["translate", "login.json", "es", "-o", "-c"]);
+    let clash = sbrs(dir.path(), &["translate", "login.json", "es", "-o", "-c"]);
     assert!(!clash.status.success());
     assert_eq!(
         fs::read_to_string(dir.path().join("login.json")).unwrap(),
@@ -151,11 +151,11 @@ fn an_action_the_dictionary_does_not_know_is_kept_and_reported() {
         r#"{"name": "n", "steps": [{"action": "teleport"}, {"action": "open", "url": "u"}]}"#,
     )
     .unwrap();
-    let out = sbase(dir.path(), &["translate", "odd.json", "de"]);
+    let out = sbrs(dir.path(), &["translate", "odd.json", "de"]);
     // German is not a language of the dictionary.
     assert!(!out.status.success());
 
-    let out = sbase(dir.path(), &["translate", "odd.json", "ru"]);
+    let out = sbrs(dir.path(), &["translate", "odd.json", "ru"]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     let printed = text(&out.stdout);
     assert!(
@@ -172,7 +172,7 @@ fn an_action_the_dictionary_does_not_know_is_kept_and_reported() {
 #[test]
 fn the_extra_browsers_can_be_chosen() {
     let dir = tempfile::tempdir().unwrap();
-    let out = sbase(dir.path(), &["--help"]);
+    let out = sbrs(dir.path(), &["--help"]);
     assert!(out.status.success());
     let help = text(&out.stdout);
     // `--browser` is a value enum, so its choices are shown with `--help`.

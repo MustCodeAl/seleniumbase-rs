@@ -4,7 +4,7 @@
 //! lives in a single local database file; nothing is sent over the network.
 //!
 //! - [`ResultStore`] keeps test runs and their results for reporting and
-//!   flakiness analysis (`sbase report`).
+//!   flakiness analysis (`sbrs report`).
 //! - [`ProfileVault`] keeps browser profiles, which hold cookies and proxy
 //!   passwords, encrypted at rest.
 

@@ -1,6 +1,6 @@
-# CLI Usage (`sbase`)
+# CLI Usage (`sbrs`)
 
-The `sbase` binary provides quick commands for common tasks: opening pages,
+The `sbrs` binary provides quick commands for common tasks: opening pages,
 running smoke tests, executing CDP commands, patching binaries, generating
 files, and more. This page covers the most common workflows.
 
@@ -14,7 +14,7 @@ files, and more. This page covers the most common workflows.
 ## Build the CLI
 
 ```bash
-cargo build --bin sbase
+cargo build --bin sbrs
 ```
 
 A `justfile` and `Makefile` provide common shortcuts such as `just lint`,
@@ -23,9 +23,9 @@ A `justfile` and `Makefile` provide common shortcuts such as `just lint`,
 ## Help and version
 
 ```bash
-./target/debug/sbase --help
-./target/debug/sbase --version
-./target/debug/sbase <COMMAND> --help
+./target/debug/sbrs --help
+./target/debug/sbrs --version
+./target/debug/sbrs <COMMAND> --help
 ```
 
 Every top-level option and subcommand argument includes a description, so
@@ -35,60 +35,60 @@ version.
 ## Open a page
 
 ```bash
-./target/debug/sbase open https://seleniumbase.io
+./target/debug/sbrs open https://seleniumbase.io
 ```
 
 ## Run a smoke test with UC mode
 
 ```bash
-./target/debug/sbase --uc smoke https://seleniumbase.io --title-contains SeleniumBase
+./target/debug/sbrs --uc smoke https://seleniumbase.io --title-contains SeleniumBase
 ```
 
 ## Execute a raw CDP command
 
 ```bash
-./target/debug/sbase --cdp cdp --cmd Browser.getVersion
-./target/debug/sbase --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
+./target/debug/sbrs --cdp cdp --cmd Browser.getVersion
+./target/debug/sbrs --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
 ```
 
 ## Save artifacts
 
 ```bash
-./target/debug/sbase screenshot
-./target/debug/sbase save-source
+./target/debug/sbrs screenshot
+./target/debug/sbrs save-source
 ```
 
 ## Assertions and waits
 
 ```bash
-./target/debug/sbase open https://seleniumbase.io
-./target/debug/sbase assert-element --css "body"
-./target/debug/sbase wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+./target/debug/sbrs open https://seleniumbase.io
+./target/debug/sbrs assert-element --css "body"
+./target/debug/sbrs wait-for-text --css "body" --text "SeleniumBase" --timeout 15
 ```
 
 ## Patch chromedriver
 
 ```bash
-./target/debug/sbase patch-chromedriver --path /path/to/chromedriver
+./target/debug/sbrs patch-chromedriver --path /path/to/chromedriver
 ```
 
 ## Patch Chrome binary
 
 ```bash
-./target/debug/sbase patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-./target/debug/sbase patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
+./target/debug/sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+./target/debug/sbrs patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
 ```
 
 ## Diagnostic check
 
 ```bash
-./target/debug/sbase doctor
+./target/debug/sbrs doctor
 ```
 
 `doctor` prints the active `SB_*` environment variables, the detected Chrome
 binary, and the patched-binary cache path. For chromedriver it looks, in order,
 at the file named by `CHROMEDRIVER_PATH`, at `downloaded_drivers/` (where
-`sbase install` puts it), and on `PATH`; a `CHROMEDRIVER_PATH` that names no
+`sbrs install` puts it), and on `PATH`; a `CHROMEDRIVER_PATH` that names no
 file is reported rather than skipped. It also prints the driver's major version
 next to Chrome's, because a chromedriver only drives the Chrome of its own major
 version:
@@ -97,21 +97,21 @@ version:
 Chromedriver
   Found: downloaded_drivers/chromedriver
   Version: 151, but Chrome is 155
-  Hint: a chromedriver only drives its own Chrome version; run `sbase install` to fetch the matching one
+  Hint: a chromedriver only drives its own Chrome version; run `sbrs install` to fetch the matching one
 ```
 
 ## Install a driver
 
 ```bash
-./target/debug/sbase install                    # chromedriver for the installed Chrome
-./target/debug/sbase install chromedriver 155   # the newest chromedriver of Chrome 155
-./target/debug/sbase get geckodriver            # the newest geckodriver release
-./target/debug/sbase get geckodriver 0.36.0     # one geckodriver release
-./target/debug/sbase get edgedriver             # msedgedriver for the installed Edge
-./target/debug/sbase get edgedriver latest      # the stable msedgedriver
+./target/debug/sbrs install                    # chromedriver for the installed Chrome
+./target/debug/sbrs install chromedriver 155   # the newest chromedriver of Chrome 155
+./target/debug/sbrs get geckodriver            # the newest geckodriver release
+./target/debug/sbrs get geckodriver 0.36.0     # one geckodriver release
+./target/debug/sbrs get edgedriver             # msedgedriver for the installed Edge
+./target/debug/sbrs get edgedriver latest      # the stable msedgedriver
 ```
 
-`sbase get` is another name for `sbase install`, as in Python SeleniumBase. The
+`sbrs get` is another name for `sbrs install`, as in Python SeleniumBase. The
 driver is `chromedriver` (the default), `geckodriver` (or `firefoxdriver`) or
 `edgedriver` (or `msedgedriver`); the version is `latest`, a major version or a
 full build, and for geckodriver a release such as `0.36.0`. The driver goes to
@@ -129,16 +129,16 @@ on the `PATH`) is not supported.
 
 ## Run your tests
 
-`sbase test` runs `cargo test` (or one example) and carries the global options
+`sbrs test` runs `cargo test` (or one example) and carries the global options
 into the tests as `SB_*` environment variables, the way Python SeleniumBase's
 pytest options reach its tests:
 
 ```bash
-sbase test                                  # every test
-sbase test login                            # tests whose name contains "login"
-sbase test --test browser_smoke             # one file from tests/
-sbase test --example basic_test             # run one example instead
-sbase --headless --browser firefox -n 4 test -- --nocapture
+sbrs test                                  # every test
+sbrs test login                            # tests whose name contains "login"
+sbrs test --test browser_smoke             # one file from tests/
+sbrs test --example basic_test             # run one example instead
+sbrs --headless --browser firefox -n 4 test -- --nocapture
 ```
 
 Only options you actually pass are exported (`SB_HEADLESS`, `SB_BROWSER`,
@@ -160,8 +160,8 @@ socks5://10.0.0.9:1080
 ```
 
 ```bash
-sbase --proxy-list proxies.txt --proxy eu open https://example.com   # by name
-sbase --proxy-list proxies.txt open https://example.com              # a random one
+sbrs --proxy-list proxies.txt --proxy eu open https://example.com   # by name
+sbrs --proxy-list proxies.txt open https://example.com              # a random one
 ```
 
 Each line is checked when the file is read, and an error names the line number
@@ -176,29 +176,29 @@ and process listings:
 
 ```bash
 export SB_ENCRYPTION_KEY='a long passphrase'
-sbase encrypt 'my password'          # prints a token such as sbenc1:600000:...
-echo 'my password' | sbase encrypt   # or read the text from standard input
-sbase decrypt 'sbenc1:600000:...'    # prints: my password
+sbrs encrypt 'my password'          # prints a token such as sbenc1:600000:...
+echo 'my password' | sbrs encrypt   # or read the text from standard input
+sbrs decrypt 'sbenc1:600000:...'    # prints: my password
 ```
 
 Tokens use AES-256-GCM with a key derived from the passphrase (PBKDF2-HMAC-SHA256,
 600,000 iterations, a fresh random salt each time). A wrong passphrase or a
 modified token fails to decrypt. They are not interchangeable with Python
-SeleniumBase's `sbase encrypt`, which is a reversible obfuscation with a fixed
+SeleniumBase's `sbrs encrypt`, which is a reversible obfuscation with a fixed
 key.
 
 ## Read a results database
 
-With the `turso` feature (`cargo build --features turso`), `sbase report` reads
+With the `turso` feature (`cargo build --features turso`), `sbrs report` reads
 the database a `ResultStore` writes. See
 [Results Database and Encrypted Profiles](results_and_profiles.md).
 
 ```bash
-sbase report --db reports/results.db            # the latest runs
-sbase report --db reports/results.db --run 12   # one run's results
-sbase report --db reports/results.db --run 12 --failed
-sbase report --db reports/results.db --flaky    # pass-and-fail across recent runs
-sbase report --json                             # machine-readable; any of the above
+sbrs report --db reports/results.db            # the latest runs
+sbrs report --db reports/results.db --run 12   # one run's results
+sbrs report --db reports/results.db --run 12 --failed
+sbrs report --db reports/results.db --flaky    # pass-and-fail across recent runs
+sbrs report --json                             # machine-readable; any of the above
 ```
 
 The path can also come from `SB_REPORT_DB`. A path that does not exist is an
@@ -207,7 +207,7 @@ error; `report` never creates a database.
 ## Run a JSON scenario
 
 ```bash
-./target/debug/sbase run-scenario --file ./scenario.json
+./target/debug/sbrs run-scenario --file ./scenario.json
 ```
 
 Example `scenario.json`:
@@ -226,10 +226,10 @@ Example `scenario.json`:
 ## Generate files
 
 ```bash
-sbase mkfile tests/login.rs                       # one browser test (alias: new)
-sbase mkfile tests/login.rs --url https://my.site # ... that opens your page
-sbase mkdir tests/ui                              # a suite: main.rs, helpers.rs, examples, README
-sbase mkdir tests/ui --basic                      # the scaffolding only, no example tests
+sbrs mkfile tests/login.rs                       # one browser test (alias: new)
+sbrs mkfile tests/login.rs --url https://my.site # ... that opens your page
+sbrs mkdir tests/ui                              # a suite: main.rs, helpers.rs, examples, README
+sbrs mkdir tests/ui --basic                      # the scaffolding only, no example tests
 ```
 
 The generated Rust uses `run_browser_test` (see [Writing Browser Tests](../rust-test-tooling.md)),
@@ -251,20 +251,20 @@ The generators are careful with what they write:
 ## Terminal apps
 
 Three commands are full-screen terminal apps. They are part of the opt-in `tui`
-feature (`cargo install seleniumbase-rs --features tui`); an `sbase` built
+feature (`cargo install seleniumbase-rs --features tui`); an `sbrs` built
 without it prints a hint and exits with status 2.
 
 ```bash
-sbase commander                  # browse and run the tests and examples of the project
-sbase caseplans                  # write, edit and summarise a case plan for each test
-sbase behave-gui features/       # pick Gherkin scenarios, run them, see the results
+sbrs commander                  # browse and run the tests and examples of the project
+sbrs caseplans                  # write, edit and summarise a case plan for each test
+sbrs behave-gui features/       # pick Gherkin scenarios, run them, see the results
 ```
 
 `caseplans` (alias `case-plans`) and `behave-gui` (alias `gui-behave`) are the
 Python Case Plans Generator and Behave Commander, which open Tkinter windows
 there. Each takes an optional folder or file; see [Case Plans
 Generator](../help/caseplans.md) and [Behave Commander](../help/behave-gui.md).
-`sbase caseplans --starter` and `sbase behave-gui --new` are the earlier
+`sbrs caseplans --starter` and `sbrs behave-gui --new` are the earlier
 commands that only write a file (a checklist, a new feature); they need no
 feature.
 
@@ -273,7 +273,7 @@ feature.
 Convert a SeleniumBase or Selenium WebDriver Python file:
 
 ```bash
-./target/debug/sbase import-python ./tests/login_test.py \
+./target/debug/sbrs import-python ./tests/login_test.py \
   --output ./tests/login_test.rs
 ```
 
@@ -289,10 +289,10 @@ Puppeteer scripts or tests (JavaScript or TypeScript, or a Chrome DevTools
 Recorder `.json` export) into Rust tests for the pure CDP engine:
 
 ```bash
-./target/debug/sbase import-playwright ./e2e/login.spec.ts --output ./tests/login.rs
-./target/debug/sbase import-playwright ./tests/test_login.py   # pytest-playwright
-./target/debug/sbase import-puppeteer ./scripts/checkout.js --output ./tests/checkout.rs
-./target/debug/sbase import-puppeteer ./recordings/checkout.json  # Recorder export
+./target/debug/sbrs import-playwright ./e2e/login.spec.ts --output ./tests/login.rs
+./target/debug/sbrs import-playwright ./tests/test_login.py   # pytest-playwright
+./target/debug/sbrs import-puppeteer ./scripts/checkout.js --output ./tests/checkout.rs
+./target/debug/sbrs import-puppeteer ./recordings/checkout.json  # Recorder export
 ```
 
 `import-pw` and `import-pptr` are short names for the two commands. The
@@ -317,16 +317,16 @@ The supported values are `bash`, `elvish`, `fish`, `powershell`, and `zsh`.
 
 ```bash
 # Bash
-./target/debug/sbase completions bash \
-  > "${BASH_COMPLETION_USER_DIR:-$HOME/.local/share/bash-completion/completions}/sbase"
+./target/debug/sbrs completions bash \
+  > "${BASH_COMPLETION_USER_DIR:-$HOME/.local/share/bash-completion/completions}/sbrs"
 
 # Zsh
 mkdir -p "$HOME/.zfunc"
-./target/debug/sbase completions zsh > "$HOME/.zfunc/_sbase"
+./target/debug/sbrs completions zsh > "$HOME/.zfunc/_sbrs"
 
 # Fish
-./target/debug/sbase completions fish \
-  > "$HOME/.config/fish/completions/sbase.fish"
+./target/debug/sbrs completions fish \
+  > "$HOME/.config/fish/completions/sbrs.fish"
 ```
 
 Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
@@ -342,13 +342,13 @@ Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
 | `--browser NAME` | Select browser (`chrome`, `chromium`, `edge`, `firefox`). Without it the config file's browser, else Chrome. |
 | `--proxy PROXY` | Route traffic through a proxy (`host:port`, or a name from `--proxy-list`). |
 | `--proxy-list FILE` | Choose the proxy from a list of proxies. |
-| `-n N` | Number of parallel tests for `sbase test`. |
+| `-n N` | Number of parallel tests for `sbrs test`. |
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `sbase: command not found` | Binary not on `PATH` | Use `./target/debug/sbase` or install with `cargo install --path .`. |
-| Global flag rejected | Flag placed after the subcommand | Put global flags before the subcommand: `sbase --headless open URL`. |
+| `sbrs: command not found` | Binary not on `PATH` | Use `./target/debug/sbrs` or install with `cargo install --path .`. |
+| Global flag rejected | Flag placed after the subcommand | Put global flags before the subcommand: `sbrs --headless open URL`. |
 | CDP command fails | Not in CDP mode | Add `--cdp` or use a CDP-enabled config. |
 | `doctor` shows missing Chrome | Chrome not installed or not on PATH | Set `SB_CHROME_BIN` to the full path. |

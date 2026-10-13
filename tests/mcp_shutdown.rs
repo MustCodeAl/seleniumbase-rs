@@ -1,4 +1,4 @@
-//! The `seleniumbase-mcp` binary, sent real signals. No browser is started:
+//! The `sbrs-mcp` binary, sent real signals. No browser is started:
 //! the server only launches Chrome when a tool asks for it.
 //! Run with `cargo test --features mcp-server`.
 
@@ -21,7 +21,7 @@ struct Server {
 
 impl Server {
     fn start() -> Self {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_seleniumbase-mcp"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_sbrs-mcp"))
             .args(["--server", "cdp"])
             .env("SB_SHUTDOWN_TIMEOUT_SECS", "5")
             .stdin(Stdio::piped())
@@ -29,7 +29,7 @@ impl Server {
             .stderr(Stdio::null())
             .kill_on_drop(true)
             .spawn()
-            .expect("start seleniumbase-mcp");
+            .expect("start sbrs-mcp");
         let stdin = child.stdin.take().unwrap();
         let stdout = BufReader::new(child.stdout.take().unwrap());
         Self {

@@ -4,7 +4,7 @@
 //! file, so a team can ask which tests are flaky, how a run compares with the
 //! last one, or which tests fail only against staging, without parsing a pile of
 //! JSON reports. It is the Rust counterpart of Python SeleniumBase's database
-//! reporting; `sbase report` reads it from the command line.
+//! reporting; `sbrs report` reads it from the command line.
 //!
 //! # Examples
 //!
@@ -72,7 +72,7 @@ CREATE INDEX results_by_name ON results (name);
 pub struct RunId(i64);
 
 impl RunId {
-    /// The run's number, as `sbase report` prints it.
+    /// The run's number, as `sbrs report` prints it.
     #[must_use]
     pub fn get(self) -> i64 {
         self.0
@@ -88,7 +88,7 @@ impl fmt::Display for RunId {
 impl FromStr for RunId {
     type Err = SeleniumBaseError;
 
-    /// Parses the number `sbase report` prints for a run.
+    /// Parses the number `sbrs report` prints for a run.
     fn from_str(text: &str) -> Result<Self> {
         match text.trim().parse::<i64>() {
             Ok(id) if id > 0 => Ok(Self(id)),

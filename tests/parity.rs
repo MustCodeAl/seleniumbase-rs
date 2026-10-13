@@ -314,7 +314,7 @@ fn every_rust_path_in_the_manifest_exists() {
             };
             let exists = if path == "clap" {
                 true
-            } else if let Some(command) = path.strip_prefix("sbase ") {
+            } else if let Some(command) = path.strip_prefix("sbrs ") {
                 let camel: String = command
                     .split('-')
                     .map(|part| {

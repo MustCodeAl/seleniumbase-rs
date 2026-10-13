@@ -263,7 +263,7 @@ pub(super) fn render(tool: Tool, tests: &[TestOut], file_todos: &[Line], needs: 
     let mut out = String::new();
     let _ = writeln!(
         out,
-        "// Imported from {} code by `sbase import-{}`.\n\
+        "// Imported from {} code by `sbrs import-{}`.\n\
          // Each `TODO({})` line marks a statement that was not converted.\n\
          // Run headless with `SB_HEADLESS=true cargo test`.",
         tool.name(),

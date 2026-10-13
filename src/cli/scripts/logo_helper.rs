@@ -1,7 +1,7 @@
-//! The `sbase` banner.
+//! The `sbrs` banner.
 //!
 //! Python SeleniumBase prints its logo above the command list. The same
-//! banner is shown at the top of `sbase --help`, and [`print_logo`] writes it
+//! banner is shown at the top of `sbrs --help`, and [`print_logo`] writes it
 //! for any other command line tool that wants it.
 //!
 //! # Examples

@@ -162,7 +162,7 @@ async fn within<T>(ask: impl std::future::Future<Output = Result<T>>) -> Option<
 }
 
 /// Records every test in a [`ResultStore`](crate::storage::ResultStore), for
-/// trends across runs and `sbase report`.
+/// trends across runs and `sbrs report`.
 #[cfg(feature = "turso")]
 #[derive(Debug, Clone)]
 pub struct ResultStorePlugin {

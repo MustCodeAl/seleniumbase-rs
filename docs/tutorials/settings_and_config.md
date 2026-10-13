@@ -17,7 +17,7 @@ overrides a lower-priority one:
 2. Global config file (`sbase_config.toml`, `.sbase_config.toml`, or `.sbase_config`).
 3. Environment variables (`SB_*`).
 4. Programmatic `BrowserConfig`.
-5. CLI flags (when using `sbase`).
+5. CLI flags (when using `sbrs`).
 
 This means a `BrowserConfig` value in code wins over an environment variable,
 and a CLI flag wins over everything else.

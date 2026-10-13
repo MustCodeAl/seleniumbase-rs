@@ -946,12 +946,12 @@ async fn diagnose_environment<S: Send + 'static>(
     };
     match &driver {
         DriverLookup::MissingConfigured(path) => problems.push(format!(
-            "CHROMEDRIVER_PATH names {}, which is not a file. Fix or unset it, or run `sbase \
+            "CHROMEDRIVER_PATH names {}, which is not a file. Fix or unset it, or run `sbrs \
              install`.",
             path.display()
         )),
         DriverLookup::NotFound => problems.push(
-            "No chromedriver was found. The WebDriver servers (sb, driver) need one: run `sbase \
+            "No chromedriver was found. The WebDriver servers (sb, driver) need one: run `sbrs \
              install`. The Pure CDP server does not."
                 .to_owned(),
         ),
@@ -1032,8 +1032,8 @@ fn version_check(driver: Option<u32>, browser: Option<u32>) -> (Value, Option<St
             "mismatch",
             Some(format!(
                 "chromedriver {driver} does not match Chrome {browser}; a driver only drives its \
-                 own browser version. Run `sbase install` to fetch chromedriver {browser}, then \
-                 `sbase doctor` to check both."
+                 own browser version. Run `sbrs install` to fetch chromedriver {browser}, then \
+                 `sbrs doctor` to check both."
             )),
         ),
         Fit::Unknown => ("unknown", None),
@@ -1126,7 +1126,7 @@ mod tests {
         );
         let problem = problem.unwrap();
         assert!(
-            problem.contains("`sbase install`") && problem.contains("`sbase doctor`"),
+            problem.contains("`sbrs install`") && problem.contains("`sbrs doctor`"),
             "{problem}"
         );
 

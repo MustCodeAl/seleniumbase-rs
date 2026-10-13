@@ -24,8 +24,8 @@ A Rust port of Python SeleniumBase (tracks 4.55.2; `parity/api.toml` records the
 status of every Python API, `parity/upstream.toml` the upstream version,
 `docs/UPSTREAM_SYNC.md` the process). Crate `seleniumbase-rs`, MIT, edition 2021,
 `rust-version = "1.99"` (the newest stable; the `msrv` CI job and the
-`Dockerfile` base image must move with it). Binaries: `sbase` (CLI) and
-`seleniumbase-mcp` (MCP server, feature `mcp-server`). Default features are
+`Dockerfile` base image must move with it). Binaries: `sbrs` (CLI) and
+`sbrs-mcp` (MCP server, feature `mcp-server`). Default features are
 empty; `gui`, `tui`, `turso`, `rustwright` are opt-in, and so are `scrape` (pure
 Rust, adds `psl`) and `impersonate` (includes `scrape`, builds BoringSSL through
 wreq and btls, needs cmake).
@@ -50,7 +50,7 @@ wreq and btls, needs cmake).
 | `impersonate/` | (feature `impersonate`) `client` and `convert` (the only files that name wreq types), `capture_h2`, `tls_server/` (`EphemeralCa`), `http_session/` (`HttpSession`), `mitm/` (`MitmProxy`), `stealth_session/` (`StealthSession`). Pedantic lint set. The stealth layer (`wire`, `scrape`, `impersonate`, `session_registry`) is experimental, not a stable API. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); entry `src/bin/mcp_server.rs`. Held to the pedantic lint set. |
-| `cli/` | `bin/sbase.rs` (clap), `commands.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...), `bin/report.rs`. |
+| `cli/` | `bin/sbrs.rs` (clap), `commands.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...), `bin/report.rs`. |
 | `behave/` | Gherkin runner and step registry. |
 | `plugins/` | Reporting and logging plugins (S3, GCP, Azure, screenshots, page source, driver manager, observer). |
 | `config/` | Settings, runtime config, `proxy_list`, `ad_block_list`. |
@@ -102,13 +102,13 @@ mdbook build
   `Dockerfile` skeleton step, or the image build fails.
 - A new Python-parity API gets an entry in `parity/api.toml`.
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.
-  Only the `sbase mkdir`/`mkfile` golden templates are compiled as doctests.
+  Only the `sbrs mkdir`/`mkfile` golden templates are compiled as doctests.
 
 ## Gotchas
 
 - macOS delays the first run of a freshly written script, so tests that fake
   `java` run it once with `--warm` before timing it.
-- `sbase commander` exits with status 2 and a hint when built without `tui`.
+- `sbrs commander` exits with status 2 and a hint when built without `tui`.
 - `thirtyfour` still depends on `zip` 8.6, so two `zip` versions are in the tree.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.

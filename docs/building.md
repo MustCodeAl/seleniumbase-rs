@@ -33,8 +33,8 @@ Set up this computer to build and test the Rust library seleniumbase-rs
    winget on Windows. Ask me before anything that needs an administrator
    password, and don't change system security settings yourself.
 2. Clone the repository (or use this folder if it is the repository) and run:
-   cargo build --bin sbase, then sbase doctor (target/debug/sbase doctor, or
-   target\debug\sbase.exe doctor on Windows).
+   cargo build --bin sbrs, then sbrs doctor (target/debug/sbrs doctor, or
+   target\debug\sbrs.exe doctor on Windows).
 3. Run the checks and say how many tests passed and failed:
    cargo fmt --all -- --check
    cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
@@ -122,11 +122,11 @@ Open a new terminal after installing, so the new programs are on the `PATH`.
 ```bash
 git clone https://github.com/MustCodeAl/seleniumbase-rs.git
 cd seleniumbase-rs
-cargo build --bin sbase
-./target/debug/sbase doctor
+cargo build --bin sbrs
+./target/debug/sbrs doctor
 ```
 
-On Windows the last line is `.\target\debug\sbase.exe doctor`. It prints the
+On Windows the last line is `.\target\debug\sbrs.exe doctor`. It prints the
 browsers it found and whether their drivers match.
 
 ### Extras for single features
@@ -204,16 +204,16 @@ package lists come from the CI configuration, which has not been able to run
 git clone https://github.com/MustCodeAl/seleniumbase-rs.git
 cd seleniumbase-rs
 
-cargo build --release --locked --bin sbase                              # the CLI
-cargo build --release --locked --bin seleniumbase-mcp --features mcp-server   # the MCP server
+cargo build --release --locked --bin sbrs                              # the CLI
+cargo build --release --locked --bin sbrs-mcp --features mcp-server   # the MCP server
 ```
 
-There are two binaries: `sbase` (always built) and `seleniumbase-mcp` (needs the
+There are two binaries: `sbrs` (always built) and `sbrs-mcp` (needs the
 `mcp-server` feature). To put them on your `PATH`:
 
 ```bash
-cargo install --path . --bin sbase
-cargo install --path . --bin seleniumbase-mcp --features mcp-server
+cargo install --path . --bin sbrs
+cargo install --path . --bin sbrs-mcp --features mcp-server
 ```
 
 The crate is not published to crates.io, so `cargo install seleniumbase-rs` does
@@ -226,12 +226,12 @@ desktop or cloud stacks.
 
 | Feature | Adds | Note |
 |---|---|---|
-| `mcp-server` | the `seleniumbase-mcp` binary (`rmcp`) | needed for the MCP servers |
-| `tui` | `sbase commander`, the terminal UI | without it the command prints a hint and exits with status 2 |
+| `mcp-server` | the `sbrs-mcp` binary (`rmcp`) | needed for the MCP servers |
+| `tui` | `sbrs commander`, the terminal UI | without it the command prints a hint and exits with status 2 |
 | `gui` | native OS dialogs and GUI automation | links GTK and X11 on Linux |
 | `playwright` | the Playwright-compatible mode (`rustwright`) | |
 | `s3`, `azure`, `gcp` | uploading reports and artifacts | |
-| `turso` | `ResultStore`, `ProfileVault`, `sbase report` | an embedded database |
+| `turso` | `ResultStore`, `ProfileVault`, `sbrs report` | an embedded database |
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
 | `scrape` | wire fingerprints (JA3, JA4, Akamai), cookie jar, stealth identities, `BrowserScraper` (adds `psl`) | pure Rust; see [Stealth Scraping](tutorials/stealth_scraping.md) |
@@ -242,16 +242,16 @@ Combine them with `--features "mcp-server tui"`.
 ## Check your build
 
 ```bash
-sbase --help
-sbase doctor          # compares the chromedriver version with Chrome's
-sbase install         # fetches the chromedriver that matches your Chrome
+sbrs --help
+sbrs doctor          # compares the chromedriver version with Chrome's
+sbrs install         # fetches the chromedriver that matches your Chrome
 ```
 
 ## Container
 
-The `Dockerfile` builds `sbase` with locked dependencies in a Rust 1.99 stage and
+The `Dockerfile` builds `sbrs` with locked dependencies in a Rust 1.99 stage and
 copies it into a `debian:bookworm-slim` image with Chromium and its driver. It
-runs as a non-root user (`sbase`) and has no `EXPOSE`, because `sbase` is a
+runs as a non-root user (`sbrs`) and has no `EXPOSE`, because `sbrs` is a
 command-line tool. The driver in `/usr/bin` is linked as
 `downloaded_drivers/chromedriver` in the working directory, which is where the
 WebDriver engine looks first, so the image needs no network to start a browser.
@@ -266,8 +266,8 @@ docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
 
 - On a machine with little memory, limit Cargo's parallelism in the build:
   `docker build --build-arg CARGO_BUILD_JOBS=2 -t seleniumbase-rs .`
-- The arguments after the image name are `sbase` arguments. `--headless` comes
-  before the subcommand. `sbase open` and `smoke` also read `SB_HEADLESS` (and the
+- The arguments after the image name are `sbrs` arguments. `--headless` comes
+  before the subcommand. `sbrs open` and `smoke` also read `SB_HEADLESS` (and the
   other `SB_*` variables; `--headless` beats the variable), and without one of
   them Chromium fails in a container for lack of a display.
 - Drop `chromium-driver` from the `Dockerfile` if you only use the pure CDP
@@ -277,7 +277,7 @@ Verified on an Apple-silicon Mac with Docker (so linux/arm64, Debian 12,
 Chromium 154.0.8037.92): the build succeeds in about four minutes with two Cargo
 jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
 `doctor` finds `/usr/bin/chromium` and a chromedriver of the same major version;
-the `smoke` command above exits with status 0 with no network. `sbase install` in
+the `smoke` command above exits with status 0 with no network. `sbrs install` in
 the image downloads an aarch64 chromedriver (Chrome for Testing publishes
 `linux-arm64` from Chrome 153 on).
 

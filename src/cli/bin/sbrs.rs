@@ -136,7 +136,7 @@ enum ImportSourceArg {
     Selenium,
 }
 
-/// The languages `sbase import-playwright` reads.
+/// The languages `sbrs import-playwright` reads.
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum PlaywrightLanguageArg {
     /// JavaScript.
@@ -157,7 +157,7 @@ impl From<PlaywrightLanguageArg> for ScriptLanguage {
     }
 }
 
-/// The languages `sbase import-puppeteer` reads.
+/// The languages `sbrs import-puppeteer` reads.
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum PuppeteerLanguageArg {
     /// JavaScript.
@@ -197,7 +197,7 @@ impl From<BrowserArg> for Browser {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "sbase", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.", before_long_help = logo_helper::LOGO)]
+#[command(name = "sbrs", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.", before_long_help = logo_helper::LOGO)]
 struct Cli {
     #[arg(
         long,
@@ -304,7 +304,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    /// Print the sbase version, as `sbase --version` does.
+    /// Print the sbrs version, as `sbrs --version` does.
     Version,
     /// Open a URL in the browser.
     Open {
@@ -497,14 +497,14 @@ enum Commands {
     ///
     /// The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never
     /// from an argument, so it stays out of shell history and process listings.
-    /// Python's `sbase obfuscate` is the same command.
+    /// Python's `sbrs obfuscate` is the same command.
     #[command(visible_alias = "obfuscate")]
     Encrypt {
         /// The text to encrypt.
         text: Option<String>,
     },
-    /// Decrypt a token made by `sbase encrypt`; read from stdin if TOKEN is omitted.
-    /// Python's `sbase unobfuscate` is the same command.
+    /// Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted.
+    /// Python's `sbrs unobfuscate` is the same command.
     #[command(visible_alias = "unobfuscate")]
     Decrypt {
         /// The token to decrypt.
@@ -731,7 +731,7 @@ enum Commands {
         #[arg(long, help = "Text to type in UC mode")]
         text: String,
     },
-    /// Download a driver into ./downloaded_drivers/ (Python's `sbase get`).
+    /// Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
     ///
     /// Without a version, chromedriver and edgedriver are the drivers for the
     /// installed Chrome and Edge, and geckodriver is the newest release.
@@ -748,7 +748,7 @@ enum Commands {
     /// Run the project's tests, or one example, through Cargo.
     ///
     /// The global options reach the tests as SB_* environment variables (for
-    /// example `sbase --headless --browser firefox test` sets SB_HEADLESS and
+    /// example `sbrs --headless --browser firefox test` sets SB_HEADLESS and
     /// SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets
     /// how many tests run at once.
     Test {
@@ -1045,7 +1045,7 @@ enum Commands {
     },
     /// Replay a recorded action file against a fresh browser session.
     Replay {
-        #[arg(help = "JSON action file produced by `sbase record`")]
+        #[arg(help = "JSON action file produced by `sbrs record`")]
         file: String,
     },
 }
@@ -1179,7 +1179,7 @@ fn encryption_passphrase() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 /// `value` if given, otherwise all of standard input without its trailing
-/// newline, so `echo secret | sbase encrypt` works.
+/// newline, so `echo secret | sbrs encrypt` works.
 fn text_or_stdin(value: Option<String>) -> Result<String, Box<dyn std::error::Error>> {
     if let Some(value) = value {
         return Ok(value);
@@ -1225,7 +1225,7 @@ fn run_translate(
     }
     if !report.unknown.is_empty() {
         eprintln!(
-            "sbase: left {} unknown action(s) as they were: {}",
+            "sbrs: left {} unknown action(s) as they were: {}",
             report.unknown.len(),
             report.unknown.join(", ")
         );
@@ -1238,7 +1238,7 @@ fn run_translate(
 #[cfg(not(feature = "tui"))]
 fn no_terminal_ui() -> ! {
     eprintln!(
-        "this sbase was built without the terminal UI; \
+        "this sbrs was built without the terminal UI; \
          reinstall it with `cargo install seleniumbase-rs --features tui`"
     );
     std::process::exit(2);
@@ -1259,7 +1259,7 @@ fn report_created(outcome: Result<Vec<PathBuf>, ScaffoldError>) {
             }
         }
         Err(error) => {
-            eprintln!("sbase: {error}");
+            eprintln!("sbrs: {error}");
             std::process::exit(1);
         }
     }
@@ -1336,7 +1336,7 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     println!("  Cache path: {}", p.display());
                     println!(
-                        "  Hint: run `sbase patch-chrome --path <chrome>` to populate the cache"
+                        "  Hint: run `sbrs patch-chrome --path <chrome>` to populate the cache"
                     );
                 }
             }
@@ -1367,7 +1367,7 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
                     println!("  Version: {driver}, but Chrome is {browser}");
                     println!(
                         "  Hint: a chromedriver only drives its own Chrome version; \
-                         run `sbase install` to fetch the matching one"
+                         run `sbrs install` to fetch the matching one"
                     );
                 }
                 (Some(driver), None) => println!("  Version: {driver}"),
@@ -1377,7 +1377,7 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(true) => {
                     println!("  Status: contains automation markers");
                     println!(
-                        "  Hint: run `sbase patch-chromedriver --path {}`",
+                        "  Hint: run `sbrs patch-chromedriver --path {}`",
                         path.display()
                     );
                 }
@@ -1395,26 +1395,26 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
                 assets::CHROMEDRIVER_PATH_VAR,
                 path.display()
             );
-            println!("  Hint: fix or unset CHROMEDRIVER_PATH, or run `sbase install`");
+            println!("  Hint: fix or unset CHROMEDRIVER_PATH, or run `sbrs install`");
         }
         assets::DriverLookup::NotFound => {
             println!("  Not found in {}/ or on PATH", assets::DRIVERS_DIR);
-            println!("  Hint: run `sbase install` or set CHROMEDRIVER_PATH");
+            println!("  Hint: run `sbrs install` or set CHROMEDRIVER_PATH");
         }
     }
 
     Ok(())
 }
 
-/// The stack `sbase` runs on. Building the parser for every command and
+/// The stack `sbrs` runs on. Building the parser for every command and
 /// matching them needs more than the 1 MB a main thread gets on Windows (a
-/// debug build overflowed it before printing anything), so `sbase` runs on a
+/// debug build overflowed it before printing anything), so `sbrs` runs on a
 /// thread of its own with a stack of a known size on every system.
 const STACK_BYTES: usize = 16 * 1024 * 1024;
 
 fn main() -> std::process::ExitCode {
     let worker = std::thread::Builder::new()
-        .name("sbase".to_owned())
+        .name("sbrs".to_owned())
         .stack_size(STACK_BYTES)
         .spawn(run_command);
     match worker.map(std::thread::JoinHandle::join) {
@@ -1422,7 +1422,7 @@ fn main() -> std::process::ExitCode {
         // The thread panicked; the panic message has been printed already.
         Ok(Err(_)) => std::process::ExitCode::FAILURE,
         Err(error) => {
-            eprintln!("error: could not start sbase: {error}");
+            eprintln!("error: could not start sbrs: {error}");
             std::process::ExitCode::FAILURE
         }
     }
@@ -1488,7 +1488,7 @@ enum ScriptTool {
     Puppeteer,
 }
 
-/// `sbase import-playwright` and `sbase import-puppeteer`: the Rust goes to
+/// `sbrs import-playwright` and `sbrs import-puppeteer`: the Rust goes to
 /// `output` or standard output, one diagnostic line per `TODO` to standard
 /// error. As with `import-python`, a gap is a warning and the exit status is
 /// 0; a statement the importer could not read at all is an error (status 1);
@@ -1674,7 +1674,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
     // Start from the config file (the one `--config` names, else the global
     // one) with the `SB_*` variables on top, as `Settings::load` does for the
-    // tests `sbase test` runs, then apply only what the command line asked for
+    // tests `sbrs test` runs, then apply only what the command line asked for
     // explicitly. An option left alone keeps the environment's value or, failing
     // that, the file's, and one that was passed beats both.
     let mut settings = Settings::load(args.config.as_deref())?;
@@ -2051,7 +2051,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let patched = patcher.patch(EnginePatch::chrome_binary())?;
             println!("Patched Chrome binary available at: {}", patched.display());
         }
-        Commands::Version => println!("sbase {VERSION}"),
+        Commands::Version => println!("sbrs {VERSION}"),
         Commands::Encrypt { text } => {
             let passphrase = encryption_passphrase()?;
             let text = text_or_stdin(text)?;

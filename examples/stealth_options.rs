@@ -20,7 +20,7 @@
 //! cargo run --example stealth_options -- --launch  # parts 1 and 2
 //! ```
 //!
-//! Part 2 needs Chrome and a matching chromedriver on your `PATH` (`sbase
+//! Part 2 needs Chrome and a matching chromedriver on your `PATH` (`sbrs
 //! doctor` checks both); neither part needs the network. The page is served
 //! from `127.0.0.1` by `local_site/mod.rs`.
 

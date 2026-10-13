@@ -10,8 +10,8 @@ API has a recorded status in [the parity table](parity.md). It also adds things
 Python does not have; see [Why Rust?](why-rust.md).
 
 **Do I need Rust to use it?**
-To write tests in Rust, yes. The `sbase` CLI and the MCP server are single
-binaries you can use without writing Rust; `sbase` can also convert Python
+To write tests in Rust, yes. The `sbrs` CLI and the MCP server are single
+binaries you can use without writing Rust; `sbrs` can also convert Python
 SeleniumBase scripts.
 
 **Which engine should I use?**
@@ -44,7 +44,7 @@ Read the hint in the error: it names the selector and a likely mistake. Use
 session, `diagnose_selector` and `inspect_page` show what the page really has.
 See [Reliability](reliability.md).
 
-**Why does `sbase` exit with different statuses?**
+**Why does `sbrs` exit with different statuses?**
 The exit status follows the error's category (a bad selector differs from a
 missing browser), so a CI script can tell them apart.
 
@@ -55,8 +55,8 @@ review. See [Vibe coding](tutorials/vibe_coding.md).
 ## Browsers and drivers
 
 **"chromedriver keeps crashing" or "session not created".**
-The chromedriver and Chrome major versions differ. Run `sbase doctor`, then
-`sbase install`. The pure CDP engine avoids the problem. See
+The chromedriver and Chrome major versions differ. Run `sbrs doctor`, then
+`sbrs install`. The pure CDP engine avoids the problem. See
 [Common problems](help/common_problems.md).
 
 **Can it drive Firefox or Safari?**

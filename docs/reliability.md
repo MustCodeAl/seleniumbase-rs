@@ -145,7 +145,7 @@ eliminate timing races.
 Every `SeleniumBaseError` carries a hint, and `is_transient()` tells a retryable
 failure (a browser disconnect, a network or download error, a wait timeout) from
 one that will fail again. Element errors point out a likely mistake in the
-selector, and a wait that times out reports the error that stopped it. `sbase` prints `error:`, `caused by:` and
+selector, and a wait that times out reports the error that stopped it. `sbrs` prints `error:`, `caused by:` and
 `hint:` lines and exits with a status that follows the error's category, so a CI
 script can tell a bad selector from a missing browser.
 
@@ -162,7 +162,7 @@ A chromedriver for a different Chrome major version is the usual cause of "the
 driver keeps crashing". The launcher compares the two, downloads the driver for
 the installed Chrome's major version when they differ, and writes a replaced
 driver as a new file (macOS kills a signed binary that is overwritten in place).
-`sbase install` and `sbase doctor` apply the same check, and the MCP tool
+`sbrs install` and `sbrs doctor` apply the same check, and the MCP tool
 `diagnose_environment` reports the versions and the fix without starting a
 browser. The pure CDP engine has no driver to match.
 
@@ -218,7 +218,7 @@ match sb.assert_text_visible("Welcome!", "body").await {
 
 The files go to the `latest_logs` folder of the working directory, named
 `screenshot_<milliseconds>.png` and `page_source_<milliseconds>.html`. The
-`sbase screenshot` and `sbase save-source` commands write the same files, but
+`sbrs screenshot` and `sbrs save-source` commands write the same files, but
 each starts its own fresh browser, so they capture a blank page, not your test's
 failing one. For failure evidence use the code above, or the test plugins in
 [Test Plugins](tutorials/test_plugins.md).
@@ -239,9 +239,9 @@ A process that owns a browser has to close it when it is told to stop. A
 terminal sends SIGINT on Ctrl-C and orchestrators send SIGTERM; left alone, both
 end the process on the spot and leave Chrome and its driver running.
 `seleniumbase_rs::common::shutdown` turns those signals into something async
-code can wait on, and `sbase` and `seleniumbase-mcp` use it themselves: on a
+code can wait on, and `sbrs` and `sbrs-mcp` use it themselves: on a
 signal they close the browser, waiting at most `SB_SHUTDOWN_TIMEOUT_SECS`
-seconds (default 30, `0` for no grace), and `sbase` exits with status 130 for
+seconds (default 30, `0` for no grace), and `sbrs` exits with status 130 for
 SIGINT or 143 for SIGTERM.
 
 In your own program, race the work against the signals and bound the cleanup:
@@ -266,7 +266,7 @@ cleanup_within(timeout_from_env(), close_browsers()).await;
 Dropping a `BrowserSession` (and so a `BaseCase`) that was not quit starts its
 cleanup on the Tokio runtime with `spawn_cleanup`, because `Drop` cannot await.
 Call `drain_cleanups(timeout_from_env()).await` before the program exits so that
-cleanup is not cut off; `sbase` does. Once a handler is installed, a signal no
+cleanup is not cut off; `sbrs` does. Once a handler is installed, a signal no
 longer ends the process by itself, so the code that installs one must keep
 waiting on it.
 

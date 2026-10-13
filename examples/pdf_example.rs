@@ -15,7 +15,7 @@
 //! cargo run --example pdf_example
 //! ```
 //!
-//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both) and does not need the network: the page is served from
 //! `127.0.0.1` by `local_site/mod.rs`.
 

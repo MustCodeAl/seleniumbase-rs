@@ -1,6 +1,6 @@
 //! Starting and stopping a Selenium Grid hub or node.
 //!
-//! Python SeleniumBase has `sbase grid-hub` and `sbase grid-node`, which run
+//! Python SeleniumBase has `sbrs grid-hub` and `sbrs grid-node`, which run
 //! the Selenium Server jar as a background process and stop it again. This is
 //! the same for Rust, with one deliberate difference: the jar is never
 //! downloaded. You supply a `selenium-server-*.jar` (from the Selenium
@@ -577,7 +577,7 @@ fn wait_until_gone(record: &GridRecord, within: Duration) -> Result<bool, Seleni
 }
 
 /// Puts the child in its own process group (Unix) or console-less group
-/// (Windows), so a Ctrl-C in the terminal that ran `sbase` does not stop it.
+/// (Windows), so a Ctrl-C in the terminal that ran `sbrs` does not stop it.
 fn detach(command: &mut Command) {
     #[cfg(unix)]
     {

@@ -2,7 +2,7 @@
 #
 # status: implemented | composed | not-applicable | planned
 #   implemented     `rust` is the Rust item (Type::method, Type::field, mcp::<server>,
-#                   or `sbase <command>`)
+#                   or `sbrs <command>`)
 #   composed        the Python method is replaced by a Rust composition; `rust` is its
 #                   main item and `note` says how they differ
 #   not-applicable  `reason` says why there is nothing to port
@@ -2957,8 +2957,8 @@ note = "`page.locator(selector).expect().not().to_contain_text(text)` waits for 
 
 [cli."behave-gui"]
 status = "implemented"
-rust = "sbase behave-gui"
-note = "Terminal UI instead of Tkinter (feature `tui`): lists the .feature files with their scenarios, runs the ones you mark through the crate's behave runner and shows the results; without `tui` it prints a hint and exits with status 2, as `sbase commander` does. `--new` keeps the earlier prompt that writes a new feature file."
+rust = "sbrs behave-gui"
+note = "Terminal UI instead of Tkinter (feature `tui`): lists the .feature files with their scenarios, runs the ones you mark through the crate's behave runner and shows the results; without `tui` it prints a hint and exits with status 2, as `sbrs commander` does. `--new` keeps the earlier prompt that writes a new feature file."
 divergence = "Python starts `python -m behave` with the browser, session, demo, dashboard, headless, screenshot and extra options. Here the only run option is a tag filter, and the steps are the built-in ones: steps written in Rust cannot be loaded, so a scenario that uses one is reported as undefined."
 
 [cli."behave-options"]
@@ -2967,40 +2967,40 @@ reason = "Lists behave (Python BDD) options; this crate has its own Gherkin runn
 
 [cli."case-plans"]
 status = "implemented"
-rust = "sbase caseplans"
-note = "Alias of caseplans upstream; terminal UI instead of Tkinter, as for `sbase caseplans`, and `sbase case-plans` is an alias of it here too."
+rust = "sbrs caseplans"
+note = "Alias of caseplans upstream; terminal UI instead of Tkinter, as for `sbrs caseplans`, and `sbrs case-plans` is an alias of it here too."
 
 [cli."caseplans"]
 status = "implemented"
-rust = "sbase caseplans"
-note = "Terminal UI instead of Tkinter (feature `tui`): lists the Rust test functions under a folder, creates, edits and saves `case_plans/<test>.md` for each and writes `case_summary.md`; without `tui` it prints a hint and exits with status 2, as `sbase commander` does. `--starter` keeps the earlier command that writes a fixed CASE_PLANS.md checklist."
+rust = "sbrs caseplans"
+note = "Terminal UI instead of Tkinter (feature `tui`): lists the Rust test functions under a folder, creates, edits and saves `case_plans/<test>.md` for each and writes `case_summary.md`; without `tui` it prints a hint and exits with status 2, as `sbrs commander` does. `--starter` keeps the earlier command that writes a fixed CASE_PLANS.md checklist."
 divergence = "Python lists what pytest collects (`file.py::Class::method`); here the test functions are found by reading the files, so a `#[test]` inside a string looks like a test. Plans and the summary are written with LF line ends, not CRLF."
 
 [cli."codegen"]
 status = "composed"
-rust = "sbase record"
-note = "`sbase record URL -o FILE` writes the recorded actions as a JSON or YAML list that `sbase replay` runs. It does not write a test file; ActionRecorder::to_rust_test does that, from code."
+rust = "sbrs record"
+note = "`sbrs record URL -o FILE` writes the recorded actions as a JSON or YAML list that `sbrs replay` runs. It does not write a test file; ActionRecorder::to_rust_test does that, from code."
 
 [cli."commander"]
 status = "implemented"
-rust = "sbase commander"
+rust = "sbrs commander"
 
 [cli."convert"]
 status = "implemented"
-rust = "sbase convert"
+rust = "sbrs convert"
 
 [cli."decrypt"]
 status = "implemented"
-rust = "sbase decrypt"
-divergence = "Reads tokens made by `sbase encrypt` only; see `encrypt`."
+rust = "sbrs decrypt"
+divergence = "Reads tokens made by `sbrs encrypt` only; see `encrypt`."
 
 [cli."download"]
 status = "not-applicable"
-reason = "Python's `download server` fetches the Selenium Standalone Server. `sbase` never downloads it: `sbase grid-hub` and `sbase grid-node` run a jar you supply with --jar or SB_SELENIUM_SERVER_JAR. (`sbase download-file` downloads a file from a URL, which is another command.)"
+reason = "Python's `download server` fetches the Selenium Standalone Server. `sbrs` never downloads it: `sbrs grid-hub` and `sbrs grid-node` run a jar you supply with --jar or SB_SELENIUM_SERVER_JAR. (`sbrs download-file` downloads a file from a URL, which is another command.)"
 
 [cli."encrypt"]
 status = "implemented"
-rust = "sbase encrypt"
+rust = "sbrs encrypt"
 divergence = "AES-256-GCM under a PBKDF2 key from SB_ENCRYPTION_KEY, not Python's fixed-key obfuscation; tokens are not interchangeable."
 
 [cli."extract-objects"]
@@ -3009,29 +3009,29 @@ reason = "Edits the structure of Python test files."
 
 [cli."get"]
 status = "implemented"
-rust = "sbase get"
-note = "An alias of `sbase install`, as in Python: `sbase get chromedriver|geckodriver|edgedriver [VERSION]` (also `firefoxdriver` and `msedgedriver`). chromedriver and edgedriver default to the driver for the installed Chrome and Edge, geckodriver to the newest GitHub release; VERSION is `latest`, a major version or a full build (a geckodriver version such as 0.36.0). Each driver goes to downloaded_drivers/<driver>-<version>/."
+rust = "sbrs get"
+note = "An alias of `sbrs install`, as in Python: `sbrs get chromedriver|geckodriver|edgedriver [VERSION]` (also `firefoxdriver` and `msedgedriver`). chromedriver and edgedriver default to the driver for the installed Chrome and Edge, geckodriver to the newest GitHub release; VERSION is `latest`, a major version or a full build (a geckodriver version such as 0.36.0). Each driver goes to downloaded_drivers/<driver>-<version>/."
 divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. Chrome for Testing and chrome-headless-shell are not fetched by name here; they are fetched when a session chooses one of them as the browser."
 
 [cli."grid-hub"]
 status = "implemented"
-rust = "sbase grid-hub"
+rust = "sbrs grid-hub"
 note = "start, stop, restart and status; needs a Selenium Server jar you supply and Java, and downloads nothing."
 
 [cli."grid-node"]
 status = "implemented"
-rust = "sbase grid-node"
+rust = "sbrs grid-node"
 note = "start, stop, restart and status; registers with the hub named by --hub."
 
 [cli."gui"]
 status = "composed"
-rust = "sbase commander"
+rust = "sbrs commander"
 note = "Python's `gui` is the same test runner as `commander`."
 
 [cli."gui-behave"]
 status = "implemented"
-rust = "sbase behave-gui"
-note = "Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sbase behave-gui`, and `sbase gui-behave` is an alias of it here too."
+rust = "sbrs behave-gui"
+note = "Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sbrs behave-gui`, and `sbrs gui-behave` is an alias of it here too."
 
 [cli."help"]
 status = "composed"
@@ -3044,8 +3044,8 @@ reason = "Edits the structure of Python test files."
 
 [cli."install"]
 status = "implemented"
-rust = "sbase install"
-note = "`sbase install chromedriver|geckodriver|edgedriver [VERSION]`; with no argument it fetches the chromedriver that matches the installed Chrome (or the stable one). The same command as `sbase get`."
+rust = "sbrs install"
+note = "`sbrs install chromedriver|geckodriver|edgedriver [VERSION]`; with no argument it fetches the chromedriver that matches the installed Chrome (or the stable one). The same command as `sbrs get`."
 divergence = "No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH."
 
 [cli."methods"]
@@ -3054,33 +3054,33 @@ reason = "Lists Python methods; use `cargo doc` or docs/parity.md for the Rust A
 
 [cli."mkchart"]
 status = "implemented"
-rust = "sbase mkchart"
+rust = "sbrs mkchart"
 
 [cli."mkdir"]
 status = "implemented"
-rust = "sbase mkdir"
+rust = "sbrs mkdir"
 
 [cli."mkfile"]
 status = "implemented"
-rust = "sbase mkfile"
+rust = "sbrs mkfile"
 
 [cli."mkpres"]
 status = "implemented"
-rust = "sbase mkpres"
+rust = "sbrs mkpres"
 
 [cli."mkrec"]
 status = "composed"
-rust = "sbase record"
-note = "Python's mkrec creates a new test file with the Recorder. `sbase record URL -o FILE` records in a browser and writes a JSON or YAML action list that `sbase replay` runs, not a test file; `sbase mkrec` only writes a starter recording file and opens no browser."
+rust = "sbrs record"
+note = "Python's mkrec creates a new test file with the Recorder. `sbrs record URL -o FILE` records in a browser and writes a JSON or YAML action list that `sbrs replay` runs, not a test file; `sbrs mkrec` only writes a starter recording file and opens no browser."
 
 [cli."obfuscate"]
 status = "composed"
-rust = "sbase encrypt"
-note = "Alias of encrypt upstream, as here: `sbase obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's."
+rust = "sbrs encrypt"
+note = "Alias of encrypt upstream, as here: `sbrs obfuscate` is accepted. It encrypts a string, not a source file. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's."
 
 [cli."objectify"]
 status = "not-applicable"
-reason = "Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbase objectify` only writes a starter page_object.rs."
+reason = "Python's objectify rewrites the selectors of a Python test file into page-object variables, like extract-objects and inject-objects, and there is no Python source to rewrite here. `sbrs objectify` only writes a starter page_object.rs."
 
 [cli."options"]
 status = "not-applicable"
@@ -3088,20 +3088,20 @@ reason = "Lists pytest options; Rust settings are fields of BrowserConfig and Ru
 
 [cli."print"]
 status = "implemented"
-rust = "sbase print"
+rust = "sbrs print"
 
 [cli."proxy"]
 status = "implemented"
-rust = "sbase proxy"
+rust = "sbrs proxy"
 
 [cli."record"]
 status = "implemented"
-rust = "sbase record"
+rust = "sbrs record"
 
 [cli."recorder"]
 status = "composed"
-rust = "sbase record"
-note = "Python's recorder is a desktop app that launches the Recorder. `sbase record URL -o FILE` has no window of its own: it opens the page, records until it is stopped, and writes a JSON or YAML action list that `sbase replay` runs. It does not write a test file."
+rust = "sbrs record"
+note = "Python's recorder is a desktop app that launches the Recorder. `sbrs record URL -o FILE` has no window of its own: it opens the page, records until it is stopped, and writes a JSON or YAML action list that `sbrs replay` runs. It does not write a test file."
 
 [cli."revert-objects"]
 status = "not-applicable"
@@ -3109,19 +3109,19 @@ reason = "Edits the structure of Python test files."
 
 [cli."translate"]
 status = "implemented"
-rust = "sbase translate"
-note = "sbase translate FILE LANGUAGE [--print|--overwrite|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages."
+rust = "sbrs translate"
+note = "sbrs translate FILE LANGUAGE [--print|--overwrite|--copy] rewrites the action of every step of a JSON scenario with the translation dictionary; Scenario::from_json reads actions in any of the ten languages."
 divergence = "Python translates the method calls of a Python test file. A Rust test is compiled code with English method names, so the file translated here is the JSON scenario. The language is a positional argument, not a --zh style flag."
 
 [cli."unobfuscate"]
 status = "composed"
-rust = "sbase decrypt"
-note = "Alias of decrypt upstream, as here: `sbase unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's."
+rust = "sbrs decrypt"
+note = "Alias of decrypt upstream, as here: `sbrs unobfuscate` is accepted. Tokens are AES-256-GCM under SB_ENCRYPTION_KEY, read from the environment instead of a prompt, and do not interchange with Python's."
 
 [cli."version"]
 status = "implemented"
-rust = "sbase version"
-note = "Prints the same line as `sbase --version`."
+rust = "sbrs version"
+note = "Prints the same line as `sbrs --version`."
 
 [driver."add_cookie"]
 status = "implemented"
@@ -4363,17 +4363,17 @@ reason = "Hands a free-text account string to pytest tests as sb.account; a Rust
 [options_pytest."--ad-block"]
 status = "composed"
 rust = "BrowserConfig::ad_block"
-note = "`sbase --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "`sbrs --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--ad_block"]
 status = "composed"
 rust = "BrowserConfig::ad_block"
-note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--adblock"]
 status = "composed"
 rust = "BrowserConfig::ad_block"
-note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--agent"]
 status = "composed"
@@ -4423,7 +4423,7 @@ rust = "BrowserConfig::browser_binary_path"
 [options_pytest."--block-ads"]
 status = "composed"
 rust = "BrowserConfig::ad_block"
-note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block-images"]
 status = "implemented"
@@ -4433,7 +4433,7 @@ note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), o
 [options_pytest."--block_ads"]
 status = "composed"
 rust = "BrowserConfig::ad_block"
-note = "A Python spelling of --ad-block; `sbase` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block_images"]
 status = "implemented"
@@ -4705,12 +4705,12 @@ note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottr
 [options_pytest."--driver-version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbase get geckodriver VERSION` pins one."
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--driver_version"]
 status = "implemented"
 rust = "BrowserConfig::with_driver_version"
-note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbase get geckodriver VERSION` pins one."
+note = "browser, latest, stable, beta, dev, canary, a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--dws"]
 status = "composed"
@@ -4725,7 +4725,7 @@ note = "Choose Browser::Edge. The session starts msedgedriver itself, from downl
 [options_pytest."--ee"]
 status = "implemented"
 rust = "BrowserConfig::with_esc_end"
-note = "Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
+note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--enable-3d-apis"]
@@ -4769,13 +4769,13 @@ reason = "Names the test environment (qa, prod, ...) for the pytest plugin; this
 [options_pytest."--esc-end"]
 status = "implemented"
 rust = "BrowserConfig::with_esc_end"
-note = "Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
+note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--esc_end"]
 status = "implemented"
 rust = "BrowserConfig::with_esc_end"
-note = "Also `sbase --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
+note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--extension-dir"]
@@ -5179,7 +5179,7 @@ note = "Downloads of the driver, and of the Chrome for Testing builds, go throug
 [options_pytest."--rcs"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_module_session"
-note = "Alias of --reuse-class-session upstream. Also `sbase --rcs` (aliases `--reuse-class-session`, `--reuse_class_session`), `Settings::reuse_class_session` and SB_REUSE_CLASS_SESSION; like upstream it turns --reuse-session on. Rust has no test classes, so the module that holds the test plays the part: it is read from the name libtest gives the test's thread (`login::tests::valid` is in `login::tests`; the tests at the root of an integration test file share the root module). BrowserConfig::with_reuse_class_session(name) shares a browser among the tests that pass the same name instead. Tests of different classes never share a browser; the rest is as for --reuse-session."
+note = "Alias of --reuse-class-session upstream. Also `sbrs --rcs` (aliases `--reuse-class-session`, `--reuse_class_session`), `Settings::reuse_class_session` and SB_REUSE_CLASS_SESSION; like upstream it turns --reuse-session on. Rust has no test classes, so the module that holds the test plays the part: it is read from the name libtest gives the test's thread (`login::tests::valid` is in `login::tests`; the tests at the root of an integration test file share the root module). BrowserConfig::with_reuse_class_session(name) shares a browser among the tests that pass the same name instead. Tests of different classes never share a browser; the rest is as for --reuse-session."
 divergence = "Python quits the class's browser when the next class starts (setUpClass and tearDownClass); here it stays open until the idle timeout, so the browsers of several modules can be open at once. A BaseCase made outside a libtest thread (a custom harness, a spawned task on a Tokio worker) counts as the root module."
 
 [options_pytest."--rec"]
@@ -5205,7 +5205,7 @@ note = "Print the returned text."
 [options_pytest."--rec-sb-cdp"]
 status = "implemented"
 rust = "BrowserConfig::with_rec_sb_cdp"
-note = "Also `sbase --rec-sb-cdp` (alias `--rec_sb_cdp`), `Settings::rec_sb_cdp` and SB_REC_SB_CDP. With it on, BaseCase::export_recording_as_rust (and so save_recording_to_logs, `sbase run-scenario`, `sbase export-recording` and the `save` command of record_live_session) returns ActionRecorder::to_cdp_script: a #[tokio::main] program of sb_cdp Page and Locator calls, every selector and value a Rust string literal. to_cdp_test and save_recording_as_cdp_test write a test; BaseCase::export_recording_as_cdp_rust asks for it whatever the setting is. 51 recorded actions have a pure CDP call, and the program written for all of them is compiled against the real sb_cdp API by tests/recorder_cdp_compiles.rs; any other action becomes a `// skipped:` comment that quotes its BaseCase call."
+note = "Also `sbrs --rec-sb-cdp` (alias `--rec_sb_cdp`), `Settings::rec_sb_cdp` and SB_REC_SB_CDP. With it on, BaseCase::export_recording_as_rust (and so save_recording_to_logs, `sbrs run-scenario`, `sbrs export-recording` and the `save` command of record_live_session) returns ActionRecorder::to_cdp_script: a #[tokio::main] program of sb_cdp Page and Locator calls, every selector and value a Rust string literal. to_cdp_test and save_recording_as_cdp_test write a test; BaseCase::export_recording_as_cdp_rust asks for it whatever the setting is. 51 recorded actions have a pure CDP call, and the program written for all of them is compiled against the real sb_cdp API by tests/recorder_cdp_compiles.rs; any other action becomes a `// skipped:` comment that quotes its BaseCase call."
 divergence = "Python writes the recording file when the test ends; here it is written when export_recording_as_rust, save_recording_to_logs or a CLI command asks. The test itself still runs on WebDriver, and the generated program launches a pure CDP Browser. Waits use the pure CDP engine's own timeout, not ten seconds, and actions with no pure CDP call (frame, window and alert switching, JavaScript clicks, set_window_size) are comments, where Python comments out the actions CDPMethods lacks."
 
 [options_pytest."--rec-sb-mgr"]
@@ -5256,31 +5256,31 @@ note = "Opens Chrome's debugger on port 9222; `with_remote_debug_port` names ano
 [options_pytest."--reuse-class-session"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_module_session"
-note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbase --reuse-class-session` and SB_REUSE_CLASS_SESSION. See --rcs."
+note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse-class-session` and SB_REUSE_CLASS_SESSION. See --rcs."
 divergence = "See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts."
 
 [options_pytest."--reuse-session"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_session"
-note = "Also `sbase --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbase calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout."
+note = "Also `sbrs --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbrs calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout."
 divergence = "Python keeps the previous test's cookies and page unless --crumbs is given; here a reused browser is always cleaned, because Rust tests run in any order and side by side. Python quits the shared browser when pytest ends; a Rust test binary has no end-of-run hook, so the idle timeout does it, and a binary that exits sooner after its last test leaves that browser and its chromedriver running unless shutdown_reused_sessions() is called. Under cargo-nextest each test is a process of its own and nothing is shared."
 
 [options_pytest."--reuse_class_session"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_module_session"
-note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbase --reuse_class_session` and SB_REUSE_CLASS_SESSION. See --rcs."
+note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse_class_session` and SB_REUSE_CLASS_SESSION. See --rcs."
 divergence = "See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts."
 
 [options_pytest."--reuse_session"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_session"
-note = "The same option as --reuse-session: the tests of a run share browsers, cleaned between tests. Also `sbase --reuse_session` and SB_REUSE_SESSION. See --reuse-session."
+note = "The same option as --reuse-session: the tests of a run share browsers, cleaned between tests. Also `sbrs --reuse_session` and SB_REUSE_SESSION. See --reuse-session."
 divergence = "See --reuse-session: the browser is always cleaned (Python needs --crumbs), and it closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--rs"]
 status = "implemented"
 rust = "BrowserConfig::with_reuse_session"
-note = "Alias of --reuse-session upstream: the tests of a run share browsers, cleaned between tests. Also `sbase --rs` and SB_REUSE_SESSION. See --reuse-session."
+note = "Alias of --reuse-session upstream: the tests of a run share browsers, cleaned between tests. Also `sbrs --rs` and SB_REUSE_SESSION. See --reuse-session."
 divergence = "See --reuse-session: the browser is always cleaned (Python needs --crumbs), and it closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--safari"]
@@ -5311,17 +5311,17 @@ note = "Give the full WebDriver URL instead of its parts."
 [options_pytest."--settings"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings-file"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings_file"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--sjw"]
 status = "implemented"
@@ -5960,7 +5960,7 @@ note = "Print the returned text."
 [options_sb."rec_sb_cdp"]
 status = "implemented"
 rust = "BrowserConfig::with_rec_sb_cdp"
-note = "Also Settings::rec_sb_cdp, SB_REC_SB_CDP and `sbase --rec-sb-cdp`. With it on, BaseCase::export_recording_as_rust and save_recording_to_logs write ActionRecorder::to_cdp_script, a pure CDP program; see `--rec-sb-cdp`."
+note = "Also Settings::rec_sb_cdp, SB_REC_SB_CDP and `sbrs --rec-sb-cdp`. With it on, BaseCase::export_recording_as_rust and save_recording_to_logs write ActionRecorder::to_cdp_script, a pure CDP program; see `--rec-sb-cdp`."
 divergence = "Python writes the file when the SB() block ends; here you ask for it (export_recording_as_rust, save_recording_to_logs)."
 
 [options_sb."rec_sb_mgr"]
@@ -6005,7 +6005,7 @@ note = "Give the full WebDriver URL, with the Grid's host in it."
 [options_sb."settings_file"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbase --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_sb."size"]
 status = "implemented"

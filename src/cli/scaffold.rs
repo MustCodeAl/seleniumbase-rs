@@ -1,4 +1,4 @@
-//! Safe creation of the files and directories the `sbase mk*` commands generate.
+//! Safe creation of the files and directories the `sbrs mk*` commands generate.
 //!
 //! A name typed on the command line must never be able to reach outside the
 //! directory the command runs in, and a generated file must never silently

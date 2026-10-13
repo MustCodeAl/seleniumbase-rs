@@ -1,4 +1,4 @@
-//! The starter files that `sbase mkrec` and `sbase objectify` write, compiled
+//! The starter files that `sbrs mkrec` and `sbrs objectify` write, compiled
 //! against the real `BaseCase` API.
 //!
 //! The templates are Rust source kept in `src/cli/scripts/templates/`. Including
@@ -8,7 +8,7 @@
 
 #![allow(dead_code)]
 
-/// `sbase mkrec`: a `#[tokio::main]` program.
+/// `sbrs mkrec`: a `#[tokio::main]` program.
 mod starter_recording {
     include!("../src/cli/scripts/templates/starter_recording.tpl");
 
@@ -18,7 +18,7 @@ mod starter_recording {
     }
 }
 
-/// `sbase objectify`: a page object wrapping a `BaseCase`.
+/// `sbrs objectify`: a page object wrapping a `BaseCase`.
 mod page_object {
     include!("../src/cli/scripts/templates/page_object.tpl");
 

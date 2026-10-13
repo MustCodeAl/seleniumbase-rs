@@ -27,17 +27,17 @@ serve-docs:
 	mdbook serve --open
 
 smoke:
-	cargo run --quiet --bin sbase -- --help
-	cargo run --quiet --bin sbase -- --version
-	cargo run --quiet --bin sbase -- doctor
+	cargo run --quiet --bin sbrs -- --help
+	cargo run --quiet --bin sbrs -- --version
+	cargo run --quiet --bin sbrs -- doctor
 
 completions:
 	mkdir -p target/completions
-	cargo run --quiet --bin sbase -- completions bash > target/completions/sbase.bash
-	cargo run --quiet --bin sbase -- completions zsh > target/completions/_sbase
-	cargo run --quiet --bin sbase -- completions fish > target/completions/sbase.fish
-	cargo run --quiet --bin sbase -- completions elvish > target/completions/sbase.elv
-	cargo run --quiet --bin sbase -- completions powershell > target/completions/_sbase.ps1
+	cargo run --quiet --bin sbrs -- completions bash > target/completions/sbrs.bash
+	cargo run --quiet --bin sbrs -- completions zsh > target/completions/_sbrs
+	cargo run --quiet --bin sbrs -- completions fish > target/completions/sbrs.fish
+	cargo run --quiet --bin sbrs -- completions elvish > target/completions/sbrs.elv
+	cargo run --quiet --bin sbrs -- completions powershell > target/completions/_sbrs.ps1
 
 # Chromium needs a browser inside, and Slim cannot see it load, so no --no-slim
 # means a slimmed image without Chromium.
@@ -47,7 +47,7 @@ docker:
 clean:
 	cargo clean
 
-# The patched-browser cache `sbase patch-chrome` fills (the platform cache
+# The patched-browser cache `sbrs patch-chrome` fills (the platform cache
 # directory: ~/.cache on Linux, ~/Library/Caches on macOS) and downloaded drivers.
 clean-cache:
 	rm -rf "$${XDG_CACHE_HOME:-$$HOME/.cache}/sb-chrome-patches" "$$HOME/Library/Caches/sb-chrome-patches" downloaded_drivers

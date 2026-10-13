@@ -16,14 +16,14 @@ client that speaks MCP over stdio) at it, as in the
 [MCP Servers](mcp_server.md) page:
 
 ```bash
-cargo build --release --bin seleniumbase-mcp --features mcp-server
+cargo build --release --bin sbrs-mcp --features mcp-server
 ```
 
 ```json
 {
   "mcpServers": {
     "seleniumbase": {
-      "command": "/absolute/path/to/target/release/seleniumbase-mcp",
+      "command": "/absolute/path/to/target/release/sbrs-mcp",
       "args": ["--server", "cdp"],
       "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
     }

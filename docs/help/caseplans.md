@@ -1,6 +1,6 @@
 # Case Plans Generator
 
-`sbase caseplans` (also `sbase case-plans`) is a terminal app for writing a
+`sbrs caseplans` (also `sbrs case-plans`) is a terminal app for writing a
 case plan for each of your tests: a short markdown table of the steps the test
 performs and the result each one expects. It is the Python Case Plans Generator
 without the Tkinter window.
@@ -14,34 +14,34 @@ without the Tkinter window.
 
 ## Build and launch
 
-The app is part of the opt-in `tui` feature, with `sbase commander`:
+The app is part of the opt-in `tui` feature, with `sbrs commander`:
 
 ```bash
-cargo run --features tui --bin sbase -- caseplans
+cargo run --features tui --bin sbrs -- caseplans
 # or install the binary with it
 cargo install seleniumbase-rs --features tui
 ```
 
-An `sbase` built without the feature still has the subcommand, but it only
+An `sbrs` built without the feature still has the subcommand, but it only
 prints the following message and exits with status 2, as `commander` does:
 
 ```text
-this sbase was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
+this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
 ```
 
 Run it from the project root. The folder to look in is the optional argument:
 
 ```bash
-sbase caseplans                 # the tests/ and examples/ folders
-sbase caseplans tests/ui        # the *.rs files of one folder
-sbase caseplans tests/login.rs  # one test file
+sbrs caseplans                 # the tests/ and examples/ folders
+sbrs caseplans tests/ui        # the *.rs files of one folder
+sbrs caseplans tests/login.rs  # one test file
 ```
 
 A folder that has a `tests` or an `examples` folder is searched there, as
 `commander` does; any other folder is searched itself. Only the `*.rs` files
 directly inside a folder count, and they are listed by name.
 
-`sbase caseplans --starter` skips the app and writes a checklist, `CASE_PLANS.md`,
+`sbrs caseplans --starter` skips the app and writes a checklist, `CASE_PLANS.md`,
 in the current folder. It never replaces a file that is there, and it works in
 every build.
 

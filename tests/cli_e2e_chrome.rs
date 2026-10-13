@@ -1,4 +1,4 @@
-//! The `sbase` commands that drive a browser, run as the real binary against a loopback
+//! The `sbrs` commands that drive a browser, run as the real binary against a loopback
 //! page and a real headless Chrome. `cli_e2e.rs` has the commands that need none.
 //!
 //! These tests start Chrome, so they are ignored by default. Run them one at a time:
@@ -7,7 +7,7 @@
 //! cargo test --features "mcp-server test-util" --test cli_e2e_chrome -- --ignored --test-threads=1
 //! ```
 //!
-//! Every `sbase` browser command opens a browser of its own, does one thing and closes it.
+//! Every `sbrs` browser command opens a browser of its own, does one thing and closes it.
 //! The commands here are the ones that do something useful alone: they open a page, or act
 //! on a URL they are given.
 
@@ -18,7 +18,7 @@ use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
 /// A page with a title, a form and a checkbox, so a command has something to find.
 const PAGE: &str = r##"<!doctype html>
@@ -100,7 +100,7 @@ fn command(dir: &Path, args: &[&str]) -> Command {
     command
 }
 
-/// Runs `sbase --headless <args>` and waits for it, up to `limit`.
+/// Runs `sbrs --headless <args>` and waits for it, up to `limit`.
 fn headless(dir: &Path, args: &[&str]) -> Output {
     let mut all = vec!["--headless"];
     all.extend_from_slice(args);
@@ -112,13 +112,13 @@ fn finish_within(mut command: Command, limit: Duration) -> Output {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("sbase starts");
+        .expect("sbrs starts");
     let start = Instant::now();
     loop {
-        if child.try_wait().expect("poll sbase").is_some() {
+        if child.try_wait().expect("poll sbrs").is_some() {
             return child.wait_with_output().expect("collect the output");
         }
-        assert!(start.elapsed() < limit, "sbase did not finish in {limit:?}");
+        assert!(start.elapsed() < limit, "sbrs did not finish in {limit:?}");
         thread::sleep(Duration::from_millis(100));
     }
 }

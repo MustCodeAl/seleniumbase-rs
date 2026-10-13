@@ -15,14 +15,14 @@ generated output.
 
 ## Record from the CLI
 
-`sbase record` opens a browser on a URL, captures your clicks, typing, `<select>`
+`sbrs record` opens a browser on a URL, captures your clicks, typing, `<select>`
 changes and page navigations while you use it, and saves them as an action file
 when you press Ctrl-C (or after `--duration SECONDS`, or when you close the
 browser):
 
 ```bash
-cargo run --bin sbase -- record https://seleniumbase.io/demo_page -o actions.json
-cargo run --bin sbase -- replay actions.json
+cargo run --bin sbrs -- record https://seleniumbase.io/demo_page -o actions.json
+cargo run --bin sbrs -- replay actions.json
 ```
 
 Run it headed (the default), and put any global options such as `--browser`
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `BaseCase::export_recording_as_cdp_rust()` returns it from a live test. To make
 `export_recording_as_rust` and `save_recording_to_logs` write it, as the Python
 flag does, turn the setting on with `BrowserConfig::with_rec_sb_cdp(true)`, the
-`sbase --rec-sb-cdp` flag or `SB_REC_SB_CDP=true`; the test itself still runs on
+`sbrs --rec-sb-cdp` flag or `SB_REC_SB_CDP=true`; the test itself still runs on
 WebDriver, and only the generated code changes.
 
 Every selector and value is written as a Rust string literal. 51 recorded
@@ -149,10 +149,10 @@ and holds an array of `{ "name", "target", "value", "timestamp_ms" }` objects.
 Replay it with the CLI:
 
 ```bash
-cargo run --bin sbase -- replay latest_logs/recorded.json
+cargo run --bin sbrs -- replay latest_logs/recorded.json
 ```
 
-This is not the file `sbase run-scenario` reads. That command takes a
+This is not the file `sbrs run-scenario` reads. That command takes a
 hand-written scenario, an object with a `name` and a list of `steps` such as
 `{ "action": "click", "css": "#myButton" }`; passing it an action file fails to
 parse. See [Recorder CLI](../help/recorder_cli.md) for both formats.
@@ -176,5 +176,5 @@ skips any other action.
 | Recording is empty | Actions were performed without a `BaseCase` method (e.g. raw JS) | Use `BaseCase` interaction methods so the internal recorder captures them. |
 | Generated selector is brittle | Page uses auto-generated IDs | Replace recorded selectors with stable `data-testid` or class selectors. |
 | Replay fails | Target application changed | Regenerate or hand-edit the action file. |
-| `run-scenario` rejects the saved file | It is an action file, not a scenario | Replay it with `sbase replay`. |
+| `run-scenario` rejects the saved file | It is an action file, not a scenario | Replay it with `sbrs replay`. |
 | `replay` reports skipped steps | The action is not one replay understands | Use the generated Rust test instead, or hand-edit the file. |

@@ -1,4 +1,4 @@
-//! `sbase objectify`: a starter page object.
+//! `sbrs objectify`: a starter page object.
 //!
 //! This is not Python's `objectify SB_FILE.py`, which rewrites the selectors of a
 //! Python test file into page-object variables. There is no Python source to
@@ -9,7 +9,7 @@
 use crate::cli::commands::write_new_file;
 use std::path::{Path, PathBuf};
 
-/// The file `sbase objectify` writes, in the current folder.
+/// The file `sbrs objectify` writes, in the current folder.
 pub const FILE_NAME: &str = "page_object.rs";
 
 /// The page object. It lives in its own file so a test can compile it against

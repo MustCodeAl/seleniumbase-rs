@@ -22,7 +22,7 @@ The crate can connect to an existing WebDriver endpoint or auto-start
 driver already listening on `http://localhost:4444`; if there is none, it starts
 `downloaded_drivers/chromedriver` on a free port, downloading the latest stable
 chromedriver into that folder first when it is missing (it does not look on your
-`PATH`). `cargo run --bin sbase -- install` fetches the driver ahead of time.
+`PATH`). `cargo run --bin sbrs -- install` fetches the driver ahead of time.
 
 ## Create a new project
 
@@ -140,7 +140,7 @@ cargo test login_succeeds
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | `WebDriver` connection error | No driver running, and auto-start does not apply: it needs `auto_start_driver` (on by default) and the default WebDriver URL `http://localhost:4444`. | Remove the custom URL, or start `chromedriver` yourself and pass its URL. |
-| `chromedriver` not found | The driver executable is missing. | Install it with `cargo run --bin sbase -- install` or download it from the Chrome for Testing dashboard. |
+| `chromedriver` not found | The driver executable is missing. | Install it with `cargo run --bin sbrs -- install` or download it from the Chrome for Testing dashboard. |
 | Chrome not found | The browser binary path is wrong. | Use `BrowserConfig::with_browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables). |
 | Headless detected | Site blocks headless Chrome (headless sessions already use `--headless=new`). | Use `with_headless(false)`. |
 

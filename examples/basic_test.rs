@@ -10,10 +10,10 @@
 //!
 //! ```bash
 //! cargo run --example basic_test
-//! sbase test --example basic_test
+//! sbrs test --example basic_test
 //! ```
 //!
-//! It needs Chrome and a matching chromedriver on your `PATH` (`sbase doctor`
+//! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both) and does not need the network: the page is served from
 //! `127.0.0.1` by `local_site/mod.rs`. The browser runs headless.
 

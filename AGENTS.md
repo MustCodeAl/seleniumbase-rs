@@ -11,7 +11,7 @@ disagree, this file and `CLAUDE.md` win.
 server (crate `seleniumbase-rs`, MIT, Rust 1.99, not on crates.io). Two engines:
 WebDriver (`src/browser`, `src/api`, built on `thirtyfour`) and a pure CDP engine
 (`src/sb_cdp`). Stealth lives in `src/stealth`; MCP servers in `src/mcp`; the CLI
-(`sbase`) in `src/cli`. Optional features are off by default.
+(`sbrs`) in `src/cli`. Optional features are off by default.
 
 ## Read first
 
@@ -98,7 +98,7 @@ written script on macOS is normal: warm it once in tests that fake executables.
 ## Using this crate from an agent
 
 If you are driving a browser rather than editing the crate, use the MCP servers
-(`seleniumbase-mcp --server cdp`): page inspection, selector diagnosis, console
+(`sbrs-mcp --server cdp`): page inspection, selector diagnosis, console
 and network views, an accessibility audit, a debug bundle, and an export of the
 session as a Rust test. The workflow is in
 `docs/tutorials/vibe_coding.md`; `llms.txt` lists the docs worth reading.

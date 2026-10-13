@@ -38,7 +38,7 @@ Rust harness, the following risks remain:
 - **Generated code**: the Python importer, recorder, and Selenium IDE parser emit
   Rust code. If the input is attacker-controlled, the output must be reviewed
   before compilation.
-- **MCP server access**: the `seleniumbase-mcp` binary can control the browser and
+- **MCP server access**: the `sbrs-mcp` binary can control the browser and
   execute JavaScript in any page. An untrusted MCP client can therefore perform
   any action the browser can.
 - **Supply-chain attacks**: a compromised dependency can still run code at build
@@ -48,7 +48,7 @@ Rust harness, the following risks remain:
 
 These reduce some risks; none replaces the guidance below.
 
-- **Encrypting secrets**: `sbase encrypt` and `sbase decrypt` (and
+- **Encrypting secrets**: `sbrs encrypt` and `sbrs decrypt` (and
   `common::encryption`) use AES-256-GCM with a passphrase read from the
   `SB_ENCRYPTION_KEY` environment variable, never from an argument, so it stays
   out of shell history and process listings.
@@ -65,7 +65,7 @@ These reduce some risks; none replaces the guidance below.
   into `latest_logs`, and a file name with a directory part or `..` is refused.
   MCP file-writing tools are confined to `SB_MCP_OUTPUT_DIR` (default
   `./mcp_output`), and absolute paths and `..` are refused there too.
-- **Closing browsers**: `sbase` and `seleniumbase-mcp` close their browser on
+- **Closing browsers**: `sbrs` and `sbrs-mcp` close their browser on
   SIGINT and SIGTERM, within `SB_SHUTDOWN_TIMEOUT_SECS`, so an orchestrated stop
   does not leave a logged-in browser running.
 
@@ -82,14 +82,14 @@ These reduce some risks; none replaces the guidance below.
 
 - Treat page content, downloaded files, generated selectors, imported Python
   code, and recorded actions as untrusted input.
-- Review generated Rust files from `sbase import-python` or the recorder before
+- Review generated Rust files from `sbrs import-python` or the recorder before
   compiling or running them.
 - Do not run generated tests against production-like data or credentials until
   you have inspected them.
 
 ### MCP server
 
-- Build the `seleniumbase-mcp` binary only when needed and distribute it only to
+- Build the `sbrs-mcp` binary only when needed and distribute it only to
   trusted hosts.
 - Connect only trusted MCP clients. The server runs with the privileges of the
   user that launched it and can execute JavaScript in the active page.

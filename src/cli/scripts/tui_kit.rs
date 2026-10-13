@@ -1,4 +1,4 @@
-//! What the terminal apps (`sbase caseplans`, `sbase behave-gui`) share: the
+//! What the terminal apps (`sbrs caseplans`, `sbrs behave-gui`) share: the
 //! key presses they understand, the message pump that drives a state machine,
 //! and the terminal itself.
 //!

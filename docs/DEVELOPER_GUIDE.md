@@ -59,7 +59,7 @@ seleniumbase-rs/
 │   │   ├── options.rs      # StealthOptions builder
 │   │   └── reactor.rs      # CDP Fetch interceptor
 │   ├── behave/             # Gherkin/BDD runner and step registry
-│   ├── cli/                # Command-line tooling (sbase binary)
+│   ├── cli/                # Command-line tooling (sbrs binary)
 │   ├── common/             # Encryption, obfuscation, graceful shutdown
 │   ├── config/             # Settings and proxy/ad-block lists
 │   ├── core/               # Test result records, JSON/HTML report writers
@@ -241,13 +241,13 @@ contained:
 
 | Feature | Default | Purpose |
 |---|---|---|
-| `tui` | off | Terminal apps: `sbase commander`, `sbase caseplans`, `sbase behave-gui`. Pulls `ratatui`/`crossterm`. |
+| `tui` | off | Terminal apps: `sbrs commander`, `sbrs caseplans`, `sbrs behave-gui`. Pulls `ratatui`/`crossterm`. |
 | `gui` | off | Native OS dialogs and GUI automation. Pulls `rfd`/`enigo`; on Linux it needs GTK and X11 development packages. |
 | `playwright` | off | Enables the `rustwright`-based Playwright-compatible engine. |
 | `s3` | off | Enables AWS S3 artifact uploads. |
 | `azure` | off | Enables Azure Blob Storage artifact uploads. |
 | `gcp` | off | Placeholder for Google Cloud integrations. |
-| `mcp-server` | off | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+| `mcp-server` | off | Builds the `sbrs-mcp` binary using `rmcp`. |
 | `full-tracing` | off | Verbose `tracing` span events for debugging. |
 | `json-logs` | off | Structured JSON log output. |
 | `error-backtrace` | off | Backtraces attached to `SeleniumBaseError`. |
@@ -261,7 +261,7 @@ seleniumbase-rs = { version = "0.1", features = ["gui", "tui"] }
 ```
 
 ```text
-cargo install seleniumbase-rs --features tui   # sbase commander
+cargo install seleniumbase-rs --features tui   # sbrs commander
 cargo run --example gui_automation --features gui
 ```
 
@@ -316,7 +316,7 @@ converted in `ProfileParams::to_browser_config()` and `browser()`.
 
 ### `src/cli/`
 
-- `bin/sbase.rs` — the `sbase` CLI command tree.
+- `bin/sbrs.rs` — the `sbrs` CLI command tree.
 - submodules handle per-command logic.
 
 ### `src/bin/mcp_server.rs`
@@ -468,7 +468,7 @@ Macros are defined in `src/macros.rs` and re-exported at the crate root via
 
 ## Adding an MCP tool
 
-The `seleniumbase-mcp` binary (`--server cdp|driver|sb`) is a thin wrapper over
+The `sbrs-mcp` binary (`--server cdp|driver|sb`) is a thin wrapper over
 the `mcp` module, built with the `mcp-server` feature. A server is a
 `Host<S>`: a list of `ToolDef`s and the browser session `S` they share.
 
@@ -655,8 +655,8 @@ push using the Chrome/chromedriver preinstalled on GitHub-hosted runners.
 
 - Set `RUST_LOG=seleniumbase_rs=debug` to see driver launch args and CDP traffic.
 - Use `RUST_BACKTRACE=1` with the `error-backtrace` feature for full traces.
-- Run `sbase doctor` to print environment diagnostics: the `SB_*` settings, the Chrome it found, and the chromedriver it found with its version next to Chrome's.
-- Inspect generated bootstrap with `sbase stealth-bootstrap --fingerprint ...`.
+- Run `sbrs doctor` to print environment diagnostics: the `SB_*` settings, the Chrome it found, and the chromedriver it found with its version next to Chrome's.
+- Inspect generated bootstrap with `sbrs stealth-bootstrap --fingerprint ...`.
 - For CI-only failures, reproduce with `--features s3,azure,gcp,playwright,mcp-server`
   because feature gates change code paths.
 
@@ -678,7 +678,7 @@ even when diagnostics are present.
 
 ## MCP server
 
-The `seleniumbase-mcp` binary exposes a subset of `BaseCase` through the Model
+The `sbrs-mcp` binary exposes a subset of `BaseCase` through the Model
 Context Protocol. It is built when the `mcp-server` feature is enabled. See
 `src/bin/mcp_server.rs` for the tool definitions and `README.md` for client
 configuration examples.

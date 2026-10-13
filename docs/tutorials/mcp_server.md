@@ -1,6 +1,6 @@
 # MCP servers
 
-`seleniumbase-mcp` exposes a browser to any [Model Context Protocol] client
+`sbrs-mcp` exposes a browser to any [Model Context Protocol] client
 (Claude Desktop, Claude Code, ...) over stdio. It serves one of three toolsets,
 the same tools as the Python `seleniumbase-mcp` project, and adds tools of its
 own for developing, debugging and testing:
@@ -17,7 +17,7 @@ All three keep one browser session for the whole conversation: call
 ## Install and configure
 
 ```bash
-cargo install --path . --bin seleniumbase-mcp --features mcp-server
+cargo install --path . --bin sbrs-mcp --features mcp-server
 ```
 
 Then register it with your client, for example in `.mcp.json`:
@@ -26,7 +26,7 @@ Then register it with your client, for example in `.mcp.json`:
 {
   "mcpServers": {
     "seleniumbase-cdp": {
-      "command": "seleniumbase-mcp",
+      "command": "sbrs-mcp",
       "args": ["--server", "cdp"],
       "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
     }
@@ -234,7 +234,7 @@ When to use it: once a session does what a test should check.
 
 Needs no browser. Reports the platform, whether Chrome and chromedriver are
 found, their major versions and whether they fit (a mismatch names the fix:
-`sbase install`, then `sbase doctor`), whether the output directory exists and is
+`sbrs install`, then `sbrs doctor`), whether the output directory exists and is
 writable and how much disk is free there (from `df`; `null` where there is
 none), `CHROMEDRIVER_PATH`, every `SB_*` setting in the environment (a value
 whose name says it is secret, such as `SB_API_TOKEN`, and the user and password

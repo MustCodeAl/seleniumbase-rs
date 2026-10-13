@@ -28,18 +28,18 @@ RUN mkdir -p src/cli/bin src/bin benches examples tests && \
           examples/cookie_jar.rs examples/browser_scraper.rs examples/custom_profile.rs \
           examples/http_session.rs examples/stealth_session.rs \
           tests/scrape_domain_purity.rs && \
-    echo 'fn main() {}' > src/cli/bin/sbase.rs && \
+    echo 'fn main() {}' > src/cli/bin/sbrs.rs && \
     echo 'fn main() {}' > src/bin/mcp_server.rs
 
-# Build the sbase binary to download and compile all dependencies.
-RUN cargo build --release --locked --bin sbase && rm -rf src
+# Build the sbrs binary to download and compile all dependencies.
+RUN cargo build --release --locked --bin sbrs && rm -rf src
 
 # Copy the source and build the real binary. `tests/golden` is compiled into the
-# binary (the `sbase mkdir` and `sbase mkfile` templates), so it comes along.
+# binary (the `sbrs mkdir` and `sbrs mkfile` templates), so it comes along.
 COPY src ./src
 COPY tests/golden ./tests/golden
-RUN touch src/lib.rs src/cli/bin/sbase.rs
-RUN cargo build --release --locked --bin sbase
+RUN touch src/lib.rs src/cli/bin/sbrs.rs
+RUN cargo build --release --locked --bin sbrs
 
 # -----------------------------------------------------------------------------
 # Runtime stage
@@ -55,9 +55,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user for running browsers.
-RUN groupadd -r sbase && useradd -r -g sbase -m -d /home/sbase sbase
+RUN groupadd -r sbrs && useradd -r -g sbrs -m -d /home/sbrs sbrs
 
-WORKDIR /home/sbase
+WORKDIR /home/sbrs
 
 # The WebDriver engine uses `downloaded_drivers/chromedriver` in the working directory when its
 # version fits the browser, and downloads a driver only when that file is missing or does not
@@ -65,17 +65,17 @@ WORKDIR /home/sbase
 # the image then needs no network to start a browser.
 RUN mkdir -p downloaded_drivers && \
     ln -s /usr/bin/chromedriver downloaded_drivers/chromedriver && \
-    chown -R sbase:sbase downloaded_drivers
+    chown -R sbrs:sbrs downloaded_drivers
 
 # Copy the compiled binary.
-COPY --from=builder /usr/src/seleniumbase-rs/target/release/sbase /usr/local/bin/sbase
+COPY --from=builder /usr/src/seleniumbase-rs/target/release/sbrs /usr/local/bin/sbrs
 
-# Nothing in this image listens on a port: `sbase` is a command-line tool and
+# Nothing in this image listens on a port: `sbrs` is a command-line tool and
 # drives the browser over a local pipe or socket, so there is no EXPOSE.
 #
 # Build it with `docker build -t seleniumbase-rs .`.
 
-USER sbase
+USER sbrs
 
-ENTRYPOINT ["/usr/local/bin/sbase"]
+ENTRYPOINT ["/usr/local/bin/sbrs"]
 CMD ["--help"]

@@ -15,13 +15,13 @@ SURFACES = [
     ("basecase", "BaseCase methods", "`BaseCase` (Python `BaseCase`)"),
     ("driver", "Driver methods", "Methods of Python's `Driver()`"),
     ("cdp", "CDP Mode methods", "Python `sb.cdp.*`; Rust holds the selector in a `Locator`"),
-    ("cli", "Command-line commands", "`seleniumbase` / `sbase`"),
+    ("cli", "Command-line commands", "Python `seleniumbase` / `sbase`; Rust `sbrs`"),
     ("options_pytest", "pytest options", "Python `--option` flags"),
     ("options_sb", "`SB()` arguments", "Keyword arguments of `SB()`"),
     ("options_driver", "`Driver()` arguments", "Keyword arguments of `Driver()`"),
-    ("mcp_cdp", "MCP: CDP server", "`seleniumbase-mcp --server cdp`"),
-    ("mcp_driver", "MCP: Driver server", "`seleniumbase-mcp --server driver`"),
-    ("mcp_sb", "MCP: SB server", "`seleniumbase-mcp --server sb`"),
+    ("mcp_cdp", "MCP: CDP server", "Rust: `sbrs-mcp --server cdp`"),
+    ("mcp_driver", "MCP: Driver server", "Rust: `sbrs-mcp --server driver`"),
+    ("mcp_sb", "MCP: SB server", "Rust: `sbrs-mcp --server sb`"),
 ]
 ORDER = ["implemented", "composed", "not-applicable", "planned"]
 

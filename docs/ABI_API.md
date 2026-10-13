@@ -13,7 +13,7 @@ The crate root exposes the following modules:
 | `artifacts` | The `latest_logs` folder, collision-free artifact names, and the check that keeps a caller-supplied file name inside it. |
 | `behave` | Gherkin/BDD parser, step registry, and runner. |
 | `browser` | `BrowserConfig`, `BrowserSession`, driver launching, and optional Playwright session. |
-| `cli` | `sbase` command-line script implementations. |
+| `cli` | `sbrs` command-line script implementations. |
 | `common` | Decorators, obfuscation, and shared exception types. |
 | `config` | Settings, proxy lists, and ad-block lists. |
 | `core` | Test result records and the JSON and HTML reports made from them. |
@@ -129,9 +129,9 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 | `s3` | Enables AWS S3 artifact uploads. | no |
 | `azure` | Enables Azure Blob Storage artifact uploads. | no |
 | `gcp` | Enables Google Cloud Storage artifact uploads. | no |
-| `mcp-server` | Enables the `mcp` module and builds the `seleniumbase-mcp` binary using `rmcp`. | no |
+| `mcp-server` | Enables the `mcp` module and builds the `sbrs-mcp` binary using `rmcp`. | no |
 | `test-util` | Exposes `sb_cdp::Browser::new_mocked` and `MockCtrl` for testing code that drives pages without Chrome. | no |
-| `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbase report` command. A Turso dependency needs Rust 1.90, which the crate's `rust-version` (1.99) already covers. | no |
+| `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbrs report` command. A Turso dependency needs Rust 1.90, which the crate's `rust-version` (1.99) already covers. | no |
 | `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. | no |
 | `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
 | `scrape` | Enables `wire` and `scrape` (pure Rust; adds `psl`). Experimental. | no |

@@ -2,7 +2,7 @@
 //!
 //! A Rust port of the Python SeleniumBase testing framework. It provides a
 //! `BaseCase` API for browser automation, stealth/undetected modes via CDP,
-//! a command-line helper (`sbase`), and supporting modules for configuration,
+//! a command-line helper (`sbrs`), and supporting modules for configuration,
 //! reporting, BDD, and more.
 //!
 //! ## Quick start

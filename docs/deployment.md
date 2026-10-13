@@ -6,7 +6,7 @@ first, see [Building and installing](building.md).
 
 ## The shape of a deployment
 
-`sbase` and `seleniumbase-mcp` are single native binaries with no Python or Node
+`sbrs` and `sbrs-mcp` are single native binaries with no Python or Node
 runtime. What they drive is a Chrome or Chromium, so every deployment needs:
 
 1. the binary,
@@ -45,9 +45,9 @@ code in the container.
 
 ## Containers
 
-The repository's `Dockerfile` builds `sbase` and copies it into a
+The repository's `Dockerfile` builds `sbrs` and copies it into a
 `debian:bookworm-slim` image with Chromium and its driver. It runs as a non-root
-user, listens on no port, and its entry point is `sbase`:
+user, listens on no port, and its entry point is `sbrs`:
 
 ```bash
 docker build -t seleniumbase-rs .
@@ -65,8 +65,8 @@ commands, the build time and the test results are in
 
 Notes:
 
-- Because the entry point is `sbase`, the arguments after the image name are
-  `sbase` arguments. Do not repeat `sbase`. The browser commands (`open`,
+- Because the entry point is `sbrs`, the arguments after the image name are
+  `sbrs` arguments. Do not repeat `sbrs`. The browser commands (`open`,
   `smoke`, ...) read `SB_HEADLESS` and the other `SB_*` variables, and a
   `--headless` before the subcommand beats the variable; a container has no
   display, so set one of them.
@@ -83,7 +83,7 @@ Notes:
 - Chromium in Docker often needs a larger shared-memory area than the default;
   `docker run --shm-size=1g ...` is the usual remedy for crashes under load.
   This is general Chromium advice, not something this project measured.
-- Use `sbase doctor` as a readiness check: it compares the chromedriver's major
+- Use `sbrs doctor` as a readiness check: it compares the chromedriver's major
   version with Chrome's.
 
 ## CI
@@ -95,7 +95,7 @@ one, and runs the format, lint and test checks. `docker.yml` builds the image an
 are:
 
 ```bash
-sbase install                     # fetch the chromedriver that matches Chrome
+sbrs install                     # fetch the chromedriver that matches Chrome
 export SB_HEADLESS=true
 cargo test --features "test-util" # tests that need no browser
 cargo test -- --ignored           # the tests that launch Chrome, if you want them
@@ -116,17 +116,17 @@ to a bucket directly.
 
 ## Selenium Grid
 
-`sbase grid` starts a Selenium Grid hub or node from a Selenium Server jar that
+`sbrs grid` starts a Selenium Grid hub or node from a Selenium Server jar that
 you supply; the crate never downloads one. Point `BrowserConfig::webdriver_url`
-(or the `--server` option) at the hub. See `sbase grid --help` for the options.
+(or the `--server` option) at the hub. See `sbrs grid --help` for the options.
 
 ## The MCP server
 
-`seleniumbase-mcp` speaks the Model Context Protocol over standard input and
+`sbrs-mcp` speaks the Model Context Protocol over standard input and
 output, so it is started by the client that uses it, one process per client:
 
 ```bash
-seleniumbase-mcp --server cdp
+sbrs-mcp --server cdp
 ```
 
 - It does not open a network port. Do not wrap it in a public network service

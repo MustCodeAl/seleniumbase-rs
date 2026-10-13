@@ -1,7 +1,7 @@
-//! `sbase grid-hub` and `sbase grid-node`.
+//! `sbrs grid-hub` and `sbrs grid-node`.
 //!
 //! Python SeleniumBase starts, stops and restarts a Selenium Grid hub or node
-//! with `sbase grid-hub {start|stop|restart}` and `sbase grid-node ...`. This
+//! with `sbrs grid-hub {start|stop|restart}` and `sbrs grid-node ...`. This
 //! is the same, built on [`GridProcess`]. The Selenium Server jar is supplied
 //! by the user (`--jar` or `SB_SELENIUM_SERVER_JAR`) and is never downloaded;
 //! `status` is an addition that reports whether the Grid is up and ready.
@@ -111,7 +111,7 @@ pub fn resolve_jar(
         })
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(format!(
-                "no Selenium Server jar: pass --jar PATH or set {JAR_ENV}. sbase does not \
+                "no Selenium Server jar: pass --jar PATH or set {JAR_ENV}. sbrs does not \
                  download it; get selenium-server-<version>.jar from \
                  https://github.com/SeleniumHQ/selenium/releases"
             ))
@@ -214,7 +214,7 @@ async fn start(
         GridRole::Hub => {
             lines.push(format!("Console: {}", address.ui_url()));
             lines.push(format!(
-                "Run tests against it with: sbase --webdriver {address} test"
+                "Run tests against it with: sbrs --webdriver {address} test"
             ));
         }
         GridRole::Node => lines.push(format!(
@@ -269,7 +269,7 @@ async fn status(
     Ok(match process.state()? {
         RunState::NotRunning => vec![format!("The Grid {role} is not running.")],
         RunState::Stale(record) => vec![format!(
-            "The Grid {role} is not running (process {} is gone). Start it with `sbase grid-{role} start`.",
+            "The Grid {role} is not running (process {} is gone). Start it with `sbrs grid-{role} start`.",
             record.pid
         )],
         RunState::Running(record) => {

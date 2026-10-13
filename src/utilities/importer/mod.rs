@@ -254,13 +254,13 @@ fn import(
     match (tool, language) {
         (Tool::Playwright, ScriptLanguage::RecorderJson) => {
             return Err(SeleniumBaseError::Unsupported(
-                "a Chrome Recorder JSON export is a Puppeteer recording: use `sbase import-puppeteer`"
+                "a Chrome Recorder JSON export is a Puppeteer recording: use `sbrs import-puppeteer`"
                     .to_owned(),
             ))
         }
         (Tool::Puppeteer, ScriptLanguage::Python) => {
             return Err(SeleniumBaseError::Unsupported(
-                "Puppeteer has no Python API: use `sbase import-playwright` for Playwright Python"
+                "Puppeteer has no Python API: use `sbrs import-playwright` for Playwright Python"
                     .to_owned(),
             ))
         }

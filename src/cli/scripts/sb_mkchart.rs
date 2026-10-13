@@ -1,4 +1,4 @@
-//! `sbase mkchart`: a starter HTML page with a Chart.js bar chart.
+//! `sbrs mkchart`: a starter HTML page with a Chart.js bar chart.
 
 use crate::cli::commands::write_new_file;
 use std::path::PathBuf;

@@ -1,5 +1,5 @@
-//! Finding the files the terminal apps list: the discovery `sbase commander`
-//! uses for tests and examples, and the Rust test files `sbase caseplans`
+//! Finding the files the terminal apps list: the discovery `sbrs commander`
+//! uses for tests and examples, and the Rust test files `sbrs caseplans`
 //! writes case plans for.
 
 use std::io;
@@ -33,7 +33,7 @@ pub fn rust_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
 /// `root/tests` and `root/examples`, those of them that exist.
 ///
 /// A folder with neither is itself the place to look, so that
-/// `sbase caseplans some/folder` works on any folder of test files.
+/// `sbrs caseplans some/folder` works on any folder of test files.
 #[must_use]
 pub fn test_folders(root: &Path) -> Vec<PathBuf> {
     let project: Vec<PathBuf> = ["tests", "examples"]

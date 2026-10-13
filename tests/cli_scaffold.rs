@@ -1,4 +1,4 @@
-//! `sbase mkdir` and `sbase mkfile`, run as the real binary in a scratch folder.
+//! `sbrs mkdir` and `sbrs mkfile`, run as the real binary in a scratch folder.
 //!
 //! The generated files are compared with the golden files in
 //! `tests/golden/cli/`. After an intended template change, regenerate them with
@@ -10,18 +10,18 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
-/// Runs `sbase` with `dir` as the current directory.
-fn sbase(dir: &Path, args: &[&str]) -> Output {
+/// Runs `sbrs` with `dir` as the current directory.
+fn sbrs(dir: &Path, args: &[&str]) -> Output {
     Command::new(SBASE)
         .args(args)
         .current_dir(dir)
         .output()
-        .expect("sbase starts")
+        .expect("sbrs starts")
 }
 
-/// `path` with the platform's separator, the way `sbase` prints it
+/// `path` with the platform's separator, the way `sbrs` prints it
 /// (`ui\helpers.rs` on Windows).
 fn native(path: &str) -> String {
     path.replace('/', std::path::MAIN_SEPARATOR_STR)
@@ -76,10 +76,10 @@ fn assert_parses(source: &str, what: &str) {
 
 /// Runs a command that must succeed and returns its standard output.
 fn succeeds(dir: &Path, args: &[&str]) -> String {
-    let output = sbase(dir, args);
+    let output = sbrs(dir, args);
     assert!(
         output.status.success(),
-        "sbase {args:?} failed: {}",
+        "sbrs {args:?} failed: {}",
         stderr(&output)
     );
     stdout(&output)
@@ -141,11 +141,11 @@ fn mkfile_creates_missing_folders_and_new_is_an_alias() {
 fn mkfile_rejects_a_bad_url_and_a_wrong_extension() {
     let dir = tempfile::tempdir().unwrap();
 
-    let output = sbase(dir.path(), &["mkfile", "a", "--url", "javascript:alert(1)"]);
+    let output = sbrs(dir.path(), &["mkfile", "a", "--url", "javascript:alert(1)"]);
     assert!(!output.status.success());
     assert!(stderr(&output).contains("scheme"), "{}", stderr(&output));
 
-    let output = sbase(dir.path(), &["mkfile", "a.py"]);
+    let output = sbrs(dir.path(), &["mkfile", "a.py"]);
     assert!(!output.status.success());
     assert!(stderr(&output).contains(".rs"), "{}", stderr(&output));
 
@@ -202,7 +202,7 @@ fn nothing_is_overwritten_without_force() {
     succeeds(dir.path(), &["mkfile", "keep"]);
     fs::write(dir.path().join("keep.rs"), "// my edits\n").unwrap();
 
-    let output = sbase(dir.path(), &["mkfile", "keep"]);
+    let output = sbrs(dir.path(), &["mkfile", "keep"]);
 
     assert!(!output.status.success());
     assert!(
@@ -222,7 +222,7 @@ fn a_suite_with_one_existing_file_is_left_untouched() {
     fs::create_dir(dir.path().join("ui")).unwrap();
     fs::write(dir.path().join("ui/helpers.rs"), "// mine\n").unwrap();
 
-    let output = sbase(dir.path(), &["mkdir", "ui"]);
+    let output = sbrs(dir.path(), &["mkdir", "ui"]);
 
     assert!(!output.status.success());
     assert!(
@@ -257,16 +257,16 @@ fn names_cannot_leave_the_current_directory() {
         "a\\b.rs",
         "tests/../../x.rs",
     ] {
-        let output = sbase(&work, &["mkfile", name]);
+        let output = sbrs(&work, &["mkfile", name]);
         assert!(!output.status.success(), "mkfile {name:?} must fail");
         assert!(
-            stderr(&output).starts_with("sbase: invalid name"),
+            stderr(&output).starts_with("sbrs: invalid name"),
             "mkfile {name:?}: {}",
             stderr(&output)
         );
     }
     for name in ["../outside/pwn", "..", absolute_dir.as_str(), "a/../../x"] {
-        let output = sbase(&work, &["mkdir", name]);
+        let output = sbrs(&work, &["mkdir", name]);
         assert!(!output.status.success(), "mkdir {name:?} must fail");
     }
 
@@ -290,7 +290,7 @@ fn a_link_to_another_folder_is_not_followed() {
     fs::create_dir(&outside).unwrap();
     std::os::unix::fs::symlink(&outside, work.join("link")).unwrap();
 
-    let output = sbase(&work, &["mkfile", "link/pwn.rs"]);
+    let output = sbrs(&work, &["mkfile", "link/pwn.rs"]);
 
     assert!(!output.status.success());
     assert!(

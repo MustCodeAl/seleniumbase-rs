@@ -1,9 +1,9 @@
-//! `sbase caseplans` and `sbase behave-gui`, run as the real binary.
+//! `sbrs caseplans` and `sbrs behave-gui`, run as the real binary.
 //!
 //! Both are full-screen terminal apps that exist only in a build with the `tui`
 //! feature. A build without it must not touch the terminal: each command (and
 //! its alias) prints a hint on how to get the feature and exits with status 2,
-//! as `sbase commander` does. That build is the default one, so the status and
+//! as `sbrs commander` does. That build is the default one, so the status and
 //! hint tests run only when `tui` is off. A `tui` build would take over the
 //! terminal that runs the tests, so it is not started here; the apps' logic and
 //! their drawing are tested in the library.
@@ -11,9 +11,9 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
-const SBASE: &str = env!("CARGO_BIN_EXE_sbase");
+const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
 
-/// Every `SB_*` variable `sbase` reads, cleared so the host's own settings
+/// Every `SB_*` variable `sbrs` reads, cleared so the host's own settings
 /// cannot reach a test.
 const SETTINGS_VARS: [&str; 14] = [
     "SB_BROWSER",
@@ -32,9 +32,9 @@ const SETTINGS_VARS: [&str; 14] = [
     "SB_WEBDRIVER_URL",
 ];
 
-/// Runs `sbase` in `dir`, an empty folder, so no `sbase_config.toml` of the
+/// Runs `sbrs` in `dir`, an empty folder, so no `sbase_config.toml` of the
 /// host is picked up, and without the user's `SB_*` settings.
-fn sbase(dir: &Path, args: &[&str]) -> Output {
+fn sbrs(dir: &Path, args: &[&str]) -> Output {
     let mut command = Command::new(SBASE);
     command
         .args(args)
@@ -45,7 +45,7 @@ fn sbase(dir: &Path, args: &[&str]) -> Output {
     for var in SETTINGS_VARS {
         command.env_remove(var);
     }
-    command.output().expect("sbase runs")
+    command.output().expect("sbrs runs")
 }
 
 fn stdout(output: &Output) -> String {
@@ -66,14 +66,14 @@ fn flat(text: &str) -> String {
 fn the_help_lists_both_commands_with_their_aliases_and_says_they_need_the_tui_feature() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let list = sbase(dir.path(), &["--help"]);
+    let list = sbrs(dir.path(), &["--help"]);
     assert!(list.status.success(), "{}", stderr(&list));
     for command in ["caseplans", "behave-gui"] {
         assert!(stdout(&list).contains(command), "{}", stdout(&list));
     }
 
     for name in ["caseplans", "case-plans", "behave-gui", "gui-behave"] {
-        let help = sbase(dir.path(), &[name, "--help"]);
+        let help = sbrs(dir.path(), &[name, "--help"]);
         assert!(help.status.success(), "{name}: {}", stderr(&help));
         assert!(
             flat(&stdout(&help)).contains("`tui` feature"),
@@ -87,8 +87,8 @@ fn the_help_lists_both_commands_with_their_aliases_and_says_they_need_the_tui_fe
 fn the_helps_name_the_terminal_app_not_a_window() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let caseplans = flat(&stdout(&sbase(dir.path(), &["caseplans", "--help"])));
-    let behave = flat(&stdout(&sbase(dir.path(), &["behave-gui", "--help"])));
+    let caseplans = flat(&stdout(&sbrs(dir.path(), &["caseplans", "--help"])));
+    let behave = flat(&stdout(&sbrs(dir.path(), &["behave-gui", "--help"])));
 
     assert!(caseplans.contains("terminal app"), "{caseplans}");
     assert!(caseplans.contains("--starter"), "{caseplans}");
@@ -104,8 +104,8 @@ fn the_helps_name_the_terminal_app_not_a_window() {
 fn the_file_writing_options_cannot_be_combined_with_a_path() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let caseplans = sbase(dir.path(), &["caseplans", "--starter", "tests"]);
-    let behave = sbase(dir.path(), &["behave-gui", "--new", "features"]);
+    let caseplans = sbrs(dir.path(), &["caseplans", "--starter", "tests"]);
+    let behave = sbrs(dir.path(), &["behave-gui", "--new", "features"]);
 
     for (name, output) in [("caseplans", caseplans), ("behave-gui", behave)] {
         assert_eq!(output.status.code(), Some(2), "{name}: {}", stderr(&output));
@@ -127,7 +127,7 @@ fn without_the_tui_feature_each_command_and_alias_exits_with_status_2_and_a_hint
     let dir = tempfile::tempdir().expect("temp dir");
 
     for name in ["caseplans", "case-plans", "behave-gui", "gui-behave"] {
-        let output = sbase(dir.path(), &[name]);
+        let output = sbrs(dir.path(), &[name]);
 
         assert_eq!(output.status.code(), Some(2), "{name}: {}", stderr(&output));
         let hint = stderr(&output);
@@ -148,7 +148,7 @@ fn a_path_does_not_change_that_and_nothing_is_read_or_written() {
     let dir = tempfile::tempdir().expect("temp dir");
 
     for args in [["caseplans", "tests"], ["behave-gui", "features"]] {
-        let output = sbase(dir.path(), &args);
+        let output = sbrs(dir.path(), &args);
 
         assert_eq!(
             output.status.code(),
@@ -169,7 +169,7 @@ fn without_the_tui_feature_the_commands_leave_the_terminal_alone() {
     let dir = tempfile::tempdir().expect("temp dir");
 
     for name in ["caseplans", "behave-gui"] {
-        let output = sbase(dir.path(), &[name]);
+        let output = sbrs(dir.path(), &[name]);
 
         // Nothing on stdout, and no escape sequence on either stream: the
         // alternate screen and raw mode of the real UI were never entered.
@@ -186,7 +186,7 @@ fn without_the_tui_feature_the_commands_leave_the_terminal_alone() {
 fn the_file_writing_options_work_in_every_build() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let output = sbase(dir.path(), &["caseplans", "--starter"]);
+    let output = sbrs(dir.path(), &["caseplans", "--starter"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(dir.path().join("CASE_PLANS.md").is_file());

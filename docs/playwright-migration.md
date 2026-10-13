@@ -1,6 +1,6 @@
 # Migrate Playwright Tests
 
-`sbase import-playwright` converts Playwright tests and scripts into Rust tests
+`sbrs import-playwright` converts Playwright tests and scripts into Rust tests
 for the [pure CDP engine](tutorials/pure_cdp.md). It reads:
 
 - `@playwright/test` files in JavaScript or TypeScript: `test()`,
@@ -21,8 +21,8 @@ output as a first draft and review every `TODO`.
 ## Convert a file
 
 ```bash
-cargo run --bin sbase -- import-playwright e2e/login.spec.ts --output tests/login.rs
-cargo run --bin sbase -- import-pw tests/test_login.py   # prints to stdout
+cargo run --bin sbrs -- import-playwright e2e/login.spec.ts --output tests/login.rs
+cargo run --bin sbrs -- import-pw tests/test_login.py   # prints to stdout
 ```
 
 | Option | Values | Purpose |
@@ -32,10 +32,10 @@ cargo run --bin sbase -- import-pw tests/test_login.py   # prints to stdout
 | `--test-name` | any text | Name the test made from a script that has no test titles (codegen output); the default is the file name. Titled tests keep their titles. |
 
 Diagnostics go to standard error, one line per `TODO`. The exit status is the
-one `sbase import-python` uses: 0 when everything was read (gaps are
+one `sbrs import-python` uses: 0 when everything was read (gaps are
 warnings), 1 when a statement could not be read at all, 6 when the file cannot
 be read, and 2 for a source the importer refuses (larger than 2 MB, or a
-Chrome Recorder export, which is for `sbase import-puppeteer`).
+Chrome Recorder export, which is for `sbrs import-puppeteer`).
 
 From Rust, call `seleniumbase_rs::utilities::importer::import_playwright`;
 `ScriptImport::is_complete()` is `false` when anything became a `TODO`.
