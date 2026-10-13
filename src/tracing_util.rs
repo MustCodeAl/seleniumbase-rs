@@ -60,7 +60,8 @@ fn install(filter: EnvFilter, format: &LogFormat) {
     let registry = tracing_subscriber::registry();
     match format {
         LogFormat::Json => {
-            let layer = json_subscriber::fmt::layer()
+            let layer = tracing_subscriber::fmt::layer()
+                .json()
                 .with_writer(std::io::stderr)
                 .with_current_span(true)
                 .with_span_list(false)

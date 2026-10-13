@@ -12,6 +12,10 @@ work, `docs/parity.md` the per-API status).
 
 - The unused `tracing-futures` dependency (every build compiled it) and the
   unused `tracing-actix` one from the `full-tracing` feature.
+- JSON logs come from `tracing-subscriber`'s own JSON format instead of the
+  separate `json-subscriber` crate.
+- `zip` and `dirs` use the versions `thirtyfour` pins (8.6 and 6), so each is
+  compiled once instead of twice.
 - `zip` is built with deflate only (the format of driver downloads and the
   bundled extensions) instead of every format; zstd (a C library), bzip2, lzma,
   xz, ppmd and AES no longer compile.
