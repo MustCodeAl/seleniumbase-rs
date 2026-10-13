@@ -1,3 +1,7 @@
+---
+title: "BaseCase API Reference"
+---
+
 # BaseCase API Reference
 
 `BaseCase` is the main entry point for writing browser automation in

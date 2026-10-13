@@ -1,3 +1,7 @@
+---
+title: "Why Rust?"
+---
+
 # Why Rust?
 
 **Short answer.** Choose `seleniumbase-rs` if your tests or tooling already live

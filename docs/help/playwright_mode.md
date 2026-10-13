@@ -1,3 +1,7 @@
+---
+title: "Playwright Mode"
+---
+
 # Playwright Mode
 
 Playwright Mode uses [`rustwright`](https://github.com/Skyvern-AI/rustwright), a

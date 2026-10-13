@@ -1,3 +1,7 @@
+---
+title: "Pure CDP: Chrome without a WebDriver"
+---
+
 # Pure CDP: Chrome without a WebDriver
 
 `sb_cdp` drives Chrome directly over the DevTools Protocol. There is no

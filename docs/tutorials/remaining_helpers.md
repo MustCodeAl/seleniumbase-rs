@@ -1,3 +1,7 @@
+---
+title: "Remaining BaseCase Helpers"
+---
+
 # Remaining BaseCase Helpers
 
 This guide covers additional `BaseCase` helpers that close the parity gap with

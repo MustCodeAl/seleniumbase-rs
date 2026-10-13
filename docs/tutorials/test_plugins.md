@@ -1,3 +1,7 @@
+---
+title: "Test Plugins"
+---
+
 # Test Plugins
 
 A test plugin runs code around a test: when it starts, when it fails (with the

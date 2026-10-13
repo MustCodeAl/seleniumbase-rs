@@ -1,3 +1,7 @@
+---
+title: "Security"
+---
+
 # Security
 
 Rust's memory-safety guarantees, explicit error handling, and type system make

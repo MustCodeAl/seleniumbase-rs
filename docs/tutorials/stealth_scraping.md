@@ -1,3 +1,7 @@
+---
+title: "Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper"
+---
+
 # Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper
 
 A site can tell a client apart before any page script runs: by the TLS

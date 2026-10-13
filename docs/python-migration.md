@@ -1,3 +1,7 @@
+---
+title: "Migrate Python Tests"
+---
+
 # Migrate Python Tests
 
 Moving an existing Python SeleniumBase or Selenium WebDriver test suite to Rust

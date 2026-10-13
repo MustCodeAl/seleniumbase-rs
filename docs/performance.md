@@ -1,3 +1,7 @@
+---
+title: "Performance"
+---
+
 # Performance
 
 Rust's low runtime overhead and native binaries can make test orchestration

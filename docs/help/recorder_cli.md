@@ -1,3 +1,7 @@
+---
+title: "Recorder CLI"
+---
+
 # Recorder CLI
 
 There are three ways to produce something you can replay. `sbrs record` watches

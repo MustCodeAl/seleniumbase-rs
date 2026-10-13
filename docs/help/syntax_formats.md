@@ -1,3 +1,7 @@
+---
+title: "Syntax Formats"
+---
+
 # Syntax Formats
 
 SeleniumBase for Rust supports three primary ways to express automation:

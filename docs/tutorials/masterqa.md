@@ -1,3 +1,7 @@
+---
+title: "MasterQA Guide"
+---
+
 # MasterQA Guide
 
 MasterQA is a hybrid testing workflow that mixes automated navigation with

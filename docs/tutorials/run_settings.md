@@ -1,3 +1,7 @@
+---
+title: "Run Settings: Demo, Slow and Fast Runs"
+---
+
 # Run Settings: Demo, Slow and Fast Runs
 
 Python SeleniumBase reads a handful of run-wide options from the pytest command

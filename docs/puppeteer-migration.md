@@ -1,3 +1,7 @@
+---
+title: "Migrate Puppeteer Tests"
+---
+
 # Migrate Puppeteer Tests
 
 `sbrs import-puppeteer` converts Puppeteer code into Rust tests for the

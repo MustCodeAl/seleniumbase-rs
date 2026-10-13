@@ -1,3 +1,7 @@
+---
+title: "Recorder Mode Guide"
+---
+
 # Recorder Mode Guide
 
 Recorder Mode captures your browser interactions and generates either a Rust

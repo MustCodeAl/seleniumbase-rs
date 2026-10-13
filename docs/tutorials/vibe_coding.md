@@ -1,3 +1,7 @@
+---
+title: "Vibe coding with seleniumbase-rs"
+---
+
 # Vibe coding with seleniumbase-rs
 
 "Vibe coding" here means: you describe a browser test in plain words, an AI agent

@@ -1,3 +1,7 @@
+---
+title: "CDP Mode Guide"
+---
+
 # CDP Mode Guide
 
 CDP mode lets you control the browser through the Chrome DevTools Protocol

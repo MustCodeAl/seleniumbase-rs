@@ -1,3 +1,7 @@
+---
+title: "GUI Automation Guide"
+---
+
 # GUI Automation Guide
 
 Some scenarios require controlling the operating system's mouse and keyboard

@@ -1,3 +1,7 @@
+---
+title: "Migrate Playwright Tests"
+---
+
 # Migrate Playwright Tests
 
 `sbrs import-playwright` converts Playwright tests and scripts into Rust tests

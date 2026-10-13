@@ -1,3 +1,7 @@
+---
+title: "SeleniumBase for Rust"
+---
+
 # SeleniumBase for Rust
 
 Welcome to the SeleniumBase for Rust book. This guide explains how to build

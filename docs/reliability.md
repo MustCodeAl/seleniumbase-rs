@@ -1,3 +1,7 @@
+---
+title: "Reliability"
+---
+
 # Reliability
 
 Reliable browser automation requires more than a good API. Tests must clean up

@@ -1,3 +1,7 @@
+---
+title: "Settings and Global Configuration"
+---
+
 # Settings and Global Configuration
 
 `seleniumbase-rs` supports multiple configuration layers: built-in defaults, a

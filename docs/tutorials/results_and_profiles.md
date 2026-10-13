@@ -1,3 +1,7 @@
+---
+title: "Results Database and Encrypted Profiles"
+---
+
 # Results Database and Encrypted Profiles
 
 Two things a team ends up needing are a history of test runs, and a safe place

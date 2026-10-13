@@ -1,3 +1,7 @@
+---
+title: "Test Translations Guide"
+---
+
 # Test Translations Guide
 
 SeleniumBase for Rust includes a small translator utility that maps simple

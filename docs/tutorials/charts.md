@@ -1,3 +1,7 @@
+---
+title: "Chart Maker Guide"
+---
+
 # Chart Maker Guide
 
 Generate charts from your test data and save them as standalone HTML files.

@@ -1,3 +1,7 @@
+---
+title: "Cloud Integrations Tutorial"
+---
+
 # Cloud Integrations Tutorial
 
 SeleniumBase for Rust can upload test artifacts (screenshots, logs, PDFs) to

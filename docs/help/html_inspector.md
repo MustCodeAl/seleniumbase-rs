@@ -1,3 +1,7 @@
+---
+title: "HTML Inspector"
+---
+
 # HTML Inspector
 
 The HTML Inspector scans a page for common accessibility and markup issues. It

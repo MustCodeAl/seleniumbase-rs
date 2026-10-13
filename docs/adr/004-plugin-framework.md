@@ -1,3 +1,7 @@
+---
+title: "ADR 004: A Plugin Framework for Community Crates"
+---
+
 # ADR 004: A Plugin Framework for Community Crates
 
 ## Status

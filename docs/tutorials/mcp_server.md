@@ -1,3 +1,7 @@
+---
+title: "MCP servers"
+---
+
 # MCP servers
 
 `sbrs-mcp` exposes a browser to any [Model Context Protocol] client

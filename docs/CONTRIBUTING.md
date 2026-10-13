@@ -61,7 +61,7 @@ mdbook build
 ```
 
 Features, binaries, the Dockerfile and build-time tips are in
-[docs/building.md](docs/building.md).
+[docs/building.md](building.md).
 
 Read `CLAUDE.md` once even if you are not using an AI assistant: it is a short map
 of the modules, the commands and the things that have bitten before.

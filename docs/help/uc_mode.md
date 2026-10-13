@@ -1,3 +1,7 @@
+---
+title: "UC Mode (Undetected Chromedriver)"
+---
+
 # UC Mode (Undetected Chromedriver)
 
 UC Mode launches Chromium with stealth flags and applies JavaScript evasions that

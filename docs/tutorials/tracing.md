@@ -1,3 +1,7 @@
+---
+title: "Tracing and Logging"
+---
+
 # Tracing and Logging
 
 `seleniumbase-rs` uses the `tracing` ecosystem for structured logging. Both the

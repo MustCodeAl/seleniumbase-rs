@@ -11,3 +11,8 @@ build-dir = "book"
 git-repository-url = "https://github.com/MustCodeAl/seleniumbase-rs"
 edit-url-template = "https://github.com/MustCodeAl/seleniumbase-rs/edit/main/docs/{path}"
 preferred-dark-theme = "ayu"
+
+[preprocessor.strip-frontmatter]
+# Docs7 reads page titles from front matter; the book should not show it.
+command = "python3 -I tools/mdbook_strip_frontmatter.py"
+before = ["links"]

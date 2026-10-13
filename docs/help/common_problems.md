@@ -1,3 +1,7 @@
+---
+title: "Common Problems"
+---
+
 # Common Problems
 
 This page collects common pitfalls and their solutions. If you run into

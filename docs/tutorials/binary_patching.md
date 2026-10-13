@@ -1,3 +1,7 @@
+---
+title: "Binary Patching"
+---
+
 # Binary Patching
 
 Chromedriver and similar Chromium drivers embed static signatures that bot

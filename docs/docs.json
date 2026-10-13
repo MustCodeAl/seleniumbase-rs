@@ -55,6 +55,7 @@
               "tutorials/uc_mode",
               "tutorials/cdp_mode",
               "tutorials/pure_cdp",
+              "help/uc_mode",
               "help/playwright_mode",
               "tutorials/fingerprint_stealth",
               "tutorials/stealth_scraping",
@@ -83,7 +84,18 @@
               "tutorials/vibe_coding"
             ]
           },
-          "tutorials/api_reference",
+          {
+            "group": "API Guide",
+            "pages": [
+              "tutorials/api_reference",
+              "tutorials/masterqa",
+              "tutorials/mfa_totp",
+              "tutorials/pdf_parsing",
+              "tutorials/translations",
+              "tutorials/remaining_helpers",
+              "help/syntax_formats"
+            ]
+          },
           "tutorials/macros",
           "tutorials/browser_profiles",
           "tutorials/tracing",

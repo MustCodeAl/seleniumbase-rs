@@ -1,3 +1,7 @@
+---
+title: "Macros"
+---
+
 # Macros
 
 `seleniumbase-rs` exports a set of convenience macros from the crate root. They

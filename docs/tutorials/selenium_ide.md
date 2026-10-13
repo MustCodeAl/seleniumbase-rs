@@ -1,3 +1,7 @@
+---
+title: "Selenium IDE Migration"
+---
+
 # Selenium IDE Migration
 
 If you have legacy Selenium IDE `.html` test cases, SeleniumBase for Rust can

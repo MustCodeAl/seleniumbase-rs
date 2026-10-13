@@ -1,3 +1,7 @@
+---
+title: "Undetected (UC) Mode Guide"
+---
+
 # Undetected (UC) Mode Guide
 
 Undetected (UC) mode reduces the fingerprints that websites use to identify

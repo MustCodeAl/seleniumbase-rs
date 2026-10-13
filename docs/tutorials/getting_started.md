@@ -1,3 +1,7 @@
+---
+title: "Getting Started with SeleniumBase for Rust"
+---
+
 # Getting Started with SeleniumBase for Rust
 
 This guide walks you through your first browser automation test with

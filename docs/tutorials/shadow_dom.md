@@ -1,3 +1,7 @@
+---
+title: "Shadow DOM Guide"
+---
+
 # Shadow DOM Guide
 
 Web Components often hide markup inside Shadow DOM trees. SeleniumBase for Rust

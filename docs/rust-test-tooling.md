@@ -1,3 +1,7 @@
+---
+title: "Writing Browser Tests"
+---
+
 # Writing Browser Tests
 
 `seleniumbase-rs` does not ship its own test runner. Instead, it integrates with

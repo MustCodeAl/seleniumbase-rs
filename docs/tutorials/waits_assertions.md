@@ -1,3 +1,7 @@
+---
+title: "Waits and Assertions"
+---
+
 # Waits and Assertions
 
 Browser tests fail most often because they interact with elements before the

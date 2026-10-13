@@ -1,3 +1,7 @@
+---
+title: "CLI Usage (sbrs)"
+---
+
 # CLI Usage (`sbrs`)
 
 The `sbrs` binary provides quick commands for common tasks: opening pages,
