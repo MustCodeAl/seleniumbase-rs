@@ -27,7 +27,13 @@ ORDER = ["implemented", "composed", "not-applicable", "planned"]
 
 
 def cell(text):
-    return (text or "").replace("|", "\\|").replace("\n", " ")
+    text = (text or "").replace("|", "\\|").replace("\n", " ")
+    # Outside code spans, < and > become entities: MDX (the Docs7 site) and
+    # HTML would otherwise read <body> or <name> as an unclosed tag.
+    parts = text.split("`")
+    for index in range(0, len(parts), 2):
+        parts[index] = parts[index].replace("<", "&lt;").replace(">", "&gt;")
+    return "`".join(parts)
 
 
 def main():
