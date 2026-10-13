@@ -392,6 +392,16 @@ merged. In order:
 8. **Not planned for now:** HTTP/3, CHIPS cookies, `Critical-CH` retries, and the
    `--remote-debugging-pipe` transport.
 
+## 7. Plugin framework (proposed)
+
+A `Plugin` trait and `PluginSet` so community crates
+(`seleniumbase-rs-plugin-<name>`) can change how a browser starts and what every
+page gets, like puppeteer-extra and Zorilla. Design and phases:
+[ADR 004](docs/adr/004-plugin-framework.md). It also adds `add_script_tag`,
+`add_style_tag` and `add_init_script` to `sb_cdp::Page`, and the real Bootstrap
+Tour and Hopscotch libraries for the two tour themes that fall back to the
+built-in tour today.
+
 ## Publishing
 
 Work happens on a feature branch. To publish: run the quality gate on a clean

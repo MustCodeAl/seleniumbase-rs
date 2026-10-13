@@ -53,5 +53,6 @@
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
   - [Multi-Driver & Playwright](adr/002-multi-driver-and-playwright.md)
   - [Stealth Scraping Layout](adr/003-stealth-scraping-layout.md)
+  - [Plugin Framework](adr/004-plugin-framework.md)
 - [Contributing](CONTRIBUTING.md)
 

@@ -104,7 +104,8 @@
             "pages": [
               "adr/001-stealth-architecture",
               "adr/002-multi-driver-and-playwright",
-              "adr/003-stealth-scraping-layout"
+              "adr/003-stealth-scraping-layout",
+              "adr/004-plugin-framework"
             ]
           },
           "CONTRIBUTING"
