@@ -119,11 +119,13 @@ chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"
 zip = { version = "9.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-flate2 = "1.1"
+# The zlib-rs backend zip already builds (lopdf still enables flate2's default one).
+flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
 dirs = "7.0"
 pdf-extract = "0.12"
-scraper = "0.27"
+# Without `main` (getopts, for scraper's own CLI) and `errors` (unused parse errors).
+scraper = { version = "0.27", default-features = false }
 rfd = { version = "0.17", optional = true }
 toml = "1.1"
 tempfile = "3.27"

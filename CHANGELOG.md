@@ -16,6 +16,9 @@ work, `docs/parity.md` the per-API status).
 
 ### Removed
 
+- `scraper` without its default features (`getopts` for its own CLI, unused
+  parse-error text). `flate2` asks only for the `zlib-rs` backend `zip` already
+  builds (`pdf-extract` still turns on its default one).
 - The unused `tracing-futures` dependency (every build compiled it) and the
   unused `tracing-actix` one from the `full-tracing` feature.
 - JSON logs come from `tracing-subscriber`'s own JSON format instead of the
