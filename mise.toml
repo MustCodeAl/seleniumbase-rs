@@ -16,6 +16,9 @@ python = "3.14"
 node = "lts"
 # Only for the `impersonate` feature, which builds BoringSSL from source.
 cmake = "4"
+# Optional: faster BoringSSL builds with CMAKE_GENERATOR=Ninja (on Windows, run
+# it from a Developer PowerShell so Ninja finds the Visual Studio compiler).
+ninja = "1"
 mdbook = "0.5"
 just = "1"
 cargo-deny = "0.20"

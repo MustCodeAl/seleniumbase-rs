@@ -182,9 +182,14 @@ its `.msi` and setup `.exe`. What differs from macOS and Linux:
   spaces in shell commands.
 - Long paths: build in a short directory (`C:\src\seleniumbase-rs`) if a deep
   `target\` path trips the 260-character limit.
-- The `impersonate` feature builds BoringSSL and needs `cmake` and a C/C++
-  toolchain (Visual Studio Build Tools). Only part of that feature is written (see
-  [Stealth Scraping](tutorials/stealth_scraping.md)).
+- The `impersonate` feature builds BoringSSL from source (through `btls-sys`)
+  and needs Visual Studio Build Tools (C++), CMake, NASM and LLVM, whose
+  `libclang` the bindings generator loads (set `LIBCLANG_PATH` to LLVM's `bin`
+  folder). `winget install Kitware.CMake NASM.NASM LLVM.LLVM` installs them.
+  CMake's Visual Studio generator is the default and finds the compiler itself;
+  Ninja (`CMAKE_GENERATOR=Ninja`) is faster but must run from a Developer
+  PowerShell. Not yet built on Windows by this project; see
+  [Stealth Scraping](tutorials/stealth_scraping.md).
 - Measured browser fingerprint data is macOS-only for now (Chrome 155); presets
   for other systems are plausible values, not measurements, and the TLS and
   HTTP/2 tables refuse any other system with `NotMeasured`.
