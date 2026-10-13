@@ -1,9 +1,11 @@
 # Operating systems
 
 What differs between macOS, Linux and Windows when you build and run
-`seleniumbase-rs`. The CI workflow (`.github/workflows/ci.yml`) builds and tests
-on all three; day-to-day development and the project's own checks run on macOS
-(Apple silicon), so macOS is the best-trodden path. The test suite was also run
+`seleniumbase-rs`. The CI workflow (`.github/workflows/ci.yml`) is set up to
+build and test on all three, but has not been able to run yet; day-to-day
+development and the project's own checks run on macOS (Apple silicon), so macOS
+is the best-trodden path, and Windows 11 was checked by hand (see
+[Windows](#windows)). The test suite was also run
 on Linux (arm64, Debian 12, Chromium 154) in a container; what passed, and what
 was not run, is under [Verified on Linux](#verified-on-linux).
 
@@ -81,9 +83,6 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   `xattr -d com.apple.quarantine <file>` if macOS refuses to open it.
 - **Tests that fake `java` or other scripts** must run the script once before
   timing it, for the same first-run reason.
-- **Python library errors in tests.** If a test binary cannot load `libpython`,
-  set `DYLD_LIBRARY_PATH` to your Python's `lib` directory (see
-  `CONTRIBUTING.md`).
 - **Memory.** On an 8 GB machine keep `CARGO_BUILD_JOBS` low and run one cargo
   command at a time.
 
@@ -163,40 +162,30 @@ non-root `sbase` user of the image with the sandbox on was not tried.
 
 ## Windows
 
-Checked on Windows 11 (25H2) with Rust 1.99, Chrome 154 and 155, Edge 155 and
-Firefox 153: formatting, clippy and the whole test suite pass, the real-Chrome
-tests that drive Chrome through chromedriver pass, and the Tauri example builds
-its `.msi` and setup `.exe`. What differs from macOS and Linux:
+**Status:** on Windows 11 x64 (Rust 1.99, Chrome 154 and 155, Edge 155, Firefox
+153) formatting, clippy, the whole test suite and the real-browser tests pass,
+and the Tauri example builds its `.msi` and setup `.exe`. Install steps:
+[Building and installing](building.md#windows-powershell).
 
-- The browser version is read from `chrome.exe`'s own file version (through
-  PowerShell), since `chrome.exe --version` prints nothing there; while an update
-  waits for a restart that is the version that really runs.
-- Nothing ends a driver or browser when the program that started them is killed
-  (macOS and Linux use a process-group watcher; Windows would need a job object).
-  A driver whose session fails to start, or that is dropped, is still ended.
-- Download folders are handed to Chrome as plain `C:\...` paths (without the
-  `\\?\` prefix `canonicalize` adds); with that, the pure-CDP download tests pass.
-- The tests' checks for leftover processes use `pgrep` and are skipped on
-  Windows, so there they do not prove that nothing is left running.
+**What works differently**
 
-- Install Google Chrome normally; the library finds it under `Program Files`. CI
-  installs a Chrome and chromedriver on Windows runners for the tests that need
-  one.
-- Use forward slashes or raw strings for paths in Rust code, and quote paths with
-  spaces in shell commands.
-- Long paths: build in a short directory (`C:\src\seleniumbase-rs`) if a deep
-  `target\` path trips the 260-character limit.
-- The `impersonate` feature builds BoringSSL from source (through `btls-sys`)
-  and needs Visual Studio Build Tools (C++), CMake, NASM and LLVM, whose
-  `libclang` the bindings generator loads (set `LIBCLANG_PATH` to LLVM's `bin`
-  folder). `winget install Kitware.CMake NASM.NASM LLVM.LLVM` installs them.
-  CMake's Visual Studio generator is the default and finds the compiler itself;
-  Ninja (`CMAKE_GENERATOR=Ninja`) is faster but must run from a Developer
-  PowerShell. Not yet built on Windows by this project; see
-  [Stealth Scraping](tutorials/stealth_scraping.md).
-- Measured browser fingerprint data is macOS-only for now (Chrome 155); presets
-  for other systems are plausible values, not measurements, and the TLS and
-  HTTP/2 tables refuse any other system with `NotMeasured`.
+- The Chrome and Edge version comes from the program file's own version
+  (`chrome.exe --version` prints nothing on Windows). While an update waits for a
+  restart, that is still the version that runs, so the right driver is fetched.
+- Download folders are given to Chrome as plain `C:\...` paths.
+- Build in a short folder (`C:\src\seleniumbase-rs`) if a deep `target\` path
+  hits the 260-character limit. In Rust code, use raw strings for Windows paths.
+
+**Not there yet**
+
+- If the program that started a browser is killed, the browser can keep running
+  (macOS and Linux end it; Windows needs a job object). A driver whose session
+  fails, or that is dropped, is ended.
+- The tests' leftover-process checks need `pgrep`, so they are skipped on Windows.
+- `impersonate` has not been built on Windows. It needs CMake, NASM and LLVM
+  (see [Extras for single features](building.md#extras-for-single-features)).
+- Measured fingerprints exist for Chrome 155 on macOS only; the TLS and HTTP/2
+  tables refuse other systems with `NotMeasured`.
 
 ## WSL and remote machines
 

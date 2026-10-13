@@ -7,61 +7,192 @@ run it in a container. For writing and running tests with it, start with
 
 ## What you need
 
-With [mise](https://mise.jdx.dev), `mise install` in the repository sets up Rust,
-Python, Node, CMake, Ninja, mdBook, just and cargo-deny from `mise.toml`. The
-system libraries and browsers below still come from your system's package
-manager.
+Pick your system below and paste its box into a terminal. Each box installs what
+every build needs: Rust 1.99 (the repository's `rust-toolchain.toml` selects it),
+a C compiler, and Google Chrome. The extras for single features come after.
+Nothing here needs Python.
 
-### Every build
+### Let an AI assistant do it
 
-| | macOS | Debian / Ubuntu | Fedora | Windows |
-|---|---|---|---|---|
-| Rust 1.99 (`rust-toolchain.toml` picks it) | `brew install rustup && rustup-init` | `curl https://sh.rustup.rs -sSf \| sh` | same as Debian | `winget install Rustlang.Rustup` |
-| C compiler (TLS crates `aws-lc-sys`, `ring` compile C) | `xcode-select --install` | `sudo apt-get install build-essential pkg-config` | `sudo dnf install gcc gcc-c++ make pkgconf-pkg-config` | Visual Studio 2022 Build Tools with C++: `winget install Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"` |
+Paste this into an AI coding assistant that can run commands on your machine
+(Claude Code, Cursor, Copilot and the like):
 
-### Browsers and drivers
+```text
+Set up this computer to build and test the Rust library seleniumbase-rs
+(https://github.com/MustCodeAl/seleniumbase-rs). Follow its docs/building.md
+("What you need") for my operating system:
 
-| | macOS | Debian / Ubuntu | Windows |
-|---|---|---|---|
-| Google Chrome | `brew install --cask google-chrome` | `wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && sudo apt-get install ./google-chrome-stable_current_amd64.deb` (x86-64), or `sudo apt-get install chromium` | `winget install Google.Chrome` |
-| Microsoft Edge | `brew install --cask microsoft-edge` | Microsoft's `packages.microsoft.com` repository | installed with Windows |
-| Firefox | `brew install --cask firefox` | `sudo apt-get install firefox-esr` (Debian) or `firefox` | `winget install Mozilla.Firefox` |
-| Safari | built in; once: `sudo safaridriver --enable`, then Safari ▸ Develop ▸ Allow Remote Automation | — | — |
-| Headed browsers on a server | — | `sudo apt-get install xvfb` | — |
+1. Find out which OS and CPU this is. Install what is missing, and only that:
+   Rust through rustup (the repo's rust-toolchain.toml picks 1.99), a C compiler
+   (Xcode command line tools / build-essential / Visual Studio 2022 Build Tools
+   with C++), and Google Chrome. Use Homebrew on macOS, apt or dnf on Linux,
+   winget on Windows. Ask me before anything that needs an administrator
+   password, and don't change system security settings yourself.
+2. Clone the repository (or use this folder if it is the repository) and run:
+   cargo build --bin sbase, then sbase doctor (target/debug/sbase doctor, or
+   target\debug\sbase.exe doctor on Windows).
+3. Run the checks and say how many tests passed and failed:
+   cargo fmt --all -- --check
+   cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
+   cargo test --features "mcp-server test-util"
+4. Only if I ask for a feature, install its extras from the "Extras for single
+   features" part of docs/building.md (s3, gui, impersonate, the Tauri example).
+Don't edit any code. Finish with a short list of what you installed, the
+versions, and anything that failed with its first error line.
+```
 
-chromedriver, msedgedriver and geckodriver are downloaded to match the
-installed browser when a session starts, or ahead of time with `sbase install
-chromedriver|edgedriver|geckodriver`. `brew install chromedriver geckodriver`
-works too. The pure CDP engine (`sb_cdp`) needs no driver at all.
+### macOS
 
-### By feature
+```bash
+xcode-select --install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+brew install --cask google-chrome
+```
 
-Every feature not listed (`tui`, `scrape`, `mcp-server`, `turso`, `playwright`,
-`azure`, `gcp`, `full-tracing`, `test-util`) needs nothing beyond the C compiler.
-None needs Python.
+Optional browsers and drivers (drivers otherwise download by themselves):
 
-| Feature | macOS | Debian / Ubuntu | Windows |
-|---|---|---|---|
-| `s3` (native TLS) | nothing | `sudo apt-get install libssl-dev pkg-config` | nothing |
-| `gui` (desktop input, native dialogs) | nothing to build; at run time allow the app in System Settings ▸ Privacy & Security ▸ Accessibility | `sudo apt-get install libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config` | nothing |
-| `impersonate` (builds BoringSSL; bindings need libclang) | `brew install cmake` (Xcode's tools bring clang and libclang) | `sudo apt-get install cmake clang libclang-dev` (Fedora: `sudo dnf install cmake clang clang-devel`) | Build Tools as above, then `winget install Kitware.CMake NASM.NASM LLVM.LLVM` and `$env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"` |
-| Faster `impersonate` builds (optional) | `brew install ninja`, `export CMAKE_GENERATOR=Ninja` | `sudo apt-get install ninja-build`, same variable | `winget install Ninja-build.Ninja`, set `CMAKE_GENERATOR=Ninja`, and build from a Developer PowerShell |
+```bash
+brew install --cask microsoft-edge firefox
+brew install chromedriver geckodriver
+```
 
-### Tools for the rest of the repository
+Safari is built in. Allow automation once, then turn on Safari ▸ Develop ▸
+Allow Remote Automation:
 
-| | macOS | Debian / Ubuntu | Windows |
-|---|---|---|---|
-| Tauri example (`examples/tauri-profile-manager`) | `xcode-select --install`, `brew install node` | `sudo apt-get install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libssl-dev libx11-dev libxdo-dev` and Node LTS | Build Tools as above, WebView2 (part of Windows 10 and 11), `winget install OpenJS.NodeJS.LTS` |
-| Docs (`mdbook build`) | `brew install mdbook` | `cargo install mdbook` | `cargo install mdbook` |
-| Parity tables (`tools/parity`, Python 3.10+) | `brew install python` | `sudo apt-get install python3` | Python from python.org or `winget search Python.Python` |
-| Recipes, dependency checks | `brew install just cargo-deny` | `cargo install just cargo-deny` | `cargo install just cargo-deny` |
+```bash
+sudo safaridriver --enable
+```
 
-What has been built where: everything on macOS (Apple Silicon); the default
-build, the test features and `impersonate` on Debian 12 arm64 (in Docker);
-the default build, the test features, the real-browser tests and the Tauri
-example on Windows 11 x64. `impersonate` has not been built on Windows yet, and
-the Linux `gui` and Tauri lists come from the CI configuration, which has not
-been able to run (see `docs/platforms.md`).
+### Debian and Ubuntu
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential pkg-config curl
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+```
+
+Google Chrome on x86-64:
+
+```bash
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt-get install -y ./google-chrome-stable_current_amd64.deb
+```
+
+Chromium instead (also on arm64), and Firefox:
+
+```bash
+sudo apt-get install -y chromium firefox-esr
+```
+
+A display for headed browsers on a server:
+
+```bash
+sudo apt-get install -y xvfb
+```
+
+### Fedora
+
+```bash
+sudo dnf install -y gcc gcc-c++ make pkgconf-pkg-config curl chromium
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+```
+
+### Windows (PowerShell)
+
+```powershell
+winget install Rustlang.Rustup
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+winget install Google.Chrome
+```
+
+Edge comes with Windows. Firefox:
+
+```powershell
+winget install Mozilla.Firefox
+```
+
+Open a new terminal after installing, so the new programs are on the `PATH`.
+
+### Check it worked
+
+```bash
+git clone https://github.com/MustCodeAl/seleniumbase-rs.git
+cd seleniumbase-rs
+cargo build --bin sbase
+./target/debug/sbase doctor
+```
+
+On Windows the last line is `.\target\debug\sbase.exe doctor`. It prints the
+browsers it found and whether their drivers match.
+
+### Extras for single features
+
+Most features need nothing more: `tui`, `scrape`, `mcp-server`, `turso`,
+`playwright`, `azure`, `gcp`, `full-tracing` and `test-util`. The rest:
+
+**`s3`** needs OpenSSL on Linux (nothing on macOS and Windows):
+
+```bash
+sudo apt-get install -y libssl-dev pkg-config
+```
+
+**`gui`** (desktop input and native dialogs). On macOS nothing to install; at
+run time allow the program under System Settings ▸ Privacy & Security ▸
+Accessibility. On Windows nothing. On Debian and Ubuntu:
+
+```bash
+sudo apt-get install -y libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config
+```
+
+**`impersonate`** builds BoringSSL from source and needs CMake and libclang.
+
+macOS (Xcode's tools bring clang and libclang):
+
+```bash
+brew install cmake
+```
+
+Debian and Ubuntu (Fedora: `sudo dnf install -y cmake clang clang-devel`):
+
+```bash
+sudo apt-get install -y cmake clang libclang-dev
+```
+
+Windows, after the Build Tools above:
+
+```powershell
+winget install Kitware.CMake
+winget install NASM.NASM
+winget install LLVM.LLVM
+$env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
+```
+
+Optional and faster: Ninja (`brew install ninja`, `sudo apt-get install -y
+ninja-build`, `winget install Ninja-build.Ninja`) with `CMAKE_GENERATOR=Ninja`.
+On Windows, Ninja builds must run from a "Developer PowerShell for VS 2022".
+
+**The Tauri example** (`examples/tauri-profile-manager`) needs Node LTS (`brew
+install node`, `winget install OpenJS.NodeJS.LTS`). On Windows it also uses
+WebView2, which comes with Windows 10 and 11. On Debian and Ubuntu:
+
+```bash
+sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libssl-dev libx11-dev libxdo-dev
+```
+
+**Repository tools:** mdBook for the docs (`brew install mdbook` or `cargo
+install mdbook`), Python 3.10+ for the parity tables in `tools/parity`, and
+`just` and `cargo-deny` (`brew install just cargo-deny` or `cargo install just
+cargo-deny`). With [mise](https://mise.jdx.dev), `mise install` sets up Rust,
+Python, Node, CMake, Ninja, mdBook, just and cargo-deny in one step.
+
+### What has been built where
+
+Everything on macOS (Apple Silicon). The default build, the test features and
+`impersonate` on Debian 12 arm64 in Docker. The default build, the test
+features, the real-browser tests and the Tauri example on Windows 11 x64.
+`impersonate` has not been built on Windows yet. The Linux `gui` and Tauri
+package lists come from the CI configuration, which has not been able to run
+(see [Operating systems](platforms.md)).
 
 ## Build
 
