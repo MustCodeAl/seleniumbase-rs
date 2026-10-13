@@ -114,7 +114,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "cha
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 url = "2.5"
 tokio-tungstenite = "0.30"
-futures-util = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"

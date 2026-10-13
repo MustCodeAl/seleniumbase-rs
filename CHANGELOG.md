@@ -16,6 +16,8 @@ work, `docs/parity.md` the per-API status).
 
 ### Removed
 
+- `futures-util` without its default macros (`select!`/`join!`, unused), so the
+  `futures-macro` proc macro is no longer compiled.
 - `scraper` without its default features (`getopts` for its own CLI, unused
   parse-error text). `flate2` asks only for the `zlib-rs` backend `zip` already
   builds (`pdf-extract` still turns on its default one).
