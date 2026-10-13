@@ -128,7 +128,7 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 │  Stealth layer: patcher, evasion registry, fingerprint       │
 │  presets, CDP overrides, engine-spoofing args                │
 ├─────────────────────────────────────────────────────────────┤
-│  Drivers: chromedriver, msedgedriver, geckodriver, Playwright │
+│  Drivers: chromedriver, msedgedriver, geckodriver, Playwright│
 └─────────────────────────────────────────────────────────────┘
 ```
 
