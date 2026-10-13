@@ -95,7 +95,9 @@ crossterm = { version = "0.29", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
-thirtyfour = "0.37"
+# Without the defaults `component` (derive macros) and `manager` (thirtyfour's own
+# driver downloader): this crate has its own, and SelectElement needs neither.
+thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "rustls", "cdp"] }
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
@@ -104,19 +106,17 @@ tracing-timing = { version = "0.7", optional = true }
 regex = "1.13"
 rand = "0.10"
 base64 = "0.23"
-reqwest = { version = "0.13", features = ["blocking", "json"] }
+reqwest = { version = "0.13", features = ["json"] }
 url = "2.5"
 tokio-tungstenite = "0.30"
 futures-util = "0.3"
 chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"
-# zip and dirs match the versions thirtyfour pins, so each compiles once;
-# move them up together with thirtyfour.
-zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 flate2 = "1.1"
 tar = "0.4"
-dirs = "6.0"
+dirs = "7.0"
 pdf-extract = "0.12"
 scraper = "0.27"
 rfd = { version = "0.17", optional = true }
@@ -145,9 +145,6 @@ bytes = "1.12"
 # Optional Playwright-compatible engine via rustwright. Disabled by default
 # because it pulls a large Chromium automation core.
 rustwright = { version = "0.3", optional = true }
-# Without its default `python` feature: that one only adds Python bindings, and
-# would make every program built with `playwright` link libpython.
-rustwright-core = { version = "0.3", optional = true, default-features = false }
 rust-s3 = { version = "0.38", features = ["tokio-native-tls"], optional = true }
 azure_storage_blob = { version = "1.1", optional = true }
 azure_core = { version = "1.1", optional = true }
@@ -166,7 +163,9 @@ tui = ["dep:ratatui", "dep:crossterm"]
 # Native OS dialogs and GUI automation (enigo/rfd).
 gui = ["dep:enigo", "dep:rfd"]
 # Playwright-compatible automation mode powered by rustwright (pure Rust; no Python).
-playwright = ["dep:rustwright", "dep:rustwright-core"]
+# rustwright depends on rustwright-core without its `python` feature, so no
+# libpython is linked.
+playwright = ["dep:rustwright"]
 # Extra tracing integrations (timing histograms, actix actor instrumentation).
 full-tracing = ["dep:tracing-timing"]
 # Capture a backtrace for every SeleniumBaseError (useful for debugging).

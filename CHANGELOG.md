@@ -14,8 +14,13 @@ work, `docs/parity.md` the per-API status).
   unused `tracing-actix` one from the `full-tracing` feature.
 - JSON logs come from `tracing-subscriber`'s own JSON format instead of the
   separate `json-subscriber` crate.
-- `zip` and `dirs` use the versions `thirtyfour` pins (8.6 and 6), so each is
-  compiled once instead of twice.
+- The `playwright` feature no longer lists `rustwright-core` itself; `rustwright`
+  already brings it without Python.
+- reqwest no longer builds its `blocking` client: ending reused sessions at
+  exit uses the async client on a small runtime of its own.
+- `thirtyfour` is built without its `component` derive macros and its own
+  driver `manager` (this crate downloads drivers itself), which also removes its
+  older `zip` and `dirs`.
 - `zip` is built with deflate only (the format of driver downloads and the
   bundled extensions) instead of every format; zstd (a C library), bzip2, lzma,
   xz, ppmd and AES no longer compile.

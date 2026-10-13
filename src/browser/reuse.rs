@@ -423,22 +423,30 @@ fn close_all(entries: Vec<Entry>) {
     if entries.is_empty() {
         return;
     }
-    let client = reqwest::blocking::Client::builder()
-        .timeout(CLOSE_TIMEOUT)
-        .build();
+    // A runtime of its own: this runs on a plain thread, often while the
+    // program exits, never inside another runtime.
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .inspect_err(|error| warn!(%error, "no runtime to end reused sessions with"))
+        .ok();
+    // reqwest builds its client inside a runtime.
+    let client = runtime.as_ref().and_then(|runtime| {
+        runtime
+            .block_on(async { reqwest::Client::builder().timeout(CLOSE_TIMEOUT).build() })
+            .inspect_err(|error| warn!(%error, "no HTTP client to end reused sessions with"))
+            .ok()
+    });
     for entry in entries {
         let url = format!(
             "{}/session/{}",
             entry.address.server_url.trim_end_matches('/'),
             entry.address.session_id
         );
-        match &client {
-            Ok(client) => {
-                if let Err(error) = client.delete(&url).send() {
-                    debug!(%error, %url, "the WebDriver server did not answer the end of a reused session");
-                }
+        if let (Some(runtime), Some(client)) = (&runtime, &client) {
+            if let Err(error) = runtime.block_on(async { client.delete(&url).send().await }) {
+                debug!(%error, %url, "the WebDriver server did not answer the end of a reused session");
             }
-            Err(error) => warn!(%error, "no HTTP client to end a reused session with"),
         }
         if let Some(mut process) = entry.driver_process {
             process.kill();
