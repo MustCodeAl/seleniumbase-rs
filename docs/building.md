@@ -1,3 +1,7 @@
+---
+title: "Building and installing"
+---
+
 # Building and installing
 
 How to build `seleniumbase-rs` from source, which features cost what, and how to

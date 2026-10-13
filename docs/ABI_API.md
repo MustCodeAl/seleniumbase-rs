@@ -1,3 +1,7 @@
+---
+title: "ABI & API Stability"
+---
+
 # ABI & API Stability
 
 This page describes the public API surface of `seleniumbase-rs`, the stability

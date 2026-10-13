@@ -1,3 +1,7 @@
+---
+title: "Benchmarks"
+---
+
 # Benchmarks
 
 What the library costs, measured, and what Chrome costs instead. For advice on

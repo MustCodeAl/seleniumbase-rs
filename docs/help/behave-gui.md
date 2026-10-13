@@ -1,3 +1,7 @@
+---
+title: "Behave Commander"
+---
+
 # Behave Commander
 
 `sbrs behave-gui` (also `sbrs gui-behave`) is a terminal app that lists the

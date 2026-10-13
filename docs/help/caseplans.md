@@ -1,3 +1,7 @@
+---
+title: "Case Plans Generator"
+---
+
 # Case Plans Generator
 
 `sbrs caseplans` (also `sbrs case-plans`) is a terminal app for writing a

@@ -1,3 +1,7 @@
+---
+title: "Deployment"
+---
+
 # Deployment
 
 How to run `seleniumbase-rs` somewhere other than your laptop: a container, a CI

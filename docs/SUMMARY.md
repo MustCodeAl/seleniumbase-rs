@@ -1,3 +1,8 @@
+---
+title: "Summary"
+hidden: true
+---
+
 # Summary
 
 - [SeleniumBase for Rust](README.md)

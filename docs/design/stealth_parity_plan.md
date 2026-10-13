@@ -1,3 +1,7 @@
+---
+title: "Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation"
+---
+
 # Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation
 
 Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `4184e74`): **WP0 to WP17 are merged,
