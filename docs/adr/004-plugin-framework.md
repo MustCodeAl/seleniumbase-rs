@@ -6,8 +6,9 @@ title: "ADR 004: A Plugin Framework for Community Crates"
 
 ## Status
 
-Proposed (2026-10-12). Nothing here is built yet; the phases at the end say in
-which order it will be.
+Proposed (2026-10-12), revised the same day: the framework lives in its own
+repository, `seleniumbase-rs-plugins`, and this crate keeps only the hook points
+that call it. Nothing is built yet; the phases at the end give the order.
 
 ## Context
 
@@ -17,7 +18,10 @@ maintained fork [Zorilla](https://github.com/zorillajs/zorilla) wrap `launch()`
 and call every registered plugin at fixed points (`beforeLaunch`, `afterLaunch`,
 `onPageCreated`, `onClose`, ...). Stealth, ad blocking, captcha solving,
 resource blocking and user preferences are all separate packages that anyone can
-publish, and `puppeteer.use(StealthPlugin())` is all a user writes.
+publish, and `puppeteer.use(StealthPlugin())` is all a user writes. They are an
+example of the ecosystem we want, not a design to copy: the design below is
+shaped by Rust (no runtime loading, traits, Cargo) and by this crate's two
+engines.
 
 seleniumbase-rs has three extension points today, and none of them lets a
 third-party crate change how a browser starts or what every page gets:
@@ -35,10 +39,21 @@ that runs in the program driving the browser.
 
 ## Decision
 
-Add a module `seleniumbase_rs::extra` (named after puppeteer-extra, so people
-coming from it find it) with one trait, `Plugin`, and one ordered set,
-`PluginSet`. Both engines take a `PluginSet` and call its hooks. Community
-plugins are ordinary crates.
+A small plugin API lives in its own repository and crate; seleniumbase-rs
+depends on it and calls it; community plugins depend only on it.
+
+### Where the code lives
+
+| Repository / crate | Holds | Depends on |
+|---|---|---|
+| `seleniumbase-rs-plugins` / `seleniumbase-rs-plugin` | the `Plugin` trait, `PluginSet` (order, dependencies, requirements), `LaunchSettings`, the `BrowserHandle` and `PageHandle` traits, `Package` | `async-trait`, `serde_json`, `thiserror` only |
+| `seleniumbase-rs-plugins` / `seleniumbase-rs-plugin-testing` | recording fakes of `BrowserHandle` and `PageHandle`, so a plugin is tested without a browser or this crate | the API crate |
+| `seleniumbase-rs-plugins` / `plugins/*` | official plugins (block resources, JS packages, user preferences, ...) and `template/` for new ones | the API crate |
+| `seleniumbase-rs` | the hook points: it turns `LaunchSettings` into `LaunchOptions` or `BrowserConfig`, implements the handle traits for both engines, and calls the hooks | the API crate |
+
+Plugins never name `seleniumbase-rs` types, so they do not break when this crate
+changes, and the API crate changes rarely. Both engines take a `PluginSet`.
+Community plugins are ordinary crates.
 
 ### The trait
 
@@ -63,11 +78,9 @@ pub trait Plugin: Send + Sync + 'static {
     /// Called once when added to a set.
     async fn on_registered(&self) -> Result<()> { Ok(()) }
 
-    /// Pure CDP engine: change the options before Chrome starts.
-    async fn before_launch(&self, options: &mut LaunchOptions) -> Result<()> { Ok(()) }
-
-    /// WebDriver engine: change the configuration before the session starts.
-    async fn before_session(&self, config: &mut BrowserConfig) -> Result<()> { Ok(()) }
+    /// Either engine: change the browser's start-up settings (arguments,
+    /// preferences, extensions, proxy, headless) before it starts.
+    async fn before_launch(&self, launch: &mut LaunchSettings) -> Result<()> { Ok(()) }
 
     /// The browser is running (launched or connected).
     async fn on_browser(&self, browser: &BrowserHandle) -> Result<()> { Ok(()) }
@@ -92,8 +105,8 @@ hooks returns one from `fn test_plugin(&self) -> Option<Box<dyn TestPlugin>>`.
 ### Using it
 
 ```rust
-use seleniumbase_rs::extra::PluginSet;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_plugin::PluginSet;
 use seleniumbase_rs_plugin_block_resources::BlockResources;
 
 let plugins = PluginSet::new()
@@ -109,8 +122,7 @@ On WebDriver the same set goes to `BrowserConfig::with_plugins(plugins)`.
 
 | Hook | Pure CDP engine | WebDriver engine |
 |---|---|---|
-| `before_launch` | `Browser::launch`, before `launch()` | not called |
-| `before_session` | not called | `BaseCase::new`, before the driver starts |
+| `before_launch` | `Browser::launch`, before `launch()`; the settings become `LaunchOptions` | `BaseCase::new`, before the driver starts; the settings become `BrowserConfig` |
 | `on_browser` | after launch and after `Browser::connect` | after the session starts |
 | `on_page_created` | in `prepare_session`, for every tab the library attaches to | Chromium only, through the DevTools bridge; other browsers skip it |
 | `packages` | added in `prepare_session` | added at session start on Chromium; on other browsers after each `open` |
@@ -128,7 +140,7 @@ On WebDriver the same set goes to `BrowserConfig::with_plugins(plugins)`.
 - **Requirements.** `HEADFUL` refuses a headless launch, `LAUNCH_ONLY` refuses
   `connect`, `CHROMIUM_ONLY` refuses Firefox and Safari. Each refusal is an
   error, not a warning.
-- **Errors fail closed.** An error from `before_launch`, `before_session`,
+- **Errors fail closed.** An error from `before_launch`,
   `on_browser` or `on_page_created` stops that launch or that page and is
   returned to the caller: a stealth or proxy plugin that did not run must not
   leave an unprotected browser. Errors from `on_close` and from the test hooks
@@ -164,14 +176,16 @@ The same work fills a gap: `sb_cdp::Page` gets `add_script_tag`,
 - Crates are named `seleniumbase-rs-plugin-<name>` and tagged
   `seleniumbase-rs-plugin` on GitHub, so a search finds them. The docs keep a
   list of community plugins.
-- A template repository (`seleniumbase-rs-plugin-template`) has the crate
-  layout, a mock-browser test and CI.
-- Plugin authors test against `Browser::new_mocked` and `MockCtrl` (feature
-  `test-util`): the mock records each CDP command a hook sends.
-- Until the crate is on crates.io, a plugin and the program using it must
-  resolve to the same `seleniumbase-rs`; two git tags are two different crates
-  to Cargo, and their `Plugin` traits do not match. The program fixes this with
-  one `[patch]` entry, which the docs show.
+- `template/` in the plugins repository has the crate layout, a test against the
+  recording fakes, and CI. Copy it, or use it with `cargo generate`.
+- Plugin authors test with `seleniumbase-rs-plugin-testing`: the fakes record
+  each CDP command and script a hook sends, with no browser and no dependency on
+  this crate. An end-to-end check can still use `Browser::new_mocked`.
+- Until the crates are on crates.io, a plugin and the program must resolve to the
+  same `seleniumbase-rs-plugin`; two git tags are two different crates to Cargo.
+  The API crate changes rarely, and when it does the program fixes a mismatch
+  with one `[patch]` entry, which the docs show. Publishing to crates.io later
+  ends the problem through semver.
 
 ### What is not part of this
 
@@ -207,18 +221,21 @@ reaching every site the browser visits.
 
 ## Phases
 
-1. **Core, pure CDP engine.** `extra` module, `Plugin`, `PluginSet`,
-   `Requirements`, `Package`, `PageHandle`; hooks in `Browser::launch`,
-   `connect`, `prepare_session` and `close`; `Page::add_script_tag`,
-   `add_style_tag`, `add_init_script`; `SeleniumBaseError::Plugin`; mock tests
-   for order, dependencies, requirements and fail-closed errors; one example
-   plugin (`examples/plugin_block_resources.rs`).
-2. **WebDriver engine.** `BrowserConfig::with_plugins`, `before_session`, the
+1. **The plugins repository.** Create `seleniumbase-rs-plugins` (public) with
+   the API crate (`Plugin`, `PluginSet`, `Requirements`, `Package`,
+   `LaunchSettings`, the handle traits), the testing crate, tests for order,
+   dependencies, requirements and fail-closed errors, and `template/`.
+2. **Hook points, pure CDP engine.** seleniumbase-rs depends on the API crate:
+   `LaunchOptions::plugins`, the hooks in `Browser::launch`, `connect`,
+   `prepare_session` and `close`, `PageHandle` for `sb_cdp::Page`,
+   `Page::add_script_tag`, `add_style_tag`, `add_init_script`,
+   `SeleniumBaseError::Plugin`; one official plugin (block resources).
+3. **Hook points, WebDriver engine.** `BrowserConfig::with_plugins`, the
    Chromium page hooks through the DevTools bridge, `test_plugin`.
-3. **Built-ins and community.** `ad_block` and `shield_webrtc` as plugins, a
+4. **Built-ins and community.** `ad_block` and `shield_webrtc` as plugins, a
    `StealthPlugin`, the real Bootstrap Tour and Hopscotch libraries for the two
    tour themes that fall back to the built-in tour today, the template
-   repository, and a "Writing a plugin" tutorial.
-4. **Later, if asked for.** Plugins that add MCP tools (feature `mcp-server`),
+   and a "Writing a plugin" tutorial.
+5. **Later, if asked for.** Plugins that add MCP tools (feature `mcp-server`),
    and a `data()` hook that lets plugins share values, as puppeteer-extra's
    `getDataFromPlugins` does.
