@@ -6,7 +6,7 @@
 
 [![Release](https://img.shields.io/github/v/release/MustCodeAl/seleniumbase-rs?label=release)](https://github.com/MustCodeAl/seleniumbase-rs/releases)
 [![Rust 1.99](https://img.shields.io/badge/rust-1.99-orange?logo=rust)](./rust-toolchain.toml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./Cargo.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](./docs/platforms.md)
 [![Parity](https://img.shields.io/badge/SeleniumBase%204.55.2-parity%20tracked-brightgreen)](./docs/parity.md)
 
