@@ -49,11 +49,9 @@ keyring = { version = "4.2", default-features = false, features = ["v1"] }
 getrandom = "0.4"
 # SHA-256 of the legacy files, to recognise one that was already imported.
 ring = "0.17"
-# The WebDriver endpoint inside the app, only with the `e2e` feature. This
-# points at a local checkout of the plugin; without one, use the published
-# repository instead:
-#   tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true }
-tauri-plugin-sbrs-automation = { path = "/Users/notlaggy/Documents/GitFolder/tauri-plugin-sbrs-automation", optional = true }
+# The WebDriver endpoint inside the app, only with the `e2e` feature. To try
+# local changes to the plugin, use `path = "../path/to/tauri-plugin-sbrs-automation"`.
+tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", optional = true }
 
 [dev-dependencies]
 # `test-util` adds `sb_cdp::Browser::new_mocked`, so Pure CDP sessions can be
