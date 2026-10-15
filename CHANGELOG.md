@@ -8,6 +8,19 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Added
+
+- Visual regression testing, behind the new opt-in `visual` feature:
+  `visual::VisualBaseline` saves a screenshot as a baseline PNG on the first
+  run and compares later screenshots with it by structural similarity (MSSIM
+  over 8 × 8 windows on each colour channel, `image-compare`), failing below a
+  threshold of 0.999 with `AssertionFailed` and leaving `<name>.actual.png` and
+  a `<name>.diff.png` that paints the differences red. Screenshots of another
+  size fail without a comparison. `check_page` takes a `BaseCase` or an
+  `sb_cdp::Page`, and `BaseCase::assert_visual_match(name)` keeps its baselines
+  in `visual_baseline/<test>/` and follows `with_visual_baseline_reset`.
+  `check_window` is unchanged: it compares the HTML layout, as in Python.
+
 ### Fixed
 
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
