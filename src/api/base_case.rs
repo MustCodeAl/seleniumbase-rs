@@ -1881,6 +1881,40 @@ impl BaseCase {
         apply_check_level(outcome, level)
     }
 
+    /// Compares a screenshot of the page with the baseline image saved under
+    /// `name` (feature `visual`), or saves it as the baseline when there is
+    /// none (or when the run resets baselines).
+    ///
+    /// Unlike [`check_window`](Self::check_window), which compares the HTML
+    /// structure, this compares pixels, by structural similarity with the
+    /// default threshold; see [`crate::visual`]. The baseline is
+    /// `visual_baseline/<test>/<name>.png`, `<test>` being the running test as
+    /// for `check_window`, and a mismatch leaves `<name>.actual.png` and
+    /// `<name>.diff.png` beside it.
+    /// [`RunSettings::with_visual_baseline_reset`] saves new baselines instead
+    /// of comparing. For another folder or threshold, use a
+    /// [`VisualBaseline`](crate::visual::VisualBaseline) with
+    /// [`check_page`](crate::visual::VisualBaseline::check_page).
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::AssertionFailed`] when the page looks different
+    /// from the baseline or the screenshot has another size,
+    /// [`SeleniumBaseError::InvalidConfig`] when `name` is not 1 to 80 ASCII
+    /// letters, digits, `-` or `_`, and the screenshot's or the file system's
+    /// error otherwise.
+    #[cfg(feature = "visual")]
+    pub async fn assert_visual_match(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
+        use crate::api::run_settings::test_baseline_folder;
+        use crate::visual::VisualBaseline;
+
+        let baselines = VisualBaseline::new(test_baseline_folder())
+            .update_baselines(self.run_settings.reset_visual_baseline());
+        // As check_window does, let the page settle before it is captured.
+        let _ = self.wait_for_ready_state_complete().await;
+        baselines.check_page(name, &*self).await.map(|_| ())
+    }
+
     // --- MasterQA Integration ---
 
     pub async fn verify(&mut self, statement: &str) -> Result<(), SeleniumBaseError> {

@@ -183,13 +183,18 @@ pub(crate) fn check_level(level: f64) -> Result<u8, SeleniumBaseError> {
 ///
 /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is not a plain name.
 pub(crate) fn baseline_dir(name: &str) -> Result<PathBuf, SeleniumBaseError> {
+    let name = if name.is_empty() { "default" } else { name };
+    confined_path(&test_baseline_folder(), name)
+}
+
+/// The running test's folder of visual baselines: `visual_baseline/<test>`.
+pub(crate) fn test_baseline_folder() -> PathBuf {
     // Python's test id is the test's name. Rust has no such thing, but the
     // test harness names the thread that runs a test after it.
     let thread = std::thread::current();
     let path = thread.name().unwrap_or_default();
     let test = safe_stem(path.rsplit("::").next().unwrap_or(path), "default");
-    let name = if name.is_empty() { "default" } else { name };
-    confined_path(&Path::new("visual_baseline").join(test), name)
+    Path::new("visual_baseline").join(test)
 }
 
 /// The files of a baseline that must all be there for it to be compared.
