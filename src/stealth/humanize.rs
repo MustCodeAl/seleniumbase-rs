@@ -82,12 +82,13 @@ impl Rng {
         self.next_f64() < p.clamp(0.0, 1.0)
     }
 
-    /// Returns a normally distributed float (Box–Muller transform).
+    /// Returns a normally distributed float with mean `mean` and standard
+    /// deviation `sigma`, drawn with `rand_distr`'s [`StandardNormal`]
+    /// (ziggurat) from this generator's stream.
+    ///
+    /// [`StandardNormal`]: rand_distr::StandardNormal
     pub fn gaussian(&mut self, mean: f64, sigma: f64) -> f64 {
-        // `1 - u` is in (0, 1], so the logarithm is finite.
-        let u1 = 1.0 - self.next_f64();
-        let u2 = self.next_f64();
-        let standard = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+        let standard: f64 = rand_distr::Distribution::sample(&rand_distr::StandardNormal, self);
         mean + sigma * standard
     }
 
@@ -107,6 +108,30 @@ impl Rng {
             return Self::new(nanos as u64);
         }
         Self::new(u64::from_le_bytes(bytes))
+    }
+}
+
+/// The generator as a `rand` source, so `rand` and `rand_distr` can draw from
+/// its stream; it cannot fail.
+impl rand::TryRng for Rng {
+    type Error = std::convert::Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        // The upper half: SplitMix64's high bits are as good as its low ones,
+        // and this keeps `next_u32` a pure function of `next_u64`.
+        Ok((self.next_u64() >> 32) as u32)
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(self.next_u64())
+    }
+
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
+        for chunk in dst.chunks_mut(8) {
+            let bytes = self.next_u64().to_le_bytes();
+            chunk.copy_from_slice(&bytes[..chunk.len()]);
+        }
+        Ok(())
     }
 }
 
@@ -267,6 +292,38 @@ mod tests {
             assert_eq!(*rng.pick(&[42]), 42);
             assert!([1, 2, 3].contains(rng.pick(&[1, 2, 3])));
         }
+    }
+
+    #[test]
+    fn gaussian_has_the_requested_mean_and_spread_and_is_seeded() {
+        let draw = |seed| -> Vec<f64> {
+            let mut rng = Rng::new(seed);
+            (0..20_000).map(|_| rng.gaussian(50.0, 8.0)).collect()
+        };
+        let values = draw(21);
+        let count = values.len() as f64;
+        let mean = values.iter().sum::<f64>() / count;
+        let deviation = (values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / count).sqrt();
+        assert!((mean - 50.0).abs() < 0.3, "mean {mean}");
+        assert!((deviation - 8.0).abs() < 0.3, "deviation {deviation}");
+        // About 68% within one sigma, as a bell curve has.
+        let within = values.iter().filter(|v| (**v - 50.0).abs() < 8.0).count() as f64;
+        assert!((within / count - 0.6827).abs() < 0.02, "{}", within / count);
+        assert!(values.iter().all(|v| v.is_finite()));
+        assert_eq!(draw(21), values);
+        assert_ne!(draw(22), values);
+    }
+
+    #[test]
+    fn the_generator_serves_rand_with_its_own_stream() {
+        use rand::Rng as _;
+        let mut ours = Rng::new(13);
+        let mut theirs = Rng::new(13);
+        assert_eq!(rand::Rng::next_u64(&mut theirs), ours.next_u64());
+        let expected = ours.next_u64().to_le_bytes();
+        let mut bytes = [0_u8; 5];
+        theirs.fill_bytes(&mut bytes);
+        assert_eq!(bytes, expected[..5]);
     }
 
     #[test]

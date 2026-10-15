@@ -107,6 +107,8 @@ tracing-timing = { version = "0.7", optional = true }
 console-subscriber = { version = "0.5", optional = true }
 regex = "1.13"
 rand = "0.10"
+# The bell curve of human-paced input (`stealth::humanize::Rng::gaussian`); std math.
+rand_distr = { version = "0.6", features = ["std_math"] }
 base64 = "0.23"
 # No crypto provider of reqwest's own: rustls uses `ring` (see `common::tls`), so
 # the aws-lc-sys C library is not built.
@@ -160,6 +162,11 @@ rmcp = { version = "3.5", default-features = false, features = ["server", "trans
 # default features are off because `mimalloc` installs a global allocator,
 # which a library must not impose on its users.
 turso = { version = "0.8", default-features = false, optional = true }
+# `ocr`: pure-Rust OCR (ocrs on the rten inference engine) and a PNG decoder for
+# screenshots. The models are downloaded on first use, not bundled.
+ocrs = { version = "0.13", optional = true }
+rten = { version = "0.26", optional = true }
+image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -196,6 +203,9 @@ scrape = ["dep:psl"]
 # HttpSession and StealthSession. Needs cmake and a C/C++ toolchain.
 impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls", "dep:hyper", "dep:hyper-util",
                "dep:http-body-util"]
+# Reads text from screenshots and images (`ocr::Ocr`): ocrs, pure Rust. Its two
+# models (about 12 MB) are downloaded into the cache folder on first use.
+ocr = ["dep:ocrs", "dep:rten", "dep:image"]
 
 [dev-dependencies]
 # Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
@@ -204,4 +214,7 @@ clap_usage = "5"
 tokio = { version = "1.53", features = ["test-util"] }
 printpdf = "0.12"
 syn = { version = "3", features = ["full", "visit"] }
+# Lists processes for the tests' leftover-process checks on every system (Windows
+# has no `pgrep`); only its process part.
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 

@@ -189,8 +189,8 @@ test files and its four real-Chrome files pass. Install steps:
 > - If the program that started a browser is killed, the browser can keep
 >   running (macOS and Linux end it; Windows needs a job object). A driver whose
 >   session fails, or that is dropped, is ended.
-> - The tests' leftover-process checks need `pgrep`, so they are skipped on
->   Windows.
+> - The tests' leftover-process checks list processes with `sysinfo` now, so
+>   they run on Windows too, but they have not been run on a Windows PC yet.
 - Measured fingerprints exist for Chrome 155 on macOS only; the TLS and HTTP/2
   tables refuse other systems with `NotMeasured`.
 

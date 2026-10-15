@@ -24,18 +24,16 @@
 //! Publish the port geckodriver listens on as the same port on the host:
 //! geckodriver refuses a request whose `Host` header names another port.
 
-use std::process::Command;
-
 use seleniumbase_rs::browser::launcher::launch_driver_for;
 use seleniumbase_rs::browser::session::BrowserSession;
 use seleniumbase_rs::{Browser, BrowserConfig};
 
+#[path = "support/processes.rs"]
+mod processes;
+
 /// Whether a process whose command line holds `pattern` runs.
 fn running(pattern: &str) -> bool {
-    Command::new("pgrep")
-        .args(["-f", pattern])
-        .output()
-        .is_ok_and(|output| !output.stdout.is_empty())
+    !processes::matching(pattern).is_empty()
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -56,14 +54,9 @@ async fn the_crate_starts_the_geckodriver_it_finds() {
 
     let port = driver.url.rsplit(':').next().expect("a port").to_owned();
     let pattern = format!("geckodriver --port {port}");
-    // Windows has no `pgrep`; there the /status answer above is the check.
-    if cfg!(unix) {
-        assert!(running(&pattern), "no {pattern}");
-    }
+    assert!(running(&pattern), "no {pattern}");
     driver.kill();
-    if cfg!(unix) {
-        assert!(!running(&pattern), "{pattern} is still running");
-    }
+    assert!(!running(&pattern), "{pattern} is still running");
 }
 
 #[tokio::test(flavor = "multi_thread")]

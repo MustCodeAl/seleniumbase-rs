@@ -6,42 +6,27 @@
 //! title and quits; afterwards neither the driver nor that Edge may be left
 //! running.
 //!
-//! Ignored by default: it needs Microsoft Edge, network access the first time,
-//! and a Unix `pgrep`. Run it alone:
+//! Ignored by default: it needs Microsoft Edge and network access the first
+//! time. Run it alone:
 //!
 //! ```bash
 //! cargo test --test edge_msedgedriver -- --ignored
 //! ```
 
-use std::process::Command;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::browser::session::BrowserSession;
 use seleniumbase_rs::{Browser, BrowserConfig};
 
-/// The ids of the running processes whose command line holds `pattern`.
-/// Windows has no `pgrep`: there the process checks are skipped and the
-/// session itself is still tested.
-fn processes_matching(pattern: &str) -> Vec<String> {
-    if !cfg!(unix) {
-        return Vec::new();
-    }
-    let output = Command::new("pgrep")
-        .args(["-f", pattern])
-        .output()
-        .expect("pgrep runs");
-    String::from_utf8_lossy(&output.stdout)
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect()
-}
+#[path = "support/processes.rs"]
+mod processes;
 
 /// Waits up to ten seconds for no process to match `pattern`, and returns what
 /// still does.
-fn gone(pattern: &str) -> Vec<String> {
+fn gone(pattern: &str) -> Vec<u32> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        let left = processes_matching(pattern);
+        let left = processes::matching(pattern);
         if left.is_empty() || Instant::now() >= deadline {
             return left;
         }
@@ -54,7 +39,7 @@ fn gone(pattern: &str) -> Vec<String> {
 async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
     let profile = tempfile::tempdir().expect("a profile folder");
     let marker = profile.path().to_str().expect("a UTF-8 path").to_owned();
-    let drivers_before = processes_matching("msedgedriver --port=");
+    let drivers_before = processes::matching("msedgedriver --port=");
 
     let config = BrowserConfig::default()
         .with_browser(Browser::Edge)
@@ -64,17 +49,15 @@ async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
         .await
         .expect("an Edge session through a crate-started msedgedriver");
 
-    if cfg!(unix) {
-        let drivers_during = processes_matching("msedgedriver --port=");
-        assert!(
-            drivers_during.len() > drivers_before.len(),
-            "no msedgedriver was started: before {drivers_before:?}, during {drivers_during:?}"
-        );
-        assert!(
-            !processes_matching(&marker).is_empty(),
-            "no Edge runs with the profile {marker}"
-        );
-    }
+    let drivers_during = processes::matching("msedgedriver --port=");
+    assert!(
+        drivers_during.len() > drivers_before.len(),
+        "no msedgedriver was started: before {drivers_before:?}, during {drivers_during:?}"
+    );
+    assert!(
+        !processes::matching(&marker).is_empty(),
+        "no Edge runs with the profile {marker}"
+    );
 
     session
         .goto("data:text/html,<title>edge%20driver%20ok</title><p>hi</p>")
@@ -87,7 +70,7 @@ async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
 
     let edge_left = gone(&marker);
     assert!(edge_left.is_empty(), "Edge is still running: {edge_left:?}");
-    let drivers_left: Vec<String> = gone("msedgedriver --port=")
+    let drivers_left: Vec<u32> = gone("msedgedriver --port=")
         .into_iter()
         .filter(|pid| !drivers_before.contains(pid))
         .collect();

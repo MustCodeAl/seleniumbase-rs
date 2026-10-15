@@ -31,6 +31,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::timeout;
 
+#[path = "support/processes.rs"]
+mod processes;
 #[path = "support/scratch_crate.rs"]
 mod scratch_crate;
 
@@ -323,44 +325,19 @@ impl Client {
 // ----------------------------------------------------------------------
 
 /// Every process below `pid`: for a server, its browser and its driver.
-///
-/// Windows has no `pgrep`, so there no process is listed and the check that
-/// the browser ends with its server is skipped (on Windows nothing yet ends a
-/// browser whose server is killed; see `docs/platforms.md`).
 fn descendants(pid: u32) -> Vec<u32> {
-    if !cfg!(unix) {
-        return Vec::new();
-    }
-    let mut found = Vec::new();
-    let mut queue = vec![pid];
-    while let Some(parent) = queue.pop() {
-        let output = std::process::Command::new("pgrep")
-            .args(["-P", &parent.to_string()])
-            .output()
-            .expect("run pgrep");
-        for line in String::from_utf8_lossy(&output.stdout).lines() {
-            if let Ok(child) = line.trim().parse::<u32>() {
-                found.push(child);
-                queue.push(child);
-            }
-        }
-    }
-    found
-}
-
-fn alive(pid: u32) -> bool {
-    std::process::Command::new("kill")
-        .args(["-0", &pid.to_string()])
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+    processes::descendants(pid)
 }
 
 /// Waits for every one of `pids` to be gone and returns those that are not.
 fn survivors(pids: &[u32]) -> Vec<u32> {
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
-        let left: Vec<u32> = pids.iter().copied().filter(|pid| alive(*pid)).collect();
+        let left: Vec<u32> = pids
+            .iter()
+            .copied()
+            .filter(|pid| processes::alive(*pid))
+            .collect();
         if left.is_empty() || Instant::now() > deadline {
             return left;
         }
@@ -940,9 +917,7 @@ async fn a_client_that_leaves_takes_the_pure_cdp_browser_with_it() {
     assert_eq!(title(&mut mcp).await, "Stdio Fixture");
 
     let family = descendants(mcp.pid());
-    if cfg!(unix) {
-        assert!(!family.is_empty(), "the server has no browser below it");
-    }
+    assert!(!family.is_empty(), "the server has no browser below it");
     assert_eq!(mcp.hang_up().await, Some(0), "{}", mcp.stderr());
     assert_eq!(
         survivors(&family),
@@ -1083,12 +1058,10 @@ async fn the_driver_server_runs_a_session_in_undetected_mode_and_leaves_cleanly(
 
     // The client leaves without close_browser: the browser and the driver go too.
     let family = descendants(mcp.pid());
-    if cfg!(unix) {
-        assert!(
-            family.len() >= 2,
-            "expected chromedriver and Chrome below the server: {family:?}"
-        );
-    }
+    assert!(
+        family.len() >= 2,
+        "expected chromedriver and Chrome below the server: {family:?}"
+    );
     assert_eq!(mcp.hang_up().await, Some(0), "{}", mcp.stderr());
     assert_eq!(
         survivors(&family),

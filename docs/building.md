@@ -240,6 +240,7 @@ desktop or cloud stacks.
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
 | `scrape` | wire fingerprints (JA3, JA4, Akamai), cookie jar, stealth identities, `BrowserScraper` (adds `psl`) | pure Rust; see [Stealth Scraping](tutorials/stealth_scraping.md) |
 | `impersonate` | browser-identical TLS and HTTP/2 (BoringSSL): the client, the TLS server, `HttpSession`, `MitmProxy` and `StealthSession` | needs cmake and a C/C++ toolchain; macOS and Chrome 155 only are measured |
+| `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](tutorials/remaining_helpers.md#reading-text-from-the-screen-ocr) |
 
 Combine them with `--features "mcp-server tui"`.
 

@@ -12,9 +12,24 @@ work, `docs/parity.md` the per-API status).
 
 - The `sbrs` banner reads SeleniumBaseRust (figlet small font, 68 columns), and
   `sbrs --help` and `sbrs-mcp --help` say SeleniumBaseRust.
+- The tests' leftover-process checks (Edge, geckodriver, the MCP stdio servers)
+  list processes with `sysinfo` (a dev-dependency) instead of `pgrep` and
+  `kill -0`, so they run on Windows too instead of being skipped there.
+- Human-paced input draws its bell-curve values (`stealth::humanize::Rng::gaussian`,
+  used by `stealth::behavior`) from `rand_distr`'s `StandardNormal` instead of a
+  hand-written Box-Muller transform. The distribution is the same, but a seeded
+  `Humanizer` now plans different paths and timings than before for the same
+  seed. `humanize::Rng` implements `rand::TryRng` (so `rand::Rng`), and
+  `rand_distr` is a new dependency.
 
 ### Added
 
+- Feature `ocr` (off by default): `ocr::Ocr` reads the text a page shows from
+  its screenshot (`read_page`, for a `BaseCase` or an `sb_cdp::Page`) or from PNG
+  bytes (`text_in_png`), with [ocrs](https://github.com/robertknight/ocrs), pure
+  Rust. Its two models (about 12 MB) are downloaded into the cache folder on
+  first use and checked against pinned SHA-256 hashes; `SB_OCR_MODELS` names a
+  folder of your own copies instead.
 - Feature `tokio-console` (off by default): `sbrs`, `sbrs-mcp` and programs that
   use the crate's logging serve [tokio-console](https://github.com/tokio-rs/console)
   for watching async tasks. Build with `RUSTFLAGS="--cfg tokio_unstable"`.
