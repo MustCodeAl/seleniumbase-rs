@@ -25,6 +25,9 @@ const DEFAULT_STARTUP_TIMEOUT: Duration = Duration::from_secs(20);
 /// How often to look for the endpoint file while the browser starts.
 const STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
+/// How long one look at a fixed port's `/json/version` may take.
+const VERSION_PROBE_TIMEOUT: Duration = Duration::from_millis(500);
+
 /// An HTTP or SOCKS proxy, with optional credentials.
 ///
 /// Parsed from `SERVER:PORT` or `USER:PASS@SERVER:PORT`, optionally prefixed
@@ -188,6 +191,8 @@ pub struct LaunchOptions {
     #[cfg(feature = "plugins")]
     pub(crate) plugins: seleniumbase_rs_plugin::PluginSet,
     pub(crate) startup_timeout: Duration,
+    /// The DevTools port on `127.0.0.1`; `0` lets Chrome pick a free one.
+    pub(crate) debugging_port: u16,
 }
 
 impl Default for LaunchOptions {
@@ -240,7 +245,7 @@ impl LaunchOptions {
     #[must_use]
     pub fn browser_args(&self, profile_dir: &Path) -> Vec<String> {
         let mut args = vec![
-            "--remote-debugging-port=0".to_owned(),
+            format!("--remote-debugging-port={}", self.debugging_port),
             format!("--user-data-dir={}", profile_dir.display()),
             "--no-first-run".to_owned(),
             "--no-default-browser-check".to_owned(),
@@ -347,6 +352,7 @@ pub struct LaunchOptionsBuilder {
     #[cfg(feature = "plugins")]
     plugins: seleniumbase_rs_plugin::PluginSet,
     startup_timeout: Duration,
+    debugging_port: u16,
 }
 
 impl Default for LaunchOptionsBuilder {
@@ -375,6 +381,7 @@ impl Default for LaunchOptionsBuilder {
             #[cfg(feature = "plugins")]
             plugins: seleniumbase_rs_plugin::PluginSet::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
+            debugging_port: 0,
         }
     }
 }
@@ -628,6 +635,35 @@ impl LaunchOptionsBuilder {
         self
     }
 
+    /// Makes Chrome listen for the DevTools Protocol on `port` of `127.0.0.1`
+    /// instead of a free port it picks (`0`, the default).
+    ///
+    /// A fixed port lets other DevTools clients, such as `chrome-devtools-mcp
+    /// --browserUrl http://127.0.0.1:9222`, find the browser. A port something
+    /// already listens on is refused before Chrome starts. Chrome publishes the
+    /// `DevToolsActivePort` file only for a port it picks, so on a fixed port
+    /// the launch reads the endpoint from `/json/version`. Chrome refuses the
+    /// endpoint on its default profile directory, so keep
+    /// [`user_data_dir`](Self::user_data_dir) unset or pointed at a profile of
+    /// its own.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// use seleniumbase_rs::sb_cdp::LaunchOptions;
+    ///
+    /// let options = LaunchOptions::builder().debugging_port(9222).build()?;
+    /// let args = options.browser_args(Path::new("/tmp/profile"));
+    /// assert!(args.contains(&"--remote-debugging-port=9222".to_owned()));
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    #[must_use]
+    pub fn debugging_port(mut self, port: u16) -> Self {
+        self.debugging_port = port;
+        self
+    }
+
     /// Checks the combination and produces the options.
     ///
     /// # Errors
@@ -690,6 +726,7 @@ impl LaunchOptionsBuilder {
             #[cfg(feature = "plugins")]
             plugins: self.plugins,
             startup_timeout: self.startup_timeout,
+            debugging_port: self.debugging_port,
         }
     }
 }
@@ -762,6 +799,32 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
     let endpoint_file = profile_dir.join("DevToolsActivePort");
     // A stale file from an earlier run would be read as the new endpoint.
     let _ = std::fs::remove_file(&endpoint_file);
+    // Chrome writes `DevToolsActivePort` only for a port it picks itself; on a
+    // fixed port the endpoint is read from `/json/version` instead, so that
+    // port must not already belong to another program's endpoint.
+    let fixed_port = (options.debugging_port != 0).then_some(options.debugging_port);
+    let probe = match fixed_port {
+        Some(port) => {
+            std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).map_err(
+                |error| {
+                    SeleniumBaseError::browser_launch(
+                        binary_name.clone(),
+                        format!("the DevTools port {port} on 127.0.0.1 is not free: {error}"),
+                    )
+                },
+            )?;
+            crate::install_tls_provider();
+            Some(
+                reqwest::Client::builder()
+                    .timeout(VERSION_PROBE_TIMEOUT)
+                    .build()
+                    .map_err(|error| {
+                        SeleniumBaseError::browser_launch(binary_name.clone(), error.to_string())
+                    })?,
+            )
+        }
+        None => None,
+    };
 
     let guard = OrphanGuard::start();
     let mut command = Command::new(&binary);
@@ -778,10 +841,13 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
 
     let deadline = Instant::now() + options.startup_timeout;
     loop {
-        if let Some((port, path)) = std::fs::read_to_string(&endpoint_file)
-            .ok()
-            .and_then(|content| parse_endpoint(&content))
-        {
+        let endpoint = match (fixed_port, &probe) {
+            (Some(port), Some(probe)) => advertised_endpoint(probe, port).await,
+            _ => std::fs::read_to_string(&endpoint_file)
+                .ok()
+                .and_then(|content| parse_endpoint(&content)),
+        };
+        if let Some((port, path)) = endpoint {
             return Ok(LaunchedBrowser {
                 child,
                 port,
@@ -878,6 +944,29 @@ fn merge_value(target: &mut Map<String, Value>, key: &str, value: &Value) {
     }
 }
 
+/// The browser endpoint Chrome advertises on a fixed `port`: the port and the
+/// WebSocket path of its `/json/version`, once it answers there.
+async fn advertised_endpoint(probe: &reqwest::Client, port: u16) -> Option<(u16, String)> {
+    let version: Value = probe
+        .get(format!("http://127.0.0.1:{port}/json/version"))
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    parse_version(port, &version)
+}
+
+/// The path of the `webSocketDebuggerUrl` in a `/json/version` document, when
+/// that address is on `port`.
+fn parse_version(port: u16, version: &Value) -> Option<(u16, String)> {
+    let url = version["webSocketDebuggerUrl"].as_str()?;
+    let (authority, path) = url.strip_prefix("ws://")?.split_once('/')?;
+    let advertised: u16 = authority.rsplit_once(':')?.1.parse().ok()?;
+    (advertised == port).then(|| (port, format!("/{path}")))
+}
+
 /// Parses `DevToolsActivePort`: the port on the first line, the browser
 /// WebSocket path on the second.
 fn parse_endpoint(content: &str) -> Option<(u16, String)> {
@@ -911,6 +1000,61 @@ mod tests {
             .executable_path("/usr/bin/chromium")
             .build()
             .is_err());
+    }
+
+    #[test]
+    fn the_endpoint_on_a_fixed_port_is_read_from_its_version_document() {
+        let version = json!({
+            "Browser": "Chrome/155.0.8059.40",
+            "webSocketDebuggerUrl": "ws://127.0.0.1:9222/devtools/browser/abc-123"
+        });
+        assert_eq!(
+            parse_version(9222, &version),
+            Some((9222, "/devtools/browser/abc-123".to_owned()))
+        );
+        // Another port's browser, or no address at all, is not this endpoint.
+        assert_eq!(parse_version(9333, &version), None);
+        assert_eq!(parse_version(9222, &json!({})), None);
+        assert_eq!(
+            parse_version(
+                9222,
+                &json!({ "webSocketDebuggerUrl": "http://127.0.0.1:9222/x" })
+            ),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn a_taken_fixed_port_is_refused_before_anything_starts() {
+        let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("a port");
+        let port = taken.local_addr().expect("address").port();
+        // A binary that exists, so only the port can stop the launch.
+        let options = LaunchOptions::builder()
+            .executable_path(std::env::current_exe().expect("this test binary"))
+            .debugging_port(port)
+            .build()
+            .expect("options");
+        let error = launch(&options).await.err().expect("the port is taken");
+        assert!(
+            error.to_string().contains(&format!("port {port}")),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn chrome_picks_a_free_debugging_port_unless_one_is_given() {
+        let picked = args_for(LaunchOptions::builder());
+        assert_eq!(picked[0], "--remote-debugging-port=0");
+        let fixed = args_for(LaunchOptions::builder().debugging_port(9222));
+        assert_eq!(fixed[0], "--remote-debugging-port=9222");
+        assert_eq!(
+            fixed
+                .iter()
+                .filter(|arg| arg.starts_with("--remote-debugging-port="))
+                .count(),
+            1,
+            "one port switch: {fixed:?}"
+        );
     }
 
     #[test]

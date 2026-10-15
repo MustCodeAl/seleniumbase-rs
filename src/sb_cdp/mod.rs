@@ -62,6 +62,7 @@ mod captcha;
 mod client;
 mod context;
 mod download;
+mod endpoint;
 mod expect;
 #[cfg(feature = "gui")]
 pub mod gui_captcha;
@@ -93,6 +94,8 @@ pub use captcha::Captcha;
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
 pub use context::{BrowserContext, ContextOptions, ContextRoute};
+#[doc(inline)]
+pub use endpoint::{DevToolsEndpoint, CHROME_DEVTOOLS_MCP_VERSION, PLAYWRIGHT_MCP_VERSION};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
