@@ -19,6 +19,8 @@ use crate::browser::launcher::{launch_driver_for, DriverProcess};
 use crate::browser::options::{
     firefox_preferences, CdpEvent, DriverVersion, LaunchSettings, LaunchSwitch, ReleaseChannel,
 };
+#[cfg(feature = "plugins")]
+use crate::browser::plugin_hooks::{self, SessionPlugins};
 use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::config::ad_block_list::AdBlockList;
@@ -44,6 +46,10 @@ pub struct BrowserSession {
     /// closing it, and the reuse registry owns the driver process and the
     /// virtual display.
     reuse: Option<Lease>,
+    /// The browser plugins of the session (feature `plugins`), and the scripts
+    /// they added; none without plugins.
+    #[cfg(feature = "plugins")]
+    plugins: Option<SessionPlugins>,
 }
 
 impl BrowserSession {
@@ -55,10 +61,19 @@ impl BrowserSession {
     /// Starts a browser for `config` and connects to it, or, with
     /// [`BrowserConfig::reuse_session`] on, attaches to a browser kept for
     /// reuse (see [`crate::browser::reuse`]).
+    ///
+    /// With browser plugins (feature `plugins`,
+    /// [`BrowserConfig::with_plugins`]) the set is checked and `before_launch`
+    /// runs before the browser is asked for; once it runs, `on_browser` and,
+    /// for its window, the packages and `on_page_created`. A refusal or a hook
+    /// that fails stops the session with [`SeleniumBaseError::Plugin`] and
+    /// closes a browser that was started.
     #[instrument(skip(config))]
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         #[cfg(feature = "plugins")]
-        let config = crate::browser::plugin_hooks::before_launch(config).await?;
+        if !config.plugins().is_empty() {
+            return Self::connect_with_plugins(config).await;
+        }
         if config.reuse_session {
             return reuse::connect(config).await;
         }
@@ -94,6 +109,8 @@ impl BrowserSession {
             virtual_display,
             ad_block,
             reuse: None,
+            #[cfg(feature = "plugins")]
+            plugins: None,
         };
         session.initialize_mode(&config).await?;
         info!("browser session connected");
@@ -125,6 +142,8 @@ impl BrowserSession {
             virtual_display: None,
             ad_block,
             reuse: Some(lease),
+            #[cfg(feature = "plugins")]
+            plugins: None,
         })
     }
 
@@ -177,12 +196,21 @@ impl BrowserSession {
             virtual_display: None,
             ad_block: Vec::new(),
             reuse: None,
+            #[cfg(feature = "plugins")]
+            plugins: None,
         }
     }
 
     /// Navigates to `url`.
+    ///
+    /// On Firefox and Safari, the scripts browser plugins added for every
+    /// document run again in the new one (feature `plugins`).
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.driver().goto(url).await?;
+        #[cfg(feature = "plugins")]
+        if let Some(plugins) = &self.plugins {
+            plugins.after_navigation(self.driver()).await?;
+        }
         Ok(())
     }
 
@@ -629,7 +657,8 @@ impl BrowserSession {
     /// Opens and switches to a new browser window/tab.
     ///
     /// A session that blocks ads makes the new window refuse the ad hosts too;
-    /// see [`apply_ad_block`](Self::apply_ad_block).
+    /// see [`apply_ad_block`](Self::apply_ad_block). Browser plugins (feature
+    /// `plugins`) give it their packages and `on_page_created`.
     pub async fn switch_to_new_window(&self) -> Result<(), SeleniumBaseError> {
         let handle = self
             .driver()
@@ -640,7 +669,10 @@ impl BrowserSession {
             .switch_to_window(handle)
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
-        self.apply_ad_block().await
+        self.apply_ad_block().await?;
+        #[cfg(feature = "plugins")]
+        self.apply_plugins_to_window().await?;
+        Ok(())
     }
 
     /// Waits up to `timeout` seconds for `locator` to be removed.
@@ -949,7 +981,21 @@ impl BrowserSession {
     /// This is useful in undetected (UC) mode to obtain a clean session handle.
     /// When the new session started its own chromedriver, the previous
     /// chromedriver process is stopped, so reconnecting does not leak one each time.
+    ///
+    /// With browser plugins (feature `plugins`), the old browser's plugins
+    /// hear it close, and the new browser goes through the hooks as
+    /// [`connect`](Self::connect) describes, `before_launch` starting again
+    /// from `config`.
     pub async fn reconnect(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        if self.plugins.is_some() || !config.plugins().is_empty() {
+            return self.reconnect_with_plugins(config).await;
+        }
+        self.reconnect_plain(config).await
+    }
+
+    /// [`reconnect`](Self::reconnect) without running plugin hooks.
+    async fn reconnect_plain(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
         // Worked out before anything is torn down, so a bad list leaves the
         // session as it was.
         let ad_block = ad_block_commands(config)?;
@@ -995,6 +1041,11 @@ impl BrowserSession {
             return Ok(());
         }
         info!("quitting browser session");
+        // The plugins hear it while the browser still runs.
+        #[cfg(feature = "plugins")]
+        if let Some(plugins) = self.plugins.take() {
+            plugins.close().await;
+        }
         if let Some(driver) = self.driver.take() {
             driver.quit().await?;
         }
@@ -1024,10 +1075,16 @@ impl Drop for BrowserSession {
         let driver = self.driver.take();
         let process = self.driver_process.take();
         let virtual_display = self.virtual_display.take();
+        #[cfg(feature = "plugins")]
+        let plugins = self.plugins.take();
         // `drop` cannot await, so the cleanup runs in the background. It is
         // registered so a program that exits next can wait for it with
         // `common::shutdown::drain_cleanups`.
         crate::common::shutdown::spawn_cleanup(async move {
+            #[cfg(feature = "plugins")]
+            if let Some(plugins) = plugins {
+                plugins.close().await;
+            }
             if let Some(driver) = driver {
                 let _ = driver.quit().await;
             }
@@ -1036,6 +1093,94 @@ impl Drop for BrowserSession {
             }
             drop(virtual_display);
         });
+    }
+}
+
+/// Browser plugins (feature `plugins`, ADR 004); see
+/// [`BrowserConfig::with_plugins`].
+#[cfg(feature = "plugins")]
+impl BrowserSession {
+    /// Gives the window the session is on the packages and `on_page_created`
+    /// of its browser plugins (feature `plugins`).
+    ///
+    /// The session does this itself for its first window and for each window
+    /// it opens with [`switch_to_new_window`](Self::switch_to_new_window).
+    /// Call it after reaching a window some other way, such as a pop-up the
+    /// page opened. It does nothing for a session without plugins.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for the first package or hook that
+    /// fails.
+    pub async fn apply_plugins_to_window(&self) -> Result<(), SeleniumBaseError> {
+        match &self.plugins {
+            Some(plugins) => plugins.prepare_window(self.driver()).await,
+            None => Ok(()),
+        }
+    }
+
+    /// [`connect`](Self::connect) for a configuration with plugins.
+    async fn connect_with_plugins(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        let config = plugin_hooks::before_launch(config).await?;
+        let family = plugin_hooks::family_of(config.browser)?;
+        let plugins = config.plugins().clone();
+        let mut session = match Self::connect_new(config).await {
+            Ok(session) => session,
+            Err(error) => {
+                // `before_launch` ran for a launch that ends here.
+                plugin_hooks::close(&plugins).await;
+                return Err(error);
+            }
+        };
+        session
+            .start_plugins(SessionPlugins::new(plugins, family))
+            .await?;
+        Ok(session)
+    }
+
+    /// Calls `on_browser` and prepares the first window, and keeps `plugins`
+    /// for the rest of the session.
+    ///
+    /// # Errors
+    ///
+    /// The first hook that fails. The browser is closed then: one without
+    /// what its plugins add is not handed out.
+    async fn start_plugins(&mut self, plugins: SessionPlugins) -> Result<(), SeleniumBaseError> {
+        let started = plugins.start(self.driver()).await;
+        self.plugins = Some(plugins);
+        if let Err(error) = started {
+            if let Err(quit) = self.quit().await {
+                tracing::warn!(
+                    error = %quit,
+                    "the browser of a session its plugins stopped did not close"
+                );
+            }
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    /// [`reconnect`](Self::reconnect) for a session or configuration with
+    /// plugins.
+    async fn reconnect_with_plugins(
+        &mut self,
+        config: &BrowserConfig,
+    ) -> Result<(), SeleniumBaseError> {
+        // Checked first, so a refusal leaves the session as it was.
+        let prepared = plugin_hooks::before_launch(config.clone()).await?;
+        if let Some(old) = self.plugins.take() {
+            old.close().await;
+        }
+        if let Err(error) = self.reconnect_plain(&prepared).await {
+            plugin_hooks::close(prepared.plugins()).await;
+            return Err(error);
+        }
+        if prepared.plugins().is_empty() {
+            return Ok(());
+        }
+        let family = plugin_hooks::family_of(prepared.browser)?;
+        self.start_plugins(SessionPlugins::new(prepared.plugins().clone(), family))
+            .await
     }
 }
 

@@ -3,16 +3,32 @@
 //! [`BrowserSession::connect`](crate::BrowserSession::connect) calls these
 //! when its configuration carries plugins: [`before_launch`] checks the set
 //! and lets the plugins change the start-up settings, which go back into the
-//! [`BrowserConfig`] before the driver is asked for a browser.
+//! [`BrowserConfig`] before the driver is asked for a browser. Once the
+//! session runs, [`SessionPlugins`] calls `on_browser`, gives each window the
+//! packages and `on_page_created`, and calls `on_close` when it ends.
+//!
+//! Plugins see the browser and its windows through [`DriverBrowser`] and
+//! [`DriverPage`]. On a Chromium browser they send protocol commands through
+//! chromedriver's DevTools channel (`goog/cdp/execute`), which reaches the
+//! window the session is on. Firefox and Safari have no such channel: `send`
+//! is refused, and a script for every document runs now and again after each
+//! navigation of the session, after the page's own scripts.
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
-use seleniumbase_rs_plugin::{BrowserFamily, Engine, LaunchContext, LaunchSettings};
-use serde_json::{Map, Value};
+use seleniumbase_rs_plugin::{
+    async_trait, BrowserFamily, BrowserHandle, Engine, LaunchContext, LaunchSettings, PageHandle,
+    PluginError, PluginSet, Result as PluginResult,
+};
+use serde_json::{json, Map, Value};
+use thirtyfour::WebDriver;
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::options::{FirefoxOptions, FirefoxPreference};
 use crate::error::SeleniumBaseError;
+use crate::sb_cdp::sync::locked;
+use crate::stealth::cdp::CdpClient;
 use crate::stealth::options::without_credentials;
 
 /// The plugin API's family of `browser`.
@@ -296,6 +312,236 @@ pub(crate) async fn before_launch(
     apply_settings(&mut config, family, settings)?;
     plugins.check(&launch_context(&config, family))?;
     Ok(config)
+}
+
+/// Tells the plugins of `set` the browser closes, and logs the hooks that
+/// fail: a session ends whatever its plugins say.
+pub(crate) async fn close(set: &PluginSet) {
+    for error in set.on_close().await {
+        tracing::event!(
+            name: "webdriver.plugin.close.failed",
+            tracing::Level::WARN,
+            error = %error,
+            "a plugin failed while the browser closed",
+        );
+    }
+}
+
+/// The plugins of a running session, and the scripts they added for every
+/// document, which Firefox and Safari run again after each navigation.
+#[derive(Debug)]
+pub(crate) struct SessionPlugins {
+    set: PluginSet,
+    family: BrowserFamily,
+    scripts: Mutex<Vec<String>>,
+}
+
+impl SessionPlugins {
+    pub(crate) fn new(set: PluginSet, family: BrowserFamily) -> Self {
+        Self {
+            set,
+            family,
+            scripts: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Calls `on_browser`, then prepares the window the session is on.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for the first hook that fails.
+    pub(crate) async fn start(&self, driver: &WebDriver) -> Result<(), SeleniumBaseError> {
+        let browser = DriverBrowser {
+            driver,
+            family: self.family,
+        };
+        self.set.on_browser(&browser).await?;
+        self.prepare_window(driver).await
+    }
+
+    /// Adds the packages to the window the session is on and calls
+    /// `on_page_created` for it.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for the first package or hook that fails.
+    pub(crate) async fn prepare_window(&self, driver: &WebDriver) -> Result<(), SeleniumBaseError> {
+        let page = DriverPage {
+            driver,
+            family: self.family,
+            scripts: Mutex::new(Vec::new()),
+        };
+        let prepared = self.set.on_page_created(&page).await;
+        let added = std::mem::take(&mut *locked(&page.scripts));
+        let mut scripts = locked(&self.scripts);
+        for script in added {
+            // Another window gets the same scripts; each runs once per document.
+            if !scripts.contains(&script) {
+                scripts.push(script);
+            }
+        }
+        Ok(prepared?)
+    }
+
+    /// Runs again, in the document the session just opened, the scripts the
+    /// plugins added on a browser without the DevTools channel.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] when one of them throws.
+    pub(crate) async fn after_navigation(
+        &self,
+        driver: &WebDriver,
+    ) -> Result<(), SeleniumBaseError> {
+        // Copied, so the lock is not held while the driver works.
+        let scripts = locked(&self.scripts).clone();
+        for script in &scripts {
+            run_script(driver, script).await.map_err(|error| {
+                SeleniumBaseError::plugin(
+                    "",
+                    format!(
+                        "a script a plugin added for every document failed after the \
+                         navigation: {error}"
+                    ),
+                )
+            })?;
+        }
+        Ok(())
+    }
+
+    /// Calls `on_close`; see [`close`].
+    pub(crate) async fn close(&self) {
+        close(&self.set).await;
+    }
+}
+
+/// The browser of a WebDriver session, as plugins see it.
+#[derive(Debug)]
+struct DriverBrowser<'a> {
+    driver: &'a WebDriver,
+    family: BrowserFamily,
+}
+
+#[async_trait]
+impl BrowserHandle for DriverBrowser<'_> {
+    fn engine(&self) -> Engine {
+        Engine::WebDriver
+    }
+
+    fn family(&self) -> BrowserFamily {
+        self.family
+    }
+
+    async fn send(&self, method: &str, params: Value) -> PluginResult<Value> {
+        devtools(self.driver, self.family)?
+            .execute_with_params(method, params)
+            .await
+            .map_err(|error| refused(&error))
+    }
+}
+
+/// The window a WebDriver session is on, as plugins see it. On Firefox and
+/// Safari it keeps the scripts added for every document, for the session to
+/// run again after each navigation.
+#[derive(Debug)]
+struct DriverPage<'a> {
+    driver: &'a WebDriver,
+    family: BrowserFamily,
+    scripts: Mutex<Vec<String>>,
+}
+
+#[async_trait]
+impl PageHandle for DriverPage<'_> {
+    fn engine(&self) -> Engine {
+        Engine::WebDriver
+    }
+
+    async fn send(&self, method: &str, params: Value) -> PluginResult<Value> {
+        devtools(self.driver, self.family)?
+            .execute_with_params(method, params)
+            .await
+            .map_err(|error| refused(&error))
+    }
+
+    /// On Chromium, `Page.addScriptToEvaluateOnNewDocument` and
+    /// `Runtime.evaluate` now, as on the pure CDP engine. On Firefox and
+    /// Safari, a WebDriver script now, and again after each navigation of the
+    /// session; it runs as a function body, so its top-level declarations stay
+    /// local (assign to `window` to share a value).
+    async fn add_init_script(&self, source: &str) -> PluginResult<()> {
+        if self.family == BrowserFamily::Chromium {
+            let cdp = devtools(self.driver, self.family)?;
+            cdp.execute_with_params(
+                "Page.addScriptToEvaluateOnNewDocument",
+                json!({ "source": source }),
+            )
+            .await
+            .map_err(|error| refused(&error))?;
+            // The document already loaded gets it too.
+            let response = cdp
+                .execute_with_params("Runtime.evaluate", json!({ "expression": source }))
+                .await
+                .map_err(|error| refused(&error))?;
+            return match response.get("exceptionDetails") {
+                Some(details) => Err(thrown(details)),
+                None => Ok(()),
+            };
+        }
+        run_script(self.driver, source)
+            .await
+            .map_err(|error| PluginError::other(format!("the script threw: {error}")))?;
+        locked(&self.scripts).push(source.to_owned());
+        Ok(())
+    }
+
+    /// A WebDriver script that returns `expression`, in the frame the session
+    /// is on; a promise is waited for.
+    async fn evaluate(&self, expression: &str) -> PluginResult<Value> {
+        let expression = expression.trim().trim_end_matches(';');
+        run_script(self.driver, &format!("return (\n{expression}\n);"))
+            .await
+            .map_err(|error| PluginError::other(format!("the script threw: {error}")))
+    }
+}
+
+/// The DevTools channel of a Chromium session.
+///
+/// # Errors
+///
+/// For Firefox and Safari, which have none through WebDriver.
+fn devtools(driver: &WebDriver, family: BrowserFamily) -> PluginResult<CdpClient> {
+    if family == BrowserFamily::Chromium {
+        return Ok(CdpClient::from_handle(driver.handle().clone()));
+    }
+    let name = match family {
+        BrowserFamily::Firefox => "Firefox",
+        BrowserFamily::Safari => "Safari",
+        _ => "this browser",
+    };
+    Err(PluginError::other(format!(
+        "{name} has no Chrome DevTools Protocol channel through WebDriver, so a plugin cannot \
+         send it protocol commands"
+    )))
+}
+
+/// Runs `script` as a WebDriver script and returns its value.
+async fn run_script(driver: &WebDriver, script: &str) -> Result<Value, SeleniumBaseError> {
+    let value = driver.execute(script, Vec::new()).await?;
+    Ok(value.json().clone())
+}
+
+/// A protocol failure, as a plugin's hook sees it.
+fn refused(error: &SeleniumBaseError) -> PluginError {
+    PluginError::other(error.to_string())
+}
+
+/// The exception a `Runtime.evaluate` reported, as a plugin's hook sees it.
+fn thrown(details: &Value) -> PluginError {
+    let description = details["exception"]["description"]
+        .as_str()
+        .or_else(|| details["text"].as_str())
+        .unwrap_or("script error");
+    PluginError::other(format!("the script threw: {description}"))
 }
 
 #[cfg(test)]
@@ -683,5 +929,448 @@ mod conversion_tests {
             .with_browser(Browser::InternetExplorer);
 
         assert_eq!(before_launch(config.clone()).await.unwrap(), config);
+    }
+}
+
+/// The hooks of a running session, against the mock WebDriver of
+/// `webdriver_support`: what reaches the driver, and in which order.
+#[cfg(test)]
+mod session_tests {
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use seleniumbase_rs_plugin::{
+        async_trait, BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginError,
+        PluginSet, Requirements, Result,
+    };
+    use serde_json::{json, Value};
+
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::browser::session::BrowserSession;
+    use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
+    use crate::BaseCase;
+
+    type Log = Arc<Mutex<Vec<String>>>;
+
+    fn entries(log: &Log) -> Vec<String> {
+        log.lock().unwrap().clone()
+    }
+
+    fn count(log: &Log, entry: &str) -> usize {
+        entries(log).iter().filter(|seen| *seen == entry).count()
+    }
+
+    /// Notes each hook and what the handles answered; fails in the hook named
+    /// by `fail_in`.
+    struct Probe {
+        log: Log,
+        fail_in: Option<&'static str>,
+    }
+
+    impl Probe {
+        fn note(&self, entry: impl Into<String>) {
+            self.log.lock().unwrap().push(entry.into());
+        }
+
+        fn fail_if(&self, hook: &str) -> Result<()> {
+            if self.fail_in == Some(hook) {
+                Err(PluginError::other(format!("{hook} failed on purpose")))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Plugin for Probe {
+        fn name(&self) -> &str {
+            "probe"
+        }
+
+        fn packages(&self) -> Vec<Package> {
+            vec![Package::script("window.packaged = 1;").everywhere()]
+        }
+
+        async fn before_launch(&self, launch: &mut LaunchSettings) -> Result<()> {
+            self.note("before_launch");
+            launch.args.push("--lang=de".to_owned());
+            Ok(())
+        }
+
+        async fn on_browser(&self, browser: &dyn BrowserHandle) -> Result<()> {
+            self.note(format!(
+                "on_browser {:?} {:?}",
+                browser.engine(),
+                browser.family()
+            ));
+            match browser.send("Browser.getVersion", json!({})).await {
+                Ok(_) => self.note("browser.send ok"),
+                Err(error) => self.note(format!("browser.send refused: {error}")),
+            }
+            self.fail_if("on_browser")
+        }
+
+        async fn on_page_created(&self, page: &dyn PageHandle) -> Result<()> {
+            self.note(format!("on_page_created {:?}", page.engine()));
+            let timezone = json!({ "timezoneId": "Europe/Berlin" });
+            match page.send("Emulation.setTimezoneOverride", timezone).await {
+                Ok(_) => self.note("page.send ok"),
+                Err(error) => self.note(format!("page.send refused: {error}")),
+            }
+            page.add_init_script("window.planet = 'Erde';").await?;
+            let value = page.evaluate("6 * 7;").await?;
+            self.note(format!("evaluate {value}"));
+            self.fail_if("on_page_created")
+        }
+
+        async fn on_close(&self) -> Result<()> {
+            self.note("on_close");
+            self.fail_if("on_close")
+        }
+    }
+
+    fn probe(fail_in: Option<&'static str>) -> (PluginSet, Log) {
+        let log = Log::default();
+        let plugin = Probe {
+            log: Arc::clone(&log),
+            fail_in,
+        };
+        (PluginSet::new().with(plugin).unwrap(), log)
+    }
+
+    /// A WebDriver that answers scripts with 42, opens a second window, and
+    /// answers everything else, DevTools commands included, with `null`.
+    fn driver() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync") => Reply::Value(json!(42)),
+                ("POST", "/window/new") => Reply::Value(json!({ "handle": "w2", "type": "tab" })),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    fn config_for(driver: &MockWebDriver, browser: Browser, plugins: PluginSet) -> BrowserConfig {
+        let mut config = BrowserConfig::default()
+            .with_webdriver_url(driver.url())
+            .with_browser(browser)
+            .with_plugins(plugins);
+        config.auto_start_driver = false;
+        config
+    }
+
+    /// The DevTools commands the driver was sent, as `(method, params)`.
+    fn devtools(driver: &MockWebDriver) -> Vec<(String, Value)> {
+        driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .map(|request| {
+                let method = request.body["cmd"].as_str().unwrap_or_default().to_owned();
+                (method, request.body["params"].clone())
+            })
+            .collect()
+    }
+
+    /// The scripts the driver was asked to run.
+    fn scripts(driver: &MockWebDriver) -> Vec<String> {
+        driver
+            .requests("/execute/sync")
+            .into_iter()
+            .map(|request| {
+                request.body["script"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+            .collect()
+    }
+
+    fn mentioning(scripts: &[String], needle: &str) -> usize {
+        scripts
+            .iter()
+            .filter(|script| script.contains(needle))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn a_chromium_session_runs_every_hook_in_order_through_the_devtools_channel() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+
+        let mut session = BrowserSession::connect(config_for(&driver, Browser::Chrome, plugins))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            entries(&log),
+            [
+                "before_launch",
+                "on_browser WebDriver Chromium",
+                "browser.send ok",
+                "on_page_created WebDriver",
+                "page.send ok",
+                "evaluate 42",
+            ]
+        );
+        let new_session = driver.requests("/session");
+        assert!(
+            new_session[0].body.to_string().contains("--lang=de"),
+            "before_launch reached the capabilities: {}",
+            new_session[0].body
+        );
+        let sent = devtools(&driver);
+        let methods: Vec<&str> = sent.iter().map(|(method, _)| method.as_str()).collect();
+        assert_eq!(
+            methods,
+            [
+                "Browser.getVersion",
+                "Page.addScriptToEvaluateOnNewDocument",
+                "Runtime.evaluate",
+                "Emulation.setTimezoneOverride",
+                "Page.addScriptToEvaluateOnNewDocument",
+                "Runtime.evaluate",
+            ]
+        );
+        assert!(sent[1].1["source"]
+            .as_str()
+            .unwrap()
+            .contains("window.packaged"));
+        assert!(sent[2].1["expression"]
+            .as_str()
+            .unwrap()
+            .contains("window.packaged"));
+        assert_eq!(sent[4].1["source"], "window.planet = 'Erde';");
+        assert_eq!(sent[5].1["expression"], "window.planet = 'Erde';");
+        assert_eq!(
+            scripts(&driver),
+            ["return (\n6 * 7\n);"],
+            "evaluate runs as a WebDriver script"
+        );
+
+        session.quit().await.unwrap();
+        assert_eq!(entries(&log).last().map(String::as_str), Some("on_close"));
+        assert_eq!(driver.requests("").len(), 1, "the browser was closed");
+    }
+
+    #[tokio::test]
+    async fn firefox_runs_page_scripts_now_and_again_after_each_navigation() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+        let mut session = BrowserSession::connect(config_for(&driver, Browser::Firefox, plugins))
+            .await
+            .unwrap();
+
+        let seen = entries(&log);
+        assert_eq!(seen[1], "on_browser WebDriver Firefox");
+        assert!(
+            seen[2].starts_with("browser.send refused:") && seen[2].contains("DevTools"),
+            "{seen:?}"
+        );
+        assert!(seen[4].starts_with("page.send refused:"), "{seen:?}");
+        assert!(
+            devtools(&driver).is_empty(),
+            "Firefox has no DevTools channel"
+        );
+        let ran = scripts(&driver);
+        assert_eq!(mentioning(&ran, "window.packaged"), 1, "{ran:?}");
+        assert_eq!(mentioning(&ran, "window.planet"), 1, "{ran:?}");
+
+        session.goto("https://example.com/").await.unwrap();
+
+        let ran = scripts(&driver);
+        assert_eq!(
+            mentioning(&ran, "window.packaged"),
+            2,
+            "again after goto: {ran:?}"
+        );
+        assert_eq!(mentioning(&ran, "window.planet"), 2, "{ran:?}");
+        session.quit().await.unwrap();
+        assert_eq!(count(&log, "on_close"), 1);
+    }
+
+    #[tokio::test]
+    async fn base_case_runs_the_hooks_and_its_open_runs_the_scripts_again() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+
+        let mut sb = BaseCase::new(config_for(&driver, Browser::Firefox, plugins))
+            .await
+            .unwrap();
+        sb.open("https://example.com/").await.unwrap();
+        sb.quit().await.unwrap();
+
+        assert_eq!(entries(&log)[1], "on_browser WebDriver Firefox");
+        assert_eq!(mentioning(&scripts(&driver), "window.planet"), 2);
+        assert_eq!(count(&log, "on_close"), 1);
+    }
+
+    #[tokio::test]
+    async fn a_failing_hook_stops_the_session_and_closes_the_browser() {
+        for hook in ["on_browser", "on_page_created"] {
+            let driver = driver();
+            let (plugins, log) = probe(Some(hook));
+
+            let error = BrowserSession::connect(config_for(&driver, Browser::Chrome, plugins))
+                .await
+                .err()
+                .unwrap();
+
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, reason } if plugin == "probe" && reason.contains(hook)),
+                "{error:?}"
+            );
+            assert_eq!(
+                driver.requests("").len(),
+                1,
+                "{hook}: the browser was closed"
+            );
+            assert_eq!(count(&log, "on_close"), 1, "{hook}: {:?}", entries(&log));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failure_after_before_launch_tells_the_plugins_the_launch_ended() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+        let hosts: Vec<String> = (0..=MAX_URL_PATTERNS / 2)
+            .map(|i| format!("host{i}.com"))
+            .collect();
+        let config = config_for(&driver, Browser::Chrome, plugins)
+            .with_ad_block_list(AdBlockList::from_hosts(hosts).unwrap());
+
+        let connected = BrowserSession::connect(config).await;
+
+        assert!(matches!(
+            connected,
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+        assert_eq!(entries(&log), ["before_launch", "on_close"]);
+    }
+
+    /// Refuses a headless browser.
+    struct Headful;
+
+    #[async_trait]
+    impl Plugin for Headful {
+        fn name(&self) -> &str {
+            "headful"
+        }
+
+        fn requirements(&self) -> Requirements {
+            Requirements::HEADFUL
+        }
+    }
+
+    #[tokio::test]
+    async fn a_refused_plugin_starts_no_browser() {
+        let driver = driver();
+        let plugins = PluginSet::new().with(Headful).unwrap();
+
+        let connected =
+            BrowserSession::connect(config_for(&driver, Browser::Chrome, plugins)).await;
+
+        assert!(matches!(connected, Err(SeleniumBaseError::Plugin { .. })));
+        assert!(
+            driver.requests("/session").is_empty(),
+            "no browser was asked for"
+        );
+    }
+
+    #[tokio::test]
+    async fn every_window_the_session_opens_gets_the_page_hooks() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+        let mut session = BrowserSession::connect(config_for(&driver, Browser::Chrome, plugins))
+            .await
+            .unwrap();
+
+        session.switch_to_new_window().await.unwrap();
+        assert_eq!(count(&log, "on_page_created WebDriver"), 2);
+
+        session.apply_plugins_to_window().await.unwrap();
+        assert_eq!(
+            count(&log, "on_page_created WebDriver"),
+            3,
+            "a window reached some other way gets them on request"
+        );
+        session.quit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn on_close_failures_are_logged_and_the_session_still_quits() {
+        let driver = driver();
+        let (plugins, log) = probe(Some("on_close"));
+        let mut session = BrowserSession::connect(config_for(&driver, Browser::Chrome, plugins))
+            .await
+            .unwrap();
+
+        session.quit().await.unwrap();
+
+        assert_eq!(count(&log, "on_close"), 1);
+        assert_eq!(driver.requests("").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_reconnected_session_runs_the_hooks_for_its_new_browser() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+        let config = config_for(&driver, Browser::Chrome, plugins);
+        let mut session = BrowserSession::connect(config.clone()).await.unwrap();
+
+        session.reconnect(&config).await.unwrap();
+
+        let seen = entries(&log);
+        assert_eq!(count(&log, "before_launch"), 2, "{seen:?}");
+        assert_eq!(count(&log, "on_browser WebDriver Chromium"), 2, "{seen:?}");
+        assert_eq!(count(&log, "on_close"), 1, "{seen:?}");
+        let close = seen.iter().position(|entry| entry == "on_close").unwrap();
+        let second_launch = seen
+            .iter()
+            .rposition(|entry| entry == "before_launch")
+            .unwrap();
+        let second_browser = seen
+            .iter()
+            .rposition(|entry| entry == "on_browser WebDriver Chromium")
+            .unwrap();
+        assert!(
+            second_launch < close && close < second_browser,
+            "the plugins are checked for the new browser first, so a refusal changes nothing; \
+             then the old browser's plugins hear it close, then the new one starts: {seen:?}"
+        );
+        assert_eq!(
+            driver.requests("/session")[1]
+                .body
+                .to_string()
+                .matches("--lang=de")
+                .count(),
+            driver.requests("/session")[0]
+                .body
+                .to_string()
+                .matches("--lang=de")
+                .count(),
+            "before_launch starts again from the configuration, not from its last result"
+        );
+        session.quit().await.unwrap();
+        assert_eq!(count(&log, "on_close"), 2);
+    }
+
+    #[tokio::test]
+    async fn a_session_dropped_without_quit_still_tells_the_plugins() {
+        let driver = driver();
+        let (plugins, log) = probe(None);
+        let session = BrowserSession::connect(config_for(&driver, Browser::Chrome, plugins))
+            .await
+            .unwrap();
+
+        drop(session);
+
+        for _ in 0..100 {
+            if count(&log, "on_close") == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert_eq!(count(&log, "on_close"), 1, "{:?}", entries(&log));
     }
 }
