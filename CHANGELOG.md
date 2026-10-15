@@ -8,6 +8,11 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Added
+
+- Tutorial [Testing Pages with a CAPTCHA](docs/tutorials/captcha_testing.md): vendor test keys, and tests that click the test widget and read the token.
+- `docs/completions/`: a Fig completion spec for `sbrs`, prepared for withfig/autocomplete (not submitted), with the steps.
+
 ### Fixed
 
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
