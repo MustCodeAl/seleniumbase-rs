@@ -6,9 +6,11 @@ title: "ADR 004: A Plugin Framework for Community Crates"
 
 ## Status
 
-Proposed (2026-10-12), revised the same day: the framework lives in its own
-repository, `seleniumbase-rs-plugins`, and this crate keeps only the hook points
-that call it. Nothing is built yet; the phases at the end give the order.
+Accepted, in progress. Proposed (2026-10-12), revised the same day: the
+framework lives in its own repository, `seleniumbase-rs-plugins`, and this crate
+keeps only the hook points that call it. Phase 1 (the plugins repository) and
+phase 2 (the hook points of the pure CDP engine, behind the `plugins` feature)
+are done; the phases at the end give the order and what each one holds.
 
 ## Context
 
@@ -230,6 +232,23 @@ reaching every site the browser visits.
    `prepare_session` and `close`, `PageHandle` for `sb_cdp::Page`,
    `Page::add_script_tag`, `add_style_tag`, `add_init_script`,
    `SeleniumBaseError::Plugin`; one official plugin (block resources).
+
+   *Done* (2026-10-15), behind the optional `plugins` feature, with the API
+   crate pinned to a git revision and re-exported as
+   `seleniumbase_rs::plugin_api`. `LaunchOptionsBuilder::plugins`;
+   `Browser::launch` checks the set, runs `before_launch` (the settings become
+   `LaunchOptions`: arguments, preferences written into the profile, extensions
+   loaded with `Extensions.loadUnpacked`, proxy, headless), checks again, and
+   calls `on_browser`; `Browser::connect_with_plugins` checks as attaching and
+   calls `on_browser`; `prepare_session` adds the packages and calls
+   `on_page_created` through a `PageHandle` on the tab's session; `close` and
+   the last drop call `on_close` once. Errors stop the launch or the tab as
+   `SeleniumBaseError::Plugin`, and a tab opened by `new_page` is closed again.
+   Block resources lives in the plugins repository. Not done here: the
+   `Page::add_script_tag`, `add_style_tag` and `add_init_script` methods, and
+   `PageHandle` for `sb_cdp::Page` itself (the hooks use a handle on the tab's
+   session instead). The tests run against the mock transport, not a real
+   Chrome. Guide: [Browser Plugins](../tutorials/plugins.md).
 3. **Hook points, WebDriver engine.** `BrowserConfig::with_plugins`, the
    Chromium page hooks through the DevTools bridge, `test_plugin`.
 4. **Built-ins and community.** `ad_block` and `shield_webrtc` as plugins, a

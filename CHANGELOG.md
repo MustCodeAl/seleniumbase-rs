@@ -15,6 +15,25 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Browser plugins for the Pure CDP engine** (feature `plugins`, off by default;
+  ADR 004 phase 2). `LaunchOptionsBuilder::plugins` takes a `PluginSet` from the
+  plugin API crate
+  [`seleniumbase-rs-plugin`](https://github.com/MustCodeAl/seleniumbase-rs-plugins),
+  re-exported as `seleniumbase_rs::plugin_api`. `Browser::launch` checks the set,
+  lets `before_launch` change the arguments, preferences, extensions, proxy and
+  headless mode, and calls `on_browser`; every tab the library attaches to gets
+  the plugins' packages and `on_page_created`; `Browser::close` (or the last
+  drop) calls `on_close`. `Browser::connect_with_plugins` does the same for a
+  running browser. A plugin that refuses or fails stops the launch or the tab
+  with the new `SeleniumBaseError::Plugin`. Guide: `docs/tutorials/plugins.md`.
+- `LaunchOptionsBuilder::extension` loads an unpacked extension over the
+  protocol (`Extensions.loadUnpacked`, which branded Chrome 137 and later need
+  instead of `--load-extension`), and `LaunchOptionsBuilder::preference` merges
+  a preference into the profile's `Default/Preferences` before the browser
+  starts.
+- `Browser::launch_mocked` (feature `test-util`) runs the launch steps, plugins
+  included, against a `MockCtrl`, which `MockCtrl::new` now creates for a test
+  to script first.
 - Feature `tokio-console` (off by default): `sbrs`, `sbrs-mcp` and programs that
   use the crate's logging serve [tokio-console](https://github.com/tokio-rs/console)
   for watching async tasks. Build with `RUSTFLAGS="--cfg tokio_unstable"`.

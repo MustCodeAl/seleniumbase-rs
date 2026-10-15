@@ -484,6 +484,13 @@ percent zoom on an unscaled display; a page zoom or a docked browser panel
 shifts it. It is covered by unit tests and a mocked browser, and has not been
 tried on a live CAPTCHA.
 
+## Plugins
+
+With the `plugins` feature, `LaunchOptionsBuilder::plugins` takes a set of
+browser plugins: crates whose hooks run before the browser starts, once it runs,
+for every tab and at close, to block resources, add scripts, set preferences or
+load extensions. See [Browser Plugins](plugins.md).
+
 ## Testing without Chrome
 
 With the `test-util` feature, `Browser::new_mocked()` returns a browser backed by
