@@ -27,45 +27,6 @@ required-features = ["gui"]
 name = "gui_automation"
 required-features = ["gui"]
 
-# The measurement tools: they run the local Chrome and write src/wire/measured.
-[[example]]
-name = "capture_tls"
-required-features = ["scrape"]
-
-[[example]]
-name = "capture_hints"
-required-features = ["scrape"]
-
-# Serves HTTPS with the ephemeral CA, so it needs the BoringSSL stack.
-[[example]]
-name = "capture_h2"
-required-features = ["impersonate"]
-
-# Examples of the stealth layer. Each one runs against a loopback site only: no outside
-# network, no third-party service. `examples/stealth_support` is a module they share, not an
-# example.
-[[example]]
-name = "cookie_jar"
-required-features = ["scrape"]
-
-# Drives the local Chrome against a loopback page.
-[[example]]
-name = "browser_scraper"
-required-features = ["scrape"]
-
-[[example]]
-name = "custom_profile"
-required-features = ["impersonate"]
-
-[[example]]
-name = "http_session"
-required-features = ["impersonate"]
-
-# Drives the local Chrome behind the MITM proxy against a loopback TLS shop.
-[[example]]
-name = "stealth_session"
-required-features = ["impersonate"]
-
 [[bin]]
 name = "sbrs-mcp"
 path = "src/bin/mcp_server.rs"
@@ -80,11 +41,6 @@ harness = false
 [[bench]]
 name = "cpu"
 harness = false
-
-# The scrape domain purity check is gated, so a plain `cargo test` never compiles it.
-[[test]]
-name = "scrape_domain_purity"
-required-features = ["scrape"]
 
 [dependencies]
 clap = { version = "4.6", features = ["derive"] }
