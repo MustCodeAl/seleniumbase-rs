@@ -212,4 +212,7 @@ clap_usage = "5"
 tokio = { version = "1.53", features = ["test-util"] }
 printpdf = "0.12"
 syn = { version = "3", features = ["full", "visit"] }
+# Lists processes for the tests' leftover-process checks on every system (Windows
+# has no `pgrep`); only its process part.
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 

@@ -12,6 +12,9 @@ work, `docs/parity.md` the per-API status).
 
 - The `sbrs` banner reads SeleniumBaseRust (figlet small font, 68 columns), and
   `sbrs --help` and `sbrs-mcp --help` say SeleniumBaseRust.
+- The tests' leftover-process checks (Edge, geckodriver, the MCP stdio servers)
+  list processes with `sysinfo` (a dev-dependency) instead of `pgrep` and
+  `kill -0`, so they run on Windows too instead of being skipped there.
 
 ### Added
 
