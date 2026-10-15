@@ -104,7 +104,8 @@ npx tauri build
 `src-tauri/tests/e2e_automation.rs` drives the app's real window with
 `seleniumbase-rs`'s `BaseCase`: it reads the title, finds the profile list,
 creates a WebDriver profile through the dialog, filters the list by typing in
-the search box and adds a folder. The window is served over WebDriver by
+the search box, adds a folder, and reads and resizes the window. The window is
+served over WebDriver by
 [`tauri-plugin-sbrs-automation`](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation),
 which only the `e2e` feature adds to the app.
 

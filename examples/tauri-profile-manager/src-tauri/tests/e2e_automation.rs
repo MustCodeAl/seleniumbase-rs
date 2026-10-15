@@ -3,8 +3,9 @@
 //!
 //! The test starts the app Cargo built for it, waits for the endpoint, then
 //! reads the title, finds the profile list, creates a profile through the
-//! dialog, filters the list by typing in the search box and adds a folder. It
-//! stops the app when it ends, also when it fails.
+//! dialog, filters the list by typing in the search box, adds a folder, and
+//! reads and resizes the window. It stops the app when it ends, also when it
+//! fails.
 //!
 //! It opens the app's window, so it is ignored by default. Run it with:
 //!
@@ -159,6 +160,17 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.type_text("#new-folder", "E2E Folder").await?;
     sb.click("#folder-form button[type='submit']").await?;
     sb.wait_for_text("#folder-list", "E2E Folder", 10).await?;
+
+    // The window's own rectangle (the page alone would say 0 x 0): at least
+    // the 800 x 600 of tauri.conf.json, and it can be resized.
+    let (_, _, width, height) = sb.get_window_rect().await?;
+    assert!(
+        width >= 800 && height >= 600,
+        "the window is {width} x {height}"
+    );
+    sb.set_window_size(900, 700).await?;
+    let (_, _, width, height) = sb.get_window_rect().await?;
+    assert_eq!((width, height), (900, 700));
     Ok(())
 }
 
