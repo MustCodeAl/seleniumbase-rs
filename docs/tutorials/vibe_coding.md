@@ -105,7 +105,7 @@ The repository is set up for coding assistants:
   and `cargo test --features "mcp-server test-util"`. Ask the agent to run it
   and to report the exit codes, not to say "it should pass".
 - `rust-analyzer.toml` loads the optional features so analysis covers
-  `src/mcp` and `src/scrape`.
+  `src/mcp` and the test helpers.
 - `parity/api.toml` records the status of every upstream API; a new API gets an
   entry there, and the generated `docs/parity.md` must be refreshed.
 

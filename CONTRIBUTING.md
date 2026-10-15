@@ -50,7 +50,6 @@ cd seleniumbase-rs
 cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
-cargo clippy --features scrape --lib -- -D warnings
 
 # Build the mdBook
 mdbook build
@@ -78,9 +77,9 @@ library and doctests then fail with "extern location does not exist".
 
 With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
 `mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
-scripts, Node for the Tauri example, cmake, mdBook, just and cargo-deny), and
+scripts, Node for the Tauri example, mdBook, just and cargo-deny), and
 `mise run gate` runs the checks a change has to pass; `mise tasks` lists the
-rest (`chrome`, `scrape-gate`, `imp-gate`, `parity-docs`, `docs`, `smoke`).
+rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 
 ### Required
 
@@ -117,10 +116,6 @@ seleniumbase-rs/
 │   ├── browser/               # BrowserConfig, launcher, session, options/, driver matching
 │   ├── sb_cdp/                # The pure CDP engine: Browser, Page, Locator, pool, mock
 │   ├── stealth/               # Fingerprint, evasion providers, humanize, patcher, reactor
-│   ├── wire/                  # (feature scrape/impersonate) pure TLS/HTTP2 wire formats
-│   ├── scrape/                # (feature scrape) challenge, egress, jar, ledger, passport, runtime
-│   ├── impersonate/           # (feature impersonate) client, http_session/, mitm/,
-│   │                          # stealth_session/, tls_server/ (ephemeral CA), capture_h2
 │   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
 │   ├── cli/                   # sbrs: bin/sbrs.rs (clap), commands.rs, scripts/
 │   ├── behave/                # Gherkin/BDD runner
@@ -255,8 +250,6 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
 cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
-cargo clippy --features scrape --lib -- -D warnings   # the scrape feature
-cargo clippy --features impersonate --lib -- -D warnings  # the impersonate feature (cmake; builds BoringSSL)
 cargo check --features turso --all-targets            # code that only builds with turso
 cargo deny check && cargo audit                        # when Cargo.lock changed
 mdbook build                                           # when docs changed
@@ -487,8 +480,7 @@ the result:
 
 - [ ] `cargo fmt --all -- --check` is clean.
 - [ ] `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` is clean.
-- [ ] `cargo test --features "mcp-server test-util"` passes, and so does
-      `cargo clippy --features scrape --lib -- -D warnings`.
+- [ ] `cargo test --features "mcp-server test-util"` passes.
 - [ ] `cargo deny check` and `cargo audit` are clean if `Cargo.lock` changed.
 - [ ] A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]` is in the
       `Dockerfile` skeleton.

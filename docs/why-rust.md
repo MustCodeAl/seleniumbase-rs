@@ -86,8 +86,8 @@ with production code becomes a compile-time guarantee instead of a manual task.
 ### Feature flags and dependency control
 
 Optional features such as `tui`, `gui`, `playwright`, `s3`, `azure`, `gcp`,
-`mcp-server`, `turso`, `full-tracing`, and the in-progress `scrape` and
-`impersonate` are compiled in only when you enable them. The default feature set
+`mcp-server`, `turso`, `full-tracing`, `ocr` and `plugins` are compiled in only
+when you enable them. The default feature set
 is empty, so default builds stay small, and you can audit exactly which
 dependencies are included for each target (`cargo deny check` and `cargo audit`
 run against the lockfile).
@@ -121,11 +121,11 @@ three real-Chrome tests (`diagnose_environment` ran only against a mock):
   follows the error's category, and failed tests carry their page and evidence
   into the reports.
 
-Not there yet: the impersonating HTTP session, the MITM proxy and the combined
-stealth session are under construction behind the `impersonate` feature. The
-TLS (JA3/JA4) and HTTP/2 (Akamai) client exists for one measured browser and
-system (Chrome 155 on macOS). See [Stealth Scraping](tutorials/stealth_scraping.md)
-and [the plan](design/stealth_parity_plan.md).
+Not here: TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation, the impersonating
+HTTP session, the MITM proxy and the combined stealth session moved in 0.3.0 to
+the separate, experimental seleniumbase-rs-stealth project, measured for one
+browser and system (Chrome 155 on macOS). See
+[Stealth Scraping](tutorials/stealth_scraping.md).
 
 ## Evidence from this crate
 
@@ -166,11 +166,9 @@ also flaked until they were made to wait for what they check.
   and the borrow checker.
 - **A smaller ecosystem.** Python SeleniumBase has far more examples and
   plugins; Python plugins cannot be reused here.
-- **Unfinished parts.** The impersonating HTTP session, the MITM proxy and the
-  combined stealth session exist but are young and not a stable API (tested
-  against local servers and a local Chrome, not live services), only one browser
-  and system is measured for TLS and HTTP/2, and the parity table's `composed`
-  and `not-applicable` entries are still to be independently reviewed.
+- **Unfinished parts.** The parity table's `composed` and `not-applicable`
+  entries are still to be independently reviewed, and the stealth scraping layer
+  (now a separate project) is young and measured for one browser and system only.
 
 ## What does not change
 

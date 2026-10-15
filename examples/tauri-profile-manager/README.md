@@ -112,8 +112,10 @@ the schema URL moved to `https://schema.tauri.app/config/3`. To build on Tauri
 
 The whole library fits in a Tauri 3 app, not only the `turso` feature this
 example uses: with every `seleniumbase-rs` feature switched on
-(`cargo build --features seleniumbase-rs/impersonate,seleniumbase-rs/mcp-server,...`),
-the app builds and links, and its 115 tests pass. No feature needs Python:
+(`cargo build --features seleniumbase-rs/mcp-server,seleniumbase-rs/turso,...`),
+the app builds and links, and its 115 tests pass (checked before 0.3.0, when the
+features also included `impersonate`, which has since moved to
+seleniumbase-rs-stealth). No feature needs Python:
 `playwright` uses `rustwright-core` without its Python bindings.
 
 ## Features
