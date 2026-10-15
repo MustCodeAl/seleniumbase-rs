@@ -365,6 +365,34 @@ async fn dropping_the_last_handle_runs_on_close() {
     assert_eq!(closes.load(Ordering::SeqCst), 1);
 }
 
+#[tokio::test]
+async fn a_failed_launch_tells_the_plugins_once_that_it_ended() {
+    let mock = MockCtrl::new();
+    let closes = Arc::new(AtomicUsize::new(0));
+    let plugins = PluginSet::new()
+        .with(CountsCloses(Arc::clone(&closes)))
+        .unwrap()
+        .with(FailsOnTab {
+            seen: AtomicUsize::new(0),
+            fail_from: 1,
+        })
+        .unwrap();
+
+    let error = launch(plugins, &mock).await.unwrap_err();
+
+    assert!(
+        matches!(error, SeleniumBaseError::Plugin { .. }),
+        "{error:?}"
+    );
+    assert_eq!(
+        closes.load(Ordering::SeqCst),
+        1,
+        "on_close has run by the time the launch returns"
+    );
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    assert_eq!(closes.load(Ordering::SeqCst), 1, "and only once");
+}
+
 /// Loads an extension and adds a switch in `before_launch`.
 struct AddsExtension;
 

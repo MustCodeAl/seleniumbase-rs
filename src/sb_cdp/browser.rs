@@ -165,9 +165,12 @@ pub(crate) struct Inner {
     /// handoff to plain HTTP can follow the route a tab's traffic takes.
     #[cfg(feature = "scrape")]
     pub(super) context_routes: StdMutex<HashMap<String, super::context::ContextRoute>>,
-    /// Set once the plugins' `on_close` hooks have run, so they run once.
+    /// Whether the plugins' `on_close` is still owed: set when the browser is
+    /// handed out, cleared when `close` or the last drop runs the hooks. A
+    /// launch attempt that fails is never set, so a retry does not find its
+    /// plugins already told the browser closed.
     #[cfg(feature = "plugins")]
-    plugins_closed: AtomicBool,
+    plugins_open: AtomicBool,
 }
 
 impl Drop for Inner {
@@ -189,7 +192,7 @@ impl Inner {
     /// after it, while the process is being killed.
     fn close_plugins_in_background(&mut self) {
         let plugins = &self.options.plugins;
-        if plugins.is_empty() || std::mem::replace(self.plugins_closed.get_mut(), true) {
+        if !std::mem::replace(self.plugins_open.get_mut(), false) || plugins.is_empty() {
             return;
         }
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
@@ -226,10 +229,18 @@ impl Browser {
     pub async fn launch(options: LaunchOptions) -> Result<Self, SeleniumBaseError> {
         #[cfg(feature = "plugins")]
         let options = super::plugin_hooks::before_launch(options).await?;
+        let launched = Self::launch_retrying(&options).await;
+        #[cfg(feature = "plugins")]
+        Self::settle_plugins(&launched, &options.plugins).await;
+        launched
+    }
+
+    /// Launches, retrying once when the browser itself failed.
+    async fn launch_retrying(options: &LaunchOptions) -> Result<Self, SeleniumBaseError> {
         let mut attempt = 0_u8;
         loop {
             attempt += 1;
-            match Self::launch_once(&options).await {
+            match Self::launch_once(options).await {
                 Ok(browser) => return Ok(browser),
                 // A plugin that refused would refuse again, and its hooks may
                 // already have acted: only a browser that failed is retried.
@@ -261,6 +272,20 @@ impl Browser {
         );
         browser.start().await?;
         Ok(browser)
+    }
+
+    /// Ends a launch for its plugins: a browser that is handed out owes them
+    /// `on_close` when it closes, and a launch that failed after
+    /// `before_launch` runs it now, once.
+    #[cfg(feature = "plugins")]
+    async fn settle_plugins(
+        launched: &Result<Self, SeleniumBaseError>,
+        plugins: &seleniumbase_rs_plugin::PluginSet,
+    ) {
+        match launched {
+            Ok(browser) => browser.inner.plugins_open.store(true, Ordering::SeqCst),
+            Err(_) => super::plugin_hooks::on_close(plugins).await,
+        }
     }
 
     /// What a launch does once the browser answers: proxy passwords, the
@@ -368,6 +393,8 @@ impl Browser {
         #[cfg(feature = "plugins")]
         super::plugin_hooks::on_browser(&browser.inner.options.plugins, &browser.inner.client)
             .await?;
+        #[cfg(feature = "plugins")]
+        browser.inner.plugins_open.store(true, Ordering::SeqCst);
         Ok(browser)
     }
 
@@ -413,6 +440,8 @@ impl Browser {
     ) -> Result<Self, SeleniumBaseError> {
         #[cfg(feature = "plugins")]
         let options = super::plugin_hooks::before_launch(options).await?;
+        #[cfg(feature = "plugins")]
+        let plugins = options.plugins.clone();
         let browser = Self::from_parts(
             Arc::new(Client::mocked(mock.clone())),
             None,
@@ -422,8 +451,10 @@ impl Browser {
             MOCK_WS_URL.to_owned(),
             options,
         );
-        browser.start().await?;
-        Ok(browser)
+        let launched = browser.start().await.map(|()| browser);
+        #[cfg(feature = "plugins")]
+        Self::settle_plugins(&launched, &plugins).await;
+        launched
     }
 
     fn from_parts(
@@ -456,7 +487,7 @@ impl Browser {
                 #[cfg(feature = "scrape")]
                 context_routes: StdMutex::new(HashMap::new()),
                 #[cfg(feature = "plugins")]
-                plugins_closed: AtomicBool::new(false),
+                plugins_open: AtomicBool::new(false),
             }),
         }
     }
@@ -938,7 +969,7 @@ impl Browser {
     /// Never fails in practice; the `Result` leaves room for cleanup errors.
     pub async fn close(&self) -> Result<(), SeleniumBaseError> {
         #[cfg(feature = "plugins")]
-        if !self.inner.plugins_closed.swap(true, Ordering::SeqCst) {
+        if self.inner.plugins_open.swap(false, Ordering::SeqCst) {
             super::plugin_hooks::on_close(&self.inner.options.plugins).await;
         }
         let tasks: Vec<_> = locked(&self.inner.tasks).drain(..).collect();
