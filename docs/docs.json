@@ -81,6 +81,7 @@
             "group": "MCP Servers",
             "pages": [
               "tutorials/mcp_server",
+              "tutorials/devtools_mcp",
               "tutorials/vibe_coding"
             ]
           },
