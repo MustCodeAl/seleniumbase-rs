@@ -4,8 +4,11 @@
 //! The test starts the app Cargo built for it, waits for the endpoint, then
 //! reads the title, finds the profile list, creates a profile through the
 //! dialog, filters the list by typing in the search box, adds a folder, and
-//! reads and resizes the window. It stops the app when it ends, also when it
-//! fails.
+//! reads and resizes the window. Then it adds a few controls of its own to the
+//! page (the app has no dialogs, frames or double clicks) to answer confirm
+//! and prompt dialogs, enter a same-origin frame (and be refused a sandboxed
+//! one), double-click, hover and press keys through W3C actions, and take
+//! screenshots. It stops the app when it ends, also when it fails.
 //!
 //! It opens the app's window, so it is ignored by default. Run it with:
 //!
@@ -44,6 +47,39 @@ const WEBDRIVER_URL: &str = "http://127.0.0.1:4545/e2etoken/";
 const CARD: &str = "#profile-list li.profile-card";
 /// The window's title, from `src/index.html`.
 const TITLE: &str = "Profiles — SeleniumBase Profile Manager";
+/// Controls the test adds to the page, fixed at its top left corner: a
+/// button that counts clicks, one for a confirm and one for a prompt, a hover
+/// target, a form, a same-origin frame and a sandboxed (cross-origin) one.
+const CONTROLS: &str = r#"
+    const area = document.createElement('div');
+    area.id = 'e2e';
+    area.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;background:#fff;padding:8px';
+    area.innerHTML = `
+      <button id="e2e-twice" type="button">Twice</button> <span id="e2e-clicks"></span>
+      <button id="e2e-confirm" type="button">Confirm</button>
+      <button id="e2e-prompt" type="button">Prompt</button> <span id="e2e-answer"></span>
+      <span id="e2e-hover">Hover me</span>
+      <form id="e2e-form"><input id="e2e-field"></form> <span id="e2e-submitted"></span>
+      <iframe id="e2e-frame" srcdoc="<p id=inside>Inside the frame</p><button id=frame-alert>Alert</button>"></iframe>
+      <iframe id="e2e-sealed" sandbox srcdoc="<p>Sealed</p>"></iframe>`;
+    document.body.append(area);
+    const show = (id, text) => { document.getElementById(id).textContent = text; };
+    const clicks = [];
+    const twice = document.getElementById('e2e-twice');
+    twice.addEventListener('click', (event) => { clicks.push(`click${event.detail}`); show('e2e-clicks', clicks.join(' ')); });
+    twice.addEventListener('dblclick', () => { clicks.push('dblclick'); show('e2e-clicks', clicks.join(' ')); });
+    document.getElementById('e2e-confirm').addEventListener('click', () => {
+      show('e2e-answer', `confirm ${window.confirm('Delete the E2E profile?')}`);
+    });
+    document.getElementById('e2e-prompt').addEventListener('click', () => {
+      show('e2e-answer', `prompt ${window.prompt('Your name?', 'nobody')}`);
+    });
+    document.getElementById('e2e-hover').addEventListener('mouseover', () => show('e2e-hover', 'Hovered'));
+    document.getElementById('e2e-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      show('e2e-submitted', `submitted [${document.getElementById('e2e-field').value}]`);
+    });
+"#;
 
 /// The app, started for this test and stopped when this is dropped.
 struct App {
@@ -171,6 +207,129 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.set_window_size(900, 700).await?;
     let (_, _, width, height) = sb.get_window_rect().await?;
     assert_eq!((width, height), (900, 700));
+
+    sb.execute_script(CONTROLS).await?;
+    sb.wait_for_element_visible("#e2e-twice", 10).await?;
+    dialogs(sb).await?;
+    frames(sb).await?;
+    actions(sb).await?;
+    screenshots(sb).await
+}
+
+/// Dialogs answer at once (they cannot wait for the client): with the answer
+/// set before, else confirm and prompt are dismissed. The dialog's text stays
+/// readable until it is accepted or dismissed.
+async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    // No answer set: the confirm is dismissed, and its text can be read.
+    sb.click("#e2e-confirm").await?;
+    sb.wait_for_text("#e2e-answer", "confirm false", 10).await?;
+    assert_eq!(sb.get_alert_text().await?, "Delete the E2E profile?");
+    sb.accept_alert().await?;
+    assert!(
+        sb.get_alert_text().await.is_err(),
+        "the dialog was accepted, yet its text is still there"
+    );
+
+    // Accepted before it opens: the confirm answers true.
+    sb.accept_alert().await?;
+    sb.click("#e2e-confirm").await?;
+    sb.wait_for_text("#e2e-answer", "confirm true", 10).await?;
+    sb.dismiss_alert().await?;
+
+    // A prompt's text, sent and accepted before it opens.
+    sb.type_alert_text("Ada").await?;
+    sb.accept_alert().await?;
+    sb.click("#e2e-prompt").await?;
+    sb.wait_for_text("#e2e-answer", "prompt Ada", 10).await?;
+    assert_eq!(sb.get_alert_text().await?, "Your name?");
+    sb.accept_alert().await?;
+
+    // And with nothing set, the prompt is dismissed.
+    sb.click("#e2e-prompt").await?;
+    sb.wait_for_text("#e2e-answer", "prompt null", 10).await?;
+    sb.dismiss_alert().await?;
+    Ok(())
+}
+
+/// Finding, scripts, clicks and dialogs inside a same-origin frame; a
+/// sandboxed frame has an origin of its own and cannot be entered.
+async fn frames(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    sb.switch_to_frame("#e2e-frame").await?;
+    sb.assert_text("#inside", "Inside the frame").await?;
+    // The script runs in the frame: its `document` is the frame's.
+    let found = sb
+        .execute_script(
+            "document.getElementById('frame-alert').addEventListener('click', () => alert('From the frame'));
+             return document.getElementById('inside').textContent;",
+        )
+        .await?;
+    assert_eq!(found, "Inside the frame");
+    sb.click("#frame-alert").await?;
+    assert_eq!(sb.get_alert_text().await?, "From the frame");
+    sb.accept_alert().await?;
+    sb.switch_to_default_content().await?;
+    assert!(
+        !sb.is_element_present("#inside").await?,
+        "the top page sees the frame's element"
+    );
+    sb.assert_element("#e2e-twice").await?;
+
+    let sealed = sb.switch_to_frame("#e2e-sealed").await;
+    let refusal = sealed
+        .expect_err("a sandboxed frame was entered")
+        .to_string();
+    assert!(
+        refusal.contains("cross-origin"),
+        "unexpected refusal: {refusal}"
+    );
+    eprintln!("a sandboxed frame is refused: {refusal}");
+    sb.assert_element("#e2e-twice").await?;
+    Ok(())
+}
+
+/// W3C actions as DOM events: a double click, a hover, and keys typed into
+/// the focused field, Enter submitting its form.
+async fn actions(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    sb.double_click("#e2e-twice").await?;
+    assert_eq!(sb.get_text("#e2e-clicks").await?, "click1 click2 dblclick");
+
+    sb.hover("#e2e-hover").await?;
+    sb.wait_for_text("#e2e-hover", "Hovered", 10).await?;
+
+    sb.type_text("#e2e-field", "E2E").await?;
+    sb.press_key("space").await?;
+    sb.press_key("enter").await?;
+    sb.wait_for_text("#e2e-submitted", "submitted [E2E ]", 10)
+        .await?;
+    Ok(())
+}
+
+/// The PNG's width and height, from its header.
+fn png_size(png: &[u8]) -> Option<(u32, u32)> {
+    let signature = b"\x89PNG\r\n\x1a\n";
+    if png.len() < 24 || &png[..8] != signature || &png[12..16] != b"IHDR" {
+        return None;
+    }
+    let number = |at: usize| u32::from_be_bytes([png[at], png[at + 1], png[at + 2], png[at + 3]]);
+    Some((number(16), number(20)))
+}
+
+/// A screenshot of the whole view, and one of an element cut out of it.
+async fn screenshots(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    let page = sb.screenshot_as_png().await?;
+    let (page_width, page_height) = png_size(&page).ok_or("the page screenshot is not a PNG")?;
+    assert!(
+        page_width >= 900 && page_height >= 600,
+        "the page screenshot is {page_width} x {page_height}"
+    );
+    let button = sb.find_element("#e2e-twice").await?;
+    let element = button.screenshot_as_png().await?;
+    let (width, height) = png_size(&element).ok_or("the element screenshot is not a PNG")?;
+    assert!(
+        width > 0 && height > 0 && width < page_width && height < page_height,
+        "the element screenshot is {width} x {height}"
+    );
+    eprintln!("screenshots: the page {page_width} x {page_height}, the button {width} x {height}");
     Ok(())
 }
 
