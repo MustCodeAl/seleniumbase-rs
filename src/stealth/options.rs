@@ -81,8 +81,9 @@ impl std::fmt::Debug for StealthOptions {
     }
 }
 
-/// `url` with any `user:password@` removed, for showing in a log.
-fn without_credentials(url: &str) -> String {
+/// `url` with any `user:password@` removed, for showing in a log or to a
+/// browser plugin.
+pub(crate) fn without_credentials(url: &str) -> String {
     let (scheme, rest) = url.split_once("://").map_or(("", url), |(s, r)| (s, r));
     let host_start = rest.rfind('@').map_or(0, |at| at + 1);
     let rest = &rest[host_start..];

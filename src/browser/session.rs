@@ -57,6 +57,8 @@ impl BrowserSession {
     /// reuse (see [`crate::browser::reuse`]).
     #[instrument(skip(config))]
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        let config = crate::browser::plugin_hooks::before_launch(config).await?;
         if config.reuse_session {
             return reuse::connect(config).await;
         }
