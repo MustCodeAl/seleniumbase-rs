@@ -11,6 +11,8 @@ as three crates. The features `scrape` and `impersonate` and the modules
 `seleniumbase_rs::wire`, `seleniumbase_rs::scrape` and
 `seleniumbase_rs::impersonate` are gone from this crate.
 
+The full tutorial moved with it: [docs/tutorial.md in seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth/blob/main/docs/tutorial.md).
+
 | Crate | Was | What it is |
 |---|---|---|
 | `seleniumbase-rs-wire` | `seleniumbase_rs::wire` | Pure wire formats: the TLS `ClientHello` parser, JA3, JA4, peetprint, the Akamai HTTP/2 fingerprint, the TLS, HTTP/2 and header specs, and the measured browser table. |
