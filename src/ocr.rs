@@ -24,6 +24,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use ocrs::{ImageSource, OcrEngine, OcrEngineParams};
 use rten::Model;
@@ -43,6 +44,9 @@ const MODELS: [(&str, &str); 2] = [
     ),
 ];
 const MODEL_URL: &str = "https://ocrs-models.s3-accelerate.amazonaws.com/";
+/// A cap on one model download (the larger model is under 10 MB), so a wrong
+/// answer cannot fill the memory before its hash is checked.
+const MAX_MODEL_BYTES: usize = 64 * 1024 * 1024;
 
 /// An OCR engine with its models loaded. Loading is the slow part; clone it to
 /// share the engine.
@@ -174,7 +178,11 @@ fn read(engine: &OcrEngine, png: &[u8]) -> Result<String, SeleniumBaseError> {
 async fn download_missing(dir: &Path) -> Result<(), SeleniumBaseError> {
     tokio::fs::create_dir_all(dir).await?;
     crate::install_tls_provider();
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(30))
+        .read_timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|error| SeleniumBaseError::network(MODEL_URL, 0, error.to_string()))?;
     for (name, hash) in MODELS {
         let path = dir.join(name);
         let complete = tokio::fs::read(&path)
@@ -191,15 +199,21 @@ async fn download_missing(dir: &Path) -> Result<(), SeleniumBaseError> {
                 error.to_string(),
             )
         };
-        let bytes = client
+        let mut response = client
             .get(&url)
             .send()
             .await
             .and_then(reqwest::Response::error_for_status)
-            .map_err(network)?
-            .bytes()
-            .await
             .map_err(network)?;
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(network)? {
+            if bytes.len() + chunk.len() > MAX_MODEL_BYTES {
+                return Err(SeleniumBaseError::InvalidConfig(format!(
+                    "the OCR model from {url} is larger than {MAX_MODEL_BYTES} bytes"
+                )));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
         if sha256_hex(&bytes) != hash {
             return Err(SeleniumBaseError::InvalidConfig(format!(
                 "the OCR model from {url} does not match its expected hash"
