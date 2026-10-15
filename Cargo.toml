@@ -160,6 +160,9 @@ rmcp = { version = "3.5", default-features = false, features = ["server", "trans
 # default features are off because `mimalloc` installs a global allocator,
 # which a library must not impose on its users.
 turso = { version = "0.8", default-features = false, optional = true }
+# `plugins`: the plugin API (ADR 004), from its own repository until it is on
+# crates.io. A plugin crate must resolve to this same revision.
+seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "a70c00fb4bc1c82c09c1175db6efe01b9daf3768", optional = true }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -196,6 +199,10 @@ scrape = ["dep:psl"]
 # HttpSession and StealthSession. Needs cmake and a C/C++ toolchain.
 impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls", "dep:hyper", "dep:hyper-util",
                "dep:http-body-util"]
+# Plugins for the pure CDP engine (ADR 004): `LaunchOptionsBuilder::plugins` and
+# the hooks at launch, connect, every new tab and close. The API is re-exported as
+# `seleniumbase_rs::plugin_api`.
+plugins = ["dep:seleniumbase-rs-plugin"]
 
 [dev-dependencies]
 # Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
