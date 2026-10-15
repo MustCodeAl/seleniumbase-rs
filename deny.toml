@@ -65,3 +65,6 @@ wildcards = "deny"
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+# The plugin API (feature `plugins`) comes from its own repository, pinned to a
+# revision, until it is published on crates.io.
+allow-git = ["https://github.com/MustCodeAl/seleniumbase-rs-plugins"]

@@ -79,8 +79,18 @@ impl std::fmt::Debug for MockCtrl {
     }
 }
 
+impl Default for MockCtrl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockCtrl {
-    pub(crate) fn new() -> Self {
+    /// A mock with the default answers, for
+    /// [`Browser::launch_mocked`](super::Browser::launch_mocked): script it
+    /// first, then launch against it.
+    #[must_use]
+    pub fn new() -> Self {
         let (events, _) = broadcast::channel(256);
         let ctrl = Self {
             inner: Arc::new(Inner {

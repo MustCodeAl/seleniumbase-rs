@@ -75,6 +75,8 @@ pub(crate) mod messenger;
 #[cfg(any(test, feature = "test-util"))]
 mod mock;
 mod page;
+#[cfg(feature = "plugins")]
+mod plugin_hooks;
 mod pool;
 mod proxy_auth;
 mod session_store;

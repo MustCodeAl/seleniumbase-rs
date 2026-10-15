@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "plugins")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
@@ -25,6 +27,10 @@ const GRACEFUL_CLOSE: Duration = Duration::from_secs(3);
 
 /// Where the DevTools endpoint of a browser this process launched listens.
 const LOCAL_HOST: &str = "127.0.0.1";
+
+/// The DevTools address a mocked browser reports.
+#[cfg(any(test, feature = "test-util"))]
+const MOCK_WS_URL: &str = "ws://mock.invalid/devtools/browser/mock";
 
 /// Where downloads are expected until [`Browser::set_download_dir`] says
 /// otherwise: the folder SeleniumBase's CDP Mode uses, in the working directory.
@@ -158,6 +164,12 @@ pub(crate) struct Inner {
     /// The proxy of every context created with its own, by context id, so a
     /// handoff to plain HTTP can follow the route a tab's traffic takes.
     pub(super) context_routes: StdMutex<HashMap<String, super::context::ContextRoute>>,
+    /// Whether the plugins' `on_close` is still owed: set when the browser is
+    /// handed out, cleared when `close` or the last drop runs the hooks. A
+    /// launch attempt that fails is never set, so a retry does not find its
+    /// plugins already told the browser closed.
+    #[cfg(feature = "plugins")]
+    plugins_open: AtomicBool,
 }
 
 impl Drop for Inner {
@@ -166,6 +178,31 @@ impl Drop for Inner {
             for task in tasks.drain(..) {
                 task.abort();
             }
+        }
+        #[cfg(feature = "plugins")]
+        self.close_plugins_in_background();
+    }
+}
+
+#[cfg(feature = "plugins")]
+impl Inner {
+    /// Runs the plugins' `on_close` on the current runtime when the last handle
+    /// goes without [`Browser::close`]. A drop cannot wait, so the hooks run
+    /// after it, while the process is being killed.
+    fn close_plugins_in_background(&mut self) {
+        let plugins = &self.options.plugins;
+        if !std::mem::replace(self.plugins_open.get_mut(), false) || plugins.is_empty() {
+            return;
+        }
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let plugins = plugins.clone();
+            runtime.spawn(async move { super::plugin_hooks::on_close(&plugins).await });
+        } else {
+            tracing::event!(
+                name: "cdp.plugin.close.skipped",
+                tracing::Level::WARN,
+                "the browser was dropped outside an async runtime, so its plugins' on_close did not run",
+            );
         }
     }
 }
@@ -176,18 +213,37 @@ impl Browser {
     /// A failed launch is retried once, because Chrome occasionally loses a
     /// race with a leftover profile lock on the first attempt.
     ///
+    /// With plugins (feature `plugins`), the set is checked and each plugin's
+    /// `before_launch` may change the start-up settings first; `on_browser`
+    /// runs once the browser answers, and the first tab gets the plugins'
+    /// packages and `on_page_created`.
+    ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::BrowserLaunch`] when no browser can be
     /// started, or [`SeleniumBaseError::CdpDriver`] when it starts but cannot
-    /// be controlled.
+    /// be controlled. A plugin that refuses, or whose hook fails, stops the
+    /// launch with [`SeleniumBaseError::Plugin`], and the launch is not
+    /// retried.
     pub async fn launch(options: LaunchOptions) -> Result<Self, SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        let options = super::plugin_hooks::before_launch(options).await?;
+        let launched = Self::launch_retrying(&options).await;
+        #[cfg(feature = "plugins")]
+        Self::settle_plugins(&launched, &options.plugins).await;
+        launched
+    }
+
+    /// Launches, retrying once when the browser itself failed.
+    async fn launch_retrying(options: &LaunchOptions) -> Result<Self, SeleniumBaseError> {
         let mut attempt = 0_u8;
         loop {
             attempt += 1;
-            match Self::launch_once(&options).await {
+            match Self::launch_once(options).await {
                 Ok(browser) => return Ok(browser),
-                Err(error) if attempt < 2 => {
+                // A plugin that refused would refuse again, and its hooks may
+                // already have acted: only a browser that failed is retried.
+                Err(error) if attempt < 2 && !matches!(error, SeleniumBaseError::Plugin { .. }) => {
                     tracing::event!(
                         name: "cdp.browser.launch.retry",
                         tracing::Level::WARN,
@@ -213,14 +269,50 @@ impl Browser {
             launched.ws_url,
             options.clone(),
         );
-        if browser.inner.auth.has_launch_credentials() {
-            browser.ensure_proxy_auth();
+        browser.start().await?;
+        Ok(browser)
+    }
+
+    /// Ends a launch for its plugins: a browser that is handed out owes them
+    /// `on_close` when it closes, and a launch that failed after
+    /// `before_launch` runs it now, once.
+    #[cfg(feature = "plugins")]
+    async fn settle_plugins(
+        launched: &Result<Self, SeleniumBaseError>,
+        plugins: &seleniumbase_rs_plugin::PluginSet,
+    ) {
+        match launched {
+            Ok(browser) => browser.inner.plugins_open.store(true, Ordering::SeqCst),
+            Err(_) => super::plugin_hooks::on_close(plugins).await,
         }
-        let page = browser.default_page().await?;
-        if let Some(url) = &options.url {
+    }
+
+    /// What a launch does once the browser answers: proxy passwords, the
+    /// extensions, the plugins' `on_browser`, the first tab and the start URL.
+    async fn start(&self) -> Result<(), SeleniumBaseError> {
+        if self.inner.auth.has_launch_credentials() {
+            self.ensure_proxy_auth();
+        }
+        for dir in &self.inner.options.extensions {
+            self.execute(
+                "Extensions.loadUnpacked",
+                json!({ "path": dir.to_string_lossy() }),
+            )
+            .await
+            .map_err(|error| {
+                SeleniumBaseError::invalid_config(format!(
+                    "the extension in {} could not be loaded: {error}",
+                    dir.display()
+                ))
+            })?;
+        }
+        #[cfg(feature = "plugins")]
+        super::plugin_hooks::on_browser(&self.inner.options.plugins, &self.inner.client).await?;
+        let page = self.default_page().await?;
+        if let Some(url) = &self.inner.options.url {
             page.goto(url).await?;
         }
-        Ok(browser)
+        Ok(())
     }
 
     /// Attaches to a browser that is already running with remote debugging on.
@@ -233,6 +325,42 @@ impl Browser {
     /// Returns [`SeleniumBaseError::CdpDriver`] if the endpoint cannot be
     /// reached or does not describe a DevTools browser.
     pub async fn connect(host: &str, port: u16) -> Result<Self, SeleniumBaseError> {
+        Self::attach(host, port, LaunchOptions::default()).await
+    }
+
+    /// Attaches to a running browser, as [`connect`](Self::connect) does, and
+    /// runs these plugins' hooks (feature `plugins`).
+    ///
+    /// The set is checked as attaching (a `LAUNCH_ONLY` plugin refuses) and
+    /// against the browser's headless state, read from its user agent; then
+    /// `on_browser` runs, and every tab the library attaches to gets the
+    /// plugins' packages and `on_page_created`. Nothing is launched, so
+    /// `before_launch` does not run.
+    ///
+    /// # Errors
+    ///
+    /// What [`connect`](Self::connect) returns, and
+    /// [`SeleniumBaseError::Plugin`] when a plugin refuses or `on_browser`
+    /// fails.
+    #[cfg(feature = "plugins")]
+    pub async fn connect_with_plugins(
+        host: &str,
+        port: u16,
+        plugins: seleniumbase_rs_plugin::PluginSet,
+    ) -> Result<Self, SeleniumBaseError> {
+        Self::attach(
+            host,
+            port,
+            LaunchOptions::builder().plugins(plugins).build()?,
+        )
+        .await
+    }
+
+    async fn attach(
+        host: &str,
+        port: u16,
+        options: LaunchOptions,
+    ) -> Result<Self, SeleniumBaseError> {
         crate::install_tls_provider();
         let version: Value = reqwest::get(format!(
             "http://{}/json/version",
@@ -247,16 +375,26 @@ impl Browser {
             .as_str()
             .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?
             .to_owned();
+        #[cfg(feature = "plugins")]
+        options
+            .plugins
+            .check(&super::plugin_hooks::connect_context(&version))?;
         let client = Arc::new(Client::connect(&ws_url).await?);
-        Ok(Self::from_parts(
+        let browser = Self::from_parts(
             client,
             None,
             None,
             None,
             (host.to_owned(), port),
             ws_url,
-            LaunchOptions::default(),
-        ))
+            options,
+        );
+        #[cfg(feature = "plugins")]
+        super::plugin_hooks::on_browser(&browser.inner.options.plugins, &browser.inner.client)
+            .await?;
+        #[cfg(feature = "plugins")]
+        browser.inner.plugins_open.store(true, Ordering::SeqCst);
+        Ok(browser)
     }
 
     /// Creates a browser that talks to a scripted mock instead of Chrome.
@@ -276,10 +414,46 @@ impl Browser {
             None,
             None,
             (LOCAL_HOST.to_owned(), 0),
-            "ws://mock.invalid/devtools/browser/mock".to_owned(),
+            MOCK_WS_URL.to_owned(),
             LaunchOptions::default(),
         );
         (browser, ctrl)
+    }
+
+    /// Runs the steps of [`launch`](Self::launch) against `mock` instead of
+    /// Chrome.
+    ///
+    /// No process starts, but everything after it happens as in a real launch:
+    /// the plugins are checked and their hooks run (feature `plugins`), the
+    /// extensions are loaded, and the first tab is prepared and opened at the
+    /// start URL. Script `mock` first for the answers the launch needs.
+    ///
+    /// # Errors
+    ///
+    /// What [`launch`](Self::launch) returns for the same steps, such as
+    /// [`SeleniumBaseError::Plugin`] when a plugin refuses or a hook fails.
+    #[cfg(any(test, feature = "test-util"))]
+    pub async fn launch_mocked(
+        options: LaunchOptions,
+        mock: &super::mock::MockCtrl,
+    ) -> Result<Self, SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        let options = super::plugin_hooks::before_launch(options).await?;
+        #[cfg(feature = "plugins")]
+        let plugins = options.plugins.clone();
+        let browser = Self::from_parts(
+            Arc::new(Client::mocked(mock.clone())),
+            None,
+            None,
+            None,
+            (LOCAL_HOST.to_owned(), 0),
+            MOCK_WS_URL.to_owned(),
+            options,
+        );
+        let launched = browser.start().await.map(|()| browser);
+        #[cfg(feature = "plugins")]
+        Self::settle_plugins(&launched, &plugins).await;
+        launched
     }
 
     fn from_parts(
@@ -310,6 +484,8 @@ impl Browser {
                 tasks: StdMutex::new(Vec::new()),
                 download_dir: StdMutex::new(None),
                 context_routes: StdMutex::new(HashMap::new()),
+                #[cfg(feature = "plugins")]
+                plugins_open: AtomicBool::new(false),
             }),
         }
     }
@@ -489,7 +665,19 @@ impl Browser {
         let id = response["targetId"].as_str().ok_or_else(|| {
             SeleniumBaseError::cdp_driver("Target.createTarget returned no targetId")
         })?;
-        let session = self.session_for(id).await?;
+        let session = match self.session_for(id).await {
+            Ok(session) => session,
+            Err(error) => {
+                if matches!(error, SeleniumBaseError::Plugin { .. }) {
+                    // A tab its plugins did not prepare is neither handed out
+                    // nor left open.
+                    let _ = self
+                        .execute("Target.closeTarget", json!({ "targetId": id }))
+                        .await;
+                }
+                return Err(error);
+            }
+        };
         // A tab behind its own password-protected proxy needs its prompts
         // answered from its very first request.
         if let Some(credentials) = context.and_then(|context| context.credentials) {
@@ -552,7 +740,8 @@ impl Browser {
         }
     }
 
-    /// Enables the domains a tab needs and injects the page helpers.
+    /// Enables the domains a tab needs and injects the page helpers, then
+    /// gives the tab the plugins' packages and `on_page_created`.
     async fn prepare_session(&self, target: &str, session: &str) -> Result<(), SeleniumBaseError> {
         let client = &self.inner.client;
         let send = |method: &'static str, params: Value| client.send(method, params, Some(session));
@@ -622,6 +811,10 @@ impl Browser {
             )
             .await?;
         }
+        // Last, so a plugin sees the tab as the library left it and may
+        // change any of it.
+        #[cfg(feature = "plugins")]
+        super::plugin_hooks::on_page_created(&self.inner.options.plugins, client, session).await?;
         Ok(())
     }
 
@@ -766,11 +959,17 @@ impl Browser {
     /// Closes the browser if this handle launched it.
     ///
     /// A browser attached with [`connect`](Self::connect) is left running.
+    /// The plugins' `on_close` hooks run first, once; their errors are logged,
+    /// not returned.
     ///
     /// # Errors
     ///
     /// Never fails in practice; the `Result` leaves room for cleanup errors.
     pub async fn close(&self) -> Result<(), SeleniumBaseError> {
+        #[cfg(feature = "plugins")]
+        if self.inner.plugins_open.swap(false, Ordering::SeqCst) {
+            super::plugin_hooks::on_close(&self.inner.options.plugins).await;
+        }
         let tasks: Vec<_> = locked(&self.inner.tasks).drain(..).collect();
         for task in tasks {
             task.abort();

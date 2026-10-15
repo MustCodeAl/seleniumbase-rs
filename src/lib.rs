@@ -96,6 +96,16 @@ pub mod mcp;
     unused_lifetimes
 )]
 pub mod ocr;
+/// The plugin API of ADR 004, the crate `seleniumbase-rs-plugin` (feature
+/// `plugins`): the `Plugin` trait, `PluginSet`, `LaunchSettings` and the
+/// `BrowserHandle` and `PageHandle` traits.
+///
+/// Give a set of plugins to
+/// [`LaunchOptionsBuilder::plugins`](sb_cdp::LaunchOptionsBuilder::plugins).
+/// A plugin crate depends on `seleniumbase-rs-plugin` itself, never on this
+/// crate. Not to be confused with [`plugins`], the test-reporting plugins.
+#[cfg(feature = "plugins")]
+pub use seleniumbase_rs_plugin as plugin_api;
 pub mod plugins;
 pub mod profile_payloads;
 pub mod resources;

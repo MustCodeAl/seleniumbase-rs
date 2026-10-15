@@ -392,15 +392,24 @@ merged. In order:
 8. **Not planned for now:** HTTP/3, CHIPS cookies, `Critical-CH` retries, and the
    `--remote-debugging-pipe` transport.
 
-## 7. Plugin framework (proposed)
+## 7. Plugin framework (in progress)
 
 A `Plugin` trait and `PluginSet`, in their own repository (`seleniumbase-rs-plugins`), so community crates
 (`seleniumbase-rs-plugin-<name>`) can change how a browser starts and what every
 page gets (puppeteer-extra and Zorilla are examples of the ecosystem). Design and phases:
-[ADR 004](docs/adr/004-plugin-framework.md). It also adds `add_script_tag`,
-`add_style_tag` and `add_init_script` to `sb_cdp::Page`, and the real Bootstrap
-Tour and Hopscotch libraries for the two tour themes that fall back to the
-built-in tour today.
+[ADR 004](docs/adr/004-plugin-framework.md).
+
+- **Done:** phase 1, the plugins repository; phase 2, the hook points of the
+  Pure CDP engine behind the `plugins` feature (`LaunchOptionsBuilder::plugins`,
+  hooks at launch, `connect_with_plugins`, every tab and close,
+  `SeleniumBaseError::Plugin`), with `LaunchOptionsBuilder::extension` and
+  `preference` so every launch setting a plugin changes reaches the browser.
+  Guide: `docs/tutorials/plugins.md`. Tested against the mocked browser only.
+- **Missing:** `add_script_tag`, `add_style_tag` and `add_init_script` on
+  `sb_cdp::Page`; a real-Chrome test of the hooks, extensions and preferences;
+  phase 3 (the WebDriver engine); phase 4 (built-ins as plugins, the real
+  Bootstrap Tour and Hopscotch libraries for the two tour themes that fall back
+  to the built-in tour today).
 
 ## Publishing
 

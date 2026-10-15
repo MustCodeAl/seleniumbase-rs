@@ -167,6 +167,10 @@ turso = { version = "0.8", default-features = false, optional = true }
 ocrs = { version = "0.13", optional = true }
 rten = { version = "0.26", optional = true }
 image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
+# `plugins`: the plugin API (ADR 004), from its own repository until it is on
+# crates.io. No `rev`: plugin crates added with `cargo add --git` use the same
+# source, so Cargo resolves both to one commit and the `Plugin` traits match.
+seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", optional = true }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -206,6 +210,10 @@ impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls",
 # Reads text from screenshots and images (`ocr::Ocr`): ocrs, pure Rust. Its two
 # models (about 12 MB) are downloaded into the cache folder on first use.
 ocr = ["dep:ocrs", "dep:rten", "dep:image"]
+# Plugins for the pure CDP engine (ADR 004): `LaunchOptionsBuilder::plugins` and
+# the hooks at launch, connect, every new tab and close. The API is re-exported as
+# `seleniumbase_rs::plugin_api`.
+plugins = ["dep:seleniumbase-rs-plugin"]
 
 [dev-dependencies]
 # Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.

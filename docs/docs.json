@@ -100,6 +100,7 @@
           "tutorials/browser_profiles",
           "tutorials/tracing",
           "tutorials/test_plugins",
+          "tutorials/plugins",
           "tutorials/results_and_profiles",
           {
             "group": "Developer Guide",

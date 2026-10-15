@@ -5471,6 +5471,7 @@ dependencies = [
  "rustls",
  "rustwright",
  "scraper",
+ "seleniumbase-rs-plugin",
  "serde",
  "serde_json",
  "syn 3.0.7",
@@ -5492,6 +5493,16 @@ dependencies = [
  "which 8.0.6",
  "wreq",
  "zip",
+]
+
+[[package]]
+name = "seleniumbase-rs-plugin"
+version = "0.1.0"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=a70c00fb4bc1c82c09c1175db6efe01b9daf3768#a70c00fb4bc1c82c09c1175db6efe01b9daf3768"
+dependencies = [
+ "async-trait",
+ "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
