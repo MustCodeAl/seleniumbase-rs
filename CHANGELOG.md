@@ -6,6 +6,13 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
+## Unreleased
+
+### Fixed
+
+- `sbrs` exits quietly with status 0 when the reader of its output goes away
+  (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
+
 ## [0.3.0] - 2026-10-15
 
 A breaking release: the experimental stealth scraping layer leaves this crate.

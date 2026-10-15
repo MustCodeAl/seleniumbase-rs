@@ -1479,6 +1479,21 @@ fn main() -> std::process::ExitCode {
 }
 
 /// Runs the command on a Tokio runtime and turns its result into an exit status.
+/// Whether `error`, or any error it was caused by, is a broken pipe.
+fn is_broken_pipe(error: &(dyn std::error::Error + 'static)) -> bool {
+    let mut current = Some(error);
+    while let Some(error) = current {
+        if error
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|io| io.kind() == std::io::ErrorKind::BrokenPipe)
+        {
+            return true;
+        }
+        current = error.source();
+    }
+    false
+}
+
 fn run_command() -> std::process::ExitCode {
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -1492,6 +1507,9 @@ fn run_command() -> std::process::ExitCode {
     };
     match runtime.block_on(execute()) {
         Ok(()) => std::process::ExitCode::SUCCESS,
+        // The reader of standard output went away (`sbrs ... | head`): the
+        // normal end of a pipeline, not a failure.
+        Err(error) if is_broken_pipe(error.as_ref()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
             // `error:`, its causes and a `hint:`, and an exit status that
             // says which kind of failure it was (see `exit_code_for`).

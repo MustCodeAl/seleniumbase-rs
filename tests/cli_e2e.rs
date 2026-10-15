@@ -576,3 +576,26 @@ fn sbase_starts_with_the_stack_a_windows_main_thread_gets() {
         );
     }
 }
+
+#[test]
+fn a_reader_that_goes_away_early_is_not_an_error() {
+    // `sbrs completions zsh | head -c 80`: the reader closes the pipe, and the
+    // next write fails with a broken pipe. That is the normal end of a
+    // pipeline, so sbrs must not print an error or fail.
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_sbrs"))
+        .args(["completions", "zsh"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("start sbrs");
+    // Close the reading end before sbrs writes anything.
+    drop(child.stdout.take());
+    let output = child.wait_with_output().expect("wait for sbrs");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "status {:?}, stderr: {stderr}",
+        output.status
+    );
+    assert!(!stderr.contains("error"), "stderr: {stderr}");
+}
