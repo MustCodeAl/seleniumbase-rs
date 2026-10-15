@@ -14,11 +14,6 @@ rust = { version = "1.99", components = "clippy,rustfmt" }
 python = "3.14"
 # The Tauri example's CLI (`npm ci`, `npx tauri`).
 node = "lts"
-# Only for the `impersonate` feature, which builds BoringSSL from source.
-cmake = "4"
-# Optional: faster BoringSSL builds with CMAKE_GENERATOR=Ninja (on Windows, run
-# it from a Developer PowerShell so Ninja finds the Visual Studio compiler).
-ninja = "1"
 mdbook = "0.5"
 just = "1"
 cargo-deny = "0.20"
@@ -33,15 +28,15 @@ description = "Check formatting"
 run = "cargo fmt --all -- --check"
 
 [tasks.lint]
-description = "Clippy with warnings as errors, default and scrape features"
+description = "Clippy with warnings as errors, without and with the plugins and ocr features"
 run = [
   'cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings',
-  'cargo clippy --all-targets --features "scrape mcp-server test-util" -- -D warnings',
+  'cargo clippy --all-targets --features "mcp-server test-util plugins ocr" -- -D warnings',
 ]
 
 [tasks.test]
 description = "The test suite; tests that need a real browser are ignored"
-run = 'cargo test --features "scrape mcp-server test-util"'
+run = 'cargo test --features "mcp-server test-util plugins"'
 
 [tasks.deny]
 description = "Dependency licences, advisories and sources"
@@ -52,8 +47,8 @@ description = "Format, lint, tests and dependency policy, one after the other"
 run = [
   "cargo fmt --all -- --check",
   'cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings',
-  'cargo clippy --all-targets --features "scrape mcp-server test-util" -- -D warnings',
-  'cargo test --features "scrape mcp-server test-util"',
+  'cargo clippy --all-targets --features "mcp-server test-util plugins ocr" -- -D warnings',
+  'cargo test --features "mcp-server test-util plugins"',
   "cargo deny check",
 ]
 
@@ -64,17 +59,9 @@ set -e
 for file in tests/*_chrome.rs tests/browser_smoke.rs; do
   name=$(basename "$file" .rs)
   [ "$name" = playwright_chrome ] && continue
-  cargo test --features "scrape mcp-server test-util" --test "$name" -- --ignored --test-threads=1
+  cargo test --features "mcp-server test-util" --test "$name" -- --ignored --test-threads=1
 done
 '''
-
-[tasks.scrape-gate]
-description = "The scrape feature's checks (pure Rust)"
-run = "just scrape-gate"
-
-[tasks.imp-gate]
-description = "The impersonate feature's checks (needs cmake and about 1 GB of disk)"
-run = "just imp-gate"
 
 [tasks.parity-docs]
 description = "Regenerate docs/parity.md and fail if it was out of date"
