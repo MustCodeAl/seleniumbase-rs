@@ -28,14 +28,14 @@
     "LICENSE"
   ],
   "rules": [
-    "The crate is seleniumbase-rs and is imported as seleniumbase_rs; its default features are empty, so enable mcp-server for the MCP server, scrape or impersonate for the stealth scraping layer, and tui for the terminal apps.",
+    "The crate is seleniumbase-rs and is imported as seleniumbase_rs; its default features are empty, so enable mcp-server for the MCP server and tui for the terminal apps. The experimental stealth scraping layer (TLS and HTTP/2 impersonation, BrowserScraper, HttpSession, MitmProxy, StealthSession) is not in this crate since 0.3.0: it is the crates seleniumbase-rs-wire, seleniumbase-rs-scrape and seleniumbase-rs-impersonate from https://github.com/MustCodeAl/seleniumbase-rs-stealth.",
     "Use BaseCase with a BrowserConfig (with_browser, with_headless, with_mode, with_proxy) for SeleniumBase-style tests on WebDriver, and sb_cdp::Browser, Page and Locator to drive Chrome over the DevTools Protocol without a driver.",
     "Every browser call is async: run it on a Tokio runtime with #[tokio::main] or #[tokio::test].",
     "Selectors are strings: CSS by default, XPath when they start with / or (, and :contains(text) works inside any selector.",
     "Errors are SeleniumBaseError; match on its variants rather than on message text.",
     "Call quit() on a BaseCase and close() on an sb_cdp::Browser when done; dropping the last Browser handle kills the process it launched.",
     "docs/parity.md maps each Python SeleniumBase method to its Rust name and says whether it is implemented, composed from other calls, or not applicable.",
-    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.2.0\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
+    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.3.0\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
     "chromedriver, msedgedriver and geckodriver are downloaded to match the installed browser when a session starts; sbrs install <driver> fetches one ahead of time, and the sb_cdp engine needs none.",
     "To migrate tests, sbrs import-playwright, sbrs import-puppeteer and sbrs import-python write Rust tests; statements they cannot convert stay as TODO comments with their line numbers."
   ]

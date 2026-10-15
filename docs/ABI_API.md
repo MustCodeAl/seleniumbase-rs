@@ -29,12 +29,15 @@ The crate root exposes the following modules:
 | `plugins` | Cloud/logging plugin interfaces. |
 | `resources` | Where downloaded browser drivers live and how a chromedriver is found. |
 | `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
-| `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is **experimental**: it belongs to the stealth layer below. |
+| `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is **experimental**: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
-| `wire` | **Experimental.** Behind `scrape` or `impersonate`. Pure TLS and HTTP/2 wire formats (`ClientHello`, JA3, JA4, Akamai) and the measured browser tables. |
-| `scrape` | **Experimental.** Behind `scrape`. Cookie jar, stealth identity, challenge detection, egress, events, `BrowserScraper`. |
-| `impersonate` | **Experimental.** Behind `impersonate`. The impersonating client, `HttpSession`, `MitmProxy`, `StealthSession` and the ephemeral-CA TLS server. |
+
+The modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. They are
+the crates `seleniumbase-rs-wire`, `seleniumbase-rs-scrape` and
+`seleniumbase-rs-impersonate` of
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+now, which build on the public items of `sb_cdp` and `stealth` listed here.
 
 ## Crate-root re-exports
 
@@ -48,8 +51,7 @@ The most common types are re-exported from the crate root for convenience:
 | `Fingerprint`, `StealthFlags` | yes |
 | `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport` | yes |
 | `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry` | yes |
-| `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, **experimental** (part of the stealth layer) |
-| The stealth layer: `BrowserScraper`, `ScrapeError`, `StealthIdentity`, `SessionPolicy`, `CookieJar`, `Emulation`, `TlsSpec`, `H2Spec`, `HeaderSpec` (feature `scrape`); `ImpersonationProfile`, `impersonation_client`, `HttpSession`, `MitmProxy`, `MitmOptions`, `StealthSession`, `StealthSessionBuilder`, `StealthFetch`, `EphemeralCa` (feature `impersonate`); the full lists are in `lib.rs` | yes, **experimental** |
+| `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, **experimental** (serves the stealth layer) |
 | `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `engine_spoofing_args` | yes |
 | `Chart`, `ChartType`, `TourTheme`, `Gui` | yes |
 | `run_browser_test`, `BrowserTestFuture` | yes |
@@ -138,8 +140,9 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 | `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbrs report` command. A Turso dependency needs Rust 1.90, which the crate's `rust-version` (1.99) already covers. | no |
 | `full-tracing` | Enables `tracing-timing` histograms. | no |
 | `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
-| `scrape` | Enables `wire` and `scrape` (pure Rust; adds `psl`). Experimental. | no |
-| `impersonate` | Includes `scrape`; enables `impersonate` (wreq and BoringSSL; needs cmake). Experimental. | no |
+
+The experimental features `scrape` and `impersonate` were removed in 0.3.0 (see
+the modules above).
 
 When adding feature-gated code, use `#[cfg(feature = "...")]` and declare the
 dependency as `optional = true` in `Cargo.toml`.
@@ -178,12 +181,9 @@ fn read_config(path: &str) -> Result<String> {
 
 ## What is not covered
 
-**The stealth layer is not yet a stable API.** `wire`, `scrape`, `impersonate`,
-their crate-root re-exports and `stealth::providers::session_registry` are
-experimental: names, fields and error variants may change in any release, even a
-patch release, as measurements and reviews come in. The `scrape` and `impersonate`
-features are off by default for that reason, and `impersonate` pins `wreq` and
-`btls` to release-candidate versions.
+**`stealth::providers::session_registry` is not yet a stable API.** It serves the
+experimental stealth layer of seleniumbase-rs-stealth: its names and behaviour may
+change in any release, even a patch release, as measurements and reviews come in.
 
 Internal helper modules, `#[doc(hidden)]` items, and items under
 `api::base_case_impls` are implementation details. They may change without a

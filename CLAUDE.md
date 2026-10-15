@@ -26,9 +26,14 @@ status of every Python API, `parity/upstream.toml` the upstream version,
 `rust-version = "1.99"` (the newest stable; the `msrv` CI job and the
 `Dockerfile` base image must move with it). Binaries: `sbrs` (CLI) and
 `sbrs-mcp` (MCP server, feature `mcp-server`). Default features are
-empty; `gui`, `tui`, `turso`, `rustwright` are opt-in, and so are `scrape` (pure
-Rust, adds `psl`) and `impersonate` (includes `scrape`, builds BoringSSL through
-wreq and btls, needs cmake).
+empty; `gui`, `tui`, `turso`, `rustwright`, `plugins`, `ocr` are opt-in. The
+experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
+`MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)
+moved out in 0.3.0 to the workspace
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+(crates `seleniumbase-rs-wire`, `-scrape`, `-impersonate`), which uses only the
+public API of this crate: keep items it imports public (`stealth::randomize`,
+`sb_cdp`).
 
 ## Two engines
 
@@ -45,9 +50,6 @@ wreq and btls, needs cmake).
 | `browser/` | `BrowserConfig`/`Browser`/`DriverMode` (`config.rs`), `BrowserSession` (`session.rs`), `launcher`, `driver_access` (repairs and runs drivers), `downloader`, `playwright`. |
 | `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `proxy_auth`, `webrtc`, `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
 | `stealth/` | `fingerprint.rs` (`Fingerprint`, `StealthFlags`, `ProxyConfig`, `ClientHints`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
-| `wire/` | (feature `scrape` or `impersonate`) Pure wire formats: `ja3`, `ja4`, `akamai`, `client_hello`, `tls_spec`, `h2_spec`, `h2_frames`, `header_spec`, `ids`, and `emulation`, the measured browser tables embedded from `wire/measured/*.json` (one entry: Chrome 155 on macOS). `BrowserKind` is in `mod.rs`. No I/O, checked by `tests/scrape_domain_purity.rs`. Held to the pedantic lint set. |
-| `scrape/` | (feature `scrape`) `challenge` (`detect`, `markers`, `mitigation`), `egress` (`route`, `pool`, `geo`, `redact`), `jar` (`CookieJar`, `Set-Cookie`), `ledger` (`state`, `events`), `passport` (`StealthIdentity`, `SessionPolicy`), `error` (`ScrapeError`), and `runtime/`, which holds all the I/O: `BrowserScraper`, the CDP leg, `EgressSwitch`, `JsonStateStore`, the identity file, the tracing sink and `capture/`. The directories other than `runtime` are pure (same test). Pedantic lint set. |
-| `impersonate/` | (feature `impersonate`) `client` and `convert` (the only files that name wreq types), `capture_h2`, `tls_server/` (`EphemeralCa`), `http_session/` (`HttpSession`), `mitm/` (`MitmProxy`), `stealth_session/` (`StealthSession`). Pedantic lint set. The stealth layer (`wire`, `scrape`, `impersonate`, `session_registry`) is experimental, not a stable API. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); entry `src/bin/mcp_server.rs`. Held to the pedantic lint set. |
 | `cli/` | `bin/sbrs.rs` (clap), `commands.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...), `bin/report.rs`. |
@@ -84,12 +86,8 @@ mdbook build
 - Tests that launch a real Chrome are named `*_chrome.rs` (plus `browser_smoke`)
   and are `#[ignore]`d. Run them one binary at a time (the nextest `chrome` group
   has one thread). Mock-driven tests (`tests/sb_cdp_*.rs`) need no browser.
-- Stealth features: `just scrape-gate` (pure Rust, runs here) and `just imp-gate`
-  (cmake and BoringSSL, about 1 GB of target disk). For the `impersonate` code
-  start with `cargo clippy --features impersonate --lib`; the Rust MCP does not
-  load that feature. The Chrome tests of the stealth layer are
-  `impersonate_http_chrome`, `impersonate_mitm_chrome` and `stealth_session_chrome`,
-  and they run Chrome 155 headless on macOS.
+- The stealth layer's gates, BoringSSL build (cmake) and Chrome tests live in
+  the seleniumbase-rs-stealth repository, not here.
 - Publishing: gate the exact commit, `git fetch`, confirm `origin/main` has not
   moved, fast-forward push `"$C:refs/heads/main"`, then check local equals
   remote. No force-push. Commits carry no `Co-Authored-By` or Claude attribution.
@@ -115,15 +113,11 @@ mdbook build
 
 ## Work in flight
 
-`ROADMAP.md` lists what is done and missing. The stealth work (features `scrape`
-and `impersonate`: wire formats, the measured Chrome 155 on macOS, custom
-JA3/JA4/Akamai inputs, `BrowserScraper`, `HttpSession`, `MitmProxy`,
-`StealthSession`, the hardening of the pure CDP page script) is merged as work
-packages WP0 to WP17, written as our own code with no dependency on
-stealthscraper-rs. The WP18 security reviews are done and their fixes are in
-progress; WP19 (re-exports, documentation, final gates) follows. Then examples
-and benchmarks, last. Only macOS and Chrome 155 are measured; the layer is
-experimental and was tested against local servers and a local Chrome, not live
-services. The design is `docs/design/stealth_parity_plan.md`, the user-facing
-page `docs/tutorials/stealth_scraping.md`, the layout rules
-`docs/adr/003-stealth-scraping-layout.md`.
+`ROADMAP.md` lists what is done and missing. Version 0.3.0 removed the stealth
+layer (the features `scrape` and `impersonate`, modules `wire`, `scrape`,
+`impersonate`); it continues, experimental, in
+https://github.com/MustCodeAl/seleniumbase-rs-stealth, which depends on this
+crate by git. What stays here for it is the hardening of the pure CDP page
+script and the public items it imports. The design history is
+`docs/design/stealth_parity_plan.md` and `docs/adr/003-stealth-scraping-layout.md`;
+`docs/tutorials/stealth_scraping.md` now only points to the new repository.

@@ -16,19 +16,18 @@
 #       -v "$PWD":/src:ro -v sbrs-verify-target:/target \
 #       -v sbrs-verify-registry:/usr/local/cargo/registry \
 #       seleniumbase-rs:verify-tools \
-#       cargo test --features "mcp-server test-util scrape" --no-fail-fast
+#       cargo test --features "mcp-server test-util" --no-fail-fast
 #
 # A real-browser test binary, one at a time:
 #
 #   ... seleniumbase-rs:verify-tools \
-#       cargo test --features "mcp-server test-util scrape" --test sb_cdp_chrome \
+#       cargo test --features "mcp-server test-util" --test sb_cdp_chrome \
 #       -- --ignored --test-threads=1
 #
-# The few tests that need a headed browser (the measurement tools) get a virtual display with
-# `-e SBRS_XVFB=1`:
+# A test that needs a headed browser gets a virtual display with `-e SBRS_XVFB=1`:
 #
 #   ... -e SBRS_XVFB=1 seleniumbase-rs:verify-tools \
-#       cargo test --features "mcp-server test-util scrape" --test scrape_capture_chrome \
+#       cargo test --features "mcp-server test-util" --test NAME_chrome \
 #       -- --ignored --test-threads=1
 #
 # The image sets CI=true and SB_NO_SANDBOX=1 because Chromium refuses to start its sandbox as

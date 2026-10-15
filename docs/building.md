@@ -44,7 +44,7 @@ Set up this computer to build and test the Rust library seleniumbase-rs
    cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
    cargo test --features "mcp-server test-util"
 4. Only if I ask for a feature, install its extras from the "Extras for single
-   features" part of docs/building.md (s3, gui, impersonate, the Tauri example).
+   features" part of docs/building.md (s3, gui, the Tauri example).
 Don't edit any code. Finish with a short list of what you installed, the
 versions, and anything that failed with its first error line.
 ```
@@ -135,8 +135,8 @@ browsers it found and whether their drivers match.
 
 ### Extras for single features
 
-Most features need nothing more: `tui`, `scrape`, `mcp-server`, `turso`,
-`playwright`, `azure`, `gcp`, `full-tracing` and `test-util`. The rest:
+Most features need nothing more: `tui`, `mcp-server`, `turso`, `playwright`,
+`azure`, `gcp`, `full-tracing`, `test-util`, `ocr` and `plugins`. The rest:
 
 **`s3`** needs OpenSSL on Linux (nothing on macOS and Windows):
 
@@ -152,32 +152,11 @@ Accessibility. On Windows nothing. On Debian and Ubuntu:
 sudo apt-get install -y libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config
 ```
 
-**`impersonate`** builds BoringSSL from source and needs CMake and libclang.
-
-macOS (Xcode's tools bring clang and libclang):
-
-```bash
-brew install cmake
-```
-
-Debian and Ubuntu (Fedora: `sudo dnf install -y cmake clang clang-devel`):
-
-```bash
-sudo apt-get install -y cmake clang libclang-dev
-```
-
-Windows, after the Build Tools above:
-
-```powershell
-winget install Kitware.CMake
-winget install NASM.NASM
-winget install LLVM.LLVM
-$env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
-```
-
-Optional and faster: Ninja (`brew install ninja`, `sudo apt-get install -y
-ninja-build`, `winget install Ninja-build.Ninja`) with `CMAKE_GENERATOR=Ninja`.
-On Windows, Ninja builds must run from a "Developer PowerShell for VS 2022".
+**The stealth scraping layer** (the former `scrape` and `impersonate` features)
+moved in 0.3.0 to its own workspace,
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth).
+Its BoringSSL build needs CMake and libclang (and NASM and LLVM on Windows);
+those instructions live in that repository now. This crate needs none of them.
 
 **The Tauri example** (`examples/tauri-profile-manager`) needs Node LTS (`brew
 install node`, `winget install OpenJS.NodeJS.LTS`). On Windows it also uses
@@ -191,14 +170,13 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev 
 install mdbook`), Python 3.10+ for the parity tables in `tools/parity`, and
 `just` and `cargo-deny` (`brew install just cargo-deny` or `cargo install just
 cargo-deny`). With [mise](https://mise.jdx.dev), `mise install` sets up Rust,
-Python, Node, CMake, Ninja, mdBook, just and cargo-deny in one step.
+Python, Node, mdBook, just and cargo-deny in one step.
 
 ### What has been built where
 
-Everything on macOS (Apple Silicon). The default build, the test features and
-`impersonate` on Debian 12 arm64 in Docker. The default build, the test
-features, `impersonate`, the real-browser tests and the Tauri example on
-Windows 11 x64. The Linux `gui` and Tauri
+Everything on macOS (Apple Silicon). The default build and the test features
+on Debian 12 arm64 in Docker. The default build, the test features, the
+real-browser tests and the Tauri example on Windows 11 x64. The Linux `gui` and Tauri
 package lists come from the CI configuration, which has not been able to run
 (see [Operating systems](platforms.md)).
 
@@ -334,11 +312,10 @@ desktop or cloud stacks.
 | `turso` | `ResultStore`, `ProfileVault`, `sbrs report` | an embedded database |
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
-| `scrape` | wire fingerprints (JA3, JA4, Akamai), cookie jar, stealth identities, `BrowserScraper` (adds `psl`) | pure Rust; see [Stealth Scraping](tutorials/stealth_scraping.md) |
-| `impersonate` | browser-identical TLS and HTTP/2 (BoringSSL): the client, the TLS server, `HttpSession`, `MitmProxy` and `StealthSession` | needs cmake and a C/C++ toolchain; macOS and Chrome 155 only are measured |
 | `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](tutorials/remaining_helpers.md#reading-text-from-the-screen-ocr) |
 
-Combine them with `--features "mcp-server tui"`.
+Combine them with `--features "mcp-server tui"`. The features `scrape` and
+`impersonate` were removed in 0.3.0; see [Stealth Scraping](tutorials/stealth_scraping.md).
 
 ## Check your build
 
@@ -385,12 +362,11 @@ the image downloads an aarch64 chromedriver (Chrome for Testing publishes
 ### Run the tests in a container
 
 `docker/Dockerfile.verify` is a throwaway image for the test suite: the Rust
-toolchain, Debian's Chromium and chromedriver, `cmake` and `clang` for the
-`impersonate` feature's BoringSSL, and Xvfb. `docker/verify-linux.sh` is its entry
+toolchain, Debian's Chromium and chromedriver, and Xvfb. `docker/verify-linux.sh` is its entry
 point: it copies the read-only checkout mounted at `/src` to `/work`, so tests that
 write beside their sources cannot touch your tree, and then runs your command there.
-The build output lives in a named volume (about 4.4 GB for the runs below), and the
-Cargo registry in another.
+The build output lives in a named volume (about 4.4 GB when these runs still built
+the stealth layer too), and the Cargo registry in another.
 
 ```bash
 docker build -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .
@@ -405,23 +381,19 @@ run() {
     seleniumbase-rs:verify-tools "$@"
 }
 
-run cargo test --locked --features "mcp-server test-util scrape" --no-fail-fast --lib --tests
-run cargo test --locked --features "mcp-server test-util scrape" --no-fail-fast --doc \
+run cargo test --locked --features "mcp-server test-util" --no-fail-fast --lib --tests
+run cargo test --locked --features "mcp-server test-util" --no-fail-fast --doc \
     -- --test-threads=2
-run cargo test --locked --features "impersonate test-util" --lib impersonate
-run cargo test --locked --features "impersonate test-util" --no-fail-fast \
-    --test impersonate_http --test impersonate_mitm --test stealth_session \
-    --test impersonate_wire --test impersonate_capture_h2
 
 # A real-browser binary, one at a time:
-run cargo test --locked --features "mcp-server test-util scrape" --test sb_cdp_chrome \
+run cargo test --locked --features "mcp-server test-util" --test sb_cdp_chrome \
     -- --ignored --test-threads=1
 
-# The tests that need a headed Chrome get a virtual display:
+# A test that needs a headed Chrome gets a virtual display:
 docker run --rm --memory=4g --memory-swap=4g --shm-size=1g -e SBRS_XVFB=1 \
     -e CARGO_BUILD_JOBS=2 -v "$PWD":/src:ro -v sbrs-verify-target:/target \
     -v sbrs-verify-registry:/usr/local/cargo/registry seleniumbase-rs:verify-tools \
-    cargo test --locked --features "mcp-server test-util scrape" --test scrape_capture_chrome \
+    cargo test --locked --features "mcp-server test-util" --test NAME_chrome \
     -- --ignored --test-threads=1
 ```
 

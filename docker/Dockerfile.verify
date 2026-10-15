@@ -2,23 +2,18 @@
 
 # A throwaway image for running the test suite on Linux. It is not the product image (that is
 # the `Dockerfile` at the repository root, which only builds `sbrs`). This one holds the Rust
-# toolchain, Debian's Chromium with its driver, and what the `impersonate` feature needs to
-# build BoringSSL.
+# toolchain and Debian's Chromium with its driver. (The BoringSSL build tools of the stealth
+# layer belong to https://github.com/MustCodeAl/seleniumbase-rs-stealth now.)
 #
 # Build it with `docker build -f docker/Dockerfile.verify -t seleniumbase-rs:verify-tools .`
 # and run the suites with `docker/verify-linux.sh`, which says how. Remove it with
 # `docker rmi seleniumbase-rs:verify-tools` when you are done.
 FROM rust:1.99-bookworm
 
-# chromium and chromium-driver: the real-browser tests. cmake, clang and libclang-dev: BoringSSL
-# (`btls`) is built from source and its bindings are generated with bindgen. ca-certificates:
-# the registry downloads.
+# chromium and chromium-driver: the real-browser tests. ca-certificates: the registry downloads.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-driver \
-    cmake \
-    clang \
-    libclang-dev \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,9 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # gate (`cargo clippy ... -D warnings`, `cargo fmt --all -- --check`) run in it too.
 RUN rustup component add clippy rustfmt
 
-# xvfb and xauth: a virtual display for the few tests that need a headed browser (the
-# measurement tools run the real, headed Chrome because a headless one reports another
-# identity). Run those under `xvfb-run -a`.
+# xvfb and xauth: a virtual display for the few tests that need a headed browser. Run those
+# with `-e SBRS_XVFB=1` (see docker/verify-linux.sh).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     xauth \

@@ -13,7 +13,8 @@ pluggable evasion system.
 This page explains how to use built-in fingerprint presets, build custom
 profiles, choose masking modes, and apply native-level spoofing through CDP.
 It covers what a page can read inside the browser. The TLS and HTTP/2 side, and
-the scraper built on it, is in [Stealth Scraping](stealth_scraping.md).
+the scraper built on it, is a separate project now; see
+[Stealth Scraping](stealth_scraping.md).
 
 ## What you will learn
 
@@ -142,8 +143,9 @@ Things to know:
   in its user agent). Pair the identity with a browser of that era, or change
   `user_agent`, `client_hints` and `core_version` together.
   `Fingerprint::randomized_with_major(os, seed, major)` fixes the Chromium major
-  instead (Safari and iOS ignore it); the stealth scraper uses it so the identity
-  claims the Chrome that is running (see [Stealth Scraping](stealth_scraping.md)).
+  instead (Safari and iOS ignore it); the stealth scraper of seleniumbase-rs-stealth
+  uses it so the identity claims the Chrome that is running (see
+  [Stealth Scraping](stealth_scraping.md)).
 - **iOS differs.** Safari has no `navigator.deviceMemory` and no
   `navigator.userAgentData`, so an iOS identity sets neither (`device_memory` and
   `client_hints` are `None`).
@@ -780,15 +782,13 @@ automation markers:
 * Nothing on this page changes the TLS or HTTP/2 behaviour of the browser. A
   fingerprint reaches the page through scripts and protocol overrides; the
   `ClientHello`, the HTTP/2 connection start and the header order that leave the
-  machine are those of the browser you launch. The `scrape` and `impersonate`
-  Cargo features add JA3, JA4, peetprint and Akamai parsers, a measured table for
-  one browser (Chrome 155 on macOS), and a client that sends that handshake or
-  one you specify; see [Stealth Scraping](stealth_scraping.md). That client is a
-  separate building block. It is not applied to `BaseCase` or to the Pure CDP
-  engine on its own. `MitmProxy` gives a real Chrome on the Pure CDP engine the
-  impersonated handshake, and `StealthSession` uses it (macOS and Chrome 155
-  only; WebSocket is relayed for `wss://` only). The design and the work still open
-  are in the [Stealth and impersonation plan](../design/stealth_parity_plan.md).
+  machine are those of the browser you launch. JA3, JA4, peetprint and Akamai
+  parsers, a measured table for one browser (Chrome 155 on macOS), a client that
+  sends that handshake or one you specify, and `MitmProxy`, which gives a real
+  Chrome on the Pure CDP engine the impersonated handshake, are in the separate,
+  experimental seleniumbase-rs-stealth crates since 0.3.0; see
+  [Stealth Scraping](stealth_scraping.md). The design history is the
+  [Stealth and impersonation plan](../design/stealth_parity_plan.md).
 * Some dimensions (WebGL vendor/renderer, canvas/audio noise, media devices,
   fonts, battery, etc.) have no CDP override and remain JavaScript-based even
   when `native_spoofing` is enabled.

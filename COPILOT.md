@@ -6,6 +6,8 @@ This file is the single source of truth for AI agents working on this repository
 
 A Rust port of the Python [SeleniumBase](https://github.com/seleniumbase/SeleniumBase) testing framework. It provides a `BaseCase` API, undetected/stealth browser modes, CDP automation, an `sbrs` CLI, an MCP server, and migration tools.
 
+The experimental stealth scraping layer (wire fingerprints, TLS and HTTP/2 impersonation, formerly the `scrape` and `impersonate` features) is not in this repository: since 0.3.0 it lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth).
+
 ## Quick verification commands
 
 Run these after any non-trivial change:

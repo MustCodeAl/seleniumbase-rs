@@ -79,27 +79,24 @@ for suites that belong in Rust or that ship as a native binary.
 These Python and Node tools focus on not looking automated. This crate has the
 same family of features from SeleniumBase (UC mode, fingerprints, masking
 providers, human-paced input) and a driver-free engine that leaves no webdriver
-markers. It has a TLS (JA3/JA4) and HTTP/2 impersonation client behind the
-`impersonate` feature, built from measured data for one browser and system (Chrome
-155 on macOS) or from your own strings ([Stealth Scraping](tutorials/stealth_scraping.md)).
-It also has an HTTP session that continues a browser's session with the same
-handshake (`HttpSession`), a loopback proxy that gives a real Chrome the
-impersonated handshake (`MitmProxy`), and a session that moves between the two
-(`StealthSession`). All three are young: they are tested against loopback sites
-and a local Chrome 155 on macOS, not against live services, and the proxy refuses
-WebSocket. What it does not have is measured data beyond macOS and Chrome 155
-([the plan](design/stealth_parity_plan.md)). No tool, this one included, can
-promise to pass a given detection service.
+markers. TLS (JA3/JA4) and HTTP/2 impersonation, built from measured data for
+one browser and system (Chrome 155 on macOS), with an HTTP session that continues
+a browser's session (`HttpSession`), a loopback proxy for a real Chrome
+(`MitmProxy`) and a session that moves between the two (`StealthSession`), is a
+separate, experimental project on top of this crate:
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+(see [Stealth Scraping](tutorials/stealth_scraping.md)). No tool, this one
+included, can promise to pass a given detection service.
 
 ### HTTP impersonation clients (curl-impersonate, wreq and similar)
 
 They make a plain HTTP client look like a browser at the TLS level, without a
-browser. This crate has the same building block inside the `impersonate` feature
-(wreq on BoringSSL, with a measured Chrome 155 profile for macOS and custom
-JA3/JA4/Akamai inputs), and a way to solve a challenge in Chrome and continue over
-HTTP (`StealthSession`, with `HttpSession` and `MitmProxy` under it), which is
-young and measured on macOS with Chrome 155 only. If TLS fidelity for another
-browser or system is what you need today, use one of those libraries directly.
+browser. This crate does not; the companion crate `seleniumbase-rs-impersonate`
+(in seleniumbase-rs-stealth) wraps wreq on BoringSSL with a measured Chrome 155
+profile for macOS, custom JA3/JA4/Akamai inputs, and a way to solve a challenge
+in Chrome and continue over HTTP. It is young and measured on macOS with Chrome
+155 only. If TLS fidelity for another browser or system is what you need today,
+use one of those libraries directly.
 
 ## At a glance
 
@@ -124,7 +121,7 @@ Be honest with yourself about these before choosing it:
 - Chrome-centred: no WebKit, and no bundled browser downloads beyond the
   chromedriver.
 - No trace viewer, no cross-language ecosystem, a small community.
-- TLS and HTTP/2 impersonation exist for one measured browser and system (Chrome
-  155 on macOS), as a client, an HTTP session, a proxy for a real Chrome and a
-  dual-mode session. The stealth layer is not a stable API yet, and it was tested
-  against local servers and a local Chrome, not against live services.
+- TLS and HTTP/2 impersonation is not in this crate: it is the experimental
+  seleniumbase-rs-stealth project, measured for one browser and system (Chrome
+  155 on macOS) and tested against local servers and a local Chrome, not against
+  live services.

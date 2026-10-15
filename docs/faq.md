@@ -77,11 +77,12 @@ Yes: `SB_HEADLESS=true`. Always use it in containers and CI.
 It reduces the obvious signs (no webdriver markers in the pure CDP engine,
 coherent fingerprints, human-paced input), but there is no guarantee against any
 particular service, and the randomised identities have not been tested against
-live detection. A TLS (JA3/JA4) and HTTP/2 impersonation client exists behind the
-`impersonate` feature for one measured browser and system (Chrome 155 on macOS),
-with an HTTP session, a proxy that applies it to a real Chrome, and a session that
-moves between the two. They were tested against local servers and a local Chrome,
-not live services. See
+live detection. TLS (JA3/JA4) and HTTP/2 impersonation for one measured browser
+and system (Chrome 155 on macOS), with an HTTP session, a proxy that applies it to
+a real Chrome, and a session that moves between the two, is the separate,
+experimental [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+project (it left this crate in 0.3.0). It was tested against local servers and a
+local Chrome, not live services. See
 [the stealth tutorial](tutorials/fingerprint_stealth.md) and
 [Stealth Scraping](tutorials/stealth_scraping.md).
 

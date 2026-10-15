@@ -30,12 +30,12 @@ drives the browser.
 
 ## Turning plugins on
 
-Plugins are behind the `plugins` feature, off by default. The feature is newer
-than release 0.2.0, so take the crate from the main branch:
+Plugins are behind the `plugins` feature, off by default. The feature is in
+release 0.3.0 and later:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", branch = "main", features = ["plugins"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.3.0", features = ["plugins"] }
 ```
 
 The plugin API is its own crate, `seleniumbase-rs-plugin`, in the

@@ -45,8 +45,7 @@ Design rules that apply to everything below:
 | Per-file review pass | Bugs found by reading were fixed, each with a test, across the book (`docs/`), `src/api` (the top-level modules and `base_case_impls`), `behave`, `cli`, `common`, `plugins`, the stealth page scripts, `utils/extensions` and the Playwright path. The CLI generators and recorders are run as the real binary in `tests/cli_generators.rs` and `tests/cli_templates.rs`. |
 | Recorder | Every action `BaseCase` records or the live recorder captures becomes a call in the generated Rust. What cannot be generated becomes a `// skipped:` comment that says why, and the stdin recorder (`ActionRecorder::try_record`) refuses such a line and names the closest known action. |
 | Knowledge map and plans | `CLAUDE.md` (module map, checks, gotchas) and `docs/design/stealth_parity_plan.md` (20 work packages for the stealthscraper-rs feature set, JA3/JA4 and Akamai impersonation). |
-| Stealth scraping foundation (`scrape`, `impersonate`) | Work packages 0 to 17 of the plan are merged: wire parsers (`ClientHello`, JA3, JA4, peetprint, Akamai); the measured table with one entry, Chrome 155 on macOS, and the capture tools (`capture_tls`, `capture_hints`, `capture_h2`); `ImpersonationProfile`, `CustomProfileBuilder` and the wreq client; an RFC 6265 cookie jar; `StealthIdentity` and its identity file; `SessionPolicy`; challenge detection and a mitigation policy; a proxy pool; per-site state; `BrowserScraper`; the ephemeral-CA TLS server; and the hardening of the pure CDP page script (`session_registry`). Tested with committed captures, a scripted browser and `#[ignore]`d tests that drive a local Chrome (`tests/*_chrome.rs`), not against live bot protection. Only macOS and Chrome 155 are measured. See `docs/tutorials/stealth_scraping.md`. |
-| `HttpSession`, `MitmProxy`, `StealthSession` (`impersonate`; work packages 14 to 16) | `HttpSession` continues a browser page's session as plain requests with the measured handshake and headers (an RFC 6265 jar, redirects by hand, bounded bodies, challenge judging, the hand-over from a page and back). `MitmProxy` is a loopback proxy that ends a real Chrome's TLS with the ephemeral CA and replays each request through the impersonating client; WebSocket is relayed as `wss://` only. `StealthSession` moves between the two by the mitigation and session policies and starts the proxy only when a browser is needed. Tested against loopback sites, a scripted browser and, in `#[ignore]`d tests, a local Chrome 155 on macOS run headless (`tests/impersonate_http_chrome.rs`, `tests/impersonate_mitm_chrome.rs`, `tests/stealth_session_chrome.rs`); the trust of the SPKI-list switch is measured there too. Not run against a live service, and not a stable API. Only macOS and Chrome 155. |
+| Stealth scraping layer (moved out in 0.3.0) | Work packages 0 to 17 of the plan were built here as the features `scrape` and `impersonate` (wire parsers, the measured Chrome 155 table and capture tools, `ImpersonationProfile`, the cookie jar, `StealthIdentity`, challenge detection, the proxy pool, `BrowserScraper`, the ephemeral-CA TLS server, `HttpSession`, `MitmProxy`, `StealthSession`). On 2026-10-15 they moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-wire`, `-scrape`, `-impersonate`), which uses only this crate's public API. The hardening of the pure CDP page script (`session_registry`) stays here. |
 
 ## 1. Finish the parity upgrade (next)
 
@@ -360,41 +359,17 @@ installed here. Not yet looked at: pipelining `drag`'s steps, the combined
 visibility-and-centre evaluate for locators (worth about 0.1 ms), and the
 WebDriver path, which was not measured at all.
 
-## 6. Stealth scraping: what is left
+## 6. Stealth scraping: moved
 
-The plan is `docs/design/stealth_parity_plan.md`; its status table says what is
-merged. In order:
-
-1. **Security review fixes** (work package 18): the two review passes over the
-   MITM, credential handling and egress stickiness are done; the fixes they
-   found are in progress.
-2. **Final gates** (work package 19): the re-exports in `lib.rs`, `scrape/mod.rs`,
-   `impersonate/mod.rs` and `wire/mod.rs` and the documentation of `HttpSession`,
-   `MitmProxy` and `StealthSession` are written. Still to run: clippy over all
-   targets for each feature, doctests, `cargo audit` and `cargo deny`.
-3. **Run it headed and against more than local servers.** The Chrome-driving
-   tests of the proxy, the HTTP hand-over and the session run headless on
-   macOS with Chrome 155 against servers written for the tests.
-4. **WebSocket through the proxy** is relayed for `wss://` with the measured
-   WebSocket hello, and may be a tab's first request: the launch loads the
-   proxy's priming page, which leaves the proxy's credentials in Chrome (a
-   browser context created later loads it itself). `ws://` is relayed too: Chrome
-   sends it as a `CONNECT` whose tunnel carries the handshake in plain text, and
-   the proxy takes that handshake and nothing else. Still open: compression
-   (`permessage-deflate`) is passed through untested, and so is a `ws://`
-   WebSocket through an egress.
-5. **The first request to an HTTP/1.1-only origin** carries the HTTP/2
-   `priority` header in `HttpSession` and `MitmProxy`; later ones do not. The
-   protocol is known only after the connection opens.
-6. **Measure more systems.** Windows, Linux and Safari are refused
-   (`NotMeasured`) until someone runs the capture tools on them. A Chrome update
-   leaves the measured profile behind until `capture_tls`, `capture_hints` and
-   `capture_h2` are run again.
-7. **Known gaps.** `trust_anchors` needs a newer `btls` and `wreq` than the exact
-   pins; the ML-DSA signature algorithms and the GREASE signature algorithm are
-   not sent. A wire test fails by name when one of them closes.
-8. **Not planned for now:** HTTP/3, CHIPS cookies, `Critical-CH` retries, and the
-   `--remote-debugging-pipe` transport.
+The stealth scraping layer left this crate in 0.3.0 (2026-10-15). Its remaining
+work (the security review fixes, the final gates, headed and wider testing,
+WebSocket and HTTP/1.1 details, measuring more systems, the known `btls` and
+`wreq` gaps, listed in this section up to 0.2.x) belongs to
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
+where the crates `seleniumbase-rs-wire`, `seleniumbase-rs-scrape` and
+`seleniumbase-rs-impersonate` live. The design history is
+`docs/design/stealth_parity_plan.md`. What stays here is keeping the public
+items those crates import (`sb_cdp`, `stealth::randomize`) stable.
 
 ## 7. Plugin framework (in progress)
 

@@ -19,7 +19,7 @@ server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pur
 Chrome DevTools engine that needs no driver at all.
 
 > [!NOTE]
-> Young and moving fast: version `0.2.0`, installed from GitHub (not on
+> Young and moving fast: version `0.3.0`, installed from GitHub (not on
 > crates.io). See [Project status](#project-status) for what is verified and what
 > is not.
 
@@ -52,7 +52,7 @@ Chrome DevTools engine that needs no driver at all.
 | 🌐 **Every major browser** | Chrome, Edge, Firefox, Safari, Brave and Opera on WebDriver; chromedriver, msedgedriver and geckodriver are downloaded to match your browser. |
 | 🤖 **Built for AI agents** | MCP servers (`cdp`, `driver`, `sb`) with page inspection, selector diagnosis, console and network views, a debug bundle and export to a Rust test. See [Vibe coding](./docs/tutorials/vibe_coding.md). |
 | 🔁 **Bring your old tests** | Importers for Python SeleniumBase and Selenium, Playwright (JS, TS, Python), Puppeteer and Chrome Recorder files, plus a recorder that writes Rust. |
-| 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, fingerprint presets and evasions; an experimental layer with browser-identical TLS and HTTP/2. |
+| 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, fingerprint presets and evasions. Browser-identical TLS and HTTP/2 is a separate, experimental project: [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). |
 | 🛠️ **Batteries included** | The `sbrs` CLI, shell completions, a Docker image, `SB_*` configuration, tracing and cloud artifact uploads. |
 | 🧩 **Errors that help** | Every error carries a hint, and `sbrs` exits with a status that says what kind of failure it was. |
 
@@ -109,19 +109,19 @@ to run it:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.2.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.3.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.2.0", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.3.0", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
 > Building needs Rust 1.99 and a C compiler, and some features need system
-> packages (`impersonate` needs CMake, for example). Every command is in
+> packages (`gui` needs GTK and X11 on Linux, for example). Every command is in
 > [Building and installing](./docs/building.md#what-you-need); the platform
 > notes are in [Operating systems](./docs/platforms.md), and the Docker image in
 > [Deployment](./docs/deployment.md).
@@ -469,10 +469,13 @@ cookies, and execute JavaScript in the active page.
 | `test-util` | The scripted mock browser, for tests without Chrome. |
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
-| `scrape` | Stealth scraping: JA3, JA4 and Akamai parsers, a measured Chrome 155 table (macOS only), a cookie jar, stealth identities, challenge detection, `BrowserScraper` and the capture tools. Pure Rust; adds only `psl`. |
-| `impersonate` | Includes `scrape`. Browser-identical TLS and HTTP/2 through wreq and BoringSSL (`ImpersonationProfile`, `CustomProfileBuilder`), an ephemeral-CA TLS server, `HttpSession` (plain requests that continue a browser's session), `MitmProxy` (a loopback proxy that gives a real Chrome the impersonated handshake; WebSocket is relayed as `wss://` only) and `StealthSession` (moves between the two). Only macOS and Chrome 155 are measured, and the Chrome-driving tests run headless. Experimental, not a stable API. Needs cmake and a C/C++ toolchain. |
 
-No feature is on by default.
+No feature is on by default. The features `scrape` and `impersonate` were removed
+in 0.3.0: the stealth scraping layer (JA3/JA4/Akamai, the measured Chrome table,
+`BrowserScraper`, `HttpSession`, `MitmProxy`, `StealthSession`) is now the crates
+`seleniumbase-rs-wire`, `seleniumbase-rs-scrape` and `seleniumbase-rs-impersonate`
+in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+(see [Stealth Scraping](./docs/tutorials/stealth_scraping.md)).
 
 ## Documentation
 
@@ -555,6 +558,7 @@ comments for manual review.
 
 | Repository | What it is |
 |---|---|
+| [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) | The experimental stealth scraping layer: wire fingerprints, `BrowserScraper`, browser-identical TLS and HTTP/2 (`HttpSession`, `MitmProxy`, `StealthSession`) |
 | [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) | The plugin API (`seleniumbase-rs-plugin`), test fakes, official plugins and a template for your own ([ADR 004](./docs/adr/004-plugin-framework.md)) |
 | [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation) | Test a Tauri app's window with `BaseCase` on macOS, Windows and Linux (a WebDriver endpoint inside the app) |
 | [seleniumbase-rs-browser-extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension) | Browser extension: recorder, inspector, export to Rust tests |
@@ -572,8 +576,8 @@ recorded status in [docs/parity.md](./docs/parity.md):
 Two audits checked those claims: one fixed or re-marked 26 entries that did less
 than the Python method, the other 34 that promised more than the Rust did.
 
-**Testing.** About 3,000 automated tests run on every change, most of them
-against a mock browser or as unit tests. On top of that, 28 test files drive a
+**Testing.** About 2,200 automated tests run on every change, most of them
+against a mock browser or as unit tests. On top of that, 22 test files drive a
 real Chrome 155, and two more drive real Edge and Firefox; they are `#[ignore]`d
 and run on request. The real-browser suite has passed on macOS and Windows 11,
 and the main suite on Linux (arm64, in Docker).
@@ -599,7 +603,6 @@ Every release passes these checks:
 cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
-cargo clippy --features scrape --lib -- -D warnings
 cargo check --features turso --all-targets
 ```
 
@@ -618,5 +621,3 @@ the full set.
 > - **Firefox** sessions do not get a proxy, extensions, mobile emulation or the
 >   CDP and UC modes yet.
 > - **Ad blocking** does not reach frames loaded from other sites.
-> - **Stealth fingerprints** are measured for Chrome 155 on macOS only; the TLS
->   and HTTP/2 layer refuses other browsers and systems rather than guess.
