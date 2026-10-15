@@ -10,6 +10,21 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
+- The generated browser identity claims Chrome 154, 155 or 156 (was 153 to
+  155), and its high-entropy Client Hints name a real build per major
+  (`stealth::randomize::KNOWN_FULL_VERSIONS`: 155.0.8059.40 measured on macOS
+  27.0.1 by `tests/client_hints_chrome.rs`, 154.0.8037.100 and 156.0.8078.35 from
+  Google's version history) instead of `major.0.0.0`. Macs claim macOS 15.8.1,
+  26.7.1, 27.0.0 or 27.0.1; iPhones may claim Safari 26.0 with the frozen
+  `iPhone OS 18_6` (Safari 17.7 is gone). The Chrome presets, the `--mobile`
+  user agent and the examples claim Chrome 156 (`PRESET_CHROMIUM_MAJOR`), the
+  Android ones in Chrome's frozen `Linux; Android 10; K` form, and the iPhone
+  preset is Safari 26.0. Seeds map to other identities than before.
+- A fingerprint without Client Hints (the presets) gets its brand list, decoy
+  brand and full versions from `chromium_hints(major)` instead of a fixed
+  `Not(A:Brand` 24, the Client Hints platform name (`Windows`, not `Win32`), and
+  a `fullVersionList`.
+
 - The `sbrs` banner reads SeleniumBaseRust (figlet small font, 68 columns), and
   `sbrs --help` and `sbrs-mcp --help` say SeleniumBaseRust.
 - The tests' leftover-process checks (Edge, geckodriver, the MCP stdio servers)
@@ -23,6 +38,19 @@ work, `docs/parity.md` the per-API status).
   `rand_distr` is a new dependency.
 
 ### Added
+
+- `sbrs devtools` launches Chrome with its DevTools endpoint open (`--port`,
+  default 9222), prints the endpoint and configs for Google's
+  `chrome-devtools-mcp` and Microsoft's Playwright MCP (`--json` for one line of
+  JSON), and runs until Ctrl-C, which closes the browser. The Pure CDP MCP server
+  has `get_devtools_endpoint`, and `Browser::devtools_endpoint()` and
+  `LaunchOptionsBuilder::debugging_port` do the same from Rust. See
+  `docs/tutorials/devtools_mcp.md`, which also covers Firefox's and Safari's MCP
+  servers.
+- `.github/workflows/release.yml` builds `sbrs` and `sbrs-mcp` for five targets
+  on a version tag and attaches the archives, with completions and Warp
+  workflows, to the release; `[package.metadata.binstall]` points `cargo
+  binstall` at them. Not run yet (GitHub Actions is locked on the account).
 
 - Feature `ocr` (off by default): `ocr::Ocr` reads the text a page shows from
   its screenshot (`read_page`, for a `BaseCase` or an `sb_cdp::Page`) or from PNG
