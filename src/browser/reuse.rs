@@ -637,7 +637,8 @@ async fn attach(
         .map_or(DEFAULT_REQUEST_TIMEOUT, Duration::from_secs);
     let client = AttachClient::new(address, timeout)?;
     crate::install_tls_provider();
-    let driver = WebDriver::builder(address.server_url.as_str(), thirtyfour::Capabilities::new())
+    let server_url = crate::browser::session::server_url_for_joins(&address.server_url);
+    let driver = WebDriver::builder(server_url.as_str(), thirtyfour::Capabilities::new())
         .client(client)
         .request_timeout(timeout)
         .connect()

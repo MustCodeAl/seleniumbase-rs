@@ -59,6 +59,14 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   bundled extensions) instead of every format; zstd (a C library), bzip2, lzma,
   xz, ppmd and AES no longer compile.
 
+### Fixed
+
+- A WebDriver URL with a path and no trailing slash (a Grid's
+  `http://hub:4444/wd/hub`, or tauri-plugin-sbrs-automation's
+  `http://127.0.0.1:4445/<token>`) lost its last path segment, because the
+  client joins command paths as relative URLs; the slash is added when
+  connecting.
+
 ### Changed
 
 - The generated browser identity claims Chrome 154, 155 or 156 (was 153 to

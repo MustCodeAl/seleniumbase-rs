@@ -1093,12 +1093,29 @@ async fn connect_with_caps(
     caps: impl Into<thirtyfour::Capabilities>,
 ) -> Result<WebDriver, SeleniumBaseError> {
     crate::install_tls_provider();
+    let url = server_url_for_joins(url);
+    let url = url.as_str();
     match config.remote_webdriver_timeout_seconds {
         Some(seconds) => Ok(WebDriver::builder(url, caps)
             .request_timeout(Duration::from_secs(seconds))
             .connect()
             .await?),
         None => Ok(WebDriver::new(url, caps).await?),
+    }
+}
+
+/// `url` with a trailing slash on its path, the form a WebDriver client needs.
+///
+/// thirtyfour joins each command path (`session`, `session/{id}/url`, ...) onto
+/// the server URL as a relative URL, so a last path segment without a slash is
+/// replaced: `http://hub:4444/wd/hub` would send `POST /wd/session`, and a
+/// server behind a path prefix (such as tauri-plugin-sbrs-automation's token)
+/// would never be reached.
+pub(crate) fn server_url_for_joins(url: &str) -> String {
+    if url.ends_with('/') {
+        url.to_owned()
+    } else {
+        format!("{url}/")
     }
 }
 
@@ -2047,5 +2064,43 @@ mod wait_tests {
         let text = error.to_string();
         assert!(text.starts_with("wait timeout: "), "{text}");
         assert!(text.ends_with("(after 0ms)"), "{text}");
+    }
+}
+
+#[cfg(test)]
+mod server_url_tests {
+    use super::server_url_for_joins;
+
+    fn session_url(server: &str) -> String {
+        let base = url::Url::parse(&server_url_for_joins(server)).expect("a valid URL");
+        base.join("session").expect("a relative path").to_string()
+    }
+
+    #[test]
+    fn a_path_prefix_survives_the_command_paths() {
+        assert_eq!(
+            session_url("http://hub:4444/wd/hub"),
+            "http://hub:4444/wd/hub/session"
+        );
+        assert_eq!(
+            session_url("http://127.0.0.1:4545/e2etoken"),
+            "http://127.0.0.1:4545/e2etoken/session"
+        );
+    }
+
+    #[test]
+    fn urls_that_already_work_are_unchanged() {
+        assert_eq!(
+            session_url("http://localhost:4444"),
+            "http://localhost:4444/session"
+        );
+        assert_eq!(
+            session_url("http://hub:4444/wd/hub/"),
+            "http://hub:4444/wd/hub/session"
+        );
+        assert_eq!(
+            server_url_for_joins("http://hub:4444/wd/hub/"),
+            "http://hub:4444/wd/hub/"
+        );
     }
 }
