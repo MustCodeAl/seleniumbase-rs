@@ -309,6 +309,17 @@ fn tools() -> Vec<ToolDef<Cdp>> {
             get_page_info,
         ),
         ToolDef::new(
+            "get_devtools_endpoint",
+            "Get DevTools Endpoint",
+            "Report the DevTools endpoint of the running browser (HTTP address and browser \
+             WebSocket URL) and ready-made MCP client configs that attach Google's \
+             chrome-devtools-mcp (--browserUrl) or Microsoft's Playwright MCP \
+             (--cdp-endpoint) to the same browser. Reports running=false when no browser runs.",
+            Effect::Observe,
+            Schema::new(),
+            get_devtools_endpoint,
+        ),
+        ToolDef::new(
             "open_url",
             "Open URL",
             "Navigate the active tab to a URL and wait for it to load. A bare host such as \
@@ -799,6 +810,19 @@ async fn close_browser(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> 
     };
     cdp.browser.close().await?;
     Ok("The browser session was closed.".into())
+}
+
+async fn get_devtools_endpoint(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {
+    let Some(session) = ctx.try_session().await else {
+        return Ok(json!({
+            "running": false,
+            "hint": "Call start_browser first; the endpoint exists only while a browser runs.",
+        })
+        .into());
+    };
+    let mut answer = session.browser.devtools_endpoint().to_json();
+    answer["running"] = json!(true);
+    Ok(answer.into())
 }
 
 async fn get_page_info(ctx: Ctx<Cdp>, _args: Args) -> Result<Output, ToolError> {

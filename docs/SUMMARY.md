@@ -44,6 +44,7 @@ hidden: true
   - [Case Plans Generator](help/caseplans.md)
   - [Behave Commander](help/behave-gui.md)
 - [MCP Servers](tutorials/mcp_server.md)
+  - [DevTools MCP servers](tutorials/devtools_mcp.md)
   - [Vibe coding with an AI agent](tutorials/vibe_coding.md)
 - [API Guide](tutorials/api_reference.md)
   - [MasterQA](tutorials/masterqa.md)

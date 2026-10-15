@@ -18,8 +18,9 @@ use std::collections::HashMap;
 
 use base64::Engine;
 
-use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyMaskingMode, QuicMode};
+use crate::stealth::fingerprint::{BrandVersion, Fingerprint, OsType, ProxyMaskingMode, QuicMode};
 use crate::stealth::providers::{default_registry, EvasionContext};
+use crate::stealth::randomize::{chromium_hints, PRESET_CHROMIUM_MAJOR};
 
 /// Generates a single combined bootstrap script for the given fingerprint.
 ///
@@ -377,56 +378,70 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
 /// scripts see consistent brands/platform/architecture without a JS patch.
 fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::Value> {
     if let Some(ch) = fp.client_hints.as_ref() {
-        let brands: Vec<serde_json::Value> = ch
-            .brands
-            .iter()
-            .map(|b| serde_json::json!({"brand": b.brand.clone(), "version": b.version.clone()}))
-            .collect();
-        return Some(serde_json::json!({
-            "brands": brands,
+        let mut metadata = serde_json::json!({
+            "brands": brand_list(&ch.brands),
             "fullVersion": ch.ua_full_version,
             "platform": ch.platform,
             "platformVersion": ch.platform_version,
             "architecture": ch.architecture,
             "model": ch.model,
             "mobile": ch.mobile,
-        }));
+        });
+        if !ch.full_version_list.is_empty() {
+            metadata["fullVersionList"] = brand_list(&ch.full_version_list);
+        }
+        return Some(metadata);
     }
 
-    let platform = fp
-        .platform
-        .clone()
-        .unwrap_or_else(|| fp.os_type.platform().to_owned());
+    // The fingerprint has no Client Hints, as the presets have none: derive
+    // them from the user agent.
+    //
+    // `platform` is what `navigator.userAgentData.platform` and
+    // `Sec-CH-UA-Platform` report, which is not `navigator.platform`: Chrome
+    // on Windows says `Windows` there, never `Win32`.
+    let platform = client_hints_platform(fp.os_type);
+    // The platform versions in the format Chrome reports them, as in the tables
+    // `Fingerprint::randomized` draws from (`stealth::randomize`): `10.0.0`,
+    // the value Microsoft documents for Windows 10 2004 to 22H2; macOS 27.0.1
+    // as Chrome 155 reported it on a Mac; Android 14 as `14.0.0`; and iOS 26.0,
+    // the release of the Safari 26.0 preset.
     let (arch, platform_version, model, wow64) = match fp.os_type {
-        OsType::Windows => ("x86", "10.0", "", fp.platform.as_deref() == Some("Win64")),
-        OsType::Macos => ("arm", "14.0", "", false),
+        OsType::Windows => ("x86", "10.0.0", "", fp.platform.as_deref() == Some("Win64")),
+        OsType::Macos => ("arm", "27.0.1", "", false),
         OsType::Linux => ("x86", "", "", false),
-        OsType::Android => ("arm", "14.0", "Pixel 7", true),
-        OsType::Ios => ("arm", "17.4.1", "iPhone", true),
+        OsType::Android => ("arm", "14.0.0", "Pixel 7", true),
+        OsType::Ios => ("arm", "26.0", "iPhone", true),
     };
-    let full_version = fp
-        .core_version
-        .map(|v| format!("{v}.0.0.0"))
-        .or_else(|| extract_chrome_version(ua))
-        .unwrap_or_else(|| "133.0.0.0".to_owned());
-    let major = full_version
-        .split('.')
-        .next()
-        .and_then(|s| s.parse::<u32>().ok())
-        .unwrap_or(133);
-    let brands = if ua.contains("Chrome") {
-        vec![
-            serde_json::json!({"brand": "Chromium", "version": major.to_string()}),
-            serde_json::json!({"brand": "Google Chrome", "version": major.to_string()}),
-            serde_json::json!({"brand": "Not(A:Brand", "version": "24"}),
-        ]
-    } else if ua.contains("Safari") && !ua.contains("Chrome") {
-        vec![serde_json::json!({"brand": "Safari", "version": major.to_string()})]
+    let (brands, full_version_list, full_version) = if ua.contains("Chrome") {
+        // The brand list, decoy brand and full version Chrome `major` sends.
+        let major = fp
+            .core_version
+            .or_else(|| version_after(ua, "Chrome/").and_then(|v| major_of(&v)))
+            .unwrap_or(PRESET_CHROMIUM_MAJOR);
+        let hints = chromium_hints(major);
+        (
+            brand_list(&hints.brands),
+            brand_list(&hints.full_version_list),
+            hints.ua_full_version,
+        )
     } else {
-        vec![serde_json::json!({"brand": "Chromium", "version": major.to_string()})]
+        // Safari names its release after `Version/`, such as `Version/26.0`.
+        let (brand, version) = if ua.contains("Safari") {
+            ("Safari", version_after(ua, "Version/"))
+        } else {
+            ("Chromium", version_after(ua, "Chrome/"))
+        };
+        let version = version.unwrap_or_else(|| format!("{PRESET_CHROMIUM_MAJOR}.0.0.0"));
+        let major = major_of(&version).unwrap_or(PRESET_CHROMIUM_MAJOR);
+        (
+            serde_json::json!([{"brand": brand, "version": major.to_string()}]),
+            serde_json::json!([{"brand": brand, "version": version.clone()}]),
+            version,
+        )
     };
     Some(serde_json::json!({
         "brands": brands,
+        "fullVersionList": full_version_list,
         "fullVersion": full_version,
         "platform": platform,
         "platformVersion": platform_version,
@@ -437,13 +452,39 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
     }))
 }
 
-/// Extracts a Chrome/Chromium version such as `133.0.0.0` from a user-agent string.
-fn extract_chrome_version(ua: &str) -> Option<String> {
-    use regex::Regex;
-    let re = Regex::new(r"Chrome/(\d+\.\d+\.\d+\.\d+)").ok()?;
-    re.captures(ua)
-        .and_then(|c| c.get(1))
-        .map(|m| m.as_str().to_owned())
+/// A brand list in the shape `Emulation.UserAgentMetadata` takes.
+fn brand_list(brands: &[BrandVersion]) -> serde_json::Value {
+    brands
+        .iter()
+        .map(|b| serde_json::json!({"brand": b.brand.clone(), "version": b.version.clone()}))
+        .collect()
+}
+
+/// The platform name Client Hints report for `os` (`Sec-CH-UA-Platform`).
+fn client_hints_platform(os: OsType) -> &'static str {
+    match os {
+        OsType::Windows => "Windows",
+        OsType::Macos => "macOS",
+        OsType::Linux => "Linux",
+        OsType::Android => "Android",
+        OsType::Ios => "iOS",
+    }
+}
+
+/// The dotted version after `product` in a user agent, such as `133.0.0.0`
+/// after `Chrome/` or `26.0` after `Version/`.
+fn version_after(ua: &str, product: &str) -> Option<String> {
+    let rest = &ua[ua.find(product)? + product.len()..];
+    let end = rest
+        .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+        .unwrap_or(rest.len());
+    let version = rest[..end].trim_end_matches('.');
+    major_of(version).map(|_| version.to_owned())
+}
+
+/// The major version of a dotted version, such as `133` of `133.0.0.0`.
+fn major_of(version: &str) -> Option<u32> {
+    version.split('.').next()?.parse().ok()
 }
 
 #[cfg(test)]
@@ -585,7 +626,7 @@ mod tests {
         );
         assert_eq!(
             meta.get("platformVersion").and_then(|v| v.as_str()),
-            Some("17.4.1")
+            Some("26.0")
         );
         assert_eq!(
             meta.get("architecture").and_then(|v| v.as_str()),
@@ -616,12 +657,23 @@ mod tests {
             .get("Network.setUserAgentOverride")
             .expect("UA override");
         let ua_str = ua.get("userAgent").and_then(|v| v.as_str()).unwrap_or("");
-        assert!(ua_str.contains("Android 14"));
+        // Chrome on Android freezes the release at 10 and hides the model.
+        assert!(ua_str.contains("Linux; Android 10; K"), "{ua_str}");
+        // `navigator.platform` stays what an Android phone reports there...
+        assert_eq!(
+            ua.get("platform").and_then(|v| v.as_str()),
+            Some("Linux armv8l")
+        );
         let meta = ua.get("userAgentMetadata").expect("userAgentMetadata");
         assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(true));
+        // ...while the Client Hints name the platform the way Chrome does.
         assert_eq!(
             meta.get("platform").and_then(|v| v.as_str()),
-            Some("Linux armv8l")
+            Some("Android")
+        );
+        assert_eq!(
+            meta.get("platformVersion").and_then(|v| v.as_str()),
+            Some("14.0.0")
         );
     }
 
@@ -641,10 +693,135 @@ mod tests {
             .expect("UA override");
         let meta = ua.get("userAgentMetadata").expect("userAgentMetadata");
         assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(false));
-        assert_eq!(meta.get("platform").and_then(|v| v.as_str()), Some("Win32"));
+        // Chrome on Windows reports `Windows` in its Client Hints; `Win32` is
+        // only `navigator.platform`.
+        assert_eq!(
+            meta.get("platform").and_then(|v| v.as_str()),
+            Some("Windows")
+        );
+        assert_eq!(ua.get("platform").and_then(|v| v.as_str()), Some("Win32"));
+        assert_eq!(
+            meta.get("platformVersion").and_then(|v| v.as_str()),
+            Some("10.0.0")
+        );
 
         assert!(map.contains_key("Emulation.setTimezoneOverride"));
         assert!(map.contains_key("Emulation.setLocaleOverride"));
+    }
+
+    /// The `userAgentMetadata` a fingerprint without Client Hints gets.
+    fn fallback_metadata(fp: &Fingerprint) -> serde_json::Value {
+        assert!(fp.client_hints.is_none(), "the fallback is for no hints");
+        let ua = fp.user_agent.as_deref().expect("a user agent");
+        build_user_agent_metadata(fp, ua).expect("metadata")
+    }
+
+    fn brands_of(list: &serde_json::Value) -> Vec<(String, String)> {
+        list.as_array()
+            .expect("a list")
+            .iter()
+            .map(|b| {
+                (
+                    b["brand"].as_str().unwrap_or_default().to_owned(),
+                    b["version"].as_str().unwrap_or_default().to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    fn pairs(list: &[BrandVersion]) -> Vec<(String, String)> {
+        list.iter()
+            .map(|b| (b.brand.clone(), b.version.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn the_fallback_sends_the_brands_and_full_versions_of_the_claimed_major() {
+        let fp = Fingerprint::macos_desktop();
+        let meta = fallback_metadata(&fp);
+        let hints = chromium_hints(PRESET_CHROMIUM_MAJOR);
+        assert_eq!(brands_of(&meta["brands"]), pairs(&hints.brands));
+        assert_eq!(
+            brands_of(&meta["fullVersionList"]),
+            pairs(&hints.full_version_list)
+        );
+        assert_eq!(meta["fullVersion"], hints.ua_full_version.as_str());
+        assert!(
+            !hints.ua_full_version.ends_with(".0.0.0"),
+            "a real build, not the frozen {}",
+            hints.ua_full_version
+        );
+        assert_eq!(meta["platform"], "macOS");
+        assert_eq!(meta["platformVersion"], "27.0.1");
+    }
+
+    #[test]
+    fn the_fallback_decoy_brand_follows_the_major_instead_of_being_fixed() {
+        // Chrome 155 sends `Not(A:Brand` (measured); another major sends
+        // another decoy, so a fixed one gives every other major away.
+        let mut fp = Fingerprint::windows_desktop();
+        fp.user_agent = Some(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+                .to_owned(),
+        );
+        let measured = brands_of(&fallback_metadata(&fp)["brands"]);
+        assert_eq!(
+            measured,
+            [
+                ("Google Chrome".to_owned(), "155".to_owned()),
+                ("Chromium".to_owned(), "155".to_owned()),
+                ("Not(A:Brand".to_owned(), "24".to_owned()),
+            ]
+        );
+        fp.core_version = Some(156);
+        let newer = brands_of(&fallback_metadata(&fp)["brands"]);
+        assert_eq!(newer, pairs(&chromium_hints(156).brands));
+        assert!(newer.iter().all(|(brand, _)| brand != "Not(A:Brand"));
+        assert_eq!(fallback_metadata(&fp)["fullVersion"], "156.0.8078.35");
+    }
+
+    #[test]
+    fn the_fallback_names_safari_by_its_version_token() {
+        let mut fp = Fingerprint::ios_mobile_safari();
+        fp.client_hints = None;
+        let meta = fallback_metadata(&fp);
+        assert_eq!(
+            brands_of(&meta["brands"]),
+            [("Safari".to_owned(), "26".to_owned())]
+        );
+        assert_eq!(meta["fullVersion"], "26.0");
+        assert_eq!(meta["platform"], "iOS");
+    }
+
+    #[test]
+    fn client_hints_with_a_full_version_list_pass_it_on() {
+        let fp = Fingerprint::randomized(OsType::Macos, 3);
+        let hints = fp.client_hints.clone().expect("hints");
+        let ua = fp.user_agent.clone().expect("a user agent");
+        let meta = build_user_agent_metadata(&fp, &ua).expect("metadata");
+        assert_eq!(
+            brands_of(&meta["fullVersionList"]),
+            pairs(&hints.full_version_list)
+        );
+        assert_eq!(meta["fullVersion"], hints.ua_full_version.as_str());
+    }
+
+    #[test]
+    fn versions_are_read_after_their_product_token() {
+        let chrome = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) \
+                      Chrome/156.0.0.0 Safari/537.36";
+        assert_eq!(
+            version_after(chrome, "Chrome/").as_deref(),
+            Some("156.0.0.0")
+        );
+        assert_eq!(version_after(chrome, "Version/"), None);
+        assert_eq!(
+            version_after("x Version/26.0 Mobile/15E148", "Version/").as_deref(),
+            Some("26.0")
+        );
+        assert_eq!(version_after("Chrome/ nothing", "Chrome/"), None);
+        assert_eq!(major_of("155.0.8059.40"), Some(155));
     }
 
     #[test]

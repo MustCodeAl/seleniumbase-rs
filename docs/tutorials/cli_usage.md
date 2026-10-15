@@ -55,6 +55,17 @@ version.
 ./target/debug/sbrs --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
 ```
 
+## Share a browser with DevTools MCP servers
+
+```bash
+./target/debug/sbrs devtools                         # Chrome on 127.0.0.1:9222
+./target/debug/sbrs devtools --headless --port 0 --json
+```
+
+Launches Chrome with its DevTools endpoint open, prints the endpoint and configs
+for Google's `chrome-devtools-mcp` and Microsoft's Playwright MCP, and runs until
+Ctrl+C, which closes the browser. See [DevTools MCP servers](devtools_mcp.md).
+
 ## Save artifacts
 
 ```bash

@@ -7,6 +7,20 @@ license = "MIT"
 description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
 repository = "https://github.com/MustCodeAl/seleniumbase-rs"
 
+# Where `cargo binstall` (and `cargo binstall --git <repository>`) finds the
+# prebuilt `sbrs` and `sbrs-mcp`: the archives `.github/workflows/release.yml`
+# attaches to the GitHub release of tag v<version>, with both binaries at the
+# archive's root. Keep the two in step. The compile fallback is off because it
+# would build from crates.io, where the crate is not published.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+disabled-strategies = ["quick-install", "compile"]
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
 [lib]
 name = "seleniumbase_rs"
 path = "src/lib.rs"

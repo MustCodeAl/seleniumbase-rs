@@ -80,6 +80,21 @@ mod host_tests {
     }
 
     #[test]
+    fn the_devtools_endpoint_names_the_browsers_own_addresses() {
+        let endpoint = attached_to("127.0.0.1", 9333).devtools_endpoint();
+
+        assert_eq!(endpoint.http_url(), "http://127.0.0.1:9333");
+        assert_eq!(
+            endpoint.websocket_url(),
+            "ws://127.0.0.1:9333/devtools/browser/x"
+        );
+        assert_eq!(
+            endpoint.chrome_devtools_mcp_args()[2],
+            "--browserUrl=http://127.0.0.1:9333"
+        );
+    }
+
+    #[test]
     fn a_mocked_browser_is_local() {
         let (browser, _mock) = Browser::new_mocked();
 
@@ -524,6 +539,14 @@ impl Browser {
     #[must_use]
     pub fn websocket_url(&self) -> &str {
         &self.inner.ws_url
+    }
+
+    /// The DevTools endpoint, with the configs other clients (Google's
+    /// `chrome-devtools-mcp`, Microsoft's Playwright MCP) need to attach to
+    /// this browser while this handle drives it.
+    #[must_use]
+    pub fn devtools_endpoint(&self) -> super::DevToolsEndpoint {
+        super::DevToolsEndpoint::new(self.http_url(), self.websocket_url())
     }
 
     /// Who answers this browser's proxy password prompts.

@@ -1,0 +1,213 @@
+name: Release binaries
+
+# On a pushed version tag (v0.2.0), build `sbrs` and `sbrs-mcp` for five
+# targets, pack each with the shell completions and the Warp workflows, and
+# attach the archives to the GitHub release of that tag.
+#
+# The archive names are what `cargo binstall` and mise's `github:` backend look
+# for, so keep them in step with `[package.metadata.binstall]` in Cargo.toml:
+#
+#   seleniumbase-rs-v<version>-<target>.tgz   (macOS and Linux)
+#   seleniumbase-rs-v<version>-<target>.zip   (Windows)
+#
+# with `sbrs` and `sbrs-mcp` (`.exe` on Windows) at the root of the archive.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, such as v0.2.0"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CRATE: seleniumbase-rs
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  completions:
+    name: Completions and version check
+    runs-on: ubuntu-24.04
+    steps:
+      # The tag names the checkout, the files and the URLs below: accept only
+      # a version tag. Every other job needs this one.
+      - name: Check the tag name
+        shell: bash
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::not a version tag: $TAG"
+            exit 1
+          fi
+
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      # rust-toolchain.toml picks the toolchain (the crate's rust-version).
+      - name: Install the toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      # cargo binstall reads the version from Cargo.toml and builds the asset
+      # URL from it, so a tag that disagrees with the manifest gives archives
+      # nobody can install.
+      - name: Check that the tag matches Cargo.toml
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r --arg name "$CRATE" '.packages[] | select(.name == $name) | .version')
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::tag $TAG does not match Cargo.toml version $version"
+            exit 1
+          fi
+
+      - name: Generate the completions
+        run: |
+          mkdir -p dist/completions
+          sbrs() { cargo run --quiet --locked --bin sbrs -- "$@"; }
+          sbrs completions bash > dist/completions/sbrs.bash
+          sbrs completions zsh > dist/completions/_sbrs
+          sbrs completions fish > dist/completions/sbrs.fish
+          sbrs completions powershell > dist/completions/_sbrs.ps1
+          sbrs completions fig > dist/completions/sbrs.ts
+          sbrs completions usage > dist/completions/sbrs.usage.kdl
+          ls -l dist/completions
+
+      - name: Upload the completions
+        uses: actions/upload-artifact@v4
+        with:
+          name: completions
+          path: dist/completions
+          if-no-files-found: error
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: completions
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-15
+            archive: tgz
+          # Built on the Apple Silicon runner with the x86_64 target.
+          - target: x86_64-apple-darwin
+            os: macos-15
+            archive: tgz
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            archive: tgz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            archive: tgz
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+            archive: zip
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Install the toolchain and the target
+        shell: bash
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add "${{ matrix.target }}"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      # One build for both binaries: `sbrs-mcp` needs the `mcp-server` feature.
+      - name: Build sbrs and sbrs-mcp
+        shell: bash
+        run: |
+          cargo build --release --locked --target "${{ matrix.target }}" \
+            --bin sbrs --bin sbrs-mcp --features mcp-server
+
+      - name: Download the completions
+        uses: actions/download-artifact@v4
+        with:
+          name: completions
+          path: completions-out
+
+      - name: Pack the archive (macOS and Linux)
+        if: matrix.archive == 'tgz'
+        shell: bash
+        run: |
+          name="$CRATE-$TAG-${{ matrix.target }}"
+          stage="stage/$name"
+          mkdir -p "$stage/completions" "$stage/warp/workflows" dist
+          cp "target/${{ matrix.target }}/release/sbrs" "target/${{ matrix.target }}/release/sbrs-mcp" "$stage/"
+          cp completions-out/* "$stage/completions/"
+          cp .warp/workflows/*.yaml "$stage/warp/workflows/"
+          cp README.md LICENSE "$stage/"
+          # The binaries sit at the archive's root, as bin-dir in Cargo.toml says.
+          tar -C "$stage" -czf "dist/$name.tgz" .
+          tar -tzf "dist/$name.tgz"
+
+      - name: Pack the archive (Windows)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $name = "$env:CRATE-$env:TAG-${{ matrix.target }}"
+          $stage = "stage/$name"
+          New-Item -ItemType Directory -Force -Path "$stage/completions", "$stage/warp/workflows", "dist" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/sbrs.exe", "target/${{ matrix.target }}/release/sbrs-mcp.exe" "$stage/"
+          Copy-Item completions-out/* "$stage/completions/"
+          Copy-Item .warp/workflows/*.yaml "$stage/warp/workflows/"
+          Copy-Item README.md, LICENSE "$stage/"
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/$name.zip"
+          Get-ChildItem dist
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Attach the archives to the release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download the archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: archive-*
+          path: dist
+          merge-multiple: true
+
+      - name: Write the checksums
+        working-directory: dist
+        run: |
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: dist/*
+          fail_on_unmatched_files: true

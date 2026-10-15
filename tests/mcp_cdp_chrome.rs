@@ -96,6 +96,29 @@ async fn started(output_dir: &Path) -> (Host<Cdp>, String) {
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
+async fn the_devtools_endpoint_leads_to_the_browser_the_server_drives() {
+    let dir = tempfile::tempdir().unwrap();
+    let (host, _base) = started(dir.path()).await;
+
+    let endpoint = json_of(&host, "get_devtools_endpoint", json!({})).await;
+    assert_eq!(endpoint["running"], true);
+    seleniumbase_rs::install_tls_provider();
+    let version: Value = reqwest::get(endpoint["version_url"].as_str().expect("an address"))
+        .await
+        .expect("the endpoint answers")
+        .json()
+        .await
+        .expect("/json/version is JSON");
+
+    assert_eq!(version["webSocketDebuggerUrl"], endpoint["websocket_url"]);
+    assert!(version["Browser"]
+        .as_str()
+        .is_some_and(|browser| browser.contains("Chrome")));
+    text_of(&host, "close_browser", json!({})).await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
 async fn a_model_can_fill_a_form_read_the_page_and_check_the_result() {
     let dir = tempfile::tempdir().unwrap();
     let (host, base) = started(dir.path()).await;

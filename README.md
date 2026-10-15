@@ -100,6 +100,10 @@ bash, zsh, fish and PowerShell that Warp uses too, plus Warp Workflows:
 brew install mustcodeal/tap/sbrs
 ```
 
+`cargo binstall`, mise and `cargo install --git` work too; see
+[Install without a checkout](./docs/building.md#install-without-a-checkout)
+(the prebuilt release archives wait for the release workflow's first run).
+
 **The library:** add the crate from GitHub (it is not on crates.io), with Tokio
 to run it:
 

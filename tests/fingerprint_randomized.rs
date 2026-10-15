@@ -5,6 +5,7 @@
 
 use std::collections::BTreeSet;
 
+use seleniumbase_rs::stealth::randomize::known_full_version;
 use seleniumbase_rs::{default_registry, EvasionContext, Fingerprint, MaskingMode, OsType};
 
 const ALL_OS: [OsType; 5] = [
@@ -417,7 +418,11 @@ fn client_hints_agree_with_the_user_agent() {
             assert_eq!(fp.core_version, Some(major));
 
             let hints = fp.client_hints.as_ref().unwrap();
-            assert_eq!(hints.ua_full_version, format!("{major}.0.0.0"));
+            // The high-entropy full version is a real build of the major the
+            // user agent claims, not the frozen `{major}.0.0.0`.
+            let known = known_full_version(major).expect("a drawn major has a known build");
+            assert_eq!(hints.ua_full_version, known.full_version);
+            assert!(hints.ua_full_version.starts_with(&format!("{major}.")));
             let version_of = |brand: &str| {
                 hints
                     .brands

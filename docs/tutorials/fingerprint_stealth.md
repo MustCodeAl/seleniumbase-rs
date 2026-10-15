@@ -66,11 +66,11 @@ WebGL strings, and masking flags (`StealthFlags::balanced()`):
 
 | Preset | What it claims |
 |---|---|
-| `Fingerprint::windows_desktop()` | Chrome 124 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York`, an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
-| `Fingerprint::macos_desktop()` | Chrome 124 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, WebGL `Apple Inc.` / `Apple M3`. The user agent is Chrome's, not Safari's. |
-| `Fingerprint::linux_desktop()` | Chrome 124 on Linux x86_64, 1920x1080, `America/Chicago`, and the same Direct3D 11 NVIDIA renderer string as the Windows preset, which a Linux machine would not report. Set `.webgl(..)` or use `Fingerprint::randomized` for a believable Linux GPU. |
-| `Fingerprint::android_mobile()` | Chrome 124 on Android 14 (`SM-S918B`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
-| `Fingerprint::ios_mobile_safari()` | Mobile Safari 17.4.1 on an iPhone, 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`, Safari-style Client Hints. |
+| `Fingerprint::windows_desktop()` | Chrome 156 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York`, an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
+| `Fingerprint::macos_desktop()` | Chrome 156 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, WebGL `Apple Inc.` / `Apple M3`. The user agent is Chrome's, not Safari's. |
+| `Fingerprint::linux_desktop()` | Chrome 156 on Linux x86_64, 1920x1080, `America/Chicago`, and the same Direct3D 11 NVIDIA renderer string as the Windows preset, which a Linux machine would not report. Set `.webgl(..)` or use `Fingerprint::randomized` for a believable Linux GPU. |
+| `Fingerprint::android_mobile()` | Chrome 156 on Android, in Chrome's frozen user agent (`Linux; Android 10; K`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
+| `Fingerprint::ios_mobile_safari()` | Mobile Safari 26.0 on an iPhone (`iPhone OS 18_6`, the iOS version Safari 26 freezes in its user agent), 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`, Safari-style Client Hints. |
 
 Every preset sets a time zone but no geolocation, so `validate()` reports the
 warning "timezone set without geolocation" for each of them (warnings do not
@@ -137,17 +137,28 @@ Things to know:
   generated `Fingerprint` (it is `Serialize`), not the seed, if an identity has
   to outlive an upgrade.
 - **The Chromium version is a fixed window.** At this version of the crate the
-  user agent claims Chromium 153, 154 or 155 (an iPhone identity claims Mobile
-  Safari 17.7, 18.1, 18.3.1 or 18.5). Pair the identity with a browser of that
-  era, or change `user_agent`, `client_hints` and `core_version` together.
+  user agent claims Chromium 154, 155 or 156 (an iPhone identity claims Mobile
+  Safari 18.1, 18.3.1, 18.5 or 26.0; Safari 26 names the frozen `iPhone OS 18_6`
+  in its user agent). Pair the identity with a browser of that era, or change
+  `user_agent`, `client_hints` and `core_version` together.
   `Fingerprint::randomized_with_major(os, seed, major)` fixes the Chromium major
   instead (Safari and iOS ignore it); the stealth scraper uses it so the identity
   claims the Chrome that is running (see [Stealth Scraping](stealth_scraping.md)).
 - **iOS differs.** Safari has no `navigator.deviceMemory` and no
   `navigator.userAgentData`, so an iOS identity sets neither (`device_memory` and
   `client_hints` are `None`).
-- **Client Hints use `major.0.0.0`** for full versions, the form the user agent
-  itself uses.
+- **Client Hints carry a real full version.** The user agent keeps Chrome's
+  frozen `major.0.0.0`, but `uaFullVersion` and `fullVersionList` name a real
+  build from `randomize::KNOWN_FULL_VERSIONS`: 154.0.8037.100 and
+  156.0.8078.35 from Google's published stable releases, and 155.0.8059.40 as
+  Chrome 155 reported it on a Mac (`tests/client_hints_chrome.rs`). A major the
+  table does not list (one forced with `randomized_with_major`) falls back to
+  `major.0.0.0`.
+- **Platform versions.** A Mac claims macOS 15.8.1, 26.7.1, 27.0.0 or 27.0.1, in
+  the `major.minor.patch` form Chrome reports (`27.0.1` was read from Chrome 155
+  on macOS 27.0.1). The Windows list (`10.0.0`, `13.0.0`, `15.0.0`, `19.0.0`)
+  follows Microsoft's description of the value and was not read from a Windows
+  Chrome.
 - **Not set:** fonts, media devices and the proxy. Set them on the result if you
   need them.
 - **Applying it.** For the Pure CDP engine, hand it to the launch options with
@@ -320,7 +331,7 @@ A payload that leaves out `quic_mode` gets `Disabled`, which adds `--disable-qui
 use seleniumbase_rs::Fingerprint;
 
 let mut fp = Fingerprint::builder()
-    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36")
     .platform("Win32")
     .hardware_concurrency(8)
     .device_memory(8.0)

@@ -11,7 +11,7 @@ own for developing, debugging and testing:
 
 | `--server` | Engine | Tools |
 | --- | --- | --- |
-| `cdp` | Pure CDP (no WebDriver) | 24 + 9 developer tools |
+| `cdp` | Pure CDP (no WebDriver) | 24 + 9 developer tools + `get_devtools_endpoint` |
 | `driver` | WebDriver, `Driver()` toolset | 26 |
 | `sb` (default) | WebDriver, `SB()` toolset, plus this crate's stealth tools | 88 + 8 stealth + 9 developer tools |
 
@@ -247,6 +247,20 @@ in a proxy URL are redacted), whether a session is running, and a list of
 
 When to use it: before the first `start_browser`, or when one fails.
 
+### `get_devtools_endpoint`
+
+Only in the `cdp` server. Reports the DevTools endpoint of the running browser
+(`http_url` such as `http://127.0.0.1:53017`, `websocket_url`, `version_url`)
+and `mcp_configs` that attach Google's `chrome-devtools-mcp` (`--browserUrl`) or
+Microsoft's Playwright MCP (`--cdp-endpoint`) to the same browser, plus the
+`claude mcp add` commands for Claude Code. Without a browser it answers
+`running: false`.
+
+When to use it: to hand the session to a second DevTools client, for example
+the performance traces of `chrome-devtools-mcp`, while this server keeps
+driving the page. [DevTools MCP servers](devtools_mcp.md) covers those servers
+and `sbrs devtools`, which starts such a browser from the command line.
+
 ## Security
 
 These tools let a model drive a real browser as you.
@@ -258,6 +272,9 @@ These tools let a model drive a real browser as you.
 - `choose_file` uploads a file from this machine; `download_file` fetches a URL
   from this machine's network.
 - `patch_chromedriver` (in `sb`) modifies a binary on disk.
+- `get_devtools_endpoint` (in `cdp`) gives out the address of the browser's
+  DevTools endpoint. It listens on `127.0.0.1` only, but any program on this
+  machine that knows it can drive the browser.
 - `capture_debug_bundle` saves a screenshot and the page's markup, which can show
   personal data; values of password and hidden inputs, cookies and storage, and
   the results of earlier tool calls are left out. `export_session_as_test` writes the text the model typed into the

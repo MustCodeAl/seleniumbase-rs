@@ -149,7 +149,7 @@ meaning and a matching JSON string value:
     "flags": { "navigator_masking": "custom" },
     "fingerprint": {
       "navigator": {
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
         "platform": "Win32",
         "hardware_concurrency": 8,
         "device_memory": 8
@@ -196,7 +196,7 @@ custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
   "name": "iphone-consumer",
   "browser_type": "mobile_safari",
   "os_type": "ios",
-  "core_version": 17,
+  "core_version": 26,
   "parameters": {
     "flags": {
       "navigator_masking": "custom",
@@ -208,7 +208,7 @@ custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
     },
     "fingerprint": {
       "navigator": {
-        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1",
         "platform": "iPhone",
         "hardware_concurrency": 4,
         "device_memory": 8
@@ -266,7 +266,7 @@ is applied automatically.
       "graphics_noise": "medium",
       "localization_masking": "en-US,en;q=0.9",
       "media_devices_masking": "audioinput:default:Mic1|videoinput:default:Cam1",
-      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
       "ports_masking": "block:80,443,3000,8080,9222",
       "proxy_masking": "socks5://user123:pass456@192.168.1.50:1080",
       "screen_masking": "1920x1080x24",

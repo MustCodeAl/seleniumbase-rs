@@ -726,4 +726,28 @@ cmd record help="Record browser interactions into a replayable action file" {
 cmd replay help="Replay a recorded action file against a fresh browser session" {
     arg <FILE> help="JSON action file produced by `sbrs record`"
 }
+cmd devtools help="Launch Chrome with an open DevTools endpoint and print MCP client configs" {
+    long_help #"""
+Launch Chrome with an open DevTools endpoint and print MCP client configs.
+
+Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HTTP endpoint, the browser WebSocket URL and configs for Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps the browser running until Ctrl+C, which closes it and exits with 0. The global --browser (chrome, chromium, edge or another Chromium browser), --headed, --user-agent, --locale, --ad-block, --extension-dir and --proxy-list apply as well.
+"""#
+    flag --headless help="Run the browser without a window"
+    flag --port help="DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)" default="9222" {
+        arg <PORT>
+    }
+    flag --user-data-dir help="Profile directory to keep (default: a throwaway one; never Chrome's own default profile)" {
+        arg <DIR>
+    }
+    flag --proxy help="Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT" {
+        arg <PROXY>
+    }
+    flag --browser-path help="Browser binary to launch, such as Microsoft Edge or another Chromium browser" {
+        arg <PATH>
+    }
+    flag --url help="Page to open once the browser runs" {
+        arg <URL>
+    }
+    flag --json help="Print the endpoint and configs as one line of JSON instead of text"
+}
 

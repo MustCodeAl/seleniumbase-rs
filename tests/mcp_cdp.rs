@@ -114,6 +114,10 @@ const DEVELOPER_TOOLS: [&str; 9] = [
     "suggest_selectors",
 ];
 
+/// The tools only this server has, because only this engine exposes a
+/// DevTools endpoint.
+const CDP_ONLY_TOOLS: [&str; 1] = ["get_devtools_endpoint"];
+
 // ----------------------------------------------------------------------
 // Catalogue
 // ----------------------------------------------------------------------
@@ -129,6 +133,7 @@ async fn the_server_offers_every_tool_of_the_python_cdp_server_and_the_developer
     let mut expected: Vec<&str> = UPSTREAM_CDP_TOOLS
         .into_iter()
         .chain(DEVELOPER_TOOLS)
+        .chain(CDP_ONLY_TOOLS)
         .collect();
     expected.sort_unstable();
     assert_eq!(offered, expected);
@@ -236,6 +241,53 @@ async fn page_info_reports_not_running_until_a_browser_starts() {
     assert_eq!(
         json_of(&host, "get_page_info", json!({})).await,
         json!({ "running": false })
+    );
+}
+
+#[tokio::test]
+async fn the_devtools_endpoint_needs_a_running_browser() {
+    let dir = tempfile::tempdir().unwrap();
+    let host = cdp::host(Settings::new(dir.path()));
+
+    let answer = json_of(&host, "get_devtools_endpoint", json!({})).await;
+
+    assert_eq!(answer["running"], false);
+    assert!(answer["hint"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("start_browser"));
+}
+
+#[tokio::test]
+async fn the_devtools_endpoint_names_the_browser_and_the_configs_that_attach_to_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (host, _mock) = running(dir.path()).await;
+
+    let answer = json_of(&host, "get_devtools_endpoint", json!({})).await;
+
+    assert_eq!(answer["running"], true);
+    let http = answer["http_url"].as_str().expect("an HTTP address");
+    assert!(http.starts_with("http://127.0.0.1:"), "{http}");
+    assert!(answer["websocket_url"]
+        .as_str()
+        .is_some_and(|ws| ws.starts_with("ws://")));
+    let chrome_args =
+        &answer["mcp_configs"]["chrome_devtools_mcp"]["mcpServers"]["chrome-devtools"]["args"];
+    assert!(
+        chrome_args
+            .as_array()
+            .expect("arguments")
+            .contains(&json!(format!("--browserUrl={http}"))),
+        "{chrome_args}"
+    );
+    let playwright_args =
+        &answer["mcp_configs"]["playwright_mcp"]["mcpServers"]["playwright"]["args"];
+    assert!(
+        playwright_args
+            .as_array()
+            .expect("arguments")
+            .contains(&json!(format!("--cdp-endpoint={http}"))),
+        "{playwright_args}"
     );
 }
 
