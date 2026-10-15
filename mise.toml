@@ -9,7 +9,9 @@
 
 [tools]
 # The crate's rust-version; the msrv CI job and the Dockerfile move with it.
-rust = { version = "1.99", components = "clippy,rustfmt" }
+# clippy and rustfmt come from rust-toolchain.toml: a tool option such as
+# `components` here would make mise ask for trust (see the note below).
+rust = "1.99"
 # tools/parity scripts, run as `python3 -I`. The crate itself needs no Python.
 python = "3.14"
 # The Tauri example's CLI (`npm ci`, `npx tauri`).
