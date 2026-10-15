@@ -89,19 +89,6 @@ toml = "1.1"
 tempfile = "3.27"
 which = "8.0"
 async-trait = "0.1"
-# `scrape`: the Public Suffix List, for RFC 6265 cookie domains. Pure Rust.
-psl = { version = "2.1.241", optional = true }
-# `impersonate`: wreq drives BoringSSL through btls (needs cmake and a C/C++ toolchain).
-# links = "boringssl" allows one copy of BoringSSL in the graph.
-wreq = { version = "=6.0.0-rc.31", optional = true, default-features = false, features = [
-    "tokio-rt", "webpki-roots", "gzip", "deflate", "brotli", "zstd", "socks", "stream"] }
-btls = { version = "=0.5.6", optional = true }
-# Certificate compression (RFC 8879) for the impersonated ClientHello: Chrome offers brotli.
-brotli = { version = "9", optional = true, default-features = false, features = ["std"] }
-tokio-btls = { version = "=0.5.6", optional = true }
-hyper = { version = "1.12", optional = true, default-features = false, features = ["server", "http1"] }
-hyper-util = { version = "0.1.21", optional = true, default-features = false, features = ["tokio"] }
-http-body-util = { version = "0.1.5", optional = true }
 # `http` and `bytes` name the types of thirtyfour's `HttpClient` trait, which
 # `browser::reuse` implements to attach to a running session. Both are already
 # in the graph through thirtyfour.
@@ -156,13 +143,6 @@ test-util = []
 # Embedded Turso database: `ResultStore` (test-run reporting, `sbrs report`) and
 # `ProfileVault` (encrypted browser-profile storage).
 turso = ["dep:turso"]
-# Stealth scraping without TLS spoofing: domain layer, JSON state store, CDP browser
-# leg, TLS and client-hint capture. Pure Rust; adds only `psl`.
-scrape = ["dep:psl"]
-# Browser-identical TLS, HTTP/2 and headers through wreq and BoringSSL: the MITM proxy,
-# HttpSession and StealthSession. Needs cmake and a C/C++ toolchain.
-impersonate = ["scrape", "dep:wreq", "dep:btls", "dep:brotli", "dep:tokio-btls", "dep:hyper", "dep:hyper-util",
-               "dep:http-body-util"]
 # Reads text from screenshots and images (`ocr::Ocr`): ocrs, pure Rust. Its two
 # models (about 12 MB) are downloaded into the cache folder on first use.
 ocr = ["dep:ocrs", "dep:rten", "dep:image"]

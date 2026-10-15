@@ -28,6 +28,15 @@
 //! [`uc_config!`] live in the [`macros`] module. Fingerprint presets include
 //! `windows_desktop`, `macos_desktop`, `linux_desktop`, `android_mobile`, and
 //! `ios_mobile_safari`.
+//!
+//! ## Stealth scraping
+//!
+//! The experimental stealth scraping layer (wire fingerprints, `BrowserScraper`,
+//! `HttpSession`, `MitmProxy`, `StealthSession`) is not part of this crate. It
+//! lives in the crates `seleniumbase-rs-wire`, `seleniumbase-rs-scrape` and
+//! `seleniumbase-rs-impersonate` of
+//! <https://github.com/MustCodeAl/seleniumbase-rs-stealth>, which build on the
+//! public API of this one.
 
 /// The version of Python SeleniumBase whose API this crate tracks.
 ///
@@ -43,23 +52,6 @@ pub mod common;
 pub mod config;
 pub mod core;
 pub mod error;
-// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
-#[cfg(feature = "impersonate")]
-#[warn(
-    clippy::pedantic,
-    clippy::allow_attributes_without_reason,
-    clippy::clone_on_ref_ptr,
-    clippy::map_err_ignore,
-    clippy::semicolon_outside_block,
-    clippy::unused_result_ok,
-    clippy::too_long_first_doc_paragraph,
-    missing_debug_implementations,
-    redundant_imports,
-    redundant_lifetimes,
-    trivial_numeric_casts,
-    unused_lifetimes
-)]
-pub mod impersonate;
 pub mod js_code;
 pub mod macros;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
@@ -127,44 +119,10 @@ pub mod storage;
     unused_lifetimes
 )]
 pub mod sb_cdp;
-// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
-#[cfg(feature = "scrape")]
-#[warn(
-    clippy::pedantic,
-    clippy::allow_attributes_without_reason,
-    clippy::clone_on_ref_ptr,
-    clippy::map_err_ignore,
-    clippy::semicolon_outside_block,
-    clippy::unused_result_ok,
-    clippy::too_long_first_doc_paragraph,
-    missing_debug_implementations,
-    redundant_imports,
-    redundant_lifetimes,
-    trivial_numeric_casts,
-    unused_lifetimes
-)]
-pub mod scrape;
 pub mod stealth;
 pub mod tracing_util;
 pub mod utilities;
 pub mod utils;
-// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
-#[cfg(any(feature = "scrape", feature = "impersonate"))]
-#[warn(
-    clippy::pedantic,
-    clippy::allow_attributes_without_reason,
-    clippy::clone_on_ref_ptr,
-    clippy::map_err_ignore,
-    clippy::semicolon_outside_block,
-    clippy::unused_result_ok,
-    clippy::too_long_first_doc_paragraph,
-    missing_debug_implementations,
-    redundant_imports,
-    redundant_lifetimes,
-    trivial_numeric_casts,
-    unused_lifetimes
-)]
-pub mod wire;
 
 pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};
@@ -201,23 +159,3 @@ pub use utilities::python_importer::{
 };
 pub use utilities::retry::RetryPolicy;
 pub use utils::selectors::Selector;
-
-// The stealth layer, behind the `scrape` feature (pure Rust) and the `impersonate` feature
-// (BoringSSL). It is experimental: these paths and types may change between releases. The
-// modules `wire`, `scrape` and `impersonate` re-export more.
-#[cfg(feature = "impersonate")]
-pub use impersonate::{
-    impersonation_client, CustomProfileBuilder, EphemeralCa, HttpError, HttpOptions, HttpReply,
-    HttpRequest, HttpSession, ImpersonateError, ImpersonationProfile, MitmError, MitmOptions,
-    MitmProxy, StealthError, StealthFetch, StealthSession, StealthSessionBuilder,
-};
-#[cfg(feature = "scrape")]
-pub use scrape::{
-    BrowserFetch, BrowserScraper, BrowserScraperBuilder, ChallengeKind, CollectingEventSink,
-    CookieJar, Detection, EgressSwitch, EventSink, MitigationPolicy, NoopEventSink, ScrapeError,
-    ScraperEvent, SessionPolicy, StealthIdentity, TracingEventSink,
-};
-#[cfg(feature = "scrape")]
-pub use wire::{
-    BrowserKind, Emulation, EmulationError, H2Spec, H2SpecError, HeaderSpec, TlsSpec, TlsSpecError,
-};

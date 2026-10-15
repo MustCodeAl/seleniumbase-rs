@@ -34,9 +34,6 @@ fn features() -> String {
     if cfg!(feature = "test-util") {
         features.push("\"test-util\"");
     }
-    if cfg!(feature = "scrape") {
-        features.push("\"scrape\"");
-    }
     if cfg!(feature = "turso") {
         features.push("\"turso\"");
     }

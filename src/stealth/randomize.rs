@@ -384,7 +384,8 @@ static IPHONE_SCREENS: [Screen; 6] = [
 ];
 
 /// A place a generated identity may be in: a locale, its country, the time zone it is spoken
-/// in, and a city in that zone. The table is [`LOCALES`]; the scrape layer's geo code reads it too.
+/// in, and a city in that zone. The table is [`LOCALES`]; the geo code of `seleniumbase-rs-scrape`
+/// reads it too.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Locale {
     /// The BCP 47 tag that `navigator.language` reports, such as `de-DE`.
@@ -869,10 +870,6 @@ const LOCALE_TABLE: &[Locale] = &[
 ];
 
 /// The table, for lookups by country and tag and for the geo resolver.
-#[cfg_attr(
-    not(feature = "scrape"),
-    allow(dead_code, reason = "only the `scrape` feature looks locales up")
-)]
 pub static LOCALES: &[Locale] = LOCALE_TABLE;
 
 /// The places [`generate`] draws from: the first [`RANDOM_REGION_COUNT`] entries of [`LOCALES`].

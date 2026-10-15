@@ -15,7 +15,8 @@
 //! one on the browser target, and is not retried. A WebSocket therefore passes
 //! a password-protected proxy only with credentials Chrome already holds for
 //! that browser context from an earlier request of one of its tabs, which is
-//! why the MITM proxy of `impersonate::mitm` has a start page of its own.
+//! why the MITM proxy of `seleniumbase-rs-impersonate` (in the
+//! seleniumbase-rs-stealth repository) has a start page of its own.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
