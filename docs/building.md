@@ -221,7 +221,103 @@ cargo install --path . --bin sbrs-mcp --features mcp-server
 ```
 
 The crate is not published to crates.io, so `cargo install seleniumbase-rs` does
-not work; build from a checkout or add it as a git dependency.
+not work; build from a checkout, install from git as below, or add it as a git
+dependency.
+
+## Install without a checkout
+
+Three ways to get `sbrs` and `sbrs-mcp` onto your `PATH` without cloning the
+repository. None of them uses crates.io.
+
+> [!WARNING]
+> The prebuilt archives do not exist yet. They come from
+> `.github/workflows/release.yml`, which builds `sbrs` and `sbrs-mcp` for
+> `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
+> `aarch64-unknown-linux-gnu` and `x86_64-pc-windows-msvc` when a `v*` tag is
+> pushed, and attaches them to that GitHub release. GitHub Actions is locked on
+> this repository by a billing problem, so the workflow has not run: the
+> releases v0.1.0 to v0.2.0 have no binary assets. Until it runs, `cargo
+> binstall` and mise's `github:` backend find nothing to download; the commands
+> that build from source (`cargo install --git`, mise's `cargo:` backend and
+> Homebrew) work today.
+
+Each release archive (`seleniumbase-rs-v<version>-<target>.tgz`, `.zip` on
+Windows) holds `sbrs` and `sbrs-mcp` at its root, `completions/` (bash, zsh,
+fish, PowerShell, a Fig spec and the usage spec), the Warp workflows in
+`warp/workflows/`, `README.md` and `LICENSE`. `SHA256SUMS` lists the checksum of
+every archive.
+
+### cargo binstall
+
+[cargo-binstall](https://github.com/cargo-bins/cargo-binstall) downloads the
+release archive for your system instead of compiling. `Cargo.toml` tells it where
+the archives are (`[package.metadata.binstall]`). With `--git` it reads that
+manifest from the repository, so no crates.io entry is needed:
+
+```bash
+cargo binstall --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs
+```
+
+It installs both binaries. Two things to know: `--git` takes the default
+branch, so it fetches the release whose version the branch's `Cargo.toml`
+names, and that release must have its archives; and the metadata turns off the
+compile fallback, because cargo-binstall would compile from crates.io, where the
+crate is not. cargo-binstall installs no completions: write them with `sbrs
+completions <shell>` (see [the CLI page](tutorials/cli_usage.md)).
+
+### mise
+
+[mise](https://mise.jdx.dev) has two backends that fit. From the release
+archives (the `github:` backend picks the archive for your system and puts both
+binaries on `PATH`):
+
+```bash
+mise use -g github:MustCodeAl/seleniumbase-rs
+```
+
+or in `mise.toml`:
+
+```toml
+[tools."github:MustCodeAl/seleniumbase-rs"]
+version = "latest"
+```
+
+Until the release archives exist, mise reports "No versions found" for it. To
+build from the git tag now, the `cargo:` backend runs `cargo install --git`
+(Rust 1.99 must be on `PATH`, for example with `mise use -g rust@1.99`); the
+`mcp-server` feature is what builds `sbrs-mcp` too:
+
+```bash
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.2.0'
+```
+
+```toml
+[tools."cargo:https://github.com/MustCodeAl/seleniumbase-rs"]
+version = "tag:v0.2.0"
+features = ["mcp-server"]
+```
+
+mise installs no completions for these backends either; its per-tool
+`postinstall` option can run `sbrs completions zsh` into your completions folder.
+
+### Homebrew
+
+The tap builds from the release's source and installs the completions and the
+Warp workflows as well (macOS and Linux):
+
+```bash
+brew install mustcodeal/tap/sbrs
+```
+
+### cargo install from git
+
+What the methods above do when there is no archive, by hand:
+
+```bash
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.2.0 --features mcp-server --locked
+```
+
+Without `--features mcp-server` only `sbrs` is built.
 
 ## Features
 
