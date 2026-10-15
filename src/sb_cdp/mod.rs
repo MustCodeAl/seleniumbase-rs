@@ -68,6 +68,7 @@ mod expect;
 pub mod gui_captcha;
 mod human;
 mod identity;
+mod inject;
 mod input;
 mod intercept;
 mod launch;
@@ -100,6 +101,8 @@ pub use endpoint::{DevToolsEndpoint, CHROME_DEVTOOLS_MCP_VERSION, PLAYWRIGHT_MCP
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
 pub use human::Human;
+#[doc(inline)]
+pub use inject::{InitScriptId, TagSource};
 #[doc(inline)]
 pub use input::{Button, Key, Keyboard, Mouse};
 #[doc(inline)]
