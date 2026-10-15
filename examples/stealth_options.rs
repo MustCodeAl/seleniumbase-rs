@@ -32,7 +32,7 @@ use seleniumbase_rs::stealth::options::StealthOptions;
 use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, DriverMode, Result};
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                          (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+                          (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36";
 
 #[tokio::main]
 async fn main() -> Result<()> {

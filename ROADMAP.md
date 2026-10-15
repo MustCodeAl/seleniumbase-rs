@@ -196,10 +196,14 @@ step 2.
    - The tables are plausible, not sampled from real traffic, and nothing has
      been run against a real fingerprinting page or a live bot-detection
      service.
-   - The user agent claims one of a fixed window of Chromium majors (153-155)
-     and a few Mobile Safari releases, and Client Hints report full versions as
-     `major.0.0.0`. Refresh the window with each release; a browser of another
-     version contradicts the identity.
+   - The user agent claims one of a fixed window of Chromium majors (154-156)
+     and a few Mobile Safari releases (18.1 to 26.0). Client Hints report a
+     real full version per major from `randomize::KNOWN_FULL_VERSIONS`: only
+     155.0.8059.40 was measured (Chrome 155 on macOS 27.0.1); 154 and 156 are
+     Google's published stable builds. Refresh the window and the table with
+     each release; a browser of another version contradicts the identity.
+     Safari 26.1 and later and Safari 27 are missing because the iOS version
+     Safari 26 freezes in its user agent was not confirmed for them.
    - Fonts, media devices and the proxy are left unset.
    - A seed maps to the same identity only within one crate version, because
      adding a table row shifts the draws; persist the `Fingerprint`, not the

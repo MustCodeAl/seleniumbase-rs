@@ -10,8 +10,11 @@ use crate::stealth::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::LoggingPrefsLogLevel;
 
-/// The user agent a phone-emulating session reports when the caller names none.
-const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+/// The user agent a phone-emulating session reports when the caller names none:
+/// Chrome on Android in its frozen format (release 10, model `K`), claiming
+/// [`PRESET_CHROMIUM_MAJOR`](crate::stealth::randomize::PRESET_CHROMIUM_MAJOR),
+/// which a test holds it to.
+const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36";
 
 /// Chrome's port for its remote debugger when none is named.
 pub const DEFAULT_REMOTE_DEBUG_PORT: u16 = 9222;
@@ -383,6 +386,18 @@ mod tests {
     use super::*;
     use thirtyfour::BrowserCapabilitiesHelper;
     use thirtyfour::DesiredCapabilities;
+
+    #[test]
+    fn the_mobile_user_agent_claims_the_preset_major_in_chromes_frozen_format() {
+        let major = crate::stealth::randomize::PRESET_CHROMIUM_MAJOR;
+        assert_eq!(
+            MOBILE_USER_AGENT,
+            format!(
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) \
+                 Chrome/{major}.0.0.0 Mobile Safari/537.36"
+            )
+        );
+    }
 
     #[test]
     fn uc_args_contain_automation_switch() {

@@ -925,10 +925,16 @@ impl Fingerprint {
     }
 
     /// Quick preset for a Windows desktop Chrome profile.
+    ///
+    /// The Chrome presets claim
+    /// [`PRESET_CHROMIUM_MAJOR`](super::randomize::PRESET_CHROMIUM_MAJOR), the
+    /// newest major a randomized identity may claim, in Chrome's frozen user-agent
+    /// format. They set no Client Hints; the evasions derive those from the user
+    /// agent.
     pub fn windows_desktop() -> Self {
         Self::builder()
             .os_type(OsType::Windows)
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+            .user_agent(preset_user_agent("Windows NT 10.0; Win64; x64", false))
             .platform("Win32")
             .screen(1920, 1080)
             .hardware_concurrency(8)
@@ -936,7 +942,10 @@ impl Fingerprint {
             .locale("en-US")
             .languages("en-US,en;q=0.9")
             .timezone("America/New_York")
-            .webgl("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)")
+            .webgl(
+                "Google Inc. (NVIDIA)",
+                "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            )
             .flags(StealthFlags::balanced())
             .build()
     }
@@ -945,7 +954,10 @@ impl Fingerprint {
     pub fn macos_desktop() -> Self {
         Self::builder()
             .os_type(OsType::Macos)
-            .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+            .user_agent(preset_user_agent(
+                "Macintosh; Intel Mac OS X 10_15_7",
+                false,
+            ))
             .platform("MacIntel")
             .screen(1920, 1080)
             .hardware_concurrency(8)
@@ -962,7 +974,7 @@ impl Fingerprint {
     pub fn linux_desktop() -> Self {
         Self::builder()
             .os_type(OsType::Linux)
-            .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+            .user_agent(preset_user_agent("X11; Linux x86_64", false))
             .platform("Linux x86_64")
             .screen(1920, 1080)
             .hardware_concurrency(8)
@@ -970,7 +982,10 @@ impl Fingerprint {
             .locale("en-US")
             .languages("en-US,en;q=0.9")
             .timezone("America/Chicago")
-            .webgl("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)")
+            .webgl(
+                "Google Inc. (NVIDIA)",
+                "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            )
             .flags(StealthFlags::balanced())
             .build()
     }
@@ -979,7 +994,9 @@ impl Fingerprint {
     pub fn android_mobile() -> Self {
         Self::builder()
             .os_type(OsType::Android)
-            .user_agent("Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
+            // Chrome on Android freezes the version and hides the model in the
+            // user agent; the model is only in the Client Hints.
+            .user_agent(preset_user_agent("Linux; Android 10; K", true))
             .platform("Linux armv8l")
             .screen(412, 915)
             .pixel_ratio(3.0)
@@ -994,11 +1011,14 @@ impl Fingerprint {
     }
 
     /// Quick preset for an iPhone / Mobile Safari profile.
+    ///
+    /// Safari 26.0 on iOS 26, whose user agent names the frozen `iPhone OS 18_6`
+    /// (WebKit bug 298717); see the Safari table in [`super::randomize`].
     pub fn ios_mobile_safari() -> Self {
         Self::builder()
             .browser_type(BrowserType::MobileSafari)
             .os_type(OsType::Ios)
-            .user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1")
+            .user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
             .platform("iPhone")
             .screen(390, 844)
             .pixel_ratio(3.0)
@@ -1011,20 +1031,26 @@ impl Fingerprint {
             .webgl("Apple Inc.", "Apple GPU")
             .vendor("Apple Computer, Inc.")
             .client_hints(ClientHints {
-                brands: vec![BrandVersion::new("Safari", "17")],
-                full_version_list: vec![BrandVersion::new("Safari", "17.4.1")],
+                brands: vec![BrandVersion::new("Safari", "26")],
+                full_version_list: vec![BrandVersion::new("Safari", "26.0")],
                 platform: "iPhone".to_owned(),
-                platform_version: "17.4.1".to_owned(),
+                platform_version: "26.0".to_owned(),
                 architecture: "arm".to_owned(),
                 bitness: "64".to_owned(),
                 model: "iPhone".to_owned(),
-                ua_full_version: "17.4.1".to_owned(),
+                ua_full_version: "26.0".to_owned(),
                 mobile: true,
                 ..ClientHints::default()
             })
             .flags(StealthFlags::balanced())
             .build()
     }
+}
+
+/// The user agent of a Chrome preset: Chrome's frozen format on `platform`,
+/// claiming [`PRESET_CHROMIUM_MAJOR`](super::randomize::PRESET_CHROMIUM_MAJOR).
+fn preset_user_agent(platform: &str, mobile: bool) -> String {
+    super::randomize::chromium_user_agent(platform, super::randomize::PRESET_CHROMIUM_MAJOR, mobile)
 }
 
 /// Fluent builder for [`Fingerprint`].
@@ -1340,13 +1366,45 @@ mod tests {
     }
 
     #[test]
+    fn the_chrome_presets_claim_one_current_major_in_the_frozen_format() {
+        let version = format!(
+            "Chrome/{}.0.0.0",
+            crate::stealth::randomize::PRESET_CHROMIUM_MAJOR
+        );
+        for (fp, platform) in [
+            (
+                Fingerprint::windows_desktop(),
+                "(Windows NT 10.0; Win64; x64)",
+            ),
+            (
+                Fingerprint::macos_desktop(),
+                "(Macintosh; Intel Mac OS X 10_15_7)",
+            ),
+            (Fingerprint::linux_desktop(), "(X11; Linux x86_64)"),
+            (Fingerprint::android_mobile(), "(Linux; Android 10; K)"),
+        ] {
+            let ua = fp.user_agent.as_deref().unwrap_or_default();
+            assert!(ua.contains(&version), "{ua}");
+            assert!(ua.contains(platform), "{ua}");
+        }
+        let iphone = Fingerprint::ios_mobile_safari();
+        assert_eq!(
+            iphone.user_agent.as_deref(),
+            Some(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 \
+                 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+            )
+        );
+    }
+
+    #[test]
     fn mismatched_platform_and_ua_is_incoherent() {
         // macOS user-agent with a Windows platform string is a classic tell.
         let fp = Fingerprint::builder()
             .os_type(OsType::Macos)
             .user_agent(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
             )
             .platform("Win32")
             .build();

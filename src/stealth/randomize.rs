@@ -20,11 +20,94 @@ use super::fingerprint::{
 use super::humanize::Rng;
 
 /// The Chromium major versions a generated identity may claim: the recent
-/// stable releases. Refresh with each Chromium release.
-const CHROMIUM_MAJORS: [u32; 3] = [153, 154, 155];
+/// stable releases. Refresh with each Chromium release, together with
+/// [`KNOWN_FULL_VERSIONS`], which must hold a row for every major listed here.
+///
+/// On 2026-10-15 Google's Chrome version history
+/// (`versionhistory.googleapis.com`, stable channel, `mac` and `win64`) served
+/// 155 to everyone and 156.0.8078.35 to an early 0.5 %; 154 is the release
+/// before them.
+const CHROMIUM_MAJORS: [u32; 3] = [154, 155, 156];
 
-/// Mobile Safari releases a generated iPhone identity may claim.
-const MOBILE_SAFARI_VERSIONS: [&str; 4] = ["17.7", "18.1", "18.3.1", "18.5"];
+/// The Chromium major the fixed presets ([`Fingerprint::windows_desktop`] and
+/// the others) claim: the newest of [`CHROMIUM_MAJORS`].
+pub const PRESET_CHROMIUM_MAJOR: u32 = CHROMIUM_MAJORS[CHROMIUM_MAJORS.len() - 1];
+
+/// Where a row of [`KNOWN_FULL_VERSIONS`] comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FullVersionSource {
+    /// Read from `navigator.userAgentData.getHighEntropyValues` of the branded
+    /// Google Chrome installed on the Mac the table was written on, by the
+    /// ignored test `tests/client_hints_chrome.rs`.
+    MeasuredOnMac,
+    /// A build Google's Chrome version history lists on the stable channel for
+    /// `mac` and `win64` (`versionhistory.googleapis.com`); not run here.
+    GooglePublished,
+}
+
+/// A Chromium release whose full version is known, so the high-entropy Client
+/// Hints (`uaFullVersion`, `fullVersionList`) can name a real build instead of
+/// the `{major}.0.0.0` of the frozen user agent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KnownFullVersion {
+    /// The major version, such as `155`.
+    pub major: u32,
+    /// The full version Chrome reports, such as `155.0.8059.40`.
+    pub full_version: &'static str,
+    /// Whether the version was measured here or taken from Google's releases.
+    pub source: FullVersionSource,
+}
+
+/// One known full version per Chromium major, newest last. Chrome builds
+/// differ a little between platforms and over a release's life (Google served
+/// 155.0.8059.85 from 2026-10-15); one real build per major is far closer to
+/// what a real browser reports than `{major}.0.0.0`.
+pub const KNOWN_FULL_VERSIONS: [KnownFullVersion; 3] = [
+    // Google's version history, stable channel, read 2026-10-15.
+    KnownFullVersion {
+        major: 154,
+        full_version: "154.0.8037.100",
+        source: FullVersionSource::GooglePublished,
+    },
+    // Chrome 155.0.8059.40 on macOS 27.0.1 (build 26A434), measured on
+    // 2026-10-15 with `cargo test --test client_hints_chrome -- --ignored`.
+    KnownFullVersion {
+        major: 155,
+        full_version: "155.0.8059.40",
+        source: FullVersionSource::MeasuredOnMac,
+    },
+    // Google's version history, stable channel, read 2026-10-15: the 156 build
+    // served to the first 0.5 % on `mac` and `win64`. Not measured here.
+    KnownFullVersion {
+        major: 156,
+        full_version: "156.0.8078.35",
+        source: FullVersionSource::GooglePublished,
+    },
+];
+
+/// The known full version of Chromium `major`, if [`KNOWN_FULL_VERSIONS`] has one.
+#[must_use]
+pub fn known_full_version(major: u32) -> Option<&'static KnownFullVersion> {
+    KNOWN_FULL_VERSIONS.iter().find(|row| row.major == major)
+}
+
+/// Mobile Safari releases a generated iPhone identity may claim, each with the
+/// iOS version its user agent names (`CPU iPhone OS 18_5`).
+///
+/// Up to Safari 18 the two agree. Safari 26 freezes the OS token: WebKit bug
+/// 298717 (<https://bugs.webkit.org/show_bug.cgi?id=298717>, 2025-09-11) shows
+/// Safari on iOS 26.0 sending `CPU iPhone OS 18_6 like Mac OS X` with
+/// `Version/26.0`, and a WebKit engineer answers that the value is
+/// "intentionally not 26" and stays frozen. The same reply says it was unclear
+/// whether the frozen value is 18.6, 18.6.2 or 18.7, and nothing here could
+/// read a later Safari on an iPhone (no Xcode simulator on this Mac), so Safari
+/// 26.1 and later, and Safari 27, are not listed.
+const MOBILE_SAFARI_VERSIONS: [(&str, &str); 4] = [
+    ("18.1", "18_1"),
+    ("18.3.1", "18_3_1"),
+    ("18.5", "18_5"),
+    ("26.0", "18_6"),
+];
 
 /// `navigator.vendor` of every Chromium browser.
 const CHROMIUM_VENDOR: &str = "Google Inc.";
@@ -315,12 +398,27 @@ static MAC_MODELS: [MacModel; 13] = [
     MacModel::new("Apple M4 Pro", 14, Screen::new(1728, 1117, 2.0)),
 ];
 
-/// macOS releases a generated Mac may run. All are recent enough for every chip
-/// in [`MAC_MODELS`].
-const MACOS_VERSIONS: [&str; 4] = ["15.1.0", "15.3.1", "15.5.0", "15.6.0"];
+/// macOS releases a generated Mac may run, as Chrome's `platformVersion` names
+/// them: major, minor and patch, so macOS 27.0 is `27.0.0`. All are recent
+/// enough for every chip in [`MAC_MODELS`].
+///
+/// The releases are the current ones of each line on Apple's security releases
+/// page (<https://support.apple.com/en-us/100100>, read 2026-10-15): macOS
+/// Golden Gate 27 and 27.0.1, Tahoe 26.7.1 and Sequoia 15.8.1. The format is the
+/// one Chrome 155 reported on this Mac under macOS 27.0.1: `27.0.1`
+/// (`tests/client_hints_chrome.rs`).
+const MACOS_VERSIONS: [&str; 4] = ["15.8.1", "26.7.1", "27.0.0", "27.0.1"];
 
 /// Windows platform versions as Client Hints report them (Windows 10, then
 /// successive Windows 11 releases).
+///
+/// Microsoft documents the value as the major version of
+/// `Windows.Foundation.UniversalApiContract` followed by `.0.0`, with `1.0.0`
+/// to `10.0.0` for Windows 10 and `13.0.0` and above for Windows 11
+/// (<https://learn.microsoft.com/microsoft-edge/web-platform/how-to-detect-win11>).
+/// It gives no value per Windows 11 release, and no Windows Chrome was read for
+/// this table, so the list is unchanged; Windows 11 25H2 and 26H2 may report a
+/// version that is not here.
 const WINDOWS_VERSIONS: [&str; 4] = ["10.0.0", "13.0.0", "15.0.0", "19.0.0"];
 
 /// Linux kernel versions as Client Hints report them.
@@ -1130,8 +1228,7 @@ fn android(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
 }
 
 fn ios(rng: &mut Rng) -> Profile {
-    let version = *rng.pick(&MOBILE_SAFARI_VERSIONS);
-    let os_version = version.replace('.', "_");
+    let (version, os_version) = *rng.pick(&MOBILE_SAFARI_VERSIONS);
     Profile {
         browser_type: BrowserType::MobileSafari,
         core_version: None,
@@ -1154,7 +1251,7 @@ fn ios(rng: &mut Rng) -> Profile {
 }
 
 /// A Chromium user agent. Chromium freezes everything after the major version.
-fn chromium_user_agent(platform: &str, major: u32, mobile: bool) -> String {
+pub(super) fn chromium_user_agent(platform: &str, major: u32, mobile: bool) -> String {
     let mobile = if mobile { " Mobile" } else { "" };
     format!(
         "Mozilla/5.0 ({platform}) AppleWebKit/537.36 (KHTML, like Gecko) \
@@ -1179,9 +1276,25 @@ const BRAND_ORDERS: [[usize; 3]; 6] = [
     [2, 1, 0],
 ];
 
+/// The full version Chrome `major` reports in its high-entropy hints: the row
+/// of [`KNOWN_FULL_VERSIONS`], else `{major}.0.0.0` for a major the table does
+/// not know.
+fn full_version_of(major: u32) -> String {
+    known_full_version(major).map_or_else(
+        || format!("{major}.0.0.0"),
+        |row| row.full_version.to_owned(),
+    )
+}
+
 /// The brand lists and full version of a Chromium release, built the way
 /// Chromium builds them: a decoy brand whose wording, version and position are
 /// all derived from the major version. The caller fills in the platform fields.
+///
+/// The full versions (`uaFullVersion` and the `fullVersionList` entries of
+/// Chromium and Google Chrome) are the real build in [`KNOWN_FULL_VERSIONS`]
+/// when the table has the major, and `{major}.0.0.0` otherwise; the decoy's
+/// full version is always `{version}.0.0.0`, as Chrome sends it.
+#[must_use]
 pub fn chromium_hints(major: u32) -> ClientHints {
     let seed = usize::try_from(major).unwrap_or_default();
     let decoy = format!(
@@ -1207,10 +1320,11 @@ pub fn chromium_hints(major: u32) -> ClientHints {
         slots.into_iter().flatten().collect::<Vec<_>>()
     };
 
+    let full_version = full_version_of(major);
     ClientHints {
         brands: list(decoy_version.to_owned(), major.to_string()),
-        full_version_list: list(format!("{decoy_version}.0.0.0"), format!("{major}.0.0.0")),
-        ua_full_version: format!("{major}.0.0.0"),
+        full_version_list: list(format!("{decoy_version}.0.0.0"), full_version.clone()),
+        ua_full_version: full_version,
         ..ClientHints::default()
     }
 }
@@ -1266,6 +1380,35 @@ mod tests {
                 pair("Not_A Brand", "24"),
             ]
         );
+        // Measured: Chrome 155.0.8059.40 on macOS 27.0.1
+        // (`tests/client_hints_chrome.rs`).
+        assert_eq!(
+            brands(155),
+            [
+                pair("Google Chrome", "155"),
+                pair("Chromium", "155"),
+                pair("Not(A:Brand", "24"),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_full_version_list_of_155_is_the_one_chrome_155_sent_on_this_mac() {
+        let hints = chromium_hints(155);
+        let full: Vec<(String, String)> = hints
+            .full_version_list
+            .into_iter()
+            .map(|b| (b.brand, b.version))
+            .collect();
+        assert_eq!(
+            full,
+            [
+                pair("Google Chrome", "155.0.8059.40"),
+                pair("Chromium", "155.0.8059.40"),
+                pair("Not(A:Brand", "24.0.0.0"),
+            ]
+        );
+        assert_eq!(hints.ua_full_version, "155.0.8059.40");
     }
 
     #[test]
@@ -1279,8 +1422,84 @@ mod tests {
                 .map(|b| b.brand.as_str())
                 .collect();
             assert_eq!(short, full, "same brands in the same order for {major}");
-            assert_eq!(hints.ua_full_version, format!("{major}.0.0.0"));
+            let known = known_full_version(major).expect("every claimable major is in the table");
+            assert_eq!(hints.ua_full_version, known.full_version);
+            for brand in ["Chromium", "Google Chrome"] {
+                assert!(
+                    hints
+                        .full_version_list
+                        .iter()
+                        .any(|b| b.brand == brand && b.version == known.full_version),
+                    "{brand} carries the full version of {major}"
+                );
+            }
         }
+    }
+
+    #[test]
+    fn every_known_full_version_is_a_real_four_part_build_of_its_major() {
+        for row in KNOWN_FULL_VERSIONS {
+            let parts: Vec<&str> = row.full_version.split('.').collect();
+            assert_eq!(parts.len(), 4, "{row:?}");
+            assert_eq!(parts[0], row.major.to_string(), "{row:?}");
+            assert!(parts.iter().all(|p| p.parse::<u32>().is_ok()), "{row:?}");
+            assert_ne!(parts[2], "0", "a real build number, not .0.0: {row:?}");
+        }
+        let majors: Vec<u32> = KNOWN_FULL_VERSIONS.iter().map(|row| row.major).collect();
+        assert!(
+            majors.windows(2).all(|pair| pair[0] < pair[1]),
+            "one row per major, oldest first: {majors:?}"
+        );
+        assert_eq!(
+            KNOWN_FULL_VERSIONS
+                .iter()
+                .filter(|row| row.source == FullVersionSource::MeasuredOnMac)
+                .map(|row| row.major)
+                .collect::<Vec<_>>(),
+            [155],
+            "only Chrome 155 was measured on this Mac"
+        );
+    }
+
+    #[test]
+    fn a_major_the_table_does_not_know_keeps_the_zero_build() {
+        assert!(known_full_version(161).is_none());
+        let hints = chromium_hints(161);
+        assert_eq!(hints.ua_full_version, "161.0.0.0");
+        assert!(hints
+            .full_version_list
+            .iter()
+            .any(|b| b.brand == "Google Chrome" && b.version == "161.0.0.0"));
+    }
+
+    #[test]
+    fn the_presets_claim_the_newest_major_that_may_be_drawn() {
+        assert_eq!(Some(&PRESET_CHROMIUM_MAJOR), CHROMIUM_MAJORS.iter().max());
+    }
+
+    #[test]
+    fn safari_26_on_an_iphone_names_the_frozen_ios_version() {
+        let safari_26 = MOBILE_SAFARI_VERSIONS
+            .iter()
+            .find(|(version, _)| *version == "26.0")
+            .expect("Safari 26.0 is listed");
+        assert_eq!(safari_26.1, "18_6");
+        for (version, os) in MOBILE_SAFARI_VERSIONS {
+            if version.starts_with("18.") {
+                assert_eq!(os, version.replace('.', "_"), "Safari 18 names its own iOS");
+            }
+        }
+        // Some seed draws Safari 26, and its user agent is the one WebKit bug
+        // 298717 quotes.
+        let agent = (0..200)
+            .filter_map(|seed| generate(OsType::Ios, seed, None).user_agent)
+            .find(|ua| ua.contains("Version/26.0"))
+            .expect("a seed draws Safari 26");
+        assert_eq!(
+            agent,
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 \
+             (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+        );
     }
 
     #[test]
