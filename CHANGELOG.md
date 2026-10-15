@@ -20,6 +20,15 @@ work, `docs/parity.md` the per-API status).
   `sb_cdp::Page`, and `BaseCase::assert_visual_match(name)` keeps its baselines
   in `visual_baseline/<test>/` and follows `with_visual_baseline_reset`.
   `check_window` is unchanged: it compares the HTML layout, as in Python.
+- HAR recording for the pure CDP engine (no new dependency, no feature):
+  `Page::start_har()` / `start_har_with(HarOptions)` return a `HarRecorder`,
+  and `HarRecorder::finish()` returns a `Har` (HTTP Archive 1.2 serde types)
+  that `Har::save(path)` writes as JSON. Entries come from the `Network`
+  events, extra-info headers included, with cookies, query strings, POST
+  bodies, one entry per redirect hop, failures with Chrome's `_error`, and
+  `blocked`/`dns`/`connect`/`ssl`/`send`/`wait`/`receive` timings; each
+  top-level navigation is a page with `onContentLoad` and `onLoad`. Response
+  bodies are off by default and capped at 1 MiB each when turned on.
 
 ### Fixed
 

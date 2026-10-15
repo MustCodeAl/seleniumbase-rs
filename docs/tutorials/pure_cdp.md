@@ -15,6 +15,7 @@ It is the engine behind the `cdp` MCP server.
 - Fill forms, click, and press keys with trusted input
 - Wait and assert with retrying expectations
 - Work with frames, cookies, storage and tabs
+- Record a tab's network traffic as a HAR file
 - Keep WebRTC from revealing the machine's addresses
 - Test code that drives pages without launching Chrome
 
@@ -259,6 +260,53 @@ rules can set or remove headers, change the URL or method, and replace the body.
 `stealth::reactor::CdpReactor` is the older, browser-wide alternative: it adds
 headers to every request from every tab. Prefer `page.intercept` unless you
 want exactly that.
+
+## Recording a HAR
+
+`page.start_har()` records everything the tab requests from then on;
+`finish()` stops and returns a `Har` (HTTP Archive 1.2), and `save` writes it
+as a `.har` file that Chrome's and Firefox's developer tools, HAR viewers and
+mitmproxy open.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{HarOptions, Page};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let recorder = page.start_har().await?;
+page.goto("https://example.com").await?;
+let har = recorder.finish().await?;
+
+for entry in &har.log.entries {
+    println!("{} {} {} ms", entry.response.status, entry.request.url, entry.time);
+}
+har.save("example.har")?;
+
+// With response bodies, each up to 256 KiB (the default limit is 1 MiB).
+let recorder = page
+    .start_har_with(HarOptions::new().content(true).max_content_bytes(256 * 1024))
+    .await?;
+# let _ = recorder;
+# Ok(())
+# }
+```
+
+Start the recorder before the navigation you want to see: only what happens
+after `start_har` returns is recorded, and only for that tab. Each request is
+an entry with its headers as they were sent (cookies included), query string,
+POST body, status, response headers and cookies, server address and timings
+(`blocked`, `dns`, `connect`, `ssl`, `send`, `wait`, `receive`, -1 for a phase
+that did not happen). A redirect is one entry per hop; a failed request has
+status 0 and the browser's error in `_error`, as in Chrome's own export; each
+top-level navigation adds a page with its `onContentLoad` and `onLoad` times.
+Bodies are off by default; with `content(true)` a body is fetched when it
+finishes loading, binary ones as base64, and one over the limit is left out
+with a `comment` saying so. `Har` and its parts are serde types, so a saved
+HAR reads back with `serde_json::from_str::<Har>`.
+
+Recording enables the tab's `Network` domain and leaves it on, since other
+features may rely on it. A HAR records cookies and, with bodies, whatever the
+pages returned, so treat the file like the session it came from.
+`tests/sb_cdp_har_chrome.rs` records a visit to a local server in a real Chrome.
 
 ## Isolated contexts
 
