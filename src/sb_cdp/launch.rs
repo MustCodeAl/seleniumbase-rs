@@ -6,6 +6,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use serde_json::{Map, Value};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
@@ -176,6 +177,13 @@ pub struct LaunchOptions {
     /// What every tab is made to look like, if a fingerprint was given.
     pub(crate) identity: Option<Arc<Identity>>,
     pub(crate) extra_args: Vec<String>,
+    /// Unpacked extension folders, loaded over the protocol once the browser runs.
+    pub(crate) extensions: Vec<PathBuf>,
+    /// Preferences written into the profile before the browser starts.
+    pub(crate) prefs: Map<String, Value>,
+    /// The plugins whose hooks run at launch, for every tab and at close.
+    #[cfg(feature = "plugins")]
+    pub(crate) plugins: seleniumbase_rs_plugin::PluginSet,
     pub(crate) startup_timeout: Duration,
 }
 
@@ -251,6 +259,11 @@ impl LaunchOptions {
         if let Some((x, y)) = self.window_position {
             args.push(format!("--window-position={x},{y}"));
         }
+        if !self.extensions.is_empty() {
+            // Branded Chrome ignores `--load-extension` since version 137; this
+            // switch lets `Extensions.loadUnpacked` load them instead.
+            args.push("--enable-unsafe-extension-debugging".to_owned());
+        }
         args.extend(self.extra_args.iter().cloned());
         // The first page the browser opens.
         args.push("about:blank".to_owned());
@@ -307,6 +320,10 @@ pub struct LaunchOptionsBuilder {
     shield_webrtc: bool,
     identity: Option<Arc<Identity>>,
     extra_args: Vec<String>,
+    extensions: Vec<PathBuf>,
+    prefs: Map<String, Value>,
+    #[cfg(feature = "plugins")]
+    plugins: seleniumbase_rs_plugin::PluginSet,
     startup_timeout: Duration,
 }
 
@@ -331,6 +348,10 @@ impl Default for LaunchOptionsBuilder {
             shield_webrtc: false,
             identity: None,
             extra_args: Vec::new(),
+            extensions: Vec::new(),
+            prefs: Map::new(),
+            #[cfg(feature = "plugins")]
+            plugins: seleniumbase_rs_plugin::PluginSet::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
         }
     }
@@ -511,6 +532,73 @@ impl LaunchOptionsBuilder {
         self
     }
 
+    /// Loads the unpacked extension in `dir` once the browser runs.
+    ///
+    /// Branded Chrome ignores `--load-extension` since version 137, so the
+    /// extension is loaded over the protocol (`Extensions.loadUnpacked`), which
+    /// needs `--enable-unsafe-extension-debugging`; the launch adds that switch.
+    /// A browser attached with [`Browser::connect`](super::Browser::connect)
+    /// loads none.
+    #[must_use]
+    pub fn extension(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.extensions.push(dir.into());
+        self
+    }
+
+    /// Sets a browser preference, as in Chrome's `Preferences` file, before
+    /// the browser starts.
+    ///
+    /// A dotted `name` is a path, so `"intl.accept_languages"` and
+    /// `"intl"` with `{"accept_languages": ...}` mean the same; dots inside the
+    /// keys of an object `value` are kept. The preferences are merged into the
+    /// profile's `Default/Preferences`, the one in
+    /// [`user_data_dir`](Self::user_data_dir) included.
+    #[must_use]
+    pub fn preference(mut self, name: impl Into<String>, value: impl Into<Value>) -> Self {
+        self.prefs.insert(name.into(), value.into());
+        self
+    }
+
+    /// The plugins whose hooks run when the browser starts, for every tab it
+    /// opens and when it closes (feature `plugins`, ADR 004).
+    ///
+    /// [`Browser::launch`](super::Browser::launch) checks the set, lets each
+    /// plugin change the start-up settings (arguments, preferences, extensions,
+    /// proxy, headless), starts the browser and calls `on_browser`; every tab
+    /// the library attaches to gets the plugins' packages and `on_page_created`;
+    /// [`Browser::close`](super::Browser::close) calls `on_close`. An error from
+    /// any hook but `on_close` stops the launch or the tab.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::plugin_api::{async_trait, PageHandle, Plugin, PluginSet, Result};
+    /// use seleniumbase_rs::sb_cdp::LaunchOptions;
+    ///
+    /// struct Hello;
+    ///
+    /// #[async_trait]
+    /// impl Plugin for Hello {
+    ///     fn name(&self) -> &str {
+    ///         "hello"
+    ///     }
+    ///
+    ///     async fn on_page_created(&self, page: &dyn PageHandle) -> Result<()> {
+    ///         page.add_init_script("console.log('hello from a plugin')").await
+    ///     }
+    /// }
+    ///
+    /// let plugins = PluginSet::new().with(Hello)?;
+    /// let options = LaunchOptions::builder().headless(true).plugins(plugins).build()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[cfg(feature = "plugins")]
+    #[must_use]
+    pub fn plugins(mut self, plugins: seleniumbase_rs_plugin::PluginSet) -> Self {
+        self.plugins = plugins;
+        self
+    }
+
     /// Sets how long to wait for the browser to become reachable.
     #[must_use]
     pub fn startup_timeout(mut self, timeout: Duration) -> Self {
@@ -575,6 +663,10 @@ impl LaunchOptionsBuilder {
             shield_webrtc: self.shield_webrtc,
             identity: self.identity,
             extra_args: self.extra_args,
+            extensions: self.extensions,
+            prefs: self.prefs,
+            #[cfg(feature = "plugins")]
+            plugins: self.plugins,
             startup_timeout: self.startup_timeout,
         }
     }
@@ -642,6 +734,9 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
         let tmp = tempfile::Builder::new().prefix("sb-cdp-").tempdir()?;
         (tmp.path().to_path_buf(), Some(tmp))
     };
+    if !options.prefs.is_empty() {
+        write_preferences(&profile_dir, &options.prefs)?;
+    }
     let endpoint_file = profile_dir.join("DevToolsActivePort");
     // A stale file from an earlier run would be read as the new endpoint.
     let _ = std::fs::remove_file(&endpoint_file);
@@ -693,6 +788,74 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
     }
 }
 
+/// Merges `prefs` into the profile's `Default/Preferences`, which Chrome reads
+/// when it starts.
+///
+/// A dotted top-level name is a path into the file; objects are merged key by
+/// key, so what the profile already holds stays unless a preference replaces
+/// it. A file that is not a JSON object is left alone and reported.
+pub(crate) fn write_preferences(
+    profile_dir: &Path,
+    prefs: &Map<String, Value>,
+) -> Result<(), SeleniumBaseError> {
+    let dir = profile_dir.join("Default");
+    std::fs::create_dir_all(&dir)?;
+    let file = dir.join("Preferences");
+    let mut current = match std::fs::read_to_string(&file) {
+        Ok(text) => match serde_json::from_str::<Value>(&text) {
+            Ok(Value::Object(map)) => map,
+            _ => {
+                return Err(SeleniumBaseError::invalid_config(format!(
+                    "{} is not a JSON object, so the preferences were not written into it",
+                    file.display()
+                )))
+            }
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Map::new(),
+        Err(error) => return Err(error.into()),
+    };
+    for (name, value) in prefs {
+        let path: Vec<&str> = name.split('.').collect();
+        merge_at(&mut current, &path, value);
+    }
+    std::fs::write(&file, serde_json::to_vec(&Value::Object(current))?)?;
+    Ok(())
+}
+
+/// Sets the preference at `path` in `target` to `value`, making the objects on
+/// the way where they are missing.
+fn merge_at(target: &mut Map<String, Value>, path: &[&str], value: &Value) {
+    match path {
+        [] => {}
+        [last] => merge_value(target, last, value),
+        [first, rest @ ..] => {
+            let entry = target
+                .entry((*first).to_owned())
+                .or_insert_with(|| Value::Object(Map::new()));
+            if !entry.is_object() {
+                *entry = Value::Object(Map::new());
+            }
+            if let Value::Object(next) = entry {
+                merge_at(next, rest, value);
+            }
+        }
+    }
+}
+
+/// Sets `key` in `target` to `value`, merging two objects key by key.
+fn merge_value(target: &mut Map<String, Value>, key: &str, value: &Value) {
+    match (target.get_mut(key), value) {
+        (Some(Value::Object(existing)), Value::Object(incoming)) => {
+            for (inner, inner_value) in incoming {
+                merge_value(existing, inner, inner_value);
+            }
+        }
+        _ => {
+            target.insert(key.to_owned(), value.clone());
+        }
+    }
+}
+
 /// Parses `DevToolsActivePort`: the port on the first line, the browser
 /// WebSocket path on the second.
 fn parse_endpoint(content: &str) -> Option<(u16, String)> {
@@ -705,6 +868,7 @@ fn parse_endpoint(content: &str) -> Option<(u16, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn args_for(builder: LaunchOptionsBuilder) -> Vec<String> {
         builder
@@ -848,6 +1012,88 @@ mod tests {
         ] {
             assert_eq!(parse_endpoint(bad), None, "accepted {bad:?}");
         }
+    }
+
+    #[test]
+    fn an_extension_turns_on_loading_it_over_the_protocol() {
+        let plain = args_for(LaunchOptions::builder());
+        assert!(!plain
+            .iter()
+            .any(|a| a == "--enable-unsafe-extension-debugging"));
+
+        let with = args_for(LaunchOptions::builder().extension("/opt/extensions/helper"));
+        assert!(with
+            .iter()
+            .any(|a| a == "--enable-unsafe-extension-debugging"));
+        assert!(
+            !with.iter().any(|a| a.starts_with("--load-extension")),
+            "branded Chrome ignores the switch, so the protocol loads it"
+        );
+    }
+
+    fn read_preferences(profile: &Path) -> Value {
+        let text = std::fs::read_to_string(profile.join("Default").join("Preferences")).unwrap();
+        serde_json::from_str(&text).unwrap()
+    }
+
+    #[test]
+    fn preferences_are_merged_into_the_profiles_own() {
+        let profile = tempfile::tempdir().unwrap();
+        let default = profile.path().join("Default");
+        std::fs::create_dir_all(&default).unwrap();
+        std::fs::write(
+            default.join("Preferences"),
+            r#"{"profile":{"name":"Work","exit_type":"Normal"},"keep":1}"#,
+        )
+        .unwrap();
+        let options = LaunchOptions::builder()
+            .preference("profile.exit_type", "Crashed")
+            .preference("webkit", json!({ "webprefs": { "default_font_size": 22 } }))
+            .preference(
+                "profile",
+                json!({ "content_settings": { "exceptions": { "https://a.test:443,*": 1 } } }),
+            )
+            .build()
+            .unwrap();
+
+        write_preferences(profile.path(), &options.prefs).unwrap();
+
+        let written = read_preferences(profile.path());
+        assert_eq!(written["keep"], 1, "what was there stays");
+        assert_eq!(written["profile"]["name"], "Work");
+        assert_eq!(
+            written["profile"]["exit_type"], "Crashed",
+            "a dotted name is a path"
+        );
+        assert_eq!(written["webkit"]["webprefs"]["default_font_size"], 22);
+        assert_eq!(
+            written["profile"]["content_settings"]["exceptions"]["https://a.test:443,*"], 1,
+            "dots inside a nested key are part of the key"
+        );
+    }
+
+    #[test]
+    fn a_fresh_profile_gets_preferences_and_a_damaged_file_is_left_alone() {
+        let mut prefs = Map::new();
+        prefs.insert("intl.accept_languages".to_owned(), json!("de-DE"));
+
+        let fresh = tempfile::tempdir().unwrap();
+        write_preferences(fresh.path(), &prefs).unwrap();
+        assert_eq!(
+            read_preferences(fresh.path()),
+            json!({ "intl": { "accept_languages": "de-DE" } })
+        );
+
+        let damaged = tempfile::tempdir().unwrap();
+        let file = damaged.path().join("Default").join("Preferences");
+        std::fs::create_dir_all(damaged.path().join("Default")).unwrap();
+        std::fs::write(&file, "not json").unwrap();
+        let error = write_preferences(damaged.path(), &prefs).unwrap_err();
+        assert!(
+            matches!(error, SeleniumBaseError::InvalidConfig(_)),
+            "{error:?}"
+        );
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "not json");
     }
 
     #[test]
