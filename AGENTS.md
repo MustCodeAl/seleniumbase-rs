@@ -11,7 +11,11 @@ disagree, this file and `CLAUDE.md` win.
 server (crate `seleniumbase-rs`, MIT, Rust 1.99, not on crates.io). Two engines:
 WebDriver (`src/browser`, `src/api`, built on `thirtyfour`) and a pure CDP engine
 (`src/sb_cdp`). Stealth lives in `src/stealth`; MCP servers in `src/mcp`; the CLI
-(`sbrs`) in `src/cli`. Optional features are off by default.
+(`sbrs`) in `src/cli`. Optional features are off by default. The experimental
+stealth scraping layer (wire fingerprints, TLS and HTTP/2 impersonation) is not
+here: since 0.3.0 it lives in
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+and depends on this crate's public API.
 
 ## Read first
 
@@ -26,7 +30,6 @@ export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
-cargo clippy --features scrape --lib -- -D warnings
 cargo check --features turso --all-targets
 ```
 
