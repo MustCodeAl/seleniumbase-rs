@@ -12,13 +12,16 @@ use seleniumbase_rs::cli::commands::{
     blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
     looks_like_pdf, parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
 };
+use seleniumbase_rs::cli::devtools::{
+    ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
+};
 use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
 use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
 use seleniumbase_rs::cli::scripts::sb_mkfile::TestFile;
 use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
 use seleniumbase_rs::common::shutdown::{
-    drain_cleanups, run_until_shutdown, timeout_from_env, Outcome, Shutdown,
+    cleanup_within, drain_cleanups, run_until_shutdown, timeout_from_env, Outcome, Shutdown,
 };
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
@@ -1051,6 +1054,49 @@ enum Commands {
         #[arg(help = "JSON action file produced by `sbrs record`")]
         file: String,
     },
+    /// Launch Chrome with an open DevTools endpoint and print MCP client configs.
+    ///
+    /// Starts Chrome with the Pure CDP engine (no chromedriver), prints the
+    /// DevTools HTTP endpoint, the browser WebSocket URL and configs for
+    /// Google's chrome-devtools-mcp and Microsoft's Playwright MCP, then keeps
+    /// the browser running until Ctrl+C, which closes it and exits with 0.
+    /// The global --browser (chrome, chromium, edge or another Chromium
+    /// browser), --headed, --user-agent, --locale, --ad-block, --extension-dir
+    /// and --proxy-list apply as well.
+    Devtools {
+        #[arg(long, help = "Run the browser without a window")]
+        headless: bool,
+        #[arg(
+            long,
+            default_value_t = DEFAULT_DEVTOOLS_PORT,
+            help = "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)"
+        )]
+        port: u16,
+        #[arg(
+            long,
+            value_name = "DIR",
+            help = "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)"
+        )]
+        user_data_dir: Option<String>,
+        #[arg(
+            long,
+            help = "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT"
+        )]
+        proxy: Option<String>,
+        #[arg(
+            long,
+            value_name = "PATH",
+            help = "Browser binary to launch, such as Microsoft Edge or another Chromium browser"
+        )]
+        browser_path: Option<String>,
+        #[arg(long, value_name = "URL", help = "Page to open once the browser runs")]
+        url: Option<String>,
+        #[arg(
+            long,
+            help = "Print the endpoint and configs as one line of JSON instead of text"
+        )]
+        json: bool,
+    },
 }
 
 /// The error of a token that would not open. The library's own error names the cipher and its
@@ -1460,16 +1506,20 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     init_tracing_from_runtime(&runtime);
 
     let args = Cli::parse();
-    let is_record = matches!(args.command, Commands::Record { .. });
+    let stops_itself = matches!(
+        args.command,
+        Commands::Record { .. } | Commands::Devtools { .. }
+    );
     // `record` stops itself on SIGINT or SIGTERM so that it can save what it
-    // captured. A signal cancels any other command, which closes its browser.
+    // captured, and `devtools` so that it can close its browser and exit
+    // with 0. A signal cancels any other command, which closes its browser.
     //
     // `run` holds the locals of every command, so its future is large. It is
     // boxed so that it lives on the heap: kept on the main thread's stack, and
     // copied again by the signal race, it overflowed the 8 MiB stack in debug
     // builds as soon as a command compiled a few regular expressions.
     let work = Box::pin(run(args));
-    let outcome = if is_record {
+    let outcome = if stops_itself {
         Outcome::Completed(work.await)
     } else {
         run_until_shutdown(work).await?
@@ -1483,6 +1533,153 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(signal.exit_code());
         }
     }
+}
+
+/// The proxy a command uses: `proxy` as given, or, with a proxy list, the
+/// entry `proxy` names in it (a random entry when `proxy` is unset).
+fn resolve_proxy(
+    proxy: Option<&str>,
+    proxy_list: Option<&str>,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let Some(path) = proxy_list else {
+        return Ok(proxy.map(str::to_owned));
+    };
+    let list = ProxyList::from_file(path)?;
+    Ok(Some(match proxy {
+        Some(name_or_proxy) => list.resolve(name_or_proxy)?,
+        None => {
+            let entry = list
+                .random()
+                .ok_or_else(|| format!("the proxy list {path} is empty"))?;
+            rich_helper::print_notice(&format!("Using proxy {entry}"));
+            entry.spec().to_owned()
+        }
+    }))
+}
+
+/// The browser `sbrs devtools` launches: its binary (`None` to search for
+/// Chrome), whether to search for Chromium instead, and its name.
+fn devtools_browser(
+    browser: Option<BrowserArg>,
+    browser_path: Option<&str>,
+) -> Result<(Option<PathBuf>, bool, String), Box<dyn std::error::Error>> {
+    if let Some(path) = browser_path {
+        return Ok((
+            Some(PathBuf::from(path)),
+            false,
+            format!("The browser at {path}"),
+        ));
+    }
+    match browser {
+        None | Some(BrowserArg::Chrome) => Ok((None, false, "Google Chrome".to_owned())),
+        Some(BrowserArg::Chromium) => Ok((None, true, "Chromium".to_owned())),
+        Some(BrowserArg::Firefox | BrowserArg::Safari | BrowserArg::Ie) => Err(
+            "sbrs devtools launches Chromium browsers (Chrome, Chromium, Edge, ...), which \
+             speak the DevTools Protocol; for Firefox and Safari see \
+             docs/tutorials/devtools_mcp.md"
+                .into(),
+        ),
+        Some(other) => {
+            let kind = Browser::from(other);
+            let name = match other {
+                BrowserArg::Edge => "Microsoft Edge".to_owned(),
+                _ => format!("{kind:?}"),
+            };
+            let path = seleniumbase_rs::browser::binaries::locate(kind).ok_or_else(|| {
+                format!("{name} was not found on this machine; install it or pass --browser-path")
+            })?;
+            Ok((Some(path), false, name))
+        }
+    }
+}
+
+/// `sbrs devtools`: launches a browser with an open DevTools endpoint, prints
+/// how other tools attach to it, and keeps it running until Ctrl-C (or
+/// SIGTERM), which closes it and exits with 0, or until its window is closed.
+async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
+    let Commands::Devtools {
+        headless,
+        port,
+        user_data_dir,
+        proxy,
+        browser_path,
+        url,
+        json,
+    } = &args.command
+    else {
+        return Err("run_devtools runs only for sbrs devtools".into());
+    };
+    // Listen before the browser starts, so a Ctrl-C during the start is heard.
+    let mut shutdown = Shutdown::install()?;
+    let (executable, use_chromium, name) = devtools_browser(args.browser, browser_path.as_deref())?;
+    let request = DevtoolsRequest {
+        headless: if *headless || args.headless {
+            Some(true)
+        } else if args.headed {
+            Some(false)
+        } else {
+            None
+        },
+        port: *port,
+        user_data_dir: user_data_dir
+            .as_deref()
+            .or(args.user_data_dir.as_deref())
+            .map(PathBuf::from),
+        proxy: resolve_proxy(
+            proxy.as_deref().or(args.proxy.as_deref()),
+            args.proxy_list.as_deref(),
+        )?,
+        executable,
+        use_chromium,
+        user_agent: args.user_agent.clone().or_else(|| args.agent.clone()),
+        locale: args.locale.clone(),
+        ad_block: args.ad_block,
+        extension_dir: args.extension_dir.as_deref().map(PathBuf::from),
+        url: url.as_deref().map(navigable_url).transpose()?,
+    };
+    if args.uc || args.cdp {
+        rich_helper::print_notice(
+            "sbrs devtools always uses the Pure CDP engine, with no chromedriver; --uc and --cdp change nothing",
+        );
+    }
+    ensure_port_is_free(request.port)?;
+    let options = request.launch_options()?;
+    let browser = seleniumbase_rs::sb_cdp::Browser::launch(options).await?;
+    let endpoint = browser.devtools_endpoint();
+    let mut out = std::io::stdout();
+    if *json {
+        let mut answer = endpoint.to_json();
+        answer["browser"] = json!(name);
+        writeln!(out, "{}", serde_json::to_string(&answer)?)?;
+    } else {
+        write!(out, "{}", ready_message(&endpoint, &name))?;
+    }
+    out.flush()?;
+
+    loop {
+        tokio::select! {
+            signal = shutdown.recv() => {
+                eprintln!("{signal} received; closing the browser.");
+                break;
+            }
+            () = tokio::time::sleep(Duration::from_millis(500)) => {
+                if !browser.is_connected() {
+                    eprintln!("The browser was closed; exiting.");
+                    return Ok(());
+                }
+            }
+        }
+    }
+    let closed = cleanup_within(timeout_from_env(), async {
+        if let Err(error) = browser.close().await {
+            eprintln!("warning: closing the browser failed: {error}");
+        }
+    })
+    .await;
+    if !closed {
+        eprintln!("warning: the browser did not close in time; it is being ended.");
+    }
+    Ok(())
 }
 
 /// Which importer `import_script` runs.
@@ -1708,6 +1905,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
+        Commands::Devtools { .. } => return run_devtools(&args).await,
         _ => {}
     }
 
@@ -1721,22 +1919,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // explicitly. An option left alone keeps the environment's value or, failing
     // that, the file's, and one that was passed beats both.
     let mut settings = Settings::load(args.config.as_deref())?;
-    let proxy = match args.proxy_list.as_deref() {
-        Some(path) => {
-            let list = ProxyList::from_file(path)?;
-            match args.proxy.as_deref() {
-                Some(name_or_proxy) => Some(list.resolve(name_or_proxy)?),
-                None => {
-                    let entry = list
-                        .random()
-                        .ok_or_else(|| format!("the proxy list {path} is empty"))?;
-                    rich_helper::print_notice(&format!("Using proxy {entry}"));
-                    Some(entry.spec().to_owned())
-                }
-            }
-        }
-        None => args.proxy,
-    };
+    let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
     let overrides = SettingsOverrides {
         browser: args
             .browser
@@ -2378,7 +2561,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::Mkfile { .. }
         | Commands::Translate { .. }
         | Commands::GridHub(_)
-        | Commands::GridNode(_) => {
+        | Commands::GridNode(_)
+        | Commands::Devtools { .. } => {
             unreachable!("these commands return before browser configuration")
         }
         #[cfg(feature = "tui")]
@@ -2707,6 +2891,119 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod devtools_cli_tests {
+    use super::*;
+
+    fn parse(argv: &[&str]) -> Cli {
+        Cli::try_parse_from(argv).expect("the arguments parse")
+    }
+
+    #[test]
+    fn devtools_takes_its_own_options_with_port_9222_by_default() {
+        let cli = parse(&["sbrs", "devtools"]);
+        let Commands::Devtools {
+            headless,
+            port,
+            user_data_dir,
+            proxy,
+            browser_path,
+            url,
+            json,
+        } = cli.command
+        else {
+            panic!("not the devtools command");
+        };
+        assert_eq!(port, 9222);
+        assert!(!headless && !json);
+        assert!(user_data_dir.is_none() && proxy.is_none());
+        assert!(browser_path.is_none() && url.is_none());
+
+        let cli = parse(&[
+            "sbrs",
+            "devtools",
+            "--headless",
+            "--port",
+            "0",
+            "--user-data-dir",
+            "/tmp/devtools",
+            "--proxy",
+            "host:8080",
+            "--browser-path",
+            "/opt/edge",
+            "--url",
+            "example.com",
+            "--json",
+        ]);
+        let Commands::Devtools {
+            headless,
+            port,
+            user_data_dir,
+            proxy,
+            browser_path,
+            url,
+            json,
+        } = cli.command
+        else {
+            panic!("not the devtools command");
+        };
+        assert!(headless && json);
+        assert_eq!(port, 0);
+        assert_eq!(user_data_dir.as_deref(), Some("/tmp/devtools"));
+        assert_eq!(proxy.as_deref(), Some("host:8080"));
+        assert_eq!(browser_path.as_deref(), Some("/opt/edge"));
+        assert_eq!(url.as_deref(), Some("example.com"));
+    }
+
+    #[test]
+    fn the_global_switches_before_the_command_still_apply() {
+        let cli = parse(&[
+            "sbrs",
+            "--headless",
+            "--browser",
+            "chromium",
+            "--proxy",
+            "global:1",
+            "devtools",
+        ]);
+        assert!(cli.headless);
+        assert_eq!(cli.browser, Some(BrowserArg::Chromium));
+        assert_eq!(cli.proxy.as_deref(), Some("global:1"));
+        assert!(matches!(cli.command, Commands::Devtools { .. }));
+    }
+
+    #[test]
+    fn a_port_out_of_range_is_refused() {
+        assert!(Cli::try_parse_from(["sbrs", "devtools", "--port", "70000"]).is_err());
+    }
+
+    #[test]
+    fn devtools_launches_chromium_browsers_only() {
+        let (path, use_chromium, name) = devtools_browser(None, None).expect("Chrome");
+        assert!(path.is_none() && !use_chromium);
+        assert_eq!(name, "Google Chrome");
+        let (_, use_chromium, _) =
+            devtools_browser(Some(BrowserArg::Chromium), None).expect("Chromium");
+        assert!(use_chromium);
+        let (path, _, _) = devtools_browser(Some(BrowserArg::Firefox), Some("/opt/edge"))
+            .expect("an explicit binary wins");
+        assert_eq!(path, Some(PathBuf::from("/opt/edge")));
+        for other in [BrowserArg::Firefox, BrowserArg::Safari, BrowserArg::Ie] {
+            let error = devtools_browser(Some(other), None).expect_err("not Chromium");
+            assert!(error.to_string().contains("devtools_mcp.md"), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_proxy_without_a_list_is_used_as_given() {
+        assert_eq!(
+            resolve_proxy(Some("host:1"), None).expect("no list"),
+            Some("host:1".to_owned())
+        );
+        assert_eq!(resolve_proxy(None, None).expect("no proxy"), None);
+    }
 }
 
 #[cfg(test)]
