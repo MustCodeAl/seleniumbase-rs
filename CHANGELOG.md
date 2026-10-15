@@ -6,7 +6,58 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## Unreleased
+## [0.3.0] - 2026-10-15
+
+A breaking release: the experimental stealth scraping layer leaves this crate.
+
+### Removed
+
+- **BREAKING: the stealth scraping layer moved to its own repository,
+  [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth).**
+  The features `scrape` and `impersonate`, the modules `seleniumbase_rs::wire`,
+  `seleniumbase_rs::scrape` and `seleniumbase_rs::impersonate`, and their
+  crate-root re-exports (`BrowserScraper`, `CookieJar`, `StealthIdentity`,
+  `SessionPolicy`, `ScrapeError`, `BrowserKind`, `Emulation`, `TlsSpec`,
+  `H2Spec`, `HeaderSpec`, `ImpersonationProfile`, `CustomProfileBuilder`,
+  `impersonation_client`, `HttpSession`, `MitmProxy`, `StealthSession`,
+  `EphemeralCa` and the rest) are gone from this crate. They are now the crates
+  `seleniumbase-rs-wire` (was the module `wire`), `seleniumbase-rs-scrape` (was
+  the feature `scrape`) and `seleniumbase-rs-impersonate` (was the feature
+  `impersonate`), which build on the public API of this crate and stay
+  experimental. Depend on them by git, for example
+  `seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }`,
+  and give `seleniumbase-rs` by its plain git URL next to them so both resolve to
+  one commit ([Stealth Scraping](docs/tutorials/stealth_scraping.md)).
+- With the layer go the optional dependencies `psl`, `wreq`, `btls`,
+  `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
+  examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,
+  `browser_scraper`, `custom_profile`, `http_session` and `stealth_session`; the
+  tests and fixtures of the layer; the `just scrape-gate`, `imp-gate` and
+  `measure` recipes and their mise tasks; the `scrape` CI matrix entries and the
+  `impersonate` CI job; and CMake, NASM and LLVM from the build requirements.
+- `futures-util` without its default macros (`select!`/`join!`, unused), so the
+  `futures-macro` proc macro is no longer compiled.
+- `scraper` without its default features (`getopts` for its own CLI, unused
+  parse-error text). `flate2` asks only for the `zlib-rs` backend `zip` already
+  builds (`pdf-extract` still turns on its default one).
+- The unused `tracing-futures` dependency (every build compiled it) and the
+  unused `tracing-actix` one from the `full-tracing` feature.
+- JSON logs come from `tracing-subscriber`'s own JSON format instead of the
+  separate `json-subscriber` crate.
+- The `playwright` feature no longer lists `rustwright-core` itself; `rustwright`
+  already brings it without Python.
+- HTTPS uses rustls with the `ring` crypto provider for every client, so the
+  `aws-lc-sys` C library is no longer compiled. A program that builds its own
+  reqwest client next to this crate calls `seleniumbase_rs::install_tls_provider()`
+  first.
+- reqwest no longer builds its `blocking` client: ending reused sessions at
+  exit uses the async client on a small runtime of its own.
+- `thirtyfour` is built without its `component` derive macros and its own
+  driver `manager` (this crate downloads drivers itself), which also removes its
+  older `zip` and `dirs`.
+- `zip` is built with deflate only (the format of driver downloads and the
+  bundled extensions) instead of every format; zstd (a C library), bzip2, lzma,
+  xz, ppmd and AES no longer compile.
 
 ### Changed
 
@@ -52,32 +103,6 @@ work, `docs/parity.md` the per-API status).
 - Feature `tokio-console` (off by default): `sbrs`, `sbrs-mcp` and programs that
   use the crate's logging serve [tokio-console](https://github.com/tokio-rs/console)
   for watching async tasks. Build with `RUSTFLAGS="--cfg tokio_unstable"`.
-
-### Removed
-
-- `futures-util` without its default macros (`select!`/`join!`, unused), so the
-  `futures-macro` proc macro is no longer compiled.
-- `scraper` without its default features (`getopts` for its own CLI, unused
-  parse-error text). `flate2` asks only for the `zlib-rs` backend `zip` already
-  builds (`pdf-extract` still turns on its default one).
-- The unused `tracing-futures` dependency (every build compiled it) and the
-  unused `tracing-actix` one from the `full-tracing` feature.
-- JSON logs come from `tracing-subscriber`'s own JSON format instead of the
-  separate `json-subscriber` crate.
-- The `playwright` feature no longer lists `rustwright-core` itself; `rustwright`
-  already brings it without Python.
-- HTTPS uses rustls with the `ring` crypto provider for every client, so the
-  `aws-lc-sys` C library is no longer compiled. A program that builds its own
-  reqwest client next to this crate calls `seleniumbase_rs::install_tls_provider()`
-  first.
-- reqwest no longer builds its `blocking` client: ending reused sessions at
-  exit uses the async client on a small runtime of its own.
-- `thirtyfour` is built without its `component` derive macros and its own
-  driver `manager` (this crate downloads drivers itself), which also removes its
-  older `zip` and `dirs`.
-- `zip` is built with deflate only (the format of driver downloads and the
-  bundled extensions) instead of every format; zstd (a C library), bzip2, lzma,
-  xz, ppmd and AES no longer compile.
 
 ## [0.2.0] - 2026-10-12
 
