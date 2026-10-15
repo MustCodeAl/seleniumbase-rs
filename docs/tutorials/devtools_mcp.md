@@ -253,6 +253,9 @@ the arguments, a mocked-browser test of the tool, and real-Chrome tests
 (`tests/devtools_cli_chrome.rs`, run with
 `cargo test --test devtools_cli_chrome -- --ignored --test-threads=1`) that start
 the command against Chrome 155 on macOS, read `/json/version` from the printed
-endpoint, and stop it with SIGINT and SIGTERM. The vendor MCP servers themselves
+endpoint, and stop it with SIGINT and SIGTERM. `sbrs --browser edge devtools
+--headless --port 9444 --json` was run by hand against Microsoft Edge 155 on
+macOS: `/json/version` answered on the port and Ctrl-C closed Edge with status 0.
+The vendor MCP servers themselves
 were not installed or run for this page: their flags come from their READMEs
 and documentation as of 2026-10-15.
