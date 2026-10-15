@@ -15,6 +15,12 @@ work, `docs/parity.md` the per-API status).
 - The tests' leftover-process checks (Edge, geckodriver, the MCP stdio servers)
   list processes with `sysinfo` (a dev-dependency) instead of `pgrep` and
   `kill -0`, so they run on Windows too instead of being skipped there.
+- Human-paced input draws its bell-curve values (`stealth::humanize::Rng::gaussian`,
+  used by `stealth::behavior`) from `rand_distr`'s `StandardNormal` instead of a
+  hand-written Box-Muller transform. The distribution is the same, but a seeded
+  `Humanizer` now plans different paths and timings than before for the same
+  seed. `humanize::Rng` implements `rand::TryRng` (so `rand::Rng`), and
+  `rand_distr` is a new dependency.
 
 ### Added
 
