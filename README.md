@@ -572,7 +572,7 @@ recorded status in [docs/parity.md](./docs/parity.md):
 Two audits checked those claims: one fixed or re-marked 26 entries that did less
 than the Python method, the other 34 that promised more than the Rust did.
 
-**Testing.** About 3,000 automated tests run on every change, most of them
+**Testing.** About 2,200 automated tests run on every change, most of them
 against a mock browser or as unit tests. On top of that, 22 test files drive a
 real Chrome 155, and two more drive real Edge and Firefox; they are `#[ignore]`d
 and run on request. The real-browser suite has passed on macOS and Windows 11,
