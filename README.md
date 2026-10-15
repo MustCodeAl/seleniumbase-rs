@@ -495,6 +495,7 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Getting Started](./docs/tutorials/getting_started.md)
 - [Selectors](./docs/tutorials/selectors.md)
 - [Waits and Assertions](./docs/tutorials/waits_assertions.md)
+- [Testing Pages with a CAPTCHA](./docs/tutorials/captcha_testing.md)
 - [Shadow DOM](./docs/tutorials/shadow_dom.md)
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)

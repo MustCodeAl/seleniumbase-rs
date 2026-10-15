@@ -454,7 +454,8 @@ that could leave the logs directory.
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,
 Friendly Captcha or DataDome widget with trusted mouse events and returns which
 one it tried. The widgets live in cross-origin frames, so success is up to the
-site: check the page afterwards.
+site: check the page afterwards. To test your own pages with the vendors' test
+keys, see [Testing Pages with a CAPTCHA](captcha_testing.md).
 
 Some challenge frames refuse events that did not come from the operating
 system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt

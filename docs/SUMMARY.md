@@ -18,6 +18,7 @@ hidden: true
   - [Performance](performance.md)
   - [Benchmarks](benchmarks.md)
 - [Writing Browser Tests](rust-test-tooling.md)
+  - [Testing Pages with a CAPTCHA](tutorials/captcha_testing.md)
 - [Migrate Python Tests](python-migration.md)
   - [Migrate Playwright Tests](playwright-migration.md)
   - [Migrate Puppeteer Tests](puppeteer-migration.md)
