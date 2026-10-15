@@ -101,14 +101,21 @@ npx tauri build
 
 ## Tauri versions
 
-The app builds on Tauri `3.0.0-alpha.4` (`tauri`, `tauri-build` `3.0.0-alpha.3`,
-`tauri-plugin-opener` `3.0.0-alpha.2`, `@tauri-apps/cli` `3.0.0-alpha.4`). On
-macOS its 115 tests pass and `npx tauri build --debug --bundles app` makes the
-`.app`; the window was not opened in that check. Moving from Tauri 2 needed no
-code change: the frontend's `window.__TAURI__.core.invoke`, the `core:default`
-and `opener:default` permissions and the configuration all carried over, with
-the schema URL moved to `https://schema.tauri.app/config/3`. To build on Tauri
-2 instead, set those versions back to `2` and the schema to `config/2`.
+The app builds on Tauri `3.0.0-alpha.4` (`tauri`, `tauri-runtime-wry`
+`3.0.0-alpha.4`, `tauri-build` `3.0.0-alpha.3`, `tauri-plugin-opener`
+`3.0.0-alpha.2`, `@tauri-apps/cli` `3.0.0-alpha.4`). On macOS its 115 tests
+pass, `npx tauri build --debug --bundles app` makes the `.app`, and the window
+opens.
+
+Moving from Tauri 2 needed one code change: Tauri 3 starts no runtime unless
+the app names one, so `run` passes `tauri_runtime_wry::Wry::default()` to
+`Builder::runtime` (without it the app stops at once with
+`RuntimeNotConfigured`). The frontend's `window.__TAURI__.core.invoke`, the
+`core:default` and `opener:default` permissions and the configuration all
+carried over, with the schema URL moved to `https://schema.tauri.app/config/3`.
+To build on Tauri 2 instead, set those versions back to `2`, drop
+`tauri-runtime-wry` and the `.runtime(...)` line, and set the schema to
+`config/2`.
 
 The whole library fits in a Tauri 3 app, not only the `turso` feature this
 example uses: with every `seleniumbase-rs` feature switched on

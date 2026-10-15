@@ -19,6 +19,8 @@ tauri-build = { version = "=3.0.0-alpha.3", features = [] }
 
 [dependencies]
 tauri = { version = "=3.0.0-alpha.4", features = [] }
+# Tauri 3 no longer picks a runtime itself: the app names one (see `run`).
+tauri-runtime-wry = "=3.0.0-alpha.4"
 tauri-plugin-opener = "=3.0.0-alpha.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

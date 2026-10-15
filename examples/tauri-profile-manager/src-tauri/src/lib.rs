@@ -200,6 +200,9 @@ pub fn run() {
     init_tracing();
 
     tauri::Builder::default()
+        // Tauri 3 runs no runtime unless the app names one; without this the
+        // app stops at once with `RuntimeNotConfigured`.
+        .runtime(tauri_runtime_wry::Wry::default())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Open the vault before anything can ask for a profile. This takes
