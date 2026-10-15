@@ -123,15 +123,18 @@ The host was an Apple-silicon Mac, so the containers were
 154.0.8037.92** from Debian's `chromium` and `chromium-driver` packages. Cargo ran
 with `CARGO_BUILD_JOBS=2` in a container limited to 4 GB.
 
+These runs predate 0.3.0: the feature set still had `scrape`, so the counts below
+include the tests of the stealth layer, which has since moved to
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+(its `impersonate` runs, the measured-persona checks and a flaky JA3 test fixed
+then are no longer part of this crate).
+
 | Run | Result |
 |---|---|
 | Library tests, `--features "mcp-server test-util scrape"` | 2112 passed, 0 failed, 16 ignored |
 | The other test binaries of that feature set (68) | 406 passed, 0 failed, 114 ignored (the real-browser tests, ignored by default) |
 | Doc tests, same features | 182 passed, 0 failed, 10 ignored |
-| `--features "impersonate test-util" --lib impersonate` (builds BoringSSL) | 291 passed |
-| `impersonate_http`, `impersonate_mitm`, `stealth_session`, `impersonate_wire`, `impersonate_capture_h2` | 83 + 49 + 32 + 39 + 6 = 209 passed, 0 failed (four more runs gave the same) |
-| Real Chromium 154: `browser_smoke` and 17 `*_chrome` binaries, one at a time with `-- --ignored --test-threads=1` | 112 passed, 0 failed (headless, except the 2 of `scrape_capture_chrome`, which ran headed on a virtual display) |
-| Real-Chrome tests of the measured macOS persona, 4 binaries (14 tests) | 14 pass: 1 ran, 13 skip themselves (below) |
+| Real Chromium 154: `browser_smoke` and 17 `*_chrome` binaries, one at a time with `-- --ignored --test-threads=1` | 112 passed, 0 failed (headless, except the 2 of `scrape_capture_chrome`, now in seleniumbase-rs-stealth, which ran headed on a virtual display) |
 | `cargo test --test dockerfile_skeleton` | 9 passed |
 
 What the runs showed:
@@ -141,22 +144,10 @@ What the runs showed:
   started". It now asks for `linux-arm64`: `sbrs install` in the arm64 image
   fetches an aarch64 executable, and `browser_smoke` (7 tests) starts Chromium
   through a driver it downloaded that way.
-- **A flaky test, fixed (not Linux-specific):** `a_custom_ja3_arrives_exactly_as_given`
-  failed on about two runs in five, because BoringSSL pads a ClientHello of 256 to
-  511 bytes to 512 and the random ECH GREASE size moves one variant across that
-  limit. The test now asserts that rule.
-- **Tests of the measured persona skip on Linux.** Only Chrome 155 on macOS is
-  measured, so a persona for Linux is refused with `NotMeasured`, and Debian's
-  Chromium 154 is not the measured major either. The four binaries
-  `impersonate_capture_h2_chrome`, `impersonate_http_chrome`,
-  `impersonate_mitm_chrome` and `stealth_session_chrome` print a note and return
-  where the host system has no measurement (run with `-- --nocapture` to see it),
-  so they pass without testing anything there. A macOS machine with another Chrome major still
-  fails them, which is the drift check.
 - **Container limits, not bugs:** the doc tests need `-- --test-threads=2` in 4 GB
-  (with eight threads the linker was killed for lack of memory in 66 of them); the
-  headed measurement tools need a display, which Xvfb gives; Chromium needs
-  `--no-sandbox` as root.
+  (with eight threads the linker was killed for lack of memory in 66 of them); a
+  headed browser needs a display, which Xvfb gives; Chromium needs `--no-sandbox`
+  as root.
 
 Not run: x86-64 Linux, Google Chrome (only Debian's Chromium), other Linux
 distributions, the `playwright`, `gui`, `tui`, `s3`, `azure`, `turso` and `gcp`
@@ -168,10 +159,10 @@ non-root `sbrs` user of the image with the sandbox on was not tried.
 
 **Status:** on Windows 11 x64 (Rust 1.99, Chrome 154 and 155, Edge 155, Firefox
 153) formatting, clippy, the whole test suite and the real-browser tests pass,
-and the Tauri example builds its `.msi` and setup `.exe`. The `impersonate`
-feature builds there too (CMake, NASM and LLVM installed with winget, CMake's
-default Visual Studio generator): its 296 library tests, its five integration
-test files and its four real-Chrome files pass. Install steps:
+and the Tauri example builds its `.msi` and setup `.exe`. (The stealth layer,
+then the `impersonate` feature, built and passed there too; it now lives in
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+with its CMake, NASM and LLVM requirements.) Install steps:
 [Building and installing](building.md#windows-powershell).
 
 **What works differently**
