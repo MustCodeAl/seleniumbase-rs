@@ -1,0 +1,7 @@
+{
+  "$schema": "../../gen/schemas/desktop-schema.json",
+  "identifier": "e2e-automation",
+  "description": "Lets the script of tauri-plugin-sbrs-automation answer the plugin. Read only when the `e2e` feature is on (see build.rs), since the permission exists only then.",
+  "windows": ["main"],
+  "permissions": ["sbrs-automation:default"]
+}

@@ -99,13 +99,50 @@ npx tauri dev
 npx tauri build
 ```
 
+## End-to-end test
+
+`src-tauri/tests/e2e_automation.rs` drives the app's real window with
+`seleniumbase-rs`'s `BaseCase`: it reads the title, finds the profile list,
+creates a WebDriver profile through the dialog, filters the list by typing in
+the search box and adds a folder. The window is served over WebDriver by
+[`tauri-plugin-sbrs-automation`](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation),
+which only the `e2e` feature adds to the app.
+
+```bash
+cd src-tauri
+cargo test --features e2e --test e2e_automation -- --ignored
+```
+
+The test builds the app with the feature, starts it with `SBRS_AUTOMATION=1`,
+`SBRS_AUTOMATION_TOKEN=e2etoken` and `SBRS_AUTOMATION_PORT=4545`, waits for
+`http://127.0.0.1:4545/e2etoken/status`, drives the window and stops the app,
+also when a step fails. It gives the app a temporary `HOME` and a passphrase of
+its own (`SB_PROFILE_PASSPHRASE`), so your vault and keychain are not touched;
+that is also why it runs on macOS and Linux only (on Windows the app-data folder
+does not follow `HOME`). The window opens on screen while it runs, but clicks
+and typing are DOM events, so the mouse and keyboard stay yours. Ports 4545 and
+45001 (the REST API) must be free.
+
+- `Cargo.toml` takes the plugin from a local checkout (`path = ...`). Without
+  one, use the `git` line written next to it.
+- The permission the plugin's script needs, `sbrs-automation:default`, is in
+  `capabilities/e2e/automation.json`. `build.rs` reads that folder only with the
+  `e2e` feature: without the plugin the permission does not exist, and the
+  build would refuse a capability that names it.
+- `BaseCase` is pointed at `http://127.0.0.1:4545/e2etoken/`, with a trailing
+  slash. The WebDriver client joins each command path to the server URL as a
+  relative URL, so without the slash the token would be replaced and every
+  request refused.
+
+It passed on macOS on 2026-10-15, in about 6 seconds once built.
+
 ## Tauri versions
 
 The app builds on Tauri `3.0.0-alpha.4` (`tauri`, `tauri-runtime-wry`
 `3.0.0-alpha.4`, `tauri-build` `3.0.0-alpha.3`, `tauri-plugin-opener`
 `3.0.0-alpha.2`, `@tauri-apps/cli` `3.0.0-alpha.4`). On macOS its 115 tests
 pass, `npx tauri build --debug --bundles app` makes the `.app`, and the window
-opens.
+opens and is driven by the [end-to-end test](#end-to-end-test).
 
 Moving from Tauri 2 needed one code change: Tauri 3 starts no runtime unless
 the app names one, so `run` passes `tauri_runtime_wry::Wry::default()` to
