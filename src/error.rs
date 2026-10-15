@@ -168,6 +168,31 @@ pub enum SeleniumBaseError {
     /// The embedded results or profile database failed.
     #[error("database error: {0}")]
     Database(String),
+
+    /// A plugin (feature `plugins`, ADR 004) refused to go on, or one of its
+    /// hooks failed, so the launch or the tab it was preparing was stopped.
+    #[error("plugin error: {reason}")]
+    Plugin {
+        /// The plugin's name, or empty when the error does not name one.
+        plugin: String,
+        /// What went wrong, as the plugin set reported it.
+        reason: String,
+    },
+}
+
+#[cfg(feature = "plugins")]
+impl From<seleniumbase_rs_plugin::PluginError> for SeleniumBaseError {
+    fn from(error: seleniumbase_rs_plugin::PluginError) -> Self {
+        use seleniumbase_rs_plugin::PluginError;
+        let plugin = match &error {
+            PluginError::DuplicateName(name) => name.clone(),
+            PluginError::MissingDependency { plugin, .. }
+            | PluginError::Requirement { plugin, .. }
+            | PluginError::Hook { plugin, .. } => plugin.clone(),
+            _ => String::new(),
+        };
+        Self::plugin(plugin, error.to_string())
+    }
 }
 
 #[cfg(feature = "turso")]
@@ -339,6 +364,15 @@ impl SeleniumBaseError {
         Self::CdpDriver(reason.into())
     }
 
+    /// Construct a plugin error for the plugin named `plugin` (empty when
+    /// unknown).
+    pub fn plugin(plugin: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self::Plugin {
+            plugin: plugin.into(),
+            reason: reason.into(),
+        }
+    }
+
     /// Construct a Playwright error.
     pub fn playwright(reason: impl Into<String>) -> Self {
         Self::Playwright(reason.into())
@@ -414,6 +448,7 @@ impl SeleniumBaseError {
             Self::Skipped(_) => "skipped",
             Self::TestLifecycle(_) => "test_lifecycle",
             Self::Database(_) => "database",
+            Self::Plugin { .. } => "plugin",
         }
     }
 
@@ -452,7 +487,7 @@ impl SeleniumBaseError {
     /// | 1 | a check or a test failed | `assertion_failed`, `test_lifecycle`, `skipped` |
     /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration` |
     /// | 3 | an element could not be used | `element_not_found`, `element_not_interactable`, `stale_element`, `wait_timeout` |
-    /// | 4 | the browser or its driver failed | `browser_launch`, `browser_disconnected`, `session_not_started`, `webdriver`, `cdp_driver`, `playwright`, `patcher`, `stealth`, `gui`, `screenshot`, `pdf` |
+    /// | 4 | the browser or its driver failed | `browser_launch`, `browser_disconnected`, `session_not_started`, `webdriver`, `cdp_driver`, `playwright`, `patcher`, `stealth`, `gui`, `screenshot`, `pdf`, `plugin` |
     /// | 5 | the network or a site failed | `navigation`, `network`, `download`, `authentication` |
     /// | 6 | a local file or database failed | `io`, `database` |
     /// | 7 | the MCP server failed | `mcp` |
@@ -492,7 +527,8 @@ impl SeleniumBaseError {
             | Self::Stealth { .. }
             | Self::Gui(_)
             | Self::Screenshot(_)
-            | Self::Pdf(_) => 4,
+            | Self::Pdf(_)
+            | Self::Plugin { .. } => 4,
             Self::Navigation { .. }
             | Self::Network { .. }
             | Self::Download { .. }
@@ -651,6 +687,7 @@ impl SeleniumBaseError {
                  written. Check its path (--db or SB_REPORT_DB), that no other program holds it \
                  open, and the free disk space."
                 .to_owned(),
+            Self::Plugin { plugin, .. } => plugin_hint(plugin),
         })
     }
 }
@@ -804,6 +841,22 @@ fn edit_distance(a: &str, b: &str) -> usize {
         previous = current;
     }
     previous[b.len()]
+}
+
+/// Advice for a [`SeleniumBaseError::Plugin`], naming the plugin when known.
+fn plugin_hint(plugin: &str) -> String {
+    let who = if plugin.is_empty() {
+        "A plugin".to_owned()
+    } else {
+        format!("The plugin `{plugin}`")
+    };
+    format!(
+        "{who} stopped the browser or the tab, and plugins fail closed: a browser whose \
+         plugins did not all run is not handed out. A missing plugin needs the crate that \
+         provides it added to the PluginSet; a requirement needs the browser started the way \
+         the plugin asks (with a window, launched rather than connected, Chromium); a failed \
+         hook is a question for the plugin's documentation or its author."
+    )
 }
 
 /// Advice for a WebDriver failure, from the words its message uses.
@@ -1019,6 +1072,8 @@ mod tests {
             SeleniumBaseError::skipped("bad"),
             SeleniumBaseError::test_lifecycle("bad"),
             SeleniumBaseError::Database("bad".to_owned()),
+            SeleniumBaseError::plugin("adblock", "bad"),
+            SeleniumBaseError::plugin("", "bad"),
         ]
     }
 
@@ -1050,6 +1105,38 @@ mod tests {
         for error in one_of_each() {
             assert!((1..=7).contains(&error.exit_code()), "{error}");
         }
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn a_plugin_error_keeps_the_plugins_name_and_its_message() {
+        use seleniumbase_rs_plugin::PluginError;
+
+        let error = SeleniumBaseError::from(PluginError::Hook {
+            plugin: "adblock".to_owned(),
+            hook: "on_page_created",
+            message: "boom".to_owned(),
+        });
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "adblock"),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("on_page_created"), "{error}");
+        assert!(error.hint().unwrap().contains("`adblock`"));
+        assert_eq!(error.exit_code(), 4);
+
+        let missing = SeleniumBaseError::from(PluginError::MissingDependency {
+            plugin: "stealth".to_owned(),
+            missing: "user-agent".to_owned(),
+        });
+        assert!(
+            matches!(&missing, SeleniumBaseError::Plugin { plugin, .. } if plugin == "stealth")
+        );
+        assert!(missing.to_string().contains("`user-agent`"), "{missing}");
+
+        let other = SeleniumBaseError::from(PluginError::other("no reason"));
+        assert!(matches!(&other, SeleniumBaseError::Plugin { plugin, .. } if plugin.is_empty()));
+        assert!(other.hint().unwrap().starts_with("A plugin"));
     }
 
     #[test]
