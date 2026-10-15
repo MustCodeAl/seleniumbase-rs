@@ -197,7 +197,7 @@ impl From<BrowserArg> for Browser {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "sbrs", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.", before_long_help = logo_helper::LOGO)]
+#[command(name = "sbrs", version = VERSION, about = "SeleniumBaseRust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.", before_long_help = logo_helper::LOGO)]
 struct Cli {
     #[arg(
         long,

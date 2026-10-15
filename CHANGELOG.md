@@ -8,6 +8,11 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Changed
+
+- The `sbrs` banner reads SeleniumBaseRust (figlet small font, 68 columns), and
+  `sbrs --help` and `sbrs-mcp --help` say SeleniumBaseRust.
+
 ### Added
 
 - Feature `tokio-console` (off by default): `sbrs`, `sbrs-mcp` and programs that

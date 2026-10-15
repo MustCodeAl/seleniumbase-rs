@@ -11,19 +11,19 @@
 //!
 //! assert_eq!(logo(false), LOGO);
 //! assert!(logo(true).starts_with("\x1b["));
-//! assert_eq!(LOGO.lines().count(), 5);
+//! assert_eq!(LOGO.lines().count(), 4);
 //! ```
 
 use super::rich_helper::{format_highlight, use_color, Stream};
 
-/// The banner: "SeleniumBase" in ASCII art, five lines of at most 78 columns.
+/// The banner: "SeleniumBaseRust" in ASCII art (figlet's small font), four
+/// lines of at most 78 columns.
 ///
 /// It has no trailing newline.
-pub const LOGO: &str = r" ____          _                _                    ____
-/ ___|   ___  | |  ___   _ __  (_) _   _  _ __ ___  | __ )   __ _   ___   ___
-\___ \  / _ \ | | / _ \ | '_ \ | || | | || '_ ` _ \ |  _ \  / _` | / __| / _ \
- ___) ||  __/ | ||  __/ | | | || || |_| || | | | | || |_) || (_| | \__ \|  __/
-|____/  \___| |_| \___| |_| |_||_| \__,_||_| |_| |_||____/  \__,_| |___/ \___|";
+pub const LOGO: &str = r" ___      _          _            ___               ___         _
+/ __| ___| |___ _ _ (_)_  _ _ __ | _ ) __ _ ___ ___| _ \_  _ __| |_
+\__ \/ -_) / -_) ' \| | || | '  \| _ \/ _` (_-</ -_)   / || (_-<  _|
+|___/\___|_\___|_||_|_|\_,_|_|_|_|___/\__,_/__/\___|_|_\\_,_/__/\__|";
 
 /// The banner as a string, in bold green when `color` is set.
 #[must_use]
@@ -48,8 +48,8 @@ mod tests {
     }
 
     #[test]
-    fn the_logo_is_five_lines_without_a_trailing_newline() {
-        assert_eq!(LOGO.lines().count(), 5);
+    fn the_logo_is_four_lines_without_a_trailing_newline() {
+        assert_eq!(LOGO.lines().count(), 4);
         assert!(!LOGO.ends_with('\n'));
     }
 
