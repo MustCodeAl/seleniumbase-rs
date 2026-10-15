@@ -157,7 +157,6 @@ pub(crate) struct Inner {
     download_dir: StdMutex<Option<PathBuf>>,
     /// The proxy of every context created with its own, by context id, so a
     /// handoff to plain HTTP can follow the route a tab's traffic takes.
-    #[cfg(feature = "scrape")]
     pub(super) context_routes: StdMutex<HashMap<String, super::context::ContextRoute>>,
 }
 
@@ -310,7 +309,6 @@ impl Browser {
                 sessions: StdMutex::new(HashMap::new()),
                 tasks: StdMutex::new(Vec::new()),
                 download_dir: StdMutex::new(None),
-                #[cfg(feature = "scrape")]
                 context_routes: StdMutex::new(HashMap::new()),
             }),
         }

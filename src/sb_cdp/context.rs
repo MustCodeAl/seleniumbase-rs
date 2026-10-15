@@ -81,18 +81,12 @@ impl ContextOptions {
 ///
 /// Kept by the browser so that plain HTTP requests made on behalf of a tab can
 /// take the same route. Its `Debug` output never shows the credentials.
-#[cfg(feature = "scrape")]
 #[derive(Debug, Clone)]
-#[cfg_attr(
-    not(feature = "impersonate"),
-    allow(
-        dead_code,
-        reason = "the fields are read by the plain-HTTP session of the impersonate layer, which is not built with `scrape` alone"
-    )
-)]
-pub(crate) struct ContextRoute {
-    pub(crate) proxy: Proxy,
-    pub(crate) bypass: Vec<String>,
+pub struct ContextRoute {
+    /// The proxy the context's tabs go through.
+    pub proxy: Proxy,
+    /// The hosts that skip the proxy.
+    pub bypass: Vec<String>,
 }
 
 /// A set of tabs with their own cookies, storage and cache.
@@ -155,17 +149,14 @@ impl Browser {
                 "Target.createBrowserContext returned no browserContextId",
             )
         })?;
-        #[cfg(feature = "scrape")]
-        {
-            if let Some(proxy) = &options.proxy {
-                locked(&self.inner().context_routes).insert(
-                    id.to_owned(),
-                    ContextRoute {
-                        proxy: proxy.clone(),
-                        bypass: options.bypass.clone(),
-                    },
-                );
-            }
+        if let Some(proxy) = &options.proxy {
+            locked(&self.inner().context_routes).insert(
+                id.to_owned(),
+                ContextRoute {
+                    proxy: proxy.clone(),
+                    bypass: options.bypass.clone(),
+                },
+            );
         }
         Ok(BrowserContext {
             browser: self.clone(),
@@ -236,28 +227,20 @@ impl BrowserContext {
         for id in locked(&self.pages).drain(..) {
             self.browser.forget_page(&id);
         }
-        #[cfg(feature = "scrape")]
         locked(&self.browser.inner().context_routes).remove(&*self.id);
         outcome
     }
 }
 
-#[cfg(feature = "scrape")]
 impl Browser {
     /// The own proxy of the context with this id, if it was created with one.
-    #[cfg_attr(
-        not(feature = "impersonate"),
-        allow(
-            dead_code,
-            reason = "read by the plain-HTTP session of the impersonate layer, which is not built with `scrape` alone"
-        )
-    )]
-    pub(crate) fn context_route(&self, id: &str) -> Option<ContextRoute> {
+    #[must_use]
+    pub fn context_route(&self, id: &str) -> Option<ContextRoute> {
         locked(&self.inner().context_routes).get(id).cloned()
     }
 }
 
-#[cfg(all(test, feature = "scrape"))]
+#[cfg(test)]
 mod route_tests {
     use super::*;
 

@@ -90,7 +90,10 @@ impl Proxy {
         self.credentials.is_some()
     }
 
-    pub(crate) fn credentials(&self) -> Option<(&str, &str)> {
+    /// The username and password, if the proxy has them. They are secrets: pass them on to the
+    /// proxy, never print or log them.
+    #[must_use]
+    pub fn credentials(&self) -> Option<(&str, &str)> {
         self.credentials
             .as_ref()
             .map(|(user, pass)| (user.as_str(), pass.as_str()))
@@ -204,11 +207,30 @@ impl LaunchOptions {
         self.proxy.as_ref()
     }
 
+    /// The page the browser opens once it has started, if one was set.
+    #[must_use]
+    pub fn url(&self) -> Option<&str> {
+        self.url.as_deref()
+    }
+
+    /// The user agent the browser will be started with (`--user-agent`), if one was set.
+    #[must_use]
+    pub fn user_agent(&self) -> Option<&str> {
+        self.user_agent.as_deref()
+    }
+
+    /// The language the browser will be started with (`--lang`), if one was set.
+    #[must_use]
+    pub fn lang(&self) -> Option<&str> {
+        self.lang.as_deref()
+    }
+
     /// The command-line arguments Chrome will be started with.
     ///
     /// `profile_dir` is the profile directory in use, which may be a
     /// throwaway temporary one.
-    pub(crate) fn browser_args(&self, profile_dir: &Path) -> Vec<String> {
+    #[must_use]
+    pub fn browser_args(&self, profile_dir: &Path) -> Vec<String> {
         let mut args = vec![
             "--remote-debugging-port=0".to_owned(),
             format!("--user-data-dir={}", profile_dir.display()),

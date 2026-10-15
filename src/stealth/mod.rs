@@ -12,7 +12,7 @@ pub mod js;
 pub mod options;
 pub mod patcher;
 pub mod providers;
-pub(crate) mod randomize;
+pub mod randomize;
 pub mod reactor;
 pub mod uc;
 

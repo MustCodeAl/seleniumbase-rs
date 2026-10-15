@@ -90,7 +90,7 @@ pub use captcha::Captcha;
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
-pub use context::{BrowserContext, ContextOptions};
+pub use context::{BrowserContext, ContextOptions, ContextRoute};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
