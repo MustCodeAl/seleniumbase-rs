@@ -15,6 +15,12 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- Feature `ocr` (off by default): `ocr::Ocr` reads the text a page shows from
+  its screenshot (`read_page`, for a `BaseCase` or an `sb_cdp::Page`) or from PNG
+  bytes (`text_in_png`), with [ocrs](https://github.com/robertknight/ocrs), pure
+  Rust. Its two models (about 12 MB) are downloaded into the cache folder on
+  first use and checked against pinned SHA-256 hashes; `SB_OCR_MODELS` names a
+  folder of your own copies instead.
 - Feature `tokio-console` (off by default): `sbrs`, `sbrs-mcp` and programs that
   use the crate's logging serve [tokio-console](https://github.com/tokio-rs/console)
   for watching async tasks. Build with `RUSTFLAGS="--cfg tokio_unstable"`.

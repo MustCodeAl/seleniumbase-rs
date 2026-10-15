@@ -30,6 +30,33 @@ outside the logs directory. A file of the same name is replaced. For an exact
 path of your own, use `save_screenshot_to_path`. Files the framework names
 itself (`save_screenshot_to_logs`) never replace an earlier one.
 
+## Reading text from the screen (OCR)
+
+With the `ocr` feature, `seleniumbase_rs::ocr::Ocr` reads the text a page
+shows from its screenshot, including text drawn on a canvas or inside an image,
+which the DOM does not hold as text. It runs
+[ocrs](https://github.com/robertknight/ocrs), pure Rust, so nothing has to be
+installed.
+
+```rust
+use seleniumbase_rs::ocr::Ocr;
+
+let ocr = Ocr::load().await?; // slow: load once and clone it
+let text = ocr.read_page(&sb).await?; // works with an sb_cdp::Page too
+assert!(text.contains("Welcome"));
+
+let from_file = ocr.text_in_png(&std::fs::read("home.png")?).await?;
+```
+
+The text comes back one line per line of text, top to bottom. The first
+`Ocr::load` downloads the two models (about 12 MB) into the cache folder
+(`~/Library/Caches/seleniumbase-rs/ocr` on macOS, `~/.cache/seleniumbase-rs/ocr`
+on Linux, `%LOCALAPPDATA%\seleniumbase-rs\ocr` on Windows) and checks them
+against pinned SHA-256 hashes; later runs use the saved copies. On a machine
+without network access, set `SB_OCR_MODELS` to a folder that holds
+`text-detection.rten` and `text-recognition.rten`. Build with
+`--features ocr`; `tests/ocr_chrome.rs` reads a heading from a real Chrome.
+
 ## Window introspection
 
 ```rust
