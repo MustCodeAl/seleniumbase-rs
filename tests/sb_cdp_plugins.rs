@@ -509,3 +509,58 @@ async fn without_plugins_a_launch_sends_no_plugin_commands() {
         "the first tab is the first thing a plain launch asks for: {methods:?}"
     );
 }
+
+#[tokio::test]
+async fn a_page_is_a_page_handle_that_works_on_its_own_tab() {
+    let (browser, mock) = Browser::new_mocked();
+    let page = browser.default_page().await.unwrap();
+    let handle: &dyn PageHandle = &page;
+    assert_eq!(handle.engine(), Engine::Cdp);
+
+    let sent = handle
+        .send(
+            "Emulation.setTimezoneOverride",
+            json!({ "timezoneId": "Asia/Tokyo" }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(sent, json!({}));
+    let timezone = mock.calls_to("Emulation.setTimezoneOverride");
+    assert_eq!(timezone.len(), 1);
+    assert_eq!(timezone[0].session_id.as_deref(), Some("S1"), "to the tab");
+
+    handle
+        .add_init_script("window.viaHandle = 1;")
+        .await
+        .unwrap();
+    let calls = mock.calls();
+    let added = position(&calls, 0, |call| {
+        adds_script(call, "viaHandle") && call.session_id.as_deref() == Some("S1")
+    })
+    .expect("a script for the tab's next documents");
+    position(&calls, added, |call| evaluates(call, "viaHandle"))
+        .expect("and run in the current one, as the plugin API says");
+
+    mock.reply("Runtime.evaluate", json!({ "result": { "value": 42 } }));
+    assert_eq!(handle.evaluate("6 * 7").await.unwrap(), json!(42));
+    let evaluation = mock.calls_to("Runtime.evaluate").pop().unwrap();
+    assert_eq!(evaluation.params["expression"], "6 * 7");
+    assert_eq!(evaluation.params["returnByValue"], true);
+    assert_eq!(evaluation.params["awaitPromise"], true);
+
+    mock.reply(
+        "Runtime.evaluate",
+        json!({ "exceptionDetails": { "exception": { "description": "TypeError: nope" } } }),
+    );
+    let error = handle.evaluate("nope()").await.unwrap_err();
+    assert!(error.to_string().contains("TypeError: nope"), "{error}");
+    mock.fail("Emulation.setTimezoneOverride", "not allowed");
+    let error = handle
+        .send("Emulation.setTimezoneOverride", json!({}))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&error, PluginError::Other(message) if message.contains("not allowed")),
+        "{error:?}"
+    );
+}

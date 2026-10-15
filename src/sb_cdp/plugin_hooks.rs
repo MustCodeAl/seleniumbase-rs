@@ -6,6 +6,8 @@
 //! [`on_close`] when it closes. Plugins see the browser and its tabs through
 //! [`BrowserLink`] and [`TabLink`], which send protocol commands over the
 //! browser's own connection, so a plugin never names a type of this crate.
+//! A [`Page`] is a [`PageHandle`] too, so a program can hand one of its tabs
+//! to code written against the plugin API.
 
 use seleniumbase_rs_plugin::{
     async_trait, BrowserFamily, BrowserHandle, Engine, LaunchContext, LaunchSettings, PageHandle,
@@ -15,6 +17,7 @@ use serde_json::{json, Value};
 
 use super::client::Client;
 use super::launch::{LaunchOptions, Proxy};
+use super::page::Page;
 use crate::error::SeleniumBaseError;
 
 /// What the set checks its plugins against: always a Chromium browser on this
@@ -257,6 +260,41 @@ impl PageHandle for TabLink<'_> {
             "awaitPromise": true,
         }))
         .await
+    }
+}
+
+/// A tab, as the plugin API sees it: what [`TabLink`] does, on the tab's own
+/// protocol session.
+///
+/// The trait's `evaluate` and `add_init_script` differ from the methods of
+/// the same names on [`Page`]: `add_init_script` here also runs the script in
+/// the current document, as the plugin API asks, and returns no identifier.
+#[async_trait]
+impl PageHandle for Page {
+    fn engine(&self) -> Engine {
+        Engine::Cdp
+    }
+
+    async fn send(&self, method: &str, params: Value) -> PluginResult<Value> {
+        self.tab_link().send(method, params).await
+    }
+
+    async fn add_init_script(&self, source: &str) -> PluginResult<()> {
+        self.tab_link().add_init_script(source).await
+    }
+
+    async fn evaluate(&self, expression: &str) -> PluginResult<Value> {
+        PageHandle::evaluate(&self.tab_link(), expression).await
+    }
+}
+
+impl Page {
+    /// This tab as the hooks see a tab.
+    fn tab_link(&self) -> TabLink<'_> {
+        TabLink {
+            client: &self.browser().inner().client,
+            session: self.session_id(),
+        }
     }
 }
 
