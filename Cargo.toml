@@ -170,7 +170,7 @@ image = { version = "0.25", optional = true, default-features = false, features 
 # `plugins`: the plugin API (ADR 004), from its own repository until it is on
 # crates.io. No `rev`: plugin crates added with `cargo add --git` use the same
 # source, so Cargo resolves both to one commit and the `Plugin` traits match.
-seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", optional = true }
+seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", optional = true }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
