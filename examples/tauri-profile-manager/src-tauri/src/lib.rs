@@ -199,8 +199,16 @@ async fn get_api_token(state: State<'_, Arc<AppState>>) -> Result<String, String
 pub fn run() {
     init_tracing();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+    let builder = tauri::Builder::default()
+        // Tauri 3 runs no runtime unless the app names one; without this the
+        // app stops at once with `RuntimeNotConfigured`.
+        .runtime(tauri_runtime_wry::Wry::default())
+        .plugin(tauri_plugin_opener::init());
+    // A WebDriver endpoint for the window, for `tests/e2e_automation.rs`.
+    #[cfg(feature = "e2e")]
+    let builder = builder.plugin(tauri_plugin_sbrs_automation::init());
+
+    builder
         .setup(|app| {
             // Open the vault before anything can ask for a profile. This takes
             // a fraction of a second, because deriving the key is meant to be

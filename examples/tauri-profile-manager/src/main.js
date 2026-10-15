@@ -444,25 +444,11 @@ async function submitProfileDialog(e) {
       await api(`/api/v1/profiles/${id}`, { method: "POST", body: JSON.stringify(body) });
       setStatus(`Updated ${body.name}`);
     } else {
-      await invoke("create_profile", {
-        new: {
-          name: body.name,
-          engine: body.engine,
-          containerUrl: body.container_url,
-          browser: body.browser,
-          mode: body.mode,
-          userAgent: body.user_agent,
-          proxy: body.proxy,
-          locale: body.locale,
-          latitude: body.latitude,
-          longitude: body.longitude,
-          accuracy: body.accuracy,
-          headless: body.headless,
-          folderId: body.folder_id,
-          tags: body.tags,
-          fingerprint: body.fingerprint,
-        },
-      });
+      // `new` takes the fields as the REST API does, in snake_case: Tauri
+      // renames a command's own arguments from camelCase, not the fields of
+      // a struct passed in one, so `containerUrl` would be dropped and every
+      // WebDriver profile refused for having no WebDriver URL.
+      await invoke("create_profile", { new: body });
       setStatus(`Created ${body.name}`);
     }
     profileDialog.close();
