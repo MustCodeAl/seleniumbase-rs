@@ -1298,6 +1298,35 @@ mod session_tests {
     }
 
     #[tokio::test]
+    async fn base_case_gives_the_windows_it_opens_the_page_hooks() {
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync") => Reply::Value(json!(42)),
+                ("GET", "/window/handles") => Reply::Value(json!(["w1", "w2"])),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let (plugins, log) = probe(None);
+        let mut sb = BaseCase::new(config_for(&driver, Browser::Chrome, plugins))
+            .await
+            .unwrap();
+        let created = |log: &Log| count(log, "on_page_created WebDriver");
+        assert_eq!(created(&log), 1, "the first window");
+
+        sb.open_new_window().await.unwrap();
+        assert_eq!(created(&log), 2, "open_new_window: {:?}", entries(&log));
+        sb.open_new_tab_url("https://example.com/").await.unwrap();
+        assert_eq!(created(&log), 3, "open_new_tab_url: {:?}", entries(&log));
+
+        // A window the page opened: switching to it runs no hook, asking does.
+        sb.switch_to_newest_window().await.unwrap();
+        assert_eq!(created(&log), 3);
+        sb.apply_plugins_to_window().await.unwrap();
+        assert_eq!(created(&log), 4);
+        sb.quit().await.unwrap();
+    }
+
+    #[tokio::test]
     async fn on_close_failures_are_logged_and_the_session_still_quits() {
         let driver = driver();
         let (plugins, log) = probe(Some("on_close"));
