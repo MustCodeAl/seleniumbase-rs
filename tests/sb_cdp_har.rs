@@ -4,7 +4,9 @@
 
 #![cfg(feature = "test-util")]
 
-use seleniumbase_rs::sb_cdp::{Browser, Har, HarEntry, HarNameValue, HarOptions, MockCtrl, Page};
+use seleniumbase_rs::sb_cdp::{
+    Browser, Har, HarEntry, HarNameValue, HarOptions, MockCtrl, Page, MAX_CONTENT_BYTES,
+};
 use serde_json::{json, Value};
 
 /// The wall-clock time of the first request: 2023-11-14T22:13:20.500Z.
@@ -608,6 +610,40 @@ async fn bodies_are_kept_when_asked_up_to_the_size_limit() {
         .collect();
     assert!(!fetched.contains(&"huge".to_owned()), "{fetched:?}");
     assert_eq!(fetched.len(), 4, "{fetched:?}");
+}
+
+#[tokio::test]
+async fn the_body_limit_stops_where_one_devtools_message_would_overflow() {
+    let (page, mock) = page().await;
+    mock.on("Network.getResponseBody", |_| {
+        Ok(json!({ "body": "", "base64Encoded": false }))
+    });
+    let options = HarOptions::new()
+        .content(true)
+        .max_content_bytes(usize::MAX);
+    assert_eq!(
+        options,
+        HarOptions::new()
+            .content(true)
+            .max_content_bytes(MAX_CONTENT_BYTES)
+    );
+    let recorder = page.start_har_with(options).await.unwrap();
+
+    request(&mock, "V1", "https://a.test/film.mp4", "Media", 1.0);
+    let over = u64::try_from(MAX_CONTENT_BYTES).unwrap() + 1;
+    ok(&mock, "V1", "video/mp4", 1.1, over);
+    let har = recorder.finish().await.unwrap();
+
+    assert!(
+        mock.calls_to("Network.getResponseBody").is_empty(),
+        "a body that large is not fetched"
+    );
+    let content = &entry(&har, "https://a.test/film.mp4").response.content;
+    let comment = content.comment.as_deref().unwrap_or_default();
+    assert!(
+        comment.contains(&format!("over the {MAX_CONTENT_BYTES}-byte limit")),
+        "{comment}"
+    );
 }
 
 #[tokio::test]

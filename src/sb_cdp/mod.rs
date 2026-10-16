@@ -105,7 +105,7 @@ pub use expect::{LocatorExpect, PageExpect};
 pub use har::{
     Har, HarCache, HarContent, HarCookie, HarCreator, HarEntry, HarLog, HarNameValue, HarOptions,
     HarPage, HarPageTimings, HarPostData, HarRecorder, HarRequest, HarResponse, HarTimings,
-    DEFAULT_MAX_CONTENT_BYTES,
+    DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
 };
 #[doc(inline)]
 pub use human::Human;

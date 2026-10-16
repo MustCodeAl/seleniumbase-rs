@@ -28,7 +28,8 @@ work, `docs/parity.md` the per-API status).
   bodies, one entry per redirect hop, failures with Chrome's `_error`, and
   `blocked`/`dns`/`connect`/`ssl`/`send`/`wait`/`receive` timings; each
   top-level navigation is a page with `onContentLoad` and `onLoad`. Response
-  bodies are off by default and capped at 1 MiB each when turned on.
+  bodies are off by default and capped at 1 MiB each when turned on; the cap
+  can be raised to 64 MiB (`MAX_CONTENT_BYTES`).
 
 ### Fixed
 

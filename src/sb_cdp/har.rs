@@ -22,6 +22,13 @@ const MAX_ENTRIES: usize = 50_000;
 /// [`HarOptions::max_content_bytes`] says otherwise: 1 MiB.
 pub const DEFAULT_MAX_CONTENT_BYTES: usize = 1024 * 1024;
 
+/// The highest limit [`HarOptions::max_content_bytes`] takes: 64 MiB.
+///
+/// A body is fetched whole in one DevTools message, base64 when it is binary
+/// and escaped as JSON, which the connection takes up to 256 MiB; a larger
+/// one would close it.
+pub const MAX_CONTENT_BYTES: usize = 64 << 20;
+
 /// What a [`HarRecorder`] records besides the requests and responses.
 ///
 /// The default records no bodies.
@@ -59,10 +66,11 @@ impl HarOptions {
     }
 
     /// The largest body, in bytes once decoded, that [`content`](Self::content)
-    /// keeps. Defaults to [`DEFAULT_MAX_CONTENT_BYTES`].
+    /// keeps. Defaults to [`DEFAULT_MAX_CONTENT_BYTES`]; a value over
+    /// [`MAX_CONTENT_BYTES`] (64 MiB) counts as that.
     #[must_use]
     pub fn max_content_bytes(mut self, bytes: usize) -> Self {
-        self.max_content_bytes = bytes;
+        self.max_content_bytes = bytes.min(MAX_CONTENT_BYTES);
         self
     }
 }

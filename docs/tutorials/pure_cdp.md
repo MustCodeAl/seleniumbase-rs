@@ -300,7 +300,8 @@ status 0 and the browser's error in `_error`, as in Chrome's own export; each
 top-level navigation adds a page with its `onContentLoad` and `onLoad` times.
 Bodies are off by default; with `content(true)` a body is fetched when it
 finishes loading, binary ones as base64, and one over the limit is left out
-with a `comment` saying so. `Har` and its parts are serde types, so a saved
+with a `comment` saying so. The limit goes up to 64 MiB (`MAX_CONTENT_BYTES`),
+because each body comes back whole in one DevTools message. `Har` and its parts are serde types, so a saved
 HAR reads back with `serde_json::from_str::<Har>`.
 
 Recording enables the tab's `Network` domain and leaves it on, since other
