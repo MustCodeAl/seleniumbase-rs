@@ -160,8 +160,9 @@ turso = ["dep:turso"]
 # Reads text from screenshots and images (`ocr::Ocr`): ocrs, pure Rust. Its two
 # models (about 12 MB) are downloaded into the cache folder on first use.
 ocr = ["dep:ocrs", "dep:rten", "dep:image"]
-# Plugins for the pure CDP engine (ADR 004): `LaunchOptionsBuilder::plugins` and
-# the hooks at launch, connect, every new tab and close. The API is re-exported as
+# Browser plugins (ADR 004) for both engines: `LaunchOptionsBuilder::plugins`
+# (pure CDP) and `BrowserConfig::with_plugins` (WebDriver), with hooks at launch,
+# connect, every new tab or window and close. The API is re-exported as
 # `seleniumbase_rs::plugin_api`.
 plugins = ["dep:seleniumbase-rs-plugin"]
 
