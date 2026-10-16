@@ -8,6 +8,22 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Added
+
+- `sbrs prompt` prints one short line for a shell prompt: the installed
+  Chrome's major version and whether a matching chromedriver is at hand
+  (`chrome 155 ✓driver`, `✗driver`, `?driver`), with `--ascii` marks and a
+  `--format` of `{browser}`, `{major}`, `{driver}`, `{mark}` and
+  `{driver_major}`. It starts no browser and uses no network: versions come
+  from files (a macOS app's `Info.plist`, the version folder beside
+  `chrome.exe`), and one that only `--version` tells is cached for ten minutes
+  in the user cache folder. It prints nothing and exits with 0 when no browser
+  is found (`--verbose` says why). The CLI page has setups for Bash, Zsh,
+  Fish, PowerShell, Starship and Warp, and `.warp/workflows/` a Workflow for it.
+- `browser::driver_version::major_without_running` reads a program's major
+  version from its files only, and `version_flag_major` runs `--version` with a
+  time limit.
+
 ### Fixed
 
 - `sbrs` exits quietly with status 0 when the reader of its output goes away

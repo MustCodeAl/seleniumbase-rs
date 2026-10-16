@@ -14,6 +14,7 @@ files, and more. This page covers the most common workflows.
 - How to run smoke tests and assertions from the command line.
 - How to execute CDP commands and JSON scenarios.
 - How to patch binaries and diagnose the environment.
+- How to show the installed Chrome and its driver in your shell prompt.
 
 ## Build the CLI
 
@@ -141,6 +142,147 @@ newest GitHub release. It needs network access and fetches only the driver: the
 fetches the driver by itself, so run `install` ahead of time only to prepare an
 offline machine or a container. Python's `--path` (copy the driver to a folder
 on the `PATH`) is not supported.
+
+## Show the browser in your shell prompt
+
+```bash
+sbrs prompt                                   # chrome 155 ✓driver
+sbrs prompt --ascii                           # chrome 155 +driver
+sbrs prompt --format '{browser}{major} {mark}'  # chrome155 ✓
+sbrs prompt --verbose                         # and, on standard error, how each part was found
+```
+
+`sbrs prompt` prints one short line for a shell prompt: the major version of
+the installed Chrome (or Chromium) and whether a chromedriver of that version
+is already at hand. The chromedriver is looked for as `doctor` does: the file
+`CHROMEDRIVER_PATH` names, `downloaded_drivers/` in the current folder, then the
+`PATH`. `✓driver` means it matches, `✗driver` that it is missing or of another
+major version (`sbrs install` fetches the right one), and `?driver` that its
+version could not be read. `--ascii` writes `+`, `-` and `?` instead, for
+terminals and fonts without check marks.
+
+When no browser is found it prints nothing and exits with 0, so the prompt
+simply leaves the segment out; `--verbose` says on standard error what it
+looked at. The browser is the one `--browser-path` names, else `SB_CHROME_BIN`,
+else the installed Chrome or Chromium (`CHROME_BIN`, `CHROMIUM_BIN`, the usual
+install folders, the `PATH`). A path that is given but holds no file counts as
+no browser; it is never replaced by another one.
+
+A prompt runs it before every command line, so it starts no browser and uses
+no network:
+
+- The browser's version is read from files: the app's `Info.plist` on macOS,
+  the version folder beside `chrome.exe` on Windows.
+- A version that only running the program tells (`chromedriver --version`, and
+  Chrome on Linux) is cached for ten minutes in
+  `seleniumbase-rs/prompt-versions.json` in the user cache folder
+  (`~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux,
+  `%LOCALAPPDATA%` on Windows), together with the program's size and
+  modification time, so a new download or a browser update shows at once.
+  `--no-cache` asks the programs every time. A program that has not answered
+  within two seconds is given up on: a chromedriver shows as `?driver`, a
+  browser leaves the line out.
+
+Measured with `hyperfine` on an Apple M1 (a debug build), a warm `sbrs prompt`
+takes about 9 ms, as long as `sbrs version` takes to start; with `--no-cache`,
+which runs `chromedriver --version`, about 23 ms. Asking Chrome itself with
+`--version` would take about 45 ms.
+
+| Placeholder | Becomes |
+|---|---|
+| `{browser}` | `chrome` or `chromium` |
+| `{major}` | The browser's major version, such as `155` |
+| `{driver}` | The mark and the word `driver`: `✓driver`, `✗driver` or `?driver` |
+| `{mark}` | The mark alone |
+| `{driver_major}` | The chromedriver's major version; empty when it is missing or unknown |
+
+The default is `--format '{browser} {major} {driver}'`. `{{` and `}}` print a
+brace. An unknown placeholder is refused with exit status 2, so a typo shows
+when you set the prompt up, not as a segment that never appears.
+
+### Bash
+
+```bash
+# ~/.bashrc
+PS1='$(sbrs prompt --format "[{browser} {major} {driver}] " 2>/dev/null)'"$PS1"
+```
+
+The single quotes keep `$(...)` for later: Bash runs it each time it draws the
+prompt (the `promptvars` option, on by default).
+
+### Zsh
+
+```zsh
+# ~/.zshrc
+setopt PROMPT_SUBST
+PROMPT='$(sbrs prompt --format "[{browser} {major} {driver}] " 2>/dev/null)'"$PROMPT"
+```
+
+For the right-hand side instead, set `RPROMPT='$(sbrs prompt 2>/dev/null)'`.
+With `PROMPT_SUBST` the line goes through prompt expansion, so a `%` in your own
+`--format` has to be written `%%`.
+
+### Fish
+
+```fish
+# ~/.config/fish/functions/fish_right_prompt.fish
+function fish_right_prompt
+    type -q sbrs; and sbrs prompt
+end
+```
+
+Fish draws the right prompt beside your own `fish_prompt` and runs the function
+every time; this file replaces a right prompt you already have.
+
+### PowerShell
+
+```powershell
+# In your profile: notepad $PROFILE
+$global:SbrsPromptBefore = $function:prompt
+function prompt {
+    $segment = if (Get-Command sbrs -ErrorAction SilentlyContinue) { sbrs prompt --ascii }
+    $(if ($segment) { "[$segment] " }) + (& $global:SbrsPromptBefore)
+}
+```
+
+PowerShell decodes a program's output with the console's code page, which in
+Windows PowerShell 5.1 turns `✓` into other characters; hence `--ascii`. In
+PowerShell 7 with `[Console]::OutputEncoding = [Text.Encoding]::UTF8` in the
+profile, the marks show and `--ascii` can go.
+
+### Starship
+
+```toml
+# ~/.config/starship.toml
+[custom.sbrs]
+description = "The installed Chrome and whether a matching chromedriver is at hand"
+command = "sbrs prompt"
+when = true
+format = "([$output]($style) )"
+style = "bold blue"
+```
+
+A custom module shows only when `when` holds (or one of its `detect_*` lists
+matches), so `when = true` shows it everywhere; `detect_folders =
+["downloaded_drivers"]` in its place shows it only in projects that have
+downloaded a driver. The parentheses make a conditional group, which leaves
+out the space too when `sbrs prompt` prints nothing. The module comes where
+`$all` is in your `format` (the default), or where you put `${custom.sbrs}`.
+Starship gives a command 500 ms (`command_timeout`), far more than it needs.
+
+### Warp
+
+Warp draws its own prompt by default (the Warp prompt, made of its context
+chips), which does not show your shell's `PS1`. To see the segment, open
+**Settings > Appearance** and, under **Input**, choose the **Shell prompt (PS1)**
+as the prompt type (the menu labels it **Shell (PS1)**). Warp then draws the
+prompt your shell configuration builds: the Bash or Zsh `PS1` above, or the
+Starship module, which Warp's documentation lists as working in Bash, Zsh, Fish
+and PowerShell. Warp shows a right-hand prompt (`RPROMPT`, `fish_right_prompt`)
+in Zsh and Fish but not in Bash.
+
+The repository's Warp Workflow `.warp/workflows/sbrs-prompt.yaml` runs
+`sbrs prompt --verbose`, to see what the segment says and why.
 
 ## Run your tests
 
@@ -374,8 +516,8 @@ and Amazon Q read Fig completion specs
 ```
 
 **Warp Workflows:** the repository has ready-made `sbrs` commands in
-`.warp/workflows/` (smoke test, install a driver, doctor, record, import
-Playwright or Puppeteer tests, create a test folder). Warp shows them in the
+`.warp/workflows/` (smoke test, install a driver, doctor, explain the prompt
+segment, record, import Playwright or Puppeteer tests, create a test folder). Warp shows them in the
 command palette when you are inside the repository; copy them to
 `~/.warp/workflows/` to have them everywhere.
 
@@ -399,3 +541,4 @@ command palette when you are inside the repository; copy them to
 | Global flag rejected | Flag placed after the subcommand | Put global flags before the subcommand: `sbrs --headless open URL`. |
 | CDP command fails | Not in CDP mode | Add `--cdp` or use a CDP-enabled config. |
 | `doctor` shows missing Chrome | Chrome not installed or not on PATH | Set `SB_CHROME_BIN` to the full path. |
+| The `sbrs prompt` segment does not appear | No browser found, or `SB_CHROME_BIN` names no file | Run `sbrs prompt --verbose`. |
