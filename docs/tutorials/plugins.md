@@ -82,23 +82,24 @@ in the plugins repository:
 |---|---|
 | `seleniumbase-rs-plugin-block-resources` | Stops pages from loading images, fonts or media (`Network.setBlockedURLs`) |
 | `seleniumbase-rs-plugin-crx` | Loads packed Chrome extensions (`.crx` files): unpacks them and adds the folders to the start-up settings, which the launch loads |
+| `seleniumbase-rs-plugin-wasm` | Runs plugins written in any language that compiles to WebAssembly, in a sandbox (no host imports, fuel and memory limits) |
 
-Add one with `cargo add`, from the **same revision** of the repository that
-this crate uses (it is in this crate's `Cargo.toml`, next to
-`seleniumbase-rs-plugin`):
+Add one with `cargo add`, from the repository's default branch, with no
+`--rev`, `--tag` or `--branch`:
 
 ```sh
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
-    --rev a70c00fb4bc1c82c09c1175db6efe01b9daf3768 \
     seleniumbase-rs-plugin-block-resources
 ```
 
-The revision matters until the crates are on crates.io: two revisions of the
-same git repository are two different crates to Cargo, so a plugin built
-against another revision implements a different `Plugin` trait. The compiler
-then says the trait `Plugin` is not implemented for the plugin, and mentions two
-versions of `seleniumbase_rs_plugin`. Use one revision for every crate from that
-repository, and the one this crate pins.
+This crate takes `seleniumbase-rs-plugin` from that branch too, so the plugin
+and this crate resolve to the same source, and `Cargo.lock` records one commit
+for both; `cargo update` moves them together. The reference matters until the
+crates are on crates.io: Cargo counts one git repository under two references
+(a branch, a tag, a revision) as two different crates, so a plugin added with
+`--rev` or `--tag` implements a different `Plugin` trait. The compiler then
+says the trait `Plugin` is not implemented for the plugin, and mentions two
+versions of `seleniumbase_rs_plugin`.
 
 ## Writing a plugin
 
@@ -260,7 +261,9 @@ cookie and password the browser handles, and it can send any protocol command.
 Adding one is the same trust decision as adding any dependency:
 
 - Read it, or trust whoever wrote it, before you add it.
-- Pin it to a revision (`--rev`), as above, so it cannot change under you.
+- Keep `Cargo.lock` in version control. It records the commit each git
+  dependency resolved to, so a plugin cannot change under you until you run
+  `cargo update`, and you can read the change before you commit it.
 - Run `cargo deny check` and `cargo audit` on the result; this repository's
   `deny.toml` allows only the git sources it names.
 
