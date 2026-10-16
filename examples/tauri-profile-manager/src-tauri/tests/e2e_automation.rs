@@ -50,8 +50,9 @@ const CARD: &str = "#profile-list li.profile-card";
 /// The window's title, from `src/index.html`.
 const TITLE: &str = "Profiles — SeleniumBase Profile Manager";
 /// Controls the test adds to the page, fixed at its top left corner: a
-/// button that counts clicks, one for a confirm and one for a prompt, a hover
-/// target, a form, a same-origin frame and a sandboxed (cross-origin) one.
+/// button that counts clicks, one for a confirm, one for an alert followed by
+/// a confirm and one for a prompt, a hover target, a form, a same-origin
+/// frame and a sandboxed (cross-origin) one.
 const CONTROLS: &str = r#"
     const area = document.createElement('div');
     area.id = 'e2e';
@@ -59,6 +60,7 @@ const CONTROLS: &str = r#"
     area.innerHTML = `
       <button id="e2e-twice" type="button">Twice</button> <span id="e2e-clicks"></span>
       <button id="e2e-confirm" type="button">Confirm</button>
+      <button id="e2e-leave" type="button">Leave</button>
       <button id="e2e-prompt" type="button">Prompt</button> <span id="e2e-answer"></span>
       <span id="e2e-hover">Hover me</span>
       <form id="e2e-form"><input id="e2e-field"></form> <span id="e2e-submitted"></span>
@@ -72,6 +74,10 @@ const CONTROLS: &str = r#"
     twice.addEventListener('dblclick', () => { clicks.push('dblclick'); show('e2e-clicks', clicks.join(' ')); });
     document.getElementById('e2e-confirm').addEventListener('click', () => {
       show('e2e-answer', `confirm ${window.confirm('Delete the E2E profile?')}`);
+    });
+    document.getElementById('e2e-leave').addEventListener('click', () => {
+      window.alert('Unsaved changes');
+      show('e2e-answer', `leave ${window.confirm('Leave the page?')}`);
     });
     document.getElementById('e2e-prompt').addEventListener('click', () => {
       show('e2e-answer', `prompt ${window.prompt('Your name?', 'nobody')}`);
@@ -218,25 +224,49 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     screenshots(sb).await
 }
 
-/// Dialogs answer at once (they cannot wait for the client): with the answer
-/// set before, else confirm and prompt are dismissed. The dialog's text stays
-/// readable until it is accepted or dismissed.
+/// Dialogs answer at once (they cannot wait for the client): a confirm or a
+/// prompt with the answer set before it opened, else it is dismissed; an
+/// alert leaves that answer to the next one. Each dialog's text stays
+/// readable, oldest first, until it is accepted or dismissed as the page was
+/// answered.
 async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
-    // No answer set: the confirm is dismissed, and its text can be read.
+    // No answer set: the confirm is dismissed. Accepting it afterwards, the
+    // usual WebDriver order, is refused rather than reported as done; its
+    // text can be read until it is dismissed.
     sb.click("#e2e-confirm").await?;
     sb.wait_for_text("#e2e-answer", "confirm false", 10).await?;
+    let refusal = sb
+        .wait_for_and_accept_alert(5)
+        .await
+        .expect_err("a confirm dismissed when it opened was accepted afterwards")
+        .to_string();
+    assert!(
+        refusal.contains("dismissed when it opened"),
+        "unexpected refusal: {refusal}"
+    );
+    eprintln!("a late accept is refused: {refusal}");
     assert_eq!(sb.get_alert_text().await?, "Delete the E2E profile?");
-    sb.accept_alert().await?;
+    sb.dismiss_alert().await?;
     assert!(
         sb.get_alert_text().await.is_err(),
-        "the dialog was accepted, yet its text is still there"
+        "the dialog was dismissed, yet its text is still there"
     );
 
     // Accepted before it opens: the confirm answers true.
     sb.accept_alert().await?;
     sb.click("#e2e-confirm").await?;
     sb.wait_for_text("#e2e-answer", "confirm true", 10).await?;
-    sb.dismiss_alert().await?;
+    sb.accept_alert().await?;
+
+    // An alert before the confirm leaves the answer to it, and the two are
+    // read and cleared in the order they opened.
+    sb.accept_alert().await?;
+    sb.click("#e2e-leave").await?;
+    sb.wait_for_text("#e2e-answer", "leave true", 10).await?;
+    assert_eq!(sb.get_alert_text().await?, "Unsaved changes");
+    sb.accept_alert().await?;
+    assert_eq!(sb.get_alert_text().await?, "Leave the page?");
+    sb.accept_alert().await?;
 
     // A prompt's text, sent and accepted before it opens.
     sb.type_alert_text("Ada").await?;
