@@ -428,11 +428,23 @@ challenge:
 
 ## In CI
 
-- The widgets load their scripts and frames from the vendors: the ones seen on
-  2026-10-15 were `www.google.com`, `js.hcaptcha.com`, `newassets.hcaptcha.com`
-  and `challenges.cloudflare.com`, and a widget may use more. A runner without
-  that network access, or a Content Security Policy that blocks those hosts,
-  shows no widget and `solve_captcha` returns `None`.
+- The widgets load their scripts and frames from the vendors' hosts. A runner
+  without network access to them, or a Content Security Policy (CSP) on your
+  page that blocks them, shows no widget, and `solve_captcha` returns `None`.
+  Take the hosts from each vendor's CSP guidance (below, as read on 2026-10-15),
+  not from a list of what one page load fetched: reCAPTCHA's `api.js` adds a
+  second script from `www.gstatic.com` to your page, and hCaptcha's asset
+  subdomains change over time and by region.
+
+  | Vendor | `script-src` | `frame-src` | Other directives |
+  |---|---|---|---|
+  | reCAPTCHA ([FAQ, the CSP question](https://developers.google.com/recaptcha/docs/faq)) | `https://www.google.com/recaptcha/`, `https://www.gstatic.com/recaptcha/` | `https://www.google.com/recaptcha/`, `https://recaptcha.google.com/recaptcha/` | `connect-src`: `https://www.google.com/recaptcha/` |
+  | hCaptcha ([CSP settings](https://docs.hcaptcha.com/#content-security-policy-settings)) | `https://hcaptcha.com`, `https://*.hcaptcha.com` | the same | `style-src` and `connect-src`: the same |
+  | Turnstile ([Content Security Policy](https://developers.cloudflare.com/turnstile/reference/content-security-policy/)) | `https://challenges.cloudflare.com` | the same | none |
+
+  Google and Cloudflare prefer a nonce on the `api.js` script tag to a host
+  list; the widget passes the nonce on to the scripts it adds. A CI runner that
+  limits outbound traffic needs the same hosts.
 - Treat a token as single-use: Turnstile documents that one works once and
   expires after 300 seconds. Start every test from a fresh page load instead of
   reusing a token.
@@ -443,7 +455,7 @@ challenge:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `solve_captcha` returns `None` | The widget has not drawn yet, its script was blocked, or it is hidden | Wait for the frame or container first; allow the vendor hosts in CI and in your CSP. |
+| `solve_captcha` returns `None` | The widget has not drawn yet, its script was blocked, or it is hidden | Wait for the frame or container first; allow the hosts listed under [In CI](#in-ci) in your CSP and on the CI runner. |
 | `solve_captcha` returns `Some(..)` but the token stays empty | The wrong site key (not a test key), or the click missed | Check the key in the page source; take a screenshot (`save_screenshot`) to see the widget. |
 | The widget says the site key is invalid | A production key on a test host, or a key from another vendor | Use the test key of the vendor whose script the page loads. |
 | An hCaptcha widget appears where a reCAPTCHA one should | Both scripts on one page | One vendor per page, or `recaptchacompat=off` on the hCaptcha script. |
@@ -461,8 +473,10 @@ challenge:
 
 On 2026-10-15, on macOS:
 
-- Every key and the markup names above against the vendors' pages (linked in
-  each section), and the `siteverify` answers in the table above with real calls.
+- Every key, the markup names and the CSP hosts above against the vendors' pages
+  (linked in each section), and the `siteverify` answers in the table above with
+  real calls. reCAPTCHA's `api.js`, fetched the same day, adds its second script
+  from `https://www.gstatic.com/recaptcha/releases/`.
 - A real Chrome, clicked by hand, on a local fixture: the reCAPTCHA v2 test key,
   the hCaptcha Publisher or Pro key and all five Turnstile site keys behaved as
   described, including the tokens.
