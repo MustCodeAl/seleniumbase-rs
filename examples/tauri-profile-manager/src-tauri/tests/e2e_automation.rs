@@ -8,7 +8,9 @@
 //! page (the app has no dialogs, frames or double clicks) to answer confirm
 //! and prompt dialogs, enter a same-origin frame (and be refused a sandboxed
 //! one), double-click, hover and press keys through W3C actions, and take
-//! screenshots. It stops the app when it ends, also when it fails.
+//! screenshots on macOS (elsewhere the plugin answers `unsupported operation`
+//! for them, which the test checks). It stops the app when it ends, also when
+//! it fails.
 //!
 //! It opens the app's window, so it is ignored by default. Run it with:
 //!
@@ -305,6 +307,7 @@ async fn actions(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
 }
 
 /// The PNG's width and height, from its header.
+#[cfg(target_os = "macos")]
 fn png_size(png: &[u8]) -> Option<(u32, u32)> {
     let signature = b"\x89PNG\r\n\x1a\n";
     if png.len() < 24 || &png[..8] != signature || &png[12..16] != b"IHDR" {
@@ -314,7 +317,24 @@ fn png_size(png: &[u8]) -> Option<(u32, u32)> {
     Some((number(16), number(20)))
 }
 
+/// Off macOS the plugin takes no screenshots yet: it says so.
+#[cfg(not(target_os = "macos"))]
+async fn screenshots(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    let refusal = sb
+        .screenshot_as_png()
+        .await
+        .expect_err("a screenshot was taken off macOS")
+        .to_string();
+    assert!(
+        refusal.contains("macOS only"),
+        "unexpected refusal: {refusal}"
+    );
+    eprintln!("screenshots are refused off macOS: {refusal}");
+    Ok(())
+}
+
 /// A screenshot of the whole view, and one of an element cut out of it.
+#[cfg(target_os = "macos")]
 async fn screenshots(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     let page = sb.screenshot_as_png().await?;
     let (page_width, page_height) = png_size(&page).ok_or("the page screenshot is not a PNG")?;
