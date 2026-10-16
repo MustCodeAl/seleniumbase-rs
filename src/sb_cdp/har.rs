@@ -1,7 +1,7 @@
 //! Recording a page's network traffic as a HAR (HTTP Archive 1.2) file; see
 //! [`HarRecorder`].
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -258,6 +258,9 @@ struct EntryState {
     resource_type: Option<String>,
     response: Option<Value>,
     response_extra: Option<Value>,
+    /// Whether the browser said wire headers (`responseReceivedExtraInfo`)
+    /// come for this response, when it said.
+    response_has_extra: Option<bool>,
     response_at: Option<f64>,
     finished_at: Option<f64>,
     encoded_length: Option<f64>,
@@ -290,11 +293,15 @@ struct Recording {
     main_frame: String,
     options: HarOptions,
     entries: Vec<EntryState>,
-    /// The latest entry of each request id (a redirect reuses the id).
-    current: HashMap<String, usize>,
-    /// Headers that arrived before the request or response they belong to.
+    /// The entries of each request id, oldest first: one per hop of a
+    /// redirect, which keeps the id. The last is the request in flight.
+    hops: HashMap<String, Vec<usize>>,
+    /// Request headers that arrived before the request they belong to.
     early_request_extra: HashMap<String, Value>,
-    early_response_extra: HashMap<String, Value>,
+    /// Response headers not yet given to a hop, in the order they came. They
+    /// can arrive before their request, and a redirect's can arrive after the
+    /// next hop has started.
+    pending_response_extra: HashMap<String, VecDeque<Value>>,
     pages: Vec<PageState>,
     /// A moment on the browser's monotonic clock and the wall-clock time then.
     clock: Option<(f64, f64)>,
@@ -307,9 +314,9 @@ impl Recording {
             main_frame,
             options,
             entries: Vec::new(),
-            current: HashMap::new(),
+            hops: HashMap::new(),
             early_request_extra: HashMap::new(),
-            early_response_extra: HashMap::new(),
+            pending_response_extra: HashMap::new(),
             pages: Vec::new(),
             clock: None,
             dropped: 0,
@@ -360,8 +367,9 @@ impl Recording {
         None
     }
 
+    /// The entry of the request in flight with the event's request id.
     fn entry_mut(&mut self, params: &Value) -> Option<&mut EntryState> {
-        let index = *self.current.get(params["requestId"].as_str()?)?;
+        let index = *self.hops.get(params["requestId"].as_str()?)?.last()?;
         self.entries.get_mut(index)
     }
 
@@ -388,33 +396,41 @@ impl Recording {
             None => self.wall_at(timestamp),
         };
 
-        let redirect = params.get("redirectResponse").filter(|r| r.is_object());
-        if let Some(redirect) = redirect {
+        match params.get("redirectResponse").filter(|r| r.is_object()) {
             // The request id stays; the previous hop ends with this response.
-            if let Some(entry) = self.entry_mut(params) {
-                entry.response = Some(redirect.clone());
-                entry.response_at = Some(timestamp);
-                entry.finished_at = Some(timestamp);
+            Some(redirect) => {
+                if let Some(entry) = self.entry_mut(params) {
+                    entry.response = Some(redirect.clone());
+                    entry.response_has_extra = params["redirectHasExtraInfo"].as_bool();
+                    entry.response_at = Some(timestamp);
+                    entry.finished_at = Some(timestamp);
+                }
             }
-        } else if params["type"] == "Document"
-            && params["frameId"].as_str() == Some(self.main_frame.as_str())
-            && params["loaderId"].as_str() == Some(id)
-        {
-            self.pages.push(PageState {
-                url: params["request"]["url"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_owned(),
-                started_wall: wall,
-                started: timestamp,
-                content_loaded: None,
-                loaded: None,
-            });
+            None => {
+                // A new request, even if the browser reuses an old id.
+                self.hops.remove(id);
+                if params["type"] == "Document"
+                    && params["frameId"].as_str() == Some(self.main_frame.as_str())
+                    && params["loaderId"].as_str() == Some(id)
+                {
+                    self.pages.push(PageState {
+                        url: params["request"]["url"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_owned(),
+                        started_wall: wall,
+                        started: timestamp,
+                        content_loaded: None,
+                        loaded: None,
+                    });
+                }
+            }
         }
 
         if self.entries.len() >= MAX_ENTRIES {
             self.dropped += 1;
-            self.current.remove(id);
+            self.hops.remove(id);
+            self.pending_response_extra.remove(id);
             return;
         }
         let index = self.entries.len();
@@ -427,6 +443,7 @@ impl Recording {
             resource_type: params["type"].as_str().map(str::to_ascii_lowercase),
             response: None,
             response_extra: None,
+            response_has_extra: None,
             response_at: None,
             finished_at: None,
             encoded_length: None,
@@ -434,7 +451,8 @@ impl Recording {
             error: None,
             content: ContentState::default(),
         });
-        self.current.insert(id.to_owned(), index);
+        self.hops.entry(id.to_owned()).or_default().push(index);
+        self.give_response_extra(id);
     }
 
     fn request_extra(&mut self, params: &Value) {
@@ -455,37 +473,60 @@ impl Recording {
         let Some(id) = params["requestId"].as_str() else {
             return;
         };
-        let early = self.early_response_extra.remove(id);
         if let Some(entry) = self.entry_mut(params) {
             entry.response = Some(params["response"].clone());
+            entry.response_has_extra = params["hasExtraInfo"].as_bool();
             entry.response_at = params["timestamp"].as_f64();
             if let Some(kind) = params["type"].as_str() {
                 entry.resource_type = Some(kind.to_ascii_lowercase());
             }
-            if entry.response_extra.is_none() {
-                entry.response_extra = early.filter(|extra| fits(entry, extra));
-            }
         }
+        self.give_response_extra(id);
     }
 
     fn response_extra(&mut self, params: &Value) {
         let Some(id) = params["requestId"].as_str() else {
             return;
         };
-        if let Some(entry) = self.entry_mut(params) {
-            if entry.response_extra.is_none() && fits(entry, params) {
-                entry.response_extra = Some(params.clone());
-                return;
-            }
+        self.pending_response_extra
+            .entry(id.to_owned())
+            .or_default()
+            .push_back(params.clone());
+        self.give_response_extra(id);
+    }
+
+    /// Gives the response headers waiting for `id` to its hops.
+    ///
+    /// Chrome sends one `responseReceivedExtraInfo` per hop that has wire
+    /// headers, oldest hop first, but not in step with `requestWillBeSent`:
+    /// a redirect's can come after the next hop has started. So each goes to
+    /// the oldest hop still waiting for one, as in Chrome's own DevTools.
+    fn give_response_extra(&mut self, id: &str) {
+        let (Some(queue), Some(hops)) =
+            (self.pending_response_extra.get_mut(id), self.hops.get(id))
+        else {
+            return;
+        };
+        while let Some(extra) = queue.front() {
+            let entries = &self.entries;
+            let waiting = hops.iter().copied().find(|&index| {
+                entries
+                    .get(index)
+                    .is_some_and(|entry| awaits_extra(entry, extra))
+            });
+            let Some(entry) = waiting.and_then(|index| self.entries.get_mut(index)) else {
+                break;
+            };
+            entry.response_extra = queue.pop_front();
         }
-        // Before its request, or another hop's.
-        self.early_response_extra
-            .insert(id.to_owned(), params.clone());
+        if queue.is_empty() {
+            self.pending_response_extra.remove(id);
+        }
     }
 
     fn loading_finished(&mut self, params: &Value) -> Option<(usize, String)> {
         let id = params["requestId"].as_str()?.to_owned();
-        let index = *self.current.get(&id)?;
+        let index = *self.hops.get(&id)?.last()?;
         let options = self.options;
         let entry = self.entries.get_mut(index)?;
         entry.finished_at = params["timestamp"].as_f64().or(entry.finished_at);
@@ -577,6 +618,12 @@ impl Recording {
             },
         }
     }
+}
+
+/// Whether `entry` can take `extra`, the wire headers of one response: it has
+/// none yet, the browser did not say none come, and the status fits.
+fn awaits_extra(entry: &EntryState, extra: &Value) -> bool {
+    entry.response_extra.is_none() && entry.response_has_extra != Some(false) && fits(entry, extra)
 }
 
 /// Whether `extra` can be the extra information of `entry`'s response: its

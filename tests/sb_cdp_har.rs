@@ -284,6 +284,111 @@ async fn a_redirect_becomes_one_entry_per_hop_on_one_page() {
     assert_eq!(new.pageref.as_deref(), Some("page_1"));
 }
 
+/// The 302's headers as they went over the wire.
+fn redirect_extra() -> Value {
+    json!({
+        "requestId": "R2", "statusCode": 302,
+        "headers": { "location": "/", "set-cookie": "a=1" },
+    })
+}
+
+/// The 200's headers as they went over the wire.
+fn document_extra() -> Value {
+    json!({
+        "requestId": "R2", "statusCode": 200,
+        "headers": { "content-type": "text/html" },
+    })
+}
+
+/// Plays `GET /old` answered by a 302 to `/`, then `/` answered by a 200, with
+/// the two `responseReceivedExtraInfo` events at the points `extra_at` names:
+/// 0 before the redirect's `requestWillBeSent`, 1 after it, 2 after the 200's
+/// `responseReceived`.
+async fn redirect_with_extra_info(extra_at: [usize; 2]) -> Har {
+    let (page, mock) = page().await;
+    let recorder = page.start_har().await.unwrap();
+    let extras = [redirect_extra(), document_extra()];
+    let play_extras_at = |point: usize| {
+        for (extra, at) in extras.iter().zip(extra_at) {
+            if at == point {
+                send(&mock, "Network.responseReceivedExtraInfo", extra.clone());
+            }
+        }
+    };
+    let document = |url: &str, at: f64| {
+        json!({
+            "requestId": "R2", "loaderId": "R2", "frameId": "T1", "type": "Document",
+            "timestamp": at, "wallTime": WALL + at,
+            "request": { "url": url, "method": "GET", "headers": {} },
+        })
+    };
+
+    send(
+        &mock,
+        "Network.requestWillBeSent",
+        document("https://a.test/old", 1.0),
+    );
+    play_extras_at(0);
+    let mut hop = document("https://a.test/", 1.1);
+    hop["redirectHasExtraInfo"] = json!(true);
+    hop["redirectResponse"] = json!({
+        "url": "https://a.test/old", "status": 302, "statusText": "Found",
+        "headers": { "Location": "/" }, "mimeType": "", "protocol": "http/1.1",
+    });
+    send(&mock, "Network.requestWillBeSent", hop);
+    play_extras_at(1);
+    send(
+        &mock,
+        "Network.responseReceived",
+        json!({
+            "requestId": "R2", "timestamp": 1.2, "type": "Document", "hasExtraInfo": true,
+            "response": {
+                "url": "https://a.test/", "status": 200, "statusText": "OK",
+                "headers": { "Content-Type": "text/html" }, "mimeType": "text/html",
+                "protocol": "http/1.1",
+            },
+        }),
+    );
+    play_extras_at(2);
+    send(
+        &mock,
+        "Network.loadingFinished",
+        json!({ "requestId": "R2", "timestamp": 1.3, "encodedDataLength": 100 }),
+    );
+    recorder.finish().await.unwrap()
+}
+
+#[tokio::test]
+async fn each_hop_of_a_redirect_gets_its_own_wire_headers_whenever_they_arrive() {
+    // Chrome does not order the ExtraInfo events against requestWillBeSent:
+    // the 302's may come before or after the next hop starts.
+    for extra_at in [[0, 1], [1, 1], [0, 2], [1, 2], [2, 2]] {
+        let har = redirect_with_extra_info(extra_at).await;
+
+        let old = entry(&har, "https://a.test/old");
+        assert_eq!(old.response.status, 302, "{extra_at:?}");
+        assert_eq!(
+            value(&old.response.headers, "set-cookie"),
+            ["a=1"],
+            "{extra_at:?}"
+        );
+        assert_eq!(old.response.cookies.len(), 1, "{extra_at:?}");
+        assert_eq!(old.response.redirect_url, "/", "{extra_at:?}");
+        let new = entry(&har, "https://a.test/");
+        assert_eq!(new.response.status, 200, "{extra_at:?}");
+        assert_eq!(
+            value(&new.response.headers, "content-type"),
+            ["text/html"],
+            "{extra_at:?}: the 200's own headers"
+        );
+        assert!(
+            value(&new.response.headers, "location").is_empty(),
+            "{extra_at:?}: not the 302's"
+        );
+        assert!(new.response.cookies.is_empty(), "{extra_at:?}");
+    }
+}
+
 #[tokio::test]
 async fn a_failed_request_has_status_zero_and_the_error() {
     let (page, mock) = page().await;
