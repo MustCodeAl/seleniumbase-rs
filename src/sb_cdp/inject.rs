@@ -280,7 +280,10 @@ mod tests {
             &TagSource::url("https://example.com/a.css"),
             Duration::from_millis(2500),
         );
-        assert!(expression.contains("}, 2500);"), "{expression}");
+        assert!(
+            expression.contains("did not load within 2500 ms')), 2500);"),
+            "the timer: {expression}"
+        );
         assert!(
             expression.contains("did not load within 2500 ms"),
             "{expression}"
