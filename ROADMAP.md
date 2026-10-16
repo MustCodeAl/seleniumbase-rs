@@ -384,11 +384,29 @@ page gets (puppeteer-extra and Zorilla are examples of the ecosystem). Design an
   `SeleniumBaseError::Plugin`), with `LaunchOptionsBuilder::extension` and
   `preference` so every launch setting a plugin changes reaches the browser.
   Guide: `docs/tutorials/plugins.md`. Tested against the mocked browser only.
-- **Missing:** `add_script_tag`, `add_style_tag` and `add_init_script` on
-  `sb_cdp::Page`; a real-Chrome test of the hooks, extensions and preferences;
-  phase 3 (the WebDriver engine); phase 4 (built-ins as plugins, the real
-  Bootstrap Tour and Hopscotch libraries for the two tour themes that fall back
-  to the built-in tour today).
+- **Done:** phase 3, the WebDriver engine (`BrowserConfig::with_plugins`): the
+  set is checked and `before_launch` runs in `BrowserSession::connect` (and so
+  `BaseCase::new`), the settings going back into the configuration (Chromium
+  arguments, capability prefs, extension folders, proxy, headless; Firefox
+  arguments and preferences); `on_browser`, the packages and
+  `on_page_created` for the first window and each window opened with
+  `switch_to_new_window` or `BaseCase::open_new_window`, and
+  `apply_plugins_to_window` for a pop-up; `on_close` at quit and drop; the
+  hooks again on `reconnect`. Chromium browsers use chromedriver's DevTools
+  channel; Firefox and Safari refuse `send`, and their page scripts run again
+  after each `open`. Also `sb_cdp::Page::add_script_tag`, `add_style_tag`,
+  `add_init_script` and `remove_init_script`, and `PageHandle` for
+  `sb_cdp::Page`. Tested against the mock WebDriver and the mocked browser,
+  and once each in Chrome 155 headless on macOS
+  (`tests/webdriver_plugins_chrome.rs`, `tests/sb_cdp_page_inject_chrome.rs`).
+- **Missing:** a real-Chrome test of the pure CDP engine's hooks, extensions
+  and preferences; Firefox and Safari runs of the WebDriver hooks; on Firefox
+  and Safari, the page scripts after `refresh`, `go_back`, `go_forward` and
+  navigations the page makes itself (only `open` runs them again); plugins
+  together with `reuse_session` (refused today); the `test_plugin` hook the ADR
+  names, which the plugin API crate does not have yet; phase 4 (built-ins as
+  plugins, the real Bootstrap Tour and Hopscotch libraries for the two tour
+  themes that fall back to the built-in tour today).
 
 ## Publishing
 
