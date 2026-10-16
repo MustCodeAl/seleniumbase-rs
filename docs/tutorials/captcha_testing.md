@@ -208,7 +208,8 @@ The test has the same four steps for every vendor:
 
 1. Wait until the widget has drawn.
 2. Click it.
-3. Wait until the token field is non-empty.
+3. Wait until the token field is non-empty. If it stays empty for a few
+   seconds, the click probably came before the widget was ready: click again.
 4. Submit the form and assert what your application does.
 
 | Vendor | Widget, as the page sees it | Token field |
@@ -269,8 +270,40 @@ machine's own pointer; test widgets do not need it (see
 ### With the pure CDP engine
 
 ```rust,no_run
-use seleniumbase_rs::sb_cdp::{Browser, Captcha, LaunchOptions, State};
+use std::time::Duration;
+
+use seleniumbase_rs::sb_cdp::{Browser, Captcha, LaunchOptions, Page, State};
 use seleniumbase_rs::SeleniumBaseError;
+
+/// Presses `widget` until the hidden field `field` holds a token, and returns
+/// the token.
+///
+/// The widget's frame can be on screen before the checkbox inside it has
+/// drawn, and a press that early is lost. `solve_captcha` cannot tell, so each
+/// press gets five seconds to produce a token, and the widget is pressed again
+/// if none came.
+async fn press_until_token(
+    page: &Page,
+    widget: Captcha,
+    field: &str,
+) -> Result<String, SeleniumBaseError> {
+    // Truthy once the field holds a token; the `?.` keeps it from throwing
+    // before the field exists.
+    let token = format!("document.querySelector('{field}')?.value");
+    let short = page.with_timeout(Duration::from_secs(5));
+    for _ in 0..3 {
+        assert_eq!(page.solve_captcha().await?, Some(widget));
+        match short.wait_for_function(&token).await {
+            Ok(()) => return page.evaluate_as(&token).await,
+            // No token: the press came too early, so press again.
+            Err(SeleniumBaseError::WaitTimeout(_)) => {}
+            Err(other) => return Err(other),
+        }
+    }
+    Err(SeleniumBaseError::WaitTimeout(format!(
+        "no token in {field} after three presses"
+    )))
+}
 
 #[tokio::test]
 async fn signup_with_the_recaptcha_test_widget() -> Result<(), SeleniumBaseError> {
@@ -285,16 +318,10 @@ async fn signup_with_the_recaptcha_test_widget() -> Result<(), SeleniumBaseError
         .wait_for(State::Visible)
         .await?;
 
-    // 2. Click it.
-    assert_eq!(page.solve_captcha().await?, Some(Captcha::Recaptcha));
-
-    // 3. The token lands in a hidden field of your page. `wait_for_function`
-    //    polls until the expression is truthy; the `?.` keeps it from throwing
-    //    before the field exists.
-    page.wait_for_function(
-        r#"document.querySelector('textarea[name="g-recaptcha-response"]')?.value"#,
-    )
-    .await?;
+    // 2 and 3. Click it until the token lands in the hidden field of your page.
+    let field = r#"textarea[name="g-recaptcha-response"]"#;
+    let token = press_until_token(&page, Captcha::Recaptcha, field).await?;
+    assert!(!token.is_empty());
 
     // 4. Submit and assert what your application shows.
     page.locator("#send").click().await?;
@@ -315,40 +342,37 @@ a page with Turnstile and hCaptcha it would press Turnstile even when the test
 meant hCaptcha. A test key gives a known token, so the test can assert it:
 
 ```rust,no_run
-# use seleniumbase_rs::sb_cdp::{Captcha, Page};
-# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+# use seleniumbase_rs::sb_cdp::{Captcha, Page, State};
+# use seleniumbase_rs::SeleniumBaseError;
+# // `press_until_token` is the helper from the listing above.
+# async fn press_until_token(_: &Page, _: Captcha, _: &str) -> Result<String, SeleniumBaseError> {
+#     unimplemented!()
+# }
+# async fn demo(page: Page) -> Result<(), SeleniumBaseError> {
 // hCaptcha, Publisher or Pro test key, on the hCaptcha fixture.
 page.goto("http://127.0.0.1:8765/hcaptcha.html").await?;
-page.wait_for_function(
-    r#"document.querySelector('iframe[src*="hcaptcha.com"][src*="checkbox"]')"#,
-)
-.await?;
-assert_eq!(page.solve_captcha().await?, Some(Captcha::Hcaptcha));
-page.wait_for_function(r#"document.querySelector('textarea[name="h-captcha-response"]')?.value"#)
+page.locator(r#"iframe[src*="hcaptcha.com"][src*="checkbox"]"#)
+    .wait_for(State::Visible)
     .await?;
-let token: String = page
-    .evaluate_as(r#"document.querySelector('textarea[name="h-captcha-response"]').value"#)
-    .await?;
+let field = r#"textarea[name="h-captcha-response"]"#;
+let token = press_until_token(&page, Captcha::Hcaptcha, field).await?;
 assert_eq!(token, "10000000-aaaa-bbbb-cccc-000000000001");
 
 // Turnstile, the key that forces an interactive challenge (3x...FF), on a page
-// of its own. The container exists before the widget has drawn, so if a click
-// lands too early the token stays empty: call solve_captcha again.
+// of its own. Wait for the container to be visible, not only to exist: the
+// empty div has no height until the widget starts to draw (unless your CSS
+// gives it one), and solve_captcha skips a widget without a size.
 page.goto("http://127.0.0.1:8765/turnstile.html").await?;
-page.wait_for_function(r#"document.querySelector('.cf-turnstile')"#).await?;
-assert_eq!(page.solve_captcha().await?, Some(Captcha::Turnstile));
-page.wait_for_function(r#"document.querySelector('input[name="cf-turnstile-response"]')?.value"#)
-    .await?;
-let token: String = page
-    .evaluate_as(r#"document.querySelector('input[name="cf-turnstile-response"]').value"#)
-    .await?;
+page.locator(".cf-turnstile").wait_for(State::Visible).await?;
+let field = r#"input[name="cf-turnstile-response"]"#;
+let token = press_until_token(&page, Captcha::Turnstile, field).await?;
 assert_eq!(token, "XXXX.DUMMY.TOKEN.XXXX");
 # Ok(())
 # }
 ```
 
 A Turnstile key that always passes (`1x...AA`, `1x...BB`) needs no click: skip
-`solve_captcha` and wait for the token field.
+`press_until_token` and wait for the token field with `wait_for_function`.
 
 ### With WebDriver (`BaseCase`)
 
@@ -421,6 +445,10 @@ assert_eq!(sb.solve_captcha().await?, Some(Captcha::Recaptcha));
 # }
 ```
 
+As in the pure CDP helper above, a press can come before the checkbox has
+drawn and be lost: give `wait_for_token` a few seconds, and press again when it
+times out.
+
 For hCaptcha and Turnstile use `solve_captcha` too: Turnstile has no frame to
 enter, and hCaptcha's inner markup was not checked here.
 
@@ -471,7 +499,7 @@ challenge:
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `solve_captcha` returns `None` | The widget has not drawn yet, its script was blocked, or it is hidden | Wait for the frame or container first; allow the hosts listed under [In CI](#in-ci) in your CSP and on the CI runner. |
-| `solve_captcha` returns `Some(..)` but the token stays empty | The wrong site key (not a test key), or the click missed | Check the key in the page source; take a screenshot (`save_screenshot`) to see the widget. |
+| `solve_captcha` returns `Some(..)` but the token stays empty | The wrong site key (not a test key), or the click came before the widget was ready | Press again after a few seconds, as `press_until_token` does; check the key in the page source; take a screenshot (`save_screenshot`) to see the widget. |
 | The widget says the site key is invalid | A production key on a test host, or a key from another vendor | Use the test key of the vendor whose script the page loads. |
 | An hCaptcha widget appears where a reCAPTCHA one should | Both scripts on one page | One vendor per page, or `recaptchacompat=off` on the hCaptcha script. |
 | `siteverify` refuses the dummy token | A production secret with a test site key | Use the secret of the same test set. |
