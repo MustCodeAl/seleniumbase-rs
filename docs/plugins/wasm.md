@@ -22,7 +22,7 @@ cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleni
 
 <Info>
 
-Install it from the same revision of the plugins repository that your seleniumbase-rs pins; see [Installing a plugin](../tutorials/plugins.md#installing-a-plugin). The plugins overview is [here](index.md).
+Install it from the same revision of the plugins repository that your seleniumbase-rs pins; see [Installing a plugin](../tutorials/plugins.md#installing-a-plugin). The plugins overview is [here](overview.md).
 
 </Info>
 

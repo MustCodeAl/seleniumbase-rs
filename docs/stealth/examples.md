@@ -32,7 +32,7 @@ message on any system but macOS: they do not borrow the values of another system
 `stealth_session` also needs the installed Chrome to be the measured major, or it is
 refused before it loads a page. The two that drive Chrome should run one at a time,
 and not beside another Chrome-driving program. The `impersonate` ones start from the
-[feature costs](index.md#two-features); the first build compiles BoringSSL.
+[feature costs](overview.md#two-features); the first build compiles BoringSSL.
 
 What was run: each example was run once on macOS with Chrome 155.0.8059.40, the two
 that drive Chrome headless, and each exited with status 0. `browser_scraper` solved

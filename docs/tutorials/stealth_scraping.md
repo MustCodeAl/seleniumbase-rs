@@ -16,13 +16,13 @@ as three crates. The features `scrape` and `impersonate` and the modules
 <Tip>
 
 The full tutorial is part of this site now, under
-[Stealth scraping](../stealth/index.md). Start there.
+[Stealth scraping](../stealth/overview.md). Start there.
 
 </Tip>
 
 <Columns cols={2}>
 
-<Card title="Overview and crates" icon="layer-group" href="../stealth/index.md">
+<Card title="Overview and crates" icon="layer-group" href="../stealth/overview.md">
 
 The three crates, how to depend on them, and how the pieces layer.
 
@@ -87,7 +87,7 @@ and a local Chrome, never against live services.
 
 The long guide this page used to hold (the wire formats, re-measuring when
 Chrome updates, the identity file, `BrowserScraper`, `HttpSession`, `MitmProxy`,
-`StealthSession` and their limits) is now the [Stealth scraping](../stealth/index.md)
+`StealthSession` and their limits) is now the [Stealth scraping](../stealth/overview.md)
 section of this site. What stays here is the in-browser side:
 [Fingerprint & Stealth Profiles](fingerprint_stealth.md) covers what a page can
 read from inside the browser and how this crate hides it.

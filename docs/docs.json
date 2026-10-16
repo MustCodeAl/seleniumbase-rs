@@ -105,7 +105,7 @@
           {
             "group": "Plugins",
             "pages": [
-              "plugins/index",
+              "plugins/overview",
               "plugins/writing-your-own",
               "plugins/block-resources",
               "plugins/crx",
@@ -115,7 +115,7 @@
           {
             "group": "Stealth scraping",
             "pages": [
-              "stealth/index",
+              "stealth/overview",
               "stealth/wire-formats",
               "stealth/identity",
               "stealth/browser-scraper",
@@ -129,7 +129,7 @@
           {
             "group": "Ecosystem",
             "pages": [
-              "ecosystem/index",
+              "ecosystem/overview",
               "ecosystem/tauri",
               "ecosystem/browser-extension",
               "ecosystem/homebrew"
