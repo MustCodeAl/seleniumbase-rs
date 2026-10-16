@@ -611,10 +611,11 @@ mod tests {
     fn a_match_removes_what_an_earlier_failure_left() {
         let dir = tempfile::tempdir().unwrap();
         let checks = baselines(dir.path());
-        let original = png(&page_image(120, 80));
+        let page = page_image(120, 80);
+        let original = png(&page);
         checks.check("home", &original).unwrap();
         let inverted = png(&RgbImage::from_fn(120, 80, |x, y| {
-            let Rgb([r, g, b]) = *page_image(120, 80).get_pixel(x, y);
+            let Rgb([r, g, b]) = *page.get_pixel(x, y);
             Rgb([255 - r, 255 - g, 255 - b])
         }));
         checks.check("home", &inverted).unwrap_err();
