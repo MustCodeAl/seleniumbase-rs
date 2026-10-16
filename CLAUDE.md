@@ -26,7 +26,7 @@ status of every Python API, `parity/upstream.toml` the upstream version,
 `rust-version = "1.99"` (the newest stable; the `msrv` CI job and the
 `Dockerfile` base image must move with it). Binaries: `sbrs` (CLI) and
 `sbrs-mcp` (MCP server, feature `mcp-server`). Default features are
-empty; `gui`, `tui`, `turso`, `rustwright`, `plugins`, `ocr` are opt-in. The
+empty; `gui`, `tui`, `turso`, `rustwright`, `plugins`, `ocr`, `visual` are opt-in. The
 experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 `MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)
 moved out in 0.3.0 to the workspace
@@ -48,7 +48,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 |---|---|
 | `api/` | `BaseCase` (`base_case.rs`) and the capability traits in `traits.rs` (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`, selectors passed as `css: &str`). `base_case_impls/` splits its methods by theme (`_dom`, `_nav`, `_mouse`, `_storage`, `_tours`, ...). Also `recorder`, `scenario`, `presentation`, `master_qa`, `chart`, `tour`, `pdf`, `html`, `html_inspector`, `dialog`, `gui`, `cdp_driver`/`cdp_page`, `runner` (`run_browser_test`). |
 | `browser/` | `BrowserConfig`/`Browser`/`DriverMode` (`config.rs`), `BrowserSession` (`session.rs`), `launcher`, `driver_access` (repairs and runs drivers), `downloader`, `playwright`. |
-| `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `proxy_auth`, `webrtc`, `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
+| `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `proxy_auth`, `webrtc`, `har` (`Page::start_har`, `HarRecorder`, the HAR 1.2 serde types), `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
 | `stealth/` | `fingerprint.rs` (`Fingerprint`, `StealthFlags`, `ProxyConfig`, `ClientHints`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); entry `src/bin/mcp_server.rs`. Held to the pedantic lint set. |
@@ -60,6 +60,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `utils/` | `selectors`, `shadow`, `urls`, `geometry`, `extensions/` (bundled browser extensions), `translate/` (language dictionaries). |
 | `common/` | `shutdown` (graceful shutdown registry), `encryption`, `obfuscate`/`unobfuscate`, `exceptions`, `decorators`. |
 | `storage/` | `turso` feature: `ResultStore`, `ProfileVault`. |
+| `visual.rs` | `visual` feature: `VisualBaseline` (screenshot baselines compared by SSIM, `check`, `check_page`), behind `BaseCase::assert_visual_match`. Not `check_window`, which compares the HTML layout. |
 | rest | `error.rs` (`SeleniumBaseError`), `macros.rs`, `artifacts.rs`, `core/report_helper.rs`, `js_code`, `resources/`, `tracing_util.rs` (the crate logs with `tracing`). |
 
 Elsewhere: `tests/` (integration tests; `tests/golden` is compiled into the
