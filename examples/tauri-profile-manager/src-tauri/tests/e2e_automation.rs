@@ -7,7 +7,8 @@
 //! reads and resizes the window. Then it adds a few controls of its own to the
 //! page (the app has no dialogs, frames or double clicks) to answer confirm
 //! and prompt dialogs, enter a same-origin frame (and be refused a sandboxed
-//! one), double-click, hover and press keys through W3C actions, and take
+//! one), double-click, hover and press keys through W3C actions (also onto a
+//! paragraph far below, on a page that scrolls smoothly), and take
 //! screenshots on macOS (elsewhere the plugin answers `unsupported operation`
 //! for them, which the test checks). It stops the app when it ends, also when
 //! it fails.
@@ -87,6 +88,20 @@ const CONTROLS: &str = r#"
       event.preventDefault();
       show('e2e-submitted', `submitted [${document.getElementById('e2e-field').value}]`);
     });
+"#;
+
+/// A paragraph far below the part of the page in view, which says when the
+/// pointer reaches it, on a page that from then on scrolls smoothly (CSS
+/// `scroll-behavior: smooth`).
+const FAR: &str = r#"
+    document.documentElement.style.scrollBehavior = 'smooth';
+    const far = document.createElement('p');
+    far.id = 'e2e-far';
+    far.textContent = 'Far below';
+    // At the right, clear of the controls fixed at the top left.
+    far.style.cssText = 'position:absolute;top:3000px;right:20px;margin:0;padding:8px;background:#fff';
+    far.addEventListener('mouseover', () => { far.textContent = 'Reached'; });
+    document.body.append(far);
 "#;
 
 /// The app, started for this test and stopped when this is dropped.
@@ -319,8 +334,9 @@ async fn frames(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// W3C actions as DOM events: a double click, a hover, and keys typed into
-/// the focused field, Enter submitting its form.
+/// W3C actions as DOM events: a double click, a hover, keys typed into the
+/// focused field, Enter submitting its form, and a hover far below on a page
+/// that scrolls smoothly.
 async fn actions(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.double_click("#e2e-twice").await?;
     assert_eq!(sb.get_text("#e2e-clicks").await?, "click1 click2 dblclick");
@@ -333,6 +349,12 @@ async fn actions(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.press_key("enter").await?;
     sb.wait_for_text("#e2e-submitted", "submitted [E2E ]", 10)
         .await?;
+
+    // The move scrolls the paragraph into view at once, not over the frames
+    // that follow, so it lands on it.
+    sb.execute_script(FAR).await?;
+    sb.hover("#e2e-far").await?;
+    sb.wait_for_text("#e2e-far", "Reached", 10).await?;
     Ok(())
 }
 
@@ -380,6 +402,19 @@ async fn screenshots(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
         "the element screenshot is {width} x {height}"
     );
     eprintln!("screenshots: the page {page_width} x {page_height}, the button {width} x {height}");
+
+    // The far paragraph, out of view again, on a page that scrolls smoothly:
+    // its screenshot scrolls it into view at once and is cut where it shows.
+    sb.execute_script("window.scrollTo({ top: 0, behavior: 'instant' });")
+        .await?;
+    let far = sb.find_element("#e2e-far").await?;
+    let shot = far.screenshot_as_png().await?;
+    let (width, height) = png_size(&shot).ok_or("the far screenshot is not a PNG")?;
+    assert!(
+        width > 0 && height > 0 && width < page_width && height < page_height,
+        "the far paragraph's screenshot is {width} x {height}"
+    );
+    eprintln!("screenshots: the far paragraph {width} x {height}");
     Ok(())
 }
 
