@@ -15,6 +15,7 @@ It is the engine behind the `cdp` MCP server.
 - Fill forms, click, and press keys with trusted input
 - Wait and assert with retrying expectations
 - Work with frames, cookies, storage and tabs
+- Add scripts and styles to a page, and a script to every document it loads
 - Keep WebRTC from revealing the machine's addresses
 - Test code that drives pages without launching Chrome
 
@@ -222,6 +223,43 @@ page.post_message(
 The message is escaped before it is posted, so `<b>` appears as typed rather
 than as bold text. With `pause` left on (the default) the call returns after the
 message's duration, so the next step does not start until it is gone.
+
+## Scripts and styles in the page
+
+`page.add_script_tag` and `page.add_style_tag` add a `<script>` tag or a
+stylesheet to the current document, from a file (`TagSource::url`) or from the
+code itself (`TagSource::content`). For a file they wait until the browser has
+loaded it, up to the page's timeout, and a file that does not load is an error;
+inline script code that throws is an error too. `page.add_init_script` runs a
+script in every document the tab loads from now on, in every frame, before the
+page's own scripts, and returns an identifier for `page.remove_init_script`.
+They are Playwright's `addScriptTag`, `addStyleTag` and `addInitScript`; on
+`BaseCase` the counterparts are `add_js_link`, `add_css_link` and `add_js_code`.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Page, TagSource};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+page.add_script_tag(TagSource::url(
+    "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js",
+))
+.await?;
+page.add_style_tag(TagSource::content("header { display: none; }"))
+    .await?;
+
+let id = page.add_init_script("window.startedAt = Date.now();").await?;
+page.goto("https://example.com").await?; // runs before the page's scripts
+page.remove_init_script(&id).await?; // the next documents do without it
+# Ok(())
+# }
+```
+
+A tag reaches only the current document, and a navigation drops it.
+`add_init_script` leaves the document already loaded alone, as Playwright
+does; run the script there with `page.evaluate` if it needs it too. The page's
+Content Security Policy still applies: it can refuse a file's host, which is an
+error, or forbid inline scripts, which stops `TagSource::content` code without
+one. What you pass reaches the page as a string, never spliced into code.
 
 ## Intercepting requests
 
@@ -489,7 +527,8 @@ tried on a live CAPTCHA.
 With the `plugins` feature, `LaunchOptionsBuilder::plugins` takes a set of
 browser plugins: crates whose hooks run before the browser starts, once it runs,
 for every tab and at close, to block resources, add scripts, set preferences or
-load extensions. See [Browser Plugins](plugins.md).
+load extensions. See [Browser Plugins](plugins.md). A `Page` is also the plugin
+API's `PageHandle`, so code written for plugins can be given one of your tabs.
 
 ## Testing without Chrome
 
