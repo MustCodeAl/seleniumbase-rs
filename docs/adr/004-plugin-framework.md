@@ -8,9 +8,11 @@ title: "ADR 004: A Plugin Framework for Community Crates"
 
 Accepted, in progress. Proposed (2026-10-12), revised the same day: the
 framework lives in its own repository, `seleniumbase-rs-plugins`, and this crate
-keeps only the hook points that call it. Phase 1 (the plugins repository) and
-phase 2 (the hook points of the pure CDP engine, behind the `plugins` feature)
-are done; the phases at the end give the order and what each one holds.
+keeps only the hook points that call it. Phase 1 (the plugins repository),
+phase 2 (the hook points of the pure CDP engine) and phase 3 (the hook points
+of the WebDriver engine), behind the `plugins` feature, are done, except the
+`test_plugin` hook; phases 4 and 5 remain. The phases at the end give the
+order, what each one holds and where the result differs from the plan.
 
 ## Context
 
@@ -244,13 +246,38 @@ reaching every site the browser visits.
    `on_page_created` through a `PageHandle` on the tab's session; `close` and
    the last drop call `on_close` once. Errors stop the launch or the tab as
    `SeleniumBaseError::Plugin`, and a tab opened by `new_page` is closed again.
-   Block resources lives in the plugins repository. Not done here: the
-   `Page::add_script_tag`, `add_style_tag` and `add_init_script` methods, and
-   `PageHandle` for `sb_cdp::Page` itself (the hooks use a handle on the tab's
-   session instead). The tests run against the mock transport, not a real
+   Block resources lives in the plugins repository. Left for phase 3, and done
+   there: the `Page::add_script_tag`, `add_style_tag` and `add_init_script`
+   methods, and `PageHandle` for `sb_cdp::Page` itself (the hooks use a handle
+   on the tab's session). The tests run against the mock transport, not a real
    Chrome. Guide: [Browser Plugins](../tutorials/plugins.md).
 3. **Hook points, WebDriver engine.** `BrowserConfig::with_plugins`, the
    Chromium page hooks through the DevTools bridge, `test_plugin`.
+
+   *Done* (2026-10-15), except `test_plugin`, which the API crate does not
+   have yet. `BrowserConfig::with_plugins`; `BrowserSession::connect`, and so
+   `BaseCase::new`, checks the set against a WebDriver `LaunchContext` (a
+   server other than the local default counts as attaching), runs
+   `before_launch` on settings taken from the configuration and puts them back
+   (Chromium: arguments, capability preferences, extension folders, proxy,
+   headless; Firefox: its arguments and preferences, headless; Safari:
+   nothing), checks again, then calls `on_browser` and gives the first window
+   the packages and `on_page_created`. Windows opened with
+   `switch_to_new_window` and `BaseCase::open_new_window` get them too, and
+   `apply_plugins_to_window` gives them to a window reached another way;
+   `reconnect` runs the hooks again for the new browser; `quit` and drop call
+   `on_close`. A refusal or a failing hook stops the session with
+   `SeleniumBaseError::Plugin` and quits the browser. Unlike the table above,
+   `on_page_created` runs on every browser, Firefox and Safari refusing `send`;
+   their init scripts and packages run as WebDriver scripts at once and again
+   after each `open`, after the page's own scripts. Plugins together with
+   `reuse_session` are refused. `sb_cdp::Page` got
+   `add_script_tag`, `add_style_tag`, `add_init_script` and
+   `remove_init_script`, and implements `PageHandle`. Tested against a mock
+   WebDriver server and the mocked browser, and in Chrome 155 headless on
+   macOS (`tests/webdriver_plugins_chrome.rs`,
+   `tests/sb_cdp_page_inject_chrome.rs`); Firefox and Safari only against the
+   mock server.
 4. **Built-ins and community.** `ad_block` and `shield_webrtc` as plugins, a
    `StealthPlugin`, the real Bootstrap Tour and Hopscotch libraries for the two
    tour themes that fall back to the built-in tour today, the template
