@@ -56,7 +56,7 @@ those cookies were earned through.
 use seleniumbase_rs_scrape::passport::identity::{EmulationRef, StealthIdentity};
 use seleniumbase_rs_scrape::runtime::identity_file;
 use seleniumbase_rs::stealth::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_net_fingerprint::BrowserKind;
+use seleniumbase_rs_codec::BrowserKind;
 
 # async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
 let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);

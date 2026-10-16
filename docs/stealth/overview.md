@@ -9,10 +9,12 @@ title: "Stealth Scraping"
 <Note>
 
 This tutorial moved here from seleniumbase-rs on 2026-10-15, when the stealth
-layer became its own crates. Paths now name `seleniumbase_rs_net_fingerprint`,
-`seleniumbase_rs_scrape` and `seleniumbase_rs_impersonate`; the examples run with
-`cargo run -p <crate> --example <name>` in this repository. Where it still says
-"feature `scrape`" or "feature `impersonate`", read "the crate".
+layer became its own crates. Paths now name `seleniumbase_rs_codec`,
+`seleniumbase_rs_scrape` and `seleniumbase_rs_mimic`; the examples run with
+`cargo run -p <crate> --example <name>` in the
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+repository. Where a page still says "feature `scrape`" or "feature `impersonate`"
+(the names before 0.3.0), read the `scrape` or `mimic` crate.
 
 </Note>
 
@@ -35,16 +37,16 @@ of it.
 | Wire parsers: `ClientHello`, JA3, JA4 and `JA4_r`, peetprint, Akamai HTTP/2 strings | `scrape` | Available |
 | Measured browser tables (Chrome 155 on macOS) and the lookup that refuses everything else | `scrape` | Available |
 | Capture tools `capture_tls` and `capture_hints` | `scrape` | Available |
-| Capture tool `capture_h2` | `impersonate` | Available |
-| `ImpersonationProfile`, `CustomProfileBuilder`, `impersonation_client` (wreq with BoringSSL) | `impersonate` | Available |
+| Capture tool `capture_h2` | `mimic` | Available |
+| `ImpersonationProfile`, `CustomProfileBuilder`, `impersonation_client` (wreq with BoringSSL) | `mimic` | Available |
 | RFC 6265 cookie jar | `scrape` | Available |
 | `StealthIdentity`, its identity file, `SessionPolicy` | `scrape` | Available |
 | Challenge detection, mitigation policy, proxy pool, per-site state, events | `scrape` | Available |
 | `BrowserScraper` (a real Chrome, no TLS spoofing) | `scrape` | Available |
-| Ephemeral-CA TLS server | `impersonate` | Available |
-| `HttpSession` | `impersonate` | Available |
-| `MitmProxy` | `impersonate` | Available |
-| `StealthSession` | `impersonate` | Available |
+| Ephemeral-CA TLS server | `mimic` | Available |
+| `HttpSession` | `mimic` | Available |
+| `MitmProxy` | `mimic` | Available |
+| `StealthSession` | `mimic` | Available |
 
 <Warning>
 
@@ -96,7 +98,7 @@ seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-
 # Also builds BoringSSL through btls and drives it with wreq. Needs cmake and a
 # C/C++ toolchain. It includes `scrape`.
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
-seleniumbase-rs-impersonate = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
+seleniumbase-rs-mimic = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
 </Tab>
@@ -105,12 +107,12 @@ seleniumbase-rs-impersonate = { git = "https://github.com/MustCodeAl/seleniumbas
 
 | Feature | What it adds | Cost |
 |---|---|---|
-| `scrape` | `seleniumbase_rs_net_fingerprint` (pure wire formats and the measured tables) and `seleniumbase_rs_scrape` (jar, identity, challenge detection, egress, state, events, `BrowserScraper`, capture tools). | Pure Rust. The default build gains no dependency and no C code. |
-| `impersonate` | `seleniumbase_rs_impersonate`: the wreq client, the conversion from a spec to wreq options, `capture_h2`, the ephemeral-CA TLS server, `HttpSession`, `MitmProxy` and `StealthSession`. | Builds BoringSSL: `cmake` and a C/C++ toolchain, and about 1 GB of build output (the design plan's estimate). `wreq` and `btls` are pinned to exact versions (`=6.0.0-rc.31` and `=0.5.6`). |
+| `scrape` | `seleniumbase_rs_codec` (pure wire formats and the measured tables) and `seleniumbase_rs_scrape` (jar, identity, challenge detection, egress, state, events, `BrowserScraper`, capture tools). | Pure Rust. The default build gains no dependency and no C code. |
+| `mimic` | `seleniumbase_rs_mimic`: the wreq client, the conversion from a spec to wreq options, `capture_h2`, the ephemeral-CA TLS server, `HttpSession`, `MitmProxy` and `StealthSession`. | Builds BoringSSL: `cmake` and a C/C++ toolchain, and about 1 GB of build output (the design plan's estimate). `wreq` and `btls` are pinned to exact versions (`=6.0.0-rc.31` and `=0.5.6`). |
 
 Neither feature is on by default. The main types are re-exported at the crate
 root (`seleniumbase_rs::BrowserScraper`, `seleniumbase_rs::HttpSession`, ...) and
-at the top of `net-fingerprint`, `scrape` and `impersonate`; the examples below use the
+at the top of `codec`, `scrape` and `mimic`; the examples below use the
 module paths where the module says more. The TLS and HTTP/2 spec error enums are
 both called `SpecError` in their modules, so the re-exports are `TlsSpecError`
 and `H2SpecError`. The crate links only one BoringSSL, so do not add a second
@@ -135,11 +137,11 @@ as three crates:
 
 | Crate | What it is |
 |---|---|
-| `seleniumbase-rs-net-fingerprint` (`crates/net-fingerprint`) | Pure wire formats, no I/O: a TLS `ClientHello` parser, JA3, JA4 and peetprint, the Akamai HTTP/2 fingerprint, HTTP/2 frame and HPACK reading, the TLS, HTTP/2 and header specs, and the measured browser table (`emulation`) embedded from `src/measured/*.json`. |
+| `seleniumbase-rs-codec` (`crates/codec`) | Pure wire formats, no I/O: a TLS `ClientHello` parser, JA3, JA4 and peetprint, the Akamai HTTP/2 fingerprint, HTTP/2 frame and HPACK reading, the TLS, HTTP/2 and header specs, and the measured browser table (`emulation`) embedded from `src/measured/*.json`. |
 | `seleniumbase-rs-scrape` (`crates/scrape`) | Stealth scraping without TLS spoofing, over the pure CDP engine of seleniumbase-rs. Pure modules for challenge detection and the mitigation policy, egress (proxy pool, geo locale, URL redaction), an RFC 6265 cookie jar, the per-site ledger and its events, and the stealth identity with its session policy; the `runtime` module holds the I/O: `BrowserScraper`, `EgressSwitch`, `JsonStateStore`, the identity file, the tracing sink and the capture tools. Pure Rust. |
-| `seleniumbase-rs-impersonate` (`crates/impersonate`) | Browser-identical TLS and HTTP/2 through wreq and BoringSSL: `ImpersonationProfile` and `CustomProfileBuilder`, `HttpSession` (plain HTTP that continues a browser's session), `MitmProxy` (a loopback proxy that gives a real Chrome the measured TLS), `StealthSession` (moves between plain HTTP and Chrome), `EphemeralCa`, and the HTTP/2 capture tool. Builds BoringSSL, so it needs `cmake` and a C/C++ toolchain. |
+| `seleniumbase-rs-mimic` (`crates/impersonate`) | Browser-identical TLS and HTTP/2 through wreq and BoringSSL: `ImpersonationProfile` and `CustomProfileBuilder`, `HttpSession` (plain HTTP that continues a browser's session), `MitmProxy` (a loopback proxy that gives a real Chrome the measured TLS), `StealthSession` (moves between plain HTTP and Chrome), `EphemeralCa`, and the HTTP/2 capture tool. Builds BoringSSL, so it needs `cmake` and a C/C++ toolchain. |
 
-`impersonate` depends on `scrape`, which depends on `net-fingerprint`; all three
+`mimic` depends on `scrape`, which depends on `codec`; all three
 depend on `seleniumbase-rs`. These crates need some core items to be public (in
 `seleniumbase_rs::sb_cdp` and `seleniumbase_rs::stealth::randomize`).
 
@@ -149,7 +151,7 @@ depend on `seleniumbase-rs`. These crates need some core items to be public (in
 published to crates.io. **Measured only for Chrome 155 on macOS.** The wire
 tables hold one entry. On any other system, or against another Chrome major
 version, the impersonation refuses to run (`NotMeasured`, `VersionMismatch`)
-instead of borrowing the values of another system. `net-fingerprint` and
+instead of borrowing the values of another system. `codec` and
 `scrape` work everywhere; `scrape` does no TLS spoofing. Everything was tested
 against local servers and a local Chrome, never against live services.
 
@@ -185,7 +187,7 @@ cargo test --workspace
 
 </Steps>
 
-The first build of `impersonate` compiles BoringSSL (about 1 GB of target
+The first build of `mimic` compiles BoringSSL (about 1 GB of target
 directory). Tests that start a real Chrome are the `*_chrome.rs` files and are
 `#[ignore]`d; run them one binary at a time with `-- --ignored --test-threads=1`.
 The examples, what each needs, and how to run them are on
@@ -195,15 +197,15 @@ The examples, what each needs, and how to run them are on
 
 ## How the pieces layer
 
-An arrow reads "is used by". The `scrape` feature is pure Rust; `impersonate`
+An arrow reads "is used by". The `scrape` crate is pure Rust; `mimic`
 includes it and adds BoringSSL. `StealthSession` moves between `HttpSession`
 and a real Chrome behind `MitmProxy`.
 
 ```mermaid
 flowchart TD
-    NF["seleniumbase_rs_net_fingerprint<br/>wire formats, measured tables"]
+    NF["seleniumbase_rs_codec<br/>wire formats, measured tables"]
     SC["seleniumbase_rs_scrape<br/>jar, identity, challenges, BrowserScraper"]
-    IM["seleniumbase_rs_impersonate<br/>wreq client, TLS server"]
+    IM["seleniumbase_rs_mimic<br/>wreq client, TLS server"]
     HS["HttpSession"]
     MP["MitmProxy"]
     SS["StealthSession"]

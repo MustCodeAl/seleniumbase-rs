@@ -4,7 +4,7 @@ title: "HttpSession"
 
 # HttpSession
 
-`impersonate::http_session::HttpSession` sends plain HTTP requests that look like
+`mimic::http_session::HttpSession` sends plain HTTP requests that look like
 the Chrome a browser page came from. A browser spends a second or more on a page;
 a request spends milliseconds. Once a page has earned its cookies (a login, a
 passed check), an `HttpSession` carries them on: the measured TLS `ClientHello`
@@ -14,7 +14,7 @@ identity. A browser or system that was not measured is refused, not
 approximated.
 
 ```rust
-use seleniumbase_rs_impersonate::{HttpOptions, HttpSession};
+use seleniumbase_rs_mimic::{HttpOptions, HttpSession};
 use seleniumbase_rs::sb_cdp::Page;
 
 # async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
@@ -61,8 +61,8 @@ Both refuse, before any request, what would contradict the measured handshake:
 is reported there.
 
 ```rust
-use seleniumbase_rs_impersonate::{HttpSession, Method};
-use seleniumbase_rs_net_fingerprint::header_spec::RequestShape;
+use seleniumbase_rs_mimic::{HttpSession, Method};
+use seleniumbase_rs_codec::header_spec::RequestShape;
 
 # async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
 let reply = session
@@ -132,8 +132,8 @@ println!("{}: {}", reply.status(), reply.text()?);
   pieces of your own loop; [`StealthSession`](stealth-session.md#stealthsession) is that loop.
 
   ```rust
-  use seleniumbase_rs_impersonate::http_session::{Attempt, Rules};
-  use seleniumbase_rs_impersonate::HttpSession;
+  use seleniumbase_rs_mimic::http_session::{Attempt, Rules};
+  use seleniumbase_rs_mimic::HttpSession;
   use seleniumbase_rs_scrape::StealthIdentity;
 
   # async fn demo(session: HttpSession, identity: StealthIdentity) -> Result<(), Box<dyn std::error::Error>> {

@@ -34,8 +34,8 @@ The crate root exposes the following modules:
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
 
 The modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. They are
-the crates `seleniumbase-rs-wire`, `seleniumbase-rs-scrape` and
-`seleniumbase-rs-impersonate` of
+the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
+`seleniumbase-rs-mimic` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 now, which build on the public items of `sb_cdp` and `stealth` listed here.
 

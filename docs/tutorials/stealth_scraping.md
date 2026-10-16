@@ -50,9 +50,9 @@ What is measured, what is refused, and troubleshooting.
 
 | Crate | Was | What it is |
 |---|---|---|
-| `seleniumbase-rs-net-fingerprint` | `seleniumbase_rs::wire` | Pure wire formats: the TLS `ClientHello` parser, JA3, JA4, peetprint, the Akamai HTTP/2 fingerprint, the TLS, HTTP/2 and header specs, and the measured browser table. |
+| `seleniumbase-rs-codec` | `seleniumbase_rs::wire` | Pure wire formats: the TLS `ClientHello` parser, JA3, JA4, peetprint, the Akamai HTTP/2 fingerprint, the TLS, HTTP/2 and header specs, and the measured browser table. |
 | `seleniumbase-rs-scrape` | feature `scrape` | The cookie jar, `StealthIdentity` and `SessionPolicy`, challenge detection and mitigation, the proxy pool, per-site state and events, `BrowserScraper` (a real Chrome over the pure CDP engine, no TLS spoofing) and the capture tools. Pure Rust. |
-| `seleniumbase-rs-impersonate` | feature `impersonate` | Browser-identical TLS and HTTP/2 through wreq and BoringSSL: `ImpersonationProfile`, `CustomProfileBuilder`, `HttpSession`, `MitmProxy`, `StealthSession` and `EphemeralCa`. Builds BoringSSL, so it needs CMake and a C/C++ toolchain. |
+| `seleniumbase-rs-mimic` | feature `impersonate` | Browser-identical TLS and HTTP/2 through wreq and BoringSSL: `ImpersonationProfile`, `CustomProfileBuilder`, `HttpSession`, `MitmProxy`, `StealthSession` and `EphemeralCa`. Builds BoringSSL, so it needs CMake and a C/C++ toolchain. |
 
 ## Depending on it
 
@@ -63,7 +63,7 @@ The crates are not on crates.io. Depend on them by git, next to this crate:
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 # Only if you need browser-identical TLS (builds BoringSSL):
-seleniumbase-rs-impersonate = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
+seleniumbase-rs-mimic = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
 <Warning>
