@@ -17,14 +17,19 @@ maintainer of this repository to decide.
 - The CLI definition has not changed since 0.3.0 (the commits after the tag change
   no command, option or description; one changes how `sbrs` ends when its output
   pipe closes), so the spec matches the current source.
+- It is the CLI of a build **without the `turso` feature**, which is how the
+  Homebrew tap and a plain `cargo install --path .` build `sbrs`. `sbrs report`
+  exists only with `turso`, so the spec has no `report` subcommand. The `tui`
+  feature changes what some commands do, not the command line, so it does not
+  matter here.
 - 112 top-level subcommands (225 command entries with the nested ones) and 24
   top-level options. It uses `template: "filepaths"` in five places, and has no
   `generators` and no `script`, so it runs nothing in a user's shell. Two
   descriptions contain a URL (`https://example.com` and `http://localhost:4444`),
   which upstream's review bot lists.
 
-To regenerate it after the CLI changes (it reproduces the saved file byte for
-byte today):
+To regenerate it after the CLI changes, from an `sbrs` built without `turso`
+(it reproduces the saved file byte for byte today):
 
 ```bash
 sbrs completions fig \
@@ -114,8 +119,10 @@ SeleniumBase (browser automation and testing).
 
 How it was made: `sbrs completions fig` (clap_complete_fig) writes the spec from
 the CLI's own definition, so the subcommands, aliases, options and descriptions
-match `sbrs --help`. The file was then formatted with this repository's prettier
-settings. To regenerate it: `sbrs completions fig`.
+match `sbrs --help` of the default build (the optional `turso` feature adds a
+`report` subcommand, which the spec leaves out). The file was then formatted
+with this repository's prettier settings. To regenerate it:
+`sbrs completions fig`.
 
 - 112 top-level subcommands, 225 command entries with the nested ones.
 - `template: "filepaths"` only; no generators and no `script`.
