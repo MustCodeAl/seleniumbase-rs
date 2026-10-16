@@ -2,9 +2,10 @@
 //! driven through chromedriver.
 //!
 //! The plugin sets a preference before the browser starts, reads the browser's
-//! version through the DevTools channel, and gives the window a time zone, a
-//! package and an init script. The test needs Chrome and chromedriver, so it
-//! is ignored by default. Run it with:
+//! version through the DevTools channel, and gives each window a time zone, a
+//! package and an init script: the first one, and one `open_new_window`
+//! opens. The test needs Chrome and chromedriver, so it is ignored by default.
+//! Run it with:
 //!
 //! ```text
 //! cargo test --features plugins --test webdriver_plugins_chrome -- --ignored
@@ -117,6 +118,21 @@ async fn a_plugin_reaches_chrome_through_webdriver_and_its_devtools_channel() {
         "de-DE",
         "the preference before_launch set reached Chrome"
     );
+
+    // A window BaseCase opens gets the page hooks on its own target.
+    sb.open_new_window().await.unwrap();
+    sb.open(PAGE).await.unwrap();
+    assert_eq!(
+        sb.execute_script(&script("window.planet")).await.unwrap(),
+        "Erde",
+        "the init script reached the new window"
+    );
+    assert_eq!(
+        sb.execute_script(&script("Intl.DateTimeFormat().resolvedOptions().timeZone"))
+            .await
+            .unwrap(),
+        "Europe/Berlin"
+    );
     sb.quit().await.unwrap();
 
     let seen = log.lock().unwrap().clone();
@@ -124,6 +140,6 @@ async fn a_plugin_reaches_chrome_through_webdriver_and_its_devtools_channel() {
         seen[0].starts_with("HeadlessChrome/") || seen[0].starts_with("Chrome/"),
         "{seen:?}"
     );
-    assert_eq!(seen[1], "evaluate 2");
+    assert_eq!(seen[1..3], ["evaluate 2", "evaluate 2"], "two windows");
     assert_eq!(seen.last().map(String::as_str), Some("on_close"));
 }
