@@ -163,6 +163,8 @@ async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
     sb.quit().await.expect("quit");
     let diff_written = folder.join("home.diff.png").is_file();
     let _ = std::fs::remove_dir_all(&folder);
+    // The parent folder too, but only when no other test left anything in it.
+    let _ = std::fs::remove_dir("visual_baseline");
 
     assert!(layout.is_ok(), "check_window compares tags: {layout:?}");
     assert!(
