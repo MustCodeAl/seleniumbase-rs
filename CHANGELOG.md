@@ -33,6 +33,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- The pure CDP engine takes DevTools messages up to 256 MiB, as Puppeteer
+  does. Chrome sends each answer in one WebSocket frame, and one over the
+  default 16 MiB, such as a large screenshot or response body, used to close
+  the connection for every tab.
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
   (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
 
