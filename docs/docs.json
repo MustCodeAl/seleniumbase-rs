@@ -102,6 +102,39 @@
           "tutorials/tracing",
           "tutorials/test_plugins",
           "tutorials/plugins",
+          {
+            "group": "Plugins",
+            "pages": [
+              "plugins/index",
+              "plugins/writing-your-own",
+              "plugins/block-resources",
+              "plugins/crx",
+              "plugins/wasm"
+            ]
+          },
+          {
+            "group": "Stealth scraping",
+            "pages": [
+              "stealth/index",
+              "stealth/wire-formats",
+              "stealth/identity",
+              "stealth/browser-scraper",
+              "stealth/http-session",
+              "stealth/mitm-proxy",
+              "stealth/stealth-session",
+              "stealth/examples",
+              "stealth/limits"
+            ]
+          },
+          {
+            "group": "Ecosystem",
+            "pages": [
+              "ecosystem/index",
+              "ecosystem/tauri",
+              "ecosystem/browser-extension",
+              "ecosystem/homebrew"
+            ]
+          },
           "tutorials/results_and_profiles",
           {
             "group": "Developer Guide",
