@@ -37,6 +37,27 @@ sbrs completions fig \
   > docs/completions/fig-sbrs.ts
 ```
 
+### Where the spec and the CLI differ
+
+`clap_complete_fig` writes two attributes that do not match how `sbrs` parses
+its command line:
+
+- Every option that takes a value is marked `isRepeatable: true` (138 of them),
+  although most may be given only once: a second `--browser`, for example, is an
+  error. Only the few options that collect a list (such as `--features` and
+  `--assert`) may repeat.
+- When such an option is optional, its value is marked `isOptional: true`
+  (top-level `--browser`, `--webdriver`, `--user-agent` and others), although
+  `sbrs` needs the value. Fig may then offer subcommands and options where the
+  value should go.
+
+Both were checked with `sbrs` 0.3.0: `--browser chrome --browser edge` and a
+`--browser` with no value each end with an error and exit status 2.
+
+Completion still offers the right names. A reviewer upstream may ask for these
+to be corrected by hand; if so, the saved file stops being the generator's
+exact output.
+
 ## Before you decide
 
 Checked on 2026-10-15:
@@ -123,6 +144,11 @@ match `sbrs --help` of the default build (the optional `turso` feature adds a
 `report` subcommand, which the spec leaves out). The file was then formatted
 with this repository's prettier settings. To regenerate it:
 `sbrs completions fig`.
+
+Known differences from the CLI, both from the generator: every option that
+takes a value is marked `isRepeatable`, although most may be given only once,
+and the value of an optional option is marked `isOptional`, although `sbrs`
+needs it. I can correct them by hand if you prefer.
 
 - 112 top-level subcommands, 225 command entries with the nested ones.
 - `template: "filepaths"` only; no generators and no `script`.
