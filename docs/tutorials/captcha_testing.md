@@ -54,7 +54,12 @@ CAPTCHA_SECRET_KEY=6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
   next to a real secret fails.
 - Make the `siteverify` URL a setting too. Then a test can point the server at a
   stub, which is the way to cover reCAPTCHA v3 and any answer a test key cannot
-  give.
+  give. The same setting can switch the check off: pointed at a stub, or at any
+  server that always answers `success: true`, it makes your server accept every
+  token. Outside the test deployment, have the application refuse to start
+  unless the URL is the vendor's own `siteverify` URL (listed below); production
+  keys are real, so the test-key check in the next point does not catch a wrong
+  URL.
 - Test keys protect nothing, and the secrets are public. Have the application
   refuse to start with a known test key when it runs in production.
 
@@ -470,6 +475,8 @@ challenge:
 
 - Test keys give no protection and their secrets are public. Never deploy them,
   and make the application fail at start-up when it finds one in production.
+- The same goes for a `siteverify` URL that is not the vendor's: in production
+  it would accept whatever the stub accepts. Fail at start-up on that too.
 - Keep production keys out of test environments and out of the repository.
 - Do not point these tests at a site you do not own or have permission to test.
 
