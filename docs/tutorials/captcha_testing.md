@@ -221,9 +221,10 @@ The first two widget selectors are the ones `Page::solve_captcha` itself uses.
 
 To try the code without your own application, save this HTML as
 `recaptcha.html` and serve its folder
-(`python3 -m http.server 8765 --bind 127.0.0.1`); for hCaptcha or Turnstile swap
-the script, the div and the site key. Its form has no server behind it, so the
-token is what a test can check:
+(`python3 -m http.server 8765 --bind 127.0.0.1`). For hCaptcha or Turnstile swap
+the script, the div and the site key, and save each as a file of its own
+(`hcaptcha.html`, `turnstile.html`): one vendor per page. Its form has no server
+behind it, so the token is what a test can check:
 
 ```html
 <!doctype html>
@@ -308,12 +309,16 @@ async fn signup_with_the_recaptcha_test_widget() -> Result<(), SeleniumBaseError
 ```
 
 The same shape works for the other two vendors, with their frame and field from
-the table. A test key gives a known token, so the test can assert it:
+the table. Give each vendor a page of its own: `solve_captcha` presses the first
+widget it finds, and it looks for Turnstile before reCAPTCHA and hCaptcha, so on
+a page with Turnstile and hCaptcha it would press Turnstile even when the test
+meant hCaptcha. A test key gives a known token, so the test can assert it:
 
 ```rust,no_run
 # use seleniumbase_rs::sb_cdp::{Captcha, Page};
 # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-// hCaptcha, Publisher or Pro test key.
+// hCaptcha, Publisher or Pro test key, on the hCaptcha fixture.
+page.goto("http://127.0.0.1:8765/hcaptcha.html").await?;
 page.wait_for_function(
     r#"document.querySelector('iframe[src*="hcaptcha.com"][src*="checkbox"]')"#,
 )
@@ -326,9 +331,10 @@ let token: String = page
     .await?;
 assert_eq!(token, "10000000-aaaa-bbbb-cccc-000000000001");
 
-// Turnstile, the key that forces an interactive challenge (3x...FF). The
-// container exists before the widget has drawn, so if a click lands too early
-// the token stays empty: call solve_captcha again.
+// Turnstile, the key that forces an interactive challenge (3x...FF), on a page
+// of its own. The container exists before the widget has drawn, so if a click
+// lands too early the token stays empty: call solve_captcha again.
+page.goto("http://127.0.0.1:8765/turnstile.html").await?;
 page.wait_for_function(r#"document.querySelector('.cf-turnstile')"#).await?;
 assert_eq!(page.solve_captcha().await?, Some(Captcha::Turnstile));
 page.wait_for_function(r#"document.querySelector('input[name="cf-turnstile-response"]')?.value"#)
