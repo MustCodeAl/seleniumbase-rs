@@ -248,9 +248,13 @@ height with trusted mouse events (the DataDome slider is pressed 30 pixels in
 and dragged to 30 pixels from the right edge). The widgets live in cross-origin
 frames whose insides it cannot inspect, so it does not know whether the click
 was accepted. It returns `Some(Captcha::...)` for the widget it pressed, `None`
-when no supported widget is visible yet, and an error only if the browser refuses
-the input. Because `None` is what you get before the widget has drawn, wait for
-the widget first, and check the token afterwards.
+when no supported widget is visible yet, and an error when the script that looks
+for the widget fails or the browser refuses the input. The script can fail
+while the page is still navigating ("Execution context was destroyed"), so such
+an error need not end a test that has just submitted a form or followed a link:
+wait for the page to load and call it again. Because `None` is what you get
+before the widget has drawn, wait for the widget first, and check the token
+afterwards.
 
 With the `gui` feature, `Page::gui_click_captcha()` makes the same press with the
 machine's own pointer; test widgets do not need it (see
