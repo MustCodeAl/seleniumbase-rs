@@ -372,7 +372,7 @@ WebDriver server. `tests/webdriver_plugins_chrome.rs` runs one plugin through
 `BaseCase` and chromedriver against a real Chrome: a preference set in
 `before_launch`, `Browser.getVersion` through the DevTools channel, a time zone,
 a package and an init script in the first window, the time zone and the init
-script in a window `open_new_window` opens, `evaluate`, and `on_close` at quit. It passed in Chrome 155, headless,
-on macOS. Firefox and Safari have run only against the mock server, and the
-extension folders, the proxy and a remote server were not tried with a live
-browser.
+script in a window `open_new_window` opens, `evaluate`, and `on_close` at quit.
+It passed in Chrome 155, headless, on macOS. Firefox and Safari have run only
+against the mock server, and the extension folders, the proxy and a remote
+server were not tried with a live browser.
