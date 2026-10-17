@@ -97,14 +97,14 @@ ring = "0.17"
 zip = { version = "9.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 # The zlib-rs backend zip already builds (lopdf still enables flate2's default one).
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
-tar = "0.4"
+tar = { version = "0.4", default-features = false }
 dirs = "7.0"
 pdf-extract = { version = "0.12", optional = true }
 # Without `main` (getopts, for scraper's own CLI) and `errors` (unused parse errors).
 scraper = { version = "0.27", default-features = false }
 rfd = { version = "0.17", optional = true }
 toml = "1.1"
-tempfile = "3.27"
+tempfile = { version = "3.27", default-features = false }
 which = "8.0"
 async-trait = "0.1"
 # `http` and `bytes` name the types of thirtyfour's `HttpClient` trait, which
