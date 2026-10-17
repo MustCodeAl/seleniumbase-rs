@@ -139,5 +139,5 @@ async fn sign_in(sb: &mut BaseCase, url: String, secret: String) -> Result<()> {
 
 /// The page checks the code asynchronously, so wait for its verdict.
 async fn wait_for_status(sb: &mut BaseCase, expected: &str) -> Result<()> {
-    sb.wait_for_text("#status", expected, 5).await
+    sb.wait_for_text(expected, "#status", 5).await
 }

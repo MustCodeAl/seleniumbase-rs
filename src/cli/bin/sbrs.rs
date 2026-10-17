@@ -2169,7 +2169,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::WaitForText { css, text, timeout } => {
             let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_text(&css, &text, timeout).await?;
+            sb.wait_for_text(&text, &css, timeout).await?;
             println!("Text found for selector '{css}': {text}");
             sb.quit().await?;
         }

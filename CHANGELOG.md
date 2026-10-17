@@ -38,6 +38,29 @@ that break a call are listed first, each with the way to migrate.
   `AssertionApi::assert_text(expected, css)` trait method changed with it. If
   you generated tests with an earlier version, run the same search over them.
 
+- **The text waits take `(text, css, timeout_secs)`**, as Python's
+  `wait_for_text(text, selector, timeout)` does. `wait_for_text`,
+  `wait_for_exact_text_visible` and `wait_for_exact_text_not_visible` swapped
+  their first two arguments (a silent change: both are `&str`).
+  `wait_for_text_visible`, `wait_for_text_not_visible` and `wait_for_exact_text`
+  gained the selector they lacked, so an old call stops compiling. Pass `"body"`
+  to look at the whole page, as the old `wait_for_text_visible(text, timeout)`
+  did.
+
+  ```rust
+  // before
+  sb.wait_for_text("#status", "Saved", 10).await?;
+  sb.wait_for_text_visible("Saved", 10).await?;
+  sb.wait_for_exact_text("Saved", 10).await?;
+  // after
+  sb.wait_for_text("Saved", "#status", 10).await?;
+  sb.wait_for_text_visible("Saved", "body", 10).await?;
+  sb.wait_for_exact_text("Saved", "#status", 10).await?;
+  ```
+
+  `wait_for_text` now waits for the text to be displayed, like
+  `wait_for_text_visible` (in Python the first is an alias of the second).
+
 ### Changed
 
 - `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
@@ -52,6 +75,10 @@ that break a call are listed first, each with the way to migrate.
 
 ### Fixed
 
+- `wait_for_exact_text` looked at every element of the page, `<title>`,
+  `<script>` and hidden elements included, so it could find text that no
+  visible element showed. It now looks at the selected element and requires it
+  to be displayed.
 - `sb_assert_not_visible!` without a message did not compile, and `sb_wait_and_click!`
   without a message dropped the error of the wait. `sb_test!` quit the browser
   before it reported the test's result, so a quit that failed hid the test's own

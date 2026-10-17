@@ -11,7 +11,13 @@ mod tests_text_argument_order {
     /// A page with one element, `h1`, which is displayed and says "Welcome".
     /// Every other selector finds nothing.
     fn welcome_page() -> MockWebDriver {
-        MockWebDriver::start(json!({}), |request| {
+        heading(true)
+    }
+
+    /// A page whose only element, `h1`, says "Welcome" and is `displayed` or
+    /// not. Every other selector finds nothing.
+    fn heading(displayed: bool) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
             let asked_for_h1 = request.body["value"].as_str() == Some("h1");
             match (request.method.as_str(), request.path.as_str()) {
                 ("POST", "/element") if asked_for_h1 => Reply::Value(element("h1")),
@@ -19,7 +25,7 @@ mod tests_text_argument_order {
                 ("POST", "/elements") if asked_for_h1 => Reply::Value(json!([element("h1")])),
                 ("POST", "/elements") => Reply::Value(json!([])),
                 ("GET", "/element/h1/text") => Reply::Value(json!("Welcome")),
-                ("GET", "/element/h1/displayed") => Reply::Value(json!(true)),
+                ("GET", "/element/h1/displayed") => Reply::Value(json!(displayed)),
                 ("GET", "/element/h1/enabled") => Reply::Value(json!(true)),
                 _ => Reply::Value(Value::Null),
             }
@@ -59,6 +65,72 @@ mod tests_text_argument_order {
             "the driver was asked for something that is not a selector: {:?}",
             looked_up(&driver)
         );
+    }
+
+    #[tokio::test]
+    async fn the_text_waits_take_the_text_first_and_the_selector_second() {
+        let driver = welcome_page();
+        let sb = driver.base_case().await;
+
+        sb.wait_for_text("Welcome", "h1", 1).await.unwrap();
+        sb.wait_for_text_visible("Welcome", "h1", 1).await.unwrap();
+        sb.wait_for_exact_text_visible("Welcome", "h1", 1)
+            .await
+            .unwrap();
+        sb.wait_for_exact_text("Welcome", "h1", 1).await.unwrap();
+        sb.wait_for_text_not_visible("Goodbye", "h1", 1)
+            .await
+            .unwrap();
+        sb.wait_for_exact_text_not_visible("Goodbye", "h1", 1)
+            .await
+            .unwrap();
+
+        assert!(
+            looked_up(&driver).iter().all(|selector| selector == "h1"),
+            "the driver was asked for something that is not a selector: {:?}",
+            looked_up(&driver)
+        );
+    }
+
+    #[tokio::test]
+    async fn the_text_waits_look_at_the_element_and_nothing_else() {
+        // `wait_for_exact_text` used to look at every element of the page,
+        // `<title>` and `<script>` included, so it found text the element
+        // does not show. It is `h1` that says "Welcome"; "Home" is elsewhere.
+        let driver = welcome_page();
+        let sb = driver.base_case().await;
+
+        sb.wait_for_exact_text("Home", "h1", 0).await.unwrap_err();
+        sb.wait_for_exact_text_visible("Home", "h1", 0)
+            .await
+            .unwrap_err();
+        sb.wait_for_text("Home", "h1", 0).await.unwrap_err();
+        sb.wait_for_text_not_visible("Welcome", "h1", 0)
+            .await
+            .unwrap_err();
+        sb.wait_for_exact_text_not_visible("Welcome", "h1", 0)
+            .await
+            .unwrap_err();
+        assert!(
+            driver.requests("/execute/sync").is_empty(),
+            "the waits ran a page script instead of asking for the element"
+        );
+    }
+
+    #[tokio::test]
+    async fn text_in_an_element_that_is_not_displayed_is_not_visible() {
+        let driver = heading(false);
+        let sb = driver.base_case().await;
+
+        sb.wait_for_text_visible("Welcome", "h1", 0)
+            .await
+            .unwrap_err();
+        sb.wait_for_exact_text_visible("Welcome", "h1", 0)
+            .await
+            .unwrap_err();
+        sb.wait_for_text_not_visible("Welcome", "h1", 0)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

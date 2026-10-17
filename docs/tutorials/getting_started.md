@@ -141,7 +141,7 @@ welcome message, and close.
 - `sb.click(selector).await?` clicks the element.
 - `sb.assert_text_visible(text, selector).await?` checks at once and fails if the
   text is not visible; it does not wait. On a page that renders late, call
-  `sb.wait_for_text(selector, text, timeout_secs).await?` first.
+  `sb.wait_for_text(text, selector, timeout_secs).await?` first.
 - `sb.quit().await?` closes the browser and ends the session.
 
 ## Writing a `#[tokio::test]` instead of `main`

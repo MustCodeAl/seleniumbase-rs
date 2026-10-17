@@ -1441,27 +1441,23 @@ impl BaseCase {
         .await
     }
 
-    /// Waits up to `timeout_secs` for an element whose text exactly matches `text`.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed with
+    /// exactly `text` as its text. The same as
+    /// [`wait_for_exact_text_visible`](Self::wait_for_exact_text_visible), as
+    /// in Python, where `wait_for_exact_text(text, selector)` is its alias.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text if no
-    /// element has it after the timeout.
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text if the
+    /// element does not show it in time.
     pub async fn wait_for_exact_text(
         &self,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let script = format!(
-            "return Array.from(document.querySelectorAll('*')).some(el => el.textContent.trim() === {});",
-            quote(text)
-        );
-        poll_until_true(
-            self.effective_timeout(timeout_secs),
-            format!("Exact text '{text}' was not found"),
-            || async { Ok(self.execute_script(&script).await?.as_bool() == Some(true)) },
-        )
-        .await
+        self.wait_for_exact_text_visible(text, css, timeout_secs)
+            .await
     }
 
     /// Waits up to `timeout_secs` for the page title to contain `substring`.

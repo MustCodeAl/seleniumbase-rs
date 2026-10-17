@@ -952,17 +952,22 @@ impl BaseCase {
         self.session.wait_for_element_absent(by, timeout_secs).await
     }
 
-    /// Executes the `wait_for_text` action.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed and
+    /// contain `text`. The same as
+    /// [`wait_for_text_visible`](Self::wait_for_text_visible), as in Python,
+    /// where `wait_for_text(text, selector)` is its alias.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text and the
+    /// selector if the text does not show up in time.
     pub async fn wait_for_text(
         &self,
+        text: &str,
         css: &str,
-        expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.session
-            .wait_for_text(by, expected_substring, timeout_secs)
-            .await
+        self.wait_for_text_visible(text, css, timeout_secs).await
     }
 
     /// Executes the `assert_title_contains` action.

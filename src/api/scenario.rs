@@ -328,7 +328,7 @@ impl StepRunner for BaseCase {
             ScenarioStep::AssertText { css, contains } => sb.assert_text(contains, css).await,
             ScenarioStep::AssertElement { css } => sb.assert_element(css).await,
             ScenarioStep::WaitForText { css, text, timeout } => {
-                sb.wait_for_text(css, text, *timeout).await
+                sb.wait_for_text(text, css, *timeout).await
             }
             ScenarioStep::Sleep { seconds } => {
                 sb.sleep(*seconds).await;

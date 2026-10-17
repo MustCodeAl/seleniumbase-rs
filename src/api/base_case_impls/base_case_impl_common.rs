@@ -335,7 +335,9 @@ impl BaseCase {
         .await
     }
 
-    /// Waits up to `timeout_secs` for exact `text` to be visible inside `css`.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed with
+    /// exactly `text` as its text. The text comes first and the selector
+    /// second, as in Python's `wait_for_exact_text_visible(text, selector)`.
     ///
     /// # Errors
     ///
@@ -343,8 +345,8 @@ impl BaseCase {
     /// after the timeout.
     pub async fn wait_for_exact_text_visible(
         &self,
-        css: &str,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
@@ -355,7 +357,9 @@ impl BaseCase {
         .await
     }
 
-    /// Waits up to `timeout_secs` for exact `text` to not be visible inside `css`.
+    /// Waits up to `timeout_secs` for exact `text` to not be the visible text
+    /// of `css`. The text comes first and the selector second, as in Python's
+    /// `wait_for_exact_text_not_visible(text, selector)`.
     ///
     /// # Errors
     ///
@@ -363,8 +367,8 @@ impl BaseCase {
     /// after the timeout.
     pub async fn wait_for_exact_text_not_visible(
         &self,
-        css: &str,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
@@ -403,21 +407,10 @@ impl BaseCase {
         self.wait_for_non_empty_text(css, timeout_secs).await
     }
 
-    /// Whether the rendered text of the page contains `text`.
-    async fn page_text_contains(&self, text: &str) -> Result<bool, SeleniumBaseError> {
-        let script = format!(
-            "return document.body != null && document.body.innerText.includes({});",
-            quote(text)
-        );
-        Ok(self.execute_script(&script).await?.as_bool() == Some(true))
-    }
-
-    /// Waits up to `timeout_secs` for `text` to be visible anywhere on the page.
-    ///
-    /// Unlike Python's `wait_for_text_visible(text, selector="html", ...)`, this
-    /// takes no selector: it looks at the whole page. To wait for text inside
-    /// one element, use [`BaseCase::wait_for_text`], which takes the selector
-    /// first.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed and
+    /// contain `text`. Pass `"body"` for the text anywhere on the page. The
+    /// text comes first and the selector second, as in Python's
+    /// `wait_for_text_visible(text, selector)`.
     ///
     /// # Errors
     ///
@@ -426,19 +419,21 @@ impl BaseCase {
     pub async fn wait_for_text_visible(
         &self,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
             self.effective_timeout(timeout_secs),
-            format!("Text '{text}' was not visible"),
-            || self.page_text_contains(text),
+            format!("Text '{text}' was not visible in '{css}'"),
+            || self.is_text_visible(text, css),
         )
         .await
     }
 
-    /// Waits up to `timeout_secs` for `text` to not be visible anywhere.
-    ///
-    /// Like [`BaseCase::wait_for_text_visible`], this looks at the whole page.
+    /// Waits up to `timeout_secs` for `text` to not be visible in the element
+    /// `css` (also when the element is gone). The text comes first and the
+    /// selector second, as in Python's `wait_for_text_not_visible(text,
+    /// selector)`.
     ///
     /// # Errors
     ///
@@ -447,12 +442,13 @@ impl BaseCase {
     pub async fn wait_for_text_not_visible(
         &self,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
             self.effective_timeout(timeout_secs),
-            format!("Text '{text}' was still visible"),
-            || async { Ok(!self.page_text_contains(text).await?) },
+            format!("Text '{text}' was still visible in '{css}'"),
+            || async { Ok(!self.is_text_visible(text, css).await?) },
         )
         .await
     }

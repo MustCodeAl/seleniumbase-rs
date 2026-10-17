@@ -1875,7 +1875,6 @@ rust = "BaseCase::wait_for_selector"
 [basecase."wait_for_text"]
 status = "implemented"
 rust = "BaseCase::wait_for_text"
-divergence = "Argument order is (css, text, timeout); Python's is (text, selector, timeout)."
 
 [basecase."wait_for_text_not_visible"]
 status = "implemented"

@@ -622,7 +622,7 @@ pub(super) async fn wait_for_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     ctx.session()
         .await?
-        .wait_for_text(selector, text, timeout)
+        .wait_for_text(text, selector, timeout)
         .await?;
     Ok(format!("Text '{text}' appeared in {selector}.").into())
 }
@@ -665,7 +665,7 @@ pub(super) async fn assert_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output
     let selector = nonempty(&args, "selector")?.unwrap_or("html");
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     let mut case = ctx.session().await?;
-    case.wait_for_text(selector, text, timeout).await?;
+    case.wait_for_text(text, selector, timeout).await?;
     case.assert_text(text, selector).await?;
     Ok(format!("Confirmed '{text}' is present in {selector}.").into())
 }
@@ -675,7 +675,7 @@ pub(super) async fn assert_exact_text(ctx: Ctx<BaseCase>, args: Args) -> Result<
     let selector = args.str_or("selector", "html")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     let mut case = ctx.session().await?;
-    case.wait_for_exact_text_visible(selector, text, timeout)
+    case.wait_for_exact_text_visible(text, selector, timeout)
         .await?;
     case.assert_exact_text(text, selector).await?;
     Ok(format!("Confirmed {selector} text is exactly '{text}'.").into())

@@ -38,7 +38,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.wait_for_element_present("body", 10).await?;
     sb.wait_for_element_visible("h1", 10).await?;
     sb.wait_for_element_visible("#late", 10).await?;
-    sb.wait_for_text("#late", "Loaded after a delay", 10)
+    sb.wait_for_text("Loaded after a delay", "#late", 10)
         .await?;
 
     // Wait for something to go away: remove the element shortly from now.

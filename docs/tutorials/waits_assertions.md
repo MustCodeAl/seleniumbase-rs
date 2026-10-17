@@ -75,10 +75,10 @@ Wait for text or page title conditions:
 
 ```rust
 // Wait until the given text is visible inside the selector
-sb.wait_for_text("body", "Welcome", 10).await?;
+sb.wait_for_text("Welcome", "body", 10).await?;
 
 // Wait until text is no longer visible anywhere on the page
-sb.wait_for_text_not_visible("Loading", 10).await?;
+sb.wait_for_text_not_visible("Loading", "body", 10).await?;
 
 // Wait until the page title equals the expected value
 sb.assert_title("Dashboard").await?;
