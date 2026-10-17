@@ -43,16 +43,20 @@ migrate.
   `cargo test` and `cargo run --bin sbrs` at the repository root work as before;
   use `-p seleniumbase-rs` for the library alone. The release archives keep their
   names (`seleniumbase-rs-v<version>-<target>`). The messages `sbrs` prints for a
-  build without `tui` or `pdf` still say `cargo install seleniumbase-rs --features
-  ...`, as before; the Homebrew formula has to build `--path crates/cli` from the
-  first release that has this change.
+  build without `tui` or `pdf` now name the package that builds it
+  (`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs
+  seleniumbase-rs-cli --features tui`), instead of `seleniumbase-rs`, which no
+  longer has a binary. The Homebrew formula has to build `--path crates/cli` from
+  the first release that has this change.
 
 - **PDF text extraction is the opt-in feature `pdf`.** `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
   `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF
   (`print_to_pdf`, `save_as_pdf`) does not. `sbrs pdf-text` and
   `assert-pdf-text` stay in `--help` and, in a build without the feature, exit
-  with status 2 and say `cargo install seleniumbase-rs --features pdf`.
+  with status 2 and say how to reinstall it with the feature
+  (`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs
+  seleniumbase-rs-cli --features pdf`).
 
 - **Text assertions take the text first and the selector second**, as Python's
   `assert_text(text, selector)` does. A call with the old order still compiles

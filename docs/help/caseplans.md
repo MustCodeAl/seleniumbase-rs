@@ -40,7 +40,7 @@ prints the following message and exits with status 2, as `commander` does.
 </Note>
 
 ```text
-this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
+this sbrs was built without the terminal UI; reinstall it with `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui`
 ```
 
 Run it from the project root. The folder to look in is the optional argument:

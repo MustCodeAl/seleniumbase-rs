@@ -1338,8 +1338,9 @@ fn run_translate(
 #[cfg(not(feature = "tui"))]
 fn no_terminal_ui() -> ! {
     eprintln!(
-        "this sbrs was built without the terminal UI; \
-         reinstall it with `cargo install seleniumbase-rs --features tui`"
+        "this sbrs was built without the terminal UI; reinstall it with \
+         `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs \
+         seleniumbase-rs-cli --features tui`"
     );
     std::process::exit(2);
 }
@@ -1349,8 +1350,9 @@ fn no_terminal_ui() -> ! {
 #[cfg(not(feature = "pdf"))]
 fn no_pdf_support() -> ! {
     eprintln!(
-        "this sbrs was built without PDF text extraction; \
-         reinstall it with `cargo install seleniumbase-rs --features pdf`"
+        "this sbrs was built without PDF text extraction; reinstall it with \
+         `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs \
+         seleniumbase-rs-cli --features pdf`"
     );
     std::process::exit(2);
 }

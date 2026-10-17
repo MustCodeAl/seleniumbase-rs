@@ -70,8 +70,11 @@ fn without_the_pdf_feature_both_commands_exit_with_status_2_and_a_hint() {
             "{args:?}: {hint}"
         );
         assert!(
-            hint.contains("cargo install seleniumbase-rs --features pdf"),
-            "the hint says how to get the feature: {hint}"
+            hint.contains(
+                "cargo install --git https://github.com/MustCodeAl/seleniumbase-rs \
+                 seleniumbase-rs-cli --features pdf"
+            ),
+            "the hint says how to get the feature, from the package that builds sbrs: {hint}"
         );
         assert!(stdout(&output).is_empty(), "{args:?}: {}", stdout(&output));
     }

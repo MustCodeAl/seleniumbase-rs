@@ -83,8 +83,11 @@ fn without_the_tui_feature_commander_exits_with_status_2_and_a_hint() {
     let hint = stderr(&output);
     assert!(hint.contains("built without the terminal UI"), "{hint}");
     assert!(
-        hint.contains("cargo install seleniumbase-rs --features tui"),
-        "the hint says how to get the feature: {hint}"
+        hint.contains(
+            "cargo install --git https://github.com/MustCodeAl/seleniumbase-rs \
+             seleniumbase-rs-cli --features tui"
+        ),
+        "the hint says how to get the feature, from the package that builds sbrs: {hint}"
     );
 }
 
