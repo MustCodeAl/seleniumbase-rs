@@ -58,8 +58,13 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     // Title assertions.
     sb.assert_title_contains("Testing").await?;
 
-    // A failed assertion is an ordinary error value you can inspect.
-    match sb.assert_text("Not on this page", "h1").await {
+    // A failed assertion is an ordinary error value you can inspect. The text
+    // assertions wait for the default timeout before they fail, so shorten it
+    // for a check that is meant to fail.
+    sb.set_default_timeout(1);
+    let failed = sb.assert_text("Not on this page", "h1").await;
+    sb.reset_default_timeout();
+    match failed {
         Err(SeleniumBaseError::AssertionFailed(message)) => {
             println!("failed as expected: {message}");
         }

@@ -396,4 +396,52 @@ mod tests_text_argument_order {
             "{message}"
         );
     }
+
+    #[tokio::test]
+    async fn assert_shadow_text_takes_the_text_first_and_the_selector_second() {
+        // It used to take (selector, text). The page script answers with the
+        // text of the shadow element; the selector must reach the script and
+        // the expected text must not.
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync") => Reply::Value(json!("Welcome")),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let sb = driver.base_case().await;
+
+        sb.assert_shadow_text("Welcome", "app-root ::shadow h1")
+            .await
+            .expect("the shadow element says Welcome");
+        let script = driver
+            .requests("/execute/sync")
+            .last()
+            .and_then(|request| request.body["script"].as_str().map(str::to_owned))
+            .expect("a script was sent");
+        assert!(script.contains("app-root") && script.contains("h1"), "{script}");
+        assert!(!script.contains("Welcome"), "{script}");
+
+        // The old order is a different expectation: the text is not the selector.
+        let message = sb
+            .assert_shadow_text("app-root ::shadow h1", "Welcome")
+            .await
+            .expect_err("the shadow element does not say that")
+            .to_string();
+        assert!(message.contains("Welcome") && message.contains("app-root"), "{message}");
+    }
+
+    #[tokio::test]
+    async fn wait_takes_whole_or_fractional_seconds() {
+        // `wait` is `sleep`, as in Python, so `wait(0.5)` and `wait(2)` both
+        // compile; it used to take a `u64`.
+        let driver = welcome_page();
+        let sb = driver.base_case().await;
+
+        let started = std::time::Instant::now();
+        sb.wait(0.2).await;
+        assert!(started.elapsed() >= std::time::Duration::from_millis(190));
+        sb.wait(0).await;
+        sb.wait(0_u8).await;
+        sb.wait(0.0_f32).await;
+    }
 }
