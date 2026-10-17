@@ -19,13 +19,15 @@
 //! for privacy hardening and silently runs without it is worse than one that
 //! stops.
 //!
-//! The command-line flags `--plugin` and `--plugin-opt` are not part of this
-//! module yet.
+//! The command-line flags `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` of
+//! `sbrs` and `sbrs-mcp` are applied to a selection read from the file and the
+//! variable by [`PluginSelection::apply_flags`], so the precedence is the same
+//! for every program: the command line over `SB_PLUGINS` over the file.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::error::SeleniumBaseError;
 
@@ -57,7 +59,7 @@ pub const PLUGINS_ENV: &str = "SB_PLUGINS";
 /// assert_eq!(selection.options_of("shield").unwrap()["level"], "strict");
 /// # Ok::<(), toml::de::Error>(())
 /// ```
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginSelection {
     /// The plugins to add, in order.
     #[serde(default)]
@@ -131,6 +133,120 @@ impl PluginSelection {
         }
     }
 
+    /// Adds `name` after the plugins already enabled, unless it is enabled
+    /// already, in which case it keeps its place. [`enable`](Self::enable)
+    /// adds a name twice, which the build then refuses.
+    pub fn enable_once(&mut self, name: impl Into<String>) {
+        let name = name.into();
+        if !self.enable.contains(&name) {
+            self.enable.push(name);
+        }
+    }
+
+    /// Applies what the command line asked for to a selection that was read
+    /// from the settings file and `SB_PLUGINS`: the names of every `--plugin
+    /// NAME`, then every `--plugin-opt NAME.KEY=VALUE`.
+    ///
+    /// The precedence is the command line over `SB_PLUGINS` over the file.
+    /// A `--plugin` name is added after the plugins already enabled (one that
+    /// is enabled already stays where it is), and a `--plugin-opt` sets one
+    /// option of one plugin, replacing the same option from the file and
+    /// keeping the plugin's other options. `VALUE` is a TOML value, so a
+    /// string is written with quotes: `shield.level="strict"`,
+    /// `block-resources.preset="media"`, `shield.extra_block_hosts=["a.example"]`.
+    /// `KEY` is the option's name; everything after the first `.` and before
+    /// the `=`.
+    ///
+    /// ```
+    /// use seleniumbase_rs::config::plugins::PluginSelection;
+    ///
+    /// let mut selection = PluginSelection::from_list("shield");
+    /// selection.apply_flags(&["crx"], &[r#"shield.level="strict""#])?;
+    /// assert_eq!(selection.enabled(), ["shield", "crx"]);
+    /// assert_eq!(selection.options_of("shield").unwrap()["level"], "strict");
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] for a plugin name that is empty or
+    /// has a space or a comma in it, an option that is not `NAME.KEY=VALUE`
+    /// with a TOML `VALUE`, an option of a plugin that nothing turns on, and
+    /// the same option given twice.
+    pub fn apply_flags<N, O>(
+        &mut self,
+        plugins: &[N],
+        options: &[O],
+    ) -> Result<(), SeleniumBaseError>
+    where
+        N: AsRef<str>,
+        O: AsRef<str>,
+    {
+        for name in plugins {
+            let name = name.as_ref();
+            if name.is_empty() || name.contains([',', ' ', '\t']) {
+                return Err(SeleniumBaseError::invalid_config(format!(
+                    "`--plugin {name}` is not a plugin name: give one name per --plugin and \
+                     repeat the flag for more (`--plugin shield --plugin crx`)"
+                )));
+            }
+            self.enable_once(name);
+        }
+        let mut given = BTreeSet::new();
+        for text in options {
+            let text = text.as_ref();
+            let (name, key, value) = parse_option_flag(text)?;
+            if !self.enable.contains(&name) {
+                return Err(SeleniumBaseError::invalid_config(format!(
+                    "`--plugin-opt {text}` sets an option of `{name}`, which nothing turns on: add \
+                     `--plugin {name}`, list it in SB_PLUGINS, or put it in `enable` under [plugins]"
+                )));
+            }
+            if !given.insert((name.clone(), key.clone())) {
+                return Err(SeleniumBaseError::invalid_config(format!(
+                    "`--plugin-opt {name}.{key}=...` was given twice; give each option once"
+                )));
+            }
+            self.set_option(&name, key, value)?;
+        }
+        Ok(())
+    }
+
+    /// Sets the option `key` of the plugin called `name`, keeping its other
+    /// options.
+    fn set_option(
+        &mut self,
+        name: &str,
+        key: String,
+        value: Value,
+    ) -> Result<(), SeleniumBaseError> {
+        let options = self
+            .options
+            .entry(name.to_owned())
+            .or_insert_with(|| Value::Object(Map::new()));
+        if options.is_null() {
+            *options = Value::Object(Map::new());
+        }
+        match options {
+            Value::Object(map) => {
+                map.insert(key, value);
+                Ok(())
+            }
+            other => Err(SeleniumBaseError::invalid_config(format!(
+                "the options of `{name}` are {other}, not a table, so `--plugin-opt` cannot set \
+                 `{key}` in them"
+            ))),
+        }
+    }
+
+    /// The enabled names as a comma-separated list: the value of
+    /// `SB_PLUGINS` that enables the same plugins, and the inverse of
+    /// [`from_list`](Self::from_list).
+    #[must_use]
+    pub fn to_list(&self) -> String {
+        self.enable.join(",")
+    }
+
     /// The names of the plugins to enable, in order.
     #[must_use]
     pub fn enabled(&self) -> &[String] {
@@ -178,6 +294,79 @@ impl PluginSelection {
             asked.join(", ")
         )))
     }
+}
+
+/// The plugin, option and value of one `--plugin-opt NAME.KEY=VALUE`.
+///
+/// `NAME` ends at the first `.` and the text before the first `=` ends `KEY`;
+/// `VALUE` is a TOML value.
+fn parse_option_flag(text: &str) -> Result<(String, String, Value), SeleniumBaseError> {
+    let malformed = || {
+        SeleniumBaseError::invalid_config(format!(
+            "`--plugin-opt {text}` is not NAME.KEY=VALUE: give the plugin, the option and a TOML \
+             value, such as --plugin-opt 'shield.level=\"strict\"'"
+        ))
+    };
+    let (target, raw) = text.split_once('=').ok_or_else(malformed)?;
+    let (name, key) = target.split_once('.').ok_or_else(malformed)?;
+    if name.is_empty() || key.is_empty() || raw.trim().is_empty() {
+        return Err(malformed());
+    }
+    let value = parse_toml_value(raw).map_err(|why| {
+        // A bare word is the usual mistake: the shell strips the quotes of
+        // `shield.level="strict"` unless the whole flag is in single quotes.
+        let bare = raw.trim();
+        let hint = if bare
+            .chars()
+            .all(|c| c.is_alphanumeric() || "_-./:@+".contains(c))
+        {
+            format!("; write a string with quotes, as --plugin-opt '{name}.{key}=\"{bare}\"'")
+        } else {
+            String::new()
+        };
+        SeleniumBaseError::invalid_config(format!(
+            "the value of `--plugin-opt {text}` is not a TOML value ({why}){hint}"
+        ))
+    })?;
+    Ok((name.to_owned(), key.to_owned(), value))
+}
+
+/// The TOML value `raw` holds, as the JSON value options are kept as.
+///
+/// `raw` is parsed as the right-hand side of `value = ...`, and anything that
+/// would add a second key or a table to that document is refused.
+fn parse_toml_value(raw: &str) -> Result<Value, String> {
+    let mut document: toml::Table =
+        toml::from_str(&format!("value = {raw}")).map_err(|error| error.message().to_owned())?;
+    match (document.remove("value"), document.is_empty()) {
+        (Some(value), true) => json_of(value),
+        _ => Err("it has more than one value".to_owned()),
+    }
+}
+
+/// `value` as JSON, which has no dates and no `nan` or infinity.
+fn json_of(value: toml::Value) -> Result<Value, String> {
+    Ok(match value {
+        toml::Value::String(text) => Value::String(text),
+        toml::Value::Integer(number) => Value::from(number),
+        toml::Value::Float(number) => serde_json::Number::from_f64(number)
+            .map(Value::Number)
+            .ok_or_else(|| format!("{number} cannot be an option"))?,
+        toml::Value::Boolean(flag) => Value::Bool(flag),
+        toml::Value::Datetime(date) => return Err(format!("a date ({date}) cannot be an option")),
+        toml::Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(json_of)
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        toml::Value::Table(table) => Value::Object(
+            table
+                .into_iter()
+                .map(|(key, value)| json_of(value).map(|value| (key, value)))
+                .collect::<Result<Map<_, _>, _>>()?,
+        ),
+    })
 }
 
 #[cfg(test)]
@@ -285,6 +474,221 @@ mod tests {
 
         assert_eq!(selection.enabled(), ["shield", "crx"]);
         assert_eq!(selection.options_of("shield").unwrap()["level"], "strict");
+    }
+
+    #[test]
+    fn enabling_once_keeps_the_first_place_and_adds_a_new_name_last() {
+        let mut selection = PluginSelection::from_list("shield,crx");
+
+        selection.enable_once("shield");
+        selection.enable_once("block-resources");
+        selection.enable_once("block-resources");
+
+        assert_eq!(selection.enabled(), ["shield", "crx", "block-resources"]);
+    }
+
+    #[test]
+    fn flags_add_names_after_the_selection_and_override_options_key_by_key() {
+        let mut selection: PluginSelection = toml::from_str(
+            r#"
+            enable = ["shield"]
+
+            [shield]
+            level = "basic"
+            extra_block_hosts = ["tracker.example"]
+            "#,
+        )
+        .unwrap();
+
+        selection
+            .apply_flags(
+                &["crx", "shield"],
+                &[r#"shield.level="strict""#, "crx.keep=true"],
+            )
+            .unwrap();
+
+        assert_eq!(selection.enabled(), ["shield", "crx"]);
+        assert_eq!(
+            selection.options_of("shield"),
+            Some(&json!({ "level": "strict", "extra_block_hosts": ["tracker.example"] })),
+            "the flag replaces `level` and leaves the other option of the file"
+        );
+        assert_eq!(
+            selection.options_of("crx"),
+            Some(&json!({ "keep": true })),
+            "a plugin the file did not configure gets a table of its own"
+        );
+    }
+
+    #[test]
+    fn no_flags_change_nothing() {
+        let mut selection = PluginSelection::from_list("shield");
+        let before = selection.clone();
+        selection.apply_flags::<&str, &str>(&[], &[]).unwrap();
+        assert_eq!(selection, before);
+    }
+
+    #[test]
+    fn an_option_flag_takes_any_toml_value() {
+        let mut selection = PluginSelection::from_list("p");
+        selection
+            .apply_flags(
+                &[] as &[&str],
+                &[
+                    r#"p.text="two words = ok""#,
+                    "p.count=3",
+                    "p.ratio=1.5",
+                    "p.on=false",
+                    r#"p.list=["a.example", "b.example"]"#,
+                    r#"p.table={ kind = "x", depth = 2 }"#,
+                    "p.empty=[]",
+                    "p.negative=-4",
+                ],
+            )
+            .unwrap();
+
+        assert_eq!(
+            selection.options_of("p"),
+            Some(&json!({
+                "text": "two words = ok",
+                "count": 3,
+                "ratio": 1.5,
+                "on": false,
+                "list": ["a.example", "b.example"],
+                "table": { "kind": "x", "depth": 2 },
+                "empty": [],
+                "negative": -4,
+            }))
+        );
+    }
+
+    #[test]
+    fn an_option_flag_splits_at_the_first_dot_and_the_first_equals_sign() {
+        let mut selection = PluginSelection::from_list("block-resources");
+        selection
+            .apply_flags(&[] as &[&str], &[r#"block-resources.a.b="x=y""#])
+            .unwrap();
+        assert_eq!(
+            selection.options_of("block-resources"),
+            Some(&json!({ "a.b": "x=y" })),
+            "the key is everything between the first dot and the first equals sign"
+        );
+    }
+
+    fn flag_error(selection: &mut PluginSelection, plugins: &[&str], options: &[&str]) -> String {
+        match selection.apply_flags(plugins, options).unwrap_err() {
+            SeleniumBaseError::InvalidConfig(message) => message,
+            other => panic!("expected an invalid configuration, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_malformed_option_flag_is_refused_with_what_was_wrong() {
+        for (flag, wanted) in [
+            ("shield.level", "NAME.KEY=VALUE"),
+            ("level=1", "NAME.KEY=VALUE"),
+            (".level=1", "NAME.KEY=VALUE"),
+            ("shield.=1", "NAME.KEY=VALUE"),
+            ("shield.level=", "NAME.KEY=VALUE"),
+            ("=1", "NAME.KEY=VALUE"),
+        ] {
+            let mut selection = PluginSelection::from_list("shield");
+            let message = flag_error(&mut selection, &[], &[flag]);
+            assert!(message.contains(wanted), "{flag}: {message}");
+            assert!(message.contains(flag), "{flag}: {message}");
+        }
+    }
+
+    #[test]
+    fn a_value_that_is_not_toml_is_refused_and_a_bare_word_is_told_to_use_quotes() {
+        let mut selection = PluginSelection::from_list("shield");
+        let message = flag_error(&mut selection, &[], &["shield.level=strict"]);
+        assert!(message.contains("not a TOML value"), "{message}");
+        assert!(
+            message.contains(r#"shield.level="strict""#),
+            "the message shows the quoted spelling: {message}"
+        );
+
+        for flag in [
+            "shield.a=1 2",
+            "shield.a=[1,",
+            "shield.a=1\nb = 2",
+            "shield.a=1\n[table]",
+        ] {
+            let mut selection = PluginSelection::from_list("shield");
+            let message = flag_error(&mut selection, &[], &[flag]);
+            assert!(message.contains("not a TOML value"), "{flag:?}: {message}");
+            assert_eq!(
+                selection.options_of("shield"),
+                None,
+                "{flag:?} changed the selection"
+            );
+        }
+    }
+
+    #[test]
+    fn values_json_cannot_hold_are_refused() {
+        for flag in ["p.when=2026-10-17", "p.x=nan", "p.x=inf", "p.x=-inf"] {
+            let mut selection = PluginSelection::from_list("p");
+            let message = flag_error(&mut selection, &[], &[flag]);
+            assert!(message.contains(flag), "{flag}: {message}");
+        }
+    }
+
+    #[test]
+    fn an_option_of_a_plugin_nothing_turns_on_says_how_to_turn_it_on() {
+        let mut selection = PluginSelection::from_list("crx");
+
+        let message = flag_error(&mut selection, &[], &[r#"shield.level="strict""#]);
+
+        assert!(message.contains("`shield`"), "{message}");
+        assert!(message.contains("--plugin shield"), "{message}");
+        assert!(message.contains("SB_PLUGINS"), "{message}");
+        assert_eq!(selection.options_of("shield"), None);
+
+        // The same flags with the plugin named: fine, and the order does not matter.
+        let mut selection = PluginSelection::new();
+        selection
+            .apply_flags(&["shield"], &[r#"shield.level="strict""#])
+            .unwrap();
+    }
+
+    #[test]
+    fn the_same_option_twice_in_the_flags_is_refused() {
+        let mut selection = PluginSelection::from_list("shield");
+        let message = flag_error(
+            &mut selection,
+            &[],
+            &[r#"shield.level="basic""#, r#"shield.level="strict""#],
+        );
+        assert!(message.contains("shield.level"), "{message}");
+        assert!(message.contains("twice"), "{message}");
+    }
+
+    #[test]
+    fn a_plugin_flag_names_one_plugin() {
+        for name in ["", "shield,crx", "shield crx"] {
+            let mut selection = PluginSelection::new();
+            let message = flag_error(&mut selection, &[name], &[]);
+            assert!(message.contains("--plugin"), "{name:?}: {message}");
+            assert!(selection.is_empty(), "{name:?} changed the selection");
+        }
+    }
+
+    #[test]
+    fn options_that_are_not_a_table_cannot_take_a_flag() {
+        let mut selection =
+            PluginSelection::from_list("shield").with_options("shield", json!("not a table"));
+        let message = flag_error(&mut selection, &[], &["shield.level=1"]);
+        assert!(message.contains("not a table"), "{message}");
+    }
+
+    #[test]
+    fn the_list_form_is_the_inverse_of_from_list() {
+        let selection = PluginSelection::from_list("shield, crx");
+        assert_eq!(selection.to_list(), "shield,crx");
+        assert_eq!(PluginSelection::from_list(&selection.to_list()), selection);
+        assert_eq!(PluginSelection::new().to_list(), "");
     }
 
     #[cfg(feature = "plugins")]
