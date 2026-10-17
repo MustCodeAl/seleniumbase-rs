@@ -607,6 +607,7 @@ impl Recording {
             if params["type"] == "Document"
                 && params["frameId"].as_str() == Some(self.main_frame.as_str())
                 && params["loaderId"].as_str() == Some(id)
+                && !self.full()
             {
                 self.pages.push(PageState {
                     url: params["request"]["url"]
@@ -621,9 +622,10 @@ impl Recording {
             }
         }
 
-        if self.entries.len() >= MAX_ENTRIES {
+        if self.full() {
             self.dropped += 1;
             self.hops.remove(id);
+            self.early_request_extra.remove(id);
             self.pending_response_extra.remove(id);
             return;
         }
@@ -654,13 +656,21 @@ impl Recording {
             return;
         };
         let extra = params["headers"].clone();
+        let full = self.full();
         match self.entry_mut(params) {
             Some(entry) if entry.request_extra.is_none() => entry.request_extra = Some(extra),
-            // Before its request, or for the next hop of a redirect.
+            // Before its request, or for the next hop of a redirect; once
+            // full, that request will not be kept.
+            _ if full => {}
             _ => {
                 self.early_request_extra.insert(id.to_owned(), extra);
             }
         }
+    }
+
+    /// Whether [`MAX_ENTRIES`] requests are kept, so no more will be.
+    fn full(&self) -> bool {
+        self.entries.len() >= MAX_ENTRIES
     }
 
     fn response_received(&mut self, params: &Value) {
@@ -682,6 +692,10 @@ impl Recording {
         let Some(id) = params["requestId"].as_str() else {
             return;
         };
+        if self.full() && !self.hops.contains_key(id) {
+            // For a request that will not be kept.
+            return;
+        }
         self.pending_response_extra
             .entry(id.to_owned())
             .or_default()
@@ -1582,4 +1596,54 @@ pub struct HarTimings {
     /// A note.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn event(method: &str, params: Value) -> CdpEvent {
+        CdpEvent {
+            method: method.to_owned(),
+            params,
+            session_id: Some("S1".to_owned()),
+        }
+    }
+
+    #[test]
+    fn past_the_entry_cap_nothing_more_is_kept() {
+        let mut recording = Recording::new("T1".to_owned(), "S1".to_owned(), HarOptions::new());
+        for n in 0..MAX_ENTRIES {
+            let params = json!({
+                "requestId": format!("R{n}"), "timestamp": 1.0,
+                "request": { "url": "https://a.test/" },
+            });
+            recording.note(&event("Network.requestWillBeSent", params));
+        }
+
+        // Navigations whose wire headers come first, as they may.
+        for n in 0..100 {
+            let id = format!("X{n}");
+            let headers = json!({ "requestId": id, "statusCode": 200, "headers": {} });
+            recording.note(&event(
+                "Network.requestWillBeSentExtraInfo",
+                headers.clone(),
+            ));
+            recording.note(&event("Network.responseReceivedExtraInfo", headers));
+            let request = json!({
+                "requestId": id, "loaderId": id, "frameId": "T1", "type": "Document",
+                "timestamp": 2.0, "request": { "url": "https://b.test/" },
+            });
+            recording.note(&event("Network.requestWillBeSent", request));
+        }
+
+        assert_eq!(recording.entries.len(), MAX_ENTRIES);
+        assert_eq!(recording.dropped, 100);
+        assert!(recording.early_request_extra.is_empty());
+        assert!(recording.pending_response_extra.is_empty());
+        assert!(
+            recording.pages.is_empty(),
+            "no page for a dropped navigation"
+        );
+    }
 }
