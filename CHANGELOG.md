@@ -63,7 +63,9 @@ work, `docs/parity.md` the per-API status).
   `SB(demo=, slow=, demo_sleep=, message_duration=)` does. They stay out of
   configuration files and of the key that decides which tests share a browser.
   `RunSettings::with_default_timeout` is new and `Settings::timeout_seconds`
-  feeds it.
+  feeds it. Only the test runners (`run_browser_test`, `Plugins::run_browser_test`,
+  `sb_test!`) apply them; a `BaseCase` from `BaseCase::new` keeps its defaults
+  until you call `set_run_settings` and `set_timeout`.
 - `BrowserConfig::with_remote_webdriver_timeout(Duration)` sets
   `remote_webdriver_timeout_seconds`, which had no builder; a part of a second
   rounds up. The common `with_*` builders of `BrowserConfig` gained doc
@@ -86,6 +88,9 @@ work, `docs/parity.md` the per-API status).
   `launch_headless_with_fingerprint`: they are shortcuts for
   `launch_with_config(&BrowserConfig::default().with_headless(..)
   .with_fingerprint(..))`.
+- `run_settings::DEFAULT_MESSAGE_SECONDS` (3): use `DEFAULT_MESSAGE_DURATION`
+  (2.55 s). `RunSettings::message_seconds` now rounds `message_duration()` up,
+  so the two cannot drift apart; the default is still 3.
 
 ### Changed (breaking)
 
@@ -111,6 +116,18 @@ work, `docs/parity.md` the per-API status).
   becomes `Settings::load()?`, and `Settings::load(Some(path))?` becomes
   `Settings::load_from(path)?`. `Settings::from_toml` is deprecated; use
   `from_file`, which reads TOML for a `.toml` name.
+- `Settings::from_file`, `load`, `load_from` and `from_env` now call
+  `Settings::validate`, so input that used to load is an `InvalidConfig` error:
+  an unknown `browser` or `mode`, a window width without a height (or the
+  reverse; the missing side used to default to 1920 by 1080), and a window
+  dimension of zero. Migration: spell the browser (`chrome`, `firefox`, ...) and
+  mode (`webdriver`, `cdp`, `uc`) as `Browser` and `DriverMode` parse them, set
+  both window dimensions or neither, and call `validate()` yourself on a
+  `Settings` built by hand. A blank `SB_*` variable counts as unset.
+- `sb_test!` binds its `$sb` to a `&mut BaseCase` instead of an owned
+  `BaseCase`, and a skipped test passes instead of panicking. Migration: a body
+  that moved `sb` (`sb.quit().await`, passing it by value) now borrows it, and
+  the macro closes the browser.
 - `Settings::timeout_seconds`, `window_width` and `window_height` are `Option`s
   that default to `None`. The old defaults (30 s, 1920, 1080) were read by
   nothing. Migration: `settings.timeout_seconds` is `settings.timeout_seconds
