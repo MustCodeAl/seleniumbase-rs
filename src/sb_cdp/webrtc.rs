@@ -40,7 +40,7 @@ use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::WebRtcPolicy;
 
 /// The Chrome flag that applies `policy` to every tab.
-pub(super) fn chrome_flag(policy: WebRtcPolicy) -> &'static str {
+pub(crate) fn chrome_flag(policy: WebRtcPolicy) -> &'static str {
     match policy {
         WebRtcPolicy::DisableNonProxiedUdp => {
             "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"

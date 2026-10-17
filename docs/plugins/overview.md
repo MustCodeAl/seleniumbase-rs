@@ -25,21 +25,25 @@ is the user guide: it shows how to attach a set to a browser.
 
 ## Plugins you can install
 
-Every plugin is its own crate. Add the ones you want to your project; they are
-also examples of how to write one.
+Every plugin is its own crate. The official ones also ship with seleniumbase-rs
+behind a cargo feature each (`plugin-shield`, `plugin-block-resources`,
+`plugin-crx`, or `plugins-builtin` for all) and are switched on by name; see
+[Choosing plugins](selecting.md). Add the crate of one yourself to use it in
+code; the plugins are also examples of how to write one.
 
 | Plugin | What it does | Install |
 |---|---|---|
-| [`block-resources`](block-resources.md) | Stops pages from loading images, fonts or media (faster, less data) | `cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins` |
-| [`crx`](crx.md) | Loads packed Chrome extensions (`.crx`, CRX3 and CRX2) | `cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins` |
-| [`wasm`](wasm.md) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) | `cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins` |
+| [`shield`](shield.md) | Privacy hardening: turns off the browser's background reporting, keeps WebRTC from leaking addresses, blocks third-party cookies, refuses a persistent profile | feature `plugin-shield`, or `cargo add seleniumbase-rs-plugin-shield --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`block-resources`](block-resources.md) | Stops pages from loading images, fonts or media (faster, less data) | `cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`crx`](crx.md) | Loads packed Chrome extensions (`.crx`, CRX3 and CRX2) | `cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`wasm`](wasm.md) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) | `cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
 
 The framework itself:
 
 | Crate | What it is | Install |
 |---|---|---|
-| [`seleniumbase-rs-plugin`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/crates/seleniumbase-rs-plugin) | The API: `Plugin`, `PluginSet`, `LaunchSettings`, `Package`, the `BrowserHandle` and `PageHandle` traits | `cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins` |
-| [`seleniumbase-rs-plugin-testing`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/crates/seleniumbase-rs-plugin-testing) | Recording fakes of the handles, to test a plugin without a browser | `cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins` |
+| [`seleniumbase-rs-plugin`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/crates/seleniumbase-rs-plugin) | The API: `Plugin`, `PluginSet`, `LaunchSettings`, `Package`, the `BrowserHandle` and `PageHandle` traits | `cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`seleniumbase-rs-plugin-testing`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/crates/seleniumbase-rs-plugin-testing) | Recording fakes of the handles, to test a plugin without a browser | `cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
 | [`template`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/template) | Start your own plugin from here (see [Writing your own](writing-your-own.md)) | copy the folder |
 
 More plugins live in their own repositories, such as
@@ -47,6 +51,18 @@ More plugins live in their own repositories, such as
 topic `seleniumbase-rs-plugin` to find community ones.
 
 <Columns cols={2}>
+
+<Card title="Choosing plugins" icon="toggle-on" href="selecting.md">
+
+The cargo features, the `[plugins]` table, `SB_PLUGINS` and the builder calls.
+
+</Card>
+
+<Card title="shield" icon="shield" href="shield.md">
+
+Privacy hardening for the browser seleniumbase-rs starts.
+
+</Card>
 
 <Card title="Browser Plugins guide" icon="book" href="../tutorials/plugins.md">
 

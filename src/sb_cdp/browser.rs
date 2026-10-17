@@ -122,6 +122,33 @@ const AD_BLOCK_PATTERNS: [&str; 14] = [
     "*://*.facebook.net/*",
 ];
 
+/// Adds the `urls` of a `Network.setBlockedURLs` command to `blocked`, each
+/// pattern once and in the order it first arrived.
+fn add_blocked(blocked: &mut Vec<String>, params: &Value) {
+    let listed = params.get("urls").and_then(Value::as_array);
+    for url in listed.into_iter().flatten().filter_map(Value::as_str) {
+        if !blocked.iter().any(|seen| seen == url) {
+            blocked.push(url.to_owned());
+        }
+    }
+}
+
+#[cfg(test)]
+mod blocked_tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn blocklists_add_up_without_repeats() {
+        let mut blocked = Vec::new();
+        add_blocked(&mut blocked, &json!({ "urls": ["a", "b"] }));
+        add_blocked(&mut blocked, &json!({ "urls": ["b", "c", 3] }));
+        add_blocked(&mut blocked, &json!({}));
+        assert_eq!(blocked, ["a", "b", "c"]);
+    }
+}
+
 /// Where a new tab opens when it is not in the default context.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ContextTarget<'a> {
@@ -179,6 +206,12 @@ pub(crate) struct Inner {
     /// The proxy of every context created with its own, by context id, so a
     /// handoff to plain HTTP can follow the route a tab's traffic takes.
     pub(super) context_routes: StdMutex<HashMap<String, super::context::ContextRoute>>,
+    /// The ids Chrome gave the extensions the launch loaded, in load order.
+    extension_ids: StdMutex<Vec<String>>,
+    /// The blocklist of each tab session, which the library's ad-block list and
+    /// the plugins' raw `Network.setBlockedURLs` commands all add to.
+    #[cfg(feature = "plugins")]
+    pub(super) plugin_blocked: super::plugin_hooks::BlockedUrls,
     /// Whether the plugins' `on_close` is still owed: set when the browser is
     /// handed out, cleared when `close` or the last drop runs the hooks. A
     /// launch attempt that fails is never set, so a retry does not find its
@@ -309,17 +342,23 @@ impl Browser {
             self.ensure_proxy_auth();
         }
         for dir in &self.inner.options.extensions {
-            self.execute(
-                "Extensions.loadUnpacked",
-                json!({ "path": dir.to_string_lossy() }),
-            )
-            .await
-            .map_err(|error| {
-                SeleniumBaseError::invalid_config(format!(
-                    "the extension in {} could not be loaded: {error}",
-                    dir.display()
-                ))
-            })?;
+            let loaded = self
+                .execute(
+                    "Extensions.loadUnpacked",
+                    json!({ "path": dir.to_string_lossy() }),
+                )
+                .await
+                .map_err(|error| {
+                    SeleniumBaseError::invalid_config(format!(
+                        "the extension in {} could not be loaded: {error}",
+                        dir.display()
+                    ))
+                })?;
+            // Chrome names the extension it loaded; the id is what tells the
+            // extensions of a launch apart.
+            if let Some(id) = loaded["id"].as_str() {
+                locked(&self.inner.extension_ids).push(id.to_owned());
+            }
         }
         #[cfg(feature = "plugins")]
         super::plugin_hooks::on_browser(&self.inner.options.plugins, &self.inner.client).await?;
@@ -390,10 +429,13 @@ impl Browser {
             .as_str()
             .ok_or_else(|| SeleniumBaseError::cdp_driver("no webSocketDebuggerUrl advertised"))?
             .to_owned();
+        // Each attach is a launch of its own for the plugins: a set shared by
+        // several browsers gets fresh instances of the per-launch ones.
         #[cfg(feature = "plugins")]
-        options
-            .plugins
-            .check(&super::plugin_hooks::connect_context(&version))?;
+        let options = LaunchOptions {
+            plugins: super::plugin_hooks::for_attach(&options.plugins, &version)?,
+            ..options
+        };
         let client = Arc::new(Client::connect(&ws_url).await?);
         let browser = Self::from_parts(
             client,
@@ -499,6 +541,9 @@ impl Browser {
                 tasks: StdMutex::new(Vec::new()),
                 download_dir: StdMutex::new(None),
                 context_routes: StdMutex::new(HashMap::new()),
+                extension_ids: StdMutex::new(Vec::new()),
+                #[cfg(feature = "plugins")]
+                plugin_blocked: super::plugin_hooks::BlockedUrls::default(),
                 #[cfg(feature = "plugins")]
                 plugins_open: AtomicBool::new(false),
             }),
@@ -539,6 +584,18 @@ impl Browser {
     #[must_use]
     pub fn websocket_url(&self) -> &str {
         &self.inner.ws_url
+    }
+
+    /// The ids Chrome gave the unpacked extensions this launch loaded
+    /// ([`LaunchOptionsBuilder::extension`](super::LaunchOptionsBuilder::extension),
+    /// or a plugin's `LaunchSettings::extensions`), in the order they were
+    /// loaded.
+    ///
+    /// Empty for a browser attached with [`connect`](Self::connect), which
+    /// loads none, and for an extension Chrome loaded without naming it.
+    #[must_use]
+    pub fn extension_ids(&self) -> Vec<String> {
+        locked(&self.inner.extension_ids).clone()
     }
 
     /// The DevTools endpoint, with the configs other clients (Google's
@@ -777,6 +834,8 @@ impl Browser {
         let removed = locked(&self.inner.sessions).remove(id);
         if let Some(session) = removed {
             self.inner.auth.forget(&session);
+            #[cfg(feature = "plugins")]
+            self.inner.plugin_blocked.forget(&session);
         }
     }
 
@@ -813,12 +872,18 @@ impl Browser {
             .await?;
             send("Runtime.evaluate", json!({ "expression": shim })).await?;
         }
+        // What this tab blocks so far: `Network.setBlockedURLs` replaces the
+        // list, so each source adds to it and the whole is what gets sent.
+        let mut blocked: Vec<String> = Vec::new();
         if let Some(identity) = &self.inner.options.identity {
             for (method, params) in identity.tab_commands() {
                 client
                     .send(method, params.clone(), Some(session))
                     .await
                     .map_err(|error| super::identity::refused(method, &error))?;
+                if method == "Network.setBlockedURLs" {
+                    add_blocked(&mut blocked, params);
+                }
             }
             // Permissions belong to a browser context, and which one this tab
             // is in is only known to the browser.
@@ -838,11 +903,14 @@ impl Browser {
         }
         if self.inner.options.ad_block {
             send("Network.enable", json!({})).await?;
-            send(
-                "Network.setBlockedURLs",
-                json!({ "urls": AD_BLOCK_PATTERNS }),
-            )
-            .await?;
+            add_blocked(&mut blocked, &json!({ "urls": AD_BLOCK_PATTERNS }));
+            send("Network.setBlockedURLs", json!({ "urls": blocked })).await?;
+        }
+        // A plugin's own blocklist is added to these, not put in their place.
+        #[cfg(feature = "plugins")]
+        if !blocked.is_empty() {
+            let known: Vec<&str> = blocked.iter().map(String::as_str).collect();
+            self.inner.plugin_blocked.seed(session, &known);
         }
         if self.inner.auth.has_launch_credentials() {
             send(
@@ -854,7 +922,13 @@ impl Browser {
         // Last, so a plugin sees the tab as the library left it and may
         // change any of it.
         #[cfg(feature = "plugins")]
-        super::plugin_hooks::on_page_created(&self.inner.options.plugins, client, session).await?;
+        super::plugin_hooks::on_page_created(
+            &self.inner.options.plugins,
+            client,
+            session,
+            &self.inner.plugin_blocked,
+        )
+        .await?;
         Ok(())
     }
 

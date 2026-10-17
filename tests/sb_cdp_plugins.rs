@@ -19,7 +19,7 @@ use seleniumbase_rs::plugin_api::{
     PluginError, PluginSet, Requirements, Result as PluginResult,
 };
 use seleniumbase_rs::sb_cdp::{Browser, Call, LaunchOptions, MockCtrl};
-use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::{Fingerprint, SeleniumBaseError};
 use serde_json::json;
 
 /// What the hooks of the plugins in one test saw, in order.
@@ -563,4 +563,352 @@ async fn a_page_is_a_page_handle_that_works_on_its_own_tab() {
         matches!(&error, PluginError::Other(message) if message.contains("not allowed")),
         "{error:?}"
     );
+}
+
+/// A plugin whose state belongs to one browser: `per_launch` hands out a
+/// numbered instance, and the template it is made from is number 0.
+struct Numbered {
+    number: usize,
+    issued: Arc<AtomicUsize>,
+    log: Log,
+}
+
+#[async_trait]
+impl Plugin for Numbered {
+    fn name(&self) -> &str {
+        "numbered"
+    }
+
+    fn per_launch(&self) -> Option<Arc<dyn Plugin>> {
+        let number = self.issued.fetch_add(1, Ordering::SeqCst) + 1;
+        Some(Arc::new(Self {
+            number,
+            issued: Arc::clone(&self.issued),
+            log: Arc::clone(&self.log),
+        }))
+    }
+
+    async fn before_launch(&self, _launch: &mut LaunchSettings) -> PluginResult<()> {
+        note(&self.log, format!("before_launch #{}", self.number));
+        Ok(())
+    }
+
+    async fn on_page_created(&self, _page: &dyn PageHandle) -> PluginResult<()> {
+        note(&self.log, format!("on_page_created #{}", self.number));
+        Ok(())
+    }
+
+    async fn on_close(&self) -> PluginResult<()> {
+        note(&self.log, format!("on_close #{}", self.number));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn each_launch_of_a_shared_set_gets_its_own_instance_of_a_per_launch_plugin() {
+    let log = Log::default();
+    let shared = PluginSet::new()
+        .with(Numbered {
+            number: 0,
+            issued: Arc::new(AtomicUsize::new(0)),
+            log: log.clone(),
+        })
+        .unwrap();
+
+    // Two browsers from one set, as a pool launches them.
+    let first = launch(shared.clone(), &MockCtrl::new()).await.unwrap();
+    let second = launch(shared.clone(), &MockCtrl::new()).await.unwrap();
+    first.close().await.unwrap();
+    second.close().await.unwrap();
+
+    assert_eq!(
+        entries(&log),
+        [
+            "before_launch #1",
+            "on_page_created #1",
+            "before_launch #2",
+            "on_page_created #2",
+            "on_close #1",
+            "on_close #2",
+        ],
+        "the shared template (#0) never runs, and each browser closes its own"
+    );
+}
+
+/// Blocks `urls` on every tab with a raw `Network.setBlockedURLs`, as the
+/// `block-resources` and `shield` plugins do; `per_tab` adds one URL that names
+/// the tab (`*://tab<N>.example/*`).
+struct Blocks {
+    name: &'static str,
+    urls: Vec<&'static str>,
+    per_tab: Option<AtomicUsize>,
+}
+
+impl Blocks {
+    fn of(name: &'static str, urls: &[&'static str]) -> Self {
+        Self {
+            name,
+            urls: urls.to_vec(),
+            per_tab: None,
+        }
+    }
+}
+
+#[async_trait]
+impl Plugin for Blocks {
+    fn name(&self) -> &str {
+        self.name
+    }
+
+    async fn on_page_created(&self, page: &dyn PageHandle) -> PluginResult<()> {
+        let mut urls: Vec<String> = self.urls.iter().map(|url| (*url).to_owned()).collect();
+        if let Some(tabs) = &self.per_tab {
+            let tab = tabs.fetch_add(1, Ordering::SeqCst) + 1;
+            urls.push(format!("*://tab{tab}.example/*"));
+        }
+        page.send("Network.enable", json!({})).await?;
+        page.send("Network.setBlockedURLs", json!({ "urls": urls }))
+            .await?;
+        Ok(())
+    }
+}
+
+/// The URLs of the last `Network.setBlockedURLs` the tab `session` received.
+fn blocked_on(mock: &MockCtrl, session: &str) -> Vec<String> {
+    let call = mock
+        .calls_to("Network.setBlockedURLs")
+        .into_iter()
+        .rfind(|call| call.session_id.as_deref() == Some(session))
+        .unwrap_or_else(|| panic!("no blocklist was sent to {session}"));
+    serde_json::from_value(call.params["urls"].clone()).expect("a list of patterns")
+}
+
+#[tokio::test]
+async fn raw_blocklists_of_several_plugins_are_merged_into_one_per_tab() {
+    let mock = MockCtrl::new();
+    let plugins = PluginSet::new()
+        .with(Blocks::of("images", &["*://a.example/*", "*.png"]))
+        .unwrap()
+        .with(Blocks::of("hosts", &["*://b.example/*", "*.png"]))
+        .unwrap();
+
+    let _browser = launch(plugins, &mock).await.unwrap();
+
+    assert_eq!(
+        blocked_on(&mock, "S1"),
+        ["*://a.example/*", "*.png", "*://b.example/*"],
+        "the second plugin's list does not replace the first's"
+    );
+}
+
+#[tokio::test]
+async fn each_tab_keeps_its_own_blocklist() {
+    let mock = MockCtrl::new();
+    let tabs = Blocks {
+        per_tab: Some(AtomicUsize::new(0)),
+        ..Blocks::of("tabs", &["*.png"])
+    };
+    let plugins = PluginSet::new()
+        .with(tabs)
+        .unwrap()
+        .with(Blocks::of("hosts", &["*://b.example/*"]))
+        .unwrap();
+    let browser = launch(plugins, &mock).await.unwrap();
+    assert_eq!(
+        blocked_on(&mock, "S1"),
+        ["*.png", "*://tab1.example/*", "*://b.example/*"]
+    );
+
+    mock.reply("Target.attachToTarget", json!({ "sessionId": "S2" }));
+    browser.new_page(None::<&str>).await.unwrap();
+
+    assert_eq!(
+        blocked_on(&mock, "S2"),
+        ["*.png", "*://tab2.example/*", "*://b.example/*"],
+        "the first tab's pattern is not carried over"
+    );
+    assert_eq!(
+        blocked_on(&mock, "S1"),
+        ["*.png", "*://tab1.example/*", "*://b.example/*"],
+        "and the first tab's list is as it was"
+    );
+}
+
+#[tokio::test]
+async fn the_ad_block_list_of_the_launch_stays_when_a_plugin_blocks_urls() {
+    let mock = MockCtrl::new();
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .ad_block(true)
+        .plugins(
+            PluginSet::new()
+                .with(Blocks::of("hosts", &["*://b.example/*"]))
+                .unwrap(),
+        )
+        .build()
+        .unwrap();
+
+    let _browser = Browser::launch_mocked(options, &mock).await.unwrap();
+
+    let blocked = blocked_on(&mock, "S1");
+    assert!(
+        blocked.contains(&"*://*.doubleclick.net/*".to_owned()),
+        "{blocked:?}"
+    );
+    assert_eq!(blocked.last().map(String::as_str), Some("*://b.example/*"));
+}
+
+/// A fingerprint that blocks the tracker hosts.
+fn tracker_blocking_fingerprint() -> Fingerprint {
+    Fingerprint::builder()
+        .block_trackers(true)
+        .build()
+        .expect("the builder builds")
+}
+
+#[tokio::test]
+async fn the_tracker_hosts_of_a_fingerprint_stay_when_a_plugin_blocks_urls() {
+    let fingerprint = tracker_blocking_fingerprint();
+    let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
+
+    for ad_block in [false, true] {
+        let mock = MockCtrl::new();
+        let options = LaunchOptions::builder()
+            .headless(true)
+            .ad_block(ad_block)
+            .fingerprint(&fingerprint)
+            .plugins(
+                PluginSet::new()
+                    .with(Blocks::of("hosts", &["*://b.example/*"]))
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
+
+        let _browser = Browser::launch_mocked(options, &mock).await.unwrap();
+
+        let blocked = blocked_on(&mock, "S1");
+        assert!(
+            blocked.contains(&tracker),
+            "ad_block {ad_block}: the fingerprint's list survives the plugin's: {blocked:?}"
+        );
+        assert_eq!(blocked.last().map(String::as_str), Some("*://b.example/*"));
+        assert_eq!(
+            blocked.contains(&"*://*.doubleclick.net/*".to_owned()),
+            ad_block,
+            "{blocked:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn ad_block_does_not_replace_the_trackers_of_a_fingerprint() {
+    let fingerprint = tracker_blocking_fingerprint();
+    let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
+    let mock = MockCtrl::new();
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .ad_block(true)
+        .fingerprint(&fingerprint)
+        .build()
+        .unwrap();
+
+    let _browser = Browser::launch_mocked(options, &mock).await.unwrap();
+
+    let blocked = blocked_on(&mock, "S1");
+    assert!(blocked.contains(&tracker), "{blocked:?}");
+    assert!(
+        blocked.contains(&"*://*.doubleclick.net/*".to_owned()),
+        "{blocked:?}"
+    );
+}
+
+/// Sends the protocol command `method` from `on_browser` (`on_tab` false) or
+/// from `on_page_created`.
+struct SendsRaw {
+    method: &'static str,
+    on_tab: bool,
+}
+
+#[async_trait]
+impl Plugin for SendsRaw {
+    fn name(&self) -> &str {
+        "sends-raw"
+    }
+
+    async fn on_browser(&self, browser: &dyn BrowserHandle) -> PluginResult<()> {
+        if !self.on_tab {
+            browser.send(self.method, json!({})).await?;
+        }
+        Ok(())
+    }
+
+    async fn on_page_created(&self, page: &dyn PageHandle) -> PluginResult<()> {
+        if self.on_tab {
+            page.send(self.method, json!({})).await?;
+        }
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn a_plugin_cannot_take_over_request_interception() {
+    for method in [
+        "Fetch.enable",
+        "Fetch.disable",
+        "Fetch.fulfillRequest",
+        "Fetch.continueRequest",
+        "Network.setRequestInterception",
+    ] {
+        for on_tab in [true, false] {
+            let mock = MockCtrl::new();
+            let plugins = PluginSet::new().with(SendsRaw { method, on_tab }).unwrap();
+
+            let error = launch(plugins, &mock).await.unwrap_err();
+
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "sends-raw"),
+                "{method} (tab: {on_tab}): {error:?}"
+            );
+            assert!(error.to_string().contains(method), "{error}");
+            assert!(
+                mock.calls_to(method).is_empty(),
+                "{method} never reached the browser"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_librarys_own_fetch_for_proxy_passwords_is_not_a_plugins() {
+    let mock = MockCtrl::new();
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .proxy("alice:s3cret@proxy.example.com:8080")
+        .plugins(PluginSet::new().with(Marker).unwrap())
+        .build()
+        .unwrap();
+
+    let _browser = Browser::launch_mocked(options, &mock).await.unwrap();
+
+    assert_eq!(
+        mock.calls_to("Fetch.enable").len(),
+        1,
+        "the launch's own interception stays"
+    );
+}
+
+#[tokio::test]
+async fn a_non_fetch_domain_with_a_similar_name_is_not_refused() {
+    let mock = MockCtrl::new();
+    let plugins = PluginSet::new()
+        .with(SendsRaw {
+            method: "FetchLikeDomain.enable",
+            on_tab: true,
+        })
+        .unwrap();
+
+    launch(plugins, &mock).await.unwrap();
+
+    assert_eq!(mock.calls_to("FetchLikeDomain.enable").len(), 1);
 }

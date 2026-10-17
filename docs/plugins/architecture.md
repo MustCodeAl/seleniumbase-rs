@@ -11,9 +11,11 @@ record, with the checks behind each decision, is
 
 <Note>
 
-The ADR is **proposed**. Only phase 1 of its plan has begun, in the plugin API
-crate (see [What is built](#what-is-built)). Later phases are a plan, not a
-promise of dates.
+The ADR is **proposed**. Only phase 1 of its plan has begun: the plugin API crate,
+the built-in plugins crate with [shield](shield.md), and the core side that
+uses them (see [What is built](#what-is-built) and
+[What core does with it](#what-core-does-with-it)). Later phases are a plan,
+not a promise of dates.
 
 </Note>
 
@@ -111,8 +113,13 @@ Phase 1 starts in the API crate `seleniumbase-rs-plugin`, all additive:
 | `Configurable`, `Descriptor`, `Registry`, `PluginSpec` | `config.rs` |
 | `Plugin::metadata()`, `Plugin::per_launch()`, `PluginSet::strict()`, `with_trusted`, `with_grants`, `audit()` | `lib.rs` |
 
+Next to the API crate there is the `seleniumbase-rs-plugins-builtin` crate
+(one cargo feature per plugin, and `registry()`), and the first plugin written
+for the new API, [shield](shield.md). How a program turns them on is in
+[Choosing plugins](selecting.md).
+
 Not part of this page's claim: the command-line options, the prebuilt
-binaries with built-ins, the store, manifests, WASM ABI 2 and the seven
+binaries with built-ins, the store, manifests, WASM ABI 2 and the other six
 plugins belong to the later work. The plan, from the ADR:
 
 | Phase | Delivers |
@@ -125,3 +132,51 @@ plugins belong to the later work. The plan, from the ADR:
 
 To declare metadata in your own plugin, see
 [Writing your own plugin](writing-your-own.md#declaring-metadata-and-capabilities).
+
+## What core does with it
+
+The plugins repository listed seven things seleniumbase-rs had to do before
+the new API was useful. They are done, in both engines unless a row says
+otherwise:
+
+| # | Follow-up | What core does |
+|---|---|---|
+| 1 | The API enums are `#[non_exhaustive]` | A match on `BrowserFamily`, `PluginError` or a WebRTC policy has a wildcard arm. `PluginError` variants that name a plugin (`Unsupported`, `Capability`, `Undeclared`, `Conflict`, `Sealed`) now carry its name into `SeleniumBaseError::Plugin`, and the hint explains the new refusals |
+| 2 | Pooled browsers shared per-launch state | `PluginSet::for_launch()` runs before every check, so each browser, each attach and each WebDriver session gets a fresh instance of a plugin that offers `per_launch`; a shared set no longer shares state, and `on_close` reaches the instance that started |
+| 3 | The host was always the CDP engine | `check_with(&LaunchContext, &HostInfo)`: `HostInfo::cdp()` for the pure CDP engine, `HostInfo::webdriver(family)` for chromedriver, geckodriver and Safari. A server that answers `browserName: tauri` is re-checked as `HostInfo::embedded()` once the session exists, and a plugin that needs more than a webview gives ends the session |
+| 4 | New `LaunchSettings` fields were dropped | `host_resolver_rules` is one `--host-resolver-rules`; `disable_features` and `enable_features` are one switch each, merged with the library's own `Translate` (and with a switch the configuration already has); `webrtc_policy` is `--force-webrtc-ip-handling-policy`; `disable_quic` is `--disable-quic`. The profile is shown to plugins before they run, as persistent when `user_data_dir` is set. On Firefox and Safari a plugin that sets one of the Chromium-only fields is refused |
+| 5a | `Network.setBlockedURLs` replaced the tab's list | The host keeps one blocklist per tab (per window with chromedriver): the library's ad-block list, the tracker hosts of a fingerprint with `block_trackers`, and every pattern a plugin sent. Each raw send adds to it, and the union goes out. With chromedriver a window keeps its union when the session switches away and back |
+| 5b | The `Fetch` domain had many owners | A plugin's `Fetch.*` command, and the older `Network.setRequestInterception` that pauses requests the same way, are refused, on the browser and on a tab. The library's own `Fetch.enable` for proxy passwords is not a plugin's and stays |
+| 6 | Extension ids were dropped | `Browser::extension_ids()` keeps what `Extensions.loadUnpacked` answered, in load order |
+| 7 | Two lists of refused switches | A test reads `FORBIDDEN_SWITCHES` of `src/stealth/evasions.rs` and fails if one is missing from `seleniumbase_rs_plugin::switch_policy::REFUSED_SWITCHES` |
+
+### How these were checked
+
+On the scripted mock browser of the pure CDP engine (`Browser::launch_mocked`)
+and on a mock WebDriver server. They show which commands the host sends, in
+which order, and what a plugin is refused. **No real Chrome ran in this
+change**, so nothing here shows that Chrome accepts the merged switches or
+enforces a merged blocklist in iframes, workers and popups; the plugins' own
+docs say the same.
+
+### Limits
+
+- The guard on raw commands is two rules: `Fetch.*` and
+  `Network.setRequestInterception` are refused, and `Network.setBlockedURLs`
+  is merged. Other commands go to the browser as sent.
+  A plugin that reaches `Fetch` by wrapping it in `Target.sendMessageToTarget`
+  is not stopped yet; the guarded handles of phase 2 check every command.
+- The blocklist is a union: patterns only get added. A plugin cannot take
+  another plugin's pattern back. Phase 2 keeps one list per plugin.
+- A plugin that declares no metadata is treated as holding the legacy
+  capabilities, `raw:cdp` among them, which the host of Firefox, Safari and a
+  Tauri webview cannot give. Checked strictly, every such plugin would be
+  refused there, though they have always run (their `send` fails when called).
+  So a WebDriver set that holds one is checked as for Chromium's WebDriver, and
+  skips the embedded re-check; a set of declared plugins only gets the
+  browser's own host. A mixed set therefore finds a declared plugin's missing
+  DevTools channel when it calls `send`, not at the check.
+- The `sbrs` and `sbrs-mcp` binaries do not take plugin names yet.
+- The Tauri re-check reads the name `tauri` from the session's capabilities, as
+  tauri-plugin-sbrs-automation answers it. Another embedded webview server is
+  seen as the browser the configuration names.

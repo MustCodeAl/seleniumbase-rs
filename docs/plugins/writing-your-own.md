@@ -80,8 +80,19 @@ A set grants capabilities when you add a plugin:
 
 To let users enable a plugin by name with options, implement `Configurable`
 (`NAME`, `describe()`, `configure(&Value)`) and add
-`Descriptor::of::<P>()` to a `Registry`. The design is on the
-[architecture page](architecture.md).
+`Descriptor::of::<P>()` to a `Registry`. A program then builds the set from the
+`[plugins]` table or `SB_PLUGINS` with `seleniumbase_rs::plugin_host::build_with`
+(see [Choosing plugins](selecting.md#in-code)). A plugin that keeps state per
+browser should return a fresh instance from `per_launch()`: seleniumbase-rs
+calls it for every launch, so browsers launched from one set do not share it.
+The design is on the [architecture page](architecture.md).
+
+Two commands are not a plugin's to send as it likes. A plugin that sends
+`Fetch.*` is refused, because the host owns request interception; to stop
+requests send `Network.setBlockedURLs`, which the host merges with the other
+plugins' lists and the `ad_block` list of the tab. Install your plugin crate from
+the same revision of the plugins repository as seleniumbase-rs
+(see [Choosing plugins](selecting.md#cargo-features)).
 
 <Note>
 

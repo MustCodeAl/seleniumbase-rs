@@ -17,7 +17,7 @@ clock or randomness, and it cannot call back into the host. Only pure functions
 cross the boundary.
 
 ```sh
-cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins
+cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
 ```
 
 <Info>
