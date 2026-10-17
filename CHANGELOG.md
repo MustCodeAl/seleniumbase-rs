@@ -8,13 +8,17 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
-An API clean-up of `BaseCase`: the text assertions and waits take their
-arguments in Python's order, the helpers that did not match Python are fixed,
-and the macros that did not compile or hid an error now work. The BREAKING
-changes, those that break a call, are listed first, each with the way to
-migrate. The core side of the plugin platform (ADR 005, phase 1: built-in
-plugins by name, the host checks, the launch switches) is in Added, Changed and
-Fixed.
+## [0.5.0] - 2026-10-17
+
+A release of API clean-ups and new structure. The fingerprint API is one
+`Spoof` per setting with a separate `StealthPolicy`, built once and never
+mutated. `BaseCase` text assertions and waits take their arguments in Python's
+order, and the run settings, runner, CDP page and behave APIs are cleaned up.
+The command line moved to its own workspace crate, `seleniumbase-rs-cli`, and
+parses with `usage` instead of clap. The built-in plugins can be chosen by name
+from features, the settings file, `SB_PLUGINS` or `sbrs --plugin`. PDF text
+extraction is the opt-in feature `pdf`. The BREAKING changes, those that break a
+call, are listed first.
 
 ### Breaking
 
@@ -1999,7 +2003,8 @@ listed first under *Fixed*.
   cookie, a stored token or a page's text read by `get_cookies`,
   `manage_cookies` or a storage tool is not saved with the bug report.
 
-[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.1...v0.2.0

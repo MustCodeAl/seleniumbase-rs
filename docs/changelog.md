@@ -7,15 +7,22 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix", "Breaking"]}>
+<Update label="Unreleased" description="Next release" tags={[]}>
 
-An API clean-up of `BaseCase`: the text assertions and waits take their
-arguments in Python's order, the helpers that did not match Python are fixed,
-and the macros that did not compile or hid an error now work. The BREAKING
-changes, those that break a call, are listed first, each with the way to
-migrate. The core side of the plugin platform (ADR 005, phase 1: built-in
-plugins by name, the host checks, the launch switches) is in Added, Changed and
-Fixed.
+
+</Update>
+
+<Update label="2026-10-17" description="v0.5.0" tags={["New", "Fix", "Breaking"]}>
+
+A release of API clean-ups and new structure. The fingerprint API is one
+`Spoof` per setting with a separate `StealthPolicy`, built once and never
+mutated. `BaseCase` text assertions and waits take their arguments in Python's
+order, and the run settings, runner, CDP page and behave APIs are cleaned up.
+The command line moved to its own workspace crate, `seleniumbase-rs-cli`, and
+parses with `usage` instead of clap. The built-in plugins can be chosen by name
+from features, the settings file, `SB_PLUGINS` or `sbrs --plugin`. PDF text
+extraction is the opt-in feature `pdf`. The BREAKING changes, those that break a
+call, are listed first.
 
 ### Breaking
 
@@ -720,12 +727,23 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   status 2 before any browser starts or the MCP server listens. A build without
   `plugins` (`--no-default-features`) fails closed with the feature to build
   with. The Docker image is built without the default features and has no
-  plugins. The library side: `PluginSelection::apply_flags`, `enable_once` and
-  `to_list` (and `PluginSelection` is `Eq`), `Settings::load_plugin_selection`
-  (the plugin part of the settings only), the module `cli::plugin_cmd`
-  (`list`, `info`, `check_selection`), `DevtoolsRequest::plugins`,
-  `mcp::Settings::with_plugin_selection` and `mcp::serve_with`. See
-  `docs/plugins/selecting.md`.
+  plugins. Only the `[plugins]` table of the settings file is read by `sbrs
+  devtools`, `sbrs plugin list|info` and `sbrs-mcp`, so a value of the file that
+  is wrong for a browser does not stop them; a command that starts no browser
+  ignores the options, even a wrong one. A `--plugin` that turns a plugin back
+  on after `SB_PLUGINS` left it out keeps the options the file gave it. Every
+  active plugin is logged at `INFO` with the place that turned it on, and a
+  plugin that declares `launch.proxy`, `artifacts.write` or a `host.*`
+  capability is refused when only the `sbase_config.toml` of the current folder
+  names it: a cloned project must not grant it (name it with `--plugin` or
+  `SB_PLUGINS`, or use `--config`). The library side:
+  `PluginSelection::apply_flags`, `enable_once`, `prune_unused`,
+  `set_enabled_keeping_options` and `to_list` (and `PluginSelection` is `Eq`),
+  `Settings::load_plugin_selection` and `load_plugin_table` (the plugin part of
+  the settings only), the module `cli::plugin_cmd` (`list`, `info`,
+  `check_selection`, `PluginChoice`, `PluginSource`, `apply_to_config`),
+  `DevtoolsRequest::plugins`, `mcp::Settings::with_plugin_selection` and
+  `mcp::serve_with`. See `docs/plugins/selecting.md`.
 - **The shield plugin** is documented (`docs/plugins/shield.md`): what it turns
   off, its levels, WebRTC modes and options, and what has not been verified in a
   real Chrome.

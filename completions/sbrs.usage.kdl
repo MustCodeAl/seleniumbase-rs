@@ -1,6 +1,6 @@
 name sbrs
 bin sbrs
-version "0.4.0 (seleniumbase-rs)"
+version "0.5.0 (seleniumbase-rs)"
 about "SeleniumBaseRust CLI"
 long_about "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper."
 logo #"""

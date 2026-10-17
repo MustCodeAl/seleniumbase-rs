@@ -5,7 +5,7 @@ title: "CLI reference"
 *Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`. Do not edit it by hand.*
 
 # `sbrs`
-- **Version:** 0.4.0 (seleniumbase-rs)
+- **Version:** 0.5.0 (seleniumbase-rs)
 
 A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.
 
