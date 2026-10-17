@@ -32,8 +32,8 @@ design is `docs/design/fingerprint-api-v2.md`.
 - **`FingerprintBuilder::build()` returns `Result<Fingerprint, FingerprintError>`.**
   It fails, naming the setting, when `Off` is given to a setting with no off
   state, when `Random` is given to one with nothing to draw (`proxy`, `oscpu`,
-  `build_id`), and when nothing coherent can be drawn (a random locale next to a
-  time zone the table of places lacks).
+  `build_id`), when a proxy has no host, and when nothing coherent can be drawn
+  (a random locale next to a time zone the table of places lacks).
 - **A built `Fingerprint` has private fields and read accessors**
   (`fp.screen()`, `fp.user_agent()`, ...). To change one, take `fp.to_builder()`,
   change it and build again. `FingerprintBuilder` setters take
