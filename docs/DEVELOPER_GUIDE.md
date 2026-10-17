@@ -217,7 +217,7 @@ Prefer constructors over manual formatting:
 use seleniumbase_rs::SeleniumBaseError;
 
 SeleniumBaseError::element_not_found("#submit")
-SeleniumBaseError::invalid_config("proxy_masking is Custom but proxy is None")
+SeleniumBaseError::invalid_config("a proxy is required but the URL is empty")
 SeleniumBaseError::driver_not_ready("chromedriver")
 ```
 
@@ -299,9 +299,10 @@ Launch and session plumbing:
 
 Anti-detection layer:
 
-- `fingerprint.rs` — `Fingerprint`, `StealthFlags`, `MaskingMode`, `Dimension`,
-  the builder, presets (including `edge_desktop`), coherence validation, and
-  `BrowserType`.
+- `fingerprint.rs` — `Fingerprint`, `FingerprintBuilder`, `Dimension`,
+  presets (including `edge_desktop`), coherence validation, and `BrowserType`;
+  `spoof.rs` (`Spoof<T>`), `settings.rs` (the value types such as `ScreenSize`
+  and `WebGl`) and `policy.rs` (`StealthPolicy`).
 - `evasions.rs` / `providers/` — JavaScript evasion registry and 25 built-in
   providers.
 - `patcher.rs` — `ChromedriverPatcher` and `EnginePatch` definitions.
@@ -352,7 +353,7 @@ The stealth system has four independent axes:
    `Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`,
    `Emulation.setTimezoneOverride`, `Emulation.setLocaleOverride`,
    `Emulation.setGeolocationOverride`, and related commands. When
-   `StealthFlags::native_spoofing` is enabled, providers skip JS patches for
+   `StealthPolicy::native_spoofing` is enabled, providers skip JS patches for
    dimensions the browser can spoof natively, making the spoof invisible to
    page-side `toString()` / descriptor inspection.
 4. **Network interception** — `StealthReactor` uses CDP `Fetch` to override
@@ -379,31 +380,30 @@ The stealth system has four independent axes:
 Use these through `BaseCase::activate_cdp_mode(url)` or by setting
 `DriverMode::Uc` in `BrowserConfig`.
 
-### Fingerprint and masking modes
+### Fingerprint, settings and policy
 
 `Fingerprint` is a value type describing the desired browser surface. It is
-composed of:
+built once with `Fingerprint::builder()`, has private fields and read accessors,
+and is changed only through `to_builder()`. It is composed of:
 
-- `browser_type` — `Chromium` or `Firefox` (generic names; legacy aliases
-  `mimic` / `stealthfox` are still accepted for JSON parsing).
-- `os`, `vendor`, `renderer` — reported by the navigator provider.
-- `screen`, `viewport` — screen spoofing.
-- `geolocation`, `timezone`, `locale` — location spoofing.
-- `webrtc_policy` (an `Option`), `flags` — policy and toggle switches.
-- `proxy` — optional proxy URL.
+- `browser_type`, `os_type`, `core_version`, `seed` — the persona.
+- one `Spoof<T>` per setting: `user_agent`, `platform`, `hardware_concurrency`,
+  `screen`, `webgl`, `geolocation`, `timezone`, `locale`, `webrtc`, `media_devices`,
+  `battery`, `client_hints`, `proxy`, and the rest of what a page can probe.
+- a `StealthPolicy` — how the claims are delivered (WebRTC IP policy, canvas
+  and audio noise, native spoofing, granted permissions, blocked ports and
+  trackers).
 
-`MaskingMode` controls how a flag is applied:
+A `Spoof<T>` is `Natural` (the browser's own value, the default), `Random` (a
+coherent value drawn when the fingerprint is built), `Value(T)` (a plain value
+converts to it) or `Off` (the API is unavailable or denied; only for geolocation,
+WebRTC, media devices, battery, Bluetooth, speech voices, network information and
+Client Hints). A built fingerprint holds no `Random`.
 
-- `Auto` (the default) — on when the `Fingerprint` has a value for the
-  dimension, off otherwise.
-- `Natural` — explicitly off: use the real browser value.
-- `Mask` — on, filling a value the fingerprint lacks with a generic one.
-- `Custom` and `Disabled` — deprecated spellings of `Mask` and `Natural`.
-
-Providers, launch arguments and protocol overrides do not read the flags
+Providers, launch arguments and protocol overrides do not read the fields by
 themselves: they ask `Fingerprint::is_masked(Dimension::...)`, so there is one
-rule. A builder value setter marks its dimension and `build()` turns it on, so
-nobody sets `fp.flags` after giving a value.
+rule, and a provider defines only a setting that is a `Value`. A policy preset
+never changes a setting.
 
 `Fingerprint::validate()` returns a `CoherenceReport` of errors and warnings
 (platform and user agent against the OS persona, a WebGL renderer from another

@@ -48,7 +48,7 @@ The most common types are re-exported from the crate root for convenience:
 | `BaseCase` | yes |
 | `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession` | yes |
 | `Selector` | yes |
-| `Fingerprint`, `StealthFlags` | yes |
+| `Fingerprint`, `StealthPolicy` | yes |
 | `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport` | yes |
 | `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry` | yes |
 | `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, **experimental** (serves the stealth layer) |

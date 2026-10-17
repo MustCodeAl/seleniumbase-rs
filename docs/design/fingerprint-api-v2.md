@@ -170,8 +170,28 @@ it used is kept in the fingerprint.
 `Spoof<T>` serialises as `"natural"`, `"random"`, `"off"` or the value itself.
 `Natural` fields are left out. `null` reads as `Natural`. A fingerprint that
 holds `"random"` is resolved when it is read, the same way `build()` does it.
-`ProfileParams` (external profile payloads) keeps its string flags: `natural` and
-`disabled` give `Natural`, `mask` or `custom` with a value gives `Value`, `mask`
-without one gives `Random`, and the policy keys (`canvas_noise`,
-`native_spoofing`, `grant_permissions`, `disable_csp`, `quic_mode`) still map to the
-policy.
+`ProfileParams` (external profile payloads) keeps its string flags, because the
+format is another tool's, and reads the same words for every key: `natural`,
+`native`, `pass_through` and `whitelist` give `Natural`; `auto` gives the value the
+payload holds, else `Natural`; `mask`, `spoof`, `custom`, `generic`, `random` and
+`noise` give the value the payload holds, else `Random`; `off`, `disabled`,
+`block` and `empty` give `Off` where an API can be off (geolocation, WebRTC, media
+devices) and `Natural`, logged, elsewhere; a literal gives `Value`. An unknown
+word is logged and read as `Natural`. The policy keys (`canvas_noise`,
+`audio_masking`, `native_spoofing`, `grant_permissions`, `disable_csp`,
+`quic_mode`, `ports_masking`) map to the policy. The table is in
+`docs/tutorials/fingerprint_stealth.md`.
+
+## As built
+
+- The value types are `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses` and
+  `MediaDevices` (`stealth/settings.rs`); each converts from the obvious tuple.
+  `languages` and `accept_languages` stay comma-separated strings, `fonts` is a
+  `Spoof<Vec<String>>`, and Web Bluetooth is a `Spoof<bool>` (`true`: an adapter,
+  `false`: none, `Off`: no API).
+- `FingerprintError` has three cases: `OffNotAvailable`, `NoRandomValue` (proxy,
+  `oscpu`, `build_id`) and `Incoherent`.
+- Without `.seed(..)`, a draw uses fresh entropy and a fingerprint with nothing
+  to draw takes a seed from its user agent, so a preset is the same every time.
+- A denied geolocation (`Off`) is scripted even under native spoofing, because
+  no protocol command denies the request for one tab.
