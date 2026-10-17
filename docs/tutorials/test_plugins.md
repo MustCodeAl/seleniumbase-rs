@@ -36,11 +36,9 @@ let mut plugins = Plugins::new()
     .with(ReportPlugin::json("latest_logs/report.json"));
 
 plugins
-    .run_browser_test("login_works", BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open("https://example.com").await?;
-            sb.assert_title("Example Domain").await
-        })
+    .run_browser_test("login_works", BrowserConfig::default(), async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_title("Example Domain").await
     })
     .await?;
 # Ok(())
@@ -75,7 +73,28 @@ Details worth knowing:
 
 Evidence comes from anything that implements `PageEvidence`. It is implemented
 for `BaseCase` and for `sb_cdp::Page`, so the same plugins work with either.
-Outside `run_browser_test`, call the hooks yourself:
+`Plugins::run_cdp_test` is the CDP twin of `run_browser_test`: it launches the
+browser, runs the test on its first tab (an async closure over `&Page`), shows
+the plugins the tab on failure and always closes the browser:
+
+```rust,no_run
+use seleniumbase_rs::plugins::observer::Plugins;
+use seleniumbase_rs::plugins::screen_shots::ScreenshotOnFailurePlugin;
+use seleniumbase_rs::sb_cdp::LaunchOptions;
+
+# async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let mut plugins = Plugins::new().with(ScreenshotOnFailurePlugin::new("latest_logs"));
+plugins
+    .run_cdp_test("checkout", LaunchOptions::default(), async |page| {
+        page.goto("https://example.com").await?;
+        page.locator("#buy").click().await
+    })
+    .await?;
+# Ok(())
+# }
+```
+
+Outside those runners, call the hooks yourself:
 
 ```rust,no_run
 use seleniumbase_rs::plugins::observer::Plugins;

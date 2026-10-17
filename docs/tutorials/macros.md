@@ -47,9 +47,10 @@ let s = selector!(partial_link, "Terms");
 
 ## `sb_test!`
 
-Generates a `#[tokio::test]` async function that creates a [`BaseCase`](crate::BaseCase),
-runs the supplied closure, and always calls `quit()` before returning. The test
-fails if the closure returns an `Err`.
+Generates a `#[tokio::test]` async function that runs the supplied block with
+[`run_browser_test`](crate::run_browser_test): it creates a
+[`BaseCase`](crate::BaseCase), runs the block, and always calls `quit()` before
+returning. The test fails if the block returns an `Err`.
 
 ```rust,no_run
 use seleniumbase_rs::sb_test;
@@ -62,11 +63,12 @@ sb_test!(visit_example, seleniumbase_rs::BrowserConfig::default(), |sb| {
 ```
 
 The `|sb| { ... }` part only looks like a closure. The macro creates the
-`BaseCase`, binds it to the name you give (a `mut` binding of type `BaseCase`,
-not a reference), and runs your block inside an `async` block whose result type
-is `Result<(), SeleniumBaseError>`; use `?` on crate methods and finish with
-`Ok(())`. It panics if the `BaseCase` cannot be created, calls `quit` whether or
-not the block failed, and then panics with the error if the block returned one.
+`BaseCase`, binds it to the name you give (a `&mut BaseCase`), and runs your
+block inside an async closure whose result type is
+`Result<(), SeleniumBaseError>`; use `?` on crate methods and finish with
+`Ok(())`. It calls `quit` whether or not the block failed (or panicked), and
+then panics with the error if the block returned one. A block that ends with
+`skip_test` passes, as it does under `run_browser_test`.
 
 <Warning>
 

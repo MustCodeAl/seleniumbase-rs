@@ -26,7 +26,7 @@ status of every Python API, `parity/upstream.toml` the upstream version,
 `rust-version = "1.99"` (the newest stable; the `msrv` CI job and the
 `Dockerfile` base image must move with it). Binaries: `sbrs` (CLI) and
 `sbrs-mcp` (MCP server, feature `mcp-server`). Default features are
-empty; `gui`, `tui`, `turso`, `rustwright`, `plugins`, `ocr`, `visual` are opt-in. The
+empty; `gui`, `tui`, `turso`, `playwright`, `plugins`, `ocr`, `visual` are opt-in. The
 experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 `MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)
 moved out in 0.3.0 to the workspace

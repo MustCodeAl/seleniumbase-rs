@@ -34,20 +34,23 @@ use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
 #[tokio::test]
 async fn user_can_open_the_home_page() -> Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open("https://example.com").await?;
-            sb.assert_element("h1").await?;
-            sb.assert_text("Example Domain", "h1").await
-        })
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_element("h1").await?;
+        sb.assert_text("Example Domain", "h1").await
     })
     .await
 }
 ```
 
-The closure receives `&mut BaseCase` and must return `Result<(), E>` where `E`
-converts into `SeleniumBaseError`. The `Box::pin` is required because the closure
-is generic over the async future type.
+The test is an async closure, `async |sb| { .. }` (or an `async fn` that takes
+`&mut BaseCase`). It receives `&mut BaseCase` and returns `Result<()>`, that is
+`Result<(), SeleniumBaseError>`, so `?` converts any error with a `From` impl
+into it. The browser is closed when the test panics too, and the panic is then
+raised again. Code written for older versions used `|sb| Box::pin(async move
+{ .. })`; drop the `Box::pin` and write `async |sb| { .. }`. To test a page
+with the Pure CDP engine instead, use `run_cdp_test(LaunchOptions::default(),
+async |page| { .. })`.
 
 Run the test:
 
@@ -135,14 +138,12 @@ result with a loop inside a single test or with a parameterized-test crate:
 async fn login_with_multiple_users() -> Result<()> {
     let users = [("alice", "secret1"), ("bob", "secret2")];
     for (user, pass) in users {
-        run_browser_test(BrowserConfig::default(), |sb| {
-            Box::pin(async move {
-                sb.open("https://example.com/login").await?;
-                sb.type_text("#username", user).await?;
-                sb.type_text("#password", pass).await?;
-                sb.click("#submit").await?;
-                sb.assert_element_visible("#dashboard").await
-            })
+        run_browser_test(BrowserConfig::default(), async |sb| {
+            sb.open("https://example.com/login").await?;
+            sb.type_text("#username", user).await?;
+            sb.type_text("#password", pass).await?;
+            sb.click("#submit").await?;
+            sb.assert_element_visible("#dashboard").await
         })
         .await?;
     }
@@ -187,11 +188,9 @@ async fn uc_smoke_test() -> Result<()> {
         .with_mode(DriverMode::Uc)
         .with_headless(true);
 
-    run_browser_test(config, |sb| {
-        Box::pin(async move {
-            sb.open("https://example.com").await?;
-            sb.assert_title_contains("Example").await
-        })
+    run_browser_test(config, async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_title_contains("Example").await
     })
     .await
 }
@@ -223,10 +222,11 @@ See [Macros](tutorials/macros.md) for the full macro catalog.
 
 <AccordionGroup>
 
-<Accordion title="Forgetting Box::pin">
+<Accordion title="Using the old Box::pin closure">
 
-`run_browser_test` requires a pinned future. The compiler error if you omit
-`Box::pin` is usually clear.
+`run_browser_test` takes an async closure now, so `|sb| Box::pin(async move { .. })`
+does not compile ("implementation of `AsyncFnOnce` is not general enough"). Write
+`async |sb| { .. }`, or call `run_browser_test_boxed` while you migrate.
 
 </Accordion>
 

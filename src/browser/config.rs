@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::api::run_settings::RunSettings;
 use crate::browser::options::{
     CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion, ExtensionArchive,
     FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
@@ -107,12 +108,53 @@ impl std::str::FromStr for Browser {
 }
 
 /// Driver execution mode.
+///
+/// The names `webdriver`, `cdp` and `uc` are read by [`FromStr`] and written by
+/// [`Display`].
+///
+/// [`FromStr`]: std::str::FromStr
+/// [`Display`]: std::fmt::Display
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DriverMode {
     #[default]
     WebDriver,
     Cdp,
     Uc,
+}
+
+impl DriverMode {
+    /// The name `Settings::mode`, `SB_MODE` and `sbrs` use for the mode.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::WebDriver => "webdriver",
+            Self::Cdp => "cdp",
+            Self::Uc => "uc",
+        }
+    }
+}
+
+impl std::fmt::Display for DriverMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for DriverMode {
+    type Err = SeleniumBaseError;
+
+    /// Reads `webdriver`, `cdp` or `uc`, in any letter case.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        match text.trim().to_ascii_lowercase().as_str() {
+            "webdriver" => Ok(Self::WebDriver),
+            "cdp" => Ok(Self::Cdp),
+            "uc" => Ok(Self::Uc),
+            _ => Err(SeleniumBaseError::parse(
+                text,
+                "a driver mode: webdriver, cdp or uc",
+            )),
+        }
+    }
 }
 
 /// Configuration for a browser session.
@@ -205,6 +247,12 @@ pub struct BrowserConfig {
     pub launch: LaunchSettings,
 }
 
+/// `timeout` in whole seconds, rounded up: the WebDriver client and
+/// `BaseCase` take seconds.
+pub(crate) fn whole_seconds(timeout: std::time::Duration) -> u64 {
+    timeout.as_secs() + u64::from(timeout.subsec_nanos() > 0)
+}
+
 impl Default for BrowserConfig {
     fn default() -> Self {
         Self::from_runtime_config(&crate::config::RuntimeConfig::default())
@@ -250,56 +298,74 @@ impl BrowserConfig {
 }
 
 impl BrowserConfig {
+    /// How the browser is driven: WebDriver, DevTools without a driver
+    /// binary, or the undetected mode (`--cdp`, `--uc`).
     pub fn with_mode(mut self, mode: DriverMode) -> Self {
         self.mode = mode;
         self
     }
 
+    /// Which browser to start (`--browser`).
     pub fn with_browser(mut self, browser: Browser) -> Self {
         self.browser = browser;
         self
     }
 
+    /// Runs the browser without a window (`--headless`); `false` opens one
+    /// (`--headed`). A default configuration is headless.
     pub fn with_headless(mut self, headless: bool) -> Self {
         self.headless = headless;
         self
     }
 
+    /// The WebDriver server to connect to, such as a Selenium Grid
+    /// (`--server`, `--port`). The default is `http://localhost:4444`, or
+    /// `SB_WEBDRIVER_URL` for [`from_env`](Self::from_env).
     pub fn with_webdriver_url(mut self, url: impl Into<String>) -> Self {
         self.webdriver_url = url.into();
         self
     }
 
+    /// The user-agent string the browser sends (`--agent`, `--user-agent`).
     pub fn with_user_agent(mut self, user_agent: impl Into<String>) -> Self {
         self.user_agent = Some(user_agent.into());
         self
     }
 
+    /// The browser's language, such as `fr-FR` (`--locale`).
     pub fn with_locale(mut self, locale: impl Into<String>) -> Self {
         self.locale = Some(locale.into());
         self
     }
 
+    /// Routes traffic through a proxy written
+    /// `[scheme://][user:password@]host:port` (`--proxy`).
     pub fn with_proxy(mut self, proxy: impl Into<String>) -> Self {
         self.proxy = Some(proxy.into());
         self
     }
 
+    /// A proxy auto-config script the browser fetches to choose its proxy
+    /// (`--proxy-pac-url`).
     pub fn with_proxy_pac_url(mut self, url: impl Into<String>) -> Self {
         self.proxy_pac_url = Some(url.into());
         self
     }
 
+    /// A browser profile folder that keeps cookies and settings between runs
+    /// (`--user-data-dir`).
     pub fn with_user_data_dir(mut self, dir: impl Into<String>) -> Self {
         self.user_data_dir = Some(dir.into());
         self
     }
 
+    /// An unpacked browser extension to load (`--extension-dir`).
     pub fn with_extension_dir(mut self, dir: impl Into<String>) -> Self {
         self.extension_dir = Some(dir.into());
         self
     }
 
+    /// A page the browser opens as soon as it starts (`--start-page`).
     pub fn with_start_page(mut self, page: impl Into<String>) -> Self {
         self.start_page = Some(page.into());
         self
@@ -515,6 +581,40 @@ impl BrowserConfig {
         self.launch.has(LaunchSwitch::RecSbCdp)
     }
 
+    /// The client-side timeout of each request sent to a Remote WebDriver
+    /// server such as a Selenium Grid (`SB_REMOTE_WEBDRIVER_TIMEOUT`). A part of
+    /// a second rounds up to a whole second. See
+    /// [`remote_webdriver_timeout_seconds`](Self::remote_webdriver_timeout_seconds).
+    #[must_use]
+    pub fn with_remote_webdriver_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.remote_webdriver_timeout_seconds = Some(whole_seconds(timeout));
+        self
+    }
+
+    /// The run-wide settings the test starts with (Python's `SB(demo=, slow=,
+    /// demo_sleep=, message_duration=)`); only the test runners apply them,
+    /// not `BaseCase::new`.
+    ///
+    /// They cover demo and slow mode, how long messages last, the default wait
+    /// and the like.
+    ///
+    /// [`run_browser_test`](crate::run_browser_test) and the plugin runner give
+    /// them to the `BaseCase` they start. A `BaseCase` built with
+    /// [`BaseCase::new`](crate::BaseCase::new) keeps
+    /// [`BaseCase::set_run_settings`](crate::BaseCase::set_run_settings) as
+    /// the way to set them. They are not part of a configuration file.
+    #[must_use]
+    pub fn with_run_settings(mut self, settings: RunSettings) -> Self {
+        self.launch.run = settings;
+        self
+    }
+
+    /// The run-wide settings; see [`with_run_settings`](Self::with_run_settings).
+    #[must_use]
+    pub fn run_settings(&self) -> &RunSettings {
+        &self.launch.run
+    }
+
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).
     pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
         self.launch.page_load_strategy = Some(strategy);
@@ -656,6 +756,45 @@ impl BrowserConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn run_settings_are_set_by_a_builder_and_stay_out_of_config_files() {
+        let demo = RunSettings::default().with_demo_mode(true);
+        let config = BrowserConfig::default().with_run_settings(demo.clone());
+        assert_eq!(config.run_settings(), &demo);
+        assert_eq!(
+            BrowserConfig::default().run_settings(),
+            &RunSettings::default()
+        );
+        let text = serde_json::to_string(&config).unwrap();
+        let back: BrowserConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.run_settings(), &RunSettings::default());
+    }
+
+    #[test]
+    fn the_remote_timeout_builder_rounds_up_to_whole_seconds() {
+        use std::time::Duration;
+        let config = BrowserConfig::default();
+        assert_eq!(config.remote_webdriver_timeout_seconds, None);
+        let set = config.with_remote_webdriver_timeout(Duration::from_millis(2500));
+        assert_eq!(set.remote_webdriver_timeout_seconds, Some(3));
+        let exact =
+            BrowserConfig::default().with_remote_webdriver_timeout(Duration::from_secs(600));
+        assert_eq!(exact.remote_webdriver_timeout_seconds, Some(600));
+    }
+
+    #[test]
+    fn a_driver_mode_is_read_from_its_name() {
+        for (text, mode) in [
+            ("webdriver", DriverMode::WebDriver),
+            ("CDP", DriverMode::Cdp),
+            (" uc ", DriverMode::Uc),
+        ] {
+            assert_eq!(text.parse::<DriverMode>().unwrap(), mode, "{text}");
+        }
+        assert!("selenium".parse::<DriverMode>().is_err());
+        assert_eq!(DriverMode::Cdp.to_string(), "cdp");
+    }
 
     #[test]
     fn reuse_is_off_until_asked_for() {

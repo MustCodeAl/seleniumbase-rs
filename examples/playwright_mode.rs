@@ -17,8 +17,8 @@
 //! access, or point `BrowserConfig::browser_binary_path` at a local Chromium.
 //! The page itself is served from `127.0.0.1` by `local_site/mod.rs`, so the
 //! example makes no other requests. The browser opens a visible window, because
-//! `PlaywrightSession::launch` is headed on purpose (use `launch_headless` for
-//! CI). The screenshot is written to `latest_logs/`.
+//! `PlaywrightSession::launch` is headed on purpose (use `launch_with_config` with
+//! `BrowserConfig::with_headless(true)` for CI). The screenshot is written to `latest_logs/`.
 
 #[cfg(feature = "playwright")]
 mod local_site;

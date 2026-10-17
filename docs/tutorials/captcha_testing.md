@@ -400,30 +400,28 @@ async fn wait_for_token(sb: &mut BaseCase, css: &str, seconds: u32) -> Result<St
 
 #[tokio::test]
 async fn signup_with_the_recaptcha_test_widget() -> Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open("http://localhost:3000/signup").await?;
-            sb.type_text("#email", "ada@example.com").await?;
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open("http://localhost:3000/signup").await?;
+        sb.type_text("#email", "ada@example.com").await?;
 
-            // 1. Wait for the widget's frame.
-            let frame = r#"iframe[src*="recaptcha/api2/anchor"]"#;
-            sb.wait_for_element_visible(frame, 15).await?;
+        // 1. Wait for the widget's frame.
+        let frame = r#"iframe[src*="recaptcha/api2/anchor"]"#;
+        sb.wait_for_element_visible(frame, 15).await?;
 
-            // 2. Click it: enter the frame (WebDriver can enter a frame from
-            //    another origin), click the checkbox, and come back out.
-            sb.switch_to_frame(frame).await?;
-            sb.click("#recaptcha-anchor").await?;
-            sb.switch_to_default_content().await?;
+        // 2. Click it: enter the frame (WebDriver can enter a frame from
+        //    another origin), click the checkbox, and come back out.
+        sb.switch_to_frame(frame).await?;
+        sb.click("#recaptcha-anchor").await?;
+        sb.switch_to_default_content().await?;
 
-            // 3. Read the token from your page.
-            let field = r#"textarea[name="g-recaptcha-response"]"#;
-            let token = wait_for_token(sb, field, 15).await?;
-            assert!(!token.is_empty());
+        // 3. Read the token from your page.
+        let field = r#"textarea[name="g-recaptcha-response"]"#;
+        let token = wait_for_token(sb, field, 15).await?;
+        assert!(!token.is_empty());
 
-            // 4. Submit and assert.
-            sb.click("#send").await?;
-            sb.assert_text_visible("Thanks", "body").await
-        })
+        // 4. Submit and assert.
+        sb.click("#send").await?;
+        sb.assert_text_visible("Thanks", "body").await
     })
     .await
 }

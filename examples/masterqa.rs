@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
     // A person has to see the page, so the browser must not be headless.
     let config = BrowserConfig::default().with_headless(false);
-    run_browser_test(config, |sb| Box::pin(verify_by_hand(sb, url))).await
+    run_browser_test(config, async |sb| verify_by_hand(sb, url).await).await
 }
 
 async fn verify_by_hand(sb: &mut BaseCase, url: String) -> Result<()> {

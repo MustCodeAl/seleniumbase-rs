@@ -35,11 +35,9 @@ use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
 #[tokio::test]
 async fn example_domain() -> Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open("https://example.com").await?;
-            sb.assert_title("Example Domain").await
-        })
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_title("Example Domain").await
     })
     .await
 }
@@ -50,9 +48,11 @@ Key properties:
 - The browser is always closed, even when assertions fail.
 - If both the test body and cleanup fail, the returned lifecycle error retains
   both failure messages.
-- The closure receives `&mut BaseCase` and must return a boxed future whose output
-  is `Result<()>`, that is `Result<(), SeleniumBaseError>`. Inside it, `?` converts
+- The test is an async closure that receives `&mut BaseCase` and returns
+  `Result<()>`, that is `Result<(), SeleniumBaseError>`. Inside it, `?` converts
   any error that has a `From` impl for `SeleniumBaseError`.
+- A test that panics (a failed `assert!`) still gets its browser closed; the
+  panic is raised again afterwards.
 - If you forget `quit`, dropping a `BaseCase` still tries to close its browser
   (see [Shutdown](#shutdown-and-signals)), but that cleanup runs in the
   background and cannot be awaited, which is why `run_browser_test` closes it

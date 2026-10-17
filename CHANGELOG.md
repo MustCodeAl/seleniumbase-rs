@@ -221,16 +221,104 @@ migrate.
   sb_assert_title_contains!(sb, "Dashboard")?;
   ```
 
+- **`run_browser_test` and `Plugins::run_browser_test` take an async closure**
+  (`F: AsyncFnOnce(&mut BaseCase) -> Result<()>`) instead of a closure that
+  returns a boxed future. The old form `|sb| Box::pin(async move { .. })` does
+  not compile against the new bound, and neither did `|sb| async move { .. }`.
+  Migration: `run_browser_test(config, |sb| Box::pin(async move { body }))`
+  becomes `run_browser_test(config, async |sb| { body })`, and
+  `|sb| Box::pin(demo(sb, url))` becomes `async |sb| demo(sb, url).await`
+  (use `async move |sb|` in a loop that moves its variables). To keep an old
+  closure compiling for now, call `run_browser_test_boxed`
+  (`Plugins::run_browser_test_boxed`), which is deprecated like
+  `BrowserTestFuture`. `sbrs mkdir`, `sbrs mkfile` and `sbrs import-python`
+  generate the new form.
+
+- **`RuntimeConfig::log_level` is an `Option<String>`** that defaults to `None`
+  (it was `"info"`), so the binaries can tell "not set" from "set to info".
+  Migration: `config.log_level` becomes `config.log_level.as_deref()
+  .unwrap_or("info")` where you read it, and `config.log_level = Some(..)`
+  where you set it.
+
+- **`Settings::load(path: Option<P>)` is split in two**, so nobody writes
+  `Settings::load(None::<&str>)`. Migration: `Settings::load(None::<&str>)?`
+  becomes `Settings::load()?`, and `Settings::load(Some(path))?` becomes
+  `Settings::load_from(path)?`. `Settings::from_toml` is deprecated; use
+  `from_file`, which reads TOML for a `.toml` name.
+
+- **`Settings::from_file`, `load`, `load_from` and `from_env` now validate**
+  (`Settings::validate`), so input that used to load is an `InvalidConfig` error:
+  an unknown `browser` or `mode`, a window width without a height (or the
+  reverse; the missing side used to default to 1920 by 1080), and a window
+  dimension of zero. Migration: spell the browser (`chrome`, `firefox`, ...) and
+  mode (`webdriver`, `cdp`, `uc`) as `Browser` and `DriverMode` parse them, set
+  both window dimensions or neither, and call `validate()` yourself on a
+  `Settings` built by hand. A blank `SB_*` variable counts as unset.
+
+- **`sb_test!` binds its `$sb` to a `&mut BaseCase`** instead of an owned
+  `BaseCase`, and a skipped test passes instead of panicking. Migration: a body
+  that moved `sb` (`sb.quit().await`, passing it by value) now borrows it, and
+  the macro closes the browser.
+
+- **`Settings::timeout_seconds`, `window_width` and `window_height` are
+  `Option`s** that default to `None`. The old defaults (30 s, 1920, 1080) were read by
+  nothing. Migration: `settings.timeout_seconds` is `settings.timeout_seconds
+  .unwrap_or(10)` where you used the number; assign `Some(..)` where you set it.
+  `screenshot_dir` is documented as stored for your code: the library never read
+  it. `Settings` also has the new public fields `webdriver_url` and `chrome_bin`,
+  and `LaunchSettings` the new `run`: a struct literal that names every field
+  needs `..Default::default()`.
+
 ### Added
 
 - `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
   prefix of.
+- `PlaywrightSession::connect_over_cdp(endpoint)` attaches to a running
+  Chromium (for example `sb_cdp::Browser::http_url()`) and works on the page it
+  has open; `close` detaches and leaves the browser running. Python reaches
+  Playwright the same way (`sb.cdp.get_endpoint_url()`).
+- `run_cdp_test(options, test)` and `Plugins::run_cdp_test(name, options,
+  test)` run a test on the first tab of a Pure CDP browser and always close it,
+  the way `run_browser_test` does for WebDriver.
+- `RuntimeConfig::from_env_lenient` (the config and the list of variables that
+  did not parse), `from_vars` and `from_vars_lenient` (read the variables from
+  a function instead of the process environment).
+- `BrowserConfig::with_run_settings(RunSettings)` (and `run_settings()`) sets
+  the demo, slow, message and timeout settings a test starts with, as Python's
+  `SB(demo=, slow=, demo_sleep=, message_duration=)` does. They stay out of
+  configuration files and of the key that decides which tests share a browser.
+  `RunSettings::with_default_timeout` is new and `Settings::timeout_seconds`
+  feeds it. Only the test runners (`run_browser_test`, `Plugins::run_browser_test`,
+  `sb_test!`) apply them; a `BaseCase` from `BaseCase::new` keeps its defaults
+  until you call `set_run_settings` and `set_timeout`.
+- `BrowserConfig::with_remote_webdriver_timeout(Duration)` sets
+  `remote_webdriver_timeout_seconds`, which had no builder; a part of a second
+  rounds up. The common `with_*` builders of `BrowserConfig` gained doc
+  comments.
+- `Settings::load_from(path)` and `Settings::validate`; `DriverMode` implements
+  `FromStr` and `Display` (`webdriver`, `cdp`, `uc`) and has `name()`.
+- `RunSettings::pause_for(PauseKind)` names what `pause(tiny: bool)` took as a
+  flag: `PauseKind::Full` after an action that changed the page, `Short` (1/3.4
+  of the time in demo mode) after one that did not. `message_duration()` keeps
+  the milliseconds of `--message-duration` (default `DEFAULT_MESSAGE_DURATION`,
+  Python's 2.55 s) and `message_duration_headless()` cuts it to 0.75 s as
+  Python does in a headless browser. New getters `slow_mode()` and
+  `demo_sleep()`. `pause` and `message_seconds` stay.
+- `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
+  at the crate root, beside `RuntimeConfig`.
 
 ### Deprecated
 
 - `assert_visible!`: use `sb_assert_visible!`.
 - `save_saved_cookies` and `load_saved_cookies`: use `save_cookies` and
   `load_cookies`.
+- `PlaywrightSession::launch_headless, `launch_with_fingerprint` and
+  `launch_headless_with_fingerprint`: they are shortcuts for
+  `launch_with_config(&BrowserConfig::default().with_headless(..)
+  .with_fingerprint(..))`.
+- `run_settings::DEFAULT_MESSAGE_SECONDS` (3): use `DEFAULT_MESSAGE_DURATION`
+  (2.55 s). `RunSettings::message_seconds` now rounds `message_duration()` up,
+  so the two cannot drift apart; the default is still 3.
 
 ### Changed
 
@@ -309,6 +397,44 @@ migrate.
   Python's and Selenium's `send_keys` do not clear the field. The timeout of
   `wait_for_element_visible` and `wait_for_element_present` is read from
   `timeout=`; a second positional argument is Python's `by`, not a timeout.
+
+### Fixed
+
+- `RunSettings` demo and slow mode pause for 0.5 s after an action, as Python
+  4.55.2 does (`DEFAULT_DEMO_MODE_TIMEOUT`); `DEFAULT_DEMO_PAUSE` was 1.2 s.
+  Pass `with_demo_sleep` to keep a longer pause.
+- `RunSettings::with_fast_mode` (`--fast`) no longer cancels demo and slow
+  mode. Python reads `--fast` only in CDP mode, where it skips short waits this
+  crate never makes, so the method is deprecated and does nothing. Behaviour
+  change: a run with demo or slow mode and `--fast` now pauses; drop the
+  `with_fast_mode(true)` call to keep the old effect of "no pauses" by turning
+  the mode off instead.
+- `Settings::to_browser_config` honours `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`
+  (the new fields `Settings::webdriver_url` and `chrome_bin`). Before, they
+  reached only `BrowserConfig::from_env` and `sbrs`, which patched them in by
+  hand, so the `sbrs mkdir` test helper ignored them. `SB_WINDOW_WIDTH` and
+  `SB_WINDOW_HEIGHT` now size the browser window (when both are set).
+- An unknown browser or driver mode is an error. `SB_BROWSER=chrom` or
+  `mode = "stealth"` used to give Chrome in WebDriver mode without a word;
+  `Settings::from_file`, `load`, `load_from` and `from_env` now call the new
+  `Settings::validate`, which also refuses a window width without a height.
+- `sbrs` and `sbrs-mcp` fall back to `RUST_LOG` when `SB_LOG_LEVEL` is unset,
+  blank or invalid (then to `info`); `RUST_LOG` used to be ignored, and the
+  docs said both. One bad `SB_*` runtime variable no longer drops the good
+  ones: both binaries now use `RuntimeConfig::from_env_lenient`, so a typo in
+  `SB_SHUTDOWN_TIMEOUT_SECS` keeps `SB_LOG_LEVEL=debug` and is logged as a
+  warning after logging starts.
+
+- A test that panics no longer leaves its browser open. `run_browser_test`,
+  `Plugins::run_browser_test` and `sb_test!` now share one lifecycle that
+  catches the panic, closes the browser, tells the plugins the test failed and
+  then raises the panic again. `sb_test!` used to panic on a skipped test and
+  to hide the test's error when `quit` also failed; it now behaves like
+  `run_browser_test`.
+
+- `PlaywrightSession` (feature `playwright`) sizes the window from
+  `BrowserConfig::with_window_size` instead of always starting maximised at
+  1920 by 1080. Without a configured size it behaves as before.
 
 A breaking change to the fingerprint API: **one field per setting, and intent
 given once.** Before, every setting was kept twice, as a value and as a mode that

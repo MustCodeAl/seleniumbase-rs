@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
     let public_url = std::env::args().nth(1);
     let url = public_url.clone().unwrap_or_else(|| site.url(DEMO_PATH));
     let config = BrowserConfig::default().with_mode(DriverMode::Uc);
-    run_browser_test(config, |sb| Box::pin(demo(sb, url, public_url.is_none()))).await
+    run_browser_test(config, async |sb| demo(sb, url, public_url.is_none()).await).await
 }
 
 async fn demo(sb: &mut BaseCase, url: String, own_page: bool) -> Result<()> {

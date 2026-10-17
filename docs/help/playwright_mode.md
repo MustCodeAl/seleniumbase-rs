@@ -74,24 +74,53 @@ sb.quit().await?;
 
 `BaseCase::new` still connects a WebDriver browser first; `activate_playwright_mode`
 then launches a second, separate Chromium through `rustwright`, in headed mode.
-`session.close()` closes that one and `sb.quit()` closes the WebDriver one.
+It does not use the `BrowserConfig` you gave `BaseCase::new` (headless, proxy,
+user agent, fingerprint and binary path are not passed on), and `sb.quit()`
+does not close it. Close it with `session.close()`, and when the Playwright
+browser should follow your configuration, start it yourself with
+`PlaywrightSession::launch_with_config(&config)`.
 
 </Note>
 
 To use the Playwright session on its own, with no WebDriver browser, launch it
-directly. `launch_headless` runs without a window, and
-`launch_with_fingerprint` / `launch_headless_with_fingerprint` apply a
-[`Fingerprint`](../tutorials/fingerprint_stealth.md):
+directly with `launch_with_config`. The configuration decides whether it runs
+without a window (`BrowserConfig::default()` is headless; `with_headless(false)`
+opens one), which browser binary, proxy, user agent, window size and [`Fingerprint`](../tutorials/fingerprint_stealth.md) it
+uses. `launch_headless`, `launch_with_fingerprint` and
+`launch_headless_with_fingerprint` still work but are deprecated shortcuts for
+that:
 
 ```rust,no_run
 # #[cfg(feature = "playwright")]
 # async fn example() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
+use seleniumbase_rs::BrowserConfig;
 
-let session = PlaywrightSession::launch_headless().await?;
+let config = BrowserConfig::default().with_headless(true);
+let session = PlaywrightSession::launch_with_config(&config).await?;
 session.goto("https://example.com").await?;
 println!("{}", session.get_text("h1").await?);
 session.close().await?;
+# Ok(())
+# }
+```
+
+To drive a browser that is already running, attach to its DevTools endpoint
+with `connect_over_cdp`. The session works on the page the browser has open,
+and `close` only detaches, so the browser keeps running. This is Python's own
+route to Playwright, `sb.cdp.get_endpoint_url()` and `connect_over_cdp`:
+
+```rust,no_run
+# #[cfg(feature = "playwright")]
+# async fn example() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+use seleniumbase_rs::browser::playwright::PlaywrightSession;
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+let browser = Browser::launch(LaunchOptions::default()).await?;
+let session = PlaywrightSession::connect_over_cdp(&browser.http_url()).await?;
+println!("{}", session.evaluate("document.title").await?);
+session.close().await?; // detaches
+browser.close().await?;
 # Ok(())
 # }
 ```
@@ -113,6 +142,6 @@ session.close().await?;
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `activate_playwright_mode` or `PlaywrightSession` not found | Feature not enabled | Build with `--features playwright`. |
-| Chromium download fails | Network restricted | Make a Chromium available to `rustwright` ahead of time; this crate cannot pass it a path. |
+| Chromium download fails | Network restricted | Point `BrowserConfig::browser_binary_path` (or `SB_CHROME_BIN`) at a local Chromium and launch with `PlaywrightSession::launch_with_config`. |
 | A program built with `playwright` cannot load a `libpython` | A dependency of yours turns on `rustwright-core`'s default `python` feature (Python bindings); this crate leaves it off | Depend on `rustwright-core` with `default-features = false` too; nothing here needs Python. |
 | Session methods missing | API mismatch | Check the rustdocs for the installed `rustwright` version. |

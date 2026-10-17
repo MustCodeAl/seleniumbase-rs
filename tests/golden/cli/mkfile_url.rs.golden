@@ -8,11 +8,9 @@ use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
 #[tokio::test]
 async fn url_demo() -> Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open("https://example.org/app").await?;
-            sb.assert_element("body").await
-        })
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open("https://example.org/app").await?;
+        sb.assert_element("body").await
     })
     .await
 }

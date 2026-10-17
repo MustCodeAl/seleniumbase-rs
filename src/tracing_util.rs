@@ -4,7 +4,7 @@
 //!
 //! * [`tracing-subscriber`] for human-readable or JSON logs.
 //! * [`tracing-log`] to capture legacy `log` records as tracing events.
-//! * [`json-subscriber`] for structured JSON output.
+//! * JSON lines, from `tracing-subscriber`'s own JSON formatter.
 //! * [`tracing-timing`] (when the `full-tracing` feature is enabled) for
 //!   histogram timing of spans/events.
 //!
@@ -34,9 +34,24 @@ use tracing_subscriber::{EnvFilter, Layer};
 
 use crate::config::{LogFormat, RuntimeConfig};
 
-/// The filter named by `RUST_LOG`, or `info` if it is unset or invalid.
+/// The filter `directives` describes, if they are not blank and parse.
+fn parse_directives(directives: Option<&str>) -> Option<EnvFilter> {
+    let directives = directives.map(str::trim).filter(|text| !text.is_empty())?;
+    EnvFilter::try_new(directives).ok()
+}
+
+/// The filter for the first of `primary` and `rust_log` that is set and
+/// parses, else `info`. A blank value counts as unset, because an empty filter
+/// would silence everything but errors.
+fn filter_for(primary: Option<&str>, rust_log: Option<&str>) -> EnvFilter {
+    parse_directives(primary)
+        .or_else(|| parse_directives(rust_log))
+        .unwrap_or_else(|| EnvFilter::new("info"))
+}
+
+/// The filter named by `RUST_LOG`, or `info` if it is unset, blank or invalid.
 fn env_filter() -> EnvFilter {
-    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+    filter_for(None, std::env::var("RUST_LOG").ok().as_deref())
 }
 
 /// The filter `directives` describes, or the `RUST_LOG` one if they are invalid.
@@ -44,7 +59,7 @@ fn env_filter() -> EnvFilter {
 /// Built directly, so the process environment is left alone: changing it from
 /// a running program is not safe while other threads read it.
 fn filter_from(directives: &str) -> EnvFilter {
-    EnvFilter::try_new(directives).unwrap_or_else(|_| env_filter())
+    filter_for(Some(directives), std::env::var("RUST_LOG").ok().as_deref())
 }
 
 /// Whether log lines may carry colour: standard error is a terminal and the
@@ -100,9 +115,17 @@ where
 /// Initialize tracing from the current [`RuntimeConfig`].
 ///
 /// Honors `SB_LOG_LEVEL` and `SB_LOG_FORMAT` so logs are treated as an
-/// environment-driven event stream (Twelve-Factor XI).
+/// environment-driven event stream (Twelve-Factor XI). The filter is
+/// `SB_LOG_LEVEL`, else `RUST_LOG`, else `info`; a value that does not parse
+/// falls through to the next.
 pub fn init_tracing_from_runtime(config: &RuntimeConfig) {
-    install(EnvFilter::new(&config.log_level), &config.log_format);
+    install(
+        filter_for(
+            config.log_level.as_deref(),
+            std::env::var("RUST_LOG").ok().as_deref(),
+        ),
+        &config.log_format,
+    );
 }
 
 /// Install a plain text tracing subscriber and bridge `log` records.
@@ -167,6 +190,30 @@ mod tests {
         assert_eq!(std::env::var_os("RUST_LOG"), before);
         let shown = filter.to_string();
         assert!(shown.contains("seleniumbase_rs=debug"), "{shown}");
+    }
+
+    fn shown(filter: &EnvFilter) -> String {
+        filter.to_string()
+    }
+
+    #[test]
+    fn the_filter_comes_from_sb_log_level_then_rust_log_then_info() {
+        let both = shown(&filter_for(Some("debug"), Some("warn")));
+        assert!(both.contains("debug") && !both.contains("warn"), "{both}");
+        let rust_log = shown(&filter_for(None, Some("warn")));
+        assert!(rust_log.contains("warn"), "{rust_log}");
+        let neither = shown(&filter_for(None, None));
+        assert!(neither.contains("info"), "{neither}");
+    }
+
+    #[test]
+    fn a_blank_or_invalid_value_falls_through_to_the_next() {
+        for primary in ["", "   ", "=== not a filter ==="] {
+            let filter = shown(&filter_for(Some(primary), Some("warn")));
+            assert!(filter.contains("warn"), "{primary:?}: {filter}");
+        }
+        let blank_rust_log = shown(&filter_for(Some(""), Some(" ")));
+        assert!(blank_rust_log.contains("info"), "{blank_rust_log}");
     }
 
     #[test]

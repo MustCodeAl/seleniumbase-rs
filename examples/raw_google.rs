@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     let url = std::env::args()
         .nth(1)
         .unwrap_or_else(|| site.url(DEMO_PATH));
-    run_browser_test(BrowserConfig::default(), |sb| Box::pin(demo(sb, url))).await
+    run_browser_test(BrowserConfig::default(), async |sb| demo(sb, url).await).await
 }
 
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {

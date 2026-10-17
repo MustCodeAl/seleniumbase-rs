@@ -23,8 +23,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 7 | 194 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
-| [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
+| [pytest options](#pytest-options) | 263 | 112 | 105 | 46 | 0 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 17 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
@@ -940,9 +940,9 @@ Python `--option` flags.
 | `--extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--external-pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
 | `--external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
-| `--fast` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
-| `--fast-mode` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
-| `--fast_mode` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
+| `--fast` | not-applicable |  | Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
+| `--fast-mode` | not-applicable |  | Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
+| `--fast_mode` | not-applicable |  | Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
 | `--fdebug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-debug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-trace` | not-applicable |  | Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
@@ -1043,9 +1043,9 @@ Python `--option` flags.
 | `--save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `--settings` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
-| `--settings-file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
-| `--settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings-file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `--sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip-js-waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
@@ -1150,7 +1150,7 @@ Keyword arguments of `SB()`.
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
-| `fast` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
+| `fast` | not-applicable |  | Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
 | `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1194,7 +1194,7 @@ Keyword arguments of `SB()`.
 | `save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
-| `settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |

@@ -23,80 +23,85 @@ lists the limits.
 
 ## The settings
 
-`RunSettings` is not re-exported at the crate root. Import it from
-`seleniumbase_rs::api::run_settings`. Every method below is a builder that takes
-and returns `RunSettings`.
+`RunSettings` and `PauseKind` are at the crate root (`seleniumbase_rs::RunSettings`;
+the module is `seleniumbase_rs::api::run_settings`). Every method below is a
+builder that takes and returns `RunSettings`.
 
 | Builder | Python option | Default | Effect |
 |---------|---------------|---------|--------|
 | `with_demo_mode(bool)` | `--demo` (also `--demo-mode`, `--demo_mode`) | off | Scrolls the element into view and outlines it before `click`, `type_text`, `update_text` and `press_keys`, then pauses after those calls and after `open`. |
 | `with_slow_mode(bool)` | `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`) | off | The same pauses, without the outline. |
-| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Cancels the demo and slow pauses, whatever else is set. |
-| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 1.2 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
-| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 3 s | How long `post_message` and its relatives keep a message on the page. Rounded up to whole seconds. |
+| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode. |
+| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 0.5 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
+| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 2.55 s | How long `post_message` and its relatives keep a message on the page. `message_duration()` keeps the milliseconds and `message_duration_headless()` cuts it to 0.75 s as Python does; `post_message` itself still rounds up to whole seconds, so with the default it shows a message for 3 s, not 2.55 s, until it moves to the millisecond value. A zero duration is honoured here; Python treats `0` as unset. |
+| `with_default_timeout(Duration)` | none (Rust only; `SB_TIMEOUT` sets it from the environment) | 10 s | The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (a part of a second rounds up). Applied by `run_browser_test` and `Plugins::run_browser_test`; a `BaseCase::new` ignores it, so call `set_timeout` there. |
 | `with_skip_js_waits(bool)` | `--skip-js-waits` (also `--skip_js_waits`, `--sjw`) | off | Makes `wait_for_ready_state_complete` return at once. |
 | `with_record_sleep(bool)` | `--record-sleep` (also `--rec-sleep`) | off | Puts `BaseCase::sleep` calls into the recording. |
 | `with_visual_baseline_reset(bool)` | `--visual-baseline` (also `--visual_baseline`) | off | Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one. |
 
-The defaults are `DEFAULT_DEMO_PAUSE` (1200 ms) and `DEFAULT_MESSAGE_SECONDS`
-(3) in the same module.
+The defaults are `DEFAULT_DEMO_PAUSE` (500 ms, Python's `DEFAULT_DEMO_MODE_TIMEOUT`) and `DEFAULT_MESSAGE_DURATION`
+(2.55 s) in the same module.
 
-Two read-only helpers, `pause` and `message_seconds`, show the combined effect of
-the settings, which is handy in your own code and tests:
+Read-only helpers, `pause_for` and `message_duration`, show the combined effect of
+the settings, which is handy in your own code and tests. `PauseKind::Full` is a
+pause after an action that changed the page, `PauseKind::Short` one after an
+action that did not (1/3.4 of the time in demo mode):
 
 ```rust,no_run
 use std::time::Duration;
-use seleniumbase_rs::api::run_settings::RunSettings;
+use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
 
 let settings = RunSettings::default()
     .with_slow_mode(true)
     .with_demo_sleep(Duration::from_millis(500));
 
-// How long a click or open would pause (`false`), and how long typing would.
-assert_eq!(settings.pause(false), Duration::from_millis(500));
-assert_eq!(settings.pause(true), Duration::from_millis(500));
-// How many whole seconds post_message keeps its message.
-assert_eq!(settings.message_seconds(), 3);
+// How long a navigating action would pause, and how long a quiet one would.
+assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
+assert_eq!(settings.pause_for(PauseKind::Short), Duration::from_millis(500));
+// How long post_message keeps its message.
+assert_eq!(settings.message_duration(), Duration::from_millis(2550));
 ```
 
-`BaseCase::run_settings()` returns the settings in force. Besides `pause` and
-`message_seconds` there are plain getters `demo_mode()`, `skip_js_waits()`,
-`record_sleep()` and `reset_visual_baseline()`.
+`BaseCase::run_settings()` returns the settings in force. Besides `pause_for` and
+`message_duration` there are plain getters `demo_mode()`, `slow_mode()`,
+`demo_sleep()`, `skip_js_waits()`, `record_sleep()` and
+`reset_visual_baseline()`. The older `pause(tiny: bool)` and `message_seconds()`
+stay for code that already calls them.
 
 ## A complete test
 
 This test is for watching. It needs a visible browser, so it sets
-`with_headless(false)`. The settings go in first, before the first action,
-because each `BaseCase` starts with the defaults.
+`with_headless(false)`. The settings go in the configuration, so they apply from
+the first action: `run_browser_test` (and `Plugins::run_browser_test`) give
+`BrowserConfig::with_run_settings` to the `BaseCase` they start. A `BaseCase`
+you build with `BaseCase::new` starts with the defaults; call
+`set_run_settings` on it before the first action.
 
 ```rust,no_run
 use std::time::Duration;
 
-use seleniumbase_rs::api::run_settings::RunSettings;
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, BrowserConfig, Result, RunSettings};
 
 #[tokio::test]
 async fn login_for_a_demo() -> Result<()> {
-    let config = BrowserConfig::default().with_headless(false);
+    // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
+    let config = BrowserConfig::default()
+        .with_headless(false)
+        .with_run_settings(
+            RunSettings::default()
+                .with_demo_mode(true)
+                .with_demo_sleep(Duration::from_millis(800))
+                .with_message_duration(Duration::from_secs(2)),
+        );
 
-    run_browser_test(config, |sb| {
-        Box::pin(async move {
-            // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
-            sb.set_run_settings(
-                RunSettings::default()
-                    .with_demo_mode(true)
-                    .with_demo_sleep(Duration::from_millis(800))
-                    .with_message_duration(Duration::from_secs(2)),
-            );
-
-            sb.open("https://seleniumbase.io/simple/login").await?; // pause
-            sb.type_text("#username", "demo_user").await?; // outline, short pause
-            sb.type_text("#password", "secret_pass").await?; // outline, short pause
-            sb.click("#log-in").await?; // outline, pause
-            sb.assert_text_visible("Welcome!", "body").await?; // no pause
-            sb.post_message("Logged in").await?; // stays 2 seconds
-            Ok(())
-        })
+    run_browser_test(config, async |sb| {
+        sb.open("https://seleniumbase.io/simple/login").await?; // pause
+        sb.type_text("#username", "demo_user").await?; // outline, short pause
+        sb.type_text("#password", "secret_pass").await?; // outline, short pause
+        sb.click("#log-in").await?; // outline, pause
+        sb.assert_text_visible("Welcome!", "body").await?; // no pause
+        sb.post_message("Logged in").await?; // stays 2 seconds
+        Ok(())
     })
     .await
 }
@@ -132,7 +137,6 @@ fn run_settings_from_env() -> RunSettings {
     let mut settings = RunSettings::default()
         .with_demo_mode(on("MY_DEMO"))
         .with_slow_mode(on("MY_SLOW"))
-        .with_fast_mode(on("MY_FAST"))
         .with_skip_js_waits(on("MY_SKIP_JS_WAITS"))
         .with_record_sleep(on("MY_RECORD_SLEEP"))
         .with_visual_baseline_reset(on("MY_VISUAL_BASELINE"));
@@ -148,7 +152,10 @@ fn run_settings_from_env() -> RunSettings {
 }
 ```
 
-Then call `sb.set_run_settings(run_settings_from_env())` at the top of each test.
+Then build the configuration with
+`BrowserConfig::default().with_run_settings(run_settings_from_env())` (or call
+`sb.set_run_settings(run_settings_from_env())` on a `BaseCase` you made with
+`BaseCase::new`).
 Run the test with `MY_DEMO=1 cargo test login_for_a_demo -- --nocapture`.
 
 ## Which calls honour which setting
@@ -272,9 +279,9 @@ times longer. Keep them off unless a person is watching.
   for example, never pause.
 - **One outline.** Python's `--highlights` (how many times to animate) has no
   counterpart; the outline is drawn once.
-- **Not a speed-up.** `with_fast_mode` removes pauses that demo and slow mode add.
-  It is not a faster browser. `with_skip_js_waits` removes one wait, at the cost
-  of more flaky clicks on pages that are still loading.
+- **Not a speed-up.** There is no switch that removes the pauses of demo and
+  slow mode except turning them off. `with_skip_js_waits` removes one wait, at
+  the cost of more flaky clicks on pages that are still loading.
 
 ## What is tested
 

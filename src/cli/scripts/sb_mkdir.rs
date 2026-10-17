@@ -34,7 +34,7 @@ use seleniumbase_rs::{BrowserConfig, Result};
 /// It reads `sbase_config.toml` from the directory `cargo test` runs in, then
 /// lets `SB_*` environment variables (for example `SB_HEADLESS=true`) override it.
 pub fn config() -> Result<BrowserConfig> {
-    Ok(Settings::load(None::<&str>)?.to_browser_config())
+    Ok(Settings::load()?.to_browser_config())
 }
 ";
 
@@ -47,12 +47,10 @@ use crate::helpers;
 
 #[tokio::test]
 async fn my_first_test() -> Result<()> {
-    run_browser_test(helpers::config()?, |sb| {
-        Box::pin(async move {
-            sb.open(\"https://example.com\").await?;
-            sb.assert_title(\"Example Domain\").await?;
-            sb.assert_text(\"Example Domain\", \"h1\").await
-        })
+    run_browser_test(helpers::config()?, async |sb| {
+        sb.open(\"https://example.com\").await?;
+        sb.assert_title(\"Example Domain\").await?;
+        sb.assert_text(\"Example Domain\", \"h1\").await
     })
     .await
 }
@@ -76,11 +74,9 @@ const PAGES: [(&str, &str); 2] = [
 #[tokio::test]
 async fn every_page_has_its_heading() -> Result<()> {
     for (page, heading) in PAGES {
-        run_browser_test(helpers::config()?, move |sb| {
-            Box::pin(async move {
-                sb.open(page).await?;
-                sb.assert_text(heading, \"h1\").await
-            })
+        run_browser_test(helpers::config()?, async move |sb| {
+            sb.open(page).await?;
+            sb.assert_text(heading, \"h1\").await
         })
         .await?;
     }

@@ -33,22 +33,18 @@ async fn main() -> Result<()> {
 
     // A test that passes.
     let passing_url = url.clone();
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open(&passing_url).await?;
-            sb.assert_title("Web Testing Page").await
-        })
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open(&passing_url).await?;
+        sb.assert_title("Web Testing Page").await
     })
     .await?;
     println!("passing test: ok");
 
     // A test that fails on purpose. The error is returned, not lost, and the
     // browser has already been closed by the time it arrives.
-    let outcome = run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(async move {
-            sb.open(&url).await?;
-            sb.assert_title("A title this page does not have").await
-        })
+    let outcome = run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open(&url).await?;
+        sb.assert_title("A title this page does not have").await
     })
     .await;
     match outcome {

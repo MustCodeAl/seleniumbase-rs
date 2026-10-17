@@ -6,12 +6,10 @@ use crate::helpers;
 
 #[tokio::test]
 async fn my_first_test() -> Result<()> {
-    run_browser_test(helpers::config()?, |sb| {
-        Box::pin(async move {
-            sb.open("https://example.com").await?;
-            sb.assert_title("Example Domain").await?;
-            sb.assert_text("Example Domain", "h1").await
-        })
+    run_browser_test(helpers::config()?, async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_title("Example Domain").await?;
+        sb.assert_text("Example Domain", "h1").await
     })
     .await
 }

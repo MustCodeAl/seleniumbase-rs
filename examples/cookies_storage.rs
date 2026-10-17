@@ -30,7 +30,7 @@ use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, CookieExpiry, R
 async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
     // `run_browser_test` closes the browser even if a check below fails.
-    run_browser_test(BrowserConfig::default(), |sb| Box::pin(demo(sb, url))).await
+    run_browser_test(BrowserConfig::default(), async |sb| demo(sb, url).await).await
 }
 
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {

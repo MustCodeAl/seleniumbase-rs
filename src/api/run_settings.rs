@@ -7,12 +7,12 @@
 //!
 //! ```
 //! use std::time::Duration;
-//! use seleniumbase_rs::api::run_settings::RunSettings;
+//! use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
 //!
 //! let settings = RunSettings::default()
 //!     .with_slow_mode(true)
 //!     .with_demo_sleep(Duration::from_millis(500));
-//! assert_eq!(settings.pause(false), Duration::from_millis(500));
+//! assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
 //! ```
 
 use std::path::{Path, PathBuf};
@@ -26,12 +26,39 @@ use crate::error::SeleniumBaseError;
 
 /// How long demo mode and slow mode pause after an action unless
 /// [`RunSettings::with_demo_sleep`] says otherwise (Python's
-/// `DEFAULT_DEMO_MODE_TIMEOUT`).
-pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(1200);
+/// `DEFAULT_DEMO_MODE_TIMEOUT`, 0.5 s in 4.55.2).
+pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(500);
 
 /// How long [`BaseCase::post_message`](crate::BaseCase::post_message) shows a
-/// message unless [`RunSettings::with_message_duration`] says otherwise.
+/// message unless [`RunSettings::with_message_duration`] says otherwise, in
+/// whole seconds.
+#[deprecated(
+    since = "0.5.0",
+    note = "use DEFAULT_MESSAGE_DURATION (2.55 s, as in Python); RunSettings::message_seconds rounds it up"
+)]
 pub const DEFAULT_MESSAGE_SECONDS: u64 = 3;
+
+/// How long a message stays on the page unless
+/// [`RunSettings::with_message_duration`] says otherwise (Python's
+/// `DEFAULT_MESSAGE_DURATION`, 2.55 s in 4.55.2).
+pub const DEFAULT_MESSAGE_DURATION: Duration = Duration::from_millis(2550);
+
+/// The longest a message stays in a headless browser, where nobody watches
+/// (Python cuts it to 0.75 s).
+const HEADLESS_MESSAGE_CAP: Duration = Duration::from_millis(750);
+
+/// How long an action's pause lasts in demo mode.
+///
+/// Python pauses in full when an action changed the page (it navigated, or the
+/// URL changed) and for 1/3.4 of the time when it did not. Slow mode always
+/// pauses in full.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PauseKind {
+    /// The whole [`DEFAULT_DEMO_PAUSE`] or `--demo-sleep` time.
+    Full,
+    /// 1/3.4 of it in demo mode; the whole time in slow mode.
+    Short,
+}
 
 /// The settings that change how a whole test run behaves.
 ///
@@ -40,9 +67,9 @@ pub const DEFAULT_MESSAGE_SECONDS: u64 = 3;
 pub struct RunSettings {
     demo_mode: bool,
     slow_mode: bool,
-    fast_mode: bool,
     demo_sleep: Option<Duration>,
     message_duration: Option<Duration>,
+    default_timeout: Option<Duration>,
     skip_js_waits: bool,
     record_sleep: bool,
     reset_visual_baseline: bool,
@@ -64,11 +91,15 @@ impl RunSettings {
         self
     }
 
-    /// Run at full speed: no demo or slow pauses, whatever else is set
-    /// (`--fast`).
+    /// Python's `--fast`. It does nothing here and never did what this method
+    /// first claimed: Python reads `--fast` only in CDP mode, where it skips
+    /// short waits this crate never makes. It does not cancel demo or slow mode.
+    #[deprecated(
+        since = "0.5.0",
+        note = "Python's --fast skips CDP-mode waits this crate never makes; it has no effect here"
+    )]
     #[must_use]
-    pub fn with_fast_mode(mut self, on: bool) -> Self {
-        self.fast_mode = on;
+    pub fn with_fast_mode(self, _on: bool) -> Self {
         self
     }
 
@@ -80,11 +111,23 @@ impl RunSettings {
         self
     }
 
-    /// How long `post_message` keeps a message on the page, rounded up to whole
-    /// seconds (`--message-duration`).
+    /// How long `post_message` keeps a message on the page
+    /// (`--message-duration`). See [`RunSettings::message_duration`].
+    ///
+    /// [`RunSettings::message_seconds`] rounds it up to whole seconds.
     #[must_use]
     pub fn with_message_duration(mut self, duration: Duration) -> Self {
         self.message_duration = Some(duration);
+        self
+    }
+
+    /// How long waits last unless a call names a time: the default of
+    /// [`BaseCase::set_timeout`](crate::BaseCase::set_timeout), in whole
+    /// seconds, so a part of a second rounds up. Python has no such option;
+    /// its constants (`SMALL_TIMEOUT`, `LARGE_TIMEOUT`) are per call.
+    #[must_use]
+    pub fn with_default_timeout(mut self, timeout: Duration) -> Self {
+        self.default_timeout = Some(timeout);
         self
     }
 
@@ -117,6 +160,25 @@ impl RunSettings {
         self.demo_mode
     }
 
+    /// Whether slow mode is on.
+    #[must_use]
+    pub fn slow_mode(&self) -> bool {
+        self.slow_mode
+    }
+
+    /// The wait [`with_default_timeout`](Self::with_default_timeout) set, if
+    /// any.
+    #[must_use]
+    pub fn default_timeout(&self) -> Option<Duration> {
+        self.default_timeout
+    }
+
+    /// The pause [`with_demo_sleep`](Self::with_demo_sleep) set, if any.
+    #[must_use]
+    pub fn demo_sleep(&self) -> Option<Duration> {
+        self.demo_sleep
+    }
+
     /// Whether `wait_for_ready_state_complete` returns at once.
     #[must_use]
     pub fn skip_js_waits(&self) -> bool {
@@ -137,27 +199,54 @@ impl RunSettings {
 
     /// How long to pause after an action.
     ///
-    /// Zero in fast mode or when neither demo nor slow mode is on. In demo mode
-    /// a `tiny` action (typing) pauses for 1/3.4 of the full time, as in
+    /// Zero when neither demo nor slow mode is on. In demo mode a
+    /// [`PauseKind::Short`] action pauses for 1/3.4 of the full time, as in
     /// Python. Slow mode always pauses for the full time.
     #[must_use]
-    pub fn pause(&self, tiny: bool) -> Duration {
-        if self.fast_mode || !(self.demo_mode || self.slow_mode) {
+    pub fn pause_for(&self, kind: PauseKind) -> Duration {
+        if !(self.demo_mode || self.slow_mode) {
             return Duration::ZERO;
         }
         let full = self.demo_sleep.unwrap_or(DEFAULT_DEMO_PAUSE);
-        if self.demo_mode && tiny {
+        if self.demo_mode && kind == PauseKind::Short {
             full.div_f64(3.4)
         } else {
             full
         }
     }
 
+    /// [`pause_for`](Self::pause_for) with a flag: `true` is
+    /// [`PauseKind::Short`] (Python's `tiny`). Kept, not deprecated, for the
+    /// callers that already pass a flag (`BaseCase` until it moves to
+    /// [`pause_for`](Self::pause_for)); new code names the kind.
+    #[must_use]
+    pub fn pause(&self, tiny: bool) -> Duration {
+        self.pause_for(if tiny {
+            PauseKind::Short
+        } else {
+            PauseKind::Full
+        })
+    }
+
+    /// How long `post_message` keeps a message on the page: what
+    /// [`with_message_duration`](Self::with_message_duration) set, else
+    /// [`DEFAULT_MESSAGE_DURATION`].
+    #[must_use]
+    pub fn message_duration(&self) -> Duration {
+        self.message_duration.unwrap_or(DEFAULT_MESSAGE_DURATION)
+    }
+
+    /// [`message_duration`](Self::message_duration) in a headless browser,
+    /// cut to 0.75 s as Python does.
+    #[must_use]
+    pub fn message_duration_headless(&self) -> Duration {
+        self.message_duration().min(HEADLESS_MESSAGE_CAP)
+    }
+
     /// The whole seconds `post_message` keeps a message on the page.
     #[must_use]
     pub fn message_seconds(&self) -> u64 {
-        self.message_duration
-            .map_or(DEFAULT_MESSAGE_SECONDS, |d| d.as_secs_f64().ceil() as u64)
+        self.message_duration().as_secs_f64().ceil() as u64
     }
 }
 
@@ -480,11 +569,96 @@ mod tests {
     }
 
     #[test]
+    fn the_default_demo_pause_is_python_half_a_second() {
+        let settings = RunSettings::default().with_demo_mode(true);
+        assert_eq!(settings.pause(false), Duration::from_millis(500));
+        assert_eq!(DEFAULT_DEMO_PAUSE, Duration::from_millis(500));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn fast_mode_leaves_demo_and_slow_pauses_alone() {
+        let settings = RunSettings::default()
+            .with_demo_mode(true)
+            .with_slow_mode(true)
+            .with_fast_mode(true);
+        assert_eq!(settings.pause(false), DEFAULT_DEMO_PAUSE);
+    }
+
+    #[test]
+    fn a_full_pause_is_the_whole_time_and_a_short_one_a_third_of_it_in_demo_mode() {
+        let demo = RunSettings::default()
+            .with_demo_mode(true)
+            .with_demo_sleep(Duration::from_secs(34));
+        assert_eq!(demo.pause_for(PauseKind::Full), Duration::from_secs(34));
+        assert_eq!(demo.pause_for(PauseKind::Short), Duration::from_secs(10));
+        let slow = RunSettings::default()
+            .with_slow_mode(true)
+            .with_demo_sleep(Duration::from_secs(34));
+        assert_eq!(slow.pause_for(PauseKind::Short), Duration::from_secs(34));
+        assert_eq!(
+            RunSettings::default().pause_for(PauseKind::Full),
+            Duration::ZERO
+        );
+    }
+
+    #[test]
+    fn the_boolean_pause_is_pause_for() {
+        let settings = RunSettings::default().with_demo_mode(true);
+        assert_eq!(settings.pause(false), settings.pause_for(PauseKind::Full));
+        assert_eq!(settings.pause(true), settings.pause_for(PauseKind::Short));
+    }
+
+    #[test]
+    fn a_message_lasts_python_2_55_seconds_unless_told_otherwise() {
+        let settings = RunSettings::default();
+        assert_eq!(settings.message_duration(), Duration::from_millis(2550));
+        assert_eq!(DEFAULT_MESSAGE_DURATION, Duration::from_millis(2550));
+    }
+
+    #[test]
+    fn a_message_keeps_its_milliseconds() {
+        let settings = RunSettings::default().with_message_duration(Duration::from_millis(1500));
+        assert_eq!(settings.message_duration(), Duration::from_millis(1500));
+    }
+
+    #[test]
+    fn a_headless_message_is_cut_to_three_quarters_of_a_second() {
+        let settings = RunSettings::default();
+        assert_eq!(
+            settings.message_duration_headless(),
+            Duration::from_millis(750)
+        );
+        let short = settings.with_message_duration(Duration::from_millis(300));
+        assert_eq!(
+            short.message_duration_headless(),
+            Duration::from_millis(300)
+        );
+    }
+
+    #[test]
+    fn the_default_timeout_is_unset_until_asked_for() {
+        assert_eq!(RunSettings::default().default_timeout(), None);
+        let settings = RunSettings::default().with_default_timeout(Duration::from_secs(5));
+        assert_eq!(settings.default_timeout(), Some(Duration::from_secs(5)));
+    }
+
+    #[test]
+    fn the_getters_give_back_what_was_set() {
+        let settings = RunSettings::default()
+            .with_slow_mode(true)
+            .with_demo_sleep(Duration::from_millis(250));
+        assert!(settings.slow_mode() && !settings.demo_mode());
+        assert_eq!(settings.demo_sleep(), Some(Duration::from_millis(250)));
+        assert_eq!(RunSettings::default().demo_sleep(), None);
+    }
+
+    #[test]
     fn the_default_changes_nothing() {
         let settings = RunSettings::default();
         assert_eq!(settings.pause(false), Duration::ZERO);
         assert_eq!(settings.pause(true), Duration::ZERO);
-        assert_eq!(settings.message_seconds(), DEFAULT_MESSAGE_SECONDS);
+        assert_eq!(settings.message_seconds(), 3, "2.55 s rounded up");
         assert!(!settings.skip_js_waits() && !settings.record_sleep());
     }
 
@@ -502,15 +676,6 @@ mod tests {
             .with_demo_sleep(Duration::from_secs(34));
         assert_eq!(settings.pause(false), Duration::from_secs(34));
         assert_eq!(settings.pause(true), Duration::from_secs(10));
-    }
-
-    #[test]
-    fn fast_mode_wins_over_demo_and_slow() {
-        let settings = RunSettings::default()
-            .with_demo_mode(true)
-            .with_slow_mode(true)
-            .with_fast_mode(true);
-        assert_eq!(settings.pause(false), Duration::ZERO);
     }
 
     #[test]
