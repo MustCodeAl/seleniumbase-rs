@@ -581,9 +581,12 @@ impl BrowserConfig {
         self
     }
 
-    /// The run-wide settings the test starts with: demo and slow mode, how
-    /// long messages last, the default wait and the like (Python's `SB(demo=,
-    /// slow=, demo_sleep=, message_duration=)`).
+    /// The run-wide settings the test starts with (Python's `SB(demo=, slow=,
+    /// demo_sleep=, message_duration=)`); only the test runners apply them,
+    /// not `BaseCase::new`.
+    ///
+    /// They cover demo and slow mode, how long messages last, the default wait
+    /// and the like.
     ///
     /// [`run_browser_test`](crate::run_browser_test) and the plugin runner give
     /// them to the `BaseCase` they start. A `BaseCase` built with

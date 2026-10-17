@@ -97,10 +97,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn show(layer: &str, settings: &Settings) {
     println!(
-        "{layer}: browser={}, headless={}, timeout={:?}s, locale={:?}, mode={:?}",
+        "{layer}: browser={}, headless={}, timeout={}, locale={:?}, mode={:?}",
         settings.browser,
         settings.headless,
-        settings.timeout_seconds,
+        settings
+            .timeout_seconds
+            .map_or_else(|| "unset".to_owned(), |seconds| format!("{seconds}s")),
         settings.locale,
         settings.mode
     );

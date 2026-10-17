@@ -175,8 +175,8 @@ impl PlaywrightSession {
 
     /// Attaches to a Chromium that is already running, through its DevTools
     /// endpoint: an `http://host:port` address or a `ws://` URL, such as
-    /// `sb_cdp::Browser::http_url`'s, or the `debuggerAddress` of a
-    /// chromedriver session.
+    /// `sb_cdp::Browser::http_url`'s. A chromedriver session's
+    /// `debuggerAddress` is a bare `host:port`; put `http://` in front of it.
     ///
     /// The session works on the first page the browser has open, or a new one
     /// if it has none. [`close`](Self::close) only detaches from a browser
