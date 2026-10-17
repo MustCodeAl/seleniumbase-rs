@@ -12,8 +12,19 @@ use std::path::Path;
 
 use toml::{Table, Value};
 
-/// The plugins repository's commit the dependencies are pinned to.
-const PLUGINS_REV: &str = "628991af0e6c5711298e3bd3692dc2974887401a";
+/// The commit of the plugins repository the manifest pins its dependencies to.
+/// Read from the manifest, so moving the pin is an edit of the two dependency
+/// lines and of the lockfile (`cargo update -p seleniumbase-rs-plugin`) only.
+fn pinned_rev(manifest: &Table) -> String {
+    let rev = source_spec(&manifest["dependencies"][PLUGINS_REPO_DEPS[0]])[3]
+        .clone()
+        .expect("the plugin API dependency is pinned to a `rev`");
+    assert!(
+        rev.len() == 40 && rev.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "`rev` is a full commit hash, not a branch or a short hash: {rev}"
+    );
+    rev
+}
 
 /// The two dependencies on the plugins repository.
 const PLUGINS_REPO_DEPS: [&str; 2] = ["seleniumbase-rs-plugin", "seleniumbase-rs-plugins-builtin"];
@@ -86,8 +97,8 @@ fn the_plugins_repo_dependencies_use_one_source_spec() {
         let dependency = &manifest["dependencies"][name];
         assert_eq!(
             source_spec(dependency)[3].as_deref(),
-            Some(PLUGINS_REV),
-            "`{name}` is pinned to the reviewed commit of the plugins repository"
+            Some(pinned_rev(&manifest).as_str()),
+            "`{name}` is pinned to the same commit of the plugins repository"
         );
         assert_eq!(
             dependency.get("optional").and_then(Value::as_bool),
@@ -127,6 +138,7 @@ b = { version = "0.1", git = "https://example.test/repo", rev = "abc" }
 
 #[test]
 fn the_lockfile_resolves_both_to_one_package_source() {
+    let rev = pinned_rev(&read_table("Cargo.toml"));
     let lock = read_table("Cargo.lock");
     let packages = lock["package"].as_array().expect("[[package]] entries");
     let sources = |name: &str| -> Vec<String> {
@@ -140,8 +152,8 @@ fn the_lockfile_resolves_both_to_one_package_source() {
     let api = sources("seleniumbase-rs-plugin");
     assert_eq!(api.len(), 1, "one plugin API crate in the tree: {api:?}");
     assert!(
-        api[0].ends_with(&format!("#{PLUGINS_REV}")),
-        "the lockfile pins {PLUGINS_REV}: {}",
+        api[0].ends_with(&format!("#{rev}")),
+        "the lockfile pins {rev}: {}",
         api[0]
     );
     let builtin = sources("seleniumbase-rs-plugins-builtin");
