@@ -408,6 +408,10 @@ navigates). It works on a tab inside an isolated `BrowserContext` too.
 - A launch setting made before `.fingerprint(..)` wins over the fingerprint's
   (user agent, language, window size, WebRTC flag, proxy); one made after it
   replaces it.
+- A fingerprint adds only what it holds and has switched on (see
+  [A value is the switch](fingerprint_stealth.md#a-value-is-the-switch)): a
+  fingerprint with no WebRTC policy and no WebRTC masking passes no WebRTC flag,
+  and a dimension named `Natural` adds no argument and no override.
 - A fingerprint's proxy password is never sent to the browser as a header, which
   would give it to every site. The proxy is answered through its own challenge.
 - The fingerprint's `cmd_params` are not passed to Chrome, because a flag such

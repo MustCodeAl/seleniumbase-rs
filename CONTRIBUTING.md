@@ -304,7 +304,7 @@ a thin wrapper over the registry.
 
 ```rust
 use seleniumbase_rs::stealth::providers::{EvasionContext, EvasionProvider};
-use seleniumbase_rs::stealth::fingerprint::masked;
+use seleniumbase_rs::stealth::fingerprint::Dimension;
 
 pub struct MyEvasionProvider;
 
@@ -320,7 +320,9 @@ impl EvasionProvider for MyEvasionProvider {
     }
 
     fn applies(&self, fp: &crate::stealth::fingerprint::Fingerprint) -> bool {
-        masked(fp.flags.navigator_masking)
+        // The one predicate: on when the fingerprint holds a value for the
+        // dimension, or its flag says Mask; off when the flag says Natural.
+        fp.is_masked(Dimension::Navigator)
     }
 
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
@@ -353,7 +355,12 @@ before any other provider runs.
 1. Add the field to `StealthFlags` or `Fingerprint` in
    `src/stealth/fingerprint.rs`.
 2. Annotate new serde-backed fields with `#[serde(default)]`.
-3. Update `balanced()` and `all_custom()` constructors.
+3. Update `StealthFlags::default()`, `balanced()` and `mask_all()`. If the
+   field carries a value that should switch a dimension on, give the dimension
+   a `Dimension` variant (it is `#[non_exhaustive]`) with arms in
+   `Fingerprint::is_masked` and `fills_defaults`, and have the builder setter
+   call `touch` for it. Providers, launch arguments and overrides ask
+   `is_masked`, never the flag.
 4. Add coherence validation in `Fingerprint::validate()` if the field has
    required companions.
 5. Wire the field into the launcher (`browser/session.rs`), provider scripts,

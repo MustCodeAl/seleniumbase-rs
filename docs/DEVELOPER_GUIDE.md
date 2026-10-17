@@ -299,8 +299,9 @@ Launch and session plumbing:
 
 Anti-detection layer:
 
-- `fingerprint.rs` — `Fingerprint`, `StealthFlags`, `MaskingMode`, presets,
-  coherence validation, and `BrowserType`.
+- `fingerprint.rs` — `Fingerprint`, `StealthFlags`, `MaskingMode`, `Dimension`,
+  the builder, presets (including `edge_desktop`), coherence validation, and
+  `BrowserType`.
 - `evasions.rs` / `providers/` — JavaScript evasion registry and 25 built-in
   providers.
 - `patcher.rs` — `ChromedriverPatcher` and `EnginePatch` definitions.
@@ -347,7 +348,7 @@ The stealth system has four independent axes:
 
 1. **Launch configuration** — `StealthOptions` emits Chromium args and prefs.
 2. **Runtime JavaScript** — `EvasionProvider`s generate a bootstrap script.
-3. **CDP-level overrides** — `evasions::cdp_overrides()` sends
+3. **CDP-level overrides** — `evasions::safe_cdp_overrides()` sends
    `Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`,
    `Emulation.setTimezoneOverride`, `Emulation.setLocaleOverride`,
    `Emulation.setGeolocationOverride`, and related commands. When
@@ -388,19 +389,26 @@ composed of:
 - `os`, `vendor`, `renderer` — reported by the navigator provider.
 - `screen`, `viewport` — screen spoofing.
 - `geolocation`, `timezone`, `locale` — location spoofing.
-- `webrtc_policy`, `flags` — policy and toggle switches.
+- `webrtc_policy` (an `Option`), `flags` — policy and toggle switches.
 - `proxy` — optional proxy URL.
 
 `MaskingMode` controls how a flag is applied:
 
-- `Natural` — use the real browser value.
-- `Mask` — apply a deterministic generic value.
-- `Custom` — use the explicit value from `Fingerprint` if available.
-- `Disabled` — do not apply the evasion.
+- `Auto` (the default) — on when the `Fingerprint` has a value for the
+  dimension, off otherwise.
+- `Natural` — explicitly off: use the real browser value.
+- `Mask` — on, filling a value the fingerprint lacks with a generic one.
+- `Custom` and `Disabled` — deprecated spellings of `Mask` and `Natural`.
 
-`Fingerprint::validate()` enforces coherence: if `webrtc_masking` is `Custom`,
-then `webrtc_policy` must be set; if `proxy_masking` is `Custom`, then `proxy`
-must be `Some`. Add similar rules when introducing inter-dependent fields.
+Providers, launch arguments and protocol overrides do not read the flags
+themselves: they ask `Fingerprint::is_masked(Dimension::...)`, so there is one
+rule. A builder value setter marks its dimension and `build()` turns it on, so
+nobody sets `fp.flags` after giving a value.
+
+`Fingerprint::validate()` returns a `CoherenceReport` of errors and warnings
+(platform and user agent against the OS persona, a WebGL renderer from another
+OS's graphics API, a locale from another country than the time zone, and so on).
+Add a rule there when introducing inter-dependent fields.
 
 ### Provider execution order
 
@@ -579,10 +587,10 @@ fn selector_parses_link_text() {
 
 ```rust
 #[tokio::test]
-async fn fingerprint_validates_custom_proxy() {
-    let fp = Fingerprint::builder().build();
-    fp.flags.proxy_masking = ProxyMaskingMode::Custom;
-    assert!(fp.validate().is_err());
+async fn a_value_turns_its_dimension_on() {
+    let fp = Fingerprint::builder().timezone("Europe/Berlin").build();
+    assert!(fp.is_masked(Dimension::Timezone));
+    assert!(!fp.is_masked(Dimension::Screen));
 }
 ```
 

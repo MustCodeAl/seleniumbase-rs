@@ -8,10 +8,137 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+A breaking change to the fingerprint and stealth-flags API: **a value you give a
+fingerprint now turns its own masking on.** Before, a value given to
+`FingerprintBuilder` did nothing in the page script until you also flipped
+`fp.flags`, and the launch arguments and protocol overrides ignored the flags
+altogether, so one fingerprint was half applied. The Python-parity methods
+(`parity/api.toml`) are unchanged; the fingerprint and flags API is Rust-only.
+
+### Breaking
+
+- `MaskingMode`, `PopupMode`, `ProxyMaskingMode` and `CanvasNoiseMode` gain
+  `Auto`, which is now the default of every mode in `StealthFlags::default()`:
+  a dimension is on exactly when the fingerprint holds a value for it. `Mask`
+  is on and fills what is missing, `Natural` is explicitly off. The default was
+  `Natural` (off) for most flags and `Mask` for the canvas, so an empty builder
+  no longer adds canvas noise, the Modernizr hairline fix or a WebRTC policy
+  flag, and `StealthFlags::balanced()` no longer invents navigator, WebGL, time
+  zone or language values (`Mask` still fills them). A fingerprint saved by
+  this version names `Auto`, which older versions of the crate cannot read, and
+  neither can the passports of seleniumbase-rs-stealth until they are rebuilt
+  against this one; files from older versions load as before.
+- `Fingerprint::webrtc_policy` is `Option<WebRtcPolicy>` (a saved file with the
+  bare value still loads). `None` passes no `--force-webrtc-ip-handling-policy`
+  unless WebRTC is masked, which uses `DisableNonProxiedUdp`; every fingerprint,
+  even `Fingerprint::default()`, used to pass the flag.
+- The default flags of `StealthFlags::balanced()` changed with it: WebRTC, canvas
+  noise, battery, connection, speech, Bluetooth, Client Hints, `window.chrome`,
+  headless and `toString` masking are `Mask`; the dimensions that carry a value
+  of the fingerprint's own (navigator, language, time zone, screen, WebGL,
+  fonts, media devices, geolocation, audio, proxy) are `Auto`. Audio and media
+  devices were `Natural` and the geolocation popup `Prompt`.
+- An explicit `Natural` (or the deprecated `Disabled`) now also leaves out that
+  dimension's launch argument and protocol override. It used to switch off only
+  the page script, and a user agent, locale, time zone or position was still
+  sent to the browser.
+- `chrome_runtime` and `localization` no longer switch on with
+  `navigator_masking`, and `permissions` follows `headless_masking` instead of
+  it; each follows its own flag (and a value for it).
+- `FingerprintBuilder::flags(..)` sets a base, not the last word: it can come
+  before or after the value setters and never switches off a dimension a value
+  turned on. Use the new `with_flags` to turn one off. Code that wrote
+  `fp.flags.x = ..` after `build()` still compiles and works.
+- The Linux preset reports an ANGLE-over-OpenGL renderer instead of Direct3D,
+  and the macOS preset reports ANGLE over Metal. Every preset carries the
+  position of its time zone's city, so the geolocation popup is answered
+  (`Browser.grantPermissions` includes `geolocation`).
+- `fingerprint!(edge)` is the new Edge preset, not the Windows Chrome one.
+- `Fingerprint::randomized` sets an `audio_seed`, so the audio noise its
+  documentation promises now runs. Randomized identities are otherwise unchanged
+  for a seed.
+- `profile_payloads::{Flags, Fingerprint, ProxyConfig}` are renamed
+  `ProfileFlags`, `ProfileFingerprint` and `ProfileProxy` (the old names are
+  deprecated aliases). A payload's audio, media device, geolocation popup and
+  proxy flags default to `"auto"`, a literal value maps to `Mask` (not `Custom`),
+  and `"disabled"` and `"block"` read as `"natural"`, except for WebRTC, where
+  they still pass the policy that stops the leak.
+- The MCP tool `build_stealth_bootstrap` is removed: it returned the same script
+  as `get_stealth_bootstrap_script`. That script, and the providers
+  `list_evasion_providers` lists, are now the 27 a browser session runs
+  (`session_registry`), not the 29 of `default_registry`.
+- `evasions::launch_args` passes `--no-sandbox` and `--disable-setuid-sandbox`
+  only on Linux, as `StealthOptions` does.
+
+### Deprecated
+
+- `evasions::cdp_overrides`: use `safe_cdp_overrides`, which leaves out the
+  `Proxy-Authorization` header that would hand the proxy's login to every site.
+- `StealthFlags::all_custom`: use `mask_all`. `MaskingMode::Custom` is the same
+  as `Mask` and `MaskingMode::Disabled` the same as `Natural`;
+  `ProxyMaskingMode::{Socks5, Http, Https}` are the same as `Custom` and
+  `Direct` the same as `Disabled`.
+- `FingerprintBuilder::media_devices(a, b, c)`: use `media_device_counts`, which
+  names what it sets.
+- `StealthFlags::graphics_noise` (it never drove graphics noise) and
+  `StealthFlags::humanize` (the switch is `Fingerprint::humanize`) are ignored.
+  They stay so saved fingerprints load.
+
+### Added
+
+- `Fingerprint::is_masked(Dimension)`: the one question the page-script
+  providers, the launch arguments, the protocol overrides and the proxy ask.
+  `Dimension` lists what can be masked; `fills_defaults` says whether a dimension
+  is `Mask`; `geolocation_popup()` resolves `PopupMode::Auto`.
+- `FingerprintBuilder::with_flags`, `canvas_seed`, `audio_seed`, `avail_screen`,
+  `product_sub`, `build_id`, `app_version` and `media_device_counts`. `seed(v)`
+  is `canvas_seed(v)` and `audio_seed(v ^ 0x5DEE_CE66)`, the noise a single seed
+  gave before. `build()` derives the language list from the locale and the OS
+  persona and `navigator.platform` from a recognised user agent, only when
+  unset. Every value setter has a doc comment saying what it turns on.
+- `Fingerprint::audio_seed`, `avail_width` and `avail_height`;
+  `StealthFlags::mask_all` and `open_shadow_roots` (the `attach_shadow` switch,
+  on by default).
+- `Fingerprint::edge_desktop()` (`Edg/` user agent, `Microsoft Edge` Client
+  Hints through `randomize::{edge_user_agent, edge_hints}`), also in the MCP
+  preset list; `randomize::locale_of_timezone`.
+- `evasions::session_script`, the script the pure CDP engine runs, which the
+  WebDriver `Uc` and `Cdp` modes now run too.
+- `PopupMode::Block` is implemented: the page's request is answered with
+  `PERMISSION_DENIED`. `CanvasNoiseMode::{Random, Persistent, Low}` add noise.
+- `Fingerprint::validate()` reports a WebGL renderer from another OS's graphics
+  API and a `MobileSafari` persona with a `Chrome/` user agent as errors, and a
+  locale from another country than the time zone and a masked WebGL with no
+  renderer on a non-Apple OS as warnings.
+
 ### Fixed
 
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
   (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
+- Canvas noise ran only for `CanvasNoiseMode::Mask`; `Persistent`, `Random` and
+  `Low`, which the payload parser produces, switched it off.
+- WebDriver sessions in the `Uc` and `Cdp` modes ran the 29-provider script of a
+  browser without `navigator.plugins` (replaced getters a real Chrome does not
+  have), while the pure CDP engine ran the 27-provider one.
+- An allowed geolocation popup did not grant the geolocation permission, so the
+  position override waited on a prompt nobody presses. The ports a fingerprint
+  lists (`blocked_ports`, `ports_masking`) were stored and never blocked; they
+  are now refused on `localhost`, `127.0.0.1` and `[::1]` through the same
+  `Network.setBlockedURLs` command as the tracker list. The Modernizr hairline
+  fix followed `graphics_noise` and was switched off by `Low`, `Medium` and
+  `High`; it follows `headless_masking`.
+- Ad blocking in the `Cdp` and `Uc` modes replaced the fingerprint's tracker and
+  port block, because a second `Network.setBlockedURLs` replaces the first; the
+  command now carries both.
+- `--user-agent`, `--lang`, `--window-size` and `--proxy-server` were sent twice,
+  from the options and from the fingerprint; each is sent once, with the value
+  that was already in effect.
+- The `Accept-Language` of the user agent override was sent (with an invented
+  `en-US,en;q=0.9`) whenever a user agent was set; it is sent only when the
+  localization is on.
+- The Tauri profile manager example applies a fingerprint with
+  `Page::apply_fingerprint` instead of its own copy, which used the unsafe
+  `cdp_overrides` and the 29-provider script.
 
 ## [0.3.0] - 2026-10-15
 

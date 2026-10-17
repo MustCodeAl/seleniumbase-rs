@@ -21,7 +21,8 @@ the scraper built on it, is a separate project now; see
 - How to use built-in fingerprint presets.
 - How to generate a random but coherent `Fingerprint` from a seed.
 - How to build a custom `Fingerprint`.
-- How `StealthFlags` masking modes work.
+- How a value you give turns its own dimension on, and how the
+  `StealthFlags` masking modes work.
 - How to enable native-level CDP spoofing.
 - Which launch paths apply a fingerprint, and what each one does.
 - How the evasion provider registry assembles the JavaScript bootstrap.
@@ -52,45 +53,51 @@ A fingerprint reaches the page only through a launch path that applies it:
 - With `DriverMode::Uc` (above) or `DriverMode::Cdp`, the session registers the
   evasion script and sends the protocol overrides described under
   [Native-level (CDP) spoofing](#native-level-cdp-spoofing), and the launch
-  arguments apply.
+  arguments apply. The script is the one the Pure CDP engine runs,
+  `evasions::session_script` (the 27 providers of `session_registry`); see
+  [Built-in providers](#built-in-providers).
 - With the default `DriverMode::WebDriver`, only the launch arguments apply (user
   agent, `--lang`, `--window-size`, the WebRTC policy, and the QUIC and proxy
   flags). No script is injected and no protocol override is sent.
 - The Pure CDP engine and the Playwright session have their own paths, described
-  below. The Pure CDP engine runs the script of `session_registry` (27 providers),
-  not `default_registry` (29); see [Built-in providers](#built-in-providers).
+  below. The Pure CDP engine runs the same `session_script`. The Playwright
+  session runs `bootstrap_script`, the 29 providers of `default_registry`.
 
 ## Fingerprint presets
 
 Built-in presets set a coherent combination of user agent, platform, screen,
-WebGL strings, and masking flags (`StealthFlags::balanced()`):
+WebGL strings, a time zone with the position of its city, and masking flags
+(`StealthFlags::balanced()`):
 
 | Preset | What it claims |
 |---|---|
-| `Fingerprint::windows_desktop()` | Chrome 156 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York`, an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
-| `Fingerprint::macos_desktop()` | Chrome 156 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, WebGL `Apple Inc.` / `Apple M3`. The user agent is Chrome's, not Safari's. |
-| `Fingerprint::linux_desktop()` | Chrome 156 on Linux x86_64, 1920x1080, `America/Chicago`, and the same Direct3D 11 NVIDIA renderer string as the Windows preset, which a Linux machine would not report. Set `.webgl(..)` or use `Fingerprint::randomized` for a believable Linux GPU. |
+| `Fingerprint::windows_desktop()` | Chrome 156 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York` (and the position of New York), an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
+| `Fingerprint::edge_desktop()` | The Windows preset as Microsoft Edge 156. The user agent ends with `Edg/156.0.0.0`, and the Client Hints name `Microsoft Edge` where Chrome names itself `Google Chrome` (`randomize::edge_hints`; Edge's full versions are not in the Chrome table, so they are the frozen `156.0.0.0`). |
+| `Fingerprint::macos_desktop()` | Chrome 156 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, and the WebGL strings Chrome reports on a Mac: `Google Inc. (Apple)` and `ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)`. The user agent is Chrome's, not Safari's. |
+| `Fingerprint::linux_desktop()` | Chrome 156 on Linux x86_64, 1920x1080, `America/Chicago`, an NVIDIA RTX 4070 through ANGLE over OpenGL (`Google Inc. (NVIDIA Corporation)`), worded as a generated Linux identity words it. |
 | `Fingerprint::android_mobile()` | Chrome 156 on Android, in Chrome's frozen user agent (`Linux; Android 10; K`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
 | `Fingerprint::ios_mobile_safari()` | Mobile Safari 26.0 on an iPhone (`iPhone OS 18_6`, the iOS version Safari 26 freezes in its user agent), 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`, Safari-style Client Hints. |
 
-Every preset sets a time zone but no geolocation, so `validate()` reports the
-warning "timezone set without geolocation" for each of them (warnings do not
-make a report incoherent). Add `.geolocation(lat, lon)` to silence it.
+Every preset also carries the position of the city of its time zone
+(`randomize::locale_of_timezone`), so `validate()` has nothing to warn about
+and the geolocation request is answered (see
+[Native-level (CDP) spoofing](#native-level-cdp-spoofing)). All six presets
+validate without errors or warnings; `tests/mcp_webdriver.rs` and the unit tests
+of `stealth::fingerprint` check it.
 
 Use the `fingerprint!` macro for shorter syntax. `safari` is an alias for `ios`,
-and `edge` returns the Windows preset, whose user agent is Chrome's, not
-Edge's:
+and `edge` is the Edge preset:
 
 ```rust
 use seleniumbase_rs::fingerprint;
 
 let fp = fingerprint!(windows);
+let fp = fingerprint!(edge);
 let fp = fingerprint!(macos);
 let fp = fingerprint!(linux);
 let fp = fingerprint!(android);
 let fp = fingerprint!(ios);
 let fp = fingerprint!(safari); // same as ios
-let fp = fingerprint!(edge);   // same as windows
 ```
 
 ## Randomised identities
@@ -126,10 +133,11 @@ derives every field from them:
 | Hardware | `hardwareConcurrency`, `deviceMemory`, screen size, `colorDepth` and device pixel ratio that machine ships with: a Mac gets its chip's core count and its model's screen, a PC's class decides its cores, memory and screens, and a phone gets its own screen. |
 | Place | A locale and language list, a time zone it is spoken in, and coordinates in that zone's main city, so `locale`, `timezone` and geolocation agree. |
 | Software | User agent, `platform`, `vendor` and Client Hints (built the way Chromium builds them) that agree with the OS and with the claimed Chromium version. |
-| Noise | A canvas and audio noise `seed`, different for every seed. |
+| Noise | A canvas `seed` and an `audio_seed` derived from it, different for every seed, so both noises run. |
 
 All five `OsType` values are supported. The masking flags are
-`StealthFlags::balanced()`, so the generated values are applied as they are.
+`StealthFlags::balanced()`, and every generated value turns its own dimension on,
+so the generated values are applied as they are.
 
 Things to know:
 
@@ -175,7 +183,7 @@ Things to know:
 For full control, use the builder:
 
 ```rust
-use seleniumbase_rs::{Fingerprint, StealthFlags};
+use seleniumbase_rs::Fingerprint;
 
 let fp = Fingerprint::builder()
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...")
@@ -187,97 +195,190 @@ let fp = Fingerprint::builder()
     .timezone("America/New_York")
     .webgl("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 ...)")
     .geolocation(40.7128, -74.0060)
-    .media_devices(1, 1, 2) // audio inputs, audio outputs, video inputs
-    .flags(StealthFlags::balanced())
+    .media_device_counts(1, 1, 2) // audio inputs, audio outputs, video inputs
     .build();
 ```
 
-`Fingerprint::builder()` starts from `StealthFlags::default()`, where every
-masking mode is `Natural`, so the JavaScript providers for navigator, screen,
-WebGL, time zone and the like do not run until you set the modes: either
-`.flags(StealthFlags::balanced())` as above, or one flag at a time as in the
-examples below. The protocol overrides do not depend on the modes; they are sent
-for every field that is set (see
-[Native-level (CDP) spoofing](#native-level-cdp-spoofing)).
+There is no flag to flip afterwards. Giving a value is the intent to use it, so
+each value setter turns on the masking dimension the value belongs to, and the
+fingerprint above masks its navigator, language, screen, WebGL, time zone,
+position and media devices.
+
+### A value is the switch
+
+Every `StealthFlags` mode defaults to `Auto`: the dimension is on exactly when
+the fingerprint holds a value for it. `Fingerprint::is_masked(Dimension)` is the
+one question the page-script providers, the launch arguments, the protocol
+overrides and the proxy all ask, so a value is never half applied (a user agent
+sent to the browser but not to the page, say).
+
+| Setters | Turn on | What then acts |
+|---|---|---|
+| `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `os_cpu`, `product_sub`, `build_id`, `app_version` | `Dimension::Navigator` | The `navigator_props` and `plugins` providers, `--user-agent`, `Network.setUserAgentOverride`. |
+| `locale`, `languages`, `accept_languages` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
+| `timezone` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
+| `screen`, `avail_screen`, `pixel_ratio`, `color_depth` | `Screen` | The `window_geometry` provider, `--window-size` and `Emulation.setDeviceMetricsOverride`. |
+| `webgl` | `Graphics` | The `webgl` provider. |
+| `fonts` (when not empty) | `Fonts` | The `fonts` provider. |
+| `media_device_counts`, `media_device_specs` | `MediaDevices` | The `media_devices` provider. |
+| `geolocation`, `altitude`, `accuracy` | `Geolocation` | The `geolocation` provider, `Emulation.setGeolocationOverride`, and the geolocation permission (the popup is answered with `Allow`). |
+| `webrtc_ips`, `webrtc_policy` | `WebRtc` | The `webrtc` provider and `--force-webrtc-ip-handling-policy`. |
+| `canvas_seed`, `seed` | `Canvas` | The `canvas_noise` provider. |
+| `audio_seed`, `seed` | `Audio` | The `audio_noise` provider. |
+| `battery`, `connection`, `speech_voices` (when not empty), `client_hints` | `Battery`, `Connection`, `Speech`, `ClientHints` | The provider of the same name. |
+| `proxy` | `Proxy` | `--proxy-server`, when the proxy has a host. |
+| `blocked_ports` | `Ports` | The ports are refused on `localhost`, `127.0.0.1` and `[::1]` with `Network.setBlockedURLs`. |
+| `blocked_trackers` (when not empty) | `Trackers` | The `tracker_block` provider and `Network.setBlockedURLs`. |
+
+`seed(v)` is `canvas_seed(v)` and `audio_seed(v ^ 0x5DEE_CE66)`, which is the
+noise a single seed gave before the two were separate. `webgl_ids` keeps the PCI
+ids with the fingerprint for tools that read them; pages never see them, so it
+turns nothing on.
+
+The dimensions with no value of their own (Bluetooth, the `window.chrome` stubs
+and the headless fixes) are on only as `Mask`, which `StealthFlags::balanced()`
+does for them.
+
+How the flags and the values meet:
+
+- `.flags(base)` gives a base, such as `StealthFlags::balanced()`. Whether it is
+  called before or after the value setters makes no difference, and it never
+  switches off a dimension a value turned on.
+- `.with_flags(|f| ...)` is the explicit way to switch a dimension off, or to
+  `Mask` it. It runs last, after the base and the values, in the order given.
+- `build()` fills two values the caller left out: `languages`, from the locale
+  (the table's list for a known locale, else the locale and its language), and
+  the OS persona and `navigator.platform`, from a recognised user agent. A value
+  you set is never replaced.
+
+```rust
+use seleniumbase_rs::{Dimension, Fingerprint, MaskingMode, StealthFlags};
+
+// The preset can come first or last: the time zone is on either way.
+let fp = Fingerprint::builder()
+    .flags(StealthFlags::balanced())
+    .timezone("Europe/Berlin")
+    .build();
+assert!(fp.is_masked(Dimension::Timezone));
+
+// An override turns it off again, whatever was given.
+let fp = Fingerprint::builder()
+    .timezone("Europe/Berlin")
+    .with_flags(|f| f.timezone_masking = MaskingMode::Natural)
+    .build();
+assert!(!fp.is_masked(Dimension::Timezone));
+```
+
+A fingerprint written field by field, or loaded from JSON, is read the same
+way: a flag the file does not name is `Auto`, and a file that says `Natural`
+keeps that dimension off. Nothing turns a dimension on for you there except the
+value itself, so there is no reason to set `fp.flags` after giving a value.
 
 ## Masking modes
 
 `StealthFlags` controls which dimensions are spoofed. Most flags are a
-`MaskingMode`, which has four values. This is what the built-in providers do
-with each:
+`MaskingMode`, which has these values:
 
 | Mode | What happens |
 |---|---|
-| `Natural` | The provider is not emitted, so the page sees the browser's real value. |
-| `Mask` | The provider is emitted. It uses the `Fingerprint` field when it is set and a built-in default otherwise (the WebGL provider falls back to `Intel Inc.` / `Intel Iris OpenGL Engine`, the time zone provider to `America/New_York`). |
-| `Custom` | The same as `Mask`: no built-in provider tells the two apart. The profile-payload parser sets `Custom` when a payload supplied a literal value. |
-| `Disabled` | The same as `Natural`, except for `native_tostring_masking` and `headless_masking`, whose providers (`native_tostring`, `attach_shadow`) keep running unless the flag is `Disabled`. |
+| `Auto` (the default) | The dimension is on when the fingerprint has a value for it and off otherwise. The providers define only the values the fingerprint holds. |
+| `Natural` | Explicitly off: the page sees the browser's real value, whatever the fingerprint holds. The launch argument and the protocol override for the dimension are left out too. For `native_tostring_masking` it removes the `native_tostring` provider. |
+| `Mask` | On. A value the fingerprint lacks is filled with a generic one (the WebGL provider falls back to `Intel Inc.` / `Intel Iris OpenGL Engine`, the time zone provider to `America/New_York`). The dimensions with no value of their own are on only as `Mask`. |
+| `Custom` | Deprecated: the same as `Mask`. |
+| `Disabled` | Deprecated: the same as `Natural`. |
 
-Some flags are not a `MaskingMode`: `graphics_noise` and `ports_masking` are a
-`NoiseMode`, `canvas_noise` is a `CanvasNoiseMode`, `proxy_masking` is a
-`ProxyMaskingMode`, `quic_mode` is a `QuicMode`, `geolocation_popup` is a
-`PopupMode`, `startup_behavior` is a `StartupBehavior`, and the last five flags
-in the table below are `bool`.
+Some flags are not a `MaskingMode`, and each has its own `Auto`:
 
-`StealthFlags::default()` leaves every `MaskingMode` at `Natural`.
-`StealthFlags::balanced()` masks the dimensions the table marks `Mask`.
-`StealthFlags::all_custom()` sets every `MaskingMode`, `proxy_masking` and
-`startup_behavior` to `Custom`, for when every value is supplied explicitly.
+- `canvas_noise` is a `CanvasNoiseMode`. `Auto` adds noise when the fingerprint
+  has a `seed`. `Mask` adds seeded noise (from the user agent when there is no
+  seed), `Persistent` is the same, `Random` draws a fresh seed for each document
+  and `Low` touches one pixel in eight. `Natural` and `Disabled` add none.
+- `proxy_masking` is a `ProxyMaskingMode`. `Auto` uses the fingerprint's proxy
+  when it has a host. `Custom` uses it whatever its host; `Socks5`, `Http` and
+  `Https` are the same as `Custom`, because the proxy's own `type` says how to
+  reach it. `Disabled` and `Direct` never use it.
+- `geolocation_popup` is a `PopupMode`. `Auto` is `Allow` for a fingerprint with
+  a position and `Prompt` for one without; `Fingerprint::geolocation_popup()`
+  returns it resolved. `Allow` answers the page's request with the position,
+  `Block` answers it as a user who pressed "Block" would (`PERMISSION_DENIED`),
+  and `Prompt` leaves the browser's own prompt.
+- `ports_masking` and `graphics_noise` are a `NoiseMode`; `quic_mode` is a
+  `QuicMode`; `startup_behavior` is a `StartupBehavior`; and `humanize`,
+  `block_trackers`, `disable_csp`, `grant_permissions`, `native_spoofing` and
+  `open_shadow_roots` are `bool`.
+
+`StealthFlags::default()` leaves every mode at `Auto`.
+`StealthFlags::balanced()` is the base of every preset: the dimensions that carry
+a value of the fingerprint's own stay on `Auto`, and WebRTC, canvas noise,
+battery, connection, speech, Bluetooth, Client Hints, the `window.chrome` stubs,
+the headless fixes and `toString` masking are `Mask`.
+`StealthFlags::mask_all()` sets every dimension to `Mask` (and `all_custom()`, its
+deprecated name, did the same).
 
 ## Stealth flag reference
 
 The `default()` column is `StealthFlags::default()` and the `balanced()` column
 is `StealthFlags::balanced()`, which every preset and every `randomized`
-identity uses. "Provider" names are the built-in evasion providers listed under
+identity uses. `Auto` means "on when the fingerprint has a value for it". "Provider"
+names are the built-in evasion providers listed under
 [Built-in providers](#built-in-providers).
 
 | Flag | Type | `default()` | `balanced()` | What it controls |
 |---|---|---|---|---|
-| `webrtc_masking` | `MaskingMode` | `Natural` | `Mask` | The `webrtc` provider: drops STUN and TURN servers from `RTCPeerConnection` configs and, when `webrtc_public_ip` or `webrtc_local_ip` is set, rewrites the IPs in SDP and ICE candidates. The Chrome launch flag comes from `webrtc_policy`, not from this flag. |
-| `audio_masking` | `MaskingMode` | `Natural` | `Natural` | The `audio_noise` provider. |
-| `graphics_noise` | `NoiseMode` | `Mask` | `Mask` | Only switches the `hairline` provider on (`Mask` or `Natural`) or off (any other value). `Low`, `Medium` and `High` do not set an intensity. |
-| `geolocation_popup` | `PopupMode` | `Prompt` | `Prompt` | `Allow` makes the `geolocation` provider answer `getCurrentPosition` and `watchPosition` itself; otherwise the browser's own methods stay. |
-| `navigator_masking` | `MaskingMode` | `Natural` | `Mask` | The `navigator_props`, `permissions` and `plugins` providers (`plugins` only in `default_registry`; the Pure CDP engine leaves `navigator.plugins` and `mimeTypes` to the browser). It also switches on `chrome_runtime` and `localization`. |
-| `localization_masking` | `MaskingMode` | `Natural` | `Mask` | The `localization` provider (`navigator.language` and `navigator.languages`). |
-| `timezone_masking` | `MaskingMode` | `Natural` | `Mask` | The `timezone` provider. |
-| `graphics_masking` | `MaskingMode` | `Natural` | `Mask` | The `webgl` provider. |
-| `fonts_masking` | `MaskingMode` | `Natural` | `Mask` | The `fonts` provider, and only when `Fingerprint::fonts` is not empty. |
-| `media_devices_masking` | `MaskingMode` | `Natural` | `Natural` | The `media_devices` provider. |
-| `screen_masking` | `MaskingMode` | `Natural` | `Mask` | The `window_geometry` provider. |
-| `geolocation_masking` | `MaskingMode` | `Natural` | `Mask` | The `geolocation` provider, and only when `Fingerprint::latitude` is set. It does not affect the protocol geolocation override. |
-| `ports_masking` | `NoiseMode` | `Mask` | `Mask` | Stored only. No built-in code reads it. |
-| `proxy_masking` | `ProxyMaskingMode` | `Disabled` | `Disabled` | `Custom`, `Socks5`, `Http` and `Https` add `--proxy-server=<url>` from `Fingerprint::proxy` when it is set. `Direct` and `Disabled` add nothing. |
+| `webrtc_masking` | `MaskingMode` | `Auto` | `Mask` | The `webrtc` provider: drops STUN and TURN servers from `RTCPeerConnection` configs and, when `webrtc_public_ip` or `webrtc_local_ip` is set, rewrites the IPs in SDP and ICE candidates. The Chrome launch flag `--force-webrtc-ip-handling-policy` is passed when WebRTC is on, with `webrtc_policy` or, when none is set, `DisableNonProxiedUdp`. |
+| `audio_masking` | `MaskingMode` | `Auto` | `Auto` | The `audio_noise` provider. `Auto` needs an `audio_seed`; `Mask` derives one from the canvas seed. |
+| `graphics_noise` | `NoiseMode` | `Mask` | `Mask` | Ignored. It never drove graphics noise, and the Modernizr hairline fix it used to gate follows `headless_masking`. Kept so saved fingerprints load. |
+| `geolocation_popup` | `PopupMode` | `Auto` | `Auto` | How a geolocation request is answered: see [Masking modes](#masking-modes). With `Allow`, the `geolocation` provider answers `getCurrentPosition` and `watchPosition` itself and the geolocation permission is granted; with `Block` the provider refuses them. |
+| `navigator_masking` | `MaskingMode` | `Auto` | `Auto` | The `navigator_props` and `plugins` providers (`plugins` only in `default_registry`; the session script leaves `navigator.plugins` and `mimeTypes` to the browser), `--user-agent` and `Network.setUserAgentOverride`. |
+| `localization_masking` | `MaskingMode` | `Auto` | `Auto` | The `localization` provider (`navigator.language` and `navigator.languages`), `--lang`, `Emulation.setLocaleOverride` and the `Accept-Language` of the user agent override. |
+| `timezone_masking` | `MaskingMode` | `Auto` | `Auto` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
+| `graphics_masking` | `MaskingMode` | `Auto` | `Auto` | The `webgl` provider. |
+| `fonts_masking` | `MaskingMode` | `Auto` | `Auto` | The `fonts` provider, and only when `Fingerprint::fonts` is not empty. |
+| `media_devices_masking` | `MaskingMode` | `Auto` | `Auto` | The `media_devices` provider. Under `Auto` a count the fingerprint lacks is none; `Mask` fills it with one. |
+| `screen_masking` | `MaskingMode` | `Auto` | `Auto` | The `window_geometry` provider, `--window-size` and `Emulation.setDeviceMetricsOverride`. |
+| `geolocation_masking` | `MaskingMode` | `Auto` | `Auto` | The `geolocation` provider (only when `Fingerprint::latitude` is set), `Emulation.setGeolocationOverride` and the geolocation permission. |
+| `ports_masking` | `NoiseMode` | `Mask` | `Mask` | Whether `Fingerprint::ports` are blocked: `Natural` and `Off` leave every port open, any other mode blocks the listed ports on `localhost`, `127.0.0.1` and `[::1]` with `Network.setBlockedURLs`, in the same command as the tracker hosts. |
+| `proxy_masking` | `ProxyMaskingMode` | `Auto` | `Auto` | `--proxy-server=<url>` from `Fingerprint::proxy`: see [Masking modes](#masking-modes). |
 | `quic_mode` | `QuicMode` | `Natural` | `Natural` | `Disabled` and `ForceHttp2` add `--disable-quic`; `Enabled` adds `--enable-quic`; `Natural` and `Auto` add nothing. |
-| `canvas_noise` | `CanvasNoiseMode` | `Mask` | `Mask` | Only `Mask` runs the `canvas_noise` provider. `Natural`, `Disabled`, `Random`, `Persistent` and `Low` add no noise. |
+| `canvas_noise` | `CanvasNoiseMode` | `Auto` | `Mask` | The `canvas_noise` provider: `Mask`, `Persistent`, `Random` and `Low` run it, `Auto` runs it when there is a `seed`, `Natural` and `Disabled` do not. |
 | `startup_behavior` | `StartupBehavior` | `Recover` | `Recover` | Stored only. No built-in code reads it. |
-| `battery_masking` | `MaskingMode` | `Natural` | `Mask` | The `battery` provider. |
-| `connection_masking` | `MaskingMode` | `Natural` | `Mask` | The `connection` provider (only in `default_registry`; the Pure CDP engine leaves `navigator.connection` to the browser). |
-| `speech_masking` | `MaskingMode` | `Natural` | `Mask` | The `speech` provider. |
-| `bluetooth_masking` | `MaskingMode` | `Natural` | `Mask` | The `bluetooth` provider. |
-| `client_hints_masking` | `MaskingMode` | `Natural` | `Mask` | The `client_hints` provider. It also needs `Fingerprint::client_hints`, and it is skipped under `native_spoofing`. |
-| `native_tostring_masking` | `MaskingMode` | `Natural` | `Mask` | The `native_tostring` provider runs unless this is `Disabled`. |
-| `chrome_runtime_masking` | `MaskingMode` | `Natural` | `Mask` | The `chrome_runtime` provider (it also runs when `navigator_masking` is masked). |
-| `headless_masking` | `MaskingMode` | `Natural` | `Mask` | The `headless` provider, and `Emulation.setFocusEmulationEnabled` for `Mask` and `Custom`. The `attach_shadow` provider runs unless this is `Disabled`. |
-| `humanize` | `bool` | `false` | `false` | Stored only. `BaseCase::human_type` reads `Fingerprint::humanize` (a `HumanizeConfig`), not this flag. |
-| `block_trackers` | `bool` | `false` | `false` | The `tracker_block` provider, and `Network.setBlockedURLs` for the hosts in `Fingerprint::tracker_hosts()`. |
+| `battery_masking` | `MaskingMode` | `Auto` | `Mask` | The `battery` provider. |
+| `connection_masking` | `MaskingMode` | `Auto` | `Mask` | The `connection` provider (only in `default_registry`; the session script leaves `navigator.connection` to the browser). |
+| `speech_masking` | `MaskingMode` | `Auto` | `Mask` | The `speech` provider. |
+| `bluetooth_masking` | `MaskingMode` | `Auto` | `Mask` | The `bluetooth` provider. It has no value of its own, so only `Mask` turns it on. |
+| `client_hints_masking` | `MaskingMode` | `Auto` | `Mask` | The `client_hints` provider. It also needs `Fingerprint::client_hints`, and it is skipped under `native_spoofing`. |
+| `native_tostring_masking` | `MaskingMode` | `Auto` | `Mask` | The `native_tostring` provider runs unless this is `Natural` (or `Disabled`). |
+| `chrome_runtime_masking` | `MaskingMode` | `Auto` | `Mask` | The `chrome_runtime` provider. Only `Mask` turns it on: it no longer follows `navigator_masking`. |
+| `headless_masking` | `MaskingMode` | `Auto` | `Mask` | The `headless`, `permissions` and `hairline` providers, and `Emulation.setFocusEmulationEnabled`. Only `Mask` turns them on. |
+| `humanize` | `bool` | `false` | `false` | Ignored. `BaseCase::human_type` reads `Fingerprint::humanize` (a `HumanizeConfig`) and its `enabled` field. |
+| `block_trackers` | `bool` | `false` | `false` | The `tracker_block` provider, and `Network.setBlockedURLs` for the hosts in `Fingerprint::tracker_hosts()`. A tracker list given to `blocked_trackers` turns it on. |
 | `disable_csp` | `bool` | `false` | `false` | `Page.setBypassCSP`. |
-| `grant_permissions` | `bool` | `false` | `false` | `Browser.grantPermissions` for `notifications`, `midi`, `midiSysex`, `clipboardReadWrite`, `clipboardSanitizedWrite`, `paymentHandler`, `backgroundSync`, `idleDetection` and `webAppInstallation`. It does not grant `geolocation`. |
+| `grant_permissions` | `bool` | `false` | `false` | `Browser.grantPermissions` for `notifications`, `midi`, `midiSysex`, `clipboardReadWrite`, `clipboardSanitizedWrite`, `paymentHandler`, `backgroundSync`, `idleDetection` and `webAppInstallation`. The geolocation permission is granted by a position with the popup on `Allow`, not by this flag. |
 | `native_spoofing` | `bool` | `false` | `false` | See [Native-level (CDP) spoofing](#native-level-cdp-spoofing). |
+| `open_shadow_roots` | `bool` | `true` | `true` | The `attach_shadow` provider, which forces closed shadow roots open so automation can reach into them. A page can detect that, so turn it off where it matters. |
 
 ### Literal values in JSON payloads
 
-A profile imported through `ProfileParams` carries these flags as strings:
-`webrtc_masking`, `proxy_masking`, `geolocation_popup`, `audio_masking`,
-`graphics_noise`, `ports_masking`, `navigator_masking`, `localization_masking`,
-`timezone_masking`, `graphics_masking`, `fonts_masking`, `media_devices_masking`,
-`screen_masking`, `geolocation_masking`, `quic_mode`, `canvas_noise` and
-`startup_behavior`, plus the booleans `disable_csp`, `grant_permissions` and
-`native_spoofing`. Every other flag (battery, connection, speech, Bluetooth,
-Client Hints, `native_tostring`, `chrome_runtime`, headless, `humanize`,
-`block_trackers`) takes its `balanced()` value.
+A profile imported through `ProfileParams` carries these flags as strings
+(`ProfileFlags`): `webrtc_masking`, `proxy_masking`, `geolocation_popup`,
+`audio_masking`, `graphics_noise`, `ports_masking`, `navigator_masking`,
+`localization_masking`, `timezone_masking`, `graphics_masking`, `fonts_masking`,
+`media_devices_masking`, `screen_masking`, `geolocation_masking`, `quic_mode`,
+`canvas_noise` and `startup_behavior`, plus the booleans `disable_csp`,
+`grant_permissions` and `native_spoofing`. Every other flag (battery,
+connection, speech, Bluetooth, Client Hints, `native_tostring`, `chrome_runtime`,
+headless, `humanize`, `block_trackers`) takes its `balanced()` value.
+
+A flag the payload leaves out defaults to `"mask"` for the navigator,
+localization, time zone, graphics, fonts, screen, geolocation, WebRTC and ports
+flags, and to `"auto"` for `audio_masking`, `media_devices_masking`,
+`geolocation_popup` and `proxy_masking`: those four are on exactly when the
+payload holds a value for them. The payload's flags are applied as the explicit
+last word, so a flag the payload names `"natural"` stays off although the
+payload also holds a value for it.
 
 Many of the string flags accept a concrete literal. The parser detects the
-literal, sets the mode to `Custom`, and writes the value into the matching
+literal, sets the mode to `Mask`, and writes the value into the matching
 `Fingerprint` field:
 
 | Flag | Literal example | Populated fingerprint field |
@@ -305,128 +406,132 @@ Keywords are case-insensitive. A value the parser does not know gets the
 
 | Payload flag | Keywords and the mode they give | Falls back to |
 |---|---|---|
-| `navigator_masking` | `natural`, `off`: `Natural`. `disabled`, `block`: `Disabled`. `mask`, `spoof`, `desktop_chrome`, `mobile_safari`: `Mask`. A string starting `Mozilla/` or containing `AppleWebKit` or `Chrome/` is a user agent. | `Mask` |
-| `screen_masking` | `natural`, `native`, `off`: `Natural`. `disabled`, `block`: `Disabled`. `custom`, `mask`, `spoof`: `Mask`. | `Mask` |
-| `geolocation_masking` | `natural`, `auto`, `off`: `Natural`. `disabled`, `block`: `Disabled`. `custom`, `mask`, `spoof`: `Mask`. | `Mask` |
-| `graphics_masking` | `natural`, `pass_through`, `off`: `Natural`. `disabled`, `block`: `Disabled`. `spoof`, `generic`, `mask`: `Mask`. | `Mask` |
-| `localization_masking`, `timezone_masking` | `natural`, `auto`, `off`: `Natural`. `disabled`, `block`: `Disabled`. `mask`, `spoof`, `custom`: `Mask`. A localization value must contain `-`, a time zone must contain `/`. | `Mask` |
-| `fonts_masking` | `natural`, `off`: `Natural`. `disabled`, `block`: `Disabled`. `mask`, `spoof`, `system_only`, `random`, `blacklist`: `Mask`. Anything else is read as a comma-separated font list. | `Mask` |
-| `media_devices_masking` | `natural`, `off`: `Natural`. `disabled`, `block`, `empty`: `Disabled`. `mask`, `spoof`, `noise`: `Mask`. A value starting `2_mic_1_cam`: `Custom` with 2 audio inputs, 1 audio output and 1 video input. | `Mask` |
-| `audio_masking` | `natural`, `off`: `Natural`. `disabled`, `block`: `Disabled`. | `Mask` |
-| `webrtc_masking` | `natural`, `off`: `Natural`. `disabled`, `block`: `Disabled`, with the policy still `DisableNonProxiedUdp`. `mask`, `spoof`: `Mask`. `public_only`: `Mask` with `WebRtcPolicy::PublicInterfaceOnly`. | `Mask` |
-| `proxy_masking` | `natural`, `off`, `direct`, `disabled`: `Disabled`. `socks5`, `http`, `https`, `custom`: that mode, with no proxy address. A `socks5://`, `http://` or `https://` URL is parsed into `Fingerprint::proxy` (default port 1080 for SOCKS5, 8080 otherwise). | `Disabled` |
-| `graphics_noise` | `natural`: `Natural`. `off`: `Off`. `low`, `medium`, `high`: that value. | `Mask` |
-| `canvas_noise` | `natural`, `disabled` (or `off`), `random`, `persistent`, `low`: that mode. If the key is absent: `Mask`. | `Mask` |
+| `navigator_masking` | `natural`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. `mask`, `spoof`, `desktop_chrome`, `mobile_safari`: `Mask`. A string starting `Mozilla/` or containing `AppleWebKit` or `Chrome/` is a user agent. | `Mask` |
+| `screen_masking` | `natural`, `native`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. `custom`, `mask`, `spoof`: `Mask`. | `Mask` |
+| `geolocation_masking` | `natural`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. `custom`, `mask`, `spoof`: `Mask`. | `Mask` |
+| `graphics_masking` | `natural`, `pass_through`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. `spoof`, `generic`, `mask`: `Mask`. | `Mask` |
+| `localization_masking`, `timezone_masking` | `natural`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. `mask`, `spoof`, `custom`: `Mask`. A localization value must contain `-`, a time zone must contain `/`. | `Mask` |
+| `fonts_masking` | `natural`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. `mask`, `spoof`, `system_only`, `random`, `blacklist`: `Mask`. Anything else is read as a comma-separated font list. | `Mask` |
+| `media_devices_masking` | `natural`, `off`, `disabled`, `block`, `empty`: `Natural`. `auto`: `Auto`. `mask`, `spoof`, `noise`: `Mask`. A value starting `2_mic_1_cam`: `Mask` with 2 audio inputs, 1 audio output and 1 video input. | `Mask` |
+| `audio_masking` | `natural`, `off`, `disabled`, `block`: `Natural`. `auto`: `Auto`. | `Mask` |
+| `webrtc_masking` | `natural`, `off`: `Natural`, with no policy. `auto`: `Auto`. `disabled`, `block`: the policy `DisableNonProxiedUdp`, which turns WebRTC on whatever else the payload holds. `mask`, `spoof`: `Mask` with `DisableNonProxiedUdp`. `public_only`: `Mask` with `WebRtcPolicy::PublicInterfaceOnly`. | `Mask` |
+| `proxy_masking` | `natural`, `off`, `direct`, `disabled`: `Disabled`. `auto`: `Auto`. `socks5`, `http`, `https`, `custom`: `Custom`, with no proxy address (the proxy's own `type` says how to reach it). A `socks5://`, `http://` or `https://` URL is parsed into `Fingerprint::proxy` (default port 1080 for SOCKS5, 8080 otherwise). | `Disabled` |
+| `graphics_noise` | `natural`: `Natural`. `off`: `Off`. `low`, `medium`, `high`: that value. The flag is ignored; see the reference above. | `Mask` |
+| `canvas_noise` | `auto`, `natural`, `disabled` (or `off`), `random`, `persistent`, `low`: that mode. If the key is absent: `Mask`. | `Mask` |
 | `ports_masking` | `natural`, `off`, `disabled`: `Off`. `mask`, `spoof`, `stealth`: `Mask`. `block`, `block_all`: `Block`. `whitelist`: `Natural`. `block:80,443` or `80,443`: `Block` with those ports. | `Mask` |
-| `geolocation_popup` | `allow`, `block`. | `Prompt` |
+| `geolocation_popup` | `auto`, `prompt`, `allow`, `block`. | `Auto` |
 | `quic_mode` | `natural`, `auto`: `Natural`. `enabled`, `disabled`, `force_http2`. | `Disabled` |
 | `startup_behavior` | `custom`. | `Recover` |
 
 A payload that leaves out `quic_mode` gets `Disabled`, which adds `--disable-quic`;
 `balanced()` leaves QUIC alone.
 
-### Concrete mask-mode examples
+### Concrete examples
 
-#### Custom navigator (`navigator_masking: Custom`)
+#### A navigator
 
 ```rust
 use seleniumbase_rs::Fingerprint;
 
-let mut fp = Fingerprint::builder()
+let fp = Fingerprint::builder()
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36")
     .platform("Win32")
     .hardware_concurrency(8)
     .device_memory(8.0)
     .build();
-fp.flags.navigator_masking = seleniumbase_rs::MaskingMode::Custom;
 ```
 
 With `DriverMode::Uc` or `DriverMode::Cdp`, the `navigator_props` provider
 overrides `navigator.userAgent`, `appVersion`, `platform`, `hardwareConcurrency`
-and `deviceMemory` with the values you supplied. The same user agent is also
+and `deviceMemory` with the values you supplied. It defines only those: under
+`Auto` it adds no `vendor` or `productSub` of its own. The same user agent is also
 passed as `--user-agent` and sent as `Network.setUserAgentOverride`.
 
-#### Custom screen + geolocation (`screen_masking` / `geolocation_masking: Custom`)
+#### A screen, a position and a time zone
 
 ```rust
-use seleniumbase_rs::{Fingerprint, MaskingMode};
+use seleniumbase_rs::Fingerprint;
 
-let mut fp = Fingerprint::builder()
+let fp = Fingerprint::builder()
     .screen(1920, 1080)
     .geolocation(52.52, 13.405)
     .timezone("Europe/Berlin")
     .build();
-fp.flags.screen_masking = MaskingMode::Custom;
-fp.flags.geolocation_masking = MaskingMode::Custom;
-fp.flags.timezone_masking = MaskingMode::Mask;
 ```
 
 With `DriverMode::Uc` or `DriverMode::Cdp`:
 
 - The launch arguments include `--window-size=1920,1080`, and the `window_geometry`
   provider overrides the `screen` properties, `outerWidth`, `outerHeight` and
-  `devicePixelRatio`.
+  `devicePixelRatio`. Only the values the fingerprint holds are defined: this one
+  has no pixel ratio or colour depth, so those stay the browser's.
 - `Emulation.setDeviceMetricsOverride` and `Emulation.setGeolocationOverride` are
-  sent. They depend only on the fields being set, not on the masking modes.
+  sent.
 - The `timezone` provider patches `Intl.DateTimeFormat` and the local-time methods
   of `Date` to Berlin time, and `Emulation.setTimezoneOverride` is sent as well.
-- The `geolocation` provider answers in JavaScript only when `geolocation_popup`
-  is `PopupMode::Allow`. Otherwise the protocol override alone sets the position,
-  and the page still needs the geolocation permission (`grant_permissions` does
-  not grant it).
+- A position answers the popup with `Allow`: the `geolocation` provider answers
+  `getCurrentPosition` and `watchPosition` in JavaScript, and
+  `Browser.grantPermissions` grants the geolocation permission, so a page that
+  asks gets the position instead of waiting for a prompt nobody presses.
 
-#### Custom proxy (`proxy_masking: Custom`)
+#### A proxy
 
 ```rust
-use seleniumbase_rs::{Fingerprint, ProxyConfig, ProxyMaskingMode};
+use seleniumbase_rs::{Fingerprint, ProxyConfig};
 
-let mut fp = Fingerprint::default();
-fp.proxy = Some(ProxyConfig {
-    r#type: "http".to_owned(),
-    host: "proxy.example.com".to_owned(),
-    port: 8080,
-    username: Some("alice".to_owned()),
-    password: Some("secret".to_owned()),
-    save_traffic: false,
-});
-fp.flags.proxy_masking = ProxyMaskingMode::Custom;
+let fp = Fingerprint::builder()
+    .proxy(ProxyConfig {
+        r#type: "http".to_owned(),
+        host: "proxy.example.com".to_owned(),
+        port: 8080,
+        username: Some("alice".to_owned()),
+        password: Some("secret".to_owned()),
+        save_traffic: false,
+    })
+    .build();
 ```
 
-`ProxyConfig` has no `FromStr`; build it as above. `ProxyMaskingMode::Custom`,
-`Socks5`, `Http` and `Https` each emit
+`ProxyConfig` has no `FromStr`; build it as above. A proxy with a host is used
+under `Auto`, and emits
 `--proxy-server=http://alice:secret@proxy.example.com:8080` (the URL is
 `<type>://<user>:<password>@<host>:<port>`; Chrome ignores the credentials in
-this flag). `Disabled` and `Direct` emit nothing. `Debug` output of a
-`ProxyConfig` hides the password.
+this flag). A proxy with an empty host, such as `ProxyConfig::default()`, is
+inert until `proxy_masking` is `Custom`. `Disabled` and `Direct` emit nothing.
+`Debug` output of a `ProxyConfig` hides the password.
 
-On the WebDriver path (`DriverMode::Uc` or `Cdp`), the protocol overrides for a
-proxy that has both a user name and a password also include
-`Network.setExtraHTTPHeaders` with a `Proxy-Authorization: Basic ...` header,
-which goes to every site the tab visits. The Pure CDP engine never sends that
-header and answers the proxy's own challenge instead.
+No path of this crate sends the proxy's password as a `Proxy-Authorization`
+header: it would go to every site the tab visits. The pure CDP engine answers
+the proxy's own challenge instead, and the WebDriver path uses
+`safe_cdp_overrides`, which leaves the header out. Only the deprecated
+`evasions::cdp_overrides` still contains it.
 
-#### WebRTC masked
+#### WebRTC
 
 ```rust
-use seleniumbase_rs::{Fingerprint, MaskingMode, WebRtcPolicy};
+use seleniumbase_rs::{Fingerprint, WebRtcPolicy};
 
-let mut fp = Fingerprint::default();
-fp.flags.webrtc_masking = MaskingMode::Mask;
-fp.webrtc_policy = WebRtcPolicy::DisableNonProxiedUdp;
+let fp = Fingerprint::builder()
+    .webrtc_policy(WebRtcPolicy::DisableNonProxiedUdp)
+    .build();
 ```
 
-Two settings act on WebRTC, and they are independent:
+Giving a policy or WebRTC addresses turns the dimension on, and the dimension
+acts in two ways:
 
 - `webrtc_policy` picks a Chrome flag that is passed on every launch path that
-  takes a fingerprint. `DisableNonProxiedUdp` (the default) gives
+  takes a fingerprint. `DisableNonProxiedUdp` gives
   `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`,
   `PublicInterfaceOnly` gives `default_public_interface_only`, and
   `PublicAndPrivateInterfaces` gives `default_public_and_private_interfaces`.
-  There is no value that omits the flag, and `webrtc_masking: Disabled` does not
-  remove it.
-- `webrtc_masking` switches the JavaScript `webrtc` provider on (`Mask` or
-  `Custom`): it drops STUN and TURN servers from new `RTCPeerConnection`s and
-  rewrites IPs when `webrtc_public_ip` or `webrtc_local_ip` is set.
+  The field is an `Option`: a fingerprint with no policy and no WebRTC masking
+  (`Fingerprint::default()`, an empty builder) passes no flag, and WebRTC masked
+  without a policy uses `DisableNonProxiedUdp`. A saved file with a bare
+  `webrtc_policy` still loads.
+- The JavaScript `webrtc` provider drops STUN and TURN servers from new
+  `RTCPeerConnection`s and rewrites IPs when `webrtc_public_ip` or
+  `webrtc_local_ip` is set.
+
+`webrtc_masking: Natural` switches both off.
 
 ## Native-level (CDP) spoofing
 
@@ -438,21 +543,23 @@ Pure CDP engine), a fingerprint is applied in two layers:
    detect a JavaScript patch through `Function.prototype.toString`,
    `Object.getOwnPropertyNames`, or descriptor inspection, which is why the
    providers use the `sb` helpers to look native.
-2. The protocol overrides from `evasions::cdp_overrides`. They are driven by which
-   fields are set, not by the masking modes, except where the table says so:
+2. The protocol overrides from `evasions::safe_cdp_overrides`. (The older
+   `evasions::cdp_overrides` is deprecated: it also holds the `Proxy-Authorization`
+   header that would hand the proxy's login to every site.) A command is sent
+   for a dimension that is on (`Fingerprint::is_masked`) and holds the value it
+   needs, so a dimension named `Natural` sends nothing:
 
 | Command | Sent when |
 |---|---|
-| `Network.setUserAgentOverride` (user agent, `acceptLanguage`, platform, `userAgentMetadata`) | `user_agent` is set. `acceptLanguage` is `accept_languages`, else `locale`, else `en-US,en;q=0.9`. The metadata comes from `client_hints` when set and is derived from the OS and user agent otherwise. |
-| `Emulation.setDeviceMetricsOverride` | `screen_width` and `screen_height` are set. `pixel_ratio` is the scale factor (1.0 if unset) and `mobile` follows `os_type`. `cdp_overrides` sets the viewport (`width`, `height`) to the screen, and the WebDriver path sends it as it is. The Pure CDP engine changes it for a desktop persona: it sends a `0` by `0` viewport, which the protocol reads as "no override", plus `screenWidth` and `screenHeight`, so the browser itself reports `screen.width` and `screen.height` and the page keeps the viewport its window really has. A mobile persona is a phone-sized page, so its viewport stays the screen. |
-| `Emulation.setLocaleOverride` | `locale` is set. |
-| `Emulation.setTimezoneOverride` | `timezone` is set. |
-| `Emulation.setGeolocationOverride` | `latitude` and `longitude` are set (accuracy 100 and altitude 0 unless set). |
-| `Browser.grantPermissions` | `grant_permissions` is on. |
-| `Network.setBlockedURLs` | `block_trackers` is on. |
+| `Network.setUserAgentOverride` (user agent, platform, `userAgentMetadata`, and `acceptLanguage`) | `Navigator` is on and `user_agent` is set. `acceptLanguage` is sent only when `Localization` is on: `accept_languages`, else `locale`, else (`Mask` only) `en-US,en;q=0.9`. The metadata comes from `client_hints` when set and is derived from the OS and user agent otherwise: Chrome's brand list, or Edge's when the user agent has an `Edg/` token. |
+| `Emulation.setDeviceMetricsOverride` | `Screen` is on and `screen_width` and `screen_height` are set. `pixel_ratio` is the scale factor (1.0 if unset) and `mobile` follows `os_type`. `safe_cdp_overrides` sets the viewport (`width`, `height`) to the screen, and the WebDriver path sends it as it is. The Pure CDP engine changes it for a desktop persona: it sends a `0` by `0` viewport, which the protocol reads as "no override", plus `screenWidth` and `screenHeight`, so the browser itself reports `screen.width` and `screen.height` and the page keeps the viewport its window really has. A mobile persona is a phone-sized page, so its viewport stays the screen. |
+| `Emulation.setLocaleOverride` | `Localization` is on and `locale` is set. |
+| `Emulation.setTimezoneOverride` | `Timezone` is on and `timezone` is set. |
+| `Emulation.setGeolocationOverride` | `Geolocation` is on and `latitude` and `longitude` are set (accuracy 100 and altitude 0 unless set). |
+| `Browser.grantPermissions` | The geolocation permission, when `Geolocation` is on and the popup resolves to `Allow` (a fingerprint with a position does), and the permissions listed under `grant_permissions` when that flag is on. |
+| `Network.setBlockedURLs` | One command, because a second would replace the first: the tracker hosts when `Trackers` is on, and `*://localhost:PORT/*` (and `127.0.0.1`, `[::1]`) for each of `ports` when `Ports` is on. A session with ad blocking joins the ad block list to it. |
 | `Page.setBypassCSP` | `disable_csp` is on. |
-| `Emulation.setFocusEmulationEnabled` | `headless_masking` is `Mask` or `Custom`. |
-| `Network.setExtraHTTPHeaders` | The proxy has a user name and a password (WebDriver path only; see the proxy caveat above). |
+| `Emulation.setFocusEmulationEnabled` | `headless_masking` is `Mask`. |
 
 So a UC or CDP session already gets these overrides without `native_spoofing`,
 and the JavaScript providers patch the same properties on top of them.
@@ -573,7 +680,8 @@ assert!(script.contains("webdriver"));
 
 `evasions::bootstrap_script(&fp)` is a thin wrapper over
 `default_registry().bootstrap(&EvasionContext::new(&fp))`, so existing callers
-keep working while new evasions are added centrally.
+keep working while new evasions are added centrally. `evasions::session_script(&fp)`
+is the same over `session_registry`, the script a browser session runs.
 
 ### Adding your own evasion
 
@@ -607,82 +715,101 @@ See [Contributing](../CONTRIBUTING.md) for adding a built-in provider.
 ### Built-in providers
 
 `default_registry()` registers 29 providers, listed here in execution order. "Runs
-when" is the provider's `applies` condition; "masked" means the flag is `Mask` or
-`Custom`.
+when" is the provider's `applies` condition. A dimension "is on" when
+`Fingerprint::is_masked` says so: its mode is `Mask`, or it is `Auto` and the
+fingerprint holds a value for it (see [A value is the switch](#a-value-is-the-switch)).
 
-The Pure CDP engine does not use `default_registry()`. It uses
-`session_registry(&fp)`, the same list without `plugins` and `connection`
+The Pure CDP engine and the WebDriver `Uc` and `Cdp` modes do not use
+`default_registry()`. They use `evasions::session_script(&fp)`, which is
+`session_registry(&fp)`: the same list without `plugins` and `connection`
 (`SESSION_OMITTED_PROVIDERS`), which is 27 providers. A real Chrome already has
 `navigator.plugins`, `navigator.mimeTypes`, `navigator.connection` and the PDF
 viewer flag, and answers for them itself, so a replaced getter is one more thing
 a page can find that a real Chrome does not have. The assembled session script
 never mentions `plugins`, `mimeTypes`, `pdfViewerEnabled` or `connection`.
 `default_registry()` is unchanged, for callers that want those spoofs, such as a
-browser that really lacks them, and it is what the WebDriver `Uc` and `Cdp` modes
-use.
+browser that really lacks them, and it is what `evasions::bootstrap_script` and
+the Playwright session use.
 
 | Priority | Name | Runs when | What it does |
 |---|---|---|---|
-| 5 | `native_tostring` | `native_tostring_masking` is not `Disabled` | Makes replaced functions print `[native code]` from `Function.prototype.toString`, and installs the `sb` helpers the other providers use. |
+| 5 | `native_tostring` | `native_tostring_masking` is not `Natural` or `Disabled` | Makes replaced functions print `[native code]` from `Function.prototype.toString`, and installs the `sb` helpers the other providers use. |
 | 10 | `webdriver` | always | Makes `navigator.webdriver` read `false` (a getter on the navigator prototype) and deletes known automation hooks from `window` (`callPhantom`, `_phantom`, `__nightmare`, `__selenium_unwrapped`, `__webdriver_evaluate`, `__driver_evaluate`, `domAutomation`, and others). |
 | 15 | `cdp_markers` | always | Deletes `$cdc_`, `__webdriver`, `__selenium`, `__driver`, `$chrome_` and `__fxdriver` properties from `window`, its prototype chain and `document`. |
-| 20 | `chrome_runtime` | `chrome_runtime_masking` or `navigator_masking` is masked | `window.chrome.app`, `loadTimes`, `csi` and `runtime` stubs. |
-| 30 | `navigator_props` | `navigator_masking` is masked | `userAgent`, `appVersion` and `platform` (not under `native_spoofing`), then `hardwareConcurrency`, `deviceMemory` and `maxTouchPoints` when set, `vendor`, `productSub` (`20030107` unless set), and `oscpu` and `buildID` when set. It does not touch `pdfViewerEnabled`, `plugins` or `mimeTypes`: Chrome answers for them itself. |
-| 35 | `permissions` | `navigator_masking` is masked | Makes `permissions.query({ name: 'notifications' })` agree with `Notification.permission`. |
-| 40 | `plugins` | `navigator_masking` is masked | Five PDF-viewer plugins and their MIME types. In `default_registry()` only. |
-| 45 | `window_geometry` | `screen_masking` is masked | `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`, `pixelDepth`, plus `outerWidth`, `outerHeight` and `devicePixelRatio`. The window is as large as the persona's screen, and never smaller than the viewport it really has. Under `native_spoofing`, only `colorDepth` and `pixelDepth`. |
-| 50 | `webgl` | `graphics_masking` is masked | `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` from WebGL1 and WebGL2 `getParameter`. |
-| 55 | `canvas_noise` | `canvas_noise` is `Mask` | Deterministic noise, a function of the seed and the pixel position, on `toDataURL`, `toBlob` and `getImageData`. |
-| 60 | `audio_noise` | `audio_masking` is masked | Deterministic noise on `AudioBuffer.getChannelData` and `copyFromChannel` and on `AnalyserNode.getFloatFrequencyData`. |
-| 65 | `webrtc` | `webrtc_masking` is masked | Drops STUN and TURN servers from `RTCPeerConnection` configs; rewrites IPs in SDP and `RTCIceCandidate` when `webrtc_public_ip` or `webrtc_local_ip` is set. |
-| 70 | `battery` | `battery_masking` is masked | `navigator.getBattery()` (defaults: charging, level 0.94). |
-| 72 | `connection` | `connection_masking` is masked | `NetworkInformation` `effectiveType`, `rtt`, `downlink` and `saveData` (defaults: `4g`, 50, 10, `false`). In `default_registry()` only. |
-| 75 | `media_devices` | `media_devices_masking` is masked | `enumerateDevices`, from `media_devices` (explicit labels) or generated from the input and output counts (default 1, 1 and 1). |
-| 76 | `fonts` | `fonts_masking` is masked and `fonts` is not empty | Limits `document.fonts.check`, `load` and `FontFace` to the configured fonts. |
-| 78 | `speech` | `speech_masking` is masked | `speechSynthesis.getVoices()` (a default set of three voices unless `speech_voices` is set). |
-| 80 | `bluetooth` | `bluetooth_masking` is masked | A `navigator.bluetooth` stub, only if the browser has none. |
-| 85 | `headless` | `headless_masking` is masked | `matchMedia` answers (`prefers-reduced-motion: reduce` and `prefers-color-scheme: dark` false, `any-pointer: fine` true) and `document.hidden` / `visibilityState`. |
+| 20 | `chrome_runtime` | `chrome_runtime_masking` is `Mask` | `window.chrome.app`, `loadTimes`, `csi` and `runtime` stubs. |
+| 30 | `navigator_props` | Navigator is on | `userAgent`, `appVersion` and `platform` (not under `native_spoofing`), then `hardwareConcurrency`, `deviceMemory` and `maxTouchPoints` when set, `vendor`, `productSub`, and `oscpu` and `buildID` when set. Under `Auto` it defines only the values the fingerprint holds; `Mask` fills `platform` from the OS, `vendor` with Chrome's (or Safari's) and `productSub` with `20030107`. It does not touch `pdfViewerEnabled`, `plugins` or `mimeTypes`: Chrome answers for them itself. |
+| 35 | `permissions` | `headless_masking` is `Mask` | Makes `permissions.query({ name: 'notifications' })` agree with `Notification.permission`. A headless fix, so it no longer follows `navigator_masking`. |
+| 40 | `plugins` | Navigator is on | Five PDF-viewer plugins and their MIME types. In `default_registry()` only. |
+| 45 | `window_geometry` | Screen is on | `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`, `pixelDepth`, plus `outerWidth`, `outerHeight` and `devicePixelRatio`, each only when the fingerprint holds the value (`Mask` fills a missing size with the OS's, colour depth 24 and a ratio of 1). `avail_width` and `avail_height` set the available size; without them it is the screen less 40 pixels in height. The window is as large as the persona's screen, and never smaller than the viewport it really has. Under `native_spoofing`, only `colorDepth` and `pixelDepth`. |
+| 50 | `webgl` | Graphics is on | `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` from WebGL1 and WebGL2 `getParameter`. A half the fingerprint lacks stays the browser's, unless `Mask` fills it. |
+| 55 | `canvas_noise` | Canvas is on | Deterministic noise, a function of the seed and the pixel position, on `toDataURL`, `toBlob` and `getImageData`. `Low` touches one pixel in eight and `Random` draws a new seed for each script. |
+| 60 | `audio_noise` | Audio is on | Deterministic noise on `AudioBuffer.getChannelData` and `copyFromChannel` and on `AnalyserNode.getFloatFrequencyData`, seeded by `audio_seed`. |
+| 65 | `webrtc` | WebRTC is on | Drops STUN and TURN servers from `RTCPeerConnection` configs; rewrites IPs in SDP and `RTCIceCandidate` when `webrtc_public_ip` or `webrtc_local_ip` is set. |
+| 70 | `battery` | Battery is on | `navigator.getBattery()` (defaults: charging, level 0.94). |
+| 72 | `connection` | Connection is on | `NetworkInformation` `effectiveType`, `rtt`, `downlink` and `saveData` (defaults: `4g`, 50, 10, `false`). In `default_registry()` only. |
+| 75 | `media_devices` | MediaDevices is on | `enumerateDevices`, from `media_devices` (explicit labels) or generated from the input and output counts (a count the fingerprint lacks is none under `Auto` and 1 under `Mask`). |
+| 76 | `fonts` | Fonts is on and `fonts` is not empty | Limits `document.fonts.check`, `load` and `FontFace` to the configured fonts. |
+| 78 | `speech` | Speech is on | `speechSynthesis.getVoices()` (a default set of three voices unless `speech_voices` is set). |
+| 80 | `bluetooth` | `bluetooth_masking` is `Mask` | A `navigator.bluetooth` stub, only if the browser has none. |
+| 85 | `headless` | `headless_masking` is `Mask` | `matchMedia` answers (`prefers-reduced-motion: reduce` and `prefers-color-scheme: dark` false, `any-pointer: fine` true) and `document.hidden` / `visibilityState`. |
 | 87 | `prepare_stack_trace` | never | Reserved name. It emits no script. |
-| 88 | `client_hints` | `client_hints_masking` is masked, `client_hints` is set, and not `native_spoofing` | `navigator.userAgentData`, including `getHighEntropyValues`, but only in a secure context (`window.isSecureContext`): that is the only place Chrome has the property, so on a plain `http:` page there is none to read and none is added. `localhost` and `127.0.0.1` are secure contexts. |
+| 88 | `client_hints` | ClientHints is on, `client_hints` is set, and not `native_spoofing` | `navigator.userAgentData`, including `getHighEntropyValues`, but only in a secure context (`window.isSecureContext`): that is the only place Chrome has the property, so on a plain `http:` page there is none to read and none is added. `localhost` and `127.0.0.1` are secure contexts. |
 | 89 | `media_codecs` | always | `canPlayType` answers for MP4, AAC and MP3 types when the browser says it cannot play them. WebM and everything else stay the browser's own. |
-| 90 | `timezone` | `timezone_masking` is masked, unless `native_spoofing` is on and a `timezone` is set | `Intl.DateTimeFormat` and the local-time methods of `Date` (`getTimezoneOffset`, `getHours`, `toString`, the `toLocale*String` family and others). `new Date(y, m, d)` and `Date.parse` of a string without an offset keep the machine's zone. |
-| 92 | `localization` | `localization_masking` or `navigator_masking` is masked, and not `native_spoofing` | `navigator.language` and `navigator.languages`. |
-| 95 | `geolocation` | `geolocation_masking` is masked, `latitude` is set, and not `native_spoofing` | `getCurrentPosition` and `watchPosition`. They answer in JavaScript only when `geolocation_popup` is `Allow`. |
-| 110 | `hairline` | `graphics_noise` is `Mask` or `Natural` | Modernizr's hairline check: `offsetHeight` of the element with id `modernizr` reads `1`. |
+| 90 | `timezone` | Timezone is on, unless `native_spoofing` is on and a `timezone` is set | `Intl.DateTimeFormat` and the local-time methods of `Date` (`getTimezoneOffset`, `getHours`, `toString`, the `toLocale*String` family and others). `new Date(y, m, d)` and `Date.parse` of a string without an offset keep the machine's zone. |
+| 92 | `localization` | Localization is on, and not `native_spoofing` | `navigator.language` and `navigator.languages`: the `languages` the fingerprint holds, else its `accept_languages`, else the list its `locale` implies (`Mask` falls back to `en-US,en`). |
+| 95 | `geolocation` | Geolocation is on and `latitude` is set (or the popup is `Block`), and not `native_spoofing` | `getCurrentPosition` and `watchPosition`. They answer in JavaScript when the popup resolves to `Allow` and refuse with `PERMISSION_DENIED` when it is `Block`. |
+| 110 | `hairline` | `headless_masking` is `Mask` | Modernizr's hairline check: `offsetHeight` of the element with id `modernizr` reads `1`. |
 | 120 | `iframe` | never | Reserved name. It emits no script. |
-| 125 | `attach_shadow` | `headless_masking` is not `Disabled` | Forces `Element.attachShadow` to `mode: 'open'`. |
-| 130 | `tracker_block` | `block_trackers` is on | Makes `fetch`, `XMLHttpRequest` and `navigator.sendBeacon` to the tracker hosts (and their subdomains) fail like an unreachable host. Scripts, images and frames loaded by markup are not covered. |
+| 125 | `attach_shadow` | `open_shadow_roots` is on | Forces `Element.attachShadow` to `mode: 'open'`. |
+| 130 | `tracker_block` | Trackers is on | Makes `fetch`, `XMLHttpRequest` and `navigator.sendBeacon` to the tracker hosts (and their subdomains) fail like an unreachable host. Scripts, images and frames loaded by markup are not covered. |
 
 List them at runtime with `default_registry().provider_names()` (all 29, including
-the two reserved ones), `session_registry(&fp).provider_names()` (the 27 the Pure
-CDP engine runs), `applicable_names(&fp)` (those that run for a fingerprint), or
-over MCP with the `list_evasion_providers` tool.
+the two reserved ones), `session_registry(&fp).provider_names()` (the 27 a
+browser session runs), `applicable_names(&fp)` (those that run for a fingerprint),
+or over MCP with the `list_evasion_providers` tool, which lists the session ones.
 
 ## Profile coherence validation
 
 `Fingerprint::validate()` returns a `CoherenceReport` with `errors` and
-`warnings`; `is_coherent()` is true when there are no errors. It reports an error
-for a `navigator.platform` that does not fit `os_type` (a macOS user agent with a
-`Win32` platform), a user agent with no token for `os_type`, and a screen with a
-zero dimension. It reports a warning for a mobile user agent with
-`maxTouchPoints == 0`, a desktop user agent with touch points, a `locale` that
-differs from the first of `languages`, and a time zone with no geolocation. It
-does not look at WebGL, hardware, or whether the locale and time zone belong
-together.
+`warnings`; `is_coherent()` is true when there are no errors.
+
+It reports an error for:
+
+- a `navigator.platform` that does not fit `os_type` (a macOS user agent with a
+  `Win32` platform), and a user agent with no token for `os_type`;
+- a screen with a zero dimension;
+- a WebGL renderer from another operating system's graphics API: Direct3D off
+  Windows, Metal or an Apple GPU off macOS and iOS, Mesa off Linux, and Adreno,
+  Mali or PowerVR off Android;
+- a `MobileSafari` persona whose user agent has a `Chrome/` token.
+
+It reports a warning for:
+
+- a mobile user agent with `maxTouchPoints == 0`, and a desktop user agent with
+  touch points;
+- a `locale` that differs from the first of `languages`;
+- a time zone with no geolocation;
+- a locale from another country than the time zone, judged with the table of
+  places `randomize::LOCALES` (a zone the table does not hold, or a locale with
+  no region, is not judged);
+- WebGL masked as `Mask` with no vendor and renderer on an OS other than macOS
+  and iOS: the generic fill is an Intel renderer worded for a Mac.
+
+It does not look at hardware.
 
 ```rust
 use seleniumbase_rs::Fingerprint;
 
 let report = Fingerprint::windows_desktop().validate();
-assert!(report.is_coherent());
+assert!(report.is_coherent() && report.warnings.is_empty());
 for warning in &report.warnings {
     eprintln!("warning: {warning}");
 }
 ```
 
-The MCP `validate_fingerprint` tool returns the same report for one of the five
-built-in presets (`windows`, `macos`, `linux`, `android`, `ios`); it does not take
-an arbitrary fingerprint.
+The MCP `validate_fingerprint` tool returns the same report for one of the six
+built-in presets (`windows`, `edge`, `macos`, `linux`, `android`, `ios`); it does
+not take an arbitrary fingerprint.
 
 `tests/fingerprint_randomized.rs` asserts that `Fingerprint::randomized` gives no
 errors and no warnings for every OS, for seeds 0 to 1499 and ten edge seeds
@@ -728,29 +855,30 @@ parameter values and draw delays uniformly between two bounds; prefer
 ## What is spoofed
 
 With a CDP session and the `balanced()` flags (see the provider table for the
-conditions):
+conditions), for the values the fingerprint holds:
 
 * `navigator.webdriver` reads `false`, and known automation hooks are deleted
 * `navigator.userAgent`, `platform`, `hardwareConcurrency`, `deviceMemory`,
   `maxTouchPoints`, `vendor`, `language` and `languages`
 * `window.chrome.app`, `csi`, `loadTimes` and `runtime` stubs
-* `navigator.plugins` and `navigator.mimeTypes` (WebDriver `Uc` and `Cdp` modes;
-  the Pure CDP engine leaves them to Chrome)
+* `navigator.plugins` and `navigator.mimeTypes` (`bootstrap_script` and the
+  Playwright session; the session script leaves them to Chrome)
 * `navigator.permissions.query` for notifications
 * `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`,
   `outerWidth`, `outerHeight` and `devicePixelRatio`
 * WebGL `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`
 * Canvas `toDataURL`, `toBlob` and `getImageData` noise
-* Audio noise (when `audio_masking` is on; `balanced()` leaves it off)
-* `navigator.mediaDevices.enumerateDevices` (when `media_devices_masking` is on;
-  `balanced()` leaves it off)
+* Audio noise (when the fingerprint has an `audio_seed`, which `seed` and every
+  `randomized` identity set, or `audio_masking` is `Mask`)
+* `navigator.mediaDevices.enumerateDevices` (when the fingerprint holds device
+  counts or labelled devices)
 * Time zone, through `Intl.DateTimeFormat`, the local-time methods of `Date`, and
   `Emulation.setTimezoneOverride`
-* Geolocation, through `Emulation.setGeolocationOverride` (the JavaScript
-  provider answers only when `geolocation_popup` is `Allow`)
+* Geolocation, through `Emulation.setGeolocationOverride`, the JavaScript
+  provider, and the geolocation permission
 * `$cdc_`, `__webdriver`, `__selenium` and similar marker properties
 * Battery Status, Speech Synthesis, and Bluetooth APIs, and Network Information
-  (WebDriver `Uc` and `Cdp` modes only)
+  (the last only in `bootstrap_script`)
 * Client Hints (`navigator.userAgentData`), when `client_hints` is set and the
   page is a secure context
 * `matchMedia` answers and page visibility, `canPlayType` for MP4/AAC/MP3, and
@@ -799,19 +927,18 @@ automation markers:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the masking modes are `Natural`, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](stealth_scraping.md)), the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, start from `StealthFlags::balanced()`, and match the egress IP to the identity's place. |
+| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the dimension is `Natural` or the fingerprint holds no value for it, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](stealth_scraping.md)), the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, build the fingerprint from a preset or `Fingerprint::randomized`, check `fp.is_masked(Dimension::...)` for the dimension, and match the egress IP to the identity's place. |
+| A value was given and the page does not show it | An explicit `Natural` (a `with_flags` override, a preset or file that names it) keeps the dimension off whatever the fingerprint holds | Remove the override, or set the mode to `Auto` or `Mask`. |
 | `navigator.webdriver` still `true` | The bootstrap script did not run: `DriverMode::WebDriver`, or no fingerprint on the config. The `webdriver` provider has no flag that turns it off. | Use `DriverMode::Uc` or `Cdp`, or `Page::apply_fingerprint` on the Pure CDP engine. For driver-level markers, see binary patching. |
-| Geolocation is wrong | No `latitude` and `longitude` on the fingerprint, no CDP session, or the page lacks the geolocation permission | Set `.geolocation(lat, lon)`, use `DriverMode::Uc` or `Cdp`, and allow geolocation in the browser (`grant_permissions` does not). |
-| Inconsistent locale and time zone | `locale` and `timezone` come from different regions. `validate()` does not check that pair. | Align both, or use `Fingerprint::randomized`, which draws them from one place. |
-| WebRTC leaks local IP | `webrtc_masking` is `Natural`, or `webrtc_policy` is a looser policy | Set `webrtc_masking` to `Mask` and keep `WebRtcPolicy::DisableNonProxiedUdp`. |
+| Geolocation is wrong or never answers | No `latitude` and `longitude` on the fingerprint, no CDP session, or `geolocation_masking` is `Natural` | Set `.geolocation(lat, lon)` and use `DriverMode::Uc` or `Cdp`. The position grants the permission itself; `geolocation_popup: Block` refuses it on purpose. |
+| Inconsistent locale and time zone | `locale` and `timezone` come from different countries. `validate()` warns about this pair. | Align both, or use `Fingerprint::randomized`, which draws them from one place. |
+| WebRTC leaks local IP | `webrtc_masking` is `Natural`, or `webrtc_policy` is a looser policy | Leave `webrtc_masking` to `Mask` (the presets do) and keep `WebRtcPolicy::DisableNonProxiedUdp`. |
 
 ---
 
-Verified against commit 8e9180f, by reading `src/stealth/**`,
-`src/sb_cdp/identity.rs`, `src/sb_cdp/launch.rs`, `src/browser/{config,session,playwright}.rs`,
-`src/profile_payloads/profile.rs`, `src/mcp/stealth.rs` and `src/macros.rs`.
-The screen, `navigator_props`, `client_hints`, `session_registry` and TLS passages
-were brought up to commit c5a6f2f by reading `src/sb_cdp/identity.rs`,
-`src/stealth/evasions.rs` and `src/stealth/providers/{mod,builtin}.rs` again.
-The code examples were checked against the signatures in those files; they were
-not compiled or run for this check.
+This page was brought up to date with the change that makes a value the switch by
+reading `src/stealth/**`, `src/sb_cdp/{identity,launch}.rs`,
+`src/browser/{config,session,playwright}.rs`, `src/profile_payloads/**`,
+`src/mcp/stealth.rs` and `src/macros.rs` again. The code examples were compiled
+against that source as a test of the crate; the tables were checked against the
+`applies` conditions of the providers.

@@ -66,7 +66,7 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `flags` | object | yes | Masking mode switches (see below). |
-| `fingerprint` | object | yes | Explicit fingerprint values used when a flag is `custom`. |
+| `fingerprint` | object | yes | Explicit fingerprint values. A value is used unless the flag for it says `natural`. |
 | `storage` | object | yes | `is_local` and `save_service_worker`. |
 | `proxy` | object | no | Proxy configuration. |
 | `custom_start_urls` | string[] | no | URLs opened on launch. Maximum **5**; extras are ignored. |
@@ -75,21 +75,21 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 
 | Flag | Accepted values | Required | Notes |
 |---|---|---|---|
-| `webrtc_masking` | `natural`, `custom`, `mask`, `disabled` | yes | Use literal `public:IP\|local:IP` for custom IPs. |
-| `proxy_masking` | `custom`, `disabled` | yes | Pair with `parameters.proxy`. |
-| `geolocation_popup` | `prompt`, `allow`, `block` | yes | Geolocation permission prompt behavior. |
-| `audio_masking` | `natural`, `mask` | yes | Additional engine-specific values such as `noise`, `random`, `block`, `off` are also accepted. |
-| `graphics_noise` | `natural`, `mask` | yes | Also accepts `low`, `medium`, `high`, `off`. |
-| `navigator_masking` | `natural`, `custom`, `mask` | yes | Literal value is a full user-agent string. |
-| `localization_masking` | `natural`, `custom`, `mask` | yes | Literal value is a locale/accept-language string. |
-| `timezone_masking` | `natural`, `custom`, `mask` | yes | Literal value is an IANA zone. |
-| `graphics_masking` | `natural`, `custom`, `mask` | yes | Literal value is `vendor~renderer`. |
-| `fonts_masking` | `natural`, `custom`, `mask` | yes | Literal value is a comma-separated font list. |
-| `media_devices_masking` | `natural`, `custom`, `mask` | yes | Literal value is `kind:deviceId:label\|...`. |
-| `screen_masking` | `natural`, `custom`, `mask` | yes | Literal value is `WIDTHxHEIGHTxDEPTH`. |
-| `ports_masking` | `natural`, `custom`, `mask` | yes | Literal value is `block:port,port,...` or a plain list. |
-| `geolocation_masking` | `custom`, `mask` | yes | Literal value is `lat,lon,altitude`. |
-| `canvas_noise` | `mask`, `natural`, `disabled` | no | Defaults to the value of `graphics_noise`. |
+| `webrtc_masking` | `auto`, `natural`, `mask`, `disabled`, `public_only` | yes | Use literal `public:IP\|local:IP` for custom IPs. `disabled` and `block` still pass the policy that stops the leak. Default `mask`. |
+| `proxy_masking` | `auto`, `custom`, `disabled` | yes | Pair with `parameters.proxy`. Default `auto`: the proxy is used when it has a host. |
+| `geolocation_popup` | `auto`, `prompt`, `allow`, `block` | yes | Geolocation permission prompt behavior. Default `auto`: `allow` when the profile holds a position. |
+| `audio_masking` | `auto`, `natural`, `mask` | yes | Default `auto`. Additional engine-specific values such as `noise`, `random`, `block`, `off` are also accepted. |
+| `graphics_noise` | `natural`, `mask` | yes | Also accepts `low`, `medium`, `high`, `off`. Ignored: it never drove graphics noise. |
+| `navigator_masking` | `auto`, `natural`, `mask` | yes | Literal value is a full user-agent string. |
+| `localization_masking` | `auto`, `natural`, `mask` | yes | Literal value is a locale/accept-language string. |
+| `timezone_masking` | `auto`, `natural`, `mask` | yes | Literal value is an IANA zone. |
+| `graphics_masking` | `auto`, `natural`, `mask` | yes | Literal value is `vendor~renderer`. |
+| `fonts_masking` | `auto`, `natural`, `mask` | yes | Literal value is a comma-separated font list. |
+| `media_devices_masking` | `auto`, `natural`, `mask` | yes | Default `auto`. Literal value is `kind:deviceId:label\|...`. |
+| `screen_masking` | `auto`, `natural`, `mask` | yes | Literal value is `WIDTHxHEIGHTxDEPTH`. |
+| `ports_masking` | `natural`, `mask` | yes | Literal value is `block:port,port,...` or a plain list. |
+| `geolocation_masking` | `auto`, `natural`, `mask` | yes | Literal value is `lat,lon,altitude`. |
+| `canvas_noise` | `mask`, `auto`, `natural`, `disabled`, `random`, `persistent`, `low` | no | Defaults to `mask` (seeded noise). |
 | `quic_mode` | `enabled`, `disabled`, `force_http2`, `auto` | no | Default `disabled`. |
 | `disable_csp` | `true`, `false` | no | Bypass Content-Security-Policy for the page context. |
 | `grant_permissions` | `true`, `false` | no | Grant common browser permissions at startup so prompts do not fire. |
@@ -127,18 +127,18 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 ## Masking modes
 
 Flags control how a fingerprint dimension is handled. Each mode has a concrete
-meaning and a matching JSON string value:
+meaning and a matching JSON string value. A value in `fingerprint.*` is the
+switch: unless the flag says `natural`, the dimension uses the value.
 
 | Mode | String | What it does | Example use case |
 |---|---|---|---|
-| `Natural` | `"natural"` | Use the browser's real value. | Trust the host for audio, media devices, or fonts. |
-| `Mask` | `"mask"` | Apply a generic, deterministic spoofed value. | Hide the real WebRTC IP policy, screen size, or timezone. |
-| `Custom` | `"custom"` | Use the explicit value supplied in `fingerprint.*`. | Set a specific `user_agent`, `screen` resolution, `proxy`, or `geolocation`. |
-| `Disabled` | `"disabled"` | Turn the feature off entirely. | Disable WebRTC, block QUIC, or leave proxy unconfigured. |
+| `Auto` | `"auto"` | On exactly when the profile holds a value for the dimension. | Let `fingerprint.timezone` or `parameters.proxy` decide. |
+| `Natural` | `"natural"` (also `"off"`, `"disabled"`, `"block"`) | Use the browser's real value, whatever the profile holds. | Trust the host for audio, media devices, or fonts. |
+| `Mask` | `"mask"` (also `"spoof"`, `"custom"`) | On. Use the value in `fingerprint.*`, and a generic one where the profile has none. | Set a specific `user_agent`, `screen` resolution, or `geolocation`, or hide the screen size and timezone behind generic values. |
 
 ### Concrete mask-mode examples
 
-#### Custom user agent + platform (`navigator_masking: custom`)
+#### A user agent and platform
 
 ```json
 {
@@ -146,7 +146,6 @@ meaning and a matching JSON string value:
   "browser_type": "chromium",
   "os_type": "windows",
   "parameters": {
-    "flags": { "navigator_masking": "custom" },
     "fingerprint": {
       "navigator": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
@@ -159,11 +158,12 @@ meaning and a matching JSON string value:
 }
 ```
 
-When `navigator_masking` is `"custom"`, the launcher passes the supplied
+The values turn the navigator on by themselves: the launcher passes the supplied
 `user_agent` to `--user-agent` and the `platform` value into the evasion
-bootstrap.
+bootstrap. Add `"navigator_masking": "natural"` to the flags to keep the
+browser's own navigator whatever the profile holds.
 
-#### Custom screen + geolocation (`screen_masking` / `geolocation_masking`)
+#### A screen, a position and a time zone
 
 ```json
 {
@@ -171,11 +171,6 @@ bootstrap.
   "browser_type": "chromium",
   "os_type": "windows",
   "parameters": {
-    "flags": {
-      "screen_masking": "custom",
-      "geolocation_masking": "custom",
-      "timezone_masking": "mask"
-    },
     "fingerprint": {
       "screen": { "width": 1920, "height": 1080, "pixel_ratio": 1 },
       "geolocation": { "latitude": 52.52, "longitude": 13.405, "accuracy": 100 },
@@ -185,9 +180,11 @@ bootstrap.
 }
 ```
 
-`screen_masking: custom` applies the exact resolution. `geolocation_masking:
-custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
-`timezone_masking: mask` picks a timezone that matches the geolocation.
+The screen applies the exact resolution. The geolocation emits
+`Emulation.setGeolocationOverride` with the supplied coordinates and, because a
+position answers the geolocation popup with `allow`, grants the permission. The
+time zone is `Europe/Berlin`; a flag set to `mask` with no time zone in the
+profile would fill in `America/New_York`, not one that matches the position.
 
 #### iOS Mobile Safari (`mobile_safari` / `ios`)
 
@@ -199,10 +196,6 @@ custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
   "core_version": 26,
   "parameters": {
     "flags": {
-      "navigator_masking": "custom",
-      "screen_masking": "custom",
-      "timezone_masking": "mask",
-      "geolocation_masking": "custom",
       "webrtc_masking": "disabled",
       "native_spoofing": true
     },
@@ -230,7 +223,7 @@ metrics through CDP so page-side JS cannot detect the override.
 
 For convenience, most masking flags also accept a concrete literal string
 instead of a mode keyword. When a literal value is supplied, the parser sets the
-corresponding mode to `Custom` and writes the value into the fingerprint so it
+corresponding mode to `Mask` and writes the value into the fingerprint so it
 is applied automatically.
 
 | Flag | Literal format | Example |
@@ -283,14 +276,13 @@ The parser extracts every literal value above and populates the matching
 `Fingerprint` fields, so the stealth bootstrap and launch args can use them
 without any extra code.
 
-#### Custom proxy (`proxy_masking: custom`)
+#### A proxy
 
 ```json
 {
   "name": "proxy-profile",
   "browser_type": "chromium",
   "parameters": {
-    "flags": { "proxy_masking": "custom" },
     "proxy": {
       "type": "http",
       "host": "proxy.example.com",
@@ -303,9 +295,11 @@ without any extra code.
 }
 ```
 
-`proxy_masking: custom` turns the `parameters.proxy` block into
-`--proxy-server=http://alice:secret@proxy.example.com:8080`. Use
-`proxy_masking: disabled` to leave proxy configuration empty.
+The `parameters.proxy` block becomes
+`--proxy-server=http://alice:secret@proxy.example.com:8080`: `proxy_masking`
+defaults to `auto`, which uses a proxy that has a host. Set
+`proxy_masking: disabled` to leave proxy configuration empty although the block
+is there.
 
 #### Native-level spoofing (`native_spoofing: true`)
 
@@ -342,8 +336,8 @@ inspect.
 ```
 
 `webrtc_masking: mask` forces `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
-so public IP leakage is reduced. `webrtc_masking: disabled` leaves the browser's
-default policy in place.
+so public IP leakage is reduced, and `webrtc_masking: disabled` passes the same
+policy. `webrtc_masking: natural` leaves the browser's default policy in place.
 
 To spoof specific public/local IPs, use the literal `public:IP|local:IP` format
 or the `fingerprint.webrtc.public_ip` field:
@@ -400,9 +394,7 @@ let raw = json!({
     "os_type": "windows",
     "parameters": {
         "flags": {
-            "webrtc_masking": "mask",
-            "navigator_masking": "custom",
-            "screen_masking": "custom"
+            "webrtc_masking": "mask"
         },
         "fingerprint": {
             "navigator": {
@@ -440,6 +432,6 @@ show an `external` badge in the profile list.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Profile fails to parse | Unknown browser or OS type | Use `chromium`/`firefox`/`mobile_safari` and `linux`/`macos`/`windows`/`android`/`ios`. |
-| Custom values ignored | Flag is `mask` instead of `custom` | Set the corresponding flag to `custom`. |
-| Proxy not applied | `proxy_masking` is `disabled` | Set `proxy_masking: custom` and provide `parameters.proxy`. |
+| A value is ignored | The flag for it is `natural` (or `off`, `disabled`, `block`) | Set the flag to `auto` or `mask`, or leave it out. |
+| Proxy not applied | `proxy_masking` is `disabled`, or the proxy has no host | Leave `proxy_masking` at `auto` (or set `custom`) and provide `parameters.proxy` with a host. |
 | Native spoofing has no effect | Driver is in pure WebDriver mode | Use `DriverMode::Cdp` or `DriverMode::Uc`. |

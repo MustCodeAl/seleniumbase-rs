@@ -424,7 +424,7 @@ stdio. Pick a toolset with `--server`:
 |------------|--------|-------|
 | `cdp` | Pure CDP, no WebDriver | 24 |
 | `driver` | WebDriver, the `Driver()` toolset | 26 |
-| `sb` (default) | WebDriver, the `SB()` toolset, plus stealth tools | 88 + 8 |
+| `sb` (default) | WebDriver, the `SB()` toolset, plus stealth tools | 88 + 7 |
 
 ```bash
 cargo build --release --bin sbrs-mcp --features mcp-server
