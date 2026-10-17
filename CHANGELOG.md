@@ -232,6 +232,18 @@ that break a call are listed first, each with the way to migrate.
   of being converted into something close.
 - The Python importer passes `By.XPATH` locators through as XPath, so XPath
   that CSS cannot say is no longer refused.
+- The Python importer matches the arguments of a call with Python's parameters:
+  `self.assert_text("x")` gets Python's default selector `body`, and keyword
+  arguments (`selector=`, `text=`, `timeout=`) work. It imports
+  `assert_text_visible`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible`, `wait_for_text`, `wait_for_exact_text`, the
+  deferred and delayed asserts, `process_deferred_asserts` and
+  `enter_mfa_code`, which it used to leave as TODOs. An argument Rust cannot
+  carry over (`timeout=` on an assertion, a `by` that is not CSS) is an error
+  instead of being dropped. `send_keys` becomes `add_text`, not `type_text`:
+  Python's and Selenium's `send_keys` do not clear the field. The timeout of
+  `wait_for_element_visible` and `wait_for_element_present` is read from
+  `timeout=`; a second positional argument is Python's `by`, not a timeout.
 
 ### Fixed
 
