@@ -404,34 +404,31 @@ impl Recording {
             None => self.wall_at(timestamp),
         };
 
-        match params.get("redirectResponse").filter(|r| r.is_object()) {
+        if let Some(redirect) = params.get("redirectResponse").filter(|r| r.is_object()) {
             // The request id stays; the previous hop ends with this response.
-            Some(redirect) => {
-                if let Some(entry) = self.entry_mut(params) {
-                    entry.response = Some(redirect.clone());
-                    entry.response_has_extra = params["redirectHasExtraInfo"].as_bool();
-                    entry.response_at = Some(timestamp);
-                    entry.finished_at = Some(timestamp);
-                }
+            if let Some(entry) = self.entry_mut(params) {
+                entry.response = Some(redirect.clone());
+                entry.response_has_extra = params["redirectHasExtraInfo"].as_bool();
+                entry.response_at = Some(timestamp);
+                entry.finished_at = Some(timestamp);
             }
-            None => {
-                // A new request, even if the browser reuses an old id.
-                self.hops.remove(id);
-                if params["type"] == "Document"
-                    && params["frameId"].as_str() == Some(self.main_frame.as_str())
-                    && params["loaderId"].as_str() == Some(id)
-                {
-                    self.pages.push(PageState {
-                        url: params["request"]["url"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .to_owned(),
-                        started_wall: wall,
-                        started: timestamp,
-                        content_loaded: None,
-                        loaded: None,
-                    });
-                }
+        } else {
+            // A new request, even if the browser reuses an old id.
+            self.hops.remove(id);
+            if params["type"] == "Document"
+                && params["frameId"].as_str() == Some(self.main_frame.as_str())
+                && params["loaderId"].as_str() == Some(id)
+            {
+                self.pages.push(PageState {
+                    url: params["request"]["url"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_owned(),
+                    started_wall: wall,
+                    started: timestamp,
+                    content_loaded: None,
+                    loaded: None,
+                });
             }
         }
 
