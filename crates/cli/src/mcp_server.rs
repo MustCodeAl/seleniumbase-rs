@@ -31,13 +31,11 @@ use seleniumbase_rs::mcp::{self, Profile};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
 
 #[derive(Debug, usage::Cli)]
-// The name stays the library's, as `--version` printed it before the command line had
-// a package of its own. usage prints `bin` in both `--version` and the `Usage:` line,
-// so the usage line of an error names `seleniumbase-rs` rather than `sbrs-mcp`; the
-// version line is the one scripts read, so it wins (`tests/mcp_version.rs`).
+// usage prints `bin` in `--version`, in help and in the `Usage:` line of an error, so the
+// program is named for what it is (`tests/mcp_version.rs`).
 #[usage(
-    bin = "seleniumbase-rs",
-    name = "seleniumbase-rs",
+    bin = "sbrs-mcp",
+    name = "sbrs-mcp",
     version,
     about = "SeleniumBaseRust MCP server (stdio)",
     unknown_flags = "error",

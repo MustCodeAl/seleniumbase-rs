@@ -7,8 +7,12 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-<Update label="Unreleased" description="Next release" tags={[]}>
+<Update label="Unreleased" description="Next release" tags={["New"]}>
 
+### Changed
+
+- `sbrs-mcp` names itself: `sbrs-mcp --version` prints `sbrs-mcp 0.5.0`, and its help
+  and the usage line of an error say `sbrs-mcp`, where they said `seleniumbase-rs`.
 
 </Update>
 
