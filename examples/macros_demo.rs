@@ -28,10 +28,10 @@ mod local_site;
 
 use local_site::{Site, DEMO_PATH};
 use seleniumbase_rs::{
-    assert_visible, cdp_config, fingerprint, run_browser_test, sb_assert_text, sb_assert_title,
-    sb_assert_url, sb_click, sb_config, sb_fill_form, sb_hover, sb_js, sb_open, sb_screenshot,
-    sb_scroll_to, sb_select, sb_wait_for, selector, uc_config, BaseCase, BrowserConfig, DriverMode,
-    Result, SeleniumBaseError,
+    cdp_config, fingerprint, run_browser_test, sb_assert_text, sb_assert_title_contains,
+    sb_assert_url_contains, sb_assert_visible, sb_click, sb_config, sb_fill_form, sb_hover, sb_js,
+    sb_open, sb_screenshot, sb_scroll_to, sb_select, sb_wait_for, selector, uc_config, BaseCase,
+    BrowserConfig, DriverMode, Result, SeleniumBaseError,
 };
 
 #[tokio::main]
@@ -69,7 +69,7 @@ fn configuration_macros() {
 /// Part 2: macros that drive the browser.
 async fn action_macros(sb: &mut BaseCase, url: String) -> Result<()> {
     sb_open!(sb, &url)?;
-    sb_assert_title!(sb, "Web Testing")?; // the title contains this text
+    sb_assert_title_contains!(sb, "Web Testing")?; // `sb_assert_title!` wants the whole title
 
     sb_fill_form!(sb, "#username" => "alice", "#password" => "not-a-real-password")?;
     sb_click!(sb, "#submit")?;
@@ -78,7 +78,7 @@ async fn action_macros(sb: &mut BaseCase, url: String) -> Result<()> {
     sb_select!(sb, "#country", "Germany")?;
     sb_wait_for!(sb, "#late")?; // waits for the element the page adds later
     sb_hover!(sb, "nav .menu")?;
-    assert_visible!(sb, "#submenu")?;
+    sb_assert_visible!(sb, "#submenu")?;
     sb_scroll_to!(sb, "#footer")?;
 
     let title = sb_js!(sb, "return document.title")?;
@@ -94,7 +94,7 @@ async fn action_macros(sb: &mut BaseCase, url: String) -> Result<()> {
     }
 
     // The message form panics instead of returning an error.
-    sb_assert_url!(
+    sb_assert_url_contains!(
         sb,
         "127.0.0.1",
         "the page is served from the loopback address"

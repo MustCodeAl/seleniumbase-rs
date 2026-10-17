@@ -160,17 +160,37 @@ macro_rules! sb_assert_text {
     };
 }
 
-/// Asserts that the page title contains the expected text.
+/// Asserts that the page title is the expected text, as Python's
+/// `assert_title` does. Use [`sb_assert_title_contains!`] for part of it.
 #[macro_export]
 macro_rules! sb_assert_title {
+    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_title($expected).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that the page title contains the expected text, as Python's
+/// `assert_title_contains` does.
+#[macro_export]
+macro_rules! sb_assert_title_contains {
     ($sb:expr, $expected:expr $(, $msg:expr)?) => {
         $sb.assert_title_contains($expected).await $(.expect($msg))?
     };
 }
 
-/// Asserts that the current URL contains the expected substring.
+/// Asserts that the current URL is the expected one, as Python's `assert_url`
+/// does. Use [`sb_assert_url_contains!`] for part of it.
 #[macro_export]
 macro_rules! sb_assert_url {
+    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_url($expected).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that the current URL contains the expected substring, as Python's
+/// `assert_url_contains` does.
+#[macro_export]
+macro_rules! sb_assert_url_contains {
     ($sb:expr, $expected:expr $(, $msg:expr)?) => {
         $sb.assert_url_contains($expected).await $(.expect($msg))?
     };
@@ -200,11 +220,26 @@ macro_rules! sb_quit {
     };
 }
 
-/// A short-hand macro for asserting that an element is visible.
+/// Asserts that an element is visible, waiting for it for up to the default
+/// timeout.
+///
+/// ```ignore
+/// sb_assert_visible!(sb, "#status")?;
+/// ```
+#[macro_export]
+macro_rules! sb_assert_visible {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.assert_element_visible($selector).await $(.expect($msg))?
+    };
+}
+
+/// The old name of [`sb_assert_visible!`], which every other macro of the
+/// crate follows with its `sb_` prefix.
+#[deprecated(since = "0.5.0", note = "use `sb_assert_visible!`")]
 #[macro_export]
 macro_rules! assert_visible {
     ($sb:expr, $selector:expr $(, $msg:expr)?) => {
-        $sb.assert_element_visible($selector).await $(.expect($msg))?
+        $crate::sb_assert_visible!($sb, $selector $(, $msg)?)
     };
 }
 
@@ -459,6 +494,55 @@ mod tests {
             "{error:?}"
         );
         assert!(driver.requests("/element/e1/click").is_empty());
+    }
+
+    /// A page titled "My Page" at `https://example.test/a?b=1`.
+    fn titled_page() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/title") => Reply::Value(json!("My Page")),
+                ("GET", "/url") => Reply::Value(json!("https://example.test/a?b=1")),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn the_title_and_url_macros_want_the_whole_value_as_python_does() {
+        // `sb_assert_title!` and `sb_assert_url!` used to accept part of the
+        // title or URL, which Python's `assert_title` and `assert_url` do not.
+        let driver = titled_page();
+        let mut sb = driver.base_case().await;
+
+        sb_assert_title!(sb, "My Page").unwrap();
+        sb_assert_title!(sb, "Page").unwrap_err();
+        sb_assert_url!(sb, "https://example.test/a?b=1").unwrap();
+        sb_assert_url!(sb, "example.test").unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn the_contains_macros_accept_part_of_the_title_and_url() {
+        let driver = titled_page();
+        let mut sb = driver.base_case().await;
+
+        sb_assert_title_contains!(sb, "Page").unwrap();
+        sb_assert_title_contains!(sb, "Nope").unwrap_err();
+        sb_assert_url_contains!(sb, "example.test").unwrap();
+        sb_assert_url_contains!(sb, "other.test").unwrap_err();
+        // With a message they unwrap, so a failure panics.
+        sb_assert_title_contains!(sb, "Page", "the title has Page");
+        sb_assert_url_contains!(sb, "/a", "the URL has /a");
+        sb_assert_title!(sb, "My Page", "the title is My Page");
+    }
+
+    #[tokio::test]
+    #[allow(deprecated)]
+    async fn the_old_visible_macro_still_works_and_the_new_one_has_the_prefix() {
+        let driver = page_with_element(true);
+        let mut sb = driver.base_case().await;
+        sb_assert_visible!(sb, "#a").unwrap();
+        crate::assert_visible!(sb, "#a").unwrap();
+        sb_assert_visible!(sb, "#a", "the element is visible");
     }
 
     #[test]

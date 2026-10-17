@@ -14,10 +14,11 @@ explicit method API.
 
 ```rust
 use seleniumbase_rs::{
-    assert_visible, cdp_config, fingerprint, sb_assert_not_visible, sb_assert_text,
-    sb_assert_title, sb_assert_url, sb_click, sb_config, sb_fill_form, sb_hover,
-    sb_js, sb_open, sb_quit, sb_scroll_to, sb_select, sb_screenshot, sb_test,
-    sb_type, sb_wait_and_click, sb_wait_for, sb_with_timeout, selector, uc_config,
+    cdp_config, fingerprint, sb_assert_not_visible, sb_assert_text, sb_assert_title,
+    sb_assert_title_contains, sb_assert_url, sb_assert_url_contains, sb_assert_visible,
+    sb_click, sb_config, sb_fill_form, sb_hover, sb_js, sb_open, sb_quit, sb_scroll_to,
+    sb_select, sb_screenshot, sb_test, sb_type, sb_wait_and_click, sb_wait_for,
+    sb_with_timeout, selector, uc_config,
 };
 ```
 
@@ -149,13 +150,16 @@ which panics on failure.
 | `sb_wait_and_click!(sb, selector)` | wait then `sb.click(selector).await` |
 | `sb_select!(sb, selector, text)` | `sb.select_option_by_text(selector, text).await` |
 | `sb_assert_text!(sb, expected, selector)` | `sb.assert_text(expected, selector).await` |
-| `sb_assert_title!(sb, expected)` | `sb.assert_title_contains(expected).await` |
-| `sb_assert_url!(sb, expected)` | `sb.assert_url_contains(expected).await` |
+| `sb_assert_title!(sb, expected)` | `sb.assert_title(expected).await` (the whole title) |
+| `sb_assert_title_contains!(sb, expected)` | `sb.assert_title_contains(expected).await` |
+| `sb_assert_url!(sb, expected)` | `sb.assert_url(expected).await` (the whole URL) |
+| `sb_assert_url_contains!(sb, expected)` | `sb.assert_url_contains(expected).await` |
 | `sb_assert_not_visible!(sb, selector)` | fails if the element is visible |
 | `sb_screenshot!(sb, path)` | `sb.save_screenshot_to_path(path).await` |
 | `sb_js!(sb, script)` | `sb.execute_script(script).await` |
 | `sb_quit!(sb)` | `sb.quit().await` |
-| `assert_visible!(sb, selector)` | `sb.assert_element_visible(selector).await` |
+| `sb_assert_visible!(sb, selector)` | `sb.assert_element_visible(selector).await` |
+| `assert_visible!(sb, selector)` | the old, deprecated name of `sb_assert_visible!` |
 
 ## Form and timeout macros
 
@@ -192,7 +196,7 @@ A complete test with the macros (each action macro ends in `?`):
 
 ```rust,no_run
 use seleniumbase_rs::{
-    assert_visible, sb_click, sb_open, sb_screenshot, sb_test, sb_type,
+    sb_assert_visible, sb_click, sb_open, sb_screenshot, sb_test, sb_type,
 };
 
 sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
@@ -200,7 +204,7 @@ sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
     sb_type!(sb, "#username", "alice")?;
     sb_type!(sb, "#password", "secret")?;
     sb_click!(sb, "#submit")?;
-    assert_visible!(sb, "#dashboard")?;
+    sb_assert_visible!(sb, "#dashboard")?;
     sb_screenshot!(sb, "dashboard.png")?;
     Ok(())
 });

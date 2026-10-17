@@ -188,6 +188,24 @@ that break a call are listed first, each with the way to migrate.
   sb.assert_data_in_downloaded_file("id,name", "report.csv").await?;
   ```
 
+- **`sb_assert_title!` and `sb_assert_url!` check the whole value**, as
+  Python's `assert_title` and `assert_url` do; they checked that the title or
+  URL contained the text. The old behaviour is in the new
+  `sb_assert_title_contains!` and `sb_assert_url_contains!`. A test that passed
+  a part of the title keeps passing only with the `_contains` macro.
+
+  ```rust
+  // before
+  sb_assert_title!(sb, "Dashboard")?;       // the title contained "Dashboard"
+  // after
+  sb_assert_title_contains!(sb, "Dashboard")?;
+  ```
+
+### Added
+
+- `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
+  prefix of. `assert_visible!` still works and is deprecated.
+
 ### Changed
 
 - **`check_window` baselines can be told apart by test.** The baseline folder
