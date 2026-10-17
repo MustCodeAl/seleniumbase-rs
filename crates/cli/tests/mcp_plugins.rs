@@ -238,6 +238,48 @@ async fn the_settings_file_and_sb_plugins_choose_the_plugins_too() {
 }
 
 #[tokio::test]
+async fn a_settings_file_that_is_wrong_for_a_browser_does_not_stop_the_server() {
+    // `headless` is not a boolean: only the `[plugins]` table of the file is read.
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("sbase_config.toml"),
+        "headless = \"maybe\"\n[plugins]\nenable = [\"shield\"]\n",
+    )
+    .unwrap();
+
+    let args = webdriver_chrome_args(dir.path(), &[], "driver", &[]).await;
+
+    assert!(args.iter().any(|arg| arg == SHIELD_SWITCH), "{args:?}");
+}
+
+#[test]
+fn each_active_plugin_is_logged_with_the_place_that_turned_it_on() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("sbase_config.toml"),
+        "[plugins]\nenable = [\"shield\"]\n",
+    )
+    .unwrap();
+
+    // The server ends when its input does; what it logged on the way is what counts.
+    let output = command_in(MCP, dir.path(), &[("SB_LOG_LEVEL", "info")])
+        .args(["--server", "cdp", "--plugin", "block-resources"])
+        .stdin(Stdio::null())
+        .output()
+        .expect("sbrs-mcp runs");
+
+    let log = stderr(&output);
+    assert!(
+        log.contains("shield") && log.contains("the settings file in the current folder"),
+        "{log}"
+    );
+    assert!(
+        log.contains("block-resources") && log.contains("--plugin"),
+        "{log}"
+    );
+}
+
+#[tokio::test]
 async fn the_cdp_server_launches_its_browser_with_the_plugins() {
     let dir = tempfile::tempdir().unwrap();
     for (flags, expected) in [(&["--plugin", "shield"][..], true), (&[][..], false)] {

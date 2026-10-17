@@ -15,7 +15,7 @@ use seleniumbase_rs::cli::commands::{
 use seleniumbase_rs::cli::devtools::{
     ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
 };
-use seleniumbase_rs::cli::plugin_cmd;
+use seleniumbase_rs::cli::plugin_cmd::{self, PluginChoice};
 use seleniumbase_rs::cli::prompt;
 use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
 use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
@@ -1911,8 +1911,9 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     // Listen before the browser starts, so a Ctrl-C during the start is heard.
     let mut shutdown = Shutdown::install()?;
     let (executable, use_chromium, name) = devtools_browser(args.browser, browser_path.as_deref())?;
-    let plugins = plugin_selection(args)?;
-    plugin_cmd::check_selection(&plugins)?;
+    let choice = plugin_choice(args)?;
+    choice.check()?;
+    choice.log();
     let request = DevtoolsRequest {
         headless: if *headless || args.headless {
             Some(true)
@@ -1937,7 +1938,7 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         ad_block: args.ad_block,
         extension_dir: args.extension_dir.as_deref().map(PathBuf::from),
         url: url.as_deref().map(navigable_url).transpose()?,
-        plugins,
+        plugins: choice.into_selection(),
     };
     if args.uc || args.cdp {
         rich_helper::print_notice(
@@ -2077,20 +2078,18 @@ impl CompletionFormat {
 
 /// The plugins a command line asks for: the `[plugins]` table of the settings file and
 /// `SB_PLUGINS` (nothing else of the settings is read), with `--plugin` and `--plugin-opt`
-/// on top.
-fn plugin_selection(args: &Cli) -> Result<PluginSelection, Box<dyn std::error::Error>> {
-    let mut selection = Settings::load_plugin_selection(args.config.as_deref())?;
-    selection.apply_flags(&args.plugin, &args.plugin_opt)?;
-    Ok(selection)
+/// on top, and where each name came from.
+fn plugin_choice(args: &Cli) -> Result<PluginChoice, seleniumbase_rs::SeleniumBaseError> {
+    PluginChoice::load(args.config.as_deref(), &args.plugin, &args.plugin_opt)
 }
 
 /// `sbrs plugin list` and `sbrs plugin info NAME`. They start no browser and read only the
 /// plugin part of the settings, so a variable that is wrong for a browser does not stop them.
 fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
-    let selection = plugin_selection(args)?;
+    let choice = plugin_choice(args)?;
     let text = match command {
-        PluginCommand::List => plugin_cmd::list(&selection),
-        PluginCommand::Info(info) => plugin_cmd::info(&info.name, &selection)?,
+        PluginCommand::List => plugin_cmd::list(choice.selection()),
+        PluginCommand::Info(info) => plugin_cmd::info(&info.name, choice.selection())?,
     };
     std::io::stdout().lock().write_all(text.as_bytes())?;
     Ok(())
@@ -2291,11 +2290,22 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     config.mode = mode;
     config.auto_start_driver = true;
 
-    // The plugins: what the settings file and `SB_PLUGINS` turn on (`settings.plugins`), with
-    // `--plugin` and `--plugin-opt` on top. A browser is not started with a mistake in them.
-    let mut selection = settings.plugins.clone();
-    selection.apply_flags(&args.plugin, &args.plugin_opt)?;
-    if matches!(args.command, Commands::Test { .. }) && !args.plugin_opt.is_empty() {
+    // The plugins: what the settings file and `SB_PLUGINS` turn on, with `--plugin` and
+    // `--plugin-opt` on top. Only a command that starts a browser, and `test`, which passes
+    // the names on, looks at them; the others ignore the options. A browser is not started
+    // with a mistake in them.
+    let launches = args.command.launches_browser();
+    let is_test = matches!(args.command, Commands::Test { .. });
+    let choice = if launches || is_test {
+        Some(PluginChoice::load(
+            args.config.as_deref(),
+            &args.plugin,
+            &args.plugin_opt,
+        )?)
+    } else {
+        None
+    };
+    if is_test && !args.plugin_opt.is_empty() {
         return Err(seleniumbase_rs::SeleniumBaseError::invalid_config(
             "`sbrs test` cannot pass --plugin-opt to the tests: SB_PLUGINS carries plugin names \
              only. Put the options in the [plugins.NAME] table of the settings file",
@@ -2303,13 +2313,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         .into());
     }
     let forward_plugins = !args.plugin.is_empty();
-    if args.command.launches_browser() {
-        plugin_cmd::check_selection(&selection)?;
-        #[cfg(feature = "plugins")]
-        {
-            config = config.with_plugin_selection(&selection)?;
-        }
+    if let (true, Some(choice)) = (launches, &choice) {
+        choice.check()?;
+        choice.log();
+        config = plugin_cmd::apply_to_config(config, choice.selection())?;
     }
+    let selection = choice.map_or_else(PluginSelection::new, PluginChoice::into_selection);
 
     match args.command {
         Commands::Open { url } => {

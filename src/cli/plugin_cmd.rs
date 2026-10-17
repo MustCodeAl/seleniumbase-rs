@@ -10,6 +10,11 @@
 //!
 //! Without the feature `plugins` there is nothing to list: [`list`] says so,
 //! [`info`] fails, and [`check_selection`] refuses any selection.
+//!
+//! [`PluginChoice`] is the whole choice a program makes: the `[plugins]` table of the
+//! settings file, `SB_PLUGINS` and the command-line flags, with the place each plugin was
+//! named kept, so that the program can refuse what a project file may not turn on alone
+//! and tell the operator what is active.
 
 #[cfg(feature = "plugins")]
 use std::fmt::Write as _;
@@ -22,7 +27,11 @@ use seleniumbase_rs_plugin::{
 #[cfg(feature = "plugins")]
 use serde_json::Value;
 
-use crate::config::plugins::PluginSelection;
+use std::path::Path;
+
+use crate::browser::config::BrowserConfig;
+use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
+use crate::config::settings::Settings;
 use crate::error::SeleniumBaseError;
 
 /// What a build without the built-in plugins says, in place of a list.
@@ -57,6 +66,235 @@ pub fn check_selection(selection: &PluginSelection) -> Result<(), SeleniumBaseEr
     #[cfg(feature = "plugins")]
     check_selection_with(&crate::plugin_host::builtin_registry(), selection)?;
     Ok(())
+}
+
+/// Where the name of a plugin was given.
+///
+/// The precedence is the command line over `SB_PLUGINS` over the settings file; the file is
+/// told apart by how it was found, because a file the operator names with `--config` is
+/// theirs, and the `sbase_config.toml` of the current folder may be a cloned project's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum PluginSource {
+    /// The `[plugins]` table of the settings file found in the current folder.
+    ProjectFile,
+    /// The `[plugins]` table of the file that `--config` names.
+    ConfigFile,
+    /// The `SB_PLUGINS` variable.
+    Environment,
+    /// A `--plugin` flag.
+    CommandLine,
+}
+
+impl PluginSource {
+    /// The source in words, as the launch log and the errors say it.
+    #[must_use]
+    pub fn describe(self) -> &'static str {
+        match self {
+            Self::ProjectFile => "the settings file in the current folder",
+            Self::ConfigFile => "the settings file named by --config",
+            Self::Environment => "SB_PLUGINS",
+            Self::CommandLine => "--plugin",
+        }
+    }
+}
+
+/// An enabled plugin and where its name was given.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginOrigin {
+    /// The plugin's name.
+    pub name: String,
+    /// Where the name came from. The strongest place wins: the command line, then
+    /// `SB_PLUGINS`, then the file.
+    pub source: PluginSource,
+}
+
+/// The plugins an operator chose for a program: what the settings file, `SB_PLUGINS` and the
+/// command line turn on and configure, and where each name came from.
+///
+/// `sbrs`, `sbrs devtools` and `sbrs-mcp` build one so that the precedence is the same for
+/// all of them. [`check`](Self::check) refuses a mistake, and a plugin with a power that a
+/// project file may not grant on its own; [`log`](Self::log) says what is active.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::path::Path;
+///
+/// use seleniumbase_rs::cli::plugin_cmd::{PluginChoice, PluginSource};
+///
+/// // The settings file of the current folder, SB_PLUGINS, then `--plugin shield`.
+/// let choice = PluginChoice::load(
+///     None::<&Path>,
+///     &["shield"],
+///     &[r#"shield.level="strict""#],
+/// )?;
+/// assert_eq!(choice.selection().enabled(), ["shield"]);
+/// assert_eq!(choice.origins()[0].source, PluginSource::CommandLine);
+/// choice.check()?;
+/// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct PluginChoice {
+    selection: PluginSelection,
+    origins: Vec<PluginOrigin>,
+}
+
+impl PluginChoice {
+    /// Reads the `[plugins]` table of the settings file `config` (the settings file of the
+    /// current folder when `None`), replaces the names with `SB_PLUGINS` when it is set, and
+    /// applies `--plugin` (`plugins`) and `--plugin-opt` (`options`) on top.
+    ///
+    /// Only the plugin part of the file is read, so a value that is wrong for a browser does
+    /// not stop a program that starts none. The options of the file stay for a plugin the
+    /// flags turn on again, even when `SB_PLUGINS` does not name it; those of plugins
+    /// nothing turns on are dropped after the flags, as `SB_PLUGINS` has always dropped them.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] for a file that cannot be read, and for a flag
+    /// that is not a plugin name or `NAME.KEY=VALUE`, or sets an option of a plugin that
+    /// nothing turns on.
+    pub fn load<P, N, O>(
+        config: Option<P>,
+        plugins: &[N],
+        options: &[O],
+    ) -> Result<Self, SeleniumBaseError>
+    where
+        P: AsRef<Path>,
+        N: AsRef<str>,
+        O: AsRef<str>,
+    {
+        let file_source = if config.is_some() {
+            PluginSource::ConfigFile
+        } else {
+            PluginSource::ProjectFile
+        };
+        let table = Settings::load_plugin_table(config)?;
+        Self::from_parts(
+            table,
+            file_source,
+            plugins,
+            options,
+            std::env::var(PLUGINS_ENV).ok(),
+        )
+    }
+
+    /// [`load`](Self::load) from the `[plugins]` table that was read (`table`, found as
+    /// `file_source` says) and the value of `SB_PLUGINS`, when it is set.
+    fn from_parts<N, O>(
+        table: PluginSelection,
+        file_source: PluginSource,
+        plugins: &[N],
+        options: &[O],
+        list: Option<String>,
+    ) -> Result<Self, SeleniumBaseError>
+    where
+        N: AsRef<str>,
+        O: AsRef<str>,
+    {
+        let mut selection = table;
+        // An empty variable is an answer, not an unset one: it turns the file's plugins off.
+        let variable = list.as_deref().map(PluginSelection::from_list);
+        if let Some(list) = &list {
+            selection.set_enabled_keeping_options(list);
+        }
+        selection.apply_flags(plugins, options)?;
+        if variable.is_some() {
+            selection.prune_unused();
+        }
+
+        let origins = selection
+            .enabled()
+            .iter()
+            .map(|name| {
+                let source = if plugins.iter().any(|flag| flag.as_ref() == name) {
+                    PluginSource::CommandLine
+                } else if variable
+                    .as_ref()
+                    .is_some_and(|named| named.enabled().contains(name))
+                {
+                    PluginSource::Environment
+                } else {
+                    file_source
+                };
+                PluginOrigin {
+                    name: name.clone(),
+                    source,
+                }
+            })
+            .collect();
+        Ok(Self { selection, origins })
+    }
+
+    /// The plugins to turn on and their options.
+    #[must_use]
+    pub fn selection(&self) -> &PluginSelection {
+        &self.selection
+    }
+
+    /// The selection, to hand to a builder.
+    #[must_use]
+    pub fn into_selection(self) -> PluginSelection {
+        self.selection
+    }
+
+    /// The enabled plugins in order, each with where its name was given.
+    #[must_use]
+    pub fn origins(&self) -> &[PluginOrigin] {
+        &self.origins
+    }
+
+    /// Checks the choice the way a program should before it starts a browser:
+    /// [`check_selection`], and a plugin that declares a power the settings file of the
+    /// current folder may not grant alone (`launch.proxy`, `host.*`, `artifacts.write`) has
+    /// to be named by the operator too, with `--plugin` or in `SB_PLUGINS`.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] naming the mistake.
+    pub fn check(&self) -> Result<(), SeleniumBaseError> {
+        check_selection(&self.selection)?;
+        #[cfg(feature = "plugins")]
+        check_origins_with(&crate::plugin_host::builtin_registry(), &self.origins)?;
+        Ok(())
+    }
+
+    /// Logs one `INFO` line for each enabled plugin with the place that enabled it, so that
+    /// the operator can see what a file in the folder turned on.
+    pub fn log(&self) {
+        for origin in &self.origins {
+            tracing::info!(
+                plugin = %origin.name,
+                source = origin.source.describe(),
+                "plugin enabled"
+            );
+        }
+    }
+}
+
+/// Gives `config` the plugins `selection` names. The same as
+/// [`BrowserConfig::with_plugin_selection`], except that a build without the feature
+/// `plugins` refuses a selection that is not empty instead of leaving it out of the
+/// program, whichever features the caller has.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] when this build cannot run plugins, and
+/// [`SeleniumBaseError::Plugin`] for an unknown name or options a plugin refuses.
+pub fn apply_to_config(
+    config: BrowserConfig,
+    selection: &PluginSelection,
+) -> Result<BrowserConfig, SeleniumBaseError> {
+    #[cfg(feature = "plugins")]
+    {
+        config.with_plugin_selection(selection)
+    }
+    #[cfg(not(feature = "plugins"))]
+    {
+        selection.ensure_supported()?;
+        Ok(config)
+    }
 }
 
 /// What `sbrs plugin list` prints: the built-in plugins of this build, with
@@ -115,6 +353,58 @@ pub fn check_selection_with(
     crate::plugin_host::build_with(registry, selection)
         .map(drop)
         .map_err(as_usage_error)
+}
+
+/// Whether a capability is one the operator has to grant: the settings file of a project that
+/// is cloned must not give it on its own.
+#[cfg(feature = "plugins")]
+fn needs_the_operator(capability: &str) -> bool {
+    capability == "launch.proxy"
+        || capability == "artifacts.write"
+        || capability.starts_with("host.")
+}
+
+/// The check of [`PluginChoice::check`] that depends on where a name came from, against
+/// the plugins of `registry`: a plugin that declares `launch.proxy`, `artifacts.write` or a
+/// `host.*` capability, and was named only by the settings file of the current folder, is
+/// refused. A name nothing in `registry` has is left to [`check_selection_with`].
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::InvalidConfig`] naming the plugin, the capabilities and how to name
+/// the plugin yourself.
+#[cfg(feature = "plugins")]
+pub fn check_origins_with(
+    registry: &Registry,
+    origins: &[PluginOrigin],
+) -> Result<(), SeleniumBaseError> {
+    for origin in origins
+        .iter()
+        .filter(|origin| origin.source == PluginSource::ProjectFile)
+    {
+        let Some(descriptor) = registry.get(&origin.name) else {
+            continue;
+        };
+        let meta = descriptor.metadata();
+        let powers: Vec<String> = meta
+            .capabilities
+            .iter()
+            .chain(meta.optional.iter())
+            .map(ToString::to_string)
+            .filter(|capability| needs_the_operator(capability))
+            .collect();
+        if !powers.is_empty() {
+            let name = &origin.name;
+            return Err(SeleniumBaseError::invalid_config(format!(
+                "plugin `{name}` asks for {}, which {} cannot grant by itself: a project you \
+                 clone would decide. Name the plugin yourself, with `--plugin {name}` or \
+                 `SB_PLUGINS={name}`",
+                powers.join(", "),
+                origin.source.describe(),
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// [`list`] for the plugins of `registry`.
@@ -774,5 +1064,235 @@ mod tests {
         .unwrap_err();
         assert_eq!(twice.exit_code(), 2);
         assert!(twice.to_string().contains("already in the set"), "{twice}");
+    }
+
+    fn origin(name: &str, source: PluginSource) -> PluginOrigin {
+        PluginOrigin {
+            name: name.to_owned(),
+            source,
+        }
+    }
+
+    #[test]
+    fn a_power_over_the_host_needs_the_operator_to_name_the_plugin() {
+        // `probe` declares `host.fs.write:temp`; `plain` declares nothing.
+        let error = check_origins_with(
+            &registry(),
+            &[
+                origin("plain", PluginSource::ProjectFile),
+                origin("probe", PluginSource::ProjectFile),
+            ],
+        )
+        .unwrap_err();
+        assert_eq!(error.exit_code(), 2, "{error:?}");
+        let text = error.to_string();
+        for wanted in [
+            "`probe`",
+            "host.fs.write:temp",
+            "--plugin probe",
+            "SB_PLUGINS=probe",
+        ] {
+            assert!(text.contains(wanted), "{wanted:?} in: {text}");
+        }
+        assert!(
+            !text.contains("`plain`"),
+            "only the plugin with the power is named: {text}"
+        );
+
+        for source in [
+            PluginSource::CommandLine,
+            PluginSource::Environment,
+            PluginSource::ConfigFile,
+        ] {
+            check_origins_with(&registry(), &[origin("probe", source)])
+                .unwrap_or_else(|error| panic!("{source:?}: {error}"));
+        }
+    }
+
+    #[test]
+    fn a_name_the_build_does_not_have_is_left_to_the_name_check() {
+        check_origins_with(&registry(), &[origin("sheild", PluginSource::ProjectFile)]).unwrap();
+    }
+
+    #[test]
+    fn a_plugin_that_only_adjusts_the_launch_may_come_from_the_project_file() {
+        check_origins_with(&registry(), &[origin("plain", PluginSource::ProjectFile)]).unwrap();
+        assert!(needs_the_operator("launch.proxy"));
+        assert!(needs_the_operator("artifacts.write"));
+        assert!(needs_the_operator("host.process"));
+        assert!(needs_the_operator("host.net:any"));
+        for capability in [
+            "launch.args",
+            "launch.network",
+            "launch.extensions",
+            "page.script:*",
+            "cdp:Network",
+        ] {
+            assert!(!needs_the_operator(capability), "{capability}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod choice_tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn table(text: &str) -> PluginSelection {
+        toml::from_str(text).expect("a plugin table")
+    }
+
+    fn choice(
+        file: &str,
+        variable: Option<&str>,
+        plugins: &[&str],
+        options: &[&str],
+    ) -> PluginChoice {
+        PluginChoice::from_parts(
+            table(file),
+            PluginSource::ProjectFile,
+            plugins,
+            options,
+            variable.map(str::to_owned),
+        )
+        .expect("a valid choice")
+    }
+
+    fn sources(choice: &PluginChoice) -> Vec<(&str, PluginSource)> {
+        choice
+            .origins()
+            .iter()
+            .map(|origin| (origin.name.as_str(), origin.source))
+            .collect()
+    }
+
+    #[test]
+    fn each_name_remembers_the_strongest_place_that_gave_it() {
+        let file = r#"enable = ["a", "b"]"#;
+
+        let only_the_file = choice(file, None, &[], &[]);
+        assert_eq!(
+            sources(&only_the_file),
+            [
+                ("a", PluginSource::ProjectFile),
+                ("b", PluginSource::ProjectFile)
+            ]
+        );
+
+        // The variable replaces the file's names; the flags add to them.
+        let all = choice(file, Some("b, c"), &["c", "d"], &[]);
+        assert_eq!(all.selection().enabled(), ["b", "c", "d"]);
+        assert_eq!(
+            sources(&all),
+            [
+                ("b", PluginSource::Environment),
+                ("c", PluginSource::CommandLine),
+                ("d", PluginSource::CommandLine)
+            ]
+        );
+
+        // A name the file and the flag both give is the flag's.
+        let both = choice(file, None, &["b"], &[]);
+        assert_eq!(
+            sources(&both),
+            [
+                ("a", PluginSource::ProjectFile),
+                ("b", PluginSource::CommandLine)
+            ]
+        );
+    }
+
+    #[test]
+    fn a_file_the_config_flag_names_is_not_a_project_file() {
+        let selection = PluginChoice::from_parts(
+            table(r#"enable = ["a"]"#),
+            PluginSource::ConfigFile,
+            &[] as &[&str],
+            &[] as &[&str],
+            None,
+        )
+        .unwrap();
+        assert_eq!(sources(&selection), [("a", PluginSource::ConfigFile)]);
+    }
+
+    #[test]
+    fn an_empty_variable_turns_the_files_plugins_off_and_a_flag_still_adds() {
+        let file = "enable = [\"a\"]\n[a]\nlevel = 1\n";
+
+        let off = choice(file, Some(""), &[], &[]);
+        assert!(off.selection().is_empty(), "{:?}", off.selection());
+        assert!(off.origins().is_empty());
+
+        let then_flag = choice(file, Some(""), &["b"], &[]);
+        assert_eq!(then_flag.selection().enabled(), ["b"]);
+    }
+
+    #[test]
+    fn a_flag_brings_back_the_file_options_of_a_plugin_the_variable_left_out() {
+        let file = "enable = [\"shield\"]\n[shield]\nlevel = \"strict\"\nextra = 1\n";
+
+        // The variable does not name shield, so its options are dropped ...
+        let dropped = choice(file, Some("crx"), &[], &[]);
+        assert_eq!(dropped.selection().enabled(), ["crx"]);
+        assert!(dropped.selection().options_of("shield").is_none());
+
+        // ... unless `--plugin shield` turns it on again: the level the file chose stays.
+        let back = choice(file, Some("crx"), &["shield"], &[]);
+        assert_eq!(back.selection().enabled(), ["crx", "shield"]);
+        assert_eq!(
+            back.selection().options_of("shield"),
+            Some(&json!({ "level": "strict", "extra": 1 }))
+        );
+
+        // A `--plugin-opt` still wins key by key.
+        let tuned = choice(file, Some("crx"), &["shield"], &[r#"shield.level="basic""#]);
+        assert_eq!(
+            tuned.selection().options_of("shield"),
+            Some(&json!({ "level": "basic", "extra": 1 }))
+        );
+    }
+
+    #[test]
+    fn options_of_a_plugin_the_file_never_enabled_stay_for_the_build_to_refuse() {
+        // No variable: nothing was replaced, so the stray table is a mistake to report.
+        let stray = choice("[shield]\nlevel = 1\n", None, &[], &[]);
+        assert!(stray.selection().options_of("shield").is_some());
+    }
+
+    #[test]
+    fn a_flag_mistake_is_an_invalid_config_error() {
+        let error = PluginChoice::from_parts(
+            PluginSelection::new(),
+            PluginSource::ProjectFile,
+            &[] as &[&str],
+            &[r#"shield.level="strict""#],
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(error.exit_code(), 2, "{error:?}");
+        assert!(error.to_string().contains("nothing turns on"), "{error}");
+    }
+
+    #[test]
+    fn the_sources_are_told_in_words() {
+        assert_eq!(PluginSource::CommandLine.describe(), "--plugin");
+        assert_eq!(PluginSource::Environment.describe(), "SB_PLUGINS");
+        assert!(PluginSource::ProjectFile
+            .describe()
+            .contains("current folder"));
+        assert!(PluginSource::ConfigFile.describe().contains("--config"));
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    #[test]
+    fn a_build_without_plugins_refuses_to_apply_a_selection() {
+        let config = BrowserConfig::default();
+        apply_to_config(config.clone(), &PluginSelection::new()).unwrap();
+        let error = apply_to_config(config, &PluginSelection::from_list("shield")).unwrap_err();
+        assert!(
+            error.to_string().contains("--features plugins-builtin"),
+            "{error}"
+        );
     }
 }

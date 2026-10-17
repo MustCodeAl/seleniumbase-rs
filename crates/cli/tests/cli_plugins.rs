@@ -550,6 +550,109 @@ fn a_command_that_starts_no_browser_does_not_check_the_plugins() {
     assert!(stdout(&output).starts_with("sbrs "), "{}", stdout(&output));
 }
 
+#[test]
+fn a_command_that_starts_no_browser_ignores_the_plugin_options_even_when_they_are_wrong() {
+    for flags in [
+        &["--plugin-opt", r#"shield.level="strict""#][..],
+        &["--plugin-opt", "nonsense"],
+        &["--plugin", "a b"],
+        &["--plugin", ""],
+        &["--plugin", "shield,crx"],
+    ] {
+        let mut args = flags.to_vec();
+        args.push("version");
+        let output = in_a_new_folder(&[], &args);
+        assert!(output.status.success(), "{args:?}: {}", stderr(&output));
+        assert!(stdout(&output).starts_with("sbrs "), "{args:?}");
+    }
+}
+
+#[test]
+fn a_flag_that_turns_a_plugin_back_on_keeps_the_options_of_the_file() {
+    let file = "[plugins]\nenable = [\"shield\"]\n\n[plugins.shield]\nlevel = \"strict\"\n";
+    let variable = [("SB_PLUGINS", "block-resources")];
+
+    // The variable does not name shield, so shield is off.
+    let without = against_a_fake_server(Some(file), &variable, &[], &OPEN);
+    assert!(without.output.status.success(), "{}", without.stderr());
+    assert!(
+        !without.has_switch(SHIELD_SWITCH),
+        "{:?}",
+        without.chrome_args()
+    );
+
+    // `--plugin shield` brings it back at the level the file chose.
+    let back = against_a_fake_server(Some(file), &variable, &["--plugin", "shield"], &OPEN);
+    assert!(back.output.status.success(), "{}", back.stderr());
+    assert!(back.has_switch(SHIELD_SWITCH), "{:?}", back.chrome_args());
+    assert!(
+        back.has_switch_starting("--host-resolver-rules="),
+        "the strict level of the file: {:?}",
+        back.chrome_args()
+    );
+    assert!(
+        !back.blocked_urls().is_empty(),
+        "block-resources, named by the variable, ran too"
+    );
+}
+
+#[test]
+fn each_active_plugin_is_logged_with_the_place_that_turned_it_on() {
+    let info = [("SB_LOG_LEVEL", "info")];
+    let file = "[plugins]\nenable = [\"shield\"]\n";
+
+    let from_file = against_a_fake_server(Some(file), &info, &[], &OPEN);
+    assert!(from_file.output.status.success(), "{}", from_file.stderr());
+    let log = from_file.stderr();
+    for wanted in [
+        "plugin enabled",
+        "shield",
+        "the settings file in the current folder",
+    ] {
+        assert!(log.contains(wanted), "{wanted:?} in:\n{log}");
+    }
+
+    let from_flag = against_a_fake_server(None, &info, &["--plugin", "block-resources"], &OPEN);
+    let log = from_flag.stderr();
+    assert!(log.contains("block-resources"), "{log}");
+    assert!(log.contains("--plugin"), "{log}");
+
+    let from_variable = against_a_fake_server(
+        None,
+        &[("SB_LOG_LEVEL", "info"), ("SB_PLUGINS", "shield")],
+        &[],
+        &OPEN,
+    );
+    assert!(
+        from_variable.stderr().contains("SB_PLUGINS"),
+        "{}",
+        from_variable.stderr()
+    );
+
+    let none = against_a_fake_server(None, &info, &[], &OPEN);
+    assert!(
+        !none.stderr().contains("plugin enabled"),
+        "no plugin, no line: {}",
+        none.stderr()
+    );
+}
+
+#[test]
+fn the_plugin_commands_read_only_the_plugin_table_of_the_file() {
+    // `headless` is not a boolean: a browser command stops on it, `plugin list` does not.
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::fs::write(
+        dir.path().join("sbase_config.toml"),
+        "headless = \"maybe\"\n[plugins]\nenable = [\"shield\"]\n",
+    )
+    .unwrap();
+
+    let output = run(dir.path(), &[], &["plugin", "list"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(row(&stdout(&output), "shield")[2], "yes");
+}
+
 // ---------------------------------------------------------------------------
 // sbrs test passes the names on to the tests
 // ---------------------------------------------------------------------------
@@ -757,6 +860,21 @@ fn devtools_reads_the_plugins_table_and_sb_plugins_and_the_option_flags() {
         .expect("started")
         .iter()
         .any(|arg| arg.starts_with("--host-resolver-rules=")));
+}
+
+#[cfg(unix)]
+#[test]
+fn devtools_reads_only_the_plugin_table_of_a_file_that_is_wrong_for_a_browser() {
+    // `headless` is not a boolean; `devtools` takes its headless flag from the command line.
+    let file = "headless = \"maybe\"\n[plugins]\nenable = [\"shield\"]\n";
+    let chrome = fake_chrome::FakeChrome::new();
+
+    let output = devtools(&chrome, Some(file), &[], &[]);
+
+    let args = chrome.args().unwrap_or_else(|| {
+        panic!("the browser was started: {}", stderr(&output));
+    });
+    assert!(args.iter().any(|arg| arg == SHIELD_SWITCH), "{args:?}");
 }
 
 #[cfg(unix)]
