@@ -34,6 +34,10 @@ impl BaseCase {
     }
 
     /// Generates a Markdown test-case management report from QA steps.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use MasterQaSession::to_markdown on the session; save_qa_report writes the active one"
+    )]
     pub fn qa_report_markdown(steps: &[QaStep], title: &str) -> String {
         let mut session = MasterQaSession::new(title);
         for step in steps {
@@ -42,23 +46,43 @@ impl BaseCase {
         session.to_markdown()
     }
 
-    /// Saves a Markdown test-case report to the logs directory or a given path.
-    pub fn save_qa_report<P: AsRef<Path>>(
+    /// Saves the active QA session ([`start_qa_session`](Self::start_qa_session),
+    /// or the one [`manual_verify`](Self::manual_verify) starts) as a Markdown
+    /// test-case report in the logs folder, and returns the path of the file.
+    /// To choose the file, see [`save_qa_report_to`](Self::save_qa_report_to).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if there is no QA session,
+    /// and an I/O error if the file cannot be written.
+    pub fn save_qa_report(&self) -> Result<std::path::PathBuf, SeleniumBaseError> {
+        let session = self.active_qa_session()?;
+        let logs = ensure_latest_logs_dir()?;
+        session.save_markdown(artifact_path(&logs, "qa_report", "md"))
+    }
+
+    /// Saves the active QA session as a Markdown report in the file `path`,
+    /// and returns it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if there is no QA session,
+    /// and an I/O error if the file cannot be written.
+    pub fn save_qa_report_to<P: AsRef<Path>>(
         &self,
-        steps: &[QaStep],
-        title: &str,
-        path: Option<P>,
+        path: P,
     ) -> Result<std::path::PathBuf, SeleniumBaseError> {
-        let markdown = Self::qa_report_markdown(steps, title);
-        let target = match path {
-            Some(p) => p.as_ref().to_owned(),
-            None => {
-                let logs = ensure_latest_logs_dir()?;
-                artifact_path(&logs, "qa_report", "md")
-            }
-        };
-        std::fs::write(&target, markdown)?;
-        Ok(target)
+        self.active_qa_session()?.save_markdown(path)
+    }
+
+    /// The active QA session, or the error that says there is none.
+    fn active_qa_session(&self) -> Result<&MasterQaSession, SeleniumBaseError> {
+        self.qa_session.as_ref().ok_or_else(|| {
+            SeleniumBaseError::InvalidConfig(
+                "there is no QA session to report: call start_qa_session or manual_verify first"
+                    .to_owned(),
+            )
+        })
     }
 }
 
@@ -113,13 +137,54 @@ mod tests_masterqa {
         assert!(md.contains("| 1 | a \\| b c | FAIL | x\\|y |"), "{md}");
     }
 
+    fn answered(question: &str, passed: bool) -> QaStep {
+        QaStep {
+            id: 1,
+            question: question.to_owned(),
+            passed,
+            notes: None,
+        }
+    }
+
     #[test]
-    fn a_report_goes_to_the_path_it_is_given() {
+    fn the_report_is_the_active_session_and_goes_to_the_path_it_is_given() {
+        let mut sb =
+            BaseCase::with_session(BrowserConfig::default(), BrowserSession::disconnected());
+        sb.start_qa_session("Checkout")
+            .steps
+            .push(answered("The total is right", true));
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("qa.md");
+
+        let saved = sb.save_qa_report_to(&target).unwrap();
+
+        assert_eq!(saved, target);
+        let report = std::fs::read_to_string(&target).unwrap();
+        assert!(report.starts_with("# Checkout"), "{report}");
+        assert!(report.contains("| 1 | The total is right | PASS |"), "{report}");
+    }
+
+    #[test]
+    fn a_report_without_a_session_is_an_error_not_an_empty_file() {
         let sb = BaseCase::with_session(BrowserConfig::default(), BrowserSession::disconnected());
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("qa.md");
-        let saved = sb.save_qa_report(&[], "Empty", Some(&target)).unwrap();
-        assert_eq!(saved, target);
-        assert!(std::fs::read_to_string(&target).unwrap().starts_with("# Empty"));
+
+        assert!(matches!(
+            sb.save_qa_report_to(&target),
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+        assert!(matches!(
+            sb.save_qa_report(),
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn a_session_the_test_never_started_is_not_made_by_reporting() {
+        let sb = BaseCase::with_session(BrowserConfig::default(), BrowserSession::disconnected());
+        let _ = sb.save_qa_report();
+        assert!(sb.qa_session().is_none());
     }
 }

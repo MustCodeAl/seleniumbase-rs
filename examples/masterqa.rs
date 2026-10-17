@@ -53,9 +53,8 @@ async fn verify_by_hand(sb: &mut BaseCase, url: String) -> Result<()> {
         .qa_session()
         .ok_or_else(|| SeleniumBaseError::Unsupported("the QA session was lost".to_owned()))?;
     let passed = session.all_passed();
-    let steps = session.steps.clone();
 
-    let report = sb.save_qa_report(&steps, TITLE, None::<&str>)?;
+    let report = sb.save_qa_report()?;
     println!("Report written to: {}", report.display());
 
     if passed {

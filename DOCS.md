@@ -253,7 +253,7 @@ Record manual verification steps and export a Markdown test-case report:
 sb.start_qa_session("Login flow");
 sb.manual_verify("Login page loads correctly");
 sb.manual_verify("Error message appears for bad credentials");
-let report_path = sb.save_qa_report(&[], "Login flow", None::<&str>)?;
+let report_path = sb.save_qa_report()?; // latest_logs/qa_report_<time>.md
 ```
 
 ## Global Config File

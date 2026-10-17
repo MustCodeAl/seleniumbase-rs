@@ -384,6 +384,24 @@ migrate.
   sb.click_with_offset("#canvas", 10, 4, false).await?;  // from the top-left corner
   ```
 
+- **`save_qa_report` writes the active QA session.** It took the steps and the
+  title again (`save_qa_report(&steps, title, path)`) and ignored the session
+  the test had built, so the caller cloned the steps out and passed the title a
+  second time. `save_qa_report()` writes the session's report to the logs
+  folder, `save_qa_report_to(path)` to a file of your choice, and both are an
+  `InvalidConfig` error when there is no session. `qa_report_markdown` is
+  deprecated for `MasterQaSession::to_markdown`.
+
+  ```rust
+  // before
+  let steps = sb.qa_session().map(|s| s.steps.clone()).unwrap_or_default();
+  let report = sb.save_qa_report(&steps, "Login", None::<&str>)?;
+  let there = sb.save_qa_report(&steps, "Login", Some("qa.md"))?;
+  // after
+  let report = sb.save_qa_report()?;
+  let there = sb.save_qa_report_to("qa.md")?;
+  ```
+
 - **`BaseCase::set_messenger_theme` takes Python's arguments**, a
   `MessengerSettings` (theme, location, how many messages), or a
   `MessengerTheme` or `MessengerLocation` alone, as `Page::set_messenger_theme`
@@ -495,6 +513,7 @@ migrate.
 - `sb_cdp::Locator::click_at(Point)`: use `click_with_offset(x, y, false)`,
   Python's name for it. `click_at` calls it.
 - `BaseCase::cdp_type_text`: renamed `cdp_insert_text`.
+- `BaseCase::qa_report_markdown`: use `MasterQaSession::to_markdown`.
 - `BaseCase::cdp_click_element`: use `cdp_click`, which it now calls (see
   Fixed). `sbrs cdp-click-element` and `cdp-type-text` keep their names.
 
