@@ -7,9 +7,12 @@
 //!    run every scenario. The steps are plain Rust closures that share state,
 //!    so no browser is involved. This part always runs, offline.
 //! 2. The [`AsyncStepRegistry`] owns a `BaseCase`, so its steps can drive a real
-//!    browser. `run_feature_file_async` runs a feature file against it, as the
-//!    sync runner does; here it is fed step text one step at a time. This part
-//!    starts Chrome, so it only runs when you pass `--browser`.
+//!    browser. `run_feature_text_async` (and `run_feature_file_async`) run a
+//!    feature against it as the sync runner does: Background, outlines, tags.
+//!    The built-in steps understand SeleniumBase's own wording (`Open "..."`,
+//!    `Click "..."`), and `register_step` adds one of yours that matches any
+//!    keyword. This part starts Chrome, so it only runs when you pass
+//!    `--browser`.
 //!
 //! Run it with:
 //!
@@ -31,7 +34,8 @@ use std::rc::Rc;
 
 use local_site::{Site, DEMO_PATH};
 use seleniumbase_rs::behave::{
-    run_feature_file_with_filter, AsyncStepRegistry, RunFilter, StepRegistry,
+    run_feature_file_with_filter, run_feature_text_async, AsyncStepRegistry, RunFilter,
+    StepRegistry,
 };
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
@@ -162,15 +166,18 @@ fn run_feature_with_sync_steps() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Registers browser steps on a `BaseCase`, then runs them in order.
+/// Registers browser steps on a `BaseCase`, then runs a feature against them.
 async fn run_steps_in_a_browser() -> Result<(), Box<dyn Error>> {
     let site = Site::serve_demo()?;
     let mut registry = AsyncStepRegistry::new(BaseCase::new(BrowserConfig::default()).await?);
 
-    // `I open "..."`, `I go back`, `I click "..."` and `I type "..." into "..."`.
+    // `Open "..."`, `Go back`, `Click "..."`, `Type text "..." into "..."` and
+    // the `I open "..."` style of the same steps.
     registry.register_common_browser_steps();
-    registry.register_regex(
-        r#"^I verify the title is "(.+?)"$"#,
+    // `register_step` takes the text without its keyword and matches `Then`,
+    // `And` or none.
+    registry.register_step(
+        r#"I verify the title is "(.+?)""#,
         Box::new(|bc, _step, captures| {
             let expected = captures[0].clone();
             Box::pin(async move {
@@ -189,22 +196,20 @@ async fn run_steps_in_a_browser() -> Result<(), Box<dyn Error>> {
         }),
     );
 
-    let steps = [
-        format!(r#"I open "{}""#, site.url(DEMO_PATH)),
-        r#"I verify the title is "Web Testing Page""#.to_owned(),
-        r##"I type "behave" into "#myTextInput""##.to_owned(),
-        r##"I click "#myButton""##.to_owned(),
-    ];
-    println!("\nBrowser-backed steps:");
-    let mut failure = None;
-    for step in &steps {
-        match registry.run(step).await {
-            Ok(()) => println!("  ok   {step}"),
-            Err(error) => {
-                failure = Some(format!("step `{step}` failed: {error}"));
-                break;
-            }
-        }
+    let feature = format!(
+        r##"Feature: Demo page
+  Scenario: type and click
+    Given Open "{}"
+    Then I verify the title is "Web Testing Page"
+    When Type text "behave" into "#myTextInput"
+    And Click "#myButton"
+"##,
+        site.url(DEMO_PATH)
+    );
+    println!("\nBrowser-backed scenarios:");
+    let results = run_feature_text_async(&feature, &registry, &RunFilter::all()).await;
+    for result in &results {
+        println!("  {} {}", describe(result.passed), result.name);
     }
 
     // The registry owns the BaseCase until the run is over; take it back to
@@ -213,8 +218,10 @@ async fn run_steps_in_a_browser() -> Result<(), Box<dyn Error>> {
         .into_base_case()
         .map_err(|_| "a step is still holding the BaseCase")?;
     base_case.quit().await?;
-    match failure {
-        Some(message) => Err(message.into()),
+    match results.iter().find(|result| !result.passed) {
+        Some(failed) => {
+            Err(format!("{} failed: {}", failed.name, failed.messages.join("; ")).into())
+        }
         None => Ok(()),
     }
 }

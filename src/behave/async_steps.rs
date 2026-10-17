@@ -97,6 +97,37 @@ impl AsyncStepRegistry {
         Ok(())
     }
 
+    /// Register a handler for the step `text_regex`, whatever keyword it is
+    /// written with, or none: the way behave's `@step` matches.
+    ///
+    /// `text_regex` is the step text as a regex, without its keyword and
+    /// without `^` or `$`; its capture groups go to the handler. It is
+    /// [`register_regex`](Self::register_regex) with
+    /// [`step_pattern`](crate::behave::step_pattern).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `text_regex` is not a valid regular expression; use
+    /// [`try_register_step`](Self::try_register_step) for one that comes from
+    /// outside the program.
+    pub fn register_step(&mut self, text_regex: &str, handler: AsyncStepHandler) {
+        self.register_regex(&step_pattern(text_regex), handler);
+    }
+
+    /// Like [`register_step`](Self::register_step), but reports an invalid
+    /// pattern instead of panicking.
+    ///
+    /// # Errors
+    ///
+    /// Returns the regex error if `text_regex` does not compile.
+    pub fn try_register_step(
+        &mut self,
+        text_regex: &str,
+        handler: AsyncStepHandler,
+    ) -> Result<(), regex::Error> {
+        self.try_register_regex(&step_pattern(text_regex), handler)
+    }
+
     /// Whether [`run`](Self::run) would find a handler for `step`.
     pub fn has_handler(&self, step: &str) -> bool {
         let trimmed = step.trim();
@@ -163,81 +194,35 @@ impl AsyncStepRegistry {
         }
     }
 
-    /// Convenience: register common browser navigation steps: `I open "url"`,
-    /// `I go back` and `I go forward`, with or without a leading `Given`,
-    /// `When`, `Then`, `And` or `But`.
-    #[allow(clippy::await_holding_refcell_ref)]
+    /// Convenience: register common browser navigation steps, with or without
+    /// a leading `Given`, `When`, `Then`, `And` or `But`.
+    ///
+    /// They are `I open "url"`, `I go back` and `I go forward`, and Python
+    /// SeleniumBase's wording for the same, which its `--rec-behave` recorder
+    /// writes: `Open "url"` (also `Open 'url'` and `Open URL "url"`), `Go back`
+    /// and `Go forward`.
     pub fn register_navigation_steps(&mut self) {
-        self.register_regex(
-            &step_pattern(r#"I open "(.+?)""#),
-            Box::new(|bc, _step, caps| {
-                let url = caps[0].clone();
-                Box::pin(async move {
-                    bc.lock()
-                        .await
-                        .open(&url)
-                        .await
-                        .map_err(|e| format!("open failed: {}", e))
-                })
-            }),
-        );
-        self.register_regex(
-            &step_pattern("I go back"),
-            Box::new(|bc, _step, _caps| {
-                Box::pin(async move {
-                    bc.lock()
-                        .await
-                        .go_back()
-                        .await
-                        .map_err(|e| format!("go_back failed: {}", e))
-                })
-            }),
-        );
-        self.register_regex(
-            &step_pattern("I go forward"),
-            Box::new(|bc, _step, _caps| {
-                Box::pin(async move {
-                    bc.lock()
-                        .await
-                        .go_forward()
-                        .await
-                        .map_err(|e| format!("go_forward failed: {}", e))
-                })
-            }),
-        );
+        self.register_step(r#"I open "(.+?)""#, open_step());
+        self.register_step(r#"Open(?: URL)? (?:"(.+?)"|'(.+?)')"#, open_step());
+        self.register_step("(?:I go|Go) back", back_step());
+        self.register_step("(?:I go|Go) forward", forward_step());
     }
 
-    /// Convenience: register common element interaction steps: `I click
-    /// "selector"` and `I type "text" into "selector"`, with or without a
-    /// leading keyword.
-    #[allow(clippy::await_holding_refcell_ref)]
+    /// Convenience: register common element interaction steps, with or without
+    /// a leading keyword.
+    ///
+    /// They are `I click "selector"` and `I type "text" into "selector"`, and
+    /// Python SeleniumBase's wording for the same, which its `--rec-behave`
+    /// recorder writes: `Click "selector"` (also `Click 'selector'` and `Click
+    /// element "selector"`) and `Type text "text" into "selector"` (also with
+    /// single quotes).
     pub fn register_element_steps(&mut self) {
-        self.register_regex(
-            &step_pattern(r#"I click "(.+?)""#),
-            Box::new(|bc, _step, caps| {
-                let selector = caps[0].clone();
-                Box::pin(async move {
-                    bc.lock()
-                        .await
-                        .click(&selector)
-                        .await
-                        .map_err(|e| format!("click failed: {}", e))
-                })
-            }),
-        );
-        self.register_regex(
-            &step_pattern(r#"I type "(.+?)" into "(.+?)""#),
-            Box::new(|bc, _step, caps| {
-                let text = caps[0].clone();
-                let selector = caps[1].clone();
-                Box::pin(async move {
-                    bc.lock()
-                        .await
-                        .type_text(&selector, &text)
-                        .await
-                        .map_err(|e| format!("type failed: {}", e))
-                })
-            }),
+        self.register_step(r#"I click "(.+?)""#, click_step());
+        self.register_step(r#"Click(?: element)? (?:"(.+?)"|'(.+?)')"#, click_step());
+        self.register_step(r#"I type "(.+?)" into "(.+?)""#, type_step());
+        self.register_step(
+            r#"Type text (?:"(.+?)"|'(.+?)') into (?:"(.+?)"|'(.+?)')"#,
+            type_step(),
         );
     }
 
@@ -246,6 +231,77 @@ impl AsyncStepRegistry {
         self.register_navigation_steps();
         self.register_element_steps();
     }
+}
+
+/// The one capture a built-in step took, from whichever quote style matched.
+///
+/// A pattern with a double-quoted and a single-quoted choice has a group for
+/// each; the one that did not take part is empty.
+fn quoted(groups: &[String]) -> String {
+    groups.concat()
+}
+
+/// The text and the selector of a typing step: half of the groups each, since
+/// each side of Python's wording has one group per quote style.
+fn text_and_selector(groups: &[String]) -> (String, String) {
+    let (text, selector) = groups.split_at(groups.len() / 2);
+    (quoted(text), quoted(selector))
+}
+
+fn open_step() -> AsyncStepHandler {
+    Box::new(|bc, _step, caps| {
+        let url = quoted(caps);
+        Box::pin(async move {
+            let mut sb = bc.lock().await;
+            sb.open(&url).await.map_err(|e| format!("open failed: {e}"))
+        })
+    })
+}
+
+fn back_step() -> AsyncStepHandler {
+    Box::new(|bc, _step, _caps| {
+        Box::pin(async move {
+            let sb = bc.lock().await;
+            sb.go_back()
+                .await
+                .map_err(|e| format!("go_back failed: {e}"))
+        })
+    })
+}
+
+fn forward_step() -> AsyncStepHandler {
+    Box::new(|bc, _step, _caps| {
+        Box::pin(async move {
+            let sb = bc.lock().await;
+            sb.go_forward()
+                .await
+                .map_err(|e| format!("go_forward failed: {e}"))
+        })
+    })
+}
+
+fn click_step() -> AsyncStepHandler {
+    Box::new(|bc, _step, caps| {
+        let selector = quoted(caps);
+        Box::pin(async move {
+            let mut sb = bc.lock().await;
+            sb.click(&selector)
+                .await
+                .map_err(|e| format!("click failed: {e}"))
+        })
+    })
+}
+
+fn type_step() -> AsyncStepHandler {
+    Box::new(|bc, _step, caps| {
+        let (text, selector) = text_and_selector(caps);
+        Box::pin(async move {
+            let mut sb = bc.lock().await;
+            sb.type_text(&selector, &text)
+                .await
+                .map_err(|e| format!("type failed: {e}"))
+        })
+    })
 }
 
 #[cfg(test)]
@@ -439,6 +495,83 @@ mod tests {
         assert_eq!(registry.with_base(|_| 42).await, 42);
         drop(held);
         assert!(registry.into_base_case().is_ok());
+    }
+
+    #[tokio::test]
+    async fn register_step_takes_any_keyword_or_none_and_passes_the_captures() {
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut registry = registry();
+        let sink = Arc::clone(&seen);
+        registry.register_step(
+            r#"I open "(.+?)""#,
+            Box::new(move |_, _, caps| {
+                let (url, sink) = (caps[0].clone(), Arc::clone(&sink));
+                Box::pin(async move {
+                    sink.lock().unwrap().push(url);
+                    Ok(())
+                })
+            }),
+        );
+
+        for step in [
+            r#"Given I open "a""#,
+            r#"And I open "b""#,
+            r#"But I open "c""#,
+            r#"I open "d""#,
+        ] {
+            registry.run(step).await.unwrap();
+        }
+
+        assert_eq!(*seen.lock().unwrap(), ["a", "b", "c", "d"]);
+        assert!(!registry.has_handler(r#"Given I open the door"#));
+        assert!(registry
+            .try_register_step("(unclosed", failing("x"))
+            .is_err());
+    }
+
+    #[test]
+    fn the_built_in_steps_also_know_pythons_wording() {
+        // What SeleniumBase's `--rec-behave` writes, with or without a keyword.
+        let mut registry = registry();
+        registry.register_common_browser_steps();
+
+        for step in [
+            r#"Given Open "https://x.test""#,
+            "When Open 'https://x.test'",
+            r#"Open URL "https://x.test""#,
+            "And Open URL 'https://x.test'",
+            "Then Go back",
+            "But Go forward",
+            r##"Click "#a""##,
+            "When Click 'a.b'",
+            r##"And Click element "#a""##,
+            r##"Type text "hi" into "#q""##,
+            "When Type text 'hi' into '#q'",
+            r##"Type text "hi" into '#q'"##,
+        ] {
+            assert!(registry.has_handler(step), "{step}");
+        }
+        for step in ["Given Dance", "Open it", "Go sideways", "Click"] {
+            assert!(!registry.has_handler(step), "{step}");
+        }
+    }
+
+    #[test]
+    fn a_built_in_step_reads_its_quote_style_from_the_groups_that_matched() {
+        // `I type "hi" into "#q"` has one group each; Python's wording has a
+        // group per quote style, and the other one is empty.
+        let groups = |parts: &[&str]| parts.iter().map(|p| (*p).to_owned()).collect::<Vec<_>>();
+
+        assert_eq!(quoted(&groups(&["#a"])), "#a");
+        assert_eq!(quoted(&groups(&["", "#a"])), "#a");
+        assert_eq!(
+            text_and_selector(&groups(&["hi", "#q"])),
+            ("hi".to_owned(), "#q".to_owned())
+        );
+        assert_eq!(
+            text_and_selector(&groups(&["", "hi", "#q", ""])),
+            ("hi".to_owned(), "#q".to_owned())
+        );
     }
 
     #[test]

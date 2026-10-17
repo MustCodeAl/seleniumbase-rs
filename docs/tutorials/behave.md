@@ -62,7 +62,9 @@ Tags written above `Feature:` count as the tags of every scenario in it, so
 Use the sync runner for feature-file parsing smoke tests or non-browser steps.
 `run_feature_file` hands the registry each step **with its keyword**, for
 example `When I type "x" into "#email"`, so exact patterns must include the
-keyword and regexes must allow for it:
+keyword and regexes must allow for it. `register_step` does that for you: give
+it the step's text as a regex, without keyword or anchors, and it matches
+`Given`, `When`, `Then`, `And`, `But` or no keyword, like behave's `@step`:
 
 ```rust,no_run
 use seleniumbase_rs::behave::{run_feature_file, StepRegistry};
@@ -70,8 +72,8 @@ use seleniumbase_rs::behave::{run_feature_file, StepRegistry};
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 let mut registry = StepRegistry::new();
 registry.register("Given the login page is open", Box::new(|_, _| Ok(())));
-registry.register_regex(
-    r#"^(?:When|And) I type "(.+?)" into "(.+?)"$"#,
+registry.register_step(
+    r#"I type "(.+?)" into "(.+?)""#,
     Box::new(|_, caps| {
         println!("type {} into {}", caps[0], caps[1]);
         Ok(())
@@ -85,6 +87,11 @@ for r in &results {
 # Ok(())
 # }
 ```
+
+`try_register_step` returns the regex error instead of panicking, for a pattern
+that comes from outside the program. `register_regex` still takes a complete
+pattern, and `step_pattern(text)` is the one `register_step` builds, for when
+you want to combine it with your own anchors.
 
 <Info>
 
@@ -115,8 +122,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     registry.register_common_browser_steps();
     // A step of your own: a handler gets the shared BaseCase, the step text
     // and the regex captures, and returns a future that is `Send`.
-    registry.register_regex(
-        r#"^(?:Then|And) I see "(.+?)"$"#,
+    registry.register_step(
+        r#"I see "(.+?)""#,
         Box::new(|bc, _step, caps| {
             let wanted = caps[0].clone();
             Box::pin(async move {
@@ -151,8 +158,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `register_common_browser_steps` registers these steps and no others:
 `I open "<url>"`, `I go back`, `I go forward`, `I click "<selector>"` and
-`I type "<text>" into "<selector>"`. Register your own with `register` and
-`register_regex`, as the `I see "..."` step above. A handler gets the shared
+`I type "<text>" into "<selector>"`, plus the wording that Python
+SeleniumBase's `--rec-behave` recorder writes for the same: `Open "<url>"`
+(also `Open 'url'` and `Open URL "url"`), `Go back`, `Go forward`,
+`Click "<selector>"` (also `Click element "selector"`) and
+`Type text "<text>" into "<selector>"`, in single or double quotes. Register
+your own with `register`, `register_regex` and `register_step`, as the
+`I see "..."` step above. A handler gets the shared
 `BaseCase` (an `Arc<tokio::sync::Mutex<BaseCase>>`, locked while the step uses
 the browser), the step text and the regex captures.
 

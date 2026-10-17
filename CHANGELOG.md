@@ -17,6 +17,14 @@ work, `docs/parity.md` the per-API status).
   top-left corner, or from the centre) and `click_if_visible(timeout)`:
   Python's `sb.cdp.click_with_offset` and `click_if_visible`. `click_at` stays
   and calls `click_with_offset`.
+- `behave::StepRegistry::register_step` and `AsyncStepRegistry::register_step`
+  (and `try_register_step`) register a handler for the step text alone, which
+  matches whatever keyword the step is written with, or none, like behave's
+  `@step`; `behave::step_pattern` (the regex they build) is public. The
+  built-in async browser steps also understand the wording of Python
+  SeleniumBase's `--rec-behave` recorder: `Open "url"`, `Click "selector"`,
+  `Type text "text" into "selector"`, `Go back`, `Go forward`, in single or
+  double quotes, so a recording from Python runs here.
 - `sb_cdp::Page::set_messenger_theme` takes `impl Into<MessengerSettings>`, and
   `MessengerSettings` is `From<MessengerTheme>` and `From<MessengerLocation>`:
   `page.set_messenger_theme(MessengerTheme::Air)` changes one thing and keeps
