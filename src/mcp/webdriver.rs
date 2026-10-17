@@ -256,7 +256,7 @@ pub(super) async fn get_page_source(ctx: Ctx<BaseCase>, _args: Args) -> Result<O
 
 pub(super) async fn get_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let selector = args.str_or("selector", "body")?;
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     Ok(case.get_text(selector).await?.into())
 }
 
@@ -622,7 +622,7 @@ pub(super) async fn wait_for_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     ctx.session()
         .await?
-        .wait_for_text(selector, text, timeout)
+        .wait_for_text(text, selector, timeout)
         .await?;
     Ok(format!("Text '{text}' appeared in {selector}.").into())
 }
@@ -642,7 +642,7 @@ pub(super) async fn assert_element_present(
 ) -> Result<Output, ToolError> {
     let selector = args.str("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     case.wait_for_element_present(selector, timeout).await?;
     case.assert_element_present(selector).await?;
     Ok(format!("Confirmed {selector} is present.").into())
@@ -664,9 +664,9 @@ pub(super) async fn assert_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output
     let text = args.str("text")?;
     let selector = nonempty(&args, "selector")?.unwrap_or("html");
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
-    let mut case = ctx.session().await?;
-    case.wait_for_text(selector, text, timeout).await?;
-    case.assert_text(selector, text).await?;
+    let case = ctx.session().await?;
+    case.wait_for_text(text, selector, timeout).await?;
+    case.assert_text(text, selector).await?;
     Ok(format!("Confirmed '{text}' is present in {selector}.").into())
 }
 
@@ -674,10 +674,10 @@ pub(super) async fn assert_exact_text(ctx: Ctx<BaseCase>, args: Args) -> Result<
     let text = args.str("text")?;
     let selector = args.str_or("selector", "html")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
-    let mut case = ctx.session().await?;
-    case.wait_for_exact_text_visible(selector, text, timeout)
+    let case = ctx.session().await?;
+    case.wait_for_exact_text_visible(text, selector, timeout)
         .await?;
-    case.assert_exact_text(selector, text).await?;
+    case.assert_exact_text(text, selector).await?;
     Ok(format!("Confirmed {selector} text is exactly '{text}'.").into())
 }
 
@@ -741,10 +741,7 @@ pub(super) async fn save_cookies(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
             .await
             .map_err(SeleniumBaseError::from)?;
     }
-    ctx.session()
-        .await?
-        .save_cookies(&path.to_string_lossy())
-        .await?;
+    ctx.session().await?.save_cookies_to_path(&path).await?;
     Ok(format!("Cookies saved to {name}").into())
 }
 
@@ -757,7 +754,7 @@ pub(super) async fn load_cookies(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
     }
     ctx.session()
         .await?
-        .load_cookies(&path.to_string_lossy())
+        .load_cookies_from_path(&path, crate::CookieExpiry::Saved)
         .await?;
     Ok(format!("Cookies loaded from {name}").into())
 }

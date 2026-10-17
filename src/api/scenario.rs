@@ -325,10 +325,10 @@ impl StepRunner for BaseCase {
             ScenarioStep::Open { url } => sb.open(url).await,
             ScenarioStep::Click { css } => sb.click(css).await,
             ScenarioStep::TypeText { css, text } => sb.type_text(css, text).await,
-            ScenarioStep::AssertText { css, contains } => sb.assert_text(css, contains).await,
+            ScenarioStep::AssertText { css, contains } => sb.assert_text(contains, css).await,
             ScenarioStep::AssertElement { css } => sb.assert_element(css).await,
             ScenarioStep::WaitForText { css, text, timeout } => {
-                sb.wait_for_text(css, text, *timeout).await
+                sb.wait_for_text(text, css, *timeout).await
             }
             ScenarioStep::Sleep { seconds } => {
                 sb.sleep(*seconds).await;

@@ -77,6 +77,9 @@ cargo run --bin sbrs -- import-python tests/login_test.py \
 
 The importer reads one statement at a time and understands these. In all cases
 the arguments must be string (or, for waits and `sleep`, number) literals.
+Arguments are matched with Python's parameters, so `selector="#a"` and
+`timeout=5` work as well as positional ones, and a left-out selector is `body`,
+as in Python.
 
 SeleniumBase, as `self.` or `sb.` calls:
 
@@ -84,16 +87,23 @@ SeleniumBase, as `self.` or `sb.` calls:
   `go_forward`, `maximize_window`.
 - Interactions: `click`, `click_link`, `click_link_text`,
   `click_partial_link_text`, `double_click`, `right_click`, `type`, `type_text`,
-  `update_text`, `send_keys`, `clear`, `submit`, `hover`, `check_if_unchecked`,
-  `uncheck_if_checked`, `select_option_by_text`.
+  `update_text` (which clear the field), `add_text` and `send_keys` (which add
+  to it, as in Python), `enter_mfa_code`, `clear`, `submit`, `hover`,
+  `check_if_unchecked`, `uncheck_if_checked`, `select_option_by_text`.
 - Assertions: `assert_element`, `assert_element_visible`, `assert_text`,
-  `assert_exact_text`, `assert_title`, `assert_title_contains`, `assert_url`,
-  `assert_url_contains`. For `assert_text` and `assert_exact_text` the importer
-  swaps the arguments, because Python takes the text first and the Rust methods
-  take the selector first.
+  `assert_text_visible`, `assert_exact_text`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible`, `assert_title`, `assert_title_contains`,
+  `assert_url`, `assert_url_contains`. The text assertions take the text first
+  and the selector second in Rust too, so the arguments are copied as they
+  are. A `timeout` argument is refused (the assertion waits for the default
+  timeout), and so is a `by` that is not the CSS strategy.
+- Soft assertions: `deferred_assert_element`, `deferred_assert_text`,
+  `deferred_assert_exact_text` (and their `delayed_` names) and
+  `process_deferred_asserts`.
 - Reads: `get_text`, `get_attribute` (the value is bound to an unused variable).
-- Waits: `wait_for_element_visible`, `wait_for_element_present` (the timeout
-  defaults to 10 seconds), and `sleep`.
+- Waits: `wait_for_element_visible`, `wait_for_element_present`,
+  `wait_for_text` and `wait_for_exact_text` (and their `_visible` names). The
+  timeout is the `timeout=` argument and defaults to 10 seconds. And `sleep`.
 
 Selenium WebDriver, as `driver.` or `self.driver.` calls:
 
@@ -102,7 +112,9 @@ Selenium WebDriver, as `driver.` or `self.driver.` calls:
   generated test closes the browser itself.
 - Saved element variables assigned from `find_element` calls, and
   `driver.find_element(...)` used directly, followed by `click`, `clear`,
-  `submit` or `send_keys` with a string literal; `.text` and `.get_attribute()`
+  `submit` or `send_keys` with a string literal (`send_keys` becomes
+  `add_text`, since Selenium's does not clear the field); `.text` and
+  `.get_attribute()`
   on CSS-based variables.
 - Locators: `By.CSS_SELECTOR`, `By.ID`, `By.NAME`, `By.CLASS_NAME` (one class),
   `By.TAG_NAME`, `By.XPATH`, `By.LINK_TEXT`, `By.PARTIAL_LINK_TEXT`. Link-text
@@ -166,7 +178,7 @@ async fn login_test() -> seleniumbase_rs::Result<()> {
         sb.type_text("#username", "alice").await?;
         sb.type_text("#password", "secret").await?;
         sb.click("#submit").await?;
-        sb.assert_text("body", "Welcome").await?;
+        sb.assert_text("Welcome", "body").await?;
         Ok(())
     })).await
 }

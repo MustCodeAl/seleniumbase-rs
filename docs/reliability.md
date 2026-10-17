@@ -142,7 +142,7 @@ finer control, use explicit waits:
 # use seleniumbase_rs::BaseCase;
 # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.wait_for_element_visible("#submit", 10).await?;
-sb.wait_for_text("body", "Order confirmed", 15).await?;
+sb.wait_for_text("Order confirmed", "body", 15).await?;
 sb.wait_for_element_not_visible(".spinner", 10).await?;
 # Ok(())
 # }

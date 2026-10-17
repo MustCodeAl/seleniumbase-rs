@@ -77,8 +77,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_elements_present` | implemented | `BaseCase::assert_elements_present` |  |
 | `assert_elements_visible` | implemented | `BaseCase::assert_elements_visible` |  |
 | `assert_equal` | implemented | `BaseCase::assert_equal` |  |
-| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Argument order is (css, expected); Python's is (text, selector). |
-| `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` |  |
+| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). |
+| `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text_not_visible for a timeout of its own). |
 | `assert_false` | implemented | `BaseCase::assert_false` |  |
 | `assert_in` | implemented | `BaseCase::assert_in` |  |
 | `assert_link` | implemented | `BaseCase::assert_link` |  |
@@ -93,9 +93,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_partial_link_text` | implemented | `BaseCase::assert_partial_link_text` |  |
 | `assert_pdf_text` | implemented | `BaseCase::assert_pdf_text` |  |
 | `assert_raises` | implemented | `BaseCase::assert_raises` |  |
-| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Argument order is (css, expected); Python's is (text, selector). |
-| `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` |  |
-| `assert_text_visible` | implemented | `BaseCase::assert_text_visible` |  |
+| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). |
+| `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_not_visible for a timeout of its own). |
+| `assert_text_visible` | implemented | `BaseCase::assert_text_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_visible for a timeout of its own). |
 | `assert_title` | implemented | `BaseCase::assert_title` |  |
 | `assert_title_contains` | implemented | `BaseCase::assert_title_contains` |  |
 | `assert_true` | implemented | `BaseCase::assert_true` |  |
@@ -106,7 +106,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `bring_active_window_to_front` | implemented | `BaseCase::bring_active_window_to_front` |  |
 | `bring_to_front` | implemented | `BaseCase::bring_to_front` |  |
 | `check_if_unchecked` | implemented | `BaseCase::check_if_unchecked` |  |
-| `check_window` | implemented | `BaseCase::check_window` | Differs: Saves and compares the page's tag structure as Python does: visual_baseline/&lt;test&gt;/&lt;name&gt; holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below &lt;body&gt; (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so &lt;test&gt; is the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of &lt;body&gt;, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a number and anything but 0, 1, 2 or 3 is an InvalidConfig error. |
+| `check_window` | implemented | `BaseCase::check_window` | Differs: Saves and compares the page's tag structure as Python does: visual_baseline/&lt;test&gt;/&lt;name&gt; holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below &lt;body&gt; (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so &lt;test&gt; is the name given with BaseCase::with_test_name (sb_test! does) or else the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of &lt;body&gt;, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a u8 and anything but 0, 1, 2 or 3 is an InvalidConfig error. |
 | `choose_file` | implemented | `BaseCase::choose_file` |  |
 | `clear` | implemented | `BaseCase::clear` |  |
 | `clear_all_cookies` | implemented | `BaseCase::clear_all_cookies` |  |
@@ -128,8 +128,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `console_log_string` | implemented | `BaseCase::console_log_string` |  |
 | `context_click` | implemented | `BaseCase::context_click` |  |
 | `convert_css_to_xpath` | implemented | `BaseCase::convert_css_to_xpath` |  |
-| `convert_to_css_selector` | implemented | `BaseCase::convert_to_css_selector` |  |
-| `convert_xpath_to_css` | implemented | `BaseCase::convert_xpath_to_css` | Differs: Converts only a tag (or *) found anywhere in the document, narrowed by attribute tests joined with and, and returns an InvalidSelector error for any other XPath (paths of several steps, positions, contains(), text(), or), where Python converts more forms. The CSS it returns is equivalent but spelled [id='x'] and [class='x'] where Python writes #x and .x. |
+| `convert_to_css_selector` | implemented | `BaseCase::convert_to_css_selector` | Differs: Takes no by argument: the strategy is read from the selector, as the other methods do. Link text, which Python turns into a :contains() pseudo-class that is not CSS, is an InvalidSelector error. |
+| `convert_xpath_to_css` | implemented | `BaseCase::convert_xpath_to_css` | Differs: Converts the forms that have an exact CSS equivalent: paths (//a/b, //a//b, /html/body), a position that is the first test of its step, contains(@a,'v'), starts-with(@a,'v') (Python has none), id('x') and or (a comma list). Returns an InvalidSelector error for text(), contains(.,...), parent:: and a position after another test, where Python writes a :contains() pseudo-class that is not CSS or a selector that matches other elements. The CSS is spelled [id='x'] and [class='x'] where Python writes #x and .x. |
 | `create_area_chart` | implemented | `BaseCase::create_area_chart` |  |
 | `create_bar_chart` | implemented | `BaseCase::create_bar_chart` |  |
 | `create_bootstrap_tour` | implemented | `BaseCase::create_bootstrap_tour` |  |
@@ -147,9 +147,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `deactivate_design_mode` | implemented | `BaseCase::deactivate_design_mode` |  |
 | `deferred_assert_element` | implemented | `BaseCase::deferred_assert_element` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
 | `deferred_assert_element_present` | implemented | `BaseCase::deferred_assert_element_present` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
-| `deferred_assert_exact_text` | implemented | `BaseCase::deferred_assert_exact_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (css, text); Python's is (text, selector). |
+| `deferred_assert_exact_text` | implemented | `BaseCase::deferred_assert_exact_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
 | `deferred_assert_non_empty_text` | implemented | `BaseCase::deferred_assert_non_empty_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
-| `deferred_assert_text` | implemented | `BaseCase::deferred_assert_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (text, css), like Python's. |
+| `deferred_assert_text` | implemented | `BaseCase::deferred_assert_text` | Differs: Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). |
 | `deferred_check_window` | implemented | `BaseCase::deferred_check_window` | Differs: Takes the name and level; the failure is recorded, with the page's URL, for process_deferred_asserts. Same differences as check_window. |
 | `delayed_assert_element` | implemented | `BaseCase::delayed_assert_element` |  |
 | `delayed_assert_element_present` | implemented | `BaseCase::delayed_assert_element_present` |  |
@@ -161,7 +161,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `delete_downloaded_file` | implemented | `BaseCase::delete_downloaded_file` |  |
 | `delete_downloaded_file_if_present` | implemented | `BaseCase::delete_downloaded_file_if_present` |  |
 | `delete_local_storage` | implemented | `BaseCase::delete_local_storage` |  |
-| `delete_saved_cookies` | implemented | `BaseCase::delete_saved_cookies` | Differs: Deletes the file from latest_logs/ and from the working directory, the two places save_saved_cookies and save_cookies write; Python's saved_cookies/ folder and .txt suffix are not used. |
+| `delete_saved_cookies` | implemented | `BaseCase::delete_saved_cookies` |  |
 | `delete_session_storage` | implemented | `BaseCase::delete_session_storage` |  |
 | `disable_beforeunload` | implemented | `BaseCase::disable_beforeunload` |  |
 | `dismiss_alert` | implemented | `BaseCase::dismiss_alert` |  |
@@ -184,11 +184,11 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `fill` | implemented | `BaseCase::fill` |  |
 | `find_element` | implemented | `BaseCase::find_element` | Differs: Returns a thirtyfour::WebElement; takes CSS or XPath only. |
 | `find_elements` | implemented | `BaseCase::find_elements` | Differs: Returns thirtyfour::WebElements; takes CSS or XPath only. |
-| `find_exact_text` | implemented | `BaseCase::find_exact_text` | Differs: Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under &lt;body&gt; and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None. |
+| `find_exact_text` | implemented | `BaseCase::find_exact_text` | Differs: Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout. |
 | `find_link_text` | implemented | `BaseCase::find_link_text` |  |
-| `find_non_empty_text` | implemented | `BaseCase::find_non_empty_text` | Differs: Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under &lt;body&gt; with visible text and returns the deepest first one, where Python returns the selector's element. Fails with a wait timeout instead of returning None. |
+| `find_non_empty_text` | implemented | `BaseCase::find_non_empty_text` | Differs: Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout. |
 | `find_partial_link_text` | implemented | `BaseCase::find_partial_link_text` |  |
-| `find_text` | implemented | `BaseCase::find_text` | Differs: Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under &lt;body&gt; and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None. |
+| `find_text` | implemented | `BaseCase::find_text` | Differs: Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout. |
 | `find_visible_elements` | implemented | `BaseCase::find_visible_elements` |  |
 | `flash` | implemented | `BaseCase::flash` |  |
 | `focus` | implemented | `BaseCase::focus` |  |
@@ -234,7 +234,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `get_local_storage_keys` | implemented | `BaseCase::get_local_storage_keys` |  |
 | `get_locale_code` | implemented | `BaseCase::get_locale_code` |  |
 | `get_mfa_code` | implemented | `BaseCase::get_mfa_code` |  |
-| `get_new_driver` | implemented | `BaseCase::get_new_driver` |  |
+| `get_new_driver` | implemented | `BaseCase::get_new_driver` | Differs: Returns a DriverId, not the driver object. The browser options of Python's arguments go in a BrowserConfig: get_new_driver_with(config). |
 | `get_origin` | implemented | `BaseCase::get_origin` |  |
 | `get_page_source` | implemented | `BaseCase::get_page_source` |  |
 | `get_page_title` | implemented | `BaseCase::get_page_title` |  |
@@ -320,7 +320,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `js_click_if_visible` | implemented | `BaseCase::js_click_if_visible` |  |
 | `js_type` | implemented | `BaseCase::js_type` |  |
 | `js_update_text` | implemented | `BaseCase::js_update_text` |  |
-| `load_cookies` | implemented | `BaseCase::load_cookies` | Differs: Reads the JSON that save_cookies writes; Python reads a pickle. |
+| `load_cookies` | implemented | `BaseCase::load_cookies` | Differs: The expiry argument is a CookieExpiry (load_cookies_with); load_cookies_from_path reads a file at any path, for the MCP server and the CLI. |
 | `load_html_file` | implemented | `BaseCase::load_html_file` |  |
 | `load_html_string` | implemented | `BaseCase::load_html_string` |  |
 | `locator` | implemented | `BaseCase::locator` |  |
@@ -339,7 +339,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `play_tour` | implemented | `BaseCase::play_tour` |  |
 | `post_error_message` | implemented | `BaseCase::post_error_message` | Differs: Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
 | `post_message` | implemented | `BaseCase::post_message` |  |
-| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message) and highlights it; Python takes a selector and highlights that element after posting the message. |
+| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message), then highlights the selector's element as Python does. |
 | `post_success_message` | implemented | `BaseCase::post_success_message` | Differs: Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
 | `press_down_arrow` | implemented | `BaseCase::press_down_arrow` | Differs: Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
 | `press_keys` | implemented | `BaseCase::press_keys` | Differs: Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus. |
@@ -350,7 +350,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `print_unique_links_with_status_codes` | implemented | `BaseCase::print_unique_links_with_status_codes` |  |
 | `process_deferred_asserts` | implemented | `BaseCase::process_deferred_asserts` |  |
 | `process_delayed_asserts` | implemented | `BaseCase::process_delayed_asserts` |  |
-| `quit_extra_driver` | implemented | `BaseCase::quit_extra_driver` |  |
+| `quit_extra_driver` | implemented | `BaseCase::quit_extra_driver` | Differs: Takes the DriverId get_new_driver returned, where Python takes the driver (or None for the active one); the default browser is refused, and quitting the active extra browser falls back to the default one. |
 | `refresh` | implemented | `BaseCase::refresh` |  |
 | `refresh_page` | implemented | `BaseCase::refresh_page` |  |
 | `reload` | implemented | `BaseCase::reload` |  |
@@ -372,7 +372,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `save_as_pdf` | implemented | `BaseCase::save_as_pdf` |  |
 | `save_as_pdf_to_logs` | implemented | `BaseCase::save_as_pdf_to_logs` |  |
 | `save_chart` | implemented | `BaseCase::save_chart` |  |
-| `save_cookies` | implemented | `BaseCase::save_cookies` | Differs: Writes JSON to a path you give; Python writes a pickle under saved_cookies. |
+| `save_cookies` | implemented | `BaseCase::save_cookies` | Differs: Returns the path it wrote; save_cookies_to_path writes to any path, for the MCP server and the CLI. |
 | `save_data_as` | implemented | `BaseCase::save_data_as` |  |
 | `save_data_to_logs` | implemented | `BaseCase::save_data_to_logs` |  |
 | `save_element_as_image_file` | implemented | `BaseCase::save_element_as_image_file` |  |
@@ -440,7 +440,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `switch_to_default_driver` | implemented | `BaseCase::switch_to_default_driver` |  |
 | `switch_to_default_tab` | implemented | `BaseCase::switch_to_default_tab` |  |
 | `switch_to_default_window` | implemented | `BaseCase::switch_to_default_window` |  |
-| `switch_to_driver` | implemented | `BaseCase::switch_to_driver` |  |
+| `switch_to_driver` | implemented | `BaseCase::switch_to_driver` | Differs: Takes a DriverId, where Python takes the driver object. |
 | `switch_to_frame` | implemented | `BaseCase::switch_to_frame` |  |
 | `switch_to_frame_of_element` | implemented | `BaseCase::switch_to_frame_of_element` | Differs: Returns the frame's name, else its id, else an empty string, or None when the element is in the current document. Looks one level down, as Python does. |
 | `switch_to_newest_tab` | implemented | `BaseCase::switch_to_newest_tab` |  |
@@ -485,7 +485,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `wait_for_query_selector` | implemented | `BaseCase::wait_for_query_selector` |  |
 | `wait_for_ready_state_complete` | implemented | `BaseCase::wait_for_ready_state_complete` |  |
 | `wait_for_selector` | implemented | `BaseCase::wait_for_selector` |  |
-| `wait_for_text` | implemented | `BaseCase::wait_for_text` | Differs: Argument order is (css, text, timeout); Python's is (text, selector, timeout). |
+| `wait_for_text` | implemented | `BaseCase::wait_for_text` |  |
 | `wait_for_text_not_visible` | implemented | `BaseCase::wait_for_text_not_visible` |  |
 | `wait_for_text_visible` | implemented | `BaseCase::wait_for_text_visible` |  |
 | `write` | implemented | `BaseCase::write` |  |

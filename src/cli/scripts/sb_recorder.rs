@@ -227,7 +227,7 @@ async fn handle_live_command(
     if let Some(rest) = input.strip_prefix("assert_text ") {
         match rest.split_once(' ') {
             Some((css, text)) => {
-                sb.assert_text(css, text).await?;
+                sb.assert_text(text, css).await?;
                 writeln!(output, "Asserted text in {css}")?;
             }
             None => writeln!(output, "Usage: assert_text <css> <text>")?,

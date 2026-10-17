@@ -129,15 +129,16 @@ All `selector` arguments accept the same formats described in the
 | `wait_for_element_not_visible(selector, timeout)` | Waits for element invisible. |
 | `wait_for_element_clickable(selector, timeout)` | Waits for element clickable. |
 | `wait_for_element_absent(selector, timeout)` | Waits for element removed. |
-| `wait_for_text_visible(text, timeout_secs)` | Waits for text to appear (no selector argument). |
-| `wait_for_text_not_visible(text, timeout_secs)` | Waits for text to disappear (no selector argument). |
-| `wait_for_text(selector, text, timeout_secs)` | Waits until the element's text contains `text`. |
+| `wait_for_text_visible(text, selector, timeout_secs)` | Waits until the element shows the text (pass `"body"` for the whole page). |
+| `wait_for_text_not_visible(text, selector, timeout_secs)` | Waits until the element no longer shows the text. |
+| `wait_for_text(text, selector, timeout_secs)` | Waits until the element's text contains `text`; the same as `wait_for_text_visible`. |
+| `wait_for_exact_text(text, selector, timeout_secs)` | Waits until the element's text equals `text` (whitespace at the ends ignored). |
 | `wait_for_ready_state_complete()` | Waits for `document.readyState === 'complete'`. |
 | `set_time_limit(seconds)` | Fails the test at its next open, wait or element action once it has run longer than this. |
 | `set_timeout(seconds)` | Sets the default implicit wait timeout. |
 | `set_default_timeout(seconds)` / `reset_default_timeout()` | Changes the default wait (1 to 60 seconds) and puts it back. |
 | `sleep(seconds)` | Async sleep helper. |
-| `wait(seconds)` | Alias for `sleep` using whole seconds. |
+| `wait(seconds)` | The same as `sleep`; takes whole or fractional seconds (`wait(2)`, `wait(0.5)`). |
 
 See [Waits and Assertions](./waits_assertions.md) for detailed examples.
 
@@ -148,7 +149,8 @@ See [Waits and Assertions](./waits_assertions.md) for detailed examples.
 | `assert_title(expected)` | Asserts page title equals `expected`. |
 | `assert_text_visible(text, selector)` | Asserts text visible. |
 | `assert_text_not_visible(text, selector)` | Asserts text not visible. |
-| `assert_exact_text(selector, text)` | Asserts the element's text equals `text` exactly. The selector comes first. |
+| `assert_text(text, selector)` | Waits for the element to show the text, then asserts it. Same as `assert_text_visible`. |
+| `assert_exact_text(text, selector)` | Asserts the element's text equals `text` exactly (whitespace at the ends ignored); waits like `assert_text`. |
 | `assert_element_visible(selector)` | Asserts element is visible. |
 | `assert_element_not_visible(selector)` | Asserts element is not visible. |
 | `assert_attribute(selector, attr, value)` | Asserts attribute value. |
@@ -175,7 +177,7 @@ is called. Useful for soft assertions.
 | `deferred_assert_element(selector)` | Checks the element is visible; records a failure if not. |
 | `deferred_assert_text(text, selector)` | Checks the element contains the text; records a failure if not. |
 | `deferred_assert_element_present(selector)` | Checks the element is in the page, visible or not. |
-| `deferred_assert_exact_text(selector, text)` | Checks the element's text is exactly `text`. |
+| `deferred_assert_exact_text(text, selector)` | Checks the element's text is exactly `text`. |
 | `deferred_assert_non_empty_text(selector)` | Checks the element shows some text. |
 | `deferred_check_window(name, level)` | Runs `check_window` and records a difference as a failure. |
 | `process_deferred_asserts()` | Fails if any deferred assertion failed. |
@@ -222,18 +224,22 @@ is called. Useful for soft assertions.
 | `set_window_rect(x, y, w, h)` | Sets position and size. |
 | `get_window_rect()` | Returns `(x, y, width, height)`. |
 | `get_screen_rect()` | Returns `(width, height)`. |
-| `get_new_driver(config)` | Opens a new browser session and makes it active (`None` reuses the current config). The previously active session is parked and the method returns its index. |
-| `switch_to_driver(index)` | Swaps the active session with the one parked at `index`. The session you leave stays open, parked at the same index, so the same call switches back. An out-of-range index returns `InvalidConfig` and changes nothing. |
-| `switch_to_default_driver()` | `switch_to_driver(0)`: a swap with slot 0, which holds the original session only until the first switch. |
-| `quit_extra_driver(index)` | Quits the parked session at `index`. The slot stays as a disconnected placeholder, so indices do not shift. |
-| `driver_count()` | Returns the number of parked sessions, including quit placeholders. |
+| `get_new_driver()` / `get_new_driver_with(config)` | Opens a new browser with the current configuration (or `config`), makes it active and returns its `DriverId`. The browser that was active stays open. |
+| `switch_to_driver(id)` | Makes the browser `id` the active one. Repeating the call changes nothing. An id that does not exist or was quit returns `InvalidConfig` and changes nothing. |
+| `switch_to_default_driver()` | Makes the browser the case started with (`DriverId::DEFAULT`) the active one, however many others were opened. |
+| `quit_extra_driver(id)` | Quits the browser `id`. When it is the active one, the case switches to the default browser. The default browser itself is quit with `quit()`. |
+| `active_driver()` | The `DriverId` of the active browser. |
+| `driver_count()` | The number of browsers still open, the active one included. |
 
 ## Cookies and storage
 
 | Method | Description |
 |--------|-------------|
-| `save_cookies(path)` | Saves cookies to JSON. |
-| `load_cookies(path)` | Loads cookies from JSON. |
+| `save_cookies(name)` | Saves the cookies, as JSON, to `saved_cookies/<name>.txt` in the working directory (the last path part of `name`, `.txt` added) and returns the path. |
+| `load_cookies(name)` | Adds the cookies in `saved_cookies/<name>.txt`; a cookie of another domain gets the page's and the expiry is dropped. `load_cookies_with(name, CookieExpiry)` says what to do with the expiry. |
+| `get_saved_cookies(name)` | Reads `saved_cookies/<name>.txt` without adding the cookies. |
+| `delete_saved_cookies(name)` | Deletes `saved_cookies/<name>.txt` (not the cookies of the browser). |
+| `save_cookies_to_path(path)` / `load_cookies_from_path(path, expiry)` | The same for a file at any path. |
 | `add_cookie(name, value)` | Adds a browser cookie. |
 | `get_cookie(name)` | Returns a cookie by name. |
 | `delete_all_cookies()` | Deletes all cookies. |
@@ -365,7 +371,7 @@ See the [GUI Automation](./gui_automation.md) tutorial for details.
 |--------|-------------|
 | `get_totp_code(secret)` | Generates a TOTP code from a base32 secret. |
 | `get_mfa_code(secret)` | Alias for `get_totp_code`. |
-| `enter_mfa_code(selector, secret)` | Generates and types a TOTP code into an input. The selector comes first. |
+| `enter_mfa_code(selector, secret)` | Generates a TOTP code, types it into an input and presses Enter. |
 
 ## Tours, presentations, charts
 
@@ -463,14 +469,13 @@ where
 |---|---|---|
 | `assert_title(&mut self, expected: &str) -> Result<()>` | Fails with `AssertionFailed` unless the title equals `expected` exactly. | `expect().to_have_title(expected)`, which retries until the timeout. |
 | `assert_element(&self, css: &str) -> Result<()>` | Fails unless the element is present in the DOM (visible or not). | `locator(css).expect().to_exist()`. |
-| `assert_text(&mut self, css: &str, expected: &str) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(css).expect().to_contain_text(expected)`. |
+| `assert_text(&mut self, expected: &str, css: &str) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(css).expect().to_contain_text(expected)`. |
 | `assert_no_js_errors(&self) -> Result<()>` | Fails if the browser log holds a `SEVERE` entry (a few known CDN sources are ignored). | Fails if the document raised an uncaught script error; the message names the first. |
 
 <Note>
 
-The trait method `assert_text(css, expected)` takes the selector first.
-`BaseCase::assert_text_visible(text, selector)` is a different method and takes
-the text first.
+The trait method `assert_text(expected, css)` takes the text first, like
+`BaseCase::assert_text(text, selector)` and Python's `assert_text`.
 
 </Note>
 

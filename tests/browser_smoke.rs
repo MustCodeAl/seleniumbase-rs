@@ -43,7 +43,7 @@ async fn open_page_and_assert_title() {
     sb.open(DEMO_PAGE).await.expect("open demo page");
     sb.assert_title("Smoke").await.expect("title assertion");
     sb.assert_element("h1#title").await.expect("h1 present");
-    sb.assert_text("h1#title", "Hello Smoke")
+    sb.assert_text("Hello Smoke", "h1#title")
         .await
         .expect("text assertion");
     sb.quit().await.expect("quit");

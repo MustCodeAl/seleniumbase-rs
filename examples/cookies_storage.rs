@@ -24,7 +24,7 @@
 mod local_site;
 
 use local_site::{ensure, Site, DEMO_PATH};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, CookieExpiry, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -45,19 +45,21 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     // Save the jar, delete the cookie, and bring it back from the file.
     let dir = tempfile::tempdir()?;
     let file = dir.path().join("cookies.json");
-    let file = file.to_string_lossy();
-    sb.save_cookies(&file).await?;
+    sb.save_cookies_to_path(&file).await?;
     sb.delete_cookie("session").await?;
     ensure(
         sb.get_cookie("session").await.is_err(),
         "the deleted cookie is gone",
     )?;
-    sb.load_cookies(&file).await?;
+    // `Saved` keeps the expiry the cookie was saved with; `load_cookies(name)`
+    // would make it a session cookie, as Python's does.
+    sb.load_cookies_from_path(&file, CookieExpiry::Saved)
+        .await?;
     ensure(
         sb.get_cookie("session").await?.value == "abc123",
         "the cookie is restored from the file",
     )?;
-    println!("cookie restored from {file}");
+    println!("cookie restored from {}", file.display());
 
     // ---- Local storage ----
     sb.set_local_storage_item("username", "demo_user").await?;

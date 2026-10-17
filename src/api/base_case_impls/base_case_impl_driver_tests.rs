@@ -541,14 +541,6 @@ mod tests_page_scripts {
              el.dispatchEvent(new Event(S)); el.dispatchEvent(new Event(S)); });",
             [text, "value", text, "input", "change"]
         );
-        assert_script!(
-            driver,
-            text,
-            sb.wait_for_exact_text(text, 0),
-            "return Array.from(document.querySelectorAll(S)).some(el => \
-             el.textContent.trim() === S);",
-            ["*", text]
-        );
     }
 
     #[tokio::test]
@@ -674,12 +666,11 @@ mod tests_wait_errors {
     async fn text_that_never_appears_times_out() {
         let driver = mock_page("", false, json!(false));
         let sb = driver.base_case().await;
-        let message = timed_out(sb.wait_for_exact_text("All done", 0).await);
-        assert!(message.contains("All done"), "{message}");
-
-        let driver = driver_with_answer(true);
-        let sb = driver.base_case().await;
-        sb.wait_for_exact_text("All done", 0).await.unwrap();
+        let message = timed_out(sb.wait_for_exact_text("All done", "#status", 0).await);
+        assert!(
+            message.contains("All done") && message.contains("#status"),
+            "{message}"
+        );
     }
 
     #[tokio::test]

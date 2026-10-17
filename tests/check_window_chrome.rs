@@ -53,7 +53,7 @@ async fn run(sb: &BaseCase, script: &str) {
 }
 
 /// Whether `check_window(name, level)` fails with a difference.
-async fn differs(sb: &mut BaseCase, level: f64) -> bool {
+async fn differs(sb: &mut BaseCase, level: u8) -> bool {
     match sb.check_window("home", level).await {
         Ok(()) => false,
         Err(SeleniumBaseError::AssertionFailed(_)) => true,
@@ -72,7 +72,7 @@ async fn check_window_compares_the_structure_of_the_page_and_not_its_pixels() {
     sb.open(PAGE).await.expect("open the page");
 
     // The first check saves the baseline, at any level.
-    sb.check_window("home", 3.0)
+    sb.check_window("home", 3)
         .await
         .expect("the first check saves the baseline");
     let saved = baseline_dir().join("home");
@@ -92,7 +92,7 @@ async fn check_window_compares_the_structure_of_the_page_and_not_its_pixels() {
     assert!(read("page_url.txt").starts_with("data:text/html"));
 
     // The same page matches, and so does one that only looks different.
-    assert!(!differs(&mut sb, 3.0).await);
+    assert!(!differs(&mut sb, 3).await);
     run(
         &sb,
         "document.getElementById('t').textContent = 'Changed'; \
@@ -100,7 +100,7 @@ async fn check_window_compares_the_structure_of_the_page_and_not_its_pixels() {
     )
     .await;
     assert!(
-        !differs(&mut sb, 3.0).await,
+        !differs(&mut sb, 3).await,
         "text and colour are no difference"
     );
     assert!(
@@ -114,40 +114,37 @@ async fn check_window_compares_the_structure_of_the_page_and_not_its_pixels() {
         "document.getElementById('box').id = 'crate'; return 1;",
     )
     .await;
-    assert!(!differs(&mut sb, 1.0).await);
-    assert!(!differs(&mut sb, 2.0).await);
-    assert!(differs(&mut sb, 3.0).await, "a new attribute value");
+    assert!(!differs(&mut sb, 1).await);
+    assert!(!differs(&mut sb, 2).await);
+    assert!(differs(&mut sb, 3).await, "a new attribute value");
 
     run(
         &sb,
         "document.getElementById('t').setAttribute('data-x', '1'); return 1;",
     )
     .await;
-    assert!(!differs(&mut sb, 1.0).await);
-    assert!(differs(&mut sb, 2.0).await, "a new attribute name");
+    assert!(!differs(&mut sb, 1).await);
+    assert!(differs(&mut sb, 2).await, "a new attribute name");
 
     run(
         &sb,
         "document.getElementById('crate').appendChild(document.createElement('span')); return 1;",
     )
     .await;
-    assert!(differs(&mut sb, 1.0).await, "a new tag");
+    assert!(differs(&mut sb, 1).await, "a new tag");
 
     // Level 0 is a dry run, and a level that is not 0 to 3 is refused.
-    assert!(!differs(&mut sb, 0.0).await, "a dry run does not fail");
+    assert!(!differs(&mut sb, 0).await, "a dry run does not fail");
     assert!(matches!(
-        sb.check_window("home", 4.0).await,
+        sb.check_window("home", 4).await,
         Err(SeleniumBaseError::InvalidConfig(_))
     ));
 
     // A reset makes the page as it is now the baseline.
     sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
-    sb.check_window("home", 3.0).await.expect("reset");
+    sb.check_window("home", 3).await.expect("reset");
     sb.set_run_settings(RunSettings::default());
-    assert!(
-        !differs(&mut sb, 3.0).await,
-        "the reset page is the baseline"
-    );
+    assert!(!differs(&mut sb, 3).await, "the reset page is the baseline");
 
     sb.quit().await.expect("quit");
     let _ = std::fs::remove_dir_all(baseline_dir());

@@ -352,7 +352,7 @@ mod tests {
         assert!(test.contains("sb.type_text(\"#q\", \"shoes\").await?;"));
         assert!(test.contains("sb.click(\"#go\").await?;"));
         assert!(!test.contains("#missing"), "failed calls are not replayed");
-        assert!(test.contains("sb.assert_text(\"h1\", \"Shoes\").await?;"));
+        assert!(test.contains("sb.assert_text(\"Shoes\", \"h1\").await?;"));
     }
 
     #[test]

@@ -235,9 +235,9 @@ accept the page as it is now, then go back to the default:
 # use seleniumbase_rs::BaseCase;
 # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
-sb.check_window("home", 3.0).await?; // saves the baseline
+sb.check_window("home", 3).await?; // saves the baseline
 sb.set_run_settings(RunSettings::default());
-sb.check_window("home", 3.0).await?; // compares with it
+sb.check_window("home", 3).await?; // compares with it
 # Ok(())
 # }
 ```

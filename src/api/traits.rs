@@ -82,11 +82,13 @@ pub trait AssertionApi {
     /// Assert that the page title equals `expected`.
     async fn assert_title(&mut self, expected: &str) -> crate::Result<()>;
 
-    /// Assert that the element matching `css` exists.
+    /// Assert that the element matching `css` is visible, waiting for it as
+    /// Python's `assert_element` does.
     async fn assert_element(&self, css: &str) -> crate::Result<()>;
 
     /// Assert that `expected` text appears inside the element matching `css`.
-    async fn assert_text(&mut self, css: &str, expected: &str) -> crate::Result<()>;
+    /// The text comes first and the selector second, as in Python.
+    async fn assert_text(&mut self, expected: &str, css: &str) -> crate::Result<()>;
 
     /// Assert that no JavaScript errors were logged on the current page.
     async fn assert_no_js_errors(&self) -> crate::Result<()>;
@@ -166,8 +168,8 @@ impl AssertionApi for BaseCase {
         BaseCase::assert_element(self, css).await
     }
 
-    async fn assert_text(&mut self, css: &str, expected: &str) -> crate::Result<()> {
-        BaseCase::assert_text(self, css, expected).await
+    async fn assert_text(&mut self, expected: &str, css: &str) -> crate::Result<()> {
+        BaseCase::assert_text(self, expected, css).await
     }
 
     async fn assert_no_js_errors(&self) -> crate::Result<()> {
@@ -258,10 +260,10 @@ impl AssertionApi for Page {
     }
 
     async fn assert_element(&self, css: &str) -> crate::Result<()> {
-        self.locator(css).expect().to_exist().await
+        self.locator(css).expect().to_be_visible().await
     }
 
-    async fn assert_text(&mut self, css: &str, expected: &str) -> crate::Result<()> {
+    async fn assert_text(&mut self, expected: &str, css: &str) -> crate::Result<()> {
         self.locator(css).expect().to_contain_text(expected).await
     }
 

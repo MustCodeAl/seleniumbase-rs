@@ -143,7 +143,7 @@ async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
         .await
         .expect("open the page");
 
-    sb.check_window("home", 3.0).await.expect("layout baseline");
+    sb.check_window("home", 3).await.expect("layout baseline");
     sb.assert_visual_match("home")
         .await
         .expect("pixel baseline");
@@ -155,7 +155,7 @@ async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
     sb.execute_script("document.body.style.background = 'red'; return 1;")
         .await
         .expect("the script runs");
-    let layout = sb.check_window("home", 3.0).await;
+    let layout = sb.check_window("home", 3).await;
     let pixels = sb.assert_visual_match("home").await;
 
     // A reset makes the red page the baseline.

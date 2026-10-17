@@ -38,7 +38,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.wait_for_element_present("body", 10).await?;
     sb.wait_for_element_visible("h1", 10).await?;
     sb.wait_for_element_visible("#late", 10).await?;
-    sb.wait_for_text("#late", "Loaded after a delay", 10)
+    sb.wait_for_text("Loaded after a delay", "#late", 10)
         .await?;
 
     // Wait for something to go away: remove the element shortly from now.
@@ -58,8 +58,13 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     // Title assertions.
     sb.assert_title_contains("Testing").await?;
 
-    // A failed assertion is an ordinary error value you can inspect.
-    match sb.assert_text("h1", "Not on this page").await {
+    // A failed assertion is an ordinary error value you can inspect. The text
+    // assertions wait for the default timeout before they fail, so shorten it
+    // for a check that is meant to fail.
+    sb.set_default_timeout(1);
+    let failed = sb.assert_text("Not on this page", "h1").await;
+    sb.reset_default_timeout();
+    match failed {
         Err(SeleniumBaseError::AssertionFailed(message)) => {
             println!("failed as expected: {message}");
         }

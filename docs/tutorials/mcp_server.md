@@ -418,7 +418,7 @@ async fn checkout_works() -> Result<(), Box<dyn std::error::Error>> {
     sb.open("https://shop.test").await?;
     sb.type_text("#q", "shoes").await?;
     sb.click("#go").await?;
-    sb.assert_text("h1", "Shoes").await?;
+    sb.assert_text("Shoes", "h1").await?;
     sb.quit().await?;
     Ok(())
 }

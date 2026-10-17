@@ -2183,7 +2183,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::WaitForText { css, text, timeout } => {
             let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_text(&css, &text, timeout).await?;
+            sb.wait_for_text(&text, &css, timeout).await?;
             println!("Text found for selector '{css}': {text}");
             sb.quit().await?;
         }
@@ -2504,12 +2504,16 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::SaveCookies { file } => {
             let sb = BaseCase::new(config).await?;
-            sb.save_cookies(&file).await?;
+            sb.save_cookies_to_path(std::path::Path::new(&file)).await?;
             println!("Saved cookies to '{}'", file);
         }
         Commands::LoadCookies { file } => {
             let sb = BaseCase::new(config).await?;
-            sb.load_cookies(&file).await?;
+            sb.load_cookies_from_path(
+                std::path::Path::new(&file),
+                seleniumbase_rs::CookieExpiry::Saved,
+            )
+            .await?;
             println!("Loaded cookies from '{}'", file);
         }
         Commands::HighlightClick { css } => {
@@ -2559,7 +2563,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::WaitForElementPresent { css, timeout } => {
-            let mut sb = BaseCase::new(config).await?;
+            let sb = BaseCase::new(config).await?;
             sb.wait_for_element_present(&css, timeout).await?;
             println!("Element '{}' is present", css);
         }
@@ -2920,7 +2924,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let outcome = match entry {
                     DeferredSpec::Element(selector) => sb.assert_element(selector).await,
                     DeferredSpec::Text(selector, expected) => {
-                        sb.assert_text(selector, expected).await
+                        sb.assert_text(expected, selector).await
                     }
                     DeferredSpec::Title(expected) => sb.assert_title_contains(expected).await,
                     DeferredSpec::Url(expected) => sb.assert_url_contains(expected).await,

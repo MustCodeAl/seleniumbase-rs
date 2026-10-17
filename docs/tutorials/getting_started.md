@@ -141,9 +141,10 @@ welcome message, and close.
 - `sb.open(url).await?` navigates to the requested page.
 - `sb.type_text(selector, text).await?` finds the element, clears it, and types.
 - `sb.click(selector).await?` clicks the element.
-- `sb.assert_text_visible(text, selector).await?` checks at once and fails if the
-  text is not visible; it does not wait. On a page that renders late, call
-  `sb.wait_for_text(selector, text, timeout_secs).await?` first.
+- `sb.assert_text_visible(text, selector).await?` waits up to the default timeout
+  (`sb.set_timeout(secs)`) for the text to be visible and fails if it never is,
+  as Python's `assert_text` does. For a different wait, call
+  `sb.wait_for_text(text, selector, timeout_secs).await?`.
 - `sb.quit().await?` closes the browser and ends the session.
 
 ## Configuration
@@ -218,7 +219,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
             sb.type_text("#name", "Ferris").await?;
             sb.click("#go").await?;
             // The selector comes first, the expected text second.
-            sb.assert_exact_text("#out", "Hello, Ferris").await?;
+            sb.assert_exact_text("Hello, Ferris", "#out").await?;
             // Saved into the logs directory; the name must be a plain file name.
             sb.save_screenshot("greeter.png").await.map(|_| ())
         })

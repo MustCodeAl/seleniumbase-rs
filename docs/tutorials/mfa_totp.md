@@ -50,8 +50,9 @@ sb.click("#verify-otp").await?;
 # }
 ```
 
-`enter_totp_code(css, secret).await?` (alias `enter_mfa_code`) generates the code
-and types it into the field in one call:
+`enter_totp_code(css, secret).await?` (alias `enter_mfa_code`) generates the code,
+types it into the field and presses Enter, as Python's `enter_mfa_code` does, in
+one call:
 
 ```rust,no_run
 # use seleniumbase_rs::BaseCase;

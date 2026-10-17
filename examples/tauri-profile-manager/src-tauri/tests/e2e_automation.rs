@@ -192,7 +192,7 @@ async fn wait_for_cards(sb: &mut BaseCase, count: usize) -> Result<(), Box<dyn E
 /// What the test does in the window.
 async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     assert_eq!(sb.get_title().await?, TITLE);
-    sb.assert_text("h1", "Profile Manager").await?;
+    sb.assert_text("Profile Manager", "h1").await?;
 
     // A new vault starts with sample profiles; the list fills in after load.
     sb.wait_for_element_visible(CARD, 30).await?;
@@ -205,20 +205,20 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.type_text("#container-url", "http://localhost:4444")
         .await?;
     sb.click("#save-profile").await?;
-    sb.wait_for_text("#status", "Created E2E Profile", 10)
+    sb.wait_for_text("Created E2E Profile", "#status", 10)
         .await?;
-    sb.wait_for_text("#profile-list", "E2E Profile", 10).await?;
+    sb.wait_for_text("E2E Profile", "#profile-list", 10).await?;
     wait_for_cards(sb, before + 1).await?;
 
     // Typing in the search box leaves only the new profile.
     sb.type_text("#profile-search", "E2E").await?;
     wait_for_cards(sb, 1).await?;
-    sb.assert_text(CARD, "E2E Profile").await?;
+    sb.assert_text("E2E Profile", CARD).await?;
 
     // A new folder; the window sends it to the app's REST API.
     sb.type_text("#new-folder", "E2E Folder").await?;
     sb.click("#folder-form button[type='submit']").await?;
-    sb.wait_for_text("#folder-list", "E2E Folder", 10).await?;
+    sb.wait_for_text("E2E Folder", "#folder-list", 10).await?;
 
     // The window's own rectangle (the page alone would say 0 x 0): at least
     // the 800 x 600 of tauri.conf.json, and it can be resized.
@@ -249,7 +249,7 @@ async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     // usual WebDriver order, is refused rather than reported as done; its
     // text can be read until it is dismissed.
     sb.click("#e2e-confirm").await?;
-    sb.wait_for_text("#e2e-answer", "confirm false", 10).await?;
+    sb.wait_for_text("confirm false", "#e2e-answer", 10).await?;
     let refusal = sb
         .wait_for_and_accept_alert(5)
         .await
@@ -270,14 +270,14 @@ async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     // Accepted before it opens: the confirm answers true.
     sb.accept_alert().await?;
     sb.click("#e2e-confirm").await?;
-    sb.wait_for_text("#e2e-answer", "confirm true", 10).await?;
+    sb.wait_for_text("confirm true", "#e2e-answer", 10).await?;
     sb.accept_alert().await?;
 
     // An alert before the confirm leaves the answer to it, and the two are
     // read and cleared in the order they opened.
     sb.accept_alert().await?;
     sb.click("#e2e-leave").await?;
-    sb.wait_for_text("#e2e-answer", "leave true", 10).await?;
+    sb.wait_for_text("leave true", "#e2e-answer", 10).await?;
     assert_eq!(sb.get_alert_text().await?, "Unsaved changes");
     sb.accept_alert().await?;
     assert_eq!(sb.get_alert_text().await?, "Leave the page?");
@@ -287,13 +287,13 @@ async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.type_alert_text("Ada").await?;
     sb.accept_alert().await?;
     sb.click("#e2e-prompt").await?;
-    sb.wait_for_text("#e2e-answer", "prompt Ada", 10).await?;
+    sb.wait_for_text("prompt Ada", "#e2e-answer", 10).await?;
     assert_eq!(sb.get_alert_text().await?, "Your name?");
     sb.accept_alert().await?;
 
     // And with nothing set, the prompt is dismissed.
     sb.click("#e2e-prompt").await?;
-    sb.wait_for_text("#e2e-answer", "prompt null", 10).await?;
+    sb.wait_for_text("prompt null", "#e2e-answer", 10).await?;
     sb.dismiss_alert().await?;
     Ok(())
 }
@@ -302,7 +302,7 @@ async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
 /// sandboxed frame has an origin of its own and cannot be entered.
 async fn frames(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.switch_to_frame("#e2e-frame").await?;
-    sb.assert_text("#inside", "Inside the frame").await?;
+    sb.assert_text("Inside the frame", "#inside").await?;
     // The script runs in the frame: its `document` is the frame's.
     let found = sb
         .execute_script(
@@ -342,19 +342,19 @@ async fn actions(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     assert_eq!(sb.get_text("#e2e-clicks").await?, "click1 click2 dblclick");
 
     sb.hover("#e2e-hover").await?;
-    sb.wait_for_text("#e2e-hover", "Hovered", 10).await?;
+    sb.wait_for_text("Hovered", "#e2e-hover", 10).await?;
 
     sb.type_text("#e2e-field", "E2E").await?;
     sb.press_key("space").await?;
     sb.press_key("enter").await?;
-    sb.wait_for_text("#e2e-submitted", "submitted [E2E ]", 10)
+    sb.wait_for_text("submitted [E2E ]", "#e2e-submitted", 10)
         .await?;
 
     // The move scrolls the paragraph into view at once, not over the frames
     // that follow, so it lands on it.
     sb.execute_script(FAR).await?;
     sb.hover("#e2e-far").await?;
-    sb.wait_for_text("#e2e-far", "Reached", 10).await?;
+    sb.wait_for_text("Reached", "#e2e-far", 10).await?;
     Ok(())
 }
 

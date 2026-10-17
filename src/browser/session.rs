@@ -233,13 +233,13 @@ impl BrowserSession {
     }
 
     /// Returns the current page title.
-    pub async fn current_title(&mut self) -> Result<String, SeleniumBaseError> {
+    pub async fn current_title(&self) -> Result<String, SeleniumBaseError> {
         let title = self.driver().title().await?;
         Ok(title)
     }
 
     /// Returns the current page URL as a string.
-    pub async fn current_url(&mut self) -> Result<String, SeleniumBaseError> {
+    pub async fn current_url(&self) -> Result<String, SeleniumBaseError> {
         let url = self.driver().current_url().await?;
         Ok(url.as_str().to_owned())
     }
@@ -278,7 +278,7 @@ impl BrowserSession {
     }
 
     /// Returns the visible text of the element located by `locator`.
-    pub async fn text(&mut self, locator: By) -> Result<String, SeleniumBaseError> {
+    pub async fn text(&self, locator: By) -> Result<String, SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         Ok(element.text().await?)
     }

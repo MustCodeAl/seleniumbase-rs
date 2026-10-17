@@ -90,6 +90,15 @@ where
     }
 }
 
+/// What a poll for the text of an element ended with.
+struct ShownText {
+    /// Whether the text held when the poll ended.
+    held: bool,
+    /// The text of the element, or `None` if no element was found or it was
+    /// not displayed.
+    seen: Option<String>,
+}
+
 /// `Found` with the first of `elements`, or `Pending` if there is none.
 fn first_found(elements: Vec<thirtyfour::WebElement>) -> Polled<thirtyfour::WebElement> {
     elements
@@ -193,9 +202,12 @@ impl BaseCase {
         Err(SeleniumBaseError::AssertionFailed(message.to_owned()))
     }
 
-    /// Alias for sleeping `seconds`.
-    pub async fn wait(&self, seconds: u64) {
-        tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
+    /// Pauses for `seconds`, whole or fractional (`wait(2)`, `wait(0.5)`). The
+    /// same as [`sleep`](Self::sleep), as in Python, where `wait` is its alias:
+    /// the pause is cut short by nothing, and it is recorded where the run
+    /// settings record sleeps.
+    pub async fn wait(&self, seconds: impl Into<f64>) {
+        self.sleep(seconds.into()).await;
     }
 
     /// Changes how long actions wait for their element by default, up or down,
@@ -230,20 +242,34 @@ impl BaseCase {
         self.get_property(css, property).await
     }
 
-    /// Asserts that `css` is present in the DOM.
+    /// Asserts that `css` is in the DOM, visible or not, waiting up to the
+    /// default timeout ([`set_timeout`](Self::set_timeout)) for it, as
+    /// Python's `assert_element_present` does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the element is not
+    /// there when the timeout ends.
     pub async fn assert_element_present(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        if !self.is_element_present(css).await? {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Element '{}' was not present",
-                css
-            )));
-        }
-        Ok(())
+        self.check_time_limit()?;
+        let timeout = self.default_wait_secs();
+        poll_until_true(timeout, String::new(), || self.is_element_present(css))
+            .await
+            .map_err(|error| match error {
+                SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                    "Element '{css}' was not present after {timeout}s"
+                )),
+                other => other,
+            })
     }
 
-    /// Asserts that every selector in `selectors` is present.
+    /// Asserts that every selector in `selectors` is displayed, waiting for
+    /// each up to the default timeout, as Python's `assert_elements` does.
     pub async fn assert_elements(&self, selectors: &[&str]) -> Result<(), SeleniumBaseError> {
-        self.assert_elements_present(selectors).await
+        for css in selectors {
+            self.assert_element(css).await?;
+        }
+        Ok(())
     }
 
     /// Asserts that every selector in `selectors` is visible.
@@ -279,19 +305,33 @@ impl BaseCase {
         )))
     }
 
-    /// Asserts that `text` is not visible inside `css`.
+    /// Asserts that `text` is not the visible text of `css`, giving the text
+    /// up to the default timeout to go away. The text comes first and the
+    /// selector second, as in Python's
+    /// `assert_exact_text_not_visible(text, selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still the
+    /// text of the element when the timeout ends.
     pub async fn assert_exact_text_not_visible(
-        &mut self,
-        css: &str,
+        &self,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        if self.is_exact_text_visible(text, css).await? {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Exact text '{}' was unexpectedly visible in '{}'",
-                text, css
-            )));
-        }
-        Ok(())
+        self.check_time_limit()?;
+        poll_until_true(
+            self.default_wait_secs(),
+            String::new(),
+            || async { Ok(!self.is_exact_text_visible(text, css).await?) },
+        )
+        .await
+        .map_err(|error| match error {
+            SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                "Exact text '{text}' was unexpectedly visible in '{css}'"
+            )),
+            other => other,
+        })
     }
 
     /// Asserts that `css` has non-empty visible text.
@@ -333,7 +373,9 @@ impl BaseCase {
         .await
     }
 
-    /// Waits up to `timeout_secs` for exact `text` to be visible inside `css`.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed with
+    /// exactly `text` as its text. The text comes first and the selector
+    /// second, as in Python's `wait_for_exact_text_visible(text, selector)`.
     ///
     /// # Errors
     ///
@@ -341,8 +383,8 @@ impl BaseCase {
     /// after the timeout.
     pub async fn wait_for_exact_text_visible(
         &self,
-        css: &str,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
@@ -353,7 +395,9 @@ impl BaseCase {
         .await
     }
 
-    /// Waits up to `timeout_secs` for exact `text` to not be visible inside `css`.
+    /// Waits up to `timeout_secs` for exact `text` to not be the visible text
+    /// of `css`. The text comes first and the selector second, as in Python's
+    /// `wait_for_exact_text_not_visible(text, selector)`.
     ///
     /// # Errors
     ///
@@ -361,8 +405,8 @@ impl BaseCase {
     /// after the timeout.
     pub async fn wait_for_exact_text_not_visible(
         &self,
-        css: &str,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
@@ -401,21 +445,10 @@ impl BaseCase {
         self.wait_for_non_empty_text(css, timeout_secs).await
     }
 
-    /// Whether the rendered text of the page contains `text`.
-    async fn page_text_contains(&self, text: &str) -> Result<bool, SeleniumBaseError> {
-        let script = format!(
-            "return document.body != null && document.body.innerText.includes({});",
-            quote(text)
-        );
-        Ok(self.execute_script(&script).await?.as_bool() == Some(true))
-    }
-
-    /// Waits up to `timeout_secs` for `text` to be visible anywhere on the page.
-    ///
-    /// Unlike Python's `wait_for_text_visible(text, selector="html", ...)`, this
-    /// takes no selector: it looks at the whole page. To wait for text inside
-    /// one element, use [`BaseCase::wait_for_text`], which takes the selector
-    /// first.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed and
+    /// contain `text`. Pass `"body"` for the text anywhere on the page. The
+    /// text comes first and the selector second, as in Python's
+    /// `wait_for_text_visible(text, selector)`.
     ///
     /// # Errors
     ///
@@ -424,19 +457,21 @@ impl BaseCase {
     pub async fn wait_for_text_visible(
         &self,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
             self.effective_timeout(timeout_secs),
-            format!("Text '{text}' was not visible"),
-            || self.page_text_contains(text),
+            format!("Text '{text}' was not visible in '{css}'"),
+            || self.is_text_visible(text, css),
         )
         .await
     }
 
-    /// Waits up to `timeout_secs` for `text` to not be visible anywhere.
-    ///
-    /// Like [`BaseCase::wait_for_text_visible`], this looks at the whole page.
+    /// Waits up to `timeout_secs` for `text` to not be visible in the element
+    /// `css` (also when the element is gone). The text comes first and the
+    /// selector second, as in Python's `wait_for_text_not_visible(text,
+    /// selector)`.
     ///
     /// # Errors
     ///
@@ -445,12 +480,13 @@ impl BaseCase {
     pub async fn wait_for_text_not_visible(
         &self,
         text: &str,
+        css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         poll_until_true(
             self.effective_timeout(timeout_secs),
-            format!("Text '{text}' was still visible"),
-            || async { Ok(!self.page_text_contains(text).await?) },
+            format!("Text '{text}' was still visible in '{css}'"),
+            || async { Ok(!self.is_text_visible(text, css).await?) },
         )
         .await
     }
@@ -898,7 +934,7 @@ mod tests_with_a_driver {
             ("POST", "/elements") => Reply::Value(json!([element("e1")])),
             _ => Reply::Value(Value::Null),
         });
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         sb.wait_for_element_present("#a", 0)
             .await
             .expect("a wait checks at least once");
@@ -910,7 +946,7 @@ mod tests_with_a_driver {
             ("POST", "/element") => Reply::Error(404, "no such element"),
             _ => Reply::Value(Value::Null),
         });
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         let error = sb
             .wait_for_element_present("#a", 0)
             .await
@@ -924,7 +960,7 @@ mod tests_with_a_driver {
             ("POST", "/element") => Reply::Value(element("e1")),
             _ => Reply::Value(Value::Null),
         });
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         for selector in ["#a", "//div[@id='b']", "link=Home", "p_link=Hom"] {
             sb.wait_for_element_present(selector, 1).await.unwrap();
         }

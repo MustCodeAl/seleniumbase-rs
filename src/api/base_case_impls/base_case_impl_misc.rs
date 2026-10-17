@@ -25,6 +25,25 @@ fn referral_link_script(destination: &str) -> String {
     )
 }
 
+/// The folder of the baseline `check_window` keeps for the check `name`: for
+/// a test called `test`, `visual_baseline/<test>/<name>`, where the test
+/// name's path separators and other unsafe characters become `_`; without one,
+/// the folder of the thread that runs the test (the function name, as in
+/// Python).
+fn check_window_folder(
+    test: Option<&str>,
+    name: &str,
+) -> Result<std::path::PathBuf, SeleniumBaseError> {
+    let Some(test) = test else {
+        return crate::api::run_settings::baseline_dir(name);
+    };
+    let name = if name.is_empty() { "default" } else { name };
+    crate::artifacts::confined_path(
+        &std::path::Path::new("visual_baseline").join(crate::artifacts::safe_stem(test, "default")),
+        name,
+    )
+}
+
 /// Checks that `url` is one Python's `is_valid_url` accepts, for the
 /// referral helpers, which refuse a page they could not navigate to before
 /// they touch the browser.
@@ -54,11 +73,12 @@ impl BaseCase {
 
     /// Checks now that the text of `css` is exactly `text`, and records a
     /// failure for [`process_deferred_asserts`](Self::process_deferred_asserts)
-    /// to report. Corresponds to Python's `deferred_assert_exact_text`.
+    /// to report. The text comes first and the selector second, as in
+    /// Python's `deferred_assert_exact_text(text, selector)`.
     pub async fn deferred_assert_exact_text(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_exact_text(self, text, css).await;
@@ -89,13 +109,14 @@ impl BaseCase {
         self.deferred_assert_element_present(css).await
     }
 
-    /// Alias for `deferred_assert_exact_text`.
+    /// Alias for `deferred_assert_exact_text`: the text comes first and the
+    /// selector second.
     pub async fn delayed_assert_exact_text(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.deferred_assert_exact_text(css, text).await
+        self.deferred_assert_exact_text(text, css).await
     }
 
     /// Alias for `deferred_assert_non_empty_text`.
@@ -106,11 +127,12 @@ impl BaseCase {
         self.deferred_assert_non_empty_text(css).await
     }
 
-    /// Alias for `deferred_assert_text`.
+    /// Alias for `deferred_assert_text`: the text comes first and the
+    /// selector second.
     pub async fn delayed_assert_text(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.deferred_assert_text(text, css).await
     }
@@ -127,7 +149,7 @@ impl BaseCase {
     pub async fn deferred_check_window(
         &mut self,
         name: &str,
-        level: f64,
+        level: u8,
     ) -> Result<(), SeleniumBaseError> {
         if let Err(error) = self.check_window(name, level).await {
             let url = self.get_current_url().await.ok();
@@ -140,7 +162,7 @@ impl BaseCase {
     pub async fn delayed_check_window(
         &mut self,
         name: &str,
-        level: f64,
+        level: u8,
     ) -> Result<(), SeleniumBaseError> {
         self.deferred_check_window(name, level).await
     }
@@ -179,14 +201,21 @@ impl BaseCase {
         self.post_styled_message(message, "#dc3545").await
     }
 
-    /// Displays a toast message and highlights it.
+    /// Displays a toast message and then highlights the element `css`.
+    /// Corresponds to Python's `post_message_and_highlight(message,
+    /// selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be shown or `css` cannot be
+    /// highlighted (it is not on the page, for example).
     pub async fn post_message_and_highlight(
         &self,
         message: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.post_styled_message(message, "#ffc107").await?;
-        let _ = self.highlight("#sb-toast-message").await;
-        Ok(())
+        self.highlight(css).await
     }
 
     async fn post_styled_message(&self, message: &str, color: &str) -> Result<(), SeleniumBaseError> {
@@ -325,9 +354,28 @@ impl BaseCase {
 
     // Selector / soup / CDP aliases.
 
-    /// Alias for `convert_xpath_to_css`.
-    pub fn convert_to_css_selector(&self, xpath: &str) -> Result<String, SeleniumBaseError> {
-        self.convert_xpath_to_css(xpath)
+    /// Converts any kind of selector to CSS, for the jQuery and JavaScript
+    /// helpers that need a CSS selector. Corresponds to Python's
+    /// `convert_to_css_selector(selector, by)`, with the strategy read from the
+    /// selector as the other methods do: CSS is returned as it is, XPath is
+    /// converted as [`convert_xpath_to_css`](Self::convert_xpath_to_css) does,
+    /// and a bare element id (`Selector::Id`) becomes `[id='x']`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] for XPath that has no CSS
+    /// equivalent and for link text (`link=Home`), which CSS cannot select.
+    pub fn convert_to_css_selector(&self, selector: &str) -> Result<String, SeleniumBaseError> {
+        match Selector::auto(selector) {
+            Selector::Css(css) => Ok(css.to_owned()),
+            Selector::XPath(xpath) => self.convert_xpath_to_css(xpath),
+            Selector::Id(id) => Ok(format!("[id='{}']", id.replace('\\', "\\\\").replace('\'', "\\'"))),
+            Selector::LinkText(_) | Selector::PartialLinkText(_) => {
+                Err(SeleniumBaseError::InvalidSelector(format!(
+                    "'{selector}' selects a link by its text, which has no CSS equivalent"
+                )))
+            }
+        }
     }
 
     /// Alias for `get_beautiful_soup_object`.
@@ -456,5 +504,80 @@ impl BaseCase {
     /// Marks the current test as skipped with `message`.
     pub fn skip_test(&self, message: &str) -> Result<(), SeleniumBaseError> {
         Err(SeleniumBaseError::Skipped(message.to_owned()))
+    }
+}
+
+#[cfg(test)]
+mod tests_check_window {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn tests_of_the_same_function_in_other_modules_keep_separate_baselines() {
+        let cart = check_window_folder(Some("shop::cart::tests::renders"), "home").unwrap();
+        let blog = check_window_folder(Some("blog::tests::renders"), "home").unwrap();
+        assert_ne!(cart, blog);
+        assert_eq!(
+            cart,
+            Path::new("visual_baseline")
+                .join("shop__cart__tests__renders")
+                .join("home")
+        );
+    }
+
+    #[test]
+    fn a_test_name_cannot_name_a_folder_outside_the_baselines() {
+        let folder = check_window_folder(Some("../../etc/passwd"), "home").unwrap();
+        assert_eq!(
+            folder,
+            Path::new("visual_baseline")
+                .join("______etc_passwd")
+                .join("home")
+        );
+        check_window_folder(Some("shop::cart"), "../home").unwrap_err();
+        check_window_folder(Some("shop::cart"), "a/b").unwrap_err();
+    }
+
+    #[test]
+    fn any_selector_converts_to_css_where_css_can_say_it() {
+        let sb = BaseCase::without_session(BrowserConfig::default());
+        let css = |selector: &str| sb.convert_to_css_selector(selector);
+        assert_eq!(css("#a > .b").unwrap(), "#a > .b");
+        assert_eq!(css("//ul/li[2]").unwrap(), "ul > li:nth-of-type(2)");
+        // A link text has no CSS; so does XPath that CSS cannot say.
+        assert!(matches!(
+            css("link=Home"),
+            Err(SeleniumBaseError::InvalidSelector(_))
+        ));
+        assert!(matches!(
+            css("//a[text()='Home']"),
+            Err(SeleniumBaseError::InvalidSelector(_))
+        ));
+    }
+
+    #[test]
+    fn an_empty_check_name_is_the_default_one() {
+        let folder = check_window_folder(Some("shop::cart"), "").unwrap();
+        assert!(folder.ends_with("shop__cart/default"), "{folder:?}");
+    }
+
+    #[test]
+    fn without_a_test_name_the_folder_is_named_after_the_running_test_function() {
+        // The test harness names this thread `…::tests_check_window::without_a_…`.
+        let folder = check_window_folder(None, "home").unwrap();
+        assert_eq!(
+            folder,
+            Path::new("visual_baseline")
+                .join("without_a_test_name_the_folder_is_named_after_the_running_test_function")
+                .join("home")
+        );
+    }
+
+    #[test]
+    fn a_case_keeps_the_name_it_was_given() {
+        let sb = BaseCase::without_session(BrowserConfig::default());
+        assert_eq!(sb.test_name(), None);
+        let sb = sb.with_test_name("shop::cart::renders");
+        assert_eq!(sb.test_name(), Some("shop::cart::renders"));
     }
 }

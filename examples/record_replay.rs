@@ -80,7 +80,7 @@ async fn record(sb: &mut BaseCase, url: &str) -> Result<RecorderSession> {
     session.install(sb).await?;
     session.type_text(sb, "#myTextInput", "recorded").await?;
     session.click(sb, "#myButton").await?;
-    session.assert_text(sb, "#pText", "Purple").await?;
+    session.assert_text(sb, "Purple", "#pText").await?;
     session.drain(sb).await?;
     Ok(session)
 }

@@ -50,12 +50,12 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     // Play it: the box appears with the first step's message...
     sb.play_tour().await?;
     sb.wait_for_element_visible("#sb-rs-tour-box", 5).await?;
-    sb.assert_text("#sb-rs-tour-box", "Welcome to the demo page.")
+    sb.assert_text("Welcome to the demo page.", "#sb-rs-tour-box")
         .await?;
 
     // ...and Next moves on to the second.
     sb.click("#sb-rs-tour-next").await?;
-    sb.assert_text("#sb-rs-tour-box", "Type something here.")
+    sb.assert_text("Type something here.", "#sb-rs-tour-box")
         .await?;
     println!("the tour played and advanced to step 2");
 

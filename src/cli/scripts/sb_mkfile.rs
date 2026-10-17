@@ -110,7 +110,7 @@ impl TestFile {
             (None, false) => format!(
                 "            sb.open({start:?}).await?;\n\
                  \x20           sb.assert_title(\"Example Domain\").await?;\n\
-                 \x20           sb.assert_text(\"h1\", \"Example Domain\").await\n"
+                 \x20           sb.assert_text(\"Example Domain\", \"h1\").await\n"
             ),
             (Some(_), false) => format!(
                 "            sb.open({start:?}).await?;\n\

@@ -19,6 +19,18 @@ pub(crate) enum TextMatch {
     NonEmpty,
 }
 
+impl TextMatch {
+    /// Whether `shown`, the visible text of an element, is what this kind of
+    /// match looks for with `wanted`.
+    pub(crate) fn holds(self, shown: &str, wanted: &str) -> bool {
+        match self {
+            Self::Contains => shown.contains(wanted),
+            Self::Exact => shown.trim() == wanted.trim(),
+            Self::NonEmpty => !shown.trim().is_empty(),
+        }
+    }
+}
+
 /// Upstream SeleniumBase's `AD_BLOCK_LIST`: selectors for the elements
 /// `ad_block` removes, each ready for `querySelectorAll`.
 pub(crate) const AD_BLOCK_SELECTORS: &[&str] = &[
@@ -250,45 +262,6 @@ pub(crate) fn ad_block_script() -> String {
     )
 }
 
-/// Finds the deepest displayed element under `<body>` whose visible text
-/// matches, or `null`.
-pub(crate) fn find_visible_text_script(kind: TextMatch, text: &str) -> String {
-    let kind = match kind {
-        TextMatch::Contains => "contains",
-        TextMatch::Exact => "exact",
-        TextMatch::NonEmpty => "nonempty",
-    };
-    // Children are searched first, so the deepest element that fits wins; an element
-    // is only a candidate if it shows the text, which leaves out `display: none`
-    // subtrees and `<script>` text.
-    format!(
-        "var kind = '{kind}'; \
-         var needle = {needle}; \
-         function displayed(el) {{ \
-             var style = window.getComputedStyle(el); \
-             if (style.display === 'none' || style.visibility === 'hidden') {{ return false; }} \
-             return el.getClientRects().length > 0; \
-         }} \
-         function could(text) {{ \
-             if (kind === 'nonempty') {{ return text.trim().length > 0; }} \
-             return text.indexOf(kind === 'exact' ? needle.trim() : needle) !== -1; \
-         }} \
-         function search(el) {{ \
-             if (!displayed(el)) {{ return null; }} \
-             var text = el.innerText || ''; \
-             if (!could(text)) {{ return null; }} \
-             for (var child = el.firstElementChild; child; child = child.nextElementSibling) {{ \
-                 var found = search(child); \
-                 if (found) {{ return found; }} \
-             }} \
-             if (kind === 'exact' && text.trim() !== needle.trim()) {{ return null; }} \
-             return el; \
-         }} \
-         return document.body ? search(document.body) : null;",
-        needle = literal(text)
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -310,10 +283,6 @@ mod tests {
             (highlight_script(css, 10), vec![css]),
             (bring_to_front_script(css), vec![css]),
             (select_by_index_script(css, 1), vec![css]),
-            (
-                find_visible_text_script(TextMatch::Contains, text),
-                vec![text],
-            ),
             (console_log_string_script(text), vec![text]),
             (toast_script(text, "#fff", 1), vec![text]),
         ] {
@@ -582,43 +551,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(left, "keep");
-        browser.close().await.unwrap();
-    }
-
-    #[tokio::test]
-    #[ignore = "needs Chrome"]
-    async fn find_visible_text_returns_the_deepest_visible_match_and_skips_hidden_text() {
-        let (browser, page) = open_html(
-            "<!doctype html><div id=hid style='display:none'>hidden-needle</div>\
-             <p id=p>hello <b id=deep>needle</b> world</p><span id=e>  </span>\
-             <script>var inScript = 'script-needle';</script>",
-        )
-        .await;
-        let id_of = |kind: TextMatch, text: &'static str| {
-            let body = format!(
-                "var el = (function () {{ {} }})(); return el ? el.id : null;",
-                find_visible_text_script(kind, text)
-            );
-            let page = &page;
-            async move { page.evaluate(as_call(&body)).await.unwrap() }
-        };
-        assert_eq!(id_of(TextMatch::Contains, "needle").await, "deep");
-        assert_eq!(id_of(TextMatch::Contains, "hello").await, "p");
-        assert_eq!(
-            id_of(TextMatch::Contains, "hidden-needle").await,
-            Value::Null
-        );
-        assert_eq!(
-            id_of(TextMatch::Contains, "script-needle").await,
-            Value::Null
-        );
-        assert_eq!(id_of(TextMatch::Exact, "needle").await, "deep");
-        assert_eq!(
-            id_of(TextMatch::Exact, "hello").await,
-            Value::Null,
-            "only part of the text"
-        );
-        assert_eq!(id_of(TextMatch::NonEmpty, "").await, "deep");
         browser.close().await.unwrap();
     }
 }

@@ -74,7 +74,7 @@ The recorder produces method calls such as:
 # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.click("#myButton").await?;
 sb.type_text("#myInput", "hello").await?;
-sb.assert_text("body", "Success!").await?;
+sb.assert_text("Success!", "body").await?;
 # Ok(())
 # }
 ```

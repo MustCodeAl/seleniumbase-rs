@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use regex::Regex;
 
-use crate::utils::selectors::xpath_to_css;
+use crate::utils::selectors::is_xpath_selector;
 
 /// Python API family used by the input file.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -80,6 +80,16 @@ enum Action {
     AssertElement(String),
     AssertText(String, String),
     AssertExactText(String, String),
+    AssertTextNotVisible(String, String),
+    AssertExactTextNotVisible(String, String),
+    WaitText(String, String, u64),
+    WaitExactText(String, String, u64),
+    DeferredElement(String),
+    DeferredText(String, String),
+    DeferredExactText(String, String),
+    ProcessDeferred,
+    EnterMfaCode(String, String),
+    AddText(String, String),
     AssertTitle(String),
     AssertTitleContains(String),
     AssertUrl(String),
@@ -103,7 +113,8 @@ enum Action {
 
 #[derive(Clone, Debug)]
 enum Locator {
-    Css(String),
+    /// A selector `BaseCase` classifies itself: CSS or XPath.
+    Selector(String),
     LinkText(String),
     PartialLinkText(String),
 }
@@ -215,15 +226,71 @@ fn parse_seleniumbase(statement: &str, line: usize) -> ParseOutcome {
         "click_partial_link_text" => one_string(&args, Action::ClickPartialLink),
         "double_click" | "double_click_element" => one_string(&args, Action::DoubleClick),
         "right_click" | "right_click_element" => one_string(&args, Action::RightClick),
-        "type" | "type_text" | "update_text" | "send_keys" => two_strings(&args, Action::TypeText),
+        // Python's `send_keys` is `add_text`: it does not clear the field.
+        "type" | "type_text" | "update_text" => selector_and_text(
+            &args,
+            &["selector", "text", "by", "timeout", "retry"],
+            Action::TypeText,
+        ),
+        "add_text" | "send_keys" => selector_and_text(
+            &args,
+            &["selector", "text", "by", "timeout"],
+            Action::AddText,
+        ),
+        "enter_mfa_code" => selector_and_text(
+            &args,
+            &["selector", "totp_key", "by", "timeout"],
+            Action::EnterMfaCode,
+        ),
         "clear" => one_string(&args, Action::Clear),
         "submit" => one_string(&args, Action::Submit),
         "hover" | "hover_on_element" => one_string(&args, Action::Hover),
         "check_if_unchecked" | "check" => one_string(&args, Action::Check),
         "uncheck_if_checked" | "uncheck" => one_string(&args, Action::Uncheck),
-        "assert_element" | "assert_element_visible" => one_string(&args, Action::AssertElement),
-        "assert_text" => reverse_two_strings(&args, Action::AssertText),
-        "assert_exact_text" => reverse_two_strings(&args, Action::AssertExactText),
+        "assert_element" | "assert_element_visible" => {
+            selector_only(&args, &["selector", "by", "timeout"], Action::AssertElement)
+        }
+        // The selector is `body` when the Python call leaves it out.
+        "assert_text" | "assert_text_visible" => {
+            text_call(&args, false, |text, css, _| Action::AssertText(text, css))
+        }
+        "assert_exact_text" => text_call(&args, false, |text, css, _| {
+            Action::AssertExactText(text, css)
+        }),
+        "assert_text_not_visible" => text_call(&args, false, |text, css, _| {
+            Action::AssertTextNotVisible(text, css)
+        }),
+        "assert_exact_text_not_visible" => text_call(&args, false, |text, css, _| {
+            Action::AssertExactTextNotVisible(text, css)
+        }),
+        "wait_for_text" | "wait_for_text_visible" => {
+            text_call(&args, true, |text, css, timeout| {
+                Action::WaitText(text, css, timeout.unwrap_or(DEFAULT_WAIT_SECONDS))
+            })
+        }
+        "wait_for_exact_text" | "wait_for_exact_text_visible" => {
+            text_call(&args, true, |text, css, timeout| {
+                Action::WaitExactText(text, css, timeout.unwrap_or(DEFAULT_WAIT_SECONDS))
+            })
+        }
+        "deferred_assert_element" | "delayed_assert_element" => selector_only(
+            &args,
+            &["selector", "by", "timeout", "fs"],
+            Action::DeferredElement,
+        ),
+        "deferred_assert_text" | "delayed_assert_text" => text_call_with(
+            &args,
+            &["text", "selector", "by", "timeout", "fs"],
+            Action::DeferredText,
+        ),
+        "deferred_assert_exact_text" | "delayed_assert_exact_text" => text_call_with(
+            &args,
+            &["text", "selector", "by", "timeout", "fs"],
+            Action::DeferredExactText,
+        ),
+        "process_deferred_asserts" | "process_delayed_asserts" => {
+            ParseOutcome::Action(Action::ProcessDeferred)
+        }
         "assert_title" => one_string(&args, Action::AssertTitle),
         "assert_title_contains" => one_string(&args, Action::AssertTitleContains),
         "assert_url" => one_string(&args, Action::AssertUrl),
@@ -347,15 +414,15 @@ fn parse_selenium(
             ));
         };
         return match (locator, &captures["method"]) {
-            (Locator::Css(css), "text") => ParseOutcome::Action(Action::GetText(css)),
-            (Locator::Css(css), "get_attribute") => match python_string(&captures["args"]) {
+            (Locator::Selector(css), "text") => ParseOutcome::Action(Action::GetText(css)),
+            (Locator::Selector(css), "get_attribute") => match python_string(&captures["args"]) {
                 Some(attr) => ParseOutcome::Action(Action::GetAttribute(css, attr)),
                 None => ParseOutcome::Invalid(
                     "get_attribute() requires a string literal attribute name".to_owned(),
                 ),
             },
             _ => ParseOutcome::Unsupported(
-                "this read operation is only supported for CSS-based element variables".to_owned(),
+                "this read operation is only supported for element variables with a CSS or XPath locator".to_owned(),
             ),
         };
     }
@@ -383,15 +450,16 @@ fn selenium_element_action(
         Err(message) => return ParseOutcome::Invalid(message),
     };
     match (locator, method) {
-        (Locator::Css(css), "click") => ParseOutcome::Action(Action::Click(css)),
+        (Locator::Selector(css), "click") => ParseOutcome::Action(Action::Click(css)),
         (Locator::LinkText(text), "click") => ParseOutcome::Action(Action::ClickLink(text)),
         (Locator::PartialLinkText(text), "click") => {
             ParseOutcome::Action(Action::ClickPartialLink(text))
         }
-        (Locator::Css(css), "clear") => ParseOutcome::Action(Action::Clear(css)),
-        (Locator::Css(css), "submit") => ParseOutcome::Action(Action::Submit(css)),
-        (Locator::Css(css), "send_keys") => match python_string(args) {
-            Some(text) => ParseOutcome::Action(Action::TypeText(css, text)),
+        (Locator::Selector(css), "clear") => ParseOutcome::Action(Action::Clear(css)),
+        (Locator::Selector(css), "submit") => ParseOutcome::Action(Action::Submit(css)),
+        // Selenium's `send_keys` adds to what is in the field.
+        (Locator::Selector(css), "send_keys") => match python_string(args) {
+            Some(text) => ParseOutcome::Action(Action::AddText(css, text)),
             None => ParseOutcome::Invalid(
                 "send_keys() requires a string literal; key chords need manual migration"
                     .to_owned(),
@@ -412,16 +480,19 @@ fn parse_locator(input: &str) -> Result<Locator, String> {
         .ok_or_else(|| "dynamic Selenium locators need manual migration".to_owned())?;
     let strategy = args[0].trim().rsplit('.').next().unwrap_or_default();
     match strategy {
-        "CSS_SELECTOR" => Ok(Locator::Css(value)),
-        "ID" => Ok(Locator::Css(format!(r#"[id="{}"]"#, css_escape(&value)))),
-        "NAME" => Ok(Locator::Css(format!(r#"[name="{}"]"#, css_escape(&value)))),
+        "CSS_SELECTOR" => Ok(Locator::Selector(value)),
+        "ID" => Ok(Locator::Selector(format!(r#"[id="{}"]"#, css_escape(&value)))),
+        "NAME" => Ok(Locator::Selector(format!(r#"[name="{}"]"#, css_escape(&value)))),
         "CLASS_NAME" if !value.chars().any(char::is_whitespace) => {
-            Ok(Locator::Css(format!(".{}", css_escape(&value))))
+            Ok(Locator::Selector(format!(".{}", css_escape(&value))))
         }
-        "TAG_NAME" => Ok(Locator::Css(value)),
-        "XPATH" => xpath_to_css(&value)
-            .map(Locator::Css)
-            .map_err(|_| format!("XPath '{value}' cannot be represented safely as a CSS selector")),
+        "TAG_NAME" => Ok(Locator::Selector(value)),
+        // `BaseCase` takes XPath as it is; converting it to CSS would refuse
+        // every XPath CSS cannot say.
+        "XPATH" if is_xpath_selector(&value) => Ok(Locator::Selector(value)),
+        "XPATH" => Err(format!(
+            "XPath '{value}' does not start with '/', './', '../' or '(', so BaseCase would read it as CSS"
+        )),
         "LINK_TEXT" => Ok(Locator::LinkText(value)),
         "PARTIAL_LINK_TEXT" => Ok(Locator::PartialLinkText(value)),
         _ => Err(format!(
@@ -449,6 +520,186 @@ fn method_call(statement: &str, receivers: &[&str]) -> Option<(String, String)> 
     None
 }
 
+/// How long a wait lasts when the Python call gives no timeout, in seconds.
+const DEFAULT_WAIT_SECONDS: u64 = 10;
+
+/// The text of `value` if it is a Python string literal.
+fn literal(value: Option<&str>, name: &str) -> Result<String, String> {
+    let value = value.ok_or_else(|| format!("the '{name}' argument is missing"))?;
+    python_string(value).ok_or_else(|| format!("'{name}' must be a string literal"))
+}
+
+/// Whether `by` is the CSS strategy, the one `BaseCase` assumes for a
+/// selector that does not start like XPath.
+fn check_by(by: Option<&str>) -> Result<(), String> {
+    match by {
+        None => Ok(()),
+        Some(by)
+            if python_string(by).as_deref() == Some("css selector")
+                || by.trim() == "By.CSS_SELECTOR" =>
+        {
+            Ok(())
+        }
+        Some(by) => Err(format!(
+            "by={by} needs manual migration: BaseCase reads a selector that starts with '/' or '(' as XPath"
+        )),
+    }
+}
+
+/// `name=value` as a keyword argument of a call, if `arg` is one.
+fn keyword(arg: &str) -> Option<(&str, &str)> {
+    let (name, value) = arg.split_once('=')?;
+    let name = name.trim();
+    let is_name = !name.is_empty()
+        && !name.starts_with(|c: char| c.is_ascii_digit())
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    (is_name && !value.starts_with('=')).then_some((name, value.trim()))
+}
+
+/// The arguments of a call matched with the names of Python's parameters:
+/// positional ones in order, keyword ones (`name=value`) by name.
+fn bind<'a>(args: &'a [String], names: &[&str]) -> Result<Vec<Option<&'a str>>, String> {
+    let mut bound: Vec<Option<&str>> = vec![None; names.len()];
+    let mut next = 0;
+    for arg in args {
+        let index = match keyword(arg) {
+            Some((key, _)) => names
+                .iter()
+                .position(|name| *name == key)
+                .ok_or_else(|| format!("the argument '{key}' is not supported"))?,
+            None => {
+                next += 1;
+                next - 1
+            }
+        };
+        if index >= names.len() {
+            return Err("too many arguments".to_owned());
+        }
+        if bound[index].is_some() {
+            return Err(format!("'{}' is given twice", names[index]));
+        }
+        bound[index] = Some(keyword(arg).map_or(arg.as_str(), |(_, value)| value));
+    }
+    Ok(bound)
+}
+
+/// The outcome of a call whose arguments were read into an action, or the
+/// reason they could not be.
+fn outcome(result: Result<Action, String>) -> ParseOutcome {
+    result.map_or_else(ParseOutcome::Invalid, ParseOutcome::Action)
+}
+
+/// The selector argument of a call, `body` when it is left out.
+fn selector_or_body(value: Option<&str>) -> Result<String, String> {
+    value.map_or_else(
+        || Ok("body".to_owned()),
+        |selector| literal(Some(selector), "selector"),
+    )
+}
+
+/// A text call like Python's `assert_text(text, selector="body", by, timeout)`:
+/// the text, the selector (`body` when it is left out) and, when
+/// `timeout_allowed`, the timeout in seconds.
+fn text_call(
+    args: &[String],
+    timeout_allowed: bool,
+    action: impl FnOnce(String, String, Option<u64>) -> Action,
+) -> ParseOutcome {
+    outcome(
+        text_arguments(args, timeout_allowed)
+            .map(|(text, css, timeout)| action(text, css, timeout)),
+    )
+}
+
+fn text_arguments(
+    args: &[String],
+    timeout_allowed: bool,
+) -> Result<(String, String, Option<u64>), String> {
+    let bound = bind(args, &["text", "selector", "by", "timeout"])?;
+    let text = literal(bound[0], "text")?;
+    let selector = selector_or_body(bound[1])?;
+    check_by(bound[2])?;
+    let timeout = match bound[3] {
+        None => None,
+        Some(timeout) if timeout_allowed => Some(
+            timeout
+                .parse::<u64>()
+                .map_err(|_| "the timeout must be a whole number of seconds".to_owned())?,
+        ),
+        Some(_) => {
+            return Err(
+                "a timeout needs manual migration: the assertion waits for the \
+                        default timeout (set_timeout)"
+                    .to_owned(),
+            )
+        }
+    };
+    Ok((text, selector, timeout))
+}
+
+/// A deferred text call: `names` are the Python parameters, the text first
+/// and the selector second (`body` when it is left out). The timeout and the
+/// `fs` flag cannot be carried over.
+fn text_call_with(
+    args: &[String],
+    names: &[&str],
+    action: impl FnOnce(String, String) -> Action,
+) -> ParseOutcome {
+    outcome(deferred_text_arguments(args, names).map(|(text, css)| action(text, css)))
+}
+
+fn deferred_text_arguments(args: &[String], names: &[&str]) -> Result<(String, String), String> {
+    let bound = bind(args, names)?;
+    let text = literal(bound[0], "text")?;
+    let selector = selector_or_body(bound[1])?;
+    check_by(bound[2])?;
+    if bound[3..].iter().any(Option::is_some) {
+        return Err("the timeout and fs arguments need manual migration".to_owned());
+    }
+    Ok((text, selector))
+}
+
+/// A call that takes a selector (its first parameter) and nothing that Rust
+/// can carry over: `by` must be CSS and there must be no timeout.
+fn selector_only(
+    args: &[String],
+    names: &[&str],
+    action: impl FnOnce(String) -> Action,
+) -> ParseOutcome {
+    outcome(selector_arguments(args, names).map(action))
+}
+
+fn selector_arguments(args: &[String], names: &[&str]) -> Result<String, String> {
+    let bound = bind(args, names)?;
+    let selector = literal(bound[0], "selector")?;
+    check_by(bound[1])?;
+    if bound[2..].iter().any(Option::is_some) {
+        return Err("the timeout and fs arguments need manual migration".to_owned());
+    }
+    Ok(selector)
+}
+
+/// A call like Python's `type(selector, text, by, timeout)`: a selector and a
+/// string, then arguments Rust cannot carry over.
+fn selector_and_text(
+    args: &[String],
+    names: &[&str],
+    action: impl FnOnce(String, String) -> Action,
+) -> ParseOutcome {
+    outcome(selector_text_arguments(args, names).map(|(selector, text)| action(selector, text)))
+}
+
+fn selector_text_arguments(args: &[String], names: &[&str]) -> Result<(String, String), String> {
+    let bound = bind(args, names)?;
+    let selector = literal(bound[0], "selector")?;
+    let text = literal(bound[1], names[1])?;
+    check_by(bound[2])?;
+    if bound[3..].iter().any(Option::is_some) {
+        return Err("the timeout and retry arguments need manual migration".to_owned());
+    }
+    Ok((selector, text))
+}
+
 fn one_string(args: &[String], action: impl FnOnce(String) -> Action) -> ParseOutcome {
     match args.first().and_then(|arg| python_string(arg)) {
         Some(value) => ParseOutcome::Action(action(value)),
@@ -466,32 +717,29 @@ fn two_strings(args: &[String], action: impl FnOnce(String, String) -> Action) -
     }
 }
 
-fn reverse_two_strings(
-    args: &[String],
-    action: impl FnOnce(String, String) -> Action,
-) -> ParseOutcome {
-    match (
-        args.first().and_then(|arg| python_string(arg)),
-        args.get(1).and_then(|arg| python_string(arg)),
-    ) {
-        (Some(first), Some(second)) => ParseOutcome::Action(action(second, first)),
-        _ => ParseOutcome::Invalid("expected two string literal arguments".to_owned()),
-    }
+fn wait_action(args: &[String], visible: bool) -> ParseOutcome {
+    outcome(wait_arguments(args).map(|(selector, timeout)| {
+        if visible {
+            Action::WaitVisible(selector, timeout)
+        } else {
+            Action::WaitPresent(selector, timeout)
+        }
+    }))
 }
 
-fn wait_action(args: &[String], visible: bool) -> ParseOutcome {
-    let Some(selector) = args.first().and_then(|arg| python_string(arg)) else {
-        return ParseOutcome::Invalid("wait requires a string literal selector".to_owned());
+/// Python's `wait_for_element_visible(selector, by="css selector", timeout)`:
+/// the timeout is the third parameter, so it is given by keyword.
+fn wait_arguments(args: &[String]) -> Result<(String, u64), String> {
+    let bound = bind(args, &["selector", "by", "timeout"])?;
+    let selector = literal(bound[0], "selector")?;
+    check_by(bound[1])?;
+    let timeout = match bound[2] {
+        None => DEFAULT_WAIT_SECONDS,
+        Some(timeout) => timeout
+            .parse::<u64>()
+            .map_err(|_| "the timeout must be a whole number of seconds".to_owned())?,
     };
-    let timeout = args
-        .get(1)
-        .and_then(|arg| arg.parse::<u64>().ok())
-        .unwrap_or(10);
-    if visible {
-        ParseOutcome::Action(Action::WaitVisible(selector, timeout))
-    } else {
-        ParseOutcome::Action(Action::WaitPresent(selector, timeout))
-    }
+    Ok((selector, timeout))
 }
 
 fn invalid_arguments(line: usize, method: &str) -> ParseOutcome {
@@ -666,10 +914,34 @@ fn render_action(action: &Action) -> String {
         Action::Submit(css) => format!("sb.submit({css:?}).await?;"),
         Action::Hover(css) => format!("sb.hover({css:?}).await?;"),
         Action::AssertElement(css) => format!("sb.assert_element({css:?}).await?;"),
-        Action::AssertText(css, text) => format!("sb.assert_text({css:?}, {text:?}).await?;"),
-        Action::AssertExactText(css, text) => {
-            format!("sb.assert_exact_text({css:?}, {text:?}).await?;")
+        Action::AssertText(text, css) => format!("sb.assert_text({text:?}, {css:?}).await?;"),
+        Action::AssertExactText(text, css) => {
+            format!("sb.assert_exact_text({text:?}, {css:?}).await?;")
         }
+        Action::AssertTextNotVisible(text, css) => {
+            format!("sb.assert_text_not_visible({text:?}, {css:?}).await?;")
+        }
+        Action::AssertExactTextNotVisible(text, css) => {
+            format!("sb.assert_exact_text_not_visible({text:?}, {css:?}).await?;")
+        }
+        Action::WaitText(text, css, timeout) => {
+            format!("sb.wait_for_text({text:?}, {css:?}, {timeout}).await?;")
+        }
+        Action::WaitExactText(text, css, timeout) => {
+            format!("sb.wait_for_exact_text({text:?}, {css:?}, {timeout}).await?;")
+        }
+        Action::DeferredElement(css) => format!("sb.deferred_assert_element({css:?}).await?;"),
+        Action::DeferredText(text, css) => {
+            format!("sb.deferred_assert_text({text:?}, {css:?}).await?;")
+        }
+        Action::DeferredExactText(text, css) => {
+            format!("sb.deferred_assert_exact_text({text:?}, {css:?}).await?;")
+        }
+        Action::ProcessDeferred => "sb.process_deferred_asserts().await?;".to_owned(),
+        Action::EnterMfaCode(css, secret) => {
+            format!("sb.enter_mfa_code({css:?}, {secret:?}).await?;")
+        }
+        Action::AddText(css, text) => format!("sb.add_text({css:?}, {text:?}).await?;"),
         Action::AssertTitle(title) => format!("sb.assert_title({title:?}).await?;"),
         Action::AssertTitleContains(title) => {
             format!("sb.assert_title_contains({title:?}).await?;")
@@ -763,7 +1035,7 @@ class LoginTests(BaseCase):
             .contains("sb.type_text(\"#username\", \"alice\")"));
         assert!(result
             .rust
-            .contains("sb.assert_text(\"main\", \"Welcome\")"));
+            .contains("sb.assert_text(\"Welcome\", \"main\")"));
         assert!(result.rust.contains("run_browser_test"));
     }
 
@@ -784,11 +1056,35 @@ driver.quit()
         assert!(result.is_complete());
         assert!(result
             .rust
-            .contains(r#"sb.type_text("[id=\"username\"]", "alice")"#));
+            .contains(r#"sb.add_text("[id=\"username\"]", "alice")"#));
         assert!(result.rust.contains("sb.click(\"button\")"));
         assert!(result
             .rust
             .contains("sb.assert_title_contains(\"Dashboard\")"));
+    }
+
+    #[test]
+    fn an_xpath_locator_is_passed_through_unchanged() {
+        let source = r#"
+from selenium.webdriver.common.by import By
+driver.find_element(By.XPATH, "//div[@class='a']/span[2]").click()
+driver.find_element(By.XPATH, "//a[text()='Home']").click()
+"#;
+        let result = import_python(source, &ImportOptions::default());
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert!(result
+            .rust
+            .contains(r#"sb.click("//div[@class='a']/span[2]")"#));
+        assert!(result.rust.contains(r#"sb.click("//a[text()='Home']")"#));
+    }
+
+    #[test]
+    fn a_relative_xpath_that_would_be_read_as_css_is_reported() {
+        let result = import_python(
+            "driver.find_element(By.XPATH, \"div/a\").click()",
+            &ImportOptions::default(),
+        );
+        assert!(!result.is_complete());
     }
 
     #[test]
@@ -924,5 +1220,133 @@ _ = header.get_attribute("data-id")
         assert!(result
             .rust
             .contains("sb.get_attribute(\"h1\", \"data-id\")"));
+    }
+
+    /// The Rust the importer writes for the SeleniumBase statements `source`.
+    fn seleniumbase(source: &str) -> ImportResult {
+        import_python(
+            source,
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                ..Default::default()
+            },
+        )
+    }
+
+    #[test]
+    fn a_text_call_without_a_selector_looks_at_the_body() {
+        // Python's `assert_text(text, selector="body")`; the importer used to
+        // refuse the one-argument form.
+        let result = seleniumbase(
+            "self.assert_text(\"Welcome\")\n\
+             self.assert_exact_text(\"Hi\")\n\
+             self.assert_text_visible(\"Shown\")\n\
+             self.assert_text_not_visible(\"Gone\")\n\
+             self.deferred_assert_text(\"Terms\")",
+        );
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        for line in [
+            "sb.assert_text(\"Welcome\", \"body\").await?;",
+            "sb.assert_exact_text(\"Hi\", \"body\").await?;",
+            "sb.assert_text(\"Shown\", \"body\").await?;",
+            "sb.assert_text_not_visible(\"Gone\", \"body\").await?;",
+            "sb.deferred_assert_text(\"Terms\", \"body\").await?;",
+        ] {
+            assert!(result.rust.contains(line), "{line}\n{}", result.rust);
+        }
+    }
+
+    #[test]
+    fn keyword_arguments_are_matched_with_python_parameters() {
+        let result = seleniumbase(
+            "self.assert_text(\"Welcome\", selector=\"h1\")\n\
+             self.assert_exact_text(selector=\"h2\", text=\"Hi\")\n\
+             self.wait_for_text(\"Done\", \"#status\", timeout=3)\n\
+             self.type(selector=\"#user\", text=\"alice\")",
+        );
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        for line in [
+            "sb.assert_text(\"Welcome\", \"h1\").await?;",
+            "sb.assert_exact_text(\"Hi\", \"h2\").await?;",
+            "sb.wait_for_text(\"Done\", \"#status\", 3).await?;",
+            "sb.type_text(\"#user\", \"alice\").await?;",
+        ] {
+            assert!(result.rust.contains(line), "{line}\n{}", result.rust);
+        }
+    }
+
+    #[test]
+    fn the_waits_and_deferred_checks_are_imported() {
+        let result = seleniumbase(
+            "self.wait_for_text(\"Ready\", \"#s\")\n\
+             self.wait_for_text_visible(\"Ready\")\n\
+             self.wait_for_exact_text(\"Ready\", \"#s\", timeout=4)\n\
+             self.wait_for_element_visible(\"#w\", timeout=7)\n\
+             self.wait_for_element_present(\"#p\")\n\
+             self.deferred_assert_element(\"#h\")\n\
+             self.deferred_assert_exact_text(\"Ok\", \"#r\")\n\
+             self.process_deferred_asserts()\n\
+             self.enter_mfa_code(\"#otp\", \"JBSWY3DPEHPK3PXP\")",
+        );
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        for line in [
+            "sb.wait_for_text(\"Ready\", \"#s\", 10).await?;",
+            "sb.wait_for_text(\"Ready\", \"body\", 10).await?;",
+            "sb.wait_for_exact_text(\"Ready\", \"#s\", 4).await?;",
+            "sb.wait_for_element_visible(\"#w\", 7).await?;",
+            "sb.wait_for_element_present(\"#p\", 10).await?;",
+            "sb.deferred_assert_element(\"#h\").await?;",
+            "sb.deferred_assert_exact_text(\"Ok\", \"#r\").await?;",
+            "sb.process_deferred_asserts().await?;",
+            "sb.enter_mfa_code(\"#otp\", \"JBSWY3DPEHPK3PXP\").await?;",
+        ] {
+            assert!(result.rust.contains(line), "{line}\n{}", result.rust);
+        }
+    }
+
+    #[test]
+    fn send_keys_adds_to_the_field_and_type_replaces_it() {
+        // Python's `send_keys` is `add_text`; the importer used to clear the
+        // field first.
+        let result = seleniumbase(
+            "self.send_keys(\"#a\", \"x\")\n\
+             self.add_text(\"#a\", \"y\")\n\
+             self.type(\"#a\", \"z\")\n\
+             self.update_text(\"#a\", \"w\")",
+        );
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert!(result.rust.contains("sb.add_text(\"#a\", \"x\").await?;"));
+        assert!(result.rust.contains("sb.add_text(\"#a\", \"y\").await?;"));
+        assert!(result.rust.contains("sb.type_text(\"#a\", \"z\").await?;"));
+        assert!(result.rust.contains("sb.type_text(\"#a\", \"w\").await?;"));
+
+        let selenium = import_python(
+            "el = driver.find_element(By.ID, \"a\")\nel.send_keys(\"x\")",
+            &ImportOptions {
+                source: PythonSource::Selenium,
+                ..Default::default()
+            },
+        );
+        assert!(selenium.is_complete(), "{:?}", selenium.diagnostics);
+        assert!(selenium.rust.contains("sb.add_text("), "{}", selenium.rust);
+    }
+
+    #[test]
+    fn arguments_rust_cannot_carry_over_are_errors_not_silently_dropped() {
+        for source in [
+            "self.assert_text(\"x\", timeout=5)",
+            "self.assert_text(\"x\", \"#a\", by=\"xpath\")",
+            "self.assert_text(text)",
+            "self.assert_text(\"x\", \"#a\", \"css selector\", 5, 6)",
+            "self.assert_text(\"x\", flavour=\"y\")",
+            "self.assert_text(\"x\", text=\"y\")",
+            "self.enter_mfa_code(\"#otp\", totp_key=None)",
+            "self.wait_for_text(\"x\", timeout=soon)",
+            "self.deferred_assert_text(\"x\", fs=True)",
+        ] {
+            let result = seleniumbase(source);
+            assert!(!result.is_complete(), "{source}\n{}", result.rust);
+            assert!(result.rust.contains("TODO"), "{source}\n{}", result.rust);
+        }
     }
 }

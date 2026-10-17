@@ -10,7 +10,7 @@ async fn my_first_test() -> Result<()> {
         Box::pin(async move {
             sb.open("https://example.com").await?;
             sb.assert_title("Example Domain").await?;
-            sb.assert_text("h1", "Example Domain").await
+            sb.assert_text("Example Domain", "h1").await
         })
     })
     .await
