@@ -151,9 +151,13 @@ impl ActionRecorder {
     /// with the steps `AsyncStepRegistry::register_common_browser_steps` adds.
     ///
     /// Opening a page, clicking, typing, and going back or forward become
-    /// steps. An action with no such step (or text that would break a step's
-    /// quotes, or typing no text, which the step cannot match) becomes a
-    /// `# skipped:` comment, so a gap is never silent.
+    /// steps, in the wording Python SeleniumBase's `--rec-behave` writes
+    /// (`Open "url"`, `Click "selector"`, `Type "text" into "selector"`,
+    /// `Go back`), so a feature runs in either implementation. An argument
+    /// that holds a double quote is written in single quotes, as Python does.
+    /// An action with no such step (or text that has a line break or both
+    /// kinds of quote, or typing no text, which the step cannot match) becomes
+    /// a `# skipped:` comment, so a gap is never silent.
     pub fn to_gherkin(&self, feature_name: &str) -> String {
         let title: String = feature_name
             .chars()
@@ -281,14 +285,17 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         .iter()
         .find(|(alias, _)| *alias == action.name)
         .map_or(action.name.as_str(), |(_, canonical)| *canonical);
-    // A quote or a line break in an argument would end the step early.
+    // Python quotes an argument with " and, for one that has a ", with '. An
+    // argument with both, or a line break, would end the step early.
     let plain = |text: &str, what: &str| -> Result<String, String> {
-        if text.contains(['"', '\n', '\r']) {
+        if text.contains(['\n', '\r']) || (text.contains('"') && text.contains('\'')) {
             Err(format!(
-                "{name}: the {what} {text:?} has a quote or a line break"
+                "{name}: the {what} {text:?} has both kinds of quote or a line break"
             ))
+        } else if text.contains('"') {
+            Ok(format!("'{text}'"))
         } else {
-            Ok(text.to_owned())
+            Ok(format!("\"{text}\""))
         }
     };
     let target = action
@@ -296,27 +303,27 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         .as_deref()
         .ok_or_else(|| format!("{name} has no target"));
     match name {
-        "open" => Ok(format!("I open \"{}\"", plain(target?, "URL")?)),
-        "click" => Ok(format!("I click \"{}\"", plain(target?, "selector")?)),
+        "open" => Ok(format!("Open {}", plain(target?, "URL")?)),
+        "click" => Ok(format!("Click {}", plain(target?, "selector")?)),
         "type_text" => {
             let value = action
                 .value
                 .as_deref()
                 .ok_or_else(|| format!("{name} has no value"))?;
-            // The step's pattern is `I type "(.+?)" into "(.+?)"`: no text, no match.
+            // The step's pattern is `Type "(.+?)" into "(.+?)"`: no text, no match.
             if value.is_empty() {
                 return Err(format!(
-                    "{name}: the text is empty, and the I type step needs at least one character"
+                    "{name}: the text is empty, and the Type step needs at least one character"
                 ));
             }
             Ok(format!(
-                "I type \"{}\" into \"{}\"",
+                "Type {} into {}",
                 plain(value, "text")?,
                 plain(target?, "selector")?
             ))
         }
-        "go_back" => Ok("I go back".to_owned()),
-        "go_forward" => Ok("I go forward".to_owned()),
+        "go_back" => Ok("Go back".to_owned()),
+        "go_forward" => Ok("Go forward".to_owned()),
         // The name is whatever was recorded. Written plainly, a line break in it would end the
         // `# skipped:` comment and start a Scenario or a step, so it is escaped.
         other => Err(format!(
@@ -2405,7 +2412,7 @@ mod tests {
         recorder.record("click", Some("#go"), None);
         recorder.record("go_back", None, None);
         recorder.record("hover", Some("#menu"), None);
-        recorder.record("type_text", Some("#q"), Some("say \"hi\""));
+        recorder.record("type_text", Some("#q"), Some("say \"hi\" and 'bye'"));
         recorder
     }
 
@@ -2415,13 +2422,42 @@ mod tests {
         assert_eq!(
             feature,
             "Feature: Sign up\n\n  Scenario: Sign up\n\
-             \x20   Given I open \"https://example.com\"\n\
-             \x20   And I type \"Ada\" into \"#name\"\n\
-             \x20   And I click \"#go\"\n\
-             \x20   And I go back\n\
+             \x20   Given Open \"https://example.com\"\n\
+             \x20   And Type \"Ada\" into \"#name\"\n\
+             \x20   And Click \"#go\"\n\
+             \x20   And Go back\n\
              \x20   # skipped: hover: no Gherkin step for this action\n\
-             \x20   # skipped: type_text: the text \"say \\\"hi\\\"\" has a quote or a line break\n"
+             \x20   # skipped: type_text: the text \"say \\\"hi\\\" and 'bye'\" has both kinds of quote or a line break\n"
         );
+    }
+
+    #[test]
+    fn an_argument_with_a_double_quote_is_written_in_single_quotes_as_python_does() {
+        use crate::behave::async_steps::AsyncStepRegistry;
+        let mut recorder = ActionRecorder::default();
+        recorder.record("open", Some("https://example.com/?q=\"x\""), None);
+        recorder.record("click", Some("a[title=\"Go\"]"), None);
+        recorder.record("type_text", Some("#q"), Some("say \"hi\""));
+
+        let feature = recorder.to_gherkin("Quotes");
+
+        assert_eq!(
+            feature,
+            "Feature: Quotes\n\n  Scenario: Quotes\n\
+             \x20   Given Open 'https://example.com/?q=\"x\"'\n\
+             \x20   And Click 'a[title=\"Go\"]'\n\
+             \x20   And Type 'say \"hi\"' into \"#q\"\n"
+        );
+        let mut registry =
+            AsyncStepRegistry::new(crate::BaseCase::without_session(BrowserConfig::default()));
+        registry.register_common_browser_steps();
+        for step in feature
+            .lines()
+            .map(str::trim)
+            .filter(|l| l.contains(' ') && !l.starts_with("Feature") && !l.starts_with("Scenario"))
+        {
+            assert!(registry.has_handler(step), "no handler for {step:?}");
+        }
     }
 
     #[test]
@@ -2455,10 +2491,7 @@ mod tests {
             .collect();
         assert_eq!(
             steps,
-            [
-                "Given I open \"https://example.com\"",
-                "And I click \"#ok\""
-            ],
+            ["Given Open \"https://example.com\"", "And Click \"#ok\""],
             "{feature}"
         );
         let skipped = feature

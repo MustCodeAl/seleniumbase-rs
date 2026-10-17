@@ -214,14 +214,14 @@ impl AsyncStepRegistry {
     /// They are `I click "selector"` and `I type "text" into "selector"`, and
     /// Python SeleniumBase's wording for the same, which its `--rec-behave`
     /// recorder writes: `Click "selector"` (also `Click 'selector'` and `Click
-    /// element "selector"`) and `Type text "text" into "selector"` (also with
-    /// single quotes).
+    /// element "selector"`) and `Type "text" into "selector"` (also with
+    /// single quotes, `Type text ...` and `in` for `into`).
     pub fn register_element_steps(&mut self) {
         self.register_step(r#"I click "(.+?)""#, click_step());
         self.register_step(r#"Click(?: element)? (?:"(.+?)"|'(.+?)')"#, click_step());
         self.register_step(r#"I type "(.+?)" into "(.+?)""#, type_step());
         self.register_step(
-            r#"Type text (?:"(.+?)"|'(.+?)') into (?:"(.+?)"|'(.+?)')"#,
+            r#"Type(?: text)? (?:"(.+?)"|'(.+?)') (?:into|in) (?:"(.+?)"|'(.+?)')"#,
             type_step(),
         );
     }

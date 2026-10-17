@@ -518,6 +518,15 @@ migrate.
 
 ### Changed
 
+- `ActionRecorder::to_gherkin` writes Python SeleniumBase's `--rec-behave`
+  wording, `Open "url"`, `Click "selector"`, `Type "text" into "selector"`,
+  `Go back` and `Go forward`, where it wrote `I open "url"` and the like, so a
+  recorded feature runs in either implementation. An argument that holds a
+  double quote is written in single quotes, as Python does (it used to be
+  skipped); one with both kinds of quote is still skipped. A feature written by
+  an earlier version keeps running: the `I open` steps are still registered.
+  The built-in `Type` step accepts what Python's recorder really writes,
+  `Type "text" into "selector"` (it understood only `Type text ...`).
 - **Demo mode and slow mode follow Python's rule for how long to pause, and
   reach the calls Python's do.** `open` always paused in full, `click` always
   in full and typing always short; Python pauses after an action in full when

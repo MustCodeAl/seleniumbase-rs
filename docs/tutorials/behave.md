@@ -162,7 +162,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 SeleniumBase's `--rec-behave` recorder writes for the same: `Open "<url>"`
 (also `Open 'url'` and `Open URL "url"`), `Go back`, `Go forward`,
 `Click "<selector>"` (also `Click element "selector"`) and
-`Type text "<text>" into "<selector>"`, in single or double quotes. Register
+`Type "<text>" into "<selector>"` (also `Type text ...`, and `in` for `into`),
+in single or double quotes. `ActionRecorder::to_gherkin` writes this wording
+too, so a recorded feature runs here and in Python SeleniumBase. Register
 your own with `register`, `register_regex` and `register_step`, as the
 `I see "..."` step above. A handler gets the shared
 `BaseCase` (an `Arc<tokio::sync::Mutex<BaseCase>>`, locked while the step uses
