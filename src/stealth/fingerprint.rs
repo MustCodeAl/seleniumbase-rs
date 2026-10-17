@@ -1792,7 +1792,11 @@ impl FingerprintBuilder {
         } = self;
 
         refuse_useless_off(&fields)?;
-        if fields.proxy.value().is_some_and(|proxy| proxy.host.is_empty()) {
+        if fields
+            .proxy
+            .value()
+            .is_some_and(|proxy| proxy.host.is_empty())
+        {
             return Err(FingerprintError::Incoherent {
                 setting: "proxy",
                 reason: "the proxy has no host".to_owned(),
@@ -2622,7 +2626,13 @@ mod tests {
             .build()
             .unwrap_err();
         assert!(
-            matches!(error, FingerprintError::Incoherent { setting: "proxy", .. }),
+            matches!(
+                error,
+                FingerprintError::Incoherent {
+                    setting: "proxy",
+                    ..
+                }
+            ),
             "{error:?}"
         );
         let fine = built(Fingerprint::builder().proxy(ProxyConfig {
