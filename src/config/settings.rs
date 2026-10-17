@@ -420,11 +420,14 @@ impl Settings {
     /// Applies the `SB_*` overrides that `var` reports on top of `settings`.
     ///
     /// `var` looks a variable up by name, so the overrides can come from the
-    /// process environment or from any other source.
+    /// process environment or from any other source. A blank value (empty or
+    /// whitespace only, as a CI matrix exports for an unset entry) counts as
+    /// unset, as `SB_LOG_LEVEL` does in `RuntimeConfig`.
     fn apply_overrides(
         mut settings: Self,
         var: impl Fn(&str) -> Option<String>,
     ) -> Result<Self, SeleniumBaseError> {
+        let var = |name: &str| var(name).filter(|value| !value.trim().is_empty());
         if let Some(v) = var("SB_BROWSER") {
             settings.browser = v;
         }
@@ -603,6 +606,23 @@ mod tests {
             config.run_settings().default_timeout(),
             Some(Duration::from_secs(5))
         );
+    }
+
+    #[test]
+    fn a_blank_variable_counts_as_unset() {
+        let settings = with_vars(&[
+            ("SB_MODE", ""),
+            ("SB_BROWSER", "  "),
+            ("SB_CHROME_BIN", ""),
+            ("SB_WEBDRIVER_URL", ""),
+            ("SB_TIMEOUT", ""),
+        ])
+        .unwrap();
+        assert_eq!(settings.mode, None);
+        assert_eq!(settings.browser, "chrome");
+        assert_eq!(settings.chrome_bin, None);
+        assert_eq!(settings.webdriver_url, None);
+        assert_eq!(settings.timeout_seconds, None);
     }
 
     #[test]
