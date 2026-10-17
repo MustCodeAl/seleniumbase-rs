@@ -80,13 +80,23 @@ design is `docs/design/fingerprint-api-v2.md`.
   drawn one; `off`, `disabled`, `block`, `empty` turn geolocation, WebRTC and
   media devices off (they used to leave them natural) and are read as `Natural`
   elsewhere; an unknown word is logged and read as `Natural` (it used to
-  switch the dimension on and fill it with generic values). A profile's folder
-  and name seed its draws. `geolocation_popup` is the state of the geolocation
-  setting: `block` denies, `prompt` asks.
+  switch the dimension on and fill it with generic values). A literal is taken
+  only in the format of its key (a locale or `Accept-Language` list, an IANA
+  zone, a comma-separated list of fonts, a `Mozilla/` user agent, `vendor~renderer`);
+  any other text is an unknown word. An empty string in a section is a value the
+  payload does not give, a navigator section without a core count no longer
+  invents 8, and the payload's `core_version` is the Chromium major a drawn user
+  agent claims. A profile's folder and name seed its draws.
+  `geolocation_popup` is the state of the geolocation setting: `block` denies,
+  `prompt` asks. `to_browser_config`, `user_agent()`, `locale()`, `proxy_string()`
+  and `apply_runtime_overrides` read the built fingerprint, so `natural` and the
+  off words launch with no `--user-agent`, locale, proxy, window size or position.
 - The Linux preset reports an ANGLE-over-OpenGL renderer instead of Direct3D,
-  and the macOS preset reports ANGLE over Metal. Every preset carries the
-  position of its time zone's city, so the geolocation popup is answered
-  (`Browser.grantPermissions` includes `geolocation`).
+  and the macOS preset reports ANGLE over Metal. The presets leave the position
+  `Natural`, because a position is answered without a prompt and a fresh browser
+  asks. The iOS preset claims no `navigator.deviceMemory` and no Client Hints
+  (Safari has neither). `validate()` warns about a time zone without a position
+  only when the policy grants permissions.
 - `fingerprint!(edge)` is the new Edge preset, not the Windows Chrome one.
 - `profile_payloads::{Flags, Fingerprint, ProxyConfig}` are renamed
   `ProfileFlags`, `ProfileFingerprint` and `ProfileProxy` (the old names are
@@ -96,6 +106,15 @@ design is `docs/design/fingerprint-api-v2.md`.
   `list_evasion_providers` lists, are now the 27 a browser session runs
   (`session_registry`), not the 29 of `default_registry`. `build_fingerprint`
   returns the new JSON shape (`screen: {width, height}`, no `flags`).
+- `Fingerprint::default()` equals `Fingerprint::builder().build()`, and JSON
+  without an `os_type` takes it from the user agent. A `Value(true)` or
+  `Value(false)` for Bluetooth now changes `getAvailability()` on a browser that
+  has Web Bluetooth.
+- **The companion repository** [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+  takes this crate from git and still uses the old API (field writes such as
+  `fp.timezone = ..`, `fp.flags.*`). Its `scrape` and `mimic` crates must move to
+  `to_builder()...build()?` before it follows this change; only `codec` is known
+  to build against it.
 - `evasions::launch_args` passes `--no-sandbox` and `--disable-setuid-sandbox`
   only on Linux, as `StealthOptions` does.
 

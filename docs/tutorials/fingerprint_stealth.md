@@ -498,7 +498,9 @@ The payload keeps its own format, because other tools write it: the flags are
 strings (`ProfileFlags`) and the nested sections (`navigator`, `screen`, ...)
 hold values. Every key reads the same words and ends in one of the four states of
 a `Spoof`. The profile's `folder_id` and `name` seed the draws, so a profile gets
-the same drawn values on every launch.
+the same drawn values on every launch, and its `core_version` is the Chromium
+major that a drawn user agent and drawn Client Hints claim (not for the Firefox
+and Safari personas, whose core is not a Chrome version).
 
 ### Words every key reads
 

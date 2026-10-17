@@ -563,8 +563,7 @@ fn given_text(s: &str) -> Option<String> {
 fn parse_vendor_renderer(s: &str) -> Option<(String, String)> {
     let (vendor, renderer) = s.split_once('~')?;
     let (vendor, renderer) = (vendor.trim(), renderer.split('~').next()?.trim());
-    (!vendor.is_empty() && !renderer.is_empty())
-        .then(|| (vendor.to_string(), renderer.to_string()))
+    (!vendor.is_empty() && !renderer.is_empty()).then(|| (vendor.to_string(), renderer.to_string()))
 }
 
 /// A literal navigator flag: a user agent, which opens with `Mozilla/<digit>`
@@ -933,12 +932,9 @@ impl ProfileParams {
 
     fn localization(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
         let key = "localization_masking";
-        let reading = read(
-            key,
-            &self.parameters.flags.localization_masking,
-            &[],
-            |s| parse_localization(s).is_some(),
-        );
+        let reading = read(key, &self.parameters.flags.localization_masking, &[], |s| {
+            parse_localization(s).is_some()
+        });
         let word = word_of(reading);
         let loc = self.parameters.fingerprint.localization.as_ref();
         let literal = match reading {
@@ -947,9 +943,9 @@ impl ProfileParams {
         };
         let state = |given| settle(key, word, given, true, false);
         builder
-            .locale(state(loc.and_then(|l| given_text(&l.locale)).or_else(|| {
-                literal.as_ref().map(|(locale, ..)| locale.clone())
-            })))
+            .locale(state(loc.and_then(|l| given_text(&l.locale)).or_else(
+                || literal.as_ref().map(|(locale, ..)| locale.clone()),
+            )))
             .languages(state(loc.and_then(|l| given_text(&l.languages)).or_else(
                 || literal.as_ref().map(|(_, languages, _)| languages.clone()),
             )))
@@ -1011,21 +1007,28 @@ impl ProfileParams {
         let reading = read(key, &self.parameters.flags.graphics_masking, &[], |s| {
             parse_vendor_renderer(s).is_some()
         });
-        let from_section = self.parameters.fingerprint.graphic.as_ref().and_then(|gpu| {
-            let webgl = match (given_text(&gpu.vendor), given_text(&gpu.renderer)) {
-                (Some(vendor), Some(renderer)) => WebGl::new(vendor, renderer),
-                (None, Some(renderer)) => WebGl::renderer_only(renderer),
-                (Some(vendor), None) => WebGl::vendor_only(vendor),
-                (None, None) => return None,
-            };
-            Some(match (given_text(&gpu.vendor_id), given_text(&gpu.renderer_id)) {
-                (None, None) => webgl,
-                (vendor_id, renderer_id) => webgl.ids(
-                    vendor_id.unwrap_or_default(),
-                    renderer_id.unwrap_or_default(),
-                ),
-            })
-        });
+        let from_section = self
+            .parameters
+            .fingerprint
+            .graphic
+            .as_ref()
+            .and_then(|gpu| {
+                let webgl = match (given_text(&gpu.vendor), given_text(&gpu.renderer)) {
+                    (Some(vendor), Some(renderer)) => WebGl::new(vendor, renderer),
+                    (None, Some(renderer)) => WebGl::renderer_only(renderer),
+                    (Some(vendor), None) => WebGl::vendor_only(vendor),
+                    (None, None) => return None,
+                };
+                Some(
+                    match (given_text(&gpu.vendor_id), given_text(&gpu.renderer_id)) {
+                        (None, None) => webgl,
+                        (vendor_id, renderer_id) => webgl.ids(
+                            vendor_id.unwrap_or_default(),
+                            renderer_id.unwrap_or_default(),
+                        ),
+                    },
+                )
+            });
         let given = from_section.or_else(|| match reading {
             Reading::Literal(text) => {
                 parse_vendor_renderer(text).map(|(vendor, renderer)| WebGl::new(vendor, renderer))
@@ -1236,7 +1239,10 @@ impl ProfileParams {
             mode,
             user_agent: fingerprint.user_agent().value().cloned(),
             locale: fingerprint.locale().value().cloned(),
-            proxy: fingerprint.proxy().value().map(stealth_fp::ProxyConfig::to_url),
+            proxy: fingerprint
+                .proxy()
+                .value()
+                .map(stealth_fp::ProxyConfig::to_url),
             proxy_pac_url: None,
             user_data_dir: self.user_data_dir(),
             extension_dir: None,
@@ -1726,7 +1732,14 @@ mod tests {
         for (key, natural) in natural_states(&fp) {
             assert!(natural, "{key}");
         }
-        for literal in ["en", "en-", "e1-US", "en-US;q=0.9,", "en-US,en;q=x", "en-US,,en"] {
+        for literal in [
+            "en",
+            "en-",
+            "e1-US",
+            "en-US;q=0.9,",
+            "en-US,en;q=x",
+            "en-US,,en",
+        ] {
             assert!(parse_localization(literal).is_none(), "{literal}");
         }
         for zone in ["Europe", "/Berlin", "Europe/", "Europe/Ber lin", "1/2"] {
@@ -1735,7 +1748,9 @@ mod tests {
         assert!(is_zone_name("America/Argentina/Buenos_Aires"));
         assert!(is_zone_name("Etc/GMT+5"));
         assert!(!is_user_agent("Mozilla/") && !is_user_agent("Mozilla/x (a)"));
-        assert!(parse_vendor_renderer("Intel~").is_none() && parse_vendor_renderer("~Iris").is_none());
+        assert!(
+            parse_vendor_renderer("Intel~").is_none() && parse_vendor_renderer("~Iris").is_none()
+        );
         assert!(parse_font_list("Arial").is_none());
         assert_eq!(parse_font_list("Arial, Calibri").map(|f| f.len()), Some(2));
     }
@@ -2309,7 +2324,11 @@ mod tests {
         );
         // So does the word for no proxy, and the off words, which a proxy lacks.
         for word in ["direct", "off", "disabled"] {
-            assert_eq!(launch(json!({ "proxy_masking": word })).proxy, None, "{word}");
+            assert_eq!(
+                launch(json!({ "proxy_masking": word })).proxy,
+                None,
+                "{word}"
+            );
         }
         // The getters answer the same.
         let params = payload_with_values(json!({ "proxy_masking": "natural" }));
