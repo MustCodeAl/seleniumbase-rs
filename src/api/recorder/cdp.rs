@@ -702,7 +702,10 @@ mod tests {
         for name in ["type_text", "update_text", "type"] {
             let written = lines(name, Some("#note"), Some("new")).unwrap();
             assert_eq!(written.len(), 1, "{name}: {written:?}");
-            assert!(written[0].contains(".type_text(\"new\")"), "{name}: {written:?}");
+            assert!(
+                written[0].contains(".type_text(\"new\")"),
+                "{name}: {written:?}"
+            );
         }
     }
 
