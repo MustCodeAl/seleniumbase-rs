@@ -35,7 +35,7 @@
     "Errors are SeleniumBaseError; match on its variants rather than on message text.",
     "Call quit() on a BaseCase and close() on an sb_cdp::Browser when done; dropping the last Browser handle kills the process it launched.",
     "docs/parity.md maps each Python SeleniumBase method to its Rust name and says whether it is implemented, composed from other calls, or not applicable.",
-    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.5.0\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
+    "Install it from GitHub, not crates.io: seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v0.5.1\" }; it needs Rust 1.99 and a C compiler, and docs/building.md lists the system packages each platform and feature needs.",
     "chromedriver, msedgedriver and geckodriver are downloaded to match the installed browser when a session starts; sbrs install <driver> fetches one ahead of time, and the sb_cdp engine needs none.",
     "To migrate tests, sbrs import-playwright, sbrs import-puppeteer and sbrs import-python write Rust tests; statements they cannot convert stay as TODO comments with their line numbers."
   ]

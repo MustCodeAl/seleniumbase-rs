@@ -8,9 +8,14 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-17
+
+A patch release of the command line: it refuses again what clap refused in 0.4.0,
+and `sbrs-mcp` names itself.
+
 ### Changed
 
-- `sbrs-mcp` names itself: `sbrs-mcp --version` prints `sbrs-mcp 0.5.0`, and its help
+- `sbrs-mcp` names itself: `sbrs-mcp --version` prints `sbrs-mcp 0.5.1`, and its help
   and the usage line of an error say `sbrs-mcp`, where they said `seleniumbase-rs`.
 
 ### Fixed
@@ -2021,7 +2026,8 @@ listed first under *Fixed*.
   cookie, a stored token or a page's text read by `get_cookies`,
   `manage_cookies` or a storage tool is not saved with the bug report.
 
-[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.2.0...v0.3.0

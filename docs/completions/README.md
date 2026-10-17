@@ -9,7 +9,7 @@ maintainer of this repository to decide.
 
 ## What the file is
 
-- The output of `sbrs completions fig` of this branch (0.5.0). `crates/cli/src/fig.rs`
+- The output of `sbrs completions fig` of this branch (0.5.1). `crates/cli/src/fig.rs`
   writes it from the tables of the `usage` parser that reads the command line, so it
   lists the commands, aliases, options, required options, repeatable options and
   accepted words the parser accepts. A test (`the_committed_fig_spec_matches_the_cli`)

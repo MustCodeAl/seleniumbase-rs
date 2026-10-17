@@ -7,11 +7,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
+<Update label="Unreleased" description="Next release" tags={[]}>
+
+
+</Update>
+
+<Update label="2026-10-17" description="v0.5.1" tags={["New", "Fix"]}>
+
+A patch release of the command line: it refuses again what clap refused in 0.4.0,
+and `sbrs-mcp` names itself.
 
 ### Changed
 
-- `sbrs-mcp` names itself: `sbrs-mcp --version` prints `sbrs-mcp 0.5.0`, and its help
+- `sbrs-mcp` names itself: `sbrs-mcp --version` prints `sbrs-mcp 0.5.1`, and its help
   and the usage line of an error say `sbrs-mcp`, where they said `seleniumbase-rs`.
 
 ### Fixed

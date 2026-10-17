@@ -40,7 +40,7 @@ release 0.3.0 and later (the WebDriver engine from 0.4.0):
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.5.0", features = ["plugins"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.5.1", features = ["plugins"] }
 ```
 
 The official plugins are features of their own (`plugin-shield`,
