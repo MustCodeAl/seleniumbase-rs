@@ -390,6 +390,46 @@ impl Settings {
         Self::load_with(Some(path), |name| std::env::var(name).ok())
     }
 
+    /// Loads only the plugin selection: the `[plugins]` table of the settings
+    /// file `path` (the global file when `None`, as [`load`](Self::load)
+    /// finds it) with `SB_PLUGINS` on top, which is [`load`](Self::load)'s
+    /// `plugins` without the rest of the settings.
+    ///
+    /// A command that starts a browser without needing the other settings
+    /// (`sbrs devtools`, `sbrs plugin list`, `sbrs-mcp`) uses this, so that an
+    /// invalid `SB_HEADLESS` is not its problem. The file is still read and
+    /// checked as a whole. Whether this build can run the plugins is not
+    /// checked here, because the command line adds to the selection first:
+    /// call [`PluginSelection::ensure_supported`] on the result, or build it.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] if the file cannot be read or
+    /// parsed.
+    pub fn load_plugin_selection<P: AsRef<Path>>(
+        path: Option<P>,
+    ) -> Result<PluginSelection, SeleniumBaseError> {
+        Self::plugin_selection_with(path, |name| std::env::var(name).ok())
+    }
+
+    /// [`load_plugin_selection`](Self::load_plugin_selection) with the
+    /// variable taken from `var`.
+    fn plugin_selection_with<P: AsRef<Path>>(
+        path: Option<P>,
+        var: impl Fn(&str) -> Option<String>,
+    ) -> Result<PluginSelection, SeleniumBaseError> {
+        let mut settings = match path {
+            Some(path) => Self::parse_file(path)?,
+            None => Self::parse_global()?,
+        };
+        // As in `apply_overrides`: the variable names the plugins, and an
+        // empty one is an answer, not an unset variable.
+        if let Some(list) = var(PLUGINS_ENV) {
+            settings.plugins.set_enabled_from_list(&list);
+        }
+        Ok(settings.plugins)
+    }
+
     /// [`load`](Self::load) and [`load_from`](Self::load_from) with the
     /// overrides taken from `var`.
     fn load_with<P: AsRef<Path>>(
@@ -958,6 +998,43 @@ threads = 4
 
         let untouched = Settings::apply_overrides(from_file, |_| None).unwrap();
         assert_eq!(untouched.plugins.enabled(), ["shield"]);
+    }
+
+    #[test]
+    fn the_plugin_selection_alone_is_the_file_with_sb_plugins_on_top() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(
+            b"headless = true\n[plugins]\nenable = [\"shield\", \"crx\"]\n\
+              [plugins.shield]\nlevel = \"strict\"\n",
+        )
+        .unwrap();
+
+        let from_file = Settings::plugin_selection_with(Some(file.path()), |_| None).unwrap();
+        assert_eq!(from_file.enabled(), ["shield", "crx"]);
+        assert_eq!(from_file.options_of("shield").unwrap()["level"], "strict");
+
+        // The variable replaces the names and drops the options of the others;
+        // another variable with a bad value is not read at all.
+        let replaced = Settings::plugin_selection_with(Some(file.path()), |name| match name {
+            "SB_PLUGINS" => Some("crx".to_owned()),
+            "SB_HEADLESS" => Some("maybe".to_owned()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(replaced.enabled(), ["crx"]);
+        assert!(replaced.options_of("shield").is_none());
+
+        // An empty variable is an answer: no plugin at all.
+        let off = Settings::plugin_selection_with(Some(file.path()), |name| {
+            (name == "SB_PLUGINS").then(String::new)
+        })
+        .unwrap();
+        assert!(off.is_empty(), "{off:?}");
+
+        // A file that is not there is an error, as it is for `load_from`.
+        let error =
+            Settings::plugin_selection_with(Some("no-such-settings.toml"), |_| None).unwrap_err();
+        assert!(error.to_string().contains("failed to read"), "{error}");
     }
 
     #[cfg(not(feature = "plugins"))]
