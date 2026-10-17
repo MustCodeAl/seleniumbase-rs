@@ -17,6 +17,73 @@ work, `docs/parity.md` the per-API status).
   `assert-pdf-text` stay in `--help` and, in a build without the feature, exit
   with status 2 and say `cargo install seleniumbase-rs --features pdf`.
 
+### Added
+
+- **The built-in plugins, one cargo feature each** (ADR 005, core side of
+  phase 1): `plugin-shield`, `plugin-block-resources` and `plugin-crx`, each of
+  which turns on `plugins` and compiles only its own plugin crate, and
+  `plugins-builtin` for all three. They come from the crate
+  `seleniumbase-rs-plugins-builtin`, re-exported as `seleniumbase_rs::builtin_plugins`.
+- **Choosing plugins by name, with no code.** A `[plugins]` table in the
+  settings file (`enable = [...]`, and one options table per plugin) and the
+  `SB_PLUGINS` variable (a comma-separated list, which replaces `enable`; an
+  empty value turns every plugin off) become a strict `PluginSet` through the
+  new `plugin_host` module. `LaunchOptionsBuilder::plugins_named` and
+  `plugin_selection` (errors at `build()`), and `BrowserConfig::with_plugins_named`
+  and `with_plugin_selection`, take the names. An unknown name is an error that
+  lists the known ones and the cargo features that add the others; options for
+  a plugin that is not enabled, options a plugin refuses and a name enabled
+  twice are errors too. A build without the `plugins` feature refuses a
+  non-empty selection when it loads the settings (`Settings::plugins`). There
+  are no command-line flags yet: `sbrs` does not apply the table or
+  `SB_PLUGINS`. See `docs/plugins/selecting.md`.
+- **The shield plugin** is documented (`docs/plugins/shield.md`): what it turns
+  off, its levels, WebRTC modes and options, and what has not been verified in a
+  real Chrome.
+- `Browser::extension_ids()` keeps the ids Chrome gave the extensions a launch
+  loaded (`Extensions.loadUnpacked`), in load order.
+
+### Changed
+
+- **Both dependencies on the plugins repository are pinned to one revision**
+  (`628991a`): `seleniumbase-rs-plugin` and `seleniumbase-rs-plugins-builtin`
+  must name the same source, or Cargo builds two plugin API crates with
+  unrelated `Plugin` traits. `tests/plugin_features.rs` fails when they differ.
+  A plugin crate added with `cargo add --git` now needs the same `--rev`; the
+  plugins guide says so.
+- **Plugin settings reach the browser.** `LaunchSettings::host_resolver_rules`
+  becomes one `--host-resolver-rules` switch, `disable_features` and
+  `enable_features` one `--disable-features` and one `--enable-features` switch
+  (the first merged with the `Translate` the library turns off), `webrtc_policy`
+  `--force-webrtc-ip-handling-policy`, and `disable_quic` `--disable-quic`, on
+  the pure CDP engine and through chromedriver. They were dropped before. The
+  profile is shown to plugins before they run (persistent when `user_data_dir`
+  is set), so `shield`'s `ephemeral_profile` can refuse a persistent one. A
+  plugin that sets one of these fields for Firefox or Safari is refused.
+- **Plugins are checked against the engine that hosts them**
+  (`PluginSet::check_with`): the pure CDP engine supports every capability,
+  WebDriver with Chromium, Firefox or Safari the ones its protocol allows, and a
+  WebDriver server that answers `browserName: tauri` is re-checked as an
+  embedded webview once the session exists. A plugin that declares no metadata
+  keeps running on Firefox and Safari as before.
+- **A plugin's raw `Fetch.*` command is refused**, on the browser and on a tab,
+  in both engines: the host owns request interception, and the library's own
+  proxy login uses it. A plugin that blocks URLs sends `Network.setBlockedURLs`.
+- `SeleniumBaseError::Plugin` names the plugin for the `Unsupported`,
+  `Capability`, `Undeclared`, `Conflict` and `Sealed` errors of the plugin API,
+  and its hint explains them.
+
+### Fixed
+
+- **Pooled browsers shared the state of a plugin.** `PluginSet::for_launch()`
+  now runs before every launch, attach and WebDriver session, so a plugin that
+  offers `per_launch` (the CRX plugin's temporary folders, shield's origin list)
+  gets a fresh instance for each browser, and `on_close` reaches the instance
+  that started.
+- **A plugin's `Network.setBlockedURLs` replaced the blocklist of the tab.**
+  Raw sends from several plugins, and the library's own ad-block list, are now
+  merged into one list for each tab (each window with chromedriver).
+
 ## [0.4.0] - 2026-10-16
 
 A feature release: browser plugins now run in the WebDriver engine as well as

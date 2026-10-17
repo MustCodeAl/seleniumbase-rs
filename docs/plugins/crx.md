@@ -13,7 +13,7 @@ the folder to the browser's start-up settings. The folders are deleted when
 the browser closes.
 
 ```sh
-cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins
+cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
 ```
 
 <Warning>

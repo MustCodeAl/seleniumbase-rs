@@ -53,7 +53,7 @@ Security, reliability, performance and how it compares.
 
 <Card title="Plugins" icon="plug" href="plugins/overview.md">
 
-Browser plugins as Rust crates: block resources, load extensions, run WebAssembly.
+Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.
 
 </Card>
 
