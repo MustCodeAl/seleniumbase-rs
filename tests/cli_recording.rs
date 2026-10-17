@@ -115,12 +115,13 @@ fn rec_sb_cdp_saves_the_recording_as_a_pure_cdp_program() {
         for line in [
             "    page.goto(\"https://example.test/\").await?;\n",
             "    page.locator(\"#go\").click().await?;\n",
-            "    page.locator(\"#q\").clear().await?;\n",
             "    page.locator(\"#q\").type_text(\"rust \\\"2024\\\"\").await?;\n",
             "    browser.close().await?;\n",
         ] {
             assert!(script.contains(line), "{flag}: {line:?} in\n{script}");
         }
+        // `Locator::type_text` empties the field first, so no `clear` is written.
+        assert!(!script.contains(".clear()"), "{flag}: {script}");
         assert!(!script.contains("sb.open"), "{flag}: {script}");
     }
 }
