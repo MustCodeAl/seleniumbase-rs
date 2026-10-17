@@ -464,11 +464,13 @@ impl Settings {
     /// `var` looks a variable up by name, so the overrides can come from the
     /// process environment or from any other source. A blank value (empty or
     /// whitespace only, as a CI matrix exports for an unset entry) counts as
-    /// unset, as `SB_LOG_LEVEL` does in `RuntimeConfig`.
+    /// unset, as `SB_LOG_LEVEL` does in `RuntimeConfig`; `SB_PLUGINS` is the
+    /// exception, where an empty value is an answer: no plugin at all.
     fn apply_overrides(
         mut settings: Self,
         var: impl Fn(&str) -> Option<String>,
     ) -> Result<Self, SeleniumBaseError> {
+        let plugins_variable = var(PLUGINS_ENV);
         let var = |name: &str| var(name).filter(|value| !value.trim().is_empty());
         if let Some(v) = var("SB_BROWSER") {
             settings.browser = v;
@@ -550,7 +552,7 @@ impl Settings {
         if let Some(v) = var("SB_ESC_END") {
             settings.esc_end = parse_bool(&v)?;
         }
-        if let Some(v) = var(PLUGINS_ENV) {
+        if let Some(v) = plugins_variable {
             // The variable names the plugins; the options of the file stay.
             settings.plugins.set_enabled_from_list(&v);
         }
@@ -981,6 +983,7 @@ threads = 4
 
     #[cfg(not(feature = "plugins"))]
     #[test]
+    #[allow(deprecated)] // `from_toml` is deprecated but still has to refuse the selection
     fn without_plugin_support_a_selection_stops_the_load() {
         let hint = "--features plugins-builtin";
         let error = Settings::apply_overrides(Settings::default(), |name| {

@@ -256,7 +256,8 @@ Fixed.
   dimension of zero. Migration: spell the browser (`chrome`, `firefox`, ...) and
   mode (`webdriver`, `cdp`, `uc`) as `Browser` and `DriverMode` parse them, set
   both window dimensions or neither, and call `validate()` yourself on a
-  `Settings` built by hand. A blank `SB_*` variable counts as unset.
+  `Settings` built by hand. A blank `SB_*` variable counts as unset (`SB_PLUGINS`
+  is the exception: an empty value turns every plugin off).
 
 - **`sb_test!` binds its `$sb` to a `&mut BaseCase`** instead of an owned
   `BaseCase`, and a skipped test passes instead of panicking. Migration: a body
