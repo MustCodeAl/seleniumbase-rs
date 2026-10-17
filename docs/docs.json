@@ -82,6 +82,7 @@
             "group": "CLI Usage",
             "pages": [
               "tutorials/cli_usage",
+              "help/cli_reference",
               "help/commander",
               "help/caseplans",
               "help/behave-gui"

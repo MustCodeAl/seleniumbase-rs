@@ -50,7 +50,7 @@ the KDL a generated artefact, checked by a test.
 
 | Gap | Decision |
 |---|---|
-| Permissive defaults (unknown flags parse as values, last-one-wins) | Root gets `unknown_flags = "error"` and `args_override_self = false`, as strict as clap |
+| Permissive defaults (unknown flags parse as values, last-one-wins) | Root gets `unknown_flags = "error"` and `args_override_self = false`, as strict as clap. `unknown_flags` reaches every command; `args_override_self` is per command, so the `Args` structs set it too and the inline variants cannot (see *Done* below) |
 | `value_parser!(Language)` | `Language: FromStr` (it already parses) |
 | `last = true` (args after `--`) | Use usage's equivalent if it has one; otherwise a `Vec<String>` positional with the double-dash setting. Verified by the existing tests of `sbrs grid` and `sbrs run` |
 | `before_long_help = LOGO` | `before_long_help` is supported |
@@ -101,6 +101,22 @@ crates/cli/tests/          every test that runs CARGO_BIN_EXE_sbrs or sbrs-mcp
    0.4.0 spec is the oracle: the new KDL may differ only in formatting and in the
    "@generated" line, which the agent shows as a diff in its report. One sonnet
    agent, after step 1 is merged.
+   *Done:* `sbrs` and `sbrs-mcp` are declared with `usage` 6.12 (the package
+   `usage-rs`), and clap, `clap_complete`, `clap_complete_fig` and `clap_usage` are
+   gone from the workspace. `completions/sbrs.usage.kdl`, the CLI reference page
+   `docs/help/cli_reference.md` (rendered by `usage-lib`, a dev-dependency) and the
+   Fig spec `docs/completions/fig-sbrs.ts` are written by tests that fail when a file
+   is stale. The shell scripts of `sbrs completions` ask `sbrs` for the candidates
+   (usage's own scripts); `completions fig` has its own small generator,
+   `crates/cli/src/fig.rs`, over the same tables, because usage 6 has a Fig
+   generator only in the `usage` tool and 7.0 removed it. Against the 0.4.0 binary,
+   250 of 256 command lines act the same; the other six are three differences the
+   spec cannot close: usage 6.12 lets an inline struct variant repeat a flag (the
+   rule is per command and only an `Args` struct or the root can set it), drops the
+   `=value` of a plain switch (so every switch is `bool_value` and `--headless=false`
+   means false), and prints the root help for `help nosuch`. The help is laid out by
+   usage (alphabetical command list, `Flags:`, a final period on short
+   descriptions, `[aliases: x]`); the help tests that read the layout changed.
 3. Docs: the CLI reference page generated from the spec, the install lines,
    CHANGELOG (Breaking: the install command and package name).
 

@@ -57,7 +57,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
 | `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
-| `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (clap), `src/report.rs`, `src/mcp_server.rs`, and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns clap, `clap_complete`, `clap_complete_fig` and `clap_usage`. |
+| `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (the command line, declared with the `usage` derives `Cli`, `Subcommands`, `Args` and `ValueEnum`), `src/fig.rs` (the Fig spec, written from the usage tables), `src/report.rs`, `src/mcp_server.rs`, and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns `usage` (the package `usage-rs`) and, for the tests, `usage-lib`. |
 | `behave/` | Gherkin runner and step registry. |
 | `plugins/` | Reporting and logging plugins (S3, GCP, Azure, screenshots, page source, driver manager, observer). |
 | `config/` | Settings, runtime config, `proxy_list`, `ad_block_list`. |
@@ -115,12 +115,26 @@ binaries with `cargo install --path crates/cli`.
 - A new Python-parity API gets an entry in `parity/api.toml`.
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.
   Only the `sbrs mkdir`/`mkfile` golden templates are compiled as doctests.
+- `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` are generated from
+  the declarations in `crates/cli/src/sbrs.rs`; a test fails when either is stale.
+  Write them again with
+  `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
+  `docs/completions/fig-sbrs.ts` is `sbrs completions fig` through prettier (see the
+  README beside it) and is not checked by a test.
 
 ## Gotchas
 
 - macOS delays the first run of a freshly written script, so tests that fake
   `java` run it once with `--warm` before timing it.
 - `sbrs commander` exits with status 2 and a hint when built without `tui`.
+- usage 6 is looser than clap was in three places that the root's
+  `unknown_flags = "error"` and `args_override_self = false` do not reach: an inline
+  struct variant of `Commands` cannot say `args_override_self`, so a flag repeated
+  after a subcommand takes its last value (`GridArgs` and `PromptArgs` are `Args`
+  structs and refuse it); the parser drops the `=value` of a plain switch
+  (`--headless=false` would switch it on), so every switch is `bool_value` and means
+  what it says; `sbrs help nosuch` prints the root help and exits 0. The help lists
+  the commands alphabetically, not in declaration order.
 - `thirtyfour` still depends on `zip` 8.6, so two `zip` versions are in the tree.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.

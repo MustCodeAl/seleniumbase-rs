@@ -123,7 +123,7 @@ seleniumbase-rs/
 │   ├── config/, core/, common/, storage/, utilities/, utils/, profile_payloads/
 │   └── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
 ├── crates/cli/                # Package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries
-│   ├── src/                   # sbrs.rs (clap), report.rs, mcp_server.rs
+│   ├── src/                   # sbrs.rs (usage derives), fig.rs, report.rs, mcp_server.rs
 │   └── tests/                 # Every test that runs the real sbrs or sbrs-mcp binary
 ├── tests/                     # Integration tests of the library (tests/golden is compiled in)
 ├── benches/                   # cpu, cdp_latency
@@ -269,7 +269,7 @@ A change that touches a `Cargo.toml` must keep the `Dockerfile` skeleton step in
 step: a new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`, in either
 manifest, must be listed there, and `tests/dockerfile_skeleton.rs` fails if it
 is not. `tests/library_manifest.rs` fails if a binary or a command-line crate
-(clap, its completion generators) comes back into the library package.
+(`usage`, or the clap crates it replaced) comes back into the library package.
 
 `cargo deny check` gates advisories, licenses, banned crates, and dependency
 sources against `deny.toml`. Every advisory that is ignored there carries a
@@ -437,13 +437,18 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
 
 ## Adding an `sbrs` Subcommand
 
-1. Add the new variant to `SbaseCommand` in `crates/cli/src/sbrs.rs` with an
-   idiomatic `///` description.
-2. Add argument parsing in the `clap` derive macro.
-3. Add a handler branch in `async fn main()`.
+1. Add the new variant to `Commands` in `crates/cli/src/sbrs.rs` with an
+   idiomatic `///` description (its first paragraph is the short help).
+2. Declare its arguments and flags with `#[usage(...)]` attributes on the fields,
+   as the neighbouring variants do (`long`, `short`, `default`, `conflicts(...)`,
+   `value_enum`; a switch takes `bool_value`).
+3. Add a handler branch in `async fn run`.
 4. If the command launches a browser, prefer creating a `BaseCase` through
    `run_browser_test()` so cleanup is deterministic.
-5. Update `docs/help/commander.md` and `README.md` if the command is user-facing.
+5. Write `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
+   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`;
+   the same test fails in CI when they are stale.
+6. Update `docs/help/commander.md` and `README.md` if the command is user-facing.
 
 ## Adding a Profile Payload Field
 

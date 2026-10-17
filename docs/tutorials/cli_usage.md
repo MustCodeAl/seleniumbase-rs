@@ -499,6 +499,12 @@ generated tests headless with `SB_HEADLESS=true cargo test`. See
 
 The supported values are `bash`, `elvish`, `fish`, `powershell`, `zsh`, `fig` (a Fig spec) and `usage` (a usage spec), see below.
 
+The shell scripts are short: each time you press the completion key they ask
+`sbrs` itself for the candidates, so `sbrs` has to be on `PATH`, and the
+candidates are exactly the commands, aliases, flags and values the command line
+accepts. Every command and flag is listed in the
+[CLI reference](../help/cli_reference.md).
+
 <CodeGroup>
 
 ```bash Bash

@@ -65,8 +65,11 @@ cargo check --features turso --all-targets
   `parity/api.toml` (`just parity-docs`).
 - **A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`**, in either
   manifest, must also be listed in the `Dockerfile` skeleton step
-  (`tests/dockerfile_skeleton.rs` checks). Keep clap and other command-line
+  (`tests/dockerfile_skeleton.rs` checks). Keep `usage` and other command-line
   dependencies in `crates/cli` (`tests/library_manifest.rs` checks).
+- **After changing the command line** (`crates/cli/src/sbrs.rs`), write the
+  generated `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
+  `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
 - **Update the docs and `CHANGELOG.md`** with the change.
 
 ## Honesty rules

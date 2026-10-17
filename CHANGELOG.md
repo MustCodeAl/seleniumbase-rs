@@ -21,10 +21,11 @@ migrate.
   stays at the repository root with the same name and path, so
   `seleniumbase-rs = { git = ... }` keeps working, but it no longer has a binary
   and no longer compiles clap, `clap_complete` or `clap_complete_fig` (15 crates
-  fewer in a default build). The commands, flags and help text of `sbrs` are the
-  same, and so are the exit statuses, with one difference: a plain `cargo build`,
-  `cargo install` or `cargo run` now includes `pdf`, so `sbrs pdf-text` and
-  `sbrs assert-pdf-text` work where they used to exit with status 2.
+  fewer in a default build). The commands, flags, aliases, defaults and exit
+  statuses of `sbrs` are the same (its parser changed, see *Changed*), with one
+  difference: a plain `cargo build`, `cargo install` or `cargo run` now includes
+  `pdf`, so `sbrs pdf-text` and `sbrs assert-pdf-text` work where they used to exit
+  with status 2.
 
   ```bash
   # before
@@ -270,6 +271,41 @@ migrate.
   `load_cookies`.
 
 ### Changed
+
+- **`sbrs` and `sbrs-mcp` parse their command line with [usage](https://usage.jdx.dev)
+  instead of clap.** `clap`, `clap_complete`, `clap_complete_fig` and `clap_usage`
+  leave the workspace. The commands, flags, aliases, defaults and exit statuses are
+  those of 0.4.0: both builds were run on 256 command lines, 250 act the same and the
+  six that do not fall into the three groups below. `completions/sbrs.usage.kdl` is
+  now written from the Rust declaration by a test that fails when the file is stale
+  (`SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`
+  writes it again), and so are the new page `docs/help/cli_reference.md` (a CLI
+  reference rendered from the spec) and the Fig spec `docs/completions/fig-sbrs.ts`.
+  What you can notice:
+
+  - `sbrs --help` is laid out by usage: the sections are `Commands:` and `Flags:`, the
+    commands are listed alphabetically instead of in the order they were declared, a
+    short description keeps the final period of its doc comment, an alias is shown as
+    `[aliases: new]`, and the usage line reads `Usage: sbrs [FLAGS] <SUBCOMMAND>`. The
+    banner still comes first.
+  - `sbrs completions bash|zsh|fish|elvish|powershell` print a short script that asks
+    `sbrs` for the candidates when the completion key is pressed (so `sbrs` has to be
+    on `PATH`), instead of a script that lists every command. A path argument
+    completes file names, as before. `completions fig` is written by
+    `crates/cli/src/fig.rs` from the tables of the parser: it marks an option as
+    required or repeatable only when it is, where the `clap_complete_fig` output marked
+    every option that takes a value as repeatable. `completions usage` prints the spec.
+  - Three groups of command lines behave differently, because usage is looser than
+    clap in these places. A flag repeated after a subcommand
+    (`sbrs wait-for-text --css a --css b`) takes its last value instead of ending
+    with status 2; the options before the
+    subcommand and those of `grid-hub`, `grid-node` and `prompt` are still refused,
+    since usage can set that rule on the root and on a struct, not on the inline
+    variants of the command enum. A value written after a switch, `--headless=false`
+    or `--headed=true`, is accepted and means what it says (the parser would have
+    ignored the value and switched the option on); any other value, such as
+    `--headless=0`, is still an error. `sbrs help nosuch` prints the main help and
+    exits with 0, where it ended with status 2.
 
 - **`check_window` baselines can be told apart by test.** The baseline folder
   was named after the thread's last path part, so tests of the same function

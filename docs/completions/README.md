@@ -9,54 +9,48 @@ maintainer of this repository to decide.
 
 ## What the file is
 
-- The output of `sbrs completions fig` (sbrs 0.3.0, which writes it with
-  `clap_complete_fig`), formatted with the prettier settings of withfig/autocomplete
-  (`trailingComma: "es5"`, `printWidth: 80`). Upstream's `pnpm lint` runs
-  `prettier --check`, which the raw output fails; the formatting only wraps long
-  descriptions.
-- Since 0.3.0 the CLI has gained one command, `sbrs prompt` (0.4.0), which this
-  spec does not have yet. Generate the file again with the 0.4.0 `sbrs` before
-  submitting it; nothing else in the CLI definition changed.
+- The output of `sbrs completions fig` of this branch (0.4.0). `crates/cli/src/fig.rs`
+  writes it from the tables of the `usage` parser that reads the command line, so it
+  lists the commands, aliases, options, required options, repeatable options and
+  accepted words the parser accepts. A test (`the_committed_fig_spec_matches_the_cli`)
+  fails when the file is stale. Until 0.3.0 `clap_complete_fig` wrote it.
+- The file is the generator's raw output, not formatted with the prettier settings of
+  withfig/autocomplete (`trailingComma: "es5"`, `printWidth: 80`). Upstream's
+  `pnpm lint` runs `prettier --check`, which the raw output fails; `pnpm lint:fix`
+  in the steps below formats it, and the formatting only wraps long descriptions.
 - It is the CLI of a build **without the `turso` feature**, which is how the
   Homebrew tap and a plain `cargo install --path crates/cli` build `sbrs`. `sbrs report`
   exists only with `turso`, so the spec has no `report` subcommand. The `tui`
   feature changes what some commands do, not the command line, so it does not
   matter here.
-- 112 top-level subcommands (225 command entries with the nested ones) and 24
-  top-level options. It uses `template: "filepaths"` in five places, and has no
-  `generators` and no `script`, so it runs nothing in a user's shell. Two
-  descriptions contain a URL (`https://example.com` and `http://localhost:4444`),
-  which upstream's review bot lists.
+- 113 top-level subcommands (the 112 commands of `sbrs --help` and `help`) and 24
+  top-level options, `-h` and `-V` included. It uses `template: "filepaths"` in six
+  places, and has no `generators` and no `script`, so it runs nothing in a user's
+  shell. Two descriptions contain a URL (`https://example.com` and
+  `http://localhost:4444`), which upstream's review bot lists.
 
-To regenerate it after the CLI changes, from an `sbrs` built without `turso`
-(it reproduces the saved file byte for byte today):
+To regenerate it after the CLI changes (the same test writes the usage spec and the
+[CLI reference](../help/cli_reference.md) too):
 
 ```bash
-sbrs completions fig \
-  | prettier --no-config --trailing-comma es5 --print-width 80 --parser typescript \
-  > docs/completions/fig-sbrs.ts
+SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec
 ```
+
+or, from an `sbrs` built without `turso`, `sbrs completions fig > docs/completions/fig-sbrs.ts`.
 
 ### Where the spec and the CLI differ
 
-`clap_complete_fig` writes two attributes that do not match how `sbrs` parses
-its command line:
+The generator reads the parser's own tables, so it states what `sbrs` needs: an
+option is `isRequired` when the command line refuses to run without it, `isRepeatable`
+only when it collects a list (such as `--features` and `--assert`), and an argument
+is `isOptional` only when it may be left out. The `clap_complete_fig` file of 0.3.0
+marked every option that takes a value as repeatable and every optional option's value
+as optional, which did not match the parser.
 
-- Every option that takes a value is marked `isRepeatable: true` (138 of them),
-  although most may be given only once: a second `--browser`, for example, is an
-  error. Only the few options that collect a list (such as `--features` and
-  `--assert`) may repeat.
-- When such an option is optional, its value is marked `isOptional: true`
-  (top-level `--browser`, `--webdriver`, `--user-agent` and others), although
-  `sbrs` needs the value. Fig may then offer subcommands and options where the
-  value should go.
-
-Both were checked with `sbrs` 0.3.0: `--browser chrome --browser edge` and a
-`--browser` with no value each end with an error and exit status 2.
-
-Completion still offers the right names. A reviewer upstream may ask for these
-to be corrected by hand; if so, the saved file stops being the generator's
-exact output.
+The differences left are small: the `help` command is listed without the nested
+`help <command>` entries, the short options are listed as one `name` array with the
+long ones and never as combined flags, and the descriptions are the first line of
+the help text of each command, option and argument.
 
 ## Before you decide
 
@@ -79,9 +73,12 @@ Checked on 2026-10-15:
 
 What was checked on the file, and what was not:
 
-- Checked: it loads as a module (Node 24 type stripping) and has the shape above;
-  `prettier --check` passes with upstream's settings (prettier 3.2.5 here, upstream
-  asks for ^3.4.2).
+- Checked: it loads as a module (Node 24 type stripping) with 113 subcommands, 24
+  options, six `template`s and two repeatable options; prettier parses it as
+  TypeScript (prettier 3.2.5 here, upstream asks for ^3.4.2) and
+  `prettier --check` with upstream's settings reports only formatting differences,
+  which `pnpm lint:fix` applies. A test compares the file with the generator's
+  output.
 - Not checked: upstream's `pnpm test` (`tsc --noEmit` against
   `@withfig/autocomplete-types`) and `pnpm lint` (eslint with
   `@fig/eslint-config-autocomplete`). They need a clone of withfig/autocomplete and
@@ -138,19 +135,14 @@ Adds a completion spec for `sbrs`, the command-line tool of
 [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs), a Rust port of
 SeleniumBase (browser automation and testing).
 
-How it was made: `sbrs completions fig` (clap_complete_fig) writes the spec from
-the CLI's own definition, so the subcommands, aliases, options and descriptions
-match `sbrs --help` of the default build (the optional `turso` feature adds a
-`report` subcommand, which the spec leaves out). The file was then formatted
-with this repository's prettier settings. To regenerate it:
+How it was made: `sbrs completions fig` writes the spec from the tables of the
+parser that reads the CLI's own definition, so the subcommands, aliases, options and
+descriptions match `sbrs --help` of the default build (the optional `turso` feature
+adds a `report` subcommand, which the spec leaves out). The file was then formatted
+with this repository's prettier settings (`pnpm lint:fix`). To regenerate it:
 `sbrs completions fig`.
 
-Known differences from the CLI, both from the generator: every option that
-takes a value is marked `isRepeatable`, although most may be given only once,
-and the value of an optional option is marked `isOptional`, although `sbrs`
-needs it. I can correct them by hand if you prefer.
-
-- 112 top-level subcommands, 225 command entries with the nested ones.
+- 113 top-level subcommands, `help` included.
 - `template: "filepaths"` only; no generators and no `script`.
 - Short and long forms share one `name` array; there are no combined short flags.
 

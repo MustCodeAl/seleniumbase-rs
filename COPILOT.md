@@ -39,7 +39,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 | `src/mcp/` | The MCP servers and their tools. |
 | `src/cli/` | The library half of the command line (commands, scaffold, scripts). |
 | `crates/cli/src/mcp_server.rs` | `sbrs-mcp` MCP server (package `seleniumbase-rs-cli`, gated by its `mcp-server` feature, on by default). |
-| `crates/cli/src/sbrs.rs` | Main `sbrs` CLI binary (package `seleniumbase-rs-cli`). |
+| `crates/cli/src/sbrs.rs` | Main `sbrs` CLI binary (package `seleniumbase-rs-cli`), declared with the `usage` derives; `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` are generated from it. |
 | `docs/` | mdBook source. Add new tutorials/help pages to `SUMMARY.md`. |
 | `examples/` | Runnable examples. Add new examples to `Cargo.toml` automatically via filename. |
 

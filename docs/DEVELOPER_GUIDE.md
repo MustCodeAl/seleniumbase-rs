@@ -372,9 +372,12 @@ tests share. It has no command-line parser.
 ### `crates/cli/`
 
 The workspace package `seleniumbase-rs-cli`, which builds the two binaries and
-owns the dependencies only they use (clap and its completion generators):
+owns the dependencies only they use (the `usage` command-line parser):
 
-- `src/sbrs.rs` — the `sbrs` CLI command tree (and `src/report.rs`, `sbrs report`).
+- `src/sbrs.rs` — the `sbrs` CLI command tree, declared with the `usage` derives
+  (and `src/report.rs`, `sbrs report`). The usage spec `completions/sbrs.usage.kdl`
+  and the page `docs/help/cli_reference.md` are generated from it by a test.
+- `src/fig.rs` — the Fig spec of `sbrs completions fig`, written from the same tables.
 - `src/mcp_server.rs` — `sbrs-mcp`, which starts the Model Context Protocol
   server of `src/mcp/` (the tools are `ToolDef`s there).
 - `tests/` — every test that runs the real `sbrs` or `sbrs-mcp` binary.
