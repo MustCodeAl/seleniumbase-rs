@@ -14,9 +14,9 @@ work, `docs/parity.md` the per-API status).
   display) and `click_active_element`: Python's `sb.cdp.get_origin`,
   `get_locale_code`, `get_screen_rect` and `click_active_element`.
 - `sb_cdp::Locator::click_with_offset(x, y, center)` (the offset from the
-  top-left corner, or from the centre) and `click_if_visible(timeout)`:
-  Python's `sb.cdp.click_with_offset` and `click_if_visible`. `click_at` is
-  deprecated for `click_with_offset(x, y, false)` and calls it.
+  top-left corner, or from the centre) and `click_if_visible()` (one look, like
+  Python's default `timeout=0`; `click_if_visible_with_timeout(timeout)` waits):
+  Python's `sb.cdp.click_with_offset` and `click_if_visible`.
 - `behave::StepRegistry::register_step` and `AsyncStepRegistry::register_step`
   (and `try_register_step`) register a handler for the step text alone, which
   matches whatever keyword the step is written with, or none, like behave's
@@ -29,6 +29,11 @@ work, `docs/parity.md` the per-API status).
   `MessengerSettings` is `From<MessengerTheme>` and `From<MessengerLocation>`:
   `page.set_messenger_theme(MessengerTheme::Air)` changes one thing and keeps
   Python's defaults for the rest. Passing `MessengerSettings` still works.
+
+### Deprecated
+
+- `sb_cdp::Locator::click_at(Point)`: use `click_with_offset(x, y, false)`,
+  Python's name for it. `click_at` calls it.
 
 ### Fixed
 
@@ -120,6 +125,11 @@ work, `docs/parity.md` the per-API status).
   - `select_option_by_value` fails with `InvalidSelector` for a value the
     dropdown has no option for (it set the value and reported success), and
     all three `select_option_by_*` fail with `ElementNotFound` for no dropdown.
+  - Only `click` waits for its element; the reads, `type_text`, `fast_type` and
+    the selects look once (`wait_for_element_present` first for a late
+    element). A selector the browser rejects is `InvalidSelector` in all of
+    them, and `wait_for_element_present` returns a lost connection at once
+    instead of polling it until the timeout and calling it `ElementNotFound`.
 
   ```rust
   // before: the value was inside the result object

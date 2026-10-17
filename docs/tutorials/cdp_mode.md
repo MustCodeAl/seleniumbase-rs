@@ -85,7 +85,7 @@ useful when you send raw commands directly.
 | `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |
 | `cdp_click(selector)` | Wait up to 7 seconds for the element, scroll it into view and click its center with CDP input events. |
 | `cdp_evaluate(expression)` | Evaluate JavaScript and return its value, dropping a final `return` as Python's `sb.cdp.evaluate` does; a script that throws is `CdpDriver`. |
-| `cdp_get_text(selector)`, `cdp_get_attribute(selector, name)` | Read an element; `ElementNotFound` if it is missing, and `None` for an attribute it lacks. |
+| `cdp_get_text(selector)`, `cdp_get_attribute(selector, name)` | Read an element at once, without waiting; `ElementNotFound` if it is missing (`cdp_wait_for_element_present` first for a late one), and `None` for an attribute it lacks. |
 
 ### Typing: realistic or fast
 

@@ -780,11 +780,7 @@ async fn clicking_only_if_visible_clicks_a_visible_element_and_reports_it() {
     let (page, mock) = quick_page().await;
     script_sized_element(&mock, true);
 
-    let clicked = page
-        .locator("#banner")
-        .click_if_visible(Duration::ZERO)
-        .await
-        .unwrap();
+    let clicked = page.locator("#banner").click_if_visible().await.unwrap();
 
     assert!(clicked);
     assert_eq!(pressed_at(&mock), [(200.0, 100.0)]);
@@ -796,11 +792,7 @@ async fn clicking_only_if_visible_leaves_a_hidden_element_alone_without_waiting(
     script_sized_element(&mock, false);
     let started = std::time::Instant::now();
 
-    let clicked = page
-        .locator("#banner")
-        .click_if_visible(Duration::ZERO)
-        .await
-        .unwrap();
+    let clicked = page.locator("#banner").click_if_visible().await.unwrap();
 
     assert!(!clicked);
     assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
@@ -829,7 +821,7 @@ async fn clicking_only_if_visible_waits_up_to_the_timeout_for_the_element() {
 
     let clicked = page
         .locator("#banner")
-        .click_if_visible(Duration::from_secs(2))
+        .click_if_visible_with_timeout(Duration::from_secs(2))
         .await
         .unwrap();
 
@@ -844,11 +836,7 @@ async fn clicking_only_if_visible_still_reports_a_selector_that_is_invalid() {
         Ok(exception("SyntaxError: 'div[' is not a valid selector."))
     });
 
-    let error = page
-        .locator("div[")
-        .click_if_visible(Duration::ZERO)
-        .await
-        .unwrap_err();
+    let error = page.locator("div[").click_if_visible().await.unwrap_err();
 
     assert!(
         matches!(error, SeleniumBaseError::InvalidSelector(_)),

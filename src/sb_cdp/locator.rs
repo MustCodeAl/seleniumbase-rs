@@ -956,20 +956,34 @@ impl Locator {
         self.click_with_offset(offset.x, offset.y, false).await
     }
 
-    /// Clicks the first match if it is visible, waiting up to `timeout` for it
-    /// to become so, and says whether it clicked.
+    /// Clicks the first match if it is visible now, and says whether it
+    /// clicked. It looks once and does not wait.
     ///
-    /// Python's `click_if_visible(selector, timeout=0)`: pass
-    /// [`Duration::ZERO`] to look once and not wait. It gives `false`, not an
-    /// error, when the element is not visible in time or disappears before the
-    /// click. Unlike Python, which suppresses every error, an invalid selector
-    /// or a lost connection is still an error.
+    /// Python's `click_if_visible(selector)` with its default `timeout=0`; use
+    /// [`click_if_visible_with_timeout`](Self::click_if_visible_with_timeout)
+    /// to wait for the element. It gives `false`, not an error, when the
+    /// element is not visible or disappears before the click. Unlike Python,
+    /// which suppresses every error, an invalid selector or a lost connection
+    /// is still an error.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is
     /// invalid, or the browser's error if it fails.
-    pub async fn click_if_visible(&self, timeout: Duration) -> Result<bool, SeleniumBaseError> {
+    pub async fn click_if_visible(&self) -> Result<bool, SeleniumBaseError> {
+        self.click_if_visible_with_timeout(Duration::ZERO).await
+    }
+
+    /// [`click_if_visible`](Self::click_if_visible), waiting up to `timeout`
+    /// for the element to become visible.
+    ///
+    /// # Errors
+    ///
+    /// As [`click_if_visible`](Self::click_if_visible).
+    pub async fn click_if_visible_with_timeout(
+        &self,
+        timeout: Duration,
+    ) -> Result<bool, SeleniumBaseError> {
         match self.with_timeout(timeout).wait_for(State::Visible).await {
             Ok(()) => {}
             Err(SeleniumBaseError::WaitTimeout(_)) => return Ok(false),
