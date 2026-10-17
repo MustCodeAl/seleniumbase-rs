@@ -133,7 +133,7 @@ from that list.
 
 <Step title="Run the wire tests">
 
-Run the wire tests, including `crates/impersonate/tests/impersonate_wire.rs`. They compare what
+Run the wire tests, including `crates/mimic/tests/impersonate_wire.rs`. They compare what
 our client sends with the measured file and fail, by name, when a known gap
 closes or a new difference appears.
 
@@ -286,7 +286,7 @@ client exists.
 
 BoringSSL and wreq cannot emit everything a browser can. Anything they cannot
 reproduce is refused with a named error before a client exists, and
-`crates/impersonate/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
+`crates/mimic/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
 given. The errors are variants of `ImpersonateError`: `Tls(..)` wraps
 `codec::tls_spec::SpecError`, `Http2(..)` wraps `codec::h2_spec::SpecError`,
 `Convert(..)` wraps the rules that belong to the client stack itself. A string that
