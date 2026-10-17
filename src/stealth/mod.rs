@@ -14,6 +14,7 @@ pub mod patcher;
 pub mod providers;
 pub mod randomize;
 pub mod reactor;
+pub mod spoof;
 pub mod uc;
 
 pub use fingerprint::{
