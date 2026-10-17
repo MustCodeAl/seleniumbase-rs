@@ -7,6 +7,8 @@
 mod tests_text_argument_order {
     use super::webdriver_support::{element, MockWebDriver, Reply};
     use serde_json::{json, Value};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
 
     /// A page with one element, `h1`, which is displayed and says "Welcome".
     /// Every other selector finds nothing.
@@ -17,6 +19,14 @@ mod tests_text_argument_order {
     /// A page whose only element, `h1`, says "Welcome" and is `displayed` or
     /// not. Every other selector finds nothing.
     fn heading(displayed: bool) -> MockWebDriver {
+        page(|_| "Welcome", displayed)
+    }
+
+    /// A page whose only element, `h1`, is `displayed` or not and says
+    /// `says(n)` the n-th time its text is read (counting from 0), so a test
+    /// can have the text arrive late. Every other selector finds nothing.
+    fn page(says: fn(usize) -> &'static str, displayed: bool) -> MockWebDriver {
+        let reads = Arc::new(AtomicUsize::new(0));
         MockWebDriver::start(json!({}), move |request| {
             let asked_for_h1 = request.body["value"].as_str() == Some("h1");
             match (request.method.as_str(), request.path.as_str()) {
@@ -24,7 +34,9 @@ mod tests_text_argument_order {
                 ("POST", "/element") => Reply::Error(404, "no such element"),
                 ("POST", "/elements") if asked_for_h1 => Reply::Value(json!([element("h1")])),
                 ("POST", "/elements") => Reply::Value(json!([])),
-                ("GET", "/element/h1/text") => Reply::Value(json!("Welcome")),
+                ("GET", "/element/h1/text") => Reply::Value(json!(says(
+                    reads.fetch_add(1, Ordering::SeqCst)
+                ))),
                 ("GET", "/element/h1/displayed") => Reply::Value(json!(displayed)),
                 ("GET", "/element/h1/enabled") => Reply::Value(json!(true)),
                 _ => Reply::Value(Value::Null),
@@ -164,13 +176,91 @@ mod tests_text_argument_order {
         sb.set_timeout(0).await.unwrap();
 
         sb.delayed_assert_text("Goodbye", "h1").await.unwrap();
-        sb.delayed_assert_exact_text("Goodbye", "h1").await.unwrap();
         let error = sb
             .process_deferred_asserts()
             .await
-            .expect_err("both checks failed")
+            .expect_err("the check failed")
             .to_string();
         assert!(error.contains("Goodbye"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn the_text_assertions_wait_for_text_that_shows_up_late() {
+        // Python's `assert_text` waits for the text; this one used to read the
+        // text once and fail on a page that was still loading.
+        let late = || page(|read| if read < 2 { "Loading" } else { "Welcome" }, true);
+        for check in 0..3 {
+            let driver = late();
+            let mut sb = driver.base_case().await;
+            sb.set_timeout(5).await.unwrap();
+            match check {
+                0 => sb.assert_text("Welcome", "h1").await,
+                1 => sb.assert_text_visible("Welcome", "h1").await,
+                _ => sb.assert_exact_text("Welcome", "h1").await,
+            }
+            .expect("the text shows up on the third look");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_not_visible_assertions_wait_for_the_text_to_go() {
+        let going = || page(|read| if read < 2 { "Welcome" } else { "Bye" }, true);
+        let driver = going();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+        sb.assert_text_not_visible("Welcome", "h1")
+            .await
+            .expect("the text is gone on the third look");
+
+        let driver = going();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+        sb.assert_exact_text_not_visible("Welcome", "h1")
+            .await
+            .expect("the text is gone on the third look");
+
+        // Text that stays is reported once the timeout ends.
+        let driver = heading(true);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+        sb.assert_text_not_visible("Welcome", "h1")
+            .await
+            .expect_err("the text stays");
+    }
+
+    #[tokio::test]
+    async fn exact_text_ignores_whitespace_at_the_ends() {
+        let driver = page(|_| "  Welcome \n", true);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        sb.assert_exact_text("Welcome", "h1").await.unwrap();
+        sb.assert_exact_text(" Welcome ", "h1").await.unwrap();
+        assert!(sb.is_exact_text_visible("Welcome", "h1").await.unwrap());
+        sb.assert_exact_text("Welcom", "h1").await.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn text_in_an_element_that_is_not_displayed_does_not_pass_an_assertion() {
+        let driver = heading(false);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        sb.assert_text("Welcome", "h1").await.unwrap_err();
+        sb.assert_exact_text("Welcome", "h1").await.unwrap_err();
+        sb.assert_text_not_visible("Welcome", "h1").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_deferred_text_check_waits_a_couple_of_seconds_whatever_the_default_timeout() {
+        let driver = page(|read| if read < 2 { "Loading" } else { "Welcome" }, true);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        sb.deferred_assert_text("Welcome", "h1").await.unwrap();
+        sb.process_deferred_asserts()
+            .await
+            .expect("the text showed up within the wait of a deferred check");
     }
 
     #[tokio::test]

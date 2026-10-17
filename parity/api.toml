@@ -179,7 +179,6 @@ rust = "BaseCase::assert_equal"
 [basecase."assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text"
-divergence = "Reads the text once; Python waits up to the default timeout for it."
 
 [basecase."assert_exact_text_not_visible"]
 status = "implemented"
@@ -244,7 +243,6 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
-divergence = "Reads the text once, without checking that the element is displayed; Python waits up to the default timeout for visible text."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"

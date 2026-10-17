@@ -90,6 +90,15 @@ where
     }
 }
 
+/// What a poll for the text of an element ended with.
+struct ShownText {
+    /// Whether the text held when the poll ended.
+    held: bool,
+    /// The text of the element, or `None` if no element was found or it was
+    /// not displayed.
+    seen: Option<String>,
+}
+
 /// `Found` with the first of `elements`, or `Pending` if there is none.
 fn first_found(elements: Vec<thirtyfour::WebElement>) -> Polled<thirtyfour::WebElement> {
     elements
@@ -279,21 +288,33 @@ impl BaseCase {
         )))
     }
 
-    /// Asserts that `text` is not the visible text of `css`. The text comes
-    /// first and the selector second, as in Python's
+    /// Asserts that `text` is not the visible text of `css`, giving the text
+    /// up to the default timeout to go away. The text comes first and the
+    /// selector second, as in Python's
     /// `assert_exact_text_not_visible(text, selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still the
+    /// text of the element when the timeout ends.
     pub async fn assert_exact_text_not_visible(
         &mut self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        if self.is_exact_text_visible(text, css).await? {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Exact text '{}' was unexpectedly visible in '{}'",
-                text, css
-            )));
-        }
-        Ok(())
+        self.check_time_limit()?;
+        poll_until_true(
+            self.default_wait_secs(),
+            String::new(),
+            || async { Ok(!self.is_exact_text_visible(text, css).await?) },
+        )
+        .await
+        .map_err(|error| match error {
+            SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                "Exact text '{text}' was unexpectedly visible in '{css}'"
+            )),
+            other => other,
+        })
     }
 
     /// Asserts that `css` has non-empty visible text.

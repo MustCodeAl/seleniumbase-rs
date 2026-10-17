@@ -198,35 +198,39 @@ impl BaseCase {
     }
 
     /// Asserts that `text` is visible inside the element selected by `css`.
+    /// The same as [`assert_text`](Self::assert_text), as in Python, where
+    /// `assert_text_visible` is its alias.
     pub async fn assert_text_visible(
         &mut self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let is_visible = self.is_text_visible(text, css).await?;
-        if !is_visible {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Text '{}' was not visible in element '{}'",
-                text, css
-            )));
-        }
-        Ok(())
+        self.assert_text(text, css).await
     }
 
-    /// Asserts that `text` is not visible inside the element selected by `css`.
+    /// Asserts that `text` is not visible inside the element selected by
+    /// `css`, giving the text up to the default timeout to go away.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still
+    /// visible when the timeout ends.
     pub async fn assert_text_not_visible(
         &mut self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let is_visible = self.is_text_visible(text, css).await?;
-        if is_visible {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Text '{}' was unexpectedly visible in element '{}'",
-                text, css
-            )));
-        }
-        Ok(())
+        self.check_time_limit()?;
+        poll_until_true(self.default_wait_secs(), String::new(), || async {
+            Ok(!self.is_text_visible(text, css).await?)
+        })
+        .await
+        .map_err(|error| match error {
+            SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                "Text '{text}' was unexpectedly visible in element '{css}'"
+            )),
+            other => other,
+        })
     }
 
     /// Asserts that the attribute named `attribute` on `css` equals `value`.
@@ -981,7 +985,9 @@ impl BaseCase {
         )))
     }
 
-    /// Asserts that the element selected by `css` contains `expected`.
+    /// Asserts that the element selected by `css` is displayed and its text
+    /// contains `expected`, waiting for it for up to the default timeout
+    /// ([`set_timeout`](Self::set_timeout)), as Python's `assert_text` does.
     ///
     /// The text comes first and the selector second, as in Python's
     /// `assert_text(text, selector)`.
@@ -989,61 +995,97 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::AssertionFailed`] when the text is not
-    /// there. If the two arguments look swapped (`expected` selects an element
-    /// whose text contains `css`), the message says so.
+    /// there when the timeout ends. If the two arguments look swapped
+    /// (`expected` selects an element whose text contains `css`), the message
+    /// says so.
     pub async fn assert_text(
         &mut self,
         expected: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.record("assert_text", Some(css), Some(expected));
-        let by = Selector::auto(css).to_by()?;
-        match self.session.text(by).await {
-            Ok(text) if text.contains(expected) => Ok(()),
-            Ok(text) => Err(self
-                .text_assertion_failed(
-                    format!("expected text '{expected}' in element '{css}', got '{text}'"),
-                    expected,
-                    css,
-                    false,
-                )
-                .await),
-            Err(error) => match self.swapped_text_hint(expected, css, false).await {
-                Some(hint) => Err(SeleniumBaseError::AssertionFailed(hint)),
-                None => Err(error),
-            },
-        }
+        self.assert_shown_text(expected, css, TextMatch::Contains, self.default_wait_secs())
+            .await
     }
 
-    /// Asserts that the text of the element selected by `css` is exactly
-    /// `expected`.
+    /// Asserts that the element selected by `css` is displayed and its text
+    /// is exactly `expected`, ignoring whitespace at the ends of both, and
+    /// waiting for it for up to the default timeout, as Python's
+    /// `assert_exact_text` does.
     ///
     /// The text comes first and the selector second, as in Python's
     /// `assert_exact_text(text, selector)`.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::AssertionFailed`] when the text differs;
-    /// the message says so if the two arguments look swapped.
+    /// Returns [`SeleniumBaseError::AssertionFailed`] when the text differs
+    /// when the timeout ends; the message says so if the two arguments look
+    /// swapped.
     pub async fn assert_exact_text(
         &mut self,
         expected: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        match self.get_text(css).await {
-            Ok(text) if text == expected => Ok(()),
-            Ok(text) => Err(self
-                .text_assertion_failed(
-                    format!("expected exact text '{expected}' in element '{css}', got '{text}'"),
-                    expected,
-                    css,
-                    true,
-                )
-                .await),
-            Err(error) => match self.swapped_text_hint(expected, css, true).await {
-                Some(hint) => Err(SeleniumBaseError::AssertionFailed(hint)),
-                None => Err(error),
-            },
+        self.assert_shown_text(expected, css, TextMatch::Exact, self.default_wait_secs())
+            .await
+    }
+
+    /// Polls for up to `timeout_secs` until the element `css` is displayed
+    /// with text that `kind` finds in `expected`, and fails with the text it
+    /// last saw, or says that no displayed element matched.
+    pub(crate) async fn assert_shown_text(
+        &self,
+        expected: &str,
+        css: &str,
+        kind: TextMatch,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        self.check_time_limit()?;
+        let shown = self
+            .poll_shown_text(css, timeout_secs, |text| kind.holds(text, expected))
+            .await?;
+        if shown.held {
+            return Ok(());
+        }
+        let what = if kind == TextMatch::Exact {
+            "exact text"
+        } else {
+            "text"
+        };
+        let message = match shown.seen {
+            Some(text) => format!("expected {what} '{expected}' in element '{css}', got '{text}'"),
+            None => format!(
+                "expected {what} '{expected}' in element '{css}', but no element matched or it was not displayed"
+            ),
+        };
+        Err(self
+            .text_assertion_failed(message, expected, css, kind == TextMatch::Exact)
+            .await)
+    }
+
+    /// Looks at the element `css` until it is displayed and `holds` of its
+    /// text, or `timeout_secs` have passed. The check runs at least once.
+    async fn poll_shown_text(
+        &self,
+        css: &str,
+        timeout_secs: u64,
+        holds: impl Fn(&str) -> bool,
+    ) -> Result<ShownText, SeleniumBaseError> {
+        let by = Selector::auto(css).to_by()?;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            let seen = match self.session.driver().find(by.clone()).await {
+                Ok(element) if element.is_displayed().await.unwrap_or(false) => {
+                    element.text().await.ok()
+                }
+                _ => None,
+            };
+            let held = seen.as_deref().is_some_and(&holds);
+            let now = tokio::time::Instant::now();
+            if held || now >= deadline {
+                return Ok(ShownText { held, seen });
+            }
+            tokio::time::sleep(WAIT_POLL_INTERVAL.min(deadline - now)).await;
         }
     }
 
@@ -2548,7 +2590,7 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
-                && elem.text().await.unwrap_or_default() == text),
+                && elem.text().await.unwrap_or_default().trim() == text.trim()),
             Err(_) => Ok(false),
         }
     }

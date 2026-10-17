@@ -19,6 +19,18 @@ pub(crate) enum TextMatch {
     NonEmpty,
 }
 
+impl TextMatch {
+    /// Whether `shown`, the visible text of an element, is what this kind of
+    /// match looks for with `wanted`.
+    pub(crate) fn holds(self, shown: &str, wanted: &str) -> bool {
+        match self {
+            Self::Contains => shown.contains(wanted),
+            Self::Exact => shown.trim() == wanted.trim(),
+            Self::NonEmpty => !shown.trim().is_empty(),
+        }
+    }
+}
+
 /// Upstream SeleniumBase's `AD_BLOCK_LIST`: selectors for the elements
 /// `ad_block` removes, each ready for `querySelectorAll`.
 pub(crate) const AD_BLOCK_SELECTORS: &[&str] = &[

@@ -77,6 +77,16 @@ that break a call are listed first, each with the way to migrate.
 
 ### Changed
 
+- **The text assertions wait, as Python's do.** `assert_text`,
+  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
+  `assert_exact_text_not_visible` poll for up to the default timeout
+  (`set_timeout`) instead of reading the page once, so a page that is still
+  rendering no longer fails them. The first three also require the element to
+  be displayed, and `assert_exact_text` and `is_exact_text_visible` ignore
+  whitespace at the ends of both strings. A failing assertion now arrives after
+  the timeout rather than at once: lower it with `set_timeout` where a test
+  expects a failure. `assert_text_visible` is `assert_text`, as in Python. The
+  deferred checks wait 2 seconds, whatever the default is.
 - `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
   `//a//b` becomes `a b`, `/html/body/...`), a position before the other tests
   (`tag[n]` becomes `tag:nth-of-type(n)`, `*[n]` becomes `*:nth-child(n)`),

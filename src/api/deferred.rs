@@ -50,6 +50,7 @@
 //! ```
 
 use crate::api::base_case::BaseCase;
+use crate::api::page_scripts::TextMatch;
 use crate::error::SeleniumBaseError;
 
 /// A single deferred assertion.
@@ -124,11 +125,13 @@ impl AssertTarget for BaseCase {
     }
 
     async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
-        BaseCase::assert_text(self, text, css).await
+        self.assert_shown_text(text, css, TextMatch::Contains, DEFERRED_WAIT_SECS)
+            .await
     }
 
     async fn assert_exact_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
-        BaseCase::assert_exact_text(self, text, css).await
+        self.assert_shown_text(text, css, TextMatch::Exact, DEFERRED_WAIT_SECS)
+            .await
     }
 
     async fn assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError> {

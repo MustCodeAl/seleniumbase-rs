@@ -90,6 +90,8 @@ sb.assert_title_contains("Dashboard").await?;
 ## Assertions
 
 Assertions return `Result<(), SeleniumBaseError>` and stop the test on failure.
+The text assertions take the text first and the selector second, as in Python,
+and wait for it for up to the default timeout (see below) before they fail.
 
 ```rust
 // Title assertions
