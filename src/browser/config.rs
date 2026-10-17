@@ -627,6 +627,80 @@ impl BrowserConfig {
         self
     }
 
+    /// Adds the built-in plugins called `names` (feature `plugins`) to those
+    /// of [`with_plugins`](Self::with_plugins).
+    ///
+    /// The names are the cargo features `plugin-shield`,
+    /// `plugin-block-resources` and `plugin-crx` (`plugins-builtin` for all);
+    /// each plugin gets its default options. Use
+    /// [`with_plugin_selection`](Self::with_plugin_selection) to give options.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for a name this build does not have (the
+    /// message lists the ones it has), or a plugin that is in the set already.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::BrowserConfig;
+    ///
+    /// let error = BrowserConfig::default()
+    ///     .with_plugins_named(["no-such-plugin"])
+    ///     .unwrap_err();
+    /// assert!(error.to_string().contains("no-such-plugin"));
+    /// ```
+    #[cfg(feature = "plugins")]
+    pub fn with_plugins_named<I, S>(self, names: I) -> Result<Self, SeleniumBaseError>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let selection = names.into_iter().fold(
+            crate::config::plugins::PluginSelection::new(),
+            |selection, name| selection.enable(name),
+        );
+        self.with_plugin_selection(&selection)
+    }
+
+    /// Adds the plugins a [`PluginSelection`](crate::config::plugins::PluginSelection)
+    /// names, with their options (feature `plugins`), to those of
+    /// [`with_plugins`](Self::with_plugins): the `[plugins]` table of the
+    /// settings file and `SB_PLUGINS`, as `Settings::plugins` holds them.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for an unknown name, options a plugin
+    /// refuses, or a plugin that is in the set already.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::config::settings::Settings;
+    /// use seleniumbase_rs::BrowserConfig;
+    ///
+    /// # fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let settings = Settings::load(None::<&str>)?;
+    /// let config = settings
+    ///     .to_browser_config()
+    ///     .with_plugin_selection(&settings.plugins)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "plugins")]
+    pub fn with_plugin_selection(
+        mut self,
+        selection: &crate::config::plugins::PluginSelection,
+    ) -> Result<Self, SeleniumBaseError> {
+        let set = crate::plugin_host::add_selection(
+            self.launch.plugins.set().clone(),
+            &crate::plugin_host::builtin_registry(),
+            selection,
+        )?;
+        self.launch.plugins = set.into();
+        Ok(self)
+    }
+
     /// The browser plugins set with [`with_plugins`](Self::with_plugins).
     #[cfg(feature = "plugins")]
     #[must_use]
@@ -646,6 +720,47 @@ impl BrowserConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn an_unknown_plugin_name_is_refused_when_it_is_added() {
+        let error = BrowserConfig::default()
+            .with_plugins_named(["no-such-plugin"])
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "no-such-plugin"),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("known:"), "{error}");
+    }
+
+    #[cfg(feature = "plugin-shield")]
+    #[test]
+    fn named_plugins_join_the_plugins_of_the_configuration() {
+        use crate::config::plugins::PluginSelection;
+        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+
+        struct Mine;
+
+        #[async_trait]
+        impl Plugin for Mine {
+            fn name(&self) -> &str {
+                "mine"
+            }
+        }
+
+        let config = BrowserConfig::default()
+            .with_plugins(PluginSet::new().with(Mine).unwrap())
+            .with_plugins_named(["shield"])
+            .unwrap();
+        assert_eq!(config.plugins().names(), ["mine", "shield"]);
+
+        let again = config
+            .with_plugin_selection(&PluginSelection::new().enable("shield"))
+            .unwrap_err();
+        assert!(again.to_string().contains("already in the set"), "{again}");
+    }
 
     #[test]
     fn reuse_is_off_until_asked_for() {

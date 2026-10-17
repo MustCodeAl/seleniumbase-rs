@@ -351,6 +351,9 @@ pub struct LaunchOptionsBuilder {
     prefs: Map<String, Value>,
     #[cfg(feature = "plugins")]
     plugins: seleniumbase_rs_plugin::PluginSet,
+    /// Plugins named rather than built, resolved by `build`.
+    #[cfg(feature = "plugins")]
+    selection: crate::config::plugins::PluginSelection,
     startup_timeout: Duration,
     debugging_port: u16,
 }
@@ -380,6 +383,8 @@ impl Default for LaunchOptionsBuilder {
             prefs: Map::new(),
             #[cfg(feature = "plugins")]
             plugins: seleniumbase_rs_plugin::PluginSet::new(),
+            #[cfg(feature = "plugins")]
+            selection: crate::config::plugins::PluginSelection::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
             debugging_port: 0,
         }
@@ -628,6 +633,68 @@ impl LaunchOptionsBuilder {
         self
     }
 
+    /// Adds the built-in plugins called `names` (feature `plugins`), after the
+    /// ones given to [`plugins`](Self::plugins).
+    ///
+    /// The names are the cargo features `plugin-shield`,
+    /// `plugin-block-resources` and `plugin-crx` (`plugins-builtin` for all),
+    /// resolved by [`plugin_host::builtin_registry`](crate::plugin_host::builtin_registry)
+    /// when [`build`](Self::build) runs. Each plugin gets its default options;
+    /// use [`plugin_selection`](Self::plugin_selection) to give options.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::sb_cdp::LaunchOptions;
+    ///
+    /// // A name this build does not have is an error, and says which it has.
+    /// let error = LaunchOptions::builder()
+    ///     .plugins_named(["no-such-plugin"])
+    ///     .build()
+    ///     .unwrap_err();
+    /// assert!(error.to_string().contains("no-such-plugin"));
+    /// ```
+    #[cfg(feature = "plugins")]
+    #[must_use]
+    pub fn plugins_named<I, S>(mut self, names: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        for name in names {
+            self.selection = std::mem::take(&mut self.selection).enable(name);
+        }
+        self
+    }
+
+    /// Adds the plugins a [`PluginSelection`](crate::config::plugins::PluginSelection)
+    /// names, with their options (feature `plugins`): the `[plugins]` table of
+    /// the settings file and `SB_PLUGINS`, as `Settings::plugins` holds them.
+    ///
+    /// [`build`](Self::build) reports an unknown name, options a plugin
+    /// refuses and a plugin named twice as [`SeleniumBaseError::Plugin`].
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::config::settings::Settings;
+    /// use seleniumbase_rs::sb_cdp::LaunchOptions;
+    ///
+    /// # fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let settings = Settings::load(None::<&str>)?;
+    /// let options = LaunchOptions::builder()
+    ///     .plugin_selection(&settings.plugins)
+    ///     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "plugins")]
+    #[must_use]
+    pub fn plugin_selection(mut self, selection: &crate::config::plugins::PluginSelection) -> Self {
+        self.selection.extend(selection);
+        self
+    }
+
     /// Sets how long to wait for the browser to become reachable.
     #[must_use]
     pub fn startup_timeout(mut self, timeout: Duration) -> Self {
@@ -670,7 +737,11 @@ impl LaunchOptionsBuilder {
     ///
     /// Returns [`SeleniumBaseError::InvalidConfig`] when `incognito` and
     /// `guest` are both set, when `use_chromium` is combined with an explicit
-    /// executable path, or when the proxy cannot be parsed.
+    /// executable path, or when the proxy cannot be parsed, and
+    /// [`SeleniumBaseError::Plugin`] when a plugin named with
+    /// [`plugins_named`](Self::plugins_named) or
+    /// [`plugin_selection`](Self::plugin_selection) is unknown, refuses its
+    /// options or is named twice.
     pub fn build(self) -> Result<LaunchOptions, SeleniumBaseError> {
         if self.incognito && self.guest {
             return Err(SeleniumBaseError::invalid_config(
@@ -687,7 +758,25 @@ impl LaunchOptionsBuilder {
             .as_ref()
             .map(|proxy| Proxy::parse(&proxy.0))
             .transpose()?;
-        Ok(self.assemble(proxy))
+        #[cfg(feature = "plugins")]
+        let this = self.with_named_plugins()?;
+        #[cfg(not(feature = "plugins"))]
+        let this = self;
+        Ok(this.assemble(proxy))
+    }
+
+    /// Adds the plugins named with `plugins_named` and `plugin_selection` to
+    /// the set.
+    #[cfg(feature = "plugins")]
+    fn with_named_plugins(mut self) -> Result<Self, SeleniumBaseError> {
+        if !self.selection.is_empty() {
+            self.plugins = crate::plugin_host::add_selection(
+                std::mem::take(&mut self.plugins),
+                &crate::plugin_host::builtin_registry(),
+                &self.selection,
+            )?;
+        }
+        Ok(self)
     }
 
     /// Converts the builder to options without re-checking the combination.
@@ -986,6 +1075,84 @@ mod tests {
             .build()
             .unwrap()
             .browser_args(Path::new("/tmp/profile"))
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn an_unknown_plugin_name_stops_the_build_and_names_what_is_known() {
+        let error = LaunchOptions::builder()
+            .plugins_named(["no-such-plugin"])
+            .build()
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "no-such-plugin"),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("known:"), "{error}");
+    }
+
+    #[cfg(feature = "plugin-shield")]
+    #[test]
+    fn plugins_named_and_a_selection_become_the_plugins_of_the_options() {
+        use crate::config::plugins::PluginSelection;
+
+        let named = LaunchOptions::builder()
+            .plugins_named(["shield"])
+            .build()
+            .unwrap();
+        assert_eq!(named.plugins.names(), ["shield"]);
+
+        let selection = PluginSelection::new()
+            .enable("shield")
+            .with_options("shield", json!({ "level": "strict" }));
+        let selected = LaunchOptions::builder()
+            .plugin_selection(&selection)
+            .build()
+            .unwrap();
+        assert_eq!(selected.plugins.names(), ["shield"]);
+
+        let typo = PluginSelection::new()
+            .enable("shield")
+            .with_options("shield", json!({ "lvel": "strict" }));
+        let error = LaunchOptions::builder()
+            .plugin_selection(&typo)
+            .build()
+            .unwrap_err();
+        assert!(
+            matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "shield"),
+            "{error:?}"
+        );
+
+        let twice = LaunchOptions::builder()
+            .plugins_named(["shield"])
+            .plugin_selection(&PluginSelection::new().enable("shield"))
+            .build()
+            .unwrap_err();
+        assert!(twice.to_string().contains("already in the set"), "{twice}");
+    }
+
+    #[cfg(feature = "plugin-shield")]
+    #[test]
+    fn named_plugins_come_after_the_set_given_to_plugins() {
+        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+
+        struct Mine;
+
+        #[async_trait]
+        impl Plugin for Mine {
+            fn name(&self) -> &str {
+                "mine"
+            }
+        }
+
+        let options = LaunchOptions::builder()
+            .plugins(PluginSet::new().with(Mine).unwrap())
+            .plugins_named(["shield"])
+            .build()
+            .unwrap();
+
+        assert_eq!(options.plugins.names(), ["mine", "shield"]);
     }
 
     #[test]

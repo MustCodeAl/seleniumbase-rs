@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::browser::options::{LaunchSettings, LaunchSwitch};
 use crate::browser::reuse::ReuseClass;
+use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
 use crate::error::SeleniumBaseError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,6 +45,13 @@ pub struct Settings {
     /// WebDriver server. `None` keeps the WebDriver client's own default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_webdriver_timeout_seconds: Option<u64>,
+    /// The browser plugins to turn on by name (the `[plugins]` table, and
+    /// `SB_PLUGINS`, which replaces `enable`). A build without the feature
+    /// `plugins` refuses a non-empty selection when it loads the settings. Turn
+    /// it into plugins with `BrowserConfig::with_plugin_selection` or
+    /// `LaunchOptionsBuilder::plugin_selection` (feature `plugins`).
+    #[serde(default, skip_serializing_if = "PluginSelection::is_empty")]
+    pub plugins: PluginSelection,
 }
 
 /// The settings a command line asked for explicitly, and nothing else.
@@ -225,6 +233,7 @@ impl Default for Settings {
             esc_end: false,
             rec_sb_cdp: false,
             remote_webdriver_timeout_seconds: None,
+            plugins: PluginSelection::default(),
         }
     }
 }
@@ -239,24 +248,28 @@ impl Settings {
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
         })?;
-        if path.extension().is_some_and(|ext| ext == "toml") {
+        let settings: Self = if path.extension().is_some_and(|ext| ext == "toml") {
             toml::from_str(&content).map_err(|e| {
                 SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
-            })
+            })?
         } else {
             serde_json::from_str(&content).map_err(|e| {
                 SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
-            })
-        }
+            })?
+        };
+        settings.plugins.ensure_supported()?;
+        Ok(settings)
     }
 
     pub fn from_toml<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read TOML settings: {e}"))
         })?;
-        toml::from_str(&content).map_err(|e| {
+        let settings: Self = toml::from_str(&content).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
-        })
+        })?;
+        settings.plugins.ensure_supported()?;
+        Ok(settings)
     }
 
     pub fn from_env() -> Result<Self, SeleniumBaseError> {
@@ -410,9 +423,15 @@ impl Settings {
         if let Some(v) = var("SB_ESC_END") {
             settings.esc_end = parse_bool(&v)?;
         }
+        if let Some(v) = var(PLUGINS_ENV) {
+            // The variable names the plugins; the options of the file stay.
+            settings.plugins.set_enabled_from_list(&v);
+        }
         if let Some(v) = var("SB_REC_SB_CDP") {
             settings.rec_sb_cdp = parse_bool(&v)?;
         }
+        // Plugins that cannot run are an error here, not a silent omission.
+        settings.plugins.ensure_supported()?;
         Ok(settings)
     }
 }
@@ -615,6 +634,100 @@ threads = 4
         assert_eq!(settings.extension_dir.as_deref(), Some("/tmp/ext"));
         assert_eq!(settings.threads, Some(4));
         assert!(settings.esc_end && settings.rec_sb_cdp);
+    }
+
+    #[test]
+    fn the_plugins_table_of_a_toml_file_reaches_the_settings() {
+        let settings: Settings = toml::from_str(
+            r#"
+            headless = true
+
+            [plugins]
+            enable = ["shield", "crx"]
+
+            [plugins.shield]
+            level = "strict"
+            "#,
+        )
+        .unwrap();
+
+        assert!(settings.headless);
+        assert_eq!(settings.plugins.enabled(), ["shield", "crx"]);
+        assert_eq!(
+            settings.plugins.options_of("shield").unwrap()["level"],
+            "strict"
+        );
+    }
+
+    #[test]
+    fn settings_without_plugins_write_no_plugins_key() {
+        let text = toml::to_string(&Settings::default()).unwrap();
+        assert!(!text.contains("plugins"), "{text}");
+        let json = serde_json::to_string(&Settings::default()).unwrap();
+        assert!(!json.contains("plugins"), "{json}");
+
+        let with: Settings = toml::from_str("[plugins]\nenable = [\"shield\"]").unwrap();
+        let round_trip: Settings = toml::from_str(&toml::to_string(&with).unwrap()).unwrap();
+        assert_eq!(round_trip, with);
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn sb_plugins_replaces_the_names_and_keeps_the_options_of_the_file() {
+        let from_file: Settings =
+            toml::from_str("[plugins]\nenable = [\"crx\"]\n[plugins.shield]\nlevel = \"strict\"\n")
+                .unwrap();
+
+        let settings = Settings::apply_overrides(from_file, |name| {
+            (name == "SB_PLUGINS").then(|| "shield, block-resources".to_owned())
+        })
+        .unwrap();
+
+        assert_eq!(settings.plugins.enabled(), ["shield", "block-resources"]);
+        assert!(settings.plugins.options_of("shield").is_some());
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn an_empty_sb_plugins_turns_the_plugins_of_the_file_off() {
+        let from_file: Settings = toml::from_str("[plugins]\nenable = [\"shield\"]\n").unwrap();
+
+        let settings = Settings::apply_overrides(from_file.clone(), |name| {
+            (name == "SB_PLUGINS").then(String::new)
+        })
+        .unwrap();
+        assert!(settings.plugins.enabled().is_empty());
+
+        let untouched = Settings::apply_overrides(from_file, |_| None).unwrap();
+        assert_eq!(untouched.plugins.enabled(), ["shield"]);
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    #[test]
+    fn without_plugin_support_a_selection_stops_the_load() {
+        let hint = "--features plugins-builtin";
+        let error = Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_PLUGINS").then(|| "shield".to_owned())
+        })
+        .unwrap_err();
+        assert!(error.to_string().contains(hint), "{error}");
+
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"[plugins]\nenable = [\"shield\"]\n")
+            .unwrap();
+        for result in [
+            Settings::from_file(file.path()),
+            Settings::from_toml(file.path()),
+        ] {
+            let error = result.unwrap_err();
+            assert!(error.to_string().contains(hint), "{error}");
+        }
+
+        // Asking for nothing is fine.
+        Settings::apply_overrides(Settings::default(), |name| {
+            (name == "SB_PLUGINS").then(String::new)
+        })
+        .unwrap();
     }
 
     #[test]
