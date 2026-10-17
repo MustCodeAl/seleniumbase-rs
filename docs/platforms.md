@@ -152,7 +152,7 @@ with `CARGO_BUILD_JOBS=2` in a container limited to 4 GB.
 
 These runs predate 0.3.0: the feature set still had `scrape`, so the counts below
 include the tests of the stealth layer, which has since moved to
-[seleniumbase-rs-stealth](stealth/index.md)
+[seleniumbase-rs-stealth](stealth/overview.md)
 (its `impersonate` runs, the measured-persona checks and a flaky JA3 test fixed
 then are no longer part of this crate).
 
@@ -196,7 +196,7 @@ and the Tauri example builds its `.msi` and setup `.exe`. (The stealth layer,
 then the `impersonate` feature, built and passed there too; it now lives in
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 with its CMake, NASM and LLVM requirements.) Install steps:
-[Building and installing](building.md#windows-powershell).
+[Building and installing](building.md#what-you-need).
 
 **What works differently**
 

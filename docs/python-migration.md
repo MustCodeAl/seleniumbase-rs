@@ -22,8 +22,12 @@ Use `sbrs import-python` when:
 - You want a starting point for a manual migration.
 - You need to compare the original Python with generated Rust side by side.
 
+<Warning>
+
 Do not expect the importer to produce production-ready Rust for complex suites
 without review. Treat its output as a first draft.
+
+</Warning>
 
 ## Convert a file from the CLI
 
@@ -44,7 +48,12 @@ command then exits with an error if any diagnostic has the `Error` severity.
 The importer skips `import`, `from`, `def`, `class`, decorator and `with SB(`
 lines and reads the statements that remain, so every statement in the file ends
 up in one generated test, even when the Python file has several test methods.
-Split them by hand.
+
+<Note>
+
+Split the test methods by hand: every statement of the file lands in one generated test.
+
+</Note>
 
 ## Override detection
 
@@ -122,14 +131,20 @@ non-literal argument, an XPath with no CSS equivalent, an unknown `By` strategy)
 becomes a `TODO` comment and an `Error` diagnostic, which makes the CLI exit
 with an error.
 
+<Danger>
+
 Always review the generated file before running it.
+
+</Danger>
 
 ## Example conversion
 
-Given this Python file:
+Given this Python file, the importer produces the Rust file next to it (the layout
+is rustfmt-able but not formatted):
 
-```python
-# tests/login_test.py
+<CodeGroup>
+
+```python tests/login_test.py
 from seleniumbase import BaseCase
 
 class LoginTest(BaseCase):
@@ -141,9 +156,7 @@ class LoginTest(BaseCase):
         self.assert_text("Welcome", "body")
 ```
 
-The importer produces (the layout is rustfmt-able but not formatted):
-
-```rust
+```rust tests/login_test.rs
 use seleniumbase_rs::{BrowserConfig, run_browser_test};
 
 #[tokio::test]
@@ -159,15 +172,45 @@ async fn login_test() -> seleniumbase_rs::Result<()> {
 }
 ```
 
+</CodeGroup>
+
 ## Validate the generated Rust
 
 After conversion, run these steps before trusting the test:
 
-1. Read the file and resolve every `TODO` comment.
-2. Run `cargo fmt` to normalize formatting.
-3. Compile with `cargo check` or `cargo build`.
-4. Run the test against a safe environment first.
-5. Review diagnostics printed by the importer.
+<Steps>
+
+<Step title="Resolve the TODOs">
+
+Read the file and resolve every `TODO` comment.
+
+</Step>
+
+<Step title="Format">
+
+Run `cargo fmt` to normalize formatting.
+
+</Step>
+
+<Step title="Compile">
+
+Compile with `cargo check` or `cargo build`.
+
+</Step>
+
+<Step title="Run it safely">
+
+Run the test against a safe environment first.
+
+</Step>
+
+<Step title="Review the diagnostics">
+
+Review diagnostics printed by the importer.
+
+</Step>
+
+</Steps>
 
 ## Programmatic API
 
@@ -208,11 +251,39 @@ if !result.is_complete() {
 For large suites, a full automated migration is usually not practical. A more
 realistic approach is:
 
-1. Pick a small, stable subset of tests to migrate first.
-2. Use `sbrs import-python` to generate drafts.
-3. Refactor the generated code into helpers and page objects in Rust.
-4. Run both Python and Rust suites in parallel until confidence is high.
-5. Gradually migrate the remaining tests, prioritizing the most valuable ones.
+<Steps>
+
+<Step title="Start small">
+
+Pick a small, stable subset of tests to migrate first.
+
+</Step>
+
+<Step title="Generate drafts">
+
+Use `sbrs import-python` to generate drafts.
+
+</Step>
+
+<Step title="Refactor">
+
+Refactor the generated code into helpers and page objects in Rust.
+
+</Step>
+
+<Step title="Run both suites">
+
+Run both Python and Rust suites in parallel until confidence is high.
+
+</Step>
+
+<Step title="Migrate the rest">
+
+Gradually migrate the remaining tests, prioritizing the most valuable ones.
+
+</Step>
+
+</Steps>
 
 ## Related reading
 

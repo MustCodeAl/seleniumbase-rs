@@ -33,11 +33,15 @@ The crate root exposes the following modules:
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
 
+<Note>
+
 The modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. They are
 the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
 `seleniumbase-rs-mimic` of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 now, which build on the public items of `sb_cdp` and `stealth` listed here.
+
+</Note>
 
 ## Crate-root re-exports
 
@@ -97,9 +101,15 @@ where
 
 ## ABI note
 
+<Warning>
+
 Rust does not have a stable application binary interface. Do not pass
 `seleniumbase-rs` types across a dynamic-library boundary or assume a fixed
-memory layout. If you need to drive the crate from another language, write a
+memory layout.
+
+</Warning>
+
+If you need to drive the crate from another language, write a
 small `extern "C"` shim that accepts C-compatible arguments and internally
 builds a `BaseCase` or calls the Rust API:
 
@@ -112,7 +122,13 @@ pub extern "C" fn sb_open_url(url: *const c_char) {
 ```
 
 The default toolchain, target, and compiler version can all change the layout
-of public structs. Treat the Rust API as source-compatible only.
+of public structs.
+
+<Info>
+
+Treat the Rust API as source-compatible only.
+
+</Info>
 
 ## Versioning policy
 
@@ -122,8 +138,12 @@ of public structs. Treat the Rust API as source-compatible only.
 * Minor releases add functionality in a backward-compatible way.
 * Major releases may break the public API.
 
+<Warning>
+
 Because the crate is pre-1.0, minor releases (`0.x`) may contain breaking
 changes. Pin to an exact version or a narrow range in production.
+
+</Warning>
 
 ## Feature flags
 
@@ -181,14 +201,22 @@ fn read_config(path: &str) -> Result<String> {
 
 ## What is not covered
 
+<Warning>
+
 **`stealth::providers::session_registry` is not yet a stable API.** It serves the
 experimental stealth layer of seleniumbase-rs-stealth: its names and behaviour may
 change in any release, even a patch release, as measurements and reviews come in.
+
+</Warning>
+
+<Note>
 
 Internal helper modules, `#[doc(hidden)]` items, and items under
 `api::base_case_impls` are implementation details. They may change without a
 major version bump. Rely only on the public modules and re-exports listed
 above.
+
+</Note>
 
 ## API stability checklist for consumers
 

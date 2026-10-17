@@ -138,7 +138,7 @@ experimental [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbas
 project (it left this crate in 0.3.0). It was tested against local servers and a
 local Chrome, not live services. See
 [the stealth tutorial](tutorials/fingerprint_stealth.md) and
-[Stealth scraping](stealth/index.md).
+[Stealth scraping](stealth/overview.md).
 
 </Accordion>
 

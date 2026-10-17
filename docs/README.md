@@ -51,13 +51,13 @@ Security, reliability, performance and how it compares.
 
 </Card>
 
-<Card title="Plugins" icon="plug" href="plugins/index.md">
+<Card title="Plugins" icon="plug" href="plugins/overview.md">
 
 Browser plugins as Rust crates: block resources, load extensions, run WebAssembly.
 
 </Card>
 
-<Card title="Stealth scraping" icon="fingerprint" href="stealth/index.md">
+<Card title="Stealth scraping" icon="fingerprint" href="stealth/overview.md">
 
 Wire fingerprints, identities and the browser scraper (experimental).
 
@@ -161,7 +161,7 @@ from a release tag (see [Building and installing](building.md)).
 ## The ecosystem
 
 Companion projects live in their own repositories and are documented on this
-site: see the [Ecosystem](ecosystem/index.md) page.
+site: see the [Ecosystem](ecosystem/overview.md) page.
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 

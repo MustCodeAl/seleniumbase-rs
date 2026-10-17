@@ -41,11 +41,15 @@ different values. The ones to know:
 | `SB_NO_SANDBOX` | pass `--no-sandbox` to Chrome in the pure CDP engine (see below) |
 | `SB_MCP_OUTPUT_DIR` | where the MCP server may write files (default `./mcp_output`) |
 
+<Warning>
+
 Pass secrets (proxy logins, cloud credentials) through your platform's secret
 store as environment variables, never into the image or the repository. A
 `Proxy` with credentials does not print its password in `Debug`, `Display` or the
 command line, but the process environment is still readable by whoever can run
 code in the container.
+
+</Warning>
 
 ## Containers
 
@@ -67,28 +71,59 @@ commands, the build time and the test results are in
 [Building and installing](building.md#container) and
 [Operating systems](platforms.md#verified-on-linux).
 
-Notes:
+<AccordionGroup>
 
-- Because the entry point is `sbrs`, the arguments after the image name are
-  `sbrs` arguments. Do not repeat `sbrs`. The browser commands (`open`,
-  `smoke`, ...) read `SB_HEADLESS` and the other `SB_*` variables, and a
-  `--headless` before the subcommand beats the variable; a container has no
-  display, so set one of them.
-- The image links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
-  the working directory, where the WebDriver engine looks first, so it downloads
-  nothing. Without that link it would download the matching Chrome for Testing
-  driver (`linux64` or `linux-arm64`) on first use.
-- Chrome refuses to start its sandbox in many container setups. The WebDriver
-  engine always passes `--no-sandbox` on Linux. For the pure CDP engine,
-  `SB_NO_SANDBOX=1` (any value counts, `0` included) or
-  `LaunchOptionsBuilder::no_sandbox(true)` passes it. That weakens the browser's
-  isolation, so use it only in a container you control and give the container no
-  more privileges than it needs.
-- Chromium in Docker often needs a larger shared-memory area than the default;
-  `docker run --shm-size=1g ...` is the usual remedy for crashes under load.
-  This is general Chromium advice, not something this project measured.
-- Use `sbrs doctor` as a readiness check: it compares the chromedriver's major
-  version with Chrome's.
+<Accordion title="Entry point and arguments">
+
+Because the entry point is `sbrs`, the arguments after the image name are
+`sbrs` arguments. Do not repeat `sbrs`. The browser commands (`open`,
+`smoke`, ...) read `SB_HEADLESS` and the other `SB_*` variables, and a
+`--headless` before the subcommand beats the variable; a container has no
+display, so set one of them.
+
+</Accordion>
+
+<Accordion title="The chromedriver">
+
+The image links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
+the working directory, where the WebDriver engine looks first, so it downloads
+nothing. Without that link it would download the matching Chrome for Testing
+driver (`linux64` or `linux-arm64`) on first use.
+
+</Accordion>
+
+<Accordion title="The Chrome sandbox">
+
+Chrome refuses to start its sandbox in many container setups. The WebDriver
+engine always passes `--no-sandbox` on Linux. For the pure CDP engine,
+`SB_NO_SANDBOX=1` (any value counts, `0` included) or
+`LaunchOptionsBuilder::no_sandbox(true)` passes it.
+
+<Warning>
+
+That weakens the browser's isolation, so use it only in a container you control
+and give the container no more privileges than it needs.
+
+</Warning>
+
+</Accordion>
+
+<Accordion title="Shared memory">
+
+Chromium in Docker often needs a larger shared-memory area than the default;
+`docker run --shm-size=1g ...` is the usual remedy for crashes under load.
+This is general Chromium advice, not something this project measured.
+
+</Accordion>
+
+<Accordion title="Readiness check">
+
+Use `sbrs doctor` as a readiness check: it compares the chromedriver's major
+version with Chrome's.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## CI
 
@@ -133,9 +168,14 @@ output, so it is started by the client that uses it, one process per client:
 sbrs-mcp --server cdp
 ```
 
-- It does not open a network port. Do not wrap it in a public network service
-  without adding your own authentication; anyone who can call its tools can
-  drive the browser.
+<Danger>
+
+It does not open a network port. Do not wrap it in a public network service
+without adding your own authentication; anyone who can call its tools can
+drive the browser.
+
+</Danger>
+
 - Files its tools write stay inside `SB_MCP_OUTPUT_DIR`. Give that directory its
   own volume with a size limit.
 - Point it at test or staging sites. A tool call can click and type anywhere the
