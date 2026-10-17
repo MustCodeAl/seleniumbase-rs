@@ -85,6 +85,8 @@ not retry failed tests, so flaky behavior is not hidden.
 
 As your suite grows, extract reusable helpers into modules or crates:
 
+<View title="BaseCase (WebDriver)">
+
 ```rust
 // tests/helpers/mod.rs
 use seleniumbase_rs::{BaseCase, Result};
@@ -97,6 +99,13 @@ pub async fn login(sb: &mut BaseCase, user: &str, pass: &str) -> Result<()> {
     sb.assert_element_visible("#dashboard").await
 }
 ```
+
+`BaseCase::find_element` is still there when you want the `thirtyfour::WebElement`
+handle.
+
+</View>
+
+<View title="sb_cdp (pure CDP)">
 
 Use the capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`,
 `ScreenshotApi`) when you want helpers to work with any type that exposes the
@@ -112,8 +121,9 @@ async fn fill_email<E: ElementApi>(sb: &mut E, email: &str) -> Result<(), seleni
 
 Both `BaseCase` (WebDriver) and `sb_cdp::Page` (Pure CDP) implement the traits,
 so the same helper runs on either. `ElementApi` no longer has `find_element`,
-because its `thirtyfour::WebElement` return type tied the trait to WebDriver;
-`BaseCase::find_element` is still there when you want that handle.
+because its `thirtyfour::WebElement` return type tied the trait to WebDriver.
+
+</View>
 
 ## Parameterized tests
 

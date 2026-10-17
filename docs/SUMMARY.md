@@ -11,6 +11,7 @@ hidden: true
   - [Deployment](deployment.md)
   - [Operating systems](platforms.md)
 - [FAQ](faq.md)
+- [Changelog](changelog.md)
 - [Why Rust?](why-rust.md)
   - [How it compares](comparison.md)
   - [Security](security.md)
