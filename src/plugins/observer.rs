@@ -347,9 +347,24 @@ impl Plugins {
     where
         F: AsyncFnOnce(&Page) -> Result<()>,
     {
+        self.run_cdp_test_after(name, Browser::launch(options), test)
+            .await
+    }
+
+    /// [`run_cdp_test`](Self::run_cdp_test) with the launch given as a future,
+    /// so a test can stand a mocked browser in.
+    pub(crate) async fn run_cdp_test_after<F>(
+        &mut self,
+        name: &str,
+        launch: impl std::future::Future<Output = Result<Browser>>,
+        test: F,
+    ) -> Result<()>
+    where
+        F: AsyncFnOnce(&Page) -> Result<()>,
+    {
         self.started(name).await;
         let began = Instant::now();
-        let browser = match Browser::launch(options).await {
+        let browser = match launch.await {
             Ok(browser) => browser,
             Err(error) => {
                 let outcome = Err(error);
@@ -490,11 +505,38 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_passing_cdp_test_is_started_and_finished() {
+    async fn a_passing_cdp_test_is_finished() {
         let recorder = Recorder::default();
         let outcome = cdp_run(&recorder, async |_: &Page| Ok(())).await;
         assert!(outcome.is_ok(), "{outcome:?}");
         assert_eq!(recorder.lines(), ["finished t ok=true"]);
+    }
+
+    #[tokio::test]
+    async fn a_launched_cdp_test_is_started_then_finished() {
+        let recorder = Recorder::default();
+        let (browser, _mock) = Browser::new_mocked();
+        let outcome = Plugins::new()
+            .with(recorder.clone())
+            .run_cdp_test_after("t", async { Ok(browser) }, async |_: &Page| Ok(()))
+            .await;
+        assert!(outcome.is_ok(), "{outcome:?}");
+        assert_eq!(recorder.lines(), ["started t", "finished t ok=true"]);
+    }
+
+    #[tokio::test]
+    async fn a_cdp_launch_that_fails_is_started_and_finished_as_failed() {
+        let recorder = Recorder::default();
+        let outcome = Plugins::new()
+            .with(recorder.clone())
+            .run_cdp_test_after(
+                "t",
+                async { Err(SeleniumBaseError::AssertionFailed("no chrome".to_owned())) },
+                async |_: &Page| Ok(()),
+            )
+            .await;
+        assert!(outcome.is_err());
+        assert_eq!(recorder.lines(), ["started t", "finished t ok=false"]);
     }
 
     #[tokio::test]
