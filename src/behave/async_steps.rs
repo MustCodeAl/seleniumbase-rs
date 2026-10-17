@@ -327,6 +327,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_top_level_alternation_is_anchored_as_a_whole() {
+        let mut registry = registry();
+        registry.register_step("yes|no", Box::new(|_, _, _| Box::pin(async { Ok(()) })));
+
+        assert!(registry.has_handler("yes"));
+        assert!(registry.has_handler("Given no"));
+        assert!(!registry.has_handler("yes please"));
+        assert!(!registry.has_handler("Given I said no"));
+    }
+
+    #[tokio::test]
     async fn registering_a_step_again_replaces_it() {
         let mut registry = registry();
         registry.register("Given x", failing("first"));

@@ -16,7 +16,9 @@ pub type StepHandler = Box<dyn Fn(&str, &[String]) -> Result<(), String>>;
 /// "5"`), so a pattern that starts at `^the value` would never match a step
 /// run from a feature file. This one matches `Then the value ...`, `And the
 /// value ...` and the bare `the value ...`. `text` is a regex and may hold
-/// capture groups; it is not anchored, this adds the anchors.
+/// capture groups; it is not anchored, this adds the anchors around the whole
+/// of it, so a top-level alternation such as `yes|no` matches `yes` or `no`
+/// and nothing longer.
 ///
 /// [`StepRegistry::register_step`] and
 /// [`AsyncStepRegistry::register_step`](crate::behave::AsyncStepRegistry::register_step)
@@ -34,7 +36,9 @@ pub type StepHandler = Box<dyn Fn(&str, &[String]) -> Result<(), String>>;
 /// # Ok::<(), regex::Error>(())
 /// ```
 pub fn step_pattern(text: &str) -> String {
-    format!(r"^(?:(?:Given|When|Then|And|But|\*)\s+)?{text}$")
+    // `text` sits in a non-capturing group, so a top-level `a|b` is anchored
+    // as a whole and the numbering of its own groups does not change.
+    format!(r"^(?:(?:Given|When|Then|And|But|\*)\s+)?(?:{text})$")
 }
 
 /// The capture groups of a match, group 1 first.
@@ -296,6 +300,18 @@ mod tests {
         assert!(registry
             .try_register_step("(unclosed", Box::new(|_, _| Ok(())))
             .is_err());
+    }
+
+    #[test]
+    fn a_top_level_alternation_is_anchored_as_a_whole() {
+        let mut registry = StepRegistry::new();
+        registry.register_step("yes|no", Box::new(|_, _| Ok(())));
+
+        assert!(registry.has_handler("yes"));
+        assert!(registry.has_handler("Given no"));
+        // `^` and `$` must bind both sides, not just the first and the last.
+        assert!(!registry.has_handler("yes please"));
+        assert!(!registry.has_handler("Given I said no"));
     }
 
     #[test]
