@@ -18,7 +18,9 @@ use std::collections::HashMap;
 
 use base64::Engine;
 
-use crate::stealth::fingerprint::{BrandVersion, Fingerprint, OsType, ProxyMaskingMode, QuicMode};
+use crate::stealth::fingerprint::{
+    BrandVersion, Fingerprint, NoiseMode, OsType, PopupMode, ProxyMaskingMode, QuicMode,
+};
 use crate::stealth::providers::{default_registry, session_registry, EvasionContext};
 use crate::stealth::randomize::{chromium_hints, PRESET_CHROMIUM_MAJOR};
 
@@ -326,31 +328,48 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
+    // The geolocation override only delivers its position to a page that may
+    // ask for it; with the popup allowed nobody is there to press "Allow", so
+    // the permission is granted up front.
+    let mut permissions: Vec<&str> = Vec::new();
+    if fp.latitude.is_some()
+        && fp.longitude.is_some()
+        && fp.flags.geolocation_popup == PopupMode::Allow
+    {
+        permissions.push("geolocation");
+    }
     if fp.flags.grant_permissions {
+        permissions.extend([
+            "notifications",
+            "midi",
+            "midiSysex",
+            "clipboardReadWrite",
+            "clipboardSanitizedWrite",
+            "paymentHandler",
+            "backgroundSync",
+            "idleDetection",
+            "webAppInstallation",
+        ]);
+    }
+    if !permissions.is_empty() {
         map.insert(
             "Browser.grantPermissions".to_owned(),
-            serde_json::json!({
-                "permissions": [
-                    "notifications", "midi", "midiSysex", "clipboardReadWrite",
-                    "clipboardSanitizedWrite", "paymentHandler", "backgroundSync",
-                    "idleDetection", "webAppInstallation"
-                ]
-            }),
+            serde_json::json!({ "permissions": permissions }),
         );
     }
 
+    // One command carries the tracker hosts and the blocked ports: a second
+    // `Network.setBlockedURLs` would replace the first.
+    let mut blocked: Vec<String> = Vec::new();
     if fp.flags.block_trackers {
-        let hosts: Vec<String> = fp
-            .tracker_hosts()
-            .iter()
-            .map(|h| format!("*{h}*"))
-            .collect();
-        if !hosts.is_empty() {
-            map.insert(
-                "Network.setBlockedURLs".to_owned(),
-                serde_json::json!({ "urls": hosts }),
-            );
-        }
+        blocked.extend(fp.tracker_hosts().iter().map(|h| format!("*{h}*")));
+    }
+    blocked.extend(blocked_port_patterns(fp));
+    if !blocked.is_empty() {
+        map.insert(
+            "Network.setBlockedURLs".to_owned(),
+            serde_json::json!({ "urls": blocked }),
+        );
     }
 
     if fp.flags.disable_csp {
@@ -387,6 +406,27 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     }
 
     map
+}
+
+/// The loopback names a blocked port is refused on.
+const LOOPBACK_HOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
+
+/// `Network.setBlockedURLs` patterns that refuse the fingerprint's blocked
+/// ports on every loopback name, so a page cannot probe local services (or the
+/// browser's own debugging port) through them. Empty when no port is set or
+/// the ports mode is `Natural` or `Off`.
+fn blocked_port_patterns(fp: &Fingerprint) -> Vec<String> {
+    if matches!(fp.flags.ports_masking, NoiseMode::Natural | NoiseMode::Off) {
+        return Vec::new();
+    }
+    fp.ports
+        .iter()
+        .flat_map(|port| {
+            LOOPBACK_HOSTS
+                .iter()
+                .map(move |host| format!("*://{host}:{port}/*"))
+        })
+        .collect()
 }
 
 /// Builds a `userAgentMetadata` object for `Network.setUserAgentOverride` from
@@ -506,7 +546,7 @@ fn major_of(version: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::Fingerprint;
+    use crate::stealth::fingerprint::{Fingerprint, NoiseMode, PopupMode};
 
     #[test]
     fn bootstrap_includes_webdriver_evasion() {
@@ -560,6 +600,94 @@ mod tests {
         let map = cdp_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
+    }
+
+    /// The names in the `Browser.grantPermissions` override, if there is one.
+    fn granted(fp: &Fingerprint) -> Option<Vec<String>> {
+        let map = cdp_overrides(fp);
+        let params = map.get("Browser.grantPermissions")?;
+        Some(
+            params["permissions"]
+                .as_array()?
+                .iter()
+                .filter_map(|name| name.as_str().map(str::to_owned))
+                .collect(),
+        )
+    }
+
+    /// The URL patterns in the `Network.setBlockedURLs` override, if any.
+    fn blocked_urls(fp: &Fingerprint) -> Option<Vec<String>> {
+        let map = cdp_overrides(fp);
+        let params = map.get("Network.setBlockedURLs")?;
+        Some(
+            params["urls"]
+                .as_array()?
+                .iter()
+                .filter_map(|url| url.as_str().map(str::to_owned))
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn blocked_ports_are_refused_on_every_loopback_name() {
+        let fp = Fingerprint::builder()
+            .blocked_ports(vec![9222, 8080])
+            .build();
+        let urls = blocked_urls(&fp).expect("a block list");
+        for host in ["localhost", "127.0.0.1", "[::1]"] {
+            for port in [9222, 8080] {
+                let pattern = format!("*://{host}:{port}/*");
+                assert!(urls.contains(&pattern), "{pattern} in {urls:?}");
+            }
+        }
+        assert_eq!(urls.len(), 6, "{urls:?}");
+    }
+
+    #[test]
+    fn blocked_ports_and_trackers_share_one_command() {
+        let mut fp = Fingerprint::builder().blocked_ports(vec![9222]).build();
+        fp.flags.block_trackers = true;
+        let urls = blocked_urls(&fp).expect("a block list");
+        assert!(urls.contains(&"*://localhost:9222/*".to_owned()), "{urls:?}");
+        assert!(urls.contains(&"*doubleclick.net*".to_owned()), "{urls:?}");
+    }
+
+    #[test]
+    fn a_natural_ports_mode_blocks_nothing() {
+        let mut fp = Fingerprint::builder().blocked_ports(vec![9222]).build();
+        for mode in [NoiseMode::Natural, NoiseMode::Off] {
+            fp.flags.ports_masking = mode;
+            assert_eq!(blocked_urls(&fp), None, "{mode:?}");
+        }
+        assert_eq!(blocked_urls(&Fingerprint::default()), None);
+    }
+
+    #[test]
+    fn an_allowed_geolocation_popup_grants_the_geolocation_permission() {
+        // Without the grant, the position the override sets is never delivered:
+        // the page waits on a permission prompt nobody can answer.
+        let mut fp = Fingerprint::builder().geolocation(40.0, -74.0).build();
+        fp.flags.geolocation_popup = PopupMode::Allow;
+        assert_eq!(granted(&fp), Some(vec!["geolocation".to_owned()]));
+
+        // The other permissions are still the flag's.
+        fp.flags.grant_permissions = true;
+        let names = granted(&fp).expect("a grant");
+        assert!(names.contains(&"geolocation".to_owned()), "{names:?}");
+        assert!(names.contains(&"notifications".to_owned()), "{names:?}");
+    }
+
+    #[test]
+    fn a_geolocation_popup_that_is_not_allowed_grants_nothing() {
+        let mut fp = Fingerprint::builder().geolocation(40.0, -74.0).build();
+        for popup in [PopupMode::Prompt, PopupMode::Block] {
+            fp.flags.geolocation_popup = popup;
+            assert_eq!(granted(&fp), None, "{popup:?}");
+        }
+        // Allow without coordinates has nothing to deliver.
+        let mut fp = Fingerprint::default();
+        fp.flags.geolocation_popup = PopupMode::Allow;
+        assert_eq!(granted(&fp), None);
     }
 
     #[test]

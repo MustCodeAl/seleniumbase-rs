@@ -19,7 +19,7 @@
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
 use crate::stealth::fingerprint::{
-    BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
+    BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, OsType, PopupMode,
 };
 
 /// Returns `true` when a masking mode should emit its evasion.
@@ -1586,8 +1586,10 @@ impl EvasionProvider for LocalizationProvider {
 /// Spoofs `navigator.geolocation.getCurrentPosition` / `watchPosition` (CDP
 /// fallback).
 ///
-/// The methods are replaced on `Geolocation.prototype`. When the popup mode is
-/// not `Allow`, they are the browser's own.
+/// The methods are replaced on `Geolocation.prototype`. With the popup mode
+/// `Allow` they answer with the fingerprint's position without asking; with
+/// `Block` they answer as a user who denied the request (`PERMISSION_DENIED`).
+/// With `Prompt` they are the browser's own.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GeolocationProvider;
 
@@ -1599,29 +1601,43 @@ impl EvasionProvider for GeolocationProvider {
         95
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.geolocation_masking) && fp.latitude.is_some() && !fp.flags.native_spoofing
+        let answers = masked(fp.flags.geolocation_masking) && fp.latitude.is_some();
+        let denies = fp.flags.geolocation_popup == PopupMode::Block;
+        (answers || denies) && !fp.flags.native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
         let acc = EvasionContext::number(fp.accuracy.unwrap_or(100.0));
         let allow = matches!(fp.flags.geolocation_popup, PopupMode::Allow);
+        let block = matches!(fp.flags.geolocation_popup, PopupMode::Block);
         Some(render(
             r##"(function () {
   @SB@
   if (typeof Geolocation === 'undefined') { return; }
   const coords = { latitude: @LAT@, longitude: @LON@, altitude: @ALT@, accuracy: @ACC@, altitudeAccuracy: @ACC@, heading: null, speed: null };
   const allow = @ALLOW@;
+  const block = @BLOCK@;
   const originalGet = Geolocation.prototype.getCurrentPosition;
   const originalWatch = Geolocation.prototype.watchPosition;
   let nextWatch = 1;
   function answer(success) {
     setTimeout(function () { if (typeof success === 'function') { success({ coords: coords, timestamp: Date.now() }); } }, 0);
   }
+  // The answer to a user who pressed "Block": PERMISSION_DENIED (code 1).
+  function deny(error) {
+    setTimeout(function () {
+      if (typeof error === 'function') {
+        error({ code: 1, message: 'User denied Geolocation', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+      }
+    }, 0);
+  }
   Geolocation.prototype.getCurrentPosition = sb.native(function getCurrentPosition(success, error, options) {
+    if (block) { deny(error); return; }
     if (!allow) { return originalGet.apply(this, arguments); }
     answer(success);
   }, 'getCurrentPosition', originalGet);
   Geolocation.prototype.watchPosition = sb.native(function watchPosition(success, error, options) {
+    if (block) { deny(error); return nextWatch++; }
     if (!allow) { return originalWatch.apply(this, arguments); }
     answer(success);
     return nextWatch++;
@@ -1633,12 +1649,16 @@ impl EvasionProvider for GeolocationProvider {
                 ("ALT", &EvasionContext::number(fp.altitude.unwrap_or(0.0))),
                 ("ACC", &acc),
                 ("ALLOW", if allow { "true" } else { "false" }),
+                ("BLOCK", if block { "true" } else { "false" }),
             ],
         ))
     }
 }
 
 /// Fixes the Modernizr hairline headless detection.
+///
+/// It is a headless fix, so it follows `headless_masking`; it is not graphics
+/// noise, and `graphics_noise` does not decide it.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HairlineProvider;
 
@@ -1650,10 +1670,7 @@ impl EvasionProvider for HairlineProvider {
         110
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        matches!(
-            fp.flags.graphics_noise,
-            NoiseMode::Mask | NoiseMode::Natural
-        )
+        masked(fp.flags.headless_masking)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -1810,7 +1827,9 @@ impl EvasionProvider for TrackerBlockProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{BatteryProfile, BrandVersion, ClientHints, Fingerprint};
+    use crate::stealth::fingerprint::{
+        BatteryProfile, BrandVersion, ClientHints, Fingerprint, NoiseMode,
+    };
 
     fn ctx_for(fp: &Fingerprint) -> EvasionContext<'_> {
         EvasionContext::new(fp)
@@ -1936,6 +1955,51 @@ mod tests {
         let first = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
         let second = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
         assert_ne!(first, second, "Random draws a fresh seed for each context");
+    }
+
+    #[test]
+    fn the_hairline_fix_follows_the_headless_flag_not_graphics_noise() {
+        // `graphics_noise` used to decide this, and only Mask and Natural
+        // turned the fix on: asking for Medium noise switched it off.
+        for noise in [
+            NoiseMode::Mask,
+            NoiseMode::Natural,
+            NoiseMode::Off,
+            NoiseMode::Block,
+            NoiseMode::Random,
+            NoiseMode::Low,
+            NoiseMode::Medium,
+            NoiseMode::High,
+        ] {
+            let mut fp = Fingerprint::windows_desktop();
+            fp.flags.graphics_noise = noise;
+            assert!(HairlineProvider.applies(&fp), "{noise:?}");
+        }
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.headless_masking = MaskingMode::Natural;
+        assert!(!HairlineProvider.applies(&fp));
+    }
+
+    #[test]
+    fn a_blocked_geolocation_popup_answers_permission_denied() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.latitude = Some(40.0);
+        fp.longitude = Some(-74.0);
+        fp.flags.geolocation_popup = PopupMode::Block;
+        assert!(GeolocationProvider.applies(&fp));
+        let script = GeolocationProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const block = true;"), "{script}");
+        assert!(script.contains("PERMISSION_DENIED: 1"));
+
+        // Blocking needs no coordinates: the answer is a refusal.
+        fp.latitude = None;
+        assert!(GeolocationProvider.applies(&fp));
+
+        fp.flags.geolocation_popup = PopupMode::Allow;
+        fp.latitude = Some(40.0);
+        let script = GeolocationProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const block = false;"));
+        assert!(script.contains("const allow = true;"));
     }
 
     #[test]
