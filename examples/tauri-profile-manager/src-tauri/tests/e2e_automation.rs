@@ -13,6 +13,11 @@
 //! for them, which the test checks). It stops the app when it ends, also when
 //! it fails.
 //!
+//! If the window does not have the size the test set, run it again with
+//! `SBRS_AUTOMATION_TRACE_WINDOW=1`: the app inherits it, and the plugin then
+//! prints the window's state (Tauri's flags and, on macOS, the `NSWindow`'s
+//! style mask, frame and screen) before and after each window command.
+//!
 //! It opens the app's window, so it is ignored by default. Run it with:
 //!
 //! ```text
@@ -228,8 +233,13 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
         "the window is {width} x {height}"
     );
     sb.set_window_size(900, 700).await?;
-    let (_, _, width, height) = sb.get_window_rect().await?;
-    assert_eq!((width, height), (900, 700));
+    let (x, y, width, height) = sb.get_window_rect().await?;
+    assert_eq!(
+        (width, height),
+        (900, 700),
+        "the window is {width} x {height} at {x}, {y} after set_window_size(900, 700); \
+         run again with SBRS_AUTOMATION_TRACE_WINDOW=1 to see what the window says"
+    );
 
     sb.execute_script(CONTROLS).await?;
     sb.wait_for_element_visible("#e2e-twice", 10).await?;
