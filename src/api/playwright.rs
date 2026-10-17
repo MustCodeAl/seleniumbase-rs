@@ -50,7 +50,8 @@ pub async fn launch_playwright() -> Result<PlaywrightSession, SeleniumBaseError>
 ///
 /// Returns [`SeleniumBaseError::BrowserLaunch`] if Chromium cannot be started.
 pub async fn launch_playwright_headless() -> Result<PlaywrightSession, SeleniumBaseError> {
-    PlaywrightSession::launch_headless().await
+    PlaywrightSession::launch_with_config(&crate::BrowserConfig::default().with_headless(true))
+        .await
 }
 
 /// Navigates the active Playwright page to `url`.

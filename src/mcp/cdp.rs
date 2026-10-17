@@ -1098,11 +1098,8 @@ async fn type_text(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let field = page.locator(selector).with_timeout(timeout);
 
     match mode {
-        "fill_input" => {
-            field.clear().await?;
-            field.type_text(text).await?;
-        }
-        "append" => field.type_text(text).await?,
+        "fill_input" => field.type_text(text).await?,
+        "append" => field.send_keys(text).await?,
         "fast_type" => {
             field.clear().await?;
             // Inserting text in one step cannot press Enter, so do that
@@ -1450,7 +1447,7 @@ async fn manage_tabs(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         "open_new_tab" => {
             let url = nonempty(&args, "url")?.unwrap_or("about:blank");
             let switch_to = args.bool_or("switch_to", true)?;
-            let page = session.browser.new_page(Some(url)).await?;
+            let page = session.browser.new_page_at(url).await?;
             if switch_to {
                 page.bring_to_front().await?;
                 session.page = page;

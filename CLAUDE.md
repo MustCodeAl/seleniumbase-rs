@@ -29,7 +29,7 @@ status of every Python API, `parity/upstream.toml` the upstream version,
 no binary and no command-line crate; the binaries `sbrs` (CLI) and `sbrs-mcp`
 (MCP server) are the package `seleniumbase-rs-cli` in `crates/cli`, which turns
 `pdf` and `mcp-server` on by default and forwards `tui`, `gui` and `turso`. The
-library's default features are empty; `gui`, `tui`, `turso`, `rustwright`,
+library's default features are empty; `gui`, `tui`, `turso`, `playwright`,
 `plugins`, `ocr`, `visual` are opt-in. The
 experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 `MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)

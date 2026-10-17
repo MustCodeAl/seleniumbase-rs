@@ -118,7 +118,9 @@
             "pages": [
               "plugins/overview",
               "plugins/architecture",
+              "plugins/selecting",
               "plugins/writing-your-own",
+              "plugins/shield",
               "plugins/block-resources",
               "plugins/crx",
               "plugins/wasm"

@@ -52,8 +52,8 @@ The parser reads `Feature:`, `Background:`, `Scenario:`, `Scenario Outline:`,
 
 <Note>
 
-Tags on a scenario are the scenario's own; tags written above `Feature:` are not
-copied down to its scenarios.
+Tags written above `Feature:` count as the tags of every scenario in it, so
+`RunFilter` sees them on each one.
 
 </Note>
 
@@ -62,7 +62,9 @@ copied down to its scenarios.
 Use the sync runner for feature-file parsing smoke tests or non-browser steps.
 `run_feature_file` hands the registry each step **with its keyword**, for
 example `When I type "x" into "#email"`, so exact patterns must include the
-keyword and regexes must allow for it:
+keyword and regexes must allow for it. `register_step` does that for you: give
+it the step's text as a regex, without keyword or anchors, and it matches
+`Given`, `When`, `Then`, `And`, `But` or no keyword, like behave's `@step`:
 
 ```rust,no_run
 use seleniumbase_rs::behave::{run_feature_file, StepRegistry};
@@ -70,8 +72,8 @@ use seleniumbase_rs::behave::{run_feature_file, StepRegistry};
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 let mut registry = StepRegistry::new();
 registry.register("Given the login page is open", Box::new(|_, _| Ok(())));
-registry.register_regex(
-    r#"^(?:When|And) I type "(.+?)" into "(.+?)"$"#,
+registry.register_step(
+    r#"I type "(.+?)" into "(.+?)""#,
     Box::new(|_, caps| {
         println!("type {} into {}", caps[0], caps[1]);
         Ok(())
@@ -86,6 +88,11 @@ for r in &results {
 # }
 ```
 
+`try_register_step` returns the regex error instead of panicking, for a pattern
+that comes from outside the program. `register_regex` still takes a complete
+pattern, and `step_pattern(text)` is the one `register_step` builds, for when
+you want to combine it with your own anchors.
+
 <Info>
 
 A step with no matching handler fails its scenario with
@@ -97,12 +104,15 @@ the reason. The Background steps run before each scenario.
 ## Browser-backed async steps
 
 For real browser automation, use `AsyncStepRegistry` backed by a connected
-`BaseCase`. It has no feature-file runner of its own: parse the file, expand the
-outlines, and run each step's text yourself. The built-in browser steps are
-anchored without a keyword, so pass `step.text`, not the full step:
+`BaseCase`. It runs feature files the way the sync registry does:
+`run_feature_file_async`, `run_feature_file_with_filter_async` and
+`run_feature_text_async` read the Background, expand the outlines, apply the
+tags and hand each step to the registry **with its keyword**. The built-in
+browser steps accept any keyword (`Given`, `When`, `Then`, `And`, `But`) or
+none, so they work in a feature file as written:
 
 ```rust,no_run
-use seleniumbase_rs::behave::{expand_scenario_outline, parse_feature, AsyncStepRegistry};
+use seleniumbase_rs::behave::{run_feature_file_async, AsyncStepRegistry};
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
@@ -110,17 +120,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sb = BaseCase::new(BrowserConfig::default()).await?;
     let mut registry = AsyncStepRegistry::new(sb);
     registry.register_common_browser_steps();
+    // A step of your own: a handler gets the shared BaseCase, the step text
+    // and the regex captures, and returns a future that is `Send`.
+    registry.register_step(
+        r#"I see "(.+?)""#,
+        Box::new(|bc, _step, caps| {
+            let wanted = caps[0].clone();
+            Box::pin(async move {
+                let page = bc
+                    .lock()
+                    .await
+                    .get_text("body")
+                    .await
+                    .map_err(|e| e.to_string())?;
+                if page.contains(&wanted) {
+                    Ok(())
+                } else {
+                    Err(format!("`{wanted}` is not on the page"))
+                }
+            })
+        }),
+    );
 
-    let text = std::fs::read_to_string("tests/login.feature")?;
-    let lines: Vec<String> = text.lines().map(str::to_owned).collect();
-    let feature = parse_feature(&lines);
+    let results = run_feature_file_async("tests/login.feature", &registry).await?;
+    for result in &results {
+        println!("{} passed={}", result.name, result.passed);
+    }
 
-    for scenario in &feature.scenarios {
-        for scenario in expand_scenario_outline(scenario) {
-            for step in feature.background.iter().chain(&scenario.steps) {
-                registry.run(&step.text).await?;
-            }
-        }
+    // The registry owns the BaseCase until the run is over; take it back to
+    // close the browser.
+    if let Ok(mut sb) = registry.into_base_case() {
+        sb.quit().await?;
     }
     Ok(())
 }
@@ -128,9 +158,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `register_common_browser_steps` registers these steps and no others:
 `I open "<url>"`, `I go back`, `I go forward`, `I click "<selector>"` and
-`I type "<text>" into "<selector>"`. Register your own with `register` and
-`register_regex`, for example the `I see "..."` step above. A handler receives
-the shared `Rc<RefCell<BaseCase>>`, the step text, and the regex captures.
+`I type "<text>" into "<selector>"`, plus the wording that Python
+SeleniumBase's `--rec-behave` recorder writes for the same: `Open "<url>"`
+(also `Open 'url'` and `Open URL "url"`), `Go back`, `Go forward`,
+`Click "<selector>"` (also `Click element "selector"`) and
+`Type "<text>" into "<selector>"` (also `Type text ...`, and `in` for `into`),
+in single or double quotes. `ActionRecorder::to_gherkin` writes this wording
+too, so a recorded feature runs here and in Python SeleniumBase. Register
+your own with `register`, `register_regex` and `register_step`, as the
+`I see "..."` step above. A handler gets the shared
+`BaseCase` (an `Arc<tokio::sync::Mutex<BaseCase>>`, locked while the step uses
+the browser), the step text and the regex captures.
+
+The registry is `Send + Sync`, so it can sit in an `Arc` and a run can be
+handed to `tokio::spawn`. (The sync `StepRegistry` is not: its handlers may
+hold an `Rc`.) Steps run one at a time.
 
 <Warning>
 
@@ -181,13 +223,14 @@ runner).
   for the keyword in the sync runner.
 - Keep `Background` sections short and focused on shared preconditions.
 - Use tags to organize smoke, regression, and slow tests.
-- Async steps hold a `RefCell` borrow across awaits; run one step at a time.
+- An async step locks the shared `BaseCase` with `bc.lock().await`; do not
+  call `registry.run` from inside a step, which would wait for its own lock.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Step not matched | In the sync runner, the pattern leaves out the keyword (`When`, `And`, ...), or has unescaped quotes or regex metacharacters | Match the keyword too, use raw strings, and test the regex first. |
-| Step not matched in the async registry | You passed the step with its keyword | Pass `step.text`. |
+| Step not matched in the async registry | Same as the sync runner: the registry gets the step with its keyword | Match the keyword too, as the built-in steps do. |
 | Scenario Outline fails | Placeholder not replaced | Ensure the `Examples` table headers match `<placeholders>`. |
-| Borrow error across await | Step holds registry borrow while awaiting | Keep steps short and finish before the next step. |
+| A run hangs | A step called `registry.run` or locked the `BaseCase` twice | Lock it once per step and run steps from the runner, not from each other. |

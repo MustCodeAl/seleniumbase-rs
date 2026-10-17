@@ -145,8 +145,8 @@ async fn launching_and_attaching_a_tab_enables_none_of_them() {
     let (browser, mock) = Browser::new_mocked();
 
     let page = browser.default_page().await.unwrap();
-    let second = browser.new_page(Some("example.com")).await.unwrap();
-    let window = browser.new_window(None::<&str>).await.unwrap();
+    let second = browser.new_page_at("example.com").await.unwrap();
+    let window = browser.new_window().await.unwrap();
     let all = browser.pages().await.unwrap();
 
     assert!(!all.is_empty());
@@ -298,7 +298,7 @@ async fn applying_every_persona_enables_none_of_them() {
             .build()
             .unwrap();
         page.apply_fingerprint(&fingerprint).await.unwrap();
-        let fresh = browser.new_page(None::<&str>).await.unwrap();
+        let fresh = browser.new_page().await.unwrap();
         fresh.apply_fingerprint(&fingerprint).await.unwrap();
         fresh.goto("https://example.com/").await.unwrap();
     }
@@ -360,7 +360,7 @@ async fn contexts_interception_and_human_input_enable_none_of_them() {
     );
 
     let context = browser.new_context().await.unwrap();
-    let in_context = context.new_page(Some("example.com")).await.unwrap();
+    let in_context = context.new_page_at("example.com").await.unwrap();
     let interception = page
         .intercept(vec![
             Rule::block().resource_type(ResourceType::Image),

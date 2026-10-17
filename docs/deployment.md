@@ -34,10 +34,11 @@ different values. The ones to know:
 | `SB_BROWSER`, `SB_MODE` | which browser and which engine mode |
 | `SB_PROXY`, `SB_PROXY_PAC_URL` | route traffic through a proxy |
 | `SB_THREADS` | how many tests run in parallel |
-| `SB_TIMEOUT` | the default wait, in seconds |
+| `SB_TIMEOUT` | the default wait, in seconds, of a test run by `run_browser_test` |
 | `SB_USER_AGENT`, `SB_LOCALE`, `SB_MOBILE` | identity settings |
-| `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT` | window size |
-| `SB_SCREENSHOT_DIR`, `SB_USER_DATA_DIR` | where artifacts and profiles go |
+| `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT` | window size (set both) |
+| `SB_USER_DATA_DIR` | where the browser profile goes |
+| `SB_WEBDRIVER_URL`, `SB_CHROME_BIN` | the WebDriver server and the browser binary |
 | `SB_NO_SANDBOX` | pass `--no-sandbox` to Chrome in the pure CDP engine (see below) |
 | `SB_MCP_OUTPUT_DIR` | where the MCP server may write files (default `./mcp_output`) |
 

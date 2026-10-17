@@ -185,10 +185,19 @@ impl From<seleniumbase_rs_plugin::PluginError> for SeleniumBaseError {
     fn from(error: seleniumbase_rs_plugin::PluginError) -> Self {
         use seleniumbase_rs_plugin::PluginError;
         let plugin = match &error {
-            PluginError::DuplicateName(name) => name.clone(),
+            PluginError::DuplicateName(name) | PluginError::Undeclared(name) => name.clone(),
             PluginError::MissingDependency { plugin, .. }
             | PluginError::Requirement { plugin, .. }
-            | PluginError::Hook { plugin, .. } => plugin.clone(),
+            | PluginError::Hook { plugin, .. }
+            | PluginError::Unsupported { plugin, .. }
+            | PluginError::Capability { plugin, .. } => plugin.clone(),
+            // The plugin that declares the conflict.
+            PluginError::Conflict { a, .. } => a.clone(),
+            // The plugin that tried to change what another one sealed.
+            PluginError::Sealed { b, .. } => b.clone(),
+            // A cycle, a wrong option and a failure with a message name no
+            // single plugin. The enum is non-exhaustive, so a variant the API
+            // adds later falls here too, with its message and no name.
             _ => String::new(),
         };
         Self::plugin(plugin, error.to_string())
@@ -854,8 +863,12 @@ fn plugin_hint(plugin: &str) -> String {
         "{who} stopped the browser or the tab, and plugins fail closed: a browser whose \
          plugins did not all run is not handed out. A missing plugin needs the crate that \
          provides it added to the PluginSet; a requirement needs the browser started the way \
-         the plugin asks (with a window, launched rather than connected, Chromium); a failed \
-         hook is a question for the plugin's documentation or its author."
+         the plugin asks (with a window, launched rather than connected, Chromium); a \
+         capability it needs but was not granted is granted by the program that builds the \
+         set (PluginSet::with_trusted for a Critical one); one the engine cannot provide \
+         needs the pure CDP engine, which supports them all; two plugins that conflict, or \
+         that both seal a setting, cannot run together; a failed hook is a question for the \
+         plugin's documentation or its author."
     )
 }
 
@@ -1137,6 +1150,67 @@ mod tests {
         let other = SeleniumBaseError::from(PluginError::other("no reason"));
         assert!(matches!(&other, SeleniumBaseError::Plugin { plugin, .. } if plugin.is_empty()));
         assert!(other.hint().unwrap().starts_with("A plugin"));
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn the_newer_plugin_errors_name_the_plugin_that_is_at_fault() {
+        use seleniumbase_rs_plugin::PluginError as E;
+
+        let named = |error: E| match SeleniumBaseError::from(error) {
+            SeleniumBaseError::Plugin { plugin, .. } => plugin,
+            other => panic!("{other:?}"),
+        };
+        let owned = |text: &str| text.to_owned();
+
+        assert_eq!(
+            named(E::Unsupported {
+                plugin: owned("tor"),
+                capability: owned("net.intercept"),
+                host: "an embedded webview",
+            }),
+            "tor"
+        );
+        assert_eq!(
+            named(E::Capability {
+                plugin: owned("shield"),
+                capability: owned("launch.args"),
+                reason: owned("it is required but not granted"),
+            }),
+            "shield"
+        );
+        assert_eq!(named(E::Undeclared(owned("legacy"))), "legacy");
+        assert_eq!(
+            named(E::Conflict {
+                a: owned("tor"),
+                b: owned("vpn"),
+            }),
+            "tor",
+            "the plugin that declares the conflict"
+        );
+        assert_eq!(
+            named(E::Sealed {
+                field: "proxy",
+                a: owned("tor"),
+                b: owned("vpn"),
+            }),
+            "vpn",
+            "the plugin that tried to change what the other sealed"
+        );
+        assert_eq!(named(E::Cycle(vec![owned("a"), owned("b")])), "");
+        assert_eq!(named(E::Config(owned("bad option"))), "");
+
+        let denied = SeleniumBaseError::from(E::Capability {
+            plugin: owned("shield"),
+            capability: owned("launch.args"),
+            reason: owned("it is required but not granted"),
+        });
+        assert!(denied.to_string().contains("not granted"), "{denied}");
+        let hint = denied.hint().unwrap();
+        assert!(
+            hint.contains("`shield`") && hint.contains("with_trusted"),
+            "{hint}"
+        );
     }
 
     #[test]

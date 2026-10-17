@@ -35,8 +35,8 @@
 use std::path::Path;
 
 use rustwright::{
-    chromium, ActionOptions, ActionabilityError, Browser, Error as RwError, LaunchOptions, Page,
-    ProxyOptions, ScreenshotOptions,
+    chromium, ActionOptions, ActionabilityError, Browser, ConnectOptions, Error as RwError,
+    LaunchOptions, Page, ProxyOptions, ScreenshotOptions,
 };
 use serde_json::Value;
 
@@ -55,9 +55,10 @@ const STEALTH_ARGS: &[&str] = &[
     "--disable-blink-features=AutomationControlled",
     "--disable-infobars",
     "--disable-dev-shm-usage",
-    "--window-size=1920,1080",
-    "--start-maximized",
 ];
+
+/// The window of a session whose configuration names no size.
+const DEFAULT_WINDOW_SIZE: &str = "1920,1080";
 
 /// Whether the sandbox is left off by default: only on Linux, where
 /// containers and root shells commonly cannot start it. Elsewhere Chrome
@@ -89,11 +90,19 @@ impl PlaywrightSession {
     }
 
     /// Launches Chromium in headless mode with stealth arguments.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use PlaywrightSession::launch_with_config(&BrowserConfig::default().with_headless(true))"
+    )]
     pub async fn launch_headless() -> Result<Self, SeleniumBaseError> {
         Self::launch_with_config(&BrowserConfig::default().with_headless(true)).await
     }
 
     /// Launches Chromium with a [`Fingerprint`] profile.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use PlaywrightSession::launch_with_config with BrowserConfig::with_fingerprint"
+    )]
     pub async fn launch_with_fingerprint(fp: &Fingerprint) -> Result<Self, SeleniumBaseError> {
         let config = BrowserConfig::default()
             .with_headless(false)
@@ -102,6 +111,10 @@ impl PlaywrightSession {
     }
 
     /// Launches Chromium headless with a [`Fingerprint`] profile.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use PlaywrightSession::launch_with_config with BrowserConfig::with_headless and with_fingerprint"
+    )]
     pub async fn launch_headless_with_fingerprint(
         fp: &Fingerprint,
     ) -> Result<Self, SeleniumBaseError> {
@@ -115,8 +128,9 @@ impl PlaywrightSession {
     ///
     /// These settings are used: `headless`, `browser_binary_path`,
     /// `user_data_dir`, `proxy` (with its user name and password, if it has
-    /// any), `user_agent`, `locale`, `extra_args` and `fingerprint`. The
-    /// others belong to the WebDriver path and are ignored.
+    /// any), `user_agent`, `locale`, `extra_args`, `fingerprint` and the
+    /// window size (`BrowserConfig::with_window_size`; 1920 by 1080, maximised,
+    /// without one). The others belong to the WebDriver path and are ignored.
     ///
     /// # Errors
     ///
@@ -157,6 +171,51 @@ impl PlaywrightSession {
             return Err(error);
         }
         Ok(session)
+    }
+
+    /// Attaches to a Chromium that is already running, through its DevTools
+    /// endpoint: an `http://host:port` address or a `ws://` URL, such as
+    /// `sb_cdp::Browser::http_url`'s. A chromedriver session's
+    /// `debuggerAddress` is a bare `host:port`; put `http://` in front of it.
+    ///
+    /// The session works on the first page the browser has open, or a new one
+    /// if it has none. [`close`](Self::close) only detaches from a browser
+    /// attached this way and leaves it running, so a browser that
+    /// chromedriver or another program owns is never shut down from here.
+    ///
+    /// The attached page keeps whatever fingerprint the browser already has;
+    /// this method applies none.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Playwright`] if nothing answers at
+    /// `endpoint` or the browser cannot be controlled.
+    pub async fn connect_over_cdp(endpoint: &str) -> Result<Self, SeleniumBaseError> {
+        let endpoint = endpoint.to_owned();
+        let (browser, page) = tokio::task::spawn_blocking(move || {
+            let browser = chromium()
+                .connect_over_cdp(ConnectOptions::new(endpoint))
+                .map_err(|e| SeleniumBaseError::playwright(format!("attach failed: {e}")))?;
+            let existing = browser
+                .pages()
+                .map_err(|e| SeleniumBaseError::playwright(format!("listing pages failed: {e}")))?
+                .into_iter()
+                .next();
+            let page = match existing {
+                Some(page) => page,
+                None => browser
+                    .new_page()
+                    .map_err(|e| SeleniumBaseError::playwright(format!("new page failed: {e}")))?,
+            };
+            Ok::<_, SeleniumBaseError>((browser, page))
+        })
+        .await
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
+        Ok(Self {
+            browser,
+            page,
+            fingerprint_script: None,
+        })
     }
 
     /// Presents the fingerprint in the active page, if the session has one.
@@ -284,6 +343,14 @@ impl PlaywrightSession {
 /// fingerprint asks for, then the caller's own, so a later switch wins.
 fn chrome_args(config: &BrowserConfig) -> Vec<String> {
     let mut args: Vec<String> = STEALTH_ARGS.iter().map(|arg| (*arg).to_owned()).collect();
+    match config.launch.window_size {
+        // A size that was asked for wins over maximising the window.
+        Some(size) => args.push(format!("--window-size={size}")),
+        None => {
+            args.push(format!("--window-size={DEFAULT_WINDOW_SIZE}"));
+            args.push("--start-maximized".to_owned());
+        }
+    }
     if SANDBOX_OFF_BY_DEFAULT {
         args.push("--disable-setuid-sandbox".to_owned());
     }
@@ -374,6 +441,7 @@ fn classify_playwright_element_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::browser::options::WindowSize;
     use crate::stealth::fingerprint::Fingerprint;
 
     fn config() -> BrowserConfig {
@@ -394,6 +462,27 @@ mod tests {
             );
         }
         assert!(args.contains(&"--disable-blink-features=AutomationControlled".to_owned()));
+    }
+
+    #[test]
+    fn the_window_size_of_the_config_is_used_instead_of_a_maximised_1920_by_1080() {
+        let default = chrome_args(&config());
+        assert!(default.contains(&"--window-size=1920,1080".to_owned()));
+        assert!(default.contains(&"--start-maximized".to_owned()));
+
+        let sized = chrome_args(&config().with_window_size(WindowSize::new(1280, 720)));
+        assert!(
+            sized.contains(&"--window-size=1280,720".to_owned()),
+            "{sized:?}"
+        );
+        assert!(
+            !sized.iter().any(|arg| arg == "--start-maximized"),
+            "{sized:?}"
+        );
+        assert!(
+            !sized.contains(&"--window-size=1920,1080".to_owned()),
+            "{sized:?}"
+        );
     }
 
     #[test]

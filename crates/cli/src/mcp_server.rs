@@ -44,7 +44,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let runtime = tokio::runtime::Runtime::new()?;
     let outcome = runtime.block_on(async {
-        init_tracing_from_runtime(&RuntimeConfig::from_env().unwrap_or_default());
+        // One bad SB_* variable must not drop the good ones, SB_LOG_LEVEL
+        // among them; the bad ones are reported once logging works.
+        let (config, problems) = RuntimeConfig::from_env_lenient();
+        init_tracing_from_runtime(&config);
+        for problem in &problems {
+            tracing::warn!(%problem, "ignored an invalid SB_* variable, its default is used");
+        }
         mcp::serve(cli.server).await
     });
     // Standard input is read on a blocking thread that only a closed pipe can

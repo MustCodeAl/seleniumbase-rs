@@ -36,9 +36,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sb.manual_verify("The dashboard loads.");
     sb.manual_verify("The user avatar is visible.");
 
-    // Write the report and keep its path.
-    let steps = sb.qa_session().map(|s| s.steps.clone()).unwrap_or_default();
-    let report = sb.save_qa_report(&steps, "Verify Login Page", None::<&str>)?;
+    // Write the report of the session and keep its path.
+    let report = sb.save_qa_report()?;
     println!("Report written to: {}", report.display());
 
     sb.quit().await?;
@@ -55,14 +54,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   `Manual QA verification required: <question> [Y/n]` and waits for a line on
   standard input: Enter, `y` or `yes` passes the step, `n` or `no` fails it. The
   answer is recorded in the active session and returned as a `bool`. With no
-  active session a temporary one is used, so nothing is kept. If standard input
-  is closed, so nobody can answer, the step is recorded as failed.
+  active session one titled "Manual verification" is started and stays active.
+  If standard input is closed, so nobody can answer, the step is recorded as
+  failed.
 - `MasterQaSession::verify_with_notes(question)` does the same and, when you
   answer no, asks for an optional failure note.
-- `save_qa_report(&steps, title, path)` writes the Markdown report to `path`, or
-  to `latest_logs/qa_report_<milliseconds>.md` when `path` is `None`, and returns
-  where it went. Nothing writes a report on its own at the end of a session; you
-  call this (or `MasterQaSession::save_markdown(path)`).
+- `save_qa_report()` writes the Markdown report of the active session to
+  `latest_logs/qa_report_<milliseconds>.md` and returns where it went;
+  `save_qa_report_to(path)` writes it to `path`. Both are an `InvalidConfig`
+  error when there is no session. Nothing writes a report on its own at the end
+  of a session; you call one of them (or `MasterQaSession::save_markdown(path)`).
 - Without a browser, `MasterQA::verify(question)` is a one-off prompt.
 
 `MasterQaSession`, `QaStep` and `MasterQA` live in

@@ -127,6 +127,7 @@ pub use messenger::{
 #[cfg(any(test, feature = "test-util"))]
 #[doc(inline)]
 pub use mock::{Call, MockCtrl};
+pub(crate) use page::without_final_return;
 #[doc(inline)]
 pub use page::Page;
 #[doc(inline)]
@@ -138,6 +139,12 @@ pub use state::{
     Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds, WindowState,
 };
 #[doc(inline)]
-pub use types::{ElementInfo, PageInfo, Permission, Point, Rect, Scroll, SelectBy, State};
+pub use types::{
+    ElementInfo, PageInfo, Permission, Point, Rect, ScreenRect, Scroll, SelectBy, State,
+};
+/// The Chrome switch for a WebRTC policy, for the WebDriver engine's plugin
+/// hooks, which pass it as a launch argument.
+#[cfg(feature = "plugins")]
+pub(crate) use webrtc::chrome_flag as webrtc_chrome_flag;
 #[doc(inline)]
 pub use webrtc::{AddressKind, CandidateKind, IceCandidate, WebRtcReport};

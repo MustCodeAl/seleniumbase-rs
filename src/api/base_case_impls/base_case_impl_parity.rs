@@ -237,15 +237,18 @@ impl BaseCase {
         js_escape(code)
     }
 
-    /// Shows `message` in the page for a few seconds. Corresponds to Python's
-    /// `post_message` with its default duration, which is three seconds unless
-    /// the run settings (`RunSettings::with_message_duration`) say otherwise.
+    /// Shows `message` in the page and waits for it to go. Corresponds to
+    /// Python's `post_message(message)`: it stays for the run's message
+    /// duration, 2.55 s unless `RunSettings::with_message_duration` says
+    /// otherwise, cut to 0.75 s in a headless browser; the call returns 0.15 s
+    /// after it has gone (Python's default `pause=True`). For another time, see
+    /// [`post_message_for`](Self::post_message_for).
     ///
     /// # Errors
     ///
     /// Returns an error if the page script fails.
     pub async fn post_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.post_message_for(message, self.run_settings().message_seconds())
+        self.show_message(message, INFO_MESSAGE_COLOR, None, true)
             .await
     }
 

@@ -19,9 +19,14 @@ use serde_json::{json, Value};
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
+use crate::sb_cdp::without_final_return;
 
 /// How often [`CdpPage::wait_for_element_present`] re-queries the DOM.
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
+
+/// How long [`CdpPage::click`] waits for its element, as in
+/// [`sb_cdp`](crate::sb_cdp) and Python's `sb.cdp.click`.
+const CLICK_TIMEOUT: Duration = Duration::from_secs(7);
 
 /// A node returned by CDP DOM queries.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -81,6 +86,13 @@ impl CdpNode {
 }
 
 /// Low-level CDP page automation tied to a [`BrowserSession`].
+///
+/// Only [`click`](Self::click) waits for its element (7 seconds, or the
+/// timeout of [`click_with_timeout`](Self::click_with_timeout)). The reads,
+/// the typing and the selects look once and fail with
+/// [`SeleniumBaseError::ElementNotFound`]; call
+/// [`wait_for_element_present`](Self::wait_for_element_present) before them
+/// for an element that may not be there yet.
 pub struct CdpPage<'a> {
     session: &'a BrowserSession,
 }
@@ -153,8 +165,10 @@ impl<'a> CdpPage<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::element_not_found`] if the element is
-    /// still absent when `timeout` expires.
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if the element is still
+    /// absent when `timeout` expires, [`SeleniumBaseError::InvalidSelector`]
+    /// at once for a selector the browser rejects, and any other error (a lost
+    /// connection, say) at once too: waiting longer would not change it.
     pub async fn wait_for_element_present(
         &self,
         selector: &str,
@@ -162,8 +176,13 @@ impl<'a> CdpPage<'a> {
     ) -> Result<CdpNode, SeleniumBaseError> {
         let deadline = Instant::now() + timeout;
         loop {
-            if let Ok(node) = self.find_element(selector).await {
-                return Ok(node);
+            match self.find_element(selector).await {
+                Ok(node) => return Ok(node),
+                // Only an element that is not there yet is worth waiting for.
+                // Waiting longer cannot make a selector valid or bring back a
+                // lost connection.
+                Err(SeleniumBaseError::ElementNotFound { .. }) => {}
+                Err(other) => return Err(other),
             }
             if Instant::now() >= deadline {
                 return Err(SeleniumBaseError::element_not_found(selector));
@@ -174,18 +193,33 @@ impl<'a> CdpPage<'a> {
 
     /// Clicks the center of the element matching `selector`.
     ///
-    /// Reads the element's rectangle in the page, takes its center and
-    /// dispatches `mouseMoved`, `mousePressed`, and `mouseReleased` input
-    /// events there.
+    /// Waits up to 7 seconds for the element, scrolls it into view, reads its
+    /// rectangle, takes its center and dispatches `mouseMoved`,
+    /// `mousePressed`, and `mouseReleased` input events there. Use
+    /// [`click_with_timeout`](Self::click_with_timeout) for another wait.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches,
     /// [`SeleniumBaseError::ElementNotInteractable`] if the element has no
-    /// size, as with `display: none`.
+    /// size, as with `display: none`, and the browser's error if it refuses
+    /// an input event.
     pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
-        let script = center_script(selector);
-        let rectangle = self.evaluate(&script).await?;
+        self.click_with_timeout(selector, CLICK_TIMEOUT).await
+    }
+
+    /// [`click`](Self::click), waiting up to `timeout` for the element.
+    ///
+    /// # Errors
+    ///
+    /// As [`click`](Self::click).
+    pub async fn click_with_timeout(
+        &self,
+        selector: &str,
+        timeout: Duration,
+    ) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element_present(selector, timeout).await?;
+        let rectangle = self.evaluate_raw(&center_script(selector)).await?;
         let (center_x, center_y) = parse_center(&rectangle, selector)?;
 
         for event_type in ["mouseMoved", "mousePressed", "mouseReleased"] {
@@ -196,7 +230,7 @@ impl<'a> CdpPage<'a> {
                 "button": "left",
                 "clickCount": 1,
             });
-            self.execute("Input.dispatchMouseEvent", params).await.ok();
+            self.execute("Input.dispatchMouseEvent", params).await?;
         }
         Ok(())
     }
@@ -250,7 +284,7 @@ impl<'a> CdpPage<'a> {
     /// Focuses the element matching `selector` and empties its value.
     async fn focus_and_clear(&self, selector: &str) -> Result<(), SeleniumBaseError> {
         let script = single_element_script(selector, FOCUS_AND_CLEAR);
-        let result = self.evaluate(&script).await?;
+        let result = self.evaluate_raw(&script).await?;
         if result.get("value").and_then(Value::as_bool) != Some(true) {
             return Err(SeleniumBaseError::element_not_found(selector));
         }
@@ -277,136 +311,188 @@ impl<'a> CdpPage<'a> {
     }
 
     /// Returns the visible text of the first element matching `selector`.
+    ///
+    /// It looks once: unlike [`click`](Self::click) it does not wait for the
+    /// element. Call [`wait_for_element_present`](Self::wait_for_element_present)
+    /// first for an element that may not be there yet.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
+    /// [`SeleniumBaseError::InvalidSelector`] for a selector the browser
+    /// rejects.
     pub async fn get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
-        let script = single_element_script(selector, "el ? el.innerText : ''");
-        let result = self.evaluate(&script).await?;
-        Ok(extract_string_value(&result).unwrap_or_default())
+        let script = single_element_script(
+            selector,
+            "el ? String(el.innerText !== undefined ? el.innerText : el.textContent) : null",
+        );
+        let result = self.evaluate_raw(&script).await?;
+        extract_string_value(&result).ok_or_else(|| SeleniumBaseError::element_not_found(selector))
     }
 
-    /// Returns the named HTML attribute, or `None` if absent.
+    /// Returns the named HTML attribute, or `None` if the element has no such
+    /// attribute.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
     pub async fn get_attribute(
         &self,
         selector: &str,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let result = self
-            .evaluate(&attribute_script(selector, attribute))
+            .evaluate_raw(&attribute_script(selector, attribute))
             .await?;
-        Ok(extract_string_value(&result))
+        found_value(&result, selector)
     }
 
     /// Returns the named DOM property, falling back to the attribute of the
     /// same name when the property is undefined.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
     pub async fn get_property(
         &self,
         selector: &str,
         property: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let result = self.evaluate(&property_script(selector, property)).await?;
-        Ok(extract_string_value(&result))
+        let result = self
+            .evaluate_raw(&property_script(selector, property))
+            .await?;
+        found_value(&result, selector)
     }
 
     /// Returns `document.title`.
     pub async fn get_title(&self) -> Result<String, SeleniumBaseError> {
-        let result = self.evaluate("document.title").await?;
+        let result = self.evaluate_raw("document.title").await?;
         Ok(extract_string_value(&result).unwrap_or_default())
     }
 
     /// Returns `window.location.href`.
     pub async fn get_url(&self) -> Result<String, SeleniumBaseError> {
-        let result = self.evaluate("window.location.href").await?;
+        let result = self.evaluate_raw("window.location.href").await?;
         Ok(extract_string_value(&result).unwrap_or_default())
     }
 
-    /// Evaluates `expression` via `Runtime.evaluate` with `returnByValue: true`
-    /// and returns the raw CDP result object.
+    /// Evaluates `expression` via `Runtime.evaluate` and returns its value
+    /// (`Null` for `undefined`).
+    ///
+    /// Like Python's `evaluate`, a `return ` that starts the last line is
+    /// dropped, so a Selenium-style `return document.title` works.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the script throws.
     pub async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
+        let result = self.evaluate_raw(&without_final_return(expression)).await?;
+        Ok(result.get("value").cloned().unwrap_or(Value::Null))
+    }
+
+    /// Evaluates `expression` via `Runtime.evaluate` with `returnByValue: true`
+    /// and returns the raw CDP result object, `{"type": ..., "value": ...}`.
+    async fn evaluate_raw(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
         let response = self
             .execute(
                 "Runtime.evaluate",
                 json!({"expression": expression, "returnByValue": true}),
             )
             .await?;
-        if let Some(exc) = response.get("exceptionDetails") {
-            return Err(SeleniumBaseError::Unsupported(format!(
-                "JS exception: {exc}"
-            )));
+        if let Some(exception) = response.get("exceptionDetails") {
+            let description = exception
+                .pointer("/exception/description")
+                .or_else(|| exception.get("text"))
+                .and_then(Value::as_str)
+                .unwrap_or("script error");
+            let reason = description.lines().next().unwrap_or(description);
+            // The same bad selector is an `InvalidSelector` everywhere, as in
+            // `find_element` and `sb_cdp`'s `Locator`.
+            return Err(if reason.contains("is not a valid selector") {
+                SeleniumBaseError::InvalidSelector(reason.to_owned())
+            } else {
+                SeleniumBaseError::cdp_driver(reason)
+            });
         }
         Ok(response.get("result").cloned().unwrap_or(Value::Null))
     }
 
     /// Navigates back via `history.back()`.
     pub async fn go_back(&self) -> Result<(), SeleniumBaseError> {
-        self.evaluate("history.back()").await?;
+        self.evaluate_raw("history.back()").await?;
         Ok(())
     }
 
     /// Navigates forward via `history.forward()`.
     pub async fn go_forward(&self) -> Result<(), SeleniumBaseError> {
-        self.evaluate("history.forward()").await?;
+        self.evaluate_raw("history.forward()").await?;
         Ok(())
     }
 
     /// Reloads the current page via `location.reload()`.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
-        self.evaluate("location.reload()").await?;
+        self.evaluate_raw("location.reload()").await?;
         Ok(())
     }
 
     /// Selects the `<option>` with matching visible text inside `<select>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] when the dropdown is
+    /// missing and [`SeleniumBaseError::InvalidSelector`] when it has no such
+    /// option.
     pub async fn select_option_by_text(
         &self,
         selector: &str,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
         let result = self
-            .evaluate(&select_by_text_script(selector, text))
+            .evaluate_raw(&select_by_text_script(selector, text))
             .await?;
-        if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
-            return Err(SeleniumBaseError::InvalidSelector(format!(
-                "Option with text '{text}' not found in {selector}"
-            )));
-        }
-        Ok(())
+        selected(&result, selector, || {
+            format!("Option with text '{text}' not found in {selector}")
+        })
     }
 
     /// Selects the `<option>` with the given value inside `<select>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::ElementNotFound`] when the dropdown is
+    /// missing and [`SeleniumBaseError::InvalidSelector`] when it has no
+    /// option with that value.
     pub async fn select_option_by_value(
         &self,
         selector: &str,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
         let result = self
-            .evaluate(&select_by_value_script(selector, value))
+            .evaluate_raw(&select_by_value_script(selector, value))
             .await?;
-        if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
-            return Err(SeleniumBaseError::InvalidSelector(format!(
-                "Failed to set value '{value}' on {selector}"
-            )));
-        }
-        Ok(())
+        selected(&result, selector, || {
+            format!("Option with value '{value}' not found in {selector}")
+        })
     }
 
     /// Selects the `<option>` at `index` (zero-based) inside `<select>`.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::InvalidSelector`] when the dropdown is
-    /// missing or has no option at `index`.
+    /// Returns [`SeleniumBaseError::ElementNotFound`] when the dropdown is
+    /// missing and [`SeleniumBaseError::InvalidSelector`] when it has no
+    /// option at `index`.
     pub async fn select_option_by_index(
         &self,
         selector: &str,
         index: usize,
     ) -> Result<(), SeleniumBaseError> {
         let result = self
-            .evaluate(&select_by_index_script(selector, index))
+            .evaluate_raw(&select_by_index_script(selector, index))
             .await?;
-        if result.get("value").and_then(|v| v.as_bool()) != Some(true) {
-            return Err(SeleniumBaseError::InvalidSelector(format!(
-                "Option at index {index} not found in {selector}"
-            )));
-        }
-        Ok(())
+        selected(&result, selector, || {
+            format!("Option at index {index} not found in {selector}")
+        })
     }
 
     /// Captures a PNG screenshot via `Page.captureScreenshot` and writes it to
@@ -441,12 +527,15 @@ fn query_all_script(selector: &str) -> String {
     format!("Array.from(document.querySelectorAll({}))", quote(selector))
 }
 
-/// The expression that gives `[left, top, width, height]` of the first element
-/// matching `selector` in viewport coordinates, or `null`.
+/// The expression that scrolls the first element matching `selector` into
+/// view and gives `[left, top, width, height]` of it in viewport coordinates,
+/// or `null`.
 fn center_script(selector: &str) -> String {
     format!(
         "(function() {{ var el = document.querySelector({}); \
          if (!el) return null; \
+         if (el.scrollIntoViewIfNeeded) el.scrollIntoViewIfNeeded(true); \
+         else el.scrollIntoView(true); \
          var r = el.getBoundingClientRect(); \
          return [r.left, r.top, r.width, r.height]; }})()",
         quote(selector)
@@ -529,18 +618,19 @@ fn single_element_script(selector: &str, inner: &str) -> String {
 }
 
 /// The expression that gives the named attribute of the first element
-/// matching `selector`, or `null`.
+/// matching `selector` as the only item of an array, or `null` when nothing
+/// matches.
 fn attribute_script(selector: &str, attribute: &str) -> String {
     let (selector, attribute) = (quote(selector), quote(attribute));
     format!(
         "(function() {{ var el = document.querySelector({selector}); \
-         return el ? el.getAttribute({attribute}) : null; }})()"
+         return el ? [el.getAttribute({attribute})] : null; }})()"
     )
 }
 
 /// The expression that gives the named property of the first element matching
 /// `selector`, as a string, or its attribute of that name when the property is
-/// undefined, or `null`.
+/// undefined, as the only item of an array, or `null` when nothing matches.
 fn property_script(selector: &str, property: &str) -> String {
     let (selector, property) = (quote(selector), quote(property));
     format!(
@@ -548,19 +638,20 @@ fn property_script(selector: &str, property: &str) -> String {
          var el = document.querySelector({selector}); \
          if (!el) return null; \
          var v = el[{property}]; \
-         return v !== undefined ? String(v) : el.getAttribute({property}); \
+         return [v !== undefined ? String(v) : el.getAttribute({property})]; \
          }})()"
     )
 }
 
 /// The expression that selects the `<option>` of the first element matching
-/// `selector` whose text is `text`, and gives whether there was one.
+/// `selector` whose text is `text`. It gives `true` for that, `false` for a
+/// dropdown without such an option and `null` for no dropdown.
 fn select_by_text_script(selector: &str, text: &str) -> String {
     let (selector, text) = (quote(selector), quote(text));
     format!(
         "(function() {{ \
          var s = document.querySelector({selector}); \
-         if (!s) return false; \
+         if (!s) return null; \
          for (var i = 0; i < s.options.length; i++) {{ \
              if (s.options[i].text === {text}) {{ \
                  s.selectedIndex = i; \
@@ -573,35 +664,67 @@ fn select_by_text_script(selector: &str, text: &str) -> String {
     )
 }
 
-/// The expression that gives the first element matching `selector` the value
-/// `value`, and gives whether there was one.
+/// The expression that selects the `<option>` of the first element matching
+/// `selector` whose value is `value`. It gives `true` for that, `false` for a
+/// dropdown without such an option and `null` for no dropdown.
 fn select_by_value_script(selector: &str, value: &str) -> String {
     let (selector, value) = (quote(selector), quote(value));
     format!(
         "(function() {{ \
          var s = document.querySelector({selector}); \
-         if (!s) return false; \
-         s.value = {value}; \
-         s.dispatchEvent(new Event('change', {{bubbles: true}})); \
-         return true; \
+         if (!s) return null; \
+         for (var i = 0; i < s.options.length; i++) {{ \
+             if (s.options[i].value === {value}) {{ \
+                 s.selectedIndex = i; \
+                 s.dispatchEvent(new Event('change', {{bubbles: true}})); \
+                 return true; \
+             }} \
+         }} \
+         return false; \
          }})()"
     )
 }
 
 /// The expression that selects the `<option>` at `index` of the first element
-/// matching `selector`, and gives whether there was one.
+/// matching `selector`. It gives `true` for that, `false` for a dropdown
+/// without such an option and `null` for no dropdown.
 fn select_by_index_script(selector: &str, index: usize) -> String {
     let selector = quote(selector);
     format!(
         "(function() {{ \
          var s = document.querySelector({selector}); \
-         if (!s) return false; \
+         if (!s) return null; \
          if ({index} >= s.options.length) return false; \
          s.selectedIndex = {index}; \
          s.dispatchEvent(new Event('change', {{bubbles: true}})); \
          return true; \
          }})()"
     )
+}
+
+/// The outcome of a select script: `true` is done, `false` is a dropdown
+/// without the option (`missing_option` says which), anything else is no
+/// dropdown.
+fn selected(
+    result: &Value,
+    selector: &str,
+    missing_option: impl FnOnce() -> String,
+) -> Result<(), SeleniumBaseError> {
+    match result.get("value") {
+        Some(Value::Bool(true)) => Ok(()),
+        Some(Value::Bool(false)) => Err(SeleniumBaseError::InvalidSelector(missing_option())),
+        _ => Err(SeleniumBaseError::element_not_found(selector)),
+    }
+}
+
+/// The text in the one-item array that [`attribute_script`] and
+/// [`property_script`] give, or `None` for an item that is not text. `null`
+/// instead of an array is an element that was not there.
+fn found_value(result: &Value, selector: &str) -> Result<Option<String>, SeleniumBaseError> {
+    match result.get("value") {
+        Some(Value::Array(items)) => Ok(items.first().and_then(Value::as_str).map(str::to_owned)),
+        _ => Err(SeleniumBaseError::element_not_found(selector)),
+    }
 }
 
 /// Extracts a string `value` from a CDP `Runtime.evaluate` result object.
@@ -932,5 +1055,376 @@ mod tests {
             let (_, literals) = read(&script).unwrap_or_else(|why| panic!("{why}: {script:?}"));
             assert_eq!(literals[1], value, "{script:?}");
         }
+    }
+}
+
+/// `CdpPage` against a mock WebDriver whose DevTools channel is scripted (no
+/// browser): which commands it sends and how it reads the answers.
+#[cfg(test)]
+mod driven_tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    use serde_json::json;
+
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, Seen};
+    use crate::browser::config::{BrowserConfig, DriverMode};
+
+    /// A CDP-mode session on a WebDriver that answers each DevTools command
+    /// with `answer`; `Err` is a browser that refuses the command.
+    async fn driven(
+        answer: impl Fn(&str, &Value) -> Result<Value, ()> + Send + Sync + 'static,
+    ) -> (MockWebDriver, BrowserSession) {
+        let driver = MockWebDriver::start(json!({}), move |request| {
+            if request.path != "/goog/cdp/execute" {
+                return Reply::Value(Value::Null);
+            }
+            let command = request.body["cmd"].as_str().unwrap_or_default();
+            match answer(command, &request.body["params"]) {
+                Ok(value) => Reply::Value(value),
+                Err(()) => Reply::Error(500, "unknown error"),
+            }
+        });
+        let mut config = BrowserConfig::default()
+            .with_webdriver_url(driver.url())
+            .with_mode(DriverMode::Cdp);
+        config.auto_start_driver = false;
+        let session = BrowserSession::connect(config).await.expect("connects");
+        (driver, session)
+    }
+
+    /// What `Runtime.evaluate` gives for a script that returned `value`.
+    fn returned(value: Value) -> Result<Value, ()> {
+        Ok(json!({ "result": { "value": value } }))
+    }
+
+    /// The answer for an element given back by reference.
+    fn node() -> Result<Value, ()> {
+        Ok(json!({ "result": { "type": "object", "subtype": "node", "objectId": "o1" } }))
+    }
+
+    /// `Runtime.evaluate` scripts, in the order they were sent.
+    fn scripts(driver: &MockWebDriver) -> Vec<String> {
+        sent(driver, "Runtime.evaluate")
+            .iter()
+            .filter_map(|params| params["expression"].as_str().map(str::to_owned))
+            .collect()
+    }
+
+    /// The parameters of each `command` that was sent.
+    fn sent(driver: &MockWebDriver, command: &str) -> Vec<Value> {
+        driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .filter(|request: &Seen| request.body["cmd"] == command)
+            .map(|request| request.body["params"].clone())
+            .collect()
+    }
+
+    /// A page with one button, 100 x 50 at (10, 20) in the viewport.
+    fn button_page(command: &str, params: &Value) -> Result<Value, ()> {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        match command {
+            "Runtime.evaluate" if expression.contains("getBoundingClientRect") => {
+                returned(json!([10.0, 20.0, 100.0, 50.0]))
+            }
+            "Runtime.evaluate" if expression.starts_with("document.querySelector(") => node(),
+            _ => Ok(json!({})),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_click_scrolls_the_element_into_view_and_presses_at_its_centre() {
+        let (driver, session) = driven(button_page).await;
+
+        CdpPage::new(&session).click("#go").await.unwrap();
+
+        let rectangle = scripts(&driver)
+            .into_iter()
+            .find(|script| script.contains("getBoundingClientRect"))
+            .expect("the rectangle was read");
+        assert!(
+            rectangle.contains("scrollIntoView"),
+            "an element below the fold would be clicked off screen: {rectangle}"
+        );
+        let events: Vec<_> = sent(&driver, "Input.dispatchMouseEvent")
+            .iter()
+            .map(|p| {
+                (
+                    p["type"].as_str().unwrap().to_owned(),
+                    p["x"].as_f64().unwrap(),
+                    p["y"].as_f64().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            events,
+            [
+                ("mouseMoved".to_owned(), 60.0, 45.0),
+                ("mousePressed".to_owned(), 60.0, 45.0),
+                ("mouseReleased".to_owned(), 60.0, 45.0),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_click_the_browser_refuses_is_an_error_not_a_success() {
+        let (_driver, session) = driven(|command, params| {
+            if command == "Input.dispatchMouseEvent" {
+                Err(())
+            } else {
+                button_page(command, params)
+            }
+        })
+        .await;
+
+        let result = CdpPage::new(&session).click("#go").await;
+
+        assert!(
+            result.is_err(),
+            "a dead connection must not look like a click"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_click_waits_for_an_element_that_has_not_appeared_yet() {
+        let looks = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&looks);
+        let (_driver, session) = driven(move |command, params| {
+            let expression = params["expression"].as_str().unwrap_or_default();
+            if command == "Runtime.evaluate"
+                && expression.starts_with("document.querySelector(")
+                && counter.fetch_add(1, Ordering::SeqCst) < 2
+            {
+                return returned(Value::Null);
+            }
+            button_page(command, params)
+        })
+        .await;
+
+        CdpPage::new(&session)
+            .click_with_timeout("#late", Duration::from_secs(5))
+            .await
+            .unwrap();
+
+        assert!(looks.load(Ordering::SeqCst) >= 3);
+    }
+
+    #[tokio::test]
+    async fn a_click_on_an_element_that_never_appears_is_not_found() {
+        let (driver, session) = driven(|command, params| {
+            if command == "Runtime.evaluate" {
+                returned(Value::Null)
+            } else {
+                button_page(command, params)
+            }
+        })
+        .await;
+
+        let error = CdpPage::new(&session)
+            .click_with_timeout("#nowhere", Duration::ZERO)
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#nowhere"),
+            "{error}"
+        );
+        assert!(sent(&driver, "Input.dispatchMouseEvent").is_empty());
+    }
+
+    #[tokio::test]
+    async fn text_and_attributes_of_a_missing_element_are_not_found_errors() {
+        let (_driver, session) = driven(|_, _| returned(Value::Null)).await;
+        let page = CdpPage::new(&session);
+
+        for error in [
+            page.get_text("#gone").await.unwrap_err(),
+            page.get_attribute("#gone", "href").await.unwrap_err(),
+            page.get_property("#gone", "value").await.unwrap_err(),
+        ] {
+            assert!(
+                matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#gone"),
+                "{error}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_lost_connection_is_not_waited_out_as_a_missing_element() {
+        let (_driver, session) = driven(|command, _| {
+            if command == "Runtime.evaluate" {
+                Err(())
+            } else {
+                Ok(json!({}))
+            }
+        })
+        .await;
+
+        let started = Instant::now();
+        let error = CdpPage::new(&session)
+            .wait_for_element_present("#go", Duration::from_secs(30))
+            .await
+            .unwrap_err();
+
+        assert!(
+            !matches!(error, SeleniumBaseError::ElementNotFound { .. }),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "it kept polling a dead connection"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_bad_selector_is_invalid_in_reads_as_well_as_in_find() {
+        let (_driver, session) = driven(|_, _| {
+            Ok(json!({ "exceptionDetails": { "exception": {
+                "description": "SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.\n    at <anonymous>:1:1"
+            }}}))
+        })
+        .await;
+        let page = CdpPage::new(&session);
+
+        for error in [
+            page.get_text("#").await.unwrap_err(),
+            page.get_attribute("#", "id").await.unwrap_err(),
+            page.type_text("#", "x").await.unwrap_err(),
+            page.select_option_by_value("#", "x").await.unwrap_err(),
+        ] {
+            assert!(
+                matches!(&error, SeleniumBaseError::InvalidSelector(m) if m.contains("not a valid selector")),
+                "{error:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn an_attribute_the_element_lacks_is_none_and_not_an_error() {
+        let (_driver, session) = driven(|_, _| returned(json!([null]))).await;
+
+        let attribute = CdpPage::new(&session)
+            .get_attribute("a", "download")
+            .await
+            .unwrap();
+
+        assert_eq!(attribute, None);
+    }
+
+    #[tokio::test]
+    async fn text_and_attributes_of_an_element_are_read() {
+        let (_driver, session) = driven(|_, params| {
+            let expression = params["expression"].as_str().unwrap_or_default();
+            if expression.contains("innerText") {
+                returned(json!("Hello"))
+            } else {
+                returned(json!(["/home"]))
+            }
+        })
+        .await;
+        let page = CdpPage::new(&session);
+
+        assert_eq!(page.get_text("h1").await.unwrap(), "Hello");
+        assert_eq!(
+            page.get_attribute("a", "href").await.unwrap().as_deref(),
+            Some("/home")
+        );
+        assert_eq!(
+            page.get_property("a", "href").await.unwrap().as_deref(),
+            Some("/home")
+        );
+    }
+
+    #[tokio::test]
+    async fn evaluate_gives_the_value_and_drops_a_final_return() {
+        let (driver, session) = driven(|_, _| returned(json!(2))).await;
+
+        let value = CdpPage::new(&session)
+            .evaluate("const a = 1;\nreturn a + 1")
+            .await
+            .unwrap();
+
+        assert_eq!(value, 2);
+        assert_eq!(
+            sent(&driver, "Runtime.evaluate").last().unwrap()["expression"],
+            "const a = 1;\na + 1"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_script_that_throws_is_a_driver_error_not_an_unsupported_one() {
+        let (_driver, session) = driven(|_, _| {
+            Ok(json!({ "exceptionDetails": { "exception": {
+                "description": "ReferenceError: nope is not defined\n    at <anonymous>:1:1"
+            }}}))
+        })
+        .await;
+
+        let error = CdpPage::new(&session).evaluate("nope").await.unwrap_err();
+
+        assert!(
+            matches!(&error, SeleniumBaseError::CdpDriver(m) if m == "ReferenceError: nope is not defined"),
+            "{error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_title_and_the_url_are_strings() {
+        let (_driver, session) = driven(|_, params| {
+            let expression = params["expression"].as_str().unwrap_or_default();
+            returned(json!(if expression == "document.title" {
+                "Home"
+            } else {
+                "https://example.test/"
+            }))
+        })
+        .await;
+        let page = CdpPage::new(&session);
+
+        assert_eq!(page.get_title().await.unwrap(), "Home");
+        assert_eq!(page.get_url().await.unwrap(), "https://example.test/");
+    }
+
+    #[tokio::test]
+    async fn selecting_reports_a_missing_dropdown_and_a_missing_option_differently() {
+        // No dropdown: the script gives null. A dropdown without the option:
+        // false. Found and set: true.
+        for (answer, expected) in [(Value::Null, "not found"), (json!(false), "no option")] {
+            let (_driver, session) = driven(move |_, _| returned(answer.clone())).await;
+            let page = CdpPage::new(&session);
+
+            for error in [
+                page.select_option_by_value("select", "mars")
+                    .await
+                    .unwrap_err(),
+                page.select_option_by_text("select", "Mars")
+                    .await
+                    .unwrap_err(),
+                page.select_option_by_index("select", 9).await.unwrap_err(),
+            ] {
+                match (expected, &error) {
+                    ("not found", SeleniumBaseError::ElementNotFound { .. })
+                    | ("no option", SeleniumBaseError::InvalidSelector(_)) => {}
+                    _ => panic!("{expected}, but got {error:?}"),
+                }
+            }
+        }
+
+        let (_driver, session) = driven(|_, _| returned(json!(true))).await;
+        CdpPage::new(&session)
+            .select_option_by_value("select", "earth")
+            .await
+            .unwrap();
+    }
+
+    #[test]
+    fn selecting_by_value_checks_that_the_option_exists_before_setting_it() {
+        // `select.value = x` leaves the dropdown unset for a value it has no
+        // option for, and the script would still report success.
+        let script = select_by_value_script("select", "mars");
+        assert!(script.contains("s.options[i].value ==="), "{script}");
+        assert!(!script.contains("s.value ="), "{script}");
     }
 }

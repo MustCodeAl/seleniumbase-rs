@@ -1,4 +1,5 @@
 pub mod ad_block_list;
+pub mod plugins;
 pub mod proxy_list;
 pub mod runtime;
 pub mod settings;
@@ -23,6 +24,14 @@ pub(crate) fn strip_comment(line: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::strip_comment;
+
+    #[test]
+    fn the_settings_types_are_at_the_crate_root() {
+        let _ = crate::Settings::default();
+        let _ = crate::SettingsOverrides::default();
+        let _ = crate::RunSettings::default();
+        assert_eq!(crate::PauseKind::Full, crate::PauseKind::Full);
+    }
 
     #[test]
     fn a_comment_starts_at_a_hash_after_whitespace() {

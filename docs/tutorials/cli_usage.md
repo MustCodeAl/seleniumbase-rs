@@ -305,7 +305,7 @@ sbrs --headless --browser firefox -n 4 test -- --nocapture
 Only options you actually pass are exported (`SB_HEADLESS`, `SB_BROWSER`,
 `SB_MODE`, `SB_PROXY`, ...), so the config file and your own `SB_*` variables
 still apply to everything else. A test sees them when it loads its settings
-with `Settings::load(None)`. `-n` becomes `--test-threads`, and the exit status
+with `Settings::load()`. `-n` becomes `--test-threads`, and the exit status
 is Cargo's.
 
 ## Proxies from a list

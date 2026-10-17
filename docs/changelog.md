@@ -13,7 +13,9 @@ An API clean-up of `BaseCase`: the text assertions and waits take their
 arguments in Python's order, the helpers that did not match Python are fixed,
 and the macros that did not compile or hid an error now work. The BREAKING
 changes, those that break a call, are listed first, each with the way to
-migrate.
+migrate. The core side of the plugin platform (ADR 005, phase 1: built-in
+plugins by name, the host checks, the launch switches) is in Added, Changed and
+Fixed.
 
 ### Breaking
 
@@ -260,18 +262,45 @@ migrate.
   sb_assert_title_contains!(sb, "Dashboard")?;
   ```
 
-### Added
+- **`run_browser_test` and `Plugins::run_browser_test` take an async closure**
+  (`F: AsyncFnOnce(&mut BaseCase) -> Result<()>`) instead of a closure that
+  returns a boxed future. The old form `|sb| Box::pin(async move { .. })` does
+  not compile against the new bound, and neither did `|sb| async move { .. }`.
+  Migration: `run_browser_test(config, |sb| Box::pin(async move { body }))`
+  becomes `run_browser_test(config, async |sb| { body })`, and
+  `|sb| Box::pin(demo(sb, url))` becomes `async |sb| demo(sb, url).await`
+  (use `async move |sb|` in a loop that moves its variables). To keep an old
+  closure compiling for now, call `run_browser_test_boxed`
+  (`Plugins::run_browser_test_boxed`), which is deprecated like
+  `BrowserTestFuture`. `sbrs mkdir`, `sbrs mkfile` and `sbrs import-python`
+  generate the new form.
 
-- `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
-  prefix of.
+- **`RuntimeConfig::log_level` is an `Option<String>`** that defaults to `None`
+  (it was `"info"`), so the binaries can tell "not set" from "set to info".
+  Migration: `config.log_level` becomes `config.log_level.as_deref()
+  .unwrap_or("info")` where you read it, and `config.log_level = Some(..)`
+  where you set it.
 
-### Deprecated
+- **`Settings::load(path: Option<P>)` is split in two**, so nobody writes
+  `Settings::load(None::<&str>)`. Migration: `Settings::load(None::<&str>)?`
+  becomes `Settings::load()?`, and `Settings::load(Some(path))?` becomes
+  `Settings::load_from(path)?`. `Settings::from_toml` is deprecated; use
+  `from_file`, which reads TOML for a `.toml` name.
 
-- `assert_visible!`: use `sb_assert_visible!`.
-- `save_saved_cookies` and `load_saved_cookies`: use `save_cookies` and
-  `load_cookies`.
+- **`Settings::from_file`, `load`, `load_from` and `from_env` now validate**
+  (`Settings::validate`), so input that used to load is an `InvalidConfig` error:
+  an unknown `browser` or `mode`, a window width without a height (or the
+  reverse; the missing side used to default to 1920 by 1080), and a window
+  dimension of zero. Migration: spell the browser (`chrome`, `firefox`, ...) and
+  mode (`webdriver`, `cdp`, `uc`) as `Browser` and `DriverMode` parse them, set
+  both window dimensions or neither, and call `validate()` yourself on a
+  `Settings` built by hand. A blank `SB_*` variable counts as unset (`SB_PLUGINS`
+  is the exception: an empty value turns every plugin off).
 
-### Changed
+- **`sb_test!` binds its `$sb` to a `&mut BaseCase`** instead of an owned
+  `BaseCase`, and a skipped test passes instead of panicking. Migration: a body
+  that moved `sb` (`sb.quit().await`, passing it by value) now borrows it, and
+  the macro closes the browser.
 
 - **`sbrs` and `sbrs-mcp` parse their command line with [usage](https://usage.jdx.dev)
   instead of clap.** `clap`, `clap_complete`, `clap_complete_fig` and `clap_usage`
@@ -308,93 +337,171 @@ migrate.
     `--headless=0`, is still an error. `sbrs help nosuch` prints the main help and
     exits with 0, where it ended with status 2.
 
-- **`check_window` baselines can be told apart by test.** The baseline folder
-  was named after the thread's last path part, so tests of the same function
-  name in different modules or files shared one folder, and a body run by
-  `#[tokio::main]` or `tokio::spawn` was filed under `main` or
-  `tokio-runtime-worker`. `BaseCase::with_test_name("module::test")` (builder,
-  with `test_name()` to read it back) names the test, and the baselines go in
-  `visual_baseline/module__test/<name>`. `sb_test!` sets it from the module path
-  and the function, so its tests get a new folder: the first run saves a
-  baseline there again. Without a test name nothing changes.
-- **The element assertions and waits mean what Python's mean.** `assert_element`,
-  `assert_element_visible`, `assert_elements` and `wait_for_element` need the
-  element to be displayed and wait for it (`wait_for_element` for its own
-  timeout, the others for the default one); they used to look once for an
-  element in the DOM, hidden or not. A test that asserted a hidden element (a hidden input, a
-  `display: none` template) with `assert_element` must use
-  `assert_element_present`, which now waits as well, like
-  `assert_elements_present`. `wait_for_query_selector` is
-  `wait_for_element_present`, as in Python, and `wait_for_element_present`
-  takes `&self`. `AssertionApi::assert_element` is visible-and-waiting for the
-  pure CDP `Page` too.
-- **`sb_test!` counts a skipped test as passed.** A body that ends with
-  `skip_test` used to panic with `test failed`, and now logs the reason and
-  passes, like `run_browser_test` (libtest cannot report a skip). A test that
-  relied on the panic must fail with an error instead.
-- `load_cookies` waits for the page to finish loading first, as Python's does,
-  and the domain it gives a foreign cookie is the page's host without its port
-  (a browser driver refuses a cookie domain with a port).
-- `assert_shadow_text(text, selector)`, the text waits and the deferred checks
-  changed their argument order silently (both are `&str`). Only `assert_text`
-  and `assert_exact_text` say "arguments look swapped" when they fail; search
-  your tests for the other names listed above.
-- `add_text` waits for the element to be displayed (it used to fail on an
-  element that was not there yet), `send_keys` is `add_text`, and `update_text`
-  is `type_text`, as in Python, where they are the same methods.
-- `wait` is `sleep`, as in Python (the two differed: `wait` took whole seconds
-  and skipped what `sleep` does); see the breaking change above for its new
-  argument.
-- The getters and assertions that only read the page take `&self` instead of
-  `&mut self`: `get_title`, `get_current_url`, `get_text`, `assert_title`,
-  `assert_title_contains`, `assert_url`, `assert_url_contains`, `assert_text`,
-  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible`,
-  `assert_exact_text_not_visible` and `assert_element_visible`, so a test can
-  call them from a closure that holds only `&BaseCase`. Existing calls compile
-  as before.
-- **The text assertions wait, as Python's do.** `assert_text`,
-  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
-  `assert_exact_text_not_visible` poll for up to the default timeout
-  (`set_timeout`) instead of reading the page once, so a page that is still
-  rendering no longer fails them. The first three also require the element to
-  be displayed, and `assert_exact_text` and `is_exact_text_visible` ignore
-  whitespace at the ends of both strings. A failing assertion now arrives after
-  the timeout rather than at once: lower it with `set_timeout` where a test
-  expects a failure. `assert_text_visible` is `assert_text`, as in Python. The
-  deferred checks wait 2 seconds, whatever the default is.
-- `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
-  `//a//b` becomes `a b`, `/html/body/...`), a position before the other tests
-  (`tag[n]` becomes `tag:nth-of-type(n)`, `*[n]` becomes `*:nth-child(n)`),
-  `contains(@a,'v')`, `starts-with(@a,'v')` (an addition; Python has none),
-  `id('x')` and `or` (a comma list). A form with no exact CSS equivalent (a
-  position after another test, `text()`, `parent::`) is still refused instead
-  of being converted into something close.
-- The Python importer passes `By.XPATH` locators through as XPath, so XPath
-  that CSS cannot say is no longer refused.
-- The Python importer matches the arguments of a call with Python's parameters:
-  `self.assert_text("x")` gets Python's default selector `body`, and keyword
-  arguments (`selector=`, `text=`, `timeout=`) work. It imports
-  `assert_text_visible`, `assert_text_not_visible`,
-  `assert_exact_text_not_visible`, `wait_for_text`, `wait_for_exact_text`, the
-  deferred and delayed asserts, `process_deferred_asserts` and
-  `enter_mfa_code`, which it used to leave as TODOs. An argument Rust cannot
-  carry over (`timeout=` on an assertion, a `by` that is not CSS) is an error
-  instead of being dropped. `send_keys` becomes `add_text`, not `type_text`:
-  Python's and Selenium's `send_keys` do not clear the field. The timeout of
-  `wait_for_element_visible` and `wait_for_element_present` is read from
-  `timeout=`; a second positional argument is Python's `by`, not a timeout.
+- **`Settings::timeout_seconds`, `window_width` and `window_height` are
+  `Option`s** that default to `None`. The old defaults (30 s, 1920, 1080) were read by
+  nothing. Migration: `settings.timeout_seconds` is `settings.timeout_seconds
+  .unwrap_or(10)` where you used the number; assign `Some(..)` where you set it.
+  `screenshot_dir` is documented as stored for your code: the library never read
+  it. `Settings` also has the new public fields `webdriver_url` and `chrome_bin`,
+  and `LaunchSettings` the new `run`: a struct literal that names every field
+  needs `..Default::default()`.
 
-A breaking change to the fingerprint API: **one field per setting, and intent
-given once.** Before, every setting was kept twice, as a value and as a mode that
-said whether to use it (`fp.screen_width` and `fp.flags.screen_masking`), which
-allowed states that mean nothing, and callers mutated the fingerprint after
-`build()` to say what they meant. Now every setting is one `Spoof<T>`
-(`Natural`, `Random`, `Value`, `Off`), the behaviour that is not a setting is a
-`StealthPolicy`, and a built `Fingerprint` is never mutated. The Python-parity
-methods (`parity/api.toml`) are unchanged; the fingerprint API is Rust-only. The
-design is `docs/design/fingerprint-api-v2.md`.
+- **`sb_cdp` tab and window creation no longer takes an `Option` URL**, which
+  needed `None::<&str>` to open a blank tab. `Browser::new_page`,
+  `Browser::new_window`, `BrowserContext::new_page` and the pool lease's
+  `new_page` take no argument and open a blank one; `new_page_at(url)` and
+  `new_window_at(url)` open one on a URL (a URL without a scheme is opened
+  over HTTPS, as before).
 
-### Breaking
+  ```rust
+  // before
+  let blank = browser.new_page(None::<&str>).await?;
+  let docs = browser.new_page(Some("https://example.com")).await?;
+  // after
+  let blank = browser.new_page().await?;
+  let docs = browser.new_page_at("https://example.com").await?;
+  ```
+
+- **`sb_cdp::Locator::type_text` empties the field before it types**, as Python's
+  `sb.cdp.type` does ("clears the text field first"); it used to type after
+  what the field held, which is Python's `send_keys` and the new
+  `Locator::send_keys`. This changes behaviour without changing the signature,
+  so a call that meant to append must be renamed. The MCP `type_text` tool keeps
+  its `fill_input` and `append` modes. `CdpDriver::type_text` now sends key
+  events too (it inserted the text in one step), like the other `type_text`
+  methods.
+
+  ```rust
+  // before: appended
+  page.locator("#note").type_text(" more").await?;
+  // after
+  page.locator("#note").send_keys(" more").await?;
+  ```
+
+- **`behave::AsyncStepRegistry` is `Send + Sync`**: a run can be handed to
+  `tokio::spawn` and the registry shared in an `Arc`. Its handlers get the
+  `BaseCase` as `SharedBaseCase` (`Arc<tokio::sync::Mutex<BaseCase>>`) instead
+  of `Rc<RefCell<BaseCase>>`, return an `AsyncStepFuture` (`Send`) and must be
+  `Send + Sync`; `with_base` is `async`. New: `base_case()` and
+  `into_base_case()`, which hands the `BaseCase` back after a run so the caller
+  can `quit` it (no step needs to).
+
+  ```rust
+  // before
+  registry.register_regex(r#"^I click "(.+?)"$"#, Box::new(|bc, _step, caps| {
+      let selector = caps[0].clone();
+      Box::pin(async move { bc.borrow_mut().click(&selector).await.map_err(|e| e.to_string()) })
+  }));
+  // after: lock the shared BaseCase
+  registry.register_regex(r#"^I click "(.+?)"$"#, Box::new(|bc, _step, caps| {
+      let selector = caps[0].clone();
+      Box::pin(async move { bc.lock().await.click(&selector).await.map_err(|e| e.to_string()) })
+  }));
+  // before: registry.with_base(|sb| ...);  after: registry.with_base(|sb| ...).await
+  ```
+
+- **`CdpDriver::evaluate` returns the value**, as Python's `sb.cdp.evaluate` does,
+  and drops a `return ` that starts the last line; it used to return the raw
+  CDP result object. `CdpDriver::find` reports a selector the page rejects as
+  `InvalidSelector` (it was `CdpDriver`).
+
+  ```rust
+  // before
+  let title = driver.evaluate("document.title").await?["value"].clone();
+  // after
+  let title = driver.evaluate("document.title").await?;
+  ```
+
+- **`api::cdp_page::CdpPage` is stricter and truer to Python's `sb.cdp`** (and
+  the `BaseCase::cdp_*` methods on it):
+  - `evaluate` (`BaseCase::cdp_evaluate`) returns the value instead of the raw
+    CDP result object `{"type": ..., "value": ...}`, drops a final `return`, and
+    a script that throws is `CdpDriver` (it was `Unsupported`).
+  - `click` (`cdp_click`) waits up to 7 seconds for the element, scrolls it
+    into view, and fails when the browser refuses an input event; it used to
+    discard those errors and click an element below the fold off screen.
+    `click_with_timeout` takes another wait.
+  - `get_text`, `get_attribute` and `get_property` fail with `ElementNotFound`
+    for an element that is not there; `get_text` used to answer `""` and the
+    others `None`. An element without the attribute still gives `None`.
+  - `select_option_by_value` fails with `InvalidSelector` for a value the
+    dropdown has no option for (it set the value and reported success), and
+    all three `select_option_by_*` fail with `ElementNotFound` for no dropdown.
+  - Only `click` waits for its element; the reads, `type_text`, `fast_type` and
+    the selects look once (`wait_for_element_present` first for a late
+    element). A selector the browser rejects is `InvalidSelector` in all of
+    them, and `wait_for_element_present` returns a lost connection at once
+    instead of polling it until the timeout and calling it `ElementNotFound`.
+
+  ```rust
+  // before: the value was inside the result object
+  let title = page.evaluate("document.title").await?["value"].clone();
+  // after
+  let title = page.evaluate("document.title").await?;
+  ```
+
+- **`click_with_offset` and `double_click_with_offset` take `center`** and count
+  from the top-left corner of the element, as Python's do (`click_with_offset(
+  selector, x, y, center=False)`). They passed `(x, y)` straight to WebDriver,
+  which counts from the centre of the element, while their documentation said
+  "from the top-left corner", so every click was off by half the element's
+  size. The extra argument stops old calls compiling; to keep the old behaviour
+  (and the click it really made) pass `true`, and to get what the
+  documentation promised pass `false`. They also wait for the element to be
+  displayed now. The recorder writes the new form
+  (`sb.click_with_offset("#a", 10, -4, false)`), and a recording of an offset
+  from the centre says `x, y, center`.
+
+  ```rust
+  // before: x and y counted from the centre, whatever the docs said
+  sb.click_with_offset("#canvas", 10, -4).await?;
+  // after
+  sb.click_with_offset("#canvas", 10, -4, true).await?;  // from the centre, as before
+  sb.click_with_offset("#canvas", 10, 4, false).await?;  // from the top-left corner
+  ```
+
+- **`save_qa_report` writes the active QA session.** It took the steps and the
+  title again (`save_qa_report(&steps, title, path)`) and ignored the session
+  the test had built, so the caller cloned the steps out and passed the title a
+  second time. `save_qa_report()` writes the session's report to the logs
+  folder, `save_qa_report_to(path)` to a file of your choice, and both are an
+  `InvalidConfig` error when there is no session. `qa_report_markdown` is
+  deprecated for `MasterQaSession::to_markdown`.
+
+  ```rust
+  // before
+  let steps = sb.qa_session().map(|s| s.steps.clone()).unwrap_or_default();
+  let report = sb.save_qa_report(&steps, "Login", None::<&str>)?;
+  let there = sb.save_qa_report(&steps, "Login", Some("qa.md"))?;
+  // after
+  let report = sb.save_qa_report()?;
+  let there = sb.save_qa_report_to("qa.md")?;
+  ```
+
+- **`BaseCase::set_messenger_theme` takes Python's arguments**, a
+  `MessengerSettings` (theme, location, how many messages), or a
+  `MessengerTheme` or `MessengerLocation` alone, as `Page::set_messenger_theme`
+  does, instead of a CSS colour. It loads Messenger first. The colour setter it
+  was is now `set_messenger_color`. A call with a colour string stops compiling.
+
+  ```rust
+  // before
+  sb.set_messenger_theme("#336699").await?;
+  // after
+  sb.set_messenger_color("#336699").await?;       // the same thing
+  sb.set_messenger_theme(MessengerTheme::Air).await?; // Python's set_messenger_theme
+  ```
+
+- **`post_message_for(message, duration)` takes a `Duration`**, not a number of
+  whole seconds, so a message can last 2.55 s as Python's default does. It also
+  waits for the message to go now (see Changed).
+
+  ```rust
+  // before
+  sb.post_message_for("Saved", 2).await?;
+  // after
+  sb.post_message_for("Saved", Duration::from_secs(2)).await?;
+  ```
 
 - **A setting is one `Spoof<T>`.** `Natural` is the browser's own value (the
   default), `Random` is a valid value drawn when the fingerprint is built and
@@ -534,14 +641,96 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
 | `fp.user_agent.as_deref()` | `fp.user_agent().as_str()` |
 | `fp.is_masked(Dimension::Screen)` | unchanged |
 
-### Deprecated
-
-- `evasions::cdp_overrides`: use `safe_cdp_overrides`, which leaves out the
-  `Proxy-Authorization` header that would hand the proxy's login to every site.
-- `StealthFlags` (use `StealthPolicy`), `StealthPolicy::{mask_all, all_custom}`
-  (use `max`).
-
 ### Added
+
+- `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
+  prefix of.
+- `PlaywrightSession::connect_over_cdp(endpoint)` attaches to a running
+  Chromium (for example `sb_cdp::Browser::http_url()`) and works on the page it
+  has open; `close` detaches and leaves the browser running. Python reaches
+  Playwright the same way (`sb.cdp.get_endpoint_url()`).
+- `run_cdp_test(options, test)` and `Plugins::run_cdp_test(name, options,
+  test)` run a test on the first tab of a Pure CDP browser and always close it,
+  the way `run_browser_test` does for WebDriver.
+- `RuntimeConfig::from_env_lenient` (the config and the list of variables that
+  did not parse), `from_vars` and `from_vars_lenient` (read the variables from
+  a function instead of the process environment).
+- `BrowserConfig::with_run_settings(RunSettings)` (and `run_settings()`) sets
+  the demo, slow, message and timeout settings a test starts with, as Python's
+  `SB(demo=, slow=, demo_sleep=, message_duration=)` does. They stay out of
+  configuration files and of the key that decides which tests share a browser.
+  `RunSettings::with_default_timeout` is new and `Settings::timeout_seconds`
+  feeds it. A `BaseCase` from `BaseCase::new` (so the test runners and
+  `sb_test!` too) starts with them and with that default timeout.
+- `BrowserConfig::with_remote_webdriver_timeout(Duration)` sets
+  `remote_webdriver_timeout_seconds`, which had no builder; a part of a second
+  rounds up. The common `with_*` builders of `BrowserConfig` gained doc
+  comments.
+- `Settings::load_from(path)` and `Settings::validate`; `DriverMode` implements
+  `FromStr` and `Display` (`webdriver`, `cdp`, `uc`) and has `name()`.
+- `RunSettings::pause_for(PauseKind)` names what `pause(tiny: bool)` took as a
+  flag: `PauseKind::Full` after an action that changed the page, `Short` (1/3.4
+  of the time in demo mode) after one that did not. `message_duration()` keeps
+  the milliseconds of `--message-duration` (default `DEFAULT_MESSAGE_DURATION`,
+  Python's 2.55 s) and `message_duration_headless()` cuts it to 0.75 s as
+  Python does in a headless browser. New getters `slow_mode()` and
+  `demo_sleep()`. `pause` and `message_seconds` are deprecated now that
+  `BaseCase` uses the new ones.
+- `BaseCase::demo_pauses()` (feature `test-util`) lists the `PauseKind` of each
+  pause demo and slow mode have made, so a test can assert that an action
+  paused without timing it.
+- `BaseCase::click_if_visible_with_timeout(selector, Duration)` waits up to the
+  time given for the element to be displayed before it gives up without an
+  error, as Python's `click_if_visible(selector, timeout=...)` does;
+  `click_if_visible(selector)` still looks once, like Python's `timeout=0`.
+- `BaseCase::cdp_insert_text(text)`: `Input.insertText` into whatever has focus,
+  the honest name of `cdp_type_text`, which types nothing (it inserts, with no
+  key events).
+- `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
+  at the crate root, beside `RuntimeConfig`.
+
+- `sb_cdp::Page::origin`, `locale_code`, `screen_rect` (a `ScreenRect` of the
+  display) and `click_active_element`: Python's `sb.cdp.get_origin`,
+  `get_locale_code`, `get_screen_rect` and `click_active_element`.
+- `sb_cdp::Locator::click_with_offset(x, y, center)` (the offset from the
+  top-left corner, or from the centre) and `click_if_visible()` (one look, like
+  Python's default `timeout=0`; `click_if_visible_with_timeout(timeout)` waits):
+  Python's `sb.cdp.click_with_offset` and `click_if_visible`.
+- `behave::StepRegistry::register_step` and `AsyncStepRegistry::register_step`
+  (and `try_register_step`) register a handler for the step text alone, which
+  matches whatever keyword the step is written with, or none, like behave's
+  `@step`; `behave::step_pattern` (the regex they build) is public. The
+  built-in async browser steps also understand the wording of Python
+  SeleniumBase's `--rec-behave` recorder: `Open "url"`, `Click "selector"`,
+  `Type text "text" into "selector"`, `Go back`, `Go forward`, in single or
+  double quotes, so a recording from Python runs here.
+- `sb_cdp::Page::set_messenger_theme` takes `impl Into<MessengerSettings>`, and
+  `MessengerSettings` is `From<MessengerTheme>` and `From<MessengerLocation>`:
+  `page.set_messenger_theme(MessengerTheme::Air)` changes one thing and keeps
+  Python's defaults for the rest. Passing `MessengerSettings` still works.
+- **The built-in plugins, one cargo feature each** (ADR 005, core side of
+  phase 1): `plugin-shield`, `plugin-block-resources` and `plugin-crx`, each of
+  which turns on `plugins` and compiles only its own plugin crate, and
+  `plugins-builtin` for all three. They come from the crate
+  `seleniumbase-rs-plugins-builtin`, re-exported as `seleniumbase_rs::builtin_plugins`.
+- **Choosing plugins by name, with no code.** A `[plugins]` table in the
+  settings file (`enable = [...]`, and one options table per plugin) and the
+  `SB_PLUGINS` variable (a comma-separated list, which replaces `enable`; an
+  empty value turns every plugin off) become a strict `PluginSet` through the
+  new `plugin_host` module. `LaunchOptionsBuilder::plugins_named` and
+  `plugin_selection` (errors at `build()`), and `BrowserConfig::with_plugins_named`
+  and `with_plugin_selection`, take the names. An unknown name is an error that
+  lists the known ones and the cargo features that add the others; options for
+  a plugin that is not enabled, options a plugin refuses and a name enabled
+  twice are errors too. A build without the `plugins` feature refuses a
+  non-empty selection when it loads the settings (`Settings::plugins`). There
+  are no command-line flags yet: `sbrs` does not apply the table or
+  `SB_PLUGINS`. See `docs/plugins/selecting.md`.
+- **The shield plugin** is documented (`docs/plugins/shield.md`): what it turns
+  off, its levels, WebRTC modes and options, and what has not been verified in a
+  real Chrome.
+- `Browser::extension_ids()` keeps the ids Chrome gave the extensions a launch
+  loaded (`Extensions.loadUnpacked`), in load order.
 
 - `Spoof<T>` with `is_natural`, `is_random`, `is_value`, `is_off`, `is_set`,
   `value`, `as_str` and `map`, and the policy types `StealthPolicy`,
@@ -568,7 +757,257 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   API and a `MobileSafari` persona with a `Chrome/` user agent as errors, and a
   locale from another country than the time zone as a warning.
 
+### Deprecated
+
+- `assert_visible!`: use `sb_assert_visible!`.
+- `save_saved_cookies` and `load_saved_cookies`: use `save_cookies` and
+  `load_cookies`.
+- `PlaywrightSession::launch_headless`, `launch_with_fingerprint` and
+  `launch_headless_with_fingerprint`: they are shortcuts for
+  `launch_with_config(&BrowserConfig::default().with_headless(..)
+  .with_fingerprint(..))`.
+- `run_settings::DEFAULT_MESSAGE_SECONDS` (3): use `DEFAULT_MESSAGE_DURATION`
+  (2.55 s). `RunSettings::message_seconds` now rounds `message_duration()` up,
+  so the two cannot drift apart; the default is still 3. It is deprecated too,
+  with `RunSettings::pause(tiny)`: use `message_duration()` and
+  `pause_for(PauseKind)`.
+
+- `sb_cdp::Locator::click_at(Point)`: use `click_with_offset(x, y, false)`,
+  Python's name for it. `click_at` calls it.
+- `BaseCase::cdp_type_text`: renamed `cdp_insert_text`.
+- `BaseCase::qa_report_markdown`: use `MasterQaSession::to_markdown`.
+- `BaseCase::cdp_click_element`: use `cdp_click`, which it now calls (see
+  Fixed). `sbrs cdp-click-element` and `cdp-type-text` keep their names.
+
+- `evasions::cdp_overrides`: use `safe_cdp_overrides`, which leaves out the
+  `Proxy-Authorization` header that would hand the proxy's login to every site.
+- `StealthFlags` (use `StealthPolicy`), `StealthPolicy::{mask_all, all_custom}`
+  (use `max`).
+
+### Changed
+
+- `ActionRecorder::to_gherkin` writes Python SeleniumBase's `--rec-behave`
+  wording, `Open "url"`, `Click "selector"`, `Type "text" into "selector"`,
+  `Go back` and `Go forward`, where it wrote `I open "url"` and the like, so a
+  recorded feature runs in either implementation. An argument that holds a
+  double quote is written in single quotes, as Python does (it used to be
+  skipped); one with both kinds of quote is still skipped. A feature written by
+  an earlier version keeps running: the `I open` steps are still registered.
+  The built-in `Type` step accepts what Python's recorder really writes,
+  `Type "text" into "selector"` (it understood only `Type text ...`).
+- **Demo mode and slow mode follow Python's rule for how long to pause, and
+  reach the calls Python's do.** `open` always paused in full, `click` always
+  in full and typing always short; Python pauses after an action in full when
+  the page's URL changed and for 1/3.4 of the time when it did not (slow mode:
+  always in full). `BaseCase` now reads the URL before and after such an
+  action, in demo mode only, and pauses by `RunSettings::pause_for`. The pauses
+  and the outline now also cover `double_click`, `context_click`, the link
+  clicks, `click_active_element`, `choose_file`, the selects, `add_text`,
+  `send_keys`, `set_value`, `submit`, `focus`, `go_back`, `go_forward`, the JS
+  and jQuery clicks, `drag_and_drop`, the offset clicks and the window size and
+  position calls; `press_keys` pauses in full after a typed Enter. A demo or
+  slow run is longer for it: leave them off unless a person watches.
+- **`post_message`, `post_message_for`, `post_success_message` and
+  `post_error_message` last the run's message duration to the millisecond**
+  (2.55 s by default, not 3 s), at most 0.75 s in a headless browser, and **wait
+  for the message to go and 0.15 s more**, as Python's default `pause=True`
+  does; they returned at once. They share one box: `post_message_for` no longer
+  draws its own. `post_message_and_highlight` still does not wait.
+- **`check_window` baselines can be told apart by test.** The baseline folder
+  was named after the thread's last path part, so tests of the same function
+  name in different modules or files shared one folder, and a body run by
+  `#[tokio::main]` or `tokio::spawn` was filed under `main` or
+  `tokio-runtime-worker`. `BaseCase::with_test_name("module::test")` (builder,
+  with `test_name()` to read it back) names the test, and the baselines go in
+  `visual_baseline/module__test/<name>`. `sb_test!` sets it from the module path
+  and the function, so its tests get a new folder: the first run saves a
+  baseline there again. Without a test name nothing changes.
+- **The element assertions and waits mean what Python's mean.** `assert_element`,
+  `assert_element_visible`, `assert_elements` and `wait_for_element` need the
+  element to be displayed and wait for it (`wait_for_element` for its own
+  timeout, the others for the default one); they used to look once for an
+  element in the DOM, hidden or not. A test that asserted a hidden element (a hidden input, a
+  `display: none` template) with `assert_element` must use
+  `assert_element_present`, which now waits as well, like
+  `assert_elements_present`. `wait_for_query_selector` is
+  `wait_for_element_present`, as in Python, and `wait_for_element_present`
+  takes `&self`. `AssertionApi::assert_element` is visible-and-waiting for the
+  pure CDP `Page` too.
+- **`sb_test!` counts a skipped test as passed.** A body that ends with
+  `skip_test` used to panic with `test failed`, and now logs the reason and
+  passes, like `run_browser_test` (libtest cannot report a skip). A test that
+  relied on the panic must fail with an error instead.
+- `load_cookies` waits for the page to finish loading first, as Python's does,
+  and the domain it gives a foreign cookie is the page's host without its port
+  (a browser driver refuses a cookie domain with a port).
+- `assert_shadow_text(text, selector)`, the text waits and the deferred checks
+  changed their argument order silently (both are `&str`). Only `assert_text`
+  and `assert_exact_text` say "arguments look swapped" when they fail; search
+  your tests for the other names listed above.
+- `add_text` waits for the element to be displayed (it used to fail on an
+  element that was not there yet), `send_keys` is `add_text`, and `update_text`
+  is `type_text`, as in Python, where they are the same methods.
+- `wait` is `sleep`, as in Python (the two differed: `wait` took whole seconds
+  and skipped what `sleep` does); see the breaking change above for its new
+  argument.
+- The getters and assertions that only read the page take `&self` instead of
+  `&mut self`: `get_title`, `get_current_url`, `get_text`, `assert_title`,
+  `assert_title_contains`, `assert_url`, `assert_url_contains`, `assert_text`,
+  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible` and `assert_element_visible`, so a test can
+  call them from a closure that holds only `&BaseCase`. Existing calls compile
+  as before.
+- **The text assertions wait, as Python's do.** `assert_text`,
+  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
+  `assert_exact_text_not_visible` poll for up to the default timeout
+  (`set_timeout`) instead of reading the page once, so a page that is still
+  rendering no longer fails them. The first three also require the element to
+  be displayed, and `assert_exact_text` and `is_exact_text_visible` ignore
+  whitespace at the ends of both strings. A failing assertion now arrives after
+  the timeout rather than at once: lower it with `set_timeout` where a test
+  expects a failure. `assert_text_visible` is `assert_text`, as in Python. The
+  deferred checks wait 2 seconds, whatever the default is.
+- `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
+  `//a//b` becomes `a b`, `/html/body/...`), a position before the other tests
+  (`tag[n]` becomes `tag:nth-of-type(n)`, `*[n]` becomes `*:nth-child(n)`),
+  `contains(@a,'v')`, `starts-with(@a,'v')` (an addition; Python has none),
+  `id('x')` and `or` (a comma list). A form with no exact CSS equivalent (a
+  position after another test, `text()`, `parent::`) is still refused instead
+  of being converted into something close.
+- The Python importer passes `By.XPATH` locators through as XPath, so XPath
+  that CSS cannot say is no longer refused.
+- The Python importer matches the arguments of a call with Python's parameters:
+  `self.assert_text("x")` gets Python's default selector `body`, and keyword
+  arguments (`selector=`, `text=`, `timeout=`) work. It imports
+  `assert_text_visible`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible`, `wait_for_text`, `wait_for_exact_text`, the
+  deferred and delayed asserts, `process_deferred_asserts` and
+  `enter_mfa_code`, which it used to leave as TODOs. An argument Rust cannot
+  carry over (`timeout=` on an assertion, a `by` that is not CSS) is an error
+  instead of being dropped. `send_keys` becomes `add_text`, not `type_text`:
+  Python's and Selenium's `send_keys` do not clear the field. The timeout of
+  `wait_for_element_visible` and `wait_for_element_present` is read from
+  `timeout=`; a second positional argument is Python's `by`, not a timeout.
+- **Both dependencies on the plugins repository are pinned to one revision**
+  (`628991a`): `seleniumbase-rs-plugin` and `seleniumbase-rs-plugins-builtin`
+  must name the same source, or Cargo builds two plugin API crates with
+  unrelated `Plugin` traits. `tests/plugin_features.rs` fails when they differ.
+  A plugin crate added with `cargo add --git` now needs the same `--rev`; the
+  plugins guide says so.
+- **Plugin settings reach the browser.** `LaunchSettings::host_resolver_rules`
+  becomes one `--host-resolver-rules` switch, `disable_features` and
+  `enable_features` one `--disable-features` and one `--enable-features` switch
+  (the first merged with the `Translate` the library turns off), `webrtc_policy`
+  `--force-webrtc-ip-handling-policy`, and `disable_quic` `--disable-quic`, on
+  the pure CDP engine and through chromedriver. They were dropped before. The
+  profile is shown to plugins before they run (persistent when `user_data_dir`
+  is set), so `shield`'s `ephemeral_profile` can refuse a persistent one. A
+  plugin that sets one of these fields for Firefox or Safari is refused.
+- **Plugins are checked against the engine that hosts them**
+  (`PluginSet::check_with`): the pure CDP engine supports every capability,
+  WebDriver with Chromium, Firefox or Safari the ones its protocol allows, and a
+  WebDriver server that answers `browserName: tauri` is re-checked as an
+  embedded webview once the session exists. A plugin that declares no metadata
+  keeps running on Firefox and Safari as before.
+- **A plugin's raw `Fetch.*` command is refused**, on the browser and on a tab,
+  in both engines: the host owns request interception, and the library's own
+  proxy login uses it. A plugin that blocks URLs sends `Network.setBlockedURLs`.
+- `SeleniumBaseError::Plugin` names the plugin for the `Unsupported`,
+  `Capability`, `Undeclared`, `Conflict` and `Sealed` errors of the plugin API,
+  and its hint explains them.
+
 ### Fixed
+
+- `BaseCase::get_locale_code` made up `en-US` when the browser gave no
+  language; Python returns what `navigator.language || navigator.languages[0]`
+  answers, and so does this now (the empty string for no locale).
+- `BaseCase::cdp_click_element` pressed at WebDriver's rectangle of the
+  element, which is in the document, but the DevTools mouse event takes
+  viewport coordinates, so on a page scrolled by N pixels the click landed N
+  pixels too low (or on another element). It is now `cdp_click`: it scrolls the
+  element into view and presses at its centre in the viewport. The
+  documentation of `cdp_mouse_click` said "screen coordinates"; they are
+  viewport coordinates. Behaviour change: like `cdp_click`, it now takes a CSS
+  selector only (it went through WebDriver and also took XPath, `link=` and
+  the like), and a missing element is waited for before it fails. Use `click`
+  for the other selector forms. A recording writes the click as `cdp_click`,
+  so generated programs do not call the deprecated method.
+- `BaseCase::drag_and_drop` outlines the drop selector too in demo mode, as
+  Python does; it outlined only the drag selector.
+- `BaseCase::click_with_offset` and `double_click_with_offset` scroll the
+  element into view before they measure it, as Python does, so an offset on an
+  element below the fold lands in the right place.
+- `BrowserConfig::with_run_settings` documents that it replaces the whole
+  `RunSettings`, the default wait of `Settings::to_browser_config` included.
+- `RunSettings` demo and slow mode pause for 0.5 s after an action, as Python
+  4.55.2 does (`DEFAULT_DEMO_MODE_TIMEOUT`); `DEFAULT_DEMO_PAUSE` was 1.2 s.
+  Pass `with_demo_sleep` to keep a longer pause.
+- `RunSettings::with_fast_mode` (`--fast`) no longer cancels demo and slow
+  mode. Python reads `--fast` only in CDP mode, where it skips short waits this
+  crate never makes, so the method is deprecated and does nothing. Behaviour
+  change: a run with demo or slow mode and `--fast` now pauses; drop the
+  `with_fast_mode(true)` call to keep the old effect of "no pauses" by turning
+  the mode off instead.
+- `Settings::to_browser_config` honours `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`
+  (the new fields `Settings::webdriver_url` and `chrome_bin`). Before, they
+  reached only `BrowserConfig::from_env` and `sbrs`, which patched them in by
+  hand, so the `sbrs mkdir` test helper ignored them. `SB_WINDOW_WIDTH` and
+  `SB_WINDOW_HEIGHT` now size the browser window (when both are set).
+- An unknown browser or driver mode is an error. `SB_BROWSER=chrom` or
+  `mode = "stealth"` used to give Chrome in WebDriver mode without a word;
+  `Settings::from_file`, `load`, `load_from` and `from_env` now call the new
+  `Settings::validate`, which also refuses a window width without a height.
+- `sbrs` and `sbrs-mcp` fall back to `RUST_LOG` when `SB_LOG_LEVEL` is unset,
+  blank or invalid (then to `info`); `RUST_LOG` used to be ignored, and the
+  docs said both. One bad `SB_*` runtime variable no longer drops the good
+  ones: both binaries now use `RuntimeConfig::from_env_lenient`, so a typo in
+  `SB_SHUTDOWN_TIMEOUT_SECS` keeps `SB_LOG_LEVEL=debug` and is logged as a
+  warning after logging starts.
+
+- A test that panics no longer leaves its browser open. `run_browser_test`,
+  `Plugins::run_browser_test` and `sb_test!` now share one lifecycle that
+  catches the panic, closes the browser, tells the plugins the test failed and
+  then raises the panic again. `sb_test!` used to panic on a skipped test and
+  to hide the test's error when `quit` also failed; it now behaves like
+  `run_browser_test`.
+
+- `PlaywrightSession` (feature `playwright`) sizes the window from
+  `BrowserConfig::with_window_size` instead of always starting maximised at
+  1920 by 1080. Without a configured size it behaves as before.
+
+- `BaseCase::activate_playwright_mode` (feature `playwright`) starts its
+  Chromium as the case's `BrowserConfig` says (headless or not, proxy, user
+  agent, locale, fingerprint, binary path, window size), where it always
+  started a default headed one and ignored the configuration; the profile
+  folder is left out, since the WebDriver browser holds it. `quit()` now closes
+  the Playwright session too; it was left running. Behaviour change: a headless
+  configuration now gives a headless Playwright browser, and a test that called
+  `session.close()` itself before `quit()` should leave that to `quit()`.
+
+- `sb_cdp::Locator` reads (`text`, `html`, `attribute`, `info`, `bounding_box`,
+  `viewport_rect`) reported every failure as `ElementNotFound`. Only a timeout
+  does now. An invalid CSS or XPath selector is `InvalidSelector` (for reads
+  and for actions, which used to say `CdpDriver`), and a lost connection keeps
+  its own error.
+- The pure CDP programs `ActionRecorder::to_cdp_script` and `to_cdp_test` write
+  follow `Locator::type_text` now emptying the field (see Breaking): a recorded
+  `add_text` or `send_keys` is `.send_keys(..)`, which adds to the text, where
+  `.type_text(..)` would have erased it; `type_text` and `update_text` are one
+  `.type_text(..)` call, not a `clear` and a `type_text`; and a
+  `click_with_offset` is `.click_with_offset(x, y, false)` (`true` for a
+  recording that says `x, y, center`), not the deprecated `click_at`. A
+  program recorded with an earlier version keeps working but clears the field
+  before an `add_text`: record it again, or rename that call to `send_keys`.
+
+A breaking change to the fingerprint API: **one field per setting, and intent
+given once.** Before, every setting was kept twice, as a value and as a mode that
+said whether to use it (`fp.screen_width` and `fp.flags.screen_masking`), which
+allowed states that mean nothing, and callers mutated the fingerprint after
+`build()` to say what they meant. Now every setting is one `Spoof<T>`
+(`Natural`, `Random`, `Value`, `Off`), the behaviour that is not a setting is a
+`StealthPolicy`, and a built `Fingerprint` is never mutated. The Python-parity
+methods (`parity/api.toml`) are unchanged; the fingerprint API is Rust-only. The
+design is `docs/design/fingerprint-api-v2.md`.
 
 - `enter_totp_code` and `enter_mfa_code` now press Enter after the code, as
   Python's `enter_mfa_code` does (it types the code and a newline). A test that
@@ -581,6 +1020,31 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   without a message dropped the error of the wait. `sb_test!` quit the browser
   before it reported the test's result, so a quit that failed hid the test's own
   error; it now reports both.
+- **Pooled browsers shared the state of a plugin.** `PluginSet::for_launch()`
+  now runs before every launch, attach and WebDriver session, so a plugin that
+  offers `per_launch` (the CRX plugin's temporary folders, shield's origin list)
+  gets a fresh instance for each browser, and `on_close` reaches the instance
+  that started.
+- **A plugin's `Network.setBlockedURLs` replaced the blocklist of the tab.**
+  Raw sends from several plugins, and the library's own ad-block list, are now
+  merged into one list for each tab (each window with chromedriver). The
+  tracker hosts of a fingerprint with `block_trackers` are part of that list on
+  both engines, and with chromedriver a window keeps its union when the session
+  switches away and back with `ad_block` on (switching re-sent the library's
+  list alone, which replaced the plugins' patterns).
+- **A switch in `extra_args` replaced the one plugins built.** On the pure CDP
+  engine `--disable-features`, `--enable-features` and `--host-resolver-rules`
+  given in `extra_args` are now joined into the one switch (as the WebDriver
+  engine already did), and the WebRTC policy of the options wins over a
+  `--force-webrtc-ip-handling-policy` argument; before, Chrome kept the last
+  one and dropped the merged list, shield's included.
+- **`SB_PLUGINS=` did not turn plugins off** when the file had an options table
+  such as `[plugins.shield]` (the build failed with stray options), and in a
+  build without the `plugins` feature the file's `[plugins]` table stopped the
+  load before `SB_PLUGINS` could override it. The variable now drops the
+  options of the plugins it no longer names and is applied before the check
+  for plugin support.
+- A plugin's `Network.setRequestInterception` is refused like `Fetch.*`.
 
 </Update>
 

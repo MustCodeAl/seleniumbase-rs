@@ -76,8 +76,8 @@ async fn main() -> Result<()> {
         let site = Site::serve(&[("/flawed", FLAWED_PAGE), ("/clean", CLEAN_PAGE)])?;
         let flawed_url = site.url("/flawed");
         let clean_url = site.url("/clean");
-        run_browser_test(BrowserConfig::default(), |sb| {
-            Box::pin(inspect_live(sb, flawed_url, clean_url))
+        run_browser_test(BrowserConfig::default(), async |sb| {
+            inspect_live(sb, flawed_url, clean_url).await
         })
         .await?;
     } else {

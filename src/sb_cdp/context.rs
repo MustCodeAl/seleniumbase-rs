@@ -13,7 +13,7 @@
 //!
 //! # async fn demo(browser: Browser) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 //! let context = browser.new_context().await?;
-//! let page = context.new_page(Some("https://example.com")).await?;
+//! let page = context.new_page_at("https://example.com").await?;
 //! // ... cookies set here are invisible to every other tab ...
 //! context.dispose().await?;
 //! # Ok(())
@@ -184,20 +184,35 @@ impl BrowserContext {
         &self.browser
     }
 
-    /// Opens a tab in this context, optionally at `url`.
+    /// Opens a blank tab in this context.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the tab cannot be created,
     /// for example because the context was disposed.
-    pub async fn new_page(&self, url: Option<impl AsRef<str>>) -> Result<Page, SeleniumBaseError> {
+    pub async fn new_page(&self) -> Result<Page, SeleniumBaseError> {
+        self.open_page(None).await
+    }
+
+    /// Opens a tab in this context and navigates it to `url`, which is opened
+    /// over HTTPS if it has no scheme.
+    ///
+    /// # Errors
+    ///
+    /// As [`new_page`](Self::new_page), and [`SeleniumBaseError::Navigation`]
+    /// if the page cannot be loaded.
+    pub async fn new_page_at(&self, url: impl AsRef<str>) -> Result<Page, SeleniumBaseError> {
+        self.open_page(Some(url.as_ref())).await
+    }
+
+    async fn open_page(&self, url: Option<&str>) -> Result<Page, SeleniumBaseError> {
         // A fresh context has no window yet, and Chrome refuses to open a tab
         // without one, so the first tab brings its own; later tabs join it.
         let first = locked(&self.pages).is_empty();
         let page = self
             .browser
             .open_target(
-                url.as_ref().map(AsRef::as_ref),
+                url,
                 first,
                 Some(ContextTarget {
                     id: &self.id,

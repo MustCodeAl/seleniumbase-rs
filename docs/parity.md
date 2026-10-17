@@ -19,12 +19,12 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
+| [BaseCase methods](#basecase-methods) | 453 | 440 | 3 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 7 | 194 | 14 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
-| [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
-| [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
+| [pytest options](#pytest-options) | 263 | 112 | 105 | 46 | 0 |
+| [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 17 | 0 |
 | [`Driver()` arguments](#driver()-arguments) | 74 | 40 | 31 | 3 | 0 |
 | [MCP: CDP server](#mcp-cdp-server) | 24 | 24 | 0 | 0 | 0 |
 | [MCP: Driver server](#mcp-driver-server) | 26 | 26 | 0 | 0 | 0 |
@@ -115,14 +115,14 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). |
 | `click_active_element` | implemented | `BaseCase::click_active_element` |  |
 | `click_chain` | implemented | `BaseCase::click_chain` |  |
-| `click_if_visible` | implemented | `BaseCase::click_if_visible` |  |
+| `click_if_visible` | implemented | `BaseCase::click_if_visible` | Differs: Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument. |
 | `click_link` | implemented | `BaseCase::click_link` |  |
 | `click_link_text` | implemented | `BaseCase::click_link_text` |  |
 | `click_nth_visible_element` | implemented | `BaseCase::click_nth_visible_element` | Differs: Counts from 0; Python counts from 1. |
 | `click_partial_link` | implemented | `BaseCase::click_partial_link` |  |
 | `click_partial_link_text` | implemented | `BaseCase::click_partial_link_text` |  |
 | `click_visible_elements` | implemented | `BaseCase::click_visible_elements` |  |
-| `click_with_offset` | implemented | `BaseCase::click_with_offset` |  |
+| `click_with_offset` | implemented | `BaseCase::click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. In demo mode it outlines the element but draws no dot. |
 | `click_xpath` | implemented | `BaseCase::click_xpath` |  |
 | `console_log_script` | implemented | `BaseCase::console_log_script` |  |
 | `console_log_string` | implemented | `BaseCase::console_log_string` |  |
@@ -167,7 +167,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `dismiss_alert` | implemented | `BaseCase::dismiss_alert` |  |
 | `display_chart` | implemented | `BaseCase::display_chart` |  |
 | `double_click` | implemented | `BaseCase::double_click` |  |
-| `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` |  |
+| `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. |
 | `download_file` | implemented | `BaseCase::download_file` | Differs: Opens the URL in a browser tab and waits for the browser to save it, taking a file name and timeout; Python fetches it over HTTP into a folder. |
 | `drag_and_drop` | implemented | `BaseCase::drag_and_drop` |  |
 | `drag_and_drop_with_offset` | implemented | `BaseCase::drag_and_drop_with_offset` |  |
@@ -337,10 +337,10 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `open_start_page` | implemented | `BaseCase::open_start_page` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |
 | `play_tour` | implemented | `BaseCase::play_tour` |  |
-| `post_error_message` | implemented | `BaseCase::post_error_message` | Differs: Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
-| `post_message` | implemented | `BaseCase::post_message` |  |
-| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message), then highlights the selector's element as Python does. |
-| `post_success_message` | implemented | `BaseCase::post_success_message` | Differs: Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
+| `post_error_message` | implemented | `BaseCase::post_error_message` | Differs: Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does. |
+| `post_message` | implemented | `BaseCase::post_message` | Differs: Shows a plain box, not Python's Messenger widget (activate_messenger and set_messenger_theme drive the widget), for the run's message duration, 0.75 s at most in a headless browser, and waits for it to go as the default pause=True does. It takes no duration, pause or style arguments: post_message_for takes the duration. |
+| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message), then highlights the selector's element as Python does; it does not wait for the message to go first. |
+| `post_success_message` | implemented | `BaseCase::post_success_message` | Differs: Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does. |
 | `press_down_arrow` | implemented | `BaseCase::press_down_arrow` | Differs: Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
 | `press_keys` | implemented | `BaseCase::press_keys` | Differs: Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus. |
 | `press_left_arrow` | implemented | `BaseCase::press_left_arrow` | Differs: Presses the Left arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
@@ -415,7 +415,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_introjs_colors` | implemented | `BaseCase::set_introjs_colors` |  |
 | `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` |  |
 | `set_local_storage_item` | implemented | `BaseCase::set_local_storage_item` |  |
-| `set_messenger_theme` | composed | `Page::set_messenger_theme` | On the pure-CDP engine, Page::set_messenger_theme takes MessengerSettings (theme, location, max_messages) as Python does. BaseCase::set_messenger_theme(color) on the WebDriver engine only sets the background colour of Messenger messages; it does not pick a theme or location. |
+| `set_messenger_theme` | implemented | `BaseCase::set_messenger_theme` | Takes MessengerSettings (theme, location, max_messages; the defaults are Python's), or a MessengerTheme or MessengerLocation alone, and loads Messenger first. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color. Differs: BaseCase::post_message shows a plain box of its own, so the theme changes the Messenger widget (which the page or your script posts with) and not post_message's box. |
 | `set_session_storage_item` | implemented | `BaseCase::set_session_storage_item` |  |
 | `set_text` | implemented | `BaseCase::set_text` | Differs: Sets the value of an input or textarea (firing input and change) or the textContent of any other element, as Python does; it presses no Enter for a trailing newline, and the selector is CSS. |
 | `set_text_content` | implemented | `BaseCase::set_text_content` | Differs: Same as set_text, as in Python; the selector is CSS and there is no scroll argument. |
@@ -614,15 +614,15 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `clear_cookies` | composed | `Cookies::clear` | `page.cookies().clear(..)`. |
 | `clear_input` | composed | `Locator::clear` | Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `click` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `click_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement.click()")`. |
+| `click_active_element` | implemented | `Page::click_active_element` | `page.click_active_element()` calls `click()` on `document.activeElement`. Differs: Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait. |
 | `click_and_hold` | composed | `Locator::click_and_hold` | `page.locator(selector).click_and_hold(Duration::from_secs(2))` scrolls the element into view, presses at its centre, holds for the given time and releases there. Mouse::down and Mouse::up act at coordinates. |
 | `click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
-| `click_if_visible` | composed | `Locator::click` | Locator::click has no "only if visible" condition; check `page.locator(selector).is_visible()` first. |
+| `click_if_visible` | implemented | `Locator::click_if_visible` | `page.locator(selector).click_if_visible()` clicks if the element is visible now (Python's default `timeout=0`: look once) and says whether it clicked; `click_if_visible_with_timeout(timeout)` waits up to `timeout` for it. The Locator holds the selector, so it is not an argument of the call. Differs: Gives Ok(false) when the element is not visible in time or vanishes before the click; an invalid selector or a lost connection is still an error, where Python suppresses every error. The click always scrolls the element into view (`scroll=True`). |
 | `click_link` | composed | `Locator::click` | `page.locator(SelectorBuf::partial_link_text(link_text)).click()` clicks the first link whose text contains `link_text`. The argument is link text, not a selector, so build the selector with `SelectorBuf::partial_link_text` (or `link_text` for an exact match) rather than passing the bare text. |
 | `click_nth_element` | composed | `Locator::nth` | `page.locator(selector).nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_nth_visible_element` | composed | `Locator::nth` | `page.locator(selector).visible().nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_visible_elements` | composed | `Locator::visible` | `page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`. |
-| `click_with_offset` | composed | `Locator::click_at` | `page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner. |
+| `click_with_offset` | implemented | `Locator::click_with_offset` | `page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false and is deprecated. Differs: Always scrolls the element into view (Python's `scroll=True`, its default). |
 | `close_active_tab` | composed | `Page::close` | `page.close()` closes that Page's tab. |
 | `download_file` | implemented | `Page::download_file` | `page.download_file(url, dir)` has the page fetch the address and save the response, as Python does, then waits for the browser to finish and returns the saved path. `page.download_by_click(selector, dir)` follows a download that a click starts. Differs: Takes the folder to save in (Python uses ./downloaded_files) and waits for the browser's own download events, bounded by the page timeout; a bad HTTP status, a fetch the page refuses (CORS) or a cancelled download is SeleniumBaseError::Download. The name comes from the Content-Disposition header when the server sends one, else from the address (Python: the address only). |
 | `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -663,11 +663,11 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_gui_element_rect` | composed | `Locator::screen_rect` | Call `page.locator(selector).screen_rect(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get_html` | composed | `Page::content` | `page.content()` returns the whole page's HTML, `document.documentElement.outerHTML`, which is what Python returns with `include_shadow_dom=False`. Python's default (True) reads the html element's outer HTML through DevTools; whether that adds shadow-root content was not compared. For one element use `page.locator(selector).html()`. |
 | `get_local_storage_item` | composed | `Storage::get` | `page.local_storage().get(key)`. |
-| `get_locale_code` | composed | `Page::evaluate` | No method: `page.evaluate("navigator.language")`. |
+| `get_locale_code` | implemented | `Page::locale_code` | `page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty. |
 | `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
 | `get_navigation_history` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`. |
 | `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `get_origin` | composed | `Page::evaluate` | No method: `page.evaluate("location.origin")`. |
+| `get_origin` | implemented | `Page::origin` | `page.origin()` is `window.location.origin`. |
 | `get_page_source` | composed | `Page::content` | `page.content()` returns the page's HTML. |
 | `get_page_title` | composed | `Page::title` | `page.title()`. |
 | `get_parent` | composed | `Locator::parent` | Call `page.locator(selector).parent(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -676,7 +676,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_rd_host` | composed | `Browser::debugging_host` | `browser.debugging_host()` is `127.0.0.1` for a launched browser and the host given to `Browser::connect` for an attached one. |
 | `get_rd_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
 | `get_rd_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to. |
-| `get_screen_rect` | composed | `Page::evaluate` | Python returns `window.screen`. Read it with `page.evaluate("({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })")`. `page.window().bounds()` is the browser window's rectangle, not the screen's. |
+| `get_screen_rect` | implemented | `Page::screen_rect` | `page.screen_rect()` returns a `ScreenRect` of the display (`window.screen`): size, usable area and colour depth. `page.window().bounds()` is the browser window's rectangle, not the screen's, and `Locator::screen_rect` is an element's rectangle in screen coordinates. Differs: Python returns the `window.screen` object as it serialises, a dict; this is a typed struct of the numeric fields. |
 | `get_session_storage_item` | composed | `Storage::get` | `page.session_storage().get(key)`. |
 | `get_tabs` | composed | `Browser::pages` | `browser.pages()`. |
 | `get_text` | composed | `Locator::text` | Call `page.locator(selector).text(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -729,10 +729,10 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `mouse_click` | composed | `Locator::click` | `page.locator(selector).click()` waits for the element, scrolls it into view and clicks its centre with real mouse events. `page.mouse().click(point)` clicks at coordinates instead. |
 | `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `open` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
-| `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page(..)`. |
-| `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window(..)`. |
+| `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL. |
+| `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL. |
 | `post_message` | implemented | `Page::post_message` | Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it. Differs: Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions. |
-| `press_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
+| `press_keys` | composed | `Locator::send_keys` | `page.locator(selector).send_keys(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
 | `print_to_pdf` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it with std::fs. |
 | `quit` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
 | `refresh` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
@@ -766,13 +766,13 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `select_option_by_index` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_text` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_value` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `send_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `send_keys` | implemented | `Locator::send_keys` | `page.locator(selector).send_keys(text)` types one key at a time after what the field holds; `type_text` clears first. |
 | `set_all_cookies` | composed | `Cookies::set` | `page.cookies().set(..)`. |
 | `set_attributes` | composed | `Locator::set_attribute` | Call `page.locator(selector).set_attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_download_path` | composed | `Browser::set_download_dir` | `browser.set_download_dir(dir)`. |
 | `set_local_storage_item` | composed | `Storage::set` | `page.local_storage().set(key, value)`. |
 | `set_locale` | composed | `Emulation::locale` | `page.emulation().locale(..)` sets the Intl locale and also the language the page reads from `navigator.language` and the browser sends in `Accept-Language`, keeping the user agent and client hints it had. As in Python the language takes effect from the next page load. |
-| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). |
+| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest. |
 | `set_session_storage_item` | composed | `Storage::set` | `page.session_storage().set(key, value)`. |
 | `set_value` | composed | `Locator::set_value` | Call `page.locator(selector).set_value(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_window_rect` | composed | `Window::set_bounds` | `page.window().set_bounds(x, y, width, height)`; it first restores a minimised or maximised window. |
@@ -785,7 +785,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `switch_to_tab` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch. |
 | `switch_to_window` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch. |
 | `tile_windows` | composed | `Window::set_bounds` | Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler. |
-| `type` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. |
 | `uncheck_if_checked` | composed | `Locator::uncheck` | Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `unselect_if_selected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(false)`. |
 | `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |
@@ -894,10 +894,10 @@ Python `--option` flags.
 | `--database-env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--database_env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--dcsp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
-| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
+| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `--demo-sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
-| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `--demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
@@ -940,9 +940,9 @@ Python `--option` flags.
 | `--extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `--external-pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
 | `--external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
-| `--fast` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
-| `--fast-mode` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
-| `--fast_mode` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
+| `--fast` | not-applicable |  | Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
+| `--fast-mode` | not-applicable |  | Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
+| `--fast_mode` | not-applicable |  | Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
 | `--fdebug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-debug` | not-applicable |  | Drops into Python's pdb at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
 | `--final-trace` | not-applicable |  | Starts Python's pdb trace at the end of each test; Rust has no pdb. Attach a debugger, or open Chrome's debugger with BrowserConfig::with_remote_debug. |
@@ -986,8 +986,8 @@ Python `--option` flags.
 | `--maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--maximize-window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--maximize_window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
-| `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
-| `--message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
+| `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
+| `--message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
 | `--metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--mobile` | implemented | `BrowserConfig::mobile` |  |
 | `--mobile-emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
@@ -1043,16 +1043,16 @@ Python `--option` flags.
 | `--save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
-| `--settings` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
-| `--settings-file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
-| `--settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings-file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `--settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `--sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip-js-waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
-| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
-| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
-| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
-| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
+| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
+| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
+| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
 | `--ss` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--start-page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `--start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
@@ -1131,7 +1131,7 @@ Keyword arguments of `SB()`.
 | `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `data` | not-applicable |  | Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file. |
-| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1150,7 +1150,7 @@ Keyword arguments of `SB()`.
 | `extension_dir` | implemented | `BrowserConfig::extension_dir` |  |
 | `extension_zip` | implemented | `BrowserConfig::with_extension_archive` | A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only. |
 | `external_pdf` | implemented | `BrowserConfig::with_external_pdf` | Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`. |
-| `fast` | implemented | `RunSettings::with_fast_mode` | Cancels the demo and slow pauses. |
+| `fast` | not-applicable |  | Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing. |
 | `firefox_arg` | implemented | `FirefoxOptions::add_args` | Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `firefox_pref` | implemented | `FirefoxOptions::add_preferences` | Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`. |
 | `guest` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1170,7 +1170,7 @@ Keyword arguments of `SB()`.
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
-| `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
+| `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `no_screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
@@ -1194,11 +1194,11 @@ Keyword arguments of `SB()`.
 | `save_screenshot` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `server` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL instead of its parts. |
 | `servername` | composed | `BrowserConfig::webdriver_url` | Give the full WebDriver URL, with the Grid's host in it. |
-| `settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
+| `settings_file` | composed | `Settings::from_file` | `sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...). |
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
-| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
 | `start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |

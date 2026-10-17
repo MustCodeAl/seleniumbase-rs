@@ -44,15 +44,21 @@ Following [Twelve-Factor III (config in the environment)](https://12factor.net/c
 | `SB_WEBDRIVER_URL` | `http://localhost:4444` | WebDriver endpoint. |
 | `SB_CHROME_BIN` | auto-detect | Explicit Chrome/Chromium binary path. |
 | `SB_PATCH_CACHE_DIR` | platform cache dir | Directory for patched Chrome/Chromedriver copies. |
-| `SB_LOG_LEVEL` | `info` | Default tracing log level. |
+| `SB_LOG_LEVEL` | unset | The tracing filter (`debug`, `seleniumbase_rs=debug,info`). Unset, blank or invalid, `sbrs` and `sbrs-mcp` use `RUST_LOG`, then `info`. |
 | `SB_LOG_FORMAT` | `pretty` | `pretty` or `json` output. |
 | `SB_SHUTDOWN_TIMEOUT_SECS` | `30` | Graceful shutdown timeout. |
-| `SB_CHROMEDRIVER_PORT` | `0` | Port for auto-started chromedriver (`0` = ephemeral). |
-| `SB_IMPLICIT_WAIT_SECS` | `30` | Default implicit wait timeout. |
+| `SB_CHROMEDRIVER_PORT` | `0` | Parsed into `RuntimeConfig::chromedriver_port`; nothing in the crate reads it yet. |
+| `SB_IMPLICIT_WAIT_SECS` | `30` | Parsed into `RuntimeConfig::implicit_wait`; nothing in the crate reads it yet. |
 
 ```bash
 SB_WEBDRIVER_URL=http://localhost:9515 SB_LOG_LEVEL=debug sbrs open https://example.com
 ```
+
+One bad value does not undo the others: with `SB_SHUTDOWN_TIMEOUT_SECS=soon`
+`sbrs` still honours `SB_LOG_LEVEL=debug`, uses the default timeout and logs a
+warning that names the variable. A program that builds the configuration itself
+can do the same with `RuntimeConfig::from_env_lenient()`, which returns the
+configuration and the list of problems.
 
 ## Spans in the library
 

@@ -5171,6 +5171,7 @@ dependencies = [
  "rustwright",
  "scraper",
  "seleniumbase-rs-plugin",
+ "seleniumbase-rs-plugins-builtin",
  "serde",
  "serde_json",
  "syn 3.0.7",
@@ -5206,18 +5207,61 @@ dependencies = [
  "tempfile",
  "thirtyfour",
  "tokio",
+ "tracing",
  "usage-lib",
  "usage-rs",
 ]
 
 [[package]]
 name = "seleniumbase-rs-plugin"
-version = "0.1.0"
-source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins#2443912f3309903604d317f3bfc93d66024690cc"
+version = "0.1.2"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=628991af0e6c5711298e3bd3692dc2974887401a#628991af0e6c5711298e3bd3692dc2974887401a"
 dependencies = [
  "async-trait",
+ "serde",
  "serde_json",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "seleniumbase-rs-plugin-block-resources"
+version = "0.1.2"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=628991af0e6c5711298e3bd3692dc2974887401a#628991af0e6c5711298e3bd3692dc2974887401a"
+dependencies = [
+ "seleniumbase-rs-plugin",
+ "serde_json",
+]
+
+[[package]]
+name = "seleniumbase-rs-plugin-crx"
+version = "0.1.2"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=628991af0e6c5711298e3bd3692dc2974887401a#628991af0e6c5711298e3bd3692dc2974887401a"
+dependencies = [
+ "seleniumbase-rs-plugin",
+ "serde_json",
+ "tempfile",
+ "zip",
+]
+
+[[package]]
+name = "seleniumbase-rs-plugin-shield"
+version = "0.1.2"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=628991af0e6c5711298e3bd3692dc2974887401a#628991af0e6c5711298e3bd3692dc2974887401a"
+dependencies = [
+ "seleniumbase-rs-plugin",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "seleniumbase-rs-plugins-builtin"
+version = "0.1.2"
+source = "git+https://github.com/MustCodeAl/seleniumbase-rs-plugins?rev=628991af0e6c5711298e3bd3692dc2974887401a#628991af0e6c5711298e3bd3692dc2974887401a"
+dependencies = [
+ "seleniumbase-rs-plugin",
+ "seleniumbase-rs-plugin-block-resources",
+ "seleniumbase-rs-plugin-crx",
+ "seleniumbase-rs-plugin-shield",
 ]
 
 [[package]]

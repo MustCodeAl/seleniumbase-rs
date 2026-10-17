@@ -190,7 +190,7 @@ async fn the_tab_of_a_lease_is_opened_inside_its_context() {
     let pool = pool(&fleet, options(1, 1));
 
     let lease = pool.acquire().await.unwrap();
-    let extra = lease.new_page(Some("https://example.com")).await.unwrap();
+    let extra = lease.new_page_at("https://example.com").await.unwrap();
 
     let creations = fleet.mock(0).calls_to("Target.createTarget");
     assert_eq!(creations.len(), 2);

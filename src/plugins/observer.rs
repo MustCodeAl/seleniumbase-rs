@@ -25,11 +25,9 @@
 //!     .with(ReportPlugin::json("latest_logs/report.json"));
 //!
 //! plugins
-//!     .run_browser_test("login_works", BrowserConfig::default(), |sb| {
-//!         Box::pin(async move {
-//!             sb.open("https://example.com").await?;
-//!             sb.assert_title("Example Domain").await
-//!         })
+//!     .run_browser_test("login_works", BrowserConfig::default(), async |sb| {
+//!         sb.open("https://example.com").await?;
+//!         sb.assert_title("Example Domain").await
 //!     })
 //!     .await?;
 //! # Ok(())
@@ -41,8 +39,11 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 
-use crate::api::runner::{combine_outcomes, BrowserTestFuture};
+#[allow(deprecated, reason = "the shim keeps the old closure type")]
+use crate::api::runner::BrowserTestFuture;
+use crate::api::runner::{close_browser, drive, CdpCase};
 use crate::error::{Result, SeleniumBaseError};
+use crate::sb_cdp::{Browser, LaunchOptions, Page};
 use crate::{BaseCase, BrowserConfig};
 
 /// What a plugin can look at when a test fails.
@@ -264,7 +265,9 @@ impl Plugins {
     ///
     /// The plugins see the page on failure before the browser is closed. The
     /// returned result is the test's own, combined with any error from closing
-    /// the browser, exactly as `run_browser_test` returns it.
+    /// the browser, exactly as `run_browser_test` returns it. A test that
+    /// panics is a failure for the plugins too; the panic is raised again once
+    /// they and the browser are done.
     ///
     /// # Errors
     ///
@@ -277,7 +280,7 @@ impl Plugins {
         test: F,
     ) -> Result<()>
     where
-        F: for<'a> FnOnce(&'a mut BaseCase) -> BrowserTestFuture<'a>,
+        F: AsyncFnOnce(&mut BaseCase) -> Result<()>,
     {
         self.started(name).await;
         let began = Instant::now();
@@ -289,17 +292,120 @@ impl Plugins {
                 return outcome;
             }
         };
-        let test_result = test(&mut sb).await;
-        if let Err(error) = &test_result {
-            // A skipped test did not fail: no screenshot or report entry for it.
-            if !error.is_skipped() {
-                self.failed(name, error, &sb).await;
+        let ended = drive(
+            &mut sb,
+            test,
+            async |sb: &BaseCase, error: &SeleniumBaseError| self.failed(name, error, sb).await,
+            close_browser,
+        )
+        .await;
+        self.finished(name, began.elapsed(), ended.outcome()).await;
+        ended.finish()
+    }
+
+    /// [`run_browser_test`](Self::run_browser_test) for a test written as a
+    /// closure that returns a boxed future, the form it took before async
+    /// closures. Migration: `|sb| Box::pin(async move { .. })` becomes
+    /// `async |sb| { .. }`.
+    ///
+    /// # Errors
+    ///
+    /// As [`run_browser_test`](Self::run_browser_test).
+    #[deprecated(
+        since = "0.5.0",
+        note = "use run_browser_test with an async closure: `async |sb| { .. }`"
+    )]
+    #[allow(deprecated, reason = "the old closure type is this function's bound")]
+    pub async fn run_browser_test_boxed<F>(
+        &mut self,
+        name: &str,
+        config: BrowserConfig,
+        test: F,
+    ) -> Result<()>
+    where
+        F: for<'a> FnOnce(&'a mut BaseCase) -> BrowserTestFuture<'a>,
+    {
+        self.run_browser_test(name, config, async move |sb: &mut BaseCase| test(sb).await)
+            .await
+    }
+
+    /// Runs a test on the first tab of a Pure CDP browser, like
+    /// [`run_cdp_test`](crate::api::runner::run_cdp_test), telling the
+    /// plugins about it. The plugins see the tab on failure before the
+    /// browser is closed.
+    ///
+    /// # Errors
+    ///
+    /// Returns the test's error, the browser's launch or close error, or both
+    /// combined into [`SeleniumBaseError::TestLifecycle`].
+    pub async fn run_cdp_test<F>(
+        &mut self,
+        name: &str,
+        options: LaunchOptions,
+        test: F,
+    ) -> Result<()>
+    where
+        F: AsyncFnOnce(&Page) -> Result<()>,
+    {
+        self.run_cdp_test_after(name, Browser::launch(options), test)
+            .await
+    }
+
+    /// [`run_cdp_test`](Self::run_cdp_test) with the launch given as a future,
+    /// so a test can stand a mocked browser in.
+    pub(crate) async fn run_cdp_test_after<F>(
+        &mut self,
+        name: &str,
+        launch: impl std::future::Future<Output = Result<Browser>>,
+        test: F,
+    ) -> Result<()>
+    where
+        F: AsyncFnOnce(&Page) -> Result<()>,
+    {
+        self.started(name).await;
+        let began = Instant::now();
+        let browser = match launch.await {
+            Ok(browser) => browser,
+            Err(error) => {
+                let outcome = Err(error);
+                self.finished(name, began.elapsed(), &outcome).await;
+                return outcome;
             }
-        }
-        let cleanup_result = sb.quit().await;
-        let outcome = combine_outcomes(test_result, cleanup_result);
-        self.finished(name, began.elapsed(), &outcome).await;
-        outcome
+        };
+        self.run_cdp_test_on(name, began, browser, test).await
+    }
+
+    /// [`run_cdp_test`](Self::run_cdp_test) on a browser that is already
+    /// running (or mocked).
+    pub(crate) async fn run_cdp_test_on<F>(
+        &mut self,
+        name: &str,
+        began: Instant,
+        browser: Browser,
+        test: F,
+    ) -> Result<()>
+    where
+        F: AsyncFnOnce(&Page) -> Result<()>,
+    {
+        let mut case = match CdpCase::open(browser).await {
+            Ok(case) => case,
+            Err(error) => {
+                let outcome = Err(error);
+                self.finished(name, began.elapsed(), &outcome).await;
+                return outcome;
+            }
+        };
+        let ended = drive(
+            &mut case,
+            async |case: &mut CdpCase| test(&case.page).await,
+            async |case: &CdpCase, error: &SeleniumBaseError| {
+                self.failed(name, error, &case.page).await;
+            },
+            CdpCase::close,
+        )
+        .await;
+        self.finished(name, began.elapsed(), ended.outcome()).await;
+        ended.finish()
     }
 }
 
@@ -343,6 +449,132 @@ mod tests {
         assert_eq!(file_stem(""), "test");
         assert_eq!(file_stem(&"x".repeat(500)).len(), 80);
         assert!(!file_stem("a/b\\c:d").contains(['/', '\\', ':']));
+    }
+
+    /// A plugin that writes down which hooks ran.
+    #[derive(Clone, Default)]
+    struct Recorder(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+
+    impl Recorder {
+        fn note(&self, line: String) {
+            self.0.lock().unwrap().push(line);
+        }
+
+        fn lines(&self) -> Vec<String> {
+            self.0.lock().unwrap().clone()
+        }
+    }
+
+    #[async_trait]
+    impl TestPlugin for Recorder {
+        async fn test_started(&mut self, test: &str) -> Result<()> {
+            self.note(format!("started {test}"));
+            Ok(())
+        }
+
+        async fn test_failed(
+            &mut self,
+            test: &str,
+            _error: &SeleniumBaseError,
+            _page: &dyn PageEvidence,
+        ) -> Result<()> {
+            self.note(format!("failed {test}"));
+            Ok(())
+        }
+
+        async fn test_finished(
+            &mut self,
+            test: &str,
+            _elapsed: Duration,
+            outcome: &Result<()>,
+        ) -> Result<()> {
+            self.note(format!("finished {test} ok={}", outcome.is_ok()));
+            Ok(())
+        }
+    }
+
+    async fn cdp_run<F>(recorder: &Recorder, test: F) -> Result<()>
+    where
+        F: AsyncFnOnce(&Page) -> Result<()>,
+    {
+        let (browser, _mock) = Browser::new_mocked();
+        Plugins::new()
+            .with(recorder.clone())
+            .run_cdp_test_on("t", Instant::now(), browser, test)
+            .await
+    }
+
+    #[tokio::test]
+    async fn a_passing_cdp_test_is_finished() {
+        let recorder = Recorder::default();
+        let outcome = cdp_run(&recorder, async |_: &Page| Ok(())).await;
+        assert!(outcome.is_ok(), "{outcome:?}");
+        assert_eq!(recorder.lines(), ["finished t ok=true"]);
+    }
+
+    #[tokio::test]
+    async fn a_launched_cdp_test_is_started_then_finished() {
+        let recorder = Recorder::default();
+        let (browser, _mock) = Browser::new_mocked();
+        let outcome = Plugins::new()
+            .with(recorder.clone())
+            .run_cdp_test_after("t", async { Ok(browser) }, async |_: &Page| Ok(()))
+            .await;
+        assert!(outcome.is_ok(), "{outcome:?}");
+        assert_eq!(recorder.lines(), ["started t", "finished t ok=true"]);
+    }
+
+    #[tokio::test]
+    async fn a_cdp_launch_that_fails_is_started_and_finished_as_failed() {
+        let recorder = Recorder::default();
+        let outcome = Plugins::new()
+            .with(recorder.clone())
+            .run_cdp_test_after(
+                "t",
+                async { Err(SeleniumBaseError::AssertionFailed("no chrome".to_owned())) },
+                async |_: &Page| Ok(()),
+            )
+            .await;
+        assert!(outcome.is_err());
+        assert_eq!(recorder.lines(), ["started t", "finished t ok=false"]);
+    }
+
+    #[tokio::test]
+    async fn a_failing_cdp_test_shows_the_plugins_its_page_first() {
+        let recorder = Recorder::default();
+        let outcome = cdp_run(&recorder, async |_: &Page| {
+            Err(SeleniumBaseError::AssertionFailed("boom".to_owned()))
+        })
+        .await;
+        assert!(matches!(
+            outcome,
+            Err(SeleniumBaseError::AssertionFailed(_))
+        ));
+        assert_eq!(recorder.lines(), ["failed t", "finished t ok=false"]);
+    }
+
+    #[tokio::test]
+    async fn a_skipped_cdp_test_is_not_a_failure_for_the_plugins() {
+        let recorder = Recorder::default();
+        let outcome = cdp_run(&recorder, async |_: &Page| {
+            Err(SeleniumBaseError::Skipped("later".to_owned()))
+        })
+        .await;
+        assert!(outcome.is_ok());
+        assert_eq!(recorder.lines(), ["finished t ok=true"]);
+    }
+
+    #[tokio::test]
+    async fn a_panicking_cdp_test_is_reported_and_then_panics_again() {
+        use futures_util::FutureExt;
+        let recorder = Recorder::default();
+        let raised = std::panic::AssertUnwindSafe(cdp_run(&recorder, async |_: &Page| {
+            panic!("assert failed in the test")
+        }))
+        .catch_unwind()
+        .await;
+        assert!(raised.is_err(), "the panic reaches the caller");
+        assert_eq!(recorder.lines(), ["failed t", "finished t ok=false"]);
     }
 
     #[tokio::test]

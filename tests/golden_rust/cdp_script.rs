@@ -1,4 +1,4 @@
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Point, Scroll, SelectBy, State};
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Scroll, SelectBy, State};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,12 +19,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     page.locator("#end").scroll_into_view().await?;
     page.locator("#agree").check().await?;
     page.locator("#spam").uncheck().await?;
-    page.locator("#q").clear().await?;
     page.locator("#q").type_text("rust").await?;
-    page.locator("#q").clear().await?;
     page.locator("#q").type_text("rust").await?;
-    page.locator("#q").type_text(" more").await?;
-    page.locator("#q").type_text("abc").await?;
+    page.locator("#q").send_keys(" more").await?;
+    page.locator("#q").send_keys("abc").await?;
     page.locator("link=Log out").click().await?;
     page.locator("link=Log out").click().await?;
     page.locator("p_link=Log").click().await?;
@@ -55,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     page.local_storage().set("theme", "dark").await?;
     page.local_storage().remove("theme").await?;
     page.local_storage().clear().await?;
-    page.locator("#c").click_at(Point::new(5.0, -7.0)).await?;
+    page.locator("#c").click_with_offset(5.0, -7.0, false).await?;
     tokio::time::sleep(std::time::Duration::from_secs_f64(1.5)).await;
     // skipped: switch_to_frame: no pure CDP call for this action; the WebDriver form is sb.switch_to_frame("#frame").await?;
     // skipped: js_click: no pure CDP call for this action; the WebDriver form is sb.js_click("#hidden").await?;

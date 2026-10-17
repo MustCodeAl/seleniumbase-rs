@@ -165,8 +165,9 @@ The last line prints the browsers it found and whether their drivers match.
 ### Extras for single features
 
 Most features need nothing more: `tui`, `mcp-server`, `turso`, `playwright`,
-`azure`, `gcp`, `full-tracing`, `test-util`, `ocr`, `visual` and `plugins`. The
-rest:
+`azure`, `gcp`, `full-tracing`, `test-util`, `ocr`, `visual`, `plugins` and the
+built-in plugins (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, or
+`plugins-builtin` for all of them). The rest:
 
 <AccordionGroup>
 

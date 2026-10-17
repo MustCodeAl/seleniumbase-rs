@@ -120,7 +120,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let page = browser.default_page().await?;
     page.goto("https://seleniumbase.io/demo_page").await?;
     page.locator("#myButton").click().await?;
-    page.locator("#myInput").clear().await?;
     page.locator("#myInput").type_text("hello").await?;
     browser.close().await?;
     Ok(())
@@ -134,11 +133,13 @@ flag does, turn the setting on with `BrowserConfig::with_rec_sb_cdp(true)`, the
 WebDriver, and only the generated code changes.
 
 Every selector and value is written as a Rust string literal. 51 recorded
-actions have a pure CDP call: `open`, the clicks, typing (a `clear` and then
-`type_text`, as `BaseCase::type_text` does), the `select_option_*` methods, link
+actions have a pure CDP call: `open`, the clicks, typing (`type_text`, which
+empties the field first as `BaseCase::type_text` does, and `send_keys` for
+`add_text`, which adds to what the field holds), the `select_option_*` methods, link
 clicks (`link=` and `p_link=` selectors), drag and drop, the element waits, the
 text, attribute and title assertions, history and reload, scrolling, cookies,
-`localStorage`, `maximize_window`, `click_with_offset` and `sleep`. The rest
+`localStorage`, `maximize_window`, `click_with_offset` (from the top-left corner,
+or the centre when the recording says `x, y, center`) and `sleep`. The rest
 (frame, window and alert switching, JavaScript clicks, `set_window_size`, and
 so on) become a `// skipped:` comment that quotes the `BaseCase` call, so a gap
 is never silent. Differences from the WebDriver program: a wait uses the pure

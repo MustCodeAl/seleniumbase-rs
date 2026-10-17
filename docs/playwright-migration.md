@@ -143,8 +143,8 @@ XPath 1.0).
 |---|---|
 | `click()`, `dblclick()`, `click({ button: 'right' })` | `.click()`, `.double_click()`, `.right_click()` |
 | `fill(text)` | `.fill(text)` |
-| `type(text)`, `pressSequentially(text)` | `.type_text(text)` (the `delay` option is not kept) |
-| `press(key)` | `.press(Key::Enter)` for named keys, `.type_text("a")` for one character; key combinations are a `TODO` |
+| `type(text)`, `pressSequentially(text)` | `.send_keys(text)` types after what the field holds, as these do; `.type_text(text)` empties it first. The `delay` option is not kept |
+| `press(key)` | `.press(Key::Enter)` for named keys, `.send_keys("a")` for one character; key combinations are a `TODO` |
 | `check()`, `uncheck()`, `setChecked(b)` | `.check()`, `.uncheck()`, `.set_checked(b)` |
 | `selectOption('v')` | `support::select_option(&locator, "v")`: the option with that value, else that text |
 | `selectOption({ value })`, `{ label }`, `{ index }` | `.select_option(SelectBy::Value / Text / Index)` |

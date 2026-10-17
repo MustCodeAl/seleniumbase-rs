@@ -133,9 +133,14 @@ pub(crate) const AD_BLOCK_SELECTORS: &[&str] = &[
     "ytd-video-masthead-ad-v3-renderer",
 ];
 
-/// `s` as a JSON string literal, which is also a JavaScript one.
+/// `s` as a JSON string literal, which is also a JavaScript one. JSON lets the
+/// line and paragraph separators through; JavaScript before ES2019 ends a
+/// string at them, so they are written as escapes.
 fn literal(s: &str) -> String {
-    serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_owned())
+    serde_json::to_string(s)
+        .unwrap_or_else(|_| "\"\"".to_owned())
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
 /// Sets the text of the element `css` picks: its `value` when it is an
@@ -228,9 +233,14 @@ pub(crate) fn console_log_string_script(text: &str) -> String {
 }
 
 /// Shows `message` in a corner of the page on a `color` background, replacing
-/// the one already there, and removes it after `seconds`.
-pub(crate) fn toast_script(message: &str, color: &str, seconds: u64) -> String {
-    let millis = seconds.saturating_mul(1000);
+/// the one already there, and removes it after `duration`, to the millisecond,
+/// as Python's `post_message(duration=2.55)` does.
+pub(crate) fn toast_script_for(
+    message: &str,
+    color: &str,
+    duration: std::time::Duration,
+) -> String {
+    let millis = duration.as_millis();
     format!(
         "var old = document.getElementById('sb-toast-message'); \
          if (old) {{ old.remove(); }} \
@@ -284,7 +294,10 @@ mod tests {
             (bring_to_front_script(css), vec![css]),
             (select_by_index_script(css, 1), vec![css]),
             (console_log_string_script(text), vec![text]),
-            (toast_script(text, "#fff", 1), vec![text]),
+            (
+                toast_script_for(text, "#fff", std::time::Duration::from_secs(1)),
+                vec![text],
+            ),
         ] {
             let mut rest = script.clone();
             for arg in args {
@@ -299,6 +312,20 @@ mod tests {
                 "payload escaped its literal: {script}"
             );
         }
+    }
+
+    #[test]
+    fn a_literal_holds_no_raw_line_or_paragraph_separator() {
+        let written = literal("a\u{2028}b\u{2029}c\nd");
+        assert_eq!(written, "\"a\\u2028b\\u2029c\\nd\"");
+    }
+
+    #[test]
+    fn a_toast_lasts_the_milliseconds_it_was_given() {
+        let script = toast_script_for("hi", "#fff", std::time::Duration::from_millis(1500));
+        assert!(script.contains(", 1500);"), "{script}");
+        let whole = toast_script_for("hi", "#fff", std::time::Duration::from_secs(2));
+        assert!(whole.contains(", 2000);"), "{whole}");
     }
 
     #[test]
@@ -504,10 +531,11 @@ mod tests {
     #[ignore = "needs Chrome"]
     async fn a_toast_replaces_the_previous_one_and_goes_away() {
         let (browser, page) = open_html("<!doctype html><p>page</p>").await;
-        page.evaluate(as_call(&toast_script("first", "#28a745", 1)))
+        let one_second = std::time::Duration::from_secs(1);
+        page.evaluate(as_call(&toast_script_for("first", "#28a745", one_second)))
             .await
             .unwrap();
-        page.evaluate(as_call(&toast_script("second", "#dc3545", 1)))
+        page.evaluate(as_call(&toast_script_for("second", "#dc3545", one_second)))
             .await
             .unwrap();
         let count = page

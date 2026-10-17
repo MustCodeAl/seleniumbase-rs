@@ -50,6 +50,8 @@ tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "si
 reqwest = { version = "0.13", default-features = false }
 tempfile = { version = "3.27", default-features = false }
 dirs = "7.0"
+# The warning for an invalid `SB_*` variable, written once logging works.
+tracing = "0.1"
 
 [features]
 # The prebuilt binaries and `cargo install` carry PDF text extraction and the MCP

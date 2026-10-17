@@ -18,97 +18,103 @@ lists the limits.
 
 - The eight settings and the Python option behind each.
 - How to turn them on in a test, or from environment variables.
-- That the demo and slow pauses apply to five calls only.
+- Which calls pause in demo and slow mode, and how long.
 - What `RunSettings` does not do.
 
 ## The settings
 
-`RunSettings` is not re-exported at the crate root. Import it from
-`seleniumbase_rs::api::run_settings`. Every method below is a builder that takes
-and returns `RunSettings`.
+`RunSettings` and `PauseKind` are at the crate root (`seleniumbase_rs::RunSettings`;
+the module is `seleniumbase_rs::api::run_settings`). Every method below is a
+builder that takes and returns `RunSettings`.
 
 | Builder | Python option | Default | Effect |
 |---------|---------------|---------|--------|
-| `with_demo_mode(bool)` | `--demo` (also `--demo-mode`, `--demo_mode`) | off | Scrolls the element into view and outlines it before `click`, `type_text`, `update_text` and `press_keys`, then pauses after those calls and after `open`. |
+| `with_demo_mode(bool)` | `--demo` (also `--demo-mode`, `--demo_mode`) | off | Outlines the element before the interactive calls, then pauses after them. [Which calls](#which-calls-honour-which-setting) and how long. |
 | `with_slow_mode(bool)` | `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`) | off | The same pauses, without the outline. |
-| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Cancels the demo and slow pauses, whatever else is set. |
-| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 1.2 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
-| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 3 s | How long `post_message` and its relatives keep a message on the page. Rounded up to whole seconds. |
+| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode. |
+| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 0.5 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
+| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 2.55 s | How long `post_message` and its relatives keep a message on the page, to the millisecond. In a headless browser it is cut to 0.75 s, as Python does (`message_duration_headless()`). A zero duration is honoured here; Python treats `0` as unset. |
+| `with_default_timeout(Duration)` | none (Rust only; `SB_TIMEOUT` sets it from the environment) | 10 s | The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (a part of a second rounds up). `BaseCase::new` (and so `run_browser_test` and `Plugins::run_browser_test`) starts with it; `set_run_settings` does not change the timeout, `set_timeout` does. |
 | `with_skip_js_waits(bool)` | `--skip-js-waits` (also `--skip_js_waits`, `--sjw`) | off | Makes `wait_for_ready_state_complete` return at once. |
 | `with_record_sleep(bool)` | `--record-sleep` (also `--rec-sleep`) | off | Puts `BaseCase::sleep` calls into the recording. |
 | `with_visual_baseline_reset(bool)` | `--visual-baseline` (also `--visual_baseline`) | off | Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one. |
 
-The defaults are `DEFAULT_DEMO_PAUSE` (1200 ms) and `DEFAULT_MESSAGE_SECONDS`
-(3) in the same module.
+The defaults are `DEFAULT_DEMO_PAUSE` (500 ms, Python's `DEFAULT_DEMO_MODE_TIMEOUT`) and `DEFAULT_MESSAGE_DURATION`
+(2.55 s) in the same module.
 
-Two read-only helpers, `pause` and `message_seconds`, show the combined effect of
-the settings, which is handy in your own code and tests:
+Read-only helpers, `pause_for` and `message_duration`, show the combined effect of
+the settings, which is handy in your own code and tests. `PauseKind::Full` is a
+pause after an action that changed the page, `PauseKind::Short` one after an
+action that did not (1/3.4 of the time in demo mode):
 
 ```rust,no_run
 use std::time::Duration;
-use seleniumbase_rs::api::run_settings::RunSettings;
+use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
 
 let settings = RunSettings::default()
     .with_slow_mode(true)
     .with_demo_sleep(Duration::from_millis(500));
 
-// How long a click or open would pause (`false`), and how long typing would.
-assert_eq!(settings.pause(false), Duration::from_millis(500));
-assert_eq!(settings.pause(true), Duration::from_millis(500));
-// How many whole seconds post_message keeps its message.
-assert_eq!(settings.message_seconds(), 3);
+// How long a navigating action would pause, and how long a quiet one would.
+assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
+assert_eq!(settings.pause_for(PauseKind::Short), Duration::from_millis(500));
+// How long post_message keeps its message.
+assert_eq!(settings.message_duration(), Duration::from_millis(2550));
 ```
 
-`BaseCase::run_settings()` returns the settings in force. Besides `pause` and
-`message_seconds` there are plain getters `demo_mode()`, `skip_js_waits()`,
-`record_sleep()` and `reset_visual_baseline()`.
+`BaseCase::run_settings()` returns the settings in force. Besides `pause_for` and
+`message_duration` there are plain getters `demo_mode()`, `slow_mode()`,
+`demo_sleep()`, `skip_js_waits()`, `record_sleep()` and
+`reset_visual_baseline()`. The older `pause(tiny: bool)` and `message_seconds()`
+stay, deprecated, for code that already calls them.
 
 ## A complete test
 
 This test is for watching. It needs a visible browser, so it sets
-`with_headless(false)`. The settings go in first, before the first action,
-because each `BaseCase` starts with the defaults.
+`with_headless(false)`. The settings go in the configuration, so they apply from
+the first action: a `BaseCase` made from a configuration (`BaseCase::new`, and
+so `run_browser_test` and `Plugins::run_browser_test`) starts with the
+`BrowserConfig::with_run_settings` it carries. To change them later, call
+`set_run_settings` on the case.
 
 ```rust,no_run
 use std::time::Duration;
 
-use seleniumbase_rs::api::run_settings::RunSettings;
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, BrowserConfig, Result, RunSettings};
 
 #[tokio::test]
 async fn login_for_a_demo() -> Result<()> {
-    let config = BrowserConfig::default().with_headless(false);
+    // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
+    let config = BrowserConfig::default()
+        .with_headless(false)
+        .with_run_settings(
+            RunSettings::default()
+                .with_demo_mode(true)
+                .with_demo_sleep(Duration::from_millis(800))
+                .with_message_duration(Duration::from_secs(2)),
+        );
 
-    run_browser_test(config, |sb| {
-        Box::pin(async move {
-            // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
-            sb.set_run_settings(
-                RunSettings::default()
-                    .with_demo_mode(true)
-                    .with_demo_sleep(Duration::from_millis(800))
-                    .with_message_duration(Duration::from_secs(2)),
-            );
-
-            sb.open("https://seleniumbase.io/simple/login").await?; // pause
-            sb.type_text("#username", "demo_user").await?; // outline, short pause
-            sb.type_text("#password", "secret_pass").await?; // outline, short pause
-            sb.click("#log-in").await?; // outline, pause
-            sb.assert_text_visible("Welcome!", "body").await?; // no pause
-            sb.post_message("Logged in").await?; // stays 2 seconds
-            Ok(())
-        })
+    run_browser_test(config, async |sb| {
+        sb.open("https://seleniumbase.io/simple/login").await?; // full pause
+        sb.type_text("#username", "demo_user").await?; // outline, short pause
+        sb.type_text("#password", "secret_pass").await?; // outline, short pause
+        sb.click("#log-in").await?; // outline, full pause (the page changes)
+        sb.assert_text_visible("Welcome!", "body").await?; // no pause
+        sb.post_message("Logged in").await?; // stays 2 seconds, then waits 0.15 s
+        Ok(())
     })
     .await
 }
 ```
 
-With the settings above, `open` and `click` pause 0.8 s. Typing pauses for less
-than a third of that, 0.8 s / 3.4 or about 0.24 s (demo mode divides the time by
-3.4 for typing, as Python does). `assert_text_visible` has no pause, so the run
-moves on at once.
+With the settings above, `open` pauses 0.8 s. So does the `click` on the log-in
+button, because it takes the browser to another URL. Typing pauses for less than
+a third of that, 0.8 s / 3.4 or about 0.24 s (demo mode divides the time by 3.4
+after an action that left the page where it was, as Python does).
+`assert_text_visible` has no pause, so the run moves on at once.
 
 Replace `with_demo_mode(true)` with `with_slow_mode(true)` for the same pauses
-without the outline. Slow mode always pauses for the full time, even when typing.
+without the outline. Slow mode always pauses for the full time.
 
 `set_run_settings` replaces the whole value, it does not merge. To undo a
 setting, set a new `RunSettings` that leaves it out.
@@ -132,7 +138,6 @@ fn run_settings_from_env() -> RunSettings {
     let mut settings = RunSettings::default()
         .with_demo_mode(on("MY_DEMO"))
         .with_slow_mode(on("MY_SLOW"))
-        .with_fast_mode(on("MY_FAST"))
         .with_skip_js_waits(on("MY_SKIP_JS_WAITS"))
         .with_record_sleep(on("MY_RECORD_SLEEP"))
         .with_visual_baseline_reset(on("MY_VISUAL_BASELINE"));
@@ -148,7 +153,10 @@ fn run_settings_from_env() -> RunSettings {
 }
 ```
 
-Then call `sb.set_run_settings(run_settings_from_env())` at the top of each test.
+Then build the configuration with
+`BrowserConfig::default().with_run_settings(run_settings_from_env())` (or call
+`sb.set_run_settings(run_settings_from_env())` on a `BaseCase` you made with
+`BaseCase::new`).
 Run the test with `MY_DEMO=1 cargo test login_for_a_demo -- --nocapture`.
 
 ## Which calls honour which setting
@@ -159,36 +167,44 @@ This is the part to read before trusting a setting.
 
 </Warning>
 
-**Demo, slow, fast and the demo sleep** act in five `BaseCase` methods and no
-others:
+**Demo, slow and the demo sleep** act in the interactive `BaseCase` methods, as
+Python's do. In demo mode a click or typing is followed by a **full** pause when
+the page's URL changed (the click followed a link, Enter sent a form) and by a
+**short** one, 1/3.4 of the full time, when it did not; the URL is read before
+and after such an action, in demo mode only. Slow mode always pauses for the
+full time and never reads the URL.
 
-| Call | Outline in demo mode | Pause after | Length of the pause |
-|------|----------------------|-------------|---------------------|
-| `open` | no (there is no element) | yes | full |
-| `click` | yes | yes | full |
-| `type_text` | yes | yes | full in slow mode, full divided by 3.4 in demo mode |
-| `update_text` | yes | yes | as `type_text` |
-| `press_keys` | yes | yes | as `type_text` |
+| Calls | Outline in demo mode | Pause after |
+|-------|----------------------|-------------|
+| `open`, `go_back`, `go_forward` | no (no element) | full |
+| `click`, `double_click`, `context_click`, `click_link_text`, `click_partial_link_text`, `click_link`, `click_partial_link`, `click_active_element`, `choose_file`, `select_option_by_text`, `select_option_by_value` | yes, where there is a selector | full if the URL changed, else short |
+| `type_text`, `update_text`, `add_text`, `send_keys` | yes | full if the URL changed, else short |
+| `press_keys` | yes | full after a typed Enter, else short |
+| `js_click`, `jquery_click`, `jquery_click_all`, `set_value`, `set_text`, `jquery_update_text`, `drag_and_drop`, `drag_and_drop_with_offset`, `click_with_offset`, `double_click_with_offset`, `submit`, `focus` | yes, where there is a selector | full |
+| `set_window_size`, `set_window_position`, `set_window_rect`, `maximize_window`, `minimize_window`, `reset_window_size` | no | short |
 
-Every other call ignores them: `clear`, `click_link_text`, `highlight_click`,
-`refresh`, `go_back`, `go_forward`, the waits, the assertions, `execute_script`,
-and the rest. A test that mostly uses those will not slow down in slow mode.
+Every other call ignores them: `clear`, `highlight_click`, `refresh`, the
+waits, the assertions, `execute_script`, and the rest. A test that mostly uses
+those will not slow down in slow mode.
 
-How the three modes combine:
+To assert that an action paused, a test built with the `test-util` feature can
+read `BaseCase::demo_pauses()`, which lists the `PauseKind` of each pause so
+far.
 
-| Settings | Pause for `open` and `click` | Pause for typing |
-|----------|------------------------------|------------------|
+How the modes combine:
+
+| Settings | After an action that changed the page | After one that did not |
+|----------|---------------------------------------|------------------------|
 | none | none | none |
 | slow | full | full |
-| demo | full | full divided by 3.4 (about 0.35 s by default) |
-| demo and slow | full | full divided by 3.4 |
-| fast, with or without demo or slow | none | none |
+| demo | full | full divided by 3.4 (about 0.15 s by default) |
+| demo and slow | as demo | as demo |
 
 <Note>
 
-Fast mode cancels the pauses only. It does not make the browser or any wait
-faster, and demo mode still outlines elements under it, so leave demo mode off
-too for a plain fast run.
+Python's `--fast` does not appear here: it only skips short waits in CDP mode,
+which this crate never makes, so `with_fast_mode` is deprecated and does
+nothing. It never cancels the pauses.
 
 </Note>
 
@@ -198,9 +214,13 @@ animation. A selector the outline script cannot use does not fail the action; th
 action runs without the outline.
 
 **Message duration** is used by `post_message`, `post_success_message`,
-`post_error_message` and `post_message_and_highlight`. `post_message_for(message,
-seconds)` takes its own number of seconds and ignores the setting. The messages are
-plain boxes, not Python's Messenger widget.
+`post_error_message` and `post_message_and_highlight`. In a headless browser it is
+cut to 0.75 s, as in Python. `post_message_for(message, duration)` takes its own
+`Duration` (cut the same way) and ignores the setting. Each of them but
+`post_message_and_highlight` then waits for the message to go and 0.15 s more,
+the `pause=True` Python's `post_message` has by default. The messages are plain
+boxes, not Python's Messenger widget; `activate_messenger` and
+`set_messenger_theme` drive the widget itself.
 
 **Skip JavaScript waits** is read by `wait_for_ready_state_complete`, which
 `check_window` also calls before it reads the page. `open` does not call it, so
@@ -268,27 +288,32 @@ times longer. Keep them off unless a person is watching.
   defaults.
 - **WebDriver engine only.** The pure CDP engine (`sb_cdp`) has no `RunSettings`.
   Its `Page::post_message` takes a `MessageOptions` with its own duration.
-- **Five pausing calls.** See the table above. `click_link_text` and `press_key`,
-  for example, never pause.
+- **Some calls never pause.** See the table above. `press_key` and the
+  waits, for example, never pause.
 - **One outline.** Python's `--highlights` (how many times to animate) has no
   counterpart; the outline is drawn once.
-- **Not a speed-up.** `with_fast_mode` removes pauses that demo and slow mode add.
-  It is not a faster browser. `with_skip_js_waits` removes one wait, at the cost
-  of more flaky clicks on pages that are still loading.
+- **Not a speed-up.** There is no switch that removes the pauses of demo and
+  slow mode except turning them off. `with_skip_js_waits` removes one wait, at
+  the cost of more flaky clicks on pages that are still loading.
 
 ## What is tested
 
 - The arithmetic is unit-tested without a browser: the default pauses nothing,
-  slow mode pauses the full time, demo mode divides it by 3.4 for typing, fast
-  mode wins, a message duration rounds up to whole seconds.
+  slow mode pauses the full time, demo mode divides it by 3.4 for an action that
+  left the page where it was, a message keeps its milliseconds and is cut to
+  0.75 s when headless.
 - `sleep` recording and skipping the JavaScript waits are unit-tested without a
   browser.
 - `check_window` and its baseline reset are unit-tested, and
   `tests/check_window_chrome.rs` exercises them in a real Chrome. It is
   `#[ignore]`d, so it only runs when asked for.
-- The outline and the pauses inside `open`, `click`, `type_text`, `update_text`
-  and `press_keys` are not run by any test in the repository, with a browser or
-  with the mock. They are a few lines each, but treat them as unmeasured.
+- The pauses of `open`, the clicks, typing, `press_keys`, the JavaScript
+  helpers and the window calls are tested against a mock WebDriver (no browser):
+  which kind of pause each makes, that demo mode reads the URL before and after
+  and slow mode does not, and that a pause lasts what the settings say. The
+  outline itself is not run by any test; treat it as unmeasured.
+- `post_message` is tested against the mock for the duration in the script, the
+  headless cap and the wait.
 
 ## Related reading
 

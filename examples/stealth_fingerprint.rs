@@ -155,7 +155,10 @@ async fn launch_with(persona: &Fingerprint) -> Result<()> {
     use seleniumbase_rs::browser::playwright::PlaywrightSession;
 
     let url = Site::serve_demo()?.url(DEMO_PATH);
-    let session = PlaywrightSession::launch_headless_with_fingerprint(persona).await?;
+    let config = seleniumbase_rs::BrowserConfig::default()
+        .with_headless(true)
+        .with_fingerprint(persona.clone());
+    let session = PlaywrightSession::launch_with_config(&config).await?;
     let outcome = async {
         session.goto(&url).await?;
         // The launch applied the script to the blank first page; apply it to

@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
     println!("== CDP mode in BaseCase ==");
     let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
     let page_url = url.clone();
-    run_browser_test(config, |sb| Box::pin(base_case_cdp(sb, page_url))).await?;
+    run_browser_test(config, async |sb| base_case_cdp(sb, page_url).await).await?;
 
     println!("\n== Pure CDP ==");
     pure_cdp(&url).await

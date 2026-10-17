@@ -43,6 +43,11 @@ release 0.3.0 and later (the WebDriver engine from 0.4.0):
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.4.0", features = ["plugins"] }
 ```
 
+The official plugins are features of their own (`plugin-shield`,
+`plugin-block-resources`, `plugin-crx`, and `plugins-builtin` for all of them),
+turned on by name in the settings file, in `SB_PLUGINS` or in a builder call:
+see [Choosing plugins](../plugins/selecting.md).
+
 The plugin API is its own crate, `seleniumbase-rs-plugin`, in the
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
 repository. This crate re-exports it as `seleniumbase_rs::plugin_api`, so a
@@ -109,24 +114,29 @@ in the plugins repository:
 | `seleniumbase-rs-plugin-crx` | Loads packed Chrome extensions (`.crx` files): unpacks them and adds the folders to the start-up settings, which the launch loads |
 | `seleniumbase-rs-plugin-wasm` | Runs plugins written in any language that compiles to WebAssembly, in a sandbox (no host imports, fuel and memory limits) |
 
-Add one with `cargo add`, from the repository's default branch, with no
-`--rev`, `--tag` or `--branch`:
+Add one with `cargo add`, from the same revision of the plugins repository
+that this crate pins (the `rev` of `seleniumbase-rs-plugin` in its
+`Cargo.toml`, currently `628991af0e6c5711298e3bd3692dc2974887401a`):
 
 ```sh
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
+    --rev 628991af0e6c5711298e3bd3692dc2974887401a \
     seleniumbase-rs-plugin-block-resources
 ```
 
+The official plugins also come with this crate, one cargo feature each, and are
+turned on by name without code; see [Choosing plugins](../plugins/selecting.md).
+
 <Warning>
 
-This crate takes `seleniumbase-rs-plugin` from that branch too, so the plugin
-and this crate resolve to the same source, and `Cargo.lock` records one commit
-for both; `cargo update` moves them together. The reference matters until the
-crates are on crates.io: Cargo counts one git repository under two references
-(a branch, a tag, a revision) as two different crates, so a plugin added with
-`--rev` or `--tag` implements a different `Plugin` trait. The compiler then
-says the trait `Plugin` is not implemented for the plugin, and mentions two
-versions of `seleniumbase_rs_plugin`.
+This crate takes `seleniumbase-rs-plugin` from that revision, so the plugin and
+this crate must resolve to the same source. Until the crates are on crates.io,
+Cargo counts one git repository under two references (a branch, a tag, a
+revision) as two different crates: a plugin added with another `--rev`, or with
+no reference (the default branch), implements a different `Plugin` trait. The
+compiler then says the trait `Plugin` is not implemented for the plugin, and
+mentions two versions of `seleniumbase_rs_plugin`. When this crate moves to a new
+revision, move the plugin crates with it.
 
 </Warning>
 
@@ -307,6 +317,25 @@ plugin that must run before the page's scripts, or that needs `send`, should
 say `Requirements::CHROMIUM_ONLY`, so it is refused on those browsers instead
 of half working.
 
+The set is also checked against what the engine can give. A plugin that declares
+what it needs (`metadata()`) is refused before anything starts when the engine
+cannot provide it: WebDriver has no network observation or interception, and
+Firefox and Safari have no DevTools channel. A WebDriver server that answers
+`browserName: tauri` (tauri-plugin-sbrs-automation) is checked again once the
+session exists, as an embedded webview, which gives page scripts and
+evaluation only; a refusal quits the session. A plugin that declares nothing is
+not refused for lack of a DevTools channel on those browsers, as before: it
+fails when it calls `send`.
+
+The launch settings that are Chromium switches (`host_resolver_rules`,
+`disable_features`, `enable_features`, `webrtc_policy`, `disable_quic`) become
+one `--host-resolver-rules`, `--disable-features`, `--enable-features`,
+`--force-webrtc-ip-handling-policy` and `--disable-quic` argument, joined with
+the ones the configuration already has. A plugin that sets one for Firefox or
+Safari is refused. On every engine a plugin's `Fetch.*` command is refused
+(the host owns request interception), and `Network.setBlockedURLs` adds to the
+window's blocklist, with the `ad_block` list, instead of replacing it.
+
 A Firefox preference must be true or false, a whole number or text. Internet
 Explorer takes no plugins. Plugins cannot be combined with `reuse_session`: a
 browser kept for reuse would get the hooks a second time, or not at all, so the
@@ -374,7 +403,13 @@ None of it has been run against a real Chrome yet: loading an extension with
 the same command, and the `Default/Preferences` file is the one Chrome reads at
 start-up, but neither was checked in a live browser for this feature.
 `connect_with_plugins` is tested only for its checks, not against a running
-browser.
+browser. The same holds for the host's part of the plugin platform: a fresh
+instance of a per-launch plugin for each browser, the host check, the merged
+launch switches, the one blocklist per tab and the refusal of `Fetch.*` are
+covered by tests against the mocked browser and the mock WebDriver server, and
+by unit tests that read the command line; no real Chrome has been shown to
+accept the merged switches or to apply the blocklist in iframes, workers and
+pop-ups.
 
 On the WebDriver engine, the conversion between a `BrowserConfig` and
 `LaunchSettings` for each browser, and what is refused, are covered by unit

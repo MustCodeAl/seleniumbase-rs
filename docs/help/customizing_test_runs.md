@@ -69,8 +69,13 @@ Key builder methods:
 | `with_browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
 | `with_extra_args(vec)` / `push_extra_arg(s)` | Pass extra Chromium launch flags. |
 
-`remote_webdriver_timeout_seconds` has no builder method. Set it on the struct,
-which has public fields.
+`with_remote_webdriver_timeout(Duration)` sets the client-side timeout of each
+request to a Remote WebDriver server (a part of a second rounds up to a whole
+second), the field `remote_webdriver_timeout_seconds`.
+
+| Builder | Effect |
+|---|---|
+| `with_run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](../tutorials/run_settings.md). |
 
 ### Blocking ads
 
@@ -177,9 +182,7 @@ use seleniumbase_rs::{run_browser_test, BrowserConfig};
 #[tokio::test]
 async fn login_page_loads() -> seleniumbase_rs::Result<()> {
     let config = BrowserConfig::default().with_reuse_session(true);
-    run_browser_test(config, |sb| {
-        Box::pin(async move { sb.open("https://example.com/login").await })
-    })
+    run_browser_test(config, async |sb| sb.open("https://example.com/login").await)
     .await
 }
 ```
@@ -252,8 +255,10 @@ the fields of `Settings`: `browser`, `headless`, `timeout_seconds`,
 `screenshot_dir`, `proxy`, `proxy_pac_url`, `window_width`, `window_height`,
 `user_data_dir`, `extension_dir`, `locale`, `user_agent`, `mode` (`webdriver`,
 `cdp` or `uc`), `ad_block`, `reuse_session`, `reuse_class_session`, `mobile`, `threads`, `esc_end`,
-`rec_sb_cdp` and `remote_webdriver_timeout_seconds`. Note that `timeout_seconds` is a whole
-number of seconds.
+`rec_sb_cdp`, `remote_webdriver_timeout_seconds`, `webdriver_url` and `chrome_bin`.
+Note that `timeout_seconds` is a whole number of seconds. A `browser` or `mode`
+that is not a known name, or a `window_width` without a `window_height`, is an
+error when the file is read.
 
 `Settings::load_global()` looks for these names, in this order, in the
 **current working directory only** (it does not search parent directories):
@@ -270,10 +275,11 @@ reads one specific file by the same rule.
 
 <Warning>
 
-`timeout_seconds`, `screenshot_dir`, `window_width` and `window_height` are
-stored in `Settings` for your code to read, but nothing in the crate applies
-them to a browser on its own. For the timeout, pass the value on yourself:
-`sb.set_timeout(settings.timeout_seconds).await?`.
+`timeout_seconds` becomes the default wait of every `BaseCase` made from
+`settings.to_browser_config()` (`BaseCase::new`, so `run_browser_test` and the
+plugin runner too); `sb.set_timeout(..)` changes it later. `window_width` and
+`window_height` set the browser window when both are present. `screenshot_dir`
+is stored for your code to read; nothing in the crate applies it.
 
 </Warning>
 
@@ -285,18 +291,20 @@ use seleniumbase_rs::BaseCase;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 // The global config file (if any), with the SB_* variables applied on top.
-let settings = Settings::load(None::<&str>)?;
+// `Settings::load_from(path)` reads a file you name instead.
+let settings = Settings::load()?;
 let config = settings.to_browser_config();
 
+// `timeout_seconds` from the file or `SB_TIMEOUT` is already its default wait.
 let mut sb = BaseCase::new(config).await?;
-sb.set_timeout(settings.timeout_seconds).await?;
 # sb.quit().await?;
 # Ok(())
 # }
 ```
 
-`to_browser_config()` leaves the WebDriver URL at its default and does not set
-a browser binary, a fingerprint or extra arguments; add those with the builder
+`to_browser_config()` takes the WebDriver URL and the browser binary from
+`webdriver_url` and `chrome_bin` (`SB_WEBDRIVER_URL` and `SB_CHROME_BIN`), and
+does not set a fingerprint or extra arguments; add those with the builder
 methods afterwards.
 
 ## Environment variables
@@ -316,21 +324,21 @@ field of the same name: `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
 `SB_PROXY_PAC_URL`, `SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`,
 `SB_EXTENSION_DIR`, `SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`,
 `SB_REUSE_SESSION`, `SB_REUSE_CLASS_SESSION`, `SB_MOBILE`, `SB_THREADS`,
-`SB_ESC_END` and `SB_REC_SB_CDP`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
+`SB_ESC_END`, `SB_REC_SB_CDP`, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
 `on`/`off`. There is no automatic name mapping: a
 variable that is not in this list, such as `SB_LOGGING__LOG_LEVEL`, does
 nothing. See [Settings and Global Configuration](../tutorials/settings_and_config.md)
-for the table, including the separate runtime variables (`SB_WEBDRIVER_URL`,
-`SB_CHROME_BIN`, `SB_LOG_LEVEL`, ...), which `BrowserConfig::from_env()` and
-`RuntimeConfig::from_env()` read:
+for the table, including the separate runtime variables (`SB_LOG_LEVEL`,
+`SB_LOG_FORMAT`, ...), which `RuntimeConfig::from_env()` reads, and
+`BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL` and
+`SB_CHROME_BIN`:
 
 ```bash
 export SB_WEBDRIVER_URL=http://localhost:4444/wd/hub
 ```
 
-The `sbrs` binary reads both kinds when it drives a browser (`sbrs open`,
-`smoke` and the other browser commands): the settings variables above, and
-`SB_WEBDRIVER_URL` and `SB_CHROME_BIN` from the runtime ones. A bad value, such
+The `sbrs` binary reads the settings variables above when it drives a browser
+(`sbrs open`, `smoke` and the other browser commands). A bad value, such
 as `SB_HEADLESS=maybe`, stops the command with an error before any browser
 starts.
 

@@ -41,14 +41,18 @@ macro_rules! selector {
 
 /// Declares an async browser test with automatic `BaseCase` setup and teardown.
 ///
-/// The macro expands to a `#[tokio::test]` async function that creates a
+/// The macro expands to a `#[tokio::test]` async function that runs the body
+/// with [`run_browser_test`](crate::run_browser_test): it creates a
 /// [`BaseCase`](crate::BaseCase) from the supplied [`BrowserConfig`](crate::BrowserConfig),
-/// runs the provided body, and finally calls [`quit`](crate::BaseCase::quit)
-/// even when assertions fail.
+/// runs the body, and finally calls [`quit`](crate::BaseCase::quit) even when
+/// assertions fail or the body panics. A body that ends with
+/// [`skip_test`](crate::BaseCase::skip_test) passes, as it does there. The
+/// body is a block that returns a [`Result`](crate::Result); `sb` is a
+/// `&mut BaseCase`.
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```no_run
 /// use seleniumbase_rs::{sb_test, BrowserConfig};
 ///
 /// sb_test!(login_flow, BrowserConfig::default(), |sb| {
@@ -63,17 +67,17 @@ macro_rules! sb_test {
     ($name:ident, $config:expr, |$sb:ident| $body:expr) => {
         #[tokio::test]
         async fn $name() {
-            // The test's path names its `check_window` baselines, so tests of
-            // the same name in other modules do not share them.
-            let mut $sb = $crate::BaseCase::new($config)
-                .await
-                .expect("failed to create BaseCase")
-                .with_test_name(concat!(module_path!(), "::", stringify!($name)));
-            let result: Result<(), $crate::SeleniumBaseError> = async { $body }.await;
-            let cleanup = $sb.quit().await;
-            // A failing quit must not hide the error of the test itself.
-            // A test that called `skip_test` passes, as with `run_browser_test`.
-            $crate::api::runner::finish_test(result, cleanup);
+            $crate::run_browser_test(
+                $config,
+                async |$sb: &mut $crate::BaseCase| -> $crate::Result<()> {
+                    // The test's path names its `check_window` baselines, so
+                    // tests of the same name in other modules do not share them.
+                    $sb.set_test_name(concat!(module_path!(), "::", stringify!($name)));
+                    $body
+                },
+            )
+            .await
+            .expect("test failed");
         }
     };
 }

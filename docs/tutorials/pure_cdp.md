@@ -73,13 +73,15 @@ Reading: `text`, `html`, `attribute`, `count`, `info`, `bounding_box` (from the
 top of the document), `viewport_rect` (from the window, as Python's
 `get_element_rect`), `is_visible`, `exists`, `is_checked`, `urls`. `all` lists
 the current matches; `all_waiting` waits for a first one. Acting: `click`,
-`click_at`, `click_and_hold`, `double_click`, `right_click`, `hover`, `drag_to`,
-`fill`, `type_text`, `set_value`, `clear`, `press`, `select_option`, `check`,
+`click_with_offset`, `click_if_visible`, `click_and_hold`, `double_click`, `right_click`, `hover`, `drag_to`,
+`fill`, `type_text`, `send_keys`, `set_value`, `clear`, `press`, `select_option`, `check`,
 `submit`, `scroll_into_view`, `flash_with`, `screenshot`.
 
-`fill` inserts the text in one step (fast, still real `input` events);
-`type_text` sends one trusted key event per character, for pages that listen to
-keys. A `\n` in `type_text` presses Enter.
+`fill` empties the field and inserts the text in one step (fast, still real
+`input` events); `type_text` empties it and sends one trusted key event per
+character, for pages that listen to keys, as Python's `type` does; `send_keys`
+types the same way after what the field already holds. A `\n` in either presses
+Enter.
 
 ## Waiting and asserting
 
@@ -382,7 +384,7 @@ visit to a local server, and a page with a cross-site iframe, in a real Chrome.
 
 `browser.new_context()` opens a `BrowserContext`: tabs that share no cookies,
 storage or cache with anything else, like an incognito window. Open tabs in it
-with `context.new_page(url)` and throw everything away with `context.dispose()`.
+with `context.new_page()` or `context.new_page_at(url)` and throw everything away with `context.dispose()`.
 It is much cheaper than a second Chrome process.
 
 ### A proxy per context
@@ -402,7 +404,7 @@ let context = browser
             .bypass("*.internal.example.com"),
     )
     .await?;
-let page = context.new_page(Some("https://example.com")).await?;
+let page = context.new_page_at("https://example.com").await?;
 # Ok(())
 # }
 ```

@@ -100,6 +100,22 @@ pub mod ocr;
 /// crate. Not to be confused with [`plugins`], the test-reporting plugins.
 #[cfg(feature = "plugins")]
 pub use seleniumbase_rs_plugin as plugin_api;
+/// The built-in plugins, one cargo feature each (`plugin-shield`,
+/// `plugin-block-resources`, `plugin-crx`; `plugins-builtin` for all): the
+/// crate `seleniumbase-rs-plugins-builtin`, with each plugin's own types and
+/// its `registry()`. Most programs enable them by name instead; see
+/// [`plugin_host`].
+#[cfg(any(
+    feature = "plugin-shield",
+    feature = "plugin-block-resources",
+    feature = "plugin-crx"
+))]
+pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
+/// Plugin names and options turned into a `PluginSet` (feature `plugins`): the
+/// registry of the built-in plugins, and the functions the launch builders
+/// call for `plugins_named` and `plugin_selection`.
+#[cfg(feature = "plugins")]
+pub mod plugin_host;
 pub mod plugins;
 pub mod profile_payloads;
 pub mod resources;
@@ -147,13 +163,20 @@ pub use api::base_case::{BaseCase, CookieExpiry, DriverId};
 pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
 pub use api::gui::Gui;
-pub use api::runner::{run_browser_test, BrowserTestFuture};
+pub use api::run_settings::{PauseKind, RunSettings};
+pub use api::runner::{run_browser_test, run_cdp_test};
+#[allow(
+    deprecated,
+    reason = "the old closure form stays exported for old callers"
+)]
+pub use api::runner::{run_browser_test_boxed, BrowserTestFuture};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;
 pub use common::tls::install_tls_provider;
+pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 #[allow(deprecated, reason = "the old name stays importable for one release")]

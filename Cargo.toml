@@ -125,9 +125,14 @@ ocrs = { version = "0.13", optional = true }
 rten = { version = "0.26", optional = true }
 image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
 # `plugins`: the plugin API (ADR 004), from its own repository until it is on
-# crates.io. No `rev`: plugin crates added with `cargo add --git` use the same
-# source, so Cargo resolves both to one commit and the `Plugin` traits match.
-seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", optional = true }
+# crates.io, and the aggregator of the built-in plugins (one cargo feature each).
+# BOTH lines must name the same git URL and the same `rev`: Cargo counts two
+# specs as two sources, builds two `seleniumbase-rs-plugin` crates, and then the
+# `Plugin` a built-in implements is not the one this crate calls.
+# `tests/plugin_features.rs` fails when they differ. A plugin crate added with
+# `cargo add --git` needs the same `--rev` (see docs/tutorials/plugins.md).
+seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a", optional = true }
+seleniumbase-rs-plugins-builtin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", rev = "628991af0e6c5711298e3bd3692dc2974887401a", optional = true }
 # `visual`: structural similarity (SSIM) between a screenshot and its baseline.
 # MIT; no default features; brings rayon and itertools, and `image` without
 # defaults (the PNG codec comes from the `image` line above).
@@ -169,6 +174,14 @@ ocr = ["dep:ocrs", "dep:rten", "dep:image"]
 # connect, every new tab or window and close. The API is re-exported as
 # `seleniumbase_rs::plugin_api`.
 plugins = ["dep:seleniumbase-rs-plugin"]
+# The built-in plugins, one feature each; each turns on `plugins` and compiles
+# only its own plugin crate. They are enabled by name: `[plugins] enable = [...]`
+# in the settings file, `SB_PLUGINS`, or `plugins_named` on the launch builders.
+plugin-shield = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/shield"]
+plugin-block-resources = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/block-resources"]
+plugin-crx = ["plugins", "dep:seleniumbase-rs-plugins-builtin", "seleniumbase-rs-plugins-builtin/crx"]
+# Every built-in plugin.
+plugins-builtin = ["plugin-shield", "plugin-block-resources", "plugin-crx"]
 # Visual regression testing (`visual::VisualBaseline`,
 # `BaseCase::assert_visual_match`): screenshots compared with a saved baseline
 # by structural similarity, with a diff image on a mismatch. Pure Rust.

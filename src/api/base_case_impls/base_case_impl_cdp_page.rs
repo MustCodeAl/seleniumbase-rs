@@ -39,8 +39,10 @@ impl BaseCase {
     }
 
     /// Clicks the center of the first element matching `selector` using CDP
-    /// input events.
+    /// input events. The selector is a CSS selector, as for every `cdp_*`
+    /// method; XPath and `link=` forms are for [`click`](Self::click).
     pub async fn cdp_click(&mut self, selector: &str) -> Result<(), SeleniumBaseError> {
+        self.record("cdp_click", Some(selector), None);
         CdpPage::new(&self.session).click(selector).await
     }
 

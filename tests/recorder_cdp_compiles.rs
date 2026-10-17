@@ -14,7 +14,8 @@
 #![allow(dead_code)]
 
 // `include!`, not `mod`: rustfmt follows a `mod` and would rewrap the generated
-// lines, which the generator does not.
+// lines, which the generator does not. There is no `#[allow(deprecated)]` here:
+// the generator must not write a deprecated call.
 mod generated {
     include!("golden_rust/cdp_script.rs");
 }

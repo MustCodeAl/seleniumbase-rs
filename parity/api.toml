@@ -338,6 +338,7 @@ rust = "BaseCase::click_chain"
 [basecase."click_if_visible"]
 status = "implemented"
 rust = "BaseCase::click_if_visible"
+divergence = "Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument."
 
 [basecase."click_link"]
 status = "implemented"
@@ -367,6 +368,8 @@ rust = "BaseCase::click_visible_elements"
 [basecase."click_with_offset"]
 status = "implemented"
 rust = "BaseCase::click_with_offset"
+note = "The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
+divergence = "Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. In demo mode it outlines the element but draws no dot."
 
 [basecase."click_xpath"]
 status = "implemented"
@@ -555,6 +558,8 @@ rust = "BaseCase::double_click"
 [basecase."double_click_with_offset"]
 status = "implemented"
 rust = "BaseCase::double_click_with_offset"
+note = "The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
+divergence = "Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout."
 
 [basecase."download_file"]
 status = "implemented"
@@ -1257,21 +1262,22 @@ rust = "BaseCase::play_tour"
 [basecase."post_error_message"]
 status = "implemented"
 rust = "BaseCase::post_error_message"
-divergence = "Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go."
+divergence = "Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does."
 
 [basecase."post_message"]
 status = "implemented"
 rust = "BaseCase::post_message"
+divergence = "Shows a plain box, not Python's Messenger widget (activate_messenger and set_messenger_theme drive the widget), for the run's message duration, 0.75 s at most in a headless browser, and waits for it to go as the default pause=True does. It takes no duration, pause or style arguments: post_message_for takes the duration."
 
 [basecase."post_message_and_highlight"]
 status = "implemented"
 rust = "BaseCase::post_message_and_highlight"
-divergence = "Shows a plain box (see post_success_message), then highlights the selector's element as Python does."
+divergence = "Shows a plain box (see post_success_message), then highlights the selector's element as Python does; it does not wait for the message to go first."
 
 [basecase."post_success_message"]
 status = "implemented"
 rust = "BaseCase::post_success_message"
-divergence = "Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go."
+divergence = "Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does."
 
 [basecase."press_down_arrow"]
 status = "implemented"
@@ -1589,9 +1595,10 @@ status = "implemented"
 rust = "BaseCase::set_local_storage_item"
 
 [basecase."set_messenger_theme"]
-status = "composed"
-rust = "Page::set_messenger_theme"
-note = "On the pure-CDP engine, Page::set_messenger_theme takes MessengerSettings (theme, location, max_messages) as Python does. BaseCase::set_messenger_theme(color) on the WebDriver engine only sets the background colour of Messenger messages; it does not pick a theme or location."
+status = "implemented"
+rust = "BaseCase::set_messenger_theme"
+note = "Takes MessengerSettings (theme, location, max_messages; the defaults are Python's), or a MessengerTheme or MessengerLocation alone, and loads Messenger first. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color."
+divergence = "BaseCase::post_message shows a plain box of its own, so the theme changes the Messenger widget (which the page or your script posts with) and not post_message's box."
 
 [basecase."set_session_storage_item"]
 status = "implemented"
@@ -2047,9 +2054,10 @@ rust = "Locator::click"
 note = "Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."click_active_element"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"document.activeElement.click()\")`."
+status = "implemented"
+rust = "Page::click_active_element"
+note = "`page.click_active_element()` calls `click()` on `document.activeElement`."
+divergence = "Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait."
 
 [cdp."click_and_hold"]
 status = "composed"
@@ -2062,9 +2070,10 @@ rust = "Page::solve_captcha"
 note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
 
 [cdp."click_if_visible"]
-status = "composed"
-rust = "Locator::click"
-note = "Locator::click has no \"only if visible\" condition; check `page.locator(selector).is_visible()` first."
+status = "implemented"
+rust = "Locator::click_if_visible"
+note = "`page.locator(selector).click_if_visible()` clicks if the element is visible now (Python's default `timeout=0`: look once) and says whether it clicked; `click_if_visible_with_timeout(timeout)` waits up to `timeout` for it. The Locator holds the selector, so it is not an argument of the call."
+divergence = "Gives Ok(false) when the element is not visible in time or vanishes before the click; an invalid selector or a lost connection is still an error, where Python suppresses every error. The click always scrolls the element into view (`scroll=True`)."
 
 [cdp."click_link"]
 status = "composed"
@@ -2087,9 +2096,10 @@ rust = "Locator::visible"
 note = "`page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`."
 
 [cdp."click_with_offset"]
-status = "composed"
-rust = "Locator::click_at"
-note = "`page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner."
+status = "implemented"
+rust = "Locator::click_with_offset"
+note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false and is deprecated."
+divergence = "Always scrolls the element into view (Python's `scroll=True`, its default)."
 
 [cdp."close_active_tab"]
 status = "composed"
@@ -2291,9 +2301,9 @@ rust = "Storage::get"
 note = "`page.local_storage().get(key)`."
 
 [cdp."get_locale_code"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"navigator.language\")`."
+status = "implemented"
+rust = "Page::locale_code"
+note = "`page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty."
 
 [cdp."get_mfa_code"]
 status = "composed"
@@ -2311,9 +2321,9 @@ rust = "Locator::locator"
 note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_origin"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"location.origin\")`."
+status = "implemented"
+rust = "Page::origin"
+note = "`page.origin()` is `window.location.origin`."
 
 [cdp."get_page_source"]
 status = "composed"
@@ -2356,9 +2366,10 @@ rust = "Browser::http_url"
 note = "`browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to."
 
 [cdp."get_screen_rect"]
-status = "composed"
-rust = "Page::evaluate"
-note = "Python returns `window.screen`. Read it with `page.evaluate(\"({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })\")`. `page.window().bounds()` is the browser window's rectangle, not the screen's."
+status = "implemented"
+rust = "Page::screen_rect"
+note = "`page.screen_rect()` returns a `ScreenRect` of the display (`window.screen`): size, usable area and colour depth. `page.window().bounds()` is the browser window's rectangle, not the screen's, and `Locator::screen_rect` is an element's rectangle in screen coordinates."
+divergence = "Python returns the `window.screen` object as it serialises, a dict; this is a typed struct of the numeric fields."
 
 [cdp."get_session_storage_item"]
 status = "composed"
@@ -2623,12 +2634,12 @@ note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 [cdp."open_new_tab"]
 status = "composed"
 rust = "Browser::new_page"
-note = "A method of the Browser, not of one page: `browser.new_page(..)`."
+note = "A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL."
 
 [cdp."open_new_window"]
 status = "composed"
 rust = "Browser::new_window"
-note = "A method of the Browser, not of one page: `browser.new_window(..)`."
+note = "A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL."
 
 [cdp."post_message"]
 status = "implemented"
@@ -2638,8 +2649,8 @@ divergence = "Python lets markup in the message through; here it is shown as tex
 
 [cdp."press_keys"]
 status = "composed"
-rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key."
+rust = "Locator::send_keys"
+note = "`page.locator(selector).send_keys(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key."
 
 [cdp."print_to_pdf"]
 status = "composed"
@@ -2807,9 +2818,9 @@ rust = "Locator::select_option"
 note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."send_keys"]
-status = "composed"
-rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
+status = "implemented"
+rust = "Locator::send_keys"
+note = "`page.locator(selector).send_keys(text)` types one key at a time after what the field holds; `type_text` clears first."
 
 [cdp."set_all_cookies"]
 status = "composed"
@@ -2839,7 +2850,7 @@ note = "`page.emulation().locale(..)` sets the Intl locale and also the language
 [cdp."set_messenger_theme"]
 status = "implemented"
 rust = "Page::set_messenger_theme"
-note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8)."
+note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest."
 
 [cdp."set_session_storage_item"]
 status = "composed"
@@ -2901,9 +2912,9 @@ rust = "Window::set_bounds"
 note = "Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler."
 
 [cdp."type"]
-status = "composed"
+status = "implemented"
 rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
+note = "`page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends."
 
 [cdp."uncheck_if_checked"]
 status = "composed"
@@ -4583,12 +4594,12 @@ note = "Loads the bundled Disable CSP extension, which removes the Content-Secur
 [options_pytest."--demo"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo-mode"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo-sleep"]
 status = "implemented"
@@ -4598,7 +4609,7 @@ note = "The pause demo and slow mode make after an action."
 [options_pytest."--demo_mode"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings."
 
 [options_pytest."--demo_sleep"]
 status = "implemented"
@@ -4812,19 +4823,16 @@ rust = "BrowserConfig::with_external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--fast"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_pytest."--fast-mode"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_pytest."--fast_mode"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_pytest."--fdebug"]
 status = "not-applicable"
@@ -5027,12 +5035,12 @@ note = "Call `maximize_window()` once the session has started; it works for Fire
 [options_pytest."--message-duration"]
 status = "implemented"
 rust = "RunSettings::with_message_duration"
-note = "How long BaseCase::post_message keeps its message, in whole seconds."
+note = "How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser)."
 
 [options_pytest."--message_duration"]
 status = "implemented"
 rust = "RunSettings::with_message_duration"
-note = "How long BaseCase::post_message keeps its message, in whole seconds."
+note = "How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser)."
 
 [options_pytest."--metrics"]
 status = "implemented"
@@ -5316,17 +5324,17 @@ note = "Give the full WebDriver URL instead of its parts."
 [options_pytest."--settings"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings-file"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--settings_file"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_pytest."--sjw"]
 status = "implemented"
@@ -5346,22 +5354,22 @@ note = "Makes wait_for_ready_state_complete return at once."
 [options_pytest."--slow"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text, update_text and press_keys."
+note = "Pauses, in full, after the same actions as --demo, which also outline the element."
 
 [options_pytest."--slow-mode"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text, update_text and press_keys."
+note = "Pauses, in full, after the same actions as --demo, which also outline the element."
 
 [options_pytest."--slow_mode"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text, update_text and press_keys."
+note = "Pauses, in full, after the same actions as --demo, which also outline the element."
 
 [options_pytest."--slowmo"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text, update_text and press_keys."
+note = "Pauses, in full, after the same actions as --demo, which also outline the element."
 
 [options_pytest."--ss"]
 status = "composed"
@@ -5704,7 +5712,7 @@ reason = "Passes one free-text string into SB() tests as sb.data; a Rust test re
 [options_sb."demo"]
 status = "implemented"
 rust = "RunSettings::with_demo_mode"
-note = "Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings."
+note = "Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings."
 
 [options_sb."demo_sleep"]
 status = "implemented"
@@ -5796,9 +5804,8 @@ rust = "BrowserConfig::with_external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_sb."fast"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_sb."firefox_arg"]
 status = "implemented"
@@ -5893,7 +5900,7 @@ note = "Call `maximize_window()` once the session has started; it works for Fire
 [options_sb."message_duration"]
 status = "implemented"
 rust = "RunSettings::with_message_duration"
-note = "How long BaseCase::post_message keeps its message, in whole seconds."
+note = "How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser)."
 
 [options_sb."mobile"]
 status = "implemented"
@@ -6010,7 +6017,7 @@ note = "Give the full WebDriver URL, with the Grid's host in it."
 [options_sb."settings_file"]
 status = "composed"
 rust = "Settings::from_file"
-note = "`sbrs --config FILE` or `Settings::load(Some(path))` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
+note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON file; SB_* variables still apply on top. The keys are the Settings fields (browser, headless, timeout_seconds, ...), not the constants of Python's settings.py (MINI_TIMEOUT, SMALL_TIMEOUT, LARGE_TIMEOUT, ...)."
 
 [options_sb."size"]
 status = "implemented"
@@ -6030,7 +6037,7 @@ note = "Makes wait_for_ready_state_complete return at once."
 [options_sb."slow"]
 status = "implemented"
 rust = "RunSettings::with_slow_mode"
-note = "Pauses after open, click, type_text, update_text and press_keys."
+note = "Pauses, in full, after the same actions as --demo, which also outline the element."
 
 [options_sb."start_page"]
 status = "implemented"

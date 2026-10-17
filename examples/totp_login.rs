@@ -107,8 +107,8 @@ async fn main() -> Result<()> {
 
     let page = LOGIN_PAGE.replace("__SECRET__", &secret);
     let url = Site::serve(&[("/", page.as_str())])?.url("/");
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(sign_in(sb, url, secret))
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sign_in(sb, url, secret).await
     })
     .await
 }

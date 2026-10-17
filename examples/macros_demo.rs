@@ -39,8 +39,8 @@ async fn main() -> Result<()> {
     configuration_macros();
 
     let url = Site::serve_demo()?.url(DEMO_PATH);
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(action_macros(sb, url))
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        action_macros(sb, url).await
     })
     .await
 }

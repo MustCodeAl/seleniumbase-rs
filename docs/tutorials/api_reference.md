@@ -69,7 +69,8 @@ browser processes do not leak when a test fails.
 | `slow_click(selector)` | Clicks after a small delay. |
 | `click_if_visible(selector)` | Clicks only if the element is visible. |
 | `click_visible_elements(selector)` | Clicks every visible matching element. |
-| `click_with_offset(selector, x, y)` | Clicks with a pixel offset from the element center. |
+| `click_with_offset(selector, x, y, center)` | Clicks at a pixel offset from the element's top-left corner, or from its centre when `center` is true, as Python does. |
+| `double_click_with_offset(selector, x, y, center)` | The same with a double click. |
 | `click_chain(selectors)` | Clicks each selector in order. |
 | `type_text(selector, text)` | Clears and types. |
 | `add_text(selector, text)` | Appends text. |
@@ -309,9 +310,10 @@ is called. Useful for soft assertions.
 | `activate_cdp_mode()` | Enables CDP domains. |
 | `execute_cdp(method)` | Sends a CDP command. |
 | `execute_cdp_with_params(method, params)` | Sends a CDP command with params. |
-| `cdp_mouse_click(x, y)` | CDP mouse click. |
-| `cdp_type_text(text)` | CDP text insert. |
-| `cdp_click_element(selector)` | CDP click at element center. |
+| `cdp_mouse_click(x, y)` | CDP mouse click at viewport coordinates. |
+| `cdp_insert_text(text)` | CDP text insert into whatever has focus (`cdp_type_text` is the deprecated old name). |
+| `cdp_click(selector)` | Scroll the element into view and click its centre through CDP. |
+| `cdp_click_element(selector)` | Deprecated: use `cdp_click`. |
 | `cdp_fast_type(selector, text)` | Clear and insert text in one operation (fast, not stealthy). |
 | `cdp_wait_for_element_present(selector, timeout)` | Wait for an element to appear in the DOM. |
 | `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |
@@ -501,8 +503,9 @@ is empty.
 | `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
 | `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
 | `BrowserSession` | Owns the WebDriver session, an optional CDP client and an optional auto-started driver process. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. |
-| `run_browser_test(config, test)` | Starts a `BaseCase`, runs `test` (a closure `FnOnce(&mut BaseCase) -> BrowserTestFuture`), always calls `quit`, and returns the test's error, the cleanup error, or both. A test that ends with `skip_test` counts as passed. |
-| `BrowserTestFuture<'a>` | `Pin<Box<dyn Future<Output = Result<()>> + 'a>>`, the future your test closure returns. |
+| `run_browser_test(config, test)` | Starts a `BaseCase`, runs `test` (an async closure over `&mut BaseCase`), always calls `quit`, and returns the test's error, the cleanup error, or both. A panic in the test still closes the browser and is then raised again. A test that ends with `skip_test` counts as passed. The run settings of `config` (`with_run_settings`) go to the case first. |
+| `run_cdp_test(options, test)` | The same for the Pure CDP engine: launches a browser, runs `test` (an async closure over `&Page`) on its first tab and always closes the browser. `Plugins::run_cdp_test` adds the plugins. |
+| `run_browser_test_boxed`, `BrowserTestFuture<'a>` | Deprecated: the closure form that returns `Pin<Box<dyn Future<Output = Result<()>> + 'a>>`, from before async closures. |
 | `shutdown_reused_sessions() -> usize` | Closes every idle browser kept for `reuse_session` and returns how many it closed. A browser a test still holds is left alone. |
 | `install_tls_provider()` | Installs `ring` as the process-wide rustls crypto provider unless one is installed. Call it before you build your own `reqwest` client in a program that uses this crate, which builds `reqwest` without a provider; a client built before any provider is set panics. |
 | `RuntimeConfig`, `LogFormat` | Environment configuration (below). `LogFormat` is `Pretty` (default) or `Json`. |
@@ -525,7 +528,7 @@ is empty.
 | `Selector` | A borrowed selector with its kind decided: `LinkText`, `PartialLinkText`, `Css`, `XPath`, `Id`. `Selector::auto(text)` guesses from the start of the string: `link=`, `link_text=`, `text=` is exact link text; `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` is partial link text; `/`, `./`, `../`, `(` or an XPath axis such as `parent::` is XPath; anything else is CSS. `to_by()` and `auto_by(text)` return a `thirtyfour::By` and fail with `InvalidSelector` for empty text. The pure CDP engine uses the owned twin `utils::selectors::SelectorBuf`. |
 | `init_tracing()`, `init_tracing_json()` | Install the global `tracing` subscriber (text or JSON) and bridge `log`. They read `RUST_LOG` (default `info`) and ignore a second call. |
 | `init_tracing_with_filter(filter)`, `init_tracing_json_with_filter(filter)` | The same with an `EnvFilter` string; an unparsable filter falls back to `RUST_LOG`, then `info`. The process environment is not changed. |
-| `init_tracing_from_runtime(&RuntimeConfig)` | Uses `SB_LOG_LEVEL` and `SB_LOG_FORMAT`. |
+| `init_tracing_from_runtime(&RuntimeConfig)` | Uses `SB_LOG_LEVEL` and `SB_LOG_FORMAT`; without a valid `SB_LOG_LEVEL` the filter is `RUST_LOG`, then `info`. |
 | `UPSTREAM_SELENIUMBASE_VERSION` | The constant `"4.55.2"`, the Python SeleniumBase version the API tracks. |
 
 ### Charts and tours
