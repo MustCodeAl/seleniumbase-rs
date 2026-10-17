@@ -34,15 +34,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`BrowserConfig::default()` is headless. UC mode needs Chrome, Chromium or Edge.
+`BrowserConfig::default()` is headless.
+
+<Warning>
+
+UC mode needs Chrome, Chromium or Edge.
+
+</Warning>
+
 On the command line, `sbrs --uc open https://example.com` does the same (put
 `--uc` before the subcommand).
 
 ## Binary patching
 
 Even in UC mode, a stock `chromedriver` may inject `cdc_` variables into every
-page. UC mode does not patch the driver for you. Patch the executable before
-launch to strip those signatures:
+page.
+
+<Note>
+
+UC mode does not patch the driver for you.
+
+</Note>
+
+Patch the executable before launch to strip those signatures:
 
 ```bash
 cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
@@ -80,15 +94,48 @@ let config = BrowserConfig::default()
 
 If a site still flags the browser:
 
-1. Patch `chromedriver` and verify `needs_patch()` returns `false`.
-2. Add `engine_spoofing_args()` to the launch flags.
-3. Use a [`Fingerprint`](../tutorials/fingerprint_stealth.md) with consistent
-   user agent, platform, screen size, WebGL vendor, and geolocation.
-4. Run headful (`with_headless(false)`). A headless session already starts
-   Chrome with `--headless=new`, so there is no newer headless mode to switch to.
-5. Align egress IP with the spoofed geolocation and timezone.
-6. Try the [pure CDP engine](../tutorials/pure_cdp.md), which needs no
-   chromedriver.
+<Steps>
+
+<Step title="Patch chromedriver">
+
+Patch `chromedriver` and verify `needs_patch()` returns `false`.
+
+</Step>
+
+<Step title="Add the spoofing arguments">
+
+Add `engine_spoofing_args()` to the launch flags.
+
+</Step>
+
+<Step title="Use a coherent fingerprint">
+
+Use a [`Fingerprint`](../tutorials/fingerprint_stealth.md) with consistent
+user agent, platform, screen size, WebGL vendor, and geolocation.
+
+</Step>
+
+<Step title="Run headful">
+
+Run headful (`with_headless(false)`). A headless session already starts
+Chrome with `--headless=new`, so there is no newer headless mode to switch to.
+
+</Step>
+
+<Step title="Align the egress IP">
+
+Align egress IP with the spoofed geolocation and timezone.
+
+</Step>
+
+<Step title="Try the pure CDP engine">
+
+Try the [pure CDP engine](../tutorials/pure_cdp.md), which needs no
+chromedriver.
+
+</Step>
+
+</Steps>
 
 ## Troubleshooting
 

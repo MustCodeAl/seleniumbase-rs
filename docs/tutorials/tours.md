@@ -50,8 +50,12 @@ convenience constructor such as `create_introjs_tour(name)`.
 
 ## Play a tour
 
+<Info>
+
 Exported tours are standalone HTML files. Open them in a browser to play the
 tour, or serve them from your test report.
+
+</Info>
 
 ## Use cases
 

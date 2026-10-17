@@ -6,9 +6,15 @@ title: "Security"
 
 Rust's memory-safety guarantees, explicit error handling, and type system make
 the implementation of `seleniumbase-rs` more robust than many dynamic-language
-alternatives. However, browser automation has its own security model. A memory-safe
+alternatives.
+
+<Warning>
+
+Browser automation has its own security model. A memory-safe
 crate can still leak credentials, execute untrusted JavaScript, or expose the host
 machine to a compromised page.
+
+</Warning>
 
 This page explains the security properties that Rust provides, the risks that
 remain, and the operational practices that reduce them.
@@ -93,10 +99,15 @@ These reduce some risks; none replaces the guidance below.
 
 ### MCP server
 
+<Danger>
+
+Connect only trusted MCP clients. The server runs with the privileges of the
+user that launched it and can execute JavaScript in the active page.
+
+</Danger>
+
 - Build the `sbrs-mcp` binary only when needed and distribute it only to
   trusted hosts.
-- Connect only trusted MCP clients. The server runs with the privileges of the
-  user that launched it and can execute JavaScript in the active page.
 - Consider running the MCP server in a sandbox or container with limited network
   access.
 
@@ -122,9 +133,13 @@ These reduce some risks; none replaces the guidance below.
 
 ### Stealth mode limitations
 
+<Warning>
+
 Stealth modes change browser fingerprints to reduce detection. They do **not**
 provide isolation, authorization, malware protection, or encryption. A browser
 in UC mode can still be exploited by a malicious page.
+
+</Warning>
 
 ## Threat model summary
 

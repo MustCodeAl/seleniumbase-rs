@@ -307,6 +307,41 @@ when the page is zoomed, as Tauri's `set_zoom` and the zoom hotkeys do). Windows
 
 </AccordionGroup>
 
+Set Window Rect first brings the window back to its normal state, as
+WebDriver asks: out of full screen, not maximized, not minimized. A maximized
+window would otherwise ignore the new size.
+
+## Changing the page script
+
+The page script is written in TypeScript in `src/bridge.ts`. `src/bridge.js` is
+generated from it and is what the plugin embeds, so apps that use the plugin
+build without Node or Bun.
+
+<Steps>
+
+<Step title="Edit the source">
+
+Change `src/bridge.ts`, then run `bun install` once.
+
+</Step>
+
+<Step title="Generate the script">
+
+Run `bun run bridge`. It builds `bridge.js` and records the SHA-256 of
+`bridge.ts` on its first line. Commit both files. `bunx tsc --noEmit`
+type-checks the source.
+
+</Step>
+
+</Steps>
+
+<Note>
+
+`cargo test` fails, naming this command, when `bridge.js` is older than
+`bridge.ts`.
+
+</Note>
+
 ## How it works
 
 ```mermaid

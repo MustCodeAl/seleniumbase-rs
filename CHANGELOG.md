@@ -6,10 +6,86 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## Unreleased
+## [Unreleased]
+
+## [0.4.0] - 2026-10-16
+
+A feature release: browser plugins now run in the WebDriver engine as well as
+the Pure CDP one, the Pure CDP engine gains page script and style tags and HAR
+recording, the opt-in `visual` feature compares screenshots by structural
+similarity, `sbrs prompt` prints a browser and driver segment for shell prompts,
+and the documentation gains a guide to testing pages with a CAPTCHA.
+
+### Added
+
+- **Browser plugins for the WebDriver engine** (feature `plugins`; ADR 004
+  phase 3). `BrowserConfig::with_plugins` gives a `PluginSet` to
+  `BaseCase::new` and `BrowserSession::connect`: the set is checked against the
+  browser, `before_launch` changes the start-up settings (Chromium arguments,
+  capability preferences, extension folders, proxy and headless; Firefox
+  arguments, preferences and headless), and once the session runs the plugins
+  get `on_browser`, then the packages and `on_page_created` for the first
+  window, for each window `switch_to_new_window` or `open_new_window` opens, and
+  for any other on `apply_plugins_to_window`; `quit` or a drop calls
+  `on_close`, and `reconnect` runs the hooks again. On Chromium browsers
+  plugins send protocol commands through chromedriver's DevTools channel; on
+  Firefox and Safari `send` is refused and scripts for every document run at
+  once and again after each `open`. A refusal or a failing hook stops the
+  session with `SeleniumBaseError::Plugin`. Plugins with `reuse_session` are
+  refused. See the WebDriver section of `docs/tutorials/plugins.md`.
+- `sb_cdp::Page::add_script_tag` and `add_style_tag` add a script or a
+  stylesheet to the current document from a URL or inline (`TagSource`),
+  waiting for a file to load; `add_init_script` runs a script in every
+  document the tab loads from then on and returns an `InitScriptId` for
+  `remove_init_script`. Playwright's `addScriptTag`, `addStyleTag` and
+  `addInitScript`.
+- With the `plugins` feature, `sb_cdp::Page` implements the plugin API's
+  `PageHandle`, so a program can hand one of its tabs to plugin code.
+- Visual regression testing, behind the new opt-in `visual` feature:
+  `visual::VisualBaseline` saves a screenshot as a baseline PNG on the first
+  run and compares later screenshots with it by structural similarity (MSSIM
+  over 8 × 8 windows on each colour channel, `image-compare`), failing below a
+  threshold of 0.999 with `AssertionFailed` and leaving `<name>.actual.png` and
+  a `<name>.diff.png` that paints the differences red. Screenshots of another
+  size fail without a comparison. `check_page` takes a `BaseCase` or an
+  `sb_cdp::Page`, and `BaseCase::assert_visual_match(name)` keeps its baselines
+  in `visual_baseline/<test>/`, `<test>` being the test's whole path (test
+  binary, module path and function, as `cart.checkout.renders`), and follows
+  `with_visual_baseline_reset`.
+  `check_window` is unchanged: it compares the HTML layout, as in Python.
+- HAR recording for the pure CDP engine (no new dependency, no feature):
+  `Page::start_har()` / `start_har_with(HarOptions)` return a `HarRecorder`,
+  and `HarRecorder::finish()` returns a `Har` (HTTP Archive 1.2 serde types)
+  that `Har::save(path)` writes as JSON. Entries come from the `Network`
+  events of the tab and of its cross-site iframes, which run in targets of
+  their own and are attached while recording, extra-info headers included, with cookies, query strings, POST
+  bodies, one entry per redirect hop, failures with Chrome's `_error`, and
+  `blocked`/`dns`/`connect`/`ssl`/`send`/`wait`/`receive` timings; each
+  top-level navigation is a page with `onContentLoad` and `onLoad`. Response
+  bodies are off by default and capped at 1 MiB each when turned on; the cap
+  can be raised to 64 MiB (`MAX_CONTENT_BYTES`).
+- `sbrs prompt` prints one short line for a shell prompt: the installed
+  Chrome's major version and whether a matching chromedriver is at hand
+  (`chrome 155 ✓driver`, `✗driver`, `?driver`), with `--ascii` marks and a
+  `--format` of `{browser}`, `{major}`, `{driver}`, `{mark}` and
+  `{driver_major}`. It starts no browser and uses no network: versions come
+  from files (a macOS app's `Info.plist`, the version folder beside
+  `chrome.exe`), and one that only `--version` tells is cached for ten minutes
+  in the user cache folder. It prints nothing and exits with 0 when no browser
+  is found (`--verbose` says why). The CLI page has setups for Bash, Zsh,
+  Fish, PowerShell, Starship and Warp, and `.warp/workflows/` a Workflow for it.
+- `browser::driver_version::major_without_running` reads a program's major
+  version from its files only, and `version_flag_major` runs `--version` with a
+  time limit.
+- Tutorial [Testing Pages with a CAPTCHA](docs/tutorials/captcha_testing.md): vendor test keys, and tests that click the test widget and read the token.
+- `docs/completions/`: a Fig completion spec for `sbrs`, prepared for withfig/autocomplete (not submitted), with the steps.
 
 ### Fixed
 
+- The pure CDP engine takes DevTools messages up to 256 MiB, as Puppeteer
+  does. Chrome sends each answer in one WebSocket frame, and one over the
+  default 16 MiB, such as a large screenshot or response body, used to close
+  the connection for every tab.
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
   (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
 
@@ -812,3 +888,10 @@ listed first under *Fixed*.
   `bundle.json`: the result of a successful call is replaced by its length, so a
   cookie, a stored token or a page's text read by `get_cookies`,
   `manage_cookies` or a storage tool is not saved with the bug report.
+
+[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.1.0

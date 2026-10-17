@@ -43,9 +43,13 @@ cannot be read, 2 for a source the importer refuses (over 2 MB, or Python,
 which Puppeteer has no API for). From Rust, call
 `seleniumbase_rs::utilities::importer::import_puppeteer`.
 
+<Tip>
+
 Run the generated tests headless with `SB_HEADLESS=true cargo test`. They need
 `seleniumbase-rs` and `tokio` with the `macros`, `rt-multi-thread` and `time`
 features.
+
+</Tip>
 
 ## The mappings
 
@@ -166,15 +170,24 @@ one this crate can use is taken: CSS first, then `xpath/`, then `aria/`, then
 
 ## Dropped on purpose
 
+<Info>
+
 `require`/`import` lines, `puppeteer.launch()` and its options (the test
 launches with `support::launch_options()`, headless when `SB_HEADLESS` is
 set), `browser.close()` and `page.close()`, `this.timeout()` and
-`jest.setTimeout()`, and the `delay` option of typing. Comments inside a test
+`jest.setTimeout()`, and the `delay` option of typing are left out without a
+`TODO`. Comments inside a test
 are kept; blank lines and comments outside tests are not.
 
+</Info>
+
 ## Safety
+
+<Warning>
 
 The input is read as untrusted text by the importer's own tokenizer and
 parser, with a 2 MB limit and a nesting limit; text from it reaches the Rust
 only in escaped string literals and neutralised comments, and names keep only
 `a-z`, `0-9` and `_`. See [Migrate Playwright Tests](playwright-migration.md#safety).
+
+</Warning>

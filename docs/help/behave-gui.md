@@ -19,14 +19,24 @@ Commander without the Tkinter window.
 
 The app is part of the opt-in `tui` feature, with `sbrs commander`:
 
-```bash
+<CodeGroup>
+
+```bash Run from source
 cargo run --features tui --bin sbrs -- behave-gui
-# or install the binary with it
+```
+
+```bash Install the binary with it
 cargo install seleniumbase-rs --features tui
 ```
 
+</CodeGroup>
+
+<Note>
+
 An `sbrs` built without the feature still has the subcommand, but it only
-prints the following message and exits with status 2, as `commander` does:
+prints the following message and exits with status 2, as `commander` does.
+
+</Note>
 
 ```text
 this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
@@ -86,8 +96,13 @@ below shows the messages of the scenario under the cursor, and `Esc` (or `q` or
 
 Each scenario is run with the crate's behave runner, `run_feature_text`, with
 the feature's background first. The runner needs step definitions, and those
-are Rust code in your own program, which `sbrs` cannot load. The app has only
-the built-in steps:
+are Rust code in your own program, which `sbrs` cannot load.
+
+<Warning>
+
+The app has only the built-in steps, listed below.
+
+</Warning>
 
 - `I do nothing` and `the system is ready`, which pass,
 - `I wait N seconds`, which does not wait,

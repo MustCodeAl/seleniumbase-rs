@@ -23,14 +23,21 @@ overrides a lower-priority one:
 4. Programmatic `BrowserConfig`.
 5. CLI flags (when using `sbrs`).
 
+<Info>
+
 This means a `BrowserConfig` value in code wins over an environment variable,
 and a CLI flag wins over everything else.
 
+</Info>
+
 ## Global config file
 
-Create `sbase_config.toml` in your project root:
+Create `sbase_config.toml` in your project root (or, as a flat `.sbase_config` file
+in `KEY=VALUE` format):
 
-```toml
+<CodeGroup>
+
+```toml sbase_config.toml
 browser = "chrome"
 headless = false
 timeout_seconds = 30
@@ -53,17 +60,17 @@ esc_end = false
 rec_sb_cdp = false
 ```
 
-The file is optional. If it is missing, built-in defaults are used. The
-`Settings::load_global()` function searches for `sbase_config.toml`, then
-`.sbase_config.toml`, then `.sbase_config` in the current directory.
-
-You can also use a flat `.sbase_config` file in `KEY=VALUE` format:
-
-```text
+```text .sbase_config
 headless=false
 locale=en-US
 timeout_seconds=10
 ```
+
+</CodeGroup>
+
+The file is optional. If it is missing, built-in defaults are used. The
+`Settings::load_global()` function searches for `sbase_config.toml`, then
+`.sbase_config.toml`, then `.sbase_config` in the current directory.
 
 ## Loading settings programmatically
 
@@ -132,17 +139,60 @@ export SB_THREADS=4
 In addition to `Settings`, the crate reads `SB_*` runtime configuration for
 library behavior:
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `SB_WEBDRIVER_URL` | `http://localhost:4444` | WebDriver endpoint. |
-| `SB_CHROME_BIN` | auto-detect | Explicit Chrome/Chromium binary path. |
-| `SB_PATCH_CACHE_DIR` | platform cache | Directory for patched Chrome/Chromedriver copies. |
-| `SB_LOG_LEVEL` | `info` | Default tracing log level. |
-| `SB_LOG_FORMAT` | `pretty` | `pretty` or `json` output. |
-| `SB_SHUTDOWN_TIMEOUT_SECS` | `30` | Graceful shutdown timeout. |
-| `SB_CHROMEDRIVER_PORT` | `0` | Port for auto-started chromedriver (`0` = ephemeral). |
-| `SB_IMPLICIT_WAIT_SECS` | `30` | Default implicit wait timeout. |
-| `SB_REMOTE_WEBDRIVER_TIMEOUT` | unset | Client-side timeout, in seconds, for each HTTP request sent to a Remote WebDriver server. |
+<ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
+
+WebDriver endpoint.
+
+</ParamField>
+
+<ParamField body="SB_CHROME_BIN" type="string" default="auto-detect">
+
+Explicit Chrome/Chromium binary path.
+
+</ParamField>
+
+<ParamField body="SB_PATCH_CACHE_DIR" type="string" default="platform cache">
+
+Directory for patched Chrome/Chromedriver copies.
+
+</ParamField>
+
+<ParamField body="SB_LOG_LEVEL" type="string" default="info">
+
+Default tracing log level.
+
+</ParamField>
+
+<ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
+
+`pretty` or `json` output.
+
+</ParamField>
+
+<ParamField body="SB_SHUTDOWN_TIMEOUT_SECS" type="integer" default="30">
+
+Graceful shutdown timeout.
+
+</ParamField>
+
+<ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
+
+Port for auto-started chromedriver (`0` = ephemeral).
+
+</ParamField>
+
+<ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
+
+Default implicit wait timeout.
+
+</ParamField>
+
+<ParamField body="SB_REMOTE_WEBDRIVER_TIMEOUT" type="integer">
+
+Unset by default. Client-side timeout, in seconds, for each HTTP request sent to
+a Remote WebDriver server.
+
+</ParamField>
 
 ## Remote WebDriver timeout
 
@@ -153,19 +203,27 @@ on a connection that never closes. `remote_webdriver_timeout_seconds` (or the
 request sent to the server.
 
 It is unset by default, matching SeleniumBase's `REMOTE_WEBDRIVER_TIMEOUT`, so
-the client keeps its own default until you opt in. If you set it, make it
-larger than your page-load timeout and larger than the longest a new-session
-request may wait in the grid's queue. A value below either one cuts off
-sessions that were healthy.
+the client keeps its own default until you opt in.
 
-```toml
-# sbase_config.toml
+<Warning>
+
+If you set it, make it larger than your page-load timeout and larger than the
+longest a new-session request may wait in the grid's queue. A value below either
+one cuts off sessions that were healthy.
+
+</Warning>
+
+<CodeGroup>
+
+```toml sbase_config.toml
 remote_webdriver_timeout_seconds = 600
 ```
 
-```bash
+```bash Environment
 export SB_REMOTE_WEBDRIVER_TIMEOUT=600
 ```
+
+</CodeGroup>
 
 ## BrowserConfig in code
 

@@ -16,6 +16,8 @@
 //! assert_eq!(fit(driver, browser), Fit::Mismatch { driver: 151, browser: 155 });
 //! ```
 
+use std::ffi::OsStr;
+use std::io::Read as _;
 use std::path::Path;
 use std::time::Duration;
 
@@ -70,6 +72,72 @@ pub fn fit(driver: Option<u32>, browser: Option<u32>) -> Fit {
     }
 }
 
+/// The major version of the program at `binary`, read from files only, without
+/// starting it; `None` when the files do not tell.
+///
+/// The `Info.plist` of the macOS app bundle the program is in comes first
+/// (`Google Chrome.app/Contents/MacOS/Google Chrome` has its version in
+/// `Google Chrome.app/Contents/Info.plist`), then the version folder beside the
+/// program that [`binary_major`] also reads. Reading a file takes well under a
+/// millisecond, where starting Chrome to ask it takes tens of milliseconds, so
+/// a shell prompt (`sbrs prompt`) asks this first.
+#[must_use]
+pub fn major_without_running(binary: &Path) -> Option<u32> {
+    major_from_bundle(binary).or_else(|| major_from_install_dir(binary))
+}
+
+/// The most of an `Info.plist` that is read; Chrome's is about 20 KB.
+const MAX_PLIST_BYTES: u64 = 1024 * 1024;
+
+/// The major version in the `Info.plist` of the macOS app bundle whose
+/// `Contents/MacOS/` folder holds `binary`.
+fn major_from_bundle(binary: &Path) -> Option<u32> {
+    let macos = binary.parent()?;
+    let contents = macos.parent()?;
+    if macos.file_name() != Some(OsStr::new("MacOS"))
+        || contents.file_name() != Some(OsStr::new("Contents"))
+    {
+        return None;
+    }
+    let mut plist = String::new();
+    std::fs::File::open(contents.join("Info.plist"))
+        .ok()?
+        .take(MAX_PLIST_BYTES)
+        .read_to_string(&mut plist)
+        .ok()?;
+    major_version(plist_string(&plist, "CFBundleShortVersionString")?)
+}
+
+/// The `<string>` that follows `<key>key</key>` in an XML property list.
+fn plist_string<'a>(plist: &'a str, key: &str) -> Option<&'a str> {
+    let marker = format!("<key>{key}</key>");
+    let after = &plist[plist.find(&marker)? + marker.len()..];
+    let value = after.trim_start().strip_prefix("<string>")?;
+    Some(value[..value.find("</string>")?].trim())
+}
+
+/// The major version `binary --version` prints, `None` when it prints none.
+///
+/// # Errors
+///
+/// When the program cannot be started, or has not ended within `timeout`
+/// ([`std::io::ErrorKind::TimedOut`]; the program is then killed).
+pub async fn version_flag_major(binary: &Path, timeout: Duration) -> std::io::Result<Option<u32>> {
+    let run = Command::new(binary)
+        .arg("--version")
+        .kill_on_drop(true)
+        .output();
+    let output = tokio::time::timeout(timeout, run)
+        .await
+        .map_err(|_elapsed| {
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!("no answer within {timeout:?}"),
+            )
+        })??;
+    Ok(major_version(&String::from_utf8_lossy(&output.stdout)))
+}
+
 /// The major version of the program at `binary`, or `None` when it cannot be
 /// told.
 ///
@@ -88,17 +156,10 @@ pub async fn binary_major(binary: &Path) -> Option<u32> {
     if let Some(major) = major_from_install_dir(binary) {
         return Some(major);
     }
-    let output = tokio::time::timeout(
-        VERSION_TIMEOUT,
-        Command::new(binary)
-            .arg("--version")
-            .kill_on_drop(true)
-            .output(),
-    )
-    .await
-    .ok()?
-    .ok()?;
-    major_version(&String::from_utf8_lossy(&output.stdout))
+    version_flag_major(binary, VERSION_TIMEOUT)
+        .await
+        .ok()
+        .flatten()
 }
 
 /// The product version Windows records in the program file itself: the browser
@@ -273,6 +334,114 @@ mod tests {
         assert_eq!(binary_major(&chrome).await, Some(154));
         std::fs::remove_file(dir.path().join("new_chrome")).unwrap();
         assert_eq!(binary_major(&chrome).await, Some(155));
+    }
+
+    /// The start of Chrome's own `Info.plist`, with the build number
+    /// (`CFBundleVersion`) before the version so the wrong key would show.
+    const CHROME_PLIST: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>Google Chrome</string>
+	<key>CFBundleVersion</key>
+	<string>8059.40</string>
+	<key>CFBundleShortVersionString</key>
+	<string>155.0.8059.40</string>
+</dict>
+</plist>
+"#;
+
+    /// `<dir>/<app>/Contents/MacOS/<name>`, a file that is no program, with
+    /// `plist` as the bundle's `Info.plist` when given.
+    fn app_bundle(dir: &Path, app: &str, name: &str, plist: Option<&str>) -> std::path::PathBuf {
+        let contents = dir.join(app).join("Contents");
+        std::fs::create_dir_all(contents.join("MacOS")).unwrap();
+        let binary = contents.join("MacOS").join(name);
+        std::fs::write(&binary, b"not a program").unwrap();
+        if let Some(plist) = plist {
+            std::fs::write(contents.join("Info.plist"), plist).unwrap();
+        }
+        binary
+    }
+
+    #[test]
+    fn a_macos_app_is_known_by_its_info_plist_without_running_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let chrome = app_bundle(
+            dir.path(),
+            "Google Chrome.app",
+            "Google Chrome",
+            Some(CHROME_PLIST),
+        );
+        assert_eq!(major_without_running(&chrome), Some(155));
+
+        // Spacing between the key and its value does not matter.
+        let spaced = CHROME_PLIST.replace("</key>\n\t<string>155", "</key>\n\n   <string> 155");
+        let chromium = app_bundle(dir.path(), "Chromium.app", "Chromium", Some(&spaced));
+        assert_eq!(major_without_running(&chromium), Some(155));
+    }
+
+    #[test]
+    fn files_that_do_not_tell_give_none() {
+        let dir = tempfile::tempdir().unwrap();
+        // A bundle without an Info.plist, and one without the version key.
+        let bare = app_bundle(dir.path(), "Bare.app", "Bare", None);
+        assert_eq!(major_without_running(&bare), None);
+        let keyless = CHROME_PLIST.replace("CFBundleShortVersionString", "CFBundleName");
+        let unnamed = app_bundle(dir.path(), "Unnamed.app", "Unnamed", Some(&keyless));
+        assert_eq!(major_without_running(&unnamed), None);
+        // A plist next to a program that is not in a bundle's MacOS folder.
+        let loose = dir.path().join("loose");
+        std::fs::create_dir_all(&loose).unwrap();
+        std::fs::write(loose.join("Info.plist"), CHROME_PLIST).unwrap();
+        std::fs::write(loose.join("chromedriver"), b"x").unwrap();
+        assert_eq!(major_without_running(&loose.join("chromedriver")), None);
+        // Nothing there at all.
+        assert_eq!(major_without_running(&dir.path().join("missing")), None);
+    }
+
+    #[test]
+    fn the_version_folder_beside_a_program_is_read_without_running_it() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("chrome.exe"), b"x").unwrap();
+        std::fs::create_dir(dir.path().join("154.0.8037.98")).unwrap();
+        assert_eq!(
+            major_without_running(&dir.path().join("chrome.exe")),
+            Some(154)
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn the_version_flag_is_read_with_a_time_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let limit = Duration::from_secs(5);
+        let driver = stand_in(
+            dir.path(),
+            "driver",
+            "echo 'ChromeDriver 155.0.8059.40 (abc)'",
+        );
+        assert_eq!(version_flag_major(&driver, limit).await.unwrap(), Some(155));
+        let silent = stand_in(dir.path(), "silent", "exit 0");
+        assert_eq!(version_flag_major(&silent, limit).await.unwrap(), None);
+        assert!(version_flag_major(&dir.path().join("missing"), limit)
+            .await
+            .is_err());
+
+        // A program that hangs is given up on, not waited for.
+        let slow = stand_in(
+            dir.path(),
+            "slow",
+            r#"if [ -e "$0.hang" ]; then exec sleep 30; fi"#,
+        );
+        std::fs::write(dir.path().join("slow.hang"), b"").unwrap();
+        let started = std::time::Instant::now();
+        let error = version_flag_major(&slow, Duration::from_millis(200))
+            .await
+            .expect_err("it hangs");
+        assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+        assert!(started.elapsed() < Duration::from_secs(10));
     }
 
     #[cfg(unix)]

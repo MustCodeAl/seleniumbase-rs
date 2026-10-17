@@ -436,9 +436,14 @@ impl BaseCase {
     }
 
     /// Executes the `open_new_window` action.
+    ///
+    /// With browser plugins (feature `plugins`), the new window gets their
+    /// packages and `on_page_created`, as the first window did.
     pub async fn open_new_window(&mut self) -> Result<(), SeleniumBaseError> {
         self.execute_script("window.open('');").await?;
         self.switch_to_newest_window().await?;
+        #[cfg(feature = "plugins")]
+        self.session.apply_plugins_to_window().await?;
         Ok(())
     }
 
@@ -483,6 +488,26 @@ impl BaseCase {
             self.session.driver().switch_to_window(last.clone()).await?;
         }
         Ok(())
+    }
+
+    /// Gives the window the session is on the packages and `on_page_created`
+    /// of its browser plugins (feature `plugins`,
+    /// [`BrowserConfig::with_plugins`]).
+    ///
+    /// `BaseCase::new` does this for the first window, and
+    /// [`open_new_window`](Self::open_new_window), `open_new_tab` and
+    /// [`switch_to_new_window`](Self::switch_to_new_window) for the windows
+    /// they open. Call it after switching to a window the page opened, such
+    /// as a pop-up: switching alone runs no hook. It does nothing without
+    /// plugins.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for the first package or hook that
+    /// fails.
+    #[cfg(feature = "plugins")]
+    pub async fn apply_plugins_to_window(&self) -> Result<(), SeleniumBaseError> {
+        self.session.apply_plugins_to_window().await
     }
 
     /// Executes the `get_active_element_css` action.
@@ -1838,8 +1863,10 @@ impl BaseCase {
     ///
     /// Corresponds to Python's `check_window`. The baseline is the folder
     /// `visual_baseline/<test>/<name>` in the working directory, where the
-    /// test is the name of the running test (the thread's name under
-    /// `cargo test`). It holds `page_url.txt`, `baseline.png` and
+    /// test is the name of the running test (the last part of the thread's
+    /// name under `cargo test`, the function), as in Python: two tests of the
+    /// same name share their baselines, so give each a `name` of its own. It
+    /// holds `page_url.txt`, `baseline.png` and
     /// `tags_level_1.txt` to `tags_level_3.txt`, one entry for each tag below
     /// `<body>`: the tag names (level 1), with the sorted names of its
     /// attributes (level 2), with the attribute values (level 3).
@@ -1879,6 +1906,45 @@ impl BaseCase {
             checked,
         );
         apply_check_level(outcome, level)
+    }
+
+    /// Compares a screenshot of the page with the baseline image saved under
+    /// `name` (feature `visual`), or saves it as the baseline when there is
+    /// none (or when the run resets baselines).
+    ///
+    /// Unlike [`check_window`](Self::check_window), which compares the HTML
+    /// structure, this compares pixels, by structural similarity with the
+    /// default threshold; see [`crate::visual`]. The baseline is
+    /// `visual_baseline/<test>/<name>.png`, and a mismatch leaves
+    /// `<name>.actual.png` and `<name>.diff.png` beside it. `<test>` names the
+    /// running test by its whole path, from the thread `cargo test` runs it
+    /// on: the test binary (the crate or the file in `tests/`), the module
+    /// path and the function, joined with `.`, such as
+    /// `cart.checkout.renders`, so tests of the same name in other modules or
+    /// files keep separate baselines. (`check_window` names its folder after
+    /// the function alone, as Python does.)
+    /// [`RunSettings::with_visual_baseline_reset`] saves new baselines instead
+    /// of comparing. For another folder or threshold, use a
+    /// [`VisualBaseline`](crate::visual::VisualBaseline) with
+    /// [`check_page`](crate::visual::VisualBaseline::check_page).
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::AssertionFailed`] when the page looks different
+    /// from the baseline or the screenshot has another size,
+    /// [`SeleniumBaseError::InvalidConfig`] when `name` is not 1 to 80 ASCII
+    /// letters, digits, `-` or `_`, and the screenshot's or the file system's
+    /// error otherwise.
+    #[cfg(feature = "visual")]
+    pub async fn assert_visual_match(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
+        use crate::api::run_settings::visual_match_folder;
+        use crate::visual::VisualBaseline;
+
+        let baselines = VisualBaseline::new(visual_match_folder())
+            .update_baselines(self.run_settings.reset_visual_baseline());
+        // As check_window does, let the page settle before it is captured.
+        let _ = self.wait_for_ready_state_complete().await;
+        baselines.check_page(name, &*self).await.map(|_| ())
     }
 
     // --- MasterQA Integration ---

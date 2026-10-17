@@ -35,8 +35,12 @@ cargo doc --no-deps --open
 | `sb.reconnect().await` | Replaces the WebDriver session while keeping the driver process. |
 | `sb.restart().await` | Quits and restarts the browser with the same config. |
 
+<Warning>
+
 Always call `quit()` in a `Drop` guard, `sb_test!` macro, or `finally` block so
 browser processes do not leak when a test fails.
+
+</Warning>
 
 ## Navigation
 
@@ -248,6 +252,7 @@ is called. Useful for soft assertions.
 | `save_screenshot_to_path(path)` | Writes screenshot to an arbitrary path. |
 | `screenshot_as_png()` | Returns the current page screenshot as PNG bytes. |
 | `check_window(name, level)` | Compares the page's tag structure to a baseline saved under `visual_baseline/<test>/<name>/`, as Python 4.55.2 does: level 1 the tag names in order, level 2 adds the sorted attribute names, level 3 adds the attribute values. The first run (or a missing file) saves the baseline; level 0 is a dry run that only logs a difference; levels 1 to 3 fail on a difference. The screenshot is saved, not compared. |
+| `assert_visual_match(name)` | Feature `visual`, not in Python. Compares the screenshot's pixels with `visual_baseline/<test>/<name>.png`, `<test>` being the test binary, module path and function joined with `.`, by structural similarity (threshold 0.999), saving it the first time; a mismatch fails and leaves `<name>.actual.png` and `<name>.diff.png`. See [Visual regression testing](./remaining_helpers.md#visual-regression-testing-pixels). |
 
 ## Script execution and DOM modification
 
@@ -321,8 +326,12 @@ is called. Useful for soft assertions.
 
 ## UC / GUI bypass helpers
 
+<Info>
+
 These methods use native OS input instead of WebDriver to bypass some
 anti-detection checks. They require a graphical desktop session.
+
+</Info>
 
 | Method | Description |
 |--------|-------------|
@@ -430,4 +439,8 @@ For exact signatures, run `cargo doc --no-deps --open`.
 
 ---
 
+<Note>
+
 Verified against commit 8e9180f: only the multi-driver rows (`get_new_driver` to `driver_count`) were re-checked against the code in this pass; the rest of this page was not.
+
+</Note>

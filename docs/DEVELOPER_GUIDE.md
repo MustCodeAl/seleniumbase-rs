@@ -134,17 +134,50 @@ Domain files:
 
 ### Adding a new `BaseCase` helper
 
-1. Choose the appropriate domain file in `src/api/base_case_impls/` (or create
-   a new one if the domain does not exist).
-2. Add the method inside the existing `impl BaseCase { ... }` block.
-3. Return `crate::Result<T>` (an alias for `Result<T, SeleniumBaseError>`).
-4. Record the action with `self.record(...)` when it represents a user-facing
-   test step.
-5. Add a unit test when the helper does not require a live browser. A test that
-   needs a `BaseCase` with a WebDriver session can start a `MockWebDriver` (in
-   `base_case_impl_common.rs`): it answers the WebDriver commands you choose and
-   records what the `BaseCase` sent.
-6. Run `cargo clippy --all-targets -- -D warnings` and `cargo test`.
+<Steps>
+
+<Step title="Choose the domain file">
+
+Choose the appropriate domain file in `src/api/base_case_impls/` (or create
+a new one if the domain does not exist).
+
+</Step>
+
+<Step title="Add the method">
+
+Add the method inside the existing `impl BaseCase { ... }` block.
+
+</Step>
+
+<Step title="Return a Result">
+
+Return `crate::Result<T>` (an alias for `Result<T, SeleniumBaseError>`).
+
+</Step>
+
+<Step title="Record the action">
+
+Record the action with `self.record(...)` when it represents a user-facing
+test step.
+
+</Step>
+
+<Step title="Test it">
+
+Add a unit test when the helper does not require a live browser. A test that
+needs a `BaseCase` with a WebDriver session can start a `MockWebDriver` (in
+`base_case_impl_common.rs`): it answers the WebDriver commands you choose and
+records what the `BaseCase` sent.
+
+</Step>
+
+<Step title="Lint and run">
+
+Run `cargo clippy --all-targets -- -D warnings` and `cargo test`.
+
+</Step>
+
+</Steps>
 
 Example:
 
@@ -260,18 +293,26 @@ No feature is on by default, so a library user or a headless pool pulls in
 neither the terminal UI nor the desktop automation stacks. Turn them on when
 you want them:
 
-```toml
+<CodeGroup>
+
+```toml Cargo.toml
 seleniumbase-rs = { version = "0.1", features = ["gui", "tui"] }
 ```
 
-```text
+```bash Commands
 cargo install seleniumbase-rs --features tui   # sbrs commander
 cargo run --example gui_automation --features gui
 ```
 
+</CodeGroup>
+
+<Note>
+
 The crate compiles cleanly with no features and with `--all-features`; keep both
 green when touching feature-gated code. CI also builds `gui,tui` on Linux and
 macOS, because the default build no longer covers them.
+
+</Note>
 
 When adding a feature-gated API, use `#[cfg(feature = "...")]` and declare the
 dependency as `optional = true` in `Cargo.toml`. Prefer `#[cfg(feature = "...")]`
@@ -358,21 +399,27 @@ The stealth system has four independent axes:
    headers and responses.
 5. **Binary patching** — `ChromedriverPatcher` edits driver markers.
 
-```text
-                 BrowserConfig
-                      │
-        ┌─────────────┼─────────────┐
-        ▼             ▼             ▼
-  StealthOptions   Fingerprint   ChromedriverPatcher
-        │             │                │
-        ▼             ▼                ▼
-   launch args   bootstrap script   patched binary
-        │             │                │
-        └─────────────┴────────────────┘
-                      │
-               BrowserSession
-                      │
-               StealthReactor (CDP Fetch)
+```mermaid
+flowchart TD
+    BC["BrowserConfig"]
+    SO["StealthOptions"]
+    FP["Fingerprint"]
+    CP["ChromedriverPatcher"]
+    LA["launch args"]
+    BS["bootstrap script"]
+    PB["patched binary"]
+    SES["BrowserSession"]
+    SR["StealthReactor (CDP Fetch)"]
+    BC --> SO
+    BC --> FP
+    BC --> CP
+    SO --> LA
+    FP --> BS
+    CP --> PB
+    LA --> SES
+    BS --> SES
+    PB --> SES
+    SES --> SR
 ```
 
 Use these through `BaseCase::activate_cdp_mode(url)` or by setting
@@ -449,26 +496,77 @@ whenever a patch targets a new driver version.
 
 ### Adding new spoofing code
 
-1. If the change is a new JavaScript evasion, add a provider in
-   `src/stealth/providers/builtin.rs` and register it in `all()`.
-2. If it changes launch arguments, update `StealthOptions::apply_to` in
-   `src/stealth/options.rs` or add a helper such as `engine_spoofing_args()` in
-   `src/stealth/patcher.rs`.
-3. If it patches the binary, add an `EnginePatch` in
-   `src/stealth/patcher.rs`.
-4. Re-export new public types from `src/stealth/mod.rs` and `src/lib.rs`.
-5. Add a unit test that exercises the new logic without requiring a live browser.
+<Steps>
+
+<Step title="A new JavaScript evasion">
+
+If the change is a new JavaScript evasion, add a provider in
+`src/stealth/providers/builtin.rs` and register it in `all()`.
+
+</Step>
+
+<Step title="Launch arguments">
+
+If it changes launch arguments, update `StealthOptions::apply_to` in
+`src/stealth/options.rs` or add a helper such as `engine_spoofing_args()` in
+`src/stealth/patcher.rs`.
+
+</Step>
+
+<Step title="Binary patches">
+
+If it patches the binary, add an `EnginePatch` in
+`src/stealth/patcher.rs`.
+
+</Step>
+
+<Step title="Re-export">
+
+Re-export new public types from `src/stealth/mod.rs` and `src/lib.rs`.
+
+</Step>
+
+<Step title="Test it">
+
+Add a unit test that exercises the new logic without requiring a live browser.
+
+</Step>
+
+</Steps>
 
 ## Adding a macro
 
 Macros are defined in `src/macros.rs` and re-exported at the crate root via
 `#[macro_export]`:
 
-1. Add the macro definition in `src/macros.rs` using `$crate::` for any path.
-2. Include a short doc comment with an `ignore` example.
-3. Add a unit test in the `#[cfg(test)]` module if the macro builds a value that
-   can be asserted without a browser.
-4. Update `docs/tutorials/macros.md` with the macro name, signature, and example.
+<Steps>
+
+<Step title="Define it">
+
+Add the macro definition in `src/macros.rs` using `$crate::` for any path.
+
+</Step>
+
+<Step title="Document it in code">
+
+Include a short doc comment with an `ignore` example.
+
+</Step>
+
+<Step title="Test it">
+
+Add a unit test in the `#[cfg(test)]` module if the macro builds a value that
+can be asserted without a browser.
+
+</Step>
+
+<Step title="Document it">
+
+Update `docs/tutorials/macros.md` with the macro name, signature, and example.
+
+</Step>
+
+</Steps>
 
 ## Adding an MCP tool
 
@@ -476,22 +574,55 @@ The `sbrs-mcp` binary (`--server cdp|driver|sb`) is a thin wrapper over
 the `mcp` module, built with the `mcp-server` feature. A server is a
 `Host<S>`: a list of `ToolDef`s and the browser session `S` they share.
 
-1. Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
-   `src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
-   `src/mcp/webdriver.rs`).
-2. Write an `async fn(Ctx<S>, Args) -> Result<Output, ToolError>` handler. Read
-   arguments with the typed accessors on `Args` (`str`, `opt_bool`, `choice`,
-   `seconds_or`, ...), which name the argument in every error. Get the session
-   with `ctx.session().await?`. Return `Output::Text` or `Output::Json`.
-3. Register a `ToolDef::new(name, title, description, Effect, Schema, handler)`.
-   Choose the `Effect` that is true of the tool (it becomes the MCP annotation
-   hints) and describe each argument with `Prop`.
-4. Write files only through `ctx.settings().output_path(folder, name)`, which
-   keeps them inside the output directory.
-5. Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
-   browser; `tests/mcp_webdriver.rs` covers the catalogues.
-6. If the tool exists upstream, `tests/parity.rs` checks it against
-   `parity/api.toml`; see [Syncing with upstream](UPSTREAM_SYNC.md).
+<Steps>
+
+<Step title="Pick the server file">
+
+Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
+`src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
+`src/mcp/webdriver.rs`).
+
+</Step>
+
+<Step title="Write the handler">
+
+Write an `async fn(Ctx<S>, Args) -> Result<Output, ToolError>` handler. Read
+arguments with the typed accessors on `Args` (`str`, `opt_bool`, `choice`,
+`seconds_or`, ...), which name the argument in every error. Get the session
+with `ctx.session().await?`. Return `Output::Text` or `Output::Json`.
+
+</Step>
+
+<Step title="Register it">
+
+Register a `ToolDef::new(name, title, description, Effect, Schema, handler)`.
+Choose the `Effect` that is true of the tool (it becomes the MCP annotation
+hints) and describe each argument with `Prop`.
+
+</Step>
+
+<Step title="Write files safely">
+
+Write files only through `ctx.settings().output_path(folder, name)`, which
+keeps them inside the output directory.
+
+</Step>
+
+<Step title="Test it">
+
+Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
+browser; `tests/mcp_webdriver.rs` covers the catalogues.
+
+</Step>
+
+<Step title="Check the parity">
+
+If the tool exists upstream, `tests/parity.rs` checks it against
+`parity/api.toml`; see [Syncing with upstream](UPSTREAM_SYNC.md).
+
+</Step>
+
+</Steps>
 
 ## Testing guidelines
 
@@ -548,17 +679,42 @@ Enable JSON output with the `json-logs` feature for ingestion by log analytics.
 External profile payloads are normalized in `src/profile_payloads/profile.rs`.
 The flow is:
 
-```text
-JSON file ──► ProfileParams ──► to_browser_config() ──► BrowserConfig
-                         └──► browser() ──────────────► Fingerprint
+```mermaid
+flowchart LR
+    J["JSON file"] --> P["ProfileParams"]
+    P -- "to_browser_config()" --> BC["BrowserConfig"]
+    P -- "browser()" --> FP["Fingerprint"]
 ```
 
 When adding a new JSON field:
 
-1. Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
-2. Convert it in `to_browser_config()` for launch-time settings.
-3. Convert it in `browser()` for fingerprint/masking settings.
-4. Add a parser test and a round-trip coherence test.
+<Steps>
+
+<Step title="Add the field">
+
+Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
+
+</Step>
+
+<Step title="Launch-time settings">
+
+Convert it in `to_browser_config()` for launch-time settings.
+
+</Step>
+
+<Step title="Fingerprint settings">
+
+Convert it in `browser()` for fingerprint/masking settings.
+
+</Step>
+
+<Step title="Test it">
+
+Add a parser test and a round-trip coherence test.
+
+</Step>
+
+</Steps>
 
 Keep parser logic defensive: unknown fields should not fail; invalid values
 should produce `SeleniumBaseError::InvalidConfig` with the field name.
@@ -603,9 +759,13 @@ async fn example_test() -> seleniumbase_rs::Result<()> {
 }
 ```
 
+<Warning>
+
 `run_browser_test` guarantees cleanup runs after either success or failure.
 `Drop` cannot await async cleanup, so never construct and drop a browser in a
 synchronous test.
+
+</Warning>
 
 ### Marking slow/flaky tests
 
@@ -620,13 +780,19 @@ instance: navigation, assertions, typing, screenshots, and deferred asserts.
 The tests are `#[ignore]`d by default and serialized with a shared lock so
 parallel test threads do not race to bind chromedriver's port.
 
-```bash
+<CodeGroup>
+
+```bash Local
 # Locally, with Chrome and chromedriver installed:
 cargo test --test browser_smoke -- --ignored
+```
 
+```bash Remote grid
 # Against a remote grid instead of the auto-started local chromedriver:
 SB_WEBDRIVER_URL=http://grid:4444 cargo test --test browser_smoke -- --ignored
 ```
+
+</CodeGroup>
 
 The `browser-smoke` job in `.github/workflows/ci.yml` runs this suite on every
 push using the Chrome/chromedriver preinstalled on GitHub-hosted runners.

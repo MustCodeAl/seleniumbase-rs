@@ -1,0 +1,9 @@
+---
+name: Explain the sbrs prompt segment
+command: sbrs prompt --verbose
+tags: ["sbrs", "seleniumbase-rs", "prompt", "drivers"]
+description: Prints the shell prompt segment (the installed Chrome's major version and whether a matching chromedriver is at hand) and, on standard error, where each part came from.
+arguments: []
+source_url: "https://github.com/MustCodeAl/seleniumbase-rs"
+author: seleniumbase-rs
+shells: []

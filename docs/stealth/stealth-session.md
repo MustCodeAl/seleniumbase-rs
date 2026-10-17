@@ -36,17 +36,35 @@ session.close().await?;
 A session starts in the mode its `SessionPolicy` prefers (HTTP by default).
 `fetch(url)` asks the policies three questions:
 
-1. **Before the request**, `SessionPolicy::before_fetch`: does the identity hold
-   a clearance for the site that is about to end, must it hold one and does not,
-   or does the site's history say plain requests fail? Then the session goes to
-   the browser first.
-2. **After the answer**, `MitigationPolicy::decide`: a real page ends the loop; a
-   challenge met over HTTP sends the session to the browser (an escalation); in
-   the browser the challenge is solved and the cookies move into the identity; a
-   block or a rate limit starts a cooldown, rotates the egress or the profile, or
-   stops the fetch.
-3. **After a solve**, `SessionPolicy::after_fetch`: a browser that earned a
-   clearance hands the identity back to HTTP (a demotion), which carries it on.
+<Steps>
+
+<Step title="Before the request">
+
+`SessionPolicy::before_fetch`: does the identity hold
+a clearance for the site that is about to end, must it hold one and does not,
+or does the site's history say plain requests fail? Then the session goes to
+the browser first.
+
+</Step>
+
+<Step title="After the answer">
+
+`MitigationPolicy::decide`: a real page ends the loop; a
+challenge met over HTTP sends the session to the browser (an escalation); in
+the browser the challenge is solved and the cookies move into the identity; a
+block or a rate limit starts a cooldown, rotates the egress or the profile, or
+stops the fetch.
+
+</Step>
+
+<Step title="After a solve">
+
+`SessionPolicy::after_fetch`: a browser that earned a
+clearance hands the identity back to HTTP (a demotion), which carries it on.
+
+</Step>
+
+</Steps>
 
 Every change of mode emits `ScraperEvent::ModeChanged` with its reason. The
 browser is closed when the session goes back to HTTP and started again, with the
@@ -127,6 +145,8 @@ boundary it maps to `SeleniumBaseError`.
 
 ## What to know
 
+<Warning>
+
 - The measured Chrome and the installed Chrome must have the same major version.
   A browser that is another version is refused before it loads a page
   (`StealthError::Impersonate`).
@@ -136,7 +156,11 @@ boundary it maps to `SeleniumBaseError`.
   move. A matching handshake is one signal among many, and a session does not
   make automation permitted by a site's terms. See [Limits](limits.md#limits).
 
+</Warning>
+
 ## What was run
+
+<Check>
 
 `tests/stealth_session.rs` runs the real HTTP leg against a loopback TLS shop
 that trusts only its own ephemeral authority, with a scripted browser
@@ -155,3 +179,5 @@ and the session asks again over HTTP with the clearance. The shop sees one
 clearance near its end back to Chrome, and a third shows that a rotated profile
 is what the page sees while the proxy stays. The shop is a stand-in written for
 the test: no vendor's challenge was run.
+
+</Check>

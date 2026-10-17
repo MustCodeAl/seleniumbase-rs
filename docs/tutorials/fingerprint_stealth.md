@@ -12,9 +12,14 @@ pluggable evasion system.
 
 This page explains how to use built-in fingerprint presets, build custom
 profiles, choose masking modes, and apply native-level spoofing through CDP.
+
+<Note>
+
 It covers what a page can read inside the browser. The TLS and HTTP/2 side, and
 the scraper built on it, is a separate project now; see
 [Stealth Scraping](stealth_scraping.md).
+
+</Note>
 
 ## What you will learn
 
@@ -49,16 +54,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 A fingerprint reaches the page only through a launch path that applies it:
 
-- With `DriverMode::Uc` (above) or `DriverMode::Cdp`, the session registers the
-  evasion script and sends the protocol overrides described under
-  [Native-level (CDP) spoofing](#native-level-cdp-spoofing), and the launch
-  arguments apply.
-- With the default `DriverMode::WebDriver`, only the launch arguments apply (user
-  agent, `--lang`, `--window-size`, the WebRTC policy, and the QUIC and proxy
-  flags). No script is injected and no protocol override is sent.
-- The Pure CDP engine and the Playwright session have their own paths, described
-  below. The Pure CDP engine runs the script of `session_registry` (27 providers),
-  not `default_registry` (29); see [Built-in providers](#built-in-providers).
+<Tabs>
+
+<Tab title="Uc or Cdp mode">
+
+With `DriverMode::Uc` (above) or `DriverMode::Cdp`, the session registers the
+evasion script and sends the protocol overrides described under
+[Native-level (CDP) spoofing](#native-level-cdp-spoofing), and the launch
+arguments apply.
+
+</Tab>
+
+<Tab title="WebDriver mode">
+
+With the default `DriverMode::WebDriver`, only the launch arguments apply (user
+agent, `--lang`, `--window-size`, the WebRTC policy, and the QUIC and proxy
+flags). No script is injected and no protocol override is sent.
+
+</Tab>
+
+<Tab title="Pure CDP and Playwright">
+
+The Pure CDP engine and the Playwright session have their own paths, described
+below. The Pure CDP engine runs the script of `session_registry` (27 providers),
+not `default_registry` (29); see [Built-in providers](#built-in-providers).
+
+</Tab>
+
+</Tabs>
 
 ## Fingerprint presets
 
@@ -73,9 +96,13 @@ WebGL strings, and masking flags (`StealthFlags::balanced()`):
 | `Fingerprint::android_mobile()` | Chrome 156 on Android, in Chrome's frozen user agent (`Linux; Android 10; K`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
 | `Fingerprint::ios_mobile_safari()` | Mobile Safari 26.0 on an iPhone (`iPhone OS 18_6`, the iOS version Safari 26 freezes in its user agent), 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`, Safari-style Client Hints. |
 
+<Note>
+
 Every preset sets a time zone but no geolocation, so `validate()` reports the
 warning "timezone set without geolocation" for each of them (warnings do not
 make a report incoherent). Add `.geolocation(lat, lon)` to silence it.
+
+</Note>
 
 Use the `fingerprint!` macro for shorter syntax. `safari` is an alias for `ios`,
 and `edge` returns the Windows preset, whose user agent is Chrome's, not
@@ -133,42 +160,80 @@ All five `OsType` values are supported. The masking flags are
 
 Things to know:
 
-- **Stable within a release.** A seed maps to the same identity for one version
-  of the crate. Adding a table row changes what a seed maps to, so store the
-  generated `Fingerprint` (it is `Serialize`), not the seed, if an identity has
-  to outlive an upgrade.
-- **The Chromium version is a fixed window.** At this version of the crate the
-  user agent claims Chromium 154, 155 or 156 (an iPhone identity claims Mobile
-  Safari 18.1, 18.3.1, 18.5 or 26.0; Safari 26 names the frozen `iPhone OS 18_6`
-  in its user agent). Pair the identity with a browser of that era, or change
-  `user_agent`, `client_hints` and `core_version` together.
-  `Fingerprint::randomized_with_major(os, seed, major)` fixes the Chromium major
-  instead (Safari and iOS ignore it); the stealth scraper of seleniumbase-rs-stealth
-  uses it so the identity claims the Chrome that is running (see
-  [Stealth Scraping](stealth_scraping.md)).
-- **iOS differs.** Safari has no `navigator.deviceMemory` and no
-  `navigator.userAgentData`, so an iOS identity sets neither (`device_memory` and
-  `client_hints` are `None`).
-- **Client Hints carry a real full version.** The user agent keeps Chrome's
-  frozen `major.0.0.0`, but `uaFullVersion` and `fullVersionList` name a real
-  build from `randomize::KNOWN_FULL_VERSIONS`: 154.0.8037.100 and
-  156.0.8078.35 from Google's published stable releases, and 155.0.8059.40 as
-  Chrome 155 reported it on a Mac (`tests/client_hints_chrome.rs`). A major the
-  table does not list (one forced with `randomized_with_major`) falls back to
-  `major.0.0.0`.
-- **Platform versions.** A Mac claims macOS 15.8.1, 26.7.1, 27.0.0 or 27.0.1, in
-  the `major.minor.patch` form Chrome reports (`27.0.1` was read from Chrome 155
-  on macOS 27.0.1). The Windows list (`10.0.0`, `13.0.0`, `15.0.0`, `19.0.0`)
-  follows Microsoft's description of the value and was not read from a Windows
-  Chrome.
-- **Not set:** fonts, media devices and the proxy. Set them on the result if you
-  need them.
-- **Applying it.** For the Pure CDP engine, hand it to the launch options with
-  `LaunchOptions::builder().fingerprint(&fp)` (see
-  [Pure CDP](pure_cdp.md#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
-  does the same for one tab. For `BaseCase`, pass it to
-  `BrowserConfig::with_fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
-  You can also feed it to the evasion registry yourself.
+<AccordionGroup>
+
+<Accordion title="Stable within a release">
+
+A seed maps to the same identity for one version
+of the crate. Adding a table row changes what a seed maps to, so store the
+generated `Fingerprint` (it is `Serialize`), not the seed, if an identity has
+to outlive an upgrade.
+
+</Accordion>
+
+<Accordion title="The Chromium version is a fixed window">
+
+At this version of the crate the
+user agent claims Chromium 154, 155 or 156 (an iPhone identity claims Mobile
+Safari 18.1, 18.3.1, 18.5 or 26.0; Safari 26 names the frozen `iPhone OS 18_6`
+in its user agent). Pair the identity with a browser of that era, or change
+`user_agent`, `client_hints` and `core_version` together.
+`Fingerprint::randomized_with_major(os, seed, major)` fixes the Chromium major
+instead (Safari and iOS ignore it); the stealth scraper of seleniumbase-rs-stealth
+uses it so the identity claims the Chrome that is running (see
+[Stealth Scraping](stealth_scraping.md)).
+
+</Accordion>
+
+<Accordion title="iOS differs">
+
+Safari has no `navigator.deviceMemory` and no
+`navigator.userAgentData`, so an iOS identity sets neither (`device_memory` and
+`client_hints` are `None`).
+
+</Accordion>
+
+<Accordion title="Client Hints carry a real full version">
+
+The user agent keeps Chrome's
+frozen `major.0.0.0`, but `uaFullVersion` and `fullVersionList` name a real
+build from `randomize::KNOWN_FULL_VERSIONS`: 154.0.8037.100 and
+156.0.8078.35 from Google's published stable releases, and 155.0.8059.40 as
+Chrome 155 reported it on a Mac (`tests/client_hints_chrome.rs`). A major the
+table does not list (one forced with `randomized_with_major`) falls back to
+`major.0.0.0`.
+
+</Accordion>
+
+<Accordion title="Platform versions">
+
+A Mac claims macOS 15.8.1, 26.7.1, 27.0.0 or 27.0.1, in
+the `major.minor.patch` form Chrome reports (`27.0.1` was read from Chrome 155
+on macOS 27.0.1). The Windows list (`10.0.0`, `13.0.0`, `15.0.0`, `19.0.0`)
+follows Microsoft's description of the value and was not read from a Windows
+Chrome.
+
+</Accordion>
+
+<Accordion title="Not set">
+
+Fonts, media devices and the proxy are not set. Set them on the result if you
+need them.
+
+</Accordion>
+
+<Accordion title="Applying it">
+
+For the Pure CDP engine, hand it to the launch options with
+`LaunchOptions::builder().fingerprint(&fp)` (see
+[Pure CDP](pure_cdp.md#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
+does the same for one tab. For `BaseCase`, pass it to
+`BrowserConfig::with_fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
+You can also feed it to the evasion registry yourself.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Building a custom fingerprint
 
@@ -192,6 +257,8 @@ let fp = Fingerprint::builder()
     .build();
 ```
 
+<Warning>
+
 `Fingerprint::builder()` starts from `StealthFlags::default()`, where every
 masking mode is `Natural`, so the JavaScript providers for navigator, screen,
 WebGL, time zone and the like do not run until you set the modes: either
@@ -199,6 +266,8 @@ WebGL, time zone and the like do not run until you set the modes: either
 examples below. The protocol overrides do not depend on the modes; they are sent
 for every field that is set (see
 [Native-level (CDP) spoofing](#native-level-cdp-spoofing)).
+
+</Warning>
 
 ## Masking modes
 
@@ -322,8 +391,12 @@ Keywords are case-insensitive. A value the parser does not know gets the
 | `quic_mode` | `natural`, `auto`: `Natural`. `enabled`, `disabled`, `force_http2`. | `Disabled` |
 | `startup_behavior` | `custom`. | `Recover` |
 
+<Note>
+
 A payload that leaves out `quic_mode` gets `Disabled`, which adds `--disable-quic`;
 `balanced()` leaves QUIC alone.
+
+</Note>
 
 ### Concrete mask-mode examples
 
@@ -399,11 +472,15 @@ fp.flags.proxy_masking = ProxyMaskingMode::Custom;
 this flag). `Disabled` and `Direct` emit nothing. `Debug` output of a
 `ProxyConfig` hides the password.
 
+<Warning>
+
 On the WebDriver path (`DriverMode::Uc` or `Cdp`), the protocol overrides for a
 proxy that has both a user name and a password also include
 `Network.setExtraHTTPHeaders` with a `Proxy-Authorization: Basic ...` header,
 which goes to every site the tab visits. The Pure CDP engine never sends that
 header and answers the proxy's own challenge instead.
+
+</Warning>
 
 #### WebRTC masked
 
@@ -498,6 +575,8 @@ When `native_spoofing` is true:
 
 ### Caveats
 
+<Warning>
+
 * The protocol overrides and the script need a CDP connection. In
   `DriverMode::WebDriver`, neither is applied whether or not `native_spoofing` is
   set: only the launch arguments (and, with `native_spoofing`, the patched
@@ -509,10 +588,16 @@ When `native_spoofing` is true:
 * Whether a given detector can still tell the difference is not something this
   crate measures.
 
+</Warning>
+
 ## rustwright / Playwright mode
+
+<Info>
 
 This mode needs the `playwright` Cargo feature (`rustwright`); it is not on by
 default.
+
+</Info>
 
 ```rust
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
@@ -531,10 +616,15 @@ session.close().await?;
 `launch_headless_with_fingerprint` for headless. The session passes the
 fingerprint's launch arguments, then evaluates the evasion script in the first
 page and again after every `goto` and `new_page`, because rustwright cannot
-register a script to run in each new document. The script therefore runs after
-navigation, not before the page's own scripts, so a page that reads the identity
-while it loads can see the browser's real one. The protocol overrides listed above
-are not sent in this mode.
+register a script to run in each new document.
+
+<Warning>
+
+The script therefore runs after navigation, not before the page's own scripts,
+so a page that reads the identity while it loads can see the browser's real one.
+The protocol overrides listed above are not sent in this mode.
+
+</Warning>
 
 ## External profile payloads
 
@@ -577,11 +667,18 @@ keep working while new evasions are added centrally.
 
 ### Adding your own evasion
 
-1. Implement `EvasionProvider` for a unit struct. Return the JavaScript from
-   `script`, gate inclusion with `applies`, and order it with `priority`.
-   `providers::SB_PREAMBLE` brings in the `sb` helpers that make a replaced
-   function look native; the example below skips it for brevity.
-2. Register it at runtime:
+<Steps>
+
+<Step title="Implement EvasionProvider">
+
+Implement `EvasionProvider` for a unit struct. Return the JavaScript from
+`script`, gate inclusion with `applies`, and order it with `priority`.
+`providers::SB_PREAMBLE` brings in the `sb` helpers that make a replaced
+function look native; the example below skips it for brevity.
+
+</Step>
+
+<Step title="Register it at runtime">
 
 ```rust
 use seleniumbase_rs::{default_registry, EvasionContext, EvasionProvider, Fingerprint};
@@ -602,6 +699,10 @@ let script = registry.bootstrap(&EvasionContext::new(&fp));
 assert!(script.contains("hide_print"));
 ```
 
+</Step>
+
+</Steps>
+
 See [Contributing](../CONTRIBUTING.md) for adding a built-in provider.
 
 ### Built-in providers
@@ -609,6 +710,8 @@ See [Contributing](../CONTRIBUTING.md) for adding a built-in provider.
 `default_registry()` registers 29 providers, listed here in execution order. "Runs
 when" is the provider's `applies` condition; "masked" means the flag is `Mask` or
 `Custom`.
+
+<Info>
 
 The Pure CDP engine does not use `default_registry()`. It uses
 `session_registry(&fp)`, the same list without `plugins` and `connection`
@@ -620,6 +723,8 @@ never mentions `plugins`, `mimeTypes`, `pdfViewerEnabled` or `connection`.
 `default_registry()` is unchanged, for callers that want those spoofs, such as a
 browser that really lacks them, and it is what the WebDriver `Uc` and `Cdp` modes
 use.
+
+</Info>
 
 | Priority | Name | Runs when | What it does |
 |---|---|---|---|
@@ -680,9 +785,13 @@ for warning in &report.warnings {
 }
 ```
 
+<Note>
+
 The MCP `validate_fingerprint` tool returns the same report for one of the five
 built-in presets (`windows`, `macos`, `linux`, `android`, `ios`); it does not take
 an arbitrary fingerprint.
+
+</Note>
 
 `tests/fingerprint_randomized.rs` asserts that `Fingerprint::randomized` gives no
 errors and no warnings for every OS, for seeds 0 to 1499 and ten edge seeds
@@ -720,10 +829,14 @@ configuration has a fingerprint.
 `HumanizeConfig` (its minimum and maximum keystroke delay) into the matching
 behaviour.
 
+<Tip>
+
 The older `stealth::humanize` helpers (`bezier_mouse_path`,
 `keystroke_delays`) remain, but they sample a Bézier curve at evenly spaced
 parameter values and draw delays uniformly between two bounds; prefer
 `behavior`.
+
+</Tip>
 
 ## What is spoofed
 
@@ -779,6 +892,8 @@ automation markers:
 
 ## Limitations
 
+<Warning>
+
 * Nothing on this page changes the TLS or HTTP/2 behaviour of the browser. A
   fingerprint reaches the page through scripts and protocol overrides; the
   `ClientHello`, the HTTP/2 connection start and the header order that leave the
@@ -794,6 +909,8 @@ automation markers:
   when `native_spoofing` is enabled.
 * Chromium source patching is not performed. The binary patchers edit byte
   strings in an existing `chromedriver` or Chrome binary.
+
+</Warning>
 
 ## Troubleshooting
 

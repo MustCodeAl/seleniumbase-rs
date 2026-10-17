@@ -16,9 +16,12 @@ every build needs: Rust 1.99 (the repository's `rust-toolchain.toml` selects it)
 a C compiler, and Google Chrome. The extras for single features come after.
 Nothing here needs Python.
 
-> [!TIP]
-> In a hurry? Give the prompt below to your AI coding assistant and let it
-> install and check everything.
+<Tip>
+
+In a hurry? Give the prompt below to your AI coding assistant and let it
+install and check everything.
+
+</Tip>
 
 ### Let an AI assistant do it
 
@@ -49,7 +52,9 @@ Don't edit any code. Finish with a short list of what you installed, the
 versions, and anything that failed with its first error line.
 ```
 
-### macOS
+<Tabs>
+
+<Tab title="macOS">
 
 ```bash
 xcode-select --install
@@ -71,7 +76,9 @@ Allow Remote Automation:
 sudo safaridriver --enable
 ```
 
-### Debian and Ubuntu
+</Tab>
+
+<Tab title="Debian and Ubuntu">
 
 ```bash
 sudo apt-get update
@@ -98,14 +105,18 @@ A display for headed browsers on a server:
 sudo apt-get install -y xvfb
 ```
 
-### Fedora
+</Tab>
+
+<Tab title="Fedora">
 
 ```bash
 sudo dnf install -y gcc gcc-c++ make pkgconf-pkg-config curl chromium
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ```
 
-### Windows (PowerShell)
+</Tab>
+
+<Tab title="Windows (PowerShell)">
 
 ```powershell
 winget install Rustlang.Rustup
@@ -119,32 +130,59 @@ Edge comes with Windows. Firefox:
 winget install Mozilla.Firefox
 ```
 
+<Note>
+
 Open a new terminal after installing, so the new programs are on the `PATH`.
+
+</Note>
+
+</Tab>
+
+</Tabs>
 
 ### Check it worked
 
-```bash
+<CodeGroup>
+
+```bash macOS and Linux
 git clone https://github.com/MustCodeAl/seleniumbase-rs.git
 cd seleniumbase-rs
 cargo build --bin sbrs
 ./target/debug/sbrs doctor
 ```
 
-On Windows the last line is `.\target\debug\sbrs.exe doctor`. It prints the
-browsers it found and whether their drivers match.
+```powershell Windows
+git clone https://github.com/MustCodeAl/seleniumbase-rs.git
+cd seleniumbase-rs
+cargo build --bin sbrs
+.\target\debug\sbrs.exe doctor
+```
+
+</CodeGroup>
+
+The last line prints the browsers it found and whether their drivers match.
 
 ### Extras for single features
 
 Most features need nothing more: `tui`, `mcp-server`, `turso`, `playwright`,
-`azure`, `gcp`, `full-tracing`, `test-util`, `ocr` and `plugins`. The rest:
+`azure`, `gcp`, `full-tracing`, `test-util`, `ocr`, `visual` and `plugins`. The
+rest:
 
-**`s3`** needs OpenSSL on Linux (nothing on macOS and Windows):
+<AccordionGroup>
+
+<Accordion title="s3">
+
+`s3` needs OpenSSL on Linux (nothing on macOS and Windows):
 
 ```bash
 sudo apt-get install -y libssl-dev pkg-config
 ```
 
-**`gui`** (desktop input and native dialogs). On macOS nothing to install; at
+</Accordion>
+
+<Accordion title="gui">
+
+`gui` (desktop input and native dialogs). On macOS nothing to install; at
 run time allow the program under System Settings ▸ Privacy & Security ▸
 Accessibility. On Windows nothing. On Debian and Ubuntu:
 
@@ -152,13 +190,21 @@ Accessibility. On Windows nothing. On Debian and Ubuntu:
 sudo apt-get install -y libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config
 ```
 
-**The stealth scraping layer** (the former `scrape` and `impersonate` features)
+</Accordion>
+
+<Accordion title="The stealth scraping layer">
+
+The stealth scraping layer (the former `scrape` and `impersonate` features)
 moved in 0.3.0 to its own workspace,
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth).
 Its BoringSSL build needs CMake and libclang (and NASM and LLVM on Windows);
 those instructions live in that repository now. This crate needs none of them.
 
-**The Tauri example** (`examples/tauri-profile-manager`) needs Node LTS (`brew
+</Accordion>
+
+<Accordion title="The Tauri example">
+
+The Tauri example (`examples/tauri-profile-manager`) needs Node LTS (`brew
 install node`, `winget install OpenJS.NodeJS.LTS`). On Windows it also uses
 WebView2, which comes with Windows 10 and 11. On Debian and Ubuntu:
 
@@ -166,11 +212,19 @@ WebView2, which comes with Windows 10 and 11. On Debian and Ubuntu:
 sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libssl-dev libx11-dev libxdo-dev
 ```
 
-**Repository tools:** mdBook for the docs (`brew install mdbook` or `cargo
+</Accordion>
+
+<Accordion title="Repository tools">
+
+mdBook for the docs (`brew install mdbook` or `cargo
 install mdbook`), Python 3.10+ for the parity tables in `tools/parity`, and
 `just` and `cargo-deny` (`brew install just cargo-deny` or `cargo install just
 cargo-deny`). With [mise](https://mise.jdx.dev), `mise install` sets up Rust,
 Python, Node, mdBook, just and cargo-deny in one step.
+
+</Accordion>
+
+</AccordionGroup>
 
 ### What has been built where
 
@@ -207,17 +261,20 @@ dependency.
 Three ways to get `sbrs` and `sbrs-mcp` onto your `PATH` without cloning the
 repository. None of them uses crates.io.
 
-> [!WARNING]
-> The prebuilt archives do not exist yet. They come from
-> `.github/workflows/release.yml`, which builds `sbrs` and `sbrs-mcp` for
-> `aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
-> `aarch64-unknown-linux-gnu` and `x86_64-pc-windows-msvc` when a `v*` tag is
-> pushed, and attaches them to that GitHub release. GitHub Actions is locked on
-> this repository by a billing problem, so the workflow has not run: the
-> releases v0.1.0 to v0.2.0 have no binary assets. Until it runs, `cargo
-> binstall` and mise's `github:` backend find nothing to download; the commands
-> that build from source (`cargo install --git`, mise's `cargo:` backend and
-> Homebrew) work today.
+<Warning>
+
+The prebuilt archives do not exist yet. They come from
+`.github/workflows/release.yml`, which builds `sbrs` and `sbrs-mcp` for
+`aarch64-apple-darwin`, `x86_64-apple-darwin`, `x86_64-unknown-linux-gnu`,
+`aarch64-unknown-linux-gnu` and `x86_64-pc-windows-msvc` when a `v*` tag is
+pushed, and attaches them to that GitHub release. GitHub Actions is locked on
+this repository by a billing problem, so the workflow has not run: the
+releases v0.1.0 to v0.2.0 have no binary assets. Until it runs, `cargo
+binstall` and mise's `github:` backend find nothing to download; the commands
+that build from source (`cargo install --git`, mise's `cargo:` backend and
+Homebrew) work today.
+
+</Warning>
 
 Each release archive (`seleniumbase-rs-v<version>-<target>.tgz`, `.zip` on
 Windows) holds `sbrs` and `sbrs-mcp` at its root, `completions/` (bash, zsh,
@@ -313,6 +370,7 @@ desktop or cloud stacks.
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
 | `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](tutorials/remaining_helpers.md#reading-text-from-the-screen-ocr) |
+| `visual` | `visual::VisualBaseline` and `BaseCase::assert_visual_match`: screenshots compared with a baseline by structural similarity, with a diff image on a mismatch (`image-compare`, `image` with PNG only) | pure Rust; brings `rayon`; see [Visual regression testing](tutorials/remaining_helpers.md#visual-regression-testing-pixels) |
 
 Combine them with `--features "mcp-server tui"`. The features `scrape` and
 `impersonate` were removed in 0.3.0; see [Stealth Scraping](tutorials/stealth_scraping.md).
@@ -351,6 +409,8 @@ docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
 - Drop `chromium-driver` from the `Dockerfile` if you only use the pure CDP
   engine (and then drop the `ln -s` step that links it).
 
+<Check>
+
 Verified on an Apple-silicon Mac with Docker (so linux/arm64, Debian 12,
 Chromium 154.0.8037.92): the build succeeds in about four minutes with two Cargo
 jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
@@ -358,6 +418,8 @@ jobs and gives a 1.19 GB image; `--help` and `doctor` exit with status 0, and
 the `smoke` command above exits with status 0 with no network. `sbrs install` in
 the image downloads an aarch64 chromedriver (Chrome for Testing publishes
 `linux-arm64` from Chrome 153 on).
+
+</Check>
 
 ### Run the tests in a container
 
@@ -397,9 +459,13 @@ docker run --rm --memory=4g --memory-swap=4g --shm-size=1g -e SBRS_XVFB=1 \
     -- --ignored --test-threads=1
 ```
 
+<Note>
+
 The doc tests need `-- --test-threads=2` in 4 GB: with the default of one thread per
 CPU, the linker was killed for lack of memory in 66 of them. Give the container more
 memory instead if you have it.
+
+</Note>
 
 The image sets `CI=true` and `SB_NO_SANDBOX=1` (Chromium cannot start its sandbox as
 root in a container, and the real-browser tests read `CI`) and `SB_HEADLESS=true`.
@@ -431,17 +497,31 @@ export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
   adds its own cache directory (limit its size) and does not shrink `target/`.
 - On a machine with little memory, keep `CARGO_BUILD_JOBS` low and run one cargo
   command at a time; cargo serialises builds in the same target directory.
-- Several checkouts of this repository (for example git worktrees) must not share
-  one `CARGO_TARGET_DIR`: they overwrite each other's compiled library.
-- Do not `cargo clean` a target directory that other builds are using.
+
+<Warning>
+
+Several checkouts of this repository (for example git worktrees) must not share
+one `CARGO_TARGET_DIR`: they overwrite each other's compiled library. Do not `cargo clean` a target directory that other builds are using.
+
+</Warning>
 
 ## Build the documentation
 
-```bash
+<CodeGroup>
+
+```bash Install
 cargo install mdbook
+```
+
+```bash Build
 mdbook build           # writes the book to book/
+```
+
+```bash Preview
 mdbook serve --open    # live preview while editing
 ```
+
+</CodeGroup>
 
 The generated `docs/parity.md` is not edited by hand: `just parity-docs`
 rebuilds it from `parity/api.toml`.

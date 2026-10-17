@@ -11,11 +11,23 @@ release build, headless, a local page, nothing else running). Timings from
 another machine will differ; the harnesses are in `benches/` so you can
 repeat them.
 
-```text
+<CodeGroup>
+
+```bash CPU
 cargo bench --bench cpu                    # the library's own work, no browser
+```
+
+```bash CPU with turso
 cargo bench --bench cpu --features turso   # adds the result store and vault
+```
+
+```bash CDP latency
 cargo bench --bench cdp_latency            # the Pure CDP engine against Chrome
 ```
+
+</CodeGroup>
+
+<Note>
 
 **Status of these figures.** Re-measured on 2026-10-11 at commit `a3348a8`
 (after the `RunSettings` hooks, the MCP developer tools and the stealth layer
@@ -26,12 +38,18 @@ guarantee: the eight-tab figure below came out at roughly half of an earlier run
 `turso` figures were not re-run. Re-run the commands above on your machine
 before quoting a number.
 
+</Note>
+
+<Warning>
+
 **There is no comparison with Python SeleniumBase here.** It is not installed
 on the machine these numbers came from, so nothing below claims "X times faster
 than Python". What can be said is structural: the Pure CDP engine talks to
 Chrome over one WebSocket, with one message per command, and the driving
 process stays small. A WebDriver session goes through a separate chromedriver
 process and an HTTP request per command; that cost was not measured.
+
+</Warning>
 
 ## One tab, one command at a time
 

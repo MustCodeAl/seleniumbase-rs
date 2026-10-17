@@ -93,6 +93,8 @@ let config = BrowserConfig::default().with_ad_block_list(list);
 A list of your own replaces the built-in one. A list that needs more than 2,000
 URL patterns is refused when the session starts. Limits:
 
+<Warning>
+
 - The block belongs to a window. The session repeats it for the window it opens
   with and for each window it switches to (`switch_to_window`,
   `switch_to_new_window`); a window reached any other way needs
@@ -108,6 +110,8 @@ URL patterns is refused when the session starts. Limits:
 - Python hides the ad elements of a page once it has loaded; `BaseCase::ad_block`
   does that, when called. The pure CDP engine blocks hosts with
   `LaunchOptionsBuilder::ad_block`.
+
+</Warning>
 
 ### Launch settings
 
@@ -225,8 +229,9 @@ each test is a process of its own, so nothing is shared.
 
 Create `sbase_config.toml` in the directory you run from, for shared defaults:
 
-```toml
-# sbase_config.toml
+<CodeGroup>
+
+```toml sbase_config.toml
 browser = "chrome"
 headless = false
 mobile = false
@@ -235,6 +240,12 @@ timeout_seconds = 10
 screenshot_dir = "screenshots"
 proxy = "http://proxy.example.com:8080"
 ```
+
+```json .sbase_config
+{ "browser": "chrome", "headless": false, "timeout_seconds": 10 }
+```
+
+</CodeGroup>
 
 Every key is optional and any key you leave out keeps its default. The keys are
 the fields of `Settings`: `browser`, `headless`, `timeout_seconds`,
@@ -248,19 +259,23 @@ number of seconds.
 **current working directory only** (it does not search parent directories):
 `sbase_config.toml`, `.sbase_config.toml`, `.sbase_config`. A file whose name
 ends in `.toml` is read as TOML; any other name, including `.sbase_config`, is
-read as JSON:
+read as JSON (the second tab above).
 
-```json
-{ "browser": "chrome", "headless": false, "timeout_seconds": 10 }
-```
+<Warning>
 
-A flat `key=value` file is not supported. `sbrs --config FILE` (or
-`-c FILE`) reads one specific file by the same rule.
+A flat `key=value` file is not supported. `sbrs --config FILE` (or `-c FILE`)
+reads one specific file by the same rule.
+
+</Warning>
+
+<Warning>
 
 `timeout_seconds`, `screenshot_dir`, `window_width` and `window_height` are
 stored in `Settings` for your code to read, but nothing in the crate applies
 them to a browser on its own. For the timeout, pass the value on yourself:
 `sb.set_timeout(settings.timeout_seconds).await?`.
+
+</Warning>
 
 To build a `BrowserConfig` from the file in your own test:
 
@@ -321,9 +336,13 @@ starts.
 
 ## CLI flags
 
+<Warning>
+
 When using the `sbrs` binary, put its options **before** the subcommand. They
 belong to `sbrs` itself, not to the subcommand, so `sbrs open URL --headless`
-is rejected:
+is rejected.
+
+</Warning>
 
 ```bash
 cargo run --bin sbrs -- --headless --proxy http://proxy.example.com:8080 open https://seleniumbase.io
@@ -390,8 +409,12 @@ by `--config`), applies the `SB_*` variables on top, and then the CLI flags
 override both. So `SB_HEADLESS=true sbrs open URL` runs headless, and
 `SB_HEADLESS=true sbrs --headed open URL` shows the window.
 
+<Tip>
+
 Use the config file for stable defaults, environment variables for CI-specific
 overrides, and the builder or CLI flags for one-off experiments.
+
+</Tip>
 
 ## Troubleshooting
 

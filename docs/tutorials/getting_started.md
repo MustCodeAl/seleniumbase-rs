@@ -15,37 +15,67 @@ browser, interacts with a page, asserts on the result, and cleans up.
 - How to create a `BaseCase`, navigate, interact, assert, and quit.
 - How to run the test and interpret common startup errors.
 
+<Visibility for="agents">
+
+Summary for AI exports: add `seleniumbase-rs` and `tokio` to `Cargo.toml`, build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required.
+
+</Visibility>
+
 ## Prerequisites
 
 - Rust toolchain 1.99 or newer (the crate's `rust-version`).
 - A Chromium-based browser such as Google Chrome, Chromium, or Microsoft Edge.
 - A network connection for the first build (dependencies may need to be fetched).
 
-The crate can connect to an existing WebDriver endpoint or auto-start
+<Info>
+
+The crate can connect to an existing <Tooltip tip="The Selenium protocol: a test sends commands to a driver such as chromedriver, which drives the browser.">WebDriver</Tooltip> endpoint or auto-start
 `chromedriver` for you. With the default WebDriver URL it first looks for a
 driver already listening on `http://localhost:4444`; if there is none, it starts
 `downloaded_drivers/chromedriver` on a free port, downloading the latest stable
 chromedriver into that folder first when it is missing (it does not look on your
 `PATH`). `cargo run --bin sbrs -- install` fetches the driver ahead of time.
 
+</Info>
+
 ## Create a new project
+
+<Steps>
+
+<Step title="Create the project">
 
 ```bash
 cargo new my_first_test
 cd my_first_test
 ```
 
+</Step>
+
+<Step title="Add the dependencies">
+
 Open `Cargo.toml` and add the dependencies:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/SeleniumBase" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
+<Note>
+
 The `tokio` runtime is required because `BaseCase` methods are async.
 
+</Note>
+
+</Step>
+
+</Steps>
+
 ## Write your first test
+
+<Steps>
+
+<Step title="Write the program">
 
 Replace the contents of `src/main.rs` with the following program:
 
@@ -77,14 +107,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Run it:
+</Step>
+
+<Step title="Run it">
 
 ```bash
 cargo run
 ```
 
+<Check>
+
 You should see the browser open, fill the login form, submit, verify the
 welcome message, and close.
+
+</Check>
+
+</Step>
+
+</Steps>
 
 ## How it works
 
@@ -137,7 +177,11 @@ Run the test:
 cargo test login_succeeds
 ```
 
+<Tip>
+
 `run_browser_test` guarantees that `quit` is called even when assertions fail.
+
+</Tip>
 
 ## Common startup errors
 

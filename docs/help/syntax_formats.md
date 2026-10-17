@@ -14,7 +14,11 @@ compares the formats and links to deeper guides.
 - How selectors are represented across formats.
 - When to choose one format over another.
 
-## Direct API
+## The formats
+
+<Tabs>
+
+<Tab title="Direct API">
 
 The most flexible format. Use it for production tests and complex logic.
 
@@ -40,7 +44,9 @@ let text = page.locator("h1").text().await?;
 # }
 ```
 
-## CLI commands
+</Tab>
+
+<Tab title="CLI commands">
 
 Useful for quick checks, CI one-liners, and ad-hoc debugging. Every `sbrs`
 command starts its own browser and closes it when it finishes, so the one-liners
@@ -55,7 +61,9 @@ cargo run --bin sbrs -- deferred --url https://seleniumbase.io \
 
 For a flow with several steps, use a scenario or a Rust test.
 
-## JSON scenario
+</Tab>
+
+<Tab title="JSON scenario">
 
 Scenarios are portable and do not require recompiling a test binary. A scenario
 is an object with a `name` and a list of `steps`; each step has an `action` and
@@ -81,6 +89,10 @@ cargo run --bin sbrs -- run-scenario --file scenario.json
 The list of actions is in [Recorder CLI](./recorder_cli.md#run-a-json-scenario).
 `sbrs record` writes a different file, an array of recorded actions, which you
 replay with `sbrs replay`.
+
+</Tab>
+
+</Tabs>
 
 ## Selector syntax
 

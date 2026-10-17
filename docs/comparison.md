@@ -8,8 +8,13 @@ Where `seleniumbase-rs` fits among the tools people use to automate a browser,
 and where each of them is the better choice. This page is written from general
 knowledge of these projects and from this crate's own state; check a competitor's
 current documentation before you decide, because every one of them keeps moving.
+
+<Note>
+
 Nothing here is a benchmark: there is no measured speed comparison with any other
 tool (see [Benchmarks](benchmarks.md) for what this crate itself costs).
+
+</Note>
 
 ## The short version
 
@@ -115,6 +120,8 @@ use one of those libraries directly.
 
 Be honest with yourself about these before choosing it:
 
+<Warning>
+
 - It is young: `0.1.0`, not on crates.io, with most behaviour covered by unit
   tests and a mock browser rather than long use against real sites.
 - The parity table is a claim that has not been independently reviewed.
@@ -125,3 +132,6 @@ Be honest with yourself about these before choosing it:
   seleniumbase-rs-stealth project, measured for one browser and system (Chrome
   155 on macOS) and tested against local servers and a local Chrome, not against
   live services.
+
+</Warning>
+

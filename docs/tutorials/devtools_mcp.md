@@ -18,11 +18,15 @@ so a vendor server and this crate's tools can work on the same tabs.
 | Mozilla `@mozilla/firefox-devtools-mcp` | Firefox | Marionette and WebDriver BiDi, not this endpoint |
 | Apple `safaridriver --mcp` | Safari 27 | Safari's own automation, not this endpoint |
 
+<Info>
+
 The versions below are the ones that were current on 2026-10-15
 (`chrome-devtools-mcp` 1.11.0, `@playwright/mcp` 0.0.83,
 `@mozilla/firefox-devtools-mcp` 0.10.5). The generated configs pin the first two,
 so a config keeps running the code it was written for; raise the version when
 you want a newer one.
+
+</Info>
 
 ## `sbrs devtools`
 
@@ -99,7 +103,9 @@ The npm package `chrome-devtools-mcp` (by the Chrome DevTools team, source at
 (`^20.19.0`, `^22.12.0` or 23 and later) and drives Chrome through Puppeteer.
 With `sbrs devtools` running, the client config is:
 
-```json
+<CodeGroup>
+
+```json Client config
 {
   "mcpServers": {
     "chrome-devtools": {
@@ -116,11 +122,11 @@ With `sbrs devtools` running, the client config is:
 }
 ```
 
-For Claude Code:
-
-```bash
+```bash Claude Code
 claude mcp add chrome-devtools -- npx -y chrome-devtools-mcp@1.11.0 --browserUrl=http://127.0.0.1:9222 --no-usage-statistics --no-performance-crux
 ```
+
+</CodeGroup>
 
 - `--browserUrl` (aliases `--browser-url`, `-u`) attaches to a running Chrome.
   `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/<id>` (alias `-w`) is the
@@ -147,7 +153,9 @@ The npm package `@playwright/mcp` (source at
 attaches over the DevTools Protocol with `--cdp-endpoint`, which takes the HTTP
 address or the WebSocket URL:
 
-```json
+<CodeGroup>
+
+```json Client config
 {
   "mcpServers": {
     "playwright": {
@@ -158,9 +166,11 @@ address or the WebSocket URL:
 }
 ```
 
-```bash
+```bash Claude Code
 claude mcp add playwright -- npx -y @playwright/mcp@0.0.83 --cdp-endpoint=http://127.0.0.1:9222
 ```
+
+</CodeGroup>
 
 - Playwright's own documentation says a DevTools Protocol connection
   (`connectOverCDP`) works with Chromium browsers only and is "significantly
@@ -216,7 +226,9 @@ To attach to a Firefox that is already running, start it with both
 
 Safari 27 ships an MCP server inside `safaridriver`, which is part of macOS:
 
-```json
+<CodeGroup>
+
+```json Client config
 {
   "mcpServers": {
     "safari-mcp": {
@@ -227,15 +239,19 @@ Safari 27 ships an MCP server inside `safaridriver`, which is part of macOS:
 }
 ```
 
-```bash
+```bash Claude Code
 claude mcp add safari-mcp -- /usr/bin/safaridriver --mcp
 ```
+
+</CodeGroup>
 
 It needs two Safari settings: Advanced, "Show features for web developers", and
 then Developer, "Allow remote automation and external agents" (see
 [https://webkit.org/blog/18136/introducing-the-safari-mcp-server-for-web-developers/](https://webkit.org/blog/18136/introducing-the-safari-mcp-server-for-web-developers/)).
 
 ## Security
+
+<Danger>
 
 - The DevTools endpoint listens on `127.0.0.1` only, but any program on this
   machine can connect to it and drive the browser: read its pages and cookies,
@@ -246,7 +262,11 @@ then Developer, "Allow remote automation and external agents" (see
 - `chrome-devtools-mcp` sends usage statistics to Google unless
   `--no-usage-statistics` is given; the generated config gives it.
 
+</Danger>
+
 ## What was checked
+
+<Note>
 
 `sbrs devtools` and `get_devtools_endpoint` have unit tests for the configs and
 the arguments, a mocked-browser test of the tool, and real-Chrome tests
@@ -259,3 +279,5 @@ macOS: `/json/version` answered on the port and Ctrl-C closed Edge with status 0
 The vendor MCP servers themselves
 were not installed or run for this page: their flags come from their READMEs
 and documentation as of 2026-10-15.
+
+</Note>

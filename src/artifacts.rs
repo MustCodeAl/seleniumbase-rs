@@ -118,7 +118,7 @@ pub fn confined_path(dir: &Path, name: &str) -> Result<PathBuf, SeleniumBaseErro
 
 /// `raw` with every character except ASCII letters, digits, `-` and `_`
 /// replaced by `_`.
-fn replace_unsafe(raw: &str) -> String {
+pub(crate) fn replace_unsafe(raw: &str) -> String {
     raw.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '-' || c == '_' {

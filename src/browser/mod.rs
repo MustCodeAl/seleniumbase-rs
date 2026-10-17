@@ -10,6 +10,8 @@ pub mod driver_install;
 pub mod driver_version;
 pub mod launcher;
 pub mod options;
+#[cfg(feature = "plugins")]
+mod plugin_hooks;
 pub mod reuse;
 pub mod session;
 pub mod virtual_display;

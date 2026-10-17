@@ -123,26 +123,43 @@ async fn example() -> Result<()> {
 }
 ```
 
+<Tip>
+
 Enable the `full-tracing` feature for additional timing histograms and Actix
 actor instrumentation.
+
+</Tip>
 
 ## Watching async tasks with tokio-console
 
 When something hangs, [tokio-console](https://github.com/tokio-rs/console) shows
-every async task live: which ones are waiting, for how long, and on what. Build
-with the `tokio-console` feature and tokio's unstable instrumentation (both are
+every async task live: which ones are waiting, for how long, and on what.
+
+<Steps>
+
+<Step title="Run with the instrumentation">
+
+Build with the `tokio-console` feature and tokio's unstable instrumentation (both are
 for debugging only and make the program bigger):
 
 ```bash
 RUSTFLAGS="--cfg tokio_unstable" cargo run --features tokio-console --bin sbrs -- --headless smoke https://example.com
 ```
 
-Then, in another terminal:
+</Step>
+
+<Step title="Start the console">
+
+In another terminal:
 
 ```bash
 cargo install --locked tokio-console
 tokio-console
 ```
+
+</Step>
+
+</Steps>
 
 It connects to `127.0.0.1:6669`. Your own program gets the same when it calls
 `seleniumbase_rs::tracing_util::init_tracing()` with the feature on.
