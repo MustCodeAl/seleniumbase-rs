@@ -145,8 +145,8 @@ otherwise:
 | 2 | Pooled browsers shared per-launch state | `PluginSet::for_launch()` runs before every check, so each browser, each attach and each WebDriver session gets a fresh instance of a plugin that offers `per_launch`; a shared set no longer shares state, and `on_close` reaches the instance that started |
 | 3 | The host was always the CDP engine | `check_with(&LaunchContext, &HostInfo)`: `HostInfo::cdp()` for the pure CDP engine, `HostInfo::webdriver(family)` for chromedriver, geckodriver and Safari. A server that answers `browserName: tauri` is re-checked as `HostInfo::embedded()` once the session exists, and a plugin that needs more than a webview gives ends the session |
 | 4 | New `LaunchSettings` fields were dropped | `host_resolver_rules` is one `--host-resolver-rules`; `disable_features` and `enable_features` are one switch each, merged with the library's own `Translate` (and with a switch the configuration already has); `webrtc_policy` is `--force-webrtc-ip-handling-policy`; `disable_quic` is `--disable-quic`. The profile is shown to plugins before they run, as persistent when `user_data_dir` is set. On Firefox and Safari a plugin that sets one of the Chromium-only fields is refused |
-| 5 | `Network.setBlockedURLs` replaced the tab's list | The host keeps one blocklist per tab (per window with chromedriver): the library's ad-block list and every pattern a plugin sent. Each raw send adds to it, and the union goes out |
-| 5 | The `Fetch` domain had many owners | A plugin's `Fetch.*` command is refused, on the browser and on a tab. The library's own `Fetch.enable` for proxy passwords is not a plugin's and stays |
+| 5a | `Network.setBlockedURLs` replaced the tab's list | The host keeps one blocklist per tab (per window with chromedriver): the library's ad-block list, the tracker hosts of a fingerprint with `block_trackers`, and every pattern a plugin sent. Each raw send adds to it, and the union goes out. With chromedriver a window keeps its union when the session switches away and back |
+| 5b | The `Fetch` domain had many owners | A plugin's `Fetch.*` command, and the older `Network.setRequestInterception` that pauses requests the same way, are refused, on the browser and on a tab. The library's own `Fetch.enable` for proxy passwords is not a plugin's and stays |
 | 6 | Extension ids were dropped | `Browser::extension_ids()` keeps what `Extensions.loadUnpacked` answered, in load order |
 | 7 | Two lists of refused switches | A test reads `FORBIDDEN_SWITCHES` of `src/stealth/evasions.rs` and fails if one is missing from `seleniumbase_rs_plugin::switch_policy::REFUSED_SWITCHES` |
 
@@ -161,8 +161,9 @@ docs say the same.
 
 ### Limits
 
-- The guard on raw commands is two rules: `Fetch.*` is refused, and
-  `Network.setBlockedURLs` is merged. Other commands go to the browser as sent.
+- The guard on raw commands is two rules: `Fetch.*` and
+  `Network.setRequestInterception` are refused, and `Network.setBlockedURLs`
+  is merged. Other commands go to the browser as sent.
   A plugin that reaches `Fetch` by wrapping it in `Target.sendMessageToTarget`
   is not stopped yet; the guarded handles of phase 2 check every command.
 - The blocklist is a union: patterns only get added. A plugin cannot take

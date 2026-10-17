@@ -119,10 +119,13 @@ let config = settings
 SB_PLUGINS=shield,block-resources cargo test
 ```
 
-It replaces the `enable` list of the file and keeps the options. Spaces around a
-name and empty entries are ignored, and `SB_PLUGINS=` (set, but empty) turns
-every plugin off. Like the other `SB_*` variables, it is read by
-`Settings::load`.
+It replaces the `enable` list of the file. The options of a plugin the list still
+names stay; the options of the others are dropped, so `SB_PLUGINS=` (set, but
+empty) turns every plugin off and leaves nothing for the build to refuse. Spaces
+around a name and empty entries are ignored. Like the other `SB_*` variables, it
+is read by `Settings::load`, and it takes effect before the check for plugin
+support, so in a build without the `plugins` feature `SB_PLUGINS=` still
+overrides a `[plugins]` table of the file.
 
 ## In code
 

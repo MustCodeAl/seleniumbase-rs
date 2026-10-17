@@ -382,7 +382,24 @@ Fixed.
   that started.
 - **A plugin's `Network.setBlockedURLs` replaced the blocklist of the tab.**
   Raw sends from several plugins, and the library's own ad-block list, are now
-  merged into one list for each tab (each window with chromedriver).
+  merged into one list for each tab (each window with chromedriver). The
+  tracker hosts of a fingerprint with `block_trackers` are part of that list on
+  both engines, and with chromedriver a window keeps its union when the session
+  switches away and back with `ad_block` on (switching re-sent the library's
+  list alone, which replaced the plugins' patterns).
+- **A switch in `extra_args` replaced the one plugins built.** On the pure CDP
+  engine `--disable-features`, `--enable-features` and `--host-resolver-rules`
+  given in `extra_args` are now joined into the one switch (as the WebDriver
+  engine already did), and the WebRTC policy of the options wins over a
+  `--force-webrtc-ip-handling-policy` argument; before, Chrome kept the last
+  one and dropped the merged list, shield's included.
+- **`SB_PLUGINS=` did not turn plugins off** when the file had an options table
+  such as `[plugins.shield]` (the build failed with stray options), and in a
+  build without the `plugins` feature the file's `[plugins]` table stopped the
+  load before `SB_PLUGINS` could override it. The variable now drops the
+  options of the plugins it no longer names and is applied before the check
+  for plugin support.
+- A plugin's `Network.setRequestInterception` is refused like `Fetch.*`.
 
 ## [0.4.0] - 2026-10-16
 
