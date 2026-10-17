@@ -43,8 +43,16 @@ Semantic Versioning.
   to hide the test's error when `quit` also failed; it now behaves like
   `run_browser_test`.
 
+- `PlaywrightSession` (feature `playwright`) sizes the window from
+  `BrowserConfig::with_window_size` instead of always starting maximised at
+  1920 by 1080. Without a configured size it behaves as before.
+
 ### Added
 
+- `PlaywrightSession::connect_over_cdp(endpoint)` attaches to a running
+  Chromium (for example `sb_cdp::Browser::http_url()`) and works on the page it
+  has open; `close` detaches and leaves the browser running. Python reaches
+  Playwright the same way (`sb.cdp.get_endpoint_url()`).
 - `run_cdp_test(options, test)` and `Plugins::run_cdp_test(name, options,
   test)` run a test on the first tab of a Pure CDP browser and always close it,
   the way `run_browser_test` does for WebDriver.
@@ -68,6 +76,13 @@ Semantic Versioning.
   `demo_sleep()`. `pause` and `message_seconds` stay.
 - `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
   at the crate root, beside `RuntimeConfig`.
+
+### Deprecated
+
+- `PlaywrightSession::launch_headless`, `launch_with_fingerprint` and
+  `launch_headless_with_fingerprint`: they are shortcuts for
+  `launch_with_config(&BrowserConfig::default().with_headless(..)
+  .with_fingerprint(..))`.
 
 ### Changed (breaking)
 

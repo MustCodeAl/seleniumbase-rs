@@ -601,19 +601,23 @@ default.
 
 ```rust
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
-use seleniumbase_rs::Fingerprint;
+use seleniumbase_rs::{BrowserConfig, Fingerprint};
 
 # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 let fp = Fingerprint::windows_desktop();
-let session = PlaywrightSession::launch_with_fingerprint(&fp).await?;
+let config = BrowserConfig::default()
+    .with_headless(false)
+    .with_fingerprint(fp);
+let session = PlaywrightSession::launch_with_config(&config).await?;
 session.goto("https://example.com").await?;
 session.close().await?;
 # Ok(())
 # }
 ```
 
-`launch_with_fingerprint` opens a headed browser; use
-`launch_headless_with_fingerprint` for headless. The session passes the
+`BrowserConfig::default()` is headless; `.with_headless(false)` opens a window.
+(`launch_with_fingerprint` and `launch_headless_with_fingerprint` are
+deprecated shortcuts for this.) The session passes the
 fingerprint's launch arguments, then evaluates the evasion script in the first
 page and again after every `goto` and `new_page`, because rustwright cannot
 register a script to run in each new document.

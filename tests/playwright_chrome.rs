@@ -83,6 +83,39 @@ async fn the_fingerprint_is_still_presented_after_navigating() {
 }
 
 #[tokio::test]
+#[ignore = "launches a real Chrome and attaches rustwright to it"]
+async fn an_attached_session_sees_the_open_page_and_leaves_the_browser_running() {
+    use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+
+    let port = serve();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .build()
+            .expect("launch options"),
+    )
+    .await
+    .expect("Chrome starts");
+    let page = browser.default_page().await.expect("a first tab");
+    page.goto(&format!("http://127.0.0.1:{port}/"))
+        .await
+        .expect("the page loads");
+
+    let session = PlaywrightSession::connect_over_cdp(&browser.http_url())
+        .await
+        .expect("rustwright attaches");
+    // It works on the tab that was already open, not a blank new one.
+    assert_eq!(
+        session.get_text("#title").await.expect("the heading"),
+        "hello"
+    );
+    // Closing detaches; the browser it did not start keeps running.
+    session.close().await.expect("detaches");
+    assert_eq!(page.title().await.expect("still alive"), "Playwright");
+    browser.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
 #[ignore = "launches a real Chrome through rustwright"]
 async fn a_missing_element_is_reported_as_not_found() {
     let port = serve();

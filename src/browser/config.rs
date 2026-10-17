@@ -292,56 +292,74 @@ impl BrowserConfig {
 }
 
 impl BrowserConfig {
+    /// How the browser is driven: WebDriver, DevTools without a driver
+    /// binary, or the undetected mode (`--cdp`, `--uc`).
     pub fn with_mode(mut self, mode: DriverMode) -> Self {
         self.mode = mode;
         self
     }
 
+    /// Which browser to start (`--browser`).
     pub fn with_browser(mut self, browser: Browser) -> Self {
         self.browser = browser;
         self
     }
 
+    /// Runs the browser without a window (`--headless`); `false` opens one
+    /// (`--headed`). A default configuration is headless.
     pub fn with_headless(mut self, headless: bool) -> Self {
         self.headless = headless;
         self
     }
 
+    /// The WebDriver server to connect to, such as a Selenium Grid
+    /// (`--server`, `--port`). The default is `http://localhost:4444`, or
+    /// `SB_WEBDRIVER_URL` for [`from_env`](Self::from_env).
     pub fn with_webdriver_url(mut self, url: impl Into<String>) -> Self {
         self.webdriver_url = url.into();
         self
     }
 
+    /// The user-agent string the browser sends (`--agent`, `--user-agent`).
     pub fn with_user_agent(mut self, user_agent: impl Into<String>) -> Self {
         self.user_agent = Some(user_agent.into());
         self
     }
 
+    /// The browser's language, such as `fr-FR` (`--locale`).
     pub fn with_locale(mut self, locale: impl Into<String>) -> Self {
         self.locale = Some(locale.into());
         self
     }
 
+    /// Routes traffic through a proxy written
+    /// `[scheme://][user:password@]host:port` (`--proxy`).
     pub fn with_proxy(mut self, proxy: impl Into<String>) -> Self {
         self.proxy = Some(proxy.into());
         self
     }
 
+    /// A proxy auto-config script the browser fetches to choose its proxy
+    /// (`--proxy-pac-url`).
     pub fn with_proxy_pac_url(mut self, url: impl Into<String>) -> Self {
         self.proxy_pac_url = Some(url.into());
         self
     }
 
+    /// A browser profile folder that keeps cookies and settings between runs
+    /// (`--user-data-dir`).
     pub fn with_user_data_dir(mut self, dir: impl Into<String>) -> Self {
         self.user_data_dir = Some(dir.into());
         self
     }
 
+    /// An unpacked browser extension to load (`--extension-dir`).
     pub fn with_extension_dir(mut self, dir: impl Into<String>) -> Self {
         self.extension_dir = Some(dir.into());
         self
     }
 
+    /// A page the browser opens as soon as it starts (`--start-page`).
     pub fn with_start_page(mut self, page: impl Into<String>) -> Self {
         self.start_page = Some(page.into());
         self
