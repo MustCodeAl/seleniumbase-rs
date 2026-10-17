@@ -148,7 +148,12 @@ pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
 pub use api::gui::Gui;
 pub use api::run_settings::{PauseKind, RunSettings};
-pub use api::runner::{run_browser_test, BrowserTestFuture};
+pub use api::runner::{run_browser_test, run_cdp_test};
+#[allow(
+    deprecated,
+    reason = "the old closure form stays exported for old callers"
+)]
+pub use api::runner::{run_browser_test_boxed, BrowserTestFuture};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};

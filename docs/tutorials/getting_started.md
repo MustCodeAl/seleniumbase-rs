@@ -213,16 +213,14 @@ async fn main() -> seleniumbase_rs::Result<()> {
     // SB_* variables from the environment, headless unless you change it.
     let config = BrowserConfig::from_env()?.with_headless(true);
 
-    run_browser_test(config, |sb| {
-        Box::pin(async move {
-            sb.load_html_string(PAGE).await?;
-            sb.type_text("#name", "Ferris").await?;
-            sb.click("#go").await?;
-            // The selector comes first, the expected text second.
-            sb.assert_exact_text("#out", "Hello, Ferris").await?;
-            // Saved into the logs directory; the name must be a plain file name.
-            sb.save_screenshot("greeter.png").await.map(|_| ())
-        })
+    run_browser_test(config, async |sb| {
+        sb.load_html_string(PAGE).await?;
+        sb.type_text("#name", "Ferris").await?;
+        sb.click("#go").await?;
+        // The selector comes first, the expected text second.
+        sb.assert_exact_text("#out", "Hello, Ferris").await?;
+        // Saved into the logs directory; the name must be a plain file name.
+        sb.save_screenshot("greeter.png").await.map(|_| ())
     })
     .await
 }
@@ -276,14 +274,12 @@ async fn login_succeeds() -> Result<()> {
         .with_mode(DriverMode::Uc)
         .with_headless(false);
 
-    run_browser_test(config, |sb| {
-        Box::pin(async move {
-            sb.open("https://seleniumbase.io/simple/login").await?;
-            sb.type_text("#username", "demo_user").await?;
-            sb.type_text("#password", "secret_pass").await?;
-            sb.click("#log-in").await?;
-            sb.assert_text_visible("Welcome!", "body").await
-        })
+    run_browser_test(config, async |sb| {
+        sb.open("https://seleniumbase.io/simple/login").await?;
+        sb.type_text("#username", "demo_user").await?;
+        sb.type_text("#password", "secret_pass").await?;
+        sb.click("#log-in").await?;
+        sb.assert_text_visible("Welcome!", "body").await
     })
     .await
 }

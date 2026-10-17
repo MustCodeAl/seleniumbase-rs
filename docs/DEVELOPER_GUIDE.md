@@ -751,7 +751,7 @@ use seleniumbase_rs::{run_browser_test, BrowserConfig};
 
 #[tokio::test]
 async fn example_test() -> seleniumbase_rs::Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| async move {
+    run_browser_test(BrowserConfig::default(), async |sb| {
         sb.open("https://example.com").await?;
         sb.assert_title_contains("Example").await?;
         Ok(())

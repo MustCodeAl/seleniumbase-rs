@@ -1,27 +1,247 @@
 //! Rust-native browser test lifecycle helpers.
+//!
+//! [`run_browser_test`] drives a WebDriver [`BaseCase`] and [`run_cdp_test`] a
+//! Pure CDP [`Page`]. Both take an async closure and share one lifecycle (see
+//! `drive`): the test runs, a failure is handed to whoever wants evidence, the
+//! browser is closed whatever happened, and a panic in the test is re-raised
+//! only after that.
 
+use std::any::Any;
+use std::panic::{resume_unwind, AssertUnwindSafe};
 use std::{future::Future, pin::Pin};
 
+use futures_util::FutureExt;
+
+use crate::sb_cdp::{Browser, LaunchOptions, Page};
 use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
 
 /// Boxed future returned by a browser test body.
+#[deprecated(
+    since = "0.5.0",
+    note = "pass an async closure to run_browser_test: `async |sb| { .. }`"
+)]
 pub type BrowserTestFuture<'a> = Pin<Box<dyn Future<Output = Result<()>> + 'a>>;
 
 /// Runs a browser test and always attempts to close its browser session.
 ///
-/// This helper is useful for generated and handwritten `#[tokio::test]` tests
-/// because `Drop` cannot await WebDriver cleanup.
+/// The test is an async closure, `async |sb| { .. }`, or an `async fn` that
+/// takes `&mut BaseCase`. This helper is useful for generated and handwritten
+/// `#[tokio::test]` tests because `Drop` cannot await WebDriver cleanup.
+///
+/// ```no_run
+/// use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+///
+/// # async fn demo() -> Result<()> {
+/// run_browser_test(BrowserConfig::default(), async |sb| {
+///     sb.open("https://example.com").await?;
+///     sb.assert_title("Example Domain").await
+/// })
+/// .await
+/// # }
+/// ```
+///
+/// The browser is closed when the test panics too, and the panic is then
+/// raised again, so a failed `assert!` still fails the test.
 ///
 /// A test that ends with [`BaseCase::skip_test`] counts as passed: libtest has
 /// no way to report a skip, so the reason is logged and the test returns `Ok`.
+///
+/// The run settings of the configuration ([`BrowserConfig::with_run_settings`])
+/// are given to the case before the test starts.
+///
+/// # Errors
+///
+/// Returns the test's error, the browser's launch or cleanup error, or both
+/// combined into [`SeleniumBaseError::TestLifecycle`].
 pub async fn run_browser_test<F>(config: BrowserConfig, test: F) -> Result<()>
+where
+    F: AsyncFnOnce(&mut BaseCase) -> Result<()>,
+{
+    let mut sb = start_browser(config).await?;
+    drive(&mut sb, test, no_evidence, close_browser)
+        .await
+        .finish()
+}
+
+/// [`run_browser_test`] for a test written as a closure that returns a boxed
+/// future, the form it took before async closures.
+///
+/// Migration: `|sb| Box::pin(async move { .. })` becomes `async |sb| { .. }`,
+/// and the call is to [`run_browser_test`].
+///
+/// # Errors
+///
+/// As [`run_browser_test`].
+#[deprecated(
+    since = "0.5.0",
+    note = "use run_browser_test with an async closure: `async |sb| { .. }`"
+)]
+#[allow(deprecated, reason = "the old closure type is this function's bound")]
+pub async fn run_browser_test_boxed<F>(config: BrowserConfig, test: F) -> Result<()>
 where
     F: for<'a> FnOnce(&'a mut BaseCase) -> BrowserTestFuture<'a>,
 {
+    run_browser_test(config, async move |sb: &mut BaseCase| test(sb).await).await
+}
+
+/// Launches a Pure CDP browser, runs `test` on its first tab and always closes
+/// the browser, the way [`run_browser_test`] does for WebDriver.
+///
+/// ```no_run
+/// use seleniumbase_rs::api::runner::run_cdp_test;
+/// use seleniumbase_rs::sb_cdp::LaunchOptions;
+/// use seleniumbase_rs::Result;
+///
+/// # async fn demo() -> Result<()> {
+/// run_cdp_test(LaunchOptions::default(), async |page| {
+///     page.goto("https://example.com").await?;
+///     page.locator("h1").click().await
+/// })
+/// .await
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Returns the test's error, the browser's launch or close error, or both
+/// combined into [`SeleniumBaseError::TestLifecycle`].
+pub async fn run_cdp_test<F>(options: LaunchOptions, test: F) -> Result<()>
+where
+    F: AsyncFnOnce(&Page) -> Result<()>,
+{
+    let browser = Browser::launch(options).await?;
+    run_cdp_test_on(browser, test).await
+}
+
+/// [`run_cdp_test`] on a browser that is already running (or mocked).
+pub(crate) async fn run_cdp_test_on<F>(browser: Browser, test: F) -> Result<()>
+where
+    F: AsyncFnOnce(&Page) -> Result<()>,
+{
+    let mut case = CdpCase::open(browser).await?;
+    drive(
+        &mut case,
+        async |case: &mut CdpCase| test(&case.page).await,
+        no_evidence,
+        CdpCase::close,
+    )
+    .await
+    .finish()
+}
+
+/// A Pure CDP browser and the tab a test runs on.
+pub(crate) struct CdpCase {
+    pub(crate) browser: Browser,
+    pub(crate) page: Page,
+}
+
+impl CdpCase {
+    /// The first tab of `browser`; the browser is closed if there is none.
+    pub(crate) async fn open(browser: Browser) -> Result<Self> {
+        match browser.default_page().await {
+            Ok(page) => Ok(Self { browser, page }),
+            Err(error) => Err(match browser.close().await {
+                Ok(()) => error,
+                Err(cleanup) => SeleniumBaseError::TestLifecycle(format!(
+                    "no tab to test: '{error}'; cleanup failed with '{cleanup}'"
+                )),
+            }),
+        }
+    }
+
+    pub(crate) async fn close(&mut self) -> Result<()> {
+        self.browser.close().await
+    }
+}
+
+/// Starts the browser and gives the case the run settings the configuration
+/// carries.
+pub(crate) async fn start_browser(config: BrowserConfig) -> Result<BaseCase> {
+    let run = config.run_settings().clone();
     let mut sb = BaseCase::new(config).await?;
-    let test_result = test(&mut sb).await;
-    let cleanup_result = sb.quit().await;
-    combine_outcomes(test_result, cleanup_result)
+    if let Some(timeout) = run.default_timeout() {
+        sb.set_timeout(whole_seconds(timeout)).await?;
+    }
+    sb.set_run_settings(run);
+    Ok(sb)
+}
+
+/// `timeout` in whole seconds, rounded up: `BaseCase` waits in seconds.
+fn whole_seconds(timeout: std::time::Duration) -> u64 {
+    timeout.as_secs() + u64::from(timeout.subsec_nanos() > 0)
+}
+
+pub(crate) async fn close_browser(sb: &mut BaseCase) -> Result<()> {
+    sb.quit().await
+}
+
+/// The hook for a runner that takes no evidence of a failure.
+pub(crate) async fn no_evidence<C>(_case: &C, _error: &SeleniumBaseError) {}
+
+/// How a test ended, after its browser was closed.
+pub(crate) struct Ended {
+    outcome: Result<()>,
+    panic: Option<Box<dyn Any + Send>>,
+}
+
+impl Ended {
+    /// The test's own result combined with the cleanup's. A test that panicked
+    /// is an error here, so a caller can report it before re-raising.
+    pub(crate) fn outcome(&self) -> &Result<()> {
+        &self.outcome
+    }
+
+    /// The result, or the test's panic raised again.
+    pub(crate) fn finish(self) -> Result<()> {
+        match self.panic {
+            Some(payload) => resume_unwind(payload),
+            None => self.outcome,
+        }
+    }
+}
+
+/// The one test lifecycle: runs `test` on `case`, hands a failure that is not
+/// a skip to `evidence` while the browser is still open, then always runs
+/// `close`.
+///
+/// A panic in `test` is caught so `close` still runs; it counts as a failure
+/// for `evidence` and is raised again by [`Ended::finish`].
+pub(crate) async fn drive<C>(
+    case: &mut C,
+    test: impl AsyncFnOnce(&mut C) -> Result<()>,
+    evidence: impl AsyncFnOnce(&C, &SeleniumBaseError),
+    close: impl AsyncFnOnce(&mut C) -> Result<()>,
+) -> Ended {
+    let (test_result, panic) = match AssertUnwindSafe(test(&mut *case)).catch_unwind().await {
+        Ok(result) => (result, None),
+        Err(payload) => {
+            let error = SeleniumBaseError::TestLifecycle(format!(
+                "the test panicked: {}",
+                panic_message(payload.as_ref())
+            ));
+            (Err(error), Some(payload))
+        }
+    };
+    if let Err(error) = &test_result {
+        // A skipped test did not fail: nothing to take evidence of.
+        if !error.is_skipped() {
+            evidence(&*case, error).await;
+        }
+    }
+    let cleanup_result = close(&mut *case).await;
+    Ended {
+        outcome: combine_outcomes(test_result, cleanup_result),
+        panic,
+    }
+}
+
+/// The message of a panic payload, when it is text.
+fn panic_message(payload: &(dyn Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("(not text)")
 }
 
 /// The result of a test whose browser was then closed: the test's own error if
@@ -48,6 +268,130 @@ mod tests {
 
     fn failure(message: &str) -> Result<()> {
         Err(SeleniumBaseError::AssertionFailed(message.to_owned()))
+    }
+
+    /// A case that only remembers what happened to it.
+    #[derive(Default)]
+    struct Log(Vec<&'static str>);
+
+    async fn closed(log: &mut Log) -> Result<()> {
+        log.0.push("closed");
+        Ok(())
+    }
+
+    async fn saw(log: &Log, error: &SeleniumBaseError) {
+        assert!(!error.is_skipped());
+        let _ = log;
+        EVIDENCE.with(|seen| *seen.borrow_mut() += 1);
+    }
+
+    thread_local! {
+        static EVIDENCE: std::cell::RefCell<u32> = const { std::cell::RefCell::new(0) };
+    }
+
+    fn evidence_taken() -> u32 {
+        EVIDENCE.with(|seen| std::mem::take(&mut *seen.borrow_mut()))
+    }
+
+    #[tokio::test]
+    async fn a_passing_test_closes_the_browser_and_takes_no_evidence() {
+        evidence_taken();
+        let mut log = Log::default();
+        let ended = drive(
+            &mut log,
+            async |log: &mut Log| {
+                log.0.push("ran");
+                Ok(())
+            },
+            saw,
+            closed,
+        )
+        .await;
+        assert!(ended.outcome().is_ok());
+        assert_eq!(log.0, ["ran", "closed"]);
+        assert_eq!(evidence_taken(), 0);
+    }
+
+    #[tokio::test]
+    async fn a_failing_test_gives_evidence_before_the_browser_closes() {
+        evidence_taken();
+        let mut log = Log::default();
+        let ended = drive(&mut log, async |_: &mut Log| failure("boom"), saw, closed).await;
+        assert!(ended.outcome().is_err());
+        assert_eq!(log.0, ["closed"]);
+        assert_eq!(evidence_taken(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_skipped_test_is_ok_and_gives_no_evidence() {
+        evidence_taken();
+        let mut log = Log::default();
+        let ended = drive(
+            &mut log,
+            async |_: &mut Log| Err(SeleniumBaseError::Skipped("no browser".to_owned())),
+            saw,
+            closed,
+        )
+        .await;
+        assert!(ended.finish().is_ok());
+        assert_eq!(log.0, ["closed"]);
+        assert_eq!(evidence_taken(), 0);
+    }
+
+    #[tokio::test]
+    async fn a_panicking_test_still_closes_the_browser_and_then_panics_again() {
+        evidence_taken();
+        let mut log = Log::default();
+        let ended = drive(
+            &mut log,
+            async |_: &mut Log| -> Result<()> { panic!("assertion failed in the test") },
+            saw,
+            closed,
+        )
+        .await;
+        assert_eq!(log.0, ["closed"], "the browser is closed first");
+        assert_eq!(evidence_taken(), 1, "a panic is a failure for the plugins");
+        let shown = ended.outcome().as_ref().unwrap_err().to_string();
+        assert!(shown.contains("assertion failed in the test"), "{shown}");
+        let raised = std::panic::catch_unwind(AssertUnwindSafe(|| ended.finish()));
+        let payload = raised.expect_err("the panic is raised again");
+        assert_eq!(
+            panic_message(payload.as_ref()),
+            "assertion failed in the test"
+        );
+    }
+
+    #[test]
+    fn a_wait_is_rounded_up_to_whole_seconds() {
+        use std::time::Duration;
+        assert_eq!(whole_seconds(Duration::from_secs(5)), 5);
+        assert_eq!(whole_seconds(Duration::from_millis(1500)), 2);
+        assert_eq!(whole_seconds(Duration::ZERO), 0);
+    }
+
+    #[tokio::test]
+    async fn a_cdp_test_runs_on_the_first_tab_and_closes_the_browser() {
+        let (browser, mock) = Browser::new_mocked();
+        mock.reply(
+            "Runtime.evaluate",
+            serde_json::json!({ "result": { "value": "Example" } }),
+        );
+        let outcome = run_cdp_test_on(browser, async |page: &Page| {
+            assert_eq!(page.title().await?, "Example");
+            Ok(())
+        })
+        .await;
+        assert!(outcome.is_ok(), "{outcome:?}");
+    }
+
+    #[tokio::test]
+    async fn a_cdp_test_that_fails_returns_its_error() {
+        let (browser, _mock) = Browser::new_mocked();
+        let outcome = run_cdp_test_on(browser, async |_: &Page| failure("boom")).await;
+        assert!(
+            matches!(outcome, Err(SeleniumBaseError::AssertionFailed(_))),
+            "{outcome:?}"
+        );
     }
 
     #[test]

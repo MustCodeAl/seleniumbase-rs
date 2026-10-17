@@ -36,8 +36,18 @@ Semantic Versioning.
   `SB_SHUTDOWN_TIMEOUT_SECS` keeps `SB_LOG_LEVEL=debug` and is logged as a
   warning after logging starts.
 
+- A test that panics no longer leaves its browser open. `run_browser_test`,
+  `Plugins::run_browser_test` and `sb_test!` now share one lifecycle that
+  catches the panic, closes the browser, tells the plugins the test failed and
+  then raises the panic again. `sb_test!` used to panic on a skipped test and
+  to hide the test's error when `quit` also failed; it now behaves like
+  `run_browser_test`.
+
 ### Added
 
+- `run_cdp_test(options, test)` and `Plugins::run_cdp_test(name, options,
+  test)` run a test on the first tab of a Pure CDP browser and always close it,
+  the way `run_browser_test` does for WebDriver.
 - `RuntimeConfig::from_env_lenient` (the config and the list of variables that
   did not parse), `from_vars` and `from_vars_lenient` (read the variables from
   a function instead of the process environment).
@@ -61,6 +71,18 @@ Semantic Versioning.
 
 ### Changed (breaking)
 
+- `run_browser_test` and `Plugins::run_browser_test` take an async closure
+  (`F: AsyncFnOnce(&mut BaseCase) -> Result<()>`) instead of a closure that
+  returns a boxed future. The old form `|sb| Box::pin(async move { .. })` does
+  not compile against the new bound, and neither did `|sb| async move { .. }`.
+  Migration: `run_browser_test(config, |sb| Box::pin(async move { body }))`
+  becomes `run_browser_test(config, async |sb| { body })`, and
+  `|sb| Box::pin(demo(sb, url))` becomes `async |sb| demo(sb, url).await`
+  (use `async move |sb|` in a loop that moves its variables). To keep an old
+  closure compiling for now, call `run_browser_test_boxed`
+  (`Plugins::run_browser_test_boxed`), which is deprecated like
+  `BrowserTestFuture`. `sbrs mkdir`, `sbrs mkfile` and `sbrs import-python`
+  generate the new form.
 - `RuntimeConfig::log_level` is an `Option<String>` that defaults to `None`
   (it was `"info"`), so the binaries can tell "not set" from "set to info".
   Migration: `config.log_level` becomes `config.log_level.as_deref()

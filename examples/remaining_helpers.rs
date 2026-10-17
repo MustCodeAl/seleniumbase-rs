@@ -31,8 +31,8 @@ const LANDING_PAGE: &str = "<!doctype html><title>Landing</title><p id=\"landed\
 async fn main() -> Result<()> {
     let site = Site::serve(&[(DEMO_PATH, DEMO_PAGE), (LANDING_PATH, LANDING_PAGE)])?;
     let (url, landing) = (site.url(DEMO_PATH), site.url(LANDING_PATH));
-    run_browser_test(BrowserConfig::default(), |sb| {
-        Box::pin(demo(sb, url, landing))
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        demo(sb, url, landing).await
     })
     .await
 }

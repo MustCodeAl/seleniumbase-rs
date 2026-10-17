@@ -28,7 +28,7 @@ use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, DriverMode, Res
 async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
     let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
-    run_browser_test(config, |sb| Box::pin(demo(sb, url))).await
+    run_browser_test(config, async |sb| demo(sb, url).await).await
 }
 
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {

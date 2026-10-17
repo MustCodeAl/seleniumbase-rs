@@ -134,15 +134,19 @@ impl RuntimeConfig {
             keep(parse_log_format(&v).map(|format| cfg.log_format = format));
         }
         if let Some(v) = var("SB_SHUTDOWN_TIMEOUT_SECS") {
-            keep(parse_u64(&v, "SB_SHUTDOWN_TIMEOUT_SECS")
-                .map(|secs| cfg.shutdown_timeout = Duration::from_secs(secs)));
+            keep(
+                parse_u64(&v, "SB_SHUTDOWN_TIMEOUT_SECS")
+                    .map(|secs| cfg.shutdown_timeout = Duration::from_secs(secs)),
+            );
         }
         if let Some(v) = var("SB_CHROMEDRIVER_PORT") {
             keep(parse_u16(&v, "SB_CHROMEDRIVER_PORT").map(|port| cfg.chromedriver_port = port));
         }
         if let Some(v) = var("SB_IMPLICIT_WAIT_SECS") {
-            keep(parse_u64(&v, "SB_IMPLICIT_WAIT_SECS")
-                .map(|secs| cfg.implicit_wait = Duration::from_secs(secs)));
+            keep(
+                parse_u64(&v, "SB_IMPLICIT_WAIT_SECS")
+                    .map(|secs| cfg.implicit_wait = Duration::from_secs(secs)),
+            );
         }
         if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
             keep(
@@ -194,9 +198,7 @@ mod tests {
         assert_eq!(cfg.shutdown_timeout, Duration::from_secs(30));
     }
 
-    fn vars(
-        pairs: &'static [(&'static str, &'static str)],
-    ) -> impl Fn(&str) -> Option<String> {
+    fn vars(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
         move |name| {
             pairs
                 .iter()

@@ -57,7 +57,7 @@ const PAGE: &str = r#"<!doctype html>
 #[tokio::main]
 async fn main() -> Result<()> {
     let url = Site::serve(&[("/", PAGE)])?.url("/");
-    run_browser_test(BrowserConfig::default(), |sb| Box::pin(demo(sb, url))).await
+    run_browser_test(BrowserConfig::default(), async |sb| demo(sb, url).await).await
 }
 
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {

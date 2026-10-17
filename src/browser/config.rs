@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::api::run_settings::RunSettings;
 use crate::browser::options::{
     CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion, ExtensionArchive,
     FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
     VirtualDisplay, WindowPosition, WindowSize,
 };
-use crate::api::run_settings::RunSettings;
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
@@ -715,7 +715,10 @@ mod tests {
         let demo = RunSettings::default().with_demo_mode(true);
         let config = BrowserConfig::default().with_run_settings(demo.clone());
         assert_eq!(config.run_settings(), &demo);
-        assert_eq!(BrowserConfig::default().run_settings(), &RunSettings::default());
+        assert_eq!(
+            BrowserConfig::default().run_settings(),
+            &RunSettings::default()
+        );
         let text = serde_json::to_string(&config).unwrap();
         let back: BrowserConfig = serde_json::from_str(&text).unwrap();
         assert_eq!(back.run_settings(), &RunSettings::default());

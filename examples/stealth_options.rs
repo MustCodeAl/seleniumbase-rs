@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
             mode: DriverMode::Uc,
             ..BrowserConfig::default()
         };
-        run_browser_test(config, |sb| Box::pin(launched(sb, url))).await?;
+        run_browser_test(config, async |sb| launched(sb, url).await).await?;
     } else {
         println!("\n(pass --launch to start a browser with these options)");
     }

@@ -58,7 +58,8 @@ The most common types are re-exported from the crate root for convenience:
 | `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, **experimental** (serves the stealth layer) |
 | `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `engine_spoofing_args` | yes |
 | `Chart`, `ChartType`, `TourTheme`, `Gui` | yes |
-| `run_browser_test`, `BrowserTestFuture` | yes |
+| `run_browser_test`, `run_cdp_test`, `RunSettings`, `PauseKind`, `Settings`, `SettingsOverrides`, `RuntimeConfig`, `LogFormat` | yes |
+| `run_browser_test_boxed`, `BrowserTestFuture` | yes, deprecated |
 | `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi` | yes |
 | `Result<T>`, `SeleniumBaseError`, `ResultExt` | yes |
 | `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource` | yes |

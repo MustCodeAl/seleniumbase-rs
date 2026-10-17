@@ -386,9 +386,10 @@ impl Settings {
         launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
         launch.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
         BrowserConfig {
-            webdriver_url: self.webdriver_url.clone().unwrap_or_else(|| {
-                crate::config::RuntimeConfig::default().webdriver_url
-            }),
+            webdriver_url: self
+                .webdriver_url
+                .clone()
+                .unwrap_or_else(|| crate::config::RuntimeConfig::default().webdriver_url),
             browser,
             headless: self.headless,
             mode,
@@ -454,18 +455,16 @@ impl Settings {
             settings.proxy = Some(v);
         }
         if let Some(v) = var("SB_WINDOW_WIDTH") {
-            settings.window_width = Some(
-                v.parse().map_err(|e| {
+            settings.window_width =
+                Some(v.parse().map_err(|e| {
                     SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_WIDTH: {e}"))
-                })?,
-            );
+                })?);
         }
         if let Some(v) = var("SB_WINDOW_HEIGHT") {
-            settings.window_height = Some(
-                v.parse().map_err(|e| {
+            settings.window_height =
+                Some(v.parse().map_err(|e| {
                     SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_HEIGHT: {e}"))
-                })?,
-            );
+                })?);
         }
         if let Some(v) = var("SB_USER_DATA_DIR") {
             settings.user_data_dir = Some(v);
@@ -572,7 +571,10 @@ mod tests {
 
     #[test]
     fn the_window_size_reaches_the_launch_settings_when_both_sides_are_set() {
-        assert_eq!(Settings::default().to_browser_config().launch.window_size, None);
+        assert_eq!(
+            Settings::default().to_browser_config().launch.window_size,
+            None
+        );
         let config = with_vars(&[("SB_WINDOW_WIDTH", "1280"), ("SB_WINDOW_HEIGHT", "720")])
             .unwrap()
             .to_browser_config();
@@ -588,10 +590,15 @@ mod tests {
     #[test]
     fn the_timeout_reaches_the_run_settings() {
         assert_eq!(
-            Settings::default().to_browser_config().run_settings().default_timeout(),
+            Settings::default()
+                .to_browser_config()
+                .run_settings()
+                .default_timeout(),
             None
         );
-        let config = with_vars(&[("SB_TIMEOUT", "5")]).unwrap().to_browser_config();
+        let config = with_vars(&[("SB_TIMEOUT", "5")])
+            .unwrap()
+            .to_browser_config();
         assert_eq!(
             config.run_settings().default_timeout(),
             Some(Duration::from_secs(5))

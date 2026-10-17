@@ -643,13 +643,13 @@ fn render_test(test_name: &str, actions: &[Action]) -> String {
         "async fn {}() -> seleniumbase_rs::Result<()> {{\n",
         rust_identifier(test_name)
     ));
-    output.push_str("    run_browser_test(BrowserConfig::default(), |sb| Box::pin(async move {\n");
+    output.push_str("    run_browser_test(BrowserConfig::default(), async |sb| {\n");
     for action in actions {
         output.push_str("        ");
         output.push_str(&render_action(action));
         output.push('\n');
     }
-    output.push_str("        Ok(())\n    })).await\n}\n");
+    output.push_str("        Ok(())\n    }).await\n}\n");
     output
 }
 

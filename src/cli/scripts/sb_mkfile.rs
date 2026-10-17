@@ -103,18 +103,18 @@ impl TestFile {
             .map_or_else(|| EXAMPLE_URL.to_owned(), |url| url.as_str().to_owned());
         let body = match (&self.url, self.basic) {
             (_, true) => format!(
-                "            sb.open({start:?}).await?;\n\
-                 \x20           // Add your steps here.\n\
-                 \x20           Ok(())\n"
+                "        sb.open({start:?}).await?;\n\
+                 \x20       // Add your steps here.\n\
+                 \x20       Ok(())\n"
             ),
             (None, false) => format!(
-                "            sb.open({start:?}).await?;\n\
-                 \x20           sb.assert_title(\"Example Domain\").await?;\n\
-                 \x20           sb.assert_text(\"h1\", \"Example Domain\").await\n"
+                "        sb.open({start:?}).await?;\n\
+                 \x20       sb.assert_title(\"Example Domain\").await?;\n\
+                 \x20       sb.assert_text(\"h1\", \"Example Domain\").await\n"
             ),
             (Some(_), false) => format!(
-                "            sb.open({start:?}).await?;\n\
-                 \x20           sb.assert_element(\"body\").await\n"
+                "        sb.open({start:?}).await?;\n\
+                 \x20       sb.assert_element(\"body\").await\n"
             ),
         };
         format!(
@@ -128,10 +128,8 @@ impl TestFile {
              \n\
              #[tokio::test]\n\
              async fn {fn_name}() -> Result<()> {{\n\
-             \x20   run_browser_test(BrowserConfig::default(), |sb| {{\n\
-             \x20       Box::pin(async move {{\n\
+             \x20   run_browser_test(BrowserConfig::default(), async |sb| {{\n\
              {body}\
-             \x20       }})\n\
              \x20   }})\n\
              \x20   .await\n\
              }}\n"

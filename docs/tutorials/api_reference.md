@@ -496,8 +496,9 @@ is empty.
 | `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
 | `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
 | `BrowserSession` | Owns the WebDriver session, an optional CDP client and an optional auto-started driver process. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. |
-| `run_browser_test(config, test)` | Starts a `BaseCase`, runs `test` (a closure `FnOnce(&mut BaseCase) -> BrowserTestFuture`), always calls `quit`, and returns the test's error, the cleanup error, or both. A test that ends with `skip_test` counts as passed. |
-| `BrowserTestFuture<'a>` | `Pin<Box<dyn Future<Output = Result<()>> + 'a>>`, the future your test closure returns. |
+| `run_browser_test(config, test)` | Starts a `BaseCase`, runs `test` (an async closure over `&mut BaseCase`), always calls `quit`, and returns the test's error, the cleanup error, or both. A panic in the test still closes the browser and is then raised again. A test that ends with `skip_test` counts as passed. The run settings of `config` (`with_run_settings`) go to the case first. |
+| `run_cdp_test(options, test)` | The same for the Pure CDP engine: launches a browser, runs `test` (an async closure over `&Page`) on its first tab and always closes the browser. `Plugins::run_cdp_test` adds the plugins. |
+| `run_browser_test_boxed`, `BrowserTestFuture<'a>` | Deprecated: the closure form that returns `Pin<Box<dyn Future<Output = Result<()>> + 'a>>`, from before async closures. |
 | `shutdown_reused_sessions() -> usize` | Closes every idle browser kept for `reuse_session` and returns how many it closed. A browser a test still holds is left alone. |
 | `install_tls_provider()` | Installs `ring` as the process-wide rustls crypto provider unless one is installed. Call it before you build your own `reqwest` client in a program that uses this crate, which builds `reqwest` without a provider; a client built before any provider is set panics. |
 | `RuntimeConfig`, `LogFormat` | Environment configuration (below). `LogFormat` is `Pretty` (default) or `Json`. |

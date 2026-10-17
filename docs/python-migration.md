@@ -161,14 +161,14 @@ use seleniumbase_rs::{BrowserConfig, run_browser_test};
 
 #[tokio::test]
 async fn login_test() -> seleniumbase_rs::Result<()> {
-    run_browser_test(BrowserConfig::default(), |sb| Box::pin(async move {
+    run_browser_test(BrowserConfig::default(), async |sb| {
         sb.open("https://example.com/login").await?;
         sb.type_text("#username", "alice").await?;
         sb.type_text("#password", "secret").await?;
         sb.click("#submit").await?;
         sb.assert_text("body", "Welcome").await?;
         Ok(())
-    })).await
+    }).await
 }
 ```
 

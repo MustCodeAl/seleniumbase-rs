@@ -627,7 +627,10 @@ mod tests {
             Duration::from_millis(750)
         );
         let short = settings.with_message_duration(Duration::from_millis(300));
-        assert_eq!(short.message_duration_headless(), Duration::from_millis(300));
+        assert_eq!(
+            short.message_duration_headless(),
+            Duration::from_millis(300)
+        );
     }
 
     #[test]

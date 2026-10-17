@@ -41,14 +41,18 @@ macro_rules! selector {
 
 /// Declares an async browser test with automatic `BaseCase` setup and teardown.
 ///
-/// The macro expands to a `#[tokio::test]` async function that creates a
+/// The macro expands to a `#[tokio::test]` async function that runs the body
+/// with [`run_browser_test`](crate::run_browser_test): it creates a
 /// [`BaseCase`](crate::BaseCase) from the supplied [`BrowserConfig`](crate::BrowserConfig),
-/// runs the provided body, and finally calls [`quit`](crate::BaseCase::quit)
-/// even when assertions fail.
+/// runs the body, and finally calls [`quit`](crate::BaseCase::quit) even when
+/// assertions fail or the body panics. A body that ends with
+/// [`skip_test`](crate::BaseCase::skip_test) passes, as it does there. The
+/// body is a block that returns a [`Result`](crate::Result); `sb` is a
+/// `&mut BaseCase`.
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```no_run
 /// use seleniumbase_rs::{sb_test, BrowserConfig};
 ///
 /// sb_test!(login_flow, BrowserConfig::default(), |sb| {
@@ -63,12 +67,12 @@ macro_rules! sb_test {
     ($name:ident, $config:expr, |$sb:ident| $body:expr) => {
         #[tokio::test]
         async fn $name() {
-            let mut $sb = $crate::BaseCase::new($config)
-                .await
-                .expect("failed to create BaseCase");
-            let result: Result<(), $crate::SeleniumBaseError> = async { $body }.await;
-            $sb.quit().await.expect("failed to quit BaseCase");
-            result.expect("test failed");
+            $crate::run_browser_test(
+                $config,
+                async |$sb: &mut $crate::BaseCase| -> $crate::Result<()> { $body },
+            )
+            .await
+            .expect("test failed");
         }
     };
 }

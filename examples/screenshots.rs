@@ -35,7 +35,7 @@ const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
 #[tokio::main]
 async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
-    run_browser_test(BrowserConfig::default(), |sb| Box::pin(demo(sb, url))).await
+    run_browser_test(BrowserConfig::default(), async |sb| demo(sb, url).await).await
 }
 
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {

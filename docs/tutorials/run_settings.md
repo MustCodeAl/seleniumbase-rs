@@ -70,37 +70,37 @@ stay for code that already calls them.
 ## A complete test
 
 This test is for watching. It needs a visible browser, so it sets
-`with_headless(false)`. The settings go in first, before the first action,
-because each `BaseCase` starts with the defaults.
+`with_headless(false)`. The settings go in the configuration, so they apply from
+the first action: `run_browser_test` (and `Plugins::run_browser_test`) give
+`BrowserConfig::with_run_settings` to the `BaseCase` they start. A `BaseCase`
+you build with `BaseCase::new` starts with the defaults; call
+`set_run_settings` on it before the first action.
 
 ```rust,no_run
 use std::time::Duration;
 
-use seleniumbase_rs::api::run_settings::RunSettings;
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{run_browser_test, BrowserConfig, Result, RunSettings};
 
 #[tokio::test]
 async fn login_for_a_demo() -> Result<()> {
-    let config = BrowserConfig::default().with_headless(false);
+    // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
+    let config = BrowserConfig::default()
+        .with_headless(false)
+        .with_run_settings(
+            RunSettings::default()
+                .with_demo_mode(true)
+                .with_demo_sleep(Duration::from_millis(800))
+                .with_message_duration(Duration::from_secs(2)),
+        );
 
-    run_browser_test(config, |sb| {
-        Box::pin(async move {
-            // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
-            sb.set_run_settings(
-                RunSettings::default()
-                    .with_demo_mode(true)
-                    .with_demo_sleep(Duration::from_millis(800))
-                    .with_message_duration(Duration::from_secs(2)),
-            );
-
-            sb.open("https://seleniumbase.io/simple/login").await?; // pause
-            sb.type_text("#username", "demo_user").await?; // outline, short pause
-            sb.type_text("#password", "secret_pass").await?; // outline, short pause
-            sb.click("#log-in").await?; // outline, pause
-            sb.assert_text_visible("Welcome!", "body").await?; // no pause
-            sb.post_message("Logged in").await?; // stays 2 seconds
-            Ok(())
-        })
+    run_browser_test(config, async |sb| {
+        sb.open("https://seleniumbase.io/simple/login").await?; // pause
+        sb.type_text("#username", "demo_user").await?; // outline, short pause
+        sb.type_text("#password", "secret_pass").await?; // outline, short pause
+        sb.click("#log-in").await?; // outline, pause
+        sb.assert_text_visible("Welcome!", "body").await?; // no pause
+        sb.post_message("Logged in").await?; // stays 2 seconds
+        Ok(())
     })
     .await
 }
@@ -151,7 +151,10 @@ fn run_settings_from_env() -> RunSettings {
 }
 ```
 
-Then call `sb.set_run_settings(run_settings_from_env())` at the top of each test.
+Then build the configuration with
+`BrowserConfig::default().with_run_settings(run_settings_from_env())` (or call
+`sb.set_run_settings(run_settings_from_env())` on a `BaseCase` you made with
+`BaseCase::new`).
 Run the test with `MY_DEMO=1 cargo test login_for_a_demo -- --nocapture`.
 
 ## Which calls honour which setting

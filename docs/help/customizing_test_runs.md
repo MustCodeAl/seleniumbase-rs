@@ -177,9 +177,7 @@ use seleniumbase_rs::{run_browser_test, BrowserConfig};
 #[tokio::test]
 async fn login_page_loads() -> seleniumbase_rs::Result<()> {
     let config = BrowserConfig::default().with_reuse_session(true);
-    run_browser_test(config, |sb| {
-        Box::pin(async move { sb.open("https://example.com/login").await })
-    })
+    run_browser_test(config, async |sb| sb.open("https://example.com/login").await)
     .await
 }
 ```
