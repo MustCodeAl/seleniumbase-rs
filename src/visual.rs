@@ -29,13 +29,21 @@
 //!
 //! Both images are laid over white (so a transparent pixel counts as white),
 //! split into their red, green and blue channels, and each channel is compared
-//! with the mean structural similarity index (MSSIM): SSIM (Wang, Bovik, Sheikh
-//! and Simoncelli, 2004: luminance, contrast and structure, with the usual
-//! constants K1 = 0.01 and K2 = 0.03) over 8 × 8 pixel windows, averaged by
-//! area. The score is the lowest of the three channel means: 1.0 for identical
-//! images, lower the more differs (SSIM can even go below 0 for inverted
-//! structure). This is `rgb_similarity_structure` with
-//! `Algorithm::MSSIMSimple` from the [image-compare] crate.
+//! with the mean structural similarity index (MSSIM): the SSIM formula (Wang,
+//! Bovik, Sheikh and Simoncelli, 2004: luminance, contrast and structure) over
+//! 8 × 8 pixel windows, averaged by area. The score is the lowest of the three
+//! channel means: 1.0 for identical images, lower the more differs (SSIM can
+//! even go below 0 for inverted structure). This is `rgb_similarity_structure`
+//! with `Algorithm::MSSIMSimple` from the [image-compare] crate.
+//!
+//! It is not quite the standard SSIM of the paper or of scikit-image, so its
+//! scores are not comparable with theirs. The constants are the usual ones,
+//! K1 = 0.01 and K2 = 0.03, but image-compare takes the variances and the
+//! covariance as sums over the window rather than means. The luminance term
+//! is standard; in the contrast and structure term, the constant weighs as if
+//! K2 were 0.03 / 8 = 0.00375 for a full 8 × 8 window (a little more for the
+//! smaller windows at the right and bottom edges), which makes the score more
+//! sensitive than standard SSIM to small changes of contrast in flat areas.
 //!
 //! [image-compare]: https://github.com/ChrisRega/image-compare
 //!
