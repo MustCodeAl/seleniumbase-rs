@@ -13,7 +13,7 @@ use tokio::process::{Child, Command};
 use super::identity::Identity;
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
-use crate::stealth::fingerprint::{Fingerprint, ProxyConfig, ProxyMaskingMode, WebRtcPolicy};
+use crate::stealth::fingerprint::{Dimension, Fingerprint, ProxyConfig, WebRtcPolicy};
 use crate::stealth::patcher::find_system_chrome;
 
 /// How long a freshly launched browser may take to publish its endpoint.
@@ -310,15 +310,10 @@ impl fmt::Debug for Redacted {
 
 /// The proxy a fingerprint asks for, as a URL, when it asks for one.
 fn proxy_of(fingerprint: &Fingerprint) -> Option<String> {
-    matches!(
-        fingerprint.flags.proxy_masking,
-        ProxyMaskingMode::Custom
-            | ProxyMaskingMode::Socks5
-            | ProxyMaskingMode::Http
-            | ProxyMaskingMode::Https
-    )
-    .then(|| fingerprint.proxy.as_ref().map(ProxyConfig::to_url))
-    .flatten()
+    fingerprint
+        .is_masked(Dimension::Proxy)
+        .then(|| fingerprint.proxy.as_ref().map(ProxyConfig::to_url))
+        .flatten()
 }
 
 /// Builds [`LaunchOptions`]. Setters never fail; [`build`](Self::build)
@@ -417,21 +412,23 @@ impl LaunchOptionsBuilder {
     #[must_use]
     pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Self {
         self.identity = Some(Arc::new(Identity::of(fingerprint)));
-        if self.user_agent.is_none() {
+        if self.user_agent.is_none() && fingerprint.is_masked(Dimension::Navigator) {
             self.user_agent.clone_from(&fingerprint.user_agent);
         }
-        if self.lang.is_none() {
+        if self.lang.is_none() && fingerprint.is_masked(Dimension::Localization) {
             self.lang.clone_from(&fingerprint.locale);
         }
-        if self.window_size.is_none() {
+        if self.window_size.is_none() && fingerprint.is_masked(Dimension::Screen) {
             if let (Some(width), Some(height)) =
                 (fingerprint.screen_width, fingerprint.screen_height)
             {
                 self.window_size = Some((width, height));
             }
         }
-        if self.webrtc.is_none() {
-            self.webrtc = Some(fingerprint.webrtc_policy);
+        // Only a fingerprint that masks WebRTC passes the policy flag; an empty
+        // one leaves Chrome's own behaviour alone.
+        if self.webrtc.is_none() && fingerprint.is_masked(Dimension::WebRtc) {
+            self.webrtc = Some(fingerprint.webrtc_policy.unwrap_or_default());
         }
         if self.proxy.is_none() {
             self.proxy = proxy_of(fingerprint).map(Redacted);

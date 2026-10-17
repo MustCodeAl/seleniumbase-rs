@@ -834,11 +834,14 @@ impl ProfileParams {
         }
 
         if let Some(media) = self.parameters.fingerprint.media_devices.as_ref() {
-            builder =
-                builder.media_devices(media.audio_inputs, media.audio_outputs, media.video_inputs);
+            builder = builder.media_device_counts(
+                media.audio_inputs,
+                media.audio_outputs,
+                media.video_inputs,
+            );
         } else if let Some((audio_in, audio_out, video_in, specs)) = media_spec {
             builder = builder
-                .media_devices(audio_in, audio_out, video_in)
+                .media_device_counts(audio_in, audio_out, video_in)
                 .media_device_specs(specs);
         }
 
@@ -1504,7 +1507,7 @@ mod tests {
         assert_eq!(fp.webrtc_local_ip, Some("10.0.0.5".to_string()));
         assert_eq!(
             fp.webrtc_policy,
-            crate::stealth::fingerprint::WebRtcPolicy::PublicAndPrivateInterfaces
+            Some(crate::stealth::fingerprint::WebRtcPolicy::PublicAndPrivateInterfaces)
         );
     }
 

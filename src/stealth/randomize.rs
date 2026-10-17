@@ -15,7 +15,7 @@
 //! seedable [`Rng`], so a seed always gives the same identity.
 
 use super::fingerprint::{
-    BrandVersion, BrowserType, ClientHints, Fingerprint, OsType, StealthFlags,
+    BrandVersion, BrowserType, ClientHints, Fingerprint, OsType, StealthFlags, AUDIO_SEED_MASK,
 };
 use super::humanize::Rng;
 
@@ -1077,6 +1077,8 @@ pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fing
         longitude: Some(place.longitude),
         accuracy: Some(place.accuracy),
         seed: Some(noise_seed),
+        // The audio noise the identity documents runs only for a seed of its own.
+        audio_seed: Some(noise_seed ^ AUDIO_SEED_MASK),
         client_hints: profile.client_hints,
         flags: StealthFlags::balanced(),
         ..Fingerprint::default()

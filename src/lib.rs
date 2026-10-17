@@ -139,9 +139,9 @@ pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use stealth::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, CanvasNoiseMode, ClientHints, CoherenceReport,
-    ConnectionProfile, Fingerprint, HumanizeConfig, MaskingMode, NoiseMode, OsType, PopupMode,
-    ProxyConfig, ProxyMaskingMode, QuicMode, SpeechVoice, StartupBehavior, StealthFlags,
-    WebRtcPolicy,
+    ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder, HumanizeConfig, MaskingMode,
+    NoiseMode, OsType, PopupMode, ProxyConfig, ProxyMaskingMode, QuicMode, SpeechVoice,
+    StartupBehavior, StealthFlags, WebRtcPolicy,
 };
 pub use stealth::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,

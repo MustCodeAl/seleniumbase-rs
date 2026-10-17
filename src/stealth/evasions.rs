@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use base64::Engine;
 
 use crate::stealth::fingerprint::{
-    BrandVersion, Fingerprint, NoiseMode, OsType, PopupMode, ProxyMaskingMode, QuicMode,
+    BrandVersion, Dimension, Fingerprint, OsType, PopupMode, QuicMode, WebRtcPolicy,
 };
 use crate::stealth::providers::{default_registry, session_registry, EvasionContext};
 use crate::stealth::randomize::{chromium_hints, PRESET_CHROMIUM_MAJOR};
@@ -183,40 +183,35 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     args.push("--disable-setuid-sandbox".to_owned());
     args.push("--disable-dev-shm-usage".to_owned());
 
-    if let Some(ua) = fp.user_agent.as_deref() {
-        args.push(format!("--user-agent={ua}"));
-    }
-
-    if let Some(locale) = fp.locale.as_deref() {
-        args.push(format!("--lang={locale}"));
-    }
-
-    if let (Some(w), Some(h)) = (fp.screen_width, fp.screen_height) {
-        args.push(format!("--window-size={w},{h}"));
-    }
-
-    match fp.webrtc_policy {
-        crate::stealth::fingerprint::WebRtcPolicy::DisableNonProxiedUdp => {
-            args.push("--force-webrtc-ip-handling-policy=disable_non_proxied_udp".to_owned());
-        }
-        crate::stealth::fingerprint::WebRtcPolicy::PublicInterfaceOnly => {
-            args.push("--force-webrtc-ip-handling-policy=default_public_interface_only".to_owned());
-        }
-        crate::stealth::fingerprint::WebRtcPolicy::PublicAndPrivateInterfaces => {
-            args.push(
-                "--force-webrtc-ip-handling-policy=default_public_and_private_interfaces"
-                    .to_owned(),
-            );
+    if fp.is_masked(Dimension::Navigator) {
+        if let Some(ua) = fp.user_agent.as_deref() {
+            args.push(format!("--user-agent={ua}"));
         }
     }
 
-    if matches!(
-        fp.flags.proxy_masking,
-        ProxyMaskingMode::Custom
-            | ProxyMaskingMode::Socks5
-            | ProxyMaskingMode::Http
-            | ProxyMaskingMode::Https
-    ) {
+    if fp.is_masked(Dimension::Localization) {
+        if let Some(locale) = fp.locale.as_deref() {
+            args.push(format!("--lang={locale}"));
+        }
+    }
+
+    if fp.is_masked(Dimension::Screen) {
+        if let (Some(w), Some(h)) = (fp.screen_width, fp.screen_height) {
+            args.push(format!("--window-size={w},{h}"));
+        }
+    }
+
+    // The policy flag is only passed when WebRTC is masked, which a policy
+    // or an address makes it: a fingerprint without either leaves it alone.
+    if fp.is_masked(Dimension::WebRtc) {
+        let policy = fp.webrtc_policy.unwrap_or_default();
+        args.push(format!(
+            "--force-webrtc-ip-handling-policy={}",
+            webrtc_policy_value(policy)
+        ));
+    }
+
+    if fp.is_masked(Dimension::Proxy) {
         if let Some(proxy) = fp.proxy.as_ref() {
             args.push(format!("--proxy-server={}", proxy.to_url()));
         }
@@ -235,12 +230,22 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     args
 }
 
+/// The value of Chrome's `--force-webrtc-ip-handling-policy` for `policy`.
+fn webrtc_policy_value(policy: WebRtcPolicy) -> &'static str {
+    match policy {
+        WebRtcPolicy::DisableNonProxiedUdp => "disable_non_proxied_udp",
+        WebRtcPolicy::PublicInterfaceOnly => "default_public_interface_only",
+        WebRtcPolicy::PublicAndPrivateInterfaces => "default_public_and_private_interfaces",
+    }
+}
+
 /// The command that would add a `Proxy-Authorization` header to every request.
 ///
-/// [`cdp_overrides`] contains it for a fingerprint whose proxy has a user name
-/// and a password. A header added this way goes to every site the browser
-/// visits, which hands the proxy's login to the sites; the proxy is answered
-/// through its own challenge instead. [`safe_cdp_overrides`] leaves it out.
+/// The deprecated [`cdp_overrides`] contains it for a fingerprint whose proxy
+/// has a user name and a password. A header added this way goes to every site
+/// the browser visits, which hands the proxy's login to the sites; the proxy is
+/// answered through its own challenge instead. [`safe_cdp_overrides`] leaves it
+/// out.
 pub const CREDENTIAL_HEADER_METHOD: &str = "Network.setExtraHTTPHeaders";
 
 /// The overrides from [`cdp_overrides`] that are safe to send to a browser, in
@@ -251,7 +256,7 @@ pub const CREDENTIAL_HEADER_METHOD: &str = "Network.setExtraHTTPHeaders";
 /// order; sorting makes the commands, and so any trace of them, the same on
 /// every run.
 pub fn safe_cdp_overrides(fp: &Fingerprint) -> Vec<(String, serde_json::Value)> {
-    let mut overrides: Vec<(String, serde_json::Value)> = cdp_overrides(fp)
+    let mut overrides: Vec<(String, serde_json::Value)> = raw_overrides(fp)
         .into_iter()
         .filter(|(method, _)| method != CREDENTIAL_HEADER_METHOD)
         .collect();
@@ -261,12 +266,24 @@ pub fn safe_cdp_overrides(fp: &Fingerprint) -> Vec<(String, serde_json::Value)> 
 
 /// Returns CDP parameter overrides recommended for a fingerprint.
 ///
-/// Do not send these as they are: see [`CREDENTIAL_HEADER_METHOD`], and use
-/// [`safe_cdp_overrides`].
+/// Do not send these as they are: see [`CREDENTIAL_HEADER_METHOD`]. Use
+/// [`safe_cdp_overrides`], which leaves out the header that hands the proxy's
+/// login to every site.
+#[deprecated(note = "use safe_cdp_overrides, which leaves out the Proxy-Authorization header")]
+#[must_use]
 pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
+    raw_overrides(fp)
+}
+
+/// Every override the fingerprint asks for, the proxy header included.
+fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     let mut map = HashMap::new();
 
-    if let (Some(lat), Some(lon)) = (fp.latitude, fp.longitude) {
+    if let (Some(lat), Some(lon), true) = (
+        fp.latitude,
+        fp.longitude,
+        fp.is_masked(Dimension::Geolocation),
+    ) {
         map.insert(
             "Emulation.setGeolocationOverride".to_owned(),
             serde_json::json!({
@@ -278,7 +295,11 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
-    if let (Some(w), Some(h)) = (fp.screen_width, fp.screen_height) {
+    if let (Some(w), Some(h), true) = (
+        fp.screen_width,
+        fp.screen_height,
+        fp.is_masked(Dimension::Screen),
+    ) {
         map.insert(
             "Emulation.setDeviceMetricsOverride".to_owned(),
             serde_json::json!({
@@ -290,7 +311,7 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
-    if let Some(ua) = fp.user_agent.as_deref() {
+    if let (Some(ua), true) = (fp.user_agent.as_deref(), fp.is_masked(Dimension::Navigator)) {
         let platform = fp
             .platform
             .clone()
@@ -314,14 +335,14 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         map.insert("Network.setUserAgentOverride".to_owned(), ua_override);
     }
 
-    if let Some(locale) = fp.locale.as_deref() {
+    if let (Some(locale), true) = (fp.locale.as_deref(), fp.is_masked(Dimension::Localization)) {
         map.insert(
             "Emulation.setLocaleOverride".to_owned(),
             serde_json::json!({ "locale": locale }),
         );
     }
 
-    if let Some(tz) = fp.timezone.as_deref() {
+    if let (Some(tz), true) = (fp.timezone.as_deref(), fp.is_masked(Dimension::Timezone)) {
         map.insert(
             "Emulation.setTimezoneOverride".to_owned(),
             serde_json::json!({ "timezoneId": tz }),
@@ -334,7 +355,8 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     let mut permissions: Vec<&str> = Vec::new();
     if fp.latitude.is_some()
         && fp.longitude.is_some()
-        && fp.flags.geolocation_popup == PopupMode::Allow
+        && fp.is_masked(Dimension::Geolocation)
+        && fp.geolocation_popup() == PopupMode::Allow
     {
         permissions.push("geolocation");
     }
@@ -361,7 +383,7 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     // One command carries the tracker hosts and the blocked ports: a second
     // `Network.setBlockedURLs` would replace the first.
     let mut blocked: Vec<String> = Vec::new();
-    if fp.flags.block_trackers {
+    if fp.is_masked(Dimension::Trackers) {
         blocked.extend(fp.tracker_hosts().iter().map(|h| format!("*{h}*")));
     }
     blocked.extend(blocked_port_patterns(fp));
@@ -379,18 +401,14 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
-    if matches!(
-        fp.flags.headless_masking,
-        crate::stealth::fingerprint::MaskingMode::Mask
-            | crate::stealth::fingerprint::MaskingMode::Custom
-    ) {
+    if fp.is_masked(Dimension::Headless) {
         map.insert(
             "Emulation.setFocusEmulationEnabled".to_owned(),
             serde_json::json!({ "enabled": true }),
         );
     }
 
-    if let Some(proxy) = fp.proxy.as_ref() {
+    if let (Some(proxy), true) = (fp.proxy.as_ref(), fp.is_masked(Dimension::Proxy)) {
         if proxy.username.is_some() && proxy.password.is_some() {
             let creds = format!(
                 "{}:{}",
@@ -416,7 +434,7 @@ const LOOPBACK_HOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
 /// browser's own debugging port) through them. Empty when no port is set or
 /// the ports mode is `Natural` or `Off`.
 fn blocked_port_patterns(fp: &Fingerprint) -> Vec<String> {
-    if matches!(fp.flags.ports_masking, NoiseMode::Natural | NoiseMode::Off) {
+    if !fp.is_masked(Dimension::Ports) {
         return Vec::new();
     }
     fp.ports
@@ -544,6 +562,7 @@ fn major_of(version: &str) -> Option<u32> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use crate::stealth::fingerprint::{Fingerprint, NoiseMode, PopupMode};
@@ -648,7 +667,10 @@ mod tests {
         let mut fp = Fingerprint::builder().blocked_ports(vec![9222]).build();
         fp.flags.block_trackers = true;
         let urls = blocked_urls(&fp).expect("a block list");
-        assert!(urls.contains(&"*://localhost:9222/*".to_owned()), "{urls:?}");
+        assert!(
+            urls.contains(&"*://localhost:9222/*".to_owned()),
+            "{urls:?}"
+        );
         assert!(urls.contains(&"*doubleclick.net*".to_owned()), "{urls:?}");
     }
 

@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use seleniumbase_rs::stealth::randomize::known_full_version;
-use seleniumbase_rs::{default_registry, EvasionContext, Fingerprint, MaskingMode, OsType};
+use seleniumbase_rs::{default_registry, Dimension, EvasionContext, Fingerprint, OsType};
 
 const ALL_OS: [OsType; 5] = [
     OsType::Windows,
@@ -526,18 +526,22 @@ fn edge_seeds_do_not_panic_and_differ_from_each_other() {
 #[test]
 fn the_masking_flags_apply_the_generated_values() {
     // A value that is generated but not applied would be a quiet failure.
-    let fp = Fingerprint::randomized(OsType::Windows, 11);
-    for mode in [
-        fp.flags.navigator_masking,
-        fp.flags.screen_masking,
-        fp.flags.graphics_masking,
-        fp.flags.timezone_masking,
-        fp.flags.localization_masking,
-        fp.flags.geolocation_masking,
-    ] {
-        assert_eq!(mode, MaskingMode::Mask);
+    for os in ALL_OS {
+        let fp = Fingerprint::randomized(os, 11);
+        for dimension in [
+            Dimension::Navigator,
+            Dimension::Screen,
+            Dimension::Graphics,
+            Dimension::Timezone,
+            Dimension::Localization,
+            Dimension::Geolocation,
+            Dimension::Canvas,
+            Dimension::Audio,
+        ] {
+            assert!(fp.is_masked(dimension), "{os:?}: {dimension:?} is off");
+        }
+        assert!(!fp.flags.native_spoofing);
     }
-    assert!(!fp.flags.native_spoofing);
 }
 
 #[test]

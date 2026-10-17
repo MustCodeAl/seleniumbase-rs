@@ -203,7 +203,12 @@ pub(super) fn refused(method: &str, error: &SeleniumBaseError) -> SeleniumBaseEr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::evasions::{cdp_overrides, CREDENTIAL_HEADER_METHOD};
+    #[allow(
+        deprecated,
+        reason = "the unsafe set is what the test compares the safe one with"
+    )]
+    use crate::stealth::evasions::cdp_overrides;
+    use crate::stealth::evasions::CREDENTIAL_HEADER_METHOD;
     use crate::stealth::fingerprint::{OsType, ProxyConfig};
     use crate::stealth::providers::{session_registry, EvasionContext};
 
@@ -324,6 +329,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        deprecated,
+        reason = "the unsafe set is what the test compares the safe one with"
+    )]
     fn the_proxy_password_is_never_turned_into_a_header() {
         let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
         fingerprint.proxy = Some(ProxyConfig {
@@ -376,10 +385,26 @@ mod tests {
     fn no_grant_is_made_unless_the_fingerprint_asks() {
         let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
         fingerprint.flags.grant_permissions = false;
+        // A position asks for the geolocation grant; without one nothing does.
+        fingerprint.latitude = None;
+        fingerprint.longitude = None;
 
         assert!(Identity::of(&fingerprint)
             .permission_grant(Some("CTX1"))
             .is_none());
+    }
+
+    #[test]
+    fn a_position_grants_geolocation_without_the_permissions_flag() {
+        let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
+        fingerprint.flags.grant_permissions = false;
+        assert!(fingerprint.latitude.is_some() && fingerprint.longitude.is_some());
+
+        let grant = Identity::of(&fingerprint)
+            .permission_grant(Some("CTX1"))
+            .expect("a grant for the position");
+
+        assert_eq!(grant["permissions"], json!(["geolocation"]));
     }
 
     #[test]

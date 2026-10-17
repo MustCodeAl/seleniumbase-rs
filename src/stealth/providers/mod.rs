@@ -444,6 +444,126 @@ mod tests {
         assert_eq!(sorted.len(), names.len());
     }
 
+    /// Flags that switch every dimension off, the way a preset or a loaded file
+    /// can: a value given to the builder must still turn its dimension on.
+    fn all_off() -> StealthFlags {
+        StealthFlags {
+            webrtc_masking: MaskingMode::Natural,
+            audio_masking: MaskingMode::Natural,
+            navigator_masking: MaskingMode::Natural,
+            localization_masking: MaskingMode::Natural,
+            timezone_masking: MaskingMode::Natural,
+            graphics_masking: MaskingMode::Natural,
+            fonts_masking: MaskingMode::Natural,
+            media_devices_masking: MaskingMode::Natural,
+            screen_masking: MaskingMode::Natural,
+            geolocation_masking: MaskingMode::Natural,
+            canvas_noise: CanvasNoiseMode::Natural,
+            battery_masking: MaskingMode::Natural,
+            connection_masking: MaskingMode::Natural,
+            speech_masking: MaskingMode::Natural,
+            client_hints_masking: MaskingMode::Natural,
+            block_trackers: false,
+            ..StealthFlags::default()
+        }
+    }
+
+    type Setter = fn(FingerprintBuilder) -> FingerprintBuilder;
+
+    /// One value setter per masking dimension, with the providers it turns on.
+    fn setters() -> Vec<(&'static str, Setter, &'static [&'static str])> {
+        vec![
+            (
+                "user_agent",
+                |b| b.user_agent("Mozilla/5.0"),
+                &["navigator_props"],
+            ),
+            (
+                "hardware_concurrency",
+                |b| b.hardware_concurrency(8),
+                &["navigator_props"],
+            ),
+            ("locale", |b| b.locale("de-DE"), &["localization"]),
+            ("timezone", |b| b.timezone("Europe/Berlin"), &["timezone"]),
+            ("screen", |b| b.screen(1440, 900), &["window_geometry"]),
+            ("webgl", |b| b.webgl("Vendor", "Renderer"), &["webgl"]),
+            (
+                "geolocation",
+                |b| b.geolocation(52.5, 13.4),
+                &["geolocation"],
+            ),
+            (
+                "media_devices",
+                |b| b.media_device_counts(1, 1, 1),
+                &["media_devices"],
+            ),
+            ("fonts", |b| b.fonts(vec!["Arial".to_owned()]), &["fonts"]),
+            (
+                "webrtc_ips",
+                |b| b.webrtc_ips("203.0.113.9", "10.0.0.2"),
+                &["webrtc"],
+            ),
+            ("seed", |b| b.seed(5), &["canvas_noise", "audio_noise"]),
+            (
+                "battery",
+                |b| b.battery(BatteryProfile::default()),
+                &["battery"],
+            ),
+            (
+                "connection",
+                |b| b.connection(ConnectionProfile::default()),
+                &["connection"],
+            ),
+            (
+                "speech_voices",
+                |b| b.speech_voices(SpeechVoice::default_set()),
+                &["speech"],
+            ),
+            (
+                "client_hints",
+                |b| b.client_hints(ClientHints::default()),
+                &["client_hints"],
+            ),
+            (
+                "blocked_trackers",
+                |b| b.blocked_trackers(vec!["tracker.test".to_owned()]),
+                &["tracker_block"],
+            ),
+        ]
+    }
+
+    #[test]
+    fn a_value_given_to_the_builder_turns_its_own_provider_on() {
+        let registry = default_registry();
+        for (name, set, providers) in setters() {
+            // No flags at all, then each preset applied before and after the value.
+            let runs = [
+                (None, true),
+                (Some(StealthFlags::balanced()), true),
+                (Some(StealthFlags::balanced()), false),
+                (Some(all_off()), true),
+                (Some(all_off()), false),
+            ];
+            for (preset, preset_first) in runs {
+                let mut builder = Fingerprint::builder();
+                if let (Some(preset), true) = (&preset, preset_first) {
+                    builder = builder.flags(preset.clone());
+                }
+                builder = set(builder);
+                if let (Some(preset), false) = (&preset, preset_first) {
+                    builder = builder.flags(preset.clone());
+                }
+                let applicable = registry.applicable_names(&builder.build());
+                for provider in providers {
+                    assert!(
+                        applicable.contains(&(*provider).to_owned()),
+                        "{name}: {provider} is off (preset {preset:?}, preset first: {preset_first})"
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn inapplicable_providers_are_left_out() {
         let fp = Fingerprint::windows_desktop();
@@ -461,7 +581,10 @@ mod tests {
     // Hardening: what a session leaves to the browser
     // ------------------------------------------------------------------
 
-    use crate::stealth::fingerprint::{BrandVersion, ClientHints, MaskingMode};
+    use crate::stealth::fingerprint::{
+        BatteryProfile, BrandVersion, CanvasNoiseMode, ClientHints, ConnectionProfile,
+        FingerprintBuilder, MaskingMode, SpeechVoice, StealthFlags,
+    };
 
     /// The names a page reads to find a replaced list, flag or network report
     /// that Chrome would have answered for itself, as whole words:
