@@ -100,8 +100,7 @@ const completion: Fig.Spec = {
       options: [
         {
           name: "--path",
-          description:
-            "Output image file path (default: a new file in latest_logs/)",
+          description: "Output image file path (default: a new file in latest_logs/)",
           isRepeatable: true,
           args: {
             name: "path",
@@ -120,8 +119,7 @@ const completion: Fig.Spec = {
       options: [
         {
           name: "--path",
-          description:
-            "Output HTML file path (default: a new file in latest_logs/)",
+          description: "Output HTML file path (default: a new file in latest_logs/)",
           isRepeatable: true,
           args: {
             name: "path",
@@ -692,8 +690,7 @@ const completion: Fig.Spec = {
     },
     {
       name: ["encrypt", "obfuscate"],
-      description:
-        "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted",
+      description: "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted",
       options: [
         {
           name: ["-h", "--help"],
@@ -707,8 +704,7 @@ const completion: Fig.Spec = {
     },
     {
       name: ["decrypt", "unobfuscate"],
-      description:
-        "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command",
+      description: "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command",
       options: [
         {
           name: ["-h", "--help"],
@@ -722,12 +718,52 @@ const completion: Fig.Spec = {
     },
     {
       name: "doctor",
-      description:
-        "Run a diagnostic check on the environment and configuration",
+      description: "Run a diagnostic check on the environment and configuration",
       options: [
         {
           name: ["-h", "--help"],
           description: "Print help",
+        },
+      ],
+    },
+    {
+      name: "prompt",
+      description: "Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand",
+      options: [
+        {
+          name: "--format",
+          description: "The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces",
+          isRepeatable: true,
+          args: {
+            name: "format",
+            isOptional: true,
+          },
+        },
+        {
+          name: "--browser-path",
+          description: "Browser to report on (default: SB_CHROME_BIN, else the installed Chrome or Chromium)",
+          isRepeatable: true,
+          args: {
+            name: "browser_path",
+            isOptional: true,
+            template: "filepaths",
+          },
+        },
+        {
+          name: "--ascii",
+          description: "Mark the driver with + - ? instead of ✓ ✗ ?",
+        },
+        {
+          name: "--no-cache",
+          description: "Run --version again instead of using the versions cached in the user cache folder",
+        },
+        {
+          name: "--verbose",
+          description: "Explain on standard error what was found and how",
+        },
+        {
+          name: ["-h", "--help"],
+          description: "Print help (see more with '--help')",
         },
       ],
     },
@@ -1463,8 +1499,7 @@ const completion: Fig.Spec = {
     },
     {
       name: ["install", "get"],
-      description:
-        "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)",
+      description: "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)",
       options: [
         {
           name: ["-h", "--help"],
@@ -1480,7 +1515,7 @@ const completion: Fig.Spec = {
           name: "version",
           isOptional: true,
         },
-      ],
+      ]
     },
     {
       name: "test",
@@ -1489,7 +1524,9 @@ const completion: Fig.Spec = {
         {
           name: "--test",
           description: "Run one integration test file from tests/",
-          exclusiveOn: ["--example"],
+          exclusiveOn: [
+            "--example",
+          ],
           isRepeatable: true,
           args: {
             name: "test",
@@ -1533,7 +1570,7 @@ const completion: Fig.Spec = {
           isVariadic: true,
           isOptional: true,
         },
-      ],
+      ]
     },
     {
       name: "grid-hub",
@@ -1541,8 +1578,7 @@ const completion: Fig.Spec = {
       options: [
         {
           name: "--jar",
-          description:
-            "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded",
+          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded",
           isRepeatable: true,
           args: {
             name: "jar",
@@ -1571,8 +1607,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--grid-port",
-          description:
-            "The port to listen on (default: 4444 for a hub, 5555 for a node)",
+          description: "The port to listen on (default: 4444 for a hub, 5555 for a node)",
           isRepeatable: true,
           args: {
             name: "port",
@@ -1599,8 +1634,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--wait",
-          description:
-            "How many seconds `start` waits for the Grid to become ready",
+          description: "How many seconds `start` waits for the Grid to become ready",
           isRepeatable: true,
           args: {
             name: "wait",
@@ -1613,8 +1647,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--skip-port-check",
-          description:
-            "Start even if something already accepts connections on the port",
+          description: "Start even if something already accepts connections on the port",
         },
         {
           name: ["-h", "--help"],
@@ -1648,7 +1681,7 @@ const completion: Fig.Spec = {
           isVariadic: true,
           isOptional: true,
         },
-      ],
+      ]
     },
     {
       name: "grid-node",
@@ -1656,8 +1689,7 @@ const completion: Fig.Spec = {
       options: [
         {
           name: "--jar",
-          description:
-            "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded",
+          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded",
           isRepeatable: true,
           args: {
             name: "jar",
@@ -1686,8 +1718,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--grid-port",
-          description:
-            "The port to listen on (default: 4444 for a hub, 5555 for a node)",
+          description: "The port to listen on (default: 4444 for a hub, 5555 for a node)",
           isRepeatable: true,
           args: {
             name: "port",
@@ -1714,8 +1745,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--wait",
-          description:
-            "How many seconds `start` waits for the Grid to become ready",
+          description: "How many seconds `start` waits for the Grid to become ready",
           isRepeatable: true,
           args: {
             name: "wait",
@@ -1728,8 +1758,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--skip-port-check",
-          description:
-            "Start even if something already accepts connections on the port",
+          description: "Start even if something already accepts connections on the port",
         },
         {
           name: ["-h", "--help"],
@@ -1763,7 +1792,7 @@ const completion: Fig.Spec = {
           isVariadic: true,
           isOptional: true,
         },
-      ],
+      ]
     },
     {
       name: "translate",
@@ -1772,17 +1801,24 @@ const completion: Fig.Spec = {
         {
           name: ["-p", "--print"],
           description: "Print the translation and write nothing (the default)",
-          exclusiveOn: ["-o", "--overwrite", "-c", "--copy"],
+          exclusiveOn: [
+            "-o",
+            "--overwrite",
+            "-c",
+            "--copy",
+          ],
         },
         {
           name: ["-o", "--overwrite"],
           description: "Replace the file with the translation",
-          exclusiveOn: ["-c", "--copy"],
+          exclusiveOn: [
+            "-c",
+            "--copy",
+          ],
         },
         {
           name: ["-c", "--copy"],
-          description:
-            "Write the translation to a new file next to it, such as `login_es.json`",
+          description: "Write the translation to a new file next to it, such as `login_es.json`",
         },
         {
           name: ["-h", "--help"],
@@ -1797,7 +1833,7 @@ const completion: Fig.Spec = {
         {
           name: "language",
         },
-      ],
+      ]
     },
     {
       name: "mkdir",
@@ -1852,8 +1888,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "commander",
-      description:
-        "Launch the interactive commander (needs a build with the `tui` feature)",
+      description: "Launch the interactive commander (needs a build with the `tui` feature)",
       options: [
         {
           name: ["-h", "--help"],
@@ -1863,13 +1898,11 @@ const completion: Fig.Spec = {
     },
     {
       name: ["caseplans", "case-plans"],
-      description:
-        "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)",
+      description: "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)",
       options: [
         {
           name: "--starter",
-          description:
-            "Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature",
+          description: "Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature",
         },
         {
           name: ["-h", "--help"],
@@ -1883,13 +1916,11 @@ const completion: Fig.Spec = {
     },
     {
       name: ["behave-gui", "gui-behave"],
-      description:
-        "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)",
+      description: "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)",
       options: [
         {
           name: "--new",
-          description:
-            "Prompt for a name, a title and scenarios and write a new feature file instead; this needs no `tui` feature",
+          description: "Prompt for a name, a title and scenarios and write a new feature file instead; this needs no `tui` feature",
         },
         {
           name: ["-h", "--help"],
@@ -2012,8 +2043,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "completions",
-      description:
-        "Generate a completion script for a supported shell, or a Fig spec",
+      description: "Generate a completion script for a supported shell, or a Fig spec",
       options: [
         {
           name: ["-h", "--help"],
@@ -2030,21 +2060,18 @@ const completion: Fig.Spec = {
           "powershell",
           {
             name: "fig",
-            description:
-              "A Fig completion spec (TypeScript), the format of the withfig/autocomplete repository that Warp's built-in completions, inshellisense and Amazon Q use",
+            description: "A Fig completion spec (TypeScript), the format of the withfig/autocomplete repository that Warp's built-in completions, inshellisense and Amazon Q use",
           },
           {
             name: "usage",
-            description:
-              "A usage spec (KDL) for jdx/usage and mise, which turn it into completions, Markdown and man pages",
+            description: "A usage spec (KDL) for jdx/usage and mise, which turn it into completions, Markdown and man pages",
           },
         ],
       },
     },
     {
       name: "import-python",
-      description:
-        "Convert common SeleniumBase or Selenium Python code into a Rust test",
+      description: "Convert common SeleniumBase or Selenium Python code into a Rust test",
       options: [
         {
           name: ["-o", "--output"],
@@ -2062,7 +2089,11 @@ const completion: Fig.Spec = {
           args: {
             name: "source",
             isOptional: true,
-            suggestions: ["auto", "selenium-base", "selenium"],
+            suggestions: [
+              "auto",
+              "selenium-base",
+              "selenium",
+            ],
           },
         },
         {
@@ -2085,8 +2116,7 @@ const completion: Fig.Spec = {
     },
     {
       name: ["import-playwright", "import-pw"],
-      description:
-        "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine",
+      description: "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine",
       options: [
         {
           name: ["-o", "--output"],
@@ -2099,8 +2129,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--language",
-          description:
-            "Source language (default: from the file extension, else from the content)",
+          description: "Source language (default: from the file extension, else from the content)",
           isRepeatable: true,
           args: {
             name: "language",
@@ -2123,8 +2152,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--test-name",
-          description:
-            "Name of the test generated for a script without test titles (default: the file name)",
+          description: "Name of the test generated for a script without test titles (default: the file name)",
           isRepeatable: true,
           args: {
             name: "test_name",
@@ -2142,8 +2170,7 @@ const completion: Fig.Spec = {
     },
     {
       name: ["import-puppeteer", "import-pptr"],
-      description:
-        "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine",
+      description: "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine",
       options: [
         {
           name: ["-o", "--output"],
@@ -2156,8 +2183,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--language",
-          description:
-            "Source language (default: from the file extension, else from the content)",
+          description: "Source language (default: from the file extension, else from the content)",
           isRepeatable: true,
           args: {
             name: "language",
@@ -2180,8 +2206,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--test-name",
-          description:
-            "Name of the test generated for a script without test titles (default: the file name)",
+          description: "Name of the test generated for a script without test titles (default: the file name)",
           isRepeatable: true,
           args: {
             name: "test_name",
@@ -2199,13 +2224,11 @@ const completion: Fig.Spec = {
     },
     {
       name: "download-file",
-      description:
-        "Download a file from a URL (browser download with an HTTP fallback)",
+      description: "Download a file from a URL (browser download with an HTTP fallback)",
       options: [
         {
           name: ["-o", "--output"],
-          description:
-            "Output file path (defaults to the URL file name in the current directory)",
+          description: "Output file path (defaults to the URL file name in the current directory)",
           isRepeatable: true,
           args: {
             name: "output",
@@ -2214,8 +2237,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--timeout",
-          description:
-            "Seconds to wait for the browser download before falling back to HTTP",
+          description: "Seconds to wait for the browser download before falling back to HTTP",
           isRepeatable: true,
           args: {
             name: "timeout",
@@ -2311,8 +2333,7 @@ const completion: Fig.Spec = {
       options: [
         {
           name: "--url",
-          description:
-            "Page to open first (defaults to a generated blank upload page)",
+          description: "Page to open first (defaults to a generated blank upload page)",
           isRepeatable: true,
           args: {
             name: "url",
@@ -2331,7 +2352,7 @@ const completion: Fig.Spec = {
         {
           name: "file",
         },
-      ],
+      ]
     },
     {
       name: "deferred",
@@ -2348,8 +2369,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--assert",
-          description:
-            "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>",
+          description: "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>",
           isRepeatable: true,
           args: {
             name: "asserts",
@@ -2386,8 +2406,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--duration",
-          description:
-            "Stop recording after this many seconds (default: run until Ctrl-C)",
+          description: "Stop recording after this many seconds (default: run until Ctrl-C)",
           isRepeatable: true,
           args: {
             name: "duration",
@@ -2405,8 +2424,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "replay",
-      description:
-        "Replay a recorded action file against a fresh browser session",
+      description: "Replay a recorded action file against a fresh browser session",
       options: [
         {
           name: ["-h", "--help"],
@@ -2419,13 +2437,11 @@ const completion: Fig.Spec = {
     },
     {
       name: "devtools",
-      description:
-        "Launch Chrome with an open DevTools endpoint and print MCP client configs",
+      description: "Launch Chrome with an open DevTools endpoint and print MCP client configs",
       options: [
         {
           name: "--port",
-          description:
-            "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)",
+          description: "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)",
           isRepeatable: true,
           args: {
             name: "port",
@@ -2434,8 +2450,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--user-data-dir",
-          description:
-            "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)",
+          description: "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)",
           isRepeatable: true,
           args: {
             name: "user_data_dir",
@@ -2444,8 +2459,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--proxy",
-          description:
-            "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT",
+          description: "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT",
           isRepeatable: true,
           args: {
             name: "proxy",
@@ -2454,8 +2468,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--browser-path",
-          description:
-            "Browser binary to launch, such as Microsoft Edge or another Chromium browser",
+          description: "Browser binary to launch, such as Microsoft Edge or another Chromium browser",
           isRepeatable: true,
           args: {
             name: "browser_path",
@@ -2477,8 +2490,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "--json",
-          description:
-            "Print the endpoint and configs as one line of JSON instead of text",
+          description: "Print the endpoint and configs as one line of JSON instead of text",
         },
         {
           name: ["-h", "--help"],
@@ -2644,28 +2656,27 @@ const completion: Fig.Spec = {
         },
         {
           name: "patch-chromedriver",
-          description:
-            "Patch a chromedriver binary to reduce detection surface",
+          description: "Patch a chromedriver binary to reduce detection surface",
         },
         {
           name: "patch-chrome",
-          description:
-            "Patch a Chrome/Chromium binary for native-level spoofing",
+          description: "Patch a Chrome/Chromium binary for native-level spoofing",
         },
         {
           name: "encrypt",
-          description:
-            "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted",
+          description: "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted",
         },
         {
           name: "decrypt",
-          description:
-            "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command",
+          description: "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command",
         },
         {
           name: "doctor",
-          description:
-            "Run a diagnostic check on the environment and configuration",
+          description: "Run a diagnostic check on the environment and configuration",
+        },
+        {
+          name: "prompt",
+          description: "Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand",
         },
         {
           name: "assert-text-visible",
@@ -2709,8 +2720,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "is-text-visible",
-          description:
-            "Print whether the expected text is visible in an element",
+          description: "Print whether the expected text is visible in an element",
         },
         {
           name: "wait-for-element-not-visible",
@@ -2794,8 +2804,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "is-partial-link-text-visible",
-          description:
-            "Print whether a link containing the given text is visible",
+          description: "Print whether a link containing the given text is visible",
         },
         {
           name: "assert-link-text",
@@ -2827,8 +2836,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "install",
-          description:
-            "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)",
+          description: "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)",
         },
         {
           name: "test",
@@ -2844,8 +2852,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "translate",
-          description:
-            "Write the actions of a JSON scenario in another language",
+          description: "Write the actions of a JSON scenario in another language",
         },
         {
           name: "mkdir",
@@ -2857,18 +2864,15 @@ const completion: Fig.Spec = {
         },
         {
           name: "commander",
-          description:
-            "Launch the interactive commander (needs a build with the `tui` feature)",
+          description: "Launch the interactive commander (needs a build with the `tui` feature)",
         },
         {
           name: "caseplans",
-          description:
-            "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)",
+          description: "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)",
         },
         {
           name: "behave-gui",
-          description:
-            "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)",
+          description: "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)",
         },
         {
           name: "print",
@@ -2896,28 +2900,23 @@ const completion: Fig.Spec = {
         },
         {
           name: "completions",
-          description:
-            "Generate a completion script for a supported shell, or a Fig spec",
+          description: "Generate a completion script for a supported shell, or a Fig spec",
         },
         {
           name: "import-python",
-          description:
-            "Convert common SeleniumBase or Selenium Python code into a Rust test",
+          description: "Convert common SeleniumBase or Selenium Python code into a Rust test",
         },
         {
           name: "import-playwright",
-          description:
-            "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine",
+          description: "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine",
         },
         {
           name: "import-puppeteer",
-          description:
-            "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine",
+          description: "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine",
         },
         {
           name: "download-file",
-          description:
-            "Download a file from a URL (browser download with an HTTP fallback)",
+          description: "Download a file from a URL (browser download with an HTTP fallback)",
         },
         {
           name: "print-pdf",
@@ -2929,8 +2928,7 @@ const completion: Fig.Spec = {
         },
         {
           name: "assert-pdf-text",
-          description:
-            "Assert that a page or PDF URL contains the expected text",
+          description: "Assert that a page or PDF URL contains the expected text",
         },
         {
           name: "choose-file",
@@ -2938,28 +2936,23 @@ const completion: Fig.Spec = {
         },
         {
           name: "deferred",
-          description:
-            "Run several assertions, then report every failure at once",
+          description: "Run several assertions, then report every failure at once",
         },
         {
           name: "record",
-          description:
-            "Record browser interactions into a replayable action file",
+          description: "Record browser interactions into a replayable action file",
         },
         {
           name: "replay",
-          description:
-            "Replay a recorded action file against a fresh browser session",
+          description: "Replay a recorded action file against a fresh browser session",
         },
         {
           name: "devtools",
-          description:
-            "Launch Chrome with an open DevTools endpoint and print MCP client configs",
+          description: "Launch Chrome with an open DevTools endpoint and print MCP client configs",
         },
         {
           name: "help",
-          description:
-            "Print this message or the help of the given subcommand(s)",
+          description: "Print this message or the help of the given subcommand(s)",
         },
       ],
     },
@@ -2967,8 +2960,7 @@ const completion: Fig.Spec = {
   options: [
     {
       name: "--webdriver",
-      description:
-        "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)",
+      description: "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)",
       isRepeatable: true,
       args: {
         name: "webdriver",
@@ -2977,8 +2969,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "--browser",
-      description:
-        "Browser engine to launch (default: chrome, or the config file's)",
+      description: "Browser engine to launch (default: chrome, or the config file's)",
       isRepeatable: true,
       args: {
         name: "browser",
@@ -3048,8 +3039,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "--proxy",
-      description:
-        "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
+      description: "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
       isRepeatable: true,
       args: {
         name: "proxy",
@@ -3058,8 +3048,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "--proxy-list",
-      description:
-        "File of proxies to choose from; without --proxy a random one is used",
+      description: "File of proxies to choose from; without --proxy a random one is used",
       isRepeatable: true,
       args: {
         name: "proxy_list",
@@ -3129,18 +3118,15 @@ const completion: Fig.Spec = {
     },
     {
       name: "--ad-block",
-      description:
-        "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)",
+      description: "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)",
     },
     {
       name: ["--reuse-session", "--reuse_session", "--rs"],
-      description:
-        "Share browsers among the tests of the run (SB_REUSE_SESSION)",
+      description: "Share browsers among the tests of the run (SB_REUSE_SESSION)",
     },
     {
       name: ["--rcs", "--reuse-class-session", "--reuse_class_session"],
-      description:
-        "Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)",
+      description: "Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)",
     },
     {
       name: "--mobile",
@@ -3152,8 +3138,7 @@ const completion: Fig.Spec = {
     },
     {
       name: ["--rec-sb-cdp", "--rec_sb_cdp"],
-      description:
-        "Write recordings as pure CDP code (sb_cdp Page and Locator calls)",
+      description: "Write recordings as pure CDP code (sb_cdp Page and Locator calls)",
     },
     {
       name: ["-h", "--help"],
