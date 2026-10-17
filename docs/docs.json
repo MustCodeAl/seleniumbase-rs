@@ -4,6 +4,9 @@
   "colors": {
     "primary": "#CE422B"
   },
+  "feedback": {
+    "thumbsRating": true
+  },
   "navigation": {
     "groups": [
       {
