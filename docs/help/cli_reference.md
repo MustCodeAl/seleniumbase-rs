@@ -45,6 +45,12 @@ A Rust port of the Python SeleniumBase testing framework. Provides browser autom
   **Aliases:** `--rec_sb_cdp`
 - **`-n --threads <THREADS>`** — Number of parallel threads for test runs
 - **`-c --config <CONFIG>`** — Path to a TOML/JSON settings file
+- **`--plugin <NAME>`** — Turn on a built-in plugin in the browsers the command starts (repeatable)
+
+  Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
+- **`--plugin-opt <NAME.KEY=VALUE>`** — Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
+
+  Quote the whole option so the shell keeps the quotes of a string: --plugin-opt 'shield.level="strict"'. An option given here replaces the same option from SB_PLUGINS or the settings file and keeps the plugin's other options, so the precedence is the command line, then SB_PLUGINS, then the file. The plugin must be turned on by --plugin, SB_PLUGINS or the file. Not available for `sbrs test`: put the options in the [plugins.NAME] table of the settings file.
 - **`-h --help`** — Print help
 - **`-V --version`** — Print version
 
@@ -930,7 +936,7 @@ Without a version, chromedriver and edgedriver are the drivers for the installed
 
 Run the project's tests, or one example, through Cargo.
 
-The global options reach the tests as SB_* environment variables (for example `sbrs --headless --browser firefox test` sets SB_HEADLESS and SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets how many tests run at once.
+The global options reach the tests as SB_* environment variables (for example `sbrs --headless --browser firefox test` sets SB_HEADLESS and SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets how many tests run at once. `--plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `--plugin-opt` cannot be passed on, so `sbrs test` refuses it.
 
 ### Arguments
 - **`[FILTER]`** — Run only the tests whose name contains this text.
@@ -1355,4 +1361,40 @@ Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HT
 - **`--browser-path <PATH>`** — Browser binary to launch, such as Microsoft Edge or another Chromium browser
 - **`--url <URL>`** — Page to open once the browser runs
 - **`--json`** — Print the endpoint and configs as one line of JSON instead of text
+- **`-h --help`** — Print help
+
+## `sbrs plugin`
+
+- **Usage:** `sbrs plugin <SUBCOMMAND>`
+
+List the built-in plugins, or show what one declares.
+
+Plugins run inside the browsers a command starts. Turn them on by name with the global options --plugin and --plugin-opt, the SB_PLUGINS variable, or the [plugins] table of the settings file; the command line wins over SB_PLUGINS, which wins over the file. `sbrs plugin list` shows the plugins this build has.
+
+### Flags
+- **`-h --help`** — Print help
+
+## `sbrs plugin list`
+
+- **Usage:** `sbrs plugin list`
+
+List the built-in plugins of this build, and whether they are on.
+
+Prints each plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global --plugin option turns it on. A build without built-in plugins says so; rebuild it with --features plugins-builtin.
+
+### Flags
+- **`-h --help`** — Print help
+
+## `sbrs plugin info`
+
+- **Usage:** `sbrs plugin info <NAME>`
+
+Show what one plugin declares and what it may do.
+
+Prints the plugin's category, phase, capabilities (with their risk, and whether the host enforces them), what it needs, its place among the other plugins and the options it was given. Exits with status 2 and lists the known names when there is no such plugin.
+
+### Arguments
+- **`<NAME>`** — The plugin's name, as `sbrs plugin list` shows it.
+
+### Flags
 - **`-h --help`** — Print help

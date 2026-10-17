@@ -2360,6 +2360,44 @@ const completionSpec: Fig.Spec = {
       ],
     },
     {
+      name: "plugin",
+      description: "List the built-in plugins, or show what one declares.",
+      subcommands: [
+        {
+          name: "list",
+          description: "List the built-in plugins of this build, and whether they are on.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "info",
+          description: "Show what one plugin declares and what it may do.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "name",
+              description: "The plugin's name, as `sbrs plugin list` shows it.",
+            },
+          ],
+        },
+      ],
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+    },
+    {
       name: "help",
       description: "Print this message or the help of the given subcommand(s)",
       args: { name: "subcommand", isOptional: true, isVariadic: true },
@@ -2489,6 +2527,22 @@ const completionSpec: Fig.Spec = {
       description: "Path to a TOML/JSON settings file",
       args: {
         name: "config",
+      },
+    },
+    {
+      name: "--plugin",
+      description: "Turn on a built-in plugin in the browsers the command starts (repeatable)",
+      isRepeatable: true,
+      args: {
+        name: "name",
+      },
+    },
+    {
+      name: "--plugin-opt",
+      description: "Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)",
+      isRepeatable: true,
+      args: {
+        name: "name.key=value",
       },
     },
     {

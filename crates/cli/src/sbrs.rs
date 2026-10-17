@@ -15,6 +15,7 @@ use seleniumbase_rs::cli::commands::{
 use seleniumbase_rs::cli::devtools::{
     ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
 };
+use seleniumbase_rs::cli::plugin_cmd;
 use seleniumbase_rs::cli::prompt;
 use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
 use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
@@ -27,6 +28,7 @@ use seleniumbase_rs::common::shutdown::{
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::browser::driver_version::binary_major;
+use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 use seleniumbase_rs::resources::assets;
@@ -135,6 +137,39 @@ struct PromptArgs {
         help = "Explain on standard error what was found and how"
     )]
     verbose: bool,
+}
+
+// The `plugin` command: it holds only its own subcommands. (Plain comments, not docs: a
+// doc comment on this struct would be help text.)
+#[derive(Debug, usage::Args)]
+struct PluginArgs {
+    #[usage(subcommand)]
+    command: PluginCommand,
+}
+
+#[derive(Debug, usage::Subcommands)]
+enum PluginCommand {
+    /// List the built-in plugins of this build, and whether they are on.
+    ///
+    /// Prints each plugin's name, category and summary, and `yes` under ENABLED when the
+    /// settings file, SB_PLUGINS or the global --plugin option turns it on. A build without
+    /// built-in plugins says so; rebuild it with --features plugins-builtin.
+    List,
+    /// Show what one plugin declares and what it may do.
+    ///
+    /// Prints the plugin's category, phase, capabilities (with their risk, and whether the
+    /// host enforces them), what it needs, its place among the other plugins and the options
+    /// it was given. Exits with status 2 and lists the known names when there is no such
+    /// plugin.
+    Info(PluginInfoArgs),
+}
+
+// The argument of `plugin info`. (Plain comments, not docs: a doc comment on this struct
+// would be help text.)
+#[derive(Debug, usage::Args)]
+struct PluginInfoArgs {
+    /// The plugin's name, as `sbrs plugin list` shows it.
+    name: String,
 }
 
 // The options `grid-hub` and `grid-node` share. (Plain comments, not docs: a doc
@@ -364,6 +399,24 @@ struct Cli {
     threads: Option<usize>,
     #[usage(short = 'c', long, help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
+    /// Turn on a built-in plugin in the browsers the command starts (repeatable)
+    ///
+    /// Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on.
+    /// Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names
+    /// the file enables), then the settings file. `sbrs plugin list` shows the plugins this
+    /// build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
+    #[usage(long, value_name = "NAME")]
+    plugin: Vec<String>,
+    /// Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
+    ///
+    /// Quote the whole option so the shell keeps the quotes of a string:
+    /// --plugin-opt 'shield.level="strict"'. An option given here replaces the same option
+    /// from SB_PLUGINS or the settings file and keeps the plugin's other options, so the
+    /// precedence is the command line, then SB_PLUGINS, then the file. The plugin must be
+    /// turned on by --plugin, SB_PLUGINS or the file. Not available for `sbrs test`: put
+    /// the options in the [plugins.NAME] table of the settings file.
+    #[usage(long, value_name = "NAME.KEY=VALUE")]
+    plugin_opt: Vec<String>,
     #[usage(subcommand)]
     command: Commands,
 }
@@ -828,7 +881,9 @@ enum Commands {
     /// The global options reach the tests as SB_* environment variables (for
     /// example `sbrs --headless --browser firefox test` sets SB_HEADLESS and
     /// SB_BROWSER), so a test that loads `Settings` sees them, and `-n` sets
-    /// how many tests run at once.
+    /// how many tests run at once. `--plugin` reaches them as SB_PLUGINS, with the
+    /// plugins the settings file and the variable already turn on; `--plugin-opt`
+    /// cannot be passed on, so `sbrs test` refuses it.
     Test {
         /// Run only the tests whose name contains this text.
         #[usage(conflicts("--example"))]
@@ -1199,6 +1254,13 @@ enum Commands {
         )]
         json: bool,
     },
+    /// List the built-in plugins, or show what one declares.
+    ///
+    /// Plugins run inside the browsers a command starts. Turn them on by name with the
+    /// global options --plugin and --plugin-opt, the SB_PLUGINS variable, or the [plugins]
+    /// table of the settings file; the command line wins over SB_PLUGINS, which wins over
+    /// the file. `sbrs plugin list` shows the plugins this build has.
+    Plugin(PluginArgs),
 }
 
 /// The error of a token that would not open. The library's own error names the cipher and its
@@ -1249,6 +1311,49 @@ fn write_creating_parent(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 }
 
 impl Commands {
+    /// Whether the command starts a browser through `BaseCase`, so that the plugins the
+    /// command line names must exist and are given to that browser.
+    ///
+    /// `devtools` is not here: it starts a browser of its own, in the Pure CDP engine, and
+    /// checks and gives it the plugins itself. `test` is not here either: the tests it runs
+    /// are built by the project, with the plugins the project has, so it only passes the
+    /// names on.
+    fn launches_browser(&self) -> bool {
+        match self {
+            Self::Version
+            | Self::PatchChromedriver { .. }
+            | Self::PatchChrome { .. }
+            | Self::Encrypt { .. }
+            | Self::Decrypt { .. }
+            | Self::Doctor
+            | Self::Prompt(_)
+            | Self::Install { .. }
+            | Self::Test { .. }
+            | Self::GridHub(_)
+            | Self::GridNode(_)
+            | Self::Translate { .. }
+            | Self::Mkdir { .. }
+            | Self::Mkfile { .. }
+            | Self::Commander
+            | Self::Caseplans { .. }
+            | Self::BehaveGui { .. }
+            | Self::Print { .. }
+            | Self::Objectify
+            | Self::Mkpres { .. }
+            | Self::Mkchart { .. }
+            | Self::Mkrec { .. }
+            | Self::Completions { .. }
+            | Self::ImportPython { .. }
+            | Self::ImportPlaywright { .. }
+            | Self::ImportPuppeteer { .. }
+            | Self::Devtools { .. }
+            | Self::Plugin(_) => false,
+            #[cfg(feature = "turso")]
+            Self::Report { .. } => false,
+            _ => true,
+        }
+    }
+
     /// Whether the command speaks the DevTools Protocol, so that it needs a
     /// session with a DevTools connection when no mode was asked for.
     fn needs_devtools(&self) -> bool {
@@ -1806,6 +1911,8 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     // Listen before the browser starts, so a Ctrl-C during the start is heard.
     let mut shutdown = Shutdown::install()?;
     let (executable, use_chromium, name) = devtools_browser(args.browser, browser_path.as_deref())?;
+    let plugins = plugin_selection(args)?;
+    plugin_cmd::check_selection(&plugins)?;
     let request = DevtoolsRequest {
         headless: if *headless || args.headless {
             Some(true)
@@ -1830,6 +1937,7 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         ad_block: args.ad_block,
         extension_dir: args.extension_dir.as_deref().map(PathBuf::from),
         url: url.as_deref().map(navigable_url).transpose()?,
+        plugins,
     };
     if args.uc || args.cdp {
         rich_helper::print_notice(
@@ -1967,6 +2075,27 @@ impl CompletionFormat {
     }
 }
 
+/// The plugins a command line asks for: the `[plugins]` table of the settings file and
+/// `SB_PLUGINS` (nothing else of the settings is read), with `--plugin` and `--plugin-opt`
+/// on top.
+fn plugin_selection(args: &Cli) -> Result<PluginSelection, Box<dyn std::error::Error>> {
+    let mut selection = Settings::load_plugin_selection(args.config.as_deref())?;
+    selection.apply_flags(&args.plugin, &args.plugin_opt)?;
+    Ok(selection)
+}
+
+/// `sbrs plugin list` and `sbrs plugin info NAME`. They start no browser and read only the
+/// plugin part of the settings, so a variable that is wrong for a browser does not stop them.
+fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
+    let selection = plugin_selection(args)?;
+    let text = match command {
+        PluginCommand::List => plugin_cmd::list(&selection),
+        PluginCommand::Info(info) => plugin_cmd::info(&info.name, &selection)?,
+    };
+    std::io::stdout().lock().write_all(text.as_bytes())?;
+    Ok(())
+}
+
 async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
@@ -2097,6 +2226,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Devtools { .. } => return run_devtools(&args).await,
         Commands::Prompt(options) => return run_prompt(options).await,
+        Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args),
         _ => {}
     }
 
@@ -2160,6 +2290,26 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     config.mode = mode;
     config.auto_start_driver = true;
+
+    // The plugins: what the settings file and `SB_PLUGINS` turn on (`settings.plugins`), with
+    // `--plugin` and `--plugin-opt` on top. A browser is not started with a mistake in them.
+    let mut selection = settings.plugins.clone();
+    selection.apply_flags(&args.plugin, &args.plugin_opt)?;
+    if matches!(args.command, Commands::Test { .. }) && !args.plugin_opt.is_empty() {
+        return Err(seleniumbase_rs::SeleniumBaseError::invalid_config(
+            "`sbrs test` cannot pass --plugin-opt to the tests: SB_PLUGINS carries plugin names \
+             only. Put the options in the [plugins.NAME] table of the settings file",
+        )
+        .into());
+    }
+    let forward_plugins = !args.plugin.is_empty();
+    if args.command.launches_browser() {
+        plugin_cmd::check_selection(&selection)?;
+        #[cfg(feature = "plugins")]
+        {
+            config = config.with_plugin_selection(&selection)?;
+        }
+    }
 
     match args.command {
         Commands::Open { url } => {
@@ -2743,6 +2893,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if config.webdriver_url != "http://localhost:4444" {
                 test_run = test_run.env("SB_WEBDRIVER_URL", config.webdriver_url.clone());
             }
+            // The variable replaces the names the file enables, so it carries all of them.
+            if forward_plugins {
+                test_run = test_run.env("SB_PLUGINS", selection.to_list());
+            }
             let status = test_run.status()?;
             if !status.success() {
                 std::process::exit(status.code().unwrap_or(1));
@@ -3081,6 +3235,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::ImportPython { .. }
         | Commands::ImportPlaywright { .. }
         | Commands::ImportPuppeteer { .. }
+        | Commands::Plugin(_)
         | Commands::Prompt(_) => {
             unreachable!("pure CLI commands return before browser configuration")
         }
@@ -3223,6 +3378,115 @@ mod devtools_cli_tests {
             Some("host:1".to_owned())
         );
         assert_eq!(resolve_proxy(None, None).expect("no proxy"), None);
+    }
+}
+
+#[cfg(test)]
+mod plugin_cli_tests {
+    use super::*;
+
+    /// Parses `argv`, whose first word is the program name.
+    fn try_parse(argv: &[&str]) -> Result<Cli, String> {
+        let argv: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsStr::new).collect();
+        Cli::parse_from_argv(&argv).map_err(|error| Cli::render_failure(&argv, &error))
+    }
+
+    fn parse(argv: &[&str]) -> Cli {
+        try_parse(argv).expect("the arguments parse")
+    }
+
+    #[test]
+    fn the_plugin_options_repeat_and_come_before_the_command() {
+        let cli = parse(&[
+            "sbrs",
+            "--plugin",
+            "shield",
+            "--plugin-opt",
+            r#"shield.level="strict""#,
+            "--plugin",
+            "block-resources",
+            "--plugin-opt",
+            r#"block-resources.preset="media""#,
+            "open",
+            "https://example.test/",
+        ]);
+
+        assert_eq!(cli.plugin, ["shield", "block-resources"]);
+        assert_eq!(
+            cli.plugin_opt,
+            [
+                r#"shield.level="strict""#,
+                r#"block-resources.preset="media""#
+            ]
+        );
+        assert!(matches!(cli.command, Commands::Open { .. }));
+        assert!(parse(&["sbrs", "open", "x"]).plugin.is_empty());
+        assert!(parse(&["sbrs", "open", "x"]).plugin_opt.is_empty());
+    }
+
+    #[test]
+    fn a_plugin_option_after_the_command_is_refused_like_the_other_global_options() {
+        assert!(try_parse(&["sbrs", "open", "x", "--plugin", "shield"]).is_err());
+        assert!(try_parse(&["sbrs", "open", "x", "--plugin-opt", "a.b=1"]).is_err());
+        assert!(
+            try_parse(&["sbrs", "--plugin"]).is_err(),
+            "a name is required"
+        );
+    }
+
+    #[test]
+    fn the_plugin_commands_are_list_and_info_with_a_name() {
+        let list = parse(&["sbrs", "plugin", "list"]);
+        assert!(matches!(
+            list.command,
+            Commands::Plugin(PluginArgs {
+                command: PluginCommand::List
+            })
+        ));
+
+        let info = parse(&["sbrs", "--plugin", "shield", "plugin", "info", "shield"]);
+        assert_eq!(info.plugin, ["shield"]);
+        let Commands::Plugin(PluginArgs {
+            command: PluginCommand::Info(info),
+        }) = info.command
+        else {
+            panic!("not plugin info");
+        };
+        assert_eq!(info.name, "shield");
+    }
+
+    #[test]
+    fn the_plugin_commands_need_their_subcommand_and_their_name() {
+        for argv in [
+            &["sbrs", "plugin"][..],
+            &["sbrs", "plugin", "info"],
+            &["sbrs", "plugin", "remove", "shield"],
+            &["sbrs", "plugin", "list", "extra"],
+        ] {
+            assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
+        }
+    }
+
+    #[test]
+    fn only_the_commands_that_start_a_browser_check_and_get_the_plugins() {
+        let launches = |argv: &[&str]| parse(argv).command.launches_browser();
+
+        assert!(launches(&["sbrs", "open", "x"]));
+        assert!(launches(&["sbrs", "get-title"]));
+        assert!(launches(&["sbrs", "record", "x"]));
+        assert!(launches(&["sbrs", "run-scenario", "--file", "s.json"]));
+        for argv in [
+            &["sbrs", "doctor"][..],
+            &["sbrs", "version"],
+            &["sbrs", "devtools"],
+            &["sbrs", "test"],
+            &["sbrs", "plugin", "list"],
+            &["sbrs", "completions", "bash"],
+            &["sbrs", "install"],
+            &["sbrs", "mkfile", "tests/a.rs"],
+        ] {
+            assert!(!launches(argv), "{argv:?} starts no BaseCase browser");
+        }
     }
 }
 

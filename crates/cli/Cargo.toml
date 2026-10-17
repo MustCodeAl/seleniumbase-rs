@@ -54,10 +54,19 @@ dirs = "7.0"
 tracing = "0.1"
 
 [features]
-# The prebuilt binaries and `cargo install` carry PDF text extraction and the MCP
-# server, as the release workflow always built them. The terminal UI, the desktop
-# dialogs and the results database stay opt-in, as in the library.
-default = ["pdf", "mcp-server"]
+# The prebuilt binaries and `cargo install` carry PDF text extraction, the MCP
+# server and the built-in browser plugins (`--plugin NAME`, `sbrs plugin list`), as
+# the release workflow builds them. The terminal UI, the desktop dialogs and the
+# results database stay opt-in, as in the library.
+default = ["pdf", "mcp-server", "plugins-builtin"]
+# The plugin API and its hooks, with no plugin of its own: a build with this and no
+# `plugin-*` feature accepts no name, and says which features add one.
+plugins = ["seleniumbase-rs/plugins"]
+# The built-in plugins, one feature each as in the library, and all of them.
+plugin-shield = ["plugins", "seleniumbase-rs/plugin-shield"]
+plugin-block-resources = ["plugins", "seleniumbase-rs/plugin-block-resources"]
+plugin-crx = ["plugins", "seleniumbase-rs/plugin-crx"]
+plugins-builtin = ["plugins", "seleniumbase-rs/plugins-builtin"]
 # `sbrs pdf-text` and `sbrs assert-pdf-text`.
 pdf = ["seleniumbase-rs/pdf"]
 # The `sbrs-mcp` binary.
