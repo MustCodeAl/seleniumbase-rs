@@ -1809,10 +1809,42 @@ impl BaseCase {
         )))
     }
 
-    /// Executes the `click_if_visible` action.
+    /// Clicks `css` if it is displayed now, and does nothing if it is not, as
+    /// Python's `click_if_visible(selector)` does with its default
+    /// `timeout=0`. To give an element time to show up, see
+    /// [`click_if_visible_with_timeout`](Self::click_if_visible_with_timeout).
     pub async fn click_if_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.click_if_visible_with_timeout(css, Duration::ZERO)
+            .await
+    }
+
+    /// Clicks `css` if it is displayed, waiting up to `timeout` for it to show
+    /// up; if it does not, nothing is clicked and the call succeeds. This is
+    /// Python's `click_if_visible(selector, timeout=...)`: once the element has
+    /// appeared it waits 0.2 s and looks again before it clicks.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the click itself. An element that cannot be looked
+    /// up (a selector the browser rejects) is one that is not displayed.
+    pub async fn click_if_visible_with_timeout(
+        &mut self,
+        css: &str,
+        timeout: Duration,
+    ) -> Result<(), SeleniumBaseError> {
         if self.is_displayed(css).await.unwrap_or(false) {
-            self.click(css).await?;
+            return self.click(css).await;
+        }
+        let deadline = std::time::Instant::now() + timeout;
+        while std::time::Instant::now() < deadline {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            if self.is_displayed(css).await.unwrap_or(false) {
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                if self.is_displayed(css).await.unwrap_or(false) {
+                    self.click(css).await?;
+                }
+                break;
+            }
         }
         Ok(())
     }
@@ -2871,14 +2903,16 @@ impl BaseCase {
         }
     }
 
-    /// Get the browser locale code.
+    /// Get the browser locale code: `navigator.language`, else the first of
+    /// `navigator.languages`, as Python's `get_locale_code` does. The empty
+    /// string if the browser reports neither; no locale is made up.
     pub async fn get_locale_code(&self) -> Result<String, SeleniumBaseError> {
         match self
-            .execute_script("return navigator.language || 'en-US';")
+            .execute_script("return navigator.language || navigator.languages[0];")
             .await?
         {
-            Value::String(l) => Ok(l),
-            _ => Ok("en-US".to_owned()),
+            Value::String(locale) => Ok(locale),
+            _ => Ok(String::new()),
         }
     }
 

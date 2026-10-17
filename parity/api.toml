@@ -338,6 +338,7 @@ rust = "BaseCase::click_chain"
 [basecase."click_if_visible"]
 status = "implemented"
 rust = "BaseCase::click_if_visible"
+divergence = "Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument."
 
 [basecase."click_link"]
 status = "implemented"

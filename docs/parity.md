@@ -115,7 +115,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `click` | implemented | `BaseCase::click` | Differs: Takes CSS or XPath; there is no per-call timeout argument (use set_timeout). |
 | `click_active_element` | implemented | `BaseCase::click_active_element` |  |
 | `click_chain` | implemented | `BaseCase::click_chain` |  |
-| `click_if_visible` | implemented | `BaseCase::click_if_visible` |  |
+| `click_if_visible` | implemented | `BaseCase::click_if_visible` | Differs: Looks once, like Python's default `timeout=0`; `click_if_visible_with_timeout(selector, Duration)` waits for the element. There is no `scroll` argument. |
 | `click_link` | implemented | `BaseCase::click_link` |  |
 | `click_link_text` | implemented | `BaseCase::click_link_text` |  |
 | `click_nth_visible_element` | implemented | `BaseCase::click_nth_visible_element` | Differs: Counts from 0; Python counts from 1. |

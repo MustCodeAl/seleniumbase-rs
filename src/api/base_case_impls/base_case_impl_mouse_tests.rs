@@ -1,6 +1,89 @@
-// Tests of the clicks at an offset from an element, against the mock
+// Tests of the clicks that depend on where or whether the element is (at an
+// offset, only if visible), and of `get_locale_code`, against the mock
 // WebDriver in `webdriver_support` (no browser needed). Included (for tests
 // only) at the end of `base_case.rs` like the files beside it.
+
+mod tests_conditional_click {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::*;
+    use serde_json::json;
+    use std::time::Instant;
+
+    /// A page with one element, `#a`, that is displayed once `shown_after` has
+    /// passed since the page was made.
+    fn page(shown_after: Duration) -> MockWebDriver {
+        let born = Instant::now();
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("a")),
+                ("GET", "/element/a/displayed") => {
+                    Reply::Value(json!(born.elapsed() >= shown_after))
+                }
+                ("GET", "/element/a/enabled") => Reply::Value(json!(true)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn click_if_visible_looks_once_like_pythons_default() {
+        let driver = page(Duration::from_millis(300));
+        let mut sb = driver.base_case().await;
+        sb.click_if_visible("#a").await.unwrap();
+        assert!(driver.requests("/element/a/click").is_empty());
+
+        // Later, when it is displayed, the same call clicks.
+        tokio::time::sleep(Duration::from_millis(350)).await;
+        sb.click_if_visible("#a").await.unwrap();
+        assert_eq!(driver.requests("/element/a/click").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn click_if_visible_with_a_timeout_waits_for_the_element() {
+        let driver = page(Duration::from_millis(150));
+        let mut sb = driver.base_case().await;
+
+        sb.click_if_visible_with_timeout("#a", Duration::from_secs(3))
+            .await
+            .unwrap();
+
+        assert_eq!(driver.requests("/element/a/click").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn click_if_visible_with_a_timeout_gives_up_without_an_error() {
+        let driver = page(Duration::from_secs(3600));
+        let mut sb = driver.base_case().await;
+
+        let started = Instant::now();
+        sb.click_if_visible_with_timeout("#a", Duration::from_millis(120))
+            .await
+            .unwrap();
+
+        assert!(started.elapsed() >= Duration::from_millis(120));
+        assert!(driver.requests("/element/a/click").is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_locale_is_what_the_browser_reports_and_nothing_made_up() {
+        // A browser with no locale at all answers `undefined`, which is `null`.
+        let driver = MockWebDriver::start(json!({}), |_| Reply::Value(Value::Null));
+        let sb = driver.base_case().await;
+        assert_eq!(sb.get_locale_code().await.unwrap(), "");
+        let script = driver.requests("/execute/sync").last().unwrap().body["script"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert!(
+            script.contains("navigator.languages[0]") && !script.contains("en-US"),
+            "{script}"
+        );
+
+        let driver = MockWebDriver::start(json!({}), |_| Reply::Value(json!("de-DE")));
+        let sb = driver.base_case().await;
+        assert_eq!(sb.get_locale_code().await.unwrap(), "de-DE");
+    }
+}
 
 mod tests_offset_clicks {
     use super::webdriver_support::{element, MockWebDriver, Reply};

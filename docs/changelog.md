@@ -433,6 +433,10 @@ migrate.
 - `BaseCase::demo_pauses()` (feature `test-util`) lists the `PauseKind` of each
   pause demo and slow mode have made, so a test can assert that an action
   paused without timing it.
+- `BaseCase::click_if_visible_with_timeout(selector, Duration)` waits up to the
+  time given for the element to be displayed before it gives up without an
+  error, as Python's `click_if_visible(selector, timeout=...)` does;
+  `click_if_visible(selector)` still looks once, like Python's `timeout=0`.
 - `BaseCase::cdp_insert_text(text)`: `Input.insertText` into whatever has focus,
   the honest name of `cdp_type_text`, which types nothing (it inserts, with no
   key events).
@@ -578,6 +582,9 @@ migrate.
 
 ### Fixed
 
+- `BaseCase::get_locale_code` made up `en-US` when the browser gave no
+  language; Python returns what `navigator.language || navigator.languages[0]`
+  answers, and so does this now (the empty string for no locale).
 - `BaseCase::cdp_click_element` pressed at WebDriver's rectangle of the
   element, which is in the document, but the DevTools mouse event takes
   viewport coordinates, so on a page scrolled by N pixels the click landed N
