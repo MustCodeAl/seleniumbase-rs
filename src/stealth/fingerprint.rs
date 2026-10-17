@@ -1792,6 +1792,12 @@ impl FingerprintBuilder {
         } = self;
 
         refuse_useless_off(&fields)?;
+        if fields.proxy.value().is_some_and(|proxy| proxy.host.is_empty()) {
+            return Err(FingerprintError::Incoherent {
+                setting: "proxy",
+                reason: "the proxy has no host".to_owned(),
+            });
+        }
         if !os_type_set {
             if let Some(os) = fields.user_agent.as_str().and_then(os_of_user_agent) {
                 fields.os_type = os;
@@ -2607,6 +2613,23 @@ mod tests {
         assert!(fp.geolocation().is_off() && fp.client_hints().is_off() && fp.battery().is_off());
         assert!(fp.webrtc().is_off() && fp.media_devices().is_off() && fp.bluetooth().is_off());
         assert!(fp.speech_voices().is_off() && fp.connection().is_off());
+    }
+
+    #[test]
+    fn a_proxy_without_a_host_is_refused_because_it_would_send_nothing_anywhere() {
+        let error = Fingerprint::builder()
+            .proxy(ProxyConfig::default())
+            .build()
+            .unwrap_err();
+        assert!(
+            matches!(error, FingerprintError::Incoherent { setting: "proxy", .. }),
+            "{error:?}"
+        );
+        let fine = built(Fingerprint::builder().proxy(ProxyConfig {
+            host: "proxy.example".to_owned(),
+            ..ProxyConfig::default()
+        }));
+        assert!(fine.is_masked(Dimension::Proxy));
     }
 
     #[test]

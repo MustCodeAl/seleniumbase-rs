@@ -280,7 +280,7 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 | `speech_voices` | The system's voices. | No voice is listed. | `Speech` | The `speech` provider. |
 | `bluetooth` (`true`: an adapter, `false`: none) | Whether an adapter is there. | `navigator.bluetooth` is not there. | `Bluetooth` | The `bluetooth` provider. |
 | `client_hints` | Client Hints built the way Chromium builds them. | `navigator.userAgentData` is not there. | `ClientHints` | The `client_hints` provider, and the metadata of the user agent override. |
-| `proxy` | nothing to draw (an error) | no `Off` | `Proxy` | `--proxy-server`, when the proxy has a host. |
+| `proxy` | nothing to draw (an error) | no `Off` | `Proxy` | `--proxy-server`. A proxy without a host is an error. |
 
 A `Natural` setting changes nothing, so the providers define only the values the
 fingerprint holds.
