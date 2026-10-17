@@ -21,9 +21,7 @@ use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::stealth::evasions::bootstrap_script;
-use seleniumbase_rs::stealth::fingerprint::{
-    BatteryProfile, ConnectionProfile, Fingerprint, MaskingMode,
-};
+use seleniumbase_rs::stealth::fingerprint::{BatteryProfile, ConnectionProfile, Fingerprint};
 use seleniumbase_rs::stealth::providers::{
     builtin, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
 };
@@ -201,8 +199,12 @@ async fn no_provider_leaves_a_name_or_property_a_page_can_see() {
     fp.longitude = Some(2.35);
     fp.webgl_vendor_id = Some("0x10de".to_owned());
     fp.webgl_renderer_id = Some("0x1f91".to_owned());
-    fp.flags.audio_masking = MaskingMode::Mask;
-    fp.flags.media_devices_masking = MaskingMode::Mask;
+    // Values turn their providers on: an audio seed, the device counts and the
+    // tracker list.
+    fp.audio_seed = Some(7);
+    fp.audio_inputs = Some(1);
+    fp.audio_outputs = Some(1);
+    fp.video_inputs = Some(1);
     fp.flags.block_trackers = true;
     lab.page
         .evaluate(bootstrap_script(&fp))
@@ -642,7 +644,7 @@ async fn audio_noise_is_the_same_on_every_read() {
     })()"##;
     let before = lab.eval(render).await;
     let mut fp = persona();
-    fp.flags.audio_masking = MaskingMode::Mask;
+    fp.audio_seed = Some(7);
     lab.install(&fp, &["audio_noise"]).await;
 
     let after = lab.eval(render).await;
@@ -684,7 +686,6 @@ async fn audio_noise_is_the_same_on_every_read() {
 async fn tracker_blocking_matches_hosts_and_covers_fetch_xhr_and_beacons() {
     let lab = lab().await;
     let mut fp = persona();
-    fp.flags.block_trackers = true;
     fp.blocked_trackers = vec!["localhost".to_owned()];
     lab.install(&fp, &["tracker_block"]).await;
 

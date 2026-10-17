@@ -28,7 +28,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::stealth::fingerprint::{ConnectionProfile, Fingerprint, MaskingMode};
+use seleniumbase_rs::stealth::fingerprint::{ConnectionProfile, Fingerprint};
 use seleniumbase_rs::stealth::providers::{
     builtin, session_registry, EvasionConfig, EvasionContext, EvasionRegistry,
 };
@@ -457,7 +457,6 @@ async fn plugins_mime_types_the_pdf_flag_and_connection_are_the_browsers_own() {
 
     // A persona whose network report is far from anything a loopback Chrome says.
     let mut fingerprint = persona();
-    fingerprint.flags.connection_masking = MaskingMode::Mask;
     fingerprint.connection = Some(ConnectionProfile {
         effective_type: "slow-2g".to_owned(),
         rtt: 2_777,
@@ -514,8 +513,11 @@ fn only(name: &str) -> EvasionRegistry {
 #[ignore = "launches a real Chrome"]
 async fn every_session_provider_runs_in_chrome_without_throwing() {
     let mut fingerprint = persona();
-    fingerprint.flags.audio_masking = MaskingMode::Mask;
-    fingerprint.flags.media_devices_masking = MaskingMode::Mask;
+    // A generated identity has an audio seed; the media devices and the fonts
+    // are values that turn their providers on.
+    fingerprint.audio_inputs = Some(1);
+    fingerprint.audio_outputs = Some(1);
+    fingerprint.video_inputs = Some(1);
     fingerprint.fonts = vec!["Arial".to_owned()];
     let lab = lab(None).await;
     // A script error must reach the test, not be swallowed by the snippet.
