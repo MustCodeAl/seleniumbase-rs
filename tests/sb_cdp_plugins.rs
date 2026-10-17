@@ -19,7 +19,7 @@ use seleniumbase_rs::plugin_api::{
     PluginError, PluginSet, Requirements, Result as PluginResult,
 };
 use seleniumbase_rs::sb_cdp::{Browser, Call, LaunchOptions, MockCtrl};
-use seleniumbase_rs::{Fingerprint, OsType, SeleniumBaseError};
+use seleniumbase_rs::{Fingerprint, SeleniumBaseError};
 use serde_json::json;
 
 /// What the hooks of the plugins in one test saw, in order.
@@ -758,10 +758,17 @@ async fn the_ad_block_list_of_the_launch_stays_when_a_plugin_blocks_urls() {
     assert_eq!(blocked.last().map(String::as_str), Some("*://b.example/*"));
 }
 
+/// A fingerprint that blocks the tracker hosts.
+fn tracker_blocking_fingerprint() -> Fingerprint {
+    Fingerprint::builder()
+        .block_trackers(true)
+        .build()
+        .expect("the builder builds")
+}
+
 #[tokio::test]
 async fn the_tracker_hosts_of_a_fingerprint_stay_when_a_plugin_blocks_urls() {
-    let mut fingerprint = Fingerprint::randomized(OsType::Linux, 7);
-    fingerprint.flags.block_trackers = true;
+    let fingerprint = tracker_blocking_fingerprint();
     let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
 
     for ad_block in [false, true] {
@@ -796,8 +803,7 @@ async fn the_tracker_hosts_of_a_fingerprint_stay_when_a_plugin_blocks_urls() {
 
 #[tokio::test]
 async fn ad_block_does_not_replace_the_trackers_of_a_fingerprint() {
-    let mut fingerprint = Fingerprint::randomized(OsType::Linux, 7);
-    fingerprint.flags.block_trackers = true;
+    let fingerprint = tracker_blocking_fingerprint();
     let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
     let mock = MockCtrl::new();
     let options = LaunchOptions::builder()

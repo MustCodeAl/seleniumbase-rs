@@ -2029,10 +2029,12 @@ mod ad_block_tests {
 
     #[test]
     fn the_trackers_of_a_fingerprint_go_with_the_ad_block_list() {
-        use crate::stealth::fingerprint::{Fingerprint, OsType};
+        use crate::stealth::fingerprint::Fingerprint;
 
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        fingerprint.flags.block_trackers = true;
+        let fingerprint = Fingerprint::builder()
+            .block_trackers(true)
+            .build()
+            .expect("the builder builds");
         let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
 
         let mut config = BrowserConfig::default()
