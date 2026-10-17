@@ -2902,7 +2902,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let outcome = match entry {
                     DeferredSpec::Element(selector) => sb.assert_element(selector).await,
                     DeferredSpec::Text(selector, expected) => {
-                        sb.assert_text(selector, expected).await
+                        sb.assert_text(expected, selector).await
                     }
                     DeferredSpec::Title(expected) => sb.assert_title_contains(expected).await,
                     DeferredSpec::Url(expected) => sb.assert_url_contains(expected).await,

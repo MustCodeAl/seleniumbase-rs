@@ -54,7 +54,7 @@ async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
     // sleeping.
     sb.post_success_message("All good!").await?;
     sb.wait_for_element_visible("#sb-toast-message", 5).await?;
-    sb.assert_exact_text("#sb-toast-message", "All good!")
+    sb.assert_exact_text("All good!", "#sb-toast-message")
         .await?;
 
     // Referral helper: opens the start page, builds a link to the destination in
@@ -66,7 +66,7 @@ async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
         sb.get_current_url().await? == landing,
         "the click led to the landing page",
     )?;
-    sb.assert_exact_text("#landed", "You arrived.").await?;
+    sb.assert_exact_text("You arrived.", "#landed").await?;
     sb.open(&url).await?;
 
     // Console log capture: once recording starts, every `console.log` call is

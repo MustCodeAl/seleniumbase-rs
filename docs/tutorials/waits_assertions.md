@@ -97,10 +97,10 @@ sb.assert_title("My App").await?;
 sb.assert_title_contains("My App").await?;
 
 // Text assertions
-sb.assert_text("body", "Welcome!").await?;
+sb.assert_text("Welcome!", "body").await?;
 sb.assert_text_visible("Welcome!", "body").await?;
 sb.assert_text_not_visible("Error", "body").await?;
-sb.assert_exact_text("#greeting", "Hello, Alice").await?;
+sb.assert_exact_text("Hello, Alice", "#greeting").await?;
 
 // Element assertions
 sb.assert_element("#success").await?;

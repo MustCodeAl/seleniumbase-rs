@@ -169,7 +169,7 @@ async fn saving_a_profile() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let mut sb = BaseCase::new(config).await?;
     sb.type_text("#name", "Work").await?;
     sb.click("#save").await?;
-    sb.assert_text("#status", "Saved").await?;
+    sb.assert_text("Saved", "#status").await?;
     sb.quit().await
 }
 ```

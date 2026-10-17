@@ -279,11 +279,13 @@ impl BaseCase {
         )))
     }
 
-    /// Asserts that `text` is not visible inside `css`.
+    /// Asserts that `text` is not the visible text of `css`. The text comes
+    /// first and the selector second, as in Python's
+    /// `assert_exact_text_not_visible(text, selector)`.
     pub async fn assert_exact_text_not_visible(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         if self.is_exact_text_visible(text, css).await? {
             return Err(SeleniumBaseError::AssertionFailed(format!(

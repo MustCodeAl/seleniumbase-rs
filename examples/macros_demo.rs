@@ -73,7 +73,7 @@ async fn action_macros(sb: &mut BaseCase, url: String) -> Result<()> {
 
     sb_fill_form!(sb, "#username" => "alice", "#password" => "not-a-real-password")?;
     sb_click!(sb, "#submit")?;
-    sb_assert_text!(sb, "#status", "Signed in as alice")?;
+    sb_assert_text!(sb, "Signed in as alice", "#status")?;
 
     sb_select!(sb, "#country", "Germany")?;
     sb_wait_for!(sb, "#late")?; // waits for the element the page adds later

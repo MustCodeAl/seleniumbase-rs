@@ -223,8 +223,8 @@ fn parse_seleniumbase(statement: &str, line: usize) -> ParseOutcome {
         "check_if_unchecked" | "check" => one_string(&args, Action::Check),
         "uncheck_if_checked" | "uncheck" => one_string(&args, Action::Uncheck),
         "assert_element" | "assert_element_visible" => one_string(&args, Action::AssertElement),
-        "assert_text" => reverse_two_strings(&args, Action::AssertText),
-        "assert_exact_text" => reverse_two_strings(&args, Action::AssertExactText),
+        "assert_text" => two_strings(&args, Action::AssertText),
+        "assert_exact_text" => two_strings(&args, Action::AssertExactText),
         "assert_title" => one_string(&args, Action::AssertTitle),
         "assert_title_contains" => one_string(&args, Action::AssertTitleContains),
         "assert_url" => one_string(&args, Action::AssertUrl),
@@ -470,19 +470,6 @@ fn two_strings(args: &[String], action: impl FnOnce(String, String) -> Action) -
     }
 }
 
-fn reverse_two_strings(
-    args: &[String],
-    action: impl FnOnce(String, String) -> Action,
-) -> ParseOutcome {
-    match (
-        args.first().and_then(|arg| python_string(arg)),
-        args.get(1).and_then(|arg| python_string(arg)),
-    ) {
-        (Some(first), Some(second)) => ParseOutcome::Action(action(second, first)),
-        _ => ParseOutcome::Invalid("expected two string literal arguments".to_owned()),
-    }
-}
-
 fn wait_action(args: &[String], visible: bool) -> ParseOutcome {
     let Some(selector) = args.first().and_then(|arg| python_string(arg)) else {
         return ParseOutcome::Invalid("wait requires a string literal selector".to_owned());
@@ -670,9 +657,9 @@ fn render_action(action: &Action) -> String {
         Action::Submit(css) => format!("sb.submit({css:?}).await?;"),
         Action::Hover(css) => format!("sb.hover({css:?}).await?;"),
         Action::AssertElement(css) => format!("sb.assert_element({css:?}).await?;"),
-        Action::AssertText(css, text) => format!("sb.assert_text({css:?}, {text:?}).await?;"),
-        Action::AssertExactText(css, text) => {
-            format!("sb.assert_exact_text({css:?}, {text:?}).await?;")
+        Action::AssertText(text, css) => format!("sb.assert_text({text:?}, {css:?}).await?;"),
+        Action::AssertExactText(text, css) => {
+            format!("sb.assert_exact_text({text:?}, {css:?}).await?;")
         }
         Action::AssertTitle(title) => format!("sb.assert_title({title:?}).await?;"),
         Action::AssertTitleContains(title) => {
@@ -767,7 +754,7 @@ class LoginTests(BaseCase):
             .contains("sb.type_text(\"#username\", \"alice\")"));
         assert!(result
             .rust
-            .contains("sb.assert_text(\"main\", \"Welcome\")"));
+            .contains("sb.assert_text(\"Welcome\", \"main\")"));
         assert!(result.rust.contains("run_browser_test"));
     }
 

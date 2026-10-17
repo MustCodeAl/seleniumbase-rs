@@ -39,10 +39,10 @@ async fn home_page_works(sb: &mut BaseCase, site: &Site) -> Result<()> {
     sb.assert_title("Web Testing Page").await?;
 
     sb.type_text("#myTextInput", "hello").await?;
-    sb.assert_exact_text("#pText", "This Text is Green").await?;
+    sb.assert_exact_text("This Text is Green", "#pText").await?;
 
     sb.click("#myButton").await?;
-    sb.assert_exact_text("#pText", "This Text is Purple")
+    sb.assert_exact_text("This Text is Purple", "#pText")
         .await?;
 
     println!("home page works");

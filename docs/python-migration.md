@@ -88,9 +88,9 @@ SeleniumBase, as `self.` or `sb.` calls:
   `uncheck_if_checked`, `select_option_by_text`.
 - Assertions: `assert_element`, `assert_element_visible`, `assert_text`,
   `assert_exact_text`, `assert_title`, `assert_title_contains`, `assert_url`,
-  `assert_url_contains`. For `assert_text` and `assert_exact_text` the importer
-  swaps the arguments, because Python takes the text first and the Rust methods
-  take the selector first.
+  `assert_url_contains`. `assert_text` and `assert_exact_text` take the text
+  first and the selector second in Rust too, so the arguments are copied as
+  they are.
 - Reads: `get_text`, `get_attribute` (the value is bound to an unused variable).
 - Waits: `wait_for_element_visible`, `wait_for_element_present` (the timeout
   defaults to 10 seconds), and `sleep`.
@@ -166,7 +166,7 @@ async fn login_test() -> seleniumbase_rs::Result<()> {
         sb.type_text("#username", "alice").await?;
         sb.type_text("#password", "secret").await?;
         sb.click("#submit").await?;
-        sb.assert_text("body", "Welcome").await?;
+        sb.assert_text("Welcome", "body").await?;
         Ok(())
     })).await
 }

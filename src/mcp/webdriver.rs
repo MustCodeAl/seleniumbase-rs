@@ -666,7 +666,7 @@ pub(super) async fn assert_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     let mut case = ctx.session().await?;
     case.wait_for_text(selector, text, timeout).await?;
-    case.assert_text(selector, text).await?;
+    case.assert_text(text, selector).await?;
     Ok(format!("Confirmed '{text}' is present in {selector}.").into())
 }
 
@@ -677,7 +677,7 @@ pub(super) async fn assert_exact_text(ctx: Ctx<BaseCase>, args: Args) -> Result<
     let mut case = ctx.session().await?;
     case.wait_for_exact_text_visible(selector, text, timeout)
         .await?;
-    case.assert_exact_text(selector, text).await?;
+    case.assert_exact_text(text, selector).await?;
     Ok(format!("Confirmed {selector} text is exactly '{text}'.").into())
 }
 

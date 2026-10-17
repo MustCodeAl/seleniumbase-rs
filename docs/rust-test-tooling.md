@@ -38,7 +38,7 @@ async fn user_can_open_the_home_page() -> Result<()> {
         Box::pin(async move {
             sb.open("https://example.com").await?;
             sb.assert_element("h1").await?;
-            sb.assert_text("h1", "Example Domain").await
+            sb.assert_text("Example Domain", "h1").await
         })
     })
     .await
@@ -210,7 +210,7 @@ use seleniumbase_rs::{sb_test, BrowserConfig};
 
 sb_test!(home_page_loads, BrowserConfig::default(), |sb| {
     sb.open("https://example.com").await?;
-    sb.assert_text("h1", "Example Domain").await
+    sb.assert_text("Example Domain", "h1").await
 });
 ```
 

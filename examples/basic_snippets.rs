@@ -48,7 +48,7 @@ async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     // 3. Assertions
     // ------------------------------------------------------------------
     sb.assert_title("Web Testing Page").await?;
-    sb.assert_text("h1", "Demo Page").await?;
+    sb.assert_text("Demo Page", "h1").await?;
     sb.assert_url(&site.url(DEMO_PATH)).await?;
 
     // ------------------------------------------------------------------
@@ -59,7 +59,7 @@ async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     sb.type_text("#username", "rustacean").await?;
     sb.type_text("#password", "not-a-real-password").await?;
     sb.click("#submit").await?;
-    sb.assert_text("#status", "Signed in as rustacean").await?;
+    sb.assert_text("Signed in as rustacean", "#status").await?;
 
     // ------------------------------------------------------------------
     // 5. Hover and scroll

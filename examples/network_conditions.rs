@@ -80,6 +80,6 @@ async fn timed_load(sb: &mut BaseCase, url: &str) -> Result<Duration> {
     sb.clear_browser_cache().await?;
     let started = Instant::now();
     sb.open(url).await?;
-    sb.assert_text("h1", "Demo Page").await?;
+    sb.assert_text("Demo Page", "h1").await?;
     Ok(started.elapsed())
 }

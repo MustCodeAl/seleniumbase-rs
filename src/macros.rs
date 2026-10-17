@@ -143,10 +143,17 @@ macro_rules! sb_select {
 }
 
 /// Asserts that an element contains the expected text.
+///
+/// The text comes first and the selector second, as in Python's
+/// `assert_text(text, selector)`.
+///
+/// ```ignore
+/// sb_assert_text!(sb, "Signed in", "#status")?;
+/// ```
 #[macro_export]
 macro_rules! sb_assert_text {
-    ($sb:expr, $selector:expr, $expected:expr $(, $msg:expr)?) => {
-        $sb.assert_text($selector, $expected).await $(.expect($msg))?
+    ($sb:expr, $expected:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.assert_text($expected, $selector).await $(.expect($msg))?
     };
 }
 
@@ -384,7 +391,7 @@ macro_rules! sb_with_timeout {
 #[cfg(test)]
 mod tests {
     use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
-    use crate::{SeleniumBaseError, Selector};
+    use crate::{Selector, SeleniumBaseError};
     use serde_json::{json, Value};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -444,7 +451,10 @@ mod tests {
         sb.set_timeout(0).await.unwrap();
         let outcome = sb_wait_and_click!(sb, "#a");
         let error = outcome.expect_err("the wait failed, so the click must not run");
-        assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "{error:?}"
+        );
         assert!(driver.requests("/element/e1/click").is_empty());
     }
 

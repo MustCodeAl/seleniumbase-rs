@@ -8,6 +8,55 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+An API clean-up of `BaseCase`: the text assertions and waits take their
+arguments in Python's order, the helpers that did not match Python are fixed,
+and the macros that did not compile or hid an error now work. The changes
+that break a call are listed first, each with the way to migrate.
+
+### Breaking
+
+- **Text assertions take the text first and the selector second**, as Python's
+  `assert_text(text, selector)` does. A call with the old order still compiles
+  (both arguments are `&str`), so search for these names: `assert_text`,
+  `assert_exact_text`, `assert_exact_text_not_visible`, `assert_shadow_text`,
+  `RecorderSession::assert_text`, `AssertionApi::assert_text` and the macro
+  `sb_assert_text!`. A failing assertion whose arguments look swapped says so in
+  its message.
+
+  ```rust
+  // before
+  sb.assert_text("h1", "Example Domain").await?;
+  sb_assert_text!(sb, "#status", "Saved")?;
+  // after
+  sb.assert_text("Example Domain", "h1").await?;
+  sb_assert_text!(sb, "Saved", "#status")?;
+  ```
+
+  The generators follow: the recorder, the scenario runner, `sbrs mkdir`,
+  `sbrs mkfile`, the MCP export tools and the Python importer now write the new
+  order. `RecorderSession::assert_text(sb, text, css)` and the
+  `AssertionApi::assert_text(expected, css)` trait method changed with it. If
+  you generated tests with an earlier version, run the same search over them.
+
+### Changed
+
+- `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
+  `//a//b` becomes `a b`, `/html/body/...`), a position before the other tests
+  (`tag[n]` becomes `tag:nth-of-type(n)`, `*[n]` becomes `*:nth-child(n)`),
+  `contains(@a,'v')`, `starts-with(@a,'v')` (an addition; Python has none),
+  `id('x')` and `or` (a comma list). A form with no exact CSS equivalent (a
+  position after another test, `text()`, `parent::`) is still refused instead
+  of being converted into something close.
+- The Python importer passes `By.XPATH` locators through as XPath, so XPath
+  that CSS cannot say is no longer refused.
+
+### Fixed
+
+- `sb_assert_not_visible!` without a message did not compile, and `sb_wait_and_click!`
+  without a message dropped the error of the wait. `sb_test!` quit the browser
+  before it reported the test's result, so a quit that failed hid the test's own
+  error; it now reports both.
+
 ## [0.4.0] - 2026-10-16
 
 A feature release: browser plugins now run in the WebDriver engine as well as

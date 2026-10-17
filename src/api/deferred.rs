@@ -91,8 +91,8 @@ impl std::fmt::Display for DeferredFailure {
 trait AssertTarget {
     async fn assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError>;
     async fn assert_element_present(&mut self, css: &str) -> Result<(), SeleniumBaseError>;
-    async fn assert_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError>;
-    async fn assert_exact_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError>;
+    async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError>;
+    async fn assert_exact_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError>;
     async fn assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError>;
     async fn current_url(&mut self) -> Option<String>;
 }
@@ -123,12 +123,12 @@ impl AssertTarget for BaseCase {
             })
     }
 
-    async fn assert_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        BaseCase::assert_text(self, css, text).await
+    async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+        BaseCase::assert_text(self, text, css).await
     }
 
-    async fn assert_exact_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        BaseCase::assert_exact_text(self, css, text).await
+    async fn assert_exact_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+        BaseCase::assert_exact_text(self, text, css).await
     }
 
     async fn assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
@@ -284,7 +284,7 @@ impl DeferredAsserts {
     }
 
     async fn run_text(&mut self, page: &mut impl AssertTarget, text: &str, css: &str) -> bool {
-        match page.assert_text(css, text).await {
+        match page.assert_text(text, css).await {
             Ok(()) => true,
             Err(error) => {
                 self.record(page, error).await;
@@ -309,7 +309,7 @@ impl DeferredAsserts {
         text: &str,
         css: &str,
     ) -> bool {
-        match page.assert_exact_text(css, text).await {
+        match page.assert_exact_text(text, css).await {
             Ok(()) => true,
             Err(error) => {
                 self.record(page, error).await;
@@ -434,8 +434,8 @@ mod tests {
 
         async fn assert_exact_text(
             &mut self,
-            css: &str,
             text: &str,
+            css: &str,
         ) -> Result<(), SeleniumBaseError> {
             self.log
                 .push(format!("exact text {text} in {css} on {}", self.url));
@@ -460,7 +460,7 @@ mod tests {
             }
         }
 
-        async fn assert_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
             self.log
                 .push(format!("text {text} in {css} on {}", self.url));
             match self

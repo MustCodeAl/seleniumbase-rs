@@ -95,7 +95,7 @@ where
     E: ElementApi + AssertionApi,
 {
     sb.assert_element("#dashboard").await?;
-    sb.assert_text("#user-name", "Alice").await
+    sb.assert_text("Alice", "#user-name").await
 }
 ```
 

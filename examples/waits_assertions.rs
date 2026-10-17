@@ -59,7 +59,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.assert_title_contains("Testing").await?;
 
     // A failed assertion is an ordinary error value you can inspect.
-    match sb.assert_text("h1", "Not on this page").await {
+    match sb.assert_text("Not on this page", "h1").await {
         Err(SeleniumBaseError::AssertionFailed(message)) => {
             println!("failed as expected: {message}");
         }

@@ -41,7 +41,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     // under their own names so a replay keeps the same pace.
     sb.human_type("#myTextInput", "Rustlang").await?;
     sb.human_click("#myButton").await?;
-    sb.assert_text("#pText", "Purple").await?;
+    sb.assert_text("Purple", "#pText").await?;
 
     let actions = sb.stop_recording()?;
     println!("recorded {} actions:", actions.len());
@@ -59,7 +59,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
         open.as_str(),
         "sb.human_type(\"#myTextInput\", \"Rustlang\")",
         "sb.human_click(\"#myButton\")",
-        "sb.assert_text(\"#pText\", \"Purple\")",
+        "sb.assert_text(\"Purple\", \"#pText\")",
         "async fn demo_page_flow()",
     ] {
         if !test.contains(expected) {

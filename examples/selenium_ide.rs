@@ -93,7 +93,7 @@ fn base_case_call(cmd: &IdeCommand) -> String {
         ),
         "type" => format!("sb.type_text({selector:?}, {:?}).await?;", cmd.value),
         "click" => format!("sb.click({selector:?}).await?;"),
-        "assertText" => format!("sb.assert_text({selector:?}, {:?}).await?;", cmd.value),
+        "assertText" => format!("sb.assert_text({:?}, {selector:?}).await?;", cmd.value),
         other => format!("// `{other}` has no direct BaseCase call; write it by hand"),
     }
 }

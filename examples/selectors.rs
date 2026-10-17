@@ -39,12 +39,12 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
 
     // CSS selector.
     sb.click("#myButton").await?;
-    sb.assert_text("#pText", "Purple").await?;
+    sb.assert_text("Purple", "#pText").await?;
 
     // XPath selector: it starts with `/`, `./` or `(`.
     let heading = sb.get_text("//h1").await?;
     println!("h1 text: {heading}");
-    sb.assert_exact_text("//h1", "Demo Page").await?;
+    sb.assert_exact_text("Demo Page", "//h1").await?;
 
     // Link text selector.
     sb.click("link=Read the docs").await?;

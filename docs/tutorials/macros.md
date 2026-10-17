@@ -148,7 +148,7 @@ which panics on failure.
 | `sb_wait_for!(sb, selector)` | `sb.wait_for_element_visible_default(selector).await` |
 | `sb_wait_and_click!(sb, selector)` | wait then `sb.click(selector).await` |
 | `sb_select!(sb, selector, text)` | `sb.select_option_by_text(selector, text).await` |
-| `sb_assert_text!(sb, selector, expected)` | `sb.assert_text(selector, expected).await` |
+| `sb_assert_text!(sb, expected, selector)` | `sb.assert_text(expected, selector).await` |
 | `sb_assert_title!(sb, expected)` | `sb.assert_title_contains(expected).await` |
 | `sb_assert_url!(sb, expected)` | `sb.assert_url_contains(expected).await` |
 | `sb_assert_not_visible!(sb, selector)` | fails if the element is visible |

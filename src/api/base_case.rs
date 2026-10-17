@@ -976,36 +976,113 @@ impl BaseCase {
         )))
     }
 
-    /// Executes the `assert_text` action.
+    /// Asserts that the element selected by `css` contains `expected`.
+    ///
+    /// The text comes first and the selector second, as in Python's
+    /// `assert_text(text, selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] when the text is not
+    /// there. If the two arguments look swapped (`expected` selects an element
+    /// whose text contains `css`), the message says so.
     pub async fn assert_text(
         &mut self,
-        css: &str,
         expected: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.record("assert_text", Some(css), Some(expected));
         let by = Selector::auto(css).to_by()?;
-        let text = self.session.text(by).await?;
-        if text.contains(expected) {
-            return Ok(());
+        match self.session.text(by).await {
+            Ok(text) if text.contains(expected) => Ok(()),
+            Ok(text) => Err(self
+                .text_assertion_failed(
+                    format!("expected text '{expected}' in element '{css}', got '{text}'"),
+                    expected,
+                    css,
+                    false,
+                )
+                .await),
+            Err(error) => match self.swapped_text_hint(expected, css, false).await {
+                Some(hint) => Err(SeleniumBaseError::AssertionFailed(hint)),
+                None => Err(error),
+            },
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected text '{expected}' in element '{css}', got '{text}'"
-        )))
     }
 
-    /// Executes the `assert_exact_text` action.
+    /// Asserts that the text of the element selected by `css` is exactly
+    /// `expected`.
+    ///
+    /// The text comes first and the selector second, as in Python's
+    /// `assert_exact_text(text, selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] when the text differs;
+    /// the message says so if the two arguments look swapped.
     pub async fn assert_exact_text(
         &mut self,
-        css: &str,
         expected: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let text = self.get_text(css).await?;
-        if text == expected {
-            return Ok(());
+        match self.get_text(css).await {
+            Ok(text) if text == expected => Ok(()),
+            Ok(text) => Err(self
+                .text_assertion_failed(
+                    format!("expected exact text '{expected}' in element '{css}', got '{text}'"),
+                    expected,
+                    css,
+                    true,
+                )
+                .await),
+            Err(error) => match self.swapped_text_hint(expected, css, true).await {
+                Some(hint) => Err(SeleniumBaseError::AssertionFailed(hint)),
+                None => Err(error),
+            },
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected exact text '{expected}' in element '{css}', got '{text}'"
-        )))
+    }
+
+    /// A failed text assertion, with the hint about swapped arguments added
+    /// when it applies.
+    async fn text_assertion_failed(
+        &self,
+        message: String,
+        expected: &str,
+        css: &str,
+        exact: bool,
+    ) -> SeleniumBaseError {
+        match self.swapped_text_hint(expected, css, exact).await {
+            Some(hint) => SeleniumBaseError::AssertionFailed(format!("{message}; {hint}")),
+            None => SeleniumBaseError::AssertionFailed(message),
+        }
+    }
+
+    /// Says that a text assertion was called with its arguments the wrong way
+    /// round, if it was: `expected` selects an element whose text is `css`.
+    /// Looked at only after an assertion failed, so a passing one costs
+    /// nothing.
+    async fn swapped_text_hint(&self, expected: &str, css: &str, exact: bool) -> Option<String> {
+        let by = Selector::auto(expected).to_by().ok()?;
+        let shown = self
+            .session
+            .driver()
+            .find(by)
+            .await
+            .ok()?
+            .text()
+            .await
+            .ok()?;
+        let fits = if exact {
+            shown.trim() == css.trim()
+        } else {
+            shown.contains(css)
+        };
+        fits.then(|| {
+            format!(
+                "the arguments look swapped: the order is (text, selector), as in Python, \
+                 and '{expected}' selects an element whose text is '{css}'"
+            )
+        })
     }
 
     /// Scrolls the element `css` into view and outlines it in magenta for
@@ -2838,6 +2915,8 @@ include!("base_case_impls/base_case_impl_esc.rs");
 include!("base_case_impls/base_case_impl_rec_cdp.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_text_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]

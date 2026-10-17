@@ -192,7 +192,7 @@ async fn wait_for_cards(sb: &mut BaseCase, count: usize) -> Result<(), Box<dyn E
 /// What the test does in the window.
 async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     assert_eq!(sb.get_title().await?, TITLE);
-    sb.assert_text("h1", "Profile Manager").await?;
+    sb.assert_text("Profile Manager", "h1").await?;
 
     // A new vault starts with sample profiles; the list fills in after load.
     sb.wait_for_element_visible(CARD, 30).await?;
@@ -213,7 +213,7 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     // Typing in the search box leaves only the new profile.
     sb.type_text("#profile-search", "E2E").await?;
     wait_for_cards(sb, 1).await?;
-    sb.assert_text(CARD, "E2E Profile").await?;
+    sb.assert_text("E2E Profile", CARD).await?;
 
     // A new folder; the window sends it to the app's REST API.
     sb.type_text("#new-folder", "E2E Folder").await?;
@@ -302,7 +302,7 @@ async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
 /// sandboxed frame has an origin of its own and cannot be entered.
 async fn frames(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.switch_to_frame("#e2e-frame").await?;
-    sb.assert_text("#inside", "Inside the frame").await?;
+    sb.assert_text("Inside the frame", "#inside").await?;
     // The script runs in the frame: its `document` is the frame's.
     let found = sb
         .execute_script(
