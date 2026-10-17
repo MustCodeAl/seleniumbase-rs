@@ -2,7 +2,9 @@
 
 // jQuery, loaded from its own CDN by `BaseCase::activate_jquery`, and the
 // Messenger files, which the pure CDP engine loads from the same places.
-use crate::sb_cdp::messenger::{JQUERY_URL, MESSENGER_CSS_URL, MESSENGER_JS_URL};
+use crate::sb_cdp::messenger::{
+    theme_script, MessengerSettings, JQUERY_URL, MESSENGER_CSS_URL, MESSENGER_JS_URL,
+};
 
 const JQUERY_CONFIRM_CSS_URL: &str =
     "https://cdnjs.cloudflare.com/ajax/libs/jquery-confirm/3.3.4/jquery-confirm.min.css";
@@ -221,20 +223,51 @@ impl BaseCase {
         self.add_css_style(&css).await
     }
 
-    /// Recolors Messenger messages: sets their background to the CSS colour
-    /// `color`.
+    /// Sets how Messenger draws its messages and where they appear, as
+    /// Python's `set_messenger_theme(theme, location, max_messages)` does:
+    /// one of the themes (`flat`, `future`, `block`, `air`, `ice`), one of six
+    /// places on the screen and how many messages show at once. `settings` is
+    /// a [`MessengerSettings`], or a [`MessengerTheme`] or a
+    /// [`MessengerLocation`] alone, which keeps Python's defaults (flat, bottom
+    /// right, eight messages) for the rest. It loads Messenger first, through
+    /// [`activate_messenger`](Self::activate_messenger), when the page lacks it.
     ///
-    /// This is **not** Python's `set_messenger_theme(theme, location,
-    /// max_messages)`, which picks one of Messenger's themes (`flat`,
-    /// `future`, `block`, `air`, `ice`), where messages appear and how many
-    /// show at once. The pure-CDP engine has that:
-    /// [`Page::set_messenger_theme`](crate::sb_cdp::Page::set_messenger_theme).
+    /// The settings are for Messenger, the widget the page itself or a script
+    /// of yours posts with. [`post_message`](Self::post_message) shows a plain
+    /// box of its own and is not themed by this. To recolour Messenger's
+    /// messages instead, see [`set_messenger_color`](Self::set_messenger_color).
+    ///
+    /// [`MessengerTheme`]: crate::sb_cdp::MessengerTheme
+    /// [`MessengerLocation`]: crate::sb_cdp::MessengerLocation
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Download`] if the page cannot load
+    /// Messenger, and [`SeleniumBaseError::InvalidConfig`] if it is still not
+    /// there afterwards.
+    pub async fn set_messenger_theme(
+        &self,
+        settings: impl Into<MessengerSettings>,
+    ) -> Result<(), SeleniumBaseError> {
+        self.activate_messenger().await?;
+        let script = format!("return {};", theme_script(settings.into()));
+        if self.execute_script(&script).await?.as_bool() == Some(true) {
+            return Ok(());
+        }
+        Err(SeleniumBaseError::InvalidConfig(
+            "Messenger is not loaded in this page, so its theme cannot be set".to_owned(),
+        ))
+    }
+
+    /// Recolors Messenger messages: sets their background to the CSS colour
+    /// `color`. This is what `set_messenger_theme(color)` did before that
+    /// method took Python's arguments.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::InvalidConfig`] if `color` is not a plain
     /// CSS value (for example `#336699` or `rgb(10, 20, 30)`).
-    pub async fn set_messenger_theme(&self, color: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn set_messenger_color(&self, color: &str) -> Result<(), SeleniumBaseError> {
         let css = format!(
             ".messenger-message {{ background: {} !important; }}",
             css_value("the Messenger colour", color)?

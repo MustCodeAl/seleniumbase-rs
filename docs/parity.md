@@ -19,7 +19,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 
 | Surface | Total | implemented | composed | not-applicable | planned |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
+| [BaseCase methods](#basecase-methods) | 453 | 440 | 3 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
 | [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
@@ -415,7 +415,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `set_introjs_colors` | implemented | `BaseCase::set_introjs_colors` |  |
 | `set_jqc_theme` | implemented | `BaseCase::set_jqc_theme` |  |
 | `set_local_storage_item` | implemented | `BaseCase::set_local_storage_item` |  |
-| `set_messenger_theme` | composed | `Page::set_messenger_theme` | On the pure-CDP engine, Page::set_messenger_theme takes MessengerSettings (theme, location, max_messages) as Python does. BaseCase::set_messenger_theme(color) on the WebDriver engine only sets the background colour of Messenger messages; it does not pick a theme or location. |
+| `set_messenger_theme` | implemented | `BaseCase::set_messenger_theme` | Takes MessengerSettings (theme, location, max_messages; the defaults are Python's), or a MessengerTheme or MessengerLocation alone, and loads Messenger first. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color. Differs: BaseCase::post_message shows a plain box of its own, so the theme changes the Messenger widget (which the page or your script posts with) and not post_message's box. |
 | `set_session_storage_item` | implemented | `BaseCase::set_session_storage_item` |  |
 | `set_text` | implemented | `BaseCase::set_text` | Differs: Sets the value of an input or textarea (firing input and change) or the textContent of any other element, as Python does; it presses no Enter for a trailing newline, and the selector is CSS. |
 | `set_text_content` | implemented | `BaseCase::set_text_content` | Differs: Same as set_text, as in Python; the selector is CSS and there is no scroll argument. |

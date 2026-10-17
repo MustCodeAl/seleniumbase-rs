@@ -384,6 +384,20 @@ migrate.
   sb.click_with_offset("#canvas", 10, 4, false).await?;  // from the top-left corner
   ```
 
+- **`BaseCase::set_messenger_theme` takes Python's arguments**, a
+  `MessengerSettings` (theme, location, how many messages), or a
+  `MessengerTheme` or `MessengerLocation` alone, as `Page::set_messenger_theme`
+  does, instead of a CSS colour. It loads Messenger first. The colour setter it
+  was is now `set_messenger_color`. A call with a colour string stops compiling.
+
+  ```rust
+  // before
+  sb.set_messenger_theme("#336699").await?;
+  // after
+  sb.set_messenger_color("#336699").await?;       // the same thing
+  sb.set_messenger_theme(MessengerTheme::Air).await?; // Python's set_messenger_theme
+  ```
+
 - **`post_message_for(message, duration)` takes a `Duration`**, not a number of
   whole seconds, so a message can last 2.55 s as Python's default does. It also
   waits for the message to go now (see Changed).

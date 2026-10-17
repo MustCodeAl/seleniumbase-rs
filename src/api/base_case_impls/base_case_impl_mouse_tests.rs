@@ -85,6 +85,100 @@ mod tests_conditional_click {
     }
 }
 
+mod tests_messenger_theme {
+    use super::webdriver_support::{MockWebDriver, Reply};
+    use super::*;
+    use crate::sb_cdp::{MessengerLocation, MessengerSettings, MessengerTheme};
+    use serde_json::json;
+
+    /// A page whose scripts all succeed, whether Messenger is loaded or not,
+    /// and that says whether it has Messenger when asked to apply a theme.
+    fn page(has_messenger: bool) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| match request.path.as_str() {
+            "/execute/async" => Reply::Value(json!(true)),
+            "/execute/sync" => Reply::Value(json!(has_messenger)),
+            _ => Reply::Value(Value::Null),
+        })
+    }
+
+    fn last_script(driver: &MockWebDriver) -> String {
+        driver.requests("/execute/sync").last().unwrap().body["script"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    #[tokio::test]
+    async fn the_theme_the_location_and_the_limit_reach_messenger() {
+        let driver = page(true);
+        let sb = driver.base_case().await;
+
+        sb.set_messenger_theme(MessengerSettings {
+            theme: MessengerTheme::Ice,
+            location: MessengerLocation::TopLeft,
+            max_messages: 3,
+        })
+        .await
+        .unwrap();
+
+        let script = last_script(&driver);
+        assert!(script.starts_with("return "), "{script}");
+        assert!(script.contains("\"theme\":\"ice\""), "{script}");
+        assert!(script.contains("messenger-on-top"), "{script}");
+        assert!(script.contains("messenger-on-left"), "{script}");
+        assert!(script.contains("\"maxMessages\":3"), "{script}");
+        // Messenger is loaded first (jQuery, the style sheet, the script).
+        assert!(driver.requests("/execute/async").len() >= 3);
+    }
+
+    #[tokio::test]
+    async fn a_theme_or_a_location_alone_keeps_pythons_defaults_for_the_rest() {
+        let driver = page(true);
+        let sb = driver.base_case().await;
+
+        sb.set_messenger_theme(MessengerTheme::Air).await.unwrap();
+        let script = last_script(&driver);
+        assert!(script.contains("\"theme\":\"air\""), "{script}");
+        assert!(script.contains("messenger-on-bottom"), "{script}");
+        assert!(script.contains("\"maxMessages\":8"), "{script}");
+
+        sb.set_messenger_theme(MessengerLocation::TopCenter)
+            .await
+            .unwrap();
+        let script = last_script(&driver);
+        assert!(script.contains("\"theme\":\"flat\""), "{script}");
+        assert!(script.contains("messenger-on-top"), "{script}");
+    }
+
+    #[tokio::test]
+    async fn a_page_that_still_lacks_messenger_is_an_error() {
+        let driver = page(false);
+        let sb = driver.base_case().await;
+        let error = sb
+            .set_messenger_theme(MessengerSettings::default())
+            .await
+            .unwrap_err();
+        assert!(matches!(error, SeleniumBaseError::InvalidConfig(_)), "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn the_colour_setter_is_what_set_messenger_theme_used_to_be() {
+        let driver = page(true);
+        let sb = driver.base_case().await;
+
+        sb.set_messenger_color("#336699").await.unwrap();
+        assert!(
+            last_script(&driver).contains(".messenger-message { background: #336699 !important; }"),
+            "{}",
+            last_script(&driver)
+        );
+        assert!(matches!(
+            sb.set_messenger_color("red; } body { display: none").await,
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
+    }
+}
+
 mod tests_offset_clicks {
     use super::webdriver_support::{element, MockWebDriver, Reply};
     use super::*;

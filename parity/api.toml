@@ -1595,9 +1595,10 @@ status = "implemented"
 rust = "BaseCase::set_local_storage_item"
 
 [basecase."set_messenger_theme"]
-status = "composed"
-rust = "Page::set_messenger_theme"
-note = "On the pure-CDP engine, Page::set_messenger_theme takes MessengerSettings (theme, location, max_messages) as Python does. BaseCase::set_messenger_theme(color) on the WebDriver engine only sets the background colour of Messenger messages; it does not pick a theme or location."
+status = "implemented"
+rust = "BaseCase::set_messenger_theme"
+note = "Takes MessengerSettings (theme, location, max_messages; the defaults are Python's), or a MessengerTheme or MessengerLocation alone, and loads Messenger first. The pure-CDP engine has Page::set_messenger_theme with the same arguments. The old colour setter is BaseCase::set_messenger_color."
+divergence = "BaseCase::post_message shows a plain box of its own, so the theme changes the Messenger widget (which the page or your script posts with) and not post_message's box."
 
 [basecase."set_session_storage_item"]
 status = "implemented"
