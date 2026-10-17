@@ -75,6 +75,20 @@ that break a call are listed first, each with the way to migrate.
   sb.deferred_assert_exact_text("Ready", "#status").await?;
   ```
 
+- **`find_text`, `find_exact_text` and `find_non_empty_text` follow Python.**
+  They took no selector, searched all of `<body>` for the deepest element that
+  held the text, and returned `Result<Option<WebElement>>` (the `Option` was
+  never `None`). They now take the selector and return `Result<WebElement>`,
+  the element of that selector, as Python's `find_text(text, selector)` does.
+  Pass `"body"` to look at the page.
+
+  ```rust
+  // before
+  if let Some(el) = sb.find_text("Welcome").await? { /* ... */ }
+  // after
+  let el = sb.find_text("Welcome", "h1").await?;
+  ```
+
 ### Changed
 
 - **The text assertions wait, as Python's do.** `assert_text`,

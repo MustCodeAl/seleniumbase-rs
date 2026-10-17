@@ -264,6 +264,44 @@ mod tests_text_argument_order {
     }
 
     #[tokio::test]
+    async fn the_find_text_methods_return_the_element_of_the_selector() {
+        // Python's `find_text(text, selector)` returns the selector's element;
+        // these used to search all of `<body>` and return an `Option`.
+        let driver = welcome_page();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        for found in [
+            sb.find_text("Welcome", "h1").await.unwrap(),
+            sb.find_exact_text(" Welcome ", "h1").await.unwrap(),
+            sb.find_non_empty_text("h1").await.unwrap(),
+        ] {
+            assert_eq!(found.element_id().to_string(), "h1");
+        }
+        sb.find_text("Goodbye", "h1").await.unwrap_err();
+        sb.find_exact_text("Welcom", "h1").await.unwrap_err();
+        sb.find_non_empty_text("h2").await.unwrap_err();
+        assert!(
+            looked_up(&driver)
+                .iter()
+                .all(|selector| selector == "h1" || selector == "h2"),
+            "{:?}",
+            looked_up(&driver)
+        );
+        assert!(driver.requests("/execute/sync").is_empty());
+    }
+
+    #[tokio::test]
+    async fn find_text_waits_for_text_that_shows_up_late() {
+        let driver = page(|read| if read < 2 { "Loading" } else { "Welcome" }, true);
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+        sb.find_text("Welcome", "h1")
+            .await
+            .expect("the text shows up on the third look");
+    }
+
+    #[tokio::test]
     async fn swapped_arguments_are_named_in_the_failure() {
         let driver = welcome_page();
         let mut sb = driver.base_case().await;

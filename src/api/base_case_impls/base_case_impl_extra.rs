@@ -476,83 +476,88 @@ impl BaseCase {
     }
 
     /// Waits up to the default timeout ([`set_timeout`](Self::set_timeout))
-    /// for a displayed element whose visible text, trimmed, is `text`, and
-    /// returns the deepest one. Corresponds to Python's `find_exact_text`,
-    /// which does not take a selector here: it looks under `<body>`, and
-    /// returns the element that holds the text where Python returns the
-    /// `selector` element.
+    /// for the element `css` to be displayed with exactly `text` as its text
+    /// (ignoring whitespace at the ends), and returns it. The text comes first
+    /// and the selector second, as in Python's `find_exact_text(text,
+    /// selector)`; pass `"body"` to look at the whole page.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] if no displayed element has
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not show
     /// that text when the timeout ends.
     pub async fn find_exact_text(
-        &mut self,
+        &self,
         text: &str,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        self.find_visible_text(TextMatch::Exact, text, &format!("exact text '{text}'"))
+        css: &str,
+    ) -> Result<WebElement, SeleniumBaseError> {
+        self.find_with_visible_text(TextMatch::Exact, text, css)
             .await
     }
 
     /// Waits up to the default timeout ([`set_timeout`](Self::set_timeout))
-    /// for a displayed element whose visible text contains `text`, and returns
-    /// the deepest one. Text that is hidden (`display: none`) or in a
-    /// `<script>` does not count. Corresponds to Python's `find_text`; see
-    /// [`find_exact_text`](Self::find_exact_text) for how it differs.
+    /// for the element `css` to be displayed with text that contains `text`,
+    /// and returns it. Text that is hidden (`display: none`) does not count.
+    /// The text comes first and the selector second, as in Python's
+    /// `find_text(text, selector)`; pass `"body"` to look at the whole page.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] if no displayed element has
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not show
     /// that text when the timeout ends.
-    pub async fn find_text(
-        &mut self,
-        text: &str,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        self.find_visible_text(TextMatch::Contains, text, &format!("text '{text}'"))
+    pub async fn find_text(&self, text: &str, css: &str) -> Result<WebElement, SeleniumBaseError> {
+        self.find_with_visible_text(TextMatch::Contains, text, css)
             .await
     }
 
     /// Waits up to the default timeout ([`set_timeout`](Self::set_timeout))
-    /// for a displayed element with non-blank visible text, and returns the
-    /// deepest first one. Corresponds to Python's `find_non_empty_text`; see
-    /// [`find_exact_text`](Self::find_exact_text) for how it differs.
+    /// for the element `css` to be displayed with text that is not blank, and
+    /// returns it. Corresponds to Python's `find_non_empty_text(selector)`;
+    /// pass `"body"` to look at the whole page.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::WaitTimeout`] if the page shows no text
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element shows no text
     /// when the timeout ends.
-    pub async fn find_non_empty_text(
-        &mut self,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        self.find_visible_text(TextMatch::NonEmpty, "", "non-empty text")
+    pub async fn find_non_empty_text(&self, css: &str) -> Result<WebElement, SeleniumBaseError> {
+        self.find_with_visible_text(TextMatch::NonEmpty, "", css)
             .await
     }
 
-    /// Polls for an element [`page_scripts::find_visible_text_script`] finds.
-    async fn find_visible_text(
-        &mut self,
+    /// Polls, for up to the default timeout, until the element `css` is
+    /// displayed with text that `kind` finds in `text`, and returns it.
+    async fn find_with_visible_text(
+        &self,
         kind: TextMatch,
         text: &str,
-        what: &str,
-    ) -> Result<Option<WebElement>, SeleniumBaseError> {
-        let script = page_scripts::find_visible_text_script(kind, text);
-        let timeout = self.default_wait_secs();
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout);
-        loop {
-            let found = self.execute_script(&script).await?;
-            if !found.is_null() {
-                if let Some(element) = self.element_from_script_result(found).await? {
-                    return Ok(Some(element));
+        css: &str,
+    ) -> Result<WebElement, SeleniumBaseError> {
+        self.check_time_limit()?;
+        let by = Selector::auto(css).to_by()?;
+        let what = match kind {
+            TextMatch::Contains => format!("Text '{text}' was not visible in '{css}'"),
+            TextMatch::Exact => format!("Exact text '{text}' was not visible in '{css}'"),
+            TextMatch::NonEmpty => format!("Non-empty text was not visible in '{css}'"),
+        };
+        poll_until_found(self.default_wait_secs(), what, || {
+            let by = by.clone();
+            async move {
+                let Ok(element) = self.session.driver().find(by).await else {
+                    return Ok(Polled::Pending { seen: None });
+                };
+                if !element.is_displayed().await.unwrap_or(false) {
+                    return Ok(Polled::Pending { seen: None });
                 }
+                let shown = element.text().await.unwrap_or_default();
+                Ok(if kind.holds(&shown, text) {
+                    Polled::Found(element)
+                } else {
+                    Polled::Pending {
+                        seen: Some(format!("last text: '{shown}'")),
+                    }
+                })
             }
-            if tokio::time::Instant::now() >= deadline {
-                return Err(SeleniumBaseError::wait_timeout(
-                    format!("{what} to be visible"),
-                    Some(Duration::from_secs(timeout)),
-                ));
-            }
-            tokio::time::sleep(WAIT_POLL_INTERVAL).await;
-        }
+        })
+        .await
     }
 
     /// Returns all currently visible elements matching `css`.

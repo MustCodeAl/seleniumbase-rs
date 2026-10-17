@@ -229,19 +229,22 @@ async fn find_text_waits_for_visible_text_and_ignores_hidden_text() {
 
     sb.set_timeout(1).await.expect("shorten the wait");
     assert!(
-        sb.find_text("hidden-needle").await.is_err(),
+        sb.find_text("hidden-needle", "body").await.is_err(),
         "hidden text is not found"
     );
 
     sb.set_timeout(5).await.expect("lengthen the wait");
     let late = sb
-        .find_text("late-needle")
+        .find_text("late-needle", "body")
         .await
         .expect("found once it appears");
-    assert!(late.is_some());
-    let exact = sb.find_exact_text("visible").await.expect("exact text");
-    assert!(exact.is_some());
-    assert!(sb.find_non_empty_text().await.expect("some text").is_some());
+    assert_eq!(late.tag_name().await.expect("tag"), "body");
+    let exact = sb
+        .find_exact_text("visible", "p")
+        .await
+        .expect("exact text");
+    assert_eq!(exact.tag_name().await.expect("tag"), "p");
+    sb.find_non_empty_text("body").await.expect("some text");
     sb.quit().await.expect("quit");
 }
 

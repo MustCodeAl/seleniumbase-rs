@@ -622,7 +622,7 @@ divergence = "Returns thirtyfour::WebElements; takes CSS or XPath only."
 [basecase."find_exact_text"]
 status = "implemented"
 rust = "BaseCase::find_exact_text"
-divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
+divergence = "Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout."
 
 [basecase."find_link_text"]
 status = "implemented"
@@ -631,7 +631,7 @@ rust = "BaseCase::find_link_text"
 [basecase."find_non_empty_text"]
 status = "implemented"
 rust = "BaseCase::find_non_empty_text"
-divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> with visible text and returns the deepest first one, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
+divergence = "Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout."
 
 [basecase."find_partial_link_text"]
 status = "implemented"
@@ -640,7 +640,7 @@ rust = "BaseCase::find_partial_link_text"
 [basecase."find_text"]
 status = "implemented"
 rust = "BaseCase::find_text"
-divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
+divergence = "Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout."
 
 [basecase."find_visible_elements"]
 status = "implemented"
