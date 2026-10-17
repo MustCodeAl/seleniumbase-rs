@@ -259,6 +259,23 @@ impl LaunchOptions {
     /// throwaway temporary one.
     #[must_use]
     pub fn browser_args(&self, profile_dir: &Path) -> Vec<String> {
+        // Chrome keeps only the last of a switch, so the four that plugins set
+        // are folded together with the same switch in `extra_args` (a list
+        // switch is joined; the WebRTC policy of the options wins) and left out
+        // of what follows.
+        let mut extra_args = self.extra_args.clone();
+        let disable_features =
+            with_switch_values(&mut extra_args, "disable-features", &self.disable_features);
+        let enable_features =
+            with_switch_values(&mut extra_args, "enable-features", &self.enable_features);
+        let host_resolver_rules = with_switch_values(
+            &mut extra_args,
+            "host-resolver-rules",
+            &self.host_resolver_rules,
+        );
+        if self.webrtc.is_some() {
+            take_switch_values(&mut extra_args, "force-webrtc-ip-handling-policy");
+        }
         let mut args = vec![
             format!("--remote-debugging-port={}", self.debugging_port),
             format!("--user-data-dir={}", profile_dir.display()),
@@ -269,7 +286,7 @@ impl LaunchOptions {
             // the library's own entry and the ones plugins ask for.
             format!(
                 "--disable-features={}",
-                feature_list(&["Translate"], &self.disable_features)
+                feature_list(&["Translate"], &disable_features)
             ),
             // Keeps macOS from prompting for keychain access on launch.
             "--password-store=basic".to_owned(),
@@ -289,16 +306,16 @@ impl LaunchOptions {
         if let Some(policy) = self.webrtc {
             args.push(super::webrtc::chrome_flag(policy).to_owned());
         }
-        if !self.enable_features.is_empty() {
+        if !enable_features.is_empty() {
             args.push(format!(
                 "--enable-features={}",
-                feature_list(&[], &self.enable_features)
+                feature_list(&[], &enable_features)
             ));
         }
-        if !self.host_resolver_rules.is_empty() {
+        if !host_resolver_rules.is_empty() {
             args.push(format!(
                 "--host-resolver-rules={}",
-                feature_list(&[], &self.host_resolver_rules)
+                feature_list(&[], &host_resolver_rules)
             ));
         }
         if self.disable_quic {
@@ -326,11 +343,41 @@ impl LaunchOptions {
             // switch lets `Extensions.loadUnpacked` load them instead.
             args.push("--enable-unsafe-extension-debugging".to_owned());
         }
-        args.extend(self.extra_args.iter().cloned());
+        args.extend(extra_args);
         // The first page the browser opens.
         args.push("about:blank".to_owned());
         args
     }
+}
+
+/// The value of the switch called `name` in `arg`, however it is spelled
+/// (`--name=v`, `-name=v` or `name=v`).
+fn switch_value<'a>(arg: &'a str, name: &str) -> Option<&'a str> {
+    arg.trim_start_matches('-')
+        .strip_prefix(name)?
+        .strip_prefix('=')
+}
+
+/// Removes every `--name=...` switch from `args` and returns the comma-separated
+/// entries of their values, in order.
+fn take_switch_values(args: &mut Vec<String>, name: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    args.retain(|arg| match switch_value(arg, name) {
+        Some(value) => {
+            values.extend(value.split(',').map(str::to_owned));
+            false
+        }
+        None => true,
+    });
+    values
+}
+
+/// `own`, then the entries of the switch `name` found in `args` (which are
+/// removed from it), as one list.
+fn with_switch_values(args: &mut Vec<String>, name: &str, own: &[String]) -> Vec<String> {
+    let mut values = own.to_vec();
+    values.extend(take_switch_values(args, name));
+    values
 }
 
 /// The entries of `own` and then those of `extra`, each once, joined with the

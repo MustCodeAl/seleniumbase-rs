@@ -632,6 +632,45 @@ mod tests {
     }
 
     #[test]
+    fn a_switch_in_extra_args_joins_the_merged_one_instead_of_replacing_it() {
+        let mut options = options(
+            LaunchOptions::builder()
+                .arg("--disable-features=UserFeature,Translate")
+                .arg("--enable-features=UserOn")
+                .arg("--host-resolver-rules=MAP user.example ^NOTFOUND")
+                .arg("--force-webrtc-ip-handling-policy=default")
+                .arg("--mute-audio"),
+        );
+        let mut settings = settings_of(&options);
+        settings.host_resolver_rules = vec!["MAP a.example ^NOTFOUND".to_owned()];
+        settings.disable_features = vec!["OptimizationHints".to_owned()];
+        settings.enable_features = vec!["Foo".to_owned()];
+        settings.webrtc_policy = Some(seleniumbase_rs_plugin::WebRtcPolicy::DisableNonProxiedUdp);
+
+        apply_settings(&mut options, settings).unwrap();
+        let args = args_of(&options);
+
+        assert_eq!(
+            switches(&args, "--disable-features"),
+            ["--disable-features=Translate,OptimizationHints,UserFeature"]
+        );
+        assert_eq!(
+            switches(&args, "--enable-features"),
+            ["--enable-features=Foo,UserOn"]
+        );
+        assert_eq!(
+            switches(&args, "--host-resolver-rules"),
+            ["--host-resolver-rules=MAP a.example ^NOTFOUND,MAP user.example ^NOTFOUND"]
+        );
+        assert_eq!(
+            switches(&args, "--force-webrtc-ip-handling-policy"),
+            ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"],
+            "the policy the options hold wins over a stray argument"
+        );
+        assert!(args.contains(&"--mute-audio".to_owned()), "{args:?}");
+    }
+
+    #[test]
     fn a_launch_no_plugin_touched_keeps_its_switches() {
         let args = args_of(&options(LaunchOptions::builder()));
 
