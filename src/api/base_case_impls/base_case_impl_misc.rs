@@ -582,6 +582,29 @@ mod tests_check_window {
     }
 
     #[test]
+    fn a_case_starts_with_the_run_settings_of_its_configuration() {
+        let demo = RunSettings::default()
+            .with_demo_mode(true)
+            .with_demo_sleep(Duration::from_millis(30));
+        let sb =
+            BaseCase::without_session(BrowserConfig::default().with_run_settings(demo.clone()));
+        assert_eq!(sb.run_settings(), &demo);
+        let plain = BaseCase::without_session(BrowserConfig::default());
+        assert_eq!(plain.run_settings(), &RunSettings::default());
+    }
+
+    #[test]
+    fn a_default_timeout_of_the_run_settings_is_the_timeout_of_the_case_rounded_up() {
+        let config = BrowserConfig::default().with_run_settings(
+            RunSettings::default().with_default_timeout(Duration::from_millis(7_500)),
+        );
+        assert_eq!(BaseCase::without_session(config).timeout_secs(), 8);
+        // Without one the case keeps Python's ten seconds.
+        let plain = BaseCase::without_session(BrowserConfig::default());
+        assert_eq!(plain.timeout_secs(), 10);
+    }
+
+    #[test]
     fn a_case_that_exists_can_be_named_too() {
         // What `sb_test!` does, since the runner builds the case.
         let mut sb = BaseCase::without_session(BrowserConfig::default());

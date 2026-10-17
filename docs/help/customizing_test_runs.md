@@ -275,9 +275,9 @@ reads one specific file by the same rule.
 
 <Warning>
 
-`timeout_seconds` is applied by `run_browser_test` (and the plugin runner),
-which give it to the `BaseCase` they start; a `BaseCase` you build with
-`BaseCase::new` needs `sb.set_timeout(..)`. `window_width` and
+`timeout_seconds` becomes the default wait of every `BaseCase` made from
+`settings.to_browser_config()` (`BaseCase::new`, so `run_browser_test` and the
+plugin runner too); `sb.set_timeout(..)` changes it later. `window_width` and
 `window_height` set the browser window when both are present. `screenshot_dir`
 is stored for your code to read; nothing in the crate applies it.
 
@@ -295,10 +295,8 @@ use seleniumbase_rs::BaseCase;
 let settings = Settings::load()?;
 let config = settings.to_browser_config();
 
+// `timeout_seconds` from the file or `SB_TIMEOUT` is already its default wait.
 let mut sb = BaseCase::new(config).await?;
-if let Some(seconds) = settings.timeout_seconds {
-    sb.set_timeout(seconds).await?;
-}
 # sb.quit().await?;
 # Ok(())
 # }

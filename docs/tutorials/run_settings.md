@@ -34,7 +34,7 @@ builder that takes and returns `RunSettings`.
 | `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode. |
 | `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 0.5 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
 | `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 2.55 s | How long `post_message` and its relatives keep a message on the page. `message_duration()` keeps the milliseconds and `message_duration_headless()` cuts it to 0.75 s as Python does; `post_message` itself still rounds up to whole seconds, so with the default it shows a message for 3 s, not 2.55 s, until it moves to the millisecond value. A zero duration is honoured here; Python treats `0` as unset. |
-| `with_default_timeout(Duration)` | none (Rust only; `SB_TIMEOUT` sets it from the environment) | 10 s | The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (a part of a second rounds up). Applied by `run_browser_test` and `Plugins::run_browser_test`; a `BaseCase::new` ignores it, so call `set_timeout` there. |
+| `with_default_timeout(Duration)` | none (Rust only; `SB_TIMEOUT` sets it from the environment) | 10 s | The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (a part of a second rounds up). `BaseCase::new` (and so `run_browser_test` and `Plugins::run_browser_test`) starts with it; `set_run_settings` does not change the timeout, `set_timeout` does. |
 | `with_skip_js_waits(bool)` | `--skip-js-waits` (also `--skip_js_waits`, `--sjw`) | off | Makes `wait_for_ready_state_complete` return at once. |
 | `with_record_sleep(bool)` | `--record-sleep` (also `--rec-sleep`) | off | Puts `BaseCase::sleep` calls into the recording. |
 | `with_visual_baseline_reset(bool)` | `--visual-baseline` (also `--visual_baseline`) | off | Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one. |
@@ -72,10 +72,10 @@ stay for code that already calls them.
 
 This test is for watching. It needs a visible browser, so it sets
 `with_headless(false)`. The settings go in the configuration, so they apply from
-the first action: `run_browser_test` (and `Plugins::run_browser_test`) give
-`BrowserConfig::with_run_settings` to the `BaseCase` they start. A `BaseCase`
-you build with `BaseCase::new` starts with the defaults; call
-`set_run_settings` on it before the first action.
+the first action: a `BaseCase` made from a configuration (`BaseCase::new`, and
+so `run_browser_test` and `Plugins::run_browser_test`) starts with the
+`BrowserConfig::with_run_settings` it carries. To change them later, call
+`set_run_settings` on the case.
 
 ```rust,no_run
 use std::time::Duration;

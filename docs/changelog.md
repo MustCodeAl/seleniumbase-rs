@@ -383,9 +383,8 @@ migrate.
   `SB(demo=, slow=, demo_sleep=, message_duration=)` does. They stay out of
   configuration files and of the key that decides which tests share a browser.
   `RunSettings::with_default_timeout` is new and `Settings::timeout_seconds`
-  feeds it. Only the test runners (`run_browser_test`, `Plugins::run_browser_test`,
-  `sb_test!`) apply them; a `BaseCase` from `BaseCase::new` keeps its defaults
-  until you call `set_run_settings` and `set_timeout`.
+  feeds it. A `BaseCase` from `BaseCase::new` (so the test runners and
+  `sb_test!` too) starts with them and with that default timeout.
 - `BrowserConfig::with_remote_webdriver_timeout(Duration)` sets
   `remote_webdriver_timeout_seconds`, which had no builder; a part of a second
   rounds up. The common `with_*` builders of `BrowserConfig` gained doc

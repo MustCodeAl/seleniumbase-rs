@@ -41,7 +41,7 @@ use async_trait::async_trait;
 
 #[allow(deprecated, reason = "the shim keeps the old closure type")]
 use crate::api::runner::BrowserTestFuture;
-use crate::api::runner::{close_browser, drive, start_browser, CdpCase};
+use crate::api::runner::{close_browser, drive, CdpCase};
 use crate::error::{Result, SeleniumBaseError};
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
 use crate::{BaseCase, BrowserConfig};
@@ -284,7 +284,7 @@ impl Plugins {
     {
         self.started(name).await;
         let began = Instant::now();
-        let mut sb = match start_browser(config).await {
+        let mut sb = match BaseCase::new(config).await {
             Ok(sb) => sb,
             Err(error) => {
                 let outcome = Err(error);

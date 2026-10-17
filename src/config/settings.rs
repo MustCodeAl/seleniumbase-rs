@@ -14,10 +14,10 @@ use crate::error::SeleniumBaseError;
 pub struct Settings {
     pub browser: String,
     pub headless: bool,
-    /// The default wait, in whole seconds, of a test run by
-    /// [`run_browser_test`](crate::run_browser_test) (`SB_TIMEOUT`); see
-    /// [`RunSettings::with_default_timeout`]. `None` keeps the `BaseCase`
-    /// default of 10 seconds.
+    /// The default wait, in whole seconds, of a [`BaseCase`](crate::BaseCase)
+    /// made from [`to_browser_config`](Self::to_browser_config)
+    /// (`SB_TIMEOUT`); see [`RunSettings::with_default_timeout`]. `None` keeps
+    /// the `BaseCase` default of 10 seconds.
     pub timeout_seconds: Option<u64>,
     /// Where a person wants screenshots (`SB_SCREENSHOT_DIR`). The library
     /// reads it nowhere: `BaseCase` saves screenshots under its logs folder, and

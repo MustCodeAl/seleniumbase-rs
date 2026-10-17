@@ -19,7 +19,7 @@ use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
 use crate::api::run_settings::RunSettings;
 use crate::api::tour::{Tour, TourTheme};
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
-use crate::browser::config::BrowserConfig;
+use crate::browser::config::{whole_seconds, BrowserConfig};
 #[cfg(feature = "playwright")]
 use crate::browser::playwright::PlaywrightSession;
 use crate::browser::session::BrowserSession;
@@ -100,8 +100,15 @@ impl BaseCase {
 
     /// Creates a `BaseCase` from an existing browser session. Used internally for
     /// reconnecting and for test-only construction.
+    ///
+    /// The case starts with the run settings of `config`
+    /// ([`BrowserConfig::with_run_settings`]): demo and slow mode, the message
+    /// duration and, if they carry one, the default timeout, in whole seconds
+    /// rounded up, that [`set_timeout`](Self::set_timeout) would set.
     #[instrument(skip(config, session))]
     pub fn with_session(config: BrowserConfig, session: BrowserSession) -> Self {
+        let run_settings = config.run_settings().clone();
+        let timeout_secs = run_settings.default_timeout().map_or(10, whole_seconds);
         Self {
             session,
             config,
@@ -116,13 +123,13 @@ impl BaseCase {
             playwright_session: None,
             time_limit: None,
             started: std::time::Instant::now(),
-            timeout_secs: 10,
+            timeout_secs,
             default_timeout_before: None,
             #[cfg(feature = "gui")]
             gui_held: None,
             drivers: DriverTable::new(),
             test_name: None,
-            run_settings: RunSettings::default(),
+            run_settings,
             swapped_pages: Vec::new(),
         }
     }

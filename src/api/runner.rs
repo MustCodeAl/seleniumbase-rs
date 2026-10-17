@@ -12,9 +12,8 @@ use std::{future::Future, pin::Pin};
 
 use futures_util::FutureExt;
 
-use crate::browser::config::whole_seconds;
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
-use crate::{BaseCase, BrowserConfig, Result, RunSettings, SeleniumBaseError};
+use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
 
 /// Boxed future returned by a browser test body.
 #[deprecated(
@@ -48,7 +47,7 @@ pub type BrowserTestFuture<'a> = Pin<Box<dyn Future<Output = Result<()>> + 'a>>;
 /// no way to report a skip, so the reason is logged and the test returns `Ok`.
 ///
 /// The run settings of the configuration ([`BrowserConfig::with_run_settings`])
-/// are given to the case before the test starts.
+/// are the case's from the start, as they are for [`BaseCase::new`].
 ///
 /// # Errors
 ///
@@ -58,7 +57,7 @@ pub async fn run_browser_test<F>(config: BrowserConfig, test: F) -> Result<()>
 where
     F: AsyncFnOnce(&mut BaseCase) -> Result<()>,
 {
-    let mut sb = start_browser(config).await?;
+    let mut sb = BaseCase::new(config).await?;
     drive(&mut sb, test, no_evidence, close_browser)
         .await
         .finish()
@@ -153,34 +152,6 @@ impl CdpCase {
     pub(crate) async fn close(&mut self) -> Result<()> {
         self.browser.close().await
     }
-}
-
-/// Starts the browser and gives the case the run settings the configuration
-/// carries.
-///
-/// The browser is closed again if the settings cannot be applied.
-pub(crate) async fn start_browser(config: BrowserConfig) -> Result<BaseCase> {
-    let run = config.run_settings().clone();
-    let mut sb = BaseCase::new(config).await?;
-    match apply_run_settings(&mut sb, run).await {
-        Ok(()) => Ok(sb),
-        Err(error) => Err(match sb.quit().await {
-            Ok(()) => error,
-            Err(cleanup) => SeleniumBaseError::TestLifecycle(format!(
-                "run settings not applied: '{error}'; cleanup failed with '{cleanup}'"
-            )),
-        }),
-    }
-}
-
-/// Gives `sb` the run-wide settings and, if they carry one, the default
-/// timeout.
-async fn apply_run_settings(sb: &mut BaseCase, run: RunSettings) -> Result<()> {
-    if let Some(timeout) = run.default_timeout() {
-        sb.set_timeout(whole_seconds(timeout)).await?;
-    }
-    sb.set_run_settings(run);
-    Ok(())
 }
 
 pub(crate) async fn close_browser(sb: &mut BaseCase) -> Result<()> {
@@ -378,42 +349,6 @@ mod tests {
             panic_message(payload.as_ref()),
             "assertion failed in the test"
         );
-    }
-
-    #[tokio::test]
-    async fn the_run_settings_of_the_configuration_reach_the_case() {
-        use std::time::Duration;
-        let config = BrowserConfig::default().with_run_settings(
-            RunSettings::default().with_default_timeout(Duration::from_millis(7_500)),
-        );
-        let mut sb = BaseCase::without_session(config.clone());
-        assert_eq!(sb.run_settings().default_timeout(), None);
-        apply_run_settings(&mut sb, config.run_settings().clone())
-            .await
-            .unwrap();
-        assert_eq!(sb.timeout_secs(), 8, "rounded up to whole seconds");
-        assert_eq!(
-            sb.run_settings().default_timeout(),
-            Some(Duration::from_millis(7_500))
-        );
-    }
-
-    #[tokio::test]
-    async fn settings_without_a_default_timeout_keep_the_case_timeout() {
-        let mut sb = BaseCase::without_session(BrowserConfig::default());
-        let before = sb.timeout_secs();
-        apply_run_settings(&mut sb, RunSettings::default())
-            .await
-            .unwrap();
-        assert_eq!(sb.timeout_secs(), before);
-    }
-
-    #[test]
-    fn a_wait_is_rounded_up_to_whole_seconds() {
-        use std::time::Duration;
-        assert_eq!(whole_seconds(Duration::from_secs(5)), 5);
-        assert_eq!(whole_seconds(Duration::from_millis(1500)), 2);
-        assert_eq!(whole_seconds(Duration::ZERO), 0);
     }
 
     #[tokio::test]

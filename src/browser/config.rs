@@ -592,17 +592,15 @@ impl BrowserConfig {
     }
 
     /// The run-wide settings the test starts with (Python's `SB(demo=, slow=,
-    /// demo_sleep=, message_duration=)`); only the test runners apply them,
-    /// not `BaseCase::new`.
+    /// demo_sleep=, message_duration=)`).
     ///
     /// They cover demo and slow mode, how long messages last, the default wait
-    /// and the like.
-    ///
-    /// [`run_browser_test`](crate::run_browser_test) and the plugin runner give
-    /// them to the `BaseCase` they start. A `BaseCase` built with
-    /// [`BaseCase::new`](crate::BaseCase::new) keeps
-    /// [`BaseCase::set_run_settings`](crate::BaseCase::set_run_settings) as
-    /// the way to set them. They are not part of a configuration file.
+    /// and the like. A [`BaseCase`](crate::BaseCase) made from this
+    /// configuration ([`BaseCase::new`](crate::BaseCase::new), and so
+    /// [`run_browser_test`](crate::run_browser_test) and the plugin runner)
+    /// starts with them, and with the default wait as its timeout;
+    /// [`BaseCase::set_run_settings`](crate::BaseCase::set_run_settings)
+    /// changes them later. They are not part of a configuration file.
     #[must_use]
     pub fn with_run_settings(mut self, settings: RunSettings) -> Self {
         self.launch.run = settings;
