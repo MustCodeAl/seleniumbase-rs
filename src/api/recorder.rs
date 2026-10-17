@@ -640,6 +640,26 @@ fn number<T: std::str::FromStr + std::fmt::Display>(
         .map_err(|_| format!("{action}: {what} {text:?} is not a whole number in range"))
 }
 
+/// The parts of the value of a recorded `click_with_offset`: the offset as
+/// `x, y`, and whether it counts from the centre of the element (`x, y,
+/// center`) instead of from its top-left corner, Python's `center` argument.
+fn offset_parts<'a>(action: &str, offset: &'a str) -> Result<(&'a str, &'a str, bool), String> {
+    let wrong = || format!("{action}: value {offset:?} is not x, y");
+    let mut parts = offset.split(',');
+    let (Some(x), Some(y)) = (parts.next(), parts.next()) else {
+        return Err(wrong());
+    };
+    let center = match parts.next().map(str::trim) {
+        None => false,
+        Some("center") => true,
+        Some(_) => return Err(wrong()),
+    };
+    if parts.next().is_some() {
+        return Err(wrong());
+    }
+    Ok((x, y, center))
+}
+
 /// The line of Rust that replays `action`, or why there is none.
 fn rust_call(action: &RecordedAction) -> Result<String, String> {
     let name = canonical_name(&action.name);

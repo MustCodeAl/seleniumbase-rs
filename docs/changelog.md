@@ -559,6 +559,15 @@ migrate.
   does now. An invalid CSS or XPath selector is `InvalidSelector` (for reads
   and for actions, which used to say `CdpDriver`), and a lost connection keeps
   its own error.
+- The pure CDP programs `ActionRecorder::to_cdp_script` and `to_cdp_test` write
+  follow `Locator::type_text` now emptying the field (see Breaking): a recorded
+  `add_text` or `send_keys` is `.send_keys(..)`, which adds to the text, where
+  `.type_text(..)` would have erased it; `type_text` and `update_text` are one
+  `.type_text(..)` call, not a `clear` and a `type_text`; and a
+  `click_with_offset` is `.click_with_offset(x, y, false)` (`true` for a
+  recording that says `x, y, center`), not the deprecated `click_at`. A
+  program recorded with an earlier version keeps working but clears the field
+  before an `add_text`: record it again, or rename that call to `send_keys`.
 
 A breaking change to the fingerprint API: **one field per setting, and intent
 given once.** Before, every setting was kept twice, as a value and as a mode that

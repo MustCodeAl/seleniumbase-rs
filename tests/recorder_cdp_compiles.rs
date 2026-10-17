@@ -14,11 +14,8 @@
 #![allow(dead_code)]
 
 // `include!`, not `mod`: rustfmt follows a `mod` and would rewrap the generated
-// lines, which the generator does not.
-//
-// The generator still writes the deprecated `click_at`; it should write
-// `click_with_offset(x, y, false)` instead, and then this can go.
-#[allow(deprecated)]
+// lines, which the generator does not. There is no `#[allow(deprecated)]` here:
+// the generator must not write a deprecated call.
 mod generated {
     include!("golden_rust/cdp_script.rs");
 }

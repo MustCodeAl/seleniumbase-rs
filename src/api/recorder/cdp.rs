@@ -13,7 +13,7 @@
 
 use std::collections::BTreeSet;
 
-use super::{canonical_name, line, literal, number, rust_call, RecordedAction};
+use super::{canonical_name, line, literal, number, offset_parts, rust_call, RecordedAction};
 
 /// A recorded action as pure CDP code.
 #[derive(Debug, PartialEq, Eq)]
@@ -191,17 +191,18 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
         }
         "check_if_unchecked" => on_target("check()"),
         "uncheck_if_checked" => on_target("uncheck()"),
-        // `BaseCase::type_text` clears the field and then types.
-        "type_text" | "update_text" => {
-            let selector = need_target()?;
-            let text = need_value()?;
-            Ok(CdpCall::statements([
-                format!("{}.clear().await?;", locator(selector)),
-                format!("{}.type_text({}).await?;", locator(selector), literal(text)),
-            ]))
-        }
-        "add_text" | "send_keys" => Ok(CdpCall::statement(format!(
+        // `Locator::type_text` empties the field and then types, as
+        // `BaseCase::type_text` and Python's `sb.cdp.type` do.
+        "type_text" | "update_text" => Ok(CdpCall::statement(format!(
             "{}.type_text({}).await?;",
+            locator(need_target()?),
+            literal(need_value()?)
+        ))),
+        // `Locator::send_keys` adds to what the field holds, as
+        // `BaseCase::add_text` does. `type_text` here would empty the field
+        // first, so a recorded `add_text` would erase what was there.
+        "add_text" | "send_keys" => Ok(CdpCall::statement(format!(
+            "{}.send_keys({}).await?;",
             locator(need_target()?),
             literal(need_value()?)
         ))),
@@ -269,20 +270,14 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
         }
         "clear_local_storage" => local_storage("clear()"),
         "click_with_offset" => {
-            let offset = need_value()?;
-            let (x, y) = offset
-                .split_once(',')
-                .ok_or_else(|| format!("{name}: value {offset:?} is not x, y"))?;
-            // `Point` holds floats; the whole numbers recorded are written as such.
-            Ok(CdpCall::importing(
-                format!(
-                    "{}.click_at(Point::new({}.0, {}.0)).await?;",
-                    locator(need_target()?),
-                    number::<i64>(name, "x offset", x)?,
-                    number::<i64>(name, "y offset", y)?
-                ),
-                "Point",
-            ))
+            let (x, y, center) = offset_parts(name, need_value()?)?;
+            // The offset is a float; the whole numbers recorded are written as such.
+            Ok(CdpCall::statement(format!(
+                "{}.click_with_offset({}.0, {}.0, {center}).await?;",
+                locator(need_target()?),
+                number::<i64>(name, "x offset", x)?,
+                number::<i64>(name, "y offset", y)?
+            )))
         }
         "sleep" => {
             let text = need_value()?;
@@ -460,31 +455,25 @@ mod tests {
                 "type_text",
                 Some("#q"),
                 Some("rust"),
-                vec![
-                    r##"page.locator("#q").clear().await?;"##,
-                    r##"page.locator("#q").type_text("rust").await?;"##,
-                ],
+                vec![r##"page.locator("#q").type_text("rust").await?;"##],
             ),
             (
                 "update_text",
                 Some("#q"),
                 Some("rust"),
-                vec![
-                    r##"page.locator("#q").clear().await?;"##,
-                    r##"page.locator("#q").type_text("rust").await?;"##,
-                ],
+                vec![r##"page.locator("#q").type_text("rust").await?;"##],
             ),
             (
                 "add_text",
                 Some("#q"),
                 Some(" more"),
-                vec![r##"page.locator("#q").type_text(" more").await?;"##],
+                vec![r##"page.locator("#q").send_keys(" more").await?;"##],
             ),
             (
                 "send_keys",
                 Some("#q"),
                 Some("abc"),
-                vec![r##"page.locator("#q").type_text("abc").await?;"##],
+                vec![r##"page.locator("#q").send_keys("abc").await?;"##],
             ),
             (
                 "click_link_text",
@@ -655,7 +644,7 @@ mod tests {
                 "click_with_offset",
                 Some("#c"),
                 Some("5, -7"),
-                vec![r##"page.locator("#c").click_at(Point::new(5.0, -7.0)).await?;"##],
+                vec![r##"page.locator("#c").click_with_offset(5.0, -7.0, false).await?;"##],
             ),
             (
                 "sleep",
@@ -685,10 +674,51 @@ mod tests {
         );
         assert_eq!(
             lines("type", Some("#q"), Some("rust")).unwrap(),
-            [
-                r##"page.locator("#q").clear().await?;"##,
-                r##"page.locator("#q").type_text("rust").await?;"##
-            ]
+            [r##"page.locator("#q").type_text("rust").await?;"##]
+        );
+    }
+
+    #[test]
+    fn a_recorded_add_text_keeps_what_the_field_holds() {
+        // `Locator::type_text` empties the field first, as Python's `type` does,
+        // so an appending action written with it would erase the text it should
+        // add to. `send_keys` is the call that appends.
+        for name in ["add_text", "send_keys"] {
+            let written = lines(name, Some("#note"), Some(" more")).unwrap();
+            assert_eq!(
+                written,
+                [r##"page.locator("#note").send_keys(" more").await?;"##],
+                "{name}"
+            );
+            for statement in &written {
+                assert!(
+                    !statement.contains("type_text") && !statement.contains("clear"),
+                    "{name} would empty the field: {statement}"
+                );
+            }
+        }
+        // The actions that replace the text write the call that empties the
+        // field itself, once.
+        for name in ["type_text", "update_text", "type"] {
+            let written = lines(name, Some("#note"), Some("new")).unwrap();
+            assert_eq!(written.len(), 1, "{name}: {written:?}");
+            assert!(written[0].contains(".type_text(\"new\")"), "{name}: {written:?}");
+        }
+    }
+
+    #[test]
+    fn a_click_with_offset_counts_from_the_top_left_corner_unless_it_says_centre() {
+        assert_eq!(
+            lines("click_with_offset", Some("#c"), Some("5, -7")).unwrap(),
+            [r##"page.locator("#c").click_with_offset(5.0, -7.0, false).await?;"##]
+        );
+        assert_eq!(
+            lines("click_with_offset", Some("#c"), Some("5, -7, center")).unwrap(),
+            [r##"page.locator("#c").click_with_offset(5.0, -7.0, true).await?;"##]
+        );
+        assert_eq!(
+            lines("click_with_offset", Some("#c"), Some("5, -7, middle")).unwrap_err(),
+            r#"click_with_offset: value "5, -7, middle" is not x, y"#
         );
     }
 
@@ -730,14 +760,11 @@ mod tests {
             ["State"]
         );
         assert_eq!(imports("scroll_to_top", None, None), ["Scroll"]);
-        assert_eq!(
-            imports("click_with_offset", Some("#c"), Some("1,2")),
-            ["Point"]
-        );
+        assert!(imports("click_with_offset", Some("#c"), Some("1,2")).is_empty());
         for (name, target, value, _) in expected() {
             let needed = imports(name, target, value);
             let text = lines(name, target, value).unwrap().join("\n");
-            for word in ["SelectBy", "State", "Scroll", "Point"] {
+            for word in ["SelectBy", "State", "Scroll"] {
                 assert_eq!(
                     text.contains(&format!("{word}::")),
                     needed.contains(&word),
@@ -857,7 +884,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::launch(LaunchOptions::builder().build()?).await?;
     let page = browser.default_page().await?;
     page.goto("https://example.com").await?;
-    page.locator("#q").clear().await?;
     page.locator("#q").type_text("rust").await?;
     page.locator("button").click().await?;
     page.locator("#results").wait_for(State::Visible).await?;
@@ -894,7 +920,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let script = recorder.to_cdp_script();
         assert!(
             script.starts_with(
-                "use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Point, Scroll, SelectBy, State};\n"
+                "use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Scroll, SelectBy, State};\n"
             ),
             "{script}"
         );
