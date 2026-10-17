@@ -110,7 +110,9 @@ impl HarOptions {
 /// as they went over the wire, cookies included), `responseReceived` (status,
 /// headers, protocol, server address and the connection timing),
 /// `dataReceived` (the size of the body), `loadingFinished` and
-/// `loadingFailed`. A redirect becomes one entry per hop. A failed request has
+/// `loadingFailed`. A redirect becomes one entry per hop. A request body the
+/// browser left out (one too long, or the file parts of an upload) makes the
+/// request's `bodySize` -1, unknown, with a comment saying so. A failed request has
 /// status 0 and the browser's error (such as `net::ERR_NAME_NOT_RESOLVED`) in
 /// the response's `_error` field, as Chrome's own HAR export writes it. A
 /// request still waiting for its response when the recording finishes is kept,
@@ -945,17 +947,25 @@ fn har_request(entry: &EntryState, protocol: Option<&str>) -> HarRequest {
                 .collect()
         })
         .unwrap_or_default();
-    let post_data = post_text(request).map(|text| HarPostData {
+    let body = post_body(request);
+    let body_size = match &body {
+        Some(body) if body.complete => i64::try_from(body.size).unwrap_or(i64::MAX),
+        Some(_) => -1,
+        // A body Chrome left out (too long) is of unknown size, not empty.
+        None if request["hasPostData"] == true => -1,
+        None => 0,
+    };
+    let comment = (body.is_none() && body_size == -1)
+        .then(|| "the request body was not reported by the browser".to_owned());
+    let post_data = body.map(|body| HarPostData {
         mime_type: header_values(&headers, "content-type")
             .next()
             .unwrap_or_default()
             .to_owned(),
-        text,
-        comment: None,
+        text: body.text,
+        comment: (!body.complete)
+            .then(|| "parts of the body (files or blobs) were not reported".to_owned()),
     });
-    let body_size = post_data
-        .as_ref()
-        .map_or(0, |post| i64::try_from(post.text.len()).unwrap_or(i64::MAX));
     HarRequest {
         method: request["method"].as_str().unwrap_or("GET").to_owned(),
         url,
@@ -966,25 +976,49 @@ fn har_request(entry: &EntryState, protocol: Option<&str>) -> HarRequest {
         post_data,
         headers_size: -1,
         body_size,
-        comment: None,
+        comment,
     }
+}
+
+/// A request body as the browser reported it.
+struct PostBody {
+    text: String,
+    /// In bytes, which can differ from the text's length for a body that is
+    /// not UTF-8.
+    size: usize,
+    /// Whether every part was reported: a file or blob part comes without its
+    /// bytes.
+    complete: bool,
 }
 
 /// The request body, from `postData` or, when Chrome sends only those, the
 /// base64 `postDataEntries`.
-fn post_text(request: &Value) -> Option<String> {
+fn post_body(request: &Value) -> Option<PostBody> {
     if let Some(text) = request["postData"].as_str() {
-        return Some(text.to_owned());
+        return Some(PostBody {
+            text: text.to_owned(),
+            size: text.len(),
+            complete: true,
+        });
     }
     let entries = request["postDataEntries"].as_array()?;
     let mut bytes = Vec::new();
+    let mut complete = true;
     for part in entries {
+        let Some(encoded) = part["bytes"].as_str() else {
+            complete = false;
+            continue;
+        };
         let decoded = base64::engine::general_purpose::STANDARD
-            .decode(part["bytes"].as_str().unwrap_or_default())
+            .decode(encoded)
             .unwrap_or_default();
         bytes.extend(decoded);
     }
-    Some(String::from_utf8_lossy(&bytes).into_owned())
+    Some(PostBody {
+        text: String::from_utf8_lossy(&bytes).into_owned(),
+        size: bytes.len(),
+        complete,
+    })
 }
 
 fn har_response(entry: &EntryState, protocol: Option<&str>) -> HarResponse {

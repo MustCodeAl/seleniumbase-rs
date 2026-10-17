@@ -540,6 +540,63 @@ async fn post_data_is_recorded_from_text_or_from_entries() {
 }
 
 #[tokio::test]
+async fn a_body_the_browser_left_out_has_an_unknown_size() {
+    let (page, mock) = page().await;
+    let recorder = page.start_har().await.unwrap();
+    let post = |id: &str, url: &str, body: Value| {
+        let mut request =
+            json!({ "url": url, "method": "POST", "hasPostData": true, "headers": {} });
+        if let (Some(request), Some(body)) = (request.as_object_mut(), body.as_object()) {
+            request.extend(body.clone());
+        }
+        send(
+            &mock,
+            "Network.requestWillBeSent",
+            json!({
+                "requestId": id, "loaderId": "L1", "frameId": "T1", "type": "Fetch",
+                "timestamp": 1.0, "wallTime": WALL, "request": request,
+            }),
+        );
+    };
+
+    // Too long: Chrome says there is a body and leaves it out.
+    post("B3", "https://a.test/upload", json!({}));
+    // A file part comes without its bytes.
+    post(
+        "B4",
+        "https://a.test/files",
+        json!({ "postDataEntries": [{ "bytes": "YT0x" }, {}] }),
+    );
+    // Two bytes that are not UTF-8.
+    post(
+        "B5",
+        "https://a.test/binary",
+        json!({ "postDataEntries": [{ "bytes": "//4=" }] }),
+    );
+    let har = recorder.finish().await.unwrap();
+
+    let upload = &entry(&har, "https://a.test/upload").request;
+    assert_eq!(upload.body_size, -1, "unknown, not empty");
+    assert!(upload.post_data.is_none());
+    assert!(upload
+        .comment
+        .as_deref()
+        .unwrap_or_default()
+        .contains("not reported"));
+    let files = &entry(&har, "https://a.test/files").request;
+    assert_eq!(files.body_size, -1);
+    let post_data = files.post_data.as_ref().unwrap();
+    assert_eq!(post_data.text, "a=1");
+    assert!(post_data
+        .comment
+        .as_deref()
+        .unwrap_or_default()
+        .contains("not reported"));
+    let binary = &entry(&har, "https://a.test/binary").request;
+    assert_eq!(binary.body_size, 2, "the bytes, not the text they make");
+}
+
+#[tokio::test]
 async fn bodies_are_not_fetched_by_default() {
     let (page, mock) = page().await;
     let recorder = page.start_har().await.unwrap();
