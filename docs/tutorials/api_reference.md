@@ -35,8 +35,12 @@ cargo doc --no-deps --open
 | `sb.reconnect().await` | Replaces the WebDriver session while keeping the driver process. |
 | `sb.restart().await` | Quits and restarts the browser with the same config. |
 
+<Warning>
+
 Always call `quit()` in a `Drop` guard, `sb_test!` macro, or `finally` block so
 browser processes do not leak when a test fails.
+
+</Warning>
 
 ## Navigation
 
@@ -321,8 +325,12 @@ is called. Useful for soft assertions.
 
 ## UC / GUI bypass helpers
 
+<Info>
+
 These methods use native OS input instead of WebDriver to bypass some
 anti-detection checks. They require a graphical desktop session.
+
+</Info>
 
 | Method | Description |
 |--------|-------------|
@@ -430,4 +438,8 @@ For exact signatures, run `cargo doc --no-deps --open`.
 
 ---
 
+<Note>
+
 Verified against commit 8e9180f: only the multi-driver rows (`get_new_driver` to `driver_count`) were re-checked against the code in this pass; the rest of this page was not.
+
+</Note>

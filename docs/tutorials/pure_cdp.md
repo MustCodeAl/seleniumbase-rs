@@ -38,10 +38,14 @@ browser.close().await?;
 # }
 ```
 
+<Note>
+
 `LaunchOptions::builder()` validates when you call `build()`: combining
 `incognito` with `guest`, or `use_chromium` with an explicit
 `executable_path`, is an error before anything launches. A `Proxy` with
 credentials never shows its password in `Debug`, `Display` or the command line.
+
+</Note>
 
 ## Locators
 
@@ -103,8 +107,13 @@ page.locator("#payment").locator("button.pay").click().await?;
 # }
 ```
 
-Same-origin frames nest to any depth and clicks land at the right pixel. A
-cross-origin frame cannot be entered from page script, so it matches nothing.
+Same-origin frames nest to any depth and clicks land at the right pixel.
+
+<Warning>
+
+A cross-origin frame cannot be entered from page script, so it matches nothing.
+
+</Warning>
 
 ## Cookies, storage, tabs
 
@@ -190,9 +199,15 @@ differ. It is slower than `locator.click()` by design. `Behavior::builder()
 
 `page.post_message`, `page.set_messenger_theme` and `page.activate_messenger`
 show a short message in a corner of the page, the way Python SeleniumBase's CDP
-Mode does with the Messenger library. The library and jQuery load from public
-CDNs, so the page needs network access; `post_message` loads them itself when
-they are missing, and a navigation drops them with the page.
+Mode does with the Messenger library.
+
+<Info>
+
+The library and jQuery load from public CDNs, so the page needs network access;
+`post_message` loads them itself when they are missing, and a navigation drops
+them with the page.
+
+</Info>
 
 ```rust,no_run
 use std::time::Duration;
@@ -256,9 +271,13 @@ an HTTP method, and a resource type; conditions combine with "and". `modify`
 rules can set or remove headers, change the URL or method, and replace the body.
 `interception.log()` lists the requests seen and how each was answered.
 
+<Note>
+
 `stealth::reactor::CdpReactor` is the older, browser-wide alternative: it adds
 headers to every request from every tab. Prefer `page.intercept` unless you
 want exactly that.
+
+</Note>
 
 ## Isolated contexts
 
@@ -453,8 +472,14 @@ that could leave the logs directory.
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,
 Friendly Captcha or DataDome widget with trusted mouse events and returns which
-one it tried. The widgets live in cross-origin frames, so success is up to the
-site: check the page afterwards.
+one it tried.
+
+<Note>
+
+The widgets live in cross-origin frames, so success is up to the site: check the
+page afterwards.
+
+</Note>
 
 Some challenge frames refuse events that did not come from the operating
 system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt
@@ -481,8 +506,14 @@ the mouse for about a second. The click goes to whatever window is on top at
 that point. A headless browser and a minimised window are refused, as is a
 point outside the main display. The position is exact for a window at 100
 percent zoom on an unscaled display; a page zoom or a docked browser panel
-shifts it. It is covered by unit tests and a mocked browser, and has not been
-tried on a live CAPTCHA.
+shifts it.
+
+<Warning>
+
+It is covered by unit tests and a mocked browser, and has not been tried on a
+live CAPTCHA.
+
+</Warning>
 
 ## Plugins
 
@@ -507,7 +538,11 @@ assert!(!mock.calls_to("Runtime.evaluate").is_empty());
 
 ## Coming from Python
 
+<Tip>
+
 `sb.cdp.click(sel)` is `page.locator(sel).click()`; `sb.cdp.assert_text(...)` is
 `locator.expect().to_contain_text(...)`; `sb.cdp.get_text` is `locator.text()`.
 The full mapping of every `sb.cdp` method is in the
 [API parity table](../parity.md).
+
+</Tip>

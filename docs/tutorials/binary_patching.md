@@ -14,9 +14,13 @@ This page covers both driver-level patching (`ChromedriverPatcher`) and
 browser-level patching (`ChromeBinaryPatcher`), plus the engine spoofing
 arguments that hide additional automation markers.
 
+<Info>
+
 Nothing here runs by itself for a chromedriver: UC mode does not patch the
 driver, so patch it yourself (or use the [pure CDP engine](./pure_cdp.md), which
 has no driver to patch).
+
+</Info>
 
 ## What you will learn
 
@@ -104,7 +108,11 @@ patcher.restore()?; // copies .orig back over the patched binary
 # }
 ```
 
+<Note>
+
 `restore` returns an error if there is no `.orig` file.
+
+</Note>
 
 ## Engine spoofing arguments
 
@@ -194,11 +202,15 @@ patched copy would be, and whether your chromedriver still has automation marker
 
 ## Safety and licensing
 
+<Warning>
+
 Only patch executables that you own or have permission to modify. Patching a
 system-installed driver or a binary belonging to another user may violate
 licenses, local policies, or terms of service. Keep a backup (the default
 `EnginePatch` presets create one automatically) and test the patched binary in a
 non-production environment first.
+
+</Warning>
 
 ## Troubleshooting
 

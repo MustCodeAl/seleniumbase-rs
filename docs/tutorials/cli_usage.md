@@ -167,17 +167,20 @@ is Cargo's.
 `--proxy-list FILE` reads a list of proxies, one per line, optionally named
 (the Rust counterpart of Python's `PROXY_LIST`):
 
-```text
-# proxies.txt
+<CodeGroup>
+
+```text proxies.txt
 office = 10.0.0.5:3128
 eu = alice:s3cret@proxy.example.com:8080
 socks5://10.0.0.9:1080
 ```
 
-```bash
+```bash Usage
 sbrs --proxy-list proxies.txt --proxy eu open https://example.com   # by name
 sbrs --proxy-list proxies.txt open https://example.com              # a random one
 ```
+
+</CodeGroup>
 
 Each line is checked when the file is read, and an error names the line number
 (never the password). The same type, `ProxyList`, hands proxies out in turn or
@@ -185,9 +188,14 @@ at random to Rust code; see `seleniumbase_rs::config::proxy_list`.
 
 ## Encrypt and decrypt secrets
 
-Keep a password out of a test file by storing it encrypted. The passphrase comes
-from the environment, never from an argument, so it stays out of shell history
-and process listings:
+Keep a password out of a test file by storing it encrypted.
+
+<Tip>
+
+The passphrase comes from the environment, never from an argument, so it stays
+out of shell history and process listings.
+
+</Tip>
 
 ```bash
 export SB_ENCRYPTION_KEY='a long passphrase'
@@ -196,11 +204,15 @@ echo 'my password' | sbrs encrypt   # or read the text from standard input
 sbrs decrypt 'sbenc1:600000:...'    # prints: my password
 ```
 
+<Info>
+
 Tokens use AES-256-GCM with a key derived from the passphrase (PBKDF2-HMAC-SHA256,
 600,000 iterations, a fresh random salt each time). A wrong passphrase or a
 modified token fails to decrypt. They are not interchangeable with Python
 SeleniumBase's `sbrs encrypt`, which is a reversible obfuscation with a fixed
 key.
+
+</Info>
 
 ## Read a results database
 
@@ -266,8 +278,13 @@ The generators are careful with what they write:
 ## Terminal apps
 
 Three commands are full-screen terminal apps. They are part of the opt-in `tui`
-feature (`cargo install seleniumbase-rs --features tui`); an `sbrs` built
-without it prints a hint and exits with status 2.
+feature (`cargo install seleniumbase-rs --features tui`).
+
+<Note>
+
+An `sbrs` built without the `tui` feature prints a hint and exits with status 2.
+
+</Note>
 
 ```bash
 sbrs commander                  # browse and run the tests and examples of the project
@@ -295,7 +312,12 @@ Convert a SeleniumBase or Selenium WebDriver Python file:
 Use `--source selenium-base` or `--source selenium` to override automatic
 detection. Use `--test-name user_can_log_in` to choose the generated function
 name. Unsupported statements are retained as `TODO` comments and diagnostics.
+
+<Warning>
+
 Review generated code before compiling or running it.
+
+</Warning>
 
 ## Import Playwright and Puppeteer tests
 
@@ -330,22 +352,31 @@ generated tests headless with `SB_HEADLESS=true cargo test`. See
 
 The supported values are `bash`, `elvish`, `fish`, `powershell`, `zsh`, `fig` (a Fig spec) and `usage` (a usage spec), see below.
 
-```bash
-# Bash
+<CodeGroup>
+
+```bash Bash
 ./target/debug/sbrs completions bash \
   > "${BASH_COMPLETION_USER_DIR:-$HOME/.local/share/bash-completion/completions}/sbrs"
+```
 
-# Zsh
+```bash Zsh
 mkdir -p "$HOME/.zfunc"
 ./target/debug/sbrs completions zsh > "$HOME/.zfunc/_sbrs"
+```
 
-# Fish
+```bash Fish
 ./target/debug/sbrs completions fish \
   > "$HOME/.config/fish/completions/sbrs.fish"
 ```
 
+</CodeGroup>
+
+<Note>
+
 Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
 `fpath` before running `compinit`.
+
+</Note>
 
 ### usage and mise
 

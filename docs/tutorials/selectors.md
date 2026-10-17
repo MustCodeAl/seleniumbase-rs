@@ -38,10 +38,14 @@ Any of the thirteen XPath axes may lead an expression, so `parent::div` and
 confused with them, because a pseudo-element never begins with an axis name:
 `div::before` and `::after` stay CSS.
 
+<Warning>
+
 The prefixes are matched exactly and everything after one is the text, so
 `LINK=Home` (wrong case) and ` link=Home` (leading space) are CSS, and
 `text=//div` is a link whose text is `//div`. An attribute selector such as
 `[name=q]` or `input[name='q']` is CSS: there is no `name=` prefix.
+
+</Warning>
 
 If you need to force a particular strategy, construct the `Selector` variant
 yourself instead of relying on detection:
@@ -111,11 +115,16 @@ sb.shadow_click("app-shell ::shadow nav-menu ::shadow a[href='/settings']").awai
 
 ### Limitations
 
+<Warning>
+
 - Only **open** shadow roots are accessible. Closed shadow roots cannot be
   pierced by WebDriver or CDP.
 - CSS selectors inside a shadow root must match the local DOM; they do not leak
   out to the parent tree.
-- For full control, fetch a shadow root as a `WebElement` and search inside it:
+
+</Warning>
+
+For full control, fetch a shadow root as a `WebElement` and search inside it:
 
 ```rust
 let root = sb.get_shadow_root("my-app").await?;
