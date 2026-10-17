@@ -29,6 +29,8 @@ work, `docs/parity.md` the per-API status).
   Python's 2.55 s) and `message_duration_headless()` cuts it to 0.75 s as
   Python does in a headless browser. New getters `slow_mode()` and
   `demo_sleep()`. `pause` and `message_seconds` stay.
+- `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
+  at the crate root, beside `RuntimeConfig`.
 
 ### Changed (breaking)
 

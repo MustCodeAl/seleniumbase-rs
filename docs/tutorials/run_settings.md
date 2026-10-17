@@ -23,9 +23,9 @@ lists the limits.
 
 ## The settings
 
-`RunSettings` is not re-exported at the crate root. Import it from
-`seleniumbase_rs::api::run_settings`. Every method below is a builder that takes
-and returns `RunSettings`.
+`RunSettings` and `PauseKind` are at the crate root (`seleniumbase_rs::RunSettings`;
+the module is `seleniumbase_rs::api::run_settings`). Every method below is a
+builder that takes and returns `RunSettings`.
 
 | Builder | Python option | Default | Effect |
 |---------|---------------|---------|--------|

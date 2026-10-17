@@ -147,6 +147,7 @@ pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
 pub use api::gui::Gui;
+pub use api::run_settings::{PauseKind, RunSettings};
 pub use api::runner::{run_browser_test, BrowserTestFuture};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
@@ -154,6 +155,7 @@ pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::reuse::shutdown_reused_sessions;
 pub use browser::session::BrowserSession;
 pub use common::tls::install_tls_provider;
+pub use config::settings::{Settings, SettingsOverrides};
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use stealth::fingerprint::{
