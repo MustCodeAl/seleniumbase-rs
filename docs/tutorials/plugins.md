@@ -36,11 +36,11 @@ drives the browser.
 ## Turning plugins on
 
 Plugins are behind the `plugins` feature, off by default. The feature is in
-release 0.3.0 and later:
+release 0.3.0 and later (the WebDriver engine from 0.4.0):
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.3.0", features = ["plugins"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.4.0", features = ["plugins"] }
 ```
 
 The plugin API is its own crate, `seleniumbase-rs-plugin`, in the

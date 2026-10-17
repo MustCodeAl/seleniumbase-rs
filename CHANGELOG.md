@@ -6,7 +6,15 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## Unreleased
+## [Unreleased]
+
+## [0.4.0] - 2026-10-16
+
+A feature release: browser plugins now run in the WebDriver engine as well as
+the Pure CDP one, the Pure CDP engine gains page script and style tags and HAR
+recording, the opt-in `visual` feature compares screenshots by structural
+similarity, `sbrs prompt` prints a browser and driver segment for shell prompts,
+and the documentation gains a guide to testing pages with a CAPTCHA.
 
 ### Added
 
@@ -880,3 +888,10 @@ listed first under *Fixed*.
   `bundle.json`: the result of a successful call is replaced by its length, so a
   cookie, a stored token or a page's text read by `get_cookies`,
   `manage_cookies` or a storage tool is not saved with the bug report.
+
+[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.1.0

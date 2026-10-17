@@ -14,9 +14,9 @@ maintainer of this repository to decide.
   (`trailingComma: "es5"`, `printWidth: 80`). Upstream's `pnpm lint` runs
   `prettier --check`, which the raw output fails; the formatting only wraps long
   descriptions.
-- The CLI definition has not changed since 0.3.0 (the commits after the tag change
-  no command, option or description; one changes how `sbrs` ends when its output
-  pipe closes), so the spec matches the current source.
+- Since 0.3.0 the CLI has gained one command, `sbrs prompt` (0.4.0), which this
+  spec does not have yet. Generate the file again with the 0.4.0 `sbrs` before
+  submitting it; nothing else in the CLI definition changed.
 - It is the CLI of a build **without the `turso` feature**, which is how the
   Homebrew tap and a plain `cargo install --path .` build `sbrs`. `sbrs report`
   exists only with `turso`, so the spec has no `report` subcommand. The `tui`
