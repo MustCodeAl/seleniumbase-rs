@@ -7,8 +7,9 @@
 //!    run every scenario. The steps are plain Rust closures that share state,
 //!    so no browser is involved. This part always runs, offline.
 //! 2. The [`AsyncStepRegistry`] owns a `BaseCase`, so its steps can drive a real
-//!    browser. It has no feature-file runner of its own: you feed it step text.
-//!    This part starts Chrome, so it only runs when you pass `--browser`.
+//!    browser. `run_feature_file_async` runs a feature file against it, as the
+//!    sync runner does; here it is fed step text one step at a time. This part
+//!    starts Chrome, so it only runs when you pass `--browser`.
 //!
 //! Run it with:
 //!
@@ -21,13 +22,6 @@
 //! (`sbrs doctor` checks both); neither part needs the network. The process
 //! exits with an error if a scenario that should pass fails, or the other way
 //! round.
-
-// The async steps below borrow the shared `BaseCase` mutably across an await.
-// That is sound here because the registry runs one step at a time.
-#![expect(
-    clippy::await_holding_refcell_ref,
-    reason = "async steps run one at a time, so the BaseCase is never borrowed twice"
-)]
 
 mod local_site;
 
@@ -181,7 +175,8 @@ async fn run_steps_in_a_browser() -> Result<(), Box<dyn Error>> {
             let expected = captures[0].clone();
             Box::pin(async move {
                 let title = bc
-                    .borrow_mut()
+                    .lock()
+                    .await
                     .get_title()
                     .await
                     .map_err(|error| format!("could not read the title: {error}"))?;
@@ -190,18 +185,6 @@ async fn run_steps_in_a_browser() -> Result<(), Box<dyn Error>> {
                 } else {
                     Err(format!("expected title '{expected}', got '{title}'"))
                 }
-            })
-        }),
-    );
-    // The registry owns the BaseCase, so closing it is a step too.
-    registry.register(
-        "I close the browser",
-        Box::new(|bc, _step, _captures| {
-            Box::pin(async move {
-                bc.borrow_mut()
-                    .quit()
-                    .await
-                    .map_err(|error| format!("could not close the browser: {error}"))
             })
         }),
     );
@@ -224,8 +207,12 @@ async fn run_steps_in_a_browser() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // Close the browser even when a step failed.
-    registry.run("I close the browser").await?;
+    // The registry owns the BaseCase until the run is over; take it back to
+    // close the browser, even when a step failed.
+    let mut base_case = registry
+        .into_base_case()
+        .map_err(|_| "a step is still holding the BaseCase")?;
+    base_case.quit().await?;
     match failure {
         Some(message) => Err(message.into()),
         None => Ok(()),

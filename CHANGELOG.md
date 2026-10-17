@@ -32,6 +32,28 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed (breaking)
 
+- `behave::AsyncStepRegistry` is `Send + Sync`: a run can be handed to
+  `tokio::spawn` and the registry shared in an `Arc`. Its handlers get the
+  `BaseCase` as `SharedBaseCase` (`Arc<tokio::sync::Mutex<BaseCase>>`) instead
+  of `Rc<RefCell<BaseCase>>`, return an `AsyncStepFuture` (`Send`) and must be
+  `Send + Sync`; `with_base` is `async`. New: `base_case()` and
+  `into_base_case()`, which hands the `BaseCase` back after a run so the caller
+  can `quit` it (no step needs to).
+
+  ```rust
+  // before
+  registry.register_regex(r#"^I click "(.+?)"$"#, Box::new(|bc, _step, caps| {
+      let selector = caps[0].clone();
+      Box::pin(async move { bc.borrow_mut().click(&selector).await.map_err(|e| e.to_string()) })
+  }));
+  // after: lock the shared BaseCase
+  registry.register_regex(r#"^I click "(.+?)"$"#, Box::new(|bc, _step, caps| {
+      let selector = caps[0].clone();
+      Box::pin(async move { bc.lock().await.click(&selector).await.map_err(|e| e.to_string()) })
+  }));
+  // before: registry.with_base(|sb| ...);  after: registry.with_base(|sb| ...).await
+  ```
+
 - `CdpDriver::evaluate` returns the value, as Python's `sb.cdp.evaluate` does,
   and drops a `return ` that starts the last line; it used to return the raw
   CDP result object. `CdpDriver::find` reports a selector the page rejects as

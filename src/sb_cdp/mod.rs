@@ -127,9 +127,9 @@ pub use messenger::{
 #[cfg(any(test, feature = "test-util"))]
 #[doc(inline)]
 pub use mock::{Call, MockCtrl};
+pub(crate) use page::without_final_return;
 #[doc(inline)]
 pub use page::Page;
-pub(crate) use page::without_final_return;
 #[doc(inline)]
 pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
 #[doc(inline)]
@@ -140,7 +140,7 @@ pub use state::{
 };
 #[doc(inline)]
 pub use types::{
-    ElementInfo, PageInfo, Permission, Point, Rect, Scroll, ScreenRect, SelectBy, State,
+    ElementInfo, PageInfo, Permission, Point, Rect, ScreenRect, Scroll, SelectBy, State,
 };
 #[doc(inline)]
 pub use webrtc::{AddressKind, CandidateKind, IceCandidate, WebRtcReport};

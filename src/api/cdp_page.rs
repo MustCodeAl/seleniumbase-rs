@@ -373,9 +373,7 @@ impl<'a> CdpPage<'a> {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the script throws.
     pub async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
-        let result = self
-            .evaluate_raw(&without_final_return(expression))
-            .await?;
+        let result = self.evaluate_raw(&without_final_return(expression)).await?;
         Ok(result.get("value").cloned().unwrap_or(Value::Null))
     }
 
@@ -1134,7 +1132,13 @@ mod driven_tests {
         );
         let events: Vec<_> = sent(&driver, "Input.dispatchMouseEvent")
             .iter()
-            .map(|p| (p["type"].as_str().unwrap().to_owned(), p["x"].as_f64().unwrap(), p["y"].as_f64().unwrap()))
+            .map(|p| {
+                (
+                    p["type"].as_str().unwrap().to_owned(),
+                    p["x"].as_f64().unwrap(),
+                    p["y"].as_f64().unwrap(),
+                )
+            })
             .collect();
         assert_eq!(
             events,
@@ -1159,7 +1163,10 @@ mod driven_tests {
 
         let result = CdpPage::new(&session).click("#go").await;
 
-        assert!(result.is_err(), "a dead connection must not look like a click");
+        assert!(
+            result.is_err(),
+            "a dead connection must not look like a click"
+        );
     }
 
     #[tokio::test]
@@ -1321,8 +1328,12 @@ mod driven_tests {
             let page = CdpPage::new(&session);
 
             for error in [
-                page.select_option_by_value("select", "mars").await.unwrap_err(),
-                page.select_option_by_text("select", "Mars").await.unwrap_err(),
+                page.select_option_by_value("select", "mars")
+                    .await
+                    .unwrap_err(),
+                page.select_option_by_text("select", "Mars")
+                    .await
+                    .unwrap_err(),
                 page.select_option_by_index("select", 9).await.unwrap_err(),
             ] {
                 match (expected, &error) {

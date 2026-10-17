@@ -1,19 +1,30 @@
 use crate::behave::steps::{capture_groups, step_pattern};
 use crate::BaseCase;
 use regex::Regex;
-use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+/// The [`BaseCase`] the steps of an [`AsyncStepRegistry`] share.
+///
+/// A step locks it for as long as it uses the browser:
+/// `bc.lock().await.open(&url).await`.
+pub type SharedBaseCase = Arc<Mutex<BaseCase>>;
+
+/// What an async step handler returns: a future that settles with the step's
+/// error message, if it failed.
+///
+/// It must be `Send` and cannot borrow from the handler's arguments, so copy
+/// what it needs out of them before the `async` block.
+pub type AsyncStepFuture = Pin<Box<dyn Future<Output = Result<(), String>> + Send>>;
 
 /// Async step handler that can mutate a `BaseCase`.
-pub type AsyncStepHandler = Box<
-    dyn Fn(
-        Rc<RefCell<BaseCase>>,
-        &str,
-        &[String],
-    ) -> Pin<Box<dyn Future<Output = Result<(), String>>>>,
->;
+///
+/// It gets the shared `BaseCase`, the step text and the capture groups, and
+/// must be `Send + Sync` so the registry can be shared between threads.
+pub type AsyncStepHandler =
+    Box<dyn Fn(SharedBaseCase, &str, &[String]) -> AsyncStepFuture + Send + Sync>;
 
 struct RegisteredAsyncStep {
     pattern: Regex,
@@ -26,9 +37,15 @@ struct RegisteredAsyncStep {
 /// does: exact steps first, then regex patterns in registration order, and a
 /// group that took no part in a match is passed as an empty string. Run a
 /// whole feature with
-/// [`run_feature_text_async`](crate::behave::run_feature_text_async).
+/// [`run_feature_text_async`](crate::behave::run_feature_text_async), or a
+/// file with [`run_feature_file_async`](crate::behave::run_feature_file_async).
+///
+/// The registry is `Send + Sync`, so it can sit in an `Arc` and a run can be
+/// handed to `tokio::spawn`. Steps run one at a time and take the shared
+/// `BaseCase` by locking it; [`into_base_case`](Self::into_base_case) hands it
+/// back when the run is over.
 pub struct AsyncStepRegistry {
-    base_case: Rc<RefCell<BaseCase>>,
+    base_case: SharedBaseCase,
     exact: Vec<(String, AsyncStepHandler)>,
     regex: Vec<RegisteredAsyncStep>,
 }
@@ -37,7 +54,7 @@ impl AsyncStepRegistry {
     /// Creates an empty registry whose handlers share `base_case`.
     pub fn new(base_case: BaseCase) -> Self {
         Self {
-            base_case: Rc::new(RefCell::new(base_case)),
+            base_case: Arc::new(Mutex::new(base_case)),
             exact: Vec::new(),
             regex: Vec::new(),
         }
@@ -92,24 +109,58 @@ impl AsyncStepRegistry {
         let trimmed = step.trim();
         for (pattern, handler) in &self.exact {
             if pattern == trimmed {
-                return handler(self.base_case.clone(), trimmed, &[]).await;
+                return handler(Arc::clone(&self.base_case), trimmed, &[]).await;
             }
         }
         for registered in &self.regex {
             if let Some(captures) = registered.pattern.captures(trimmed) {
                 let handler = &registered.handler;
-                return handler(self.base_case.clone(), trimmed, &capture_groups(&captures)).await;
+                return handler(
+                    Arc::clone(&self.base_case),
+                    trimmed,
+                    &capture_groups(&captures),
+                )
+                .await;
             }
         }
         Err(format!("no handler registered for step: {}", step))
     }
 
-    /// Borrow the underlying `BaseCase` mutably.
-    pub fn with_base<F, R>(&self, f: F) -> R
+    /// Runs `f` on the underlying `BaseCase`, once no step is using it.
+    pub async fn with_base<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut BaseCase) -> R,
     {
-        f(&mut self.base_case.borrow_mut())
+        f(&mut *self.base_case.lock().await)
+    }
+
+    /// The `BaseCase` the steps share, for code that needs to drive the browser
+    /// between runs: `registry.base_case().lock().await`.
+    pub fn base_case(&self) -> SharedBaseCase {
+        Arc::clone(&self.base_case)
+    }
+
+    /// Takes the `BaseCase` out of the registry, for example to `quit` it after
+    /// the run.
+    ///
+    /// # Errors
+    ///
+    /// Gives the registry back if something still holds the shared `BaseCase`,
+    /// such as a [`base_case`](Self::base_case) handle you have not dropped.
+    pub fn into_base_case(self) -> Result<BaseCase, Self> {
+        let Self {
+            base_case,
+            exact,
+            regex,
+        } = self;
+        match Arc::try_unwrap(base_case) {
+            Ok(mutex) => Ok(mutex.into_inner()),
+            Err(base_case) => Err(Self {
+                base_case,
+                exact,
+                regex,
+            }),
+        }
     }
 
     /// Convenience: register common browser navigation steps: `I open "url"`,
@@ -122,7 +173,8 @@ impl AsyncStepRegistry {
             Box::new(|bc, _step, caps| {
                 let url = caps[0].clone();
                 Box::pin(async move {
-                    bc.borrow_mut()
+                    bc.lock()
+                        .await
                         .open(&url)
                         .await
                         .map_err(|e| format!("open failed: {}", e))
@@ -133,7 +185,8 @@ impl AsyncStepRegistry {
             &step_pattern("I go back"),
             Box::new(|bc, _step, _caps| {
                 Box::pin(async move {
-                    bc.borrow_mut()
+                    bc.lock()
+                        .await
                         .go_back()
                         .await
                         .map_err(|e| format!("go_back failed: {}", e))
@@ -144,7 +197,8 @@ impl AsyncStepRegistry {
             &step_pattern("I go forward"),
             Box::new(|bc, _step, _caps| {
                 Box::pin(async move {
-                    bc.borrow_mut()
+                    bc.lock()
+                        .await
                         .go_forward()
                         .await
                         .map_err(|e| format!("go_forward failed: {}", e))
@@ -163,7 +217,8 @@ impl AsyncStepRegistry {
             Box::new(|bc, _step, caps| {
                 let selector = caps[0].clone();
                 Box::pin(async move {
-                    bc.borrow_mut()
+                    bc.lock()
+                        .await
                         .click(&selector)
                         .await
                         .map_err(|e| format!("click failed: {}", e))
@@ -176,7 +231,8 @@ impl AsyncStepRegistry {
                 let text = caps[0].clone();
                 let selector = caps[1].clone();
                 Box::pin(async move {
-                    bc.borrow_mut()
+                    bc.lock()
+                        .await
                         .type_text(&selector, &text)
                         .await
                         .map_err(|e| format!("type failed: {}", e))
@@ -196,7 +252,7 @@ impl AsyncStepRegistry {
 mod tests {
     use super::*;
 
-    use crate::behave::{run_feature_text_async, RunFilter};
+    use crate::behave::{run_feature_file_with_filter_async, run_feature_text_async, RunFilter};
 
     fn registry() -> AsyncStepRegistry {
         AsyncStepRegistry::new(BaseCase::without_session(Default::default()))
@@ -278,6 +334,111 @@ mod tests {
             results[1].messages,
             ["step 'Then it purrs' failed: it hisses"]
         );
+    }
+
+    /// A handler that adds the text of the step it runs to `seen`.
+    fn recording(seen: &Arc<std::sync::Mutex<Vec<String>>>) -> AsyncStepHandler {
+        let seen = Arc::clone(seen);
+        Box::new(move |_, step, _| {
+            let (step, seen) = (step.to_owned(), Arc::clone(&seen));
+            Box::pin(async move {
+                seen.lock().unwrap().push(step);
+                Ok(())
+            })
+        })
+    }
+
+    /// Compiled, never called: the registry can be shared between threads and
+    /// a run can be moved to another task.
+    #[expect(dead_code, reason = "exists only to be type-checked")]
+    fn the_registry_and_its_runs_are_send(registry: &AsyncStepRegistry) {
+        fn send<T: Send>(_: T) {}
+        fn send_and_sync<T: Send + Sync>() {}
+        send_and_sync::<AsyncStepRegistry>();
+        send_and_sync::<AsyncStepHandler>();
+        send(registry.run("Given x"));
+        send(registry.with_base(|_| ()));
+        send(run_feature_text_async("", registry, &RunFilter::all()));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_run_can_be_spawned_on_a_multi_threaded_runtime() {
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut registry = registry();
+        registry.register("Given a cat", recording(&seen));
+        registry.register("Then it purrs", recording(&seen));
+        let registry = Arc::new(registry);
+
+        let shared = Arc::clone(&registry);
+        let results = tokio::spawn(async move {
+            run_feature_text_async(
+                "Feature: f\nScenario: s\nGiven a cat\nThen it purrs\n",
+                &shared,
+                &RunFilter::all(),
+            )
+            .await
+        })
+        .await
+        .unwrap();
+
+        assert!(results[0].passed, "{:?}", results[0].messages);
+        assert_eq!(*seen.lock().unwrap(), ["Given a cat", "Then it purrs"]);
+    }
+
+    #[tokio::test]
+    async fn a_feature_file_with_a_background_and_an_outline_runs_against_the_async_registry() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("count.feature");
+        std::fs::write(
+            &path,
+            "@web\nFeature: counting\n\
+             Background:\nGiven setup\n\
+             Scenario Outline: add <n>\nWhen I add \"<n>\"\nAnd I add \"<n>\"\n\
+             Examples:\n| n |\n| 1 |\n| 2 |\n\
+             @wip\nScenario: unfinished\nWhen I add \"9\"\n",
+        )
+        .unwrap();
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut registry = registry();
+        // `And` continues the `When` before it, as in the sync runner.
+        registry.register_regex(r"^(?:Given|When) (.+)$", recording(&seen));
+
+        let filter = RunFilter {
+            include_tags: vec!["web".into()],
+            exclude_tags: vec!["wip".into()],
+        };
+        let results = run_feature_file_with_filter_async(&path, &registry, &filter)
+            .await
+            .unwrap();
+
+        assert_eq!(results.len(), 2, "{results:?}");
+        assert!(results.iter().all(|r| r.passed), "{results:?}");
+        assert_eq!(results[1].name, "add 2 (example 2)");
+        assert_eq!(
+            *seen.lock().unwrap(),
+            [
+                "Given setup",
+                "When I add \"1\"",
+                "When I add \"1\"",
+                "Given setup",
+                "When I add \"2\"",
+                "When I add \"2\"",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_base_case_comes_back_when_nothing_else_holds_it() {
+        let registry = registry();
+        let held = registry.base_case();
+        let registry = registry
+            .into_base_case()
+            .err()
+            .expect("a held BaseCase stays in the registry");
+
+        assert_eq!(registry.with_base(|_| 42).await, 42);
+        drop(held);
+        assert!(registry.into_base_case().is_ok());
     }
 
     #[test]

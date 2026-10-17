@@ -805,7 +805,10 @@ async fn clicking_only_if_visible_still_reports_a_selector_that_is_invalid() {
         .await
         .unwrap_err();
 
-    assert!(matches!(error, SeleniumBaseError::InvalidSelector(_)), "{error}");
+    assert!(
+        matches!(error, SeleniumBaseError::InvalidSelector(_)),
+        "{error}"
+    );
 }
 
 #[tokio::test]
