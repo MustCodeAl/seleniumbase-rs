@@ -1132,10 +1132,35 @@ impl BrowserSession {
                 return Err(error);
             }
         };
+        session.check_server_for(&plugins, family).await?;
         session
             .start_plugins(SessionPlugins::new(plugins, family))
             .await?;
         Ok(session)
+    }
+
+    /// Checks `plugins` again against what the server says it is, now that
+    /// it has answered: a Tauri window is an embedded webview, whatever
+    /// browser the configuration named. A refusal ends the session and tells
+    /// the plugins the launch ended, since `before_launch` already ran.
+    async fn check_server_for(
+        &mut self,
+        plugins: &seleniumbase_rs_plugin::PluginSet,
+        family: seleniumbase_rs_plugin::BrowserFamily,
+    ) -> Result<(), SeleniumBaseError> {
+        let capabilities =
+            serde_json::to_value(self.driver().handle().capabilities()).unwrap_or(Value::Null);
+        if let Err(error) = plugin_hooks::check_server(plugins, family, &capabilities) {
+            if let Err(quit) = self.quit().await {
+                tracing::warn!(
+                    error = %quit,
+                    "the browser of a session its plugins refused did not close"
+                );
+            }
+            plugin_hooks::close(plugins).await;
+            return Err(error);
+        }
+        Ok(())
     }
 
     /// Calls `on_browser` and prepares the first window, and keeps `plugins`
@@ -1146,6 +1171,7 @@ impl BrowserSession {
     /// The first hook that fails. The browser is closed then: one without
     /// what its plugins add is not handed out.
     async fn start_plugins(&mut self, plugins: SessionPlugins) -> Result<(), SeleniumBaseError> {
+        let plugins = plugins.with_blocked(plugin_hooks::blocked_urls_of(&self.ad_block));
         let started = plugins.start(self.driver()).await;
         self.plugins = Some(plugins);
         if let Err(error) = started {
@@ -1179,6 +1205,7 @@ impl BrowserSession {
             return Ok(());
         }
         let family = plugin_hooks::family_of(prepared.browser)?;
+        self.check_server_for(prepared.plugins(), family).await?;
         self.start_plugins(SessionPlugins::new(prepared.plugins().clone(), family))
             .await
     }
