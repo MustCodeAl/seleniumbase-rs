@@ -105,6 +105,79 @@ fn a_value_after_a_switch_asks_for_no_session() {
     assert!(driver.requests().is_empty(), "a browser was asked for");
 }
 
+// ---------------------------------------------------------------------------
+// `help` with a path that names no command
+// ---------------------------------------------------------------------------
+
+fn assert_unrecognized(output: &Output, word: &str) {
+    let error = refused(output);
+    assert!(
+        error.contains(&format!("unrecognized subcommand '{word}'")),
+        "{error}"
+    );
+}
+
+#[test]
+fn help_for_a_command_that_does_not_exist_is_refused() {
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    assert_unrecognized(&run(dir.path(), &[], &["help", "nosuch"]), "nosuch");
+}
+
+#[test]
+fn help_with_a_bad_path_is_refused_whichever_word_is_wrong() {
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    assert_unrecognized(
+        &run(dir.path(), &[], &["help", "plugin", "nosuch"]),
+        "nosuch",
+    );
+    assert_unrecognized(
+        &run(dir.path(), &[], &["help", "nosuch", "plugin"]),
+        "nosuch",
+    );
+    assert_unrecognized(
+        &run(dir.path(), &[], &["help", "plugin", "info", "extra"]),
+        "extra",
+    );
+}
+
+#[test]
+fn help_for_a_command_that_exists_prints_its_page() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for (path, text) in [
+        (
+            &["help", "mkdir"][..],
+            "Create a folder with a runnable browser-test suite",
+        ),
+        (
+            &["help", "plugin"],
+            "List the built-in plugins, or show what one declares",
+        ),
+        (&["help", "plugin", "info"], "Show what one plugin declares"),
+        (&["help", "new"], "Create a browser-test file"),
+    ] {
+        let output = run(dir.path(), &[], path);
+
+        assert!(output.status.success(), "{path:?}: {}", stderr(&output));
+        assert!(
+            stdout(&output).contains(text),
+            "{path:?}:\n{}",
+            stdout(&output)
+        );
+    }
+}
+
+#[test]
+fn help_alone_prints_the_main_page() {
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    let output = run(dir.path(), &[], &["help"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(stdout(&output).contains("Commands:"), "{}", stdout(&output));
+}
+
 #[test]
 fn the_help_flag_still_answers_before_a_mistake_after_it() {
     let dir = tempfile::tempdir().expect("temp dir");

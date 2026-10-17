@@ -6,6 +6,8 @@
 //!   the option on). A switch declared `bool_value` hands the value over instead, so the
 //!   parser can see it; the derive then accepts `true` and `false`, and clap accepted
 //!   neither.
+//! - `help` followed by a path that names no command. The parser stops at the last word
+//!   that names one and prints that page, so `help nosuch` printed the main help.
 //!
 //! [`check`] reads the events the generated parser reads, from the same tables, and
 //! refuses these with the errors usage renders for everything else. Every other mistake,
@@ -24,7 +26,8 @@ use usage::{Command, Error, Event, Flag, InvalidValue, Parser};
 ///
 /// # Errors
 ///
-/// [`Error::InvalidValue`] for a value after a switch.
+/// [`Error::InvalidValue`] for a value after a switch, and [`Error::UnexpectedArg`] for the
+/// word after a `help` path that names no command.
 pub fn check<'v>(
     spec: &'static Spec<'static>,
     root: &'static Command<'static>,
@@ -60,6 +63,8 @@ pub fn check<'v>(
                     None => Ok(()),
                 };
             }
+            // The `help` word, which the parser answers where the path of commands ends.
+            Err(Error::Help { .. }) => return help_path(&parser, argv),
             // Anything else is the real parse's to report.
             Err(_) => return Ok(()),
         }
@@ -114,4 +119,25 @@ fn switch_value<'v>(flag: &Flag<'static>, value: &'v [u8]) -> Error<'static, 'v>
         value: String::from_utf8_lossy(value).into_owned(),
         reason: "a switch takes no value".to_owned(),
     }))
+}
+
+/// Whether the words after a `help` path are all part of the path.
+///
+/// `parser` has just answered the `help` word, so it knows where the path of commands
+/// ended: the first word after it, if there is one, names no command.
+fn help_path<'v>(
+    parser: &Parser<'static, '_, 'v>,
+    argv: &[&'v OsStr],
+) -> Result<(), Error<'static, 'v>> {
+    let (from, to) = parser.help_span();
+    // `(0, 0)` is no `help` word: the parser did not answer one.
+    if (from, to) == (0, 0) {
+        return Ok(());
+    }
+    match argv.get(to).copied() {
+        Some(word) => Err(Error::UnexpectedArg {
+            token: word.as_encoded_bytes(),
+        }),
+        None => Ok(()),
+    }
 }

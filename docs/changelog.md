@@ -18,6 +18,9 @@ Semantic Versioning.
 
 - A value written after a switch, `sbrs --headless=false open ...` or `--uc=1`, is an
   error with status 2 again, as it was with clap. 0.5.0 accepted `true` and `false`.
+- `sbrs help nosuch`, and `help` with any path that names no command, is an error with
+  status 2 and an `unrecognized subcommand` message again. 0.5.0 printed the help of the
+  last command it found, with status 0.
 
 </Update>
 

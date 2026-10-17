@@ -3544,6 +3544,37 @@ mod strict_cli_tests {
     }
 
     #[test]
+    fn help_with_a_path_that_names_no_command_is_refused() {
+        for words in [
+            &["help", "nosuch"][..],
+            &["help", "plugin", "nosuch"],
+            &["help", "nosuch", "plugin"],
+            &["help", "plugin", "info", "extra"],
+            &["--headless", "help", "nosuch"],
+        ] {
+            let error = checked(words).expect_err(&format!("{words:?} was accepted"));
+            assert!(
+                error.contains("unrecognized subcommand"),
+                "{words:?}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn help_with_a_path_of_commands_is_left_to_the_parser() {
+        for words in [
+            &["help"][..],
+            &["help", "mkdir"],
+            &["help", "new"],
+            &["help", "plugin"],
+            &["help", "plugin", "info"],
+            &["--headless", "help", "plugin"],
+        ] {
+            assert_eq!(checked(words), Ok(()), "{words:?}");
+        }
+    }
+
+    #[test]
     fn a_request_for_help_or_the_version_ends_the_check() {
         for words in [
             &["mkdir", "--help", "--force=2"][..],
