@@ -86,6 +86,13 @@ impl CdpNode {
 }
 
 /// Low-level CDP page automation tied to a [`BrowserSession`].
+///
+/// Only [`click`](Self::click) waits for its element (7 seconds, or the
+/// timeout of [`click_with_timeout`](Self::click_with_timeout)). The reads,
+/// the typing and the selects look once and fail with
+/// [`SeleniumBaseError::ElementNotFound`]; call
+/// [`wait_for_element_present`](Self::wait_for_element_present) before them
+/// for an element that may not be there yet.
 pub struct CdpPage<'a> {
     session: &'a BrowserSession,
 }
@@ -158,8 +165,10 @@ impl<'a> CdpPage<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::element_not_found`] if the element is
-    /// still absent when `timeout` expires.
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if the element is still
+    /// absent when `timeout` expires, [`SeleniumBaseError::InvalidSelector`]
+    /// at once for a selector the browser rejects, and any other error (a lost
+    /// connection, say) at once too: waiting longer would not change it.
     pub async fn wait_for_element_present(
         &self,
         selector: &str,
@@ -169,13 +178,11 @@ impl<'a> CdpPage<'a> {
         loop {
             match self.find_element(selector).await {
                 Ok(node) => return Ok(node),
-                // Waiting longer cannot make a selector valid.
-                Err(SeleniumBaseError::InvalidSelector(reason))
-                    if reason.contains("is not a valid selector") =>
-                {
-                    return Err(SeleniumBaseError::InvalidSelector(reason));
-                }
-                Err(_) => {}
+                // Only an element that is not there yet is worth waiting for.
+                // Waiting longer cannot make a selector valid or bring back a
+                // lost connection.
+                Err(SeleniumBaseError::ElementNotFound { .. }) => {}
+                Err(other) => return Err(other),
             }
             if Instant::now() >= deadline {
                 return Err(SeleniumBaseError::element_not_found(selector));
@@ -305,9 +312,15 @@ impl<'a> CdpPage<'a> {
 
     /// Returns the visible text of the first element matching `selector`.
     ///
+    /// It looks once: unlike [`click`](Self::click) it does not wait for the
+    /// element. Call [`wait_for_element_present`](Self::wait_for_element_present)
+    /// first for an element that may not be there yet.
+    ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
+    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
+    /// [`SeleniumBaseError::InvalidSelector`] for a selector the browser
+    /// rejects.
     pub async fn get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         let script = single_element_script(
             selector,
@@ -392,9 +405,14 @@ impl<'a> CdpPage<'a> {
                 .or_else(|| exception.get("text"))
                 .and_then(Value::as_str)
                 .unwrap_or("script error");
-            return Err(SeleniumBaseError::cdp_driver(
-                description.lines().next().unwrap_or(description),
-            ));
+            let reason = description.lines().next().unwrap_or(description);
+            // The same bad selector is an `InvalidSelector` everywhere, as in
+            // `find_element` and `sb_cdp`'s `Locator`.
+            return Err(if reason.contains("is not a valid selector") {
+                SeleniumBaseError::InvalidSelector(reason.to_owned())
+            } else {
+                SeleniumBaseError::cdp_driver(reason)
+            });
         }
         Ok(response.get("result").cloned().unwrap_or(Value::Null))
     }
@@ -1229,6 +1247,56 @@ mod driven_tests {
             assert!(
                 matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#gone"),
                 "{error}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_lost_connection_is_not_waited_out_as_a_missing_element() {
+        let (_driver, session) = driven(|command, _| {
+            if command == "Runtime.evaluate" {
+                Err(())
+            } else {
+                Ok(json!({}))
+            }
+        })
+        .await;
+
+        let started = Instant::now();
+        let error = CdpPage::new(&session)
+            .wait_for_element_present("#go", Duration::from_secs(30))
+            .await
+            .unwrap_err();
+
+        assert!(
+            !matches!(error, SeleniumBaseError::ElementNotFound { .. }),
+            "{error:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "it kept polling a dead connection"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_bad_selector_is_invalid_in_reads_as_well_as_in_find() {
+        let (_driver, session) = driven(|_, _| {
+            Ok(json!({ "exceptionDetails": { "exception": {
+                "description": "SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.\n    at <anonymous>:1:1"
+            }}}))
+        })
+        .await;
+        let page = CdpPage::new(&session);
+
+        for error in [
+            page.get_text("#").await.unwrap_err(),
+            page.get_attribute("#", "id").await.unwrap_err(),
+            page.type_text("#", "x").await.unwrap_err(),
+            page.select_option_by_value("#", "x").await.unwrap_err(),
+        ] {
+            assert!(
+                matches!(&error, SeleniumBaseError::InvalidSelector(m) if m.contains("not a valid selector")),
+                "{error:?}"
             );
         }
     }
