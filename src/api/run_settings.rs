@@ -791,7 +791,10 @@ mod tests {
     #[test]
     fn a_test_id_is_one_plain_file_name() {
         let binary = Some("cart-0123456789abcdef");
-        assert_eq!(test_id("checkout::renders", binary), "cart.checkout.renders");
+        assert_eq!(
+            test_id("checkout::renders", binary),
+            "cart.checkout.renders"
+        );
         assert_eq!(test_id("renders", binary), "cart.renders");
         assert_ne!(
             test_id("renders", Some("shop-0123456789abcdef")),
