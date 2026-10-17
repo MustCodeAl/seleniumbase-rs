@@ -709,23 +709,20 @@ async function showStorageStatus() {
 // ---------------- Custom masking (fingerprint) ----------------
 
 const MASKING_MODES = [
-  ["", "Natural (default)"],
-  ["Natural", "Natural"],
-  ["Mask", "Mask"],
-  ["Custom", "Custom"],
-  ["Disabled", "Disabled"],
+  ["", "Auto (default: on when the profile holds a value)"],
+  ["Natural", "Natural (force the browser's own value)"],
+  ["Mask", "Mask (generic value where none is given)"],
 ];
 const CANVAS_MODES = [
-  ["", "Mask (default)"],
+  ["", "Auto (default: on when the profile has a seed)"],
   ["Mask", "Mask"],
   ["Natural", "Natural"],
-  ["Disabled", "Disabled"],
   ["Random", "Random (per session)"],
   ["Persistent", "Persistent (per seed)"],
   ["Low", "Low"],
 ];
 const POPUP_MODES = [
-  ["", "Prompt (default)"],
+  ["", "Auto (default: allow when a position is given)"],
   ["Prompt", "Prompt"],
   ["Allow", "Allow"],
   ["Block", "Block"],

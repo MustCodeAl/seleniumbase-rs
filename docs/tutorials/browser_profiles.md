@@ -196,7 +196,7 @@ profile would fill in `America/New_York`, not one that matches the position.
   "core_version": 26,
   "parameters": {
     "flags": {
-      "webrtc_masking": "disabled",
+      "webrtc_masking": "natural",
       "native_spoofing": true
     },
     "fingerprint": {
@@ -336,8 +336,9 @@ inspect.
 ```
 
 `webrtc_masking: mask` forces `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
-so public IP leakage is reduced, and `webrtc_masking: disabled` passes the same
-policy. `webrtc_masking: natural` leaves the browser's default policy in place.
+so public IP leakage is reduced. The default, `auto`, passes a policy only when
+the profile names one or holds a WebRTC IP. `webrtc_masking: natural` (also
+`disabled`) leaves the browser's default policy in place.
 
 To spoof specific public/local IPs, use the literal `public:IP|local:IP` format
 or the `fingerprint.webrtc.public_ip` field:
