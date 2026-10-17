@@ -643,9 +643,10 @@ impl EvasionProvider for WebglProvider {
 
 /// Canvas noise on `toDataURL` / `toBlob` / `getImageData`.
 ///
-/// Runs for every [`CanvasNoiseMode`] that adds noise: `Mask` and `Persistent`
-/// use the profile seed, `Random` a fresh seed for each generated script, and
-/// `Low` touches about one pixel in eight.
+/// Runs for every [`CanvasNoise`](crate::stealth::fingerprint::CanvasNoise)
+/// of the policy that adds noise: `Persistent` uses the profile seed, `Random`
+/// a fresh seed for each generated script, and `Low` touches about one pixel in
+/// eight.
 ///
 /// The noise is a function of the seed and the pixel's position, so reading
 /// the same canvas twice gives the same bytes, and a sub-rectangle carries the
@@ -1237,7 +1238,12 @@ impl EvasionProvider for SpeechProvider {
     }
 }
 
-/// Provides a minimal Web Bluetooth stub.
+/// Sets whether Web Bluetooth has an adapter.
+///
+/// A browser that has `navigator.bluetooth` (desktop Chrome) keeps its own
+/// object, and only `getAvailability()` is replaced, so `Value(false)` and
+/// `Value(true)` change what a page reads. A browser without it gets a minimal
+/// stub. `Off` removes the API.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct BluetoothProvider;
 
@@ -1262,7 +1268,14 @@ impl EvasionProvider for BluetoothProvider {
         Some(render(
             r##"(function () {
   @SB@
-  if (navigator.bluetooth) { return; }
+  if (navigator.bluetooth) {
+    const proto = Object.getPrototypeOf(navigator.bluetooth);
+    const original = proto && proto.getAvailability;
+    if (typeof original === 'function') {
+      try { proto.getAvailability = sb.native(function getAvailability() { return Promise.resolve(@AVAILABLE@); }, 'getAvailability', original); } catch (e) {}
+    }
+    return;
+  }
   const bt = {
     getAvailability: function () { return Promise.resolve(@AVAILABLE@); },
     requestDevice: function () { return Promise.reject(new DOMException('User cancelled', 'NotFoundError')); },
@@ -1479,7 +1492,7 @@ impl EvasionProvider for ClientHintsProvider {
 /// the fingerprint is applied over the DevTools protocol,
 /// `Emulation.setTimezoneOverride` already changes all of them in the browser
 /// itself and this provider is not needed (see
-/// [`StealthFlags::native_spoofing`](crate::stealth::fingerprint::StealthFlags::native_spoofing)).
+/// [`StealthPolicy::native_spoofing`](crate::stealth::fingerprint::StealthPolicy::native_spoofing)).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TimezoneProvider;
 
@@ -1645,10 +1658,11 @@ impl EvasionProvider for LocalizationProvider {
 /// Spoofs `navigator.geolocation.getCurrentPosition` / `watchPosition` (CDP
 /// fallback).
 ///
-/// The methods are replaced on `Geolocation.prototype`. With the popup mode
-/// `Allow` they answer with the fingerprint's position without asking; with
-/// `Block` they answer as a user who denied the request (`PERMISSION_DENIED`).
-/// With `Prompt` they are the browser's own.
+/// The methods are replaced on `Geolocation.prototype`. When the fingerprint's
+/// geolocation is a position they answer with it without asking; when it is
+/// `Off` they answer as a user who denied the request (`PERMISSION_DENIED`).
+/// When it is `Natural` they are the browser's own, and the provider does not
+/// run.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GeolocationProvider;
 
@@ -1725,8 +1739,8 @@ impl EvasionProvider for GeolocationProvider {
 
 /// Fixes the Modernizr hairline headless detection.
 ///
-/// It is a headless fix, so it follows `headless_masking`; it is not graphics
-/// noise, and `graphics_noise` does not decide it.
+/// It is a headless fix, so it runs when the policy's `headless_fixes` is on;
+/// it is not graphics noise.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HairlineProvider;
 
@@ -1791,7 +1805,7 @@ impl EvasionProvider for IframeProvider {
 /// page is running in a controllable environment. This provider does not
 /// change the return value's API surface; it only ensures the shadow root is
 /// reachable via `element.shadowRoot`. It runs unless
-/// [`StealthFlags::open_shadow_roots`](crate::stealth::fingerprint::StealthFlags::open_shadow_roots)
+/// [`StealthPolicy::open_shadow_roots`](crate::stealth::fingerprint::StealthPolicy::open_shadow_roots)
 /// is turned off.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AttachShadowProvider;
@@ -2213,6 +2227,11 @@ mod tests {
             let script = BluetoothProvider.script(&ctx_for(&fp)).unwrap();
             assert!(
                 script.contains(&format!("Promise.resolve({word})")),
+                "{script}"
+            );
+            // A real `navigator.bluetooth` is kept and only its availability is replaced.
+            assert!(
+                script.contains("proto.getAvailability = sb.native("),
                 "{script}"
             );
         }
