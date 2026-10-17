@@ -643,7 +643,11 @@ impl EvasionProvider for WebglProvider {
     }
 }
 
-/// Deterministic canvas noise on `toDataURL` / `toBlob` / `getImageData`.
+/// Canvas noise on `toDataURL` / `toBlob` / `getImageData`.
+///
+/// Runs for every [`CanvasNoiseMode`] that adds noise: `Mask` and `Persistent`
+/// use the profile seed, `Random` a fresh seed for each generated script, and
+/// `Low` touches about one pixel in eight.
 ///
 /// The noise is a function of the seed and the pixel's position, so reading
 /// the same canvas twice gives the same bytes, and a sub-rectangle carries the
@@ -660,22 +664,32 @@ impl EvasionProvider for CanvasNoiseProvider {
         55
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        matches!(fp.flags.canvas_noise, CanvasNoiseMode::Mask)
+        fp.flags.canvas_noise.adds_noise()
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let mode = ctx.fingerprint.flags.canvas_noise;
+        let seed = if mode == CanvasNoiseMode::Random {
+            ctx.seed ^ fresh_entropy()
+        } else {
+            ctx.seed
+        };
         Some(render(
             r##"(function () {
   @SB@
   const seed = @SEED@ >>> 0;
+  const density = @DENSITY@;
   @HASH@
   // Nudges the red channel of each pixel by -1, 0 or +1. The pixel at
-  // (x0 + column, y0 + row) always gets the same nudge.
+  // (x0 + column, y0 + row) always gets the same nudge. With a density above
+  // one, only the pixels whose own hash lands on zero are touched.
   function perturb(data, width, x0, y0) {
     for (let i = 0; i < data.length; i += 4) {
       const pixel = i / 4;
       const column = pixel % width;
       const row = (pixel - column) / width;
-      const nudge = (hash((y0 + row) * 65536 + x0 + column) % 3) - 1;
+      const key = (y0 + row) * 65536 + x0 + column;
+      if (density > 1 && hash(key + 7919) % density !== 0) { continue; }
+      const nudge = (hash(key) % 3) - 1;
       if (nudge !== 0) { data[i] = Math.max(0, Math.min(255, data[i] + nudge)); }
     }
   }
@@ -717,9 +731,24 @@ impl EvasionProvider for CanvasNoiseProvider {
     return image;
   }, 'getImageData', originalGetImageData);
 })();"##,
-            &[("SEED", &ctx.seed.to_string()), ("HASH", NOISE_HASH)],
+            &[
+                ("SEED", &seed.to_string()),
+                ("DENSITY", &mode.density().to_string()),
+                ("HASH", NOISE_HASH),
+            ],
         ))
     }
+}
+
+/// A value that differs on every call, for the noise that must not repeat.
+fn fresh_entropy() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos() as u64);
+    let step = COUNTER.fetch_add(1, Ordering::Relaxed);
+    (nanos ^ step.wrapping_mul(0x9E37_79B9_7F4A_7C15)).wrapping_mul(0xBF58_476D_1CE4_E5B9)
 }
 
 /// Deterministic audio noise on `AudioBuffer.getChannelData`,
@@ -1870,6 +1899,43 @@ mod tests {
         let seed = ctx.seed;
         let script = CanvasNoiseProvider.script(&ctx).unwrap();
         assert!(script.contains(&format!("{seed} >>> 0")));
+    }
+
+    #[test]
+    fn canvas_noise_runs_in_every_mode_that_asks_for_noise() {
+        for (mode, runs) in [
+            (CanvasNoiseMode::Mask, true),
+            (CanvasNoiseMode::Persistent, true),
+            (CanvasNoiseMode::Random, true),
+            (CanvasNoiseMode::Low, true),
+            (CanvasNoiseMode::Natural, false),
+            (CanvasNoiseMode::Disabled, false),
+        ] {
+            let mut fp = Fingerprint::windows_desktop();
+            fp.flags.canvas_noise = mode;
+            assert_eq!(CanvasNoiseProvider.applies(&fp), runs, "{mode:?}");
+        }
+    }
+
+    #[test]
+    fn canvas_noise_low_touches_fewer_pixels_and_random_changes_the_seed() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.canvas_noise = CanvasNoiseMode::Mask;
+        let full = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(full.contains("const density = 1;"), "{full}");
+
+        fp.flags.canvas_noise = CanvasNoiseMode::Low;
+        let low = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(low.contains("const density = 8;"), "{low}");
+
+        fp.flags.canvas_noise = CanvasNoiseMode::Persistent;
+        let persistent = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        assert_eq!(persistent, full, "Persistent is the seeded noise of Mask");
+
+        fp.flags.canvas_noise = CanvasNoiseMode::Random;
+        let first = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        let second = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        assert_ne!(first, second, "Random draws a fresh seed for each context");
     }
 
     #[test]

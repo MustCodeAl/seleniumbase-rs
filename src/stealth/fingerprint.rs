@@ -125,16 +125,39 @@ pub enum NoiseMode {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum CanvasNoiseMode {
+    /// Deterministic noise from the profile seed.
     #[default]
     Mask,
+    /// No noise: the browser's own canvas.
     Natural,
+    /// No noise, the same as [`Natural`](CanvasNoiseMode::Natural).
     Disabled,
-    /// Non-deterministic per-session noise.
+    /// Noise from a fresh seed each time the script is generated, so each
+    /// browser context gets different noise.
     Random,
-    /// Deterministic noise tied to the profile seed.
+    /// Deterministic noise tied to the profile seed, the same as
+    /// [`Mask`](CanvasNoiseMode::Mask).
     Persistent,
-    /// Low-intensity noise.
+    /// Seeded noise on about one pixel in eight.
     Low,
+}
+
+impl CanvasNoiseMode {
+    /// Whether this mode adds canvas noise.
+    #[must_use]
+    pub fn adds_noise(self) -> bool {
+        matches!(self, Self::Mask | Self::Persistent | Self::Random | Self::Low)
+    }
+
+    /// How sparse the noise is: it touches one pixel in this many.
+    #[must_use]
+    pub fn density(self) -> u32 {
+        if self == Self::Low {
+            8
+        } else {
+            1
+        }
+    }
 }
 
 /// Geolocation permission popup behaviour.
