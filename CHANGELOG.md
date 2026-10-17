@@ -18,6 +18,18 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed (breaking)
 
+- `CdpDriver::evaluate` returns the value, as Python's `sb.cdp.evaluate` does,
+  and drops a `return ` that starts the last line; it used to return the raw
+  CDP result object. `CdpDriver::find` reports a selector the page rejects as
+  `InvalidSelector` (it was `CdpDriver`).
+
+  ```rust
+  // before
+  let title = driver.evaluate("document.title").await?["value"].clone();
+  // after
+  let title = driver.evaluate("document.title").await?;
+  ```
+
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
   `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF

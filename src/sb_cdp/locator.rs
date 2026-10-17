@@ -214,7 +214,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn count(&self) -> Result<usize, SeleniumBaseError> {
         let count = self
             .page
@@ -308,7 +308,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn all(&self) -> Result<Vec<Self>, SeleniumBaseError> {
         Ok((0..self.count().await?)
             .map(|index| self.nth(index))
@@ -325,7 +325,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn all_waiting(&self) -> Result<Vec<Self>, SeleniumBaseError> {
         self.page
             .poll(self.timeout, || async {
@@ -354,7 +354,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn infos(&self) -> Result<Vec<ElementInfo>, SeleniumBaseError> {
         let value = self
             .page
@@ -447,7 +447,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn is_visible(&self) -> Result<bool, SeleniumBaseError> {
         self.is_in_state(State::Visible).await
     }
@@ -456,7 +456,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn exists(&self) -> Result<bool, SeleniumBaseError> {
         self.is_in_state(State::Present).await
     }
@@ -740,7 +740,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn set_attribute(
         &self,
         name: impl AsRef<str>,
@@ -764,7 +764,7 @@ impl Locator {
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the selector is invalid.
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is invalid.
     pub async fn remove(&self) -> Result<(), SeleniumBaseError> {
         self.page
             .eval_labelled(
