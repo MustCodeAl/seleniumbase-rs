@@ -13,6 +13,11 @@ work, `docs/parity.md` the per-API status).
 - `sbrs-mcp` names itself: `sbrs-mcp --version` prints `sbrs-mcp 0.5.0`, and its help
   and the usage line of an error say `sbrs-mcp`, where they said `seleniumbase-rs`.
 
+### Fixed
+
+- A value written after a switch, `sbrs --headless=false open ...` or `--uc=1`, is an
+  error with status 2 again, as it was with clap. 0.5.0 accepted `true` and `false`.
+
 ## [0.5.0] - 2026-10-17
 
 A release of API clean-ups and new structure. The fingerprint API is one

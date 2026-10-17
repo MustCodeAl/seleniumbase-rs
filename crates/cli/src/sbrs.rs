@@ -49,6 +49,7 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 mod fig;
 #[cfg(feature = "turso")]
 mod report;
+mod strict;
 
 /// What `sbrs --version` prints after the program name. It names the library
 /// package, as it did when the binary was part of it, not this crate
@@ -1795,6 +1796,18 @@ fn run_command() -> std::process::ExitCode {
     }
 }
 
+/// `Cli::parse`, after the checks of [`strict`] that usage 6 does not make itself: a refused
+/// command line says why on standard error and exits with status 2, as clap did.
+fn parse_command_line() -> Cli {
+    let argv: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    let words: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsString::as_os_str).collect();
+    if let Err(error) = strict::check(Cli::spec(), Cli::command(), &words) {
+        eprint!("{}", Cli::render_failure(&words, &error));
+        std::process::exit(2);
+    }
+    Cli::parse()
+}
+
 async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     // One bad SB_* variable must not drop the good ones, SB_LOG_LEVEL among
     // them; the bad ones are reported once logging works.
@@ -1804,7 +1817,7 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
         tracing::warn!(%problem, "ignored an invalid SB_* variable, its default is used");
     }
 
-    let args = Cli::parse();
+    let args = parse_command_line();
     let stops_itself = matches!(
         args.command,
         Commands::Record { .. } | Commands::Devtools { .. }
@@ -3253,14 +3266,24 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Parses `argv`, whose first word is the program name, as `parse_command_line` does: the
+/// checks of [`strict`] first, then the parser. A request for help is an error here, with
+/// nothing to say.
+#[cfg(test)]
+fn try_parse_checked(argv: &[&str]) -> Result<Cli, String> {
+    let argv: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsStr::new).collect();
+    let words = argv.get(1..).unwrap_or_default();
+    strict::check(Cli::spec(), Cli::command(), words)
+        .and_then(|()| Cli::parse_from_argv(&argv))
+        .map_err(|error| Cli::render_failure(words, &error))
+}
+
 #[cfg(test)]
 mod devtools_cli_tests {
     use super::*;
 
-    /// Parses `argv`, whose first word is the program name.
     fn try_parse(argv: &[&str]) -> Result<Cli, String> {
-        let argv: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsStr::new).collect();
-        Cli::parse_from_argv(&argv).map_err(|error| Cli::render_failure(&argv, &error))
+        try_parse_checked(argv)
     }
 
     fn parse(argv: &[&str]) -> Cli {
@@ -3340,24 +3363,6 @@ mod devtools_cli_tests {
         assert!(matches!(cli.command, Commands::Devtools { .. }));
     }
 
-    /// The parser ignores a value written after a plain switch (`--headless=false` would
-    /// switch it on), so the switches take `true` and `false` and refuse anything else.
-    #[test]
-    fn a_value_written_after_a_switch_means_what_it_says_or_is_refused() {
-        let cli = parse(&["sbrs", "--headless=false", "--headed=true", "open", "x"]);
-        assert!(!cli.headless && cli.headed);
-        let cli = parse(&["sbrs", "--headless=true", "open", "x"]);
-        assert!(cli.headless);
-        for argv in [
-            &["sbrs", "--headless=", "open", "x"][..],
-            &["sbrs", "--headless=0", "open", "x"],
-            &["sbrs", "--cdp=yes", "open", "x"],
-            &["sbrs", "open", "x", "--headless=true"],
-        ] {
-            assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
-        }
-    }
-
     #[test]
     fn a_port_out_of_range_is_refused() {
         assert!(try_parse(&["sbrs", "devtools", "--port", "70000"]).is_err());
@@ -3394,10 +3399,8 @@ mod devtools_cli_tests {
 mod plugin_cli_tests {
     use super::*;
 
-    /// Parses `argv`, whose first word is the program name.
     fn try_parse(argv: &[&str]) -> Result<Cli, String> {
-        let argv: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsStr::new).collect();
-        Cli::parse_from_argv(&argv).map_err(|error| Cli::render_failure(&argv, &error))
+        try_parse_checked(argv)
     }
 
     fn parse(argv: &[&str]) -> Cli {
@@ -3500,8 +3503,107 @@ mod plugin_cli_tests {
 }
 
 #[cfg(test)]
+mod strict_cli_tests {
+    use super::*;
+
+    fn refused(argv: &[&str]) -> String {
+        try_parse_checked(argv).expect_err(&format!("{argv:?} was accepted"))
+    }
+
+    /// The result of [`strict::check`] alone, for the command line without the program name.
+    fn checked(words: &[&str]) -> Result<(), String> {
+        let words: Vec<&std::ffi::OsStr> = words.iter().map(std::ffi::OsStr::new).collect();
+        strict::check(Cli::spec(), Cli::command(), &words)
+            .map_err(|error| Cli::render_failure(&words, &error))
+    }
+
+    #[test]
+    fn a_value_written_after_a_switch_is_refused_whatever_it_is() {
+        for argv in [
+            &["sbrs", "--headless=false", "open", "x"][..],
+            &["sbrs", "--headless=true", "open", "x"],
+            &["sbrs", "--headed=true", "open", "x"],
+            &["sbrs", "--headless=", "open", "x"],
+            &["sbrs", "--headless=0", "open", "x"],
+            &["sbrs", "--cdp=yes", "open", "x"],
+            &["sbrs", "--uc=1", "version"],
+            &["sbrs", "devtools", "--json=true"],
+            &["sbrs", "mkdir", "d", "--force=false"],
+        ] {
+            let error = refused(argv);
+            assert!(error.contains("takes no value"), "{argv:?}: {error}");
+        }
+        // A global switch after the command is no flag of the command: refused either way.
+        refused(&["sbrs", "open", "x", "--headless=true"]);
+    }
+
+    #[test]
+    fn a_switch_without_a_value_is_on() {
+        let cli = try_parse_checked(&["sbrs", "--headless", "--uc", "open", "x"]).expect("parses");
+        assert!(cli.headless && cli.uc);
+    }
+
+    #[test]
+    fn a_request_for_help_or_the_version_ends_the_check() {
+        for words in [
+            &["mkdir", "--help", "--force=2"][..],
+            &["--version", "--headless=true"],
+            &["mkdir", "-h", "--force=1"],
+        ] {
+            assert_eq!(checked(words), Ok(()), "{words:?}");
+        }
+    }
+
+    #[test]
+    fn what_the_check_does_not_cover_is_left_to_the_parser() {
+        for words in [
+            &[][..],
+            &["nosuch"],
+            &["--nosuch"],
+            &["open"],
+            &["__complete_word__", "--shell", "bash"],
+        ] {
+            assert_eq!(checked(words), Ok(()), "{words:?}");
+        }
+    }
+}
+
+#[cfg(test)]
 mod usage_spec_tests {
     use super::*;
+
+    /// The check in `strict` can see a value written after a switch only when the switch is
+    /// declared `bool_value`: without it the parser drops the value before anything can look
+    /// at it.
+    #[test]
+    fn every_switch_is_declared_bool_value() {
+        fn walk(command: &usage::Command<'_>, path: &str, undeclared: &mut Vec<String>) -> usize {
+            let mut switches = 0;
+            for flag in command.flags {
+                if flag.takes_value || flag.action != usage::ArgAction::Set {
+                    continue;
+                }
+                switches += 1;
+                if !flag.bool_value {
+                    undeclared.push(format!(
+                        "{path} --{}",
+                        flag.longs.first().unwrap_or(&flag.name)
+                    ));
+                }
+            }
+            for sub in command.subcommands {
+                switches += walk(sub, &format!("{path} {}", sub.name), undeclared);
+            }
+            switches
+        }
+        let mut undeclared = Vec::new();
+        let switches = walk(Cli::command(), "sbrs", &mut undeclared);
+        assert!(switches > 10, "the walk found only {switches} switches");
+        assert!(
+            undeclared.is_empty(),
+            "declare as `bool_value`: {undeclared:?}"
+        );
+    }
 
     /// The spec states some defaults as literals, because a constant cannot be written
     /// into it; they have to be the constants the code uses.

@@ -132,10 +132,12 @@ binaries with `cargo install --path crates/cli`.
   `unknown_flags = "error"` and `args_override_self = false` do not reach: an inline
   struct variant of `Commands` cannot say `args_override_self`, so a flag repeated
   after a subcommand takes its last value (`GridArgs` and `PromptArgs` are `Args`
-  structs and refuse it); the parser drops the `=value` of a plain switch
-  (`--headless=false` would switch it on), so every switch is `bool_value` and means
-  what it says; `sbrs help nosuch` prints the root help and exits 0. The help lists
-  the commands alphabetically, not in declaration order.
+  structs and refuse it); `sbrs help nosuch` prints the root help and exits 0. A
+  value written after a switch (`--headless=false`) is refused by
+  `crates/cli/src/strict.rs`, which reads the parser's events before the real parse;
+  it can see the value only because every switch is declared `bool_value` (a test
+  fails for one that is not). The help lists the commands alphabetically, not in
+  declaration order.
 - `thirtyfour` still depends on `zip` 8.6, so two `zip` versions are in the tree.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.
