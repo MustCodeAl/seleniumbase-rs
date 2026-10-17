@@ -876,7 +876,8 @@ impl BrowserSession {
 
     /// Applies an optional [`Fingerprint`] to the active session.
     ///
-    /// When CDP is available the bootstrap script is registered via
+    /// The script is [`session_script`](crate::stealth::evasions::session_script),
+    /// the one the pure CDP engine runs. When CDP is available it is registered via
     /// `Page.addScriptToEvaluateOnNewDocument` and CDP overrides (screen size,
     /// geolocation, timezone, UA) are issued. Otherwise the script is executed
     /// directly in the current page as a fallback.
@@ -885,7 +886,7 @@ impl BrowserSession {
             return Ok(());
         };
 
-        let script = crate::stealth::evasions::bootstrap_script(fp);
+        let script = fingerprint_script(fp);
 
         if let Ok(cdp) = self.cdp_client() {
             cdp.add_init_script(&script).await?;
@@ -1246,6 +1247,12 @@ async fn apply_window_rect(
     Ok(())
 }
 
+/// The init script that makes a WebDriver session match `fp`: the same one the
+/// pure CDP engine runs, since both drive a real Chrome.
+fn fingerprint_script(fp: &crate::stealth::fingerprint::Fingerprint) -> String {
+    crate::stealth::evasions::session_script(fp)
+}
+
 /// The protocol commands, after the init script, that make a WebDriver session
 /// match `fp`.
 ///
@@ -1498,6 +1505,21 @@ mod fingerprint_tests {
             !everything.contains("YWxpY2U6ZmFrZS1wcm94eS1wYXNzd29yZA"),
             "{everything}"
         );
+    }
+
+    #[test]
+    fn a_webdriver_session_gets_the_same_script_as_the_pure_cdp_engine() {
+        // Both drive a real Chrome, which answers for plugins, mime types, the
+        // PDF viewer flag and the network report itself.
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+        let script = fingerprint_script(&fingerprint);
+        assert_eq!(
+            script,
+            crate::stealth::providers::session_registry(&fingerprint).bootstrap(
+                &crate::stealth::providers::EvasionContext::new(&fingerprint)
+            )
+        );
+        assert!(!script.contains("mimeTypes"), "a spoof Chrome does not need");
     }
 
     #[test]

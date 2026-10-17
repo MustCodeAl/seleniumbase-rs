@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use base64::Engine;
 
 use crate::stealth::fingerprint::{BrandVersion, Fingerprint, OsType, ProxyMaskingMode, QuicMode};
-use crate::stealth::providers::{default_registry, EvasionContext};
+use crate::stealth::providers::{default_registry, session_registry, EvasionContext};
 use crate::stealth::randomize::{chromium_hints, PRESET_CHROMIUM_MAJOR};
 
 /// Generates a single combined bootstrap script for the given fingerprint.
@@ -29,8 +29,24 @@ use crate::stealth::randomize::{chromium_hints, PRESET_CHROMIUM_MAJOR};
 /// in priority order. The returned script is wrapped in an IIFE and modifies
 /// prototype-level properties so spoofed values survive `getOwnPropertyNames`
 /// scans and re-define attempts by page scripts.
+///
+/// This is the script for a browser that lacks `navigator.plugins`, `mimeTypes`
+/// and `navigator.connection`, since it spoofs them. A session that drives a
+/// real Chrome should use [`session_script`], which leaves them to the browser.
 pub fn bootstrap_script(fp: &Fingerprint) -> String {
     default_registry().bootstrap(&EvasionContext::new(fp))
+}
+
+/// The script a session that drives a real Chrome runs before any page script.
+///
+/// It is the [session registry](crate::stealth::providers::session_registry)'s:
+/// [`bootstrap_script`] without the providers for `navigator.plugins`,
+/// `mimeTypes`, `pdfViewerEnabled` and `navigator.connection`, which Chrome
+/// answers for itself. The pure CDP engine and the WebDriver sessions both use
+/// it, so one fingerprint gives the same page-side identity in either.
+#[must_use]
+pub fn session_script(fp: &Fingerprint) -> String {
+    session_registry(fp).bootstrap(&EvasionContext::new(fp))
 }
 
 /// Returns a script that scrubs `cdc_` / webdriver markers from `window` and

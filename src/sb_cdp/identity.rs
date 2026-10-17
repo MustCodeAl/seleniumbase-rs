@@ -32,9 +32,8 @@ use serde_json::{json, Value};
 
 use super::Page;
 use crate::error::SeleniumBaseError;
-use crate::stealth::evasions::safe_cdp_overrides;
+use crate::stealth::evasions::{safe_cdp_overrides, session_script};
 use crate::stealth::fingerprint::Fingerprint;
-use crate::stealth::providers::{session_registry, EvasionContext};
 
 /// The override that grants permissions. It is browser-wide, so it needs the
 /// context of the tab it is for and is sent separately.
@@ -42,12 +41,6 @@ const PERMISSIONS: &str = "Browser.grantPermissions";
 
 /// The override that sets what the screen and the pixel ratio read as.
 const DEVICE_METRICS: &str = "Emulation.setDeviceMetricsOverride";
-
-/// The script a tab runs before any page script: the session providers, which
-/// leave to the browser what a real Chrome answers for itself.
-fn session_script(fingerprint: &Fingerprint) -> String {
-    session_registry(fingerprint).bootstrap(&EvasionContext::new(fingerprint))
-}
 
 /// The device metrics a tab is given for the screen the library computed.
 ///
@@ -212,6 +205,7 @@ mod tests {
     use super::*;
     use crate::stealth::evasions::{cdp_overrides, CREDENTIAL_HEADER_METHOD};
     use crate::stealth::fingerprint::{OsType, ProxyConfig};
+    use crate::stealth::providers::{session_registry, EvasionContext};
 
     fn methods(identity: &Identity) -> Vec<&str> {
         identity
