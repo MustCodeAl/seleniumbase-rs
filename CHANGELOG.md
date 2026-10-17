@@ -26,7 +26,8 @@ work, `docs/parity.md` the per-API status).
   `Page::start_har()` / `start_har_with(HarOptions)` return a `HarRecorder`,
   and `HarRecorder::finish()` returns a `Har` (HTTP Archive 1.2 serde types)
   that `Har::save(path)` writes as JSON. Entries come from the `Network`
-  events, extra-info headers included, with cookies, query strings, POST
+  events of the tab and of its cross-site iframes, which run in targets of
+  their own and are attached while recording, extra-info headers included, with cookies, query strings, POST
   bodies, one entry per redirect hop, failures with Chrome's `_error`, and
   `blocked`/`dns`/`connect`/`ssl`/`send`/`wait`/`receive` timings; each
   top-level navigation is a page with `onContentLoad` and `onLoad`. Response

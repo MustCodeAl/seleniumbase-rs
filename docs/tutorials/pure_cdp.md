@@ -263,7 +263,8 @@ want exactly that.
 
 ## Recording a HAR
 
-`page.start_har()` records everything the tab requests from then on;
+`page.start_har()` records everything the tab and its iframes request from
+then on;
 `finish()` stops and returns a `Har` (HTTP Archive 1.2), and `save` writes it
 as a `.har` file that Chrome's and Firefox's developer tools, HAR viewers and
 mitmproxy open.
@@ -301,13 +302,24 @@ top-level navigation adds a page with its `onContentLoad` and `onLoad` times.
 Bodies are off by default; with `content(true)` a body is fetched when it
 finishes loading, binary ones as base64, and one over the limit is left out
 with a `comment` saying so. The limit goes up to 64 MiB (`MAX_CONTENT_BYTES`),
-because each body comes back whole in one DevTools message. `Har` and its parts are serde types, so a saved
-HAR reads back with `serde_json::from_str::<Har>`.
+because each body comes back whole in one DevTools message. `Har` and its
+parts are serde types, so a saved HAR reads back with
+`serde_json::from_str::<Har>`.
+
+A cross-site iframe (an ad, a video player, a captcha) runs in a target of its
+own, which reports its requests on its own session. The recorder attaches to
+each one as it appears (`Target.setAutoAttach`), holds it until its requests
+are reported, and records them with the tab's; iframes inside it too. Requests
+of service workers, and of other workers that run as targets of their own, are
+not recorded. If the recorder falls so far behind the browser that it misses
+events, `log.comment` says so.
 
 Recording enables the tab's `Network` domain and leaves it on, since other
-features may rely on it. A HAR records cookies and, with bodies, whatever the
-pages returned, so treat the file like the session it came from.
-`tests/sb_cdp_har_chrome.rs` records a visit to a local server in a real Chrome.
+features may rely on it. It attaches to the iframes only while it runs: finishing
+or dropping the recorder detaches them, so run one recording per tab at a time.
+A HAR records cookies and, with bodies, whatever the pages returned, so treat
+the file like the session it came from. `tests/sb_cdp_har_chrome.rs` records a
+visit to a local server, and a page with a cross-site iframe, in a real Chrome.
 
 ## Isolated contexts
 
