@@ -51,7 +51,7 @@ Open `Cargo.toml` and add the dependencies:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/SeleniumBase" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
