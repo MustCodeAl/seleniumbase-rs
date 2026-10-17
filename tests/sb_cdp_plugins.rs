@@ -720,7 +720,7 @@ async fn each_tab_keeps_its_own_blocklist() {
     );
 
     mock.reply("Target.attachToTarget", json!({ "sessionId": "S2" }));
-    browser.new_page(None::<&str>).await.unwrap();
+    browser.new_page().await.unwrap();
 
     assert_eq!(
         blocked_on(&mock, "S2"),
