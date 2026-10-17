@@ -239,20 +239,34 @@ impl BaseCase {
         self.get_property(css, property).await
     }
 
-    /// Asserts that `css` is present in the DOM.
+    /// Asserts that `css` is in the DOM, visible or not, waiting up to the
+    /// default timeout ([`set_timeout`](Self::set_timeout)) for it, as
+    /// Python's `assert_element_present` does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the element is not
+    /// there when the timeout ends.
     pub async fn assert_element_present(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        if !self.is_element_present(css).await? {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Element '{}' was not present",
-                css
-            )));
-        }
-        Ok(())
+        self.check_time_limit()?;
+        let timeout = self.default_wait_secs();
+        poll_until_true(timeout, String::new(), || self.is_element_present(css))
+            .await
+            .map_err(|error| match error {
+                SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                    "Element '{css}' was not present after {timeout}s"
+                )),
+                other => other,
+            })
     }
 
-    /// Asserts that every selector in `selectors` is present.
+    /// Asserts that every selector in `selectors` is displayed, waiting for
+    /// each up to the default timeout, as Python's `assert_elements` does.
     pub async fn assert_elements(&self, selectors: &[&str]) -> Result<(), SeleniumBaseError> {
-        self.assert_elements_present(selectors).await
+        for css in selectors {
+            self.assert_element(css).await?;
+        }
+        Ok(())
     }
 
     /// Asserts that every selector in `selectors` is visible.
@@ -917,7 +931,7 @@ mod tests_with_a_driver {
             ("POST", "/elements") => Reply::Value(json!([element("e1")])),
             _ => Reply::Value(Value::Null),
         });
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         sb.wait_for_element_present("#a", 0)
             .await
             .expect("a wait checks at least once");
@@ -929,7 +943,7 @@ mod tests_with_a_driver {
             ("POST", "/element") => Reply::Error(404, "no such element"),
             _ => Reply::Value(Value::Null),
         });
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         let error = sb
             .wait_for_element_present("#a", 0)
             .await
@@ -943,7 +957,7 @@ mod tests_with_a_driver {
             ("POST", "/element") => Reply::Value(element("e1")),
             _ => Reply::Value(Value::Null),
         });
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         for selector in ["#a", "//div[@id='b']", "link=Home", "p_link=Hom"] {
             sb.wait_for_element_present(selector, 1).await.unwrap();
         }

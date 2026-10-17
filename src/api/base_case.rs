@@ -672,7 +672,7 @@ impl BaseCase {
     /// The element is looked for at least once, so an element that is already
     /// there is found even with a `timeout` of zero.
     pub async fn wait_for_element_present(
-        &mut self,
+        &self,
         css: &str,
         timeout: u64,
     ) -> Result<(), SeleniumBaseError> {
@@ -872,14 +872,24 @@ impl BaseCase {
         self.session.element_present(by).await
     }
 
-    /// Executes the `assert_element` action.
+    /// Asserts that the element `css` is displayed, waiting up to the default
+    /// timeout ([`set_timeout`](Self::set_timeout)) for it, as Python's
+    /// `assert_element` does. Use
+    /// [`assert_element_present`](Self::assert_element_present) for an element
+    /// that only has to be in the DOM.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the element is not
+    /// displayed when the timeout ends.
     pub async fn assert_element(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        if self.is_element_present(css).await? {
-            return Ok(());
+        let timeout = self.default_wait_secs();
+        match self.wait_for_element_visible(css, timeout).await {
+            Err(SeleniumBaseError::WaitTimeout(_)) => Err(SeleniumBaseError::AssertionFailed(
+                format!("expected element '{css}' to be visible after {timeout}s"),
+            )),
+            other => other,
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{css}' to be present"
-        )))
     }
 
     /// Executes the `assert_element_absent` action.
@@ -1008,15 +1018,17 @@ impl BaseCase {
             .await
     }
 
-    /// Alias for `wait_for_element_present`.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed. The
+    /// same as [`wait_for_element_visible`](Self::wait_for_element_visible), as
+    /// in Python, where `wait_for_element` is its alias; use
+    /// [`wait_for_element_present`](Self::wait_for_element_present) for an
+    /// element that only has to be in the DOM.
     pub async fn wait_for_element(
         &self,
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.session.wait_for_element(by, timeout_secs).await?;
-        Ok(())
+        self.wait_for_element_visible(css, timeout_secs).await
     }
 
     /// Returns the value of `attribute` on the element `css`, if present.
@@ -1610,15 +1622,10 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `assert_element_visible` action.
+    /// Asserts that the element `css` is displayed. The same as
+    /// [`assert_element`](Self::assert_element), as in Python.
     pub async fn assert_element_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        if self.is_displayed(css).await? {
-            return Ok(());
-        }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{}' to be visible",
-            css
-        )))
+        self.assert_element(css).await
     }
 
     /// Executes the `assert_element_not_visible` action.
@@ -1849,18 +1856,22 @@ impl BaseCase {
         }
     }
 
-    /// Appends `text` to the element selected by `css`.
+    /// Appends `text` to the element selected by `css`, waiting for it to be
+    /// displayed first, as Python's `add_text` does. Unlike
+    /// [`type_text`](Self::type_text) it does not clear the field.
     pub async fn add_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Visible).await?;
         self.record("add_text", Some(css), Some(text));
         let elem = self.session.driver().find(by).await?;
         elem.send_keys(text).await?;
         Ok(())
     }
 
-    /// Executes the `send_keys` action.
+    /// Appends `text` to the element selected by `css`. The same as
+    /// [`add_text`](Self::add_text), as in Python, where `send_keys` is its
+    /// alias.
     pub async fn send_keys(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.await_ready(css, Ready::Visible).await?;
         self.add_text(css, text).await
     }
 
@@ -2334,14 +2345,12 @@ impl BaseCase {
 
     // --- Additional Python parity methods ---
 
-    /// Alias for `type_text` that clears the field first.
+    /// Clears the field `css` and types `text` into it. The same as
+    /// [`type_text`](Self::type_text), as in Python, where `update_text` and
+    /// `type` are one method: it waits for the element to be displayed, and a
+    /// trailing newline presses Enter.
     pub async fn update_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.record("update_text", Some(css), Some(text));
-        let by = Selector::auto(css).to_by()?;
-        self.demo_highlight(css).await?;
-        self.session.type_text(by, text).await?;
-        self.demo_pause(true).await;
-        Ok(())
+        self.type_text(css, text).await
     }
 
     /// Focus the element matching `css`.
@@ -2746,13 +2755,14 @@ impl BaseCase {
         self.assert_element_absent(css).await
     }
 
-    /// Assert that all provided CSS selectors are present.
+    /// Asserts that every selector in `selectors` is in the DOM, waiting for
+    /// each up to the default timeout.
     pub async fn assert_elements_present(
         &self,
         selectors: &[&str],
     ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            self.assert_element(css).await?;
+            self.assert_element_present(css).await?;
         }
         Ok(())
     }
@@ -3054,13 +3064,15 @@ impl BaseCase {
         self.wait_for_element_visible(css, timeout_secs).await
     }
 
-    /// Alias for `wait_for_element` (present).
+    /// Waits up to `timeout_secs` for `css` to be in the DOM. The same as
+    /// [`wait_for_element_present`](Self::wait_for_element_present), as in
+    /// Python.
     pub async fn wait_for_query_selector(
         &self,
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        self.wait_for_element(css, timeout_secs).await
+        self.wait_for_element_present(css, timeout_secs).await
     }
 }
 
@@ -3098,6 +3110,8 @@ include!("base_case_impls/base_case_impl_rec_cdp.rs");
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_text_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_element_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]

@@ -642,7 +642,7 @@ pub(super) async fn assert_element_present(
 ) -> Result<Output, ToolError> {
     let selector = args.str("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     case.wait_for_element_present(selector, timeout).await?;
     case.assert_element_present(selector).await?;
     Ok(format!("Confirmed {selector} is present.").into())

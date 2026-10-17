@@ -2549,7 +2549,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::WaitForElementPresent { css, timeout } => {
-            let mut sb = BaseCase::new(config).await?;
+            let sb = BaseCase::new(config).await?;
             sb.wait_for_element_present(&css, timeout).await?;
             println!("Element '{}' is present", css);
         }

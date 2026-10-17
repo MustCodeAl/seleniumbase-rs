@@ -199,6 +199,20 @@ that break a call are listed first, each with the way to migrate.
   `visual_baseline/module__test/<name>`. `sb_test!` sets it from the module path
   and the function, so its tests get a new folder: the first run saves a
   baseline there again. Without a test name nothing changes.
+- **The element assertions and waits mean what Python's mean.** `assert_element`,
+  `assert_element_visible`, `assert_elements` and `wait_for_element` need the
+  element to be displayed and wait for it (up to the default timeout; the
+  timeout of `wait_for_element`); they used to look once for an element in the
+  DOM, hidden or not. A test that asserted a hidden element (a hidden input, a
+  `display: none` template) with `assert_element` must use
+  `assert_element_present`, which now waits as well, like
+  `assert_elements_present`. `wait_for_query_selector` is
+  `wait_for_element_present`, as in Python, and `wait_for_element_present`
+  takes `&self`. `AssertionApi::assert_element` is visible-and-waiting for the
+  pure CDP `Page` too.
+- `add_text` waits for the element to be displayed (it used to fail on an
+  element that was not there yet), `send_keys` is `add_text`, and `update_text`
+  is `type_text`, as in Python, where they are the same methods.
 - **The text assertions wait, as Python's do.** `assert_text`,
   `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
   `assert_exact_text_not_visible` poll for up to the default timeout
