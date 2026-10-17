@@ -14,6 +14,7 @@
 //! is refused, and a script for every document runs now and again after each
 //! navigation of the session, after the page's own scripts.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -160,19 +161,7 @@ fn webdriver_host(set: &PluginSet, family: BrowserFamily) -> HostInfo {
 /// each once: what the library blocks in every window itself (its ad-block
 /// list), which a plugin's own blocklist must add to rather than replace.
 pub(crate) fn blocked_urls_of(commands: &[(&'static str, Value)]) -> Vec<String> {
-    let mut urls: Vec<String> = Vec::new();
-    for (_, params) in commands
-        .iter()
-        .filter(|(method, _)| *method == guard::SET_BLOCKED_URLS)
-    {
-        let listed = params.get("urls").and_then(Value::as_array);
-        for url in listed.into_iter().flatten().filter_map(Value::as_str) {
-            if !urls.iter().any(|seen| seen == url) {
-                urls.push(url.to_owned());
-            }
-        }
-    }
-    urls
+    crate::browser::session::blocked_patterns(commands)
 }
 
 /// The capability that holds the options of a Chromium browser: Edge has its
@@ -576,8 +565,13 @@ pub(crate) struct SessionPlugins {
     family: BrowserFamily,
     scripts: Mutex<Vec<String>>,
     /// The URL patterns the library blocks in every window itself (its ad-block
-    /// list). A plugin's raw `Network.setBlockedURLs` adds to them.
+    /// list, and the trackers of a fingerprint). A plugin's raw
+    /// `Network.setBlockedURLs` adds to them.
     blocked: Vec<String>,
+    /// What each window ended up blocking, by window handle, when its plugins
+    /// added to `blocked`. Switching back to a window sends this, not only the
+    /// library's list, which would replace it.
+    windows: Mutex<HashMap<String, Vec<String>>>,
 }
 
 impl SessionPlugins {
@@ -587,6 +581,7 @@ impl SessionPlugins {
             family,
             scripts: Mutex::new(Vec::new()),
             blocked: Vec::new(),
+            windows: Mutex::new(HashMap::new()),
         }
     }
 
@@ -626,6 +621,12 @@ impl SessionPlugins {
             blocked: Mutex::new(self.blocked.clone()),
         };
         let prepared = self.set.on_page_created(&page).await;
+        let union = std::mem::take(&mut *locked(&page.blocked));
+        if union != self.blocked {
+            if let Some(handle) = window_handle(driver).await {
+                locked(&self.windows).insert(handle, union);
+            }
+        }
         let added = std::mem::take(&mut *locked(&page.scripts));
         let mut scripts = locked(&self.scripts);
         for script in added {
@@ -635,6 +636,14 @@ impl SessionPlugins {
             }
         }
         Ok(prepared?)
+    }
+
+    /// The blocklist the plugins left on the window the session is on, when
+    /// they added to the library's.
+    pub(crate) async fn window_blocklist(&self, driver: &WebDriver) -> Option<Vec<String>> {
+        let handle = window_handle(driver).await?;
+        let known = locked(&self.windows).get(&handle).cloned();
+        known
     }
 
     /// Runs again, in the document the session just opened, the scripts the
@@ -667,6 +676,11 @@ impl SessionPlugins {
     pub(crate) async fn close(&self) {
         close(&self.set).await;
     }
+}
+
+/// The handle of the window the session is on, if the server says.
+async fn window_handle(driver: &WebDriver) -> Option<String> {
+    driver.window().await.ok().map(|handle| handle.to_string())
 }
 
 /// The browser of a WebDriver session, as plugins see it.
@@ -2168,6 +2182,95 @@ mod session_tests {
             ]
             .concat(),
             "the same union, not that list twice: {sent:?}"
+        );
+        session.quit().await.unwrap();
+    }
+
+    /// A WebDriver that knows which window the session is on, opens a second
+    /// one (`w2`), and answers everything else with `null`.
+    fn two_window_driver() -> MockWebDriver {
+        let current = Arc::new(Mutex::new("w1".to_owned()));
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync") => Reply::Value(json!(42)),
+                ("POST", "/window/new") => Reply::Value(json!({ "handle": "w2", "type": "tab" })),
+                ("GET", "/window") => Reply::Value(json!(current.lock().unwrap().clone())),
+                ("POST", "/window") => {
+                    if let Some(handle) = request.body["handle"].as_str() {
+                        *current.lock().unwrap() = handle.to_owned();
+                    }
+                    Reply::Value(Value::Null)
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn switching_back_to_a_window_keeps_the_blocklist_its_plugins_built() {
+        let driver = two_window_driver();
+        let plugins = PluginSet::new().with(blocks("images", &["*.png"])).unwrap();
+        let config = config_for(&driver, Browser::Chrome, plugins)
+            .with_ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap());
+        let mut session = BrowserSession::connect(config).await.unwrap();
+        let library = blocklists(&driver)
+            .first()
+            .expect("the ad-block list")
+            .clone();
+        let union = [library.clone(), vec!["*.png".to_owned()]].concat();
+        assert_eq!(blocklists(&driver).last(), Some(&union));
+
+        // The second window is opened and gets its own union.
+        session.switch_to_new_window().await.unwrap();
+        assert_eq!(blocklists(&driver).last(), Some(&union));
+
+        // Back on the first window, the library's list alone would replace it.
+        session.switch_to_window("w1").await.unwrap();
+        assert_eq!(
+            blocklists(&driver).last(),
+            Some(&union),
+            "the plugin's pattern is still blocked: {:?}",
+            blocklists(&driver)
+        );
+        session.quit().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_window_its_plugins_did_not_touch_gets_the_librarys_list_when_switched_to() {
+        let driver = two_window_driver();
+        // Blocks only in the first window.
+        struct FirstOnly(std::sync::atomic::AtomicBool);
+        #[async_trait]
+        impl Plugin for FirstOnly {
+            fn name(&self) -> &str {
+                "first-only"
+            }
+            async fn on_page_created(&self, page: &dyn PageHandle) -> Result<()> {
+                if !self.0.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                    page.send("Network.setBlockedURLs", json!({ "urls": ["*.png"] }))
+                        .await?;
+                }
+                Ok(())
+            }
+        }
+        let plugins = PluginSet::new()
+            .with(FirstOnly(std::sync::atomic::AtomicBool::new(false)))
+            .unwrap();
+        let config = config_for(&driver, Browser::Chrome, plugins)
+            .with_ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap());
+        let mut session = BrowserSession::connect(config).await.unwrap();
+        let library = blocklists(&driver).first().unwrap().clone();
+
+        session.switch_to_new_window().await.unwrap();
+        assert_eq!(
+            blocklists(&driver).last(),
+            Some(&library),
+            "the second window starts from the library's list"
+        );
+        session.switch_to_window("w1").await.unwrap();
+        assert_eq!(
+            blocklists(&driver).last(),
+            Some(&[library, vec!["*.png".to_owned()]].concat())
         );
         session.quit().await.unwrap();
     }

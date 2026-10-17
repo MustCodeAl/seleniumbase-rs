@@ -122,6 +122,33 @@ const AD_BLOCK_PATTERNS: [&str; 14] = [
     "*://*.facebook.net/*",
 ];
 
+/// Adds the `urls` of a `Network.setBlockedURLs` command to `blocked`, each
+/// pattern once and in the order it first arrived.
+fn add_blocked(blocked: &mut Vec<String>, params: &Value) {
+    let listed = params.get("urls").and_then(Value::as_array);
+    for url in listed.into_iter().flatten().filter_map(Value::as_str) {
+        if !blocked.iter().any(|seen| seen == url) {
+            blocked.push(url.to_owned());
+        }
+    }
+}
+
+#[cfg(test)]
+mod blocked_tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn blocklists_add_up_without_repeats() {
+        let mut blocked = Vec::new();
+        add_blocked(&mut blocked, &json!({ "urls": ["a", "b"] }));
+        add_blocked(&mut blocked, &json!({ "urls": ["b", "c", 3] }));
+        add_blocked(&mut blocked, &json!({}));
+        assert_eq!(blocked, ["a", "b", "c"]);
+    }
+}
+
 /// Where a new tab opens when it is not in the default context.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ContextTarget<'a> {
@@ -828,12 +855,18 @@ impl Browser {
             .await?;
             send("Runtime.evaluate", json!({ "expression": shim })).await?;
         }
+        // What this tab blocks so far: `Network.setBlockedURLs` replaces the
+        // list, so each source adds to it and the whole is what gets sent.
+        let mut blocked: Vec<String> = Vec::new();
         if let Some(identity) = &self.inner.options.identity {
             for (method, params) in identity.tab_commands() {
                 client
                     .send(method, params.clone(), Some(session))
                     .await
                     .map_err(|error| super::identity::refused(method, &error))?;
+                if method == "Network.setBlockedURLs" {
+                    add_blocked(&mut blocked, params);
+                }
             }
             // Permissions belong to a browser context, and which one this tab
             // is in is only known to the browser.
@@ -853,14 +886,14 @@ impl Browser {
         }
         if self.inner.options.ad_block {
             send("Network.enable", json!({})).await?;
-            send(
-                "Network.setBlockedURLs",
-                json!({ "urls": AD_BLOCK_PATTERNS }),
-            )
-            .await?;
-            // A plugin's own blocklist is added to this one, not put in its place.
-            #[cfg(feature = "plugins")]
-            self.inner.plugin_blocked.seed(session, &AD_BLOCK_PATTERNS);
+            add_blocked(&mut blocked, &json!({ "urls": AD_BLOCK_PATTERNS }));
+            send("Network.setBlockedURLs", json!({ "urls": blocked })).await?;
+        }
+        // A plugin's own blocklist is added to these, not put in their place.
+        #[cfg(feature = "plugins")]
+        if !blocked.is_empty() {
+            let known: Vec<&str> = blocked.iter().map(String::as_str).collect();
+            self.inner.plugin_blocked.seed(session, &known);
         }
         if self.inner.auth.has_launch_credentials() {
             send(

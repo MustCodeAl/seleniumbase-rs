@@ -23,7 +23,7 @@ use crate::browser::options::{
 use crate::browser::plugin_hooks::{self, SessionPlugins};
 use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::{self, XvfbProcess};
-use crate::config::ad_block_list::AdBlockList;
+use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
@@ -970,8 +970,21 @@ impl BrowserSession {
                 &own
             }
         };
+        // The window may hold more than the library's list: what its plugins
+        // blocked is put back with it, because the list replaces the window's.
+        #[cfg(feature = "plugins")]
+        let union = match &self.plugins {
+            Some(plugins) => plugins.window_blocklist(driver).await,
+            None => None,
+        };
+        #[cfg(not(feature = "plugins"))]
+        let union: Option<Vec<String>> = None;
         for (method, params) in &self.ad_block {
-            cdp.execute_with_params(method, params.clone()).await?;
+            let params = match &union {
+                Some(urls) if *method == "Network.setBlockedURLs" => json!({ "urls": urls }),
+                _ => params.clone(),
+            };
+            cdp.execute_with_params(method, params).await?;
         }
         Ok(())
     }
@@ -1124,7 +1137,7 @@ impl BrowserSession {
         let config = plugin_hooks::before_launch(config).await?;
         let family = plugin_hooks::family_of(config.browser)?;
         let plugins = config.plugins().clone();
-        let mut session = match Self::connect_new(config).await {
+        let mut session = match Self::connect_new(config.clone()).await {
             Ok(session) => session,
             Err(error) => {
                 // `before_launch` ran for a launch that ends here.
@@ -1134,7 +1147,7 @@ impl BrowserSession {
         };
         session.check_server_for(&plugins, family).await?;
         session
-            .start_plugins(SessionPlugins::new(plugins, family))
+            .start_plugins(SessionPlugins::new(plugins, family), &config)
             .await?;
         Ok(session)
     }
@@ -1170,8 +1183,18 @@ impl BrowserSession {
     ///
     /// The first hook that fails. The browser is closed then: one without
     /// what its plugins add is not handed out.
-    async fn start_plugins(&mut self, plugins: SessionPlugins) -> Result<(), SeleniumBaseError> {
-        let plugins = plugins.with_blocked(plugin_hooks::blocked_urls_of(&self.ad_block));
+    async fn start_plugins(
+        &mut self,
+        plugins: SessionPlugins,
+        config: &BrowserConfig,
+    ) -> Result<(), SeleniumBaseError> {
+        let mut blocked = plugin_hooks::blocked_urls_of(&self.ad_block);
+        for url in fingerprint_blocklist(config) {
+            if !blocked.contains(&url) {
+                blocked.push(url);
+            }
+        }
+        let plugins = plugins.with_blocked(blocked);
         let started = plugins.start(self.driver()).await;
         self.plugins = Some(plugins);
         if let Err(error) = started {
@@ -1206,8 +1229,11 @@ impl BrowserSession {
         }
         let family = plugin_hooks::family_of(prepared.browser)?;
         self.check_server_for(prepared.plugins(), family).await?;
-        self.start_plugins(SessionPlugins::new(prepared.plugins().clone(), family))
-            .await
+        self.start_plugins(
+            SessionPlugins::new(prepared.plugins().clone(), family),
+            &prepared,
+        )
+        .await
     }
 }
 
@@ -1430,6 +1456,35 @@ fn fingerprint_overrides(fp: &crate::stealth::fingerprint::Fingerprint) -> Vec<(
     crate::stealth::evasions::safe_cdp_overrides(fp)
 }
 
+/// The URL patterns of the `Network.setBlockedURLs` commands in `commands`,
+/// each once.
+pub(crate) fn blocked_patterns<M: AsRef<str>>(commands: &[(M, Value)]) -> Vec<String> {
+    let mut urls: Vec<String> = Vec::new();
+    for (_, params) in commands
+        .iter()
+        .filter(|(method, _)| method.as_ref() == "Network.setBlockedURLs")
+    {
+        let listed = params.get("urls").and_then(Value::as_array);
+        for url in listed.into_iter().flatten().filter_map(Value::as_str) {
+            if !urls.iter().any(|seen| seen == url) {
+                urls.push(url.to_owned());
+            }
+        }
+    }
+    urls
+}
+
+/// The URL patterns the fingerprint of `config` makes the first window block
+/// (`block_trackers`); none when no fingerprint is applied in this mode.
+pub(crate) fn fingerprint_blocklist(config: &BrowserConfig) -> Vec<String> {
+    match config.fingerprint.as_ref() {
+        Some(fp) if config.is_uc_enabled() || config.is_cdp_enabled() => {
+            blocked_patterns(&fingerprint_overrides(fp))
+        }
+        _ => Vec::new(),
+    }
+}
+
 /// The DevTools commands that make a session refuse the hosts `config` blocks,
 /// in the order they are sent; none if `config` blocks nothing or the browser
 /// has no DevTools channel.
@@ -1452,9 +1507,23 @@ fn ad_block_commands(
         );
         return Ok(Vec::new());
     }
-    let patterns = list.bounded_url_patterns()?;
+    let mut patterns = list.bounded_url_patterns()?;
     if patterns.is_empty() {
         return Ok(Vec::new());
+    }
+    // The trackers of a fingerprint are blocked in the window it is applied to;
+    // the list replaces them, so it carries them.
+    for tracker in fingerprint_blocklist(config) {
+        if !patterns.contains(&tracker) {
+            patterns.push(tracker);
+        }
+    }
+    if patterns.len() > MAX_URL_PATTERNS {
+        return Err(SeleniumBaseError::invalid_config(format!(
+            "the ad-block list and the fingerprint's trackers need {} URL patterns, more than the \
+             {MAX_URL_PATTERNS} the browser is given; remove hosts",
+            patterns.len()
+        )));
     }
     Ok(vec![
         ("Network.enable", json!({})),
@@ -1926,6 +1995,32 @@ mod ad_block_tests {
                 ("Network.setBlockedURLs", json!({ "urls": own_patterns() })),
             ]
         );
+    }
+
+    #[test]
+    fn the_trackers_of_a_fingerprint_go_with_the_ad_block_list() {
+        use crate::browser::config::DriverMode;
+        use crate::stealth::fingerprint::{Fingerprint, OsType};
+
+        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+        fingerprint.flags.block_trackers = true;
+        let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
+
+        let mut config = BrowserConfig::default()
+            .with_ad_block_list(own_list())
+            .with_fingerprint(fingerprint);
+        // A plain WebDriver session does not apply the fingerprint, so it has no trackers.
+        assert!(fingerprint_blocklist(&config).is_empty());
+        let plain = ad_block_commands(&config).unwrap();
+        assert_eq!(plain[1].1, json!({ "urls": own_patterns() }));
+
+        config.mode = DriverMode::Cdp;
+        let commands = ad_block_commands(&config).unwrap();
+        let urls = blocked_patterns(&commands);
+        let own: Vec<String> = serde_json::from_value(own_patterns()).unwrap();
+        assert_eq!(urls[..own.len()], own[..]);
+        assert!(urls.contains(&tracker), "{urls:?}");
+        assert!(fingerprint_blocklist(&config).contains(&tracker));
     }
 
     #[test]

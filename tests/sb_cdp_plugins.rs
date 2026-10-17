@@ -19,7 +19,7 @@ use seleniumbase_rs::plugin_api::{
     PluginError, PluginSet, Requirements, Result as PluginResult,
 };
 use seleniumbase_rs::sb_cdp::{Browser, Call, LaunchOptions, MockCtrl};
-use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::{Fingerprint, OsType, SeleniumBaseError};
 use serde_json::json;
 
 /// What the hooks of the plugins in one test saw, in order.
@@ -758,6 +758,65 @@ async fn the_ad_block_list_of_the_launch_stays_when_a_plugin_blocks_urls() {
     assert_eq!(blocked.last().map(String::as_str), Some("*://b.example/*"));
 }
 
+#[tokio::test]
+async fn the_tracker_hosts_of_a_fingerprint_stay_when_a_plugin_blocks_urls() {
+    let mut fingerprint = Fingerprint::randomized(OsType::Linux, 7);
+    fingerprint.flags.block_trackers = true;
+    let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
+
+    for ad_block in [false, true] {
+        let mock = MockCtrl::new();
+        let options = LaunchOptions::builder()
+            .headless(true)
+            .ad_block(ad_block)
+            .fingerprint(&fingerprint)
+            .plugins(
+                PluginSet::new()
+                    .with(Blocks::of("hosts", &["*://b.example/*"]))
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
+
+        let _browser = Browser::launch_mocked(options, &mock).await.unwrap();
+
+        let blocked = blocked_on(&mock, "S1");
+        assert!(
+            blocked.contains(&tracker),
+            "ad_block {ad_block}: the fingerprint's list survives the plugin's: {blocked:?}"
+        );
+        assert_eq!(blocked.last().map(String::as_str), Some("*://b.example/*"));
+        assert_eq!(
+            blocked.contains(&"*://*.doubleclick.net/*".to_owned()),
+            ad_block,
+            "{blocked:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn ad_block_does_not_replace_the_trackers_of_a_fingerprint() {
+    let mut fingerprint = Fingerprint::randomized(OsType::Linux, 7);
+    fingerprint.flags.block_trackers = true;
+    let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
+    let mock = MockCtrl::new();
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .ad_block(true)
+        .fingerprint(&fingerprint)
+        .build()
+        .unwrap();
+
+    let _browser = Browser::launch_mocked(options, &mock).await.unwrap();
+
+    let blocked = blocked_on(&mock, "S1");
+    assert!(blocked.contains(&tracker), "{blocked:?}");
+    assert!(
+        blocked.contains(&"*://*.doubleclick.net/*".to_owned()),
+        "{blocked:?}"
+    );
+}
+
 /// Sends the protocol command `method` from `on_browser` (`on_tab` false) or
 /// from `on_page_created`.
 struct SendsRaw {
@@ -793,6 +852,7 @@ async fn a_plugin_cannot_take_over_request_interception() {
         "Fetch.disable",
         "Fetch.fulfillRequest",
         "Fetch.continueRequest",
+        "Network.setRequestInterception",
     ] {
         for on_tab in [true, false] {
             let mock = MockCtrl::new();

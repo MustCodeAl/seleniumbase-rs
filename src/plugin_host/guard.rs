@@ -29,13 +29,14 @@ use serde_json::{json, Value};
 /// The command that sets a tab's blocklist.
 pub(crate) const SET_BLOCKED_URLS: &str = "Network.setBlockedURLs";
 
-/// Refuses the commands of the `Fetch` domain.
+/// Refuses the commands of the `Fetch` domain and the deprecated
+/// `Network.setRequestInterception`, which pauses requests the same way.
 ///
 /// # Errors
 ///
 /// [`PluginError::Other`] naming `method` and what to send instead.
 pub(crate) fn refuse_interception(method: &str) -> Result<(), PluginError> {
-    if method.starts_with("Fetch.") {
+    if method.starts_with("Fetch.") || method == "Network.setRequestInterception" {
         return Err(PluginError::other(format!(
             "{method} is not available to plugins: the host owns request interception (one \
              Fetch.enable per tab, shared with the library's proxy login), so a plugin cannot \
@@ -93,13 +94,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_the_fetch_domain_is_refused() {
+    fn only_request_interception_is_refused() {
         for method in [
             "Fetch.enable",
             "Fetch.disable",
             "Fetch.fulfillRequest",
             "Fetch.continueRequest",
             "Fetch.failRequest",
+            "Network.setRequestInterception",
         ] {
             let error = refuse_interception(method).unwrap_err().to_string();
             assert!(error.contains(method), "{error}");
@@ -108,6 +110,7 @@ mod tests {
         for method in [
             "Network.enable",
             "Network.setBlockedURLs",
+            "Network.setRequestInterceptionX",
             "FetchLike.enable",
             "fetch.enable",
             "Page.navigate",
