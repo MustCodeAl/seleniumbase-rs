@@ -4,8 +4,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
-use clap_complete::{generate, Shell};
 use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 #[cfg(feature = "pdf")]
@@ -46,6 +44,7 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
+mod fig;
 #[cfg(feature = "turso")]
 mod report;
 
@@ -54,7 +53,7 @@ mod report;
 /// (`seleniumbase-rs-cli`), so the line is the same as before the split.
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (seleniumbase-rs)");
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, usage::ValueEnum)]
 enum BrowserArg {
     Chrome,
     Chromium,
@@ -76,7 +75,7 @@ enum BrowserArg {
     Chs,
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, usage::ValueEnum)]
 enum GridActionArg {
     /// Start it and wait until it is ready.
     Start,
@@ -99,77 +98,87 @@ impl From<GridActionArg> for sb_grid::GridAction {
     }
 }
 
-/// The options of `sbrs prompt`.
-///
-/// A struct of their own, not fields of the `Prompt` variant: clap builds each
-/// struct's arguments in a function of its own, which keeps the one that builds
-/// every subcommand small enough for a test thread's stack in a debug build.
-#[derive(clap::Args, Debug)]
+// The options of `sbrs prompt`.
+//
+// A struct of their own, not fields of the `Prompt` variant: the parser builds each
+// struct's arguments in a function of its own, which keeps the one that builds
+// every subcommand small enough for a test thread's stack in a debug build. (Plain
+// comments, not docs: a doc comment on this struct would be help text.)
+#[derive(Debug, usage::Args)]
+#[usage(args_override_self = false)]
 struct PromptArgs {
-    #[arg(
+    #[usage(
         long,
         value_name = "TEMPLATE",
-        default_value = prompt::DEFAULT_FORMAT,
+        default = "{browser} {major} {driver}",
         help = "The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces"
     )]
     format: prompt::PromptFormat,
-    #[arg(long, help = "Mark the driver with + - ? instead of ✓ ✗ ?")]
+    #[usage(long, bool_value, help = "Mark the driver with + - ? instead of ✓ ✗ ?")]
     ascii: bool,
-    #[arg(
+    #[usage(
         long,
         value_name = "PATH",
+        value_hint = usage::ValueHint::AnyPath,
         help = "Browser to report on (default: SB_CHROME_BIN, else the installed Chrome or Chromium)"
     )]
     browser_path: Option<PathBuf>,
-    #[arg(
+    #[usage(
         long,
+        bool_value,
         help = "Run --version again instead of using the versions cached in the user cache folder"
     )]
     no_cache: bool,
-    #[arg(long, help = "Explain on standard error what was found and how")]
+    #[usage(
+        long,
+        bool_value,
+        help = "Explain on standard error what was found and how"
+    )]
     verbose: bool,
 }
 
-/// The options `grid-hub` and `grid-node` share.
-#[derive(clap::Args, Debug)]
+// The options `grid-hub` and `grid-node` share. (Plain comments, not docs: a doc
+// comment on this struct would be help text.)
+#[derive(Debug, usage::Args)]
+#[usage(args_override_self = false)]
 struct GridArgs {
     /// What to do with the Grid process.
-    #[arg(value_enum)]
+    #[usage(value_enum)]
     action: GridActionArg,
     /// The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable).
     /// It is never downloaded.
-    #[arg(long, value_name = "PATH")]
+    #[usage(long, value_name = "PATH", value_hint = usage::ValueHint::AnyPath)]
     jar: Option<PathBuf>,
     /// The Java executable (default: `java` on PATH).
-    #[arg(long, value_name = "PATH")]
+    #[usage(long, value_name = "PATH", value_hint = usage::ValueHint::AnyPath)]
     java: Option<PathBuf>,
     /// The address to listen on.
-    #[arg(long = "grid-host", value_name = "HOST")]
+    #[usage(long = "grid-host", value_name = "HOST")]
     host: Option<String>,
     /// The port to listen on (default: 4444 for a hub, 5555 for a node).
-    #[arg(long = "grid-port", value_name = "PORT")]
+    #[usage(long = "grid-port", value_name = "PORT")]
     port: Option<u16>,
     /// For a node, the hub to register with: a host or a URL.
-    #[arg(long, value_name = "HOST_OR_URL")]
+    #[usage(long, value_name = "HOST_OR_URL")]
     hub: Option<String>,
     /// Close sessions that have been idle this many seconds.
-    #[arg(long, value_name = "SECONDS")]
+    #[usage(long, value_name = "SECONDS")]
     session_timeout: Option<u64>,
     /// How many seconds `start` waits for the Grid to become ready.
-    #[arg(long, value_name = "SECONDS", default_value_t = 60)]
+    #[usage(long, value_name = "SECONDS", default = "60")]
     wait: u64,
     /// Log at INFO instead of WARNING.
-    #[arg(long = "grid-verbose")]
+    #[usage(long = "grid-verbose", bool_value)]
     verbose: bool,
     /// Start even if something already accepts connections on the port.
-    #[arg(long)]
+    #[usage(long, bool_value)]
     skip_port_check: bool,
     /// More arguments for the Selenium Server, after `--`.
-    #[arg(last = true)]
+    #[usage(double_dash = "required")]
     extra_args: Vec<String>,
 }
 
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, usage::ValueEnum)]
 enum ImportSourceArg {
     Auto,
     SeleniumBase,
@@ -177,7 +186,7 @@ enum ImportSourceArg {
 }
 
 /// The languages `sbrs import-playwright` reads.
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, usage::ValueEnum)]
 enum PlaywrightLanguageArg {
     /// JavaScript.
     Js,
@@ -198,7 +207,7 @@ impl From<PlaywrightLanguageArg> for ScriptLanguage {
 }
 
 /// The languages `sbrs import-puppeteer` reads.
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, usage::ValueEnum)]
 enum PuppeteerLanguageArg {
     /// JavaScript.
     Js,
@@ -214,6 +223,25 @@ impl From<PuppeteerLanguageArg> for ScriptLanguage {
             PuppeteerLanguageArg::Js => ScriptLanguage::JavaScript,
             PuppeteerLanguageArg::Ts => ScriptLanguage::TypeScript,
             PuppeteerLanguageArg::Json => ScriptLanguage::RecorderJson,
+        }
+    }
+}
+
+impl BrowserArg {
+    /// The word that names the browser on the command line and in `SB_BROWSER`.
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Chrome => "chrome",
+            Self::Chromium => "chromium",
+            Self::Edge => "edge",
+            Self::Firefox => "firefox",
+            Self::Brave => "brave",
+            Self::Comet => "comet",
+            Self::Opera => "opera",
+            Self::Safari => "safari",
+            Self::Ie => "ie",
+            Self::Cft => "cft",
+            Self::Chs => "chs",
         }
     }
 }
@@ -236,113 +264,111 @@ impl From<BrowserArg> for Browser {
     }
 }
 
-#[derive(Debug, Parser)]
-#[command(name = "sbrs", version = VERSION, about = "SeleniumBaseRust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.", before_long_help = logo_helper::LOGO)]
+#[derive(Debug, usage::Cli)]
+#[usage(
+    bin = "sbrs",
+    name = "sbrs",
+    version = VERSION,
+    about = "SeleniumBaseRust CLI",
+    long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.",
+    logo = logo_helper::LOGO,
+    completion,
+    unknown_flags = "error",
+    args_override_self = false
+)]
 struct Cli {
-    #[arg(
+    #[usage(
         long,
         value_name = "URL",
         help = "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)"
     )]
     webdriver: Option<String>,
-    #[arg(
+    #[usage(
         long,
         value_enum,
         help = "Browser engine to launch (default: chrome, or the config file's)"
     )]
     browser: Option<BrowserArg>,
-    #[arg(long, default_value_t = false, help = "Run the browser in headed mode")]
+    #[usage(long, bool_value, help = "Run the browser in headed mode")]
     headed: bool,
-    #[arg(
-        long,
-        default_value_t = false,
-        help = "Run the browser in headless mode"
-    )]
+    #[usage(long, bool_value, help = "Run the browser in headless mode")]
     headless: bool,
-    #[arg(
-        long,
-        default_value_t = false,
-        help = "Enable Chrome DevTools Protocol mode"
-    )]
+    #[usage(long, bool_value, help = "Enable Chrome DevTools Protocol mode")]
     cdp: bool,
-    #[arg(
+    #[usage(
         long,
-        default_value_t = false,
+        bool_value,
         help = "Enable undetected-chromedriver style evasions"
     )]
     uc: bool,
-    #[arg(long, help = "Override the default user agent string")]
+    #[usage(long, help = "Override the default user agent string")]
     user_agent: Option<String>,
-    #[arg(short = 'a', long, help = "Alias for --user-agent")]
+    #[usage(short = 'a', long, help = "Alias for --user-agent")]
     agent: Option<String>,
-    #[arg(long, help = "Locale string for the browser context")]
+    #[usage(long, help = "Locale string for the browser context")]
     locale: Option<String>,
-    #[arg(
+    #[usage(
         long,
-        default_value_t = false,
+        bool_value,
         help = "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)"
     )]
     ad_block: bool,
-    #[arg(
+    #[usage(
         long,
         help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
     )]
     proxy: Option<String>,
-    #[arg(
+    #[usage(
         long,
         value_name = "FILE",
         help = "File of proxies to choose from; without --proxy a random one is used"
     )]
     proxy_list: Option<String>,
-    #[arg(long, help = "URL to a proxy auto-config (PAC) file")]
+    #[usage(long, help = "URL to a proxy auto-config (PAC) file")]
     proxy_pac_url: Option<String>,
-    #[arg(long, help = "Path to a persistent browser user-data directory")]
+    #[usage(long, help = "Path to a persistent browser user-data directory")]
     user_data_dir: Option<String>,
-    #[arg(long, help = "Path to an unpacked extension directory")]
+    #[usage(long, help = "Path to an unpacked extension directory")]
     extension_dir: Option<String>,
-    #[arg(
+    #[usage(
         long = "reuse-session",
         visible_aliases = ["reuse_session", "rs"],
-        default_value_t = false,
+        bool_value,
         help = "Share browsers among the tests of the run (SB_REUSE_SESSION)"
     )]
     reuse_session: bool,
-    #[arg(
+    #[usage(
         long = "rcs",
         visible_aliases = ["reuse-class-session", "reuse_class_session"],
-        default_value_t = false,
+        bool_value,
         help = "Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)"
     )]
     reuse_class_session: bool,
-    #[arg(
-        long,
-        default_value_t = false,
-        help = "Use a mobile device emulation profile"
-    )]
+    #[usage(long, bool_value, help = "Use a mobile device emulation profile")]
     mobile: bool,
-    #[arg(
+    #[usage(
         long = "esc-end",
         visible_aliases = ["esc_end", "ee"],
-        default_value_t = false,
+        bool_value,
         help = "End the current test when ESC is pressed in the browser"
     )]
     esc_end: bool,
-    #[arg(
+    #[usage(
         long = "rec-sb-cdp",
         visible_alias = "rec_sb_cdp",
-        default_value_t = false,
+        bool_value,
         help = "Write recordings as pure CDP code (sb_cdp Page and Locator calls)"
     )]
     rec_sb_cdp: bool,
-    #[arg(short = 'n', long, help = "Number of parallel threads for test runs")]
+    #[usage(short = 'n', long, help = "Number of parallel threads for test runs")]
     threads: Option<usize>,
-    #[arg(short = 'c', long, help = "Path to a TOML/JSON settings file")]
+    #[usage(short = 'c', long, help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
-    #[command(subcommand)]
+    #[usage(subcommand)]
     command: Commands,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, usage::Subcommands)]
 enum Commands {
     /// Print the sbrs version, as `sbrs --version` does.
     Version,
@@ -353,16 +379,16 @@ enum Commands {
     },
     /// Run a smoke test against a URL.
     Smoke {
-        #[arg(help = "URL to open or smoke-test")]
+        #[usage(help = "URL to open or smoke-test")]
         url: String,
-        #[arg(long, help = "Expected substring in the page title")]
+        #[usage(long, help = "Expected substring in the page title")]
         title_contains: Option<String>,
     },
     /// Execute a Chrome DevTools Protocol command.
     Cdp {
-        #[arg(long, help = "CDP method name (e.g. Runtime.evaluate)")]
+        #[usage(long, help = "CDP method name (e.g. Runtime.evaluate)")]
         cmd: String,
-        #[arg(long, help = "JSON object of CDP parameters")]
+        #[usage(long, help = "JSON object of CDP parameters")]
         params: Option<String>,
     },
     /// Clear the browser cache via CDP.
@@ -371,7 +397,7 @@ enum Commands {
     Throttle3g,
     /// Capture a screenshot of the current page.
     Screenshot {
-        #[arg(
+        #[usage(
             long,
             help = "Output image file path (default: a new file in latest_logs/)"
         )]
@@ -379,7 +405,7 @@ enum Commands {
     },
     /// Save the current page source to a file.
     SaveSource {
-        #[arg(
+        #[usage(
             long,
             help = "Output HTML file path (default: a new file in latest_logs/)"
         )]
@@ -387,54 +413,54 @@ enum Commands {
     },
     /// Assert that an element exists.
     AssertElement {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait until an element contains the expected text.
     WaitForText {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Expected text substring to wait for")]
+        #[usage(long, help = "Expected text substring to wait for")]
         text: String,
-        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Hover over an element.
     Hover {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Hover over one element, then click another.
     HoverAndClick {
-        #[arg(long, help = "CSS selector to hover over")]
+        #[usage(long, help = "CSS selector to hover over")]
         hover_css: String,
-        #[arg(long, help = "CSS selector to click")]
+        #[usage(long, help = "CSS selector to click")]
         click_css: String,
     },
     /// Select an option from a dropdown.
     SelectOption {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Visible text of the option to select")]
+        #[usage(long, help = "Visible text of the option to select")]
         text: Option<String>,
-        #[arg(long, help = "Option value attribute")]
+        #[usage(long, help = "Option value attribute")]
         value: Option<String>,
     },
     /// Drag one element onto another.
     DragAndDrop {
-        #[arg(long, help = "CSS selector of the element to drag")]
+        #[usage(long, help = "CSS selector of the element to drag")]
         source_css: String,
-        #[arg(long, help = "CSS selector of the drop target")]
+        #[usage(long, help = "CSS selector of the drop target")]
         target_css: String,
     },
     /// Click an element using CDP.
     CdpClickElement {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Type text using CDP input injection.
     CdpTypeText {
-        #[arg(long, help = "Text to inject via CDP")]
+        #[usage(long, help = "Text to inject via CDP")]
         text: String,
     },
 
@@ -447,21 +473,21 @@ enum Commands {
 
     /// Print the visible text of an element.
     GetText {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print an element attribute value.
     GetAttribute {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Attribute name to read or assert")]
+        #[usage(long, help = "Attribute name to read or assert")]
         attribute: String,
     },
     /// Print an element property value.
     GetProperty {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Property name to read")]
+        #[usage(long, help = "Property name to read")]
         property: String,
     },
 
@@ -481,36 +507,36 @@ enum Commands {
     GetAlertText,
     /// Type text into the active alert prompt.
     TypeAlertText {
-        #[arg(long, help = "Text to type into the alert prompt")]
+        #[usage(long, help = "Text to type into the alert prompt")]
         text: String,
     },
     /// Clear the page local storage.
     ClearLocalStorage,
     /// Print a local storage value by key.
     GetLocalStorageItem {
-        #[arg(long, help = "Storage key")]
+        #[usage(long, help = "Storage key")]
         key: String,
     },
     /// Set a local storage key/value pair.
     SetLocalStorageItem {
-        #[arg(long, help = "Storage key")]
+        #[usage(long, help = "Storage key")]
         key: String,
-        #[arg(long, help = "Value to store in local storage")]
+        #[usage(long, help = "Value to store in local storage")]
         value: String,
     },
     /// Remove a local storage entry by key.
     RemoveLocalStorageItem {
-        #[arg(long, help = "Storage key")]
+        #[usage(long, help = "Storage key")]
         key: String,
     },
     /// Switch focus to a window by handle.
     SwitchToWindow {
-        #[arg(long, help = "Window handle to switch to")]
+        #[usage(long, help = "Window handle to switch to")]
         handle: String,
     },
     /// Switch focus to an iframe.
     SwitchToFrame {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Switch focus back to the main document.
@@ -522,15 +548,15 @@ enum Commands {
     ExportRecording,
     /// Patch a chromedriver binary to reduce detection surface.
     PatchChromedriver {
-        #[arg(long, help = "Path to the chromedriver binary")]
+        #[usage(long, help = "Path to the chromedriver binary")]
         path: String,
     },
     /// Patch a Chrome/Chromium binary for native-level spoofing.
     PatchChrome {
-        #[arg(long, help = "Path to the Chrome/Chromium binary")]
+        #[usage(long, help = "Path to the Chrome/Chromium binary")]
         path: String,
         /// Directory where the patched copy is cached.
-        #[arg(long, help = "Directory where patched binaries are cached")]
+        #[usage(long, help = "Directory where patched binaries are cached")]
         cache_dir: Option<String>,
     },
     /// Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.
@@ -538,14 +564,14 @@ enum Commands {
     /// The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never
     /// from an argument, so it stays out of shell history and process listings.
     /// Python's `sbrs obfuscate` is the same command.
-    #[command(visible_alias = "obfuscate")]
+    #[usage(alias = "obfuscate")]
     Encrypt {
         /// The text to encrypt.
         text: Option<String>,
     },
     /// Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted.
     /// Python's `sbrs unobfuscate` is the same command.
-    #[command(visible_alias = "unobfuscate")]
+    #[usage(alias = "unobfuscate")]
     Decrypt {
         /// The token to decrypt.
         token: Option<String>,
@@ -559,22 +585,22 @@ enum Commands {
     #[cfg(feature = "turso")]
     Report {
         /// Path of the results database.
-        #[arg(long)]
+        #[usage(long, value_hint = usage::ValueHint::AnyPath)]
         db: Option<PathBuf>,
         /// Show the results of this run.
-        #[arg(long, conflicts_with = "flaky")]
+        #[usage(long, conflicts("--flaky"))]
         run: Option<seleniumbase_rs::storage::RunId>,
         /// With --run, show only the tests that failed.
-        #[arg(long, requires = "run")]
+        #[usage(long, bool_value, requires("--run"))]
         failed: bool,
         /// Show tests that both pass and fail across the latest runs.
-        #[arg(long)]
+        #[usage(long, bool_value)]
         flaky: bool,
         /// How many runs to list, or to examine for flaky tests.
-        #[arg(long, default_value_t = 20)]
+        #[usage(long, default = "20")]
         limit: usize,
         /// Print JSON instead of a table.
-        #[arg(long)]
+        #[usage(long, bool_value)]
         json: bool,
     },
     /// Run a diagnostic check on the environment and configuration.
@@ -593,30 +619,30 @@ enum Commands {
     Prompt(PromptArgs),
     /// Assert that an element contains the expected text.
     AssertTextVisible {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Expected visible text")]
+        #[usage(long, help = "Expected visible text")]
         text: String,
     },
     /// Assert that an element does not contain the given text.
     AssertTextNotVisible {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text that should not be visible")]
+        #[usage(long, help = "Text that should not be visible")]
         text: String,
     },
     /// Assert an element attribute equals an expected value.
     AssertAttribute {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Attribute name to read or assert")]
+        #[usage(long, help = "Attribute name to read or assert")]
         attribute: String,
-        #[arg(long, help = "Expected attribute value")]
+        #[usage(long, help = "Expected attribute value")]
         value: String,
     },
     /// Assert the page title contains the expected text.
     AssertTitle {
-        #[arg(long, help = "Expected page title substring")]
+        #[usage(long, help = "Expected page title substring")]
         text: String,
     },
     /// Wait until the document readyState is complete.
@@ -625,9 +651,9 @@ enum Commands {
     GetWindowPosition,
     /// Set the browser window position.
     SetWindowPosition {
-        #[arg(long, help = "Window X coordinate in pixels")]
+        #[usage(long, help = "Window X coordinate in pixels")]
         x: u32,
-        #[arg(long, help = "Window Y coordinate in pixels")]
+        #[usage(long, help = "Window Y coordinate in pixels")]
         y: u32,
     },
     /// Close the current browser window.
@@ -636,51 +662,51 @@ enum Commands {
     SwitchToParentFrame,
     /// Print whether an element is visible.
     IsElementVisible {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether the expected text is visible in an element.
     IsTextVisible {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Expected text to check")]
+        #[usage(long, help = "Expected text to check")]
         text: String,
     },
     /// Wait until an element is no longer visible.
     WaitForElementNotVisible {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Save browser cookies to a JSON file.
     SaveCookies {
-        #[arg(long, help = "JSON file to save cookies to")]
+        #[usage(long, help = "JSON file to save cookies to")]
         file: String,
     },
     /// Load browser cookies from a JSON file.
     LoadCookies {
-        #[arg(long, help = "JSON file to load cookies from")]
+        #[usage(long, help = "JSON file to load cookies from")]
         file: String,
     },
     /// Highlight an element, then click it.
     HighlightClick {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether a checkbox is checked.
     IsChecked {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Check a checkbox only if it is unchecked.
     CheckIfUnchecked {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Uncheck a checkbox only if it is checked.
     UncheckIfChecked {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Open a new browser window.
@@ -695,103 +721,103 @@ enum Commands {
     GetActiveElementCss,
     /// Wait until an element is present in the DOM.
     WaitForElementPresent {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Append text to an input or textarea.
     AddText {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to append to the element")]
+        #[usage(long, help = "Text to append to the element")]
         text: String,
     },
     /// Send keystrokes to an element.
     SendKeys {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Keys to send to the element")]
+        #[usage(long, help = "Keys to send to the element")]
         text: String,
     },
     /// Print the value of a form element.
     GetValue {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Click all visible elements matching a selector.
     ClickVisibleElements {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait for an alert, then accept it.
     WaitForAndAcceptAlert {
-        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Wait for an alert, then dismiss it.
     WaitForAndDismissAlert {
-        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
+        #[usage(long, default = "10", help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Print whether a link with the given text is visible.
     IsLinkTextVisible {
-        #[arg(long, help = "Exact link text to check")]
+        #[usage(long, help = "Exact link text to check")]
         text: String,
     },
     /// Print whether a link containing the given text is visible.
     IsPartialLinkTextVisible {
-        #[arg(long, help = "Link text substring to check")]
+        #[usage(long, help = "Link text substring to check")]
         text: String,
     },
     /// Assert a link with the given text is visible.
     AssertLinkText {
-        #[arg(long, help = "Exact link text to assert")]
+        #[usage(long, help = "Exact link text to assert")]
         text: String,
     },
     /// Click a link containing the given text.
     ClickPartialLinkText {
-        #[arg(long, help = "Link text substring to click")]
+        #[usage(long, help = "Link text substring to click")]
         text: String,
     },
     /// Type text with human-like timing and noise.
     HumanType {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type with humanized timing")]
+        #[usage(long, help = "Text to type with humanized timing")]
         text: String,
     },
     /// Click an element with human-like timing and noise.
     HumanClick {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Smoothly scroll an element into view.
     SmoothScrollTo {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform a UC-mode click on an element.
     UcClick {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform UC-mode typing into an element.
     UcType {
-        #[arg(long, help = "CSS selector for the target element")]
+        #[usage(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type in UC mode")]
+        #[usage(long, help = "Text to type in UC mode")]
         text: String,
     },
     /// Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).
     ///
     /// Without a version, chromedriver and edgedriver are the drivers for the
     /// installed Chrome and Edge, and geckodriver is the newest release.
-    #[command(visible_alias = "get")]
+    #[usage(alias = "get")]
     Install {
         /// The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver
         /// (or msedgedriver).
-        #[arg(default_value = "chromedriver")]
+        #[usage(default = "chromedriver")]
         driver: String,
         /// `latest`, a major version (chromedriver, edgedriver), a full build,
         /// or a geckodriver version such as 0.36.0.
@@ -805,22 +831,22 @@ enum Commands {
     /// how many tests run at once.
     Test {
         /// Run only the tests whose name contains this text.
-        #[arg(conflicts_with = "example")]
+        #[usage(conflicts("--example"))]
         filter: Option<String>,
         /// Run one integration test file from tests/.
-        #[arg(long, value_name = "NAME", conflicts_with = "example")]
+        #[usage(long, value_name = "NAME", conflicts("--example"))]
         test: Option<String>,
         /// Run one example from examples/ instead of the tests.
-        #[arg(long, value_name = "NAME")]
+        #[usage(long, value_name = "NAME")]
         example: Option<String>,
         /// Build with the release profile.
-        #[arg(long)]
+        #[usage(long, bool_value)]
         release: bool,
         /// Cargo features to enable, separated by commas.
-        #[arg(long, value_delimiter = ',')]
+        #[usage(long, delimiter = ',')]
         features: Vec<String>,
         /// Arguments for the test harness, after `--` (for example --nocapture).
-        #[arg(last = true)]
+        #[usage(double_dash = "required")]
         harness_args: Vec<String>,
     },
     /// Start, stop, restart or check a Selenium Grid hub.
@@ -841,19 +867,23 @@ enum Commands {
     /// so this translates the portable JSON scenario instead.
     Translate {
         /// The scenario file.
+        #[usage(value_hint = usage::ValueHint::AnyPath)]
         file: PathBuf,
         /// The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its
         /// English name.
-        #[arg(value_parser = clap::value_parser!(Language))]
         language: Language,
         /// Print the translation and write nothing (the default).
-        #[arg(short, long, conflicts_with_all = ["overwrite", "copy"])]
+        #[usage(short, long, bool_value, conflicts("--overwrite", "--copy"))]
+        #[expect(
+            dead_code,
+            reason = "printing is the default; the flag only conflicts with the others"
+        )]
         print: bool,
         /// Replace the file with the translation.
-        #[arg(short, long, conflicts_with = "copy")]
+        #[usage(short, long, bool_value, conflicts("--copy"))]
         overwrite: bool,
         /// Write the translation to a new file next to it, such as `login_es.json`.
-        #[arg(short, long)]
+        #[usage(short, long, bool_value)]
         copy: bool,
     },
     /// Create a folder with a runnable browser-test suite.
@@ -865,28 +895,28 @@ enum Commands {
         /// Folder to create, for example `tests/ui`.
         dir: String,
         /// Create only the scaffolding, with no example tests.
-        #[arg(short, long)]
+        #[usage(short, long, bool_value)]
         basic: bool,
         /// Replace generated files that already exist.
-        #[arg(long)]
+        #[usage(long, bool_value)]
         force: bool,
     },
     /// Create a browser-test file.
     ///
     /// The name follows the same rules as `mkdir`; `.rs` is added when missing.
     /// An existing file is never overwritten unless `--force` is given.
-    #[command(visible_alias = "new")]
+    #[usage(alias = "new")]
     Mkfile {
         /// File to create, for example `tests/login.rs`.
         file: String,
         /// Page the test opens (default: https://example.com).
-        #[arg(long)]
+        #[usage(long)]
         url: Option<String>,
         /// Leave the test body empty: it only opens the page.
-        #[arg(short, long)]
+        #[usage(short, long, bool_value)]
         basic: bool,
         /// Replace the file if it already exists.
-        #[arg(long)]
+        #[usage(long, bool_value)]
         force: bool,
     },
     /// Launch the interactive commander (needs a build with the `tui` feature).
@@ -899,13 +929,17 @@ enum Commands {
     /// by default the `tests/` and `examples/` folders of the current folder.
     ///
     /// The Python command opens a Tkinter window; this one runs in the terminal.
-    #[command(visible_alias = "case-plans")]
+    #[usage(alias = "case-plans")]
     Caseplans {
         /// A folder of tests, or one test file.
+        #[cfg_attr(
+            not(feature = "tui"),
+            expect(dead_code, reason = "only the terminal app reads it")
+        )]
         path: Option<String>,
         /// Write the starter checklist `CASE_PLANS.md` instead; this needs no
         /// `tui` feature.
-        #[arg(long, conflicts_with = "path")]
+        #[usage(long, bool_value, conflicts("path"))]
         starter: bool,
     },
     /// Launch the Behave Commander, a terminal app (needs a build with the `tui` feature).
@@ -917,47 +951,51 @@ enum Commands {
     /// The runner has only the built-in steps: steps written in Rust are not
     /// loaded, and a scenario that uses one is reported as undefined. The Python
     /// command opens a Tkinter window; this one runs in the terminal.
-    #[command(visible_alias = "gui-behave")]
+    #[usage(alias = "gui-behave")]
     BehaveGui {
         /// A folder of feature files, or one `.feature` file.
+        #[cfg_attr(
+            not(feature = "tui"),
+            expect(dead_code, reason = "only the terminal app reads it")
+        )]
         path: Option<String>,
         /// Prompt for a name, a title and scenarios and write a new feature
         /// file instead; this needs no `tui` feature.
-        #[arg(long, conflicts_with = "path")]
+        #[usage(long, bool_value, conflicts("path"))]
         new: bool,
     },
     /// Print a file.
     Print {
-        #[arg(long, help = "File path to print")]
+        #[usage(long, help = "File path to print")]
         file: String,
     },
     /// Objectify a test recording.
     Objectify,
     /// Create an HTML presentation.
     Mkpres {
-        #[arg(long, help = "Output HTML presentation path")]
+        #[usage(long, help = "Output HTML presentation path")]
         file: String,
     },
     /// Create an HTML chart.
     Mkchart {
-        #[arg(long, help = "Output HTML chart path")]
+        #[usage(long, help = "Output HTML chart path")]
         file: String,
     },
     /// Create a test recording scaffold.
     Mkrec {
-        #[arg(long, help = "Output recording scaffold path")]
+        #[usage(long, help = "Output recording scaffold path")]
         file: String,
     },
     /// Run a scenario file and write an optional dashboard.
     RunScenario {
-        #[arg(long, help = "Scenario file to run")]
+        #[usage(long, help = "Scenario file to run")]
         file: String,
-        #[arg(long, help = "Optional path to write a scenario dashboard")]
+        #[usage(long, help = "Optional path to write a scenario dashboard")]
         dashboard: Option<String>,
     },
     /// Generate a completion script for a supported shell, or a Fig spec.
     Completions {
-        #[arg(
+        #[usage(
             value_enum,
             help = "Shell (or `fig` for a Fig spec) to generate completions for"
         )]
@@ -968,48 +1006,53 @@ enum Commands {
         /// Python source file to convert.
         file: String,
         /// Write generated Rust to this path instead of stdout.
-        #[arg(short, long, help = "Output file for the generated Rust test")]
+        #[usage(short, long, help = "Output file for the generated Rust test")]
         output: Option<String>,
         /// Override source API detection.
-        #[arg(long, value_enum, default_value_t = ImportSourceArg::Auto, help = "Source API to assume when converting Python code")]
+        #[usage(
+            long,
+            value_enum,
+            default = "auto",
+            help = "Source API to assume when converting Python code"
+        )]
         source: ImportSourceArg,
         /// Generated Rust test function name.
-        #[arg(long, help = "Name of the generated test function")]
+        #[usage(long, help = "Name of the generated test function")]
         test_name: Option<String>,
     },
     /// Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
-    #[command(visible_alias = "import-pw")]
+    #[usage(alias = "import-pw")]
     ImportPlaywright {
         /// Playwright source file to convert.
         file: String,
-        #[arg(short, long, help = "Output file for the generated Rust tests")]
+        #[usage(short, long, help = "Output file for the generated Rust tests")]
         output: Option<String>,
-        #[arg(
+        #[usage(
             long,
             value_enum,
             help = "Source language (default: from the file extension, else from the content)"
         )]
         language: Option<PlaywrightLanguageArg>,
-        #[arg(
+        #[usage(
             long,
             help = "Name of the test generated for a script without test titles (default: the file name)"
         )]
         test_name: Option<String>,
     },
     /// Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.
-    #[command(visible_alias = "import-pptr")]
+    #[usage(alias = "import-pptr")]
     ImportPuppeteer {
         /// Puppeteer source file (or Recorder `.json` export) to convert.
         file: String,
-        #[arg(short, long, help = "Output file for the generated Rust tests")]
+        #[usage(short, long, help = "Output file for the generated Rust tests")]
         output: Option<String>,
-        #[arg(
+        #[usage(
             long,
             value_enum,
             help = "Source language (default: from the file extension, else from the content)"
         )]
         language: Option<PuppeteerLanguageArg>,
-        #[arg(
+        #[usage(
             long,
             help = "Name of the test generated for a script without test titles (default: the file name)"
         )]
@@ -1018,51 +1061,59 @@ enum Commands {
 
     /// Download a file from a URL (browser download with an HTTP fallback).
     DownloadFile {
-        #[arg(help = "URL of the file to download")]
+        #[usage(help = "URL of the file to download")]
         url: String,
-        #[arg(
+        #[usage(
             short,
             long,
             help = "Output file path (defaults to the URL file name in the current directory)"
         )]
         output: Option<String>,
-        #[arg(
+        #[usage(
             long,
-            default_value_t = 30,
+            default = "30",
             help = "Seconds to wait for the browser download before falling back to HTTP"
         )]
         timeout: u64,
     },
     /// Print a page to PDF and save it to disk.
     PrintPdf {
-        #[arg(help = "URL to render as a PDF")]
+        #[usage(help = "URL to render as a PDF")]
         url: String,
-        #[arg(short, long, default_value = "page.pdf", help = "Output PDF file path")]
+        #[usage(short, long, default = "page.pdf", help = "Output PDF file path")]
         output: String,
     },
     /// Print the text extracted from a page or PDF URL.
+    #[cfg_attr(
+        not(feature = "pdf"),
+        expect(dead_code, reason = "a build without `pdf` only says how to get it")
+    )]
     PdfText {
-        #[arg(help = "URL of the page or PDF to extract text from")]
+        #[usage(help = "URL of the page or PDF to extract text from")]
         url: String,
-        #[arg(long, help = "Also keep the intermediate PDF at this path")]
+        #[usage(long, help = "Also keep the intermediate PDF at this path")]
         save_pdf: Option<String>,
     },
     /// Assert that a page or PDF URL contains the expected text.
+    #[cfg_attr(
+        not(feature = "pdf"),
+        expect(dead_code, reason = "a build without `pdf` only says how to get it")
+    )]
     AssertPdfText {
-        #[arg(help = "URL of the page or PDF to check")]
+        #[usage(help = "URL of the page or PDF to check")]
         url: String,
-        #[arg(long, help = "Text that must appear in the PDF")]
+        #[usage(long, help = "Text that must appear in the PDF")]
         text: String,
-        #[arg(long, help = "Also keep the intermediate PDF at this path")]
+        #[usage(long, help = "Also keep the intermediate PDF at this path")]
         save_pdf: Option<String>,
     },
     /// Upload a local file into a file input.
     ChooseFile {
-        #[arg(help = "CSS selector of the <input type=file> element")]
+        #[usage(help = "CSS selector of the <input type=file> element")]
         selector: String,
-        #[arg(help = "Local file to upload")]
+        #[usage(help = "Local file to upload")]
         file: String,
-        #[arg(
+        #[usage(
             long,
             help = "Page to open first (defaults to a generated blank upload page)"
         )]
@@ -1070,29 +1121,29 @@ enum Commands {
     },
     /// Run several assertions, then report every failure at once.
     Deferred {
-        #[arg(long, help = "URL to open before running the assertions")]
+        #[usage(long, help = "URL to open before running the assertions")]
         url: Option<String>,
-        #[arg(
+        #[usage(
             long = "assert",
             value_name = "SPEC",
             help = "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>"
         )]
         asserts: Vec<String>,
-        #[arg(long, help = "JSON file containing an array of assertion specs")]
+        #[usage(long, help = "JSON file containing an array of assertion specs")]
         spec: Option<String>,
     },
     /// Record browser interactions into a replayable action file.
     Record {
-        #[arg(help = "URL to open and record")]
+        #[usage(help = "URL to open and record")]
         url: String,
-        #[arg(
+        #[usage(
             short,
             long,
-            default_value = "actions.json",
+            default = "actions.json",
             help = "Output action file (.json or .yaml)"
         )]
         output: String,
-        #[arg(
+        #[usage(
             long,
             help = "Stop recording after this many seconds (default: run until Ctrl-C)"
         )]
@@ -1100,7 +1151,7 @@ enum Commands {
     },
     /// Replay a recorded action file against a fresh browser session.
     Replay {
-        #[arg(help = "JSON action file produced by `sbrs record`")]
+        #[usage(help = "JSON action file produced by `sbrs record`")]
         file: String,
     },
     /// Launch Chrome with an open DevTools endpoint and print MCP client configs.
@@ -1113,35 +1164,37 @@ enum Commands {
     /// browser), --headed, --user-agent, --locale, --ad-block, --extension-dir
     /// and --proxy-list apply as well.
     Devtools {
-        #[arg(long, help = "Run the browser without a window")]
+        #[usage(long, bool_value, help = "Run the browser without a window")]
         headless: bool,
-        #[arg(
+        #[usage(
             long,
             default_value_t = DEFAULT_DEVTOOLS_PORT,
+            default = "9222",
             help = "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)"
         )]
         port: u16,
-        #[arg(
+        #[usage(
             long,
             value_name = "DIR",
             help = "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)"
         )]
         user_data_dir: Option<String>,
-        #[arg(
+        #[usage(
             long,
             help = "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT"
         )]
         proxy: Option<String>,
-        #[arg(
+        #[usage(
             long,
             value_name = "PATH",
             help = "Browser binary to launch, such as Microsoft Edge or another Chromium browser"
         )]
         browser_path: Option<String>,
-        #[arg(long, value_name = "URL", help = "Page to open once the browser runs")]
+        #[usage(long, value_name = "URL", help = "Page to open once the browser runs")]
         url: Option<String>,
-        #[arg(
+        #[usage(
             long,
+            bool_value,
             help = "Print the endpoint and configs as one line of JSON instead of text"
         )]
         json: bool,
@@ -1867,7 +1920,7 @@ fn import_script(
 }
 
 /// What `sbrs completions` writes: a shell's completion script, or a Fig spec.
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, usage::ValueEnum)]
 enum CompletionFormat {
     Bash,
     Zsh,
@@ -1882,12 +1935,13 @@ enum CompletionFormat {
     Usage,
 }
 
-/// The usage spec, generated from the clap definitions by a test in this file.
+/// The usage spec, generated from the declarations above by a test in this file.
 const USAGE_SPEC: &str = include_str!("../../../completions/sbrs.usage.kdl");
 
 impl CompletionFormat {
     /// The shell this format is for, or `None` for the Fig and usage specs.
-    fn shell(self) -> Option<Shell> {
+    fn shell(self) -> Option<usage::complete::Shell> {
+        use usage::complete::Shell;
         match self {
             Self::Bash => Some(Shell::Bash),
             Self::Zsh => Some(Shell::Zsh),
@@ -1902,17 +1956,12 @@ impl CompletionFormat {
 async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
-            let mut command = Cli::command();
-            let name = command.get_name().to_owned();
-            let mut completion = Vec::new();
-            match (shell, shell.shell()) {
-                (_, Some(shell)) => generate(shell, &mut command, name, &mut completion),
-                (CompletionFormat::Usage, None) => {
-                    completion.extend_from_slice(USAGE_SPEC.as_bytes())
-                }
-                (_, None) => generate(clap_complete_fig::Fig, &mut command, name, &mut completion),
-            }
-            std::io::stdout().write_all(&completion)?;
+            let completion = match (shell, shell.shell()) {
+                (_, Some(shell)) => Cli::completion_script(shell),
+                (CompletionFormat::Usage, None) => USAGE_SPEC.to_owned(),
+                (_, None) => fig::spec(Cli::spec()),
+            };
+            std::io::stdout().write_all(completion.as_bytes())?;
             return Ok(());
         }
         Commands::ImportPython {
@@ -2049,10 +2098,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mut settings = Settings::load(args.config.as_deref())?;
     let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
     let overrides = SettingsOverrides {
-        browser: args
-            .browser
-            .and_then(|browser| browser.to_possible_value())
-            .map(|value| value.get_name().to_owned()),
+        browser: args.browser.map(|browser| browser.name().to_owned()),
         headless: args
             .headless
             .then_some(true)
@@ -3034,8 +3080,14 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 mod devtools_cli_tests {
     use super::*;
 
+    /// Parses `argv`, whose first word is the program name.
+    fn try_parse(argv: &[&str]) -> Result<Cli, String> {
+        let argv: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsStr::new).collect();
+        Cli::parse_from_argv(&argv).map_err(|error| Cli::render_failure(&argv, &error))
+    }
+
     fn parse(argv: &[&str]) -> Cli {
-        Cli::try_parse_from(argv).expect("the arguments parse")
+        try_parse(argv).expect("the arguments parse")
     }
 
     #[test]
@@ -3111,9 +3163,27 @@ mod devtools_cli_tests {
         assert!(matches!(cli.command, Commands::Devtools { .. }));
     }
 
+    /// The parser ignores a value written after a plain switch (`--headless=false` would
+    /// switch it on), so the switches take `true` and `false` and refuse anything else.
+    #[test]
+    fn a_value_written_after_a_switch_means_what_it_says_or_is_refused() {
+        let cli = parse(&["sbrs", "--headless=false", "--headed=true", "open", "x"]);
+        assert!(!cli.headless && cli.headed);
+        let cli = parse(&["sbrs", "--headless=true", "open", "x"]);
+        assert!(cli.headless);
+        for argv in [
+            &["sbrs", "--headless=", "open", "x"][..],
+            &["sbrs", "--headless=0", "open", "x"],
+            &["sbrs", "--cdp=yes", "open", "x"],
+            &["sbrs", "open", "x", "--headless=true"],
+        ] {
+            assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
+        }
+    }
+
     #[test]
     fn a_port_out_of_range_is_refused() {
-        assert!(Cli::try_parse_from(["sbrs", "devtools", "--port", "70000"]).is_err());
+        assert!(try_parse(&["sbrs", "devtools", "--port", "70000"]).is_err());
     }
 
     #[test]
@@ -3147,26 +3217,107 @@ mod devtools_cli_tests {
 mod usage_spec_tests {
     use super::*;
 
-    /// `completions/sbrs.usage.kdl` is generated from the clap definitions. After
-    /// changing the CLI, write it again with
-    /// `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
+    /// The spec states some defaults as literals, because a constant cannot be written
+    /// into it; they have to be the constants the code uses.
     #[test]
-    fn the_committed_usage_spec_matches_the_cli() {
-        let mut spec = Vec::new();
-        clap_usage::generate(&mut Cli::command(), "sbrs", &mut spec);
-        let spec = String::from_utf8(spec).expect("the spec is UTF-8");
+    fn the_defaults_written_as_literals_are_the_constants_the_code_uses() {
+        assert_eq!(DEFAULT_DEVTOOLS_PORT, 9222);
+        assert_eq!(prompt::DEFAULT_FORMAT, "{browser} {major} {driver}");
+    }
+
+    /// The Fig spec is written from the same tables as the parser: the commands, their
+    /// aliases, the flags with their short and long spellings, and the words a flag takes.
+    #[test]
+    fn the_fig_spec_lists_the_commands_flags_and_aliases_of_the_command_line() {
+        let fig = fig::spec(Cli::spec());
+        assert!(
+            fig.starts_with("const completionSpec: Fig.Spec = {\n"),
+            "{fig}"
+        );
+        assert!(fig.ends_with("export default completionSpec;\n"), "{fig}");
+        for expected in [
+            r#"name: ["install", "get"],"#,
+            r#"name: ["mkfile", "new"],"#,
+            r#"name: ["-a", "--agent"],"#,
+            r#"name: ["--reuse-session", "--reuse_session", "--rs"],"#,
+            r#"name: "--webdriver","#,
+            r#"suggestions: ["chrome", "chromium", "edge","#,
+            r#"isRequired: true,"#,
+            r#"template: "filepaths","#,
+            r#"name: ["-h", "--help"],"#,
+            r#"name: ["-V", "--version"],"#,
+        ] {
+            assert!(fig.contains(expected), "{expected} in:\n{fig}");
+        }
+    }
+
+    /// Every browser word the command line accepts reaches `SB_BROWSER` as it is spelled.
+    #[test]
+    fn a_browser_is_named_by_the_word_that_chooses_it() {
+        use usage::spec::ValueEnum as _;
+        for word in BrowserArg::CHOICES {
+            let browser = BrowserArg::from_choice(word).expect("a listed word names a browser");
+            assert_eq!(browser.name(), *word);
+        }
+        assert_eq!(BrowserArg::CHOICES.len(), 11);
+    }
+
+    /// The repository file `relative` against what the declarations generate. With
+    /// `SB_UPDATE_COMPLETIONS` set the file is written instead of compared.
+    #[cfg(not(feature = "turso"))]
+    fn assert_generated(relative: &str, generated: &str) {
+        // The files live at the repository root, two folders above this crate.
+        let path = format!("{}/../../{relative}", env!("CARGO_MANIFEST_DIR"));
         if std::env::var_os("SB_UPDATE_COMPLETIONS").is_some() {
-            // The spec lives at the repository root, two folders above this crate.
-            let path = concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../completions/sbrs.usage.kdl"
-            );
-            std::fs::write(path, &spec).expect("write the usage spec");
+            std::fs::write(&path, generated).expect("write the generated file");
         } else {
+            let committed = std::fs::read_to_string(&path).unwrap_or_default();
             assert!(
-                USAGE_SPEC == spec,
-                "completions/sbrs.usage.kdl is stale: run SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec"
+                committed == generated,
+                "{relative} is stale: run SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec"
             );
         }
+    }
+
+    // The generated files describe the default build: `sbrs report` exists only with the
+    // `turso` feature, so the three tests below skip a build that has it.
+
+    /// `completions/sbrs.usage.kdl` is generated from the declarations. After
+    /// changing the CLI, write it again (and the two files below) with
+    /// `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
+    #[cfg(not(feature = "turso"))]
+    #[test]
+    fn the_committed_usage_spec_matches_the_cli() {
+        // `sbrs completions usage` prints this file, which the binary embeds.
+        assert_generated("completions/sbrs.usage.kdl", &Cli::to_kdl());
+    }
+
+    /// `docs/completions/fig-sbrs.ts` is `sbrs completions fig`, a Fig spec prepared for
+    /// the withfig/autocomplete repository (its README explains how to submit it).
+    #[cfg(not(feature = "turso"))]
+    #[test]
+    fn the_committed_fig_spec_matches_the_cli() {
+        assert_generated("docs/completions/fig-sbrs.ts", &fig::spec(Cli::spec()));
+    }
+
+    /// `docs/help/cli_reference.md` is the usage spec rendered as Markdown by the
+    /// renderer of the usage tool, so the reference lists what the parser accepts.
+    #[cfg(not(feature = "turso"))]
+    #[test]
+    fn the_committed_cli_reference_matches_the_cli() {
+        use usage_lib::docs::markdown::MarkdownRenderer;
+
+        let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
+        let reference = MarkdownRenderer::new(spec)
+            .with_html_encode(true)
+            .render_spec()
+            .expect("the reference renders");
+        let page = format!(
+            "---\ntitle: \"CLI reference\"\n---\n\n\
+             *Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by \
+             `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`. \
+             Do not edit it by hand.*\n\n{reference}"
+        );
+        assert_generated("docs/help/cli_reference.md", &page);
     }
 }

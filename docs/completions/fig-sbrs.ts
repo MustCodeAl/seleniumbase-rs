@@ -1,10 +1,10 @@
-const completion: Fig.Spec = {
+const completionSpec: Fig.Spec = {
   name: "sbrs",
   description: "SeleniumBaseRust CLI",
   subcommands: [
     {
       name: "version",
-      description: "Print the sbrs version, as `sbrs --version` does",
+      description: "Print the sbrs version, as `sbrs --version` does.",
       options: [
         {
           name: ["-h", "--help"],
@@ -14,28 +14,29 @@ const completion: Fig.Spec = {
     },
     {
       name: "open",
-      description: "Open a URL in the browser",
+      description: "Open a URL in the browser.",
       options: [
         {
           name: ["-h", "--help"],
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL to open in the browser.",
+        },
+      ],
     },
     {
       name: "smoke",
-      description: "Run a smoke test against a URL",
+      description: "Run a smoke test against a URL.",
       options: [
         {
           name: "--title-contains",
           description: "Expected substring in the page title",
-          isRepeatable: true,
           args: {
             name: "title_contains",
-            isOptional: true,
           },
         },
         {
@@ -43,18 +44,21 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL to open or smoke-test",
+        },
+      ],
     },
     {
       name: "cdp",
-      description: "Execute a Chrome DevTools Protocol command",
+      description: "Execute a Chrome DevTools Protocol command.",
       options: [
         {
           name: "--cmd",
           description: "CDP method name (e.g. Runtime.evaluate)",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "cmd",
           },
@@ -62,10 +66,8 @@ const completion: Fig.Spec = {
         {
           name: "--params",
           description: "JSON object of CDP parameters",
-          isRepeatable: true,
           args: {
             name: "params",
-            isOptional: true,
           },
         },
         {
@@ -76,7 +78,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "cache-clear",
-      description: "Clear the browser cache via CDP",
+      description: "Clear the browser cache via CDP.",
       options: [
         {
           name: ["-h", "--help"],
@@ -86,7 +88,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "throttle3g",
-      description: "Throttle the browser connection to 3G speeds",
+      description: "Throttle the browser connection to 3G speeds.",
       options: [
         {
           name: ["-h", "--help"],
@@ -96,15 +98,13 @@ const completion: Fig.Spec = {
     },
     {
       name: "screenshot",
-      description: "Capture a screenshot of the current page",
+      description: "Capture a screenshot of the current page.",
       options: [
         {
           name: "--path",
           description: "Output image file path (default: a new file in latest_logs/)",
-          isRepeatable: true,
           args: {
             name: "path",
-            isOptional: true,
           },
         },
         {
@@ -115,15 +115,13 @@ const completion: Fig.Spec = {
     },
     {
       name: "save-source",
-      description: "Save the current page source to a file",
+      description: "Save the current page source to a file.",
       options: [
         {
           name: "--path",
           description: "Output HTML file path (default: a new file in latest_logs/)",
-          isRepeatable: true,
           args: {
             name: "path",
-            isOptional: true,
           },
         },
         {
@@ -134,12 +132,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "assert-element",
-      description: "Assert that an element exists",
+      description: "Assert that an element exists.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -152,12 +150,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "wait-for-text",
-      description: "Wait until an element contains the expected text",
+      description: "Wait until an element contains the expected text.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -165,7 +163,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Expected text substring to wait for",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -173,10 +171,8 @@ const completion: Fig.Spec = {
         {
           name: "--timeout",
           description: "Maximum wait time in seconds",
-          isRepeatable: true,
           args: {
             name: "timeout",
-            isOptional: true,
           },
         },
         {
@@ -187,12 +183,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "hover",
-      description: "Hover over an element",
+      description: "Hover over an element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -205,12 +201,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "hover-and-click",
-      description: "Hover over one element, then click another",
+      description: "Hover over one element, then click another.",
       options: [
         {
           name: "--hover-css",
           description: "CSS selector to hover over",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "hover_css",
           },
@@ -218,7 +214,7 @@ const completion: Fig.Spec = {
         {
           name: "--click-css",
           description: "CSS selector to click",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "click_css",
           },
@@ -231,12 +227,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "select-option",
-      description: "Select an option from a dropdown",
+      description: "Select an option from a dropdown.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -244,19 +240,15 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Visible text of the option to select",
-          isRepeatable: true,
           args: {
             name: "text",
-            isOptional: true,
           },
         },
         {
           name: "--value",
           description: "Option value attribute",
-          isRepeatable: true,
           args: {
             name: "value",
-            isOptional: true,
           },
         },
         {
@@ -267,12 +259,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "drag-and-drop",
-      description: "Drag one element onto another",
+      description: "Drag one element onto another.",
       options: [
         {
           name: "--source-css",
           description: "CSS selector of the element to drag",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "source_css",
           },
@@ -280,7 +272,7 @@ const completion: Fig.Spec = {
         {
           name: "--target-css",
           description: "CSS selector of the drop target",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "target_css",
           },
@@ -293,12 +285,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "cdp-click-element",
-      description: "Click an element using CDP",
+      description: "Click an element using CDP.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -311,12 +303,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "cdp-type-text",
-      description: "Type text using CDP input injection",
+      description: "Type text using CDP input injection.",
       options: [
         {
           name: "--text",
           description: "Text to inject via CDP",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -329,7 +321,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "go-back",
-      description: "Navigate back in browser history",
+      description: "Navigate back in browser history.",
       options: [
         {
           name: ["-h", "--help"],
@@ -339,7 +331,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "go-forward",
-      description: "Navigate forward in browser history",
+      description: "Navigate forward in browser history.",
       options: [
         {
           name: ["-h", "--help"],
@@ -349,7 +341,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "refresh",
-      description: "Reload the current page",
+      description: "Reload the current page.",
       options: [
         {
           name: ["-h", "--help"],
@@ -359,12 +351,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-text",
-      description: "Print the visible text of an element",
+      description: "Print the visible text of an element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -377,12 +369,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-attribute",
-      description: "Print an element attribute value",
+      description: "Print an element attribute value.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -390,7 +382,7 @@ const completion: Fig.Spec = {
         {
           name: "--attribute",
           description: "Attribute name to read or assert",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "attribute",
           },
@@ -403,12 +395,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-property",
-      description: "Print an element property value",
+      description: "Print an element property value.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -416,7 +408,7 @@ const completion: Fig.Spec = {
         {
           name: "--property",
           description: "Property name to read",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "property",
           },
@@ -429,7 +421,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-title",
-      description: "Print the page title",
+      description: "Print the page title.",
       options: [
         {
           name: ["-h", "--help"],
@@ -439,7 +431,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-current-url",
-      description: "Print the current URL",
+      description: "Print the current URL.",
       options: [
         {
           name: ["-h", "--help"],
@@ -449,7 +441,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "clear-cookies",
-      description: "Delete all browser cookies",
+      description: "Delete all browser cookies.",
       options: [
         {
           name: ["-h", "--help"],
@@ -459,7 +451,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "accept-alert",
-      description: "Accept the active browser alert",
+      description: "Accept the active browser alert.",
       options: [
         {
           name: ["-h", "--help"],
@@ -469,7 +461,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "dismiss-alert",
-      description: "Dismiss the active browser alert",
+      description: "Dismiss the active browser alert.",
       options: [
         {
           name: ["-h", "--help"],
@@ -479,7 +471,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-alert-text",
-      description: "Print the text of the active alert",
+      description: "Print the text of the active alert.",
       options: [
         {
           name: ["-h", "--help"],
@@ -489,12 +481,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "type-alert-text",
-      description: "Type text into the active alert prompt",
+      description: "Type text into the active alert prompt.",
       options: [
         {
           name: "--text",
           description: "Text to type into the alert prompt",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -507,7 +499,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "clear-local-storage",
-      description: "Clear the page local storage",
+      description: "Clear the page local storage.",
       options: [
         {
           name: ["-h", "--help"],
@@ -517,12 +509,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-local-storage-item",
-      description: "Print a local storage value by key",
+      description: "Print a local storage value by key.",
       options: [
         {
           name: "--key",
           description: "Storage key",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "key",
           },
@@ -535,12 +527,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "set-local-storage-item",
-      description: "Set a local storage key/value pair",
+      description: "Set a local storage key/value pair.",
       options: [
         {
           name: "--key",
           description: "Storage key",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "key",
           },
@@ -548,7 +540,7 @@ const completion: Fig.Spec = {
         {
           name: "--value",
           description: "Value to store in local storage",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "value",
           },
@@ -561,12 +553,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "remove-local-storage-item",
-      description: "Remove a local storage entry by key",
+      description: "Remove a local storage entry by key.",
       options: [
         {
           name: "--key",
           description: "Storage key",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "key",
           },
@@ -579,12 +571,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "switch-to-window",
-      description: "Switch focus to a window by handle",
+      description: "Switch focus to a window by handle.",
       options: [
         {
           name: "--handle",
           description: "Window handle to switch to",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "handle",
           },
@@ -597,12 +589,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "switch-to-frame",
-      description: "Switch focus to an iframe",
+      description: "Switch focus to an iframe.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -615,7 +607,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "switch-to-default-content",
-      description: "Switch focus back to the main document",
+      description: "Switch focus back to the main document.",
       options: [
         {
           name: ["-h", "--help"],
@@ -625,7 +617,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-cookies",
-      description: "Print all browser cookies as JSON",
+      description: "Print all browser cookies as JSON.",
       options: [
         {
           name: ["-h", "--help"],
@@ -635,7 +627,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "export-recording",
-      description: "Export the recorded test actions",
+      description: "Export the recorded test actions.",
       options: [
         {
           name: ["-h", "--help"],
@@ -645,12 +637,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "patch-chromedriver",
-      description: "Patch a chromedriver binary to reduce detection surface",
+      description: "Patch a chromedriver binary to reduce detection surface.",
       options: [
         {
           name: "--path",
           description: "Path to the chromedriver binary",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "path",
           },
@@ -663,12 +655,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "patch-chrome",
-      description: "Patch a Chrome/Chromium binary for native-level spoofing",
+      description: "Patch a Chrome/Chromium binary for native-level spoofing.",
       options: [
         {
           name: "--path",
           description: "Path to the Chrome/Chromium binary",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "path",
           },
@@ -676,10 +668,8 @@ const completion: Fig.Spec = {
         {
           name: "--cache-dir",
           description: "Directory where patched binaries are cached",
-          isRepeatable: true,
           args: {
             name: "cache_dir",
-            isOptional: true,
           },
         },
         {
@@ -690,35 +680,41 @@ const completion: Fig.Spec = {
     },
     {
       name: ["encrypt", "obfuscate"],
-      description: "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted",
-      options: [
-        {
-          name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
-        },
-      ],
-      args: {
-        name: "text",
-        isOptional: true,
-      },
-    },
-    {
-      name: ["decrypt", "unobfuscate"],
-      description: "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command",
+      description: "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted.",
       options: [
         {
           name: ["-h", "--help"],
           description: "Print help",
         },
       ],
-      args: {
-        name: "token",
-        isOptional: true,
-      },
+      args: [
+        {
+          name: "text",
+          description: "The text to encrypt.",
+          isOptional: true,
+        },
+      ],
+    },
+    {
+      name: ["decrypt", "unobfuscate"],
+      description: "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command.",
+      options: [
+        {
+          name: ["-h", "--help"],
+          description: "Print help",
+        },
+      ],
+      args: [
+        {
+          name: "token",
+          description: "The token to decrypt.",
+          isOptional: true,
+        },
+      ],
     },
     {
       name: "doctor",
-      description: "Run a diagnostic check on the environment and configuration",
+      description: "Run a diagnostic check on the environment and configuration.",
       options: [
         {
           name: ["-h", "--help"],
@@ -728,30 +724,26 @@ const completion: Fig.Spec = {
     },
     {
       name: "prompt",
-      description: "Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand",
+      description: "Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand.",
       options: [
         {
           name: "--format",
           description: "The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces",
-          isRepeatable: true,
           args: {
-            name: "format",
-            isOptional: true,
-          },
-        },
-        {
-          name: "--browser-path",
-          description: "Browser to report on (default: SB_CHROME_BIN, else the installed Chrome or Chromium)",
-          isRepeatable: true,
-          args: {
-            name: "browser_path",
-            isOptional: true,
-            template: "filepaths",
+            name: "template",
           },
         },
         {
           name: "--ascii",
           description: "Mark the driver with + - ? instead of ✓ ✗ ?",
+        },
+        {
+          name: "--browser-path",
+          description: "Browser to report on (default: SB_CHROME_BIN, else the installed Chrome or Chromium)",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
         },
         {
           name: "--no-cache",
@@ -763,18 +755,18 @@ const completion: Fig.Spec = {
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
     },
     {
       name: "assert-text-visible",
-      description: "Assert that an element contains the expected text",
+      description: "Assert that an element contains the expected text.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -782,7 +774,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Expected visible text",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -795,12 +787,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "assert-text-not-visible",
-      description: "Assert that an element does not contain the given text",
+      description: "Assert that an element does not contain the given text.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -808,7 +800,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Text that should not be visible",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -821,12 +813,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "assert-attribute",
-      description: "Assert an element attribute equals an expected value",
+      description: "Assert an element attribute equals an expected value.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -834,7 +826,7 @@ const completion: Fig.Spec = {
         {
           name: "--attribute",
           description: "Attribute name to read or assert",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "attribute",
           },
@@ -842,7 +834,7 @@ const completion: Fig.Spec = {
         {
           name: "--value",
           description: "Expected attribute value",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "value",
           },
@@ -855,12 +847,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "assert-title",
-      description: "Assert the page title contains the expected text",
+      description: "Assert the page title contains the expected text.",
       options: [
         {
           name: "--text",
           description: "Expected page title substring",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -873,7 +865,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "wait-for-ready-state-complete",
-      description: "Wait until the document readyState is complete",
+      description: "Wait until the document readyState is complete.",
       options: [
         {
           name: ["-h", "--help"],
@@ -883,7 +875,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-window-position",
-      description: "Print the browser window position",
+      description: "Print the browser window position.",
       options: [
         {
           name: ["-h", "--help"],
@@ -893,12 +885,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "set-window-position",
-      description: "Set the browser window position",
+      description: "Set the browser window position.",
       options: [
         {
           name: "--x",
           description: "Window X coordinate in pixels",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "x",
           },
@@ -906,7 +898,7 @@ const completion: Fig.Spec = {
         {
           name: "--y",
           description: "Window Y coordinate in pixels",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "y",
           },
@@ -919,7 +911,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "close-window",
-      description: "Close the current browser window",
+      description: "Close the current browser window.",
       options: [
         {
           name: ["-h", "--help"],
@@ -929,7 +921,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "switch-to-parent-frame",
-      description: "Switch focus to the parent frame",
+      description: "Switch focus to the parent frame.",
       options: [
         {
           name: ["-h", "--help"],
@@ -939,12 +931,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "is-element-visible",
-      description: "Print whether an element is visible",
+      description: "Print whether an element is visible.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -957,12 +949,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "is-text-visible",
-      description: "Print whether the expected text is visible in an element",
+      description: "Print whether the expected text is visible in an element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -970,7 +962,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Expected text to check",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -983,12 +975,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "wait-for-element-not-visible",
-      description: "Wait until an element is no longer visible",
+      description: "Wait until an element is no longer visible.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -996,10 +988,8 @@ const completion: Fig.Spec = {
         {
           name: "--timeout",
           description: "Maximum wait time in seconds",
-          isRepeatable: true,
           args: {
             name: "timeout",
-            isOptional: true,
           },
         },
         {
@@ -1010,12 +1000,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "save-cookies",
-      description: "Save browser cookies to a JSON file",
+      description: "Save browser cookies to a JSON file.",
       options: [
         {
           name: "--file",
           description: "JSON file to save cookies to",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -1028,12 +1018,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "load-cookies",
-      description: "Load browser cookies from a JSON file",
+      description: "Load browser cookies from a JSON file.",
       options: [
         {
           name: "--file",
           description: "JSON file to load cookies from",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -1046,12 +1036,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "highlight-click",
-      description: "Highlight an element, then click it",
+      description: "Highlight an element, then click it.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1064,12 +1054,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "is-checked",
-      description: "Print whether a checkbox is checked",
+      description: "Print whether a checkbox is checked.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1082,12 +1072,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "check-if-unchecked",
-      description: "Check a checkbox only if it is unchecked",
+      description: "Check a checkbox only if it is unchecked.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1100,12 +1090,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "uncheck-if-checked",
-      description: "Uncheck a checkbox only if it is checked",
+      description: "Uncheck a checkbox only if it is checked.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1118,7 +1108,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "open-new-window",
-      description: "Open a new browser window",
+      description: "Open a new browser window.",
       options: [
         {
           name: ["-h", "--help"],
@@ -1128,7 +1118,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "open-new-tab",
-      description: "Open a new browser tab",
+      description: "Open a new browser tab.",
       options: [
         {
           name: ["-h", "--help"],
@@ -1138,7 +1128,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "switch-to-newest-window",
-      description: "Switch focus to the newest browser window",
+      description: "Switch focus to the newest browser window.",
       options: [
         {
           name: ["-h", "--help"],
@@ -1148,7 +1138,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "switch-to-default-window",
-      description: "Switch focus to the default window",
+      description: "Switch focus to the default window.",
       options: [
         {
           name: ["-h", "--help"],
@@ -1158,7 +1148,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-active-element-css",
-      description: "Print a CSS selector for the currently focused element",
+      description: "Print a CSS selector for the currently focused element.",
       options: [
         {
           name: ["-h", "--help"],
@@ -1168,12 +1158,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "wait-for-element-present",
-      description: "Wait until an element is present in the DOM",
+      description: "Wait until an element is present in the DOM.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1181,10 +1171,8 @@ const completion: Fig.Spec = {
         {
           name: "--timeout",
           description: "Maximum wait time in seconds",
-          isRepeatable: true,
           args: {
             name: "timeout",
-            isOptional: true,
           },
         },
         {
@@ -1195,12 +1183,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "add-text",
-      description: "Append text to an input or textarea",
+      description: "Append text to an input or textarea.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1208,7 +1196,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Text to append to the element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1221,12 +1209,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "send-keys",
-      description: "Send keystrokes to an element",
+      description: "Send keystrokes to an element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1234,7 +1222,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Keys to send to the element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1247,12 +1235,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "get-value",
-      description: "Print the value of a form element",
+      description: "Print the value of a form element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1265,12 +1253,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "click-visible-elements",
-      description: "Click all visible elements matching a selector",
+      description: "Click all visible elements matching a selector.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1283,15 +1271,13 @@ const completion: Fig.Spec = {
     },
     {
       name: "wait-for-and-accept-alert",
-      description: "Wait for an alert, then accept it",
+      description: "Wait for an alert, then accept it.",
       options: [
         {
           name: "--timeout",
           description: "Maximum wait time in seconds",
-          isRepeatable: true,
           args: {
             name: "timeout",
-            isOptional: true,
           },
         },
         {
@@ -1302,15 +1288,13 @@ const completion: Fig.Spec = {
     },
     {
       name: "wait-for-and-dismiss-alert",
-      description: "Wait for an alert, then dismiss it",
+      description: "Wait for an alert, then dismiss it.",
       options: [
         {
           name: "--timeout",
           description: "Maximum wait time in seconds",
-          isRepeatable: true,
           args: {
             name: "timeout",
-            isOptional: true,
           },
         },
         {
@@ -1321,12 +1305,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "is-link-text-visible",
-      description: "Print whether a link with the given text is visible",
+      description: "Print whether a link with the given text is visible.",
       options: [
         {
           name: "--text",
           description: "Exact link text to check",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1339,12 +1323,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "is-partial-link-text-visible",
-      description: "Print whether a link containing the given text is visible",
+      description: "Print whether a link containing the given text is visible.",
       options: [
         {
           name: "--text",
           description: "Link text substring to check",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1357,12 +1341,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "assert-link-text",
-      description: "Assert a link with the given text is visible",
+      description: "Assert a link with the given text is visible.",
       options: [
         {
           name: "--text",
           description: "Exact link text to assert",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1375,12 +1359,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "click-partial-link-text",
-      description: "Click a link containing the given text",
+      description: "Click a link containing the given text.",
       options: [
         {
           name: "--text",
           description: "Link text substring to click",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1393,12 +1377,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "human-type",
-      description: "Type text with human-like timing and noise",
+      description: "Type text with human-like timing and noise.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1406,7 +1390,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Text to type with humanized timing",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1419,12 +1403,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "human-click",
-      description: "Click an element with human-like timing and noise",
+      description: "Click an element with human-like timing and noise.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1437,12 +1421,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "smooth-scroll-to",
-      description: "Smoothly scroll an element into view",
+      description: "Smoothly scroll an element into view.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1455,12 +1439,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "uc-click",
-      description: "Perform a UC-mode click on an element",
+      description: "Perform a UC-mode click on an element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1473,12 +1457,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "uc-type",
-      description: "Perform UC-mode typing into an element",
+      description: "Perform UC-mode typing into an element.",
       options: [
         {
           name: "--css",
           description: "CSS selector for the target element",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "css",
           },
@@ -1486,7 +1470,7 @@ const completion: Fig.Spec = {
         {
           name: "--text",
           description: "Text to type in UC mode",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -1499,396 +1483,330 @@ const completion: Fig.Spec = {
     },
     {
       name: ["install", "get"],
-      description: "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)",
+      description: "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`).",
       options: [
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
       args: [
         {
           name: "driver",
+          description: "The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver).",
           isOptional: true,
         },
         {
           name: "version",
+          description: "`latest`, a major version (chromedriver, edgedriver), a full build, or a geckodriver version such as 0.36.0.",
           isOptional: true,
         },
-      ]
+      ],
     },
     {
       name: "test",
-      description: "Run the project's tests, or one example, through Cargo",
+      description: "Run the project's tests, or one example, through Cargo.",
       options: [
         {
           name: "--test",
-          description: "Run one integration test file from tests/",
-          exclusiveOn: [
-            "--example",
-          ],
-          isRepeatable: true,
+          description: "Run one integration test file from tests/.",
           args: {
-            name: "test",
-            isOptional: true,
+            name: "name",
           },
         },
         {
           name: "--example",
-          description: "Run one example from examples/ instead of the tests",
-          isRepeatable: true,
+          description: "Run one example from examples/ instead of the tests.",
           args: {
-            name: "example",
-            isOptional: true,
-          },
-        },
-        {
-          name: "--features",
-          description: "Cargo features to enable, separated by commas",
-          isRepeatable: true,
-          args: {
-            name: "features",
-            isOptional: true,
+            name: "name",
           },
         },
         {
           name: "--release",
-          description: "Build with the release profile",
+          description: "Build with the release profile.",
+        },
+        {
+          name: "--features",
+          description: "Cargo features to enable, separated by commas.",
+          isRepeatable: true,
+          args: {
+            name: "features",
+          },
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
       args: [
         {
           name: "filter",
+          description: "Run only the tests whose name contains this text.",
           isOptional: true,
         },
         {
           name: "harness_args",
-          isVariadic: true,
+          description: "Arguments for the test harness, after `--` (for example --nocapture).",
           isOptional: true,
+          isVariadic: true,
         },
-      ]
+      ],
     },
     {
       name: "grid-hub",
-      description: "Start, stop, restart or check a Selenium Grid hub",
+      description: "Start, stop, restart or check a Selenium Grid hub.",
       options: [
         {
           name: "--jar",
-          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded",
-          isRepeatable: true,
+          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded.",
           args: {
-            name: "jar",
-            isOptional: true,
+            name: "path",
             template: "filepaths",
           },
         },
         {
           name: "--java",
-          description: "The Java executable (default: `java` on PATH)",
-          isRepeatable: true,
+          description: "The Java executable (default: `java` on PATH).",
           args: {
-            name: "java",
-            isOptional: true,
+            name: "path",
             template: "filepaths",
           },
         },
         {
           name: "--grid-host",
-          description: "The address to listen on",
-          isRepeatable: true,
+          description: "The address to listen on.",
           args: {
             name: "host",
-            isOptional: true,
           },
         },
         {
           name: "--grid-port",
-          description: "The port to listen on (default: 4444 for a hub, 5555 for a node)",
-          isRepeatable: true,
+          description: "The port to listen on (default: 4444 for a hub, 5555 for a node).",
           args: {
             name: "port",
-            isOptional: true,
           },
         },
         {
           name: "--hub",
-          description: "For a node, the hub to register with: a host or a URL",
-          isRepeatable: true,
+          description: "For a node, the hub to register with: a host or a URL.",
           args: {
-            name: "hub",
-            isOptional: true,
+            name: "host_or_url",
           },
         },
         {
           name: "--session-timeout",
-          description: "Close sessions that have been idle this many seconds",
-          isRepeatable: true,
+          description: "Close sessions that have been idle this many seconds.",
           args: {
-            name: "session_timeout",
-            isOptional: true,
+            name: "seconds",
           },
         },
         {
           name: "--wait",
-          description: "How many seconds `start` waits for the Grid to become ready",
-          isRepeatable: true,
+          description: "How many seconds `start` waits for the Grid to become ready.",
           args: {
-            name: "wait",
-            isOptional: true,
+            name: "seconds",
           },
         },
         {
           name: "--grid-verbose",
-          description: "Log at INFO instead of WARNING",
+          description: "Log at INFO instead of WARNING.",
         },
         {
           name: "--skip-port-check",
-          description: "Start even if something already accepts connections on the port",
+          description: "Start even if something already accepts connections on the port.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
       args: [
         {
           name: "action",
-          suggestions: [
-            {
-              name: "start",
-              description: "Start it and wait until it is ready",
-            },
-            {
-              name: "stop",
-              description: "Stop it",
-            },
-            {
-              name: "restart",
-              description: "Stop it if it is running, then start it",
-            },
-            {
-              name: "status",
-              description: "Say whether it is running and ready",
-            },
-          ],
+          description: "What to do with the Grid process.",
+          suggestions: ["start", "stop", "restart", "status"],
         },
         {
           name: "extra_args",
-          isVariadic: true,
+          description: "More arguments for the Selenium Server, after `--`.",
           isOptional: true,
+          isVariadic: true,
         },
-      ]
+      ],
     },
     {
       name: "grid-node",
-      description: "Start, stop, restart or check a Selenium Grid node",
+      description: "Start, stop, restart or check a Selenium Grid node.",
       options: [
         {
           name: "--jar",
-          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded",
-          isRepeatable: true,
+          description: "The Selenium Server jar (default: the SB_SELENIUM_SERVER_JAR variable). It is never downloaded.",
           args: {
-            name: "jar",
-            isOptional: true,
+            name: "path",
             template: "filepaths",
           },
         },
         {
           name: "--java",
-          description: "The Java executable (default: `java` on PATH)",
-          isRepeatable: true,
+          description: "The Java executable (default: `java` on PATH).",
           args: {
-            name: "java",
-            isOptional: true,
+            name: "path",
             template: "filepaths",
           },
         },
         {
           name: "--grid-host",
-          description: "The address to listen on",
-          isRepeatable: true,
+          description: "The address to listen on.",
           args: {
             name: "host",
-            isOptional: true,
           },
         },
         {
           name: "--grid-port",
-          description: "The port to listen on (default: 4444 for a hub, 5555 for a node)",
-          isRepeatable: true,
+          description: "The port to listen on (default: 4444 for a hub, 5555 for a node).",
           args: {
             name: "port",
-            isOptional: true,
           },
         },
         {
           name: "--hub",
-          description: "For a node, the hub to register with: a host or a URL",
-          isRepeatable: true,
+          description: "For a node, the hub to register with: a host or a URL.",
           args: {
-            name: "hub",
-            isOptional: true,
+            name: "host_or_url",
           },
         },
         {
           name: "--session-timeout",
-          description: "Close sessions that have been idle this many seconds",
-          isRepeatable: true,
+          description: "Close sessions that have been idle this many seconds.",
           args: {
-            name: "session_timeout",
-            isOptional: true,
+            name: "seconds",
           },
         },
         {
           name: "--wait",
-          description: "How many seconds `start` waits for the Grid to become ready",
-          isRepeatable: true,
+          description: "How many seconds `start` waits for the Grid to become ready.",
           args: {
-            name: "wait",
-            isOptional: true,
+            name: "seconds",
           },
         },
         {
           name: "--grid-verbose",
-          description: "Log at INFO instead of WARNING",
+          description: "Log at INFO instead of WARNING.",
         },
         {
           name: "--skip-port-check",
-          description: "Start even if something already accepts connections on the port",
+          description: "Start even if something already accepts connections on the port.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
       args: [
         {
           name: "action",
-          suggestions: [
-            {
-              name: "start",
-              description: "Start it and wait until it is ready",
-            },
-            {
-              name: "stop",
-              description: "Stop it",
-            },
-            {
-              name: "restart",
-              description: "Stop it if it is running, then start it",
-            },
-            {
-              name: "status",
-              description: "Say whether it is running and ready",
-            },
-          ],
+          description: "What to do with the Grid process.",
+          suggestions: ["start", "stop", "restart", "status"],
         },
         {
           name: "extra_args",
-          isVariadic: true,
+          description: "More arguments for the Selenium Server, after `--`.",
           isOptional: true,
+          isVariadic: true,
         },
-      ]
+      ],
     },
     {
       name: "translate",
-      description: "Write the actions of a JSON scenario in another language",
+      description: "Write the actions of a JSON scenario in another language.",
       options: [
         {
           name: ["-p", "--print"],
-          description: "Print the translation and write nothing (the default)",
-          exclusiveOn: [
-            "-o",
-            "--overwrite",
-            "-c",
-            "--copy",
-          ],
+          description: "Print the translation and write nothing (the default).",
         },
         {
           name: ["-o", "--overwrite"],
-          description: "Replace the file with the translation",
-          exclusiveOn: [
-            "-c",
-            "--copy",
-          ],
+          description: "Replace the file with the translation.",
         },
         {
           name: ["-c", "--copy"],
-          description: "Write the translation to a new file next to it, such as `login_es.json`",
+          description: "Write the translation to a new file next to it, such as `login_es.json`.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
       args: [
         {
           name: "file",
+          description: "The scenario file.",
           template: "filepaths",
         },
         {
           name: "language",
+          description: "The language: a code (en, zh, nl, fr, it, ja, ko, pt, ru, es) or its English name.",
         },
-      ]
+      ],
     },
     {
       name: "mkdir",
-      description: "Create a folder with a runnable browser-test suite",
+      description: "Create a folder with a runnable browser-test suite.",
       options: [
         {
           name: ["-b", "--basic"],
-          description: "Create only the scaffolding, with no example tests",
+          description: "Create only the scaffolding, with no example tests.",
         },
         {
           name: "--force",
-          description: "Replace generated files that already exist",
+          description: "Replace generated files that already exist.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "dir",
-      },
+      args: [
+        {
+          name: "dir",
+          description: "Folder to create, for example `tests/ui`.",
+        },
+      ],
     },
     {
       name: ["mkfile", "new"],
-      description: "Create a browser-test file",
+      description: "Create a browser-test file.",
       options: [
         {
           name: "--url",
-          description: "Page the test opens (default: https://example.com)",
-          isRepeatable: true,
+          description: "Page the test opens (default: https://example.com).",
           args: {
             name: "url",
-            isOptional: true,
           },
         },
         {
           name: ["-b", "--basic"],
-          description: "Leave the test body empty: it only opens the page",
+          description: "Leave the test body empty: it only opens the page.",
         },
         {
           name: "--force",
-          description: "Replace the file if it already exists",
+          description: "Replace the file if it already exists.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "file",
-      },
+      args: [
+        {
+          name: "file",
+          description: "File to create, for example `tests/login.rs`.",
+        },
+      ],
     },
     {
       name: "commander",
-      description: "Launch the interactive commander (needs a build with the `tui` feature)",
+      description: "Launch the interactive commander (needs a build with the `tui` feature).",
       options: [
         {
           name: ["-h", "--help"],
@@ -1898,48 +1816,54 @@ const completion: Fig.Spec = {
     },
     {
       name: ["caseplans", "case-plans"],
-      description: "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)",
+      description: "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).",
       options: [
         {
           name: "--starter",
-          description: "Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature",
+          description: "Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "path",
-        isOptional: true,
-      },
+      args: [
+        {
+          name: "path",
+          description: "A folder of tests, or one test file.",
+          isOptional: true,
+        },
+      ],
     },
     {
       name: ["behave-gui", "gui-behave"],
-      description: "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)",
+      description: "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature).",
       options: [
         {
           name: "--new",
-          description: "Prompt for a name, a title and scenarios and write a new feature file instead; this needs no `tui` feature",
+          description: "Prompt for a name, a title and scenarios and write a new feature file instead; this needs no `tui` feature.",
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "path",
-        isOptional: true,
-      },
+      args: [
+        {
+          name: "path",
+          description: "A folder of feature files, or one `.feature` file.",
+          isOptional: true,
+        },
+      ],
     },
     {
       name: "print",
-      description: "Print a file",
+      description: "Print a file.",
       options: [
         {
           name: "--file",
           description: "File path to print",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -1952,7 +1876,7 @@ const completion: Fig.Spec = {
     },
     {
       name: "objectify",
-      description: "Objectify a test recording",
+      description: "Objectify a test recording.",
       options: [
         {
           name: ["-h", "--help"],
@@ -1962,12 +1886,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "mkpres",
-      description: "Create an HTML presentation",
+      description: "Create an HTML presentation.",
       options: [
         {
           name: "--file",
           description: "Output HTML presentation path",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -1980,12 +1904,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "mkchart",
-      description: "Create an HTML chart",
+      description: "Create an HTML chart.",
       options: [
         {
           name: "--file",
           description: "Output HTML chart path",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -1998,12 +1922,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "mkrec",
-      description: "Create a test recording scaffold",
+      description: "Create a test recording scaffold.",
       options: [
         {
           name: "--file",
           description: "Output recording scaffold path",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -2016,12 +1940,12 @@ const completion: Fig.Spec = {
     },
     {
       name: "run-scenario",
-      description: "Run a scenario file and write an optional dashboard",
+      description: "Run a scenario file and write an optional dashboard.",
       options: [
         {
           name: "--file",
           description: "Scenario file to run",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "file",
           },
@@ -2029,10 +1953,8 @@ const completion: Fig.Spec = {
         {
           name: "--dashboard",
           description: "Optional path to write a scenario dashboard",
-          isRepeatable: true,
           args: {
             name: "dashboard",
-            isOptional: true,
           },
         },
         {
@@ -2043,66 +1965,45 @@ const completion: Fig.Spec = {
     },
     {
       name: "completions",
-      description: "Generate a completion script for a supported shell, or a Fig spec",
+      description: "Generate a completion script for a supported shell, or a Fig spec.",
       options: [
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "shell",
-        suggestions: [
-          "bash",
-          "zsh",
-          "fish",
-          "elvish",
-          "powershell",
-          {
-            name: "fig",
-            description: "A Fig completion spec (TypeScript), the format of the withfig/autocomplete repository that Warp's built-in completions, inshellisense and Amazon Q use",
-          },
-          {
-            name: "usage",
-            description: "A usage spec (KDL) for jdx/usage and mise, which turn it into completions, Markdown and man pages",
-          },
-        ],
-      },
+      args: [
+        {
+          name: "shell",
+          description: "Shell (or `fig` for a Fig spec) to generate completions for",
+          suggestions: ["bash", "zsh", "fish", "elvish", "powershell", "fig", "usage"],
+        },
+      ],
     },
     {
       name: "import-python",
-      description: "Convert common SeleniumBase or Selenium Python code into a Rust test",
+      description: "Convert common SeleniumBase or Selenium Python code into a Rust test.",
       options: [
         {
           name: ["-o", "--output"],
           description: "Output file for the generated Rust test",
-          isRepeatable: true,
           args: {
             name: "output",
-            isOptional: true,
           },
         },
         {
           name: "--source",
           description: "Source API to assume when converting Python code",
-          isRepeatable: true,
           args: {
             name: "source",
-            isOptional: true,
-            suggestions: [
-              "auto",
-              "selenium-base",
-              "selenium",
-            ],
+            suggestions: ["auto", "selenium-base", "selenium"],
           },
         },
         {
           name: "--test-name",
           description: "Name of the generated test function",
-          isRepeatable: true,
           args: {
             name: "test_name",
-            isOptional: true,
           },
         },
         {
@@ -2110,138 +2011,105 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "file",
-      },
+      args: [
+        {
+          name: "file",
+          description: "Python source file to convert.",
+        },
+      ],
     },
     {
       name: ["import-playwright", "import-pw"],
-      description: "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine",
+      description: "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.",
       options: [
         {
           name: ["-o", "--output"],
           description: "Output file for the generated Rust tests",
-          isRepeatable: true,
           args: {
             name: "output",
-            isOptional: true,
           },
         },
         {
           name: "--language",
           description: "Source language (default: from the file extension, else from the content)",
-          isRepeatable: true,
           args: {
             name: "language",
-            isOptional: true,
-            suggestions: [
-              {
-                name: "js",
-                description: "JavaScript",
-              },
-              {
-                name: "ts",
-                description: "TypeScript",
-              },
-              {
-                name: "python",
-                description: "Python",
-              },
-            ],
+            suggestions: ["js", "ts", "python"],
           },
         },
         {
           name: "--test-name",
           description: "Name of the test generated for a script without test titles (default: the file name)",
-          isRepeatable: true,
           args: {
             name: "test_name",
-            isOptional: true,
           },
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "file",
-      },
+      args: [
+        {
+          name: "file",
+          description: "Playwright source file to convert.",
+        },
+      ],
     },
     {
       name: ["import-puppeteer", "import-pptr"],
-      description: "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine",
+      description: "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.",
       options: [
         {
           name: ["-o", "--output"],
           description: "Output file for the generated Rust tests",
-          isRepeatable: true,
           args: {
             name: "output",
-            isOptional: true,
           },
         },
         {
           name: "--language",
           description: "Source language (default: from the file extension, else from the content)",
-          isRepeatable: true,
           args: {
             name: "language",
-            isOptional: true,
-            suggestions: [
-              {
-                name: "js",
-                description: "JavaScript",
-              },
-              {
-                name: "ts",
-                description: "TypeScript",
-              },
-              {
-                name: "json",
-                description: "A Chrome DevTools Recorder JSON export",
-              },
-            ],
+            suggestions: ["js", "ts", "json"],
           },
         },
         {
           name: "--test-name",
           description: "Name of the test generated for a script without test titles (default: the file name)",
-          isRepeatable: true,
           args: {
             name: "test_name",
-            isOptional: true,
           },
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
-      args: {
-        name: "file",
-      },
+      args: [
+        {
+          name: "file",
+          description: "Puppeteer source file (or Recorder `.json` export) to convert.",
+        },
+      ],
     },
     {
       name: "download-file",
-      description: "Download a file from a URL (browser download with an HTTP fallback)",
+      description: "Download a file from a URL (browser download with an HTTP fallback).",
       options: [
         {
           name: ["-o", "--output"],
           description: "Output file path (defaults to the URL file name in the current directory)",
-          isRepeatable: true,
           args: {
             name: "output",
-            isOptional: true,
           },
         },
         {
           name: "--timeout",
           description: "Seconds to wait for the browser download before falling back to HTTP",
-          isRepeatable: true,
           args: {
             name: "timeout",
-            isOptional: true,
           },
         },
         {
@@ -2249,21 +2117,22 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL of the file to download",
+        },
+      ],
     },
     {
       name: "print-pdf",
-      description: "Print a page to PDF and save it to disk",
+      description: "Print a page to PDF and save it to disk.",
       options: [
         {
           name: ["-o", "--output"],
           description: "Output PDF file path",
-          isRepeatable: true,
           args: {
             name: "output",
-            isOptional: true,
           },
         },
         {
@@ -2271,21 +2140,22 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL to render as a PDF",
+        },
+      ],
     },
     {
       name: "pdf-text",
-      description: "Print the text extracted from a page or PDF URL",
+      description: "Print the text extracted from a page or PDF URL.",
       options: [
         {
           name: "--save-pdf",
           description: "Also keep the intermediate PDF at this path",
-          isRepeatable: true,
           args: {
             name: "save_pdf",
-            isOptional: true,
           },
         },
         {
@@ -2293,18 +2163,21 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL of the page or PDF to extract text from",
+        },
+      ],
     },
     {
       name: "assert-pdf-text",
-      description: "Assert that a page or PDF URL contains the expected text",
+      description: "Assert that a page or PDF URL contains the expected text.",
       options: [
         {
           name: "--text",
           description: "Text that must appear in the PDF",
-          isRepeatable: true,
+          isRequired: true,
           args: {
             name: "text",
           },
@@ -2312,10 +2185,8 @@ const completion: Fig.Spec = {
         {
           name: "--save-pdf",
           description: "Also keep the intermediate PDF at this path",
-          isRepeatable: true,
           args: {
             name: "save_pdf",
-            isOptional: true,
           },
         },
         {
@@ -2323,21 +2194,22 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL of the page or PDF to check",
+        },
+      ],
     },
     {
       name: "choose-file",
-      description: "Upload a local file into a file input",
+      description: "Upload a local file into a file input.",
       options: [
         {
           name: "--url",
           description: "Page to open first (defaults to a generated blank upload page)",
-          isRepeatable: true,
           args: {
             name: "url",
-            isOptional: true,
           },
         },
         {
@@ -2348,23 +2220,23 @@ const completion: Fig.Spec = {
       args: [
         {
           name: "selector",
+          description: "CSS selector of the <input type=file> element",
         },
         {
           name: "file",
+          description: "Local file to upload",
         },
-      ]
+      ],
     },
     {
       name: "deferred",
-      description: "Run several assertions, then report every failure at once",
+      description: "Run several assertions, then report every failure at once.",
       options: [
         {
           name: "--url",
           description: "URL to open before running the assertions",
-          isRepeatable: true,
           args: {
             name: "url",
-            isOptional: true,
           },
         },
         {
@@ -2372,17 +2244,14 @@ const completion: Fig.Spec = {
           description: "Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>",
           isRepeatable: true,
           args: {
-            name: "asserts",
-            isOptional: true,
+            name: "spec",
           },
         },
         {
           name: "--spec",
           description: "JSON file containing an array of assertion specs",
-          isRepeatable: true,
           args: {
             name: "spec",
-            isOptional: true,
           },
         },
         {
@@ -2393,24 +2262,20 @@ const completion: Fig.Spec = {
     },
     {
       name: "record",
-      description: "Record browser interactions into a replayable action file",
+      description: "Record browser interactions into a replayable action file.",
       options: [
         {
           name: ["-o", "--output"],
           description: "Output action file (.json or .yaml)",
-          isRepeatable: true,
           args: {
             name: "output",
-            isOptional: true,
           },
         },
         {
           name: "--duration",
           description: "Stop recording after this many seconds (default: run until Ctrl-C)",
-          isRepeatable: true,
           args: {
             name: "duration",
-            isOptional: true,
           },
         },
         {
@@ -2418,75 +2283,71 @@ const completion: Fig.Spec = {
           description: "Print help",
         },
       ],
-      args: {
-        name: "url",
-      },
+      args: [
+        {
+          name: "url",
+          description: "URL to open and record",
+        },
+      ],
     },
     {
       name: "replay",
-      description: "Replay a recorded action file against a fresh browser session",
+      description: "Replay a recorded action file against a fresh browser session.",
       options: [
         {
           name: ["-h", "--help"],
           description: "Print help",
         },
       ],
-      args: {
-        name: "file",
-      },
+      args: [
+        {
+          name: "file",
+          description: "JSON action file produced by `sbrs record`",
+        },
+      ],
     },
     {
       name: "devtools",
-      description: "Launch Chrome with an open DevTools endpoint and print MCP client configs",
+      description: "Launch Chrome with an open DevTools endpoint and print MCP client configs.",
       options: [
+        {
+          name: "--headless",
+          description: "Run the browser without a window",
+        },
         {
           name: "--port",
           description: "DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)",
-          isRepeatable: true,
           args: {
             name: "port",
-            isOptional: true,
           },
         },
         {
           name: "--user-data-dir",
           description: "Profile directory to keep (default: a throwaway one; never Chrome's own default profile)",
-          isRepeatable: true,
           args: {
-            name: "user_data_dir",
-            isOptional: true,
+            name: "dir",
           },
         },
         {
           name: "--proxy",
           description: "Proxy: SERVER:PORT, USER:PASS@SERVER:PORT or scheme://SERVER:PORT",
-          isRepeatable: true,
           args: {
             name: "proxy",
-            isOptional: true,
           },
         },
         {
           name: "--browser-path",
           description: "Browser binary to launch, such as Microsoft Edge or another Chromium browser",
-          isRepeatable: true,
           args: {
-            name: "browser_path",
-            isOptional: true,
+            name: "path",
           },
         },
         {
           name: "--url",
           description: "Page to open once the browser runs",
-          isRepeatable: true,
           args: {
             name: "url",
-            isOptional: true,
           },
-        },
-        {
-          name: "--headless",
-          description: "Run the browser without a window",
         },
         {
           name: "--json",
@@ -2494,610 +2355,30 @@ const completion: Fig.Spec = {
         },
         {
           name: ["-h", "--help"],
-          description: "Print help (see more with '--help')",
+          description: "Print help",
         },
       ],
     },
     {
       name: "help",
       description: "Print this message or the help of the given subcommand(s)",
-      subcommands: [
-        {
-          name: "version",
-          description: "Print the sbrs version, as `sbrs --version` does",
-        },
-        {
-          name: "open",
-          description: "Open a URL in the browser",
-        },
-        {
-          name: "smoke",
-          description: "Run a smoke test against a URL",
-        },
-        {
-          name: "cdp",
-          description: "Execute a Chrome DevTools Protocol command",
-        },
-        {
-          name: "cache-clear",
-          description: "Clear the browser cache via CDP",
-        },
-        {
-          name: "throttle3g",
-          description: "Throttle the browser connection to 3G speeds",
-        },
-        {
-          name: "screenshot",
-          description: "Capture a screenshot of the current page",
-        },
-        {
-          name: "save-source",
-          description: "Save the current page source to a file",
-        },
-        {
-          name: "assert-element",
-          description: "Assert that an element exists",
-        },
-        {
-          name: "wait-for-text",
-          description: "Wait until an element contains the expected text",
-        },
-        {
-          name: "hover",
-          description: "Hover over an element",
-        },
-        {
-          name: "hover-and-click",
-          description: "Hover over one element, then click another",
-        },
-        {
-          name: "select-option",
-          description: "Select an option from a dropdown",
-        },
-        {
-          name: "drag-and-drop",
-          description: "Drag one element onto another",
-        },
-        {
-          name: "cdp-click-element",
-          description: "Click an element using CDP",
-        },
-        {
-          name: "cdp-type-text",
-          description: "Type text using CDP input injection",
-        },
-        {
-          name: "go-back",
-          description: "Navigate back in browser history",
-        },
-        {
-          name: "go-forward",
-          description: "Navigate forward in browser history",
-        },
-        {
-          name: "refresh",
-          description: "Reload the current page",
-        },
-        {
-          name: "get-text",
-          description: "Print the visible text of an element",
-        },
-        {
-          name: "get-attribute",
-          description: "Print an element attribute value",
-        },
-        {
-          name: "get-property",
-          description: "Print an element property value",
-        },
-        {
-          name: "get-title",
-          description: "Print the page title",
-        },
-        {
-          name: "get-current-url",
-          description: "Print the current URL",
-        },
-        {
-          name: "clear-cookies",
-          description: "Delete all browser cookies",
-        },
-        {
-          name: "accept-alert",
-          description: "Accept the active browser alert",
-        },
-        {
-          name: "dismiss-alert",
-          description: "Dismiss the active browser alert",
-        },
-        {
-          name: "get-alert-text",
-          description: "Print the text of the active alert",
-        },
-        {
-          name: "type-alert-text",
-          description: "Type text into the active alert prompt",
-        },
-        {
-          name: "clear-local-storage",
-          description: "Clear the page local storage",
-        },
-        {
-          name: "get-local-storage-item",
-          description: "Print a local storage value by key",
-        },
-        {
-          name: "set-local-storage-item",
-          description: "Set a local storage key/value pair",
-        },
-        {
-          name: "remove-local-storage-item",
-          description: "Remove a local storage entry by key",
-        },
-        {
-          name: "switch-to-window",
-          description: "Switch focus to a window by handle",
-        },
-        {
-          name: "switch-to-frame",
-          description: "Switch focus to an iframe",
-        },
-        {
-          name: "switch-to-default-content",
-          description: "Switch focus back to the main document",
-        },
-        {
-          name: "get-cookies",
-          description: "Print all browser cookies as JSON",
-        },
-        {
-          name: "export-recording",
-          description: "Export the recorded test actions",
-        },
-        {
-          name: "patch-chromedriver",
-          description: "Patch a chromedriver binary to reduce detection surface",
-        },
-        {
-          name: "patch-chrome",
-          description: "Patch a Chrome/Chromium binary for native-level spoofing",
-        },
-        {
-          name: "encrypt",
-          description: "Encrypt text with a passphrase (AES-256-GCM); read from stdin if TEXT is omitted",
-        },
-        {
-          name: "decrypt",
-          description: "Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command",
-        },
-        {
-          name: "doctor",
-          description: "Run a diagnostic check on the environment and configuration",
-        },
-        {
-          name: "prompt",
-          description: "Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand",
-        },
-        {
-          name: "assert-text-visible",
-          description: "Assert that an element contains the expected text",
-        },
-        {
-          name: "assert-text-not-visible",
-          description: "Assert that an element does not contain the given text",
-        },
-        {
-          name: "assert-attribute",
-          description: "Assert an element attribute equals an expected value",
-        },
-        {
-          name: "assert-title",
-          description: "Assert the page title contains the expected text",
-        },
-        {
-          name: "wait-for-ready-state-complete",
-          description: "Wait until the document readyState is complete",
-        },
-        {
-          name: "get-window-position",
-          description: "Print the browser window position",
-        },
-        {
-          name: "set-window-position",
-          description: "Set the browser window position",
-        },
-        {
-          name: "close-window",
-          description: "Close the current browser window",
-        },
-        {
-          name: "switch-to-parent-frame",
-          description: "Switch focus to the parent frame",
-        },
-        {
-          name: "is-element-visible",
-          description: "Print whether an element is visible",
-        },
-        {
-          name: "is-text-visible",
-          description: "Print whether the expected text is visible in an element",
-        },
-        {
-          name: "wait-for-element-not-visible",
-          description: "Wait until an element is no longer visible",
-        },
-        {
-          name: "save-cookies",
-          description: "Save browser cookies to a JSON file",
-        },
-        {
-          name: "load-cookies",
-          description: "Load browser cookies from a JSON file",
-        },
-        {
-          name: "highlight-click",
-          description: "Highlight an element, then click it",
-        },
-        {
-          name: "is-checked",
-          description: "Print whether a checkbox is checked",
-        },
-        {
-          name: "check-if-unchecked",
-          description: "Check a checkbox only if it is unchecked",
-        },
-        {
-          name: "uncheck-if-checked",
-          description: "Uncheck a checkbox only if it is checked",
-        },
-        {
-          name: "open-new-window",
-          description: "Open a new browser window",
-        },
-        {
-          name: "open-new-tab",
-          description: "Open a new browser tab",
-        },
-        {
-          name: "switch-to-newest-window",
-          description: "Switch focus to the newest browser window",
-        },
-        {
-          name: "switch-to-default-window",
-          description: "Switch focus to the default window",
-        },
-        {
-          name: "get-active-element-css",
-          description: "Print a CSS selector for the currently focused element",
-        },
-        {
-          name: "wait-for-element-present",
-          description: "Wait until an element is present in the DOM",
-        },
-        {
-          name: "add-text",
-          description: "Append text to an input or textarea",
-        },
-        {
-          name: "send-keys",
-          description: "Send keystrokes to an element",
-        },
-        {
-          name: "get-value",
-          description: "Print the value of a form element",
-        },
-        {
-          name: "click-visible-elements",
-          description: "Click all visible elements matching a selector",
-        },
-        {
-          name: "wait-for-and-accept-alert",
-          description: "Wait for an alert, then accept it",
-        },
-        {
-          name: "wait-for-and-dismiss-alert",
-          description: "Wait for an alert, then dismiss it",
-        },
-        {
-          name: "is-link-text-visible",
-          description: "Print whether a link with the given text is visible",
-        },
-        {
-          name: "is-partial-link-text-visible",
-          description: "Print whether a link containing the given text is visible",
-        },
-        {
-          name: "assert-link-text",
-          description: "Assert a link with the given text is visible",
-        },
-        {
-          name: "click-partial-link-text",
-          description: "Click a link containing the given text",
-        },
-        {
-          name: "human-type",
-          description: "Type text with human-like timing and noise",
-        },
-        {
-          name: "human-click",
-          description: "Click an element with human-like timing and noise",
-        },
-        {
-          name: "smooth-scroll-to",
-          description: "Smoothly scroll an element into view",
-        },
-        {
-          name: "uc-click",
-          description: "Perform a UC-mode click on an element",
-        },
-        {
-          name: "uc-type",
-          description: "Perform UC-mode typing into an element",
-        },
-        {
-          name: "install",
-          description: "Download a driver into ./downloaded_drivers/ (Python's `sbrs get`)",
-        },
-        {
-          name: "test",
-          description: "Run the project's tests, or one example, through Cargo",
-        },
-        {
-          name: "grid-hub",
-          description: "Start, stop, restart or check a Selenium Grid hub",
-        },
-        {
-          name: "grid-node",
-          description: "Start, stop, restart or check a Selenium Grid node",
-        },
-        {
-          name: "translate",
-          description: "Write the actions of a JSON scenario in another language",
-        },
-        {
-          name: "mkdir",
-          description: "Create a folder with a runnable browser-test suite",
-        },
-        {
-          name: "mkfile",
-          description: "Create a browser-test file",
-        },
-        {
-          name: "commander",
-          description: "Launch the interactive commander (needs a build with the `tui` feature)",
-        },
-        {
-          name: "caseplans",
-          description: "Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature)",
-        },
-        {
-          name: "behave-gui",
-          description: "Launch the Behave Commander, a terminal app (needs a build with the `tui` feature)",
-        },
-        {
-          name: "print",
-          description: "Print a file",
-        },
-        {
-          name: "objectify",
-          description: "Objectify a test recording",
-        },
-        {
-          name: "mkpres",
-          description: "Create an HTML presentation",
-        },
-        {
-          name: "mkchart",
-          description: "Create an HTML chart",
-        },
-        {
-          name: "mkrec",
-          description: "Create a test recording scaffold",
-        },
-        {
-          name: "run-scenario",
-          description: "Run a scenario file and write an optional dashboard",
-        },
-        {
-          name: "completions",
-          description: "Generate a completion script for a supported shell, or a Fig spec",
-        },
-        {
-          name: "import-python",
-          description: "Convert common SeleniumBase or Selenium Python code into a Rust test",
-        },
-        {
-          name: "import-playwright",
-          description: "Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine",
-        },
-        {
-          name: "import-puppeteer",
-          description: "Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine",
-        },
-        {
-          name: "download-file",
-          description: "Download a file from a URL (browser download with an HTTP fallback)",
-        },
-        {
-          name: "print-pdf",
-          description: "Print a page to PDF and save it to disk",
-        },
-        {
-          name: "pdf-text",
-          description: "Print the text extracted from a page or PDF URL",
-        },
-        {
-          name: "assert-pdf-text",
-          description: "Assert that a page or PDF URL contains the expected text",
-        },
-        {
-          name: "choose-file",
-          description: "Upload a local file into a file input",
-        },
-        {
-          name: "deferred",
-          description: "Run several assertions, then report every failure at once",
-        },
-        {
-          name: "record",
-          description: "Record browser interactions into a replayable action file",
-        },
-        {
-          name: "replay",
-          description: "Replay a recorded action file against a fresh browser session",
-        },
-        {
-          name: "devtools",
-          description: "Launch Chrome with an open DevTools endpoint and print MCP client configs",
-        },
-        {
-          name: "help",
-          description: "Print this message or the help of the given subcommand(s)",
-        },
-      ],
+      args: { name: "subcommand", isOptional: true, isVariadic: true },
     },
   ],
   options: [
     {
       name: "--webdriver",
       description: "WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)",
-      isRepeatable: true,
       args: {
-        name: "webdriver",
-        isOptional: true,
+        name: "url",
       },
     },
     {
       name: "--browser",
       description: "Browser engine to launch (default: chrome, or the config file's)",
-      isRepeatable: true,
       args: {
         name: "browser",
-        isOptional: true,
-        suggestions: [
-          "chrome",
-          "chromium",
-          "edge",
-          "firefox",
-          {
-            name: "brave",
-            description: "Brave, run with chromedriver",
-          },
-          {
-            name: "comet",
-            description: "Perplexity's Comet, run with chromedriver",
-          },
-          {
-            name: "opera",
-            description: "Opera, run with operadriver",
-          },
-          {
-            name: "safari",
-            description: "Safari, run with safaridriver (macOS)",
-          },
-          {
-            name: "ie",
-            description: "Internet Explorer, run with IEDriverServer (Windows)",
-          },
-          {
-            name: "cft",
-            description: "Chrome for Testing, downloaded when missing",
-          },
-          {
-            name: "chs",
-            description: "chrome-headless-shell, downloaded when missing",
-          },
-        ],
-      },
-    },
-    {
-      name: "--user-agent",
-      description: "Override the default user agent string",
-      isRepeatable: true,
-      args: {
-        name: "user_agent",
-        isOptional: true,
-      },
-    },
-    {
-      name: ["-a", "--agent"],
-      description: "Alias for --user-agent",
-      isRepeatable: true,
-      args: {
-        name: "agent",
-        isOptional: true,
-      },
-    },
-    {
-      name: "--locale",
-      description: "Locale string for the browser context",
-      isRepeatable: true,
-      args: {
-        name: "locale",
-        isOptional: true,
-      },
-    },
-    {
-      name: "--proxy",
-      description: "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
-      isRepeatable: true,
-      args: {
-        name: "proxy",
-        isOptional: true,
-      },
-    },
-    {
-      name: "--proxy-list",
-      description: "File of proxies to choose from; without --proxy a random one is used",
-      isRepeatable: true,
-      args: {
-        name: "proxy_list",
-        isOptional: true,
-      },
-    },
-    {
-      name: "--proxy-pac-url",
-      description: "URL to a proxy auto-config (PAC) file",
-      isRepeatable: true,
-      args: {
-        name: "proxy_pac_url",
-        isOptional: true,
-      },
-    },
-    {
-      name: "--user-data-dir",
-      description: "Path to a persistent browser user-data directory",
-      isRepeatable: true,
-      args: {
-        name: "user_data_dir",
-        isOptional: true,
-      },
-    },
-    {
-      name: "--extension-dir",
-      description: "Path to an unpacked extension directory",
-      isRepeatable: true,
-      args: {
-        name: "extension_dir",
-        isOptional: true,
-      },
-    },
-    {
-      name: ["-n", "--threads"],
-      description: "Number of parallel threads for test runs",
-      isRepeatable: true,
-      args: {
-        name: "threads",
-        isOptional: true,
-      },
-    },
-    {
-      name: ["-c", "--config"],
-      description: "Path to a TOML/JSON settings file",
-      isRepeatable: true,
-      args: {
-        name: "config",
-        isOptional: true,
+        suggestions: ["chrome", "chromium", "edge", "firefox", "brave", "comet", "opera", "safari", "ie", "cft", "chs"],
       },
     },
     {
@@ -3117,8 +2398,64 @@ const completion: Fig.Spec = {
       description: "Enable undetected-chromedriver style evasions",
     },
     {
+      name: "--user-agent",
+      description: "Override the default user agent string",
+      args: {
+        name: "user_agent",
+      },
+    },
+    {
+      name: ["-a", "--agent"],
+      description: "Alias for --user-agent",
+      args: {
+        name: "agent",
+      },
+    },
+    {
+      name: "--locale",
+      description: "Locale string for the browser context",
+      args: {
+        name: "locale",
+      },
+    },
+    {
       name: "--ad-block",
       description: "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)",
+    },
+    {
+      name: "--proxy",
+      description: "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list",
+      args: {
+        name: "proxy",
+      },
+    },
+    {
+      name: "--proxy-list",
+      description: "File of proxies to choose from; without --proxy a random one is used",
+      args: {
+        name: "file",
+      },
+    },
+    {
+      name: "--proxy-pac-url",
+      description: "URL to a proxy auto-config (PAC) file",
+      args: {
+        name: "proxy_pac_url",
+      },
+    },
+    {
+      name: "--user-data-dir",
+      description: "Path to a persistent browser user-data directory",
+      args: {
+        name: "user_data_dir",
+      },
+    },
+    {
+      name: "--extension-dir",
+      description: "Path to an unpacked extension directory",
+      args: {
+        name: "extension_dir",
+      },
     },
     {
       name: ["--reuse-session", "--reuse_session", "--rs"],
@@ -3141,8 +2478,22 @@ const completion: Fig.Spec = {
       description: "Write recordings as pure CDP code (sb_cdp Page and Locator calls)",
     },
     {
+      name: ["-n", "--threads"],
+      description: "Number of parallel threads for test runs",
+      args: {
+        name: "threads",
+      },
+    },
+    {
+      name: ["-c", "--config"],
+      description: "Path to a TOML/JSON settings file",
+      args: {
+        name: "config",
+      },
+    },
+    {
       name: ["-h", "--help"],
-      description: "Print help (see more with '--help')",
+      description: "Print help",
     },
     {
       name: ["-V", "--version"],
@@ -3151,4 +2502,4 @@ const completion: Fig.Spec = {
   ],
 };
 
-export default completion;
+export default completionSpec;

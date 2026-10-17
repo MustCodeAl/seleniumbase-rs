@@ -12,7 +12,19 @@ const LIBRARY: &str = include_str!("../Cargo.toml");
 const CLI: &str = include_str!("../crates/cli/Cargo.toml");
 
 /// Crates only the command line may use. A library user must not build them.
-const COMMAND_LINE_ONLY: [&str; 4] = ["clap", "clap_complete", "clap_complete_fig", "clap_usage"];
+///
+/// `usage` is how `crates/cli` names its parser (the package `usage-rs`), `usage_lib`
+/// the Markdown renderer its tests use; the clap crates are what the parser replaced.
+const COMMAND_LINE_ONLY: [&str; 8] = [
+    "usage",
+    "usage-rs",
+    "usage_lib",
+    "usage-lib",
+    "clap",
+    "clap_complete",
+    "clap_complete_fig",
+    "clap_usage",
+];
 
 fn parse(manifest: &str) -> Table {
     manifest.parse().expect("the manifest parses")
@@ -85,10 +97,25 @@ fn the_command_line_crate_builds_both_binaries_from_the_library() {
     assert_eq!(name, Some("seleniumbase-rs-cli"));
     assert_eq!(bin_names(&cli), ["sbrs", "sbrs-mcp"]);
     let dependencies = table_names(&cli, "dependencies");
-    for needed in ["seleniumbase-rs", "clap", "clap_complete"] {
+    for needed in ["seleniumbase-rs", "usage"] {
         assert!(
             dependencies.iter().any(|name| name == needed),
             "crates/cli does not depend on {needed}: {dependencies:?}"
         );
+    }
+}
+
+#[test]
+fn the_command_line_is_parsed_by_usage_not_clap() {
+    let cli = parse(CLI);
+
+    for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+        let names = table_names(&cli, section);
+        for gone in ["clap", "clap_complete", "clap_complete_fig", "clap_usage"] {
+            assert!(
+                !names.iter().any(|name| name == gone),
+                "[{section}] of crates/cli names {gone}; the parser is usage"
+            );
+        }
     }
 }

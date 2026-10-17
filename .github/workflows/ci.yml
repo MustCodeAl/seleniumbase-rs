@@ -234,7 +234,7 @@ jobs:
       # resolved graph.
       - name: No command-line crates in the library's dependency graph
         run: |
-          if cargo tree -p seleniumbase-rs -e normal --prefix none | grep -E '^(clap|clap_complete|clap_complete_fig|clap_usage) '; then
+          if cargo tree -p seleniumbase-rs -e normal --prefix none | grep -E '^(usage-rs|usage-argv|usage-derive|usage-lib|clap|clap_complete|clap_complete_fig|clap_usage) '; then
             echo "::error::the library depends on a command-line crate"
             exit 1
           fi

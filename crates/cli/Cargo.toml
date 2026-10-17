@@ -39,9 +39,9 @@ required-features = ["mcp-server"]
 [dependencies]
 # The library; every other dependency below is one only the binaries use.
 seleniumbase-rs = { path = "../.." }
-clap = { version = "4.6", features = ["derive"] }
-clap_complete = "4.6"
-clap_complete_fig = "4.5"
+# The command line parser: derives that generate the parser, the help, the shell
+# completions and the usage spec (`completions/sbrs.usage.kdl`) from one declaration.
+usage = { package = "usage-rs", version = "6", features = ["completions"] }
 serde_json = "1.0"
 # The same features as the library, so one build of thirtyfour serves both.
 thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "cdp"] }
@@ -73,8 +73,10 @@ full-tracing = ["seleniumbase-rs/full-tracing"]
 tokio-console = ["seleniumbase-rs/tokio-console"]
 
 [dev-dependencies]
-# Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
-clap_usage = "5"
+# Writes the CLI reference page (docs/help/cli_reference.md) from the usage spec in a
+# test; usage-lib is the renderer of the usage tool (`usage generate markdown`), and
+# the binary does not link it. The same release train as `usage` above.
+usage_lib = { package = "usage-lib", version = "6.12", default-features = false, features = ["markdown"] }
 # The `report` module's test (feature `turso`) matches a timestamp.
 regex = "1.13"
 # `cli_scaffold` parses what `sbrs mkfile` and `sbrs mkdir` write.

@@ -47,7 +47,7 @@ fn subcommands(dir: &Path) -> Vec<String> {
     let listed = help
         .split("Commands:")
         .nth(1)
-        .and_then(|rest| rest.split("Options:").next())
+        .and_then(|rest| rest.split("Flags:").next())
         .expect("the help has a Commands section");
     listed
         .lines()
@@ -151,11 +151,31 @@ fn completions_are_written_for_every_shell_and_an_unknown_shell_is_refused() {
         assert!(output.status.success(), "{shell}: {}", stderr(&output));
         let script = stdout(&output);
         assert!(script.contains("sbrs"), "{shell}: {script}");
-        assert!(script.contains("mkfile"), "{shell} knows the subcommands");
+        // The specs list the subcommands; the scripts of a shell ask `sbrs` itself for
+        // the candidates when the key is pressed (see below).
+        if matches!(shell, "fig" | "usage") {
+            assert!(script.contains("mkfile"), "{shell} knows the subcommands");
+        }
     }
     // The Fig spec is what Warp's built-in specs, inshellisense and Amazon Q read.
     let fig = stdout(&run(dir.path(), &["completions", "fig"]));
     assert!(fig.contains(": Fig.Spec = {"), "{fig}");
+
+    // What the installed script of a shell calls when the completion key is pressed.
+    let answer = run(
+        dir.path(),
+        &[
+            "__complete_word__",
+            "--shell",
+            "bash",
+            "--line",
+            "sbrs mkf",
+            "--bash-word",
+            "mkf",
+        ],
+    );
+    assert!(answer.status.success(), "{}", stderr(&answer));
+    assert_eq!(stdout(&answer).trim(), "mkfile");
 
     let unknown = run(dir.path(), &["completions", "tcsh"]);
     assert_eq!(unknown.status.code(), Some(2));
