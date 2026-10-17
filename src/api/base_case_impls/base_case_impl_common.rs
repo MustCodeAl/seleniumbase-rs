@@ -202,9 +202,12 @@ impl BaseCase {
         Err(SeleniumBaseError::AssertionFailed(message.to_owned()))
     }
 
-    /// Alias for sleeping `seconds`.
-    pub async fn wait(&self, seconds: u64) {
-        tokio::time::sleep(std::time::Duration::from_secs(seconds)).await;
+    /// Pauses for `seconds`, whole or fractional (`wait(2)`, `wait(0.5)`). The
+    /// same as [`sleep`](Self::sleep), as in Python, where `wait` is its alias:
+    /// the pause is cut short by nothing, and it is recorded where the run
+    /// settings record sleeps.
+    pub async fn wait(&self, seconds: impl Into<f64>) {
+        self.sleep(seconds.into()).await;
     }
 
     /// Changes how long actions wait for their element by default, up or down,
@@ -312,7 +315,7 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still the
     /// text of the element when the timeout ends.
     pub async fn assert_exact_text_not_visible(
-        &mut self,
+        &self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {

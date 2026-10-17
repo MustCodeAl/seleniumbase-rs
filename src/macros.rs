@@ -512,7 +512,7 @@ mod tests {
         // `sb_assert_title!` and `sb_assert_url!` used to accept part of the
         // title or URL, which Python's `assert_title` and `assert_url` do not.
         let driver = titled_page();
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
 
         sb_assert_title!(sb, "My Page").unwrap();
         sb_assert_title!(sb, "Page").unwrap_err();
@@ -523,7 +523,7 @@ mod tests {
     #[tokio::test]
     async fn the_contains_macros_accept_part_of_the_title_and_url() {
         let driver = titled_page();
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
 
         sb_assert_title_contains!(sb, "Page").unwrap();
         sb_assert_title_contains!(sb, "Nope").unwrap_err();
@@ -539,7 +539,7 @@ mod tests {
     #[allow(deprecated)]
     async fn the_old_visible_macro_still_works_and_the_new_one_has_the_prefix() {
         let driver = page_with_element(true);
-        let mut sb = driver.base_case().await;
+        let sb = driver.base_case().await;
         sb_assert_visible!(sb, "#a").unwrap();
         crate::assert_visible!(sb, "#a").unwrap();
         sb_assert_visible!(sb, "#a", "the element is visible");

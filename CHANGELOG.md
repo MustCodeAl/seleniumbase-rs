@@ -231,6 +231,17 @@ that break a call are listed first, each with the way to migrate.
 - `add_text` waits for the element to be displayed (it used to fail on an
   element that was not there yet), `send_keys` is `add_text`, and `update_text`
   is `type_text`, as in Python, where they are the same methods.
+- `wait` is `sleep`, as in Python (the two differed: `wait` took whole seconds
+  and was not recorded). It takes whole or fractional seconds, `wait(2)` or
+  `wait(0.5)`; a `u64` variable needs `as f64`-style conversion
+  (`wait(f64::from(n))`).
+- The getters and assertions that only read the page take `&self` instead of
+  `&mut self`: `get_title`, `get_current_url`, `get_text`, `assert_title`,
+  `assert_title_contains`, `assert_url`, `assert_url_contains`, `assert_text`,
+  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible` and `assert_element_visible`, so a test can
+  call them from a closure that holds only `&BaseCase`. Existing calls compile
+  as before.
 - **The text assertions wait, as Python's do.** `assert_text`,
   `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
   `assert_exact_text_not_visible` poll for up to the default timeout

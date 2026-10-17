@@ -226,7 +226,7 @@ impl BaseCase {
     /// The same as [`assert_text`](Self::assert_text), as in Python, where
     /// `assert_text_visible` is its alias.
     pub async fn assert_text_visible(
-        &mut self,
+        &self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
@@ -241,7 +241,7 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still
     /// visible when the timeout ends.
     pub async fn assert_text_not_visible(
-        &mut self,
+        &self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
@@ -279,7 +279,7 @@ impl BaseCase {
     }
 
     /// Asserts that the current page title equals `expected`.
-    pub async fn assert_title(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_title(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let title = self.get_title().await?;
         if title != expected {
             return Err(SeleniumBaseError::AssertionFailed(format!(
@@ -790,10 +790,10 @@ impl BaseCase {
     }
 
     /// Returns the visible text of the element `css`.
-    pub async fn get_text(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+    pub async fn get_text(&self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Present).await?;
-        self.session.text(by).await
+        Ok(self.session.driver().find(by).await?.text().await?)
     }
 
     /// Hovers over the element selected by `css`.
@@ -903,17 +903,23 @@ impl BaseCase {
     }
 
     /// Returns the current page title.
-    pub async fn get_title(&mut self) -> Result<String, SeleniumBaseError> {
-        self.session.current_title().await
+    pub async fn get_title(&self) -> Result<String, SeleniumBaseError> {
+        Ok(self.session.driver().title().await?)
     }
 
     /// Returns the current page URL.
-    pub async fn get_current_url(&mut self) -> Result<String, SeleniumBaseError> {
-        self.session.current_url().await
+    pub async fn get_current_url(&self) -> Result<String, SeleniumBaseError> {
+        Ok(self
+            .session
+            .driver()
+            .current_url()
+            .await?
+            .as_str()
+            .to_owned())
     }
 
     /// Executes the `assert_url_contains` action.
-    pub async fn assert_url_contains(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_url_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url.contains(expected) {
             return Ok(());
@@ -1109,7 +1115,7 @@ impl BaseCase {
     }
 
     /// Executes the `assert_title_contains` action.
-    pub async fn assert_title_contains(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_title_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let title = self.get_title().await?;
         if title.contains(expected) {
             return Ok(());
@@ -1132,11 +1138,7 @@ impl BaseCase {
     /// there when the timeout ends. If the two arguments look swapped
     /// (`expected` selects an element whose text contains `css`), the message
     /// says so.
-    pub async fn assert_text(
-        &mut self,
-        expected: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_text(&self, expected: &str, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("assert_text", Some(css), Some(expected));
         self.assert_shown_text(expected, css, TextMatch::Contains, self.default_wait_secs())
             .await
@@ -1156,7 +1158,7 @@ impl BaseCase {
     /// when the timeout ends; the message says so if the two arguments look
     /// swapped.
     pub async fn assert_exact_text(
-        &mut self,
+        &self,
         expected: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
@@ -1624,7 +1626,7 @@ impl BaseCase {
 
     /// Asserts that the element `css` is displayed. The same as
     /// [`assert_element`](Self::assert_element), as in Python.
-    pub async fn assert_element_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_element_visible(&self, css: &str) -> Result<(), SeleniumBaseError> {
         self.assert_element(css).await
     }
 
@@ -2493,7 +2495,7 @@ impl BaseCase {
     }
 
     /// Assert that the current URL exactly equals `expected`.
-    pub async fn assert_url(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_url(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url == expected {
             return Ok(());

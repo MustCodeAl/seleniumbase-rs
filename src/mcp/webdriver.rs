@@ -256,7 +256,7 @@ pub(super) async fn get_page_source(ctx: Ctx<BaseCase>, _args: Args) -> Result<O
 
 pub(super) async fn get_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let selector = args.str_or("selector", "body")?;
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     Ok(case.get_text(selector).await?.into())
 }
 
@@ -664,7 +664,7 @@ pub(super) async fn assert_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output
     let text = args.str("text")?;
     let selector = nonempty(&args, "selector")?.unwrap_or("html");
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     case.wait_for_text(text, selector, timeout).await?;
     case.assert_text(text, selector).await?;
     Ok(format!("Confirmed '{text}' is present in {selector}.").into())
@@ -674,7 +674,7 @@ pub(super) async fn assert_exact_text(ctx: Ctx<BaseCase>, args: Args) -> Result<
     let text = args.str("text")?;
     let selector = args.str_or("selector", "html")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
-    let mut case = ctx.session().await?;
+    let case = ctx.session().await?;
     case.wait_for_exact_text_visible(text, selector, timeout)
         .await?;
     case.assert_exact_text(text, selector).await?;
