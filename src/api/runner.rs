@@ -27,7 +27,10 @@ where
 /// The result of a test whose browser was then closed: the test's own error if
 /// only it failed, the cleanup error if only that failed, and both if both did.
 /// A skip is not a failure; see [`run_browser_test`].
-pub(crate) fn combine_outcomes(test_result: Result<()>, cleanup_result: Result<()>) -> Result<()> {
+///
+/// Public only because [`sb_test!`](crate::sb_test) expands to a call of it.
+#[doc(hidden)]
+pub fn combine_outcomes(test_result: Result<()>, cleanup_result: Result<()>) -> Result<()> {
     match (test_result, cleanup_result) {
         (Err(skipped), Ok(())) if skipped.is_skipped() => {
             tracing::info!(reason = %skipped, "test skipped");

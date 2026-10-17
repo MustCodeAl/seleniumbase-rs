@@ -67,8 +67,9 @@ macro_rules! sb_test {
                 .await
                 .expect("failed to create BaseCase");
             let result: Result<(), $crate::SeleniumBaseError> = async { $body }.await;
-            $sb.quit().await.expect("failed to quit BaseCase");
-            result.expect("test failed");
+            let cleanup = $sb.quit().await;
+            // A failing quit must not hide the error of the test itself.
+            $crate::api::runner::combine_outcomes(result, cleanup).expect("test failed");
         }
     };
 }
@@ -323,25 +324,45 @@ macro_rules! sb_fill_form {
 }
 
 /// Waits for an element to be visible using the default timeout, then clicks it.
+///
+/// Without a message the macro evaluates to a `Result` that carries the error
+/// of the wait or of the click; with a message it panics with it instead.
 #[macro_export]
 macro_rules! sb_wait_and_click {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {{
-        $sb.wait_for_element_visible_default($selector).await$(.expect($msg))?;
-        $sb.click($selector).await$(.expect($msg))?
+    ($sb:expr, $selector:expr) => {{
+        match $sb.wait_for_element_visible_default($selector).await {
+            Ok(_) => $sb.click($selector).await,
+            Err(error) => Err(error),
+        }
+    }};
+    ($sb:expr, $selector:expr, $msg:expr) => {{
+        $sb.wait_for_element_visible_default($selector)
+            .await
+            .expect($msg);
+        $sb.click($selector).await.expect($msg)
     }};
 }
 
 /// Asserts that an element is not visible.
+///
+/// Without a message the macro evaluates to a `Result`: an error when the
+/// element is visible or cannot be looked up. With a message it panics with
+/// it instead.
 #[macro_export]
 macro_rules! sb_assert_not_visible {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {{
-        let visible = $sb.is_element_visible($selector).await$(.expect($msg))?;
-        if visible {
-            return Err($crate::SeleniumBaseError::AssertionFailed(
-                format!("element '{}' was unexpectedly visible", stringify!($selector))
-            ));
+    ($sb:expr, $selector:expr) => {{
+        let selector = $selector;
+        match $sb.is_element_visible(selector).await {
+            Ok(true) => Err($crate::SeleniumBaseError::AssertionFailed(format!(
+                "element '{}' was unexpectedly visible",
+                selector
+            ))),
+            Ok(false) => Ok::<(), $crate::SeleniumBaseError>(()),
+            Err(error) => Err(error),
         }
-        Ok::<(), $crate::SeleniumBaseError>(())
+    }};
+    ($sb:expr, $selector:expr, $msg:expr) => {{
+        $crate::sb_assert_not_visible!($sb, $selector).expect($msg)
     }};
 }
 
@@ -362,7 +383,70 @@ macro_rules! sb_with_timeout {
 
 #[cfg(test)]
 mod tests {
-    use crate::Selector;
+    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
+    use crate::{SeleniumBaseError, Selector};
+    use serde_json::{json, Value};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A page whose element `#a` is displayed or not.
+    fn page_with_element(displayed: bool) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("GET", "/element/e1/displayed") => Reply::Value(json!(displayed)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn assert_not_visible_without_a_message_is_a_result() {
+        let visible = page_with_element(true);
+        let sb = visible.base_case().await;
+        let error = sb_assert_not_visible!(sb, "#a").expect_err("the element is visible");
+        assert!(
+            matches!(&error, SeleniumBaseError::AssertionFailed(text) if text.contains("#a")),
+            "{error:?}"
+        );
+
+        let hidden = page_with_element(false);
+        let sb = hidden.base_case().await;
+        sb_assert_not_visible!(sb, "#a").expect("the element is hidden");
+        sb_assert_not_visible!(sb, "#a", "the element is hidden");
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "still there")]
+    async fn assert_not_visible_with_a_message_panics_when_visible() {
+        let visible = page_with_element(true);
+        let sb = visible.base_case().await;
+        sb_assert_not_visible!(sb, "#a", "still there");
+    }
+
+    #[tokio::test]
+    async fn wait_and_click_without_a_message_returns_the_error_of_the_wait() {
+        // The first lookup finds nothing, every later one finds the element, so
+        // a click that ran after the failed wait would succeed.
+        let lookups = AtomicUsize::new(0);
+        let driver = MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") if lookups.fetch_add(1, Ordering::SeqCst) == 0 => {
+                    Reply::Error(404, "no such element")
+                }
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("GET", "/element/e1/displayed" | "/element/e1/enabled") => {
+                    Reply::Value(json!(true))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+        let outcome = sb_wait_and_click!(sb, "#a");
+        let error = outcome.expect_err("the wait failed, so the click must not run");
+        assert!(matches!(error, SeleniumBaseError::WaitTimeout(_)), "{error:?}");
+        assert!(driver.requests("/element/e1/click").is_empty());
+    }
 
     #[test]
     fn selector_macro_css() {
