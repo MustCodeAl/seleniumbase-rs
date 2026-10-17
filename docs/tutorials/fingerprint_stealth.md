@@ -112,23 +112,25 @@ assert_eq!(tokyo.timezone().as_str(), Some("Asia/Tokyo"));
 ## Fingerprint presets
 
 Built-in presets set a coherent combination of user agent, platform, screen,
-WebGL strings, a time zone with the position of its city, and the policy
+WebGL strings, a time zone, and the policy
 `StealthPolicy::balanced()`:
 
 | Preset | What it claims |
 |---|---|
-| `Fingerprint::windows_desktop()` | Chrome 156 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York` (and the position of New York), an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
+| `Fingerprint::windows_desktop()` | Chrome 156 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York`, an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
 | `Fingerprint::edge_desktop()` | The Windows preset as Microsoft Edge 156. The user agent ends with `Edg/156.0.0.0`, and the Client Hints name `Microsoft Edge` where Chrome names itself `Google Chrome` (`randomize::edge_hints`; Edge's full versions are not in the Chrome table, so they are the frozen `156.0.0.0`). |
 | `Fingerprint::macos_desktop()` | Chrome 156 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, and the WebGL strings Chrome reports on a Mac: `Google Inc. (Apple)` and `ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)`. The user agent is Chrome's, not Safari's. |
 | `Fingerprint::linux_desktop()` | Chrome 156 on Linux x86_64, 1920x1080, `America/Chicago`, an NVIDIA RTX 4070 through ANGLE over OpenGL (`Google Inc. (NVIDIA Corporation)`), worded as a generated Linux identity words it. |
 | `Fingerprint::android_mobile()` | Chrome 156 on Android, in Chrome's frozen user agent (`Linux; Android 10; K`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
-| `Fingerprint::ios_mobile_safari()` | Mobile Safari 26.0 on an iPhone (`iPhone OS 18_6`, the iOS version Safari 26 freezes in its user agent), 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`, Safari-style Client Hints. Safari has no battery, network information or Web Bluetooth, so those are `Off`. |
+| `Fingerprint::ios_mobile_safari()` | Mobile Safari 26.0 on an iPhone (`iPhone OS 18_6`, the iOS version Safari 26 freezes in its user agent), 390x844 at a device pixel ratio of 3, 5 touch points, `Apple GPU`. Safari has no battery, network information, Web Bluetooth or Client Hints, so those are `Off`, and it has no `navigator.deviceMemory`, so none is claimed. |
 
-Every preset also carries the position of the city of its time zone
-(`randomize::locale_of_timezone`), a battery, network information, the speech
-voices of its system and Web Bluetooth (where its browser has them), so
-`validate()` has nothing to warn about and the geolocation request is answered
-(see [Native-level (CDP) spoofing](#native-level-cdp-spoofing)). All six presets
+Every preset also carries a battery, network information, the speech voices of
+its system and Web Bluetooth (where its browser has them). It leaves the position
+`Natural` on purpose: a position is answered without a prompt, and a fresh
+browser answers `permissions.query` for geolocation with `prompt`, so a preset
+that claimed one would stand out. `validate()` warns about a time zone without a
+position only when the policy grants permissions, which hands pages the real
+position. All six presets
 validate without errors or warnings; `tests/mcp_webdriver.rs` and the unit tests
 of `stealth::fingerprint` check it. A preset holds no `Random`, so it is the same
 every time and its canvas noise is the same on every launch.
@@ -500,41 +502,49 @@ the same drawn values on every launch.
 
 ### Words every key reads
 
-Keywords are case-insensitive. A flag the payload leaves out is `auto`.
+Keywords are case-insensitive. A flag the payload leaves out is `auto`. The
+table below is the one place that lists the words and the literal format of each
+key; this is what the groups of words do:
 
-| Words | State | Meaning |
-|---|---|---|
-| `natural`, `native`, `pass_through`, `whitelist` | `Natural` | The browser's own value, whatever values the payload holds for it. |
-| `auto` (or no flag) | `Value` or `Natural` | The value the payload holds for the setting; the browser's own where it holds none. |
-| `mask`, `spoof`, `custom`, `generic`, `random`, `noise` | `Value` or `Random` | The value the payload holds; a coherent drawn one where it holds none. |
-| `off`, `disabled`, `block`, `empty` | `Off` | The API turned off. Only where an API can be off (geolocation, WebRTC, media devices); for any other key it is read as `Natural`, and logged. |
-| a literal value | `Value` | The value, in the key's own format. The other settings of the same key then follow the mask words: a held value, else drawn. |
+- The **natural** words give the browser's own value, whatever values the payload
+  holds for it.
+- **`auto`** (or no flag) gives the value the payload holds for the setting, and
+  the browser's own where it holds none.
+- The **mask** words give the value the payload holds, and a coherent drawn one
+  where it holds none.
+- The **off** words turn the API off. Only where an API can be off (geolocation,
+  WebRTC, media devices); for any other key they are read as `Natural`, and logged.
+- **A literal** is the value, in the format of its key. The other settings of the
+  same key then follow the mask words: a held value, else drawn.
 
-An unknown keyword is logged and read as `Natural`. It is never guessed at: it
-used to switch the dimension on and fill it with generic values.
+An unknown keyword is logged and read as `Natural`. So is a literal that is not in
+the format of its key (`wibble` for a time zone, a user agent that does not open
+with `Mozilla/` and a digit). It is never guessed at: it used to switch the
+dimension on and fill it with generic values.
 
 ### Keywords in JSON payloads
 
-One table for every key. The first row says what the words above mean; each later
-row names only what the key adds or does differently.
+One table for every key. The first row says what the words mean; each later row
+names only what the key adds or does differently, and the literal formats it
+reads.
 
 | Payload key | Natural | Random | Value (literal) | Off |
 |---|---|---|---|---|
 | (the words above) | `natural`, `native`, `pass_through`, `whitelist`; `auto` with no value held | `mask`, `spoof`, `custom`, `generic`, `random`, `noise` | a value of the key | `off`, `disabled`, `block`, `empty` |
-| `navigator_masking` | the common words | the common words, `desktop_chrome`, `mobile_safari`: user agent, platform, cores, memory, touch points and vendor | a user agent: text starting `Mozilla/` or containing `AppleWebKit` or `Chrome/` | read as Natural |
-| `localization_masking` | the common words | the common words: locale, languages, accept-languages of the place | any text containing `-` (`de-DE`): locale, languages and accept-languages all set to it | read as Natural |
-| `timezone_masking` | the common words | the common words: the place's zone | an IANA zone containing `/` | read as Natural |
-| `screen_masking` | the common words | the common words: size, pixel ratio and colour depth of the machine | `1920x1080` or `1920x1080x24` (24 when omitted) | read as Natural |
-| `graphics_masking` | the common words | the common words: an adapter the OS reports | `vendor~renderer` | read as Natural |
-| `fonts_masking` | the common words | the common words, `system_only`, `blacklist`: the system's fonts | any other text, as a comma-separated font list | read as Natural |
-| `media_devices_masking` | the common words | the common words | `2_mic_1_cam`, or `kind:id:label\|kind:id:label` | the off words: no device is listed |
-| `geolocation_masking` | the common words | the common words: a spot in the place's city | `lat,lon` or `lat,lon,altitude` (accuracy 20) | the off words: the request is denied |
-| `webrtc_masking` | the common words (and no IP policy) | the common words: a public and a local address | `public:IP\|local:IP` (IPv6 in brackets) | the off words: WebRTC is unavailable |
-| `proxy_masking` | the common words | none: `mask`, `custom`, `socks5`, `http`, `https` use the payload's proxy section, as `auto` does | a `socks5://`, `http://` or `https://` URL (port 1080 for SOCKS5, 8080 otherwise) | `off`, `disabled`, `direct`, `block`, `empty`: no proxy, as Natural |
+| `navigator_masking` | the common words | the common words, `desktop_chrome`, `mobile_safari`: user agent, platform, cores, memory, touch points and vendor | a user agent: `Mozilla/` and a digit, with the platform in parentheses (`Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...`); it sets `user_agent` | read as Natural |
+| `localization_masking` | the common words | the common words: locale, languages, accept-languages of the place | a locale (`de-DE`, `zh-Hant-TW`) or an `Accept-Language` list that opens with one (`en-US,en;q=0.9`): the first tag is the `locale`, the tags the `languages`, the text the `accept_languages` | read as Natural |
+| `timezone_masking` | the common words | the common words: the place's zone | an IANA name, area and city: `America/New_York` | read as Natural |
+| `screen_masking` | the common words | the common words: size, pixel ratio and colour depth of the machine | `1920x1080` or `1920x1080x24` (24 when omitted); it sets `screen` and `color_depth` | read as Natural |
+| `graphics_masking` | the common words | the common words: an adapter the OS reports | `vendor~renderer`, both given: `Intel Inc.~Intel(R) Iris(R) Xe Graphics` | read as Natural |
+| `fonts_masking` | the common words | the common words, `system_only`, `blacklist`: the system's fonts | a comma-separated list of fonts: `Arial,Calibri,Consolas`. One font is no list: give it in `fingerprint.fonts` | read as Natural |
+| `media_devices_masking` | the common words | the common words | `2_mic_1_cam`, or `kind:id:label\|kind:id:label` (`audioinput:default:Mic1\|videoinput:default:Cam1`): the counts and the labelled devices | the off words: no device is listed |
+| `geolocation_masking` | the common words | the common words: a spot in the place's city | `lat,lon` or `lat,lon,altitude` (accuracy 20): `40.7128,-74.0060,10.5` | the off words: the request is denied |
+| `webrtc_masking` | the common words (and no IP policy) | the common words: a public and a local address | `public:IP\|local:IP`, IPv6 in brackets: `public:172.56.21.89\|local:10.0.0.5`; it also passes the policy `PublicAndPrivateInterfaces` | the off words: WebRTC is unavailable |
+| `proxy_masking` | the common words, `direct`: no proxy | none: `mask`, `custom`, `socks5`, `http`, `https` use the payload's proxy section, as `auto` does | a `socks5://`, `http://` or `https://` URL: `socks5://user:pass@host:1080` (port 1080 for SOCKS5, 8080 otherwise) | read as Natural, and logged: a proxy has no off state |
 | `geolocation_popup` | `prompt`: ask, whatever position the payload holds | not used | not used | `block`: deny, whatever position the payload holds; `allow` and `auto` follow `geolocation_masking` |
 | `audio_masking` | the common words and the off words: no audio noise | `random`: fresh noise for each script; `mask`, `spoof`, `custom`, `generic`, `noise`: noise seeded by the profile | not used | not used |
 | `canvas_noise` | `natural`, `auto`, `off`, `disabled`: no canvas noise | `random`: fresh noise for each script | `low`: noise on one pixel in eight; `persistent`, `mask`, `spoof`, `custom`, `generic`, `noise`: seeded noise. If the key is absent: seeded noise | not used |
-| `ports_masking` | the common words, the off words: nothing blocked | the common words, `block`, `block_all`, `stealth`: the ports of the payload's `fingerprint.ports` are blocked | `block:80,443` or `80,443`: those ports | not used |
+| `ports_masking` | the common words, the off words: nothing blocked | the common words, `block`, `block_all`, `stealth`: the ports of the payload's `fingerprint.ports` are blocked | `block:80,443` or `80,443`: those ports (the policy's `blocked_ports`) | not used |
 | `quic_mode` | `natural`, `auto` | not used | `enabled`, `disabled`, `force_http2`. If the key is absent: `disabled` | not used |
 
 The audio, canvas, ports and QUIC keys set the policy and not a setting, so their
@@ -549,24 +559,13 @@ keeps those three and draws the memory, the touch points and the vendor, in the
 same machine. A key whose draw cannot be made (a random locale next to a time
 zone the table of places lacks) is logged and left `Natural`.
 
-### Literal values in JSON payloads
-
-A literal in a flag is the value for the setting it names. A section of the
-payload that gives the same setting wins over a literal.
-
-| Flag | Literal example | Populated setting |
-|---|---|---|
-| `screen_masking` | `"1920x1080x24"` | `screen`, `color_depth` |
-| `geolocation_masking` | `"40.7128,-74.0060,10.5"` | `geolocation` (latitude, longitude, altitude, accuracy 20) |
-| `graphics_masking` | `"Intel Inc.~Intel(R) Iris(R) Xe Graphics"` | `webgl` (vendor, renderer) |
-| `navigator_masking` | full UA string | `user_agent` |
-| `localization_masking` | `"en-US"` (any value containing `-`) | `locale`, `languages` and `accept_languages`, all set to that same string |
-| `timezone_masking` | `"America/New_York"` | `timezone` |
-| `fonts_masking` | `"Arial,Calibri,Consolas"` | `fonts` |
-| `media_devices_masking` | `"audioinput:default:Mic1\|videoinput:default:Cam1"` | `media_devices` (the counts and the labelled devices) |
-| `ports_masking` | `"block:80,443,3000"` | the policy's `blocked_ports` |
-| `proxy_masking` | `"socks5://user:pass@host:1080"` | `proxy` |
-| `webrtc_masking` | `"public:172.56.21.89\|local:10.0.0.5"` | `webrtc` (and the policy `PublicAndPrivateInterfaces`) |
+A literal in a flag is the value for the setting it names (the Value column
+above). A section of the payload that gives the same setting wins over a literal,
+and a section value that is an empty string is a value the payload does not give.
+What the browser is launched with (`to_browser_config`) and what the runtime
+overrides set (`apply_runtime_overrides`) are the built fingerprint's: a `natural`
+flag launches without a `--user-agent`, a locale or a proxy, whatever the payload
+holds.
 
 `webrtc_masking` also sets the IP-handling policy that keeps WebRTC from leaking
 the real address: every word but the natural ones passes `disable_non_proxied_udp`

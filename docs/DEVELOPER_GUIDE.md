@@ -557,15 +557,18 @@ External profile payloads are normalized in `src/profile_payloads/profile.rs`.
 The flow is:
 
 ```text
-JSON file ──► ProfileParams ──► to_browser_config() ──► BrowserConfig
-                         └──► browser() ──────────────► Fingerprint
+JSON file ──► ProfileParams ──► to_fingerprint() ──► Fingerprint
+                         └──► to_browser_config() ──► BrowserConfig (holds that Fingerprint)
 ```
 
 When adding a new JSON field:
 
 1. Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
-2. Convert it in `to_browser_config()` for launch-time settings.
-3. Convert it in `browser()` for fingerprint/masking settings.
+2. Convert it in `fingerprint_builder()` (one `Spoof` per setting, through
+   `read` and `settle`), so the flag decides its state.
+3. Launch-time settings (`to_browser_config()`, `apply_runtime_overrides()`) read
+   the built fingerprint, never the raw payload, so a `natural` flag launches
+   nothing of that setting.
 4. Add a parser test and a round-trip coherence test.
 
 Keep parser logic defensive: unknown fields should not fail; invalid values
@@ -587,10 +590,11 @@ fn selector_parses_link_text() {
 
 ```rust
 #[tokio::test]
-async fn a_value_turns_its_dimension_on() {
-    let fp = Fingerprint::builder().timezone("Europe/Berlin").build();
+async fn a_value_turns_its_dimension_on() -> Result<(), FingerprintError> {
+    let fp = Fingerprint::builder().timezone("Europe/Berlin").build()?;
     assert!(fp.is_masked(Dimension::Timezone));
     assert!(!fp.is_masked(Dimension::Screen));
+    Ok(())
 }
 ```
 

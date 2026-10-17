@@ -54,7 +54,7 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | `automation` | `selenium` \| `playwright` \| `puppeteer` | no | Automation backend. `selenium` is default; `playwright`/`puppeteer` map to CDP mode. |
 | `is_headless` | boolean | no | Run the browser headlessly. Default `false`. |
 | `folder_id` | string | no | Persistent folder identifier for local storage. |
-| `core_version` | number | no | Browser major version (informational). |
+| `core_version` | number | no | The Chromium major version. A drawn user agent and drawn Client Hints claim it (not for Firefox or iOS Safari personas). |
 | `core_minor_version` | number | no | Browser minor version (informational). |
 | `auto_update_core` | boolean | no | Whether to auto-update the core version. |
 | `tags` | string[] | no | Arbitrary tags. |
@@ -73,24 +73,20 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 
 ### `parameters.flags`
 
+The masking flags (`webrtc_masking`, `proxy_masking`, `geolocation_popup`,
+`audio_masking`, `navigator_masking`, `localization_masking`,
+`timezone_masking`, `graphics_masking`, `fonts_masking`,
+`media_devices_masking`, `screen_masking`, `ports_masking`,
+`geolocation_masking`, `canvas_noise` and `quic_mode`) take the words and the
+literal formats in the one table in
+[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads).
+A flag the payload leaves out is `auto`, except `ports_masking` (`mask`: the ports
+of `fingerprint.ports` are blocked), `canvas_noise` (seeded noise) and `quic_mode`
+(`disabled`). The rest:
+
 | Flag | Accepted values | Required | Notes |
 |---|---|---|---|
-| `webrtc_masking` | the common words, `public_only` | no | Use literal `public:IP\|local:IP` for custom IPs. Every word but the natural ones passes the policy that stops the leak. Default `auto`. |
-| `proxy_masking` | the common words, `custom`, `socks5`, `http`, `https`, `direct` | no | Pair with `parameters.proxy`. Default `auto`: the proxy is used when it has a host. A proxy cannot be drawn. |
-| `geolocation_popup` | `auto`, `prompt`, `allow`, `block` | no | `block` denies the request and `prompt` asks, whatever position the profile holds; `auto` and `allow` answer with the position the profile holds. |
-| `audio_masking` | the common words | no | Default `auto`. `random` and the mask words turn the audio noise on. |
 | `graphics_noise` | `natural`, `mask` | no | Also accepts `low`, `medium`, `high`, `off`. Ignored: it never drove graphics noise. |
-| `navigator_masking` | the common words | no | Literal value is a full user-agent string. |
-| `localization_masking` | the common words | no | Literal value is a locale/accept-language string. |
-| `timezone_masking` | the common words | no | Literal value is an IANA zone. |
-| `graphics_masking` | the common words | no | Literal value is `vendor~renderer`. |
-| `fonts_masking` | the common words | no | Literal value is a comma-separated font list. |
-| `media_devices_masking` | the common words | no | Default `auto`. Literal value is `kind:deviceId:label\|...`. |
-| `screen_masking` | the common words | no | Literal value is `WIDTHxHEIGHTxDEPTH`. |
-| `ports_masking` | the natural words, the mask words, `block` | no | Literal value is `block:port,port,...` or a plain list. Default `mask`: the ports of `fingerprint.ports` are blocked. |
-| `geolocation_masking` | the common words | no | Literal value is `lat,lon,altitude`. |
-| `canvas_noise` | `mask`, `auto`, `natural`, `disabled`, `random`, `persistent`, `low` | no | Defaults to `mask` (seeded noise). |
-| `quic_mode` | `enabled`, `disabled`, `force_http2`, `auto` | no | Default `disabled`. |
 | `disable_csp` | `true`, `false` | no | Bypass Content-Security-Policy for the page context. |
 | `grant_permissions` | `true`, `false` | no | Grant common browser permissions at startup so prompts do not fire. |
 | `startup_behavior` | `recover`, `custom` | no | `recover` restores last-session tabs; `custom` opens `custom_start_urls`. |
@@ -127,22 +123,16 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 ## The words of a flag
 
 A flag is a word or a literal value. Every key reads the same words, and each
-setting ends in one of the four states of a `Spoof` in
-[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads),
-where one table lists, for every key, the words that give `Natural`, `Random`,
-a value and `Off`. A value in `fingerprint.*` is the switch: unless the flag says
-`natural` (or `off` for a key that can be off), the setting uses the value.
+setting ends in one of the four states of a `Spoof`. One table in
+[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads)
+lists, for every key, the words that give `Natural`, `Random`, a value and `Off`,
+and the format of the literal it reads. A value in `fingerprint.*` is the switch:
+unless the flag says `natural` (or `off` for a key that can be off), the setting
+uses the value.
 
-| Words | State | What it does | Example use case |
-|---|---|---|---|
-| `auto` (or no flag) | the value, else `Natural` | On exactly when the profile holds a value for it. | Let `fingerprint.timezone` or `parameters.proxy` decide. |
-| `natural`, `native`, `pass_through`, `whitelist` | `Natural` | Use the browser's real value, whatever the profile holds. | Trust the host for audio, media devices, or fonts. |
-| `mask`, `spoof`, `custom`, `generic`, `random`, `noise` | the value, else `Random` | Use the value in `fingerprint.*`, and a coherent drawn one where the profile has none. | Set a specific `user_agent`, `screen` resolution, or `geolocation`, or draw a screen and a time zone that agree with the rest. |
-| `off`, `disabled`, `block`, `empty` | `Off` | Turn the API off, for geolocation, WebRTC and media devices. For any other key it is read as `natural`. | Deny geolocation, or make WebRTC unavailable. |
-
-An unknown word is logged and read as `natural`; it is never guessed at. A profile
-gets the same drawn values on every launch, because its folder and name seed the
-draw.
+An unknown word, or a literal not in the format of its key, is logged and read as
+`natural`; it is never guessed at. A profile gets the same drawn values on every
+launch, because its folder and name seed the draw.
 
 ### Concrete mask-mode examples
 
@@ -231,24 +221,11 @@ metrics through CDP so page-side JS cannot detect the override.
 
 ## Literal value shortcuts
 
-For convenience, most masking flags also accept a concrete literal string
-instead of a word. When a literal value is supplied, the parser reads the flag as
-`mask` with that value and writes the value into the fingerprint so it is
-applied automatically.
-
-| Flag | Literal format | Example |
-|---|---|---|
-| `screen_masking` | `WIDTHxHEIGHTxDEPTH` | `"1920x1080x24"` |
-| `geolocation_masking` | `lat,lon,altitude` | `"40.7128,-74.0060,10.5"` |
-| `graphics_masking` | `vendor~renderer` | `"Intel Inc.~Intel(R) Iris(R) Xe Graphics"` |
-| `navigator_masking` | full UA string | `"Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."` |
-| `localization_masking` | locale / accept-language | `"en-US,en;q=0.9"` |
-| `timezone_masking` | IANA zone | `"America/New_York"` |
-| `fonts_masking` | comma-separated fonts | `"Arial,Calibri,Consolas"` |
-| `media_devices_masking` | `kind:deviceId:label\|...` | `"audioinput:default:Mic1\|videoinput:default:Cam1"` |
-| `ports_masking` | `block:port,port,...` or list | `"block:80,443,3000"` |
-| `proxy_masking` | proxy URL | `"socks5://user:pass@host:1080"` |
-| `webrtc_masking` | `public:IP\|local:IP` | `"public:172.56.21.89\|local:10.0.0.5"` |
+Most masking flags also accept a concrete literal string instead of a word. The
+parser reads the flag as `mask` with that value and writes the value into the
+fingerprint so it is applied automatically. The format of each literal is in the
+Value column of the
+[table of keywords](./fingerprint_stealth.md#keywords-in-json-payloads).
 
 ### Full literal-value profile
 
@@ -308,8 +285,8 @@ without any extra code.
 The `parameters.proxy` block becomes
 `--proxy-server=http://alice:secret@proxy.example.com:8080`: `proxy_masking`
 defaults to `auto`, which uses a proxy that has a host. Set
-`proxy_masking: disabled` to leave proxy configuration empty although the block
-is there.
+`proxy_masking: natural` (or `direct`) to launch without a proxy although the
+block is there.
 
 #### Native-level spoofing (`native_spoofing: true`)
 
