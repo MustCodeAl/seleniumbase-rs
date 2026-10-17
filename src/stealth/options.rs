@@ -139,11 +139,24 @@ impl StealthOptions {
             caps.add_arg("--headless=new")?;
         }
 
+        // Chrome takes the last of two arguments for one switch, and the
+        // fingerprint's come after these, so a switch the fingerprint also sets
+        // is left out here instead of being sent twice.
+        let fingerprint_args = self
+            .fingerprint
+            .as_ref()
+            .map(crate::stealth::evasions::launch_args)
+            .unwrap_or_default();
+        let set_by_fingerprint =
+            |switch: &str| fingerprint_args.iter().any(|arg| arg.starts_with(switch));
+
         let size =
             self.window_size
                 .as_deref()
                 .unwrap_or(if self.mobile { "390,844" } else { "1280,720" });
-        caps.add_arg(&format!("--window-size={size}"))?;
+        if !set_by_fingerprint("--window-size=") {
+            caps.add_arg(&format!("--window-size={size}"))?;
+        }
         if let Some(position) = self.window_position.as_deref() {
             caps.add_arg(&format!("--window-position={position}"))?;
         }
@@ -152,15 +165,24 @@ impl StealthOptions {
         // channel once the session is connected (`BrowserSession::apply_ad_block`).
         // It used to turn images off here, which blocked no ad.
 
-        if let Some(locale) = self.locale.as_deref() {
+        if let Some(locale) = self
+            .locale
+            .as_deref()
+            .filter(|_| !set_by_fingerprint("--lang="))
+        {
             caps.add_arg(&format!("--lang={locale}"))?;
         }
 
-        if let Some(user_agent) = self.user_agent.as_deref() {
+        let fingerprint_agent = set_by_fingerprint("--user-agent=");
+        if let Some(user_agent) = self.user_agent.as_deref().filter(|_| !fingerprint_agent) {
             caps.add_arg(&format!("--user-agent={user_agent}"))?;
         }
 
-        if let Some(proxy) = self.proxy.as_deref() {
+        if let Some(proxy) = self
+            .proxy
+            .as_deref()
+            .filter(|_| !set_by_fingerprint("--proxy-server="))
+        {
             caps.add_arg(&format!("--proxy-server={proxy}"))?;
         }
 
@@ -181,7 +203,7 @@ impl StealthOptions {
         }
 
         // A phone user agent only where the caller named none.
-        if self.mobile && self.user_agent.is_none() {
+        if self.mobile && self.user_agent.is_none() && !fingerprint_agent {
             caps.add_arg(&format!("--user-agent={MOBILE_USER_AGENT}"))?;
         }
 
@@ -198,10 +220,8 @@ impl StealthOptions {
             apply_undetected_args(caps)?;
         }
 
-        if let Some(fp) = self.fingerprint.as_ref() {
-            for arg in crate::stealth::evasions::launch_args(fp) {
-                caps.add_arg(&arg)?;
-            }
+        for arg in &fingerprint_args {
+            caps.add_arg(arg)?;
         }
 
         self.apply_launch_settings(caps)?;
@@ -469,6 +489,61 @@ mod tests {
         let args = bare.args().unwrap();
         assert!(args.contains(&"--window-size=390,844".to_owned()));
         assert!(args.iter().any(|a| a.contains("Android")));
+    }
+
+    #[test]
+    fn a_switch_the_fingerprint_sets_is_sent_once_and_with_the_fingerprints_value() {
+        let fingerprint = Fingerprint::randomized(crate::stealth::fingerprint::OsType::Windows, 4);
+        let opts = StealthOptions {
+            user_agent: Some("MyAgent/1.0".to_owned()),
+            locale: Some("fr-FR".to_owned()),
+            window_size: Some("800,600".to_owned()),
+            fingerprint: Some(fingerprint.clone()),
+            ..Default::default()
+        };
+
+        let args = opts.args().unwrap();
+
+        for switch in ["--user-agent=", "--lang=", "--window-size="] {
+            assert_eq!(
+                args.iter().filter(|a| a.starts_with(switch)).count(),
+                1,
+                "{switch} is sent twice: {args:?}"
+            );
+        }
+        // Chrome takes the last of two, and the fingerprint's came last.
+        let user_agent = fingerprint.user_agent.as_deref().unwrap();
+        assert!(args.contains(&format!("--user-agent={user_agent}")));
+        let locale = fingerprint.locale.as_deref().unwrap();
+        assert!(args.contains(&format!("--lang={locale}")));
+    }
+
+    #[test]
+    fn what_the_fingerprint_leaves_alone_still_comes_from_the_options() {
+        // An explicit `Natural` leaves the fingerprint's user agent out of the
+        // arguments, so the option's is the one sent.
+        let fingerprint = Fingerprint::builder()
+            .user_agent("FromFingerprint/1.0")
+            .with_flags(|f| {
+                f.navigator_masking = crate::stealth::fingerprint::MaskingMode::Natural;
+            })
+            .build();
+        let opts = StealthOptions {
+            user_agent: Some("MyAgent/1.0".to_owned()),
+            fingerprint: Some(fingerprint),
+            ..Default::default()
+        };
+
+        let args = opts.args().unwrap();
+
+        assert!(
+            args.contains(&"--user-agent=MyAgent/1.0".to_owned()),
+            "{args:?}"
+        );
+        assert!(
+            !args.iter().any(|a| a.contains("FromFingerprint")),
+            "{args:?}"
+        );
     }
 
     #[test]

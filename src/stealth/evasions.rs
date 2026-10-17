@@ -177,10 +177,13 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     ];
 
     // Sandbox flags are required for Docker / CI environments and avoid setuid
-    // failures on some Linux distributions. They are a common fingerprinting
-    // trade-off; real users launching with a real user account can omit these.
-    args.push("--no-sandbox".to_owned());
-    args.push("--disable-setuid-sandbox".to_owned());
+    // failures on some Linux distributions. They weaken the browser and show an
+    // infobar, so they are passed only on Linux, as `StealthOptions` passes
+    // them; elsewhere the sandbox starts.
+    if cfg!(target_os = "linux") {
+        args.push("--no-sandbox".to_owned());
+        args.push("--disable-setuid-sandbox".to_owned());
+    }
     args.push("--disable-dev-shm-usage".to_owned());
 
     if fp.is_masked(Dimension::Navigator) {
@@ -1009,6 +1012,18 @@ mod tests {
         );
         assert_eq!(version_after("Chrome/ nothing", "Chrome/"), None);
         assert_eq!(major_of("155.0.8059.40"), Some(155));
+    }
+
+    #[test]
+    fn the_sandbox_is_turned_off_only_where_it_commonly_cannot_start() {
+        let args = launch_args(&Fingerprint::default());
+        for switch in ["--no-sandbox", "--disable-setuid-sandbox"] {
+            assert_eq!(
+                args.contains(&switch.to_owned()),
+                cfg!(target_os = "linux"),
+                "{switch}"
+            );
+        }
     }
 
     #[test]
