@@ -1099,6 +1099,125 @@ async fn a_browser_launched_with_a_fingerprint_shows_its_identity_to_pages() {
     }
 }
 
+/// Asks the page for its position and reports the answer, or the error code.
+const ASK_FOR_THE_POSITION: &str = r#"new Promise((resolve) => {
+  navigator.geolocation.getCurrentPosition(
+    (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+    (e) => resolve({ error: e.code }),
+    { timeout: 3000 }
+  );
+})"#;
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_fingerprint_with_a_position_answers_a_geolocation_request_without_a_prompt() {
+    // A position is all it takes: the popup resolves to `Allow`, the permission
+    // is granted for the tab's context, and the override delivers the position.
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
+    assert_eq!(
+        fingerprint.geolocation_popup(),
+        seleniumbase_rs::PopupMode::Allow
+    );
+    let (latitude, longitude) = (
+        fingerprint.latitude.expect("a position"),
+        fingerprint.longitude.expect("a position"),
+    );
+    let base = serve();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .fingerprint(&fingerprint)
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let page = browser
+        .default_page()
+        .await
+        .unwrap()
+        .with_timeout(Duration::from_secs(10));
+    page.goto(format!("{base}/")).await.unwrap();
+
+    let answer = page.evaluate(ASK_FOR_THE_POSITION).await.unwrap();
+    println!("the page was told: {answer}");
+    browser.close().await.unwrap();
+
+    assert_eq!(answer["error"], serde_json::Value::Null, "{answer}");
+    assert_eq!(answer["lat"].as_f64(), Some(latitude));
+    assert_eq!(answer["lon"].as_f64(), Some(longitude));
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn under_native_spoofing_the_browser_itself_delivers_the_position_it_was_granted() {
+    // `native_spoofing` leaves the page script's geolocation answer out, so the
+    // position reaches the page only if the protocol override is in place and
+    // the permission was granted: nobody presses "Allow" in a headless browser.
+    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 42);
+    fingerprint.flags.native_spoofing = true;
+    let (latitude, longitude) = (
+        fingerprint.latitude.expect("a position"),
+        fingerprint.longitude.expect("a position"),
+    );
+    let base = serve();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .fingerprint(&fingerprint)
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let page = browser
+        .default_page()
+        .await
+        .unwrap()
+        .with_timeout(Duration::from_secs(10));
+    page.goto(format!("{base}/")).await.unwrap();
+
+    let answer = page.evaluate(ASK_FOR_THE_POSITION).await.unwrap();
+    println!("the browser told the page: {answer}");
+    browser.close().await.unwrap();
+
+    assert_eq!(answer["error"], serde_json::Value::Null, "{answer}");
+    assert_eq!(answer["lat"].as_f64(), Some(latitude));
+    assert_eq!(answer["lon"].as_f64(), Some(longitude));
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn a_blocked_geolocation_popup_answers_permission_denied() {
+    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 42);
+    fingerprint.flags.geolocation_popup = seleniumbase_rs::PopupMode::Block;
+    let base = serve();
+    let browser = Browser::launch(
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .fingerprint(&fingerprint)
+            .build()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
+    let page = browser
+        .default_page()
+        .await
+        .unwrap()
+        .with_timeout(Duration::from_secs(10));
+    page.goto(format!("{base}/")).await.unwrap();
+
+    let answer = page.evaluate(ASK_FOR_THE_POSITION).await.unwrap();
+    browser.close().await.unwrap();
+
+    // PERMISSION_DENIED is code 1.
+    assert_eq!(answer["error"], 1, "{answer}");
+}
+
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn a_running_tab_takes_on_a_fingerprint_from_its_next_page() {
