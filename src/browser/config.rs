@@ -595,6 +595,45 @@ impl BrowserConfig {
         self
     }
 
+    /// The browser plugins (feature `plugins`, ADR 004) whose hooks run for
+    /// every session started with this configuration.
+    ///
+    /// [`BrowserSession::connect`](crate::BrowserSession::connect), and so
+    /// `BaseCase::new`, checks the set against the browser, lets
+    /// `before_launch` change the start-up settings (arguments, preferences,
+    /// extensions, proxy, headless) before the browser starts, then calls
+    /// `on_browser` and gives the first window the packages and
+    /// `on_page_created`; quitting calls `on_close`. A refusal or a failing
+    /// hook stops the session with [`SeleniumBaseError::Plugin`]. What each
+    /// browser can do is in the Browser Plugins guide: Chromium browsers get
+    /// the DevTools Protocol, Firefox and Safari do not.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::plugin_api::PluginSet;
+    /// use seleniumbase_rs::{BaseCase, BrowserConfig};
+    ///
+    /// # async fn demo(plugins: PluginSet) -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
+    /// sb.open("https://example.com").await?;
+    /// sb.quit().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "plugins")]
+    pub fn with_plugins(mut self, plugins: seleniumbase_rs_plugin::PluginSet) -> Self {
+        self.launch.plugins = plugins.into();
+        self
+    }
+
+    /// The browser plugins set with [`with_plugins`](Self::with_plugins).
+    #[cfg(feature = "plugins")]
+    #[must_use]
+    pub fn plugins(&self) -> &seleniumbase_rs_plugin::PluginSet {
+        self.launch.plugins.set()
+    }
+
     /// Returns true when the configured fingerprint requests native-level
     /// (binary + CDP) spoofing.
     pub fn native_spoofing_enabled(&self) -> bool {

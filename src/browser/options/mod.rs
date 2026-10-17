@@ -43,6 +43,8 @@ mod driver;
 mod extensions;
 mod firefox;
 mod page_load;
+#[cfg(feature = "plugins")]
+mod plugins;
 mod proxy;
 mod switches;
 mod virtual_display;
@@ -56,6 +58,8 @@ pub(crate) use extensions::Bundled;
 pub use extensions::ExtensionArchive;
 pub use firefox::{FirefoxOptions, FirefoxPreference};
 pub use page_load::PageLoadStrategy;
+#[cfg(feature = "plugins")]
+pub use plugins::BrowserPlugins;
 pub use proxy::ProxyBypassList;
 pub use switches::{chrome_preferences, firefox_preferences, nested_preferences, LaunchSwitch};
 pub use virtual_display::VirtualDisplay;
@@ -118,6 +122,13 @@ pub struct LaunchSettings {
     /// get the same browser. See [`crate::browser::reuse`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reuse_class: Option<ReuseClass>,
+    /// The browser plugins whose hooks run when a session starts (feature
+    /// `plugins`, ADR 004); see
+    /// [`BrowserConfig::with_plugins`](crate::BrowserConfig::with_plugins).
+    /// They are not written to, or read from, a configuration file.
+    #[cfg(feature = "plugins")]
+    #[serde(skip)]
+    pub plugins: BrowserPlugins,
 }
 
 impl LaunchSettings {

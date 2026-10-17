@@ -11,8 +11,8 @@ set to the launch options, and its hooks run at fixed points. It is the idea of
 [puppeteer-extra](https://github.com/berstend/puppeteer-extra) in Rust: plugins
 are ordinary crates, compiled into your program, and anyone can publish one.
 
-The design is [ADR 004](../adr/004-plugin-framework.md). Today the hooks run in
-the Pure CDP engine (`sb_cdp`); the WebDriver engine (`BaseCase`) follows.
+The design is [ADR 004](../adr/004-plugin-framework.md). The hooks run in both
+engines: the Pure CDP engine (`sb_cdp`) and the WebDriver engine (`BaseCase`).
 
 <Note>
 
@@ -26,10 +26,11 @@ drives the browser.
 
 ## What you will learn
 
-- Turn plugins on and use one
+- Turn plugins on and use one, with either engine
 - Install a plugin from the plugins repository
 - Write a plugin, and test it without a browser
 - When each hook runs, and what happens when one fails
+- What each browser lets a plugin do on the WebDriver engine
 - What you trust when you add a plugin
 
 ## Turning plugins on
@@ -77,6 +78,26 @@ To attach to a browser that is already running, use
 `Browser::connect_with_plugins(host, port, plugins)` instead of `connect`. There
 is nothing to launch, so `before_launch` does not run; the rest does.
 
+With `BaseCase`, the same set goes to `BrowserConfig::with_plugins`:
+
+```rust,no_run
+use seleniumbase_rs::plugin_api::PluginSet;
+use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs_plugin_block_resources::BlockResources;
+
+# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
+let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
+sb.open("https://example.com").await?; // no images, no web fonts
+sb.quit().await?;
+# Ok(())
+# }
+```
+
+`BrowserSession::connect` takes the same configuration. Chrome and the other
+Chromium browsers give plugins everything the Pure CDP engine does; Firefox and
+Safari give less, as [The WebDriver engine](#the-webdriver-engine) explains.
+
 ## Installing a plugin
 
 Plugins are crates named `seleniumbase-rs-plugin-<name>`. The official ones live
@@ -86,25 +107,26 @@ in the plugins repository:
 |---|---|
 | `seleniumbase-rs-plugin-block-resources` | Stops pages from loading images, fonts or media (`Network.setBlockedURLs`) |
 | `seleniumbase-rs-plugin-crx` | Loads packed Chrome extensions (`.crx` files): unpacks them and adds the folders to the start-up settings, which the launch loads |
+| `seleniumbase-rs-plugin-wasm` | Runs plugins written in any language that compiles to WebAssembly, in a sandbox (no host imports, fuel and memory limits) |
 
-Add one with `cargo add`, from the **same revision** of the repository that
-this crate uses (it is in this crate's `Cargo.toml`, next to
-`seleniumbase-rs-plugin`):
+Add one with `cargo add`, from the repository's default branch, with no
+`--rev`, `--tag` or `--branch`:
 
 ```sh
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
-    --rev a70c00fb4bc1c82c09c1175db6efe01b9daf3768 \
     seleniumbase-rs-plugin-block-resources
 ```
 
 <Warning>
 
-The revision matters until the crates are on crates.io: two revisions of the
-same git repository are two different crates to Cargo, so a plugin built
-against another revision implements a different `Plugin` trait. The compiler
-then says the trait `Plugin` is not implemented for the plugin, and mentions two
-versions of `seleniumbase_rs_plugin`. Use one revision for every crate from that
-repository, and the one this crate pins.
+This crate takes `seleniumbase-rs-plugin` from that branch too, so the plugin
+and this crate resolve to the same source, and `Cargo.lock` records one commit
+for both; `cargo update` moves them together. The reference matters until the
+crates are on crates.io: Cargo counts one git repository under two references
+(a branch, a tag, a revision) as two different crates, so a plugin added with
+`--rev` or `--tag` implements a different `Plugin` trait. The compiler then
+says the trait `Plugin` is not implemented for the plugin, and mentions two
+versions of `seleniumbase_rs_plugin`.
 
 </Warning>
 
@@ -171,8 +193,8 @@ A `PageHandle` has four methods: `send` (a protocol command to the tab),
 `add_init_script` (a script for every document the tab loads from now on, run
 in the current one too), `evaluate` (a JavaScript value from the current
 document) and `engine`. A `BrowserHandle` has `send`, `engine` and `family`.
-Plugins never see `sb_cdp::Browser` or `Page`, so a plugin keeps working when
-those types grow, and the same plugin will work with the WebDriver engine.
+Plugins never see `sb_cdp::Browser`, `Page` or `BaseCase`, so a plugin keeps
+working when those types grow, and the same plugin works with both engines.
 
 A plugin crate depends on `seleniumbase-rs-plugin` (and `serde_json`), never on
 `seleniumbase-rs`. The plugins repository has a `template/` to copy.
@@ -194,8 +216,8 @@ file.
 | Flag | Refuses |
 |---|---|
 | `Requirements::HEADFUL` | a headless browser |
-| `Requirements::LAUNCH_ONLY` | a browser attached with `connect_with_plugins` |
-| `Requirements::CHROMIUM_ONLY` | browsers that are not Chromium-based |
+| `Requirements::LAUNCH_ONLY` | a browser attached with `connect_with_plugins`, and a WebDriver session on a server other than the local default (`with_webdriver_url`, such as a Selenium Grid) |
+| `Requirements::CHROMIUM_ONLY` | browsers that are not Chromium-based: Firefox and Safari on the WebDriver engine |
 | `Requirements::RUN_LAST` | nothing; the plugin runs after the others |
 
 `dependencies` names other plugins that must be in the same set. The set is
@@ -248,6 +270,51 @@ The proxy reaches `before_launch` as its server only: a password in the launch
 options is not shown to plugins, and it stays if they leave the proxy as it is.
 A plugin that sets a new proxy may include a password in it.
 
+## The WebDriver engine
+
+`BrowserConfig::with_plugins` gives a set to `BaseCase::new`, and to
+`BrowserSession::connect`, which `BaseCase::new` calls. The hooks run at these
+points:
+
+| Hook | WebDriver engine |
+|---|---|
+| `before_launch` | Before the driver is asked for a browser. The settings go back into the `BrowserConfig` the session starts with, and the set is checked again. |
+| `on_browser` | Once the session runs. |
+| packages, then `on_page_created` | For the first window; for each window opened with `switch_to_new_window`, `open_new_window`, `open_new_tab` or `open_new_tab_url`; and for a window you switched to yourself, such as a pop-up the page opened, when you call `apply_plugins_to_window` (on `BaseCase` or `BrowserSession`). Switching to a window runs no hook. |
+| `on_close` | At `quit`, while the browser still runs; in the background when the session is dropped without `quit`; and when the launch fails after `before_launch` ran. |
+
+`reconnect` checks the plugins for the new browser first, so a refusal leaves
+the session as it was; then the old browser's plugins get `on_close`, and the
+new browser goes through every hook, `before_launch` starting again from the
+configuration. `get_new_driver` starts a browser with its own run of the hooks.
+
+What reaches a plugin depends on the browser:
+
+| | Chromium browsers (Chrome, Edge, Chromium, Brave, Opera, Comet, Chrome for Testing) | Firefox | Safari |
+|---|---|---|---|
+| `before_launch` shows | the extra arguments, the `prefs` of `goog:chromeOptions` (`ms:edgeOptions` for Edge), the extension folders, the proxy (its server only), headless | Firefox's own arguments and preferences, headless | headless, always off |
+| `before_launch` may not | (no limit: every change reaches the browser) | add extension folders (install add-ons with `BaseCase::install_addon` once the session runs) or set a proxy | change anything: a change is refused |
+| `send`, on the browser and on a page | chromedriver's DevTools channel (`goog/cdp/execute`), which reaches the window the session is on | refused with an error | refused with an error |
+| `add_init_script`, and packages | `Page.addScriptToEvaluateOnNewDocument` for the window's next documents, and run in the current one | run now as a WebDriver script, and again after each `open` | as Firefox |
+| `evaluate` | a WebDriver script in the current frame | the same | the same |
+
+On Firefox and Safari a script for every document runs after the page's own
+scripts, not before them, and as the body of a function: its top-level
+declarations stay local, so assign to `window` to share a value. It runs again
+only after `open` (`BrowserSession::goto`), not after a click, a redirect,
+`refresh`, `go_back` or `go_forward` takes the window to another document. A
+plugin that must run before the page's scripts, or that needs `send`, should
+say `Requirements::CHROMIUM_ONLY`, so it is refused on those browsers instead
+of half working.
+
+A Firefox preference must be true or false, a whole number or text. Internet
+Explorer takes no plugins. Plugins cannot be combined with `reuse_session`: a
+browser kept for reuse would get the hooks a second time, or not at all, so the
+combination is refused. A session on a server other than the local default
+(`with_webdriver_url`) counts as attaching for `LAUNCH_ONLY`; `before_launch`
+still runs there, and its settings travel in the capabilities, so extension
+folders must exist on the machine that runs the browser.
+
 ## When a plugin fails
 
 Plugins fail closed. A refusal from the checks, or an error from
@@ -261,6 +328,17 @@ not leave an unprotected browser.
 Errors from `on_close` are logged (event `cdp.plugin.close.failed`) and do not
 stop the browser from closing.
 
+On the WebDriver engine, a refusal, a launch setting the browser cannot take,
+or an error from `before_launch`, `on_browser`, a package or `on_page_created`
+for the first window stops `BaseCase::new` (or `BrowserSession::connect`) with
+`SeleniumBaseError::Plugin`, and a browser that had started is quit first. For
+a window opened later, the error is what the call that opened it returns; the
+window stays open, so close it or stop the test. A value the browser cannot be
+given (an extension folder whose path holds a comma, a Firefox preference that
+is a fraction) is `SeleniumBaseError::InvalidConfig`, as is plugins with
+`reuse_session`. Errors from `on_close` are logged as
+`webdriver.plugin.close.failed`.
+
 ## Security
 
 <Danger>
@@ -272,7 +350,9 @@ Adding one is the same trust decision as adding any dependency.
 </Danger>
 
 - Read it, or trust whoever wrote it, before you add it.
-- Pin it to a revision (`--rev`), as above, so it cannot change under you.
+- Keep `Cargo.lock` in version control. It records the commit each git
+  dependency resolved to, so a plugin cannot change under you until you run
+  `cargo update`, and you can read the change before you commit it.
 - Run `cargo deny check` and `cargo audit` on the result; this repository's
   `deny.toml` allows only the git sources it names.
 
@@ -284,15 +364,31 @@ reaching every site the browser visits.
 
 <Warning>
 
-The hooks, their order, the commands they send, the fail-closed errors, closing
-a tab a plugin refused, and `on_close` on close and on drop are covered by tests
-against the mocked browser (`tests/sb_cdp_plugins.rs`); the conversion between
-the launch options and `LaunchSettings`, and the merging of preferences into a
-profile, by unit tests. None of it has been run against a real Chrome yet:
-loading an extension with `Extensions.loadUnpacked` follows the repository's
-existing real-Chrome test of the same command, and the `Default/Preferences`
-file is the one Chrome reads at start-up, but neither was checked in a live
-browser for this feature. `connect_with_plugins` is tested only for its checks,
-not against a running browser.
+On the Pure CDP engine, the hooks, their order, the commands they send, the
+fail-closed errors, closing a tab a plugin refused, and `on_close` on close and
+on drop are covered by tests against the mocked browser
+(`tests/sb_cdp_plugins.rs`); the conversion between the launch options and
+`LaunchSettings`, and the merging of preferences into a profile, by unit tests.
+None of it has been run against a real Chrome yet: loading an extension with
+`Extensions.loadUnpacked` follows the repository's existing real-Chrome test of
+the same command, and the `Default/Preferences` file is the one Chrome reads at
+start-up, but neither was checked in a live browser for this feature.
+`connect_with_plugins` is tested only for its checks, not against a running
+browser.
+
+On the WebDriver engine, the conversion between a `BrowserConfig` and
+`LaunchSettings` for each browser, and what is refused, are covered by unit
+tests; the hooks, their order, what reaches the driver, the DevTools channel on
+Chromium and its refusal on Firefox, the scripts run again after `open`, the
+windows a session and `BaseCase` open, `reconnect`, the fail-closed errors and
+`on_close` at quit, on drop and after a failed launch, by tests against a mock
+WebDriver server. `tests/webdriver_plugins_chrome.rs` runs one plugin through
+`BaseCase` and chromedriver against a real Chrome: a preference set in
+`before_launch`, `Browser.getVersion` through the DevTools channel, a time zone,
+a package and an init script in the first window, the time zone and the init
+script in a window `open_new_window` opens, `evaluate`, and `on_close` at quit.
+It passed in Chrome 155, headless, on macOS. Firefox and Safari have run only
+against the mock server, and the extension folders, the proxy and a remote
+server were not tried with a live browser.
 
 </Warning>

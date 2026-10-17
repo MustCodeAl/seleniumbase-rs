@@ -8,6 +8,32 @@ work, `docs/parity.md` the per-API status).
 
 ## Unreleased
 
+### Added
+
+- **Browser plugins for the WebDriver engine** (feature `plugins`; ADR 004
+  phase 3). `BrowserConfig::with_plugins` gives a `PluginSet` to
+  `BaseCase::new` and `BrowserSession::connect`: the set is checked against the
+  browser, `before_launch` changes the start-up settings (Chromium arguments,
+  capability preferences, extension folders, proxy and headless; Firefox
+  arguments, preferences and headless), and once the session runs the plugins
+  get `on_browser`, then the packages and `on_page_created` for the first
+  window, for each window `switch_to_new_window` or `open_new_window` opens, and
+  for any other on `apply_plugins_to_window`; `quit` or a drop calls
+  `on_close`, and `reconnect` runs the hooks again. On Chromium browsers
+  plugins send protocol commands through chromedriver's DevTools channel; on
+  Firefox and Safari `send` is refused and scripts for every document run at
+  once and again after each `open`. A refusal or a failing hook stops the
+  session with `SeleniumBaseError::Plugin`. Plugins with `reuse_session` are
+  refused. See the WebDriver section of `docs/tutorials/plugins.md`.
+- `sb_cdp::Page::add_script_tag` and `add_style_tag` add a script or a
+  stylesheet to the current document from a URL or inline (`TagSource`),
+  waiting for a file to load; `add_init_script` runs a script in every
+  document the tab loads from then on and returns an `InitScriptId` for
+  `remove_init_script`. Playwright's `addScriptTag`, `addStyleTag` and
+  `addInitScript`.
+- With the `plugins` feature, `sb_cdp::Page` implements the plugin API's
+  `PageHandle`, so a program can hand one of its tabs to plugin code.
+
 ### Fixed
 
 - `sbrs` exits quietly with status 0 when the reader of its output goes away

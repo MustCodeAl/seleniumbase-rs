@@ -436,9 +436,14 @@ impl BaseCase {
     }
 
     /// Executes the `open_new_window` action.
+    ///
+    /// With browser plugins (feature `plugins`), the new window gets their
+    /// packages and `on_page_created`, as the first window did.
     pub async fn open_new_window(&mut self) -> Result<(), SeleniumBaseError> {
         self.execute_script("window.open('');").await?;
         self.switch_to_newest_window().await?;
+        #[cfg(feature = "plugins")]
+        self.session.apply_plugins_to_window().await?;
         Ok(())
     }
 
@@ -483,6 +488,26 @@ impl BaseCase {
             self.session.driver().switch_to_window(last.clone()).await?;
         }
         Ok(())
+    }
+
+    /// Gives the window the session is on the packages and `on_page_created`
+    /// of its browser plugins (feature `plugins`,
+    /// [`BrowserConfig::with_plugins`]).
+    ///
+    /// `BaseCase::new` does this for the first window, and
+    /// [`open_new_window`](Self::open_new_window), `open_new_tab` and
+    /// [`switch_to_new_window`](Self::switch_to_new_window) for the windows
+    /// they open. Call it after switching to a window the page opened, such
+    /// as a pop-up: switching alone runs no hook. It does nothing without
+    /// plugins.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for the first package or hook that
+    /// fails.
+    #[cfg(feature = "plugins")]
+    pub async fn apply_plugins_to_window(&self) -> Result<(), SeleniumBaseError> {
+        self.session.apply_plugins_to_window().await
     }
 
     /// Executes the `get_active_element_css` action.
