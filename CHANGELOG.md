@@ -29,6 +29,28 @@ work, `docs/parity.md` the per-API status).
   // after
   let title = driver.evaluate("document.title").await?;
   ```
+- `api::cdp_page::CdpPage` (and the `BaseCase::cdp_*` methods on it) is stricter
+  and truer to Python's `sb.cdp`:
+  - `evaluate` (`BaseCase::cdp_evaluate`) returns the value instead of the raw
+    CDP result object `{"type": ..., "value": ...}`, drops a final `return`, and
+    a script that throws is `CdpDriver` (it was `Unsupported`).
+  - `click` (`cdp_click`) waits up to 7 seconds for the element, scrolls it
+    into view, and fails when the browser refuses an input event; it used to
+    discard those errors and click an element below the fold off screen.
+    `click_with_timeout` takes another wait.
+  - `get_text`, `get_attribute` and `get_property` fail with `ElementNotFound`
+    for an element that is not there; `get_text` used to answer `""` and the
+    others `None`. An element without the attribute still gives `None`.
+  - `select_option_by_value` fails with `InvalidSelector` for a value the
+    dropdown has no option for (it set the value and reported success), and
+    all three `select_option_by_*` fail with `ElementNotFound` for no dropdown.
+
+  ```rust
+  // before: the value was inside the result object
+  let title = page.evaluate("document.title").await?["value"].clone();
+  // after
+  let title = page.evaluate("document.title").await?;
+  ```
 
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,

@@ -129,6 +129,7 @@ pub use messenger::{
 pub use mock::{Call, MockCtrl};
 #[doc(inline)]
 pub use page::Page;
+pub(crate) use page::without_final_return;
 #[doc(inline)]
 pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
 #[doc(inline)]

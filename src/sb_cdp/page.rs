@@ -790,7 +790,7 @@ fn map_script_error(label: &str, description: &str) -> SeleniumBaseError {
 /// Python's `evaluate` does the same, so that a script written for
 /// Selenium's `execute_script` (`return document.title`) also works where an
 /// expression is wanted.
-fn without_final_return(expression: &str) -> String {
+pub(crate) fn without_final_return(expression: &str) -> String {
     let expression = expression.trim();
     let (head, last) = match expression.rsplit_once('\n') {
         Some((head, last)) => (Some(head), last),
