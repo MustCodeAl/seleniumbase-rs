@@ -55,7 +55,7 @@ pub struct Parameters {
 /// The masking flags of a payload, as the strings a payload carries: a keyword
 /// such as `"mask"`, `"natural"` or `"auto"`, or a literal value such as
 /// `"1920x1080x24"`. [`ProfileParams::to_fingerprint`] turns them into the
-/// [`StealthFlags`] of a [`Fingerprint`].
+/// settings and the [`StealthPolicy`] of a [`Fingerprint`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProfileFlags {
     #[serde(default = "default_webrtc_masking")]
@@ -552,16 +552,99 @@ fn parse_coordinates(s: &str) -> Option<(f64, f64, f64)> {
     None
 }
 
+/// The text of a payload value, or `None` when it is empty or blank: a payload
+/// writes `""` for a value it does not give.
+fn given_text(s: &str) -> Option<String> {
+    let text = s.trim();
+    (!text.is_empty()).then(|| text.to_owned())
+}
+
+/// A literal graphics flag: `vendor~renderer`, with both parts present.
 fn parse_vendor_renderer(s: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = s.split('~').collect();
-    (parts.len() >= 2).then(|| (parts[0].trim().to_string(), parts[1].trim().to_string()))
+    let (vendor, renderer) = s.split_once('~')?;
+    let (vendor, renderer) = (vendor.trim(), renderer.split('~').next()?.trim());
+    (!vendor.is_empty() && !renderer.is_empty())
+        .then(|| (vendor.to_string(), renderer.to_string()))
 }
 
+/// A literal navigator flag: a user agent, which opens with `Mozilla/<digit>`
+/// and has its platform token in parentheses.
 fn is_user_agent(s: &str) -> bool {
-    s.starts_with("Mozilla/") || s.contains("AppleWebKit") || s.contains("Chrome/")
+    s.strip_prefix("Mozilla/")
+        .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+        && s.contains('(')
+        && s.contains(')')
 }
 
+/// A language tag: two or three letters, then the subtags that follow (`-US`,
+/// `-Hant-TW`). `needs_region` asks for at least one subtag.
+fn is_language_tag(s: &str, needs_region: bool) -> bool {
+    let mut parts = s.split('-');
+    let language = parts.next().unwrap_or("");
+    if !(2..=3).contains(&language.len()) || !language.bytes().all(|b| b.is_ascii_alphabetic()) {
+        return false;
+    }
+    let mut subtags = 0;
+    for subtag in parts {
+        if subtag.is_empty() || !subtag.bytes().all(|b| b.is_ascii_alphanumeric()) {
+            return false;
+        }
+        subtags += 1;
+    }
+    subtags > 0 || !needs_region
+}
+
+/// A literal localization flag: a locale such as `de-DE`, or an
+/// `Accept-Language` list that opens with one (`en-US,en;q=0.9`). It gives the
+/// locale (the first tag), the language list (the tags) and the header (the
+/// text).
+fn parse_localization(s: &str) -> Option<(String, String, String)> {
+    let mut tags = Vec::new();
+    for (index, item) in s.split(',').enumerate() {
+        let (tag, weight) = match item.split_once(';') {
+            Some((tag, weight)) => (tag.trim(), Some(weight.trim())),
+            None => (item.trim(), None),
+        };
+        // The locale needs its region; a later language may be bare (`en`).
+        let tag_ok = is_language_tag(tag, index == 0);
+        let weight_ok = weight.is_none_or(|w| {
+            w.strip_prefix("q=")
+                .and_then(|q| q.trim().parse::<f32>().ok())
+                .is_some_and(|q| (0.0..=1.0).contains(&q))
+        });
+        if !tag_ok || !weight_ok {
+            return None;
+        }
+        tags.push(tag);
+    }
+    let locale = (*tags.first()?).to_owned();
+    Some((locale, tags.join(","), s.trim().to_owned()))
+}
+
+/// A literal time zone flag: an IANA name such as `Europe/Berlin` or
+/// `America/Argentina/Buenos_Aires`.
+fn is_zone_name(s: &str) -> bool {
+    let mut segments = 0;
+    for segment in s.split('/') {
+        let well_formed = !segment.is_empty()
+            && segment
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'+'));
+        if !well_formed {
+            return false;
+        }
+        segments += 1;
+    }
+    segments >= 2 && s.starts_with(|c: char| c.is_ascii_alphabetic())
+}
+
+/// A literal fonts flag: a comma-separated list. One font alone is not one,
+/// because any word would be a font; a single font goes in the payload's
+/// `fingerprint.fonts` section.
 fn parse_font_list(s: &str) -> Option<Vec<String>> {
+    if !s.contains(',') {
+        return None;
+    }
     let fonts: Vec<String> = s
         .split(',')
         .map(|f| f.trim().to_string())
@@ -687,19 +770,13 @@ impl ProfileParams {
     /// The payload keeps its own format. Each flag is a keyword or a literal
     /// value of its key, and the nested sections (`navigator`, `screen`, ...)
     /// hold values. Every key reads the same words, and each setting ends up
-    /// in one of the four states of a [`Spoof`](stealth_fp::Spoof):
+    /// in one of the four states of a [`Spoof`](stealth_fp::Spoof). The words,
+    /// the literal format of each key and the keys that differ are in one table,
+    /// in `docs/tutorials/fingerprint_stealth.md`.
     ///
-    /// | Words | State | Meaning |
-    /// |---|---|---|
-    /// | `natural`, `native`, `pass_through`, `whitelist` | Natural | The browser's own value, whatever values the payload holds. |
-    /// | `auto`, or no flag | Value or Natural | The value the payload holds for the setting; the browser's own where it holds none. |
-    /// | `mask`, `spoof`, `custom`, `generic`, `random`, `noise` | Value or Random | The value the payload holds; a coherent drawn one where it holds none. |
-    /// | `off`, `disabled`, `block`, `empty` | Off | The API turned off. Only for geolocation, WebRTC and media devices; for any other key it is read as Natural, and logged. |
-    /// | a literal value | Value | The value, in the key's own format. |
-    ///
-    /// An unknown keyword is logged and read as Natural, never guessed at.
-    /// The few keys that differ are in the table in the documentation of the
-    /// crate (`docs/tutorials/browser_profiles.md`).
+    /// An unknown keyword, and a literal that is not in the format of its key,
+    /// is logged and read as Natural, never guessed at. A section value that is
+    /// an empty string is a value the payload does not give.
     ///
     /// The profile's folder and name seed the draw, so a profile gets the same
     /// drawn values on every launch. The built-in policy is
@@ -755,6 +832,13 @@ impl ProfileParams {
             .custom_start_urls(self.parameters.custom_start_urls.clone())
             .cmd_params(cmd_params);
 
+        // The Chromium major a drawn user agent and drawn Client Hints claim.
+        // The Firefox and Safari personas have no Chromium major, and a
+        // payload that names a Chromium major with one of them means the
+        // engine of its own browser, which is not a Chrome version.
+        if let Some(major) = self.core_version.filter(|_| self.claims_chromium()) {
+            builder = builder.core_version(major);
+        }
         builder = self.blocked_ports(builder);
         builder = self.navigator(builder);
         builder = self.localization(builder);
@@ -766,6 +850,14 @@ impl ProfileParams {
         builder = self.geolocation(builder);
         builder = self.proxy(builder);
         self.webrtc(builder)
+    }
+
+    /// Whether the payload's browser and system claim a Chromium user agent.
+    fn claims_chromium(&self) -> bool {
+        !matches!(
+            self.browser_type.as_str(),
+            "firefox" | "stealthfox" | "safari" | "mobile_safari"
+        ) && parse_os(&self.os_type) != OsType::Ios
     }
 
     /// `ports_masking`: the natural words block nothing, every other word and a
@@ -805,7 +897,7 @@ impl ProfileParams {
         let word = word_of(reading);
         let nav = self.parameters.fingerprint.navigator.as_ref();
         let literal_agent = match reading {
-            Reading::Literal(agent) => Some(agent.to_owned()),
+            Reading::Literal(agent) => given_text(agent),
             Reading::Word(_) => None,
         };
         let touch = self.parameters.fingerprint.max_touch_points;
@@ -815,12 +907,15 @@ impl ProfileParams {
             Word::Auto | Word::Random => given.map_or(Spoof::Natural, Spoof::Value),
         };
         builder
-            .user_agent(state(nav.map(|n| n.user_agent.clone()).or(literal_agent)))
-            .platform(state(nav.map(|n| n.platform.clone())))
+            .user_agent(state(
+                nav.and_then(|n| given_text(&n.user_agent))
+                    .or(literal_agent),
+            ))
+            .platform(state(nav.and_then(|n| given_text(&n.platform))))
             .hardware_concurrency(settle(
                 key,
                 word,
-                nav.map(|n| n.hardware_concurrency.unwrap_or(8)),
+                nav.and_then(|n| n.hardware_concurrency),
                 true,
                 false,
             ))
@@ -833,46 +928,53 @@ impl ProfileParams {
             ))
             .max_touch_points(settle(key, word, touch, true, false))
             .vendor(state(None))
-            .oscpu(given_only(
-                nav.map(|n| n.os_cpu.clone()).filter(|s| !s.is_empty()),
-            ))
+            .oscpu(given_only(nav.and_then(|n| given_text(&n.os_cpu))))
     }
 
     fn localization(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
         let key = "localization_masking";
-        let reading = read(key, &self.parameters.flags.localization_masking, &[], |s| {
-            s.contains('-')
-        });
+        let reading = read(
+            key,
+            &self.parameters.flags.localization_masking,
+            &[],
+            |s| parse_localization(s).is_some(),
+        );
         let word = word_of(reading);
         let loc = self.parameters.fingerprint.localization.as_ref();
         let literal = match reading {
-            Reading::Literal(tag) => Some(tag.to_owned()),
+            Reading::Literal(text) => parse_localization(text),
             Reading::Word(_) => None,
         };
         let state = |given| settle(key, word, given, true, false);
         builder
-            .locale(state(
-                loc.map(|l| l.locale.clone()).or_else(|| literal.clone()),
+            .locale(state(loc.and_then(|l| given_text(&l.locale)).or_else(|| {
+                literal.as_ref().map(|(locale, ..)| locale.clone())
+            })))
+            .languages(state(loc.and_then(|l| given_text(&l.languages)).or_else(
+                || literal.as_ref().map(|(_, languages, _)| languages.clone()),
+            )))
+            .accept_languages(state(
+                loc.and_then(|l| given_text(&l.accept_languages))
+                    .or_else(|| literal.as_ref().map(|(.., header)| header.clone())),
             ))
-            .languages(state(
-                loc.map(|l| l.languages.clone()).or_else(|| literal.clone()),
-            ))
-            .accept_languages(state(loc.map(|l| l.accept_languages.clone()).or(literal)))
     }
 
     fn timezone(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
         let key = "timezone_masking";
-        let reading = read(key, &self.parameters.flags.timezone_masking, &[], |s| {
-            s.contains('/')
-        });
+        let reading = read(
+            key,
+            &self.parameters.flags.timezone_masking,
+            &[],
+            is_zone_name,
+        );
         let given = self
             .parameters
             .fingerprint
             .timezone
             .as_ref()
-            .map(|t| t.zone.clone())
+            .and_then(|t| given_text(&t.zone))
             .or_else(|| match reading {
-                Reading::Literal(zone) => Some(zone.to_owned()),
+                Reading::Literal(zone) => given_text(zone),
                 Reading::Word(_) => None,
             });
         builder.timezone(settle(key, word_of(reading), given, true, false))
@@ -909,21 +1011,27 @@ impl ProfileParams {
         let reading = read(key, &self.parameters.flags.graphics_masking, &[], |s| {
             parse_vendor_renderer(s).is_some()
         });
-        let given = match self.parameters.fingerprint.graphic.as_ref() {
-            Some(gpu) => {
-                let webgl = WebGl::new(gpu.vendor.clone(), gpu.renderer.clone());
-                Some(if gpu.vendor_id.is_empty() && gpu.renderer_id.is_empty() {
-                    webgl
-                } else {
-                    webgl.ids(gpu.vendor_id.clone(), gpu.renderer_id.clone())
-                })
+        let from_section = self.parameters.fingerprint.graphic.as_ref().and_then(|gpu| {
+            let webgl = match (given_text(&gpu.vendor), given_text(&gpu.renderer)) {
+                (Some(vendor), Some(renderer)) => WebGl::new(vendor, renderer),
+                (None, Some(renderer)) => WebGl::renderer_only(renderer),
+                (Some(vendor), None) => WebGl::vendor_only(vendor),
+                (None, None) => return None,
+            };
+            Some(match (given_text(&gpu.vendor_id), given_text(&gpu.renderer_id)) {
+                (None, None) => webgl,
+                (vendor_id, renderer_id) => webgl.ids(
+                    vendor_id.unwrap_or_default(),
+                    renderer_id.unwrap_or_default(),
+                ),
+            })
+        });
+        let given = from_section.or_else(|| match reading {
+            Reading::Literal(text) => {
+                parse_vendor_renderer(text).map(|(vendor, renderer)| WebGl::new(vendor, renderer))
             }
-            None => match reading {
-                Reading::Literal(text) => parse_vendor_renderer(text)
-                    .map(|(vendor, renderer)| WebGl::new(vendor, renderer)),
-                Reading::Word(_) => None,
-            },
-        };
+            Reading::Word(_) => None,
+        });
         builder.webgl(settle(key, word_of(reading), given, true, false))
     }
 
@@ -935,14 +1043,20 @@ impl ProfileParams {
             &[("system_only", Word::Random), ("blacklist", Word::Random)],
             |s| parse_font_list(s).is_some(),
         );
-        let listed = &self.parameters.fingerprint.fonts;
+        let listed: Vec<String> = self
+            .parameters
+            .fingerprint
+            .fonts
+            .iter()
+            .filter_map(|font| given_text(font))
+            .collect();
         let given = if listed.is_empty() {
             match reading {
                 Reading::Literal(text) => parse_font_list(text),
                 Reading::Word(_) => None,
             }
         } else {
-            Some(listed.clone())
+            Some(listed)
         };
         builder.fonts(settle(key, word_of(reading), given, true, false))
     }
@@ -1010,7 +1124,7 @@ impl ProfileParams {
     /// `proxy_masking`. A proxy cannot be drawn, so the words that draw for
     /// the other keys (`mask`, `custom`, `socks5`, ...) use the proxy the
     /// payload holds, as `auto` does. The words that turn a key off read as
-    /// natural: no proxy.
+    /// natural, and are logged: no proxy.
     fn proxy(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
         let key = "proxy_masking";
         let reading = read(
@@ -1020,7 +1134,8 @@ impl ProfileParams {
                 ("socks5", Word::Random),
                 ("http", Word::Random),
                 ("https", Word::Random),
-                ("direct", Word::Off),
+                // No proxy is the browser's own connection.
+                ("direct", Word::Natural),
             ],
             |s| parse_proxy_url(s).is_some(),
         );
@@ -1041,11 +1156,9 @@ impl ProfileParams {
             Reading::Word(_) => from_payload,
         }
         .filter(|proxy| !proxy.host.is_empty());
-        let state = match word_of(reading) {
-            Word::Off => Spoof::Natural,
-            word => settle(key, word, given, false, false),
-        };
-        builder.proxy(state)
+        // `settle` reads an off word as natural and logs it: a proxy has no
+        // off state.
+        builder.proxy(settle(key, word_of(reading), given, false, false))
     }
 
     /// `webrtc_masking`: the setting and the IP-handling policy.
@@ -1112,14 +1225,18 @@ impl ProfileParams {
         };
         let custom_start_urls: Vec<String> =
             self.start_urls().into_iter().map(str::to_owned).collect();
+        // What the browser is launched with is what the fingerprint holds, so a
+        // `natural` flag or an off word launches nothing of that setting, and a
+        // drawn value is the one the evasions claim.
+        let fingerprint = self.to_fingerprint();
         let mut config = BrowserConfig {
             webdriver_url: container_url.into(),
             browser: self.browser(),
             headless: self.is_headless,
             mode,
-            user_agent: self.user_agent(),
-            locale: self.locale(),
-            proxy: self.proxy_string(),
+            user_agent: fingerprint.user_agent().value().cloned(),
+            locale: fingerprint.locale().value().cloned(),
+            proxy: fingerprint.proxy().value().map(stealth_fp::ProxyConfig::to_url),
             proxy_pac_url: None,
             user_data_dir: self.user_data_dir(),
             extension_dir: None,
@@ -1127,15 +1244,13 @@ impl ProfileParams {
             reuse_session: false,
             mobile: self.os_type == "android" || self.os_type == "ios",
             threads: None,
-            ad_block: self
-                .parameters
-                .proxy
-                .as_ref()
-                .map(|p| p.save_traffic)
-                .unwrap_or(false),
+            ad_block: fingerprint
+                .proxy()
+                .value()
+                .is_some_and(|proxy| proxy.save_traffic),
             auto_start_driver: true,
             extra_args: Vec::new(),
-            fingerprint: Some(self.to_fingerprint()),
+            fingerprint: Some(fingerprint),
             browser_binary_path: None,
             remote_webdriver_timeout_seconds: None,
             launch: Default::default(),
@@ -1157,38 +1272,28 @@ impl ProfileParams {
         }
     }
 
-    /// User agent extracted from custom navigator fingerprint when available.
+    /// The user agent of the payload's fingerprint, when it has one.
+    ///
+    /// It is the one [`to_fingerprint`](Self::to_fingerprint) builds, so the
+    /// `navigator_masking` flag decides: `natural` gives none, and a drawn
+    /// user agent is the drawn one.
     pub fn user_agent(&self) -> Option<String> {
-        self.parameters
-            .fingerprint
-            .navigator
-            .as_ref()
-            .map(|n| n.user_agent.clone())
-            .filter(|s| !s.is_empty())
+        self.to_fingerprint().user_agent().value().cloned()
     }
 
-    /// Locale extracted from custom localization fingerprint when available.
+    /// The locale of the payload's fingerprint, when it has one (see
+    /// [`user_agent`](Self::user_agent)).
     pub fn locale(&self) -> Option<String> {
-        self.parameters
-            .fingerprint
-            .localization
-            .as_ref()
-            .map(|l| l.locale.clone())
-            .filter(|s| !s.is_empty())
+        self.to_fingerprint().locale().value().cloned()
     }
 
-    /// Proxy URL built from `parameters.proxy`.
+    /// The proxy URL of the payload's fingerprint, when it has one (see
+    /// [`user_agent`](Self::user_agent)): none under `proxy_masking: natural`.
     pub fn proxy_string(&self) -> Option<String> {
-        self.parameters.proxy.as_ref().map(|p| {
-            if p.username.is_empty() {
-                format!("{}://{}:{}", p.proxy_type, p.host, p.port)
-            } else {
-                format!(
-                    "{}://{}:{}@{}:{}",
-                    p.proxy_type, p.username, p.password, p.host, p.port
-                )
-            }
-        })
+        self.to_fingerprint()
+            .proxy()
+            .value()
+            .map(stealth_fp::ProxyConfig::to_url)
     }
 
     /// Per-profile persistent data directory when `storage.is_local` is true.
@@ -1261,16 +1366,18 @@ impl ProfileParams {
     /// Applies runtime fingerprint overrides to an active `BaseCase`.
     ///
     /// This covers screen size and geolocation, which must be set after the
-    /// browser session is alive.
+    /// browser session is alive. Both are the fingerprint's own: a `natural`
+    /// flag, or `block` or `prompt` for the position, sets nothing.
     pub async fn apply_runtime_overrides(
         &self,
         sb: &mut crate::BaseCase,
     ) -> Result<(), SeleniumBaseError> {
-        if let Some(screen) = &self.parameters.fingerprint.screen {
+        let fingerprint = self.to_fingerprint();
+        if let Some(screen) = fingerprint.screen().value() {
             sb.set_window_size(screen.width, screen.height).await?;
         }
-        if let Some(geo) = &self.parameters.fingerprint.geolocation {
-            sb.set_geolocation(geo.latitude, geo.longitude, geo.accuracy)
+        if let Some(geo) = fingerprint.geolocation().value() {
+            sb.set_geolocation(geo.latitude, geo.longitude, geo.accuracy.unwrap_or(0.0))
                 .await?;
         }
         for url in self.start_urls().into_iter().skip(1) {
@@ -1596,8 +1703,41 @@ mod tests {
             "localization_masking": "en-US,en;q=0.9",
             "timezone_masking": "America/New_York"
         }));
-        assert_eq!(fp.locale().as_str(), Some("en-US,en;q=0.9"));
+        // The locale is the first tag, the list is the tags, the header is the text.
+        assert_eq!(fp.locale().as_str(), Some("en-US"));
+        assert_eq!(fp.languages().as_str(), Some("en-US,en"));
+        assert_eq!(fp.accept_languages().as_str(), Some("en-US,en;q=0.9"));
         assert_eq!(fp.timezone().as_str(), Some("America/New_York"));
+        let tag = fingerprint_of(json!({ "localization_masking": "zh-Hant-TW" }));
+        assert_eq!(tag.locale().as_str(), Some("zh-Hant-TW"));
+        assert_eq!(tag.languages().as_str(), Some("zh-Hant-TW"));
+    }
+
+    #[test]
+    fn a_literal_has_the_shape_of_its_key_or_it_is_no_literal() {
+        // Each of these used to be taken for a literal because of one character.
+        let fp = fingerprint_of(json!({
+            "localization_masking": "no-such thing",
+            "timezone_masking": "a/b c",
+            "navigator_masking": "Chrome/133 is nice",
+            "graphics_masking": "~",
+            "fonts_masking": "Arial"
+        }));
+        for (key, natural) in natural_states(&fp) {
+            assert!(natural, "{key}");
+        }
+        for literal in ["en", "en-", "e1-US", "en-US;q=0.9,", "en-US,en;q=x", "en-US,,en"] {
+            assert!(parse_localization(literal).is_none(), "{literal}");
+        }
+        for zone in ["Europe", "/Berlin", "Europe/", "Europe/Ber lin", "1/2"] {
+            assert!(!is_zone_name(zone), "{zone}");
+        }
+        assert!(is_zone_name("America/Argentina/Buenos_Aires"));
+        assert!(is_zone_name("Etc/GMT+5"));
+        assert!(!is_user_agent("Mozilla/") && !is_user_agent("Mozilla/x (a)"));
+        assert!(parse_vendor_renderer("Intel~").is_none() && parse_vendor_renderer("~Iris").is_none());
+        assert!(parse_font_list("Arial").is_none());
+        assert_eq!(parse_font_list("Arial, Calibri").map(|f| f.len()), Some(2));
     }
 
     #[test]
@@ -2037,14 +2177,11 @@ mod tests {
 
     #[test]
     fn a_keyword_nobody_knows_is_natural_and_never_a_guess() {
-        // An unknown word used to fall back to masking the dimension.
+        // An unknown word used to fall back to masking the dimension, and for
+        // five keys any text with one character in it was a literal.
         let fp = every_key("wibble");
         let states = natural_states(&fp);
-        // Any other text is a font list for the fonts key: a font named `wibble`.
-        for (key, natural) in &states {
-            assert_eq!(*natural, *key != "fonts", "{key}");
-        }
-        assert_eq!(fp.fonts().value(), Some(&vec!["wibble".to_owned()]));
+        assert!(states.iter().all(|(_, natural)| *natural), "{states:?}");
         let fp = fingerprint_of(json!({
             "audio_masking": "wibble",
             "canvas_noise": "wibble",
@@ -2089,6 +2226,114 @@ mod tests {
             fp.user_agent().is_natural(),
             "the draw as a whole is left out"
         );
+    }
+
+    /// A payload whose sections hold only empty strings, with `flags` as flags.
+    fn blank_payload(flags: serde_json::Value) -> ProfileParams {
+        serde_json::from_value(json!({
+            "name": "Blank",
+            "parameters": {
+                "flags": flags,
+                "fingerprint": {
+                    "navigator": { "user_agent": "", "platform": " ", "os_cpu": "" },
+                    "localization": { "languages": "", "locale": "", "accept_languages": "" },
+                    "timezone": { "zone": "" },
+                    "graphic": { "vendor": "", "renderer": "" },
+                    "fonts": ["", " "]
+                }
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn an_empty_string_in_a_section_is_a_value_the_payload_does_not_give() {
+        let params = blank_payload(json!({}));
+        let fp = params.to_fingerprint();
+        for (key, natural) in natural_states(&fp) {
+            assert!(natural, "{key}");
+        }
+        assert!(fp.platform().is_natural() && fp.oscpu().is_natural());
+        assert!(fp.accept_languages().is_natural());
+        // Nothing empty reaches the launch arguments.
+        let config = params.to_browser_config("http://localhost:4444");
+        assert_eq!((config.user_agent, config.locale), (None, None));
+
+        // A mask word draws what the payload does not give, never an empty value.
+        let drawn = blank_payload(json!({
+            "navigator_masking": "mask",
+            "localization_masking": "mask",
+            "timezone_masking": "mask"
+        }))
+        .to_fingerprint();
+        assert!(user_agent_of(&drawn).starts_with("Mozilla/"));
+        assert!(drawn.locale().as_str().is_some_and(|l| !l.is_empty()));
+        assert!(drawn.timezone().as_str().is_some_and(|z| z.contains('/')));
+    }
+
+    #[test]
+    fn a_navigator_section_without_a_core_count_does_not_invent_one() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "Cores",
+            "parameters": { "fingerprint": { "navigator": {
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/133.0.0.0",
+                "platform": "Win32"
+            } } }
+        }))
+        .unwrap();
+        assert!(params.to_fingerprint().hardware_concurrency().is_natural());
+    }
+
+    #[test]
+    fn the_browser_config_launches_with_what_the_fingerprint_holds() {
+        let launch = |flags: serde_json::Value| {
+            payload_with_values(flags).to_browser_config("http://localhost:4444")
+        };
+        let auto = launch(json!({}));
+        assert!(auto
+            .user_agent
+            .as_deref()
+            .is_some_and(|ua| ua.contains("Chrome/133")));
+        assert_eq!(auto.locale.as_deref(), Some("de-DE"));
+        assert_eq!(auto.proxy.as_deref(), Some("http://proxy.example:8080"));
+
+        // A natural flag launches with none of it, whatever the payload holds.
+        let natural = launch(json!({
+            "navigator_masking": "natural",
+            "localization_masking": "natural",
+            "proxy_masking": "natural"
+        }));
+        assert_eq!(
+            (natural.user_agent, natural.locale, natural.proxy),
+            (None, None, None)
+        );
+        // So does the word for no proxy, and the off words, which a proxy lacks.
+        for word in ["direct", "off", "disabled"] {
+            assert_eq!(launch(json!({ "proxy_masking": word })).proxy, None, "{word}");
+        }
+        // The getters answer the same.
+        let params = payload_with_values(json!({ "proxy_masking": "natural" }));
+        assert_eq!(params.proxy_string(), None);
+        assert!(payload_with_values(json!({})).proxy_string().is_some());
+    }
+
+    #[test]
+    fn the_core_version_of_a_payload_is_the_chromium_major_a_drawn_user_agent_claims() {
+        let agent = |browser: &str, os: &str| {
+            let params: ProfileParams = serde_json::from_value(json!({
+                "name": "Core",
+                "browser_type": browser,
+                "os_type": os,
+                "core_version": 124,
+                "parameters": { "flags": { "navigator_masking": "mask" } }
+            }))
+            .unwrap();
+            user_agent_of(&params.to_fingerprint()).to_owned()
+        };
+        assert!(agent("chromium", "windows").contains("Chrome/124."));
+        // The core of a Firefox or Safari payload is not a Chrome version.
+        assert!(!agent("firefox", "linux").contains("Chrome/124."));
+        assert!(!agent("mobile_safari", "ios").contains("Chrome/"));
     }
 
     /// A payload in the shape the external tool sends it: every flag key present
