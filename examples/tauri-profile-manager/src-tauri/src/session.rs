@@ -430,7 +430,8 @@ fn launch_options(config: &BrowserConfig) -> Result<LaunchOptions, String> {
     if let Some((width, height)) = config
         .fingerprint
         .as_ref()
-        .and_then(|fp| fp.screen_width.zip(fp.screen_height))
+        .and_then(|fp| fp.screen().value())
+        .map(|screen| (screen.width, screen.height))
     {
         builder = builder.window_size(width, height);
     }
