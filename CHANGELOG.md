@@ -200,7 +200,10 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   localization is on.
 - The Tauri profile manager example applies a fingerprint with
   `Page::apply_fingerprint` instead of its own copy, which used the unsafe
-  `cdp_overrides` and the 29-provider script.
+  `cdp_overrides` and the 29-provider script. Its custom masking form reads and
+  writes the new fingerprint JSON (a screen is one `screen` object, the selects say
+  what to do with the settings left empty), and profiles saved in the old flat
+  shape no longer load.
 
 ## [0.3.0] - 2026-10-15
 

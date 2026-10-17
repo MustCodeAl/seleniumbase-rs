@@ -253,9 +253,12 @@
             <label for="masking-enabled">Enable custom masking for this profile</label>
           </div>
           <p class="muted">
-            Leave a field empty to keep the browser's natural value. Selects set how each
-            dimension is spoofed: “Natural” keeps the real value, “Mask” uses a generic
-            value, “Custom” uses the values entered below, “Disabled” turns the feature off.
+            Leave a field empty to keep the browser's natural value. Each setting is the
+            browser's own value, a value you type, a coherent random one, or (for
+            geolocation, WebRTC and media devices) off. The selects at the bottom say what
+            to do with the settings of a dimension that you leave empty: “Natural” keeps
+            the real value, “Random” draws a value that agrees with the rest, “Off” turns
+            the API off.
           </p>
 
           <fieldset class="field tags-field">
@@ -393,7 +396,7 @@
           </fieldset>
 
           <fieldset class="field tags-field">
-            <legend>Masking modes</legend>
+            <legend>Empty settings, by dimension</legend>
             <div class="grid-form">
               <div class="field">
                 <label for="flag-navigator">Navigator</label>

@@ -497,7 +497,7 @@ async fn apply_identity(
     if let Some(locale) = config
         .locale
         .as_deref()
-        .filter(|_| fingerprint.is_none_or(|fp| fp.locale.is_none()))
+        .filter(|_| fingerprint.is_none_or(|fp| fp.locale().is_natural()))
     {
         page.emulation()
             .locale(locale)
@@ -821,7 +821,7 @@ mod tests {
         assert_eq!(user_agent.len(), 1);
         assert_eq!(
             user_agent[0].params["userAgent"].as_str(),
-            fingerprint.user_agent.as_deref()
+            fingerprint.user_agent().as_str()
         );
         assert!(
             position(&mock, "Network.setUserAgentOverride") < position(&mock, "Page.navigate"),
@@ -834,15 +834,18 @@ mod tests {
     #[tokio::test]
     async fn a_fingerprints_proxy_password_is_never_sent_as_a_header() {
         let (browser, mock) = mocked();
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example".to_owned(),
-            port: 8080,
-            username: Some("alice".to_owned()),
-            password: Some(FAKE_PROXY_PASSWORD.to_owned()),
-            save_traffic: false,
-        });
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "proxy.example".to_owned(),
+                port: 8080,
+                username: Some("alice".to_owned()),
+                password: Some(FAKE_PROXY_PASSWORD.to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .unwrap();
         let profile = pure_cdp_profile(json!({
             "fingerprint": serde_json::to_value(&fingerprint).unwrap(),
         }));
