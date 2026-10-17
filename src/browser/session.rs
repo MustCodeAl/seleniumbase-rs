@@ -1285,9 +1285,35 @@ fn ad_block_commands(
         );
         return Ok(Vec::new());
     }
-    let patterns = list.bounded_url_patterns()?;
+    let mut patterns = list.bounded_url_patterns()?;
     if patterns.is_empty() {
         return Ok(Vec::new());
+    }
+    // In the CDP and UC modes the fingerprint's own block (its tracker hosts and
+    // blocked ports) goes out first through the same command, and a second
+    // `Network.setBlockedURLs` replaces the first, so the two lists are joined.
+    if config.is_cdp_enabled() {
+        let fingerprint_urls = config
+            .fingerprint
+            .as_ref()
+            .into_iter()
+            .flat_map(crate::stealth::evasions::safe_cdp_overrides)
+            .filter(|(method, _)| method == "Network.setBlockedURLs")
+            .flat_map(|(_, params)| {
+                params["urls"]
+                    .as_array()
+                    .map(|urls| {
+                        urls.iter()
+                            .filter_map(|u| u.as_str().map(str::to_owned))
+                            .collect()
+                    })
+                    .unwrap_or_else(Vec::<String>::new)
+            });
+        for url in fingerprint_urls {
+            if !patterns.contains(&url) {
+                patterns.push(url);
+            }
+        }
     }
     Ok(vec![
         ("Network.enable", json!({})),
@@ -1689,6 +1715,7 @@ mod ad_block_tests {
 
     use super::*;
     use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::browser::config::DriverMode;
     use crate::config::ad_block_list::MAX_URL_PATTERNS;
 
     const CHROMIUM: [Browser; 8] = [
@@ -1777,6 +1804,35 @@ mod ad_block_tests {
                 ("Network.setBlockedURLs", json!({ "urls": own_patterns() })),
             ]
         );
+    }
+
+    #[test]
+    fn the_block_keeps_what_the_fingerprint_blocks_where_the_fingerprint_is_applied() {
+        let fingerprint = crate::stealth::fingerprint::Fingerprint::builder()
+            .blocked_ports(vec![9222])
+            .build();
+        let urls = |mode: DriverMode| {
+            let config = BrowserConfig::default()
+                .with_mode(mode)
+                .with_ad_block_list(own_list())
+                .with_fingerprint(fingerprint.clone());
+            ad_block_commands(&config).unwrap()[1].1["urls"]
+                .as_array()
+                .unwrap()
+                .clone()
+        };
+
+        // A later `Network.setBlockedURLs` replaces the fingerprint's, so the
+        // list that is sent holds both.
+        for mode in [DriverMode::Cdp, DriverMode::Uc] {
+            let urls = urls(mode);
+            assert!(urls.contains(&json!("*://localhost:9222/*")), "{mode:?}");
+            for own in own_patterns().as_array().unwrap() {
+                assert!(urls.contains(own), "{mode:?}: {own}");
+            }
+        }
+        // Plain WebDriver applies no fingerprint, so there is nothing to join.
+        assert_eq!(json!(urls(DriverMode::WebDriver)), own_patterns());
     }
 
     #[test]
