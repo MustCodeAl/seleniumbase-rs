@@ -10,9 +10,13 @@ _default:
 fmt:
     cargo fmt --all -- --check
 
-# Run the full test suite (default features)
+# Run the full test suite (default features) of the library and the command line
 test:
     cargo test
+
+# Test the library alone, with its own default features (no command line)
+test-library:
+    cargo test -p seleniumbase-rs
 
 # Run tests with all optional features enabled
 test-all:
@@ -22,7 +26,7 @@ test-all:
 lint:
     cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui,pdf -- -D warnings
 
-# Build the library and all binaries
+# Build the library and all binaries (the command line is crates/cli)
 build:
     cargo build --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui,pdf
 
@@ -36,17 +40,17 @@ serve-docs:
 
 # Run sbrs CLI smoke checks
 smoke:
-    cargo run --quiet --bin sbrs -- --help
-    cargo run --quiet --bin sbrs -- --version
-    cargo run --quiet --bin sbrs -- doctor
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- --help
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- --version
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- doctor
 
 # Generate shell completions for Bash, Zsh, Fish, Elvish, and PowerShell
 completions outdir="target/completions":
-    cargo run --quiet --bin sbrs -- completions bash > {{outdir}}/sbrs.bash
-    cargo run --quiet --bin sbrs -- completions zsh > {{outdir}}/_sbrs
-    cargo run --quiet --bin sbrs -- completions fish > {{outdir}}/sbrs.fish
-    cargo run --quiet --bin sbrs -- completions elvish > {{outdir}}/sbrs.elv
-    cargo run --quiet --bin sbrs -- completions powershell > {{outdir}}/_sbrs.ps1
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions bash > {{outdir}}/sbrs.bash
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions zsh > {{outdir}}/_sbrs
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions fish > {{outdir}}/sbrs.fish
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions elvish > {{outdir}}/sbrs.elv
+    cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions powershell > {{outdir}}/_sbrs.ps1
 
 # Clean build artifacts and patch cache
 clean:
@@ -55,7 +59,7 @@ clean:
 
 # Prepare a release: format, lint, test, docs, dry-run publish
 release-check: fmt lint test-all docs
-    cargo publish --dry-run
+    cargo publish --dry-run -p seleniumbase-rs
 
 # Extract the upstream API: just parity-extract PATH/TO/SeleniumBase PATH/TO/seleniumbase-mcp
 parity-extract seleniumbase mcp:
@@ -67,7 +71,7 @@ parity-seed:
 
 # Check that parity/api.toml agrees with the upstream API and the Rust sources
 parity-check:
-    cargo test --features mcp-server --test parity
+    cargo test -p seleniumbase-rs --features mcp-server --test parity
 
 # Regenerate docs/parity.md and fail if it was out of date
 parity-docs:

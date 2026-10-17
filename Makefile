@@ -1,15 +1,20 @@
 # Make fallback for the SeleniumBase Rust port.
 # Prefer `just` (https://github.com/casey/just) for richer recipes.
 
-.PHONY: all fmt test test-all lint build docs serve-docs smoke completions docker clean clean-cache release-check
+.PHONY: all fmt test test-library test-all lint build docs serve-docs smoke completions docker clean clean-cache release-check
 
 all: fmt lint test-all docs
 
 fmt:
 	cargo fmt --all -- --check
 
+# The library and the command line (crates/cli).
 test:
 	cargo test
+
+# The library alone, with its own default features.
+test-library:
+	cargo test -p seleniumbase-rs
 
 test-all:
 	cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
@@ -27,17 +32,17 @@ serve-docs:
 	mdbook serve --open
 
 smoke:
-	cargo run --quiet --bin sbrs -- --help
-	cargo run --quiet --bin sbrs -- --version
-	cargo run --quiet --bin sbrs -- doctor
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- --help
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- --version
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- doctor
 
 completions:
 	mkdir -p target/completions
-	cargo run --quiet --bin sbrs -- completions bash > target/completions/sbrs.bash
-	cargo run --quiet --bin sbrs -- completions zsh > target/completions/_sbrs
-	cargo run --quiet --bin sbrs -- completions fish > target/completions/sbrs.fish
-	cargo run --quiet --bin sbrs -- completions elvish > target/completions/sbrs.elv
-	cargo run --quiet --bin sbrs -- completions powershell > target/completions/_sbrs.ps1
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions bash > target/completions/sbrs.bash
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions zsh > target/completions/_sbrs
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions fish > target/completions/sbrs.fish
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions elvish > target/completions/sbrs.elv
+	cargo run --quiet -p seleniumbase-rs-cli --bin sbrs -- completions powershell > target/completions/_sbrs.ps1
 
 # Chromium needs a browser inside, and Slim cannot see it load, so no --no-slim
 # means a slimmed image without Chromium.
@@ -53,4 +58,4 @@ clean-cache:
 	rm -rf "$${XDG_CACHE_HOME:-$$HOME/.cache}/sb-chrome-patches" "$$HOME/Library/Caches/sb-chrome-patches" downloaded_drivers
 
 release-check: fmt lint test-all docs
-	cargo publish --dry-run
+	cargo publish --dry-run -p seleniumbase-rs

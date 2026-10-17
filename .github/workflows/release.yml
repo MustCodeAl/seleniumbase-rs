@@ -5,7 +5,9 @@ name: Release binaries
 # attach the archives to the GitHub release of that tag.
 #
 # The archive names are what `cargo binstall` and mise's `github:` backend look
-# for, so keep them in step with `[package.metadata.binstall]` in Cargo.toml:
+# for, so keep them in step with `[package.metadata.binstall]` in
+# crates/cli/Cargo.toml (the command-line package `seleniumbase-rs-cli`; the
+# archives keep the name of the library package they always had):
 #
 #   seleniumbase-rs-v<version>-<target>.tgz   (macOS and Linux)
 #   seleniumbase-rs-v<version>-<target>.zip   (Windows)
@@ -26,7 +28,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Names the archives; both packages of the workspace share its version.
   CRATE: seleniumbase-rs
+  CLI_PACKAGE: seleniumbase-rs-cli
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 concurrency:
@@ -59,22 +63,24 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # cargo binstall reads the version from Cargo.toml and builds the asset
-      # URL from it, so a tag that disagrees with the manifest gives archives
-      # nobody can install.
+      # cargo binstall reads the version from the manifest of the package it
+      # installs and builds the asset URL from it, so a tag that disagrees with
+      # either package gives archives nobody can install.
       - name: Check that the tag matches Cargo.toml
         run: |
-          version=$(cargo metadata --no-deps --format-version 1 \
-            | jq -r --arg name "$CRATE" '.packages[] | select(.name == $name) | .version')
-          if [ "v$version" != "$TAG" ]; then
-            echo "::error::tag $TAG does not match Cargo.toml version $version"
-            exit 1
-          fi
+          for package in "$CRATE" "$CLI_PACKAGE"; do
+            version=$(cargo metadata --no-deps --format-version 1 \
+              | jq -r --arg name "$package" '.packages[] | select(.name == $name) | .version')
+            if [ "v$version" != "$TAG" ]; then
+              echo "::error::tag $TAG does not match the version $version of $package"
+              exit 1
+            fi
+          done
 
       - name: Generate the completions
         run: |
           mkdir -p dist/completions
-          sbrs() { cargo run --quiet --locked --bin sbrs -- "$@"; }
+          sbrs() { cargo run --quiet --locked --package "$CLI_PACKAGE" --bin sbrs -- "$@"; }
           sbrs completions bash > dist/completions/sbrs.bash
           sbrs completions zsh > dist/completions/_sbrs
           sbrs completions fish > dist/completions/sbrs.fish
@@ -141,7 +147,7 @@ jobs:
         shell: bash
         run: |
           cargo build --release --locked --target "${{ matrix.target }}" \
-            --bin sbrs --bin sbrs-mcp --features mcp-server,pdf
+            --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features mcp-server,pdf
 
       - name: Download the completions
         uses: actions/download-artifact@v4
@@ -160,7 +166,7 @@ jobs:
           cp completions-out/* "$stage/completions/"
           cp .warp/workflows/*.yaml "$stage/warp/workflows/"
           cp README.md LICENSE "$stage/"
-          # The binaries sit at the archive's root, as bin-dir in Cargo.toml says.
+          # The binaries sit at the archive's root, as bin-dir in crates/cli/Cargo.toml says.
           tar -C "$stage" -czf "dist/$name.tgz" .
           tar -tzf "dist/$name.tgz"
 

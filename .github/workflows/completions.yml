@@ -28,14 +28,16 @@ jobs:
             libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev \
             libssl-dev pkg-config
 
+      # `sbrs` is the binary of the workspace package `seleniumbase-rs-cli`.
       - name: Generate completions
         run: |
           mkdir -p target/completions
-          cargo run --quiet --bin sbrs -- completions bash > target/completions/sbrs.bash
-          cargo run --quiet --bin sbrs -- completions zsh > target/completions/_sbrs
-          cargo run --quiet --bin sbrs -- completions fish > target/completions/sbrs.fish
-          cargo run --quiet --bin sbrs -- completions elvish > target/completions/sbrs.elv
-          cargo run --quiet --bin sbrs -- completions powershell > target/completions/_sbrs.ps1
+          sbrs() { cargo run --quiet --package seleniumbase-rs-cli --bin sbrs -- "$@"; }
+          sbrs completions bash > target/completions/sbrs.bash
+          sbrs completions zsh > target/completions/_sbrs
+          sbrs completions fish > target/completions/sbrs.fish
+          sbrs completions elvish > target/completions/sbrs.elv
+          sbrs completions powershell > target/completions/_sbrs.ps1
 
       - name: Upload completions artifact
         uses: actions/upload-artifact@v4

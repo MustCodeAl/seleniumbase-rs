@@ -15,10 +15,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
-# The crate lives at the repository root, so no `working-directory` default is
-# set. (This workflow used to target a `rust-port/` subdirectory of the
+# The workspace root is the repository root, so no `working-directory` default
+# is set. (This workflow used to target a `rust-port/` subdirectory of the
 # upstream monorepo, which does not exist here, so its path filter matched
 # nothing and it never ran.)
+#
+# The workspace has two packages: the library `seleniumbase-rs` at the root and
+# the command line `seleniumbase-rs-cli` in `crates/cli`. `default-members` names
+# both, so a plain `cargo build`, `cargo test` or `cargo clippy` covers both.
+# Features that only the library defines (`s3`, `playwright`, ...) apply to the
+# library; the command line forwards the ones it needs.
 
 jobs:
   browser-smoke:
@@ -47,7 +53,7 @@ jobs:
           chromedriver --version
 
       - name: Run real-browser smoke tests
-        run: cargo test --test browser_smoke -- --ignored
+        run: cargo test -p seleniumbase-rs --test browser_smoke -- --ignored
 
   check:
     name: Check (${{ matrix.os }}, features=${{ matrix.features || 'default' }})
@@ -190,6 +196,41 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+  # The command line turns `pdf` and `mcp-server` on in the library, and a
+  # workspace build unifies features, so the matrix above never builds the library
+  # with its own defaults. This job does: it is what a project that depends on
+  # `seleniumbase-rs` compiles and tests.
+  library:
+    name: Library alone (default features)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test -p seleniumbase-rs
+
+      - name: Run Clippy
+        run: cargo clippy -p seleniumbase-rs --all-targets -- -D warnings
+
+      # The library must stay free of the command-line crates (they belong to
+      # crates/cli); tests/library_manifest.rs checks the manifest, this checks the
+      # resolved graph.
+      - name: No command-line crates in the library's dependency graph
+        run: |
+          if cargo tree -p seleniumbase-rs -e normal --prefix none | grep -E '^(clap|clap_complete|clap_complete_fig|clap_usage) '; then
+            echo "::error::the library depends on a command-line crate"
+            exit 1
+          fi
 
   msrv:
     name: Minimum supported Rust version
