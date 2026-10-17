@@ -1,7 +1,7 @@
 //! Recording a page's network traffic as a HAR (HTTP Archive 1.2) file; see
 //! [`HarRecorder`].
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -104,8 +104,8 @@ impl HarOptions {
 ///
 /// # What is recorded
 ///
-/// Every request the tab makes while recording, from the DevTools `Network`
-/// events: `requestWillBeSent` (the request, and the end of a redirect),
+/// Every request the tab and its iframes make while recording, from the
+/// DevTools `Network` events: `requestWillBeSent` (the request, and the end of a redirect),
 /// `requestWillBeSentExtraInfo` and `responseReceivedExtraInfo` (the headers
 /// as they went over the wire, cookies included), `responseReceived` (status,
 /// headers, protocol, server address and the connection timing),
@@ -115,6 +115,14 @@ impl HarOptions {
 /// the response's `_error` field, as Chrome's own HAR export writes it. A
 /// request still waiting for its response when the recording finishes is kept,
 /// with status 0 and a comment saying so.
+///
+/// A cross-site iframe (an ad, a video player, a captcha) runs in a target of
+/// its own, which reports its requests on its own protocol session. The
+/// recorder attaches to each such iframe as it appears, iframes inside it
+/// included, and records its requests with the tab's. A new iframe waits
+/// until the recorder has turned on its `Network` events, which takes one
+/// round trip to the browser. Requests of service workers, and of other
+/// workers that run as targets of their own, are not recorded.
 ///
 /// Each top-level navigation starts a new page (`log.pages`), titled with its
 /// URL, with `onContentLoad` and `onLoad` from the `Page` domain's events.
@@ -128,13 +136,30 @@ impl HarOptions {
 ///
 /// Recording enables the `Network` domain for the tab and leaves it enabled
 /// after [`finish`](Self::finish), because other features of the tab may use
-/// it too. At most 50 000 requests are kept; `log.comment` says how many more
-/// there were.
+/// it too. It turns on `Target.setAutoAttach` for the tab's iframes and turns
+/// it off again when it finishes or is dropped, which detaches them, so one
+/// recording at a time per tab. At most 50 000 requests are kept;
+/// `log.comment` says how many more there were, and whether the recorder fell
+/// so far behind the browser that it missed events.
 #[derive(Debug)]
 pub struct HarRecorder {
     stop: Option<oneshot::Sender<()>>,
     task: Option<JoinHandle<Recording>>,
     browser: Option<HarCreator>,
+    page: Page,
+}
+
+/// The parameters of `Target.setAutoAttach` that turn on (or off) attaching to
+/// a target's cross-site iframes, each in a flat session of its own. A new
+/// iframe waits, before its first request, until `Runtime.runIfWaitingForDebugger`
+/// is sent to its session, so none of its requests goes unreported.
+fn attach_iframes(on: bool) -> Value {
+    json!({
+        "autoAttach": on,
+        "waitForDebuggerOnStart": true,
+        "flatten": true,
+        "filter": [{ "type": "iframe" }],
+    })
 }
 
 impl Page {
@@ -164,22 +189,30 @@ impl Page {
         &self,
         options: HarOptions,
     ) -> Result<HarRecorder, SeleniumBaseError> {
-        // Listen before enabling, so no request is missed.
-        let events = self.events();
+        // Listen before enabling, so no request is missed. Every session is
+        // heard: the recording keeps the tab's own and its iframes'.
+        let events = self.browser().events();
         self.execute("Network.enable", json!({})).await?;
+        // A cross-site iframe runs in a target of its own, which reports its
+        // requests on its own session. Without it, the tab's requests are
+        // still recorded.
+        let _ = self
+            .execute("Target.setAutoAttach", attach_iframes(true))
+            .await;
         let browser = self
             .browser()
             .execute("Browser.getVersion", json!({}))
             .await
             .ok()
             .and_then(|version| browser_creator(&version));
-        let recording = Recording::new(self.id().to_owned(), options);
+        let recording = Recording::new(self.id().to_owned(), self.session_id().to_owned(), options);
         let (stop, stopped) = oneshot::channel();
         let task = tokio::spawn(record(events, stopped, self.clone(), recording));
         Ok(HarRecorder {
             stop: Some(stop),
             task: Some(task),
             browser,
+            page: self.clone(),
         })
     }
 }
@@ -213,12 +246,21 @@ impl Drop for HarRecorder {
     fn drop(&mut self) {
         if let Some(task) = self.task.take() {
             task.abort();
+            // Stop attaching to the tab's iframes, as finishing does.
+            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                let page = self.page.clone();
+                runtime.spawn(async move {
+                    let _ = page
+                        .execute("Target.setAutoAttach", attach_iframes(false))
+                        .await;
+                });
+            }
         }
     }
 }
 
 /// Takes in events until told to stop (or the connection closes), then waits
-/// for the bodies being fetched.
+/// for the bodies being fetched and stops attaching to iframes.
 async fn record(
     mut events: Events,
     mut stop: oneshot::Receiver<()>,
@@ -226,31 +268,137 @@ async fn record(
     mut recording: Recording,
 ) -> Recording {
     let mut bodies = JoinSet::new();
+    let mut iframes = JoinSet::new();
     loop {
         tokio::select! {
             // Events first: what the browser has sent before the stop is kept.
             biased;
             event = events.next() => {
                 let Some(event) = event else { break };
-                if let Some((index, request_id)) = recording.note(&event) {
-                    let page = page.clone();
-                    bodies.spawn(async move {
-                        let body = page
-                            .execute("Network.getResponseBody", json!({ "requestId": request_id }))
-                            .await;
-                        (index, body)
-                    });
+                if events.missed() > recording.missed {
+                    recording.missed = events.missed();
+                    attach_iframes_again(&page).await;
+                }
+                match recording.note(&event) {
+                    Some(Follow::Body { index, request_id, session }) => {
+                        bodies.spawn(fetch_body(page.clone(), session, index, request_id));
+                    }
+                    Some(Follow::Iframe(session)) => {
+                        iframes.spawn(record_iframe(page.clone(), session));
+                    }
+                    Some(Follow::Release(session)) => {
+                        iframes.spawn(let_run(page.clone(), session));
+                    }
+                    None => {}
                 }
             }
             _ = &mut stop => break,
         }
     }
+    while iframes.join_next().await.is_some() {}
     while let Some(fetched) = bodies.join_next().await {
         if let Ok((index, body)) = fetched {
             recording.set_content(index, body);
         }
     }
+    // This detaches the iframes' sessions too, once their bodies are in.
+    let _ = page
+        .execute("Target.setAutoAttach", attach_iframes(false))
+        .await;
     recording
+}
+
+/// Fetches the body of entry `index`, request `request_id`, from `session`.
+async fn fetch_body(
+    page: Page,
+    session: String,
+    index: usize,
+    request_id: String,
+) -> (usize, Result<Value, SeleniumBaseError>) {
+    let params = json!({ "requestId": request_id });
+    let body = send_to(&page, &session, "Network.getResponseBody", params).await;
+    (index, body)
+}
+
+/// Reports the requests of the iframe attached as `session`, and attaches to
+/// the iframes inside it, then lets it run. All three commands are sent
+/// whatever fails, so the iframe never stays paused.
+async fn record_iframe(page: Page, session: String) {
+    let commands = vec![
+        ("Network.enable", json!({})),
+        ("Target.setAutoAttach", attach_iframes(true)),
+        ("Runtime.runIfWaitingForDebugger", json!({})),
+    ];
+    let _ = send_ordered_to(&page, &session, commands).await;
+}
+
+/// Lets the target attached as `session`, which is not recorded, run.
+async fn let_run(page: Page, session: String) {
+    let _ = send_to(
+        &page,
+        &session,
+        "Runtime.runIfWaitingForDebugger",
+        json!({}),
+    )
+    .await;
+}
+
+/// Turns attaching to the tab's iframes off and on again, after the recorder
+/// fell behind and lost events. An iframe's attachment may be among them, and
+/// that iframe would wait for the recorder for good; detaching lets every
+/// iframe run, and attaching again reports each one anew.
+async fn attach_iframes_again(page: &Page) {
+    let commands = vec![
+        ("Target.setAutoAttach", attach_iframes(false)),
+        ("Target.setAutoAttach", attach_iframes(true)),
+    ];
+    let _ = page.execute_ordered(commands).await;
+}
+
+/// Sends a command to the protocol session `session` of `page`'s browser: the
+/// tab's own, or one of its iframes'.
+async fn send_to(
+    page: &Page,
+    session: &str,
+    method: &str,
+    params: Value,
+) -> Result<Value, SeleniumBaseError> {
+    page.browser()
+        .inner()
+        .client
+        .send(method, params, Some(session))
+        .await
+}
+
+/// Sends commands in order to the protocol session `session` of `page`'s
+/// browser, as [`Page::execute_ordered`] does to the tab's.
+async fn send_ordered_to(
+    page: &Page,
+    session: &str,
+    commands: Vec<(&str, Value)>,
+) -> Result<Vec<Value>, SeleniumBaseError> {
+    page.browser()
+        .inner()
+        .client
+        .send_ordered(commands, Some(session))
+        .await
+}
+
+/// What the recording asks for after an event.
+#[derive(Debug, PartialEq)]
+enum Follow {
+    /// Fetch the body of entry `index` from the session that loaded it.
+    Body {
+        index: usize,
+        request_id: String,
+        session: String,
+    },
+    /// Record the requests of the iframe newly attached as `session`, which
+    /// waits to be told to run.
+    Iframe(String),
+    /// Let a target that is not recorded, attached as `session`, run: one a
+    /// browser that does not know the iframe filter attached too.
+    Release(String),
 }
 
 /// One request as the events describe it, until the HAR is built.
@@ -299,6 +447,11 @@ struct PageState {
 struct Recording {
     /// The tab's target id, which is also its main frame's id.
     main_frame: String,
+    /// The tab's own protocol session.
+    page_session: String,
+    /// The sessions whose events are recorded: the tab's, and those of the
+    /// iframes attached through it (or through one of them).
+    sessions: HashSet<String>,
     options: HarOptions,
     entries: Vec<EntryState>,
     /// The entries of each request id, oldest first: one per hop of a
@@ -314,12 +467,16 @@ struct Recording {
     /// A moment on the browser's monotonic clock and the wall-clock time then.
     clock: Option<(f64, f64)>,
     dropped: usize,
+    /// The events the recorder skipped for falling behind, of every session.
+    missed: u64,
 }
 
 impl Recording {
-    fn new(main_frame: String, options: HarOptions) -> Self {
+    fn new(main_frame: String, page_session: String, options: HarOptions) -> Self {
         Self {
             main_frame,
+            sessions: HashSet::from([page_session.clone()]),
+            page_session,
             options,
             entries: Vec::new(),
             hops: HashMap::new(),
@@ -328,14 +485,21 @@ impl Recording {
             pages: Vec::new(),
             clock: None,
             dropped: 0,
+            missed: 0,
         }
     }
 
-    /// Takes in one event. Returns the entry and request id of a body to
-    /// fetch, when one has finished loading and bodies are recorded.
-    fn note(&mut self, event: &CdpEvent) -> Option<(usize, String)> {
+    /// Takes in one event, if it comes from the tab or one of its iframes.
+    /// Returns what to do next: fetch a body that has finished loading, when
+    /// bodies are recorded, or record a newly attached iframe.
+    fn note(&mut self, event: &CdpEvent) -> Option<Follow> {
+        let session = event.session_id.as_deref()?;
+        if !self.sessions.contains(session) {
+            return None;
+        }
         let params = &event.params;
         let timestamp = params["timestamp"].as_f64();
+        let own = session == self.page_session;
         match event.method.as_str() {
             "Network.requestWillBeSent" => self.request_will_be_sent(params),
             "Network.requestWillBeSentExtraInfo" => self.request_extra(params),
@@ -346,7 +510,14 @@ impl Recording {
                     entry.data_length += params["dataLength"].as_u64().unwrap_or(0);
                 }
             }
-            "Network.loadingFinished" => return self.loading_finished(params),
+            "Network.loadingFinished" => {
+                let (index, request_id) = self.loading_finished(params)?;
+                return Some(Follow::Body {
+                    index,
+                    request_id,
+                    session: session.to_owned(),
+                });
+            }
             "Network.loadingFailed" => {
                 if let Some(entry) = self.entry_mut(params) {
                     entry.finished_at = timestamp.or(entry.finished_at);
@@ -360,14 +531,30 @@ impl Recording {
                     entry.error = Some(error);
                 }
             }
-            "Page.domContentEventFired" => {
+            "Page.domContentEventFired" if own => {
                 if let (Some(page), Some(at)) = (self.pages.last_mut(), timestamp) {
                     page.content_loaded.get_or_insert(at);
                 }
             }
-            "Page.loadEventFired" => {
+            "Page.loadEventFired" if own => {
                 if let (Some(page), Some(at)) = (self.pages.last_mut(), timestamp) {
                     page.loaded.get_or_insert(at);
+                }
+            }
+            "Target.attachedToTarget" => {
+                let attached = params["sessionId"].as_str()?.to_owned();
+                if params["targetInfo"]["type"] != "iframe" {
+                    let waiting = params["waitingForDebugger"] == true;
+                    return waiting.then_some(Follow::Release(attached));
+                }
+                self.sessions.insert(attached.clone());
+                return Some(Follow::Iframe(attached));
+            }
+            "Target.detachedFromTarget" => {
+                if let Some(iframe) = params["sessionId"].as_str() {
+                    if iframe != self.page_session {
+                        self.sessions.remove(iframe);
+                    }
                 }
             }
             _ => {}
@@ -602,12 +789,21 @@ impl Recording {
             })
             .collect();
         let entries = self.entries.iter().map(har_entry).collect();
-        let comment = (self.dropped > 0).then(|| {
-            format!(
+        let mut notes = Vec::new();
+        if self.dropped > 0 {
+            notes.push(format!(
                 "{} more requests after the first {MAX_ENTRIES} were not recorded",
                 self.dropped
-            )
-        });
+            ));
+        }
+        if self.missed > 0 {
+            notes.push(format!(
+                "the recorder fell behind the browser and missed {} events (of this tab \
+                 and others), so requests can be missing or incomplete",
+                self.missed
+            ));
+        }
+        let comment = (!notes.is_empty()).then(|| notes.join("; "));
         Har {
             log: HarLog {
                 version: "1.2".to_owned(),

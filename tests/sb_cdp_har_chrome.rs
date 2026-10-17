@@ -3,8 +3,9 @@
 //! A loopback server serves a page that pulls a stylesheet, a PNG, a missing
 //! image and a `fetch` POST that sets a cookie, behind a redirect. The test
 //! records the visit with bodies, saves the HAR, reads it back as JSON and
-//! checks the entries. It needs a Chrome or Chromium on the machine, so it is
-//! ignored by default. Run it alone:
+//! checks the entries. A second page holds a cross-site iframe, which Chrome
+//! runs in a target of its own. The tests need a Chrome or Chromium on the
+//! machine, so they are ignored by default. Run them alone:
 //!
 //! ```text
 //! cargo test --features test-util --test sb_cdp_har_chrome -- --ignored --nocapture
@@ -30,8 +31,8 @@ fetch('/api/items?id=7', { method: 'POST', body: '{"a":1}', headers: { 'Content-
 const PIXEL: &str =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
-/// Answers one connection.
-fn answer(mut stream: TcpStream) {
+/// Answers one connection to the server on `port`.
+fn answer(mut stream: TcpStream, port: u16) {
     let mut buffer = [0_u8; 16384];
     let read = stream.read(&mut buffer).unwrap_or(0);
     let request = String::from_utf8_lossy(&buffer[..read]).into_owned();
@@ -52,7 +53,22 @@ fn answer(mut stream: TcpStream) {
             "Content-Type: text/css\r\n",
             b"h1 { color: teal; }".to_vec(),
         ),
-        "/pixel.png" => ("200 OK", "Content-Type: image/png\r\n", pixel),
+        "/pixel.png" | "/frame-pixel.png" => ("200 OK", "Content-Type: image/png\r\n", pixel),
+        // The same server under another host name is another site.
+        "/framed" => (
+            "200 OK",
+            "Content-Type: text/html\r\n",
+            format!(
+                "<!doctype html><title>framed</title>\
+                 <iframe src=\"http://localhost:{port}/frame\"></iframe>"
+            )
+            .into_bytes(),
+        ),
+        "/frame" => (
+            "200 OK",
+            "Content-Type: text/html\r\n",
+            b"<!doctype html><img src=\"/frame-pixel.png\">".to_vec(),
+        ),
         "/api/items?id=7" => (
             "200 OK",
             "Content-Type: application/json\r\nSet-Cookie: session=xyz; Path=/; HttpOnly\r\n",
@@ -75,14 +91,24 @@ fn answer(mut stream: TcpStream) {
 /// Starts the server and returns its `http://127.0.0.1:port` base.
 fn serve() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
-    let base = format!("http://{}", listener.local_addr().expect("bound address"));
+    let address = listener.local_addr().expect("bound address");
+    let port = address.port();
     std::thread::spawn(move || {
         for stream in listener.incoming() {
             let Ok(stream) = stream else { continue };
-            std::thread::spawn(move || answer(stream));
+            std::thread::spawn(move || answer(stream, port));
         }
     });
-    base
+    format!("http://{address}")
+}
+
+async fn launch() -> Browser {
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .no_sandbox(std::env::var_os("CI").is_some())
+        .build()
+        .unwrap();
+    Browser::launch(options).await.expect("Chrome starts")
 }
 
 fn entry<'a>(entries: &'a [Value], url: &str) -> &'a Value {
@@ -96,12 +122,7 @@ fn entry<'a>(entries: &'a [Value], url: &str) -> &'a Value {
 #[ignore = "launches a real Chrome"]
 async fn a_visit_is_recorded_as_a_har_that_reads_back() {
     let base = serve();
-    let options = LaunchOptions::builder()
-        .headless(true)
-        .no_sandbox(std::env::var_os("CI").is_some())
-        .build()
-        .unwrap();
-    let browser = Browser::launch(options).await.expect("Chrome starts");
+    let browser = launch().await;
     let page = browser
         .default_page()
         .await
@@ -155,6 +176,21 @@ async fn a_visit_is_recorded_as_a_har_that_reads_back() {
     assert_eq!(old["response"]["redirectURL"], "/");
     let home = entry(entries, &format!("{base}/"));
     assert_eq!(home["response"]["status"], 200);
+    // Its own headers as they came over the wire, not the redirect's.
+    let home_headers: Vec<_> = home["response"]["headers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|header| header["name"].as_str().unwrap().to_ascii_lowercase())
+        .collect();
+    assert!(
+        home_headers.contains(&"content-type".to_owned()),
+        "{home_headers:?}"
+    );
+    assert!(
+        !home_headers.contains(&"location".to_owned()),
+        "{home_headers:?}"
+    );
     assert_eq!(home["_resourceType"], "document");
     assert_eq!(home["response"]["content"]["mimeType"], "text/html");
     assert!(home["response"]["content"]["text"]
@@ -190,4 +226,51 @@ async fn a_visit_is_recorded_as_a_har_that_reads_back() {
     assert_eq!(api["response"]["cookies"][0]["name"], "session");
     assert_eq!(api["response"]["cookies"][0]["httpOnly"], true);
     assert_eq!(api["response"]["content"]["text"], r#"{"items":[1,2]}"#);
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn the_requests_of_a_cross_site_iframe_are_recorded() {
+    let base = serve();
+    let frame_base = base.replace("127.0.0.1", "localhost");
+    let browser = launch().await;
+    let page = browser
+        .default_page()
+        .await
+        .unwrap()
+        .with_timeout(Duration::from_secs(15));
+
+    let recorder = page
+        .start_har_with(HarOptions::new().content(true))
+        .await
+        .expect("recording starts");
+    // The load event waits for the iframe and its image.
+    page.goto(format!("{base}/framed"))
+        .await
+        .expect("the page opens");
+    let har = recorder.finish().await.expect("the recording finishes");
+    browser.close().await.unwrap();
+
+    let json = serde_json::to_value(&har).unwrap();
+    let entries = json["log"]["entries"].as_array().unwrap();
+    for entry in entries {
+        eprintln!(
+            "{} {} {}",
+            entry["request"]["url"], entry["response"]["status"], entry["_resourceType"],
+        );
+    }
+    assert_eq!(
+        entry(entries, &format!("{base}/framed"))["response"]["status"],
+        200
+    );
+    assert_eq!(
+        entry(entries, &format!("{frame_base}/frame"))["response"]["status"],
+        200
+    );
+    let pixel = entry(entries, &format!("{frame_base}/frame-pixel.png"));
+    assert_eq!(pixel["response"]["status"], 200);
+    assert_eq!(
+        pixel["response"]["content"]["text"], PIXEL,
+        "its body, from the iframe"
+    );
 }

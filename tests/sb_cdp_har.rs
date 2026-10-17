@@ -24,21 +24,32 @@ fn send(mock: &MockCtrl, method: &str, params: Value) {
 
 /// A `requestWillBeSent` for a sub-resource of the page.
 fn request(mock: &MockCtrl, id: &str, url: &str, kind: &str, at: f64) {
-    send(
-        mock,
+    request_in(mock, "S1", id, url, kind, at);
+}
+
+/// A `requestWillBeSent` for a sub-resource, from the protocol session
+/// `session`.
+fn request_in(mock: &MockCtrl, session: &str, id: &str, url: &str, kind: &str, at: f64) {
+    mock.emit(
         "Network.requestWillBeSent",
         json!({
             "requestId": id, "loaderId": "L1", "frameId": "T1", "type": kind,
             "timestamp": at, "wallTime": WALL + at,
             "request": { "url": url, "method": "GET", "headers": { "Accept": "*/*" } },
         }),
+        Some(session),
     );
 }
 
 /// A plain 200 response with no connection timing, then the end of loading.
 fn ok(mock: &MockCtrl, id: &str, mime: &str, at: f64, length: u64) {
+    ok_in(mock, "S1", id, mime, at, length);
+}
+
+/// [`ok`], from the protocol session `session`.
+fn ok_in(mock: &MockCtrl, session: &str, id: &str, mime: &str, at: f64, length: u64) {
+    let send = |method: &str, params: Value| mock.emit(method, params, Some(session));
     send(
-        mock,
         "Network.responseReceived",
         json!({
             "requestId": id, "timestamp": at,
@@ -49,12 +60,10 @@ fn ok(mock: &MockCtrl, id: &str, mime: &str, at: f64, length: u64) {
         }),
     );
     send(
-        mock,
         "Network.dataReceived",
         json!({ "requestId": id, "timestamp": at, "dataLength": length, "encodedDataLength": 0 }),
     );
     send(
-        mock,
         "Network.loadingFinished",
         json!({ "requestId": id, "timestamp": at + 0.01, "encodedDataLength": length + 100 }),
     );
@@ -664,6 +673,175 @@ async fn events_of_other_tabs_are_not_recorded() {
 
     assert!(har.log.entries.is_empty());
     assert!(har.log.pages.is_empty());
+}
+
+/// A `Target.attachedToTarget` for a new target of type `kind`, paused until
+/// told to run, from the session it was attached through.
+fn attached(mock: &MockCtrl, parent: &str, session: &str, kind: &str) {
+    mock.emit(
+        "Target.attachedToTarget",
+        json!({
+            "sessionId": session, "waitingForDebugger": true,
+            "targetInfo": {
+                "targetId": format!("target-{session}"), "type": kind, "title": "",
+                "url": "about:blank", "attached": true, "canAccessOpener": false,
+            },
+        }),
+        Some(parent),
+    );
+}
+
+/// The sessions `method` was sent to with parameters that are `wanted`,
+/// sorted, since each iframe is set up apart.
+fn sessions_of(mock: &MockCtrl, method: &str, wanted: fn(&Value) -> bool) -> Vec<String> {
+    let mut sessions: Vec<_> = mock
+        .calls_to(method)
+        .into_iter()
+        .filter(|call| wanted(&call.params))
+        .map(|call| call.session_id.unwrap_or_default())
+        .collect();
+    sessions.sort();
+    sessions
+}
+
+#[tokio::test]
+async fn requests_of_cross_site_iframes_are_recorded_too() {
+    let (page, mock) = page().await;
+    mock.on("Network.getResponseBody", |_| {
+        Ok(json!({ "body": "ad()", "base64Encoded": false }))
+    });
+    let recorder = page
+        .start_har_with(HarOptions::new().content(true))
+        .await
+        .unwrap();
+
+    // Chrome runs a cross-site iframe in a target of its own and reports its
+    // requests on that target's session, which the tab's session attaches to;
+    // an iframe inside it is attached through its session in turn.
+    attached(&mock, "S1", "S2", "iframe");
+    request_in(&mock, "S2", "A1", "https://ads.test/ad.js", "Script", 1.0);
+    ok_in(&mock, "S2", "A1", "text/javascript", 1.1, 4);
+    attached(&mock, "S2", "S3", "iframe");
+    request_in(&mock, "S3", "P1", "https://pixel.test/p.gif", "Image", 1.2);
+    ok_in(&mock, "S3", "P1", "image/gif", 1.3, 0);
+    // An iframe's load is not the page's.
+    mock.emit(
+        "Page.loadEventFired",
+        json!({ "timestamp": 1.5 }),
+        Some("S2"),
+    );
+    let har = recorder.finish().await.unwrap();
+
+    let ad = entry(&har, "https://ads.test/ad.js");
+    assert_eq!(ad.response.status, 200);
+    assert_eq!(ad.response.content.text.as_deref(), Some("ad()"));
+    assert_eq!(entry(&har, "https://pixel.test/p.gif").response.status, 200);
+    assert!(har.log.pages.is_empty(), "{:?}", har.log.pages);
+
+    assert_eq!(
+        sessions_of(&mock, "Network.enable", |_| true),
+        ["S1", "S2", "S3"]
+    );
+    // Each iframe waits until its requests are reported, then runs.
+    let attaching = |params: &Value| {
+        params["autoAttach"] == true
+            && params["flatten"] == true
+            && params["waitForDebuggerOnStart"] == true
+    };
+    assert_eq!(
+        sessions_of(&mock, "Target.setAutoAttach", attaching),
+        ["S1", "S2", "S3"]
+    );
+    assert_eq!(
+        sessions_of(&mock, "Runtime.runIfWaitingForDebugger", |_| true),
+        ["S2", "S3"]
+    );
+    let body = mock.calls_to("Network.getResponseBody");
+    assert_eq!(body.len(), 2, "{body:?}");
+    let fetched_from = |id: &str| {
+        body.iter()
+            .find(|call| call.params["requestId"] == id)
+            .and_then(|call| call.session_id.clone())
+    };
+    assert_eq!(fetched_from("A1").as_deref(), Some("S2"));
+    assert_eq!(fetched_from("P1").as_deref(), Some("S3"));
+    // Finishing stops attaching to the tab's iframes, which detaches them.
+    let last = mock.calls_to("Target.setAutoAttach").pop().unwrap();
+    assert_eq!(last.session_id.as_deref(), Some("S1"));
+    assert_eq!(last.params["autoAttach"], false);
+}
+
+#[tokio::test]
+async fn dropping_a_recorder_stops_attaching_to_iframes() {
+    let (page, mock) = page().await;
+    let recorder = page.start_har().await.unwrap();
+
+    drop(recorder);
+    // The clean-up runs on the runtime, after the drop.
+    for _ in 0..10 {
+        tokio::task::yield_now().await;
+    }
+
+    let attach = mock.calls_to("Target.setAutoAttach");
+    let last = attach.last().expect("attaching was turned on");
+    assert_eq!(attach.len(), 2, "{attach:?}");
+    assert_eq!(last.session_id.as_deref(), Some("S1"));
+    assert_eq!(last.params["autoAttach"], false);
+}
+
+#[tokio::test]
+async fn a_paused_target_that_is_not_an_iframe_is_let_go_unrecorded() {
+    let (page, mock) = page().await;
+    let recorder = page.start_har().await.unwrap();
+
+    // A browser that does not know the filter attaches a worker too.
+    attached(&mock, "S1", "S4", "worker");
+    request_in(
+        &mock,
+        "S4",
+        "W1",
+        "https://a.test/worker-data",
+        "Fetch",
+        1.0,
+    );
+    ok_in(&mock, "S4", "W1", "application/json", 1.1, 2);
+    let har = recorder.finish().await.unwrap();
+
+    assert!(har.log.entries.is_empty(), "{:?}", har.log.entries);
+    assert_eq!(
+        sessions_of(&mock, "Runtime.runIfWaitingForDebugger", |_| true),
+        ["S4"]
+    );
+    assert_eq!(sessions_of(&mock, "Network.enable", |_| true), ["S1"]);
+}
+
+#[tokio::test]
+async fn a_recording_that_falls_behind_says_so_and_attaches_its_iframes_again() {
+    let (page, mock) = page().await;
+    let recorder = page.start_har().await.unwrap();
+
+    // More events than the channel holds arrive before the recorder reads
+    // any; the oldest are lost, and an iframe's attachment could be among
+    // them, leaving that iframe paused.
+    for _ in 0..300 {
+        send(
+            &mock,
+            "Network.dataReceived",
+            json!({ "requestId": "X", "timestamp": 1.0, "dataLength": 1, "encodedDataLength": 0 }),
+        );
+    }
+    let har = recorder.finish().await.unwrap();
+
+    let comment = har.log.comment.unwrap_or_default();
+    assert!(comment.contains("missed 44 "), "{comment}");
+    // Attaching again lets every paused iframe go and reports each anew.
+    let tab_attach: Vec<_> = mock
+        .calls_to("Target.setAutoAttach")
+        .into_iter()
+        .filter(|call| call.session_id.as_deref() == Some("S1"))
+        .map(|call| call.params["autoAttach"] == true)
+        .collect();
+    assert_eq!(tab_attach, [true, false, true, false]);
 }
 
 #[tokio::test]

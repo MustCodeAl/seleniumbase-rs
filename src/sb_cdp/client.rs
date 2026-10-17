@@ -70,6 +70,8 @@ pub struct CdpEvent {
 pub struct Events {
     rx: broadcast::Receiver<CdpEvent>,
     session: Option<Arc<str>>,
+    /// The events skipped so far for falling behind, of every session.
+    missed: u64,
 }
 
 impl Events {
@@ -94,10 +96,17 @@ impl Events {
                         return Some(event);
                     }
                 }
-                Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Lagged(skipped)) => self.missed += skipped,
                 Err(broadcast::error::RecvError::Closed) => return None,
             }
         }
+    }
+
+    /// How many events [`next`](Self::next) has skipped so far because this
+    /// listener fell too far behind, counting those of every session.
+    #[must_use]
+    pub(crate) fn missed(&self) -> u64 {
+        self.missed
     }
 
     /// Waits for the next event named `method`, skipping all others.
@@ -203,7 +212,11 @@ impl Client {
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl.subscribe(),
         };
-        Events { rx, session: None }
+        Events {
+            rx,
+            session: None,
+            missed: 0,
+        }
     }
 
     /// Sends a command and waits for its response.
@@ -538,5 +551,29 @@ mod tests {
 
         assert_eq!(answer["body"].as_str().map(str::len), Some(17 << 20));
         assert!(client.is_open(), "the connection is still up");
+    }
+
+    #[tokio::test]
+    async fn a_listener_that_falls_behind_counts_what_it_skipped() {
+        let (sender, rx) = broadcast::channel(2);
+        let mut events = Events {
+            rx,
+            session: None,
+            missed: 0,
+        };
+        for n in 0..5 {
+            sender
+                .send(CdpEvent {
+                    method: format!("E{n}"),
+                    params: json!({}),
+                    session_id: None,
+                })
+                .unwrap();
+        }
+
+        let next = events.next().await.unwrap();
+
+        assert_eq!(next.method, "E3", "the oldest events were lost");
+        assert_eq!(events.missed(), 3);
     }
 }
