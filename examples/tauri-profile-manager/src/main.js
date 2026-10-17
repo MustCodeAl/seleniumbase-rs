@@ -708,48 +708,60 @@ async function showStorageStatus() {
 
 // ---------------- Custom masking (fingerprint) ----------------
 
-const MASKING_MODES = [
-  ["", "Natural (default)"],
-  ["Natural", "Natural"],
-  ["Mask", "Mask"],
-  ["Custom", "Custom"],
-  ["Disabled", "Disabled"],
+// Each setting of a fingerprint is in one state: the browser's own value
+// ("natural", the default, left out of the JSON), a drawn one ("random"), a
+// value, or "off" for the few APIs that can be turned off. The fields above give
+// values; each select below says what to do with the settings of its dimension
+// that the form leaves empty.
+const STATE_MODES = [
+  ["", "Keep what is typed (the browser's own where nothing is)"],
+  ["natural", "Natural (ignore what is typed)"],
+  ["random", "Random (draw what is not typed)"],
 ];
+const STATE_MODES_WITH_OFF = [...STATE_MODES, ["off", "Off (turn the API off)"]];
 const CANVAS_MODES = [
-  ["", "Mask (default)"],
-  ["Mask", "Mask"],
-  ["Natural", "Natural"],
-  ["Disabled", "Disabled"],
-  ["Random", "Random (per session)"],
+  ["", "Keep the profile's policy"],
+  ["Natural", "Natural (no noise)"],
   ["Persistent", "Persistent (per seed)"],
+  ["Random", "Random (per session)"],
   ["Low", "Low"],
 ];
 const POPUP_MODES = [
-  ["", "Prompt (default)"],
-  ["Prompt", "Prompt"],
-  ["Allow", "Allow"],
-  ["Block", "Block"],
+  ["", "Answer with the position, if one is typed"],
+  ["Prompt", "Prompt (the browser asks)"],
+  ["Block", "Block (deny the request)"],
 ];
+
+// The settings of the fingerprint that each state select governs.
+const DIMENSION_SETTINGS = {
+  navigator_masking: [
+    "user_agent", "platform", "hardware_concurrency", "device_memory", "max_touch_points", "vendor",
+  ],
+  localization_masking: ["locale", "languages", "accept_languages"],
+  timezone_masking: ["timezone"],
+  screen_masking: ["screen", "pixel_ratio", "color_depth"],
+  graphics_masking: ["webgl"],
+  fonts_masking: ["fonts"],
+  media_devices_masking: ["media_devices"],
+  webrtc_masking: ["webrtc"],
+  geolocation_masking: ["geolocation"],
+};
+// Only these APIs have an off state.
+const CAN_BE_OFF = new Set(["media_devices_masking", "webrtc_masking", "geolocation_masking"]);
+
+function fillSelect(sel, modes) {
+  sel.textContent = "";
+  for (const [value, label] of modes) {
+    sel.appendChild(el("option", { text: label, attrs: { value } }));
+  }
+}
 
 function fillFlagSelects() {
   for (const sel of document.querySelectorAll("select.masking-flag")) {
-    sel.textContent = "";
-    for (const [value, label] of MASKING_MODES) {
-      sel.appendChild(el("option", { text: label, attrs: { value } }));
-    }
+    fillSelect(sel, CAN_BE_OFF.has(sel.dataset.flag) ? STATE_MODES_WITH_OFF : STATE_MODES);
   }
-  for (const sel of document.querySelectorAll("select.canvas-flag")) {
-    sel.textContent = "";
-    for (const [value, label] of CANVAS_MODES) {
-      sel.appendChild(el("option", { text: label, attrs: { value } }));
-    }
-  }
-  for (const sel of document.querySelectorAll("select.popup-flag")) {
-    sel.textContent = "";
-    for (const [value, label] of POPUP_MODES) {
-      sel.appendChild(el("option", { text: label, attrs: { value } }));
-    }
-  }
+  for (const sel of document.querySelectorAll("select.canvas-flag")) fillSelect(sel, CANVAS_MODES);
+  for (const sel of document.querySelectorAll("select.popup-flag")) fillSelect(sel, POPUP_MODES);
 }
 
 function fpText(id) {
@@ -764,22 +776,38 @@ function fpNum(id) {
 
 // Every fingerprint field the form shows. Anything else in a stored
 // fingerprint, such as a randomized identity's user agent and client hints, is
-// kept as it is when the form is saved.
+// kept as it is when the form is saved, unless a state select overrides it.
 const FORM_FINGERPRINT_KEYS = [
   "os_type", "platform", "hardware_concurrency", "device_memory", "max_touch_points", "vendor",
-  "languages", "accept_languages", "timezone", "screen_width", "screen_height", "pixel_ratio",
-  "color_depth", "webgl_vendor", "webgl_renderer", "audio_inputs", "audio_outputs", "video_inputs",
-  "fonts", "webrtc_policy", "webrtc_public_ip", "webrtc_local_ip", "seed",
+  "languages", "accept_languages", "timezone", "screen", "pixel_ratio", "color_depth", "webgl",
+  "media_devices", "fonts", "webrtc", "seed",
 ];
+// The fields of the policy that the form shows.
+const FORM_POLICY_KEYS = ["webrtc_policy", "canvas_noise"];
 
 function withoutFormFields(existing) {
   const kept = { ...(existing || {}) };
   for (const key of FORM_FINGERPRINT_KEYS) delete kept[key];
-  if (kept.flags) {
-    const shown = new Set([...document.querySelectorAll("[data-flag]")].map((sel) => sel.dataset.flag));
-    kept.flags = Object.fromEntries(Object.entries(kept.flags).filter(([flag]) => !shown.has(flag)));
+  // A select that was changed owns every setting of its dimension.
+  for (const sel of document.querySelectorAll("select.masking-flag")) {
+    if (!sel.value) continue;
+    for (const key of DIMENSION_SETTINGS[sel.dataset.flag] || []) delete kept[key];
+  }
+  if (kept.policy) {
+    kept.policy = Object.fromEntries(
+      Object.entries(kept.policy).filter(([key]) => !FORM_POLICY_KEYS.includes(key)),
+    );
   }
   return kept;
+}
+
+// What a state select does to the settings of its dimension.
+function applyState(fp, flag, state) {
+  for (const key of DIMENSION_SETTINGS[flag] || []) {
+    if (state === "natural") delete fp[key];
+    else if (state === "random") fp[key] ??= "random";
+    else if (state === "off") fp[key] = "off";
+  }
 }
 
 function buildFingerprint(existing) {
@@ -806,54 +834,83 @@ function buildFingerprint(existing) {
   const timezone = fpText("#fp-timezone");
   if (timezone) fp.timezone = timezone;
 
+  // A screen is one setting: a width and a height.
   const screenW = fpNum("#fp-screen-w");
-  if (screenW != null) fp.screen_width = screenW;
   const screenH = fpNum("#fp-screen-h");
-  if (screenH != null) fp.screen_height = screenH;
+  if (screenW != null || screenH != null) {
+    fp.screen = { width: screenW ?? 1920, height: screenH ?? 1080 };
+  }
   const pixelRatio = fpNum("#fp-pixel-ratio");
   if (pixelRatio != null) fp.pixel_ratio = pixelRatio;
   const colorDepth = fpNum("#fp-color-depth");
   if (colorDepth != null) fp.color_depth = colorDepth;
+  const webgl = {};
   const webglVendor = fpText("#fp-webgl-vendor");
-  if (webglVendor) fp.webgl_vendor = webglVendor;
+  if (webglVendor) webgl.vendor = webglVendor;
   const webglRenderer = fpText("#fp-webgl-renderer");
-  if (webglRenderer) fp.webgl_renderer = webglRenderer;
+  if (webglRenderer) webgl.renderer = webglRenderer;
+  if (Object.keys(webgl).length > 0) fp.webgl = webgl;
 
   const audioIn = fpNum("#fp-audio-in");
-  if (audioIn != null) fp.audio_inputs = audioIn;
   const audioOut = fpNum("#fp-audio-out");
-  if (audioOut != null) fp.audio_outputs = audioOut;
   const videoIn = fpNum("#fp-video-in");
-  if (videoIn != null) fp.video_inputs = videoIn;
+  if (audioIn != null || audioOut != null || videoIn != null) {
+    fp.media_devices = {
+      audio_inputs: audioIn ?? 0,
+      audio_outputs: audioOut ?? 0,
+      video_inputs: videoIn ?? 0,
+    };
+  }
 
   const fontsRaw = $("#fp-fonts").value.trim();
   if (fontsRaw) {
     fp.fonts = fontsRaw.split("\n").map((f) => f.trim()).filter(Boolean);
   }
 
-  const webrtcPolicy = fpText("#fp-webrtc-policy");
-  if (webrtcPolicy) fp.webrtc_policy = webrtcPolicy;
+  const webrtc = {};
   const webrtcPublic = fpText("#fp-webrtc-public");
-  if (webrtcPublic) fp.webrtc_public_ip = webrtcPublic;
+  if (webrtcPublic) webrtc.public_ip = webrtcPublic;
   const webrtcLocal = fpText("#fp-webrtc-local");
-  if (webrtcLocal) fp.webrtc_local_ip = webrtcLocal;
+  if (webrtcLocal) webrtc.local_ip = webrtcLocal;
+  if (Object.keys(webrtc).length > 0) fp.webrtc = webrtc;
   const seed = fpNum("#fp-seed");
   if (seed != null) fp.seed = seed;
 
-  const flags = {};
-  for (const sel of document.querySelectorAll("[data-flag]")) {
-    if (sel.value) flags[sel.dataset.flag] = sel.value;
+  // How the claims are delivered is the policy, not a setting.
+  const policy = {};
+  const webrtcPolicy = fpText("#fp-webrtc-policy");
+  if (webrtcPolicy) policy.webrtc_policy = webrtcPolicy;
+  const canvas = fpText("#flag-canvas");
+  if (canvas) policy.canvas_noise = canvas;
+  if (Object.keys(policy).length > 0) fp.policy = policy;
+
+  for (const sel of document.querySelectorAll("select.masking-flag")) {
+    applyState(fp, sel.dataset.flag, sel.value);
   }
-  if (Object.keys(flags).length > 0) fp.flags = flags;
+  // A request for the position is denied, or asked, whatever position is typed.
+  const popup = fpText("#flag-geo-popup");
+  if (popup === "Block") fp.geolocation = "off";
+  else if (popup === "Prompt") delete fp.geolocation;
 
   const kept = withoutFormFields(existing);
   const merged = { ...kept, ...fp };
-  if (kept.flags || fp.flags) merged.flags = { ...kept.flags, ...fp.flags };
+  if (kept.policy || fp.policy) merged.policy = { ...kept.policy, ...fp.policy };
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
 function setVal(id, value) {
   $(id).value = value == null ? "" : value;
+}
+
+// The state a select shows for a stored fingerprint. A stored fingerprint holds
+// values (a drawn one is stored as the value it drew), so it is only ever the
+// default or "off".
+function stateOf(fp, flag) {
+  const keys = DIMENSION_SETTINGS[flag] || [];
+  if (CAN_BE_OFF.has(flag) && keys.length > 0 && keys.every((key) => fp?.[key] === "off")) {
+    return "off";
+  }
+  return "";
 }
 
 function fillFingerprint(fp) {
@@ -870,23 +927,24 @@ function fillFingerprint(fp) {
   setVal("#fp-languages", fp?.languages);
   setVal("#fp-accept", fp?.accept_languages);
   setVal("#fp-timezone", fp?.timezone);
-  setVal("#fp-screen-w", fp?.screen_width);
-  setVal("#fp-screen-h", fp?.screen_height);
+  setVal("#fp-screen-w", fp?.screen?.width);
+  setVal("#fp-screen-h", fp?.screen?.height);
   setVal("#fp-pixel-ratio", fp?.pixel_ratio);
   setVal("#fp-color-depth", fp?.color_depth);
-  setVal("#fp-webgl-vendor", fp?.webgl_vendor);
-  setVal("#fp-webgl-renderer", fp?.webgl_renderer);
-  setVal("#fp-audio-in", fp?.audio_inputs);
-  setVal("#fp-audio-out", fp?.audio_outputs);
-  setVal("#fp-video-in", fp?.video_inputs);
-  setVal("#fp-fonts", (fp?.fonts || []).join("\n"));
-  setVal("#fp-webrtc-policy", fp?.webrtc_policy);
-  setVal("#fp-webrtc-public", fp?.webrtc_public_ip);
-  setVal("#fp-webrtc-local", fp?.webrtc_local_ip);
+  setVal("#fp-webgl-vendor", fp?.webgl?.vendor);
+  setVal("#fp-webgl-renderer", fp?.webgl?.renderer);
+  setVal("#fp-audio-in", fp?.media_devices?.audio_inputs);
+  setVal("#fp-audio-out", fp?.media_devices?.audio_outputs);
+  setVal("#fp-video-in", fp?.media_devices?.video_inputs);
+  setVal("#fp-fonts", Array.isArray(fp?.fonts) ? fp.fonts.join("\n") : "");
+  setVal("#fp-webrtc-policy", fp?.policy?.webrtc_policy);
+  setVal("#fp-webrtc-public", fp?.webrtc?.public_ip);
+  setVal("#fp-webrtc-local", fp?.webrtc?.local_ip);
   setVal("#fp-seed", fp?.seed);
 
-  const flags = fp?.flags || {};
-  for (const sel of document.querySelectorAll("[data-flag]")) {
-    sel.value = flags[sel.dataset.flag] || "";
+  for (const sel of document.querySelectorAll("select.masking-flag")) {
+    sel.value = stateOf(fp, sel.dataset.flag);
   }
+  setVal("#flag-canvas", fp?.policy?.canvas_noise);
+  setVal("#flag-geo-popup", fp?.geolocation === "off" ? "Block" : "");
 }

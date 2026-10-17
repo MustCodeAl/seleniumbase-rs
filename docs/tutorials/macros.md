@@ -117,12 +117,12 @@ Returns a built-in [`Fingerprint`](crate::Fingerprint) preset.
 use seleniumbase_rs::fingerprint;
 
 let fp = fingerprint!(windows);
+let fp = fingerprint!(edge); // Windows with Edge's user agent and Client Hints
 let fp = fingerprint!(macos);
 let fp = fingerprint!(linux);
 let fp = fingerprint!(android);
 let fp = fingerprint!(ios);
 let fp = fingerprint!(safari); // same preset as ios
-let fp = fingerprint!(edge); // same preset as windows
 ```
 
 ## Action macros

@@ -250,7 +250,7 @@ Prefer constructors over manual formatting:
 use seleniumbase_rs::SeleniumBaseError;
 
 SeleniumBaseError::element_not_found("#submit")
-SeleniumBaseError::invalid_config("proxy_masking is Custom but proxy is None")
+SeleniumBaseError::invalid_config("a proxy is required but the URL is empty")
 SeleniumBaseError::driver_not_ready("chromedriver")
 ```
 
@@ -340,8 +340,10 @@ Launch and session plumbing:
 
 Anti-detection layer:
 
-- `fingerprint.rs` — `Fingerprint`, `StealthFlags`, `MaskingMode`, presets,
-  coherence validation, and `BrowserType`.
+- `fingerprint.rs` — `Fingerprint`, `FingerprintBuilder`, `Dimension`,
+  presets (including `edge_desktop`), coherence validation, and `BrowserType`;
+  `spoof.rs` (`Spoof<T>`), `settings.rs` (the value types such as `ScreenSize`
+  and `WebGl`) and `policy.rs` (`StealthPolicy`).
 - `evasions.rs` / `providers/` — JavaScript evasion registry and 25 built-in
   providers.
 - `patcher.rs` — `ChromedriverPatcher` and `EnginePatch` definitions.
@@ -388,11 +390,11 @@ The stealth system has four independent axes:
 
 1. **Launch configuration** — `StealthOptions` emits Chromium args and prefs.
 2. **Runtime JavaScript** — `EvasionProvider`s generate a bootstrap script.
-3. **CDP-level overrides** — `evasions::cdp_overrides()` sends
+3. **CDP-level overrides** — `evasions::safe_cdp_overrides()` sends
    `Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`,
    `Emulation.setTimezoneOverride`, `Emulation.setLocaleOverride`,
    `Emulation.setGeolocationOverride`, and related commands. When
-   `StealthFlags::native_spoofing` is enabled, providers skip JS patches for
+   `StealthPolicy::native_spoofing` is enabled, providers skip JS patches for
    dimensions the browser can spoof natively, making the spoof invisible to
    page-side `toString()` / descriptor inspection.
 4. **Network interception** — `StealthReactor` uses CDP `Fetch` to override
@@ -425,29 +427,35 @@ flowchart TD
 Use these through `BaseCase::activate_cdp_mode(url)` or by setting
 `DriverMode::Uc` in `BrowserConfig`.
 
-### Fingerprint and masking modes
+### Fingerprint, settings and policy
 
 `Fingerprint` is a value type describing the desired browser surface. It is
-composed of:
+built once with `Fingerprint::builder()`, has private fields and read accessors,
+and is changed only through `to_builder()`. It is composed of:
 
-- `browser_type` — `Chromium` or `Firefox` (generic names; legacy aliases
-  `mimic` / `stealthfox` are still accepted for JSON parsing).
-- `os`, `vendor`, `renderer` — reported by the navigator provider.
-- `screen`, `viewport` — screen spoofing.
-- `geolocation`, `timezone`, `locale` — location spoofing.
-- `webrtc_policy`, `flags` — policy and toggle switches.
-- `proxy` — optional proxy URL.
+- `browser_type`, `os_type`, `core_version`, `seed` — the persona.
+- one `Spoof<T>` per setting: `user_agent`, `platform`, `hardware_concurrency`,
+  `screen`, `webgl`, `geolocation`, `timezone`, `locale`, `webrtc`, `media_devices`,
+  `battery`, `client_hints`, `proxy`, and the rest of what a page can probe.
+- a `StealthPolicy` — how the claims are delivered (WebRTC IP policy, canvas
+  and audio noise, native spoofing, granted permissions, blocked ports and
+  trackers).
 
-`MaskingMode` controls how a flag is applied:
+A `Spoof<T>` is `Natural` (the browser's own value, the default), `Random` (a
+coherent value drawn when the fingerprint is built), `Value(T)` (a plain value
+converts to it) or `Off` (the API is unavailable or denied; only for geolocation,
+WebRTC, media devices, battery, Bluetooth, speech voices, network information and
+Client Hints). A built fingerprint holds no `Random`.
 
-- `Natural` — use the real browser value.
-- `Mask` — apply a deterministic generic value.
-- `Custom` — use the explicit value from `Fingerprint` if available.
-- `Disabled` — do not apply the evasion.
+Providers, launch arguments and protocol overrides do not read the fields by
+themselves: they ask `Fingerprint::is_masked(Dimension::...)`, so there is one
+rule, and a provider defines only a setting that is a `Value`. A policy preset
+never changes a setting.
 
-`Fingerprint::validate()` enforces coherence: if `webrtc_masking` is `Custom`,
-then `webrtc_policy` must be set; if `proxy_masking` is `Custom`, then `proxy`
-must be `Some`. Add similar rules when introducing inter-dependent fields.
+`Fingerprint::validate()` returns a `CoherenceReport` of errors and warnings
+(platform and user agent against the OS persona, a WebGL renderer from another
+OS's graphics API, a locale from another country than the time zone, and so on).
+Add a rule there when introducing inter-dependent fields.
 
 ### Provider execution order
 
@@ -679,42 +687,20 @@ Enable JSON output with the `json-logs` feature for ingestion by log analytics.
 External profile payloads are normalized in `src/profile_payloads/profile.rs`.
 The flow is:
 
-```mermaid
-flowchart LR
-    J["JSON file"] --> P["ProfileParams"]
-    P -- "to_browser_config()" --> BC["BrowserConfig"]
-    P -- "browser()" --> FP["Fingerprint"]
+```text
+JSON file ──► ProfileParams ──► to_fingerprint() ──► Fingerprint
+                         └──► to_browser_config() ──► BrowserConfig (holds that Fingerprint)
 ```
 
 When adding a new JSON field:
 
-<Steps>
-
-<Step title="Add the field">
-
-Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
-
-</Step>
-
-<Step title="Launch-time settings">
-
-Convert it in `to_browser_config()` for launch-time settings.
-
-</Step>
-
-<Step title="Fingerprint settings">
-
-Convert it in `browser()` for fingerprint/masking settings.
-
-</Step>
-
-<Step title="Test it">
-
-Add a parser test and a round-trip coherence test.
-
-</Step>
-
-</Steps>
+1. Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
+2. Convert it in `fingerprint_builder()` (one `Spoof` per setting, through
+   `read` and `settle`), so the flag decides its state.
+3. Launch-time settings (`to_browser_config()`, `apply_runtime_overrides()`) read
+   the built fingerprint, never the raw payload, so a `natural` flag launches
+   nothing of that setting.
+4. Add a parser test and a round-trip coherence test.
 
 Keep parser logic defensive: unknown fields should not fail; invalid values
 should produce `SeleniumBaseError::InvalidConfig` with the field name.
@@ -735,10 +721,11 @@ fn selector_parses_link_text() {
 
 ```rust
 #[tokio::test]
-async fn fingerprint_validates_custom_proxy() {
-    let fp = Fingerprint::builder().build();
-    fp.flags.proxy_masking = ProxyMaskingMode::Custom;
-    assert!(fp.validate().is_err());
+async fn a_value_turns_its_dimension_on() -> Result<(), FingerprintError> {
+    let fp = Fingerprint::builder().timezone("Europe/Berlin").build()?;
+    assert!(fp.is_masked(Dimension::Timezone));
+    assert!(!fp.is_masked(Dimension::Screen));
+    Ok(())
 }
 ```
 

@@ -18,8 +18,7 @@ use seleniumbase_rs::sb_cdp::{
     Browser as CdpBrowser, BrowserContext, ContextOptions, Cookie, LaunchOptions, Page, Proxy,
     SameSite,
 };
-use seleniumbase_rs::stealth::evasions::{bootstrap_script, cdp_overrides};
-use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
+use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 use crate::models::{BrowserCookie, Engine, Profile};
 use crate::store::build_config;
@@ -431,7 +430,8 @@ fn launch_options(config: &BrowserConfig) -> Result<LaunchOptions, String> {
     if let Some((width, height)) = config
         .fingerprint
         .as_ref()
-        .and_then(|fp| fp.screen_width.zip(fp.screen_height))
+        .and_then(|fp| fp.screen().value())
+        .map(|screen| (screen.width, screen.height))
     {
         builder = builder.window_size(width, height);
     }
@@ -486,7 +486,11 @@ async fn apply_identity(
 ) -> Result<(), String> {
     let fingerprint = config.fingerprint.as_ref();
     if let Some(fingerprint) = fingerprint {
-        apply_fingerprint(browser, context, page, fingerprint).await?;
+        // The script, the overrides and the permission grant for this tab's own
+        // context, without the proxy login a header would hand to every site.
+        page.apply_fingerprint(fingerprint)
+            .await
+            .map_err(|e| format!("Failed to apply the fingerprint: {e}"))?;
     }
 
     // A second locale override on the same tab can be refused, so only set one
@@ -494,7 +498,7 @@ async fn apply_identity(
     if let Some(locale) = config
         .locale
         .as_deref()
-        .filter(|_| fingerprint.is_none_or(|fp| fp.locale.is_none()))
+        .filter(|_| fingerprint.is_none_or(|fp| fp.locale().is_natural()))
     {
         page.emulation()
             .locale(locale)
@@ -558,49 +562,6 @@ fn accept_language(locale: &str) -> String {
     }
 }
 
-/// Installs the fingerprint's script, to run before any page script, and
-/// applies the protocol overrides it recommends.
-///
-/// The extra `Proxy-Authorization` header the fingerprint can ask for is
-/// skipped: sent to every site, it would hand the proxy's password to the
-/// sites themselves. The profile's proxy is answered per context instead.
-async fn apply_fingerprint(
-    browser: &CdpBrowser,
-    context: &BrowserContext,
-    page: &Page,
-    fingerprint: &Fingerprint,
-) -> Result<(), String> {
-    page.execute(
-        "Page.addScriptToEvaluateOnNewDocument",
-        json!({ "source": bootstrap_script(fingerprint) }),
-    )
-    .await
-    .map_err(|e| format!("Failed to install the fingerprint script: {e}"))?;
-    // Some overrides, such as the blocked URLs, only apply once the network
-    // domain is enabled.
-    page.execute("Network.enable", json!({}))
-        .await
-        .map_err(|e| format!("Failed to enable the network domain: {e}"))?;
-
-    let mut overrides: Vec<(String, Value)> = cdp_overrides(fingerprint)
-        .into_iter()
-        .filter(|(method, _)| method != "Network.setExtraHTTPHeaders")
-        .collect();
-    overrides.sort_by(|a, b| a.0.cmp(&b.0));
-    for (method, mut params) in overrides {
-        let outcome = if method == "Browser.grantPermissions" {
-            // Permissions are per context; without this they would go to the
-            // browser's default context, which this profile does not use.
-            params["browserContextId"] = json!(context.id());
-            browser.execute(&method, params).await
-        } else {
-            page.execute(&method, params).await
-        };
-        outcome.map_err(|e| format!("Failed to apply {method}: {e}"))?;
-    }
-    Ok(())
-}
-
 /// Lets pages in the profile's context read the location it reports.
 async fn grant_geolocation(
     browser: &CdpBrowser,
@@ -644,7 +605,8 @@ fn to_cdp_cookie(cookie: &BrowserCookie) -> Cookie {
 #[cfg(test)]
 mod tests {
     use seleniumbase_rs::sb_cdp::MockCtrl;
-    use seleniumbase_rs::{OsType, ProxyConfig};
+    use seleniumbase_rs::stealth::evasions::session_script;
+    use seleniumbase_rs::{Fingerprint, OsType, ProxyConfig};
 
     use super::*;
 
@@ -675,6 +637,11 @@ mod tests {
         mock.reply(
             "Target.createBrowserContext",
             json!({ "browserContextId": "CTX1" }),
+        );
+        // The tab the session opens lives in that context.
+        mock.reply(
+            "Target.getTargetInfo",
+            json!({ "targetInfo": { "browserContextId": "CTX1" } }),
         );
         (browser, mock)
     }
@@ -842,7 +809,7 @@ mod tests {
             .await
             .unwrap();
 
-        let script = bootstrap_script(&fingerprint);
+        let script = session_script(&fingerprint);
         let installed = mock
             .calls_to("Page.addScriptToEvaluateOnNewDocument")
             .iter()
@@ -855,7 +822,7 @@ mod tests {
         assert_eq!(user_agent.len(), 1);
         assert_eq!(
             user_agent[0].params["userAgent"].as_str(),
-            fingerprint.user_agent.as_deref()
+            fingerprint.user_agent().as_str()
         );
         assert!(
             position(&mock, "Network.setUserAgentOverride") < position(&mock, "Page.navigate"),
@@ -868,15 +835,18 @@ mod tests {
     #[tokio::test]
     async fn a_fingerprints_proxy_password_is_never_sent_as_a_header() {
         let (browser, mock) = mocked();
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example".to_owned(),
-            port: 8080,
-            username: Some("alice".to_owned()),
-            password: Some(FAKE_PROXY_PASSWORD.to_owned()),
-            save_traffic: false,
-        });
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "proxy.example".to_owned(),
+                port: 8080,
+                username: Some("alice".to_owned()),
+                password: Some(FAKE_PROXY_PASSWORD.to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .unwrap();
         let profile = pure_cdp_profile(json!({
             "fingerprint": serde_json::to_value(&fingerprint).unwrap(),
         }));

@@ -15,9 +15,10 @@
 //! seedable [`Rng`], so a seed always gives the same identity.
 
 use super::fingerprint::{
-    BrandVersion, BrowserType, ClientHints, Fingerprint, OsType, StealthFlags,
+    BatteryProfile, BrandVersion, BrowserType, ClientHints, ConnectionProfile, OsType, SpeechVoice,
 };
 use super::humanize::Rng;
+use super::settings::{MediaDevices, WebGl, WebRtcAddresses};
 
 /// The Chromium major versions a generated identity may claim: the recent
 /// stable releases. Refresh with each Chromium release, together with
@@ -117,10 +118,10 @@ const SAFARI_VENDOR: &str = "Apple Computer, Inc.";
 
 /// A screen as the page sees it: size in CSS pixels and the device pixel ratio.
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Screen {
-    width: u32,
-    height: u32,
-    pixel_ratio: f64,
+pub(super) struct Screen {
+    pub(super) width: u32,
+    pub(super) height: u32,
+    pub(super) pixel_ratio: f64,
 }
 
 impl Screen {
@@ -984,62 +985,66 @@ const fn first_regions() -> [Locale; RANDOM_REGION_COUNT] {
     regions
 }
 
-/// The WebGL strings, ids and so on that a graphics stack reports.
-#[derive(Debug)]
-struct Graphics {
-    vendor: String,
-    renderer: String,
-    vendor_id: Option<String>,
-    renderer_id: Option<String>,
+/// The WebGL strings of a PC adapter behind ANGLE: `maker` is how ANGLE names the maker.
+fn pc_graphics(adapter: &Adapter, maker: &str, renderer: String) -> WebGl {
+    WebGl::new(format!("Google Inc. ({maker})"), renderer).ids(
+        format!("0x{:04x}", adapter.vendor.pci_id()),
+        format!("0x{:04x}", adapter.device_id),
+    )
 }
 
-impl Graphics {
-    /// A PC adapter behind ANGLE: `maker` is how ANGLE names the maker.
-    fn pc(adapter: &Adapter, maker: &str, renderer: String) -> Self {
-        Self {
-            vendor: format!("Google Inc. ({maker})"),
-            renderer,
-            vendor_id: Some(format!("0x{:04x}", adapter.vendor.pci_id())),
-            renderer_id: Some(format!("0x{:04x}", adapter.device_id)),
-        }
-    }
-
-    /// A phone or tablet, which reports its chip directly.
-    fn direct((vendor, renderer): PhoneGpu) -> Self {
-        Self {
-            vendor: vendor.to_owned(),
-            renderer: renderer.to_owned(),
-            vendor_id: None,
-            renderer_id: None,
-        }
-    }
+/// The WebGL strings of a phone or tablet, which reports its chip directly.
+fn direct_graphics((vendor, renderer): PhoneGpu) -> WebGl {
+    WebGl::new(vendor, renderer)
 }
 
 /// Everything that is decided by the operating system and the machine.
 #[derive(Debug)]
-struct Profile {
-    browser_type: BrowserType,
+pub(super) struct Profile {
+    pub(super) browser_type: BrowserType,
     /// The Chromium major the user agent claims, when it is Chromium.
-    core_version: Option<u32>,
-    user_agent: String,
-    vendor: &'static str,
-    client_hints: Option<ClientHints>,
-    cores: u32,
-    memory_gb: Option<f64>,
-    touch_points: u32,
-    screen: Screen,
-    color_depth: u32,
-    graphics: Graphics,
+    pub(super) core_version: Option<u32>,
+    pub(super) user_agent: String,
+    pub(super) vendor: &'static str,
+    pub(super) client_hints: Option<ClientHints>,
+    pub(super) cores: u32,
+    pub(super) memory_gb: Option<f64>,
+    pub(super) touch_points: u32,
+    pub(super) screen: Screen,
+    pub(super) color_depth: u32,
+    pub(super) graphics: WebGl,
 }
 
-/// Builds an identity for `os` that is fully determined by `seed`. With `forced_major`, the
-/// Chromium major is that value instead of a draw; the draw still happens, so the rest of the
-/// identity is the same as for the unforced seed.
-pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fingerprint {
+/// What one seeded draw decides: the machine, the place and a spot in it.
+///
+/// A fingerprint builder takes every setting that was asked for at random from
+/// one `Draw`, so the settings agree with each other. The extras (fonts, media
+/// devices, ...) each have a stream of their own, so asking for one of them
+/// never changes another.
+#[derive(Debug)]
+pub(super) struct Draw {
+    pub(super) os: OsType,
+    pub(super) profile: Profile,
+    pub(super) region: Locale,
+    pub(super) position: Position,
+    seed: u64,
+}
+
+/// Draws a machine for `os` and a place, fully determined by `seed`.
+///
+/// With `forced_major` the Chromium major is that value instead of a draw; the
+/// draw still happens, so the rest of the identity is the same as for the
+/// unforced seed. With `place` the region is that locale instead of a draw, in
+/// the same way: the draw still happens.
+pub(super) fn draw(
+    os: OsType,
+    seed: u64,
+    forced_major: Option<u32>,
+    place: Option<&Locale>,
+) -> Draw {
     let mut rng = Rng::new(seed);
-    // The noise seed gets a draw of its own, so it is not simply the caller's seed.
-    let noise_seed = rng.next_u64();
-    let region = *rng.pick(&REGIONS);
+    let drawn = *rng.pick(&REGIONS);
+    let region = place.copied().unwrap_or(drawn);
     let profile = match os {
         OsType::Windows => windows(&mut rng, forced_major),
         OsType::Macos => macos(&mut rng, forced_major),
@@ -1047,39 +1052,251 @@ pub(super) fn generate(os: OsType, seed: u64, forced_major: Option<u32>) -> Fing
         OsType::Android => android(&mut rng, forced_major),
         OsType::Ios => ios(&mut rng),
     };
+    let position = region.position(&mut rng);
+    Draw {
+        os,
+        profile,
+        region,
+        position,
+        seed,
+    }
+}
 
-    let place = region.position(&mut rng);
-    let languages = region.accept_language();
+/// The locale whose tag is `tag`, ignoring case.
+#[must_use]
+pub(super) fn locale_by_tag(tag: &str) -> Option<&'static Locale> {
+    LOCALES.iter().find(|l| l.tag.eq_ignore_ascii_case(tag))
+}
 
-    Fingerprint {
-        browser_type: profile.browser_type,
-        os_type: os,
-        core_version: profile.core_version,
-        user_agent: Some(profile.user_agent),
-        platform: Some(os.platform().to_owned()),
-        hardware_concurrency: Some(profile.cores),
-        device_memory: profile.memory_gb,
-        max_touch_points: Some(profile.touch_points),
-        vendor: Some(profile.vendor.to_owned()),
-        locale: Some(region.tag.to_owned()),
-        accept_languages: Some(languages.clone()),
-        languages: Some(languages),
-        timezone: Some(region.timezone.to_owned()),
-        screen_width: Some(profile.screen.width),
-        screen_height: Some(profile.screen.height),
-        pixel_ratio: Some(profile.screen.pixel_ratio),
-        color_depth: Some(profile.color_depth),
-        webgl_vendor: Some(profile.graphics.vendor),
-        webgl_renderer: Some(profile.graphics.renderer),
-        webgl_vendor_id: profile.graphics.vendor_id,
-        webgl_renderer_id: profile.graphics.renderer_id,
-        latitude: Some(place.latitude),
-        longitude: Some(place.longitude),
-        accuracy: Some(place.accuracy),
-        seed: Some(noise_seed),
-        client_hints: profile.client_hints,
-        flags: StealthFlags::balanced(),
-        ..Fingerprint::default()
+/// The fonts a system ships with. The first eight are on every machine of the
+/// system; a draw drops some of the rest.
+fn system_fonts(os: OsType) -> &'static [&'static str] {
+    match os {
+        OsType::Windows => &[
+            "Arial",
+            "Calibri",
+            "Consolas",
+            "Courier New",
+            "Segoe UI",
+            "Tahoma",
+            "Times New Roman",
+            "Verdana",
+            "Arial Black",
+            "Cambria",
+            "Comic Sans MS",
+            "Georgia",
+            "Impact",
+            "Lucida Console",
+            "Microsoft Sans Serif",
+            "Palatino Linotype",
+            "Trebuchet MS",
+            "Webdings",
+            "Wingdings",
+        ],
+        OsType::Macos => &[
+            "Arial",
+            "Courier New",
+            "Georgia",
+            "Helvetica",
+            "Helvetica Neue",
+            "Menlo",
+            "Times New Roman",
+            "Verdana",
+            "Avenir",
+            "Avenir Next",
+            "Gill Sans",
+            "Impact",
+            "Lucida Grande",
+            "Monaco",
+            "Optima",
+            "Palatino",
+            "Trebuchet MS",
+            "Zapfino",
+        ],
+        OsType::Linux => &[
+            "DejaVu Sans",
+            "DejaVu Sans Mono",
+            "DejaVu Serif",
+            "Liberation Mono",
+            "Liberation Sans",
+            "Liberation Serif",
+            "Noto Sans",
+            "Noto Serif",
+            "Cantarell",
+            "Noto Color Emoji",
+            "Ubuntu",
+            "Ubuntu Mono",
+        ],
+        OsType::Android => &[
+            "Roboto",
+            "Noto Sans",
+            "Noto Serif",
+            "Droid Sans Mono",
+            "Noto Color Emoji",
+            "Cutive Mono",
+            "Dancing Script",
+            "Coming Soon",
+        ],
+        OsType::Ios => &[
+            "Arial",
+            "Courier New",
+            "Georgia",
+            "Helvetica",
+            "Helvetica Neue",
+            "Menlo",
+            "Times New Roman",
+            "Verdana",
+            "Avenir",
+            "Gill Sans",
+            "Optima",
+            "Palatino",
+            "American Typewriter",
+            "Marker Felt",
+        ],
+    }
+}
+
+/// The voices `speechSynthesis.getVoices()` lists on `os`.
+#[must_use]
+pub(super) fn speech_voices_for(os: OsType) -> Vec<SpeechVoice> {
+    let voice = |name: &str, lang: &str, default: bool, local: bool| SpeechVoice {
+        name: name.to_owned(),
+        lang: lang.to_owned(),
+        default,
+        local_service: local,
+        voice_uri: name.to_owned(),
+    };
+    match os {
+        OsType::Windows => SpeechVoice::default_set(),
+        OsType::Macos => vec![
+            voice("Alex", "en-US", true, true),
+            voice("Samantha", "en-US", false, true),
+            voice("Victoria", "en-US", false, true),
+            voice("Google US English", "en-US", false, false),
+        ],
+        OsType::Linux => vec![
+            voice("Google US English", "en-US", true, false),
+            voice("Google UK English Female", "en-GB", false, false),
+            voice("Google UK English Male", "en-GB", false, false),
+        ],
+        OsType::Android => vec![
+            voice("Google US English", "en-US", true, true),
+            voice("Google UK English Female", "en-GB", false, true),
+        ],
+        OsType::Ios => vec![
+            voice("Samantha", "en-US", true, true),
+            voice("Daniel", "en-GB", false, true),
+            voice("Karen", "en-AU", false, true),
+        ],
+    }
+}
+
+impl Draw {
+    /// A stream of random numbers that belongs to one extra setting.
+    fn stream(&self, salt: u64) -> Rng {
+        Rng::new(self.seed ^ salt.wrapping_mul(0xD6E8_FEB8_6659_FD93))
+    }
+
+    /// The fonts of the system, with some of the less common ones left out.
+    pub(super) fn fonts(&self) -> Vec<String> {
+        let mut rng = self.stream(1);
+        system_fonts(self.os)
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| *index < 8 || rng.chance(0.85))
+            .map(|(_, font)| (*font).to_owned())
+            .collect()
+    }
+
+    /// The microphones, speakers and cameras of a device of this kind.
+    pub(super) fn media_devices(&self) -> MediaDevices {
+        let mut rng = self.stream(2);
+        if self.os.is_mobile() {
+            return MediaDevices::counts(1, 1, 2);
+        }
+        let more = |rng: &mut Rng, odds: f64| u32::from(rng.chance(odds));
+        MediaDevices::counts(
+            1 + more(&mut rng, 0.3),
+            1 + more(&mut rng, 0.4),
+            more(&mut rng, 0.7),
+        )
+    }
+
+    /// A public address of a consumer network and a private local one.
+    pub(super) fn webrtc(&self) -> WebRtcAddresses {
+        let mut rng = self.stream(3);
+        let first = *rng.pick(&[24_u32, 67, 71, 73, 76, 98, 108, 174]);
+        // `range` is half-open, and an octet below 256 is a whole number.
+        let mut octet = |low: f64, high: f64| rng.range(low, high).floor() as u32;
+        let public = format!(
+            "{first}.{}.{}.{}",
+            octet(1.0, 255.0),
+            octet(1.0, 255.0),
+            octet(1.0, 254.0)
+        );
+        let local = format!("192.168.{}.{}", octet(0.0, 2.0), octet(2.0, 250.0));
+        WebRtcAddresses::new(public, local)
+    }
+
+    /// A battery that is mostly charged, or `None` where the browser has no
+    /// Battery Status API.
+    pub(super) fn battery(&self) -> Option<BatteryProfile> {
+        if self.profile.browser_type == BrowserType::MobileSafari {
+            return None;
+        }
+        let mut rng = self.stream(4);
+        let charging = rng.chance(0.6);
+        let level = if charging && rng.chance(0.4) {
+            1.0
+        } else {
+            (rng.range(0.25, 1.0) * 100.0).round() / 100.0
+        };
+        let (charging_time, discharging_time) = if charging {
+            (((1.0 - level) * 7200.0).round(), f64::INFINITY)
+        } else {
+            (f64::INFINITY, (level * 28_800.0).round())
+        };
+        Some(BatteryProfile {
+            charging,
+            level,
+            charging_time,
+            discharging_time,
+        })
+    }
+
+    /// A 4G connection, or `None` where the browser has no Network Information
+    /// API.
+    pub(super) fn connection(&self) -> Option<ConnectionProfile> {
+        if self.profile.browser_type == BrowserType::MobileSafari {
+            return None;
+        }
+        let mut rng = self.stream(5);
+        Some(ConnectionProfile {
+            effective_type: "4g".to_owned(),
+            rtt: *rng.pick(&[50, 100, 150]),
+            downlink: *rng.pick(&[1.5, 5.0, 10.0]),
+            save_data: false,
+        })
+    }
+
+    /// The voices of the system.
+    pub(super) fn speech_voices(&self) -> Vec<SpeechVoice> {
+        speech_voices_for(self.os)
+    }
+
+    /// Whether Web Bluetooth finds an adapter, or `None` where the browser has
+    /// no Web Bluetooth.
+    pub(super) fn bluetooth(&self) -> Option<bool> {
+        if self.profile.browser_type == BrowserType::MobileSafari {
+            return None;
+        }
+        let mut rng = self.stream(6);
+        Some(match self.os {
+            OsType::Android | OsType::Macos => true,
+            OsType::Windows => rng.chance(0.5),
+            OsType::Linux => rng.chance(0.3),
+            OsType::Ios => false,
+        })
     }
 }
 
@@ -1122,7 +1339,7 @@ fn windows(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         touch_points: 0,
         screen: *rng.pick(&spec.windows_screens),
         color_depth: 24,
-        graphics: Graphics::pc(adapter, maker, renderer),
+        graphics: pc_graphics(adapter, maker, renderer),
     }
 }
 
@@ -1154,24 +1371,63 @@ fn macos(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         } else {
             24
         },
-        graphics: Graphics {
-            vendor: "Google Inc. (Apple)".to_owned(),
-            renderer: format!(
-                "ANGLE (Apple, ANGLE Metal Renderer: {}, Unspecified Version)",
-                model.chip
-            ),
-            vendor_id: None,
-            renderer_id: None,
-        },
+        graphics: apple_graphics(model.chip),
     }
+}
+
+/// The WebGL strings of an Apple Silicon Mac: ANGLE over Metal.
+fn apple_graphics(chip: &str) -> WebGl {
+    WebGl::new(
+        "Google Inc. (Apple)",
+        format!("ANGLE (Apple, ANGLE Metal Renderer: {chip}, Unspecified Version)"),
+    )
+}
+
+/// The WebGL strings of a Linux machine: ANGLE over desktop OpenGL.
+fn linux_graphics(adapter: &Adapter) -> WebGl {
+    let maker = adapter.vendor.opengl_name();
+    let renderer = format!("ANGLE ({maker}, {})", adapter.name);
+    pc_graphics(adapter, maker, renderer)
+}
+
+/// The WebGL vendor and renderer of the Apple Silicon `chip`, as Chrome on a Mac
+/// reports them. The macOS preset uses it, so it matches what a generated Mac says.
+#[must_use]
+pub(crate) fn macos_webgl(chip: &str) -> (String, String) {
+    let graphics = apple_graphics(chip);
+    (
+        graphics.vendor.unwrap_or_default(),
+        graphics.renderer.unwrap_or_default(),
+    )
+}
+
+/// The WebGL vendor and renderer of the Linux preset's machine (a desktop with
+/// an NVIDIA card), worded as a generated Linux identity words it.
+#[must_use]
+pub(crate) fn linux_preset_webgl() -> (String, String) {
+    let adapter = LINUX_ADAPTERS
+        .iter()
+        .find(|a| a.name.starts_with("NVIDIA GeForce RTX 4070"))
+        .unwrap_or(&LINUX_ADAPTERS[0]);
+    let graphics = linux_graphics(adapter);
+    (
+        graphics.vendor.unwrap_or_default(),
+        graphics.renderer.unwrap_or_default(),
+    )
+}
+
+/// The first place in [`LOCALES`] whose time zone is `timezone`: its locale,
+/// country and the coordinates of its city, so a fixed identity can be given a
+/// position that agrees with its time zone.
+#[must_use]
+pub fn locale_of_timezone(timezone: &str) -> Option<&'static Locale> {
+    LOCALES.iter().find(|l| l.timezone == timezone)
 }
 
 fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
     let major = chromium_major(rng, forced_major);
     let adapter = rng.pick(&LINUX_ADAPTERS);
     let spec = adapter.tier.spec();
-    let maker = adapter.vendor.opengl_name();
-    let renderer = format!("ANGLE ({maker}, {})", adapter.name);
     let client_hints = ClientHints {
         platform: "Linux".to_owned(),
         platform_version: (*rng.pick(&LINUX_VERSIONS)).to_owned(),
@@ -1190,7 +1446,7 @@ fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         touch_points: 0,
         screen: *rng.pick(&spec.linux_screens),
         color_depth: 24,
-        graphics: Graphics::pc(adapter, maker, renderer),
+        graphics: linux_graphics(adapter),
     }
 }
 
@@ -1220,7 +1476,7 @@ fn android(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         touch_points: 5,
         screen: device.screen,
         color_depth: 24,
-        graphics: Graphics::direct(device.gpu),
+        graphics: direct_graphics(device.gpu),
     }
 }
 
@@ -1243,7 +1499,7 @@ fn ios(rng: &mut Rng) -> Profile {
         touch_points: 5,
         screen: *rng.pick(&IPHONE_SCREENS),
         color_depth: 24,
-        graphics: Graphics::direct(("Apple Inc.", "Apple GPU")),
+        graphics: direct_graphics(("Apple Inc.", "Apple GPU")),
     }
 }
 
@@ -1254,6 +1510,46 @@ pub(super) fn chromium_user_agent(platform: &str, major: u32, mobile: bool) -> S
         "Mozilla/5.0 ({platform}) AppleWebKit/537.36 (KHTML, like Gecko) \
          Chrome/{major}.0.0.0{mobile} Safari/537.36"
     )
+}
+
+/// A Microsoft Edge user agent: the Chromium one with Edge's own `Edg/` token
+/// after Safari's, as Edge sends it.
+#[must_use]
+pub fn edge_user_agent(platform: &str, major: u32) -> String {
+    format!(
+        "{} Edg/{major}.0.0.0",
+        chromium_user_agent(platform, major, false)
+    )
+}
+
+/// The Client Hints of a Microsoft Edge release.
+///
+/// Edge builds its brand list the way Chromium does, and names itself
+/// `Microsoft Edge` where Chrome names itself `Google Chrome`, so this is
+/// [`chromium_hints`] with that one brand renamed and in the same position. The
+/// full versions are `{major}.0.0.0`: [`KNOWN_FULL_VERSIONS`] holds Chrome
+/// builds, and Edge's own build numbers differ from them. The caller fills in
+/// the platform fields.
+#[must_use]
+pub fn edge_hints(major: u32) -> ClientHints {
+    let mut hints = chromium_hints(major);
+    let full_version = format!("{major}.0.0.0");
+    for brand in hints
+        .brands
+        .iter_mut()
+        .chain(hints.full_version_list.iter_mut())
+    {
+        if brand.brand == "Google Chrome" {
+            "Microsoft Edge".clone_into(&mut brand.brand);
+        }
+    }
+    for brand in &mut hints.full_version_list {
+        if brand.brand == "Chromium" || brand.brand == "Microsoft Edge" {
+            brand.version.clone_from(&full_version);
+        }
+    }
+    hints.ua_full_version = full_version;
+    hints
 }
 
 /// The characters Chromium picks from to word its decoy ("GREASE") brand.
@@ -1489,7 +1785,7 @@ mod tests {
         // Some seed draws Safari 26, and its user agent is the one WebKit bug
         // 298717 quotes.
         let agent = (0..200)
-            .filter_map(|seed| generate(OsType::Ios, seed, None).user_agent)
+            .map(|seed| draw(OsType::Ios, seed, None, None).profile.user_agent)
             .find(|ua| ua.contains("Version/26.0"))
             .expect("a seed draws Safari 26");
         assert_eq!(
@@ -1614,16 +1910,69 @@ mod tests {
 
     #[test]
     fn a_forced_major_changes_the_version_and_keeps_the_rest_of_the_seed() {
-        let free = generate(OsType::Windows, 9, None);
-        let pinned = generate(OsType::Windows, 9, Some(155));
-        assert_eq!(pinned.core_version, Some(155));
-        assert!(pinned
-            .user_agent
-            .as_deref()
-            .is_some_and(|ua| ua.contains("Chrome/155.")));
-        assert_eq!(free.screen_width, pinned.screen_width);
-        assert_eq!(free.latitude, pinned.latitude);
-        assert_eq!(free.seed, pinned.seed);
+        let free = draw(OsType::Windows, 9, None, None);
+        let pinned = draw(OsType::Windows, 9, Some(155), None);
+        assert_eq!(pinned.profile.core_version, Some(155));
+        assert!(pinned.profile.user_agent.contains("Chrome/155."));
+        assert_eq!(free.profile.screen, pinned.profile.screen);
+        assert_eq!(free.profile.graphics, pinned.profile.graphics);
+        assert_eq!(free.position, pinned.position);
+    }
+
+    #[test]
+    fn a_given_place_replaces_the_region_and_keeps_the_rest_of_the_seed() {
+        let berlin = *locale_of_timezone("Europe/Berlin").expect("a known zone");
+        for seed in 0..30 {
+            let free = draw(OsType::Macos, seed, None, None);
+            let placed = draw(OsType::Macos, seed, None, Some(&berlin));
+            assert_eq!(placed.region, berlin, "seed {seed}");
+            assert_eq!(placed.profile.user_agent, free.profile.user_agent);
+            assert_eq!(placed.profile.graphics, free.profile.graphics);
+            assert_eq!(placed.profile.screen, free.profile.screen);
+            assert!(
+                (placed.position.latitude - berlin.latitude).abs()
+                    <= POSITION_JITTER_DEGREES + 1e-4
+            );
+        }
+    }
+
+    #[test]
+    fn the_extras_repeat_for_a_seed_and_do_not_depend_on_each_other() {
+        let first = draw(OsType::Windows, 12, None, None);
+        let second = draw(OsType::Windows, 12, None, None);
+        assert_eq!(first.fonts(), second.fonts());
+        assert_eq!(first.media_devices(), second.media_devices());
+        assert_eq!(first.webrtc(), second.webrtc());
+        assert_eq!(first.battery(), second.battery());
+        assert_eq!(first.connection(), second.connection());
+        assert_eq!(first.bluetooth(), second.bluetooth());
+        // Another seed gives another set of addresses.
+        assert_ne!(
+            first.webrtc(),
+            draw(OsType::Windows, 13, None, None).webrtc()
+        );
+    }
+
+    #[test]
+    fn the_extras_are_what_the_system_and_the_browser_have() {
+        for seed in 0..30 {
+            let windows = draw(OsType::Windows, seed, None, None);
+            assert!(windows.fonts().iter().any(|f| f == "Segoe UI"));
+            assert!(windows
+                .battery()
+                .is_some_and(|b| (0.0..=1.0).contains(&b.level)));
+            let webrtc = windows.webrtc();
+            assert!(webrtc
+                .local_ip
+                .as_deref()
+                .is_some_and(|ip| ip.starts_with("192.168.")));
+            let phone = draw(OsType::Android, seed, None, None);
+            assert_eq!(phone.media_devices(), MediaDevices::counts(1, 1, 2));
+            let safari = draw(OsType::Ios, seed, None, None);
+            assert!(safari.battery().is_none() && safari.connection().is_none());
+            assert!(safari.bluetooth().is_none());
+            assert!(!safari.speech_voices().is_empty());
+        }
     }
 
     #[test]
@@ -1634,11 +1983,11 @@ mod tests {
             OsType::Linux,
             OsType::Android,
         ] {
-            let fp = generate(os, 4, Some(161));
-            assert_eq!(fp.core_version, Some(161), "{os:?}");
-            let ua = fp.user_agent.as_deref().unwrap_or_default();
+            let profile = draw(os, 4, Some(161), None).profile;
+            assert_eq!(profile.core_version, Some(161), "{os:?}");
+            let ua = profile.user_agent.as_str();
             assert!(ua.contains("Chrome/161.0.0.0"), "{os:?}: {ua}");
-            let hints = fp.client_hints.expect("Chromium has client hints");
+            let hints = profile.client_hints.expect("Chromium has client hints");
             assert_eq!(hints.ua_full_version, "161.0.0.0", "{os:?}");
             for name in ["Chromium", "Google Chrome"] {
                 assert!(
@@ -1654,8 +2003,8 @@ mod tests {
 
     #[test]
     fn ios_has_no_chromium_major_to_force() {
-        let free = generate(OsType::Ios, 4, None);
-        let forced = generate(OsType::Ios, 4, Some(161));
+        let free = draw(OsType::Ios, 4, None, None).profile;
+        let forced = draw(OsType::Ios, 4, Some(161), None).profile;
         assert_eq!(free.user_agent, forced.user_agent);
         assert_eq!(forced.core_version, None);
     }
@@ -1712,15 +2061,100 @@ mod tests {
             OsType::Android,
             OsType::Ios,
         ] {
-            let fp = generate(os, 1, None);
-            assert_eq!(fp.os_type, os);
+            let fp = crate::stealth::fingerprint::Fingerprint::randomized(os, 1);
+            assert_eq!(fp.os_type(), os);
             assert!(fp.validate().is_coherent());
         }
     }
 
     #[test]
-    fn the_noise_seed_is_not_the_callers_seed() {
-        assert_ne!(generate(OsType::Windows, 0, None).seed, Some(0));
-        assert_ne!(generate(OsType::Windows, 42, None).seed, Some(42));
+    fn the_noise_seed_of_an_identity_is_the_seed_it_was_drawn_from() {
+        for os in [OsType::Windows, OsType::Ios] {
+            for seed in [0, 3, 42, u64::MAX] {
+                let fp = crate::stealth::fingerprint::Fingerprint::randomized(os, seed);
+                assert_eq!(fp.seed(), seed, "{os:?}");
+            }
+        }
+    }
+
+    fn brand_names(hints: &ClientHints) -> Vec<&str> {
+        hints.brands.iter().map(|b| b.brand.as_str()).collect()
+    }
+
+    #[test]
+    fn edge_names_itself_where_chrome_would_and_keeps_chromiums_order() {
+        for major in CHROMIUM_MAJORS {
+            let edge = edge_hints(major);
+            let chrome = chromium_hints(major);
+            let names = brand_names(&edge);
+            assert!(names.contains(&"Microsoft Edge"), "{names:?}");
+            assert!(names.contains(&"Chromium"), "{names:?}");
+            assert!(!names.contains(&"Google Chrome"), "{names:?}");
+            // The same slot holds the renamed brand.
+            let renamed: Vec<&str> = brand_names(&chrome)
+                .into_iter()
+                .map(|b| {
+                    if b == "Google Chrome" {
+                        "Microsoft Edge"
+                    } else {
+                        b
+                    }
+                })
+                .collect();
+            assert_eq!(names, renamed, "{major}");
+        }
+    }
+
+    #[test]
+    fn edges_full_versions_are_the_frozen_form_not_a_chrome_build() {
+        let edge = edge_hints(155);
+        assert_eq!(edge.ua_full_version, "155.0.0.0");
+        for brand in &edge.full_version_list {
+            if brand.brand == "Chromium" || brand.brand == "Microsoft Edge" {
+                assert_eq!(brand.version, "155.0.0.0", "{}", brand.brand);
+            }
+        }
+        assert!(!edge.full_version_list.is_empty());
+    }
+
+    #[test]
+    fn the_edge_user_agent_is_the_chromium_one_with_edges_token() {
+        assert_eq!(
+            edge_user_agent("Windows NT 10.0; Win64; x64", 155),
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
+             Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+        );
+    }
+
+    #[test]
+    fn a_time_zone_finds_its_city() {
+        let berlin = locale_of_timezone("Europe/Berlin").expect("a known zone");
+        assert_eq!((berlin.country, berlin.tag), ("DE", "de-DE"));
+        assert!(locale_of_timezone("Pacific/Honolulu").is_none());
+        let chicago = locale_of_timezone("America/Chicago").expect("a US zone");
+        assert!((chicago.latitude - 41.88).abs() < 0.1);
+    }
+
+    #[test]
+    fn the_linux_and_mac_presets_word_webgl_as_a_generated_identity_does() {
+        let (vendor, renderer) = linux_preset_webgl();
+        assert_eq!(vendor, "Google Inc. (NVIDIA Corporation)");
+        assert!(
+            renderer.starts_with("ANGLE (NVIDIA Corporation, NVIDIA GeForce RTX 4070"),
+            "{renderer}"
+        );
+        assert!(!renderer.contains("Direct3D"), "{renderer}");
+        // It is one of the strings the Linux generator can produce.
+        assert!((0..200).any(|seed| {
+            let profile = draw(OsType::Linux, seed, None, None).profile;
+            profile.graphics.renderer.as_deref() == Some(renderer.as_str())
+        }));
+
+        let (vendor, renderer) = macos_webgl("Apple M3");
+        assert_eq!(vendor, "Google Inc. (Apple)");
+        assert_eq!(
+            renderer,
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)"
+        );
     }
 }

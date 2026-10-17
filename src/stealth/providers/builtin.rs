@@ -19,13 +19,9 @@
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
 use crate::stealth::fingerprint::{
-    BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
+    languages_for_locale, AudioNoise, CanvasNoise, Dimension, Fingerprint, Geolocation,
+    AUDIO_SEED_MASK,
 };
-
-/// Returns `true` when a masking mode should emit its evasion.
-fn masked(mode: MaskingMode) -> bool {
-    matches!(mode, MaskingMode::Mask | MaskingMode::Custom)
-}
 
 /// Fills `@NAME@` markers in a JavaScript template, in one pass.
 ///
@@ -127,8 +123,8 @@ impl EvasionProvider for NativeToStringProvider {
         5
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        // Always useful; masking mode Natural disables only if explicitly set.
-        !matches!(fp.flags.native_tostring_masking, MaskingMode::Disabled)
+        // The other evasions rely on it, so it is on unless switched off.
+        fp.is_masked(Dimension::NativeToString)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(
@@ -258,8 +254,7 @@ impl EvasionProvider for ChromeRuntimeProvider {
         20
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        // Chromium personas; gate on either the dedicated or navigator flag.
-        masked(fp.flags.chrome_runtime_masking) || masked(fp.flags.navigator_masking)
+        fp.is_masked(Dimension::ChromeRuntime)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -326,11 +321,13 @@ impl EvasionProvider for NavigatorPropsProvider {
         30
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.navigator_masking)
+        fp.is_masked(Dimension::Navigator)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
-        let native = fp.flags.native_spoofing;
+        let native = fp.policy().native_spoofing;
+        // Only the values the fingerprint holds are defined: a setting that is
+        // not `Value` is the browser's own.
         let mut body = String::new();
         let mut define = |prop: &str, value: String| {
             body.push_str(&format!(
@@ -339,47 +336,39 @@ impl EvasionProvider for NavigatorPropsProvider {
         };
 
         if !native {
-            let platform = fp
-                .platform
-                .clone()
-                .unwrap_or_else(|| fp.os_type.platform().to_owned());
-            define("platform", quoted(&platform));
-
-            if let Some(ua) = fp.user_agent.as_deref() {
+            if let Some(platform) = fp.platform().value() {
+                define("platform", quoted(platform));
+            }
+            if let Some(ua) = fp.user_agent().value() {
                 define("userAgent", quoted(ua));
-                let app_version = fp
-                    .app_version
-                    .clone()
-                    .unwrap_or_else(|| ua.replacen("Mozilla/", "", 1));
-                define("appVersion", quoted(&app_version));
             }
         }
-        if let Some(cores) = fp.hardware_concurrency {
+        // A given app version is not covered by the protocol override, so it is
+        // always scripted; otherwise it follows the user agent.
+        if let Some(app_version) = fp.app_version().value() {
+            define("appVersion", quoted(app_version));
+        } else if let (false, Some(ua)) = (native, fp.user_agent().value()) {
+            define("appVersion", quoted(&ua.replacen("Mozilla/", "", 1)));
+        }
+        if let Some(cores) = fp.hardware_concurrency().value() {
             define("hardwareConcurrency", cores.to_string());
         }
-        if let Some(mem) = fp.device_memory {
-            define("deviceMemory", EvasionContext::number(mem));
+        if let Some(mem) = fp.device_memory().value() {
+            define("deviceMemory", EvasionContext::number(*mem));
         }
-        if let Some(touch) = fp.max_touch_points {
+        if let Some(touch) = fp.max_touch_points().value() {
             define("maxTouchPoints", touch.to_string());
         }
-        let vendor = fp.vendor.clone().unwrap_or_else(|| {
-            if fp.browser_type == BrowserType::MobileSafari || fp.os_type == OsType::Ios {
-                "Apple Computer, Inc.".to_owned()
-            } else {
-                "Google Inc.".to_owned()
-            }
-        });
-        define("vendor", quoted(&vendor));
-        let product_sub = fp
-            .product_sub
-            .clone()
-            .unwrap_or_else(|| "20030107".to_owned());
-        define("productSub", quoted(&product_sub));
-        if let Some(oscpu) = fp.oscpu.as_deref() {
+        if let Some(vendor) = fp.vendor().value() {
+            define("vendor", quoted(vendor));
+        }
+        if let Some(product_sub) = fp.product_sub().value() {
+            define("productSub", quoted(product_sub));
+        }
+        if let Some(oscpu) = fp.oscpu().value() {
             define("oscpu", quoted(oscpu));
         }
-        if let Some(build) = fp.build_id.as_deref() {
+        if let Some(build) = fp.build_id().value() {
             define("buildID", quoted(build));
         }
         Some(render(
@@ -406,7 +395,8 @@ impl EvasionProvider for PermissionsProvider {
         35
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.navigator_masking)
+        // A headless fix, not a navigator value.
+        fp.is_masked(Dimension::Headless)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -450,7 +440,7 @@ impl EvasionProvider for PluginsProvider {
         40
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.navigator_masking)
+        fp.is_masked(Dimension::Navigator)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -533,22 +523,19 @@ impl EvasionProvider for WindowGeometryProvider {
         45
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.screen_masking)
+        fp.is_masked(Dimension::Screen)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
-        let native = fp.flags.native_spoofing;
-        let (w, h) = match (fp.screen_width, fp.screen_height) {
-            (Some(w), Some(h)) => (w, h),
-            _ => fp.os_type.default_screen(),
-        };
-        let pr = fp.pixel_ratio.unwrap_or(1.0);
-        let depth = fp.color_depth.unwrap_or(24);
-        let avail_h = h.saturating_sub(40);
-        let depth = depth.to_string();
+        let native = fp.policy().native_spoofing;
+        // Only the values the fingerprint holds are defined.
+        let size = fp.screen().value().map(|s| (s.width, s.height));
+        let depth = fp.color_depth().value().copied();
+        let ratio = fp.pixel_ratio().value().copied();
         if native {
             // Width/height/scale are handled by CDP Emulation.setDeviceMetricsOverride.
             // Only colorDepth is not covered by CDP, so patch it minimally.
+            let depth = depth?.to_string();
             return Some(render(
                 r##"(function () {
   @SB@
@@ -558,13 +545,36 @@ impl EvasionProvider for WindowGeometryProvider {
                 &[("DEPTH", &depth)],
             ));
         }
+        let mut defs = Vec::new();
+        let mut replaceables = String::new();
+        if let Some((w, h)) = size {
+            let avail = fp.avail_screen().value();
+            let avail_w = avail.map_or(w, |a| a.width);
+            let avail_h = avail.map_or_else(|| h.saturating_sub(40), |a| a.height);
+            defs.push(format!(
+                "width: {w}, height: {h}, availWidth: {avail_w}, availHeight: {avail_h}"
+            ));
+            replaceables.push_str(&format!(
+                "  try {{ replaceable('outerWidth', function () {{ return Math.max({w}, window.innerWidth); }}); }} catch (e) {{}}\n\
+                 \x20 try {{ replaceable('outerHeight', function () {{ return Math.max({avail_h}, window.innerHeight); }}); }} catch (e) {{}}\n"
+            ));
+        }
+        if let Some(depth) = depth {
+            defs.push(format!("colorDepth: {depth}, pixelDepth: {depth}"));
+        }
+        if let Some(ratio) = ratio {
+            replaceables.push_str(&format!(
+                "  try {{ replaceable('devicePixelRatio', function () {{ return {}; }}); }} catch (e) {{}}\n",
+                EvasionContext::number(ratio)
+            ));
+        }
+        if defs.is_empty() && replaceables.is_empty() {
+            return None;
+        }
         Some(render(
             r##"(function () {
   @SB@
-  const defs = {
-    width: @W@, height: @H@, availWidth: @W@, availHeight: @AVAIL_H@,
-    colorDepth: @DEPTH@, pixelDepth: @DEPTH@,
-  };
+  const defs = { @DEFS@ };
   Object.keys(defs).forEach(function (k) {
     try { sb.getter(Screen.prototype, k, function () { return defs[k]; }); } catch (e) {}
   });
@@ -579,17 +589,8 @@ impl EvasionProvider for WindowGeometryProvider {
       configurable: true
     });
   }
-  try { replaceable('outerWidth', function () { return Math.max(@W@, window.innerWidth); }); } catch (e) {}
-  try { replaceable('outerHeight', function () { return Math.max(@AVAIL_H@, window.innerHeight); }); } catch (e) {}
-  try { replaceable('devicePixelRatio', function () { return @PR@; }); } catch (e) {}
-})();"##,
-            &[
-                ("W", &w.to_string()),
-                ("H", &h.to_string()),
-                ("AVAIL_H", &avail_h.to_string()),
-                ("DEPTH", &depth),
-                ("PR", &EvasionContext::number(pr)),
-            ],
+@REPLACEABLES@})();"##,
+            &[("DEFS", &defs.join(", ")), ("REPLACEABLES", &replaceables)],
         ))
     }
 }
@@ -610,17 +611,14 @@ impl EvasionProvider for WebglProvider {
         50
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.graphics_masking)
+        fp.is_masked(Dimension::Graphics)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let fp = ctx.fingerprint;
-        let (default_vendor, default_renderer) = if fp.os_type == OsType::Ios {
-            ("Apple Inc.", "Apple GPU")
-        } else {
-            ("Intel Inc.", "Intel Iris OpenGL Engine")
-        };
-        let vendor = fp.webgl_vendor.as_deref().unwrap_or(default_vendor);
-        let renderer = fp.webgl_renderer.as_deref().unwrap_or(default_renderer);
+        // A half the fingerprint lacks is the browser's own.
+        let webgl = ctx.fingerprint.webgl().value();
+        let literal = |given: Option<&str>| given.map_or_else(|| "null".to_owned(), quoted);
+        let vendor = literal(webgl.and_then(|gl| gl.vendor.as_deref()));
+        let renderer = literal(webgl.and_then(|gl| gl.renderer.as_deref()));
         Some(render(
             r##"(function () {
   @SB@
@@ -630,20 +628,25 @@ impl EvasionProvider for WebglProvider {
     if (!context || !context.prototype) { return; }
     const original = context.prototype.getParameter;
     context.prototype.getParameter = sb.native(function getParameter(parameter) {
-      if (parameter === 37445) { return vendor; }
-      if (parameter === 37446) { return renderer; }
+      if (parameter === 37445 && vendor !== null) { return vendor; }
+      if (parameter === 37446 && renderer !== null) { return renderer; }
       return original.apply(this, arguments);
     }, 'getParameter', original);
   }
   patch(window.WebGLRenderingContext);
   patch(window.WebGL2RenderingContext);
 })();"##,
-            &[("VENDOR", &quoted(vendor)), ("RENDERER", &quoted(renderer))],
+            &[("VENDOR", &vendor), ("RENDERER", &renderer)],
         ))
     }
 }
 
-/// Deterministic canvas noise on `toDataURL` / `toBlob` / `getImageData`.
+/// Canvas noise on `toDataURL` / `toBlob` / `getImageData`.
+///
+/// Runs for every [`CanvasNoise`](crate::stealth::fingerprint::CanvasNoise)
+/// of the policy that adds noise: `Persistent` uses the profile seed, `Random`
+/// a fresh seed for each generated script, and `Low` touches about one pixel in
+/// eight.
 ///
 /// The noise is a function of the seed and the pixel's position, so reading
 /// the same canvas twice gives the same bytes, and a sub-rectangle carries the
@@ -660,22 +663,32 @@ impl EvasionProvider for CanvasNoiseProvider {
         55
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        matches!(fp.flags.canvas_noise, CanvasNoiseMode::Mask)
+        fp.is_masked(Dimension::Canvas)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let mode = ctx.fingerprint.policy().canvas_noise;
+        let seed = if mode == CanvasNoise::Random {
+            ctx.seed ^ fresh_entropy()
+        } else {
+            ctx.seed
+        };
         Some(render(
             r##"(function () {
   @SB@
   const seed = @SEED@ >>> 0;
+  const density = @DENSITY@;
   @HASH@
   // Nudges the red channel of each pixel by -1, 0 or +1. The pixel at
-  // (x0 + column, y0 + row) always gets the same nudge.
+  // (x0 + column, y0 + row) always gets the same nudge. With a density above
+  // one, only the pixels whose own hash lands on zero are touched.
   function perturb(data, width, x0, y0) {
     for (let i = 0; i < data.length; i += 4) {
       const pixel = i / 4;
       const column = pixel % width;
       const row = (pixel - column) / width;
-      const nudge = (hash((y0 + row) * 65536 + x0 + column) % 3) - 1;
+      const key = (y0 + row) * 65536 + x0 + column;
+      if (density > 1 && hash(key + 7919) % density !== 0) { continue; }
+      const nudge = (hash(key) % 3) - 1;
       if (nudge !== 0) { data[i] = Math.max(0, Math.min(255, data[i] + nudge)); }
     }
   }
@@ -717,9 +730,24 @@ impl EvasionProvider for CanvasNoiseProvider {
     return image;
   }, 'getImageData', originalGetImageData);
 })();"##,
-            &[("SEED", &ctx.seed.to_string()), ("HASH", NOISE_HASH)],
+            &[
+                ("SEED", &seed.to_string()),
+                ("DENSITY", &mode.density().to_string()),
+                ("HASH", NOISE_HASH),
+            ],
         ))
     }
+}
+
+/// A value that differs on every call, for the noise that must not repeat.
+fn fresh_entropy() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos() as u64);
+    let step = COUNTER.fetch_add(1, Ordering::Relaxed);
+    (nanos ^ step.wrapping_mul(0x9E37_79B9_7F4A_7C15)).wrapping_mul(0xBF58_476D_1CE4_E5B9)
 }
 
 /// Deterministic audio noise on `AudioBuffer.getChannelData`,
@@ -739,10 +767,16 @@ impl EvasionProvider for AudioNoiseProvider {
         60
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.audio_masking)
+        fp.is_masked(Dimension::Audio)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let seed = ctx.seed ^ 0x5DEE_CE66;
+        // The canvas seed's partner, so the two noises differ.
+        let seed = ctx.seed ^ AUDIO_SEED_MASK;
+        let seed = if ctx.fingerprint.policy().audio_noise == AudioNoise::Random {
+            seed ^ fresh_entropy()
+        } else {
+            seed
+        };
         Some(render(
             r##"(function () {
   @SB@
@@ -794,11 +828,29 @@ impl EvasionProvider for WebRtcProvider {
         65
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.webrtc_masking)
+        fp.is_masked(Dimension::WebRtc)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let public_ip = ctx.fingerprint.webrtc_public_ip.clone().unwrap_or_default();
-        let local_ip = ctx.fingerprint.webrtc_local_ip.clone().unwrap_or_default();
+        if ctx.fingerprint.webrtc().is_off() {
+            // WebRTC unavailable: a browser with it disabled has none of the
+            // constructors, so a page finds nothing to leak through.
+            return Some(
+                r##"(function () {
+  ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCSessionDescription', 'RTCIceCandidate',
+   'RTCDataChannel', 'RTCRtpSender', 'RTCRtpReceiver', 'RTCRtpTransceiver'].forEach(function (name) {
+    try { delete window[name]; } catch (e) {}
+  });
+})();"##
+                    .to_owned(),
+            );
+        }
+        let addresses = ctx.fingerprint.webrtc().value();
+        let public_ip = addresses
+            .and_then(|a| a.public_ip.clone())
+            .unwrap_or_default();
+        let local_ip = addresses
+            .and_then(|a| a.local_ip.clone())
+            .unwrap_or_default();
         Some(render(
             r##"(function () {
   @SB@
@@ -895,10 +947,16 @@ impl EvasionProvider for BatteryProvider {
         70
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.battery_masking)
+        fp.is_masked(Dimension::Battery)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let b = ctx.fingerprint.battery.clone().unwrap_or_default();
+        let Some(b) = ctx.fingerprint.battery().value() else {
+            // No battery API: a browser without it has no `getBattery`.
+            return Some(
+                "(function () {\n  try { delete Object.getPrototypeOf(navigator).getBattery; } catch (e) {}\n})();"
+                    .to_owned(),
+            );
+        };
         Some(render(
             r##"(function () {
   @SB@
@@ -938,10 +996,16 @@ impl EvasionProvider for ConnectionProvider {
         72
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.connection_masking)
+        fp.is_masked(Dimension::Connection)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let c = ctx.fingerprint.connection.clone().unwrap_or_default();
+        let Some(c) = ctx.fingerprint.connection().value() else {
+            // No Network Information API: a browser without it has no `connection`.
+            return Some(
+                "(function () {\n  try { delete Object.getPrototypeOf(navigator).connection; } catch (e) {}\n})();"
+                    .to_owned(),
+            );
+        };
         Some(render(
             r##"(function () {
   @SB@
@@ -976,14 +1040,20 @@ impl EvasionProvider for MediaDevicesProvider {
         75
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.media_devices_masking)
+        fp.is_masked(Dimension::MediaDevices)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let fp = ctx.fingerprint;
-        let devices = if fp.media_devices.is_empty() {
-            let audio_in = fp.audio_inputs.unwrap_or(1);
-            let audio_out = fp.audio_outputs.unwrap_or(1);
-            let video_in = fp.video_inputs.unwrap_or(1);
+        // `Off` lists no device at all.
+        let given = ctx.fingerprint.media_devices().value();
+        let devices = if given.is_none() {
+            "[]".to_owned()
+        } else if given.is_some_and(|d| d.labelled.is_empty()) {
+            let counts = given.cloned().unwrap_or_default();
+            let (audio_in, audio_out, video_in) = (
+                counts.audio_inputs,
+                counts.audio_outputs,
+                counts.video_inputs,
+            );
             render(
                 r##"(function () {
     const labels = ['Default', 'Communications', 'Microphone', 'Camera', 'Speaker'];
@@ -1000,8 +1070,9 @@ impl EvasionProvider for MediaDevicesProvider {
                 ],
             )
         } else {
-            let entries = fp
-                .media_devices
+            let entries = given
+                .map(|d| d.labelled.as_slice())
+                .unwrap_or_default()
                 .iter()
                 .map(|d| {
                     format!(
@@ -1052,12 +1123,15 @@ impl EvasionProvider for FontsProvider {
         76
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.fonts_masking) && !fp.fonts.is_empty()
+        fp.fonts().value().is_some_and(|fonts| !fonts.is_empty())
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let set = ctx
             .fingerprint
-            .fonts
+            .fonts()
+            .value()
+            .map(Vec::as_slice)
+            .unwrap_or_default()
             .iter()
             .map(|f| quoted(f))
             .collect::<Vec<_>>()
@@ -1127,14 +1201,16 @@ impl EvasionProvider for SpeechProvider {
         78
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.speech_masking)
+        fp.is_masked(Dimension::Speech)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let voices = if ctx.fingerprint.speech_voices.is_empty() {
-            crate::stealth::fingerprint::SpeechVoice::default_set()
-        } else {
-            ctx.fingerprint.speech_voices.clone()
-        };
+        // `Off` lists no voice at all.
+        let voices = ctx
+            .fingerprint
+            .speech_voices()
+            .value()
+            .cloned()
+            .unwrap_or_default();
         let entries = voices
             .iter()
             .map(|v| {
@@ -1162,7 +1238,12 @@ impl EvasionProvider for SpeechProvider {
     }
 }
 
-/// Provides a minimal Web Bluetooth stub.
+/// Sets whether Web Bluetooth has an adapter.
+///
+/// A browser that has `navigator.bluetooth` (desktop Chrome) keeps its own
+/// object, and only `getAvailability()` is replaced, so `Value(false)` and
+/// `Value(true)` change what a page reads. A browser without it gets a minimal
+/// stub. `Off` removes the API.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct BluetoothProvider;
 
@@ -1174,21 +1255,35 @@ impl EvasionProvider for BluetoothProvider {
         80
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.bluetooth_masking)
+        fp.is_masked(Dimension::Bluetooth)
     }
-    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let Some(available) = ctx.fingerprint.bluetooth().value() else {
+            // No Web Bluetooth: a browser without it has no `navigator.bluetooth`.
+            return Some(
+                "(function () {\n  try { delete Object.getPrototypeOf(navigator).bluetooth; } catch (e) {}\n})();"
+                    .to_owned(),
+            );
+        };
         Some(render(
             r##"(function () {
   @SB@
-  if (navigator.bluetooth) { return; }
+  if (navigator.bluetooth) {
+    const proto = Object.getPrototypeOf(navigator.bluetooth);
+    const original = proto && proto.getAvailability;
+    if (typeof original === 'function') {
+      try { proto.getAvailability = sb.native(function getAvailability() { return Promise.resolve(@AVAILABLE@); }, 'getAvailability', original); } catch (e) {}
+    }
+    return;
+  }
   const bt = {
-    getAvailability: function () { return Promise.resolve(false); },
+    getAvailability: function () { return Promise.resolve(@AVAILABLE@); },
     requestDevice: function () { return Promise.reject(new DOMException('User cancelled', 'NotFoundError')); },
     addEventListener: function () {}, removeEventListener: function () {},
   };
   try { sb.getter(Object.getPrototypeOf(navigator), 'bluetooth', function () { return bt; }); } catch (e) {}
 })();"##,
-            &[],
+            &[("AVAILABLE", if *available { "true" } else { "false" })],
         ))
     }
 }
@@ -1208,7 +1303,7 @@ impl EvasionProvider for HeadlessProvider {
         85
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.headless_masking)
+        fp.is_masked(Dimension::Headless)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -1324,12 +1419,16 @@ impl EvasionProvider for ClientHintsProvider {
         88
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.client_hints_masking)
-            && fp.client_hints.is_some()
-            && !fp.flags.native_spoofing
+        fp.is_masked(Dimension::ClientHints) && !fp.policy().native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let ch = ctx.fingerprint.client_hints.as_ref()?;
+        let Some(ch) = ctx.fingerprint.client_hints().value() else {
+            // No Client Hints: a browser without them has no `userAgentData`.
+            return Some(
+                "(function () {\n  try { delete Object.getPrototypeOf(navigator).userAgentData; } catch (e) {}\n})();"
+                    .to_owned(),
+            );
+        };
         let brand_json = |list: &[crate::stealth::fingerprint::BrandVersion]| {
             list.iter()
                 .map(|b| {
@@ -1393,7 +1492,7 @@ impl EvasionProvider for ClientHintsProvider {
 /// the fingerprint is applied over the DevTools protocol,
 /// `Emulation.setTimezoneOverride` already changes all of them in the browser
 /// itself and this provider is not needed (see
-/// [`StealthFlags::native_spoofing`](crate::stealth::fingerprint::StealthFlags::native_spoofing)).
+/// [`StealthPolicy::native_spoofing`](crate::stealth::fingerprint::StealthPolicy::native_spoofing)).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TimezoneProvider;
 
@@ -1405,14 +1504,10 @@ impl EvasionProvider for TimezoneProvider {
         90
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.timezone_masking) && !(fp.flags.native_spoofing && fp.timezone.is_some())
+        fp.is_masked(Dimension::Timezone) && !fp.policy().native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let zone = ctx
-            .fingerprint
-            .timezone
-            .as_deref()
-            .unwrap_or("America/New_York");
+        let zone = ctx.fingerprint.timezone().as_str()?;
         Some(render(
             r##"(function () {
   @SB@
@@ -1521,12 +1616,18 @@ impl EvasionProvider for LocalizationProvider {
         92
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        (masked(fp.flags.localization_masking) || masked(fp.flags.navigator_masking))
-            && !fp.flags.native_spoofing
+        fp.is_masked(Dimension::Localization) && !fp.policy().native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
-        let langs = fp.languages.as_deref().unwrap_or("en-US,en");
+        // The language list the fingerprint names, else the one its locale
+        // implies.
+        let langs = fp
+            .languages()
+            .value()
+            .or_else(|| fp.accept_languages().value())
+            .cloned()
+            .or_else(|| fp.locale().as_str().map(languages_for_locale))?;
         let mut list: Vec<&str> = langs
             .split(',')
             .map(|s| s.split(';').next().unwrap_or(s).trim())
@@ -1557,8 +1658,11 @@ impl EvasionProvider for LocalizationProvider {
 /// Spoofs `navigator.geolocation.getCurrentPosition` / `watchPosition` (CDP
 /// fallback).
 ///
-/// The methods are replaced on `Geolocation.prototype`. When the popup mode is
-/// not `Allow`, they are the browser's own.
+/// The methods are replaced on `Geolocation.prototype`. When the fingerprint's
+/// geolocation is a position they answer with it without asking; when it is
+/// `Off` they answer as a user who denied the request (`PERMISSION_DENIED`).
+/// When it is `Natural` they are the browser's own, and the provider does not
+/// run.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GeolocationProvider;
 
@@ -1570,46 +1674,73 @@ impl EvasionProvider for GeolocationProvider {
         95
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.geolocation_masking) && fp.latitude.is_some() && !fp.flags.native_spoofing
+        // A position is delivered by the protocol under native spoofing. A
+        // denial has no protocol command for one tab, so it is always scripted.
+        let answers = fp.geolocation().is_value() && !fp.policy().native_spoofing;
+        let denies = fp.geolocation().is_off();
+        answers || denies
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        let fp = ctx.fingerprint;
-        let acc = EvasionContext::number(fp.accuracy.unwrap_or(100.0));
-        let allow = matches!(fp.flags.geolocation_popup, PopupMode::Allow);
+        let geolocation = ctx.fingerprint.geolocation();
+        let place = geolocation
+            .value()
+            .copied()
+            .unwrap_or(Geolocation::new(0.0, 0.0));
+        let acc = EvasionContext::number(place.accuracy.unwrap_or(100.0));
+        let allow = geolocation.is_value();
+        let block = geolocation.is_off();
         Some(render(
             r##"(function () {
   @SB@
   if (typeof Geolocation === 'undefined') { return; }
   const coords = { latitude: @LAT@, longitude: @LON@, altitude: @ALT@, accuracy: @ACC@, altitudeAccuracy: @ACC@, heading: null, speed: null };
   const allow = @ALLOW@;
+  const block = @BLOCK@;
   const originalGet = Geolocation.prototype.getCurrentPosition;
   const originalWatch = Geolocation.prototype.watchPosition;
   let nextWatch = 1;
   function answer(success) {
     setTimeout(function () { if (typeof success === 'function') { success({ coords: coords, timestamp: Date.now() }); } }, 0);
   }
+  // The answer to a user who pressed "Block": PERMISSION_DENIED (code 1).
+  function deny(error) {
+    setTimeout(function () {
+      if (typeof error === 'function') {
+        error({ code: 1, message: 'User denied Geolocation', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 });
+      }
+    }, 0);
+  }
   Geolocation.prototype.getCurrentPosition = sb.native(function getCurrentPosition(success, error, options) {
+    if (block) { deny(error); return; }
     if (!allow) { return originalGet.apply(this, arguments); }
     answer(success);
   }, 'getCurrentPosition', originalGet);
   Geolocation.prototype.watchPosition = sb.native(function watchPosition(success, error, options) {
+    if (block) { deny(error); return nextWatch++; }
     if (!allow) { return originalWatch.apply(this, arguments); }
     answer(success);
     return nextWatch++;
   }, 'watchPosition', originalWatch);
 })();"##,
             &[
-                ("LAT", &EvasionContext::number(fp.latitude.unwrap_or(0.0))),
-                ("LON", &EvasionContext::number(fp.longitude.unwrap_or(0.0))),
-                ("ALT", &EvasionContext::number(fp.altitude.unwrap_or(0.0))),
+                ("LAT", &EvasionContext::number(place.latitude)),
+                ("LON", &EvasionContext::number(place.longitude)),
+                (
+                    "ALT",
+                    &EvasionContext::number(place.altitude.unwrap_or(0.0)),
+                ),
                 ("ACC", &acc),
                 ("ALLOW", if allow { "true" } else { "false" }),
+                ("BLOCK", if block { "true" } else { "false" }),
             ],
         ))
     }
 }
 
 /// Fixes the Modernizr hairline headless detection.
+///
+/// It is a headless fix, so it runs when the policy's `headless_fixes` is on;
+/// it is not graphics noise.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HairlineProvider;
 
@@ -1621,10 +1752,7 @@ impl EvasionProvider for HairlineProvider {
         110
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        matches!(
-            fp.flags.graphics_noise,
-            NoiseMode::Mask | NoiseMode::Natural
-        )
+        fp.is_masked(Dimension::Headless)
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -1676,7 +1804,9 @@ impl EvasionProvider for IframeProvider {
 /// Closed shadow roots make automation difficult and can be a signal that the
 /// page is running in a controllable environment. This provider does not
 /// change the return value's API surface; it only ensures the shadow root is
-/// reachable via `element.shadowRoot`.
+/// reachable via `element.shadowRoot`. It runs unless
+/// [`StealthPolicy::open_shadow_roots`](crate::stealth::fingerprint::StealthPolicy::open_shadow_roots)
+/// is turned off.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AttachShadowProvider;
 
@@ -1688,7 +1818,7 @@ impl EvasionProvider for AttachShadowProvider {
         125
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        !matches!(fp.flags.headless_masking, MaskingMode::Disabled)
+        fp.policy().open_shadow_roots
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
         Some(render(
@@ -1727,7 +1857,7 @@ impl EvasionProvider for TrackerBlockProvider {
         130
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        fp.flags.block_trackers
+        fp.is_masked(Dimension::Trackers)
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let hosts = ctx.fingerprint.tracker_hosts();
@@ -1781,38 +1911,47 @@ impl EvasionProvider for TrackerBlockProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{BatteryProfile, BrandVersion, ClientHints, Fingerprint};
+    use crate::stealth::fingerprint::{
+        BatteryProfile, BrandVersion, ClientHints, ConnectionProfile, Fingerprint,
+        FingerprintBuilder, Geolocation, MediaDevices, Spoof, StealthPolicy, WebRtcAddresses,
+    };
 
     fn ctx_for(fp: &Fingerprint) -> EvasionContext<'_> {
         EvasionContext::new(fp)
     }
 
+    fn built(builder: FingerprintBuilder) -> Fingerprint {
+        builder.build().expect("the builder builds")
+    }
+
+    /// The Windows preset with these changes.
+    fn windows_with(change: impl FnOnce(FingerprintBuilder) -> FingerprintBuilder) -> Fingerprint {
+        built(change(Fingerprint::windows_desktop().to_builder()))
+    }
+
     /// A fingerprint that makes every provider apply.
     fn everything() -> Fingerprint {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.flags.audio_masking = MaskingMode::Mask;
-        fp.flags.media_devices_masking = MaskingMode::Mask;
-        fp.flags.block_trackers = true;
-        fp.fonts = vec!["Arial".to_owned()];
-        fp.latitude = Some(1.0);
-        fp.longitude = Some(2.0);
-        fp.webgl_vendor_id = Some("0x10de".to_owned());
-        fp.webgl_renderer_id = Some("0x1f91".to_owned());
-        fp.webrtc_public_ip = Some("203.0.113.9".to_owned());
-        fp.webrtc_local_ip = Some("10.0.0.2".to_owned());
-        fp.client_hints = Some(ClientHints {
-            brands: vec![BrandVersion::new("Chromium", "124")],
-            full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
-            platform: "Windows".to_owned(),
-            platform_version: "15.0.0".to_owned(),
-            architecture: "x86".to_owned(),
-            bitness: "64".to_owned(),
-            model: String::new(),
-            ua_full_version: "124.0.0.0".to_owned(),
-            mobile: false,
-            ..ClientHints::default()
-        });
-        fp
+        windows_with(|b| {
+            b.audio_noise(crate::stealth::fingerprint::AudioNoise::Persistent)
+                .media_devices((1, 1, 1))
+                .policy(StealthPolicy::max())
+                .fonts(["Arial"])
+                .geolocation((1.0, 2.0))
+                .webgl(crate::stealth::fingerprint::WebGl::new("V", "R").ids("0x10de", "0x1f91"))
+                .webrtc(("203.0.113.9", "10.0.0.2"))
+                .client_hints(ClientHints {
+                    brands: vec![BrandVersion::new("Chromium", "124")],
+                    full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
+                    platform: "Windows".to_owned(),
+                    platform_version: "15.0.0".to_owned(),
+                    architecture: "x86".to_owned(),
+                    bitness: "64".to_owned(),
+                    model: String::new(),
+                    ua_full_version: "124.0.0.0".to_owned(),
+                    mobile: false,
+                    ..ClientHints::default()
+                })
+        })
     }
 
     #[test]
@@ -1853,10 +1992,16 @@ mod tests {
     }
 
     #[test]
+    fn a_webgl_half_that_is_not_given_stays_the_browsers_own() {
+        let fp = windows_with(|b| b.webgl(crate::stealth::fingerprint::WebGl::renderer_only("R")));
+        let script = WebglProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const vendor = null;"), "{script}");
+        assert!(script.contains("const renderer = 'R';"), "{script}");
+    }
+
+    #[test]
     fn webgl_gpu_ids_are_not_exposed_to_pages() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.webgl_vendor_id = Some("0x10de".into());
-        fp.webgl_renderer_id = Some("0x1f91".into());
+        let fp = everything();
         let script = WebglProvider.script(&ctx_for(&fp)).unwrap();
         assert!(!script.contains("__sbVendorId") && !script.contains("__sbRendererId"));
         assert!(!script.contains("0x10de"));
@@ -1873,10 +2018,100 @@ mod tests {
     }
 
     #[test]
+    fn canvas_noise_runs_in_every_mode_that_asks_for_noise() {
+        for (mode, runs) in [
+            (CanvasNoise::Persistent, true),
+            (CanvasNoise::Random, true),
+            (CanvasNoise::Low, true),
+            (CanvasNoise::Natural, false),
+        ] {
+            let fp = windows_with(|b| b.canvas_noise(mode));
+            assert_eq!(CanvasNoiseProvider.applies(&fp), runs, "{mode:?}");
+        }
+    }
+
+    #[test]
+    fn canvas_noise_low_touches_fewer_pixels_and_random_changes_the_seed() {
+        let with = |mode| windows_with(|b| b.canvas_noise(mode));
+        let full = CanvasNoiseProvider
+            .script(&ctx_for(&with(CanvasNoise::Persistent)))
+            .unwrap();
+        assert!(full.contains("const density = 1;"), "{full}");
+
+        let low = CanvasNoiseProvider
+            .script(&ctx_for(&with(CanvasNoise::Low)))
+            .unwrap();
+        assert!(low.contains("const density = 8;"), "{low}");
+
+        let fp = with(CanvasNoise::Random);
+        let first = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        let second = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        assert_ne!(first, second, "Random draws a fresh seed for each context");
+    }
+
+    #[test]
+    fn audio_noise_is_seeded_unless_it_is_random() {
+        let with = |noise| windows_with(|b| b.audio_noise(noise));
+        let persistent = with(crate::stealth::fingerprint::AudioNoise::Persistent);
+        assert_eq!(
+            AudioNoiseProvider.script(&ctx_for(&persistent)),
+            AudioNoiseProvider.script(&ctx_for(&persistent))
+        );
+        let random = with(crate::stealth::fingerprint::AudioNoise::Random);
+        assert_ne!(
+            AudioNoiseProvider.script(&ctx_for(&random)),
+            AudioNoiseProvider.script(&ctx_for(&random))
+        );
+        assert!(
+            !AudioNoiseProvider.applies(&with(crate::stealth::fingerprint::AudioNoise::Natural))
+        );
+    }
+
+    #[test]
+    fn the_hairline_fix_follows_the_headless_fixes_of_the_policy() {
+        assert!(HairlineProvider.applies(&Fingerprint::windows_desktop()));
+        let off = windows_with(|b| b.with_policy(|p| p.headless_fixes(false)));
+        assert!(!HairlineProvider.applies(&off));
+    }
+
+    #[test]
+    fn a_denied_geolocation_answers_permission_denied() {
+        let fp = windows_with(|b| b.geolocation(Spoof::Off));
+        assert!(GeolocationProvider.applies(&fp));
+        let script = GeolocationProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const block = true;"), "{script}");
+        assert!(script.contains("PERMISSION_DENIED: 1"));
+
+        // Even when the position would be delivered by the protocol, a denial
+        // is scripted: there is no command that denies one tab.
+        let native = windows_with(|b| b.geolocation(Spoof::Off).native_spoofing(true));
+        assert!(GeolocationProvider.applies(&native));
+    }
+
+    #[test]
+    fn a_geolocation_answers_without_a_prompt_unless_the_protocol_does() {
+        let fp = windows_with(|b| b.geolocation(Geolocation::new(40.0, -74.0).accuracy(15.0)));
+        assert!(GeolocationProvider.applies(&fp));
+        let script = GeolocationProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const block = false;"));
+        assert!(script.contains("const allow = true;"));
+        assert!(
+            script.contains("latitude: 40,") && script.contains("accuracy: 15,"),
+            "{script}"
+        );
+
+        let native = windows_with(|b| b.geolocation((40.0, -74.0)).native_spoofing(true));
+        assert!(!GeolocationProvider.applies(&native));
+        let natural = windows_with(|b| b.geolocation(Spoof::Natural));
+        assert!(!GeolocationProvider.applies(&natural));
+    }
+
+    #[test]
     fn noise_does_not_depend_on_a_running_generator() {
         // The old noise advanced a shared generator on every read; a stateless
         // hash is what makes two reads agree.
-        let fp = Fingerprint::windows_desktop();
+        let fp =
+            windows_with(|b| b.audio_noise(crate::stealth::fingerprint::AudioNoise::Persistent));
         for provider in [
             &CanvasNoiseProvider as &dyn EvasionProvider,
             &AudioNoiseProvider,
@@ -1892,6 +2127,38 @@ mod tests {
         let fp = Fingerprint::windows_desktop();
         let script = WindowGeometryProvider.script(&ctx_for(&fp)).unwrap();
         assert!(script.contains("1920"));
+    }
+
+    #[test]
+    fn the_available_screen_is_the_one_given_or_the_screen_less_the_taskbar() {
+        let derived = WindowGeometryProvider
+            .script(&ctx_for(&Fingerprint::windows_desktop()))
+            .unwrap();
+        assert!(
+            derived.contains("availWidth: 1920, availHeight: 1040"),
+            "{derived}"
+        );
+        let given = windows_with(|b| b.avail_screen((1900, 1000)));
+        let script = WindowGeometryProvider.script(&ctx_for(&given)).unwrap();
+        assert!(
+            script.contains("availWidth: 1900, availHeight: 1000"),
+            "{script}"
+        );
+    }
+
+    #[test]
+    fn only_the_settings_that_are_given_are_defined_on_the_screen() {
+        let ratio_only = built(Fingerprint::builder().pixel_ratio(2.0));
+        let script = WindowGeometryProvider
+            .script(&ctx_for(&ratio_only))
+            .unwrap();
+        assert!(script.contains("devicePixelRatio"), "{script}");
+        assert!(
+            !script.contains("width:") && !script.contains("colorDepth"),
+            "{script}"
+        );
+        let nothing = built(Fingerprint::builder());
+        assert!(!WindowGeometryProvider.applies(&nothing));
     }
 
     #[test]
@@ -1920,6 +2187,95 @@ mod tests {
     }
 
     #[test]
+    fn an_api_that_is_off_is_removed_and_not_stubbed() {
+        let off = windows_with(|b| {
+            b.battery(Spoof::Off)
+                .connection(Spoof::Off)
+                .bluetooth(Spoof::Off)
+                .client_hints(Spoof::Off)
+                .webrtc(Spoof::Off)
+        });
+        for (provider, needle) in [
+            (
+                &BatteryProvider as &dyn EvasionProvider,
+                "delete Object.getPrototypeOf(navigator).getBattery",
+            ),
+            (
+                &ConnectionProvider,
+                "delete Object.getPrototypeOf(navigator).connection",
+            ),
+            (
+                &BluetoothProvider,
+                "delete Object.getPrototypeOf(navigator).bluetooth",
+            ),
+            (
+                &ClientHintsProvider,
+                "delete Object.getPrototypeOf(navigator).userAgentData",
+            ),
+            (&WebRtcProvider, "delete window[name]"),
+        ] {
+            assert!(provider.applies(&off), "{}", provider.name());
+            let script = provider.script(&ctx_for(&off)).unwrap();
+            assert!(script.contains(needle), "{}: {script}", provider.name());
+        }
+    }
+
+    #[test]
+    fn bluetooth_reports_whether_the_adapter_is_there() {
+        for (present, word) in [(true, "true"), (false, "false")] {
+            let fp = windows_with(|b| b.bluetooth(present));
+            let script = BluetoothProvider.script(&ctx_for(&fp)).unwrap();
+            assert!(
+                script.contains(&format!("Promise.resolve({word})")),
+                "{script}"
+            );
+            // A real `navigator.bluetooth` is kept and only its availability is replaced.
+            assert!(
+                script.contains("proto.getAvailability = sb.native("),
+                "{script}"
+            );
+        }
+    }
+
+    #[test]
+    fn speech_and_media_devices_that_are_off_list_nothing() {
+        let off = windows_with(|b| b.speech_voices(Spoof::Off).media_devices(Spoof::Off));
+        let voices = SpeechProvider.script(&ctx_for(&off)).unwrap();
+        assert!(voices.contains("const voices = [];"), "{voices}");
+        let devices = MediaDevicesProvider.script(&ctx_for(&off)).unwrap();
+        assert!(devices.contains("const devices = [];"), "{devices}");
+    }
+
+    #[test]
+    fn media_devices_are_the_counts_given_and_not_a_guess() {
+        let fp = windows_with(|b| b.media_devices(MediaDevices::counts(2, 0, 1)));
+        let script = MediaDevicesProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(
+            script.contains("i < 2; i++) out.push({ deviceId: 'audioinput-'"),
+            "{script}"
+        );
+        assert!(
+            script.contains("i < 0; i++) out.push({ deviceId: 'audiooutput-'"),
+            "{script}"
+        );
+    }
+
+    #[test]
+    fn webrtc_replaces_the_addresses_it_is_given_and_no_other() {
+        let fp = windows_with(|b| b.webrtc(WebRtcAddresses::new("203.0.113.9", "10.0.0.2")));
+        let script = WebRtcProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("'203.0.113.9'") && script.contains("'10.0.0.2'"));
+        // Only a policy: the leak filter runs and there is no address to put in.
+        let filter = windows_with(|b| b.webrtc(Spoof::Natural));
+        assert!(
+            WebRtcProvider.applies(&filter),
+            "the balanced policy filters"
+        );
+        let script = WebRtcProvider.script(&ctx_for(&filter)).unwrap();
+        assert!(script.contains("const publicIp = '';"), "{script}");
+    }
+
+    #[test]
     fn client_hints_only_applies_when_set() {
         let fp = everything();
         assert!(ClientHintsProvider.applies(&fp));
@@ -1932,11 +2288,72 @@ mod tests {
     }
 
     #[test]
-    fn tracker_block_gated_by_flag() {
-        let mut fp = Fingerprint::windows_desktop();
+    fn the_time_zone_and_languages_are_scripted_unless_the_protocol_does_them() {
+        let fp = Fingerprint::windows_desktop();
+        assert!(TimezoneProvider.applies(&fp) && LocalizationProvider.applies(&fp));
+        let native = windows_with(|b| b.native_spoofing(true));
+        assert!(!TimezoneProvider.applies(&native) && !LocalizationProvider.applies(&native));
+        let none = built(Fingerprint::builder());
+        assert!(!TimezoneProvider.applies(&none) && !LocalizationProvider.applies(&none));
+    }
+
+    #[test]
+    fn languages_follow_the_list_given_then_the_accept_language_then_the_locale() {
+        let languages = |b: FingerprintBuilder| {
+            let fp = built(b);
+            LocalizationProvider.script(&ctx_for(&fp)).unwrap()
+        };
+        let given = languages(Fingerprint::builder().languages("fr-FR,fr;q=0.9"));
+        assert!(given.contains("Object.freeze(['fr-FR', 'fr'])"), "{given}");
+        let accept = languages(Fingerprint::builder().accept_languages("it-IT,it;q=0.9"));
+        assert!(accept.contains("['it-IT', 'it']"), "{accept}");
+        let locale = languages(Fingerprint::builder().locale("de-DE"));
+        assert!(
+            locale.contains("['de-DE', 'de', 'en-US', 'en']"),
+            "{locale}"
+        );
+    }
+
+    #[test]
+    fn navigator_defines_only_what_is_given() {
+        let fp = built(
+            Fingerprint::builder()
+                .hardware_concurrency(4)
+                .vendor("Test Inc."),
+        );
+        let script = NavigatorPropsProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("'hardwareConcurrency'") && script.contains("'vendor'"));
+        for untouched in [
+            "platform",
+            "userAgent",
+            "appVersion",
+            "deviceMemory",
+            "productSub",
+        ] {
+            assert!(
+                !script.contains(&format!("'{untouched}'")),
+                "{untouched}: {script}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_given_app_version_is_scripted_even_when_the_protocol_does_the_agent() {
+        let fp = windows_with(|b| b.app_version("5.0 (Custom)").native_spoofing(true));
+        let script = NavigatorPropsProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(
+            script.contains("'appVersion'") && script.contains("5.0 (Custom)"),
+            "{script}"
+        );
+        assert!(!script.contains("'userAgent'"), "{script}");
+    }
+
+    #[test]
+    fn tracker_block_gated_by_the_policy() {
+        let fp = Fingerprint::windows_desktop();
         assert!(!TrackerBlockProvider.applies(&fp));
-        fp.flags.block_trackers = true;
-        assert!(TrackerBlockProvider.applies(&fp));
+        let blocking = windows_with(|b| b.block_trackers(true));
+        assert!(TrackerBlockProvider.applies(&blocking));
     }
 
     #[test]
@@ -2003,22 +2420,23 @@ mod tests {
 
     #[test]
     fn a_number_that_rust_prints_as_inf_reaches_javascript_as_infinity() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.battery = Some(BatteryProfile {
-            charging: false,
-            level: f64::INFINITY,
-            charging_time: f64::NEG_INFINITY,
-            discharging_time: f64::NAN,
+        let fp = windows_with(|b| {
+            b.battery(BatteryProfile {
+                charging: false,
+                level: f64::INFINITY,
+                charging_time: f64::NEG_INFINITY,
+                discharging_time: f64::NAN,
+            })
+            .connection(ConnectionProfile {
+                effective_type: "4g".to_owned(),
+                rtt: 1,
+                downlink: f64::INFINITY,
+                save_data: false,
+            })
+            .device_memory(f64::INFINITY)
+            .pixel_ratio(f64::INFINITY)
+            .geolocation(Geolocation::new(f64::NAN, 0.0))
         });
-        fp.connection = Some(crate::stealth::fingerprint::ConnectionProfile {
-            effective_type: "4g".to_owned(),
-            rtt: 1,
-            downlink: f64::INFINITY,
-            save_data: false,
-        });
-        fp.device_memory = Some(f64::INFINITY);
-        fp.pixel_ratio = Some(f64::INFINITY);
-        fp.latitude = Some(f64::NAN);
         let ident = regex::Regex::new(r"\binf\b|\bnan\b").unwrap();
         for provider in [
             &BatteryProvider as &dyn EvasionProvider,
@@ -2042,8 +2460,7 @@ mod tests {
 
     #[test]
     fn text_from_a_fingerprint_is_escaped() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.user_agent = Some("a'; evil(); '\\".to_owned());
+        let fp = windows_with(|b| b.user_agent("a'; evil(); '\\"));
         let script = NavigatorPropsProvider.script(&ctx_for(&fp)).unwrap();
         assert!(script.contains(r"'a\'; evil(); \'\\'"));
     }

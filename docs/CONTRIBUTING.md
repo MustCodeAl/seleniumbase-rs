@@ -22,7 +22,7 @@ you oriented quickly.
 9. [Testing](#testing)
 10. [Parity with Python SeleniumBase](#parity-with-python-seleniumbase)
 11. [Adding a Stealth Evasion Provider](#adding-a-stealth-evasion-provider)
-12. [Adding a Masking Mode or Fingerprint Field](#adding-a-masking-mode-or-fingerprint-field)
+12. [Adding a Fingerprint Setting or Policy Field](#adding-a-fingerprint-setting-or-policy-field)
 13. [Adding a Macro](#adding-a-macro)
 14. [Adding an MCP Tool](#adding-an-mcp-tool)
 15. [Adding an `sbrs` Subcommand](#adding-an-sbrs-subcommand)
@@ -159,7 +159,7 @@ seleniumbase-rs/
    `AssertionApi`, `ScreenshotApi`) and the `base_case_impls` modules. New
    helpers should be added to the smallest applicable module and then exposed
    through the trait or `BaseCase` impl.
-3. **Stealth layer** — `Fingerprint` + `StealthFlags` describe what to spoof;
+3. **Stealth layer** — `Fingerprint` (one `Spoof` per setting) + `StealthPolicy` describe what to spoof;
    `EvasionProvider`s generate the JavaScript bootstrap; `ChromedriverPatcher`
    mutates the local driver binary; `StealthReactor` intercepts network requests
    via CDP.
@@ -333,7 +333,7 @@ Open `src/stealth/providers/builtin.rs` and implement `EvasionProvider`:
 
 ```rust
 use seleniumbase_rs::stealth::providers::{EvasionContext, EvasionProvider};
-use seleniumbase_rs::stealth::fingerprint::masked;
+use seleniumbase_rs::stealth::fingerprint::Dimension;
 
 pub struct MyEvasionProvider;
 
@@ -349,7 +349,9 @@ impl EvasionProvider for MyEvasionProvider {
     }
 
     fn applies(&self, fp: &crate::stealth::fingerprint::Fingerprint) -> bool {
-        masked(fp.flags.navigator_masking)
+        // The one predicate: on when the fingerprint holds a value for the
+        // dimension, or its flag says Mask; off when the flag says Natural.
+        fp.is_masked(Dimension::Navigator)
     }
 
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
@@ -404,50 +406,39 @@ Update `docs/tutorials/fingerprint_stealth.md`.
 
 </Steps>
 
-## Adding a Masking Mode or Fingerprint Field
+## Adding a Fingerprint Setting or Policy Field
 
-<Steps>
+A setting is what the browser claims (one `Spoof<T>` field of `Fingerprint`); a
+policy field is how the claims are delivered (a field of `StealthPolicy` in
+`src/stealth/policy.rs`).
 
-<Step title="Add the field">
+For a setting:
 
-Add the field to `StealthFlags` or `Fingerprint` in
-`src/stealth/fingerprint.rs`.
+1. Add the field to `Fields` in `src/stealth/fingerprint.rs`, with its default
+   in `impl Default for Fields` and `#[serde(skip_serializing_if = "Spoof::is_natural")]`,
+   and a read accessor in the `accessors!` list of `Fingerprint`. If its value is
+   not a plain type, add the value type to `src/stealth/settings.rs` with a
+   conversion from the obvious tuple.
+2. Add its setter to the `setters!` list of `FingerprintBuilder`, and its name to
+   `has_random` and `without_random`. Decide whether it has an off state: if not,
+   add it to `refuse_useless_off`; and what `Random` draws: add the arm to
+   `draw_random` (taking the value from the `Draw` in `randomize.rs`), or make it
+   an error there.
+3. Give the dimension it belongs to (or a new `Dimension` variant, which is
+   `#[non_exhaustive]`) an arm in `Fingerprint::is_masked`. Providers, launch
+   arguments and overrides ask `is_masked`, never a field by hand.
+4. Add coherence validation in `Fingerprint::validate()` if the setting has
+   required companions.
+5. Wire the setting into the launcher (`browser/session.rs`), provider scripts,
+   or the reactor if applicable. A provider defines only a setting that is a
+   `Value`, and handles `Off` where it has one.
+6. Add the payload key to `ProfileParams::fingerprint_builder` if a payload can
+   carry it, reading the common words of `Word`.
+7. Document the setting in `docs/tutorials/fingerprint_stealth.md`.
 
-</Step>
-
-<Step title="Default it">
-
-Annotate new serde-backed fields with `#[serde(default)]`.
-
-</Step>
-
-<Step title="Update the constructors">
-
-Update `balanced()` and `all_custom()` constructors.
-
-</Step>
-
-<Step title="Validate">
-
-Add coherence validation in `Fingerprint::validate()` if the field has
-required companions.
-
-</Step>
-
-<Step title="Wire it in">
-
-Wire the field into the launcher (`browser/session.rs`), provider scripts,
-or the reactor if applicable.
-
-</Step>
-
-<Step title="Document it">
-
-Document the new flag in `docs/tutorials/fingerprint_stealth.md`.
-
-</Step>
-
-</Steps>
+For a policy field, add the field, its default and its preset values to
+`StealthPolicy`, a method of the same name, and a builder shortcut
+(`with_policy`); a preset never changes a setting.
 
 ## Adding a Macro
 

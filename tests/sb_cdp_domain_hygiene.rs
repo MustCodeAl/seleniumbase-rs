@@ -283,17 +283,20 @@ async fn applying_every_persona_enables_none_of_them() {
     .into_iter()
     .enumerate()
     {
-        let mut fingerprint = Fingerprint::randomized(os, 100 + index as u64);
-        fingerprint.flags.grant_permissions = true;
-        fingerprint.flags.block_trackers = true;
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example.com".to_owned(),
-            port: 8080,
-            username: Some("user".to_owned()),
-            password: Some("pass".to_owned()),
-            save_traffic: false,
-        });
+        let fingerprint = Fingerprint::randomized(os, 100 + index as u64)
+            .to_builder()
+            .grant_permissions(true)
+            .block_trackers(true)
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "proxy.example.com".to_owned(),
+                port: 8080,
+                username: Some("user".to_owned()),
+                password: Some("pass".to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .unwrap();
         page.apply_fingerprint(&fingerprint).await.unwrap();
         let fresh = browser.new_page(None::<&str>).await.unwrap();
         fresh.apply_fingerprint(&fingerprint).await.unwrap();

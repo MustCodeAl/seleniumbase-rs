@@ -363,6 +363,16 @@ impl BrowserConfig {
         self
     }
 
+    /// Presents `fingerprint` in the browser.
+    ///
+    /// Its launch arguments go to every Chromium-based session. In the
+    /// [`Cdp`](DriverMode::Cdp) and [`Uc`](DriverMode::Uc) modes the session
+    /// also installs its page script (the
+    /// [session script](crate::stealth::evasions::session_script)) and sends
+    /// its protocol overrides through DevTools; the plain
+    /// [`WebDriver`](DriverMode::WebDriver) mode sends the launch arguments only.
+    /// What a fingerprint switches on is decided by the settings it holds and
+    /// its [`policy`](Fingerprint::policy); see [`Fingerprint::is_masked`].
     pub fn with_fingerprint(mut self, fingerprint: Fingerprint) -> Self {
         self.fingerprint = Some(fingerprint);
         self
@@ -713,7 +723,7 @@ impl BrowserConfig {
     pub fn native_spoofing_enabled(&self) -> bool {
         self.fingerprint
             .as_ref()
-            .is_some_and(|fp| fp.flags.native_spoofing)
+            .is_some_and(|fp| fp.policy().native_spoofing)
     }
 }
 

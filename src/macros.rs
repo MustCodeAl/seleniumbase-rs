@@ -280,7 +280,7 @@ macro_rules! fingerprint {
         $crate::Fingerprint::ios_mobile_safari()
     };
     (edge) => {
-        $crate::Fingerprint::windows_desktop()
+        $crate::Fingerprint::edge_desktop()
     };
 }
 
@@ -580,11 +580,11 @@ mod tests {
     #[test]
     fn fingerprint_preset_macro() {
         let fp = fingerprint!(windows);
-        assert_eq!(fp.os_type, crate::stealth::fingerprint::OsType::Windows);
-        assert!(fp.user_agent.as_ref().unwrap().contains("Windows"));
+        assert_eq!(fp.os_type(), crate::stealth::fingerprint::OsType::Windows);
+        assert!(fp.user_agent().as_str().unwrap().contains("Windows"));
 
         let fp = fingerprint!(linux);
-        assert_eq!(fp.os_type, crate::stealth::fingerprint::OsType::Linux);
-        assert!(fp.user_agent.as_ref().unwrap().contains("Linux"));
+        assert_eq!(fp.os_type(), crate::stealth::fingerprint::OsType::Linux);
+        assert!(fp.user_agent().as_str().unwrap().contains("Linux"));
     }
 }

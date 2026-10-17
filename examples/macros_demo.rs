@@ -59,8 +59,8 @@ fn configuration_macros() {
     let persona = fingerprint!(windows);
     println!(
         "fingerprint!  -> {} / {}",
-        persona.os_type.platform(),
-        persona.user_agent.as_deref().unwrap_or("no user agent")
+        persona.os_type().platform(),
+        persona.user_agent().as_str().unwrap_or("no user agent")
     );
 
     println!("selector!     -> {:?}", selector!(xpath, "//h1"));

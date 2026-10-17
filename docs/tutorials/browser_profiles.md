@@ -16,7 +16,7 @@ flags, CDP calls, and window settings.
 ## What you will learn
 
 - The structure of a profile payload.
-- How masking modes map to `BrowserConfig` and `Fingerprint`.
+- How the words of a flag map to `BrowserConfig` and `Fingerprint`.
 - How to load a profile programmatically.
 - How to use the Tauri profile-manager example.
 
@@ -58,7 +58,7 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | `automation` | `selenium` \| `playwright` \| `puppeteer` | no | Automation backend. `selenium` is default; `playwright`/`puppeteer` map to CDP mode. |
 | `is_headless` | boolean | no | Run the browser headlessly. Default `false`. |
 | `folder_id` | string | no | Persistent folder identifier for local storage. |
-| `core_version` | number | no | Browser major version (informational). |
+| `core_version` | number | no | The Chromium major version. A drawn user agent and drawn Client Hints claim it (not for Firefox or iOS Safari personas). |
 | `core_minor_version` | number | no | Browser minor version (informational). |
 | `auto_update_core` | boolean | no | Whether to auto-update the core version. |
 | `tags` | string[] | no | Arbitrary tags. |
@@ -69,32 +69,28 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `flags` | object | yes | Masking mode switches (see below). |
-| `fingerprint` | object | yes | Explicit fingerprint values used when a flag is `custom`. |
+| `flags` | object | yes | One word or literal per key (see below). |
+| `fingerprint` | object | yes | Explicit fingerprint values. A value is used unless the flag for it says `natural`, or `off` for the keys that can be off. |
 | `storage` | object | yes | `is_local` and `save_service_worker`. |
 | `proxy` | object | no | Proxy configuration. |
 | `custom_start_urls` | string[] | no | URLs opened on launch. Maximum **5**; extras are ignored. |
 
 ### `parameters.flags`
 
+The masking flags (`webrtc_masking`, `proxy_masking`, `geolocation_popup`,
+`audio_masking`, `navigator_masking`, `localization_masking`,
+`timezone_masking`, `graphics_masking`, `fonts_masking`,
+`media_devices_masking`, `screen_masking`, `ports_masking`,
+`geolocation_masking`, `canvas_noise` and `quic_mode`) take the words and the
+literal formats in the one table in
+[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads).
+A flag the payload leaves out is `auto`, except `ports_masking` (`mask`: the ports
+of `fingerprint.ports` are blocked), `canvas_noise` (seeded noise) and `quic_mode`
+(`disabled`). The rest:
+
 | Flag | Accepted values | Required | Notes |
 |---|---|---|---|
-| `webrtc_masking` | `natural`, `custom`, `mask`, `disabled` | yes | Use literal `public:IP\|local:IP` for custom IPs. |
-| `proxy_masking` | `custom`, `disabled` | yes | Pair with `parameters.proxy`. |
-| `geolocation_popup` | `prompt`, `allow`, `block` | yes | Geolocation permission prompt behavior. |
-| `audio_masking` | `natural`, `mask` | yes | Additional engine-specific values such as `noise`, `random`, `block`, `off` are also accepted. |
-| `graphics_noise` | `natural`, `mask` | yes | Also accepts `low`, `medium`, `high`, `off`. |
-| `navigator_masking` | `natural`, `custom`, `mask` | yes | Literal value is a full user-agent string. |
-| `localization_masking` | `natural`, `custom`, `mask` | yes | Literal value is a locale/accept-language string. |
-| `timezone_masking` | `natural`, `custom`, `mask` | yes | Literal value is an IANA zone. |
-| `graphics_masking` | `natural`, `custom`, `mask` | yes | Literal value is `vendor~renderer`. |
-| `fonts_masking` | `natural`, `custom`, `mask` | yes | Literal value is a comma-separated font list. |
-| `media_devices_masking` | `natural`, `custom`, `mask` | yes | Literal value is `kind:deviceId:label\|...`. |
-| `screen_masking` | `natural`, `custom`, `mask` | yes | Literal value is `WIDTHxHEIGHTxDEPTH`. |
-| `ports_masking` | `natural`, `custom`, `mask` | yes | Literal value is `block:port,port,...` or a plain list. |
-| `geolocation_masking` | `custom`, `mask` | yes | Literal value is `lat,lon,altitude`. |
-| `canvas_noise` | `mask`, `natural`, `disabled` | no | Defaults to the value of `graphics_noise`. |
-| `quic_mode` | `enabled`, `disabled`, `force_http2`, `auto` | no | Default `disabled`. |
+| `graphics_noise` | `natural`, `mask` | no | Also accepts `low`, `medium`, `high`, `off`. Ignored: it never drove graphics noise. |
 | `disable_csp` | `true`, `false` | no | Bypass Content-Security-Policy for the page context. |
 | `grant_permissions` | `true`, `false` | no | Grant common browser permissions at startup so prompts do not fire. |
 | `startup_behavior` | `recover`, `custom` | no | `recover` restores last-session tabs; `custom` opens `custom_start_urls`. |
@@ -128,25 +124,25 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | `password` | string | no | Basic-auth password. |
 | `save_traffic` | boolean | no | When `true`, disables image/video loading to save proxy bandwidth. Default `false`. |
 
-## Masking modes
+## The words of a flag
 
-Flags control how a fingerprint dimension is handled. Each mode has a concrete
-meaning and a matching JSON string value:
+A flag is a word or a literal value. Every key reads the same words, and each
+setting ends in one of the four states of a `Spoof`. One table in
+[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads)
+lists, for every key, the words that give `Natural`, `Random`, a value and `Off`,
+and the format of the literal it reads. A value in `fingerprint.*` is the switch:
+unless the flag says `natural` (or `off` for a key that can be off), the setting
+uses the value.
 
-| Mode | String | What it does | Example use case |
-|---|---|---|---|
-| `Natural` | `"natural"` | Use the browser's real value. | Trust the host for audio, media devices, or fonts. |
-| `Mask` | `"mask"` | Apply a generic, deterministic spoofed value. | Hide the real WebRTC IP policy, screen size, or timezone. |
-| `Custom` | `"custom"` | Use the explicit value supplied in `fingerprint.*`. | Set a specific `user_agent`, `screen` resolution, `proxy`, or `geolocation`. |
-| `Disabled` | `"disabled"` | Turn the feature off entirely. | Disable WebRTC, block QUIC, or leave proxy unconfigured. |
+An unknown word, or a literal not in the format of its key, is logged and read as
+`natural`; it is never guessed at. A profile gets the same drawn values on every
+launch, because its folder and name seed the draw.
 
 ### Concrete mask-mode examples
 
 <Tabs>
 
-<Tab title="Custom user agent + platform">
-
-This profile sets `navigator_masking: custom`.
+<Tab title="A user agent and platform">
 
 ```json
 {
@@ -154,7 +150,6 @@ This profile sets `navigator_masking: custom`.
   "browser_type": "chromium",
   "os_type": "windows",
   "parameters": {
-    "flags": { "navigator_masking": "custom" },
     "fingerprint": {
       "navigator": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
@@ -167,15 +162,16 @@ This profile sets `navigator_masking: custom`.
 }
 ```
 
-When `navigator_masking` is `"custom"`, the launcher passes the supplied
+The values turn the navigator on by themselves: the launcher passes the supplied
 `user_agent` to `--user-agent` and the `platform` value into the evasion
-bootstrap.
+bootstrap. Add `"navigator_masking": "natural"` to the flags to keep the
+browser's own navigator whatever the profile holds, or `"mask"` to draw the
+settings the profile does not give (the memory, the touch points, the vendor)
+from the same machine.
 
 </Tab>
 
-<Tab title="Custom screen + geolocation">
-
-This profile sets `screen_masking` and `geolocation_masking`.
+<Tab title="A screen, a position and a time zone">
 
 ```json
 {
@@ -183,11 +179,6 @@ This profile sets `screen_masking` and `geolocation_masking`.
   "browser_type": "chromium",
   "os_type": "windows",
   "parameters": {
-    "flags": {
-      "screen_masking": "custom",
-      "geolocation_masking": "custom",
-      "timezone_masking": "mask"
-    },
     "fingerprint": {
       "screen": { "width": 1920, "height": 1080, "pixel_ratio": 1 },
       "geolocation": { "latitude": 52.52, "longitude": 13.405, "accuracy": 100 },
@@ -197,9 +188,11 @@ This profile sets `screen_masking` and `geolocation_masking`.
 }
 ```
 
-`screen_masking: custom` applies the exact resolution. `geolocation_masking:
-custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
-`timezone_masking: mask` picks a timezone that matches the geolocation.
+The screen applies the exact resolution. The geolocation emits
+`Emulation.setGeolocationOverride` with the supplied coordinates and, because a
+position answers the geolocation popup with `allow`, grants the permission. The
+time zone is `Europe/Berlin`; a flag set to `mask` with no time zone in the
+profile would draw one that matches the rest of the profile.
 
 </Tab>
 
@@ -215,11 +208,7 @@ This profile uses `mobile_safari` and `ios`.
   "core_version": 26,
   "parameters": {
     "flags": {
-      "navigator_masking": "custom",
-      "screen_masking": "custom",
-      "timezone_masking": "mask",
-      "geolocation_masking": "custom",
-      "webrtc_masking": "disabled",
+      "webrtc_masking": "natural",
       "native_spoofing": true
     },
     "fingerprint": {
@@ -248,24 +237,11 @@ metrics through CDP so page-side JS cannot detect the override.
 
 ## Literal value shortcuts
 
-For convenience, most masking flags also accept a concrete literal string
-instead of a mode keyword. When a literal value is supplied, the parser sets the
-corresponding mode to `Custom` and writes the value into the fingerprint so it
-is applied automatically.
-
-| Flag | Literal format | Example |
-|---|---|---|
-| `screen_masking` | `WIDTHxHEIGHTxDEPTH` | `"1920x1080x24"` |
-| `geolocation_masking` | `lat,lon,altitude` | `"40.7128,-74.0060,10.5"` |
-| `graphics_masking` | `vendor~renderer` | `"Intel Inc.~Intel(R) Iris(R) Xe Graphics"` |
-| `navigator_masking` | full UA string | `"Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."` |
-| `localization_masking` | locale / accept-language | `"en-US,en;q=0.9"` |
-| `timezone_masking` | IANA zone | `"America/New_York"` |
-| `fonts_masking` | comma-separated fonts | `"Arial,Calibri,Consolas"` |
-| `media_devices_masking` | `kind:deviceId:label\|...` | `"audioinput:default:Mic1\|videoinput:default:Cam1"` |
-| `ports_masking` | `block:port,port,...` or list | `"block:80,443,3000"` |
-| `proxy_masking` | proxy URL | `"socks5://user:pass@host:1080"` |
-| `webrtc_masking` | `public:IP\|local:IP` | `"public:172.56.21.89\|local:10.0.0.5"` |
+Most masking flags also accept a concrete literal string instead of a word. The
+parser reads the flag as `mask` with that value and writes the value into the
+fingerprint so it is applied automatically. The format of each literal is in the
+Value column of the
+[table of keywords](./fingerprint_stealth.md#keywords-in-json-payloads).
 
 ### Full literal-value profile
 
@@ -303,14 +279,13 @@ The parser extracts every literal value above and populates the matching
 `Fingerprint` fields, so the stealth bootstrap and launch args can use them
 without any extra code.
 
-#### Custom proxy (`proxy_masking: custom`)
+#### A proxy
 
 ```json
 {
   "name": "proxy-profile",
   "browser_type": "chromium",
   "parameters": {
-    "flags": { "proxy_masking": "custom" },
     "proxy": {
       "type": "http",
       "host": "proxy.example.com",
@@ -323,14 +298,11 @@ without any extra code.
 }
 ```
 
-`proxy_masking: custom` turns the `parameters.proxy` block into
-`--proxy-server=http://alice:secret@proxy.example.com:8080`.
-
-<Tip>
-
-Use `proxy_masking: disabled` to leave proxy configuration empty.
-
-</Tip>
+The `parameters.proxy` block becomes
+`--proxy-server=http://alice:secret@proxy.example.com:8080`: `proxy_masking`
+defaults to `auto`, which uses a proxy that has a host. Set
+`proxy_masking: natural` (or `direct`) to launch without a proxy although the
+block is there.
 
 #### Native-level spoofing (`native_spoofing: true`)
 
@@ -367,8 +339,11 @@ inspect.
 ```
 
 `webrtc_masking: mask` forces `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
-so public IP leakage is reduced. `webrtc_masking: disabled` leaves the browser's
-default policy in place.
+so public IP leakage is reduced, and draws the addresses WebRTC reports. The
+default, `auto`, passes the same policy and reports no address of its own unless
+the profile holds a WebRTC IP. `webrtc_masking: natural` leaves the browser's
+default policy in place, and `disabled` (or `off`, `block`) makes WebRTC
+unavailable.
 
 To spoof specific public/local IPs, use the literal `public:IP|local:IP` format
 or the `fingerprint.webrtc.public_ip` field:
@@ -425,9 +400,7 @@ let raw = json!({
     "os_type": "windows",
     "parameters": {
         "flags": {
-            "webrtc_masking": "mask",
-            "navigator_masking": "custom",
-            "screen_masking": "custom"
+            "webrtc_masking": "mask"
         },
         "fingerprint": {
             "navigator": {
@@ -465,6 +438,7 @@ show an `external` badge in the profile list.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Profile fails to parse | Unknown browser or OS type | Use `chromium`/`firefox`/`mobile_safari` and `linux`/`macos`/`windows`/`android`/`ios`. |
-| Custom values ignored | Flag is `mask` instead of `custom` | Set the corresponding flag to `custom`. |
-| Proxy not applied | `proxy_masking` is `disabled` | Set `proxy_masking: custom` and provide `parameters.proxy`. |
+| A value is ignored | The flag for it is `natural` (or `off`, for the keys that can be off) | Set the flag to `auto` or `mask`, or leave it out. |
+| A flag does nothing | The word is not one of the words above; it is logged and read as `natural` | Check the log for the keyword, and use a word from the table. |
+| Proxy not applied | `proxy_masking` is `natural` or `disabled`, or the proxy has no host | Leave `proxy_masking` at `auto` (or set `custom`) and provide `parameters.proxy` with a host. |
 | Native spoofing has no effect | Driver is in pure WebDriver mode | Use `DriverMode::Cdp` or `DriverMode::Uc`. |

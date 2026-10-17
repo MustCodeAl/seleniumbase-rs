@@ -13,7 +13,7 @@ own for developing, debugging and testing:
 | --- | --- | --- |
 | `cdp` | Pure CDP (no WebDriver) | 24 + 9 developer tools + `get_devtools_endpoint` |
 | `driver` | WebDriver, `Driver()` toolset | 26 |
-| `sb` (default) | WebDriver, `SB()` toolset, plus this crate's stealth tools | 88 + 8 stealth + 9 developer tools |
+| `sb` (default) | WebDriver, `SB()` toolset, plus this crate's stealth tools | 88 + 7 stealth + 9 developer tools |
 
 <Info>
 

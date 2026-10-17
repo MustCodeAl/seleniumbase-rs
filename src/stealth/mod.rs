@@ -11,14 +11,19 @@ pub mod humanize;
 pub mod js;
 pub mod options;
 pub mod patcher;
+pub mod policy;
 pub mod providers;
 pub mod randomize;
 pub mod reactor;
+pub mod settings;
+pub mod spoof;
 pub mod uc;
 
+#[allow(deprecated, reason = "the old name stays importable for one release")]
+pub use fingerprint::StealthFlags;
 pub use fingerprint::{
     BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Fingerprint,
-    HumanizeConfig, SpeechVoice, StealthFlags,
+    FingerprintError, HumanizeConfig, SpeechVoice, StealthPolicy,
 };
 pub use patcher::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
@@ -27,3 +32,4 @@ pub use providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
     EvasionRegistry, SESSION_OMITTED_PROVIDERS,
 };
+pub use spoof::Spoof;

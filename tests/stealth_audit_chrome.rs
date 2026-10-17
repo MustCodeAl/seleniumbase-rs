@@ -28,7 +28,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::stealth::fingerprint::{ConnectionProfile, Fingerprint, MaskingMode};
+use seleniumbase_rs::stealth::fingerprint::{ConnectionProfile, Fingerprint};
 use seleniumbase_rs::stealth::providers::{
     builtin, session_registry, EvasionConfig, EvasionContext, EvasionRegistry,
 };
@@ -287,10 +287,11 @@ async fn webgl_and_canvas_agree_with_the_profile() {
         let pair = seen[key]
             .as_array()
             .unwrap_or_else(|| panic!("{key} gave no renderer info"));
-        if let Some(vendor) = &fingerprint.webgl_vendor {
+        let gl = fingerprint.webgl().value().expect("a graphics card");
+        if let Some(vendor) = &gl.vendor {
             assert_eq!(pair[0].as_str(), Some(vendor.as_str()), "{key} vendor");
         }
-        if let Some(renderer) = &fingerprint.webgl_renderer {
+        if let Some(renderer) = &gl.renderer {
             assert_eq!(pair[1].as_str(), Some(renderer.as_str()), "{key} renderer");
         }
     }
@@ -310,8 +311,9 @@ async fn webgl_and_canvas_agree_with_the_profile() {
 async fn user_agent_data_exists_only_in_a_secure_context() {
     let fingerprint = persona();
     let hints = fingerprint
-        .client_hints
-        .clone()
+        .client_hints()
+        .value()
+        .cloned()
         .expect("a randomized persona carries Client Hints");
     let lab = lab(Some(&fingerprint)).await;
     let probe = r##"(() => ({
@@ -349,10 +351,8 @@ async fn user_agent_data_exists_only_in_a_secure_context() {
 #[ignore = "launches a real Chrome"]
 async fn the_screen_is_the_profiles_and_the_viewport_is_the_windows() {
     let fingerprint = persona();
-    let (width, height) = (
-        i64::from(fingerprint.screen_width.expect("a screen width")),
-        i64::from(fingerprint.screen_height.expect("a screen height")),
-    );
+    let screen = fingerprint.screen().value().expect("a screen");
+    let (width, height) = (i64::from(screen.width), i64::from(screen.height));
     let lab = lab(Some(&fingerprint)).await;
     let probe = r##"(() => ({
         width: screen.width, height: screen.height,
@@ -392,7 +392,7 @@ async fn the_screen_is_the_profiles_and_the_viewport_is_the_windows() {
         );
         assert_eq!(
             seen["ratio"].as_f64(),
-            Some(fingerprint.pixel_ratio.unwrap_or(1.0)),
+            Some(fingerprint.pixel_ratio().value().copied().unwrap_or(1.0)),
             "devicePixelRatio: {seen}"
         );
         assert!(
@@ -456,14 +456,16 @@ async fn plugins_mime_types_the_pdf_flag_and_connection_are_the_browsers_own() {
     };
 
     // A persona whose network report is far from anything a loopback Chrome says.
-    let mut fingerprint = persona();
-    fingerprint.flags.connection_masking = MaskingMode::Mask;
-    fingerprint.connection = Some(ConnectionProfile {
-        effective_type: "slow-2g".to_owned(),
-        rtt: 2_777,
-        downlink: 0.05,
-        save_data: true,
-    });
+    let fingerprint = persona()
+        .to_builder()
+        .connection(ConnectionProfile {
+            effective_type: "slow-2g".to_owned(),
+            rtt: 2_777,
+            downlink: 0.05,
+            save_data: true,
+        })
+        .build()
+        .unwrap();
     let lab = lab(Some(&fingerprint)).await;
     let with_persona = lab.eval(BROWSER_OWNED_PROBE).await;
     let report = lab
@@ -513,10 +515,14 @@ fn only(name: &str) -> EvasionRegistry {
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn every_session_provider_runs_in_chrome_without_throwing() {
-    let mut fingerprint = persona();
-    fingerprint.flags.audio_masking = MaskingMode::Mask;
-    fingerprint.flags.media_devices_masking = MaskingMode::Mask;
-    fingerprint.fonts = vec!["Arial".to_owned()];
+    // A generated identity has audio noise; the media devices and the fonts
+    // are values that turn their providers on.
+    let fingerprint = persona()
+        .to_builder()
+        .media_device_counts(1, 1, 1)
+        .fonts(["Arial"])
+        .build()
+        .unwrap();
     let lab = lab(None).await;
     // A script error must reach the test, not be swallowed by the snippet.
     let config = EvasionConfig {

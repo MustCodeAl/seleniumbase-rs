@@ -104,7 +104,7 @@ By reading this book you will learn how to:
   assertions, waits, frames, windows, cookies, storage, uploads, PDF handling,
   HTML parsing, and more.
 - **Stealth stack**: `ChromedriverPatcher`, `ChromeBinaryPatcher`,
-  `Fingerprint` presets, `StealthFlags`, and a priority-ordered
+  `Fingerprint` presets, `StealthPolicy`, and a priority-ordered
   `EvasionProvider` registry.
 - **Low-code tooling**: JSON scenario runner, Python importer, Selenium IDE
   parser, Gherkin runner, and action recorder.

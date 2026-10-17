@@ -22,7 +22,7 @@ use std::time::Duration;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::stealth::evasions::bootstrap_script;
 use seleniumbase_rs::stealth::fingerprint::{
-    BatteryProfile, ConnectionProfile, Fingerprint, MaskingMode,
+    AudioNoise, BatteryProfile, ConnectionProfile, Fingerprint, FingerprintBuilder,
 };
 use seleniumbase_rs::stealth::providers::{
     builtin, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
@@ -133,6 +133,13 @@ fn persona() -> Fingerprint {
     Fingerprint::windows_desktop()
 }
 
+/// The persona with these changes, built again.
+fn persona_with(change: impl FnOnce(FingerprintBuilder) -> FingerprintBuilder) -> Fingerprint {
+    change(persona().to_builder())
+        .build()
+        .expect("the builder builds")
+}
+
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn replaced_functions_and_getters_look_native() {
@@ -152,8 +159,7 @@ async fn replaced_functions_and_getters_look_native() {
         };
     })()"##;
     let before = lab.eval(probe).await;
-    let mut fp = persona();
-    fp.user_agent = Some("Mozilla/5.0 (Windows NT 10.0) Chrome/155.0.0.0".to_owned());
+    let fp = persona_with(|b| b.user_agent("Mozilla/5.0 (Windows NT 10.0) Chrome/155.0.0.0"));
     lab.install(
         &fp,
         &[
@@ -195,15 +201,22 @@ async fn no_provider_leaves_a_name_or_property_a_page_can_see() {
     })()"##;
     let before = lab.eval(probe).await;
 
-    let mut fp = persona();
-    fp.fonts = vec!["Arial".to_owned()];
-    fp.latitude = Some(48.85);
-    fp.longitude = Some(2.35);
-    fp.webgl_vendor_id = Some("0x10de".to_owned());
-    fp.webgl_renderer_id = Some("0x1f91".to_owned());
-    fp.flags.audio_masking = MaskingMode::Mask;
-    fp.flags.media_devices_masking = MaskingMode::Mask;
-    fp.flags.block_trackers = true;
+    let gpu = persona()
+        .webgl()
+        .value()
+        .cloned()
+        .expect("the persona has a GPU")
+        .ids("0x10de", "0x1f91");
+    // Settings turn their providers on: the audio noise, the device counts and
+    // the tracker list.
+    let fp = persona_with(|b| {
+        b.fonts(["Arial"])
+            .geolocation((48.85, 2.35))
+            .webgl(gpu)
+            .audio_noise(AudioNoise::Persistent)
+            .media_device_counts(1, 1, 1)
+            .block_trackers(true)
+    });
     lab.page
         .evaluate(bootstrap_script(&fp))
         .await
@@ -238,8 +251,7 @@ async fn no_provider_leaves_a_name_or_property_a_page_can_see() {
 #[ignore = "launches a real Chrome"]
 async fn the_font_check_understands_css_shorthand() {
     let lab = lab().await;
-    let mut fp = persona();
-    fp.fonts = vec!["Arial".to_owned(), "Segoe UI".to_owned()];
+    let fp = persona_with(|b| b.fonts(["Arial", "Segoe UI"]));
     lab.install(&fp, &["fonts"]).await;
 
     let result = lab
@@ -310,8 +322,7 @@ const DATES: &str = r##"(() => {
 #[ignore = "launches a real Chrome"]
 async fn the_timezone_provider_makes_date_and_intl_agree() {
     let lab = lab().await;
-    let mut fp = persona();
-    fp.timezone = Some("Asia/Tokyo".to_owned());
+    let fp = persona_with(|b| b.timezone("Asia/Tokyo"));
     lab.install(&fp, &["timezone"]).await;
 
     let r = lab.eval(DATES).await;
@@ -354,8 +365,7 @@ async fn the_timezone_provider_makes_date_and_intl_agree() {
 #[ignore = "launches a real Chrome"]
 async fn the_timezone_provider_follows_daylight_saving_time() {
     let lab = lab().await;
-    let mut fp = persona();
-    fp.timezone = Some("America/New_York".to_owned());
+    let fp = persona_with(|b| b.timezone("America/New_York"));
     lab.install(&fp, &["timezone"]).await;
 
     let r = lab.eval(DATES).await;
@@ -407,8 +417,7 @@ async fn the_permission_state_is_a_real_permission_state() {
 #[ignore = "launches a real Chrome"]
 async fn languages_and_plugins_are_the_same_object_on_every_read() {
     let lab = lab().await;
-    let mut fp = persona();
-    fp.languages = Some("de-DE,de;q=0.9,en;q=0.8".to_owned());
+    let fp = persona_with(|b| b.languages("de-DE,de;q=0.9,en;q=0.8"));
     lab.install(&fp, &["localization", "plugins"]).await;
 
     let r = lab
@@ -460,12 +469,13 @@ async fn the_connection_provider_changes_values_not_the_shape() {
         listens: (() => { navigator.connection.addEventListener('change', () => {}); return true; })(),
     }))()"##;
     let before = lab.eval(probe).await;
-    let mut fp = persona();
-    fp.connection = Some(ConnectionProfile {
-        effective_type: "3g".to_owned(),
-        rtt: 300,
-        downlink: 1.5,
-        save_data: true,
+    let fp = persona_with(|b| {
+        b.connection(ConnectionProfile {
+            effective_type: "3g".to_owned(),
+            rtt: 300,
+            downlink: 1.5,
+            save_data: true,
+        })
     });
     lab.install(&fp, &["connection"]).await;
 
@@ -487,12 +497,13 @@ async fn the_connection_provider_changes_values_not_the_shape() {
     assert_eq!(after["webkit"], false, "Chrome has no webkitConnection");
 
     // A value f64 prints as `inf` must still reach the page as a number.
-    let mut fp = persona();
-    fp.connection = Some(ConnectionProfile {
-        effective_type: "4g".to_owned(),
-        rtt: 50,
-        downlink: f64::INFINITY,
-        save_data: false,
+    let fp = persona_with(|b| {
+        b.connection(ConnectionProfile {
+            effective_type: "4g".to_owned(),
+            rtt: 50,
+            downlink: f64::INFINITY,
+            save_data: false,
+        })
     });
     lab.install(&fp, &["connection"]).await;
     let infinite = lab.eval("String(navigator.connection.downlink)").await;
@@ -504,12 +515,13 @@ async fn the_connection_provider_changes_values_not_the_shape() {
 #[ignore = "launches a real Chrome"]
 async fn the_battery_provider_reports_infinite_times() {
     let lab = lab().await;
-    let mut fp = persona();
-    fp.battery = Some(BatteryProfile {
-        charging: false,
-        level: 0.5,
-        charging_time: f64::INFINITY,
-        discharging_time: 7200.0,
+    let fp = persona_with(|b| {
+        b.battery(BatteryProfile {
+            charging: false,
+            level: 0.5,
+            charging_time: f64::INFINITY,
+            discharging_time: 7200.0,
+        })
     });
     lab.install(&fp, &["battery"]).await;
 
@@ -641,8 +653,7 @@ async fn audio_noise_is_the_same_on_every_read() {
                  sum: a.reduce((s, v) => s + v, 0), first: a.slice(4500, 4510).join(',') };
     })()"##;
     let before = lab.eval(render).await;
-    let mut fp = persona();
-    fp.flags.audio_masking = MaskingMode::Mask;
+    let fp = persona_with(|b| b.seed(7).audio_noise(AudioNoise::Persistent));
     lab.install(&fp, &["audio_noise"]).await;
 
     let after = lab.eval(render).await;
@@ -683,9 +694,7 @@ async fn audio_noise_is_the_same_on_every_read() {
 #[ignore = "launches a real Chrome"]
 async fn tracker_blocking_matches_hosts_and_covers_fetch_xhr_and_beacons() {
     let lab = lab().await;
-    let mut fp = persona();
-    fp.flags.block_trackers = true;
-    fp.blocked_trackers = vec!["localhost".to_owned()];
+    let fp = persona_with(|b| b.blocked_trackers(vec!["localhost".to_owned()]));
     lab.install(&fp, &["tracker_block"]).await;
 
     let r = lab
@@ -893,14 +902,15 @@ async fn window_geometry_and_headless_fixes_do_not_fight_over_the_outer_size() {
 async fn text_in_a_fingerprint_cannot_break_out_of_its_string() {
     let lab = lab().await;
     let hostile = "x'; window.pwned = 1; '\\ \u{2028} \"q\" `t` ${1}";
-    let mut fp = persona();
-    fp.user_agent = Some(hostile.to_owned());
-    fp.platform = Some(hostile.to_owned());
-    fp.vendor = Some(hostile.to_owned());
     // A semicolon in a language list introduces a quality value, so it is not
     // part of the name.
     let language = hostile.replace(';', ",");
-    fp.languages = Some(format!("{},en", language.replace(',', " ")));
+    let fp = persona_with(|b| {
+        b.user_agent(hostile)
+            .platform(hostile)
+            .vendor(hostile)
+            .languages(format!("{},en", language.replace(',', " ")))
+    });
     lab.install(&fp, &["navigator_props", "localization"]).await;
 
     let r = lab
@@ -982,16 +992,17 @@ async fn a_whole_fingerprint_applied_over_cdp_is_consistent() {
         )
         .await;
 
-    assert_eq!(r["zone"], json!(fp.timezone));
+    assert_eq!(r["zone"], json!(fp.timezone().as_str()));
     assert_eq!(
         r["offsetAgrees"], true,
         "Date and Intl must name one time zone"
     );
-    assert_eq!(r["userAgent"], json!(fp.user_agent));
-    assert_eq!(r["platform"], json!(fp.platform));
+    assert_eq!(r["userAgent"], json!(fp.user_agent().as_str()));
+    assert_eq!(r["platform"], json!(fp.platform().as_str()));
     assert_eq!(r["sameLanguages"], true);
     assert_eq!(r["webdriver"], false);
-    assert_eq!(r["screen"], json!([fp.screen_width, fp.screen_height]));
-    assert_eq!(r["cores"], json!(fp.hardware_concurrency));
+    let screen = fp.screen().value().expect("a screen");
+    assert_eq!(r["screen"], json!([screen.width, screen.height]));
+    assert_eq!(r["cores"], json!(fp.hardware_concurrency().value()));
     lab.close().await;
 }

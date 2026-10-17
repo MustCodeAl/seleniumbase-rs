@@ -131,9 +131,8 @@ const UPSTREAM_SB_TOOLS: [&str; 88] = [
 ];
 
 /// The stealth tools this crate adds to the `sb` server.
-const STEALTH_TOOLS: [&str; 8] = [
+const STEALTH_TOOLS: [&str; 7] = [
     "build_fingerprint",
-    "build_stealth_bootstrap",
     "get_stealth_bootstrap_script",
     "list_engine_spoofing_args",
     "list_evasion_providers",
@@ -370,18 +369,24 @@ async fn the_stealth_tools_work_without_a_browser() {
     let presets = call(&host, "list_fingerprint_presets", json!({}))
         .await
         .unwrap();
-    assert_eq!(presets.as_json().unwrap().as_array().unwrap().len(), 5);
+    let presets = presets.as_json().unwrap().clone();
+    assert_eq!(
+        presets,
+        json!(["windows", "edge", "macos", "linux", "android", "ios"])
+    );
 
-    for preset in ["windows", "macos", "linux", "android", "ios"] {
+    for preset in presets.as_array().unwrap() {
+        let preset = preset.as_str().unwrap();
         let report = call(&host, "validate_fingerprint", json!({ "preset": preset }))
             .await
             .unwrap();
         let report = report.as_json().unwrap();
         assert_eq!(report["coherent"], true, "{preset}: {report}");
+        assert_eq!(report["warnings"], json!([]), "{preset}: {report}");
 
         let script = call(
             &host,
-            "build_stealth_bootstrap",
+            "get_stealth_bootstrap_script",
             json!({ "preset": preset }),
         )
         .await
@@ -391,11 +396,39 @@ async fn the_stealth_tools_work_without_a_browser() {
             "{preset} bootstrap"
         );
     }
+}
+
+#[tokio::test]
+async fn the_bootstrap_and_the_provider_list_are_the_ones_a_browser_session_runs() {
+    let host = sb::host(Settings::new("unused"));
+    let fingerprint = seleniumbase_rs::Fingerprint::windows_desktop();
+
+    let script = call(
+        &host,
+        "get_stealth_bootstrap_script",
+        json!({ "preset": "windows" }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        script.as_text(),
+        Some(seleniumbase_rs::stealth::evasions::session_script(&fingerprint).as_str()),
+        "the script a session runs, not the one for a browser without plugins"
+    );
 
     let providers = call(&host, "list_evasion_providers", json!({}))
         .await
         .unwrap();
-    assert!(!providers.as_json().unwrap().as_array().unwrap().is_empty());
+    let providers = providers.as_json().unwrap().clone();
+    assert_eq!(
+        providers,
+        json!(seleniumbase_rs::session_registry(&fingerprint).provider_names())
+    );
+    let names = providers.as_array().unwrap();
+    assert_eq!(names.len(), 27);
+    for left_to_the_browser in ["plugins", "connection"] {
+        assert!(!names.contains(&json!(left_to_the_browser)));
+    }
 }
 
 #[tokio::test]
@@ -411,7 +444,10 @@ async fn a_fingerprint_can_be_overridden_and_a_bad_preset_is_rejected() {
     .unwrap();
     let built = built.as_json().unwrap();
     assert_eq!(built["user_agent"], "Test/1.0");
-    assert_eq!(built["screen_width"], 1280);
+    assert_eq!(built["screen"], json!({ "width": 1280, "height": 1080 }));
+    // The rest of the preset is kept, and the JSON names no setting twice.
+    assert_eq!(built["platform"], "Win32");
+    assert!(built.get("screen_width").is_none() && built.get("flags").is_none());
 
     let error = call(&host, "build_fingerprint", json!({ "preset": "beos" }))
         .await

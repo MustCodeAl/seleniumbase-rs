@@ -910,7 +910,8 @@ impl BrowserSession {
 
     /// Applies an optional [`Fingerprint`] to the active session.
     ///
-    /// When CDP is available the bootstrap script is registered via
+    /// The script is [`session_script`](crate::stealth::evasions::session_script),
+    /// the one the pure CDP engine runs. When CDP is available it is registered via
     /// `Page.addScriptToEvaluateOnNewDocument` and CDP overrides (screen size,
     /// geolocation, timezone, UA) are issued. Otherwise the script is executed
     /// directly in the current page as a fallback.
@@ -919,7 +920,7 @@ impl BrowserSession {
             return Ok(());
         };
 
-        let script = crate::stealth::evasions::bootstrap_script(fp);
+        let script = fingerprint_script(fp);
 
         if let Ok(cdp) = self.cdp_client() {
             cdp.add_init_script(&script).await?;
@@ -1446,6 +1447,12 @@ async fn apply_window_rect(
     Ok(())
 }
 
+/// The init script that makes a WebDriver session match `fp`: the same one the
+/// pure CDP engine runs, since both drive a real Chrome.
+fn fingerprint_script(fp: &crate::stealth::fingerprint::Fingerprint) -> String {
+    crate::stealth::evasions::session_script(fp)
+}
+
 /// The protocol commands, after the init script, that make a WebDriver session
 /// match `fp`.
 ///
@@ -1511,8 +1518,10 @@ fn ad_block_commands(
     if patterns.is_empty() {
         return Ok(Vec::new());
     }
-    // The trackers of a fingerprint are blocked in the window it is applied to;
-    // the list replaces them, so it carries them.
+    // In the CDP and UC modes the fingerprint's own block (its tracker hosts and
+    // blocked ports) goes out first through the same command, and a second
+    // `Network.setBlockedURLs` replaces the first, so the list carries them.
+    // Plain WebDriver applies no fingerprint, so it has nothing to join.
     for tracker in fingerprint_blocklist(config) {
         if !patterns.contains(&tracker) {
             patterns.push(tracker);
@@ -1711,16 +1720,18 @@ mod fingerprint_tests {
     use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyConfig};
 
     fn with_proxy_login() -> Fingerprint {
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example.com".to_owned(),
-            port: 8080,
-            username: Some("alice".to_owned()),
-            password: Some("fake-proxy-password".to_owned()),
-            save_traffic: false,
-        });
-        fingerprint
+        Fingerprint::randomized(OsType::Linux, 3)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "proxy.example.com".to_owned(),
+                port: 8080,
+                username: Some("alice".to_owned()),
+                password: Some("fake-proxy-password".to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .expect("the builder builds")
     }
 
     #[test]
@@ -1740,6 +1751,24 @@ mod fingerprint_tests {
         assert!(
             !everything.contains("YWxpY2U6ZmFrZS1wcm94eS1wYXNzd29yZA"),
             "{everything}"
+        );
+    }
+
+    #[test]
+    fn a_webdriver_session_gets_the_same_script_as_the_pure_cdp_engine() {
+        // Both drive a real Chrome, which answers for plugins, mime types, the
+        // PDF viewer flag and the network report itself.
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+        let script = fingerprint_script(&fingerprint);
+        assert_eq!(
+            script,
+            crate::stealth::providers::session_registry(&fingerprint).bootstrap(
+                &crate::stealth::providers::EvasionContext::new(&fingerprint)
+            )
+        );
+        assert!(
+            !script.contains("mimeTypes"),
+            "a spoof Chrome does not need"
         );
     }
 
@@ -1907,6 +1936,7 @@ mod ad_block_tests {
 
     use super::*;
     use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::browser::config::DriverMode;
     use crate::config::ad_block_list::MAX_URL_PATTERNS;
 
     const CHROMIUM: [Browser; 8] = [
@@ -1999,7 +2029,6 @@ mod ad_block_tests {
 
     #[test]
     fn the_trackers_of_a_fingerprint_go_with_the_ad_block_list() {
-        use crate::browser::config::DriverMode;
         use crate::stealth::fingerprint::{Fingerprint, OsType};
 
         let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
@@ -2021,6 +2050,36 @@ mod ad_block_tests {
         assert_eq!(urls[..own.len()], own[..]);
         assert!(urls.contains(&tracker), "{urls:?}");
         assert!(fingerprint_blocklist(&config).contains(&tracker));
+    }
+
+    #[test]
+    fn the_block_keeps_what_the_fingerprint_blocks_where_the_fingerprint_is_applied() {
+        let fingerprint = crate::stealth::fingerprint::Fingerprint::builder()
+            .blocked_ports(vec![9222])
+            .build()
+            .expect("the builder builds");
+        let urls = |mode: DriverMode| {
+            let config = BrowserConfig::default()
+                .with_mode(mode)
+                .with_ad_block_list(own_list())
+                .with_fingerprint(fingerprint.clone());
+            ad_block_commands(&config).unwrap()[1].1["urls"]
+                .as_array()
+                .unwrap()
+                .clone()
+        };
+
+        // A later `Network.setBlockedURLs` replaces the fingerprint's, so the
+        // list that is sent holds both.
+        for mode in [DriverMode::Cdp, DriverMode::Uc] {
+            let urls = urls(mode);
+            assert!(urls.contains(&json!("*://localhost:9222/*")), "{mode:?}");
+            for own in own_patterns().as_array().unwrap() {
+                assert!(urls.contains(own), "{mode:?}: {own}");
+            }
+        }
+        // Plain WebDriver applies no fingerprint, so there is nothing to join.
+        assert_eq!(json!(urls(DriverMode::WebDriver)), own_patterns());
     }
 
     #[test]
