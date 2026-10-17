@@ -68,9 +68,10 @@ useful when you send raw commands directly.
 
 | Method | Description |
 |--------|-------------|
-| `cdp_mouse_click(x, y)` | Dispatch a CDP mouse click at screen coordinates. |
-| `cdp_type_text(text)` | Insert text through CDP input events. |
-| `cdp_click_element(css)` | Find an element and click its center via CDP. |
+| `cdp_mouse_click(x, y)` | Dispatch a CDP mouse click at viewport coordinates: CSS pixels from the top-left of the visible page, without the scroll position. |
+| `cdp_insert_text(text)` | Insert text into whatever has focus with one CDP command (`Input.insertText`): no key events, no selector, nothing cleared. `cdp_type_text` is its deprecated old name. |
+| `cdp_click(css)` | Scroll the element into view and click its centre with CDP input events. |
+| `cdp_click_element(css)` | Deprecated: it is `cdp_click`. It used to click at the element's place in the document, so it missed on a scrolled page. |
 | `execute_cdp(method)` | Send a raw CDP command with no parameters. |
 | `execute_cdp_with_params(method, params)` | Send a raw CDP command with JSON parameters. |
 | `execute_cdp_cmd(command, params)` | Alias for `execute_cdp_with_params`. |
@@ -219,7 +220,7 @@ Use CDP mode when:
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `execute_cdp` fails | CDP not activated | Call `activate_cdp_mode()` first. |
-| `cdp_click_element` misses | Element scrolled out of view | Scroll to the element first. |
+| `cdp_mouse_click` misses | The coordinates are the document's, not the viewport's, on a scrolled page | Click by selector with `cdp_click`, which scrolls the element into view first. |
 | Reactor does not intercept | Wrong debugger port | Verify the browser was launched with `--remote-debugging-port=9222`. |
 
 ## Related reading

@@ -1099,25 +1099,41 @@ impl BaseCase {
         self.session.get_cookies().await
     }
 
-    /// Dispatches a CDP mouse click at screen coordinates `(x, y)`.
+    /// Dispatches a CDP mouse click at `(x, y)`, in CSS pixels from the
+    /// top-left corner of the visible part of the page (the viewport). The
+    /// scroll position is not added: for an element's place on a page that may
+    /// be scrolled, use [`cdp_click`](Self::cdp_click).
     pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
         self.session.cdp_mouse_click(x, y).await
     }
 
-    /// Inserts `text` via CDP without using element focus.
-    pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+    /// Inserts `text` into whatever has focus with one CDP `Input.insertText`
+    /// command. It sends no key events, so it is the wrong choice under
+    /// stealth; [`cdp_type`](Self::cdp_type) types key by key. Unlike
+    /// `cdp_type` it takes no selector and clears nothing.
+    pub async fn cdp_insert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.session.cdp_type_text(text).await
     }
 
+    /// Inserts `text` via CDP without using element focus.
+    #[deprecated(since = "0.5.0", note = "renamed cdp_insert_text: it types nothing")]
+    pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.cdp_insert_text(text).await
+    }
+
     /// Finds `css` and dispatches a CDP mouse click at its center.
+    ///
+    /// It used to press at WebDriver's rectangle of the element, which is in
+    /// the document, so on a page scrolled by N pixels the click landed N
+    /// pixels too low. It now is [`cdp_click`](Self::cdp_click), which scrolls
+    /// the element into view and presses at its centre in the viewport.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use cdp_click, which scrolls the element into view and clicks it at its place in the viewport"
+    )]
     pub async fn cdp_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("cdp_click_element", Some(css), None);
-        let by = Selector::auto(css).to_by()?;
-        let element = self.session.find(by).await?;
-        let rect = element.rect().await?;
-        let center_x = rect.x + (rect.width / 2.0);
-        let center_y = rect.y + (rect.height / 2.0);
-        self.session.cdp_mouse_click(center_x, center_y).await
+        self.cdp_click(css).await
     }
 
     /// Configures network throttling/latency via CDP.
@@ -3300,6 +3316,8 @@ include!("base_case_impls/base_case_impl_text_tests.rs");
 include!("base_case_impls/base_case_impl_element_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_demo_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_cdp_tests.rs");
 #[cfg(all(test, feature = "playwright"))]
 include!("base_case_impls/base_case_impl_playwright_tests.rs");
 #[cfg(test)]

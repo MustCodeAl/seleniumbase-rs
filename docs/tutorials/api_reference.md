@@ -309,9 +309,10 @@ is called. Useful for soft assertions.
 | `activate_cdp_mode()` | Enables CDP domains. |
 | `execute_cdp(method)` | Sends a CDP command. |
 | `execute_cdp_with_params(method, params)` | Sends a CDP command with params. |
-| `cdp_mouse_click(x, y)` | CDP mouse click. |
-| `cdp_type_text(text)` | CDP text insert. |
-| `cdp_click_element(selector)` | CDP click at element center. |
+| `cdp_mouse_click(x, y)` | CDP mouse click at viewport coordinates. |
+| `cdp_insert_text(text)` | CDP text insert into whatever has focus (`cdp_type_text` is the deprecated old name). |
+| `cdp_click(selector)` | Scroll the element into view and click its centre through CDP. |
+| `cdp_click_element(selector)` | Deprecated: use `cdp_click`. |
 | `cdp_fast_type(selector, text)` | Clear and insert text in one operation (fast, not stealthy). |
 | `cdp_wait_for_element_present(selector, timeout)` | Wait for an element to appear in the DOM. |
 | `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |

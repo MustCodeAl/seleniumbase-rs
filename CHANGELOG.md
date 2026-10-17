@@ -412,6 +412,9 @@ migrate.
 - `BaseCase::demo_pauses()` (feature `test-util`) lists the `PauseKind` of each
   pause demo and slow mode have made, so a test can assert that an action
   paused without timing it.
+- `BaseCase::cdp_insert_text(text)`: `Input.insertText` into whatever has focus,
+  the honest name of `cdp_type_text`, which types nothing (it inserts, with no
+  key events).
 - `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
   at the crate root, beside `RuntimeConfig`.
 
@@ -452,6 +455,9 @@ migrate.
 
 - `sb_cdp::Locator::click_at(Point)`: use `click_with_offset(x, y, false)`,
   Python's name for it. `click_at` calls it.
+- `BaseCase::cdp_type_text`: renamed `cdp_insert_text`.
+- `BaseCase::cdp_click_element`: use `cdp_click`, which it now calls (see
+  Fixed). `sbrs cdp-click-element` and `cdp-type-text` keep their names.
 
 ### Changed
 
@@ -551,6 +557,13 @@ migrate.
 
 ### Fixed
 
+- `BaseCase::cdp_click_element` pressed at WebDriver's rectangle of the
+  element, which is in the document, but the DevTools mouse event takes
+  viewport coordinates, so on a page scrolled by N pixels the click landed N
+  pixels too low (or on another element). It is now `cdp_click`: it scrolls the
+  element into view and presses at its centre in the viewport. The
+  documentation of `cdp_mouse_click` said "screen coordinates"; they are
+  viewport coordinates.
 - `RunSettings` demo and slow mode pause for 0.5 s after an action, as Python
   4.55.2 does (`DEFAULT_DEMO_MODE_TIMEOUT`); `DEFAULT_DEMO_PAUSE` was 1.2 s.
   Pass `with_demo_sleep` to keep a longer pause.

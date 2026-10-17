@@ -2239,13 +2239,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::CdpClickElement { css } => {
             let mut sb = BaseCase::new(config).await?;
-            sb.cdp_click_element(&css).await?;
+            sb.cdp_click(&css).await?;
             println!("CDP clicked element '{css}'");
             sb.quit().await?;
         }
         Commands::CdpTypeText { text } => {
             let mut sb = BaseCase::new(config).await?;
-            sb.cdp_type_text(&text).await?;
+            sb.cdp_insert_text(&text).await?;
             println!("CDP typed text '{text}'");
             sb.quit().await?;
         }

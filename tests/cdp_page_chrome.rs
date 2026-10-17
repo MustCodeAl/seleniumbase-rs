@@ -103,3 +103,26 @@ async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
 
     sb.quit().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "requires a local Chrome and chromedriver"]
+#[allow(deprecated)]
+async fn cdp_click_element_hits_the_button_on_a_page_scrolled_down() {
+    let mut config = BrowserConfig::default()
+        .with_headless(true)
+        .with_mode(DriverMode::Cdp);
+    config.auto_start_driver = true;
+    let mut sb = BaseCase::new(config).await.expect("Chrome starts");
+    sb.open(PAGE).await.unwrap();
+
+    // The button is 2000 px down. With the page scrolled to it, its place in
+    // the document (WebDriver's rectangle) is 1900 px below its place in the
+    // viewport, which is where the click must go.
+    sb.execute_script("window.scrollTo(0, 1900);")
+        .await
+        .unwrap();
+    sb.cdp_click_element("#low").await.unwrap();
+    assert_eq!(sb.cdp_get_text("#out").await.unwrap(), "clicked");
+
+    sb.quit().await.unwrap();
+}
