@@ -37,6 +37,35 @@ impl Point {
     }
 }
 
+/// The display a page is shown on (`window.screen`), in CSS pixels.
+///
+/// This describes the monitor, not the browser window: for a window, see
+/// [`Window`](super::Window). For an element's rectangle in screen
+/// coordinates, see [`Locator::screen_rect`](super::Locator::screen_rect).
+///
+/// Python's `sb.cdp.get_screen_rect()`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub struct ScreenRect {
+    /// The width of the display.
+    pub width: f64,
+    /// The height of the display.
+    pub height: f64,
+    /// The width left over by taskbars and docks.
+    pub avail_width: f64,
+    /// The height left over by taskbars and docks.
+    pub avail_height: f64,
+    /// The left edge of the usable area.
+    pub avail_left: f64,
+    /// The top edge of the usable area.
+    pub avail_top: f64,
+    /// Bits per pixel of colour.
+    pub color_depth: u32,
+    /// Bits per pixel of the display.
+    pub pixel_depth: u32,
+}
+
 /// A snapshot of a DOM element at the moment it was queried.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ElementInfo {

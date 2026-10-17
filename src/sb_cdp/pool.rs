@@ -395,7 +395,7 @@ impl BrowserPool {
 
         let opened = async {
             let context = browser.new_context_with(context).await?;
-            let page = context.new_page(None::<&str>).await?;
+            let page = context.new_page().await?;
             Ok::<_, SeleniumBaseError>((context, page))
         }
         .await;
@@ -490,13 +490,23 @@ impl Lease {
         &self.shared.sessions
     }
 
-    /// Opens another tab in the lease's context, optionally at `url`.
+    /// Opens another, blank tab in the lease's context.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the tab cannot be created.
-    pub async fn new_page(&self, url: Option<impl AsRef<str>>) -> Result<Page, SeleniumBaseError> {
-        self.context.new_page(url).await
+    pub async fn new_page(&self) -> Result<Page, SeleniumBaseError> {
+        self.context.new_page().await
+    }
+
+    /// Opens another tab in the lease's context and navigates it to `url`.
+    ///
+    /// # Errors
+    ///
+    /// As [`new_page`](Self::new_page), and [`SeleniumBaseError::Navigation`]
+    /// if the page cannot be loaded.
+    pub async fn new_page_at(&self, url: impl AsRef<str>) -> Result<Page, SeleniumBaseError> {
+        self.context.new_page_at(url).await
     }
 
     /// Saves the context's cookies, and the local storage of the current

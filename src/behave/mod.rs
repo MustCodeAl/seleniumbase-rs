@@ -6,9 +6,11 @@
 //!    tags).
 //! 2. A [`StepRegistry`] (or, for steps that drive a browser, an
 //!    [`AsyncStepRegistry`]) maps step text to handlers. A step is looked up
-//!    **with its keyword**, so a pattern reads `^Given I open "(.+)"$`.
-//!    `And`, `But` and `*` continue the keyword before them, so one `Given`
-//!    handler serves `Given ...` and the `And ...` lines after it.
+//!    **with its keyword**, so a pattern reads `^Given I open "(.+)"$`; to
+//!    match whatever keyword is written, as behave's `@step` does, use
+//!    `register_step(r#"I open "(.+)""#, ..)`. `And`, `But` and `*` continue
+//!    the keyword before them, so one `Given` handler serves `Given ...` and
+//!    the `And ...` lines after it.
 //! 3. [`run_feature_text`] and [`run_feature_file`] run every scenario, outline
 //!    rows included, and give one [`ScenarioResult`] per scenario.
 //!    [`RunFilter`] picks scenarios by tag; a feature's tags count as its
@@ -38,7 +40,7 @@ pub mod helper;
 pub mod runner;
 pub mod steps;
 
-pub use async_steps::{AsyncStepHandler, AsyncStepRegistry};
+pub use async_steps::{AsyncStepFuture, AsyncStepHandler, AsyncStepRegistry, SharedBaseCase};
 pub use common_steps::CommonSteps;
 pub use helper::{
     expand_scenario_outline, parse_feature, parse_scenarios, Feature, Scenario, Step,
@@ -48,4 +50,4 @@ pub use runner::{
     run_feature_file_with_filter_async, run_feature_text, run_feature_text_async, RunFilter,
     ScenarioResult,
 };
-pub use steps::{StepCaptures, StepHandler, StepRegistry};
+pub use steps::{step_pattern, StepCaptures, StepHandler, StepRegistry};

@@ -630,7 +630,7 @@ impl Browser {
     pub async fn default_page(&self) -> Result<Page, SeleniumBaseError> {
         match self.list_pages().await?.into_iter().next() {
             Some(info) => self.page(&info.id).await,
-            None => self.new_page(None::<&str>).await,
+            None => self.new_page().await,
         }
     }
 
@@ -645,29 +645,46 @@ impl Browser {
         self.page(&newest.id).await
     }
 
-    /// Opens a new tab, optionally at `url`.
+    /// Opens a new, blank tab.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the tab cannot be created.
+    pub async fn new_page(&self) -> Result<Page, SeleniumBaseError> {
+        self.open_target(None, false, None).await
+    }
+
+    /// Opens a new tab and navigates it to `url`.
     ///
     /// A URL without a scheme is opened over HTTPS.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the tab cannot be created.
-    pub async fn new_page(&self, url: Option<impl AsRef<str>>) -> Result<Page, SeleniumBaseError> {
-        self.open_target(url.as_ref().map(AsRef::as_ref), false, None)
-            .await
+    /// As [`new_page`](Self::new_page), and [`SeleniumBaseError::Navigation`]
+    /// if the page cannot be loaded.
+    pub async fn new_page_at(&self, url: impl AsRef<str>) -> Result<Page, SeleniumBaseError> {
+        self.open_target(Some(url.as_ref()), false, None).await
     }
 
-    /// Opens a new window, optionally at `url`.
+    /// Opens a new, blank window.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the window cannot be created.
-    pub async fn new_window(
-        &self,
-        url: Option<impl AsRef<str>>,
-    ) -> Result<Page, SeleniumBaseError> {
-        self.open_target(url.as_ref().map(AsRef::as_ref), true, None)
-            .await
+    pub async fn new_window(&self) -> Result<Page, SeleniumBaseError> {
+        self.open_target(None, true, None).await
+    }
+
+    /// Opens a new window and navigates it to `url`.
+    ///
+    /// A URL without a scheme is opened over HTTPS.
+    ///
+    /// # Errors
+    ///
+    /// As [`new_window`](Self::new_window), and
+    /// [`SeleniumBaseError::Navigation`] if the page cannot be loaded.
+    pub async fn new_window_at(&self, url: impl AsRef<str>) -> Result<Page, SeleniumBaseError> {
+        self.open_target(Some(url.as_ref()), true, None).await
     }
 
     pub(super) async fn open_target(

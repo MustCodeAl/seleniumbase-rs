@@ -268,6 +268,26 @@ impl Default for MessengerSettings {
     }
 }
 
+impl From<MessengerTheme> for MessengerSettings {
+    /// The settings with this theme and Python's defaults for the rest.
+    fn from(theme: MessengerTheme) -> Self {
+        Self {
+            theme,
+            ..Self::default()
+        }
+    }
+}
+
+impl From<MessengerLocation> for MessengerSettings {
+    /// The settings with this location and Python's defaults for the rest.
+    fn from(location: MessengerLocation) -> Self {
+        Self {
+            location,
+            ..Self::default()
+        }
+    }
+}
+
 impl MessengerSettings {
     /// The `Messenger.options` object these settings make.
     fn options(self) -> Value {
@@ -364,7 +384,7 @@ fn activate_script() -> String {
 
 /// A script that applies `settings`, and gives `false` if Messenger is not in
 /// the page.
-fn theme_script(settings: MessengerSettings) -> String {
+pub(crate) fn theme_script(settings: MessengerSettings) -> String {
     format!(
         "(() => {{
             if (typeof window.Messenger === 'undefined') {{ return false; }}
@@ -422,6 +442,9 @@ impl Page {
     ///
     /// Python's `set_messenger_theme`. It applies to the messages posted
     /// afterwards. Messenger is loaded first when the page does not have it.
+    /// Pass [`MessengerSettings`], or just a [`MessengerTheme`] or a
+    /// [`MessengerLocation`] to change one thing and keep Python's defaults for
+    /// the others.
     ///
     /// # Errors
     ///
@@ -429,8 +452,9 @@ impl Page {
     /// Messenger.
     pub async fn set_messenger_theme(
         &self,
-        settings: MessengerSettings,
+        settings: impl Into<MessengerSettings>,
     ) -> Result<(), SeleniumBaseError> {
+        let settings = settings.into();
         self.run_with_messenger(&theme_script(settings), settings)
             .await
     }
@@ -636,6 +660,43 @@ mod tests {
             "{script}"
         );
         assert!(script.contains(r#""maxMessages":3"#), "{script}");
+    }
+
+    #[test]
+    fn a_theme_or_a_location_alone_is_a_complete_setting() {
+        let theme = MessengerSettings::from(MessengerTheme::Air);
+        assert_eq!(theme.theme, MessengerTheme::Air);
+        assert_eq!(theme.location, MessengerLocation::BottomRight);
+        assert_eq!(theme.max_messages, 8);
+
+        let location = MessengerSettings::from(MessengerLocation::TopLeft);
+        assert_eq!(location.theme, MessengerTheme::Flat);
+        assert_eq!(location.location, MessengerLocation::TopLeft);
+        assert_eq!(location.max_messages, 8);
+    }
+
+    #[tokio::test]
+    async fn set_messenger_theme_takes_a_theme_a_location_or_whole_settings() {
+        let (browser, mock) = Browser::new_mocked();
+        answer(&mock, true);
+        let page = browser.default_page().await.unwrap();
+
+        page.set_messenger_theme(MessengerTheme::Air).await.unwrap();
+        page.set_messenger_theme(MessengerLocation::TopLeft)
+            .await
+            .unwrap();
+        page.set_messenger_theme(MessengerSettings::default())
+            .await
+            .unwrap();
+
+        let sent = expressions(&mock);
+        assert_eq!(sent.len(), 3, "{sent:?}");
+        assert!(sent[0].contains(r#""theme":"air""#), "{}", sent[0]);
+        assert!(sent[0].contains("messenger-on-bottom messenger-on-right"));
+        assert!(sent[0].contains(r#""maxMessages":8"#), "{}", sent[0]);
+        assert!(sent[1].contains(r#""theme":"flat""#), "{}", sent[1]);
+        assert!(sent[1].contains("messenger-on-top messenger-on-left"));
+        assert!(sent[2].contains(r#""theme":"flat""#), "{}", sent[2]);
     }
 
     #[test]

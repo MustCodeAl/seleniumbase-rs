@@ -2047,9 +2047,10 @@ rust = "Locator::click"
 note = "Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."click_active_element"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"document.activeElement.click()\")`."
+status = "implemented"
+rust = "Page::click_active_element"
+note = "`page.click_active_element()` calls `click()` on `document.activeElement`."
+divergence = "Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait."
 
 [cdp."click_and_hold"]
 status = "composed"
@@ -2062,9 +2063,10 @@ rust = "Page::solve_captcha"
 note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
 
 [cdp."click_if_visible"]
-status = "composed"
-rust = "Locator::click"
-note = "Locator::click has no \"only if visible\" condition; check `page.locator(selector).is_visible()` first."
+status = "implemented"
+rust = "Locator::click_if_visible"
+note = "`page.locator(selector).click_if_visible()` clicks if the element is visible now (Python's default `timeout=0`: look once) and says whether it clicked; `click_if_visible_with_timeout(timeout)` waits up to `timeout` for it. The Locator holds the selector, so it is not an argument of the call."
+divergence = "Gives Ok(false) when the element is not visible in time or vanishes before the click; an invalid selector or a lost connection is still an error, where Python suppresses every error. The click always scrolls the element into view (`scroll=True`)."
 
 [cdp."click_link"]
 status = "composed"
@@ -2087,9 +2089,10 @@ rust = "Locator::visible"
 note = "`page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`."
 
 [cdp."click_with_offset"]
-status = "composed"
-rust = "Locator::click_at"
-note = "`page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner."
+status = "implemented"
+rust = "Locator::click_with_offset"
+note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false and is deprecated."
+divergence = "Always scrolls the element into view (Python's `scroll=True`, its default)."
 
 [cdp."close_active_tab"]
 status = "composed"
@@ -2291,9 +2294,9 @@ rust = "Storage::get"
 note = "`page.local_storage().get(key)`."
 
 [cdp."get_locale_code"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"navigator.language\")`."
+status = "implemented"
+rust = "Page::locale_code"
+note = "`page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty."
 
 [cdp."get_mfa_code"]
 status = "composed"
@@ -2311,9 +2314,9 @@ rust = "Locator::locator"
 note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_origin"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"location.origin\")`."
+status = "implemented"
+rust = "Page::origin"
+note = "`page.origin()` is `window.location.origin`."
 
 [cdp."get_page_source"]
 status = "composed"
@@ -2356,9 +2359,10 @@ rust = "Browser::http_url"
 note = "`browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to."
 
 [cdp."get_screen_rect"]
-status = "composed"
-rust = "Page::evaluate"
-note = "Python returns `window.screen`. Read it with `page.evaluate(\"({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })\")`. `page.window().bounds()` is the browser window's rectangle, not the screen's."
+status = "implemented"
+rust = "Page::screen_rect"
+note = "`page.screen_rect()` returns a `ScreenRect` of the display (`window.screen`): size, usable area and colour depth. `page.window().bounds()` is the browser window's rectangle, not the screen's, and `Locator::screen_rect` is an element's rectangle in screen coordinates."
+divergence = "Python returns the `window.screen` object as it serialises, a dict; this is a typed struct of the numeric fields."
 
 [cdp."get_session_storage_item"]
 status = "composed"
@@ -2623,12 +2627,12 @@ note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 [cdp."open_new_tab"]
 status = "composed"
 rust = "Browser::new_page"
-note = "A method of the Browser, not of one page: `browser.new_page(..)`."
+note = "A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL."
 
 [cdp."open_new_window"]
 status = "composed"
 rust = "Browser::new_window"
-note = "A method of the Browser, not of one page: `browser.new_window(..)`."
+note = "A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL."
 
 [cdp."post_message"]
 status = "implemented"
@@ -2638,8 +2642,8 @@ divergence = "Python lets markup in the message through; here it is shown as tex
 
 [cdp."press_keys"]
 status = "composed"
-rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key."
+rust = "Locator::send_keys"
+note = "`page.locator(selector).send_keys(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key."
 
 [cdp."print_to_pdf"]
 status = "composed"
@@ -2807,9 +2811,9 @@ rust = "Locator::select_option"
 note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."send_keys"]
-status = "composed"
-rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
+status = "implemented"
+rust = "Locator::send_keys"
+note = "`page.locator(selector).send_keys(text)` types one key at a time after what the field holds; `type_text` clears first."
 
 [cdp."set_all_cookies"]
 status = "composed"
@@ -2839,7 +2843,7 @@ note = "`page.emulation().locale(..)` sets the Intl locale and also the language
 [cdp."set_messenger_theme"]
 status = "implemented"
 rust = "Page::set_messenger_theme"
-note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8)."
+note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest."
 
 [cdp."set_session_storage_item"]
 status = "composed"
@@ -2901,9 +2905,9 @@ rust = "Window::set_bounds"
 note = "Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler."
 
 [cdp."type"]
-status = "composed"
+status = "implemented"
 rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
+note = "`page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends."
 
 [cdp."uncheck_if_checked"]
 status = "composed"

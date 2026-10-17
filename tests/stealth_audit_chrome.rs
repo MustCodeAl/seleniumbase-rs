@@ -539,7 +539,7 @@ async fn every_session_provider_runs_in_chrome_without_throwing() {
         // A fresh document for each, so the providers cannot lean on each other.
         let page = lab
             .browser
-            .new_page(Some(format!("http://127.0.0.1:{}/", lab.port)))
+            .new_page_at(format!("http://127.0.0.1:{}/", lab.port))
             .await
             .expect("a fresh tab")
             .with_timeout(Duration::from_secs(10));

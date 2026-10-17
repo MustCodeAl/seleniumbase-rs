@@ -470,3 +470,57 @@ async fn setting_the_locale_keeps_working_on_a_page_without_client_hints() {
     assert_eq!(agent.params["acceptLanguage"], "fr-FR");
     assert!(agent.params.get("userAgentMetadata").is_none());
 }
+
+// ----------------------------------------------------------------------
+// get_origin, get_locale_code, get_screen_rect, click_active_element
+// ----------------------------------------------------------------------
+
+#[tokio::test]
+async fn the_origin_and_the_locale_code_are_what_the_page_reports() {
+    let (page, mock) = quick_page().await;
+    answer_every_script_with(&mock, json!("https://example.test"));
+    assert_eq!(page.origin().await.unwrap(), "https://example.test");
+    answer_every_script_with(&mock, json!("en-GB"));
+    assert_eq!(page.locale_code().await.unwrap(), "en-GB");
+
+    let sent = evaluated(&mock);
+    assert_eq!(sent[0], "window.location.origin");
+    assert!(
+        sent[1].contains("navigator.language") && sent[1].contains("navigator.languages[0]"),
+        "{}",
+        sent[1]
+    );
+}
+
+#[tokio::test]
+async fn the_screen_rect_describes_the_display_not_the_window() {
+    let (page, mock) = quick_page().await;
+    answer_every_script_with(
+        &mock,
+        json!({
+            "width": 1920.0, "height": 1080.0, "availWidth": 1920.0, "availHeight": 1055.0,
+            "availLeft": 0.0, "availTop": 25.0, "colorDepth": 24, "pixelDepth": 24,
+        }),
+    );
+
+    let screen = page.screen_rect().await.unwrap();
+
+    assert_eq!((screen.width, screen.height), (1920.0, 1080.0));
+    assert_eq!((screen.avail_width, screen.avail_height), (1920.0, 1055.0));
+    assert_eq!((screen.avail_left, screen.avail_top), (0.0, 25.0));
+    assert_eq!((screen.color_depth, screen.pixel_depth), (24, 24));
+    assert!(evaluated(&mock)[0].contains("screen"));
+}
+
+#[tokio::test]
+async fn clicking_the_active_element_calls_click_on_the_focused_one() {
+    let (page, mock) = quick_page().await;
+    answer_every_script_with(&mock, Value::Null);
+
+    page.click_active_element().await.unwrap();
+
+    let sent = evaluated(&mock);
+    assert_eq!(sent.len(), 1, "{sent:?}");
+    assert!(sent[0].contains("document.activeElement"), "{}", sent[0]);
+    assert!(sent[0].contains(".click()"), "{}", sent[0]);
+}

@@ -13,12 +13,32 @@ pub type StepHandler = Box<dyn Fn(&str, &[String]) -> Result<(), String>>;
 /// A regex for the step `text`, with or without a leading step keyword.
 ///
 /// The runner looks a step up with its keyword (`Then the value should be
-/// "5"`), so a built-in pattern that starts at `^the value` would never match a
-/// step run from a feature file. This one matches `Then the value ...`, `And
-/// the value ...` and the bare `the value ...`. `text` is a regex and may hold
-/// capture groups.
-pub(crate) fn step_pattern(text: &str) -> String {
-    format!(r"^(?:(?:Given|When|Then|And|But|\*)\s+)?{text}$")
+/// "5"`), so a pattern that starts at `^the value` would never match a step
+/// run from a feature file. This one matches `Then the value ...`, `And the
+/// value ...` and the bare `the value ...`. `text` is a regex and may hold
+/// capture groups; it is not anchored, this adds the anchors around the whole
+/// of it, so a top-level alternation such as `yes|no` matches `yes` or `no`
+/// and nothing longer.
+///
+/// [`StepRegistry::register_step`] and
+/// [`AsyncStepRegistry::register_step`](crate::behave::AsyncStepRegistry::register_step)
+/// register a handler under this pattern; use `step_pattern` itself with
+/// `register_regex` to combine it with other regex handling.
+///
+/// ```
+/// use regex::Regex;
+/// use seleniumbase_rs::behave::step_pattern;
+///
+/// let pattern = Regex::new(&step_pattern(r#"I open "(.+?)""#))?;
+/// assert!(pattern.is_match(r#"Given I open "https://example.com""#));
+/// assert!(pattern.is_match(r#"I open "https://example.com""#));
+/// assert!(!pattern.is_match(r#"Given I opened "https://example.com""#));
+/// # Ok::<(), regex::Error>(())
+/// ```
+pub fn step_pattern(text: &str) -> String {
+    // `text` sits in a non-capturing group, so a top-level `a|b` is anchored
+    // as a whole and the numbering of its own groups does not change.
+    format!(r"^(?:(?:Given|When|Then|And|But|\*)\s+)?(?:{text})$")
 }
 
 /// The capture groups of a match, group 1 first.
@@ -109,6 +129,53 @@ impl StepRegistry {
         let pattern = Regex::new(pattern)?;
         self.regex.push(RegisteredStep { pattern, handler });
         Ok(())
+    }
+
+    /// Register a handler for the step `text_regex`, whatever keyword it is
+    /// written with, or none: the way behave's `@step` matches.
+    ///
+    /// `text_regex` is the step text as a regex, without its keyword and
+    /// without `^` or `$`; its capture groups go to the handler. It is
+    /// [`register_regex`](Self::register_regex) with [`step_pattern`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `text_regex` is not a valid regular expression; use
+    /// [`try_register_step`](Self::try_register_step) for one that comes from
+    /// outside the program.
+    ///
+    /// # Example
+    /// ```
+    /// use seleniumbase_rs::behave::{run_feature_text, RunFilter, StepRegistry};
+    ///
+    /// let mut registry = StepRegistry::new();
+    /// registry.register_step(r#"I have (\d+) cats"#, Box::new(|_, caps| {
+    ///     caps[0].parse::<u32>().map(|_| ()).map_err(|e| e.to_string())
+    /// }));
+    ///
+    /// let results = run_feature_text(
+    ///     "Feature: f\nScenario: s\nGiven I have 3 cats\nAnd I have 4 cats\n",
+    ///     &registry,
+    ///     &RunFilter::all(),
+    /// );
+    /// assert!(results[0].passed);
+    /// ```
+    pub fn register_step(&mut self, text_regex: &str, handler: StepHandler) {
+        self.register_regex(&step_pattern(text_regex), handler);
+    }
+
+    /// Like [`register_step`](Self::register_step), but reports an invalid
+    /// pattern instead of panicking.
+    ///
+    /// # Errors
+    ///
+    /// Returns the regex error if `text_regex` does not compile.
+    pub fn try_register_step(
+        &mut self,
+        text_regex: &str,
+        handler: StepHandler,
+    ) -> Result<(), regex::Error> {
+        self.try_register_regex(&step_pattern(text_regex), handler)
     }
 
     /// Find and run the handler for a step.
@@ -203,6 +270,48 @@ mod tests {
             [vec!["", "OK"], vec![" twice", "OK"]],
             "the optional group must not shift the selector into caps[0]"
         );
+    }
+
+    #[test]
+    fn a_step_matches_whatever_keyword_it_is_written_with() {
+        let seen = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let mut registry = StepRegistry::new();
+        let sink = std::rc::Rc::clone(&seen);
+        registry.register_step(
+            r#"I open "(.+?)""#,
+            Box::new(move |_, caps| {
+                sink.borrow_mut().push(caps[0].clone());
+                Ok(())
+            }),
+        );
+
+        for step in [
+            r#"Given I open "a""#,
+            r#"When I open "b""#,
+            r#"And I open "c""#,
+            r#"* I open "d""#,
+            r#"I open "e""#,
+        ] {
+            registry.run(step).unwrap();
+        }
+        assert_eq!(*seen.borrow(), ["a", "b", "c", "d", "e"]);
+        assert!(!registry.has_handler(r#"Given I open the door"#));
+        assert!(!registry.has_handler(r#"Maybe I open "f""#));
+        assert!(registry
+            .try_register_step("(unclosed", Box::new(|_, _| Ok(())))
+            .is_err());
+    }
+
+    #[test]
+    fn a_top_level_alternation_is_anchored_as_a_whole() {
+        let mut registry = StepRegistry::new();
+        registry.register_step("yes|no", Box::new(|_, _| Ok(())));
+
+        assert!(registry.has_handler("yes"));
+        assert!(registry.has_handler("Given no"));
+        // `^` and `$` must bind both sides, not just the first and the last.
+        assert!(!registry.has_handler("yes please"));
+        assert!(!registry.has_handler("Given I said no"));
     }
 
     #[test]

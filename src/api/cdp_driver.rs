@@ -34,7 +34,7 @@
 //! driver.type_text("#username", "demo_user").await?;
 //! driver.click("button").await?;
 //! let title = driver.evaluate("document.title").await?;
-//! println!("{}", title["value"]);
+//! println!("{title}");
 //! driver.stop().await?;
 //! # Ok(())
 //! # }
@@ -153,7 +153,7 @@ impl CdpDriver {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches, and
-    /// [`SeleniumBaseError::CdpDriver`] if the page rejects the selector.
+    /// [`SeleniumBaseError::InvalidSelector`] if the page rejects the selector.
     pub async fn find(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
         let expression = format!(
             "document.querySelector({})",
@@ -173,7 +173,7 @@ impl CdpDriver {
                 .or_else(|| exception.get("text"))
                 .and_then(Value::as_str)
                 .unwrap_or("the script threw");
-            return Err(SeleniumBaseError::cdp_driver(format!(
+            return Err(SeleniumBaseError::InvalidSelector(format!(
                 "{selector}: {reason}"
             )));
         }
@@ -199,35 +199,26 @@ impl CdpDriver {
         self.page()?.locator(selector).click().await
     }
 
-    /// Focuses the element, clears it, and inserts `text`.
+    /// Focuses the element, clears it, and types `text` one key at a time,
+    /// so the page sees key events.
     ///
     /// # Errors
     ///
     /// See [`click`](Self::click).
     pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.page()?.locator(selector).fill(text).await
+        self.page()?.locator(selector).type_text(text).await
     }
 
-    /// Evaluates `expression` and returns the raw CDP result object, such as
-    /// `{"type": "number", "value": 2}`.
+    /// Evaluates `expression` and returns its value, such as `2` for `1 + 1`.
+    ///
+    /// Like Python's `evaluate`, a `return ` that starts the last line is
+    /// dropped, so `return document.title` works.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the script throws.
     pub async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
-        let response = self
-            .page()?
-            .execute(
-                "Runtime.evaluate",
-                json!({"expression": expression, "returnByValue": true}),
-            )
-            .await?;
-        if let Some(exception) = response.get("exceptionDetails") {
-            return Err(SeleniumBaseError::cdp_driver(format!(
-                "JS exception: {exception}"
-            )));
-        }
-        Ok(response.get("result").cloned().unwrap_or(Value::Null))
+        self.page()?.evaluate(expression).await
     }
 
     /// Captures a PNG screenshot and writes it to `path`.
@@ -405,7 +396,7 @@ mod tests {
         let error = driver.find("[").await.unwrap_err();
 
         assert!(
-            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            matches!(error, SeleniumBaseError::InvalidSelector(_)),
             "{error:?}"
         );
         let message = error.to_string();
@@ -414,15 +405,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn evaluate_returns_the_result_object_and_turns_an_exception_into_an_error() {
+    async fn evaluate_returns_the_value_and_turns_an_exception_into_an_error() {
         let (driver, mock) = attached().await;
         mock.reply(
             "Runtime.evaluate",
             json!({"result": {"type": "number", "value": 2}}),
         );
-        let result = driver.evaluate("1 + 1").await.unwrap();
-        assert_eq!(result["value"], 2);
-        assert_eq!(result["type"], "number");
+        assert_eq!(driver.evaluate("1 + 1").await.unwrap(), 2);
+        // Like Python's `evaluate`, a final `return` is dropped.
+        assert_eq!(driver.evaluate("return 1 + 1").await.unwrap(), 2);
+        let sent = mock.calls_to("Runtime.evaluate").pop().unwrap();
+        assert_eq!(sent.params["expression"], "1 + 1");
 
         mock.reply(
             "Runtime.evaluate",
@@ -505,9 +498,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(driver.evaluate("1 + 1").await.unwrap()["value"], 2);
+        assert_eq!(driver.evaluate("1 + 1").await.unwrap(), 2);
         assert_eq!(
-            driver.evaluate("document.title").await.unwrap()["value"],
+            driver.evaluate("return document.title").await.unwrap(),
             "Driver"
         );
         // The element is found by reference, so the DOM domain stays off.
@@ -536,7 +529,7 @@ mod tests {
         driver.type_text("#txt", "ada").await.unwrap();
         driver.click("#go").await.unwrap();
         assert_eq!(
-            driver.evaluate("document.title").await.unwrap()["value"],
+            driver.evaluate("document.title").await.unwrap(),
             "clicked:ada"
         );
 

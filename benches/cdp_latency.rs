@@ -261,7 +261,7 @@ async fn main() {
     for tabs in [1_usize, 2, 4, 8] {
         let mut pages = Vec::new();
         for _ in 0..tabs {
-            pages.push(browser.new_page(Some(format!("{url}/"))).await.unwrap());
+            pages.push(browser.new_page_at(format!("{url}/")).await.unwrap());
         }
         let started = Instant::now();
         let mut tasks = Vec::new();

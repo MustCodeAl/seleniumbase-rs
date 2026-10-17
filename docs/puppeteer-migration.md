@@ -79,7 +79,7 @@ features.
 | Puppeteer | Rust |
 |---|---|
 | `page.click(sel)`, `{ button: 'right' }`, `{ clickCount: 2 }`, `page.tap(sel)` | `page.locator(sel).click()`, `.right_click()`, `.double_click()` |
-| `page.type(sel, text)` | `page.locator(sel).type_text(text)` (Puppeteer types after what is there, so does this) |
+| `page.type(sel, text)` | `page.locator(sel).send_keys(text)` (Puppeteer types after what is there, so does this; `type_text` empties the field first) |
 | `page.focus(sel)`, `page.hover(sel)` | `.focus()`, `.hover()` |
 | `page.select(sel, value)` (one value) | `.select_option(SelectBy::Value(value))` |
 | `page.locator(sel).click()`, `.fill(text)`, `.hover()`, `.wait()`, `.setTimeout(ms)` | `.click()`, `.fill(text)`, `.hover()`, `.wait_for(State::Visible)`, `.with_timeout(...)` |

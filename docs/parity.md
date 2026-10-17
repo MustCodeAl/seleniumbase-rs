@@ -21,7 +21,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 7 | 194 | 14 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 112 | 105 | 46 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 50 | 40 | 17 | 0 |
@@ -614,15 +614,15 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `clear_cookies` | composed | `Cookies::clear` | `page.cookies().clear(..)`. |
 | `clear_input` | composed | `Locator::clear` | Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `click` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `click_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement.click()")`. |
+| `click_active_element` | implemented | `Page::click_active_element` | `page.click_active_element()` calls `click()` on `document.activeElement`. Differs: Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait. |
 | `click_and_hold` | composed | `Locator::click_and_hold` | `page.locator(selector).click_and_hold(Duration::from_secs(2))` scrolls the element into view, presses at its centre, holds for the given time and releases there. Mouse::down and Mouse::up act at coordinates. |
 | `click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
-| `click_if_visible` | composed | `Locator::click` | Locator::click has no "only if visible" condition; check `page.locator(selector).is_visible()` first. |
+| `click_if_visible` | implemented | `Locator::click_if_visible` | `page.locator(selector).click_if_visible()` clicks if the element is visible now (Python's default `timeout=0`: look once) and says whether it clicked; `click_if_visible_with_timeout(timeout)` waits up to `timeout` for it. The Locator holds the selector, so it is not an argument of the call. Differs: Gives Ok(false) when the element is not visible in time or vanishes before the click; an invalid selector or a lost connection is still an error, where Python suppresses every error. The click always scrolls the element into view (`scroll=True`). |
 | `click_link` | composed | `Locator::click` | `page.locator(SelectorBuf::partial_link_text(link_text)).click()` clicks the first link whose text contains `link_text`. The argument is link text, not a selector, so build the selector with `SelectorBuf::partial_link_text` (or `link_text` for an exact match) rather than passing the bare text. |
 | `click_nth_element` | composed | `Locator::nth` | `page.locator(selector).nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_nth_visible_element` | composed | `Locator::nth` | `page.locator(selector).visible().nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_visible_elements` | composed | `Locator::visible` | `page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`. |
-| `click_with_offset` | composed | `Locator::click_at` | `page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner. |
+| `click_with_offset` | implemented | `Locator::click_with_offset` | `page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false and is deprecated. Differs: Always scrolls the element into view (Python's `scroll=True`, its default). |
 | `close_active_tab` | composed | `Page::close` | `page.close()` closes that Page's tab. |
 | `download_file` | implemented | `Page::download_file` | `page.download_file(url, dir)` has the page fetch the address and save the response, as Python does, then waits for the browser to finish and returns the saved path. `page.download_by_click(selector, dir)` follows a download that a click starts. Differs: Takes the folder to save in (Python uses ./downloaded_files) and waits for the browser's own download events, bounded by the page timeout; a bad HTTP status, a fetch the page refuses (CORS) or a cancelled download is SeleniumBaseError::Download. The name comes from the Content-Disposition header when the server sends one, else from the address (Python: the address only). |
 | `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -663,11 +663,11 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_gui_element_rect` | composed | `Locator::screen_rect` | Call `page.locator(selector).screen_rect(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get_html` | composed | `Page::content` | `page.content()` returns the whole page's HTML, `document.documentElement.outerHTML`, which is what Python returns with `include_shadow_dom=False`. Python's default (True) reads the html element's outer HTML through DevTools; whether that adds shadow-root content was not compared. For one element use `page.locator(selector).html()`. |
 | `get_local_storage_item` | composed | `Storage::get` | `page.local_storage().get(key)`. |
-| `get_locale_code` | composed | `Page::evaluate` | No method: `page.evaluate("navigator.language")`. |
+| `get_locale_code` | implemented | `Page::locale_code` | `page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty. |
 | `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
 | `get_navigation_history` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`. |
 | `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `get_origin` | composed | `Page::evaluate` | No method: `page.evaluate("location.origin")`. |
+| `get_origin` | implemented | `Page::origin` | `page.origin()` is `window.location.origin`. |
 | `get_page_source` | composed | `Page::content` | `page.content()` returns the page's HTML. |
 | `get_page_title` | composed | `Page::title` | `page.title()`. |
 | `get_parent` | composed | `Locator::parent` | Call `page.locator(selector).parent(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -676,7 +676,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_rd_host` | composed | `Browser::debugging_host` | `browser.debugging_host()` is `127.0.0.1` for a launched browser and the host given to `Browser::connect` for an attached one. |
 | `get_rd_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
 | `get_rd_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to. |
-| `get_screen_rect` | composed | `Page::evaluate` | Python returns `window.screen`. Read it with `page.evaluate("({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })")`. `page.window().bounds()` is the browser window's rectangle, not the screen's. |
+| `get_screen_rect` | implemented | `Page::screen_rect` | `page.screen_rect()` returns a `ScreenRect` of the display (`window.screen`): size, usable area and colour depth. `page.window().bounds()` is the browser window's rectangle, not the screen's, and `Locator::screen_rect` is an element's rectangle in screen coordinates. Differs: Python returns the `window.screen` object as it serialises, a dict; this is a typed struct of the numeric fields. |
 | `get_session_storage_item` | composed | `Storage::get` | `page.session_storage().get(key)`. |
 | `get_tabs` | composed | `Browser::pages` | `browser.pages()`. |
 | `get_text` | composed | `Locator::text` | Call `page.locator(selector).text(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -729,10 +729,10 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `mouse_click` | composed | `Locator::click` | `page.locator(selector).click()` waits for the element, scrolls it into view and clicks its centre with real mouse events. `page.mouse().click(point)` clicks at coordinates instead. |
 | `nested_click` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `open` | composed | `Page::goto` | A method of the Page that sb.cdp drives: `page.goto(..)`. |
-| `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page(..)`. |
-| `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window(..)`. |
+| `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL. |
+| `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL. |
 | `post_message` | implemented | `Page::post_message` | Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it. Differs: Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions. |
-| `press_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
+| `press_keys` | composed | `Locator::send_keys` | `page.locator(selector).send_keys(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
 | `print_to_pdf` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it with std::fs. |
 | `quit` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
 | `refresh` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
@@ -766,13 +766,13 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `select_option_by_index` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_text` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_value` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `send_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `send_keys` | implemented | `Locator::send_keys` | `page.locator(selector).send_keys(text)` types one key at a time after what the field holds; `type_text` clears first. |
 | `set_all_cookies` | composed | `Cookies::set` | `page.cookies().set(..)`. |
 | `set_attributes` | composed | `Locator::set_attribute` | Call `page.locator(selector).set_attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_download_path` | composed | `Browser::set_download_dir` | `browser.set_download_dir(dir)`. |
 | `set_local_storage_item` | composed | `Storage::set` | `page.local_storage().set(key, value)`. |
 | `set_locale` | composed | `Emulation::locale` | `page.emulation().locale(..)` sets the Intl locale and also the language the page reads from `navigator.language` and the browser sends in `Accept-Language`, keeping the user agent and client hints it had. As in Python the language takes effect from the next page load. |
-| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). |
+| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest. |
 | `set_session_storage_item` | composed | `Storage::set` | `page.session_storage().set(key, value)`. |
 | `set_value` | composed | `Locator::set_value` | Call `page.locator(selector).set_value(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_window_rect` | composed | `Window::set_bounds` | `page.window().set_bounds(x, y, width, height)`; it first restores a minimised or maximised window. |
@@ -785,7 +785,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `switch_to_tab` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch. |
 | `switch_to_window` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch. |
 | `tile_windows` | composed | `Window::set_bounds` | Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler. |
-| `type` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. |
 | `uncheck_if_checked` | composed | `Locator::uncheck` | Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `unselect_if_selected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(false)`. |
 | `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |

@@ -269,6 +269,100 @@ migrate.
   and `LaunchSettings` the new `run`: a struct literal that names every field
   needs `..Default::default()`.
 
+- **`sb_cdp` tab and window creation no longer takes an `Option` URL**, which
+  needed `None::<&str>` to open a blank tab. `Browser::new_page`,
+  `Browser::new_window`, `BrowserContext::new_page` and the pool lease's
+  `new_page` take no argument and open a blank one; `new_page_at(url)` and
+  `new_window_at(url)` open one on a URL (a URL without a scheme is opened
+  over HTTPS, as before).
+
+  ```rust
+  // before
+  let blank = browser.new_page(None::<&str>).await?;
+  let docs = browser.new_page(Some("https://example.com")).await?;
+  // after
+  let blank = browser.new_page().await?;
+  let docs = browser.new_page_at("https://example.com").await?;
+  ```
+
+- **`sb_cdp::Locator::type_text` empties the field before it types**, as Python's
+  `sb.cdp.type` does ("clears the text field first"); it used to type after
+  what the field held, which is Python's `send_keys` and the new
+  `Locator::send_keys`. This changes behaviour without changing the signature,
+  so a call that meant to append must be renamed. The MCP `type_text` tool keeps
+  its `fill_input` and `append` modes. `CdpDriver::type_text` now sends key
+  events too (it inserted the text in one step), like the other `type_text`
+  methods.
+
+  ```rust
+  // before: appended
+  page.locator("#note").type_text(" more").await?;
+  // after
+  page.locator("#note").send_keys(" more").await?;
+  ```
+
+- **`behave::AsyncStepRegistry` is `Send + Sync`**: a run can be handed to
+  `tokio::spawn` and the registry shared in an `Arc`. Its handlers get the
+  `BaseCase` as `SharedBaseCase` (`Arc<tokio::sync::Mutex<BaseCase>>`) instead
+  of `Rc<RefCell<BaseCase>>`, return an `AsyncStepFuture` (`Send`) and must be
+  `Send + Sync`; `with_base` is `async`. New: `base_case()` and
+  `into_base_case()`, which hands the `BaseCase` back after a run so the caller
+  can `quit` it (no step needs to).
+
+  ```rust
+  // before
+  registry.register_regex(r#"^I click "(.+?)"$"#, Box::new(|bc, _step, caps| {
+      let selector = caps[0].clone();
+      Box::pin(async move { bc.borrow_mut().click(&selector).await.map_err(|e| e.to_string()) })
+  }));
+  // after: lock the shared BaseCase
+  registry.register_regex(r#"^I click "(.+?)"$"#, Box::new(|bc, _step, caps| {
+      let selector = caps[0].clone();
+      Box::pin(async move { bc.lock().await.click(&selector).await.map_err(|e| e.to_string()) })
+  }));
+  // before: registry.with_base(|sb| ...);  after: registry.with_base(|sb| ...).await
+  ```
+
+- **`CdpDriver::evaluate` returns the value**, as Python's `sb.cdp.evaluate` does,
+  and drops a `return ` that starts the last line; it used to return the raw
+  CDP result object. `CdpDriver::find` reports a selector the page rejects as
+  `InvalidSelector` (it was `CdpDriver`).
+
+  ```rust
+  // before
+  let title = driver.evaluate("document.title").await?["value"].clone();
+  // after
+  let title = driver.evaluate("document.title").await?;
+  ```
+
+- **`api::cdp_page::CdpPage` is stricter and truer to Python's `sb.cdp`** (and
+  the `BaseCase::cdp_*` methods on it):
+  - `evaluate` (`BaseCase::cdp_evaluate`) returns the value instead of the raw
+    CDP result object `{"type": ..., "value": ...}`, drops a final `return`, and
+    a script that throws is `CdpDriver` (it was `Unsupported`).
+  - `click` (`cdp_click`) waits up to 7 seconds for the element, scrolls it
+    into view, and fails when the browser refuses an input event; it used to
+    discard those errors and click an element below the fold off screen.
+    `click_with_timeout` takes another wait.
+  - `get_text`, `get_attribute` and `get_property` fail with `ElementNotFound`
+    for an element that is not there; `get_text` used to answer `""` and the
+    others `None`. An element without the attribute still gives `None`.
+  - `select_option_by_value` fails with `InvalidSelector` for a value the
+    dropdown has no option for (it set the value and reported success), and
+    all three `select_option_by_*` fail with `ElementNotFound` for no dropdown.
+  - Only `click` waits for its element; the reads, `type_text`, `fast_type` and
+    the selects look once (`wait_for_element_present` first for a late
+    element). A selector the browser rejects is `InvalidSelector` in all of
+    them, and `wait_for_element_present` returns a lost connection at once
+    instead of polling it until the timeout and calling it `ElementNotFound`.
+
+  ```rust
+  // before: the value was inside the result object
+  let title = page.evaluate("document.title").await?["value"].clone();
+  // after
+  let title = page.evaluate("document.title").await?;
+  ```
+
 ### Added
 
 - `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
@@ -307,6 +401,26 @@ migrate.
 - `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
   at the crate root, beside `RuntimeConfig`.
 
+- `sb_cdp::Page::origin`, `locale_code`, `screen_rect` (a `ScreenRect` of the
+  display) and `click_active_element`: Python's `sb.cdp.get_origin`,
+  `get_locale_code`, `get_screen_rect` and `click_active_element`.
+- `sb_cdp::Locator::click_with_offset(x, y, center)` (the offset from the
+  top-left corner, or from the centre) and `click_if_visible()` (one look, like
+  Python's default `timeout=0`; `click_if_visible_with_timeout(timeout)` waits):
+  Python's `sb.cdp.click_with_offset` and `click_if_visible`.
+- `behave::StepRegistry::register_step` and `AsyncStepRegistry::register_step`
+  (and `try_register_step`) register a handler for the step text alone, which
+  matches whatever keyword the step is written with, or none, like behave's
+  `@step`; `behave::step_pattern` (the regex they build) is public. The
+  built-in async browser steps also understand the wording of Python
+  SeleniumBase's `--rec-behave` recorder: `Open "url"`, `Click "selector"`,
+  `Type text "text" into "selector"`, `Go back`, `Go forward`, in single or
+  double quotes, so a recording from Python runs here.
+- `sb_cdp::Page::set_messenger_theme` takes `impl Into<MessengerSettings>`, and
+  `MessengerSettings` is `From<MessengerTheme>` and `From<MessengerLocation>`:
+  `page.set_messenger_theme(MessengerTheme::Air)` changes one thing and keeps
+  Python's defaults for the rest. Passing `MessengerSettings` still works.
+
 ### Deprecated
 
 - `assert_visible!`: use `sb_assert_visible!`.
@@ -319,6 +433,9 @@ migrate.
 - `run_settings::DEFAULT_MESSAGE_SECONDS` (3): use `DEFAULT_MESSAGE_DURATION`
   (2.55 s). `RunSettings::message_seconds` now rounds `message_duration()` up,
   so the two cannot drift apart; the default is still 3.
+
+- `sb_cdp::Locator::click_at(Point)`: use `click_with_offset(x, y, false)`,
+  Python's name for it. `click_at` calls it.
 
 ### Changed
 
@@ -435,6 +552,12 @@ migrate.
 - `PlaywrightSession` (feature `playwright`) sizes the window from
   `BrowserConfig::with_window_size` instead of always starting maximised at
   1920 by 1080. Without a configured size it behaves as before.
+
+- `sb_cdp::Locator` reads (`text`, `html`, `attribute`, `info`, `bounding_box`,
+  `viewport_rect`) reported every failure as `ElementNotFound`. Only a timeout
+  does now. An invalid CSS or XPath selector is `InvalidSelector` (for reads
+  and for actions, which used to say `CdpDriver`), and a lost connection keeps
+  its own error.
 
 A breaking change to the fingerprint API: **one field per setting, and intent
 given once.** Before, every setting was kept twice, as a value and as a mode that
