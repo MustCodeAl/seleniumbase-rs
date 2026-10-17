@@ -499,7 +499,7 @@ migrate.
 - `assert_visible!`: use `sb_assert_visible!`.
 - `save_saved_cookies` and `load_saved_cookies`: use `save_cookies` and
   `load_cookies`.
-- `PlaywrightSession::launch_headless, `launch_with_fingerprint` and
+- `PlaywrightSession::launch_headless`, `launch_with_fingerprint` and
   `launch_headless_with_fingerprint`: they are shortcuts for
   `launch_with_config(&BrowserConfig::default().with_headless(..)
   .with_fingerprint(..))`.
