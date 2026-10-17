@@ -4,8 +4,8 @@ use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint as stealth_fp;
 use crate::stealth::fingerprint::{
-    CanvasNoiseMode, Fingerprint as StealthFingerprint, MaskingMode, MediaDeviceSpec, NoiseMode,
-    OsType, PopupMode, ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags, WebRtcPolicy,
+    CanvasNoiseMode, Fingerprint, MaskingMode, MediaDeviceSpec, NoiseMode, OsType, PopupMode,
+    ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags, WebRtcPolicy,
 };
 
 /// Top-level external browser profile payload.
@@ -40,19 +40,23 @@ pub struct ProfileParams {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Parameters {
     #[serde(default)]
-    pub flags: Flags,
+    pub flags: ProfileFlags,
     #[serde(default)]
-    pub fingerprint: Fingerprint,
+    pub fingerprint: ProfileFingerprint,
     #[serde(default)]
     pub storage: StorageOptions,
     #[serde(default)]
-    pub proxy: Option<ProxyConfig>,
+    pub proxy: Option<ProfileProxy>,
     #[serde(default)]
     pub custom_start_urls: Vec<String>,
 }
 
+/// The masking flags of a payload, as the strings a payload carries: a keyword
+/// such as `"mask"`, `"natural"` or `"auto"`, or a literal value such as
+/// `"1920x1080x24"`. [`ProfileParams::to_fingerprint`] turns them into the
+/// [`StealthFlags`] of a [`Fingerprint`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Flags {
+pub struct ProfileFlags {
     #[serde(default = "default_webrtc_masking")]
     pub webrtc_masking: String,
     #[serde(default = "default_proxy_masking")]
@@ -95,7 +99,7 @@ pub struct Flags {
     pub native_spoofing: bool,
 }
 
-impl Default for Flags {
+impl Default for ProfileFlags {
     fn default() -> Self {
         Self {
             webrtc_masking: default_webrtc_masking(),
@@ -139,8 +143,11 @@ impl Default for StorageOptions {
     }
 }
 
+/// The fingerprint section of a payload, in the shape of the payload (nested
+/// `navigator`, `screen` and so on). [`ProfileParams::to_fingerprint`] turns it
+/// into a [`Fingerprint`].
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Fingerprint {
+pub struct ProfileFingerprint {
     #[serde(default)]
     pub navigator: Option<NavigatorFingerprint>,
     #[serde(default)]
@@ -246,8 +253,10 @@ pub struct CmdParam {
     pub value: String,
 }
 
+/// The proxy section of a payload. [`ProfileParams::to_fingerprint`] turns it
+/// into the [`ProxyConfig`](stealth_fp::ProxyConfig) of a [`Fingerprint`].
 #[derive(Clone, Default, Deserialize, Serialize)]
-pub struct ProxyConfig {
+pub struct ProfileProxy {
     #[serde(rename = "type")]
     pub proxy_type: String,
     pub host: String,
@@ -261,9 +270,9 @@ pub struct ProxyConfig {
 }
 
 // Written by hand so that logging a profile never prints the password.
-impl std::fmt::Debug for ProxyConfig {
+impl std::fmt::Debug for ProfileProxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProxyConfig")
+        f.debug_struct("ProfileProxy")
             .field("proxy_type", &self.proxy_type)
             .field("host", &self.host)
             .field("port", &self.port)
@@ -729,7 +738,7 @@ fn parse_graphics_noise(s: &str) -> NoiseMode {
 }
 
 impl ProfileParams {
-    /// Converts the external profile payload into a [`StealthFingerprint`] that can
+    /// Converts the external profile payload into a [`Fingerprint`] that can
     /// be injected into a browser session.
     ///
     /// Masking flags may be either behavioural keywords or concrete literal
@@ -749,7 +758,7 @@ impl ProfileParams {
     /// The flags are applied as the explicit last word over the fingerprint
     /// values, so none of the values turns a dimension on that a flag switched
     /// off.
-    pub fn to_fingerprint(&self) -> StealthFingerprint {
+    pub fn to_fingerprint(&self) -> Fingerprint {
         let (screen_mode, screen_dims) =
             parse_screen_masking(&self.parameters.flags.screen_masking);
         let (geo_mode, geo_coords) =
@@ -798,7 +807,7 @@ impl ProfileParams {
             ..StealthFlags::balanced()
         };
 
-        let mut builder = StealthFingerprint::builder()
+        let mut builder = Fingerprint::builder()
             .os_type(parse_os(&self.os_type))
             // The payload's flags are explicit, so they have the last word: a
             // dimension it names `natural` stays off although the payload also
@@ -1617,7 +1626,7 @@ mod tests {
 
     #[test]
     fn the_defaults_leave_each_dimension_to_its_value() {
-        let flags = Flags::default();
+        let flags = ProfileFlags::default();
         for (name, mode) in [
             ("audio_masking", &flags.audio_masking),
             ("media_devices_masking", &flags.media_devices_masking),
