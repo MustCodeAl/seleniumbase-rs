@@ -23,7 +23,9 @@ use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig};
 
 #[derive(Debug, usage::Cli)]
 // The name stays the library's, as `--version` printed it before the command line had
-// a package of its own.
+// a package of its own. usage prints `bin` in both `--version` and the `Usage:` line,
+// so the usage line of an error names `seleniumbase-rs` rather than `sbrs-mcp`; the
+// version line is the one scripts read, so it wins (`tests/mcp_version.rs`).
 #[usage(
     bin = "seleniumbase-rs",
     name = "seleniumbase-rs",

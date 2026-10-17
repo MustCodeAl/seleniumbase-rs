@@ -315,7 +315,8 @@ fn every_rust_path_in_the_manifest_exists() {
             let Some(path) = text(&entry, "rust") else {
                 continue;
             };
-            let exists = if path == "clap" {
+            // `usage` is the command line parser, which provides `help`.
+            let exists = if path == "usage" {
                 true
             } else if let Some(command) = path.strip_prefix("sbrs ") {
                 let camel: String = command

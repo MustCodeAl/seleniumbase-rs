@@ -820,7 +820,7 @@ Python `seleniumbase` / `sbase`; Rust `sbrs`.
 | `grid-node` | implemented | `sbrs grid-node` | start, stop, restart and status; registers with the hub named by --hub. |
 | `gui` | composed | `sbrs commander` | Python's `gui` is the same test runner as `commander`. |
 | `gui-behave` | implemented | `sbrs behave-gui` | Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sbrs behave-gui`, and `sbrs gui-behave` is an alias of it here too. |
-| `help` | composed | `clap` | Provided by the argument parser. |
+| `help` | composed | `usage` | Provided by the argument parser. |
 | `inject-objects` | not-applicable |  | Edits the structure of Python test files. |
 | `install` | implemented | `sbrs install` | `sbrs install chromedriver\|geckodriver\|edgedriver [VERSION]`; with no argument it fetches the chromedriver that matches the installed Chrome (or the stable one). The same command as `sbrs get`. Differs: No `--path`: the driver stays in downloaded_drivers/ and is not copied to a folder on the PATH. |
 | `methods` | not-applicable |  | Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API. |

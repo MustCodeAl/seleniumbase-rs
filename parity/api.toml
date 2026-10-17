@@ -3040,7 +3040,7 @@ note = "Alias of behave-gui upstream; terminal UI instead of Tkinter, as for `sb
 
 [cli."help"]
 status = "composed"
-rust = "clap"
+rust = "usage"
 note = "Provided by the argument parser."
 
 [cli."inject-objects"]
