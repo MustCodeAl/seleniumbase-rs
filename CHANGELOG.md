@@ -10,8 +10,9 @@ work, `docs/parity.md` the per-API status).
 
 An API clean-up of `BaseCase`: the text assertions and waits take their
 arguments in Python's order, the helpers that did not match Python are fixed,
-and the macros that did not compile or hid an error now work. The changes
-that break a call are listed first, each with the way to migrate.
+and the macros that did not compile or hid an error now work. The BREAKING
+changes, those that break a call, are listed first, each with the way to
+migrate.
 
 ### Breaking
 
@@ -204,7 +205,13 @@ that break a call are listed first, each with the way to migrate.
 ### Added
 
 - `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
-  prefix of. `assert_visible!` still works and is deprecated.
+  prefix of.
+
+### Deprecated
+
+- `assert_visible!`: use `sb_assert_visible!`.
+- `save_saved_cookies` and `load_saved_cookies`: use `save_cookies` and
+  `load_cookies`.
 
 ### Changed
 
@@ -219,9 +226,9 @@ that break a call are listed first, each with the way to migrate.
   baseline there again. Without a test name nothing changes.
 - **The element assertions and waits mean what Python's mean.** `assert_element`,
   `assert_element_visible`, `assert_elements` and `wait_for_element` need the
-  element to be displayed and wait for it (up to the default timeout; the
-  timeout of `wait_for_element`); they used to look once for an element in the
-  DOM, hidden or not. A test that asserted a hidden element (a hidden input, a
+  element to be displayed and wait for it (`wait_for_element` for its own
+  timeout, the others for the default one); they used to look once for an
+  element in the DOM, hidden or not. A test that asserted a hidden element (a hidden input, a
   `display: none` template) with `assert_element` must use
   `assert_element_present`, which now waits as well, like
   `assert_elements_present`. `wait_for_query_selector` is
@@ -232,9 +239,9 @@ that break a call are listed first, each with the way to migrate.
   element that was not there yet), `send_keys` is `add_text`, and `update_text`
   is `type_text`, as in Python, where they are the same methods.
 - `wait` is `sleep`, as in Python (the two differed: `wait` took whole seconds
-  and was not recorded). It takes whole or fractional seconds, `wait(2)` or
-  `wait(0.5)`; a `u64` variable needs `as f64`-style conversion
-  (`wait(f64::from(n))`).
+  and skipped what `sleep` does). It takes whole or fractional seconds,
+  `wait(2)` or `wait(0.5)`; a `u64` variable needs a conversion (`wait(n as
+  f64)`).
 - The getters and assertions that only read the page take `&self` instead of
   `&mut self`: `get_title`, `get_current_url`, `get_text`, `assert_title`,
   `assert_title_contains`, `assert_url`, `assert_url_contains`, `assert_text`,
