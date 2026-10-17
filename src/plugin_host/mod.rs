@@ -118,6 +118,8 @@ pub(crate) fn add_selection(
         }
     }
     // A set that holds nothing yet becomes strict; one with plugins keeps its own mode.
+    // Settings an empty `set` carried (grants, say) are replaced along with it, so a caller
+    // that wants them gives a set that already holds a plugin, or adds them to the result.
     let mut set = if set.is_empty() {
         PluginSet::strict()
     } else {
@@ -379,6 +381,27 @@ mod tests {
             "{error:?}"
         );
         assert!(error.to_string().contains("not in `enable`"), "{error}");
+    }
+
+    #[test]
+    fn an_sb_plugins_list_that_replaces_the_names_still_builds() {
+        // The file enables and configures dummy; SB_PLUGINS names something else or nothing.
+        let from_file = || {
+            PluginSelection::new()
+                .enable("dummy")
+                .with_options("dummy", json!({ "mode": "strict" }))
+        };
+
+        let mut off = from_file();
+        off.set_enabled_from_list("");
+        assert!(build_with(&registry(), &off).unwrap().is_empty());
+
+        let mut other = from_file();
+        other.set_enabled_from_list("second");
+        let registry = Registry::new()
+            .with(Descriptor::of::<Dummy>())
+            .with(Descriptor::of::<Second>());
+        assert_eq!(build_with(&registry, &other).unwrap().names(), ["second"]);
     }
 
     #[test]

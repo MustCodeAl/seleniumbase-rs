@@ -244,6 +244,15 @@ impl Settings {
     }
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
+        let settings = Self::parse_file(path)?;
+        settings.plugins.ensure_supported()?;
+        Ok(settings)
+    }
+
+    /// Reads a settings file without checking that this build can run the
+    /// plugins it names, so that [`load`](Self::load) can let `SB_PLUGINS`
+    /// replace them first and check the result.
+    fn parse_file<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
         let path = path.as_ref();
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
@@ -257,7 +266,6 @@ impl Settings {
                 SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
             })?
         };
-        settings.plugins.ensure_supported()?;
         Ok(settings)
     }
 
@@ -281,21 +289,38 @@ impl Settings {
     ///
     /// Searches, in order: `sbase_config.toml`, `.sbase_config.toml`, `.sbase_config`.
     pub fn load_global() -> Result<Self, SeleniumBaseError> {
+        let settings = Self::parse_global()?;
+        settings.plugins.ensure_supported()?;
+        Ok(settings)
+    }
+
+    /// [`load_global`](Self::load_global) without the plugin support check.
+    fn parse_global() -> Result<Self, SeleniumBaseError> {
         let candidates = ["sbase_config.toml", ".sbase_config.toml", ".sbase_config"];
         for candidate in &candidates {
             if Path::new(candidate).is_file() {
-                return Self::from_file(candidate);
+                return Self::parse_file(candidate);
             }
         }
         Ok(Self::default())
     }
 
     pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, SeleniumBaseError> {
+        Self::load_with(path, |name| std::env::var(name).ok())
+    }
+
+    /// [`load`](Self::load) with the overrides taken from `var`.
+    fn load_with<P: AsRef<Path>>(
+        path: Option<P>,
+        var: impl Fn(&str) -> Option<String>,
+    ) -> Result<Self, SeleniumBaseError> {
+        // The plugin support check waits for the overrides, which may replace
+        // the file's plugins (`SB_PLUGINS=` turns them off) before it runs.
         let settings = match path {
-            Some(p) => Self::from_file(p)?,
-            None => Self::load_global()?,
+            Some(p) => Self::parse_file(p)?,
+            None => Self::parse_global()?,
         };
-        Self::apply_env_overrides(settings)
+        Self::apply_overrides(settings, var)
     }
 
     /// Converts these settings into a `BrowserConfig` used by `BaseCase`.
@@ -669,6 +694,17 @@ threads = 4
         let with: Settings = toml::from_str("[plugins]\nenable = [\"shield\"]").unwrap();
         let round_trip: Settings = toml::from_str(&toml::to_string(&with).unwrap()).unwrap();
         assert_eq!(round_trip, with);
+
+        // The options table comes after `enable` and the other keys on the way out.
+        let with: Settings = toml::from_str(
+            "headless = true\n[plugins]\nenable = [\"shield\"]\n[plugins.shield]\nlevel = \"strict\"\n",
+        )
+        .unwrap();
+        let round_trip: Settings = toml::from_str(&toml::to_string(&with).unwrap()).unwrap();
+        assert_eq!(round_trip, with);
+        let json_trip: Settings =
+            serde_json::from_str(&serde_json::to_string(&with).unwrap()).unwrap();
+        assert_eq!(json_trip, with);
     }
 
     #[cfg(feature = "plugins")]
@@ -689,6 +725,28 @@ threads = 4
 
     #[cfg(feature = "plugins")]
     #[test]
+    fn an_sb_plugins_list_drops_the_options_of_the_names_it_no_longer_has() {
+        let from_file: Settings = toml::from_str(
+            "[plugins]\nenable = [\"shield\"]\n[plugins.shield]\nlevel = \"strict\"\n",
+        )
+        .unwrap();
+
+        let off = Settings::apply_overrides(from_file.clone(), |name| {
+            (name == "SB_PLUGINS").then(String::new)
+        })
+        .unwrap();
+        assert!(off.plugins.is_empty(), "{:?}", off.plugins);
+
+        let other = Settings::apply_overrides(from_file, |name| {
+            (name == "SB_PLUGINS").then(|| "crx".to_owned())
+        })
+        .unwrap();
+        assert_eq!(other.plugins.enabled(), ["crx"]);
+        assert!(other.plugins.options_of("shield").is_none());
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
     fn an_empty_sb_plugins_turns_the_plugins_of_the_file_off() {
         let from_file: Settings = toml::from_str("[plugins]\nenable = [\"shield\"]\n").unwrap();
 
@@ -700,6 +758,27 @@ threads = 4
 
         let untouched = Settings::apply_overrides(from_file, |_| None).unwrap();
         assert_eq!(untouched.plugins.enabled(), ["shield"]);
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    #[test]
+    fn without_plugin_support_an_empty_sb_plugins_still_overrides_the_file() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"[plugins]\nenable = [\"shield\"]\n[plugins.shield]\nlevel = \"strict\"\n")
+            .unwrap();
+
+        let settings = Settings::load_with(Some(file.path()), |name| {
+            (name == "SB_PLUGINS").then(String::new)
+        })
+        .unwrap();
+        assert!(settings.plugins.is_empty());
+
+        // Without the override the file's selection stops the load.
+        let error = Settings::load_with(Some(file.path()), |_| None).unwrap_err();
+        assert!(
+            error.to_string().contains("--features plugins-builtin"),
+            "{error}"
+        );
     }
 
     #[cfg(not(feature = "plugins"))]

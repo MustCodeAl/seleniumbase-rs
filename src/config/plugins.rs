@@ -107,8 +107,10 @@ impl PluginSelection {
     }
 
     /// Replaces the enabled names with those of a comma-separated list, as the
-    /// `SB_PLUGINS` variable does; the options stay. An empty list turns every
-    /// plugin off.
+    /// `SB_PLUGINS` variable does. The options of the plugins the list still
+    /// names stay; the options of the others are dropped, because a plugin that
+    /// is no longer enabled has no use for them and they would otherwise fail
+    /// the build as stray options. An empty list turns every plugin off.
     pub fn set_enabled_from_list(&mut self, list: &str) {
         self.enable = list
             .split(',')
@@ -116,6 +118,8 @@ impl PluginSelection {
             .filter(|name| !name.is_empty())
             .map(str::to_owned)
             .collect();
+        let enable = &self.enable;
+        self.options.retain(|name, _| enable.contains(name));
     }
 
     /// Adds the plugins of `other` after this selection's, and takes its
@@ -250,6 +254,22 @@ mod tests {
             selection.enabled().is_empty(),
             "an empty list turns all off"
         );
+    }
+
+    #[test]
+    fn the_list_drops_the_options_of_plugins_it_no_longer_names() {
+        let mut selection = PluginSelection::new()
+            .enable("shield")
+            .with_options("shield", json!({ "level": "strict" }))
+            .with_options("crx", json!({}));
+
+        selection.set_enabled_from_list("crx");
+        assert_eq!(selection.enabled(), ["crx"]);
+        assert!(selection.options_of("shield").is_none());
+        assert!(selection.options_of("crx").is_some());
+
+        selection.set_enabled_from_list("");
+        assert!(selection.is_empty(), "SB_PLUGINS= leaves nothing behind");
     }
 
     #[test]
