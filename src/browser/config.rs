@@ -6,6 +6,7 @@ use crate::browser::options::{
     FirefoxOptions, LaunchSettings, LaunchSwitch, PageLoadStrategy, ProxyBypassList,
     VirtualDisplay, WindowPosition, WindowSize,
 };
+use crate::api::run_settings::RunSettings;
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
@@ -107,12 +108,53 @@ impl std::str::FromStr for Browser {
 }
 
 /// Driver execution mode.
+///
+/// The names `webdriver`, `cdp` and `uc` are read by [`FromStr`] and written by
+/// [`Display`].
+///
+/// [`FromStr`]: std::str::FromStr
+/// [`Display`]: std::fmt::Display
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DriverMode {
     #[default]
     WebDriver,
     Cdp,
     Uc,
+}
+
+impl DriverMode {
+    /// The name `Settings::mode`, `SB_MODE` and `sbrs` use for the mode.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::WebDriver => "webdriver",
+            Self::Cdp => "cdp",
+            Self::Uc => "uc",
+        }
+    }
+}
+
+impl std::fmt::Display for DriverMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl std::str::FromStr for DriverMode {
+    type Err = SeleniumBaseError;
+
+    /// Reads `webdriver`, `cdp` or `uc`, in any letter case.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        match text.trim().to_ascii_lowercase().as_str() {
+            "webdriver" => Ok(Self::WebDriver),
+            "cdp" => Ok(Self::Cdp),
+            "uc" => Ok(Self::Uc),
+            _ => Err(SeleniumBaseError::parse(
+                text,
+                "a driver mode: webdriver, cdp or uc",
+            )),
+        }
+    }
 }
 
 /// Configuration for a browser session.
@@ -505,6 +547,27 @@ impl BrowserConfig {
         self.launch.has(LaunchSwitch::RecSbCdp)
     }
 
+    /// The run-wide settings the test starts with: demo and slow mode, how
+    /// long messages last, the default wait and the like (Python's `SB(demo=,
+    /// slow=, demo_sleep=, message_duration=)`).
+    ///
+    /// [`run_browser_test`](crate::run_browser_test) and the plugin runner give
+    /// them to the `BaseCase` they start. A `BaseCase` built with
+    /// [`BaseCase::new`](crate::BaseCase::new) keeps
+    /// [`BaseCase::set_run_settings`](crate::BaseCase::set_run_settings) as
+    /// the way to set them. They are not part of a configuration file.
+    #[must_use]
+    pub fn with_run_settings(mut self, settings: RunSettings) -> Self {
+        self.launch.run = settings;
+        self
+    }
+
+    /// The run-wide settings; see [`with_run_settings`](Self::with_run_settings).
+    #[must_use]
+    pub fn run_settings(&self) -> &RunSettings {
+        &self.launch.run
+    }
+
     /// How long a navigation waits (`--page-load-strategy`, `--pls`).
     pub fn with_page_load_strategy(mut self, strategy: PageLoadStrategy) -> Self {
         self.launch.page_load_strategy = Some(strategy);
@@ -646,6 +709,30 @@ impl BrowserConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn run_settings_are_set_by_a_builder_and_stay_out_of_config_files() {
+        let demo = RunSettings::default().with_demo_mode(true);
+        let config = BrowserConfig::default().with_run_settings(demo.clone());
+        assert_eq!(config.run_settings(), &demo);
+        assert_eq!(BrowserConfig::default().run_settings(), &RunSettings::default());
+        let text = serde_json::to_string(&config).unwrap();
+        let back: BrowserConfig = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.run_settings(), &RunSettings::default());
+    }
+
+    #[test]
+    fn a_driver_mode_is_read_from_its_name() {
+        for (text, mode) in [
+            ("webdriver", DriverMode::WebDriver),
+            ("CDP", DriverMode::Cdp),
+            (" uc ", DriverMode::Uc),
+        ] {
+            assert_eq!(text.parse::<DriverMode>().unwrap(), mode, "{text}");
+        }
+        assert!("selenium".parse::<DriverMode>().is_err());
+        assert_eq!(DriverMode::Cdp.to_string(), "cdp");
+    }
 
     #[test]
     fn reuse_is_off_until_asked_for() {

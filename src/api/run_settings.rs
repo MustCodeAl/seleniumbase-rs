@@ -66,6 +66,7 @@ pub struct RunSettings {
     slow_mode: bool,
     demo_sleep: Option<Duration>,
     message_duration: Option<Duration>,
+    default_timeout: Option<Duration>,
     skip_js_waits: bool,
     record_sleep: bool,
     reset_visual_baseline: bool,
@@ -117,6 +118,16 @@ impl RunSettings {
         self
     }
 
+    /// How long waits last unless a call names a time: the default of
+    /// [`BaseCase::set_timeout`](crate::BaseCase::set_timeout), in whole
+    /// seconds, so a part of a second rounds up. Python has no such option;
+    /// its constants (`SMALL_TIMEOUT`, `LARGE_TIMEOUT`) are per call.
+    #[must_use]
+    pub fn with_default_timeout(mut self, timeout: Duration) -> Self {
+        self.default_timeout = Some(timeout);
+        self
+    }
+
     /// Make `wait_for_ready_state_complete` return at once (`--skip-js-waits`).
     /// A direct call to `wait_for_angularjs` still waits.
     #[must_use]
@@ -150,6 +161,13 @@ impl RunSettings {
     #[must_use]
     pub fn slow_mode(&self) -> bool {
         self.slow_mode
+    }
+
+    /// The wait [`with_default_timeout`](Self::with_default_timeout) set, if
+    /// any.
+    #[must_use]
+    pub fn default_timeout(&self) -> Option<Duration> {
+        self.default_timeout
     }
 
     /// The pause [`with_demo_sleep`](Self::with_demo_sleep) set, if any.
@@ -610,6 +628,13 @@ mod tests {
         );
         let short = settings.with_message_duration(Duration::from_millis(300));
         assert_eq!(short.message_duration_headless(), Duration::from_millis(300));
+    }
+
+    #[test]
+    fn the_default_timeout_is_unset_until_asked_for() {
+        assert_eq!(RunSettings::default().default_timeout(), None);
+        let settings = RunSettings::default().with_default_timeout(Duration::from_secs(5));
+        assert_eq!(settings.default_timeout(), Some(Duration::from_secs(5)));
     }
 
     #[test]

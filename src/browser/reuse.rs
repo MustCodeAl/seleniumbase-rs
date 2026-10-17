@@ -161,6 +161,9 @@ impl ReuseKey {
         config.reuse_session = false;
         config.start_page = None;
         config.launch.reuse_class = None;
+        // How a test behaves (demo mode, message time) does not change the
+        // browser, so a demo test and a plain one still share browsers.
+        config.launch.run = crate::api::run_settings::RunSettings::default();
         Self { config, class }
     }
 }
@@ -820,6 +823,15 @@ mod tests {
             key(&base.clone().with_start_page("https://example.com"))
         );
         assert_eq!(key(&base), key(&base.clone().with_reuse_session(false)));
+    }
+
+    #[test]
+    fn the_run_settings_are_not_part_of_the_key() {
+        let base = BrowserConfig::default().with_reuse_session(true);
+        let demo = base.clone().with_run_settings(
+            crate::api::run_settings::RunSettings::default().with_demo_mode(true),
+        );
+        assert_eq!(key(&base), key(&demo));
     }
 
     #[test]
