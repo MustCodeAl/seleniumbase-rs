@@ -10,6 +10,7 @@
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 use std::path::PathBuf;
 
+use crate::config::plugins::PluginSelection;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{DevToolsEndpoint, LaunchOptions};
 
@@ -43,6 +44,9 @@ pub struct DevtoolsRequest {
     pub extension_dir: Option<PathBuf>,
     /// The page to open once the browser runs.
     pub url: Option<String>,
+    /// The built-in plugins to run in the browser, by name, with their options
+    /// (the `[plugins]` table, `SB_PLUGINS`, `--plugin` and `--plugin-opt`).
+    pub plugins: PluginSelection,
 }
 
 impl DevtoolsRequest {
@@ -51,8 +55,12 @@ impl DevtoolsRequest {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::InvalidConfig`] when the proxy cannot be
-    /// parsed or Chromium is combined with an explicit binary.
+    /// parsed, Chromium is combined with an explicit binary, or the request
+    /// names plugins and this build cannot run any; and
+    /// [`SeleniumBaseError::Plugin`] for a plugin name this build does not have
+    /// or options a plugin refuses.
     pub fn launch_options(&self) -> Result<LaunchOptions, SeleniumBaseError> {
+        self.plugins.ensure_supported()?;
         let mut builder = LaunchOptions::builder()
             .debugging_port(self.port)
             .use_chromium(self.use_chromium)
@@ -80,6 +88,10 @@ impl DevtoolsRequest {
         }
         if let Some(url) = &self.url {
             builder = builder.url(url);
+        }
+        #[cfg(feature = "plugins")]
+        {
+            builder = builder.plugin_selection(&self.plugins);
         }
         builder.build()
     }
@@ -229,6 +241,47 @@ mod tests {
         ] {
             assert!(args.contains(&expected.to_owned()), "{expected}: {args:?}");
         }
+    }
+
+    #[cfg(feature = "plugin-shield")]
+    #[test]
+    fn the_plugin_selection_becomes_the_plugins_of_the_launch() {
+        let request = DevtoolsRequest {
+            plugins: PluginSelection::from_list("shield"),
+            ..DevtoolsRequest::default()
+        };
+        let options = request.launch_options().expect("options");
+        assert_eq!(options.plugins.names(), ["shield"]);
+
+        let none = DevtoolsRequest::default()
+            .launch_options()
+            .expect("options");
+        assert!(none.plugins.is_empty(), "no selection, no plugin");
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn a_plugin_this_build_does_not_have_is_refused_before_launch() {
+        let request = DevtoolsRequest {
+            plugins: PluginSelection::from_list("no-such-plugin"),
+            ..DevtoolsRequest::default()
+        };
+        let error = request.launch_options().expect_err("an unknown plugin");
+        assert!(error.to_string().contains("no-such-plugin"), "{error}");
+    }
+
+    #[cfg(not(feature = "plugins"))]
+    #[test]
+    fn without_plugin_support_a_selection_is_refused_before_launch() {
+        let request = DevtoolsRequest {
+            plugins: PluginSelection::from_list("shield"),
+            ..DevtoolsRequest::default()
+        };
+        let error = request.launch_options().expect_err("no plugin support");
+        assert!(
+            error.to_string().contains("--features plugins-builtin"),
+            "{error}"
+        );
     }
 
     #[test]
