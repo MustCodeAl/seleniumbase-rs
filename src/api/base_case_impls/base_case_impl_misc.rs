@@ -580,4 +580,14 @@ mod tests_check_window {
         let sb = sb.with_test_name("shop::cart::renders");
         assert_eq!(sb.test_name(), Some("shop::cart::renders"));
     }
+
+    #[test]
+    fn a_case_that_exists_can_be_named_too() {
+        // What `sb_test!` does, since the runner builds the case.
+        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        sb.set_test_name("shop::cart::renders");
+        assert_eq!(sb.test_name(), Some("shop::cart::renders"));
+        sb.set_test_name(String::from("shop::cart::empties"));
+        assert_eq!(sb.test_name(), Some("shop::cart::empties"));
+    }
 }

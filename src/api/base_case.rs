@@ -141,6 +141,13 @@ impl BaseCase {
         self
     }
 
+    /// [`with_test_name`](Self::with_test_name) for a case that already exists,
+    /// such as the one a test runner hands to a test. [`sb_test!`](crate::sb_test)
+    /// uses it.
+    pub fn set_test_name(&mut self, name: impl Into<String>) {
+        self.test_name = Some(name.into());
+    }
+
     /// The name given by [`with_test_name`](Self::with_test_name), if any.
     #[must_use]
     pub fn test_name(&self) -> Option<&str> {
