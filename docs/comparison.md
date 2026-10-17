@@ -91,7 +91,7 @@ included, can promise to pass a given detection service.
 ### HTTP impersonation clients (curl-impersonate, wreq and similar)
 
 They make a plain HTTP client look like a browser at the TLS level, without a
-browser. This crate does not; the companion crate `seleniumbase-rs-impersonate`
+browser. This crate does not; the companion crate `seleniumbase-rs-mimic`
 (in seleniumbase-rs-stealth) wraps wreq on BoringSSL with a measured Chrome 155
 profile for macOS, custom JA3/JA4/Akamai inputs, and a way to solve a challenge
 in Chrome and continue over HTTP. It is young and measured on macOS with Chrome

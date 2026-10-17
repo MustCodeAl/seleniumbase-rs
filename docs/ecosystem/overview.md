@@ -11,7 +11,7 @@ documentation is part of this site.
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 
-Browser plugins as Rust crates: block resources, load `.crx` extensions, run WebAssembly plugins, and a template for your own. See [Plugins](../plugins/index.md).
+Browser plugins as Rust crates: block resources, load `.crx` extensions, run WebAssembly plugins, and a template for your own. See [Plugins](../plugins/overview.md).
 
 ## Stealth scraping
 
@@ -19,7 +19,7 @@ Browser plugins as Rust crates: block resources, load `.crx` extensions, run Web
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
 
-Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` and `StealthSession` as three crates. See [Stealth scraping](../stealth/index.md).
+Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` and `StealthSession` as three crates. See [Stealth scraping](../stealth/overview.md).
 
 ## Tauri automation
 
@@ -41,13 +41,13 @@ A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge
 
 <Columns cols={2}>
 
-<Card title="Plugins" icon="plug" href="../plugins/index.md">
+<Card title="Plugins" icon="plug" href="../plugins/overview.md">
 
 Overview, the plugin list, writing your own, wasm, crx and block-resources.
 
 </Card>
 
-<Card title="Stealth scraping" icon="user-secret" href="../stealth/index.md">
+<Card title="Stealth scraping" icon="user-secret" href="../stealth/overview.md">
 
 The tutorial, split into pages by topic.
 

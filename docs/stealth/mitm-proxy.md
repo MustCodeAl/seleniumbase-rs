@@ -6,7 +6,7 @@ title: "TLS Server and MitmProxy"
 
 ## The ephemeral-CA TLS server
 
-`impersonate::tls_server` is the building block under `capture_h2` and under
+`mimic::tls_server` is the building block under `capture_h2` and under
 [`MitmProxy`](#mitmproxy). `EphemeralCa::generate()` creates a P-256
 certificate authority in memory for the life of one process. `leaf_for(host,
 now)` issues a leaf for one DNS name or IP address (never a wildcard), cached in
@@ -16,7 +16,7 @@ handshake and refuses the connection when the client's SNI names another host.
 
 ```rust
 use std::time::SystemTime;
-use seleniumbase_rs_impersonate::tls_server::{
+use seleniumbase_rs_mimic::tls_server::{
     accept, acceptor, EphemeralCa, ALPN_HTTP1, DEFAULT_HANDSHAKE_TIMEOUT,
 };
 
@@ -60,7 +60,7 @@ Things to know before you use it:
 
 ## MitmProxy
 
-`HttpSession` covers the requests you make yourself. `impersonate::mitm::MitmProxy`
+`HttpSession` covers the requests you make yourself. `mimic::mitm::MitmProxy`
 covers the ones a real Chrome makes. It is a loopback forward proxy that ends
 the browser's TLS with a leaf of the [ephemeral CA](#the-ephemeral-ca-tls-server)
 and replays each request through the impersonating client, so the origin sees the
@@ -73,10 +73,10 @@ the browser is valid over `HttpSession`.
 use std::sync::Arc;
 use std::time::Duration;
 
-use seleniumbase_rs_impersonate::{ImpersonationProfile, MitmOptions, MitmProxy};
+use seleniumbase_rs_mimic::{ImpersonationProfile, MitmOptions, MitmProxy};
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs_scrape::NoopEventSink;
-use seleniumbase_rs_net_fingerprint::BrowserKind;
+use seleniumbase_rs_codec::BrowserKind;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
@@ -235,7 +235,7 @@ in a cache that every tab of the browser context shares, and every later
 WebSocket as another tab's first request, goes through.
 
 So the proxy owns one page, `mitm.prime_url()`: `https://sb-mitm.invalid/`
-(`impersonate::mitm::PRIME_HOST`, under the reserved `.invalid` name) and a path
+(`mimic::mitm::PRIME_HOST`, under the reserved `.invalid` name) and a path
 of 128 random bits. After the token check, a `GET` of exactly that is answered by
 the proxy itself with an empty page that is never cached (`mitm.stats().primed`
 counts it). Any other request for that host, Chrome's `favicon.ico` included,
@@ -253,7 +253,7 @@ does not share the default context's (measured). Before a WebSocket in a context
 behind the proxy, load the priming page in its first tab:
 
 ```rust
-use seleniumbase_rs_impersonate::MitmProxy;
+use seleniumbase_rs_mimic::MitmProxy;
 use seleniumbase_rs::sb_cdp::{Browser, ContextOptions};
 
 # async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::error::Error>> {

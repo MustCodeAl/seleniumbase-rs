@@ -4,7 +4,7 @@ title: "StealthSession"
 
 # StealthSession
 
-`impersonate::stealth_session::StealthSession` joins the pieces. It presents one
+`mimic::stealth_session::StealthSession` joins the pieces. It presents one
 `StealthIdentity` (the fingerprint, the measured browser it belongs to, the
 cookies it earned and the egress they were earned through) in one of two modes
 and moves between them by the policies:
@@ -16,7 +16,7 @@ and moves between them by the policies:
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
-use seleniumbase_rs_impersonate::StealthSession;
+use seleniumbase_rs_mimic::StealthSession;
 use seleniumbase_rs_scrape::CountryCode;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {

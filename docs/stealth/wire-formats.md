@@ -7,7 +7,7 @@ title: "Wire Formats and Impersonation"
 ## What is measured, and what is refused
 
 Every wire value this crate imitates was measured from a real browser by a
-capture tool and stored as JSON in `crates/net-fingerprint/src/measured`. Nothing is typed by
+capture tool and stored as JSON in `crates/codec/src/measured`. Nothing is typed by
 hand. The files are embedded with `include_str!`, parsed once, and looked up by
 browser and operating system.
 
@@ -18,8 +18,8 @@ client hints, and where it came from:
 
 ```rust
 use seleniumbase_rs::stealth::fingerprint::OsType;
-use seleniumbase_rs_net_fingerprint::emulation::{self, EmulationError};
-use seleniumbase_rs_net_fingerprint::BrowserKind;
+use seleniumbase_rs_codec::emulation::{self, EmulationError};
+use seleniumbase_rs_codec::BrowserKind;
 
 # fn demo() -> Result<(), EmulationError> {
 let chrome = emulation::get(BrowserKind::Chrome, OsType::Macos)?;
@@ -37,9 +37,9 @@ assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
 ```
 
 `EmulationError::NotMeasured { kind, os }` is the error the design plan calls
-`SpecError::NotMeasured`; `net_fingerprint::emulation::SpecError` is an alias for
+`SpecError::NotMeasured`; `codec::emulation::SpecError` is an alias for
 `EmulationError`. The TLS and HTTP/2 refusals live in two other enums with the
-same name, `net_fingerprint::tls_spec::SpecError` and `net_fingerprint::h2_spec::SpecError`.
+same name, `codec::tls_spec::SpecError` and `codec::h2_spec::SpecError`.
 
 Why an unmeasured system is refused rather than approximated: a made-up persona
 is worse than no persona. A TLS stack that claims to be Chrome on Windows with
@@ -91,7 +91,7 @@ Chrome of another version than the file it extends.
 ```text
 cargo run -p seleniumbase-rs-scrape      --example capture_tls
 cargo run -p seleniumbase-rs-scrape      --example capture_hints
-cargo run -p seleniumbase-rs-impersonate --example capture_h2
+cargo run -p seleniumbase-rs-mimic --example capture_h2
 ```
 
 - `capture_tls` points the browser at a loopback listener that records each
@@ -109,7 +109,7 @@ cargo run -p seleniumbase-rs-impersonate --example capture_h2
   navigation, a `fetch`, an image, a script, a stylesheet), once over HTTP/2
   and once over HTTP/1.1. `--h1` and `--h2` run one pass only.
 
-They share these options: `--out DIR` (default `crates/net-fingerprint/src/measured`),
+They share these options: `--out DIR` (default `crates/codec/src/measured`),
 `--fixtures DIR` (default `tests/fixtures/measured`, for the raw bytes),
 `--chrome PATH`, `--lang TAG` (sets `Accept-Language`, default `en-US`),
 `--probes N`, `--timeout SECS`, `--headless`, `--no-sandbox`, `--snippet` and
@@ -119,8 +119,8 @@ They share these options: `--out DIR` (default `crates/net-fingerprint/src/measu
 
 <Step title="Register the new file">
 
-Add the new file to the `SOURCES` list in `crates/net-fingerprint/src/emulation.rs`. The test
-`crates/net-fingerprint/tests/wire_emulation.rs` fails when a file in `crates/net-fingerprint/src/measured` is missing
+Add the new file to the `SOURCES` list in `crates/codec/src/emulation.rs`. The test
+`crates/codec/tests/wire_emulation.rs` fails when a file in `crates/codec/src/measured` is missing
 from that list.
 
 </Step>
@@ -140,26 +140,26 @@ Safari has no tool yet beyond the `capture_hints` console snippet.
 
 ## Reading the wire formats
 
-All of `seleniumbase_rs_net_fingerprint` is pure: no sockets, no clock, no files, and
+All of `seleniumbase_rs_codec` is pure: no sockets, no clock, no files, and
 `#![forbid(unsafe_code)]`. Every parser bounds its input and returns an error
 for hostile or truncated bytes instead of panicking.
 
 | Format | Type | What it is |
 |---|---|---|
-| TLS `ClientHello` | `net_fingerprint::client_hello::ClientHello` | `ClientHello::parse(records)` decodes the first handshake message, across TLS records. `ClientHello::needed_len(prefix)` says how many bytes a capture loop still needs. |
-| JA3 | `net_fingerprint::ja3::Ja3` | Five comma-separated fields with GREASE removed. `Ja3::parse`, `Ja3::of(&hello)`, `hash()` (MD5, as JA3 defines it). |
-| JA4 | `net_fingerprint::ja4::Ja4` | `a_b_c` of FoxIO's TLS-client definition. `Ja4::of`, `Ja4::of_original_order` (`JA4_o`), `Ja4::parse`, `diff`. |
-| `JA4_r`, `JA4_ro` | `net_fingerprint::ja4::Ja4Raw` | The unhashed, sorted or wire-order variants. `Ja4::raw(&hello)`, `Ja4Raw::parse`, `Ja4Raw::hashed()`. |
-| peetprint | `net_fingerprint::ja3::Peetprint` | A JA3-like format that also records signature algorithms. GREASE shows as `GREASE`. |
-| Akamai HTTP/2 | `net_fingerprint::akamai::Akamai` | `SETTINGS \| WINDOW_UPDATE \| PRIORITY \| pseudo-header order`. |
+| TLS `ClientHello` | `codec::client_hello::ClientHello` | `ClientHello::parse(records)` decodes the first handshake message, across TLS records. `ClientHello::needed_len(prefix)` says how many bytes a capture loop still needs. |
+| JA3 | `codec::ja3::Ja3` | Five comma-separated fields with GREASE removed. `Ja3::parse`, `Ja3::of(&hello)`, `hash()` (MD5, as JA3 defines it). |
+| JA4 | `codec::ja4::Ja4` | `a_b_c` of FoxIO's TLS-client definition. `Ja4::of`, `Ja4::of_original_order` (`JA4_o`), `Ja4::parse`, `diff`. |
+| `JA4_r`, `JA4_ro` | `codec::ja4::Ja4Raw` | The unhashed, sorted or wire-order variants. `Ja4::raw(&hello)`, `Ja4Raw::parse`, `Ja4Raw::hashed()`. |
+| peetprint | `codec::ja3::Peetprint` | A JA3-like format that also records signature algorithms. GREASE shows as `GREASE`. |
+| Akamai HTTP/2 | `codec::akamai::Akamai` | `SETTINGS \| WINDOW_UPDATE \| PRIORITY \| pseudo-header order`. |
 
 Only JA4 itself is implemented. JA4H, JA4S, JA4X and the other JA4+ methods carry
 a different licence and are not part of this crate.
 
 ```rust
-use seleniumbase_rs_net_fingerprint::akamai::Akamai;
-use seleniumbase_rs_net_fingerprint::ja3::Ja3;
-use seleniumbase_rs_net_fingerprint::ja4::Ja4;
+use seleniumbase_rs_codec::akamai::Akamai;
+use seleniumbase_rs_codec::ja3::Ja3;
+use seleniumbase_rs_codec::ja4::Ja4;
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
 // The Akamai string measured from Chrome 155 on macOS.
@@ -190,14 +190,14 @@ BoringSSL and wreq stack can send it, and names what it cannot.
 
 ## An impersonating client
 
-The `impersonate` feature turns a measured profile into a wreq client:
+The `mimic` crate turns a measured profile into a wreq client:
 
 ```rust
-use seleniumbase_rs_impersonate::client::{
+use seleniumbase_rs_mimic::client::{
     impersonation_client, ImpersonationProfile, WireProtocol,
 };
-use seleniumbase_rs_net_fingerprint::header_spec::RequestShape;
-use seleniumbase_rs_net_fingerprint::BrowserKind;
+use seleniumbase_rs_codec::header_spec::RequestShape;
+use seleniumbase_rs_codec::BrowserKind;
 
 # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ImpersonationProfile::measured(BrowserKind::Chrome)?;
@@ -242,7 +242,7 @@ the base: a JA3 has no signature algorithms, an Akamai string has no HEADERS
 priority, a header list has no TLS.
 
 ```rust
-use seleniumbase_rs_impersonate::client::ImpersonationProfile;
+use seleniumbase_rs_mimic::client::ImpersonationProfile;
 
 # fn demo() -> Result<(), Box<dyn std::error::Error>> {
 let profile = ImpersonationProfile::custom()
@@ -278,7 +278,7 @@ BoringSSL and wreq cannot emit everything a browser can. Anything they cannot
 reproduce is refused with a named error before a client exists, and
 `crates/impersonate/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
 given. The errors are variants of `ImpersonateError`: `Tls(..)` wraps
-`net_fingerprint::tls_spec::SpecError`, `Http2(..)` wraps `net_fingerprint::h2_spec::SpecError`,
+`codec::tls_spec::SpecError`, `Http2(..)` wraps `codec::h2_spec::SpecError`,
 `Convert(..)` wraps the rules that belong to the client stack itself. A string that
 is not well formed at all is `Ja3(..)`, `Ja4(..)`, `Peetprint(..)` or `Akamai(..)`.
 
@@ -297,8 +297,8 @@ For example, a JA3 that adds `trust_anchors` and a signature algorithm BoringSSL
 cannot write:
 
 ```rust
-use seleniumbase_rs_impersonate::client::{ImpersonateError, ImpersonationProfile};
-use seleniumbase_rs_net_fingerprint::tls_spec::SpecError;
+use seleniumbase_rs_mimic::client::{ImpersonateError, ImpersonationProfile};
+use seleniumbase_rs_codec::tls_spec::SpecError;
 
 # fn demo(ja3_with_trust_anchors: &str) {
 let refused = ImpersonationProfile::custom().ja3(ja3_with_trust_anchors);

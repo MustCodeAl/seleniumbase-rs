@@ -95,7 +95,7 @@ println!("{}", endpoint.chrome_devtools_mcp_config());
 ## Google chrome-devtools-mcp
 
 The npm package `chrome-devtools-mcp` (by the Chrome DevTools team, source at
-<https://github.com/ChromeDevTools/chrome-devtools-mcp>) runs on Node.js
+[https://github.com/ChromeDevTools/chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp)) runs on Node.js
 (`^20.19.0`, `^22.12.0` or 23 and later) and drives Chrome through Puppeteer.
 With `sbrs devtools` running, the client config is:
 
@@ -143,7 +143,7 @@ claude mcp add chrome-devtools -- npx -y chrome-devtools-mcp@1.11.0 --browserUrl
 ## Microsoft Playwright MCP
 
 The npm package `@playwright/mcp` (source at
-<https://github.com/microsoft/playwright-mcp>) needs Node.js 18 or later. It
+[https://github.com/microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp)) needs Node.js 18 or later. It
 attaches over the DevTools Protocol with `--cdp-endpoint`, which takes the HTTP
 address or the WebSocket URL:
 
@@ -193,7 +193,7 @@ that Edge tabs opened with Ctrl+T were missing from `list_pages` (issue #2880).
 Firefox does not speak the Chrome DevTools Protocol, so neither server above
 can attach to it, and `sbrs devtools` refuses `--browser firefox`. Mozilla's
 `@mozilla/firefox-devtools-mcp` (source at
-<https://github.com/mozilla/firefox-devtools-mcp>, Node.js 20.19 or later,
+[https://github.com/mozilla/firefox-devtools-mcp](https://github.com/mozilla/firefox-devtools-mcp), Node.js 20.19 or later,
 Firefox 100 or later) drives Firefox through WebDriver Classic and WebDriver
 BiDi:
 
@@ -233,7 +233,7 @@ claude mcp add safari-mcp -- /usr/bin/safaridriver --mcp
 
 It needs two Safari settings: Advanced, "Show features for web developers", and
 then Developer, "Allow remote automation and external agents" (see
-<https://webkit.org/blog/18136/introducing-the-safari-mcp-server-for-web-developers/>).
+[https://webkit.org/blog/18136/introducing-the-safari-mcp-server-for-web-developers/](https://webkit.org/blog/18136/introducing-the-safari-mcp-server-for-web-developers/)).
 
 ## Security
 
