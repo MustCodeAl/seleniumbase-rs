@@ -2086,7 +2086,7 @@ note = "`page.locator(selector).visible()` narrows the Locator to the displayed 
 [cdp."click_with_offset"]
 status = "implemented"
 rust = "Locator::click_with_offset"
-note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false."
+note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false and is deprecated."
 divergence = "Always scrolls the element into view (Python's `scroll=True`, its default)."
 
 [cdp."close_active_tab"]
@@ -2622,12 +2622,12 @@ note = "A method of the Page that sb.cdp drives: `page.goto(..)`."
 [cdp."open_new_tab"]
 status = "composed"
 rust = "Browser::new_page"
-note = "A method of the Browser, not of one page: `browser.new_page(..)`."
+note = "A method of the Browser, not of one page: `browser.new_page()` opens a blank tab and `browser.new_page_at(url)` one on a URL."
 
 [cdp."open_new_window"]
 status = "composed"
 rust = "Browser::new_window"
-note = "A method of the Browser, not of one page: `browser.new_window(..)`."
+note = "A method of the Browser, not of one page: `browser.new_window()` opens a blank window and `browser.new_window_at(url)` one on a URL."
 
 [cdp."post_message"]
 status = "implemented"

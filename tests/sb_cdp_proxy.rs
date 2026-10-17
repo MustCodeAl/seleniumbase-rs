@@ -99,7 +99,7 @@ async fn a_proxied_tab_has_auth_handling_on_before_its_first_request() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
 
-    context.new_page(Some("http://t.test/")).await.unwrap();
+    context.new_page_at("http://t.test/").await.unwrap();
 
     let calls = mock.calls();
     let enable = calls
@@ -126,7 +126,7 @@ async fn a_proxied_tab_has_auth_handling_on_before_its_first_request() {
 async fn the_proxys_password_prompt_is_answered_with_its_credentials() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
 
     challenge(&mock);
     settle().await;
@@ -141,7 +141,7 @@ async fn the_proxys_password_prompt_is_answered_with_its_credentials() {
 async fn a_websites_password_prompt_never_gets_the_proxys_credentials() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
 
     website_challenge(&mock, "WEB1");
     settle().await;
@@ -168,7 +168,7 @@ async fn a_websites_password_prompt_never_gets_the_proxys_credentials() {
 async fn a_prompt_that_does_not_say_who_asks_is_not_given_the_credentials() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
 
     mock.emit(
         "Fetch.authRequired",
@@ -199,7 +199,7 @@ async fn a_prompt_that_does_not_say_who_asks_is_not_given_the_credentials() {
 async fn the_proxy_is_still_answered_after_a_website_asked_first() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
 
     website_challenge(&mock, "WEB1");
     challenge(&mock);
@@ -218,7 +218,7 @@ async fn the_proxy_is_still_answered_after_a_website_asked_first() {
 async fn requests_paused_by_auth_handling_are_released() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
 
     paused(&mock, "R1");
     settle().await;
@@ -233,7 +233,7 @@ async fn requests_paused_by_auth_handling_are_released() {
 async fn the_password_appears_only_in_the_answer_to_a_prompt() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    let page = context.new_page(Some("http://t.test/")).await.unwrap();
+    let page = context.new_page_at("http://t.test/").await.unwrap();
     challenge(&mock);
     settle().await;
 
@@ -255,7 +255,7 @@ async fn a_tab_in_an_unproxied_context_gets_no_auth_handling() {
     let (browser, mock) = browser();
     let context = browser.new_context().await.unwrap();
 
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
     challenge(&mock);
     settle().await;
 
@@ -270,7 +270,7 @@ async fn a_tab_in_an_unproxied_context_gets_no_auth_handling() {
 async fn an_interception_owns_the_requests_but_the_password_is_still_supplied() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    let page = context.new_page(None::<&str>).await.unwrap();
+    let page = context.new_page().await.unwrap();
     let interception = page.intercept(vec![Rule::block()]).await.unwrap();
 
     paused(&mock, "R2");
@@ -300,7 +300,7 @@ async fn an_interception_owns_the_requests_but_the_password_is_still_supplied() 
 async fn stopping_an_interception_restores_the_tabs_password_handling() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    let page = context.new_page(None::<&str>).await.unwrap();
+    let page = context.new_page().await.unwrap();
     let interception = page.intercept(vec![Rule::block()]).await.unwrap();
 
     interception.stop().await.unwrap();
@@ -333,7 +333,7 @@ async fn stopping_an_interception_restores_the_tabs_password_handling() {
 async fn disposing_a_context_forgets_its_password() {
     let (browser, mock) = browser();
     let context = browser.new_context_with(proxied()).await.unwrap();
-    context.new_page(None::<&str>).await.unwrap();
+    context.new_page().await.unwrap();
 
     context.dispose().await.unwrap();
     challenge(&mock);

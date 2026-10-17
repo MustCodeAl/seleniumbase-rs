@@ -129,7 +129,7 @@ async fn a_plugins_packages_then_its_hook_reach_every_new_tab_in_order() {
         );
     }
 
-    browser.new_page(None::<&str>).await.unwrap();
+    browser.new_page().await.unwrap();
     let packages = mock
         .calls()
         .iter()
@@ -174,7 +174,7 @@ async fn a_failing_on_page_created_fails_the_new_tab_and_closes_it() {
     let mock = MockCtrl::new();
     let browser = launch(fails_from(2), &mock).await.unwrap();
 
-    let error = browser.new_page(None::<&str>).await.unwrap_err();
+    let error = browser.new_page().await.unwrap_err();
 
     assert!(
         matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "fails-on-tab"),

@@ -456,7 +456,7 @@ async fn prepare(
     start_url: Option<&str>,
 ) -> Result<Page, LaunchError> {
     let page = context
-        .new_page(None::<&str>)
+        .new_page()
         .await
         .map_err(|e| at(Stage::Launch, e.to_string()))?;
     apply_identity(browser, context, &page, profile, config)

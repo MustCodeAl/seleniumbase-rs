@@ -948,6 +948,10 @@ impl Locator {
     /// # Errors
     ///
     /// See [`click`](Self::click).
+    #[deprecated(
+        since = "0.5.0",
+        note = "use `click_with_offset(x, y, false)`, Python's name for it"
+    )]
     pub async fn click_at(&self, offset: Point) -> Result<(), SeleniumBaseError> {
         self.click_with_offset(offset.x, offset.y, false).await
     }

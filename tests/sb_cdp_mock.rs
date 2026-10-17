@@ -544,7 +544,7 @@ async fn closing_a_tab_asks_the_browser_to_close_exactly_that_target() {
 async fn opening_a_page_attaches_to_the_new_target() {
     let (browser, mock) = Browser::new_mocked();
 
-    let page = browser.new_page(Some("example.com")).await.unwrap();
+    let page = browser.new_page_at("example.com").await.unwrap();
 
     assert_eq!(page.id(), "T2");
     assert_eq!(
@@ -682,7 +682,8 @@ async fn reload_keeps_the_cache_and_hard_reload_bypasses_it() {
 // ----------------------------------------------------------------------
 
 #[tokio::test]
-async fn clicking_at_an_offset_measures_from_the_elements_top_left() {
+#[allow(deprecated, reason = "click_at stays as a shim until it is removed")]
+async fn the_deprecated_click_at_still_measures_from_the_elements_top_left() {
     let (page, mock) = quick_page().await;
     mock.on("Runtime.evaluate", |params| {
         let expression = params["expression"].as_str().unwrap_or_default();
@@ -1247,10 +1248,7 @@ async fn a_screenshot_name_that_could_leave_the_logs_directory_is_refused() {
 async fn every_tab_is_told_it_has_focus_so_input_reaches_it() {
     let (browser, mock) = Browser::new_mocked();
     let _first = browser.default_page().await.unwrap();
-    let _second = browser
-        .new_page(Some("about:blank".to_owned()))
-        .await
-        .unwrap();
+    let _second = browser.new_page_at("about:blank").await.unwrap();
 
     // Chrome only acknowledges input for the focused tab, so a click on any
     // other tab would wait for the command timeout.

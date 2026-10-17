@@ -98,7 +98,7 @@ let mitm =
     MitmProxy::start(profile, None, MitmOptions::default(), Arc::new(NoopEventSink)).await?;
 let options = mitm.configure_launch(LaunchOptions::builder()).build()?;
 let browser = Browser::launch(options).await?;
-let page = browser.new_page(Some("https://example.com/")).await?;
+let page = browser.new_page_at("https://example.com/").await?;
 # drop(page);
 browser.close().await?;
 mitm.shutdown(Duration::from_secs(5)).await;
@@ -325,7 +325,7 @@ use seleniumbase_rs::sb_cdp::{Browser, ContextOptions};
 let context = browser
     .new_context_with(ContextOptions::new().proxy(mitm.browser_proxy()))
     .await?;
-let page = context.new_page(Some(mitm.prime_url())).await?;
+let page = context.new_page_at(mitm.prime_url()).await?;
 // WebSockets of this context now carry the proxy's credentials.
 # drop(page);
 # Ok(())

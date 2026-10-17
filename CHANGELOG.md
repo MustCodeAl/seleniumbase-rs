@@ -15,8 +15,8 @@ work, `docs/parity.md` the per-API status).
   `get_locale_code`, `get_screen_rect` and `click_active_element`.
 - `sb_cdp::Locator::click_with_offset(x, y, center)` (the offset from the
   top-left corner, or from the centre) and `click_if_visible(timeout)`:
-  Python's `sb.cdp.click_with_offset` and `click_if_visible`. `click_at` stays
-  and calls `click_with_offset`.
+  Python's `sb.cdp.click_with_offset` and `click_if_visible`. `click_at` is
+  deprecated for `click_with_offset(x, y, false)` and calls it.
 - `behave::StepRegistry::register_step` and `AsyncStepRegistry::register_step`
   (and `try_register_step`) register a handler for the step text alone, which
   matches whatever keyword the step is written with, or none, like behave's
@@ -39,6 +39,22 @@ work, `docs/parity.md` the per-API status).
   its own error.
 
 ### Changed (breaking)
+
+- `sb_cdp` tab and window creation no longer takes an `Option` URL, which
+  needed `None::<&str>` to open a blank tab. `Browser::new_page`,
+  `Browser::new_window`, `BrowserContext::new_page` and the pool lease's
+  `new_page` take no argument and open a blank one; `new_page_at(url)` and
+  `new_window_at(url)` open one on a URL (a URL without a scheme is opened
+  over HTTPS, as before).
+
+  ```rust
+  // before
+  let blank = browser.new_page(None::<&str>).await?;
+  let docs = browser.new_page(Some("https://example.com")).await?;
+  // after
+  let blank = browser.new_page().await?;
+  let docs = browser.new_page_at("https://example.com").await?;
+  ```
 
 - `sb_cdp::Locator::type_text` empties the field before it types, as Python's
   `sb.cdp.type` does ("clears the text field first"); it used to type after

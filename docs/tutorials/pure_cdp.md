@@ -384,7 +384,7 @@ visit to a local server, and a page with a cross-site iframe, in a real Chrome.
 
 `browser.new_context()` opens a `BrowserContext`: tabs that share no cookies,
 storage or cache with anything else, like an incognito window. Open tabs in it
-with `context.new_page(url)` and throw everything away with `context.dispose()`.
+with `context.new_page()` or `context.new_page_at(url)` and throw everything away with `context.dispose()`.
 It is much cheaper than a second Chrome process.
 
 ### A proxy per context
@@ -404,7 +404,7 @@ let context = browser
             .bypass("*.internal.example.com"),
     )
     .await?;
-let page = context.new_page(Some("https://example.com")).await?;
+let page = context.new_page_at("https://example.com").await?;
 # Ok(())
 # }
 ```

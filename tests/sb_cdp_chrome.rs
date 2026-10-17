@@ -440,7 +440,7 @@ async fn captures_png_and_pdf_and_an_element() {
 async fn manages_tabs_independently() {
     let (browser, first, base) = open().await;
 
-    let second = browser.new_page(Some(format!("{base}/"))).await.unwrap();
+    let second = browser.new_page_at(format!("{base}/")).await.unwrap();
     assert_eq!(browser.list_pages().await.unwrap().len(), 2);
 
     // Each handle talks to its own tab, concurrently.
@@ -874,7 +874,7 @@ async fn a_context_can_have_its_own_password_protected_proxy_while_others_go_dir
         )
         .await
         .unwrap();
-    let page = behind.new_page(Some(url)).await.unwrap();
+    let page = behind.new_page_at(url).await.unwrap();
     assert_eq!(page.title().await.unwrap(), "via-proxy");
     let asked = page.locator("#who").text().await.unwrap();
     assert!(
@@ -886,7 +886,7 @@ async fn a_context_can_have_its_own_password_protected_proxy_while_others_go_dir
 
     // A context beside it, with no proxy, cannot reach the host at all.
     let direct = browser.new_context().await.unwrap();
-    let error = direct.new_page(Some(url)).await.unwrap_err();
+    let error = direct.new_page_at(url).await.unwrap_err();
     assert!(
         matches!(error, seleniumbase_rs::SeleniumBaseError::Navigation { .. }),
         "the direct context must not reach the host: {error}"
@@ -1172,7 +1172,7 @@ async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
     .await
     .unwrap();
     let launched = browser.default_page().await;
-    let second = browser.new_window(None::<&str>).await;
+    let second = browser.new_window().await;
     browser.close().await.unwrap();
     launched.expect("the default tab takes the identity and its permissions");
     second.expect("so does a second window");
@@ -1189,7 +1189,7 @@ async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
 async fn every_tab_takes_input_not_only_the_frontmost() {
     let (browser, first, base) = open().await;
     let second = browser
-        .new_page(Some(format!("{base}/")))
+        .new_page_at(format!("{base}/"))
         .await
         .unwrap()
         .with_timeout(Duration::from_secs(3));
