@@ -47,10 +47,10 @@ The test is an async closure, `async |sb| { .. }` (or an `async fn` that takes
 `&mut BaseCase`). It receives `&mut BaseCase` and returns `Result<()>`, that is
 `Result<(), SeleniumBaseError>`, so `?` converts any error with a `From` impl
 into it. The browser is closed when the test panics too, and the panic is then
-raised again. Code written for older versions used `|sb| Box::pin(async move
-{ .. })`; drop the `Box::pin` and write `async |sb| { .. }`. To test a page
-with the Pure CDP engine instead, use `run_cdp_test(LaunchOptions::default(),
-async |page| { .. })`.
+raised again. Code written for older versions used
+`|sb| Box::pin(async move { .. })`; drop the `Box::pin` and write
+`async |sb| { .. }`. To test a page with the Pure CDP engine instead, use
+`run_cdp_test(LaunchOptions::default(), async |page| { .. })`.
 
 Run the test:
 
