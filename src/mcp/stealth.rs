@@ -9,9 +9,9 @@ use serde_json::json;
 use super::support::{json_output, nonempty};
 use super::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::stealth::fingerprint::Fingerprint;
-use crate::{ChromedriverPatcher, EnginePatch, EvasionContext};
+use crate::{ChromedriverPatcher, EnginePatch};
 
-const PRESETS: [&str; 5] = ["windows", "macos", "linux", "android", "ios"];
+const PRESETS: [&str; 6] = ["windows", "edge", "macos", "linux", "android", "ios"];
 
 fn preset_prop() -> Prop {
     Prop::choice(&PRESETS, "Which built-in fingerprint profile")
@@ -19,6 +19,7 @@ fn preset_prop() -> Prop {
 
 fn preset(args: &Args) -> Result<Fingerprint, ToolError> {
     Ok(match args.choice("preset", &PRESETS, "windows")? {
+        "edge" => Fingerprint::edge_desktop(),
         "macos" => Fingerprint::macos_desktop(),
         "linux" => Fingerprint::linux_desktop(),
         "android" => Fingerprint::android_mobile(),
@@ -85,7 +86,9 @@ pub(super) fn tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
         ToolDef::new(
             "get_stealth_bootstrap_script",
             "Get Stealth Bootstrap Script",
-            "Get the JavaScript evasion bootstrap for a fingerprint preset.",
+            "Get the JavaScript evasion bootstrap that a browser session runs for a fingerprint \
+             preset: the evasion providers listed by list_evasion_providers, assembled in the \
+             order they are applied.",
             Effect::Inspect,
             by_preset(),
             get_stealth_bootstrap_script::<S>,
@@ -93,19 +96,12 @@ pub(super) fn tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
         ToolDef::new(
             "list_evasion_providers",
             "List Evasion Providers",
-            "List the built-in stealth evasion providers in the order they are applied.",
+            "List the stealth evasion providers a browser session runs, in the order they are \
+             applied. Chrome answers for its own plugins and network report, so those are not \
+             among them.",
             Effect::Inspect,
             Schema::new(),
             list_evasion_providers::<S>,
-        ),
-        ToolDef::new(
-            "build_stealth_bootstrap",
-            "Build Stealth Bootstrap",
-            "Assemble the combined stealth bootstrap script for a preset from the evasion \
-             provider registry.",
-            Effect::Inspect,
-            by_preset(),
-            build_stealth_bootstrap::<S>,
         ),
         ToolDef::new(
             "validate_fingerprint",
@@ -156,17 +152,11 @@ async fn build_fingerprint<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolEr
 }
 
 async fn get_stealth_bootstrap_script<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    Ok(crate::stealth::evasions::bootstrap_script(&preset(&args)?).into())
+    Ok(crate::stealth::evasions::session_script(&preset(&args)?).into())
 }
 
 async fn list_evasion_providers<S>(_ctx: Ctx<S>, _args: Args) -> Result<Output, ToolError> {
-    json_output(crate::default_registry().provider_names())
-}
-
-async fn build_stealth_bootstrap<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    let fingerprint = preset(&args)?;
-    let context = EvasionContext::new(&fingerprint);
-    Ok(crate::default_registry().bootstrap(&context).into())
+    json_output(crate::session_registry(&Fingerprint::default()).provider_names())
 }
 
 async fn validate_fingerprint<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {

@@ -5,8 +5,10 @@
 //! to: user agent, platform, screen, GPU, languages, time zone, and more. Part 1
 //! needs no browser:
 //!
-//! * the ready-made personas (`windows_desktop`, `macos_desktop`,
-//!   `linux_desktop`, `android_mobile`, `ios_mobile_safari`),
+//! * the ready-made personas (`windows_desktop`, `edge_desktop`,
+//!   `macos_desktop`, `linux_desktop`, `android_mobile`, `ios_mobile_safari`),
+//! * the builder, where giving a value turns its dimension on, with no flag to
+//!   flip (`with_flags` is the explicit way to turn one off),
 //! * `validate`, which catches combinations that give a persona away (a Windows
 //!   user agent on a `MacIntel` platform, say),
 //! * `Fingerprint::randomized`, which makes the same persona for the same seed,
@@ -33,12 +35,13 @@
 mod local_site;
 
 use seleniumbase_rs::stealth::evasions::{bootstrap_script, launch_args};
-use seleniumbase_rs::{Fingerprint, OsType, Result, SeleniumBaseError};
+use seleniumbase_rs::{Dimension, Fingerprint, MaskingMode, OsType, Result, SeleniumBaseError};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let personas = [
         ("windows", Fingerprint::windows_desktop()),
+        ("edge", Fingerprint::edge_desktop()),
         ("macos", Fingerprint::macos_desktop()),
         ("linux", Fingerprint::linux_desktop()),
         ("android", Fingerprint::android_mobile()),
@@ -52,11 +55,36 @@ async fn main() -> Result<()> {
             report.errors,
             report.warnings.len()
         );
-        if !report.is_coherent() {
+        if !report.is_coherent() || !report.warnings.is_empty() {
             return Err(SeleniumBaseError::AssertionFailed(format!(
-                "the {name} preset should be coherent"
+                "the {name} preset should be coherent, with nothing to warn about"
             )));
         }
+    }
+
+    // The value is the switch: a time zone, a locale and a position turn their
+    // own dimensions on, whatever preset the flags came from and in whatever
+    // order. `with_flags` has the last word when one must stay off.
+    let berlin = Fingerprint::builder()
+        .timezone("Europe/Berlin")
+        .locale("de-DE")
+        .geolocation(52.52, 13.405)
+        .build();
+    let quiet = Fingerprint::builder()
+        .timezone("Europe/Berlin")
+        .with_flags(|flags| flags.timezone_masking = MaskingMode::Natural)
+        .build();
+    println!(
+        "berlin masks the time zone: {}, the language: {}, the position: {}; with the override, the time zone: {}",
+        berlin.is_masked(Dimension::Timezone),
+        berlin.is_masked(Dimension::Localization),
+        berlin.is_masked(Dimension::Geolocation),
+        quiet.is_masked(Dimension::Timezone),
+    );
+    if !berlin.is_masked(Dimension::Timezone) || quiet.is_masked(Dimension::Timezone) {
+        return Err(SeleniumBaseError::AssertionFailed(
+            "a value should turn its dimension on, and with_flags should turn it off".to_owned(),
+        ));
     }
 
     // Mixing a Windows persona with a macOS platform is exactly what a

@@ -2814,6 +2814,18 @@ mod tests {
     }
 
     #[test]
+    fn the_macro_names_each_preset() {
+        assert_eq!(crate::fingerprint!(windows), Fingerprint::windows_desktop());
+        assert_eq!(crate::fingerprint!(edge), Fingerprint::edge_desktop());
+        assert_ne!(crate::fingerprint!(edge), crate::fingerprint!(windows));
+        assert_eq!(crate::fingerprint!(macos), Fingerprint::macos_desktop());
+        assert_eq!(crate::fingerprint!(linux), Fingerprint::linux_desktop());
+        assert_eq!(crate::fingerprint!(android), Fingerprint::android_mobile());
+        assert_eq!(crate::fingerprint!(ios), Fingerprint::ios_mobile_safari());
+        assert_eq!(crate::fingerprint!(safari), crate::fingerprint!(ios));
+    }
+
+    #[test]
     fn the_linux_preset_reports_a_linux_graphics_stack_and_the_mac_one_metal() {
         let linux = Fingerprint::linux_desktop();
         let renderer = linux.webgl_renderer.as_deref().unwrap_or_default();

@@ -233,7 +233,7 @@ macro_rules! fingerprint {
         $crate::Fingerprint::ios_mobile_safari()
     };
     (edge) => {
-        $crate::Fingerprint::windows_desktop()
+        $crate::Fingerprint::edge_desktop()
     };
 }
 
