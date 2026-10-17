@@ -42,7 +42,9 @@ and the commands that worked are in [Building](../building.md#container) and
 
 ## Docker Compose
 
-```yaml
+<CodeGroup>
+
+```yaml compose.yaml
 services:
   tests:
     build: .
@@ -51,11 +53,11 @@ services:
     command: ["--help"]
 ```
 
-Run with Compose:
-
-```bash
+```bash Run with Compose
 docker compose up --build
 ```
+
+</CodeGroup>
 
 ## CI/CD
 
@@ -72,8 +74,13 @@ More on running in CI and containers: [Deployment](../deployment.md).
 Always run browsers in headless mode inside containers (`SB_HEADLESS=true`).
 The image does not add `--no-sandbox` for you: if Chromium fails with a sandbox
 error, set `SB_NO_SANDBOX=1` (or `LaunchOptionsBuilder::no_sandbox(true)` in the
-pure CDP engine). That weakens Chrome's isolation, so use it only in a container
-you control.
+pure CDP engine).
+
+<Warning>
+
+That weakens Chrome's isolation, so use it only in a container you control.
+
+</Warning>
 
 ```rust
 let config = BrowserConfig::default().with_headless(true);

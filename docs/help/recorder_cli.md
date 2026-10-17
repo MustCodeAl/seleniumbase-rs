@@ -144,17 +144,20 @@ does the same check.
 
 A scenario is a different file: a hand-written JSON object with a `name` and a
 list of `steps`, each step an `action` plus the fields that action needs. It is
-not the array that `record` writes. Run it with:
+not the array that `record` writes. Run it, and optionally choose where the HTML
+dashboard goes:
 
-```bash
+<CodeGroup>
+
+```bash Run
 cargo run --bin sbrs -- run-scenario --file scenario.json
 ```
 
-You can also choose where the HTML dashboard goes:
-
-```bash
+```bash With a dashboard path
 cargo run --bin sbrs -- run-scenario --file scenario.json --dashboard dashboard.html
 ```
+
+</CodeGroup>
 
 ```json
 {
@@ -195,11 +198,15 @@ The available actions and their fields are:
 A file that names an unknown action, or leaves out a field, is rejected as a
 whole before any browser starts.
 
+<Warning>
+
 A failing step does not stop the run: the steps that failed are listed, and
 the process still exits with status 0. The command also writes the dashboard,
 prints the pass/fail counts, and saves a `recording` JSON and `.rs` pair of what
 it did into `latest_logs`. If you gate CI on the result, read the printed
 counts or the dashboard rather than the exit status.
+
+</Warning>
 
 ## Best practices
 

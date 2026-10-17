@@ -8,18 +8,33 @@ This page collects common pitfalls and their solutions. If you run into
 something not listed here, turn on debug logging and check the error category
 and hint:
 
-- In your own program, call `init_tracing()` and run with
-  `RUST_LOG=seleniumbase_rs=debug`.
-- With the `sbrs` and `sbrs-mcp` binaries, `RUST_LOG` is ignored. They
-  read `SB_LOG_LEVEL` (default `info`), for example
-  `SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
+<Tabs>
+
+<Tab title="Your own program">
+
+Call `init_tracing()` and run with `RUST_LOG=seleniumbase_rs=debug`.
+
+</Tab>
+
+<Tab title="sbrs and sbrs-mcp">
+
+`RUST_LOG` is ignored. They read `SB_LOG_LEVEL` (default `info`), for example
+`SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
+
+</Tab>
+
+</Tabs>
 
 ## Start here
+
+<Tip>
 
 Run `sbrs doctor` first. It reports which Chrome and chromedriver it finds and
 whether their major versions match, and most start-up problems show up there. In
 an AI-agent session the MCP tool `diagnose_environment` reports the same, plus the
 platform and the redacted `SB_*` settings, without starting a browser.
+
+</Tip>
 
 | Symptom | Most likely cause | Go to |
 |---|---|---|
@@ -38,26 +53,56 @@ platform and the redacted `SB_*` settings, without starting a browser.
 
 UC mode removes many fingerprints, but detection is layered. Check each defense:
 
-1. **Patch the chromedriver binary.** Use
-   [`ChromedriverPatcher`](../tutorials/binary_patching.md) or
-   `cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver`.
-   Verify with `needs_patch()`.
-2. **Add engine spoofing args.** Pass `engine_spoofing_args()` through
-   `BrowserConfig::with_extra_args` or `StealthOptions::extra_args`.
-3. **Use a coherent fingerprint.** A Windows user agent with a macOS WebGL
-   vendor or a mobile screen on a desktop platform is suspicious. Build a
-   [`Fingerprint`](../tutorials/fingerprint_stealth.md), keep the values
-   consistent, and check it with `Fingerprint::validate()`, whose
-   `CoherenceReport::is_coherent()` is `false` when the values contradict each
-   other.
-4. **Check WebGL / geolocation consistency.** Spoofed WebGL vendor/renderer and
-   geolocation should match the IP address and timezone.
-5. **Run headed.** A headless session already starts Chrome with
-   `--headless=new`, but some sites still tell headless from headed. See
-   [Headless detected](#headless-detected).
-6. **Drop chromedriver altogether.** The [pure CDP engine](../tutorials/pure_cdp.md)
-   (`seleniumbase_rs::sb_cdp`) launches Chrome directly, so there is no driver
-   binary to leak markers.
+<Steps>
+
+<Step title="Patch the chromedriver binary">
+
+Use [`ChromedriverPatcher`](../tutorials/binary_patching.md) or
+`cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver`.
+Verify with `needs_patch()`.
+
+</Step>
+
+<Step title="Add engine spoofing args">
+
+Pass `engine_spoofing_args()` through `BrowserConfig::with_extra_args` or
+`StealthOptions::extra_args`.
+
+</Step>
+
+<Step title="Use a coherent fingerprint">
+
+A Windows user agent with a macOS WebGL vendor or a mobile screen on a desktop
+platform is suspicious. Build a
+[`Fingerprint`](../tutorials/fingerprint_stealth.md), keep the values
+consistent, and check it with `Fingerprint::validate()`, whose
+`CoherenceReport::is_coherent()` is `false` when the values contradict each
+other.
+
+</Step>
+
+<Step title="Check WebGL and geolocation consistency">
+
+Spoofed WebGL vendor/renderer and geolocation should match the IP address and
+timezone.
+
+</Step>
+
+<Step title="Run headed">
+
+A headless session already starts Chrome with `--headless=new`, but some sites
+still tell headless from headed. See [Headless detected](#headless-detected).
+
+</Step>
+
+<Step title="Drop chromedriver altogether">
+
+The [pure CDP engine](../tutorials/pure_cdp.md) (`seleniumbase_rs::sb_cdp`)
+launches Chrome directly, so there is no driver binary to leak markers.
+
+</Step>
+
+</Steps>
 
 ## chromedriver executable not found
 
@@ -220,27 +265,57 @@ the path in `LaunchOptions`.
 
 Chrome often cannot start its sandbox as root or inside Docker. Set
 `SB_NO_SANDBOX=1` (or `LaunchOptionsBuilder::no_sandbox(true)` in the pure CDP
-engine) and run headless (`SB_HEADLESS=true`). `--no-sandbox` weakens the
-browser's isolation, so use it only in a container you control. If it crashes
-under load rather than at start, give the container more shared memory
-(`--shm-size=1g`). See [Deployment](../deployment.md).
+engine) and run headless (`SB_HEADLESS=true`).
+
+<Warning>
+
+`--no-sandbox` weakens the browser's isolation, so use it only in a container you
+control.
+
+</Warning>
+
+If it crashes under load rather than at start, give the container more shared
+memory (`--shm-size=1g`). See [Deployment](../deployment.md).
 
 ## An element is not found or a wait times out
 
 Read the error before changing anything: it names the selector and carries a
 hint, and element errors point out a likely mistake in the selector.
 
-1. Check the selector in the browser's developer tools; a class that is generated
-   on each build, or an element inside an iframe or a shadow root, will not match
-   a plain selector.
-2. Wait for the right condition (`wait_for_element_visible`,
-   `wait_for_text`) instead of sleeping.
-3. `BaseCase` actions already wait for their element for the default timeout
-   (10 seconds; `set_timeout` changes it). A timeout that long usually means the
-   selector is wrong, not that the page is slow.
-4. With an AI agent attached, `diagnose_selector` explains why a selector matches
-   nothing and `suggest_selectors` proposes ones that work; `inspect_page` shows
-   what is on the page.
+<Steps>
+
+<Step title="Check the selector">
+
+Check the selector in the browser's developer tools; a class that is generated
+on each build, or an element inside an iframe or a shadow root, will not match
+a plain selector.
+
+</Step>
+
+<Step title="Wait for the right condition">
+
+Wait for the right condition (`wait_for_element_visible`, `wait_for_text`)
+instead of sleeping.
+
+</Step>
+
+<Step title="Remember the built-in wait">
+
+`BaseCase` actions already wait for their element for the default timeout
+(10 seconds; `set_timeout` changes it). A timeout that long usually means the
+selector is wrong, not that the page is slow.
+
+</Step>
+
+<Step title="Ask the agent tools">
+
+With an AI agent attached, `diagnose_selector` explains why a selector matches
+nothing and `suggest_selectors` proposes ones that work; `inspect_page` shows
+what is on the page.
+
+</Step>
+
+</Steps>
 
 ## Passes alone, fails in the suite
 
@@ -280,8 +355,12 @@ exit status says which kind of failure it was:
 | 7 | the MCP server failed |
 | 130, 143 | stopped by Ctrl-C or SIGTERM |
 
+<Note>
+
 `sbrs test` is the exception: it exits with the status of the `cargo test` it
 ran.
+
+</Note>
 
 In the HTML report of `ReportPlugin`, a failed test shows its error, the hint,
 the page's URL and title when it failed, and, with

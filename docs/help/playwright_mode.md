@@ -17,18 +17,21 @@ requiring a Node Playwright driver.
 
 ## Enable the feature
 
-The feature is off by default, so a plain build does not compile `rustwright`:
+The feature is off by default, so a plain build does not compile `rustwright`.
+Enable it in `Cargo.toml` or on the command line:
 
-```toml
+<CodeGroup>
+
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { version = "0.1", features = ["playwright"] }
 ```
 
-Or on the command line:
-
-```bash
+```bash Command line
 cargo run --example playwright_mode --features playwright
 ```
+
+</CodeGroup>
 
 ## Chromium installation
 
@@ -37,8 +40,12 @@ launch (that is `rustwright`'s behavior, not this crate's). Ensure the build
 host can reach the Chromium CDN, or install Chromium where `rustwright` looks
 for it.
 
+<Warning>
+
 This crate passes `rustwright` no executable path: `BrowserConfig::browser_binary_path`
 applies to the WebDriver sessions and has no effect on Playwright mode.
+
+</Warning>
 
 ## Example
 
@@ -63,9 +70,13 @@ sb.quit().await?;
 # }
 ```
 
+<Note>
+
 `BaseCase::new` still connects a WebDriver browser first; `activate_playwright_mode`
 then launches a second, separate Chromium through `rustwright`, in headed mode.
 `session.close()` closes that one and `sb.quit()` closes the WebDriver one.
+
+</Note>
 
 To use the Playwright session on its own, with no WebDriver browser, launch it
 directly. `launch_headless` runs without a window, and
