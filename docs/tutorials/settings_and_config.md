@@ -139,17 +139,60 @@ export SB_THREADS=4
 In addition to `Settings`, the crate reads `SB_*` runtime configuration for
 library behavior:
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `SB_WEBDRIVER_URL` | `http://localhost:4444` | WebDriver endpoint. |
-| `SB_CHROME_BIN` | auto-detect | Explicit Chrome/Chromium binary path. |
-| `SB_PATCH_CACHE_DIR` | platform cache | Directory for patched Chrome/Chromedriver copies. |
-| `SB_LOG_LEVEL` | `info` | Default tracing log level. |
-| `SB_LOG_FORMAT` | `pretty` | `pretty` or `json` output. |
-| `SB_SHUTDOWN_TIMEOUT_SECS` | `30` | Graceful shutdown timeout. |
-| `SB_CHROMEDRIVER_PORT` | `0` | Port for auto-started chromedriver (`0` = ephemeral). |
-| `SB_IMPLICIT_WAIT_SECS` | `30` | Default implicit wait timeout. |
-| `SB_REMOTE_WEBDRIVER_TIMEOUT` | unset | Client-side timeout, in seconds, for each HTTP request sent to a Remote WebDriver server. |
+<ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
+
+WebDriver endpoint.
+
+</ParamField>
+
+<ParamField body="SB_CHROME_BIN" type="string" default="auto-detect">
+
+Explicit Chrome/Chromium binary path.
+
+</ParamField>
+
+<ParamField body="SB_PATCH_CACHE_DIR" type="string" default="platform cache">
+
+Directory for patched Chrome/Chromedriver copies.
+
+</ParamField>
+
+<ParamField body="SB_LOG_LEVEL" type="string" default="info">
+
+Default tracing log level.
+
+</ParamField>
+
+<ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
+
+`pretty` or `json` output.
+
+</ParamField>
+
+<ParamField body="SB_SHUTDOWN_TIMEOUT_SECS" type="integer" default="30">
+
+Graceful shutdown timeout.
+
+</ParamField>
+
+<ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
+
+Port for auto-started chromedriver (`0` = ephemeral).
+
+</ParamField>
+
+<ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
+
+Default implicit wait timeout.
+
+</ParamField>
+
+<ParamField body="SB_REMOTE_WEBDRIVER_TIMEOUT" type="integer">
+
+Unset by default. Client-side timeout, in seconds, for each HTTP request sent to
+a Remote WebDriver server.
+
+</ParamField>
 
 ## Remote WebDriver timeout
 
