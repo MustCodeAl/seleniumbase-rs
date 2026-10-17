@@ -1081,20 +1081,27 @@ async fn a_browser_launched_with_a_fingerprint_shows_its_identity_to_pages() {
 
     assert_eq!(
         seen["userAgent"].as_str(),
-        fingerprint.user_agent.as_deref()
+        fingerprint.user_agent().as_str()
     );
-    assert_eq!(seen["timeZone"].as_str(), fingerprint.timezone.as_deref());
+    assert_eq!(seen["timeZone"].as_str(), fingerprint.timezone().as_str());
     assert_eq!(
         seen["cores"].as_u64(),
-        fingerprint.hardware_concurrency.map(u64::from)
+        fingerprint
+            .hardware_concurrency()
+            .value()
+            .map(|n| u64::from(*n))
     );
-    assert_eq!(seen["platform"].as_str(), fingerprint.platform.as_deref());
+    assert_eq!(seen["platform"].as_str(), fingerprint.platform().as_str());
     assert_eq!(
         seen["screenWidth"].as_u64(),
-        fingerprint.screen_width.map(u64::from)
+        fingerprint.screen().value().map(|s| u64::from(s.width))
     );
     assert_ne!(seen["webdriver"], true, "automation is not announced");
-    if let (Some(wanted), Some(got)) = (&fingerprint.webgl_renderer, seen["renderer"].as_str()) {
+    let wanted = fingerprint
+        .webgl()
+        .value()
+        .and_then(|gl| gl.renderer.as_deref());
+    if let (Some(wanted), Some(got)) = (wanted, seen["renderer"].as_str()) {
         assert_eq!(got, wanted, "the graphics card a page can read");
     }
 }
@@ -1111,17 +1118,11 @@ const ASK_FOR_THE_POSITION: &str = r#"new Promise((resolve) => {
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn a_fingerprint_with_a_position_answers_a_geolocation_request_without_a_prompt() {
-    // A position is all it takes: the popup resolves to `Allow`, the permission
-    // is granted for the tab's context, and the override delivers the position.
+    // A position is all it takes: the permission is granted for the tab's
+    // context, and the override delivers the position.
     let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
-    assert_eq!(
-        fingerprint.geolocation_popup(),
-        seleniumbase_rs::PopupMode::Allow
-    );
-    let (latitude, longitude) = (
-        fingerprint.latitude.expect("a position"),
-        fingerprint.longitude.expect("a position"),
-    );
+    let place = fingerprint.geolocation().value().expect("a position");
+    let (latitude, longitude) = (place.latitude, place.longitude);
     let base = serve();
     let browser = Browser::launch(
         LaunchOptions::builder()
@@ -1155,12 +1156,13 @@ async fn under_native_spoofing_the_browser_itself_delivers_the_position_it_was_g
     // `native_spoofing` leaves the page script's geolocation answer out, so the
     // position reaches the page only if the protocol override is in place and
     // the permission was granted: nobody presses "Allow" in a headless browser.
-    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 42);
-    fingerprint.flags.native_spoofing = true;
-    let (latitude, longitude) = (
-        fingerprint.latitude.expect("a position"),
-        fingerprint.longitude.expect("a position"),
-    );
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 42)
+        .to_builder()
+        .native_spoofing(true)
+        .build()
+        .unwrap();
+    let place = fingerprint.geolocation().value().expect("a position");
+    let (latitude, longitude) = (place.latitude, place.longitude);
     let base = serve();
     let browser = Browser::launch(
         LaunchOptions::builder()
@@ -1190,9 +1192,12 @@ async fn under_native_spoofing_the_browser_itself_delivers_the_position_it_was_g
 
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
-async fn a_blocked_geolocation_popup_answers_permission_denied() {
-    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 42);
-    fingerprint.flags.geolocation_popup = seleniumbase_rs::PopupMode::Block;
+async fn a_denied_geolocation_answers_permission_denied() {
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 42)
+        .to_builder()
+        .geolocation(seleniumbase_rs::Spoof::Off)
+        .build()
+        .unwrap();
     let base = serve();
     let browser = Browser::launch(
         LaunchOptions::builder()
@@ -1231,7 +1236,7 @@ async fn a_running_tab_takes_on_a_fingerprint_from_its_next_page() {
     browser.close().await.unwrap();
 
     assert_ne!(before, after);
-    assert_eq!(after.as_str(), fingerprint.user_agent.as_deref());
+    assert_eq!(after.as_str(), fingerprint.user_agent().as_str());
 }
 
 #[tokio::test]
@@ -1276,8 +1281,11 @@ async fn script_errors_are_collected_and_a_broken_image_is_not_one() {
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 async fn a_fingerprint_that_grants_permissions_is_accepted_by_chrome() {
-    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 1);
-    fingerprint.flags.grant_permissions = true;
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 1)
+        .to_builder()
+        .grant_permissions(true)
+        .build()
+        .unwrap();
 
     // At launch (every tab) ...
     let browser = Browser::launch(

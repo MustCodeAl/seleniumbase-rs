@@ -818,7 +818,7 @@ async fn a_fingerprint_is_applied_script_first_then_overrides() {
         .expect("a user agent override");
     assert_eq!(
         user_agent.1["userAgent"].as_str(),
-        fingerprint.user_agent.as_deref()
+        fingerprint.user_agent().as_str()
     );
     for wanted in [
         "Emulation.setTimezoneOverride",
@@ -831,15 +831,18 @@ async fn a_fingerprint_is_applied_script_first_then_overrides() {
 #[tokio::test]
 async fn the_proxy_password_in_a_fingerprint_is_never_sent_to_the_browser() {
     let (page, mock) = quick_page().await;
-    let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-    fingerprint.proxy = Some(ProxyConfig {
-        r#type: "http".to_owned(),
-        host: "proxy.example.com".to_owned(),
-        port: 8080,
-        username: Some("alice".to_owned()),
-        password: Some("fake-proxy-password".to_owned()),
-        save_traffic: false,
-    });
+    let fingerprint = Fingerprint::randomized(OsType::Linux, 3)
+        .to_builder()
+        .proxy(ProxyConfig {
+            r#type: "http".to_owned(),
+            host: "proxy.example.com".to_owned(),
+            port: 8080,
+            username: Some("alice".to_owned()),
+            password: Some("fake-proxy-password".to_owned()),
+            save_traffic: false,
+        })
+        .build()
+        .unwrap();
 
     page.apply_fingerprint(&fingerprint).await.unwrap();
 
@@ -859,8 +862,11 @@ async fn permissions_are_granted_in_the_tabs_own_browser_context() {
         "Target.getTargetInfo",
         json!({ "targetInfo": { "browserContextId": "CTX9" } }),
     );
-    let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
-    fingerprint.flags.grant_permissions = true;
+    let fingerprint = Fingerprint::randomized(OsType::Windows, 5)
+        .to_builder()
+        .grant_permissions(true)
+        .build()
+        .unwrap();
 
     page.apply_fingerprint(&fingerprint).await.unwrap();
 

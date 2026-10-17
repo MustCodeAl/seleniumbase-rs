@@ -1933,7 +1933,7 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
         )),
         (None, None) => None,
     };
-    let place_known = anchor.as_ref().map_or(true, |(place, _)| place.is_some());
+    let place_known = anchor.as_ref().is_none_or(|(place, _)| place.is_some());
     let need_place = |setting: &'static str| -> Result<(), FingerprintError> {
         match &anchor {
             Some((None, what)) if !place_known => Err(FingerprintError::Incoherent {

@@ -444,7 +444,10 @@ async fn a_fingerprint_can_be_overridden_and_a_bad_preset_is_rejected() {
     .unwrap();
     let built = built.as_json().unwrap();
     assert_eq!(built["user_agent"], "Test/1.0");
-    assert_eq!(built["screen_width"], 1280);
+    assert_eq!(built["screen"], json!({ "width": 1280, "height": 1080 }));
+    // The rest of the preset is kept, and the JSON names no setting twice.
+    assert_eq!(built["platform"], "Win32");
+    assert!(built.get("screen_width").is_none() && built.get("flags").is_none());
 
     let error = call(&host, "build_fingerprint", json!({ "preset": "beos" }))
         .await

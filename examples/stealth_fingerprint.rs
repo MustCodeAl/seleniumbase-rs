@@ -2,13 +2,17 @@
 //! consistent, and optionally launch a browser that presents one.
 //!
 //! A [`Fingerprint`] describes the browser a page should believe it is talking
-//! to: user agent, platform, screen, GPU, languages, time zone, and more. Part 1
-//! needs no browser:
+//! to: user agent, platform, screen, GPU, languages, time zone, and more. Every
+//! setting is one `Spoof`: leave the browser's own value (`Natural`), draw a
+//! coherent one (`Random`), use exactly this one (`Value`, which a plain value
+//! converts to) or turn the API off (`Off`, where that means something). How
+//! the claims are delivered is a `StealthPolicy`, not a setting. Part 1 needs no
+//! browser:
 //!
 //! * the ready-made personas (`windows_desktop`, `edge_desktop`,
 //!   `macos_desktop`, `linux_desktop`, `android_mobile`, `ios_mobile_safari`),
-//! * the builder, where giving a value turns its dimension on, with no flag to
-//!   flip (`with_flags` is the explicit way to turn one off),
+//! * the builder, where giving a value is all it takes and a built fingerprint
+//!   is never changed (`to_builder` starts the next one),
 //! * `validate`, which catches combinations that give a persona away (a Windows
 //!   user agent on a `MacIntel` platform, say),
 //! * `Fingerprint::randomized`, which makes the same persona for the same seed,
@@ -35,7 +39,9 @@
 mod local_site;
 
 use seleniumbase_rs::stealth::evasions::{bootstrap_script, launch_args};
-use seleniumbase_rs::{Dimension, Fingerprint, MaskingMode, OsType, Result, SeleniumBaseError};
+use seleniumbase_rs::{
+    CanvasNoise, Dimension, Fingerprint, OsType, Result, SeleniumBaseError, Spoof, StealthPolicy,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -62,35 +68,55 @@ async fn main() -> Result<()> {
         }
     }
 
-    // The value is the switch: a time zone, a locale and a position turn their
-    // own dimensions on, whatever preset the flags came from and in whatever
-    // order. `with_flags` has the last word when one must stay off.
+    // One call per intent. A time zone is given; the position is drawn in that
+    // time zone's city; WebRTC is turned off; the policy delivers the claims.
     let berlin = Fingerprint::builder()
         .timezone("Europe/Berlin")
-        .locale("de-DE")
-        .geolocation(52.52, 13.405)
-        .build();
-    let quiet = Fingerprint::builder()
-        .timezone("Europe/Berlin")
-        .with_flags(|flags| flags.timezone_masking = MaskingMode::Natural)
-        .build();
+        .screen(1920, 1080)
+        .geolocation(Spoof::Random)
+        .webrtc(Spoof::Off)
+        .policy(StealthPolicy::balanced())
+        .canvas_noise(CanvasNoise::Random)
+        .build()?;
+    let place = berlin.geolocation().value().expect("a drawn position");
     println!(
-        "berlin masks the time zone: {}, the language: {}, the position: {}; with the override, the time zone: {}",
+        "berlin: position {:.2}, {:.2}; masks the time zone: {}, the screen: {}; WebRTC off: {}",
+        place.latitude,
+        place.longitude,
         berlin.is_masked(Dimension::Timezone),
-        berlin.is_masked(Dimension::Localization),
-        berlin.is_masked(Dimension::Geolocation),
-        quiet.is_masked(Dimension::Timezone),
+        berlin.is_masked(Dimension::Screen),
+        berlin.webrtc().is_off(),
     );
-    if !berlin.is_masked(Dimension::Timezone) || quiet.is_masked(Dimension::Timezone) {
+    if !berlin.is_masked(Dimension::Timezone) || (place.latitude - 52.5).abs() > 0.5 {
         return Err(SeleniumBaseError::AssertionFailed(
-            "a value should turn its dimension on, and with_flags should turn it off".to_owned(),
+            "a drawn position should be in the city of the given time zone".to_owned(),
         ));
+    }
+
+    // A built fingerprint is not changed: take the builder back and build again.
+    let tokyo = berlin
+        .to_builder()
+        .timezone("Asia/Tokyo")
+        .geolocation((35.68, 139.65))
+        .build()?;
+    println!("tokyo: {:?}", tokyo.timezone().as_str());
+
+    // An `Off` where it means nothing is refused, and says which setting.
+    match Fingerprint::builder().timezone(Spoof::Off).build() {
+        Err(error) => println!("refused: {error}"),
+        Ok(_) => {
+            return Err(SeleniumBaseError::AssertionFailed(
+                "a time zone has no off state".to_owned(),
+            ))
+        }
     }
 
     // Mixing a Windows persona with a macOS platform is exactly what a
     // detector looks for.
-    let mut mismatched = Fingerprint::windows_desktop();
-    mismatched.platform = Some("MacIntel".to_owned());
+    let mismatched = Fingerprint::windows_desktop()
+        .to_builder()
+        .platform("MacIntel")
+        .build()?;
     let report = mismatched.validate();
     println!("mismatched persona: {:?}", report.errors);
     if report.is_coherent() {
@@ -108,7 +134,7 @@ async fn main() -> Result<()> {
     }
     println!(
         "seed 42 persona: {}",
-        first.user_agent.as_deref().unwrap_or("no user agent")
+        first.user_agent().as_str().unwrap_or("no user agent")
     );
 
     let persona = Fingerprint::windows_desktop();
@@ -144,13 +170,14 @@ async fn launch_with(persona: &Fingerprint) -> Result<()> {
         println!("platform: {platform}");
         println!("screen: {width}x{height}");
 
+        let screen = persona.screen().value().copied();
         ensure(
-            platform.as_str() == persona.platform.as_deref(),
+            platform.as_str() == persona.platform().as_str(),
             "navigator.platform matches the persona",
         )?;
         ensure(
-            width.as_u64() == persona.screen_width.map(u64::from)
-                && height.as_u64() == persona.screen_height.map(u64::from),
+            width.as_u64() == screen.map(|s| u64::from(s.width))
+                && height.as_u64() == screen.map(|s| u64::from(s.height)),
             "screen size matches the persona",
         )
     }
