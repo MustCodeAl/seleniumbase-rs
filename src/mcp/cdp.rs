@@ -1098,11 +1098,8 @@ async fn type_text(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let field = page.locator(selector).with_timeout(timeout);
 
     match mode {
-        "fill_input" => {
-            field.clear().await?;
-            field.type_text(text).await?;
-        }
-        "append" => field.type_text(text).await?,
+        "fill_input" => field.type_text(text).await?,
+        "append" => field.send_keys(text).await?,
         "fast_type" => {
             field.clear().await?;
             // Inserting text in one step cannot press Enter, so do that

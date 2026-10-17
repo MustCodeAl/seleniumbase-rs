@@ -199,13 +199,14 @@ impl CdpDriver {
         self.page()?.locator(selector).click().await
     }
 
-    /// Focuses the element, clears it, and inserts `text`.
+    /// Focuses the element, clears it, and types `text` one key at a time,
+    /// so the page sees key events.
     ///
     /// # Errors
     ///
     /// See [`click`](Self::click).
     pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.page()?.locator(selector).fill(text).await
+        self.page()?.locator(selector).type_text(text).await
     }
 
     /// Evaluates `expression` and returns its value, such as `2` for `1 + 1`.

@@ -40,6 +40,22 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed (breaking)
 
+- `sb_cdp::Locator::type_text` empties the field before it types, as Python's
+  `sb.cdp.type` does ("clears the text field first"); it used to type after
+  what the field held, which is Python's `send_keys` and the new
+  `Locator::send_keys`. This changes behaviour without changing the signature,
+  so a call that meant to append must be renamed. The MCP `type_text` tool keeps
+  its `fill_input` and `append` modes. `CdpDriver::type_text` now sends key
+  events too (it inserted the text in one step), like the other `type_text`
+  methods.
+
+  ```rust
+  // before: appended
+  page.locator("#note").type_text(" more").await?;
+  // after
+  page.locator("#note").send_keys(" more").await?;
+  ```
+
 - `behave::AsyncStepRegistry` is `Send + Sync`: a run can be handed to
   `tokio::spawn` and the registry shared in an `Arc`. Its handlers get the
   `BaseCase` as `SharedBaseCase` (`Arc<tokio::sync::Mutex<BaseCase>>`) instead

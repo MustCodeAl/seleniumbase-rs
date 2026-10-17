@@ -613,13 +613,30 @@ impl Locator {
 
     /// Types `text` into the field one key at a time, after what is there.
     ///
-    /// Call [`clear`](Self::clear) first to replace instead of append.
+    /// Python's `send_keys`. Use [`type_text`](Self::type_text) to replace
+    /// what the field holds instead.
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn send_keys(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
+        self.focus().await?;
+        self.page.keyboard().type_text(text).await
+    }
+
+    /// Empties the field, then types `text` into it one key at a time.
+    ///
+    /// Python's `type`, which "clears the text field first". Each character is
+    /// a key event the page can see, unlike [`fill`](Self::fill), which inserts
+    /// the text in one step. Use [`send_keys`](Self::send_keys) to type after
+    /// what the field holds instead.
     ///
     /// # Errors
     ///
     /// See [`click`](Self::click).
     pub async fn type_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
-        self.focus().await?;
+        // Clearing focuses the field.
+        self.clear().await?;
         self.page.keyboard().type_text(text).await
     }
 

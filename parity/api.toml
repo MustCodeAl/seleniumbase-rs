@@ -2637,8 +2637,8 @@ divergence = "Python lets markup in the message through; here it is shown as tex
 
 [cdp."press_keys"]
 status = "composed"
-rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key."
+rust = "Locator::send_keys"
+note = "`page.locator(selector).send_keys(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key."
 
 [cdp."print_to_pdf"]
 status = "composed"
@@ -2806,9 +2806,9 @@ rust = "Locator::select_option"
 note = "Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."send_keys"]
-status = "composed"
-rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
+status = "implemented"
+rust = "Locator::send_keys"
+note = "`page.locator(selector).send_keys(text)` types one key at a time after what the field holds; `type_text` clears first."
 
 [cdp."set_all_cookies"]
 status = "composed"
@@ -2900,9 +2900,9 @@ rust = "Window::set_bounds"
 note = "Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler."
 
 [cdp."type"]
-status = "composed"
+status = "implemented"
 rust = "Locator::type_text"
-note = "`page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it."
+note = "`page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends."
 
 [cdp."uncheck_if_checked"]
 status = "composed"

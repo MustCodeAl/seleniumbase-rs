@@ -228,6 +228,50 @@ async fn fill_clears_then_inserts_in_one_step_and_type_text_sends_a_key_per_char
     assert_eq!(downs, ["a", "b"]);
 }
 
+/// Whether the field was emptied before the first key went to it, and how
+/// many keys were typed.
+fn emptied_before_typing(mock: &MockCtrl) -> (bool, usize) {
+    let calls = mock.calls();
+    let emptied = calls.iter().position(|call| {
+        call.method == "Runtime.evaluate"
+            && call.params["expression"]
+                .as_str()
+                .is_some_and(|script| script.contains("setValue(el, '')"))
+    });
+    let first_key = calls
+        .iter()
+        .position(|call| call.method == "Input.dispatchKeyEvent");
+    let keys = calls
+        .iter()
+        .filter(|call| call.method == "Input.dispatchKeyEvent" && call.params["type"] == "keyDown")
+        .count();
+    (
+        matches!((emptied, first_key), (Some(empty), Some(key)) if empty < key),
+        keys,
+    )
+}
+
+#[tokio::test]
+async fn type_text_empties_the_field_first_like_pythons_type_and_send_keys_does_not() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 1, true);
+
+    page.locator("#name").type_text("ab").await.unwrap();
+    assert_eq!(emptied_before_typing(&mock), (true, 2));
+}
+
+#[tokio::test]
+async fn send_keys_types_after_what_the_field_holds() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 1, true);
+
+    page.locator("#name").send_keys("ab").await.unwrap();
+
+    let (emptied, keys) = emptied_before_typing(&mock);
+    assert!(!emptied, "send_keys must not clear the field");
+    assert_eq!(keys, 2);
+}
+
 #[tokio::test]
 async fn pressing_enter_produces_a_character_so_forms_submit() {
     let (page, mock) = quick_page().await;

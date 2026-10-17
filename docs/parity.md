@@ -21,7 +21,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 13 | 188 | 14 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 15 | 186 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
@@ -732,7 +732,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `open_new_tab` | composed | `Browser::new_page` | A method of the Browser, not of one page: `browser.new_page(..)`. |
 | `open_new_window` | composed | `Browser::new_window` | A method of the Browser, not of one page: `browser.new_window(..)`. |
 | `post_message` | implemented | `Page::post_message` | Messenger shows its message as HTML, so the text is escaped and appears as typed. It loads Messenger first when the page lacks it. Differs: Python lets markup in the message through; here it is shown as text. Duration, pause and style are fields of MessageOptions. |
-| `press_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
+| `press_keys` | composed | `Locator::send_keys` | `page.locator(selector).send_keys(text)` types the text one key at a time, after what the field holds, without Python's human-speed delays; `Locator::press(Key)` sends one named key. |
 | `print_to_pdf` | composed | `Page::pdf` | `page.pdf(..)` returns the PDF; write it with std::fs. |
 | `quit` | composed | `Browser::close` | `browser.close()` closes the whole browser. |
 | `refresh` | composed | `Page::reload` | A method of the Page that sb.cdp drives: `page.reload(..)`. |
@@ -766,7 +766,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `select_option_by_index` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_text` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `select_option_by_value` | composed | `Locator::select_option` | Call `page.locator(selector).select_option(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `send_keys` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `send_keys` | implemented | `Locator::send_keys` | `page.locator(selector).send_keys(text)` types one key at a time after what the field holds; `type_text` clears first. |
 | `set_all_cookies` | composed | `Cookies::set` | `page.cookies().set(..)`. |
 | `set_attributes` | composed | `Locator::set_attribute` | Call `page.locator(selector).set_attribute(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_download_path` | composed | `Browser::set_download_dir` | `browser.set_download_dir(dir)`. |
@@ -785,7 +785,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `switch_to_tab` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current tab to switch. |
 | `switch_to_window` | composed | `Browser::pages` | Pick a page from `browser.pages()`; Rust holds a Page per tab, so there is no current window to switch. |
 | `tile_windows` | composed | `Window::set_bounds` | Python tiles the browser windows with the CDP driver. Compute each tile's x, y, width and height and call set_bounds on each window; there is no one-call tiler. |
-| `type` | composed | `Locator::type_text` | `page.locator(selector).type_text(text)` types after what is there; call `clear()` first to replace it. |
+| `type` | implemented | `Locator::type_text` | `page.locator(selector).type_text(text)` clears the field, then types the text one key at a time, as Python's `type` does. `fill(text)` inserts it in one step; `send_keys(text)` appends. |
 | `uncheck_if_checked` | composed | `Locator::uncheck` | Call `page.locator(selector).uncheck(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `unselect_if_selected` | composed | `Locator::set_checked` | `page.locator(selector).set_checked(false)`. |
 | `wait_for_any_of_elements_present` | composed | `Page::wait_for_any` | `page.wait_for_any(..)` waits until one of several locators is ready and says which one (an index), not its selector. |
