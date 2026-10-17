@@ -956,11 +956,17 @@ impl Fingerprint {
             }
         }
 
-        // Timezone present but no geolocation (soft).
-        if f.timezone.is_value() && f.geolocation.is_natural() {
-            report
-                .warnings
-                .push("timezone set without geolocation; consider matching coordinates".to_owned());
+        // A time zone but no position, while the policy grants the geolocation
+        // permission: a page is then handed the real position next to a made-up
+        // time zone. Without the grant a request is only asked, as a real
+        // browser asks it, so there is nothing to warn about (the presets leave
+        // the position natural for that reason).
+        if f.timezone.is_value() && f.geolocation.is_natural() && f.policy.grant_permissions {
+            report.warnings.push(
+                "timezone set without geolocation while permissions are granted; \
+                 pages get the real position, consider matching coordinates"
+                    .to_owned(),
+            );
         }
 
         // Screen sanity.
@@ -1208,7 +1214,7 @@ impl Fingerprint {
                 .device_memory(8.0)
                 .locale("en-US")
                 .languages("en-US,en;q=0.9")
-                .place("America/New_York")
+                .timezone("America/New_York")
                 .webgl((
                     "Google Inc. (NVIDIA)",
                     "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
@@ -1237,7 +1243,7 @@ impl Fingerprint {
                 .device_memory(8.0)
                 .locale("en-US")
                 .languages("en-US,en;q=0.9")
-                .place("America/New_York")
+                .timezone("America/New_York")
                 .webgl((
                     "Google Inc. (NVIDIA)",
                     "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
@@ -1262,7 +1268,7 @@ impl Fingerprint {
                 .device_memory(8.0)
                 .locale("en-US")
                 .languages("en-US,en;q=0.9")
-                .place("America/Los_Angeles")
+                .timezone("America/Los_Angeles")
                 .webgl(webgl),
             OsType::Macos,
         ))
@@ -1284,7 +1290,7 @@ impl Fingerprint {
                 .device_memory(8.0)
                 .locale("en-US")
                 .languages("en-US,en;q=0.9")
-                .place("America/Chicago")
+                .timezone("America/Chicago")
                 .webgl(webgl),
             OsType::Linux,
         ))
@@ -1305,7 +1311,7 @@ impl Fingerprint {
                 .max_touch_points(5)
                 .locale("en-US")
                 .languages("en-US,en;q=0.9")
-                .place("America/New_York")
+                .timezone("America/New_York")
                 .webgl(("Qualcomm", "Adreno (TM) 740")),
             OsType::Android,
         ))
@@ -1315,7 +1321,9 @@ impl Fingerprint {
     ///
     /// Safari 26.0 on iOS 26, whose user agent names the frozen `iPhone OS 18_6`
     /// (WebKit bug 298717); see the Safari table in [`super::randomize`]. Safari
-    /// has no battery, network information or Web Bluetooth, so those are `Off`.
+    /// has no battery, network information, Web Bluetooth, Client Hints or
+    /// `navigator.deviceMemory`, so the first four are `Off` and the last is
+    /// left out.
     pub fn ios_mobile_safari() -> Self {
         Self::preset(Self::with_machine_extras(
             Self::builder()
@@ -1326,25 +1334,14 @@ impl Fingerprint {
                 .screen(390, 844)
                 .pixel_ratio(3.0)
                 .hardware_concurrency(4)
-                .device_memory(8.0)
                 .max_touch_points(5)
                 .locale("en-US")
                 .languages("en-US,en;q=0.9")
-                .place("America/New_York")
+                .timezone("America/New_York")
                 .webgl(("Apple Inc.", "Apple GPU"))
                 .vendor("Apple Computer, Inc.")
-                .client_hints(ClientHints {
-                    brands: vec![BrandVersion::new("Safari", "26")],
-                    full_version_list: vec![BrandVersion::new("Safari", "26.0")],
-                    platform: "iPhone".to_owned(),
-                    platform_version: "26.0".to_owned(),
-                    architecture: "arm".to_owned(),
-                    bitness: "64".to_owned(),
-                    model: "iPhone".to_owned(),
-                    ua_full_version: "26.0".to_owned(),
-                    mobile: true,
-                    ..ClientHints::default()
-                }),
+                // Safari has neither Client Hints nor `navigator.deviceMemory`.
+                .client_hints(Spoof::Off),
             OsType::Ios,
         ))
     }
@@ -1510,17 +1507,6 @@ impl FingerprintBuilder {
         demote(&mut f.bluetooth);
         demote(&mut f.client_hints);
         self
-    }
-
-    /// Sets the time zone and the position of its main city, so the two agree.
-    /// The presets use it.
-    fn place(self, timezone: &str) -> Self {
-        let city = randomize::locale_of_timezone(timezone);
-        let builder = self.timezone(timezone);
-        match city {
-            Some(city) => builder.geolocation(Geolocation::new(city.latitude, city.longitude)),
-            None => builder,
-        }
     }
 
     /// Sets the browser persona. When it is not set, [`build`](Self::build)
