@@ -402,6 +402,17 @@ page gets (puppeteer-extra and Zorilla are examples of the ecosystem). Design an
   `sb_cdp::Page`. Tested against the mock WebDriver and the mocked browser,
   and once each in Chrome 155 headless on macOS
   (`tests/webdriver_plugins_chrome.rs`, `tests/sb_cdp_page_inject_chrome.rs`).
+- **Done:** the built-in plugins by name (ADR 005, phase 1): one cargo feature
+  each, the `[plugins]` table and `SB_PLUGINS` (`docs/plugins/selecting.md`), and
+  on the command line `--plugin` and `--plugin-opt`, `sbrs plugin list|info`,
+  and `sbrs-mcp --plugin`, with the plugins compiled into the prebuilt `sbrs`
+  and `sbrs-mcp`. Tested as the real binaries against a fake WebDriver server
+  and a script that records its arguments, not against a real Chrome.
+  **Missing** there: `sbrs plugin add|remove|enable|disable|verify|sync|audit`,
+  `--no-plugins` and `--plugins-dir`, a `plugins` argument for the MCP
+  `start_browser` tool and `list_plugins`, the options a plugin accepts in
+  `sbrs plugin info` (the plugin API does not describe them), the plugins in the
+  Docker image, and a binary-size measurement of the default build with them.
 - **Missing:** a real-Chrome test of the pure CDP engine's hooks, extensions
   and preferences; Firefox and Safari runs of the WebDriver hooks; on Firefox
   and Safari, the page scripts after `refresh`, `go_back`, `go_forward` and
