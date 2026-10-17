@@ -2490,12 +2490,16 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::SaveCookies { file } => {
             let sb = BaseCase::new(config).await?;
-            sb.save_cookies(&file).await?;
+            sb.save_cookies_to_path(std::path::Path::new(&file)).await?;
             println!("Saved cookies to '{}'", file);
         }
         Commands::LoadCookies { file } => {
             let sb = BaseCase::new(config).await?;
-            sb.load_cookies(&file).await?;
+            sb.load_cookies_from_path(
+                std::path::Path::new(&file),
+                seleniumbase_rs::CookieExpiry::Saved,
+            )
+            .await?;
             println!("Loaded cookies from '{}'", file);
         }
         Commands::HighlightClick { css } => {

@@ -232,8 +232,11 @@ is called. Useful for soft assertions.
 
 | Method | Description |
 |--------|-------------|
-| `save_cookies(path)` | Saves cookies to JSON. |
-| `load_cookies(path)` | Loads cookies from JSON. |
+| `save_cookies(name)` | Saves the cookies, as JSON, to `saved_cookies/<name>.txt` in the working directory (the last path part of `name`, `.txt` added) and returns the path. |
+| `load_cookies(name)` | Adds the cookies in `saved_cookies/<name>.txt`; a cookie of another domain gets the page's and the expiry is dropped. `load_cookies_with(name, CookieExpiry)` says what to do with the expiry. |
+| `get_saved_cookies(name)` | Reads `saved_cookies/<name>.txt` without adding the cookies. |
+| `delete_saved_cookies(name)` | Deletes `saved_cookies/<name>.txt` (not the cookies of the browser). |
+| `save_cookies_to_path(path)` / `load_cookies_from_path(path, expiry)` | The same for a file at any path. |
 | `add_cookie(name, value)` | Adds a browser cookie. |
 | `get_cookie(name)` | Returns a cookie by name. |
 | `delete_all_cookies()` | Deletes all cookies. |

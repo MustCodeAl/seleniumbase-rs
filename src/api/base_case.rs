@@ -409,28 +409,125 @@ impl BaseCase {
         }
     }
 
-    /// Saves all current cookies to `file_path` as JSON.
-    pub async fn save_cookies(&self, file_path: &str) -> Result<(), SeleniumBaseError> {
-        let cookies = self.session.driver().get_all_cookies().await?;
-        let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {}", e))
-        })?;
-        std::fs::write(file_path, json).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to write cookies: {}", e))
-        })?;
-        Ok(())
+    /// Saves the page's cookies, as JSON, to `saved_cookies/<name>.txt` in the
+    /// working directory, and returns that path. Corresponds to Python's
+    /// `save_cookies(name)`: only the last part of `name` is used and `.txt`
+    /// is added when it is missing, so `"login"` and `"login.txt"` name the
+    /// same file and a name cannot leave the folder. Use
+    /// [`save_cookies_to_path`](Self::save_cookies_to_path) for a file
+    /// somewhere else.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` ends with a
+    /// separator or has no file name, and the browser's or the file system's
+    /// error otherwise.
+    pub async fn save_cookies(&self, name: &str) -> Result<PathBuf, SeleniumBaseError> {
+        let path = saved_cookies_path(&std::env::current_dir()?, name)?;
+        self.save_cookies_to_path(&path).await?;
+        Ok(path)
     }
 
-    /// Loads cookies from `file_path` (JSON) and adds them to the browser.
-    pub async fn load_cookies(&self, file_path: &str) -> Result<(), SeleniumBaseError> {
-        let content = std::fs::read_to_string(file_path).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to read cookies: {}", e))
+    /// Saves the page's cookies to `path` as JSON, creating the folder it is
+    /// in. The file is the one [`load_cookies_from_path`](Self::load_cookies_from_path)
+    /// reads, and the format Python's `save_cookies` writes.
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's error, or [`SeleniumBaseError::InvalidConfig`] if
+    /// the file cannot be written.
+    pub async fn save_cookies_to_path(&self, path: &Path) -> Result<(), SeleniumBaseError> {
+        let cookies = self.session.driver().get_all_cookies().await?;
+        let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {e}"))
         })?;
-        let cookies: Vec<thirtyfour::cookie::Cookie> =
-            serde_json::from_str(&content).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("Failed to deserialize cookies: {}", e))
-            })?;
-        for cookie in cookies {
+        let write = || -> std::io::Result<()> {
+            if let Some(folder) = path.parent() {
+                std::fs::create_dir_all(folder)?;
+            }
+            std::fs::write(path, json)
+        };
+        write().map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!(
+                "Failed to write cookies to {}: {e}",
+                path.display()
+            ))
+        })
+    }
+
+    /// Adds the cookies saved in `saved_cookies/<name>.txt` to the browser.
+    /// Corresponds to Python's `load_cookies(name)`: the cookies of another
+    /// domain are given the current page's, and their expiry is dropped, so
+    /// they last for the browser session (see
+    /// [`load_cookies_with`](Self::load_cookies_with) to change that). Open a
+    /// page of the right site first; the browser refuses a cookie of another
+    /// site.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is not a usable
+    /// file name or the file is missing or is not a list of cookies, and the
+    /// browser's error otherwise.
+    pub async fn load_cookies(&self, name: &str) -> Result<(), SeleniumBaseError> {
+        self.load_cookies_with(name, CookieExpiry::default()).await
+    }
+
+    /// [`load_cookies`](Self::load_cookies) with a say in what happens to the
+    /// expiry of the cookies, as Python's `expiry` argument.
+    ///
+    /// # Errors
+    ///
+    /// As for [`load_cookies`](Self::load_cookies).
+    pub async fn load_cookies_with(
+        &self,
+        name: &str,
+        expiry: CookieExpiry,
+    ) -> Result<(), SeleniumBaseError> {
+        let path = saved_cookies_path(&std::env::current_dir()?, name)?;
+        self.load_cookies_from_path(&path, expiry).await
+    }
+
+    /// Adds the cookies in the JSON file `path` (written by
+    /// [`save_cookies_to_path`](Self::save_cookies_to_path) or Python's
+    /// `save_cookies`) to the browser; see
+    /// [`load_cookies`](Self::load_cookies) for how.
+    ///
+    /// # Errors
+    ///
+    /// As for [`load_cookies`](Self::load_cookies).
+    pub async fn load_cookies_from_path(
+        &self,
+        path: &Path,
+        expiry: CookieExpiry,
+    ) -> Result<(), SeleniumBaseError> {
+        let Value::Array(cookies) = read_saved_cookies(path)? else {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "{} does not hold a list of cookies",
+                path.display()
+            )));
+        };
+        let url = self.session.driver().current_url().await?;
+        let origin = origin_of_url(url.as_str())?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |since| {
+                i64::try_from(since.as_secs()).unwrap_or(i64::MAX)
+            });
+        for mut cookie in cookies {
+            let Value::Object(fields) = &mut cookie else {
+                return Err(SeleniumBaseError::InvalidConfig(format!(
+                    "{} holds a cookie that is not an object",
+                    path.display()
+                )));
+            };
+            prepare_cookie(fields, &origin, expiry, now);
+            let cookie: thirtyfour::cookie::Cookie =
+                serde_json::from_value(cookie).map_err(|e| {
+                    SeleniumBaseError::InvalidConfig(format!(
+                        "{} holds a cookie that cannot be used: {e}",
+                        path.display()
+                    ))
+                })?;
             self.session.driver().add_cookie(cookie).await?;
         }
         Ok(())

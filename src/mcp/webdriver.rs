@@ -741,10 +741,7 @@ pub(super) async fn save_cookies(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
             .await
             .map_err(SeleniumBaseError::from)?;
     }
-    ctx.session()
-        .await?
-        .save_cookies(&path.to_string_lossy())
-        .await?;
+    ctx.session().await?.save_cookies_to_path(&path).await?;
     Ok(format!("Cookies saved to {name}").into())
 }
 
@@ -757,7 +754,7 @@ pub(super) async fn load_cookies(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
     }
     ctx.session()
         .await?
-        .load_cookies(&path.to_string_lossy())
+        .load_cookies_from_path(&path, crate::CookieExpiry::Saved)
         .await?;
     Ok(format!("Cookies loaded from {name}").into())
 }

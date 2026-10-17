@@ -525,7 +525,6 @@ rust = "BaseCase::delete_local_storage"
 [basecase."delete_saved_cookies"]
 status = "implemented"
 rust = "BaseCase::delete_saved_cookies"
-divergence = "Deletes the file from latest_logs/ and from the working directory, the two places save_saved_cookies and save_cookies write; Python's saved_cookies/ folder and .txt suffix are not used."
 
 [basecase."delete_session_storage"]
 status = "implemented"
@@ -1182,7 +1181,7 @@ rust = "BaseCase::js_update_text"
 [basecase."load_cookies"]
 status = "implemented"
 rust = "BaseCase::load_cookies"
-divergence = "Reads the JSON that save_cookies writes; Python reads a pickle."
+divergence = "The expiry argument is a CookieExpiry (load_cookies_with); load_cookies_from_path reads a file at any path, for the MCP server and the CLI."
 
 [basecase."load_html_file"]
 status = "implemented"
@@ -1402,7 +1401,7 @@ rust = "BaseCase::save_chart"
 [basecase."save_cookies"]
 status = "implemented"
 rust = "BaseCase::save_cookies"
-divergence = "Writes JSON to a path you give; Python writes a pickle under saved_cookies."
+divergence = "Returns the path it wrote; save_cookies_to_path writes to any path, for the MCP server and the CLI."
 
 [basecase."save_data_as"]
 status = "implemented"

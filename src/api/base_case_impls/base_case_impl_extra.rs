@@ -71,25 +71,6 @@ fn default_download_dir() -> PathBuf {
     dirs::download_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }
 
-/// Deletes the file called `filename` from each directory of `dirs` that has
-/// one, and returns how many files it removed.
-///
-/// # Errors
-///
-/// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` is not a bare
-/// file name, and the I/O error if a file exists but cannot be removed.
-fn remove_saved_files(dirs: &[PathBuf], filename: &str) -> Result<usize, SeleniumBaseError> {
-    let mut removed = 0;
-    for dir in dirs {
-        let path = crate::artifacts::confined_path(dir, filename)?;
-        if path.is_file() {
-            fs::remove_file(&path)?;
-            removed += 1;
-        }
-    }
-    Ok(removed)
-}
-
 /// Waits up to `timeout_secs` for the file at `path` to exist.
 ///
 /// # Errors
@@ -1070,6 +1051,10 @@ impl BaseCase {
     }
 
     /// Saves all current cookies to a JSON file in the logs directory.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use `save_cookies`, which writes `saved_cookies/<name>.txt` as Python does"
+    )]
     pub async fn save_saved_cookies(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
         let cookies = self.session.get_cookies().await?;
         let dir = ensure_latest_logs_dir()?;
@@ -1078,7 +1063,12 @@ impl BaseCase {
         Ok(path)
     }
 
-    /// Loads cookies from a JSON file and adds them to the browser.
+    /// Loads cookies from a JSON file and adds them to the browser. Only the
+    /// name and value of each cookie are restored.
+    #[deprecated(
+        since = "0.5.0",
+        note = "use `load_cookies`, which restores the whole cookie as Python does"
+    )]
     pub async fn load_saved_cookies(
         &mut self,
         filename: &str,
@@ -1095,22 +1085,6 @@ impl BaseCase {
                 self.session.add_cookie(name, value).await?;
             }
         }
-        Ok(())
-    }
-
-    /// Deletes the cookies file called `filename`, wherever this crate saved
-    /// it: in the logs directory, where
-    /// [`save_saved_cookies`](Self::save_saved_cookies) writes, and in the
-    /// working directory, where [`save_cookies`](Self::save_cookies) writes a
-    /// bare file name. It does not delete the cookies from the browser.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` has a
-    /// directory part.
-    pub async fn delete_saved_cookies(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let dirs = [ensure_latest_logs_dir()?, std::env::current_dir()?];
-        remove_saved_files(&dirs, filename)?;
         Ok(())
     }
 
@@ -1657,38 +1631,6 @@ mod tests_extra {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
-    }
-
-    #[test]
-    fn a_saved_file_is_removed_from_every_folder_that_has_it() {
-        let (logs, cwd, other) = (scratch_dir("logs"), scratch_dir("cwd"), scratch_dir("other"));
-        fs::write(logs.join("cookies.json"), "[]").unwrap();
-        fs::write(cwd.join("cookies.json"), "[]").unwrap();
-        fs::write(other.join("cookies.json"), "[]").unwrap();
-
-        let removed = remove_saved_files(&[logs.clone(), cwd.clone()], "cookies.json").unwrap();
-
-        assert_eq!(removed, 2);
-        assert!(!logs.join("cookies.json").exists());
-        assert!(!cwd.join("cookies.json").exists(), "the file save_cookies wrote is gone");
-        assert!(other.join("cookies.json").exists(), "a folder not listed is left alone");
-        // Nothing left to remove is not an error.
-        assert_eq!(remove_saved_files(&[logs, cwd], "cookies.json").unwrap(), 0);
-    }
-
-    #[test]
-    fn removing_a_saved_file_refuses_a_path_instead_of_a_name() {
-        let dir = scratch_dir("confined");
-        let victim = dir.join("victim.txt");
-        fs::write(&victim, "keep").unwrap();
-        for name in ["../victim.txt", "sub/victim.txt", "/etc/hosts", ""] {
-            let result = remove_saved_files(&[dir.join("inner")], name);
-            assert!(
-                matches!(result, Err(SeleniumBaseError::InvalidConfig(_))),
-                "{name:?}: {result:?}"
-            );
-        }
-        assert!(victim.exists());
     }
 
     #[tokio::test]

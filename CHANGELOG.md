@@ -145,6 +145,36 @@ that break a call are listed first, each with the way to migrate.
   sb.check_window("home", 3).await?;
   ```
 
+- **The cookie helpers take a name and use `saved_cookies/`, as Python's do.**
+  `save_cookies(path)` and `load_cookies(path)` took any file path, so a call
+  written like Python's (`save_cookies("login")`) wrote a file called `login`
+  in the working directory. They now take a name: the file is
+  `saved_cookies/<name>.txt` in the working directory (only the last part of
+  the name is used, `.txt` is added, a name ending with `/` is refused), still
+  JSON. `save_cookies` returns the path it wrote. `get_saved_cookies(name)` is a
+  method (it was an associated function that took a path), and
+  `delete_saved_cookies(name)` deletes that file (it looked in `latest_logs` and
+  the working directory). `load_cookies` now does what Python's does: a cookie
+  of another domain gets the page's, and the expiry is dropped, so the cookies
+  last for the browser session; `load_cookies_with(name, CookieExpiry)` keeps
+  the saved expiry or sets a new one.
+
+  For a file at a path of your own there are `save_cookies_to_path(&Path)` and
+  `load_cookies_from_path(&Path, CookieExpiry)`; the MCP server and
+  `sbrs save-cookies` / `load-cookies` use them. The Rust-only
+  `save_saved_cookies` and `load_saved_cookies` are deprecated.
+
+  ```rust
+  // before
+  sb.save_cookies("cookies.json").await?;           // any path
+  sb.load_cookies("cookies.json").await?;
+  // after
+  sb.save_cookies("login").await?;                  // saved_cookies/login.txt
+  sb.load_cookies("login").await?;
+  sb.save_cookies_to_path(Path::new("cookies.json")).await?;      // any path
+  sb.load_cookies_from_path(Path::new("cookies.json"), CookieExpiry::Saved).await?;
+  ```
+
 ### Changed
 
 - **`check_window` baselines can be told apart by test.** The baseline folder
