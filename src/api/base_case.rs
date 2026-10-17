@@ -24,7 +24,7 @@ use crate::browser::playwright::PlaywrightSession;
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
-use crate::utils::selectors::Selector;
+use crate::utils::selectors::{css_to_xpath, Selector};
 use serde_json::Value;
 use std::collections::HashMap;
 use thirtyfour::common::keys::Key;
