@@ -12,6 +12,7 @@ pluggable evasion system.
 
 This page explains how to use built-in fingerprint presets, build custom
 profiles, choose masking modes, and apply native-level spoofing through CDP.
+
 <Note>
 
 It covers what a page can read inside the browser. The TLS and HTTP/2 side, and

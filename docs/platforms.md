@@ -126,6 +126,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   `--no-sandbox` weakens Chrome's isolation, so use it only in a container you control.
 
   </Warning>
+
 - **No display.** Run headless (`SB_HEADLESS=true`, which `sbrs open` and the other
   browser commands read, or `--headless` before the subcommand). To
   see a window on a server, or to run the few tests that need a headed Chrome (the

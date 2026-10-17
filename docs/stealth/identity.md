@@ -72,26 +72,44 @@ let again = identity_file::load("identity.json").await?;
 
 Things to know:
 
-- **A clearance belongs to the address that earned it.** A clearance cookie is
-  bound to the exit address, so an identity is used again only through the same
-  egress. `check_egress` returns `IdentityError::EgressMismatch` for any other.
-  `check_emulation` refuses an identity made for another Chrome major than the
-  measured one.
-- **It never holds a proxy.** A proxy can carry a password, so
-  `StealthIdentity::new` clears it, serialization leaves it out, and `verify`
-  refuses an identity that has one. `Debug` prints the cookie count and the
-  egress key only. A clearance records the cookie's name, never its value.
-- **The identity file is private.** It holds cookies, which are credentials. It
-  is written atomically (a synced temporary file renamed over the target) with
-  mode `0600` on Unix, and an older file with wider permissions is replaced. It
-  is read only if group and others have no access (`IdentityFileError::Permissions`
-  names the fix: `chmod 600`, or delete it). The file is not corrected for you,
-  because wider permissions mean the cookies may already have been read. The
-  schema is read first, so a file from another version is reported as that
-  (`IdentityError::Schema`); a parse error says where it failed (line and
-  column) and in which way, never the value it met, which may be a cookie. The
-  file is limited to 16 MiB. One process writes a file at a time; there is no
-  lock between processes. On systems other than Unix there is no mode to check.
+<AccordionGroup>
+
+<Accordion title="A clearance belongs to the address that earned it">
+
+A clearance cookie is
+bound to the exit address, so an identity is used again only through the same
+egress. `check_egress` returns `IdentityError::EgressMismatch` for any other.
+`check_emulation` refuses an identity made for another Chrome major than the
+measured one.
+
+</Accordion>
+
+<Accordion title="It never holds a proxy">
+
+A proxy can carry a password, so
+`StealthIdentity::new` clears it, serialization leaves it out, and `verify`
+refuses an identity that has one. `Debug` prints the cookie count and the
+egress key only. A clearance records the cookie's name, never its value.
+
+</Accordion>
+
+<Accordion title="The identity file is private">
+
+It holds cookies, which are credentials. It
+is written atomically (a synced temporary file renamed over the target) with
+mode `0600` on Unix, and an older file with wider permissions is replaced. It
+is read only if group and others have no access (`IdentityFileError::Permissions`
+names the fix: `chmod 600`, or delete it). The file is not corrected for you,
+because wider permissions mean the cookies may already have been read. The
+schema is read first, so a file from another version is reported as that
+(`IdentityError::Schema`); a parse error says where it failed (line and
+column) and in which way, never the value it met, which may be a cookie. The
+file is limited to 16 MiB. One process writes a file at a time; there is no
+lock between processes. On systems other than Unix there is no mode to check.
+
+</Accordion>
+
+</AccordionGroup>
 
 `SessionPolicy` (`scrape::passport::policy`) decides when a session should move
 between plain HTTP and the browser, as a pure function of the mode, the identity,
@@ -152,7 +170,11 @@ the streak of challenges the site has shown, whether another egress exists, and
 | Script or interactive challenge, HTTP mode | `Escalate` to the browser when it can; otherwise retry, rotate, or give up |
 | Script or interactive challenge, browser mode | `Solve`; a streak of 2 rotates the egress (when another exists) and a streak of 3 rotates the profile |
 
+<Warning>
+
 A solve is the browser waiting for the vendor's clearance cookie, after clicking
 a widget if there is one (`Page::solve_captcha`). It is an attempt, not a
 guarantee: sites change their pages, and no solver here promises to pass any
 service.
+
+</Warning>

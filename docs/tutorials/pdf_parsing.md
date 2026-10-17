@@ -29,8 +29,12 @@ let options = PdfOptions::default();
 sb.print_to_pdf("page.pdf", &options).await?;
 ```
 
+<Info>
+
 `PdfOptions` lets you control page size, margins, header/footer, landscape mode,
 and other print parameters.
+
+</Info>
 
 ## Extract text from a PDF
 

@@ -145,35 +145,20 @@ async fn login_with_multiple_users() -> Result<()> {
 A typical project layout looks like this:
 
 <Tree>
-
 <Tree.Folder name="my_project" defaultOpen>
-
 <Tree.File name="Cargo.toml" />
-
 <Tree.File name="sbase_config.toml" />
-
 <Tree.Folder name="src">
-
 <Tree.File name="main.rs" />
-
 </Tree.Folder>
-
 <Tree.Folder name="tests" defaultOpen>
-
 <Tree.Folder name="helpers">
-
 <Tree.File name="mod.rs" />
-
 </Tree.Folder>
-
 <Tree.File name="login.rs" />
-
 <Tree.File name="checkout.rs" />
-
 </Tree.Folder>
-
 </Tree.Folder>
-
 </Tree>
 
 Integration tests in `tests/` are compiled as separate binaries, which gives

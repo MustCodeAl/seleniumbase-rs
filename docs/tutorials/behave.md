@@ -131,6 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `I type "<text>" into "<selector>"`. Register your own with `register` and
 `register_regex`, for example the `I see "..."` step above. A handler receives
 the shared `Rc<RefCell<BaseCase>>`, the step text, and the regex captures.
+
 <Warning>
 
 `BaseCase::without_session` builds a `BaseCase` with no browser, for tests that
