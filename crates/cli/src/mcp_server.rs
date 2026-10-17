@@ -23,7 +23,13 @@ use seleniumbase_rs::mcp::{self, Profile};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig};
 
 #[derive(Debug, Parser)]
-#[command(version, about = "SeleniumBaseRust MCP server (stdio)")]
+// The name stays the library's, as `--version` printed it before the command line had
+// a package of its own.
+#[command(
+    name = "seleniumbase-rs",
+    version,
+    about = "SeleniumBaseRust MCP server (stdio)"
+)]
 struct Cli {
     /// Which toolset to serve: cdp, driver or sb.
     #[arg(long, default_value = "sb")]
