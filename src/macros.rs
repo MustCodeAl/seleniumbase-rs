@@ -72,7 +72,8 @@ macro_rules! sb_test {
             let result: Result<(), $crate::SeleniumBaseError> = async { $body }.await;
             let cleanup = $sb.quit().await;
             // A failing quit must not hide the error of the test itself.
-            $crate::api::runner::combine_outcomes(result, cleanup).expect("test failed");
+            // A test that called `skip_test` passes, as with `run_browser_test`.
+            $crate::api::runner::finish_test(result, cleanup);
         }
     };
 }
