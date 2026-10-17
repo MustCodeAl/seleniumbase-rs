@@ -5379,6 +5379,7 @@ dependencies = [
  "clap_complete_fig",
  "clap_usage",
  "dirs",
+ "regex",
  "reqwest 0.13.5",
  "seleniumbase-rs",
  "serde_json",

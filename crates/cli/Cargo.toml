@@ -75,6 +75,8 @@ tokio-console = ["seleniumbase-rs/tokio-console"]
 [dev-dependencies]
 # Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
 clap_usage = "5"
+# The `report` module's test (feature `turso`) matches a timestamp.
+regex = "1.13"
 # `cli_scaffold` parses what `sbrs mkfile` and `sbrs mkdir` write.
 syn = { version = "3", features = ["full", "visit"] }
 # Lists processes for the tests' leftover-process checks on every system (Windows
