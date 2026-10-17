@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use base64::Engine;
 
 use crate::stealth::fingerprint::{
-    BrandVersion, Dimension, Fingerprint, OsType, PopupMode, QuicMode, WebRtcPolicy,
+    BrandVersion, Dimension, Fingerprint, OsType, QuicMode, WebRtcPolicy,
 };
 use crate::stealth::providers::{default_registry, session_registry, EvasionContext};
 use crate::stealth::randomize::{chromium_hints, edge_hints, PRESET_CHROMIUM_MAJOR};
@@ -186,48 +186,43 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     }
     args.push("--disable-dev-shm-usage".to_owned());
 
-    if fp.is_masked(Dimension::Navigator) {
-        if let Some(ua) = fp.user_agent.as_deref() {
-            args.push(format!("--user-agent={ua}"));
-        }
+    if let Some(ua) = fp.user_agent().value() {
+        args.push(format!("--user-agent={ua}"));
     }
 
-    if fp.is_masked(Dimension::Localization) {
-        if let Some(locale) = fp.locale.as_deref() {
-            args.push(format!("--lang={locale}"));
-        }
+    if let Some(locale) = fp.locale().value() {
+        args.push(format!("--lang={locale}"));
     }
 
-    if fp.is_masked(Dimension::Screen) {
-        if let (Some(w), Some(h)) = (fp.screen_width, fp.screen_height) {
-            args.push(format!("--window-size={w},{h}"));
-        }
+    if let Some(size) = fp.screen().value() {
+        args.push(format!("--window-size={},{}", size.width, size.height));
     }
 
-    // The policy flag is only passed when WebRTC is masked, which a policy
-    // or an address makes it: a fingerprint without either leaves it alone.
+    // The policy flag is only passed when WebRTC is masked, which a policy,
+    // an address or turning WebRTC off makes it: a fingerprint without any of
+    // them leaves it alone.
     if fp.is_masked(Dimension::WebRtc) {
-        let policy = fp.webrtc_policy.unwrap_or_default();
+        let policy = fp.policy().webrtc_policy.unwrap_or_default();
         args.push(format!(
             "--force-webrtc-ip-handling-policy={}",
             webrtc_policy_value(policy)
         ));
     }
 
-    if fp.is_masked(Dimension::Proxy) {
-        if let Some(proxy) = fp.proxy.as_ref() {
-            args.push(format!("--proxy-server={}", proxy.to_url()));
-        }
+    if let Some(proxy) = fp.proxy().value() {
+        args.push(format!("--proxy-server={}", proxy.to_url()));
     }
 
-    match fp.flags.quic_mode {
+    match fp.policy().quic {
         QuicMode::Disabled | QuicMode::ForceHttp2 => args.push("--disable-quic".to_owned()),
         QuicMode::Enabled => args.push("--enable-quic".to_owned()),
         QuicMode::Natural | QuicMode::Auto => {}
     }
 
     args.extend(switches_to_args(
-        fp.cmd_params.iter().map(|(f, v)| (f.as_str(), v.as_str())),
+        fp.cmd_params()
+            .iter()
+            .map(|(f, v)| (f.as_str(), v.as_str())),
     ));
 
     args
@@ -282,43 +277,36 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
 fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     let mut map = HashMap::new();
 
-    if let (Some(lat), Some(lon), true) = (
-        fp.latitude,
-        fp.longitude,
-        fp.is_masked(Dimension::Geolocation),
-    ) {
+    if let Some(place) = fp.geolocation().value() {
         map.insert(
             "Emulation.setGeolocationOverride".to_owned(),
             serde_json::json!({
-                "latitude": lat,
-                "longitude": lon,
-                "accuracy": fp.accuracy.unwrap_or(100.0),
-                "altitude": fp.altitude.unwrap_or(0.0),
+                "latitude": place.latitude,
+                "longitude": place.longitude,
+                "accuracy": place.accuracy.unwrap_or(100.0),
+                "altitude": place.altitude.unwrap_or(0.0),
             }),
         );
     }
 
-    if let (Some(w), Some(h), true) = (
-        fp.screen_width,
-        fp.screen_height,
-        fp.is_masked(Dimension::Screen),
-    ) {
+    if let Some(size) = fp.screen().value() {
         map.insert(
             "Emulation.setDeviceMetricsOverride".to_owned(),
             serde_json::json!({
-                "width": w,
-                "height": h,
-                "deviceScaleFactor": fp.pixel_ratio.unwrap_or(1.0),
-                "mobile": fp.os_type.is_mobile(),
+                "width": size.width,
+                "height": size.height,
+                "deviceScaleFactor": fp.pixel_ratio().value().copied().unwrap_or(1.0),
+                "mobile": fp.os_type().is_mobile(),
             }),
         );
     }
 
-    if let (Some(ua), true) = (fp.user_agent.as_deref(), fp.is_masked(Dimension::Navigator)) {
+    if let Some(ua) = fp.user_agent().value() {
         let platform = fp
-            .platform
-            .clone()
-            .unwrap_or_else(|| fp.os_type.platform().to_owned());
+            .platform()
+            .value()
+            .cloned()
+            .unwrap_or_else(|| fp.os_type().platform().to_owned());
         let mut ua_override = serde_json::json!({
             "userAgent": ua,
             "platform": platform,
@@ -335,14 +323,14 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         map.insert("Network.setUserAgentOverride".to_owned(), ua_override);
     }
 
-    if let (Some(locale), true) = (fp.locale.as_deref(), fp.is_masked(Dimension::Localization)) {
+    if let Some(locale) = fp.locale().value() {
         map.insert(
             "Emulation.setLocaleOverride".to_owned(),
             serde_json::json!({ "locale": locale }),
         );
     }
 
-    if let (Some(tz), true) = (fp.timezone.as_deref(), fp.is_masked(Dimension::Timezone)) {
+    if let Some(tz) = fp.timezone().value() {
         map.insert(
             "Emulation.setTimezoneOverride".to_owned(),
             serde_json::json!({ "timezoneId": tz }),
@@ -353,14 +341,10 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     // ask for it; with the popup allowed nobody is there to press "Allow", so
     // the permission is granted up front.
     let mut permissions: Vec<&str> = Vec::new();
-    if fp.latitude.is_some()
-        && fp.longitude.is_some()
-        && fp.is_masked(Dimension::Geolocation)
-        && fp.geolocation_popup() == PopupMode::Allow
-    {
+    if fp.geolocation().is_value() {
         permissions.push("geolocation");
     }
-    if fp.flags.grant_permissions {
+    if fp.policy().grant_permissions {
         permissions.extend([
             "notifications",
             "midi",
@@ -394,7 +378,7 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
-    if fp.flags.disable_csp {
+    if fp.policy().disable_csp {
         map.insert(
             "Page.setBypassCSP".to_owned(),
             serde_json::json!({ "enabled": true }),
@@ -408,7 +392,7 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
-    if let (Some(proxy), true) = (fp.proxy.as_ref(), fp.is_masked(Dimension::Proxy)) {
+    if let Some(proxy) = fp.proxy().value() {
         if proxy.username.is_some() && proxy.password.is_some() {
             let creds = format!(
                 "{}:{}",
@@ -429,19 +413,12 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
 /// The `Accept-Language` header the user agent override carries.
 ///
 /// The header belongs to the localization, not to the user agent: it is sent
-/// only when that dimension is on, with the value the fingerprint has (a
-/// generic one only when the dimension fills defaults).
+/// only when the fingerprint gives an `Accept-Language` or a locale.
 fn accept_language_of(fp: &Fingerprint) -> Option<String> {
-    if !fp.is_masked(Dimension::Localization) {
-        return None;
-    }
-    fp.accept_languages
-        .clone()
-        .or_else(|| fp.locale.clone())
-        .or_else(|| {
-            fp.fills_defaults(Dimension::Localization)
-                .then(|| "en-US,en;q=0.9".to_owned())
-        })
+    fp.accept_languages()
+        .value()
+        .or_else(|| fp.locale().value())
+        .cloned()
 }
 
 /// The loopback names a blocked port is refused on.
@@ -449,13 +426,11 @@ const LOOPBACK_HOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
 
 /// `Network.setBlockedURLs` patterns that refuse the fingerprint's blocked
 /// ports on every loopback name, so a page cannot probe local services (or the
-/// browser's own debugging port) through them. Empty when no port is set or
-/// the ports mode is `Natural` or `Off`.
+/// browser's own debugging port) through them. Empty when the policy blocks
+/// no port.
 fn blocked_port_patterns(fp: &Fingerprint) -> Vec<String> {
-    if !fp.is_masked(Dimension::Ports) {
-        return Vec::new();
-    }
-    fp.ports
+    fp.policy()
+        .blocked_ports
         .iter()
         .flat_map(|port| {
             LOOPBACK_HOSTS
@@ -469,7 +444,11 @@ fn blocked_port_patterns(fp: &Fingerprint) -> Vec<String> {
 /// the fingerprint. This populates Client Hints at the browser level so page
 /// scripts see consistent brands/platform/architecture without a JS patch.
 fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::Value> {
-    if let Some(ch) = fp.client_hints.as_ref() {
+    // Client Hints turned off have no metadata to send; the browser's own stay.
+    if fp.client_hints().is_off() {
+        return None;
+    }
+    if let Some(ch) = fp.client_hints().value() {
         let mut metadata = serde_json::json!({
             "brands": brand_list(&ch.brands),
             "fullVersion": ch.ua_full_version,
@@ -491,14 +470,14 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
     // `platform` is what `navigator.userAgentData.platform` and
     // `Sec-CH-UA-Platform` report, which is not `navigator.platform`: Chrome
     // on Windows says `Windows` there, never `Win32`.
-    let platform = client_hints_platform(fp.os_type);
+    let platform = client_hints_platform(fp.os_type());
     // The platform versions in the format Chrome reports them, as in the tables
     // `Fingerprint::randomized` draws from (`stealth::randomize`): `10.0.0`,
     // the value Microsoft documents for Windows 10 2004 to 22H2; macOS 27.0.1
     // as Chrome 155 reported it on a Mac; Android 14 as `14.0.0`; and iOS 26.0,
     // the release of the Safari 26.0 preset.
-    let (arch, platform_version, model, wow64) = match fp.os_type {
-        OsType::Windows => ("x86", "10.0.0", "", fp.platform.as_deref() == Some("Win64")),
+    let (arch, platform_version, model, wow64) = match fp.os_type() {
+        OsType::Windows => ("x86", "10.0.0", "", fp.platform().as_str() == Some("Win64")),
         OsType::Macos => ("arm", "27.0.1", "", false),
         OsType::Linux => ("x86", "", "", false),
         OsType::Android => ("arm", "14.0.0", "Pixel 7", true),
@@ -507,7 +486,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
     let (brands, full_version_list, full_version) = if ua.contains("Chrome") {
         // The brand list, decoy brand and full version Chrome `major` sends.
         let major = fp
-            .core_version
+            .core_version()
             .or_else(|| version_after(ua, "Chrome/").and_then(|v| major_of(&v)))
             .unwrap_or(PRESET_CHROMIUM_MAJOR);
         // Edge words its brand list as Chromium does and names itself, and its
@@ -545,7 +524,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
         "platformVersion": platform_version,
         "architecture": arch,
         "model": model,
-        "mobile": fp.os_type.is_mobile(),
+        "mobile": fp.os_type().is_mobile(),
         "wow64": wow64,
     }))
 }
@@ -589,7 +568,23 @@ fn major_of(version: &str) -> Option<u32> {
 #[allow(deprecated)]
 mod tests {
     use super::*;
-    use crate::stealth::fingerprint::{Fingerprint, NoiseMode, PopupMode};
+    use crate::stealth::fingerprint::{Fingerprint, FingerprintBuilder, Spoof};
+
+    fn built(builder: FingerprintBuilder) -> Fingerprint {
+        builder.build().expect("the builder builds")
+    }
+
+    /// `fp` with these changes.
+    fn changed(
+        fp: &Fingerprint,
+        change: impl FnOnce(FingerprintBuilder) -> FingerprintBuilder,
+    ) -> Fingerprint {
+        built(change(fp.to_builder()))
+    }
+
+    fn user_agent_of(fp: &Fingerprint) -> String {
+        fp.user_agent().as_str().expect("a user agent").to_owned()
+    }
 
     #[test]
     fn bootstrap_includes_webdriver_evasion() {
@@ -636,10 +631,11 @@ mod tests {
 
     #[test]
     fn cdp_overrides_contain_screen_and_geo() {
-        let fp = Fingerprint::builder()
-            .screen(1920, 1080)
-            .geolocation(40.0, -74.0)
-            .build();
+        let fp = built(
+            Fingerprint::builder()
+                .screen(1920, 1080)
+                .geolocation((40.0, -74.0)),
+        );
         let map = cdp_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
@@ -673,9 +669,7 @@ mod tests {
 
     #[test]
     fn blocked_ports_are_refused_on_every_loopback_name() {
-        let fp = Fingerprint::builder()
-            .blocked_ports(vec![9222, 8080])
-            .build();
+        let fp = built(Fingerprint::builder().blocked_ports(vec![9222, 8080]));
         let urls = blocked_urls(&fp).expect("a block list");
         for host in ["localhost", "127.0.0.1", "[::1]"] {
             for port in [9222, 8080] {
@@ -688,8 +682,11 @@ mod tests {
 
     #[test]
     fn blocked_ports_and_trackers_share_one_command() {
-        let mut fp = Fingerprint::builder().blocked_ports(vec![9222]).build();
-        fp.flags.block_trackers = true;
+        let fp = built(
+            Fingerprint::builder()
+                .blocked_ports(vec![9222])
+                .block_trackers(true),
+        );
         let urls = blocked_urls(&fp).expect("a block list");
         assert!(
             urls.contains(&"*://localhost:9222/*".to_owned()),
@@ -699,47 +696,41 @@ mod tests {
     }
 
     #[test]
-    fn a_natural_ports_mode_blocks_nothing() {
-        let mut fp = Fingerprint::builder().blocked_ports(vec![9222]).build();
-        for mode in [NoiseMode::Natural, NoiseMode::Off] {
-            fp.flags.ports_masking = mode;
-            assert_eq!(blocked_urls(&fp), None, "{mode:?}");
-        }
+    fn no_blocked_ports_block_nothing() {
+        let fp = built(Fingerprint::builder().blocked_ports(vec![9222]));
+        let cleared = changed(&fp, |b| b.blocked_ports(Vec::new()));
+        assert_eq!(blocked_urls(&cleared), None);
         assert_eq!(blocked_urls(&Fingerprint::default()), None);
     }
 
     #[test]
-    fn an_allowed_geolocation_popup_grants_the_geolocation_permission() {
+    fn a_position_grants_the_geolocation_permission() {
         // Without the grant, the position the override sets is never delivered:
         // the page waits on a permission prompt nobody can answer.
-        let mut fp = Fingerprint::builder().geolocation(40.0, -74.0).build();
-        fp.flags.geolocation_popup = PopupMode::Allow;
+        let fp = built(Fingerprint::builder().geolocation((40.0, -74.0)));
         assert_eq!(granted(&fp), Some(vec!["geolocation".to_owned()]));
 
-        // The other permissions are still the flag's.
-        fp.flags.grant_permissions = true;
+        // The other permissions are still the policy's.
+        let fp = changed(&fp, |b| b.grant_permissions(true));
         let names = granted(&fp).expect("a grant");
         assert!(names.contains(&"geolocation".to_owned()), "{names:?}");
         assert!(names.contains(&"notifications".to_owned()), "{names:?}");
     }
 
     #[test]
-    fn a_geolocation_popup_that_is_not_allowed_grants_nothing() {
-        let mut fp = Fingerprint::builder().geolocation(40.0, -74.0).build();
-        for popup in [PopupMode::Prompt, PopupMode::Block] {
-            fp.flags.geolocation_popup = popup;
-            assert_eq!(granted(&fp), None, "{popup:?}");
+    fn a_geolocation_that_is_not_a_position_grants_nothing() {
+        // Denied, or left to the browser's own prompt: nothing to deliver.
+        for state in [Spoof::Off, Spoof::Natural] {
+            let fp = built(Fingerprint::builder().geolocation(state));
+            assert_eq!(granted(&fp), None);
         }
-        // Allow without coordinates has nothing to deliver.
-        let mut fp = Fingerprint::default();
-        fp.flags.geolocation_popup = PopupMode::Allow;
-        assert_eq!(granted(&fp), None);
     }
 
     #[test]
     fn granted_permissions_use_names_the_protocol_knows() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.flags.grant_permissions = true;
+        let fp = changed(&Fingerprint::windows_desktop(), |b| {
+            b.grant_permissions(true)
+        });
 
         let map = cdp_overrides(&fp);
 
@@ -762,8 +753,7 @@ mod tests {
 
     #[test]
     fn native_spoofing_emits_cdp_user_agent_locale() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.flags.native_spoofing = true;
+        let fp = changed(&Fingerprint::windows_desktop(), |b| b.native_spoofing(true));
         let map = cdp_overrides(&fp);
         let ua = map
             .get("Network.setUserAgentOverride")
@@ -777,8 +767,7 @@ mod tests {
 
     #[test]
     fn native_spoofing_skips_js_overrides_for_cdp_dimensions() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.flags.native_spoofing = true;
+        let fp = changed(&Fingerprint::windows_desktop(), |b| b.native_spoofing(true));
         let script = bootstrap_script(&fp);
         // CDP handles userAgent, platform, screen size, timezone, locale, geo.
         assert!(!script.contains("navigator.userAgent"));
@@ -791,8 +780,9 @@ mod tests {
 
     #[test]
     fn ios_mobile_safari_emits_cdp_mobile_overrides() {
-        let mut fp = Fingerprint::ios_mobile_safari();
-        fp.flags.native_spoofing = true;
+        let fp = changed(&Fingerprint::ios_mobile_safari(), |b| {
+            b.native_spoofing(true)
+        });
         let map = cdp_overrides(&fp);
 
         let metrics = map
@@ -828,8 +818,7 @@ mod tests {
 
     #[test]
     fn android_mobile_emits_cdp_mobile_overrides() {
-        let mut fp = Fingerprint::android_mobile();
-        fp.flags.native_spoofing = true;
+        let fp = changed(&Fingerprint::android_mobile(), |b| b.native_spoofing(true));
         let map = cdp_overrides(&fp);
 
         let metrics = map
@@ -869,8 +858,7 @@ mod tests {
 
     #[test]
     fn windows_desktop_native_spoofing_emits_full_cdp_stack() {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.flags.native_spoofing = true;
+        let fp = changed(&Fingerprint::windows_desktop(), |b| b.native_spoofing(true));
         let map = cdp_overrides(&fp);
 
         let metrics = map
@@ -901,9 +889,12 @@ mod tests {
 
     /// The `userAgentMetadata` a fingerprint without Client Hints gets.
     fn fallback_metadata(fp: &Fingerprint) -> serde_json::Value {
-        assert!(fp.client_hints.is_none(), "the fallback is for no hints");
-        let ua = fp.user_agent.as_deref().expect("a user agent");
-        build_user_agent_metadata(fp, ua).expect("metadata")
+        assert!(
+            fp.client_hints().is_natural(),
+            "the fallback is for no hints"
+        );
+        let ua = user_agent_of(fp);
+        build_user_agent_metadata(fp, &ua).expect("metadata")
     }
 
     fn brands_of(list: &serde_json::Value) -> Vec<(String, String)> {
@@ -949,12 +940,12 @@ mod tests {
     fn the_fallback_decoy_brand_follows_the_major_instead_of_being_fixed() {
         // Chrome 155 sends `Not(A:Brand` (measured); another major sends
         // another decoy, so a fixed one gives every other major away.
-        let mut fp = Fingerprint::windows_desktop();
-        fp.user_agent = Some(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
-                .to_owned(),
-        );
+        let fp = changed(&Fingerprint::windows_desktop(), |b| {
+            b.user_agent(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+            )
+        });
         let measured = brands_of(&fallback_metadata(&fp)["brands"]);
         assert_eq!(
             measured,
@@ -964,7 +955,7 @@ mod tests {
                 ("Not(A:Brand".to_owned(), "24".to_owned()),
             ]
         );
-        fp.core_version = Some(156);
+        let fp = changed(&fp, |b| b.core_version(156));
         let newer = brands_of(&fallback_metadata(&fp)["brands"]);
         assert_eq!(newer, pairs(&chromium_hints(156).brands));
         assert!(newer.iter().all(|(brand, _)| brand != "Not(A:Brand"));
@@ -973,8 +964,9 @@ mod tests {
 
     #[test]
     fn the_fallback_names_safari_by_its_version_token() {
-        let mut fp = Fingerprint::ios_mobile_safari();
-        fp.client_hints = None;
+        let fp = changed(&Fingerprint::ios_mobile_safari(), |b| {
+            b.client_hints(Spoof::Natural)
+        });
         let meta = fallback_metadata(&fp);
         assert_eq!(
             brands_of(&meta["brands"]),
@@ -987,8 +979,8 @@ mod tests {
     #[test]
     fn client_hints_with_a_full_version_list_pass_it_on() {
         let fp = Fingerprint::randomized(OsType::Macos, 3);
-        let hints = fp.client_hints.clone().expect("hints");
-        let ua = fp.user_agent.clone().expect("a user agent");
+        let hints = fp.client_hints().value().cloned().expect("hints");
+        let ua = user_agent_of(&fp);
         let meta = build_user_agent_metadata(&fp, &ua).expect("metadata");
         assert_eq!(
             brands_of(&meta["fullVersionList"]),
@@ -1029,7 +1021,7 @@ mod tests {
     #[test]
     fn the_edge_preset_sends_edge_client_hints_and_not_chromes() {
         let fp = Fingerprint::edge_desktop();
-        let ua = fp.user_agent.clone().expect("a user agent");
+        let ua = user_agent_of(&fp);
         let meta = fallback_metadata(&fp);
         let brands = brands_of(&meta["brands"]);
         assert!(
@@ -1067,33 +1059,29 @@ mod tests {
         };
 
         // A user agent alone sends no language the fingerprint does not hold.
-        let only_ua = Fingerprint::builder()
-            .user_agent("Mozilla/5.0 (X11; Linux)")
-            .build();
+        let only_ua = built(Fingerprint::builder().user_agent("Mozilla/5.0 (X11; Linux)"));
         assert!(ua_override(&only_ua).get("acceptLanguage").is_none());
 
         // A locale gives the header.
-        let placed = Fingerprint::builder()
-            .user_agent("Mozilla/5.0 (X11; Linux)")
-            .locale("de-DE")
-            .build();
+        let placed = built(
+            Fingerprint::builder()
+                .user_agent("Mozilla/5.0 (X11; Linux)")
+                .locale("de-DE"),
+        );
         assert_eq!(ua_override(&placed)["acceptLanguage"], "de-DE");
 
-        // An explicit `Natural` leaves the browser's own language alone.
-        let natural = Fingerprint::builder()
-            .user_agent("Mozilla/5.0 (X11; Linux)")
-            .locale("de-DE")
-            .with_flags(|f| {
-                f.localization_masking = crate::stealth::fingerprint::MaskingMode::Natural
-            })
-            .build();
+        // A locale that is `Natural` leaves the browser's own language alone.
+        let natural = built(
+            Fingerprint::builder()
+                .user_agent("Mozilla/5.0 (X11; Linux)")
+                .locale(Spoof::Natural),
+        );
         assert!(ua_override(&natural).get("acceptLanguage").is_none());
     }
 
     #[test]
     fn desktop_native_spoofing_drops_mobile_only_js_patches() {
-        let mut fp = Fingerprint::linux_desktop();
-        fp.flags.native_spoofing = true;
+        let fp = changed(&Fingerprint::linux_desktop(), |b| b.native_spoofing(true));
         let script = bootstrap_script(&fp);
         // Desktop personas must not claim touch support.
         assert!(!script.contains("maxTouchPoints = 5"));

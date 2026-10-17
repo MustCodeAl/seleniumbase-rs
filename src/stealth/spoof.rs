@@ -33,10 +33,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// In JSON a `Spoof` is `"natural"`, `"random"`, `"off"` or the value itself;
 /// `null` reads as `Natural`. For a string setting, those three words are
 /// reserved: a value spelled like one of them reads as the keyword.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Spoof<T> {
     /// The browser's own value, left alone. This is the default.
-    #[default]
     Natural,
     /// A random valid value, coherent with the rest of the fingerprint (same
     /// operating system, region and locale), drawn from the builder's seed.
@@ -47,6 +46,13 @@ pub enum Spoof<T> {
     /// an off state; building a fingerprint with `Off` on any other is an error
     /// that names the setting.
     Off,
+}
+
+/// The default is [`Natural`](Spoof::Natural), whatever `T` is.
+impl<T> Default for Spoof<T> {
+    fn default() -> Self {
+        Self::Natural
+    }
 }
 
 impl<T> Spoof<T> {

@@ -85,7 +85,7 @@ impl Default for EvasionConfig {
 pub struct EvasionContext<'a> {
     /// The session fingerprint being spoofed.
     pub fingerprint: &'a Fingerprint,
-    /// Deterministic noise seed (see [`Fingerprint::seed_value`]).
+    /// Deterministic noise seed (see [`Fingerprint::seed`]).
     pub seed: u64,
     /// Runtime assembly configuration.
     pub config: EvasionConfig,
@@ -95,7 +95,7 @@ impl<'a> EvasionContext<'a> {
     /// Builds a context from a fingerprint, deriving the seed from it.
     pub fn new(fingerprint: &'a Fingerprint) -> Self {
         Self {
-            seed: fingerprint.seed_value(),
+            seed: fingerprint.seed(),
             fingerprint,
             config: EvasionConfig::default(),
         }
@@ -104,7 +104,7 @@ impl<'a> EvasionContext<'a> {
     /// Builds a context with an explicit config.
     pub fn with_config(fingerprint: &'a Fingerprint, config: EvasionConfig) -> Self {
         Self {
-            seed: fingerprint.seed_value(),
+            seed: fingerprint.seed(),
             fingerprint,
             config,
         }
@@ -176,7 +176,7 @@ pub trait EvasionProvider: Send + Sync {
     }
 
     /// Whether this provider should be included for the given fingerprint.
-    /// Defaults to `true`; most providers gate on `fingerprint.flags`.
+    /// Defaults to `true`; most providers gate on [`Fingerprint::is_masked`].
     fn applies(&self, fingerprint: &Fingerprint) -> bool {
         let _ = fingerprint;
         true
@@ -444,33 +444,9 @@ mod tests {
         assert_eq!(sorted.len(), names.len());
     }
 
-    /// Flags that switch every dimension off, the way a preset or a loaded file
-    /// can: a value given to the builder must still turn its dimension on.
-    fn all_off() -> StealthFlags {
-        StealthFlags {
-            webrtc_masking: MaskingMode::Natural,
-            audio_masking: MaskingMode::Natural,
-            navigator_masking: MaskingMode::Natural,
-            localization_masking: MaskingMode::Natural,
-            timezone_masking: MaskingMode::Natural,
-            graphics_masking: MaskingMode::Natural,
-            fonts_masking: MaskingMode::Natural,
-            media_devices_masking: MaskingMode::Natural,
-            screen_masking: MaskingMode::Natural,
-            geolocation_masking: MaskingMode::Natural,
-            canvas_noise: CanvasNoiseMode::Natural,
-            battery_masking: MaskingMode::Natural,
-            connection_masking: MaskingMode::Natural,
-            speech_masking: MaskingMode::Natural,
-            client_hints_masking: MaskingMode::Natural,
-            block_trackers: false,
-            ..StealthFlags::default()
-        }
-    }
-
     type Setter = fn(FingerprintBuilder) -> FingerprintBuilder;
 
-    /// One value setter per masking dimension, with the providers it turns on.
+    /// One setter per masking dimension, with the providers it turns on.
     fn setters() -> Vec<(&'static str, Setter, &'static [&'static str])> {
         vec![
             (
@@ -486,10 +462,15 @@ mod tests {
             ("locale", |b| b.locale("de-DE"), &["localization"]),
             ("timezone", |b| b.timezone("Europe/Berlin"), &["timezone"]),
             ("screen", |b| b.screen(1440, 900), &["window_geometry"]),
-            ("webgl", |b| b.webgl("Vendor", "Renderer"), &["webgl"]),
+            ("webgl", |b| b.webgl(("Vendor", "Renderer")), &["webgl"]),
             (
                 "geolocation",
-                |b| b.geolocation(52.5, 13.4),
+                |b| b.geolocation((52.5, 13.4)),
+                &["geolocation"],
+            ),
+            (
+                "geolocation denied",
+                |b| b.geolocation(Spoof::Off),
                 &["geolocation"],
             ),
             (
@@ -497,13 +478,23 @@ mod tests {
                 |b| b.media_device_counts(1, 1, 1),
                 &["media_devices"],
             ),
-            ("fonts", |b| b.fonts(vec!["Arial".to_owned()]), &["fonts"]),
+            ("fonts", |b| b.fonts(["Arial"]), &["fonts"]),
             (
-                "webrtc_ips",
-                |b| b.webrtc_ips("203.0.113.9", "10.0.0.2"),
+                "webrtc",
+                |b| b.webrtc(("203.0.113.9", "10.0.0.2")),
                 &["webrtc"],
             ),
-            ("seed", |b| b.seed(5), &["canvas_noise", "audio_noise"]),
+            ("webrtc off", |b| b.webrtc(Spoof::Off), &["webrtc"]),
+            (
+                "canvas_noise",
+                |b| b.canvas_noise(CanvasNoise::Persistent),
+                &["canvas_noise"],
+            ),
+            (
+                "audio_noise",
+                |b| b.audio_noise(AudioNoise::Persistent),
+                &["audio_noise"],
+            ),
             (
                 "battery",
                 |b| b.battery(BatteryProfile::default()),
@@ -533,34 +524,80 @@ mod tests {
     }
 
     #[test]
-    fn a_value_given_to_the_builder_turns_its_own_provider_on() {
+    fn a_setting_given_to_the_builder_turns_its_own_provider_on() {
         let registry = default_registry();
         for (name, set, providers) in setters() {
-            // No flags at all, then each preset applied before and after the value.
-            let runs = [
-                (None, true),
-                (Some(StealthFlags::balanced()), true),
-                (Some(StealthFlags::balanced()), false),
-                (Some(all_off()), true),
-                (Some(all_off()), false),
+            // No policy at all, then each policy given before and after the setting.
+            let policies = [
+                None,
+                Some(StealthPolicy::default()),
+                Some(StealthPolicy::balanced()),
+                Some(StealthPolicy::native_only()),
+                Some(StealthPolicy::max()),
             ];
-            for (preset, preset_first) in runs {
-                let mut builder = Fingerprint::builder();
-                if let (Some(preset), true) = (&preset, preset_first) {
-                    builder = builder.flags(preset.clone());
-                }
-                builder = set(builder);
-                if let (Some(preset), false) = (&preset, preset_first) {
-                    builder = builder.flags(preset.clone());
-                }
-                let applicable = registry.applicable_names(&builder.build());
-                for provider in providers {
-                    assert!(
-                        applicable.contains(&(*provider).to_owned()),
-                        "{name}: {provider} is off (preset {preset:?}, preset first: {preset_first})"
-                    );
+            for policy in policies {
+                for policy_first in [true, false] {
+                    let mut builder = Fingerprint::builder();
+                    if let (Some(policy), true) = (&policy, policy_first) {
+                        builder = builder.policy(policy.clone());
+                    }
+                    builder = set(builder);
+                    if let (Some(policy), false) = (&policy, policy_first) {
+                        builder = builder.policy(policy.clone());
+                    }
+                    let fp = builder.build().expect("the builder builds");
+                    let applicable = registry.applicable_names(&fp);
+                    for provider in providers {
+                        // Under native spoofing the protocol delivers a position, a
+                        // time zone and a language, so their scripts stay out.
+                        if fp.policy().native_spoofing
+                            && ["timezone", "localization", "client_hints"].contains(provider)
+                            || fp.policy().native_spoofing
+                                && *provider == "geolocation"
+                                && fp.geolocation().is_value()
+                        {
+                            continue;
+                        }
+                        assert!(
+                            applicable.contains(&(*provider).to_owned()),
+                            "{name}: {provider} is off (policy {policy:?}, policy first: {policy_first})"
+                        );
+                    }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn a_policy_alone_turns_on_only_the_providers_that_have_no_setting() {
+        let registry = default_registry();
+        let fp = Fingerprint::builder()
+            .policy(StealthPolicy::max())
+            .build()
+            .expect("the builder builds");
+        let applicable = registry.applicable_names(&fp);
+        for name in [
+            "chrome_runtime",
+            "headless",
+            "tracker_block",
+            "canvas_noise",
+            "audio_noise",
+            "webrtc",
+        ] {
+            assert!(applicable.contains(&name.to_owned()), "{name}");
+        }
+        for name in [
+            "navigator_props",
+            "webgl",
+            "window_geometry",
+            "timezone",
+            "battery",
+            "client_hints",
+        ] {
+            assert!(
+                !applicable.contains(&name.to_owned()),
+                "{name} needs a setting"
+            );
         }
     }
 
@@ -582,8 +619,8 @@ mod tests {
     // ------------------------------------------------------------------
 
     use crate::stealth::fingerprint::{
-        BatteryProfile, BrandVersion, CanvasNoiseMode, ClientHints, ConnectionProfile,
-        FingerprintBuilder, MaskingMode, SpeechVoice, StealthFlags,
+        AudioNoise, BatteryProfile, BrandVersion, CanvasNoise, ClientHints, ConnectionProfile,
+        FingerprintBuilder, SpeechVoice, Spoof, StealthPolicy,
     };
 
     /// The names a page reads to find a replaced list, flag or network report
@@ -602,22 +639,22 @@ mod tests {
 
     /// A fingerprint that makes every provider that can apply, apply.
     fn everything() -> Fingerprint {
-        let mut fp = Fingerprint::windows_desktop();
-        fp.flags.audio_masking = MaskingMode::Mask;
-        fp.flags.media_devices_masking = MaskingMode::Mask;
-        fp.flags.block_trackers = true;
-        fp.fonts = vec!["Arial".to_owned()];
-        fp.latitude = Some(1.0);
-        fp.longitude = Some(2.0);
-        fp.webrtc_public_ip = Some("203.0.113.9".to_owned());
-        fp.webrtc_local_ip = Some("10.0.0.2".to_owned());
-        fp.client_hints = Some(ClientHints {
-            brands: vec![BrandVersion::new("Chromium", "124")],
-            full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
-            platform: "Windows".to_owned(),
-            ..ClientHints::default()
-        });
-        fp
+        Fingerprint::windows_desktop()
+            .to_builder()
+            .policy(StealthPolicy::max())
+            .audio_noise(AudioNoise::Persistent)
+            .media_device_counts(1, 1, 1)
+            .fonts(["Arial"])
+            .geolocation((1.0, 2.0))
+            .webrtc(("203.0.113.9", "10.0.0.2"))
+            .client_hints(ClientHints {
+                brands: vec![BrandVersion::new("Chromium", "124")],
+                full_version_list: vec![BrandVersion::new("Chromium", "124.0.0.0")],
+                platform: "Windows".to_owned(),
+                ..ClientHints::default()
+            })
+            .build()
+            .expect("the builder builds")
     }
 
     #[test]
@@ -766,8 +803,14 @@ mod tests {
 
     #[test]
     fn noise_is_a_pure_function_of_the_seed_and_the_position() {
-        let mut fp = everything();
-        fp.seed = Some(41);
+        let with_seed = |seed: u64| {
+            everything()
+                .to_builder()
+                .seed(seed)
+                .build()
+                .expect("the builder builds")
+        };
+        let fp = with_seed(41);
         let noisy = [
             &builtin::CanvasNoiseProvider as &dyn EvasionProvider,
             &builtin::AudioNoiseProvider,
@@ -788,10 +831,9 @@ mod tests {
 
             let again = provider.script(&EvasionContext::new(&fp)).unwrap();
             assert_eq!(script, again, "{name}: same seed, same script");
-            fp.seed = Some(42);
-            let other = provider.script(&EvasionContext::new(&fp)).unwrap();
+            let reseeded = with_seed(42);
+            let other = provider.script(&EvasionContext::new(&reseeded)).unwrap();
             assert_ne!(script, other, "{name}: the seed is what changes the noise");
-            fp.seed = Some(41);
         }
     }
 

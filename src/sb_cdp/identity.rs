@@ -209,7 +209,7 @@ mod tests {
     )]
     use crate::stealth::evasions::cdp_overrides;
     use crate::stealth::evasions::CREDENTIAL_HEADER_METHOD;
-    use crate::stealth::fingerprint::{OsType, ProxyConfig};
+    use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
     use crate::stealth::providers::{session_registry, EvasionContext};
 
     fn methods(identity: &Identity) -> Vec<&str> {
@@ -265,10 +265,13 @@ mod tests {
 
     #[test]
     fn a_desktop_screen_is_sent_as_screen_metrics_that_leave_the_viewport_alone() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Macos, 5);
-        fingerprint.pixel_ratio = Some(2.0);
-        let width = fingerprint.screen_width.unwrap();
-        let height = fingerprint.screen_height.unwrap();
+        let fingerprint = Fingerprint::randomized(OsType::Macos, 5)
+            .to_builder()
+            .pixel_ratio(2.0)
+            .build()
+            .unwrap();
+        let screen = fingerprint.screen().value().unwrap();
+        let (width, height) = (screen.width, screen.height);
 
         let identity = Identity::of(&fingerprint);
 
@@ -288,8 +291,8 @@ mod tests {
     #[test]
     fn a_phone_screen_is_also_the_page() {
         let fingerprint = Fingerprint::randomized(OsType::Android, 5);
-        let width = fingerprint.screen_width.unwrap();
-        let height = fingerprint.screen_height.unwrap();
+        let screen = fingerprint.screen().value().unwrap();
+        let (width, height) = (screen.width, screen.height);
 
         let identity = Identity::of(&fingerprint);
 
@@ -334,15 +337,18 @@ mod tests {
         reason = "the unsafe set is what the test compares the safe one with"
     )]
     fn the_proxy_password_is_never_turned_into_a_header() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example.com".to_owned(),
-            port: 8080,
-            username: Some("alice".to_owned()),
-            password: Some("fake-proxy-password".to_owned()),
-            save_traffic: false,
-        });
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "proxy.example.com".to_owned(),
+                port: 8080,
+                username: Some("alice".to_owned()),
+                password: Some("fake-proxy-password".to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .unwrap();
         // The WebDriver path would send it; confirm the source does ask for it.
         assert!(cdp_overrides(&fingerprint).contains_key(CREDENTIAL_HEADER_METHOD));
 
@@ -360,8 +366,11 @@ mod tests {
 
     #[test]
     fn permissions_are_held_back_for_the_tabs_own_context() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
-        fingerprint.flags.grant_permissions = true;
+        let fingerprint = Fingerprint::randomized(OsType::Windows, 5)
+            .to_builder()
+            .grant_permissions(true)
+            .build()
+            .unwrap();
 
         let identity = Identity::of(&fingerprint);
 
@@ -383,11 +392,13 @@ mod tests {
 
     #[test]
     fn no_grant_is_made_unless_the_fingerprint_asks() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
-        fingerprint.flags.grant_permissions = false;
         // A position asks for the geolocation grant; without one nothing does.
-        fingerprint.latitude = None;
-        fingerprint.longitude = None;
+        let fingerprint = Fingerprint::randomized(OsType::Windows, 5)
+            .to_builder()
+            .grant_permissions(false)
+            .geolocation(Spoof::Natural)
+            .build()
+            .unwrap();
 
         assert!(Identity::of(&fingerprint)
             .permission_grant(Some("CTX1"))
@@ -396,9 +407,12 @@ mod tests {
 
     #[test]
     fn a_position_grants_geolocation_without_the_permissions_flag() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Windows, 5);
-        fingerprint.flags.grant_permissions = false;
-        assert!(fingerprint.latitude.is_some() && fingerprint.longitude.is_some());
+        let fingerprint = Fingerprint::randomized(OsType::Windows, 5)
+            .to_builder()
+            .grant_permissions(false)
+            .build()
+            .unwrap();
+        assert!(fingerprint.geolocation().is_value());
 
         let grant = Identity::of(&fingerprint)
             .permission_grant(Some("CTX1"))
@@ -424,7 +438,7 @@ mod launch_tests {
     use std::path::Path;
 
     use super::super::LaunchOptions;
-    use crate::stealth::fingerprint::{OsType, ProxyConfig, ProxyMaskingMode};
+    use crate::stealth::fingerprint::{OsType, ProxyConfig, Spoof};
 
     use super::*;
 
@@ -441,14 +455,12 @@ mod launch_tests {
 
         let args = args(LaunchOptions::builder().fingerprint(&fingerprint));
 
-        let ua = fingerprint.user_agent.as_deref().unwrap();
+        let ua = fingerprint.user_agent().as_str().unwrap();
         assert!(args.contains(&format!("--user-agent={ua}")));
-        let locale = fingerprint.locale.as_deref().unwrap();
+        let locale = fingerprint.locale().as_str().unwrap();
         assert!(args.contains(&format!("--lang={locale}")));
-        let (w, h) = (
-            fingerprint.screen_width.unwrap(),
-            fingerprint.screen_height.unwrap(),
-        );
+        let screen = fingerprint.screen().value().unwrap();
+        let (w, h) = (screen.width, screen.height);
         assert!(args.contains(&format!("--window-size={w},{h}")));
         assert!(
             args.iter()
@@ -487,10 +499,14 @@ mod launch_tests {
 
     #[test]
     fn free_form_chrome_flags_in_a_fingerprint_are_not_passed_on() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 9);
-        fingerprint
-            .cmd_params
-            .insert("renderer-cmd-prefix".into(), "/bin/sh -c evil".into());
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 9)
+            .to_builder()
+            .cmd_params(std::collections::HashMap::from([(
+                "renderer-cmd-prefix".to_owned(),
+                "/bin/sh -c evil".to_owned(),
+            )]))
+            .build()
+            .unwrap();
 
         let args = args(LaunchOptions::builder().fingerprint(&fingerprint));
 
@@ -504,16 +520,18 @@ mod launch_tests {
 
     #[test]
     fn the_fingerprints_proxy_is_used_only_when_it_asks_and_none_was_set() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 2);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "fp-proxy.example.com".to_owned(),
-            port: 3128,
-            username: Some("alice".to_owned()),
-            password: Some("fake-fp-password".to_owned()),
-            save_traffic: false,
-        });
-        fingerprint.flags.proxy_masking = ProxyMaskingMode::Custom;
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 2)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "fp-proxy.example.com".to_owned(),
+                port: 3128,
+                username: Some("alice".to_owned()),
+                password: Some("fake-fp-password".to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .unwrap();
 
         let from_fingerprint = LaunchOptions::builder()
             .fingerprint(&fingerprint)
@@ -524,7 +542,12 @@ mod launch_tests {
             .fingerprint(&fingerprint)
             .build()
             .unwrap();
-        fingerprint.flags.proxy_masking = ProxyMaskingMode::Disabled;
+        // A fingerprint whose proxy is left natural asks for none.
+        let fingerprint = fingerprint
+            .to_builder()
+            .proxy(Spoof::Natural)
+            .build()
+            .unwrap();
         let not_asked = LaunchOptions::builder()
             .fingerprint(&fingerprint)
             .build()
@@ -545,16 +568,18 @@ mod launch_tests {
 
     #[test]
     fn neither_the_builder_nor_the_options_print_a_proxy_password() {
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 2);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "fp-proxy.example.com".to_owned(),
-            port: 3128,
-            username: Some("alice".to_owned()),
-            password: Some("fake-fp-password".to_owned()),
-            save_traffic: false,
-        });
-        fingerprint.flags.proxy_masking = ProxyMaskingMode::Custom;
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 2)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "fp-proxy.example.com".to_owned(),
+                port: 3128,
+                username: Some("alice".to_owned()),
+                password: Some("fake-fp-password".to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .unwrap();
         let builder = LaunchOptions::builder()
             .proxy("bob:fake-explicit-password@host.example.com:8080")
             .fingerprint(&fingerprint);

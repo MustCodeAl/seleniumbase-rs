@@ -132,22 +132,28 @@ async fn list_fingerprint_presets<S>(_ctx: Ctx<S>, _args: Args) -> Result<Output
 }
 
 async fn build_fingerprint<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    let mut fingerprint = preset(&args)?;
+    let fingerprint = preset(&args)?;
+    let mut builder = fingerprint.to_builder();
     if let Some(user_agent) = nonempty(&args, "user_agent")? {
-        fingerprint.user_agent = Some(user_agent.to_owned());
+        builder = builder.user_agent(user_agent);
     }
-    for (name, field) in [
-        ("screen_width", &mut fingerprint.screen_width),
-        ("screen_height", &mut fingerprint.screen_height),
-    ] {
+    let current = fingerprint.screen().value().copied().unwrap_or_default();
+    let mut size = [current.width, current.height];
+    let mut changed = false;
+    for (name, slot) in [("screen_width", 0), ("screen_height", 1)] {
         if let Some(value) = args.opt_usize(name)? {
-            *field = Some(
-                u32::try_from(value)
-                    .ok()
-                    .ok_or_else(|| ToolError::invalid(name, "too large"))?,
-            );
+            size[slot] = u32::try_from(value)
+                .ok()
+                .ok_or_else(|| ToolError::invalid(name, "too large"))?;
+            changed = true;
         }
     }
+    if changed {
+        builder = builder.screen(size[0], size[1]);
+    }
+    let fingerprint = builder
+        .build()
+        .map_err(|error| ToolError::invalid("fingerprint", error.to_string()))?;
     json_output(fingerprint)
 }
 

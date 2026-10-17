@@ -1501,16 +1501,18 @@ mod fingerprint_tests {
     use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyConfig};
 
     fn with_proxy_login() -> Fingerprint {
-        let mut fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        fingerprint.proxy = Some(ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example.com".to_owned(),
-            port: 8080,
-            username: Some("alice".to_owned()),
-            password: Some("fake-proxy-password".to_owned()),
-            save_traffic: false,
-        });
-        fingerprint
+        Fingerprint::randomized(OsType::Linux, 3)
+            .to_builder()
+            .proxy(ProxyConfig {
+                r#type: "http".to_owned(),
+                host: "proxy.example.com".to_owned(),
+                port: 8080,
+                username: Some("alice".to_owned()),
+                password: Some("fake-proxy-password".to_owned()),
+                save_traffic: false,
+            })
+            .build()
+            .expect("the builder builds")
     }
 
     #[test]
@@ -1810,7 +1812,8 @@ mod ad_block_tests {
     fn the_block_keeps_what_the_fingerprint_blocks_where_the_fingerprint_is_applied() {
         let fingerprint = crate::stealth::fingerprint::Fingerprint::builder()
             .blocked_ports(vec![9222])
-            .build();
+            .build()
+            .expect("the builder builds");
         let urls = |mode: DriverMode| {
             let config = BrowserConfig::default()
                 .with_mode(mode)

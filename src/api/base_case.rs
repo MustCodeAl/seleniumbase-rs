@@ -1705,7 +1705,7 @@ impl BaseCase {
             .config
             .fingerprint
             .as_ref()
-            .map_or_else(Behavior::default, |fp| Behavior::from_config(&fp.humanize));
+            .map_or_else(Behavior::default, |fp| Behavior::from_config(fp.humanize()));
         for key in Humanizer::new(behavior).typing_plan(text) {
             tokio::time::sleep(key.wait).await;
             // Typos are off here, so only characters are planned.

@@ -137,11 +137,13 @@ pub use browser::session::BrowserSession;
 pub use common::tls::install_tls_provider;
 pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
+#[allow(deprecated, reason = "the old name stays importable for one release")]
+pub use stealth::fingerprint::StealthFlags;
 pub use stealth::fingerprint::{
-    BatteryProfile, BrandVersion, BrowserType, CanvasNoiseMode, ClientHints, CoherenceReport,
-    ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder, HumanizeConfig, MaskingMode,
-    NoiseMode, OsType, PopupMode, ProxyConfig, ProxyMaskingMode, QuicMode, SpeechVoice,
-    StartupBehavior, StealthFlags, WebRtcPolicy,
+    AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
+    CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,
+    FingerprintError, Geolocation, HumanizeConfig, MediaDevices, OsType, ProxyConfig, QuicMode,
+    ScreenSize, SpeechVoice, Spoof, StealthPolicy, WebGl, WebRtcAddresses, WebRtcPolicy,
 };
 pub use stealth::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,

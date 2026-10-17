@@ -512,22 +512,20 @@ mod tests {
             );
         }
         // Chrome takes the last of two, and the fingerprint's came last.
-        let user_agent = fingerprint.user_agent.as_deref().unwrap();
+        let user_agent = fingerprint.user_agent().as_str().unwrap();
         assert!(args.contains(&format!("--user-agent={user_agent}")));
-        let locale = fingerprint.locale.as_deref().unwrap();
+        let locale = fingerprint.locale().as_str().unwrap();
         assert!(args.contains(&format!("--lang={locale}")));
     }
 
     #[test]
     fn what_the_fingerprint_leaves_alone_still_comes_from_the_options() {
-        // An explicit `Natural` leaves the fingerprint's user agent out of the
-        // arguments, so the option's is the one sent.
+        // A fingerprint without a user agent adds none to the arguments, so the
+        // option's is the one sent.
         let fingerprint = Fingerprint::builder()
-            .user_agent("FromFingerprint/1.0")
-            .with_flags(|f| {
-                f.navigator_masking = crate::stealth::fingerprint::MaskingMode::Natural;
-            })
-            .build();
+            .hardware_concurrency(8)
+            .build()
+            .unwrap();
         let opts = StealthOptions {
             user_agent: Some("MyAgent/1.0".to_owned()),
             fingerprint: Some(fingerprint),

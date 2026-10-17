@@ -1,30 +1,59 @@
 //! Fingerprint / anti-detection profile configuration.
 //!
-//! A [`Fingerprint`] captures the browser personality dimensions exposed by
-//! External anti-detect browser profile APIs: navigator, screen, timezone, geolocation,
-//! WebGL, media devices, fonts, proxy, and masking flags.
+//! A [`Fingerprint`] says what a browser should claim to be: its navigator,
+//! screen, time zone, position, graphics, media devices, fonts, proxy and the
+//! rest of what a page can probe.
 //!
-//! Use [`Fingerprint::builder()`] to construct a profile, then pass it to
-//! [`StealthOptions`](crate::stealth::options::StealthOptions) or launch a
-//! [`PlaywrightSession`](crate::browser::playwright::PlaywrightSession) with it.
+//! # One setting, four states
+//!
+//! Every setting is one [`Spoof`]: leave the browser's own value
+//! ([`Natural`](Spoof::Natural), the default), draw a valid one
+//! ([`Random`](Spoof::Random)), use exactly this one
+//! ([`Value`](Spoof::Value), which a plain value converts to) or turn the API
+//! off ([`Off`](Spoof::Off), where that means something). How the claims are
+//! delivered, and which protections run beside them, is the
+//! [`StealthPolicy`], not a setting.
+//!
+//! A fingerprint is built once, with [`Fingerprint::builder()`], and not
+//! changed afterwards. To change one, take [`to_builder`](Fingerprint::to_builder)
+//! and build again. Hand the result to
+//! [`StealthOptions`](crate::stealth::options::StealthOptions), to a
+//! [`BrowserConfig`](crate::BrowserConfig) or to the pure CDP launch options.
 //!
 //! # Example
 //!
 //! ```rust
-//! use seleniumbase_rs::stealth::fingerprint::{Fingerprint, OsType};
+//! use seleniumbase_rs::stealth::fingerprint::{
+//!     CanvasNoise, Fingerprint, Spoof, StealthPolicy,
+//! };
 //!
 //! let fp = Fingerprint::builder()
-//!     .os_type(OsType::Windows)
-//!     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 …")
+//!     .timezone("Europe/Berlin")
 //!     .screen(1920, 1080)
-//!     .hardware_concurrency(8)
-//!     .build();
+//!     .geolocation(Spoof::Random)
+//!     .webrtc(Spoof::Off)
+//!     .policy(StealthPolicy::balanced())
+//!     .canvas_noise(CanvasNoise::Random)
+//!     .build()?;
+//!
+//! assert!(fp.timezone().is_value());
+//! assert!(fp.webrtc().is_off());
+//! // The random position is a spot in Berlin, because the time zone is given.
+//! let place = fp.geolocation().value().expect("a drawn position");
+//! assert!((place.latitude - 52.5).abs() < 0.5);
+//! # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
 //! ```
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
+use std::sync::Arc;
 
+use serde::{Deserialize, Deserializer, Serialize};
+
+use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
+use super::randomize;
+pub use super::settings::{Geolocation, MediaDevices, ScreenSize, WebGl, WebRtcAddresses};
 pub use super::spoof::Spoof;
 
 /// Browser persona requested by a profile.
@@ -86,164 +115,6 @@ impl OsType {
     }
 }
 
-/// Masking mode for a fingerprint dimension.
-///
-/// The default is [`Auto`](MaskingMode::Auto): the dimension is on when the
-/// fingerprint has a value for it, so giving a value is enough to use it.
-/// [`Fingerprint::is_masked`] is the one place that decides.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum MaskingMode {
-    /// On when the fingerprint has a value for the dimension, off otherwise.
-    #[default]
-    Auto,
-    /// Explicitly off: the browser's own value, whatever the fingerprint holds.
-    Natural,
-    /// On. A value the fingerprint lacks is filled with a generic one.
-    Mask,
-    /// The same as [`Mask`](MaskingMode::Mask). Deprecated: use `Mask`.
-    Custom,
-    /// The same as [`Natural`](MaskingMode::Natural). Deprecated: use `Natural`.
-    Disabled,
-}
-
-impl MaskingMode {
-    /// Whether a dimension in this mode is on, given whether the fingerprint
-    /// `has_value` for it.
-    #[must_use]
-    pub fn resolve(self, has_value: bool) -> bool {
-        match self {
-            Self::Auto => has_value,
-            Self::Mask | Self::Custom => true,
-            Self::Natural | Self::Disabled => false,
-        }
-    }
-
-    /// Whether a value the fingerprint lacks is filled with a generic one.
-    #[must_use]
-    pub fn fills_defaults(self) -> bool {
-        matches!(self, Self::Mask | Self::Custom)
-    }
-
-    /// Whether this mode switches the dimension off explicitly.
-    #[must_use]
-    pub fn is_off(self) -> bool {
-        matches!(self, Self::Natural | Self::Disabled)
-    }
-}
-
-/// Noise/masking strategy used by `graphics_noise` and `ports_masking`.
-///
-/// For `ports_masking`, `Natural` and `Off` leave every port open and any other
-/// mode blocks the listed ports. `graphics_noise` is ignored.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum NoiseMode {
-    /// Add deterministic noise / active masking.
-    #[default]
-    Mask,
-    /// Use natural rendering / allow all.
-    Natural,
-    /// Turn the feature off entirely.
-    Off,
-    /// Block / deny (used by `ports_masking`).
-    Block,
-    /// Randomized output.
-    Random,
-    /// Low intensity (used by `graphics_noise`).
-    Low,
-    /// Medium intensity (used by `graphics_noise`).
-    Medium,
-    /// High intensity (used by `graphics_noise`).
-    High,
-}
-
-/// Canvas-specific noise mode.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum CanvasNoiseMode {
-    /// Noise when the fingerprint has a [`seed`](Fingerprint::seed), none
-    /// otherwise.
-    #[default]
-    Auto,
-    /// Deterministic noise from the profile seed, derived from the user agent
-    /// when there is no seed.
-    Mask,
-    /// No noise: the browser's own canvas.
-    Natural,
-    /// No noise, the same as [`Natural`](CanvasNoiseMode::Natural).
-    Disabled,
-    /// Noise from a fresh seed each time the script is generated, so each
-    /// browser context gets different noise.
-    Random,
-    /// Deterministic noise tied to the profile seed, the same as
-    /// [`Mask`](CanvasNoiseMode::Mask).
-    Persistent,
-    /// Seeded noise on about one pixel in eight.
-    Low,
-}
-
-impl CanvasNoiseMode {
-    /// Whether this mode adds canvas noise whatever the fingerprint holds.
-    /// [`Auto`](CanvasNoiseMode::Auto) does not: it depends on the seed, which
-    /// [`Fingerprint::is_masked`] checks.
-    #[must_use]
-    pub fn adds_noise(self) -> bool {
-        matches!(
-            self,
-            Self::Mask | Self::Persistent | Self::Random | Self::Low
-        )
-    }
-
-    /// How sparse the noise is: it touches one pixel in this many.
-    #[must_use]
-    pub fn density(self) -> u32 {
-        if self == Self::Low {
-            8
-        } else {
-            1
-        }
-    }
-}
-
-/// Geolocation permission popup behaviour.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum PopupMode {
-    /// `Allow` when the fingerprint has a position, `Prompt` otherwise. See
-    /// [`Fingerprint::geolocation_popup`].
-    #[default]
-    Auto,
-    /// Leave the browser's own permission prompt.
-    Prompt,
-    /// Answer the request with the fingerprint's position, without asking.
-    Allow,
-    /// Answer the request as a user who pressed "Block" would.
-    Block,
-}
-
-/// Proxy masking mode.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum ProxyMaskingMode {
-    /// Use the proxy when the fingerprint has one with a host.
-    #[default]
-    Auto,
-    /// Never use the fingerprint's proxy.
-    Disabled,
-    /// Use the fingerprint's proxy, whatever its host.
-    Custom,
-    /// The same as [`Custom`](ProxyMaskingMode::Custom). Deprecated: the proxy's
-    /// own `type` says how to reach it.
-    Socks5,
-    /// The same as [`Custom`](ProxyMaskingMode::Custom). Deprecated.
-    Http,
-    /// The same as [`Custom`](ProxyMaskingMode::Custom). Deprecated.
-    Https,
-    /// The same as [`Disabled`](ProxyMaskingMode::Disabled). Deprecated.
-    Direct,
-}
-
 /// QUIC mode.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -254,235 +125,6 @@ pub enum QuicMode {
     Enabled,
     ForceHttp2,
     Auto,
-}
-
-/// Startup behaviour for a profile session.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum StartupBehavior {
-    /// Restore previous session tabs.
-    #[default]
-    Recover,
-    /// Open custom start URLs.
-    Custom,
-}
-
-/// Masking flags controlling which dimensions are spoofed.
-///
-/// Every mode defaults to `Auto`: a dimension is on when the fingerprint has a
-/// value for it ([`Fingerprint::is_masked`]), so a fingerprint built from values
-/// needs no flags at all. Set a mode to [`Natural`](MaskingMode::Natural) to
-/// switch a dimension off whatever the fingerprint holds, or to
-/// [`Mask`](MaskingMode::Mask) to switch it on and fill the values it lacks.
-///
-/// The dimensions that carry no value of their own (bluetooth, chrome runtime,
-/// headless fixes) are off under `Auto`; `native_tostring_masking` is on under
-/// `Auto`, because the other evasions rely on it.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StealthFlags {
-    #[serde(default)]
-    pub webrtc_masking: MaskingMode,
-    #[serde(default)]
-    pub audio_masking: MaskingMode,
-    /// Ignored. It never drove graphics noise; the Modernizr hairline fix it
-    /// used to gate follows [`headless_masking`](StealthFlags::headless_masking).
-    /// Deprecated; kept so saved fingerprints still load.
-    #[serde(default)]
-    pub graphics_noise: NoiseMode,
-    /// How a geolocation request is answered. See [`PopupMode`].
-    #[serde(default)]
-    pub geolocation_popup: PopupMode,
-    #[serde(default)]
-    pub navigator_masking: MaskingMode,
-    #[serde(default)]
-    pub localization_masking: MaskingMode,
-    #[serde(default)]
-    pub timezone_masking: MaskingMode,
-    #[serde(default)]
-    pub graphics_masking: MaskingMode,
-    #[serde(default)]
-    pub fonts_masking: MaskingMode,
-    #[serde(default)]
-    pub media_devices_masking: MaskingMode,
-    #[serde(default)]
-    pub screen_masking: MaskingMode,
-    #[serde(default)]
-    pub geolocation_masking: MaskingMode,
-    /// Whether the fingerprint's [`ports`](Fingerprint::ports) are blocked.
-    /// `Natural` and `Off` leave them open.
-    #[serde(default)]
-    pub ports_masking: NoiseMode,
-    #[serde(default)]
-    pub proxy_masking: ProxyMaskingMode,
-    #[serde(default)]
-    pub quic_mode: QuicMode,
-    #[serde(default)]
-    pub canvas_noise: CanvasNoiseMode,
-    /// Stored only; nothing reads it.
-    #[serde(default)]
-    pub startup_behavior: StartupBehavior,
-
-    // --- Extended dimensions (appended for backward compatibility) ---
-    /// Mask the Battery Status API (`navigator.getBattery`).
-    #[serde(default)]
-    pub battery_masking: MaskingMode,
-    /// Mask the Network Information API (`navigator.connection`).
-    #[serde(default)]
-    pub connection_masking: MaskingMode,
-    /// Spoof `speechSynthesis.getVoices()`.
-    #[serde(default)]
-    pub speech_masking: MaskingMode,
-    /// Stub the Web Bluetooth API.
-    #[serde(default)]
-    pub bluetooth_masking: MaskingMode,
-    /// Override `navigator.userAgentData` (Client Hints).
-    #[serde(default)]
-    pub client_hints_masking: MaskingMode,
-    /// Mask `Function.prototype.toString` so patched natives look native.
-    #[serde(default)]
-    pub native_tostring_masking: MaskingMode,
-    /// Install `window.chrome` runtime/app/csi/loadTimes stubs.
-    #[serde(default)]
-    pub chrome_runtime_masking: MaskingMode,
-    /// Apply headless-mode fixes (matchMedia, permissions consistency).
-    #[serde(default)]
-    pub headless_masking: MaskingMode,
-    /// Ignored: the switch is [`Fingerprint::humanize`]'s `enabled`.
-    /// Deprecated; kept so saved fingerprints still load.
-    #[serde(default)]
-    pub humanize: bool,
-    /// Emit a tracker/fingerprint-script domain block list.
-    #[serde(default)]
-    pub block_trackers: bool,
-    /// Bypass Content-Security-Policy for the page context.
-    #[serde(default)]
-    pub disable_csp: bool,
-    /// Grant common browser permissions at startup so permission prompts do
-    /// not fire (a bot-detection signal).
-    #[serde(default)]
-    pub grant_permissions: bool,
-    /// Apply spoofing through CDP / launch args instead of JavaScript where
-    /// possible. This makes the spoof invisible to page-side introspection
-    /// (`toString`, `getOwnPropertyNames`, etc.) because the browser's own
-    /// implementation returns the fake value.
-    #[serde(default)]
-    pub native_spoofing: bool,
-    /// Force every closed shadow root open (`Element.attachShadow` with
-    /// `mode: 'open'`), so automation can reach into it. A page can detect this,
-    /// so turn it off where that matters. On by default.
-    #[serde(default = "default_open_shadow_roots")]
-    pub open_shadow_roots: bool,
-}
-
-fn default_open_shadow_roots() -> bool {
-    true
-}
-
-impl Default for StealthFlags {
-    /// Every dimension on `Auto` (on when the fingerprint has a value for it),
-    /// the choices that carry no value off, shadow roots opened.
-    fn default() -> Self {
-        Self {
-            webrtc_masking: MaskingMode::Auto,
-            audio_masking: MaskingMode::Auto,
-            graphics_noise: NoiseMode::Mask,
-            geolocation_popup: PopupMode::Auto,
-            navigator_masking: MaskingMode::Auto,
-            localization_masking: MaskingMode::Auto,
-            timezone_masking: MaskingMode::Auto,
-            graphics_masking: MaskingMode::Auto,
-            fonts_masking: MaskingMode::Auto,
-            media_devices_masking: MaskingMode::Auto,
-            screen_masking: MaskingMode::Auto,
-            geolocation_masking: MaskingMode::Auto,
-            ports_masking: NoiseMode::Mask,
-            proxy_masking: ProxyMaskingMode::Auto,
-            quic_mode: QuicMode::Natural,
-            canvas_noise: CanvasNoiseMode::Auto,
-            startup_behavior: StartupBehavior::Recover,
-            battery_masking: MaskingMode::Auto,
-            connection_masking: MaskingMode::Auto,
-            speech_masking: MaskingMode::Auto,
-            bluetooth_masking: MaskingMode::Auto,
-            client_hints_masking: MaskingMode::Auto,
-            native_tostring_masking: MaskingMode::Auto,
-            chrome_runtime_masking: MaskingMode::Auto,
-            headless_masking: MaskingMode::Auto,
-            humanize: false,
-            block_trackers: false,
-            disable_csp: false,
-            grant_permissions: false,
-            native_spoofing: false,
-            open_shadow_roots: true,
-        }
-    }
-}
-
-impl StealthFlags {
-    /// The flags of the built-in presets.
-    ///
-    /// The dimensions that carry the fingerprint's own values (navigator,
-    /// localization, time zone, screen, graphics, fonts, media devices,
-    /// geolocation, audio, proxy) stay on `Auto`, so each is on exactly when a
-    /// value was given, in whatever order the flags and the values were set.
-    /// The dimensions with no persona value of their own, or a generic fill,
-    /// are `Mask`: WebRTC (leak protection and the launch policy), canvas
-    /// noise, battery, connection, speech, client hints, bluetooth, chrome
-    /// runtime, headless fixes and native `toString`.
-    #[must_use]
-    pub fn balanced() -> Self {
-        Self {
-            webrtc_masking: MaskingMode::Mask,
-            canvas_noise: CanvasNoiseMode::Mask,
-            battery_masking: MaskingMode::Mask,
-            connection_masking: MaskingMode::Mask,
-            speech_masking: MaskingMode::Mask,
-            bluetooth_masking: MaskingMode::Mask,
-            client_hints_masking: MaskingMode::Mask,
-            native_tostring_masking: MaskingMode::Mask,
-            chrome_runtime_masking: MaskingMode::Mask,
-            headless_masking: MaskingMode::Mask,
-            ..Self::default()
-        }
-    }
-
-    /// Every maskable dimension on, with generic values filled in where the
-    /// fingerprint has none.
-    #[must_use]
-    pub fn mask_all() -> Self {
-        Self {
-            webrtc_masking: MaskingMode::Mask,
-            audio_masking: MaskingMode::Mask,
-            geolocation_popup: PopupMode::Auto,
-            navigator_masking: MaskingMode::Mask,
-            localization_masking: MaskingMode::Mask,
-            timezone_masking: MaskingMode::Mask,
-            graphics_masking: MaskingMode::Mask,
-            fonts_masking: MaskingMode::Mask,
-            media_devices_masking: MaskingMode::Mask,
-            screen_masking: MaskingMode::Mask,
-            geolocation_masking: MaskingMode::Mask,
-            proxy_masking: ProxyMaskingMode::Custom,
-            canvas_noise: CanvasNoiseMode::Mask,
-            battery_masking: MaskingMode::Mask,
-            connection_masking: MaskingMode::Mask,
-            speech_masking: MaskingMode::Mask,
-            bluetooth_masking: MaskingMode::Mask,
-            client_hints_masking: MaskingMode::Mask,
-            native_tostring_masking: MaskingMode::Mask,
-            chrome_runtime_masking: MaskingMode::Mask,
-            headless_masking: MaskingMode::Mask,
-            ..Self::default()
-        }
-    }
-
-    /// Every maskable dimension on. Deprecated: use [`mask_all`](Self::mask_all);
-    /// `Custom` was always the same as `Mask`.
-    #[deprecated(note = "use StealthFlags::mask_all; Custom is the same as Mask")]
-    #[must_use]
-    pub fn all_custom() -> Self {
-        Self::mask_all()
-    }
 }
 
 /// WebRTC IP-handling policy.
@@ -496,7 +138,7 @@ pub enum WebRtcPolicy {
 }
 
 /// Proxy configuration for a profile.
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProxyConfig {
     pub r#type: String,
     pub host: String,
@@ -507,8 +149,8 @@ pub struct ProxyConfig {
 }
 
 // Written by hand so that logging a fingerprint never prints the password.
-impl std::fmt::Debug for ProxyConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for ProxyConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ProxyConfig")
             .field("type", &self.r#type)
             .field("host", &self.host)
@@ -531,15 +173,39 @@ impl ProxyConfig {
     }
 }
 
+/// JSON has no infinity, so the two battery times that can be infinite are
+/// written as `null` and read back as infinity.
+mod infinite_as_null {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(value: &f64, serializer: S) -> Result<S::Ok, S::Error> {
+        if value.is_finite() {
+            serializer.serialize_f64(*value)
+        } else {
+            serializer.serialize_none()
+        }
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<f64, D::Error> {
+        Ok(Option::<f64>::deserialize(deserializer)?.unwrap_or(f64::INFINITY))
+    }
+
+    pub(super) fn infinity() -> f64 {
+        f64::INFINITY
+    }
+}
+
 /// Battery Status API profile (`navigator.getBattery()`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BatteryProfile {
     pub charging: bool,
     /// Battery level in the range `0.0..=1.0`.
     pub level: f64,
-    /// Seconds until fully charged (`f64::INFINITY` when unknown).
+    /// Seconds until fully charged (`f64::INFINITY` when unknown; `null` in JSON).
+    #[serde(with = "infinite_as_null", default = "infinite_as_null::infinity")]
     pub charging_time: f64,
-    /// Seconds until empty (`f64::INFINITY` when charging).
+    /// Seconds until empty (`f64::INFINITY` when charging; `null` in JSON).
+    #[serde(with = "infinite_as_null", default = "infinite_as_null::infinity")]
     pub discharging_time: f64,
 }
 
@@ -575,7 +241,7 @@ impl Default for ConnectionProfile {
 }
 
 /// A single synthesized speech voice for `speechSynthesis.getVoices()`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpeechVoice {
     pub name: String,
     pub lang: String,
@@ -585,7 +251,7 @@ pub struct SpeechVoice {
 }
 
 impl SpeechVoice {
-    /// Returns a plausible default set of English voices.
+    /// Returns a plausible default set of English voices (those of Windows).
     pub fn default_set() -> Vec<Self> {
         vec![
             Self {
@@ -614,7 +280,7 @@ impl SpeechVoice {
 }
 
 /// A `(brand, version)` pair used by the Client Hints `brands` array.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BrandVersion {
     pub brand: String,
     pub version: String,
@@ -630,7 +296,7 @@ impl BrandVersion {
 }
 
 /// A single labeled media device used by `MediaDevicesProvider`.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MediaDeviceSpec {
     pub kind: String,
     pub device_id: String,
@@ -639,7 +305,7 @@ pub struct MediaDeviceSpec {
 }
 
 /// User-Agent Client Hints (`navigator.userAgentData`).
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ClientHints {
     pub brands: Vec<BrandVersion>,
     pub full_version_list: Vec<BrandVersion>,
@@ -720,11 +386,51 @@ impl CoherenceReport {
     }
 }
 
+/// Why a [`FingerprintBuilder`] could not build a fingerprint.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum FingerprintError {
+    /// A setting was given [`Off`](Spoof::Off), which means nothing for it.
+    ///
+    /// Only geolocation, WebRTC, media devices, battery, Bluetooth, speech
+    /// voices, network information and Client Hints have an off state.
+    #[error("{setting} cannot be Off: only geolocation, webrtc, media_devices, battery, bluetooth, speech_voices, connection and client_hints have an off state")]
+    OffNotAvailable {
+        /// The name of the setting, as its builder method is named.
+        setting: &'static str,
+    },
+    /// A setting was given [`Random`](Spoof::Random), but there is no value to
+    /// draw for it.
+    #[error("{setting} cannot be Random: there is no value to draw for it")]
+    NoRandomValue {
+        /// The name of the setting, as its builder method is named.
+        setting: &'static str,
+    },
+    /// A setting was given [`Random`](Spoof::Random), but nothing coherent with
+    /// the settings that were given can be drawn.
+    #[error("no coherent random {setting}: {reason}")]
+    Incoherent {
+        /// The name of the setting, as its builder method is named.
+        setting: &'static str,
+        /// What the draw could not agree with.
+        reason: String,
+    },
+}
+
+impl From<FingerprintError> for crate::error::SeleniumBaseError {
+    fn from(error: FingerprintError) -> Self {
+        Self::Stealth {
+            reason: error.to_string(),
+        }
+    }
+}
+
 /// A part of a browser's identity that a fingerprint can mask.
 ///
 /// [`Fingerprint::is_masked`] answers, for one of these, whether the
-/// fingerprint spoofs it. Each dimension has a flag in [`StealthFlags`] and the
-/// fingerprint values that switch it on under `Auto`.
+/// fingerprint spoofs it: the settings that belong to it are not `Natural`, or,
+/// for the ones without a value of their own, the [`StealthPolicy`] switches it
+/// on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Dimension {
@@ -764,7 +470,7 @@ pub enum Dimension {
     Ports,
     /// The tracker host block list.
     Trackers,
-    /// The Web Bluetooth stub.
+    /// The Web Bluetooth API.
     Bluetooth,
     /// The `window.chrome` stubs.
     ChromeRuntime,
@@ -774,160 +480,204 @@ pub enum Dimension {
     NativeToString,
 }
 
-impl Dimension {
-    /// The bit this dimension uses in a set of dimensions.
-    const fn bit(self) -> u32 {
-        1 << (self as u32)
+/// What a stable noise seed is derived from when nothing gives one.
+const DEFAULT_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// The audio seed is the canvas seed with this mask applied, so one `seed` gives
+/// both noises and they differ from each other.
+pub(crate) const AUDIO_SEED_MASK: u64 = 0x5DEE_CE66;
+
+/// The data of a [`Fingerprint`]: one field per setting.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct Fields {
+    browser_type: BrowserType,
+    os_type: OsType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    core_version: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    seed: Option<u64>,
+
+    // Navigator
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    user_agent: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    platform: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    hardware_concurrency: Spoof<u32>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    device_memory: Spoof<f64>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    max_touch_points: Spoof<u32>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    vendor: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    oscpu: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    product_sub: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    build_id: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    app_version: Spoof<String>,
+
+    // Localization and time zone
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    locale: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    languages: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    accept_languages: Spoof<String>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    timezone: Spoof<String>,
+
+    // Screen
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    screen: Spoof<ScreenSize>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    avail_screen: Spoof<ScreenSize>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    pixel_ratio: Spoof<f64>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    color_depth: Spoof<u32>,
+
+    // Everything else a page can probe
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    webgl: Spoof<WebGl>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    media_devices: Spoof<MediaDevices>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    geolocation: Spoof<Geolocation>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    fonts: Spoof<Vec<String>>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    proxy: Spoof<ProxyConfig>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    webrtc: Spoof<WebRtcAddresses>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    battery: Spoof<BatteryProfile>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    connection: Spoof<ConnectionProfile>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    speech_voices: Spoof<Vec<SpeechVoice>>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    bluetooth: Spoof<bool>,
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    client_hints: Spoof<ClientHints>,
+
+    // How the claims are delivered, and the profile's housekeeping
+    policy: StealthPolicy,
+    humanize: HumanizeConfig,
+    local_storage: bool,
+    save_service_worker: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    custom_start_urls: Vec<String>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    cmd_params: HashMap<String, String>,
+}
+
+impl Default for Fields {
+    fn default() -> Self {
+        Self {
+            browser_type: BrowserType::default(),
+            os_type: OsType::default(),
+            core_version: None,
+            seed: None,
+            user_agent: Spoof::Natural,
+            platform: Spoof::Natural,
+            hardware_concurrency: Spoof::Natural,
+            device_memory: Spoof::Natural,
+            max_touch_points: Spoof::Natural,
+            vendor: Spoof::Natural,
+            oscpu: Spoof::Natural,
+            product_sub: Spoof::Natural,
+            build_id: Spoof::Natural,
+            app_version: Spoof::Natural,
+            locale: Spoof::Natural,
+            languages: Spoof::Natural,
+            accept_languages: Spoof::Natural,
+            timezone: Spoof::Natural,
+            screen: Spoof::Natural,
+            avail_screen: Spoof::Natural,
+            pixel_ratio: Spoof::Natural,
+            color_depth: Spoof::Natural,
+            webgl: Spoof::Natural,
+            media_devices: Spoof::Natural,
+            geolocation: Spoof::Natural,
+            fonts: Spoof::Natural,
+            proxy: Spoof::Natural,
+            webrtc: Spoof::Natural,
+            battery: Spoof::Natural,
+            connection: Spoof::Natural,
+            speech_voices: Spoof::Natural,
+            bluetooth: Spoof::Natural,
+            client_hints: Spoof::Natural,
+            policy: StealthPolicy::default(),
+            humanize: HumanizeConfig::default(),
+            local_storage: false,
+            save_service_worker: false,
+            custom_start_urls: Vec::new(),
+            cmd_params: HashMap::new(),
+        }
     }
 }
 
+/// Defines the read accessors of [`Fingerprint`], one per setting.
+macro_rules! accessors {
+    ($($(#[$doc:meta])* $name:ident: $ty:ty;)*) => {
+        $(
+            $(#[$doc])*
+            #[must_use]
+            pub const fn $name(&self) -> &$ty {
+                &self.0.$name
+            }
+        )*
+    };
+}
+
+/// The old name of [`StealthPolicy`].
+///
+/// The masking modes it held are gone: a setting is one [`Spoof`], and the
+/// behaviour that remains is the policy. See the CHANGELOG for the migration.
+#[deprecated(note = "renamed StealthPolicy; the masking modes are gone")]
+pub type StealthFlags = StealthPolicy;
+
 /// Complete browser fingerprint / anti-detection profile.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct Fingerprint {
-    #[serde(default)]
-    pub browser_type: BrowserType,
-    #[serde(default)]
-    pub os_type: OsType,
-    pub core_version: Option<u32>,
+///
+/// Build one with [`Fingerprint::builder`] or take a preset such as
+/// [`windows_desktop`](Fingerprint::windows_desktop). It cannot be changed
+/// afterwards: the fields are private, and [`to_builder`](Fingerprint::to_builder)
+/// starts a builder from it. A built fingerprint holds no
+/// [`Random`](Spoof::Random): the builder drew those values.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::stealth::fingerprint::{Fingerprint, Spoof};
+///
+/// let fp = Fingerprint::windows_desktop();
+/// assert_eq!(fp.screen().value().map(|s| s.width), Some(1920));
+///
+/// // Change one thing: take the builder back, change it, build again.
+/// let wider = fp.to_builder().screen(2560, 1440).build()?;
+/// assert_eq!(wider.screen().value().map(|s| s.width), Some(2560));
+/// assert!(wider.hardware_concurrency().is_value());
+/// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct Fingerprint(Fields);
 
-    // Navigator
-    pub user_agent: Option<String>,
-    pub platform: Option<String>,
-    pub hardware_concurrency: Option<u32>,
-    pub device_memory: Option<f64>,
-    pub max_touch_points: Option<u32>,
-    /// `navigator.vendor` (e.g. `Google Inc.`).
-    #[serde(default)]
-    pub vendor: Option<String>,
-    /// `navigator.oscpu` (Firefox persona).
-    #[serde(default)]
-    pub oscpu: Option<String>,
-    /// `navigator.productSub` (usually `20030107` for Chromium).
-    #[serde(default)]
-    pub product_sub: Option<String>,
-    /// `navigator.buildID` (Firefox persona).
-    #[serde(default)]
-    pub build_id: Option<String>,
-    /// `navigator.appVersion` override.
-    #[serde(default)]
-    pub app_version: Option<String>,
-
-    // Localization
-    pub locale: Option<String>,
-    pub languages: Option<String>,
-    pub accept_languages: Option<String>,
-
-    // Timezone
-    pub timezone: Option<String>,
-
-    // Screen
-    pub screen_width: Option<u32>,
-    pub screen_height: Option<u32>,
-    /// `screen.availWidth`. When `None`, the screen's width.
-    #[serde(default)]
-    pub avail_width: Option<u32>,
-    /// `screen.availHeight`. When `None`, the screen's height less 40 pixels.
-    #[serde(default)]
-    pub avail_height: Option<u32>,
-    pub pixel_ratio: Option<f64>,
-    pub color_depth: Option<u32>,
-
-    // WebGL
-    pub webgl_vendor: Option<String>,
-    pub webgl_renderer: Option<String>,
-    /// Optional GPU vendor id (e.g. `0x10de`). Not all browsers expose this.
-    #[serde(default)]
-    pub webgl_vendor_id: Option<String>,
-    /// Optional GPU renderer id (e.g. `0x1f91`). Not all browsers expose this.
-    #[serde(default)]
-    pub webgl_renderer_id: Option<String>,
-
-    // Media devices
-    pub audio_inputs: Option<u32>,
-    pub audio_outputs: Option<u32>,
-    pub video_inputs: Option<u32>,
-    /// Explicitly labeled media devices (overrides the default generated labels).
-    #[serde(default)]
-    pub media_devices: Vec<MediaDeviceSpec>,
-
-    // Geolocation
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub altitude: Option<f64>,
-    pub accuracy: Option<f64>,
-
-    // Fonts
-    #[serde(default)]
-    pub fonts: Vec<String>,
-
-    // Proxy
-    pub proxy: Option<ProxyConfig>,
-
-    // WebRTC
-    /// The WebRTC IP-handling policy the browser is launched with. `None`
-    /// passes no policy flag, unless WebRTC is masked, which uses
-    /// [`WebRtcPolicy::DisableNonProxiedUdp`].
-    #[serde(default)]
-    pub webrtc_policy: Option<WebRtcPolicy>,
-    /// Public IP reported by WebRTC when the masking mode supplies one.
-    #[serde(default)]
-    pub webrtc_public_ip: Option<String>,
-    /// Local IP reported by WebRTC when the masking mode supplies one.
-    #[serde(default)]
-    pub webrtc_local_ip: Option<String>,
-
-    // Ports
-    #[serde(default)]
-    pub ports: Vec<u16>,
-
-    // Storage
-    #[serde(default)]
-    pub local_storage: bool,
-    #[serde(default)]
-    pub save_service_worker: bool,
-
-    // Start URLs
-    #[serde(default)]
-    pub custom_start_urls: Vec<String>,
-
-    // Command-line params injected into the browser.
-    #[serde(default)]
-    pub cmd_params: HashMap<String, String>,
-
-    // --- Extended dimensions (appended for backward compatibility) ---
-    /// Deterministic canvas noise seed. Giving one turns canvas noise on. When
-    /// `None` and the canvas mode is `Mask`, a seed is derived from the
-    /// user-agent so repeated sessions with the same persona are stable.
-    #[serde(default)]
-    pub seed: Option<u64>,
-    /// Deterministic audio noise seed. Giving one turns audio noise on. When
-    /// `None` and the audio mode is `Mask`, it is derived from
-    /// [`seed_value`](Fingerprint::seed_value).
-    #[serde(default)]
-    pub audio_seed: Option<u64>,
-    /// Battery Status API profile.
-    #[serde(default)]
-    pub battery: Option<BatteryProfile>,
-    /// Network Information API profile.
-    #[serde(default)]
-    pub connection: Option<ConnectionProfile>,
-    /// Synthesized speech voices.
-    #[serde(default)]
-    pub speech_voices: Vec<SpeechVoice>,
-    /// User-Agent Client Hints.
-    #[serde(default)]
-    pub client_hints: Option<ClientHints>,
-    /// Humanized input timing configuration.
-    #[serde(default)]
-    pub humanize: HumanizeConfig,
-    /// Custom tracker host block list (empty falls back to
-    /// [`default_tracker_hosts`]).
-    #[serde(default)]
-    pub blocked_trackers: Vec<String>,
-
-    // Masking flags
-    #[serde(default)]
-    pub flags: StealthFlags,
+/// A fingerprint is read as the builder would build it: a `"random"` setting is
+/// drawn, an `"off"` where it means nothing is an error, and a field this
+/// version does not know is an error (the flat shape of the old versions is
+/// one).
+impl<'de> Deserialize<'de> for Fingerprint {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let fields = Fields::deserialize(deserializer)?;
+        FingerprintBuilder::from_fields(fields)
+            .build()
+            .map_err(serde::de::Error::custom)
+    }
 }
 
 impl Fingerprint {
@@ -936,151 +686,198 @@ impl Fingerprint {
         FingerprintBuilder::default()
     }
 
-    /// Returns the deterministic noise seed for this profile.
+    /// A builder that starts from this fingerprint, to change a setting and
+    /// build another.
+    #[must_use]
+    pub fn to_builder(&self) -> FingerprintBuilder {
+        FingerprintBuilder::from_fields(self.0.clone())
+    }
+
+    /// The browser persona.
+    #[must_use]
+    pub const fn browser_type(&self) -> BrowserType {
+        self.0.browser_type
+    }
+
+    /// The operating-system persona.
+    #[must_use]
+    pub const fn os_type(&self) -> OsType {
+        self.0.os_type
+    }
+
+    /// The Chromium major version the identity claims, if it says.
+    #[must_use]
+    pub const fn core_version(&self) -> Option<u32> {
+        self.0.core_version
+    }
+
+    /// The seed of the deterministic noise and of the random draws.
     ///
-    /// Uses the explicit [`seed`](Fingerprint::seed) when set, otherwise
-    /// derives a stable value from the user-agent (falling back to a constant
-    /// when no user-agent is present) so noise is reproducible per persona.
-    pub fn seed_value(&self) -> u64 {
-        self.seed.unwrap_or_else(|| {
-            self.user_agent
-                .as_deref()
-                .map_or(0x9E37_79B9_7F4A_7C15, |ua| fnv1a(ua.as_bytes()))
-        })
+    /// It is the one given with [`seed`](FingerprintBuilder::seed). Without
+    /// one, it is fresh entropy when a setting was drawn at random, and a value
+    /// derived from the user agent otherwise, so the same persona gets the same
+    /// noise on every launch.
+    #[must_use]
+    pub fn seed(&self) -> u64 {
+        self.0.seed.unwrap_or(DEFAULT_SEED)
+    }
+
+    accessors! {
+        /// `navigator.userAgent` and the `User-Agent` header.
+        user_agent: Spoof<String>;
+        /// `navigator.platform`.
+        platform: Spoof<String>;
+        /// `navigator.hardwareConcurrency`.
+        hardware_concurrency: Spoof<u32>;
+        /// `navigator.deviceMemory`.
+        device_memory: Spoof<f64>;
+        /// `navigator.maxTouchPoints`.
+        max_touch_points: Spoof<u32>;
+        /// `navigator.vendor`.
+        vendor: Spoof<String>;
+        /// `navigator.oscpu` (Firefox persona).
+        oscpu: Spoof<String>;
+        /// `navigator.productSub`.
+        product_sub: Spoof<String>;
+        /// `navigator.buildID` (Firefox persona).
+        build_id: Spoof<String>;
+        /// `navigator.appVersion`.
+        app_version: Spoof<String>;
+        /// `navigator.language`.
+        locale: Spoof<String>;
+        /// `navigator.languages`, comma-separated.
+        languages: Spoof<String>;
+        /// The `Accept-Language` header.
+        accept_languages: Spoof<String>;
+        /// The IANA time zone.
+        timezone: Spoof<String>;
+        /// `screen.width` and `screen.height`.
+        screen: Spoof<ScreenSize>;
+        /// `screen.availWidth` and `screen.availHeight`.
+        avail_screen: Spoof<ScreenSize>;
+        /// `window.devicePixelRatio`.
+        pixel_ratio: Spoof<f64>;
+        /// `screen.colorDepth`.
+        color_depth: Spoof<u32>;
+        /// The unmasked WebGL vendor and renderer.
+        webgl: Spoof<WebGl>;
+        /// What `enumerateDevices()` lists. `Off` lists none.
+        media_devices: Spoof<MediaDevices>;
+        /// The position `navigator.geolocation` reports. `Off` denies the request.
+        geolocation: Spoof<Geolocation>;
+        /// The installed fonts.
+        fonts: Spoof<Vec<String>>;
+        /// The proxy the browser is launched with.
+        proxy: Spoof<ProxyConfig>;
+        /// The addresses WebRTC reports. `Off` makes WebRTC unavailable.
+        webrtc: Spoof<WebRtcAddresses>;
+        /// The Battery Status API. `Off` makes it unavailable.
+        battery: Spoof<BatteryProfile>;
+        /// The Network Information API. `Off` makes it unavailable.
+        connection: Spoof<ConnectionProfile>;
+        /// `speechSynthesis.getVoices()`. `Off` lists none.
+        speech_voices: Spoof<Vec<SpeechVoice>>;
+        /// Web Bluetooth: `Value(true)` has an adapter, `Value(false)` has none,
+        /// `Off` makes the API unavailable.
+        bluetooth: Spoof<bool>;
+        /// User-Agent Client Hints. `Off` makes `navigator.userAgentData` unavailable.
+        client_hints: Spoof<ClientHints>;
+        /// How the claims are delivered and which protections run beside them.
+        policy: StealthPolicy;
+        /// Humanized input timing.
+        humanize: HumanizeConfig;
+        /// The URLs the profile opens at start.
+        custom_start_urls: Vec<String>;
+        /// Extra browser command-line parameters.
+        cmd_params: HashMap<String, String>;
+    }
+
+    /// Whether `localStorage` is kept between sessions of the profile.
+    #[must_use]
+    pub const fn local_storage(&self) -> bool {
+        self.0.local_storage
+    }
+
+    /// Whether service workers are kept between sessions of the profile.
+    #[must_use]
+    pub const fn save_service_worker(&self) -> bool {
+        self.0.save_service_worker
+    }
+
+    /// The tracker host block list, defaulting to [`default_tracker_hosts`]
+    /// when the policy gives none.
+    pub fn tracker_hosts(&self) -> Vec<String> {
+        if self.0.policy.blocked_trackers.is_empty() {
+            default_tracker_hosts()
+        } else {
+            self.0.policy.blocked_trackers.clone()
+        }
     }
 
     /// Whether this fingerprint spoofs `dimension`.
     ///
     /// This is the one predicate the page-script providers, the launch
-    /// arguments, the protocol overrides and the proxy all ask. Under `Auto`
-    /// (the default of every mode) a dimension is on when the fingerprint has a
-    /// value for it; `Mask` is on and fills the values that are missing;
-    /// `Natural` is off whatever the fingerprint holds. The few dimensions
-    /// without a value of their own are off under `Auto`, except
-    /// [`Dimension::NativeToString`], which is on unless switched off.
+    /// arguments, the protocol overrides and the proxy all ask. A dimension is
+    /// on when a setting that belongs to it is not
+    /// [`Natural`](Spoof::Natural); the few dimensions without a setting of
+    /// their own follow the [`StealthPolicy`] (`NativeToString` is on unless
+    /// the policy switches it off).
     ///
     /// # Examples
     ///
     /// ```
     /// use seleniumbase_rs::stealth::fingerprint::{Dimension, Fingerprint};
     ///
-    /// let fp = Fingerprint::builder().timezone("Europe/Berlin").build();
+    /// let fp = Fingerprint::builder().timezone("Europe/Berlin").build()?;
     /// assert!(fp.is_masked(Dimension::Timezone));
     /// assert!(!fp.is_masked(Dimension::Screen));
+    /// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
     /// ```
     #[must_use]
     pub fn is_masked(&self, dimension: Dimension) -> bool {
-        let f = &self.flags;
+        let f = &self.0;
         match dimension {
-            Dimension::Navigator => f.navigator_masking.resolve(
-                self.user_agent.is_some()
-                    || self.platform.is_some()
-                    || self.hardware_concurrency.is_some()
-                    || self.device_memory.is_some()
-                    || self.max_touch_points.is_some()
-                    || self.vendor.is_some()
-                    || self.oscpu.is_some()
-                    || self.product_sub.is_some()
-                    || self.build_id.is_some()
-                    || self.app_version.is_some(),
-            ),
-            Dimension::Localization => f.localization_masking.resolve(
-                self.locale.is_some()
-                    || self.languages.is_some()
-                    || self.accept_languages.is_some(),
-            ),
-            Dimension::Timezone => f.timezone_masking.resolve(self.timezone.is_some()),
-            Dimension::Screen => f.screen_masking.resolve(
-                self.screen_width.is_some()
-                    || self.screen_height.is_some()
-                    || self.avail_width.is_some()
-                    || self.avail_height.is_some()
-                    || self.pixel_ratio.is_some()
-                    || self.color_depth.is_some(),
-            ),
-            Dimension::Graphics => f
-                .graphics_masking
-                .resolve(self.webgl_vendor.is_some() || self.webgl_renderer.is_some()),
-            Dimension::Fonts => f.fonts_masking.resolve(!self.fonts.is_empty()),
-            Dimension::MediaDevices => f.media_devices_masking.resolve(
-                self.audio_inputs.is_some()
-                    || self.audio_outputs.is_some()
-                    || self.video_inputs.is_some()
-                    || !self.media_devices.is_empty(),
-            ),
-            Dimension::Geolocation => f
-                .geolocation_masking
-                .resolve(self.latitude.is_some() && self.longitude.is_some()),
-            Dimension::WebRtc => f.webrtc_masking.resolve(
-                self.webrtc_public_ip.is_some()
-                    || self.webrtc_local_ip.is_some()
-                    || self.webrtc_policy.is_some(),
-            ),
-            Dimension::Canvas => match f.canvas_noise {
-                CanvasNoiseMode::Auto => self.seed.is_some(),
-                mode => mode.adds_noise(),
-            },
-            Dimension::Audio => f.audio_masking.resolve(self.audio_seed.is_some()),
-            Dimension::Battery => f.battery_masking.resolve(self.battery.is_some()),
-            Dimension::Connection => f.connection_masking.resolve(self.connection.is_some()),
-            Dimension::Speech => f.speech_masking.resolve(!self.speech_voices.is_empty()),
-            Dimension::ClientHints => f.client_hints_masking.resolve(self.client_hints.is_some()),
-            Dimension::Proxy => match f.proxy_masking {
-                ProxyMaskingMode::Auto => self.proxy.as_ref().is_some_and(|p| !p.host.is_empty()),
-                ProxyMaskingMode::Disabled | ProxyMaskingMode::Direct => false,
-                _ => self.proxy.is_some(),
-            },
-            Dimension::Ports => {
-                !self.ports.is_empty()
-                    && !matches!(f.ports_masking, NoiseMode::Natural | NoiseMode::Off)
+            Dimension::Navigator => [
+                f.user_agent.is_set(),
+                f.platform.is_set(),
+                f.hardware_concurrency.is_set(),
+                f.device_memory.is_set(),
+                f.max_touch_points.is_set(),
+                f.vendor.is_set(),
+                f.oscpu.is_set(),
+                f.product_sub.is_set(),
+                f.build_id.is_set(),
+                f.app_version.is_set(),
+            ]
+            .contains(&true),
+            Dimension::Localization => {
+                f.locale.is_set() || f.languages.is_set() || f.accept_languages.is_set()
             }
-            Dimension::Trackers => f.block_trackers || !self.blocked_trackers.is_empty(),
-            Dimension::Bluetooth => f.bluetooth_masking.resolve(false),
-            Dimension::ChromeRuntime => f.chrome_runtime_masking.resolve(false),
-            Dimension::Headless => f.headless_masking.resolve(false),
-            Dimension::NativeToString => !f.native_tostring_masking.is_off(),
-        }
-    }
-
-    /// Whether `dimension` fills the values the fingerprint lacks with generic
-    /// ones: its mode is `Mask`. A value the fingerprint has is always used.
-    #[must_use]
-    pub fn fills_defaults(&self, dimension: Dimension) -> bool {
-        let f = &self.flags;
-        match dimension {
-            Dimension::Navigator => f.navigator_masking.fills_defaults(),
-            Dimension::Localization => f.localization_masking.fills_defaults(),
-            Dimension::Timezone => f.timezone_masking.fills_defaults(),
-            Dimension::Screen => f.screen_masking.fills_defaults(),
-            Dimension::Graphics => f.graphics_masking.fills_defaults(),
-            Dimension::Fonts => f.fonts_masking.fills_defaults(),
-            Dimension::MediaDevices => f.media_devices_masking.fills_defaults(),
-            Dimension::Geolocation => f.geolocation_masking.fills_defaults(),
-            Dimension::WebRtc => f.webrtc_masking.fills_defaults(),
-            Dimension::Canvas => f.canvas_noise.adds_noise(),
-            Dimension::Audio => f.audio_masking.fills_defaults(),
-            Dimension::Battery => f.battery_masking.fills_defaults(),
-            Dimension::Connection => f.connection_masking.fills_defaults(),
-            Dimension::Speech => f.speech_masking.fills_defaults(),
-            Dimension::ClientHints => f.client_hints_masking.fills_defaults(),
-            Dimension::Bluetooth => f.bluetooth_masking.fills_defaults(),
-            Dimension::ChromeRuntime => f.chrome_runtime_masking.fills_defaults(),
-            Dimension::Headless => f.headless_masking.fills_defaults(),
-            Dimension::NativeToString => f.native_tostring_masking.fills_defaults(),
-            Dimension::Proxy | Dimension::Ports | Dimension::Trackers => false,
-        }
-    }
-
-    /// How a geolocation request is answered, with `Auto` resolved: `Allow`
-    /// when the fingerprint has a position, `Prompt` when it has none.
-    #[must_use]
-    pub fn geolocation_popup(&self) -> PopupMode {
-        match self.flags.geolocation_popup {
-            PopupMode::Auto if self.latitude.is_some() && self.longitude.is_some() => {
-                PopupMode::Allow
+            Dimension::Timezone => f.timezone.is_set(),
+            Dimension::Screen => {
+                f.screen.is_set()
+                    || f.avail_screen.is_set()
+                    || f.pixel_ratio.is_set()
+                    || f.color_depth.is_set()
             }
-            PopupMode::Auto => PopupMode::Prompt,
-            mode => mode,
+            Dimension::Graphics => f.webgl.is_set(),
+            Dimension::Fonts => f.fonts.is_set(),
+            Dimension::MediaDevices => f.media_devices.is_set(),
+            Dimension::Geolocation => f.geolocation.is_set(),
+            Dimension::WebRtc => f.webrtc.is_set() || f.policy.webrtc_policy.is_some(),
+            Dimension::Canvas => f.policy.canvas_noise.adds_noise(),
+            Dimension::Audio => f.policy.audio_noise.adds_noise(),
+            Dimension::Battery => f.battery.is_set(),
+            Dimension::Connection => f.connection.is_set(),
+            Dimension::Speech => f.speech_voices.is_set(),
+            Dimension::ClientHints => f.client_hints.is_set(),
+            Dimension::Proxy => f.proxy.is_value(),
+            Dimension::Ports => !f.policy.blocked_ports.is_empty(),
+            Dimension::Trackers => f.policy.block_trackers || !f.policy.blocked_trackers.is_empty(),
+            Dimension::Bluetooth => f.bluetooth.is_set(),
+            Dimension::ChromeRuntime => f.policy.chrome_runtime,
+            Dimension::Headless => f.policy.headless_fixes,
+            Dimension::NativeToString => f.policy.native_tostring,
         }
     }
 
@@ -1088,19 +885,18 @@ impl Fingerprint {
     ///
     /// This catches common mismatches such as a macOS user-agent paired with a
     /// `Win32` platform, or a mobile user-agent without touch points, that make
-    /// an otherwise convincing profile easy to detect.
+    /// an otherwise convincing profile easy to detect. Only values that were
+    /// given are checked; a `Natural` setting is the browser's own.
     pub fn validate(&self) -> CoherenceReport {
         let mut report = CoherenceReport::default();
-        let ua = self.user_agent.as_deref().unwrap_or("");
+        let f = &self.0;
+        let ua = f.user_agent.as_str().unwrap_or("");
         let ua_lower = ua.to_lowercase();
 
-        let platform = self
-            .platform
-            .as_deref()
-            .unwrap_or_else(|| self.os_type.platform());
+        let platform = f.platform.as_str().unwrap_or_else(|| f.os_type.platform());
 
         // OS persona vs navigator.platform.
-        let platform_ok = match self.os_type {
+        let platform_ok = match f.os_type {
             OsType::Windows => platform.starts_with("Win"),
             OsType::Macos => platform.contains("Mac"),
             OsType::Linux => platform.contains("Linux") && !platform.contains("arm"),
@@ -1112,13 +908,13 @@ impl Fingerprint {
         if !platform_ok {
             report.errors.push(format!(
                 "navigator.platform '{platform}' does not match OS persona {:?}",
-                self.os_type
+                f.os_type
             ));
         }
 
         // OS persona vs user-agent token.
         if !ua.is_empty() {
-            let ua_os_ok = match self.os_type {
+            let ua_os_ok = match f.os_type {
                 OsType::Windows => ua_lower.contains("windows"),
                 OsType::Macos => ua_lower.contains("mac os"),
                 OsType::Linux => ua_lower.contains("linux") || ua_lower.contains("x11"),
@@ -1128,29 +924,30 @@ impl Fingerprint {
             if !ua_os_ok {
                 report.errors.push(format!(
                     "user-agent does not contain a token for OS persona {:?}",
-                    self.os_type
+                    f.os_type
                 ));
             }
         }
 
         // Mobile user-agents need touch points.
+        let touch_points = f.max_touch_points.value().copied().unwrap_or(0);
         let is_mobile_ua = ua_lower.contains("mobile")
             || ua_lower.contains("android")
             || ua_lower.contains("iphone")
             || ua_lower.contains("ipad");
-        if is_mobile_ua && self.max_touch_points.unwrap_or(0) == 0 {
+        if is_mobile_ua && touch_points == 0 {
             report
                 .warnings
                 .push("mobile user-agent but maxTouchPoints is 0".to_owned());
         }
-        if !is_mobile_ua && self.max_touch_points.unwrap_or(0) > 0 {
+        if !is_mobile_ua && touch_points > 0 {
             report
                 .warnings
                 .push("desktop user-agent but maxTouchPoints is greater than 0".to_owned());
         }
 
         // Locale vs primary language.
-        if let (Some(locale), Some(langs)) = (self.locale.as_deref(), self.languages.as_deref()) {
+        if let (Some(locale), Some(langs)) = (f.locale.as_str(), f.languages.as_str()) {
             let primary = langs.split(',').next().unwrap_or("").trim();
             if !primary.is_empty() && !primary.eq_ignore_ascii_case(locale) {
                 report.warnings.push(format!(
@@ -1160,15 +957,15 @@ impl Fingerprint {
         }
 
         // Timezone present but no geolocation (soft).
-        if self.timezone.is_some() && self.latitude.is_none() {
+        if f.timezone.is_value() && f.geolocation.is_natural() {
             report
                 .warnings
                 .push("timezone set without geolocation; consider matching coordinates".to_owned());
         }
 
         // Screen sanity.
-        if let (Some(w), Some(h)) = (self.screen_width, self.screen_height) {
-            if w == 0 || h == 0 {
+        if let Some(size) = f.screen.value() {
+            if size.width == 0 || size.height == 0 {
                 report
                     .errors
                     .push("screen dimensions must be non-zero".to_owned());
@@ -1186,10 +983,13 @@ impl Fingerprint {
     /// the one a single family of systems reports, so a renderer from another
     /// family gives the persona away.
     fn check_graphics(&self, report: &mut CoherenceReport) {
+        let Some(webgl) = self.0.webgl.value() else {
+            return;
+        };
         let named = format!(
             "{} {}",
-            self.webgl_vendor.as_deref().unwrap_or(""),
-            self.webgl_renderer.as_deref().unwrap_or("")
+            webgl.vendor.as_deref().unwrap_or(""),
+            webgl.renderer.as_deref().unwrap_or("")
         );
         // (what the strings name, the API's name, the systems that report it)
         let families: [(&[&str], &str, &[OsType]); 4] = [
@@ -1210,31 +1010,19 @@ impl Fingerprint {
             if !needles.iter().any(|n| named.contains(n)) {
                 continue;
             }
-            if !systems.contains(&self.os_type) {
+            if !systems.contains(&self.0.os_type) {
                 report.errors.push(format!(
                     "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
-                    self.webgl_renderer.as_deref().unwrap_or(""),
-                    self.os_type
+                    webgl.renderer.as_deref().unwrap_or(""),
+                    self.0.os_type
                 ));
             }
-        }
-
-        // The generic renderer `Mask` fills in is an Intel one worded for a Mac.
-        if self.fills_defaults(Dimension::Graphics)
-            && (self.webgl_vendor.is_none() || self.webgl_renderer.is_none())
-            && !matches!(self.os_type, OsType::Macos | OsType::Ios)
-        {
-            report.warnings.push(format!(
-                "WebGL is masked without a vendor and a renderer, so the generic Mac-style Intel \
-                 renderer fills in, which does not match {:?}",
-                self.os_type
-            ));
         }
     }
 
     /// The browser persona against its user agent.
     fn check_browser_persona(&self, ua: &str, report: &mut CoherenceReport) {
-        if self.browser_type == BrowserType::MobileSafari && ua.contains("Chrome/") {
+        if self.0.browser_type == BrowserType::MobileSafari && ua.contains("Chrome/") {
             report.errors.push(
                 "browser persona MobileSafari but the user agent has a Chrome/ token".to_owned(),
             );
@@ -1244,14 +1032,14 @@ impl Fingerprint {
     /// The locale against the time zone: a locale is spoken in its own country,
     /// so a time zone the table of places puts in another one is a tell.
     fn check_place(&self, report: &mut CoherenceReport) {
-        let (Some(locale), Some(zone)) = (self.locale.as_deref(), self.timezone.as_deref()) else {
+        let (Some(locale), Some(zone)) = (self.0.locale.as_str(), self.0.timezone.as_str()) else {
             return;
         };
         let region = locale
             .rsplit_once('-')
             .map(|(_, region)| region)
             .filter(|region| region.len() == 2);
-        let country = super::randomize::locale_of_timezone(zone).map(|l| l.country);
+        let country = randomize::locale_of_timezone(zone).map(|l| l.country);
         if let (Some(region), Some(country)) = (region, country) {
             if !region.eq_ignore_ascii_case(country) {
                 report.warnings.push(format!(
@@ -1267,7 +1055,11 @@ impl Fingerprint {
     /// Randomising fields one at a time yields the mismatches detectors look
     /// for (a Mac with a Direct3D renderer, a Tokyo time zone under an `en-US`
     /// locale), so this draws a whole machine and a whole place and derives
-    /// every field from them:
+    /// every field from them. It is the builder with these settings
+    /// [`Random`](Spoof::Random): user agent, platform, cores, memory, touch
+    /// points, vendor, locale, languages, time zone, position, screen, pixel
+    /// ratio, colour depth, WebGL, Client Hints, battery, network information,
+    /// speech voices and Bluetooth, with [`StealthPolicy::balanced`].
     ///
     /// - **Graphics**: WebGL vendor and renderer strings (and PCI ids) that the
     ///   OS really reports: ANGLE over Direct3D 11 on Windows, ANGLE over Metal
@@ -1283,13 +1075,10 @@ impl Fingerprint {
     /// - **Software**: a user agent, `navigator.platform`, `navigator.vendor` and
     ///   Client Hints (built the way Chromium builds them) that agree with the OS
     ///   and with the claimed Chromium major version.
-    /// - **Noise**: a canvas and audio noise [`seed`](Fingerprint::seed), so the
-    ///   noise is stable for this identity and different for the next.
     ///
     /// The result passes [`validate`](Fingerprint::validate) without errors or
     /// warnings for every seed the tests try: 1,500 per OS, and edge cases such
-    /// as `0` and `u64::MAX`. The masking flags are [`StealthFlags::balanced`], so the
-    /// values are applied as they are.
+    /// as `0` and `u64::MAX`. The noise [`seed`](Fingerprint::seed) is `seed`.
     ///
     /// The same `seed` gives the same identity within one version of this crate.
     /// Adding or changing a table row changes what a seed maps to, so persist
@@ -1311,7 +1100,11 @@ impl Fingerprint {
     /// assert!(report.is_coherent() && report.warnings.is_empty());
     ///
     /// // A Mac reports an Apple GPU through Metal, never Direct3D.
-    /// let renderer = fp.webgl_renderer.as_deref().unwrap_or_default();
+    /// let renderer = fp
+    ///     .webgl()
+    ///     .value()
+    ///     .and_then(|gl| gl.renderer.as_deref())
+    ///     .unwrap_or_default();
     /// assert!(renderer.contains("Metal") && !renderer.contains("Direct3D"));
     ///
     /// // Another seed is another machine.
@@ -1325,7 +1118,8 @@ impl Fingerprint {
     ///   change `user_agent`, `client_hints` and `core_version` together.
     /// - Client Hints report full versions as `major.0.0.0`, the form the
     ///   user agent itself uses.
-    /// - Fonts and media devices are left unset, and the proxy is left off.
+    /// - Fonts, media devices and WebRTC addresses are left alone, and the proxy
+    ///   is left off. Ask for them with [`Spoof::Random`] on a builder.
     /// - It describes an identity, not a browser. Give it to a browser with
     ///   [`BrowserConfig::with_fingerprint`](crate::BrowserConfig::with_fingerprint)
     ///   (WebDriver and UC sessions), with
@@ -1335,7 +1129,7 @@ impl Fingerprint {
     ///   system does not change the binary's real behaviour.
     #[must_use]
     pub fn randomized(os: OsType, seed: u64) -> Self {
-        super::randomize::generate(os, seed, None)
+        Self::randomized_builder(os, seed, None)
     }
 
     /// Like [`Fingerprint::randomized`], but with the Chromium major fixed to `major`, so the
@@ -1343,17 +1137,56 @@ impl Fingerprint {
     /// identity come from. Safari and iOS have no Chromium major and ignore `major`.
     #[must_use]
     pub fn randomized_with_major(os: OsType, seed: u64, major: u32) -> Self {
-        super::randomize::generate(os, seed, Some(major))
+        Self::randomized_builder(os, seed, Some(major))
     }
 
-    /// Returns the tracker host block list, defaulting to
-    /// [`default_tracker_hosts`] when none were supplied.
-    pub fn tracker_hosts(&self) -> Vec<String> {
-        if self.blocked_trackers.is_empty() {
-            default_tracker_hosts()
-        } else {
-            self.blocked_trackers.clone()
+    fn randomized_builder(os: OsType, seed: u64, major: Option<u32>) -> Self {
+        let mut builder = Self::builder().os_type(os).seed(seed);
+        if let Some(major) = major.filter(|_| os != OsType::Ios) {
+            builder = builder.core_version(major);
         }
+        builder
+            .user_agent(Spoof::Random)
+            .platform(Spoof::Random)
+            .hardware_concurrency(Spoof::Random)
+            .device_memory(Spoof::Random)
+            .max_touch_points(Spoof::Random)
+            .vendor(Spoof::Random)
+            .locale(Spoof::Random)
+            .languages(Spoof::Random)
+            .accept_languages(Spoof::Random)
+            .timezone(Spoof::Random)
+            .geolocation(Spoof::Random)
+            .screen_spoof(Spoof::Random)
+            .pixel_ratio(Spoof::Random)
+            .color_depth(Spoof::Random)
+            .webgl(Spoof::Random)
+            .client_hints(Spoof::Random)
+            .battery(Spoof::Random)
+            .connection(Spoof::Random)
+            .speech_voices(Spoof::Random)
+            .bluetooth(Spoof::Random)
+            .policy(StealthPolicy::balanced())
+            .build()
+            .expect("every setting of a drawn persona has a value to draw, and none is Off")
+    }
+
+    /// The settings that go with a machine of `os` in every preset: a battery,
+    /// network information, speech voices and Web Bluetooth where the browser
+    /// has them, and none where it has not.
+    fn with_machine_extras(builder: FingerprintBuilder, os: OsType) -> FingerprintBuilder {
+        if os == OsType::Ios {
+            return builder
+                .battery(Spoof::Off)
+                .connection(Spoof::Off)
+                .bluetooth(Spoof::Off)
+                .speech_voices(randomize::speech_voices_for(os));
+        }
+        builder
+            .battery(BatteryProfile::default())
+            .connection(ConnectionProfile::default())
+            .speech_voices(randomize::speech_voices_for(os))
+            .bluetooth(matches!(os, OsType::Android | OsType::Macos))
     }
 
     /// Quick preset for a Windows desktop Chrome profile.
@@ -1362,24 +1195,26 @@ impl Fingerprint {
     /// [`PRESET_CHROMIUM_MAJOR`](super::randomize::PRESET_CHROMIUM_MAJOR), the
     /// newest major a randomized identity may claim, in Chrome's frozen user-agent
     /// format. They set no Client Hints; the evasions derive those from the user
-    /// agent.
+    /// agent. Every preset is built with [`StealthPolicy::balanced`] and passes
+    /// [`validate`](Fingerprint::validate) without a warning.
     pub fn windows_desktop() -> Self {
-        Self::builder()
-            .os_type(OsType::Windows)
-            .user_agent(preset_user_agent("Windows NT 10.0; Win64; x64", false))
-            .platform("Win32")
-            .screen(1920, 1080)
-            .hardware_concurrency(8)
-            .device_memory(8.0)
-            .locale("en-US")
-            .languages("en-US,en;q=0.9")
-            .place("America/New_York")
-            .webgl(
-                "Google Inc. (NVIDIA)",
-                "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
-            )
-            .flags(StealthFlags::balanced())
-            .build()
+        Self::preset(Self::with_machine_extras(
+            Self::builder()
+                .os_type(OsType::Windows)
+                .user_agent(preset_user_agent("Windows NT 10.0; Win64; x64", false))
+                .platform("Win32")
+                .screen(1920, 1080)
+                .hardware_concurrency(8)
+                .device_memory(8.0)
+                .locale("en-US")
+                .languages("en-US,en;q=0.9")
+                .place("America/New_York")
+                .webgl((
+                    "Google Inc. (NVIDIA)",
+                    "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
+                )),
+            OsType::Windows,
+        ))
     }
 
     /// Quick preset for a Windows desktop Microsoft Edge profile.
@@ -1389,46 +1224,48 @@ impl Fingerprint {
     /// evasions derive them from the user agent, as they do for the Chrome
     /// presets. [`fingerprint!(edge)`](crate::fingerprint) is this preset.
     pub fn edge_desktop() -> Self {
-        Self::builder()
-            .os_type(OsType::Windows)
-            .user_agent(super::randomize::edge_user_agent(
-                "Windows NT 10.0; Win64; x64",
-                super::randomize::PRESET_CHROMIUM_MAJOR,
-            ))
-            .platform("Win32")
-            .screen(1920, 1080)
-            .hardware_concurrency(8)
-            .device_memory(8.0)
-            .locale("en-US")
-            .languages("en-US,en;q=0.9")
-            .place("America/New_York")
-            .webgl(
-                "Google Inc. (NVIDIA)",
-                "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
-            )
-            .flags(StealthFlags::balanced())
-            .build()
+        Self::preset(Self::with_machine_extras(
+            Self::builder()
+                .os_type(OsType::Windows)
+                .user_agent(randomize::edge_user_agent(
+                    "Windows NT 10.0; Win64; x64",
+                    randomize::PRESET_CHROMIUM_MAJOR,
+                ))
+                .platform("Win32")
+                .screen(1920, 1080)
+                .hardware_concurrency(8)
+                .device_memory(8.0)
+                .locale("en-US")
+                .languages("en-US,en;q=0.9")
+                .place("America/New_York")
+                .webgl((
+                    "Google Inc. (NVIDIA)",
+                    "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
+                )),
+            OsType::Windows,
+        ))
     }
 
     /// Quick preset for a macOS desktop Chrome profile.
     pub fn macos_desktop() -> Self {
-        let (vendor, renderer) = super::randomize::macos_webgl("Apple M3");
-        Self::builder()
-            .os_type(OsType::Macos)
-            .user_agent(preset_user_agent(
-                "Macintosh; Intel Mac OS X 10_15_7",
-                false,
-            ))
-            .platform("MacIntel")
-            .screen(1920, 1080)
-            .hardware_concurrency(8)
-            .device_memory(8.0)
-            .locale("en-US")
-            .languages("en-US,en;q=0.9")
-            .place("America/Los_Angeles")
-            .webgl(vendor, renderer)
-            .flags(StealthFlags::balanced())
-            .build()
+        let webgl = randomize::macos_webgl("Apple M3");
+        Self::preset(Self::with_machine_extras(
+            Self::builder()
+                .os_type(OsType::Macos)
+                .user_agent(preset_user_agent(
+                    "Macintosh; Intel Mac OS X 10_15_7",
+                    false,
+                ))
+                .platform("MacIntel")
+                .screen(1920, 1080)
+                .hardware_concurrency(8)
+                .device_memory(8.0)
+                .locale("en-US")
+                .languages("en-US,en;q=0.9")
+                .place("America/Los_Angeles")
+                .webgl(webgl),
+            OsType::Macos,
+        ))
     }
 
     /// Quick preset for a Linux desktop Chrome profile.
@@ -1436,639 +1273,824 @@ impl Fingerprint {
     /// Its WebGL strings are worded the way Chrome words them on Linux, as a
     /// generated Linux identity words them: ANGLE over desktop OpenGL.
     pub fn linux_desktop() -> Self {
-        let (vendor, renderer) = super::randomize::linux_preset_webgl();
-        Self::builder()
-            .os_type(OsType::Linux)
-            .user_agent(preset_user_agent("X11; Linux x86_64", false))
-            .platform("Linux x86_64")
-            .screen(1920, 1080)
-            .hardware_concurrency(8)
-            .device_memory(8.0)
-            .locale("en-US")
-            .languages("en-US,en;q=0.9")
-            .place("America/Chicago")
-            .webgl(vendor, renderer)
-            .flags(StealthFlags::balanced())
-            .build()
+        let webgl = randomize::linux_preset_webgl();
+        Self::preset(Self::with_machine_extras(
+            Self::builder()
+                .os_type(OsType::Linux)
+                .user_agent(preset_user_agent("X11; Linux x86_64", false))
+                .platform("Linux x86_64")
+                .screen(1920, 1080)
+                .hardware_concurrency(8)
+                .device_memory(8.0)
+                .locale("en-US")
+                .languages("en-US,en;q=0.9")
+                .place("America/Chicago")
+                .webgl(webgl),
+            OsType::Linux,
+        ))
     }
 
     /// Quick preset for an Android mobile Chrome profile.
     pub fn android_mobile() -> Self {
-        Self::builder()
-            .os_type(OsType::Android)
-            // Chrome on Android freezes the version and hides the model in the
-            // user agent; the model is only in the Client Hints.
-            .user_agent(preset_user_agent("Linux; Android 10; K", true))
-            .platform("Linux armv8l")
-            .screen(412, 915)
-            .pixel_ratio(3.0)
-            .hardware_concurrency(8)
-            .max_touch_points(5)
-            .locale("en-US")
-            .languages("en-US,en;q=0.9")
-            .place("America/New_York")
-            .webgl("Qualcomm", "Adreno (TM) 740")
-            .flags(StealthFlags::balanced())
-            .build()
+        Self::preset(Self::with_machine_extras(
+            Self::builder()
+                .os_type(OsType::Android)
+                // Chrome on Android freezes the version and hides the model in the
+                // user agent; the model is only in the Client Hints.
+                .user_agent(preset_user_agent("Linux; Android 10; K", true))
+                .platform("Linux armv8l")
+                .screen(412, 915)
+                .pixel_ratio(3.0)
+                .hardware_concurrency(8)
+                .max_touch_points(5)
+                .locale("en-US")
+                .languages("en-US,en;q=0.9")
+                .place("America/New_York")
+                .webgl(("Qualcomm", "Adreno (TM) 740")),
+            OsType::Android,
+        ))
     }
 
     /// Quick preset for an iPhone / Mobile Safari profile.
     ///
     /// Safari 26.0 on iOS 26, whose user agent names the frozen `iPhone OS 18_6`
-    /// (WebKit bug 298717); see the Safari table in [`super::randomize`].
+    /// (WebKit bug 298717); see the Safari table in [`super::randomize`]. Safari
+    /// has no battery, network information or Web Bluetooth, so those are `Off`.
     pub fn ios_mobile_safari() -> Self {
-        Self::builder()
-            .browser_type(BrowserType::MobileSafari)
-            .os_type(OsType::Ios)
-            .user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
-            .platform("iPhone")
-            .screen(390, 844)
-            .pixel_ratio(3.0)
-            .hardware_concurrency(4)
-            .device_memory(8.0)
-            .max_touch_points(5)
-            .locale("en-US")
-            .languages("en-US,en;q=0.9")
-            .place("America/New_York")
-            .webgl("Apple Inc.", "Apple GPU")
-            .vendor("Apple Computer, Inc.")
-            .client_hints(ClientHints {
-                brands: vec![BrandVersion::new("Safari", "26")],
-                full_version_list: vec![BrandVersion::new("Safari", "26.0")],
-                platform: "iPhone".to_owned(),
-                platform_version: "26.0".to_owned(),
-                architecture: "arm".to_owned(),
-                bitness: "64".to_owned(),
-                model: "iPhone".to_owned(),
-                ua_full_version: "26.0".to_owned(),
-                mobile: true,
-                ..ClientHints::default()
-            })
-            .flags(StealthFlags::balanced())
+        Self::preset(Self::with_machine_extras(
+            Self::builder()
+                .browser_type(BrowserType::MobileSafari)
+                .os_type(OsType::Ios)
+                .user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1")
+                .platform("iPhone")
+                .screen(390, 844)
+                .pixel_ratio(3.0)
+                .hardware_concurrency(4)
+                .device_memory(8.0)
+                .max_touch_points(5)
+                .locale("en-US")
+                .languages("en-US,en;q=0.9")
+                .place("America/New_York")
+                .webgl(("Apple Inc.", "Apple GPU"))
+                .vendor("Apple Computer, Inc.")
+                .client_hints(ClientHints {
+                    brands: vec![BrandVersion::new("Safari", "26")],
+                    full_version_list: vec![BrandVersion::new("Safari", "26.0")],
+                    platform: "iPhone".to_owned(),
+                    platform_version: "26.0".to_owned(),
+                    architecture: "arm".to_owned(),
+                    bitness: "64".to_owned(),
+                    model: "iPhone".to_owned(),
+                    ua_full_version: "26.0".to_owned(),
+                    mobile: true,
+                    ..ClientHints::default()
+                }),
+            OsType::Ios,
+        ))
+    }
+
+    /// Builds a preset: the balanced policy, and nothing in it can fail.
+    fn preset(builder: FingerprintBuilder) -> Self {
+        builder
+            .policy(StealthPolicy::balanced())
             .build()
+            .expect("a preset gives values only, so it always builds")
     }
 }
 
 /// The user agent of a Chrome preset: Chrome's frozen format on `platform`,
 /// claiming [`PRESET_CHROMIUM_MAJOR`](super::randomize::PRESET_CHROMIUM_MAJOR).
 fn preset_user_agent(platform: &str, mobile: bool) -> String {
-    super::randomize::chromium_user_agent(platform, super::randomize::PRESET_CHROMIUM_MAJOR, mobile)
+    randomize::chromium_user_agent(platform, randomize::PRESET_CHROMIUM_MAJOR, mobile)
 }
 
-/// A change to the masking flags, applied last by [`FingerprintBuilder::build`].
+/// A change to the policy, applied last by [`FingerprintBuilder::build`].
 #[derive(Clone)]
-struct FlagsChange(std::sync::Arc<dyn Fn(&mut StealthFlags) + Send + Sync>);
+struct PolicyChange(Arc<dyn Fn(StealthPolicy) -> StealthPolicy + Send + Sync>);
 
-impl std::fmt::Debug for FlagsChange {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("FlagsChange")
+impl fmt::Debug for PolicyChange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("PolicyChange")
     }
+}
+
+/// Defines the builder methods of the settings that take any
+/// `impl Into<Spoof<T>>`.
+macro_rules! setters {
+    ($($(#[$doc:meta])* $name:ident: $ty:ty;)*) => {
+        $(
+            $(#[$doc])*
+            #[must_use]
+            pub fn $name(mut self, value: impl Into<Spoof<$ty>>) -> Self {
+                self.fields.$name = value.into();
+                self
+            }
+        )*
+    };
 }
 
 /// Fluent builder for [`Fingerprint`].
 ///
-/// A value setter only writes its value, and giving a value is the intent to
-/// use it: [`build`](Self::build) turns the dimension the value belongs to on
-/// (see [`Dimension`]), whatever flags preset was given and in whatever order,
-/// so nobody has to touch [`Fingerprint::flags`] afterwards. The one way to turn
-/// a dimension off again is [`with_flags`](Self::with_flags), which runs last.
+/// Each setting takes anything that converts to its [`Spoof`]: a plain value is
+/// [`Value`](Spoof::Value), and [`Random`](Spoof::Random),
+/// [`Natural`](Spoof::Natural) and [`Off`](Spoof::Off) are named. The calls can
+/// come in any order, and a later call for the same setting replaces an earlier
+/// one. [`build`](Self::build) draws what was asked for at random, checks that
+/// every `Off` means something, and returns the fingerprint.
+///
+/// # Random
+///
+/// `build` works out the operating system (the explicit one, else the one the
+/// user agent names, else Windows) and the place (the region of a given time
+/// zone, else of a given locale, else a drawn one), then takes every `Random`
+/// setting from one seeded draw of that machine and that place. A random locale
+/// agrees with a given time zone, a random position is in that time zone's main
+/// city, a random graphics adapter is one the operating system reports. When
+/// nothing coherent can be drawn, `build` fails and names the setting.
+///
+/// [`seed`](Self::seed) makes the draw repeatable. Without it the draw uses
+/// fresh entropy, and the seed it used is kept in the fingerprint.
+///
+/// # Policy
+///
+/// How the claims are delivered is the [`StealthPolicy`]. [`policy`](Self::policy)
+/// gives the base, and [`with_policy`](Self::with_policy) and the shortcuts
+/// ([`canvas_noise`](Self::canvas_noise), [`grant_permissions`](Self::grant_permissions)
+/// and the others) change it. They are applied after the base, in the order they
+/// were called, whatever their order against `policy`. A policy never changes a
+/// setting.
 ///
 /// # Examples
 ///
 /// ```
 /// use seleniumbase_rs::stealth::fingerprint::{
-///     Dimension, Fingerprint, MaskingMode, StealthFlags,
+///     Dimension, Fingerprint, Spoof, StealthPolicy,
 /// };
 ///
 /// let fp = Fingerprint::builder()
 ///     .timezone("Europe/Berlin")
 ///     .hardware_concurrency(8)
-///     .build();
+///     .webrtc(Spoof::Off)
+///     .policy(StealthPolicy::native_only())
+///     .grant_permissions(true)
+///     .build()?;
 /// assert!(fp.is_masked(Dimension::Timezone) && fp.is_masked(Dimension::Navigator));
+/// assert!(fp.policy().native_spoofing && fp.policy().grant_permissions);
 ///
-/// // Switch one back off with an explicit override.
-/// let fp = Fingerprint::builder()
-///     .timezone("Europe/Berlin")
-///     .with_flags(|f| f.timezone_masking = MaskingMode::Natural)
-///     .build();
-/// assert!(!fp.is_masked(Dimension::Timezone));
+/// // An `Off` where it means nothing is an error that names the setting.
+/// let refused = Fingerprint::builder().timezone(Spoof::Off).build();
+/// assert!(refused.is_err());
+/// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct FingerprintBuilder {
-    inner: Fingerprint,
-    /// The flags preset given with [`flags`](Self::flags).
-    base: Option<StealthFlags>,
-    /// The overrides given with [`with_flags`](Self::with_flags), in order.
-    changes: Vec<FlagsChange>,
-    /// The dimensions a value was given for (a set of [`Dimension::bit`]s).
-    touched: u32,
+    fields: Fields,
     /// Whether [`os_type`](Self::os_type) was called.
     os_type_set: bool,
-    native_spoofing: Option<bool>,
+    /// Whether [`browser_type`](Self::browser_type) was called.
+    browser_type_set: bool,
+    seed: Option<u64>,
+    /// The base policy given with [`policy`](Self::policy).
+    policy: StealthPolicy,
+    /// The changes given with [`with_policy`](Self::with_policy) and the
+    /// shortcuts, in order.
+    changes: Vec<PolicyChange>,
 }
 
 impl FingerprintBuilder {
-    /// Notes that a value for `dimension` was given.
-    fn touch(mut self, dimension: Dimension) -> Self {
-        self.touched |= dimension.bit();
+    /// A builder that starts from `fields`, which are kept as they are.
+    fn from_fields(fields: Fields) -> Self {
+        Self {
+            seed: fields.seed,
+            policy: fields.policy.clone(),
+            os_type_set: true,
+            browser_type_set: true,
+            fields,
+            changes: Vec::new(),
+        }
+    }
+
+    /// Leaves every setting that asked to be drawn at random to the browser:
+    /// a `Random` becomes `Natural`. The payload conversion falls back to it
+    /// when a random value cannot be drawn.
+    pub(crate) fn without_random(mut self) -> Self {
+        fn demote<T>(setting: &mut Spoof<T>) {
+            if setting.is_random() {
+                *setting = Spoof::Natural;
+            }
+        }
+        let f = &mut self.fields;
+        demote(&mut f.user_agent);
+        demote(&mut f.platform);
+        demote(&mut f.hardware_concurrency);
+        demote(&mut f.device_memory);
+        demote(&mut f.max_touch_points);
+        demote(&mut f.vendor);
+        demote(&mut f.oscpu);
+        demote(&mut f.product_sub);
+        demote(&mut f.build_id);
+        demote(&mut f.app_version);
+        demote(&mut f.locale);
+        demote(&mut f.languages);
+        demote(&mut f.accept_languages);
+        demote(&mut f.timezone);
+        demote(&mut f.screen);
+        demote(&mut f.avail_screen);
+        demote(&mut f.pixel_ratio);
+        demote(&mut f.color_depth);
+        demote(&mut f.webgl);
+        demote(&mut f.media_devices);
+        demote(&mut f.geolocation);
+        demote(&mut f.fonts);
+        demote(&mut f.proxy);
+        demote(&mut f.webrtc);
+        demote(&mut f.battery);
+        demote(&mut f.connection);
+        demote(&mut f.speech_voices);
+        demote(&mut f.bluetooth);
+        demote(&mut f.client_hints);
         self
     }
 
-    /// Sets the time zone and, when the table of places knows the zone, the
-    /// position of its main city, so the two agree. The presets use it.
+    /// Sets the time zone and the position of its main city, so the two agree.
+    /// The presets use it.
     fn place(self, timezone: &str) -> Self {
-        let city = super::randomize::locale_of_timezone(timezone);
+        let city = randomize::locale_of_timezone(timezone);
         let builder = self.timezone(timezone);
         match city {
-            Some(city) => builder.geolocation(city.latitude, city.longitude),
+            Some(city) => builder.geolocation(Geolocation::new(city.latitude, city.longitude)),
             None => builder,
         }
     }
 
-    /// Sets the browser persona.
+    /// Sets the browser persona. When it is not set, [`build`](Self::build)
+    /// takes it from a random user agent, and it is Chromium otherwise.
+    #[must_use]
     pub fn browser_type(mut self, v: BrowserType) -> Self {
-        self.inner.browser_type = v;
+        self.fields.browser_type = v;
+        self.browser_type_set = true;
         self
     }
 
     /// Sets the operating-system persona. When it is not set, [`build`](Self::build)
-    /// takes it from a recognised user agent.
+    /// takes it from a recognised user agent, and it is Windows otherwise.
+    #[must_use]
     pub fn os_type(mut self, v: OsType) -> Self {
-        self.inner.os_type = v;
+        self.fields.os_type = v;
         self.os_type_set = true;
         self
     }
 
-    /// Sets the Chromium major version the identity claims.
+    /// Sets the Chromium major version the identity claims. A random user agent
+    /// and random Client Hints claim it too.
+    #[must_use]
     pub fn core_version(mut self, v: u32) -> Self {
-        self.inner.core_version = Some(v);
+        self.fields.core_version = Some(v);
         self
     }
 
-    /// Sets the user agent. Turns on [`Dimension::Navigator`].
-    pub fn user_agent(mut self, v: impl Into<String>) -> Self {
-        self.inner.user_agent = Some(v.into());
-        self.touch(Dimension::Navigator)
+    /// Sets the seed of the random draws and of the deterministic noise, so the
+    /// same calls give the same fingerprint.
+    #[must_use]
+    pub fn seed(mut self, v: u64) -> Self {
+        self.seed = Some(v);
+        self
     }
 
-    /// Sets `navigator.platform`. Turns on [`Dimension::Navigator`].
-    pub fn platform(mut self, v: impl Into<String>) -> Self {
-        self.inner.platform = Some(v.into());
-        self.touch(Dimension::Navigator)
+    setters! {
+        /// Sets the user agent.
+        user_agent: String;
+        /// Sets `navigator.platform`.
+        platform: String;
+        /// Sets `navigator.hardwareConcurrency`.
+        hardware_concurrency: u32;
+        /// Sets `navigator.deviceMemory`.
+        device_memory: f64;
+        /// Sets `navigator.maxTouchPoints`.
+        max_touch_points: u32;
+        /// Sets `navigator.vendor`.
+        vendor: String;
+        /// Sets `navigator.oscpu` (Firefox persona). It has no random value.
+        oscpu: String;
+        /// Sets `navigator.productSub`.
+        product_sub: String;
+        /// Sets `navigator.buildID` (Firefox persona). It has no random value.
+        build_id: String;
+        /// Sets `navigator.appVersion`.
+        app_version: String;
+        /// Sets the locale (`navigator.language`). Without
+        /// [`languages`](Self::languages), the language list is derived from it.
+        locale: String;
+        /// Sets `navigator.languages` as a comma-separated list.
+        languages: String;
+        /// Sets the `Accept-Language` header.
+        accept_languages: String;
+        /// Sets the IANA time zone.
+        timezone: String;
+        /// Sets the available screen size (`screen.availWidth` and
+        /// `availHeight`). `(width, height)` works.
+        avail_screen: ScreenSize;
+        /// Sets the device pixel ratio.
+        pixel_ratio: f64;
+        /// Sets the colour depth.
+        color_depth: u32;
+        /// Sets the WebGL vendor and renderer. `(vendor, renderer)` works.
+        webgl: WebGl;
+        /// Sets what `enumerateDevices()` lists. `(audio_in, audio_out, video_in)`
+        /// and a `Vec` of labelled devices work. `Off` lists none.
+        media_devices: MediaDevices;
+        /// Sets the position `navigator.geolocation` reports. `(latitude,
+        /// longitude)` works. `Off` denies the request; a position answers it
+        /// without a prompt.
+        geolocation: Geolocation;
+        /// Sets the installed fonts.
+        fonts: Vec<String>;
+        /// Sets the proxy the browser is launched with. It has no random value.
+        proxy: ProxyConfig;
+        /// Sets the addresses WebRTC reports and turns its leak filter on.
+        /// `(public_ip, local_ip)` works. `Off` makes WebRTC unavailable.
+        webrtc: WebRtcAddresses;
+        /// Sets the Battery Status API profile. `Off` makes it unavailable.
+        battery: BatteryProfile;
+        /// Sets the Network Information API profile. `Off` makes it unavailable.
+        connection: ConnectionProfile;
+        /// Sets the synthesized speech voices. `Off` lists none.
+        speech_voices: Vec<SpeechVoice>;
+        /// Sets Web Bluetooth: `true` has an adapter, `false` has none, `Off`
+        /// makes the API unavailable.
+        bluetooth: bool;
+        /// Sets the User-Agent Client Hints. `Off` makes `navigator.userAgentData`
+        /// unavailable.
+        client_hints: ClientHints;
     }
 
-    /// Sets `navigator.hardwareConcurrency`. Turns on [`Dimension::Navigator`].
-    pub fn hardware_concurrency(mut self, v: u32) -> Self {
-        self.inner.hardware_concurrency = Some(v);
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets `navigator.deviceMemory`. Turns on [`Dimension::Navigator`].
-    pub fn device_memory(mut self, v: f64) -> Self {
-        self.inner.device_memory = Some(v);
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets `navigator.maxTouchPoints`. Turns on [`Dimension::Navigator`].
-    pub fn max_touch_points(mut self, v: u32) -> Self {
-        self.inner.max_touch_points = Some(v);
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets the locale (`navigator.language`). Turns on [`Dimension::Localization`].
-    /// Without [`languages`](Self::languages), the language list is derived from it.
-    pub fn locale(mut self, v: impl Into<String>) -> Self {
-        self.inner.locale = Some(v.into());
-        self.touch(Dimension::Localization)
-    }
-
-    /// Sets `navigator.languages` as a comma-separated list. Turns on
-    /// [`Dimension::Localization`].
-    pub fn languages(mut self, v: impl Into<String>) -> Self {
-        self.inner.languages = Some(v.into());
-        self.touch(Dimension::Localization)
-    }
-
-    /// Sets the `Accept-Language` header. Turns on [`Dimension::Localization`].
-    pub fn accept_languages(mut self, v: impl Into<String>) -> Self {
-        self.inner.accept_languages = Some(v.into());
-        self.touch(Dimension::Localization)
-    }
-
-    /// Sets the IANA time zone. Turns on [`Dimension::Timezone`].
-    pub fn timezone(mut self, v: impl Into<String>) -> Self {
-        self.inner.timezone = Some(v.into());
-        self.touch(Dimension::Timezone)
-    }
-
-    /// Sets the screen size. Turns on [`Dimension::Screen`].
+    /// Sets the screen size in CSS pixels: the common case of
+    /// [`screen_spoof`](Self::screen_spoof).
+    #[must_use]
     pub fn screen(mut self, width: u32, height: u32) -> Self {
-        self.inner.screen_width = Some(width);
-        self.inner.screen_height = Some(height);
-        self.touch(Dimension::Screen)
-    }
-
-    /// Sets the available screen size (`screen.availWidth` and `availHeight`).
-    /// Turns on [`Dimension::Screen`].
-    pub fn avail_screen(mut self, width: u32, height: u32) -> Self {
-        self.inner.avail_width = Some(width);
-        self.inner.avail_height = Some(height);
-        self.touch(Dimension::Screen)
-    }
-
-    /// Sets the device pixel ratio. Turns on [`Dimension::Screen`].
-    pub fn pixel_ratio(mut self, v: f64) -> Self {
-        self.inner.pixel_ratio = Some(v);
-        self.touch(Dimension::Screen)
-    }
-
-    /// Sets the colour depth. Turns on [`Dimension::Screen`].
-    pub fn color_depth(mut self, v: u32) -> Self {
-        self.inner.color_depth = Some(v);
-        self.touch(Dimension::Screen)
-    }
-
-    /// Sets the WebGL vendor and renderer. Turns on [`Dimension::Graphics`].
-    pub fn webgl(mut self, vendor: impl Into<String>, renderer: impl Into<String>) -> Self {
-        self.inner.webgl_vendor = Some(vendor.into());
-        self.inner.webgl_renderer = Some(renderer.into());
-        self.touch(Dimension::Graphics)
-    }
-
-    /// Sets the PCI vendor and renderer ids of the GPU. They are kept with the
-    /// fingerprint for tools that read them and are never shown to a page, so
-    /// they turn nothing on: [`webgl`](Self::webgl) does.
-    pub fn webgl_ids(
-        mut self,
-        vendor_id: impl Into<String>,
-        renderer_id: impl Into<String>,
-    ) -> Self {
-        self.inner.webgl_vendor_id = Some(vendor_id.into());
-        self.inner.webgl_renderer_id = Some(renderer_id.into());
+        self.fields.screen = Spoof::Value(ScreenSize::new(width, height));
         self
     }
 
-    /// Sets `navigator.oscpu` (Firefox persona). Turns on [`Dimension::Navigator`].
-    pub fn os_cpu(mut self, v: impl Into<String>) -> Self {
-        self.inner.oscpu = Some(v.into());
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets `navigator.productSub`. Turns on [`Dimension::Navigator`].
-    pub fn product_sub(mut self, v: impl Into<String>) -> Self {
-        self.inner.product_sub = Some(v.into());
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets `navigator.buildID` (Firefox persona). Turns on [`Dimension::Navigator`].
-    pub fn build_id(mut self, v: impl Into<String>) -> Self {
-        self.inner.build_id = Some(v.into());
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets `navigator.appVersion`. Turns on [`Dimension::Navigator`].
-    pub fn app_version(mut self, v: impl Into<String>) -> Self {
-        self.inner.app_version = Some(v.into());
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets how many audio inputs, audio outputs and video inputs
-    /// `enumerateDevices()` lists. Turns on [`Dimension::MediaDevices`].
-    pub fn media_device_counts(mut self, audio_in: u32, audio_out: u32, video_in: u32) -> Self {
-        self.inner.audio_inputs = Some(audio_in);
-        self.inner.audio_outputs = Some(audio_out);
-        self.inner.video_inputs = Some(video_in);
-        self.touch(Dimension::MediaDevices)
-    }
-
-    /// The same as [`media_device_counts`](Self::media_device_counts).
-    #[deprecated(note = "use media_device_counts; this sets counts, not the devices")]
-    pub fn media_devices(self, audio_in: u32, audio_out: u32, video_in: u32) -> Self {
-        self.media_device_counts(audio_in, audio_out, video_in)
-    }
-
-    /// Sets the labelled media devices. Turns on [`Dimension::MediaDevices`].
-    pub fn media_device_specs(mut self, v: Vec<MediaDeviceSpec>) -> Self {
-        self.inner.media_devices = v;
-        self.touch(Dimension::MediaDevices)
-    }
-
-    /// Sets the public and local IP addresses WebRTC reports. Turns on
-    /// [`Dimension::WebRtc`].
-    pub fn webrtc_ips(mut self, public_ip: impl Into<String>, local_ip: impl Into<String>) -> Self {
-        self.inner.webrtc_public_ip = Some(public_ip.into());
-        self.inner.webrtc_local_ip = Some(local_ip.into());
-        self.touch(Dimension::WebRtc)
-    }
-
-    /// Sets the ports the browser may not reach on the loopback names. Turns on
-    /// [`Dimension::Ports`].
-    pub fn blocked_ports(mut self, v: Vec<u16>) -> Self {
-        self.inner.ports = v;
-        self.touch(Dimension::Ports)
-    }
-
-    /// Sets the position `navigator.geolocation` reports. Turns on
-    /// [`Dimension::Geolocation`] and lets the request through without a prompt
-    /// (see [`Fingerprint::geolocation_popup`]).
-    pub fn geolocation(mut self, latitude: f64, longitude: f64) -> Self {
-        self.inner.latitude = Some(latitude);
-        self.inner.longitude = Some(longitude);
-        self.touch(Dimension::Geolocation)
-    }
-
-    /// Sets the altitude of the reported position. Turns on [`Dimension::Geolocation`].
-    pub fn altitude(mut self, v: f64) -> Self {
-        self.inner.altitude = Some(v);
-        self.touch(Dimension::Geolocation)
-    }
-
-    /// Sets the accuracy of the reported position, in metres. Turns on
-    /// [`Dimension::Geolocation`].
-    pub fn accuracy(mut self, v: f64) -> Self {
-        self.inner.accuracy = Some(v);
-        self.touch(Dimension::Geolocation)
-    }
-
-    /// Sets the installed fonts. Turns on [`Dimension::Fonts`] (when the list
-    /// is not empty).
-    pub fn fonts(mut self, v: Vec<String>) -> Self {
-        let any = !v.is_empty();
-        self.inner.fonts = v;
-        if any {
-            self = self.touch(Dimension::Fonts);
-        }
+    /// Sets the screen size from any [`Spoof<ScreenSize>`]: `Random` draws the
+    /// screen of the drawn machine.
+    #[must_use]
+    pub fn screen_spoof(mut self, value: impl Into<Spoof<ScreenSize>>) -> Self {
+        self.fields.screen = value.into();
         self
     }
 
-    /// Sets the proxy the browser is launched with. Turns on [`Dimension::Proxy`].
-    pub fn proxy(mut self, v: ProxyConfig) -> Self {
-        self.inner.proxy = Some(v);
-        self.touch(Dimension::Proxy)
-    }
-
-    /// Sets the WebRTC IP-handling policy. Turns on [`Dimension::WebRtc`].
-    pub fn webrtc_policy(mut self, v: WebRtcPolicy) -> Self {
-        self.inner.webrtc_policy = Some(v);
-        self.touch(Dimension::WebRtc)
+    /// Sets how many microphones, speakers and cameras `enumerateDevices()`
+    /// lists: the common case of [`media_devices`](Self::media_devices).
+    #[must_use]
+    pub fn media_device_counts(self, audio_in: u32, audio_out: u32, video_in: u32) -> Self {
+        self.media_devices(MediaDevices::counts(audio_in, audio_out, video_in))
     }
 
     /// Keeps `localStorage` between sessions of the profile.
+    #[must_use]
     pub fn local_storage(mut self, v: bool) -> Self {
-        self.inner.local_storage = v;
+        self.fields.local_storage = v;
         self
     }
 
     /// Keeps service workers between sessions of the profile.
+    #[must_use]
     pub fn save_service_worker(mut self, v: bool) -> Self {
-        self.inner.save_service_worker = v;
+        self.fields.save_service_worker = v;
         self
     }
 
     /// Sets the URLs the profile opens at start.
+    #[must_use]
     pub fn custom_start_urls(mut self, v: Vec<String>) -> Self {
-        self.inner.custom_start_urls = v;
+        self.fields.custom_start_urls = v;
         self
     }
 
     /// Sets extra browser command-line parameters.
+    #[must_use]
     pub fn cmd_params(mut self, v: HashMap<String, String>) -> Self {
-        self.inner.cmd_params = v;
+        self.fields.cmd_params = v;
         self
-    }
-
-    /// Sets the base masking flags, such as [`StealthFlags::balanced`].
-    ///
-    /// It is a base, not the last word: the order of this call against the
-    /// value setters does not matter, a dimension a value was given for stays
-    /// on, and [`with_flags`](Self::with_flags) changes run after it.
-    pub fn flags(mut self, base: StealthFlags) -> Self {
-        self.base = Some(base);
-        self
-    }
-
-    /// Changes the masking flags after the base and after the value setters
-    /// have had their say. This is the explicit way to turn a dimension off
-    /// again; several calls run in order.
-    pub fn with_flags(
-        mut self,
-        change: impl Fn(&mut StealthFlags) + Send + Sync + 'static,
-    ) -> Self {
-        self.changes.push(FlagsChange(std::sync::Arc::new(change)));
-        self
-    }
-
-    /// Sets the canvas noise seed. Turns on [`Dimension::Canvas`].
-    pub fn canvas_seed(mut self, v: u64) -> Self {
-        self.inner.seed = Some(v);
-        self.touch(Dimension::Canvas)
-    }
-
-    /// Sets the audio noise seed. Turns on [`Dimension::Audio`].
-    pub fn audio_seed(mut self, v: u64) -> Self {
-        self.inner.audio_seed = Some(v);
-        self.touch(Dimension::Audio)
-    }
-
-    /// Sets the deterministic noise seed for both canvas and audio: the canvas
-    /// seed is `v` and the audio seed `v ^ 0x5DEE_CE66`. Turns on
-    /// [`Dimension::Canvas`] and [`Dimension::Audio`].
-    pub fn seed(self, v: u64) -> Self {
-        self.canvas_seed(v).audio_seed(v ^ AUDIO_SEED_MASK)
-    }
-
-    /// Sets `navigator.vendor`. Turns on [`Dimension::Navigator`].
-    pub fn vendor(mut self, v: impl Into<String>) -> Self {
-        self.inner.vendor = Some(v.into());
-        self.touch(Dimension::Navigator)
-    }
-
-    /// Sets the Battery Status API profile. Turns on [`Dimension::Battery`].
-    pub fn battery(mut self, v: BatteryProfile) -> Self {
-        self.inner.battery = Some(v);
-        self.touch(Dimension::Battery)
-    }
-
-    /// Sets the Network Information API profile. Turns on [`Dimension::Connection`].
-    pub fn connection(mut self, v: ConnectionProfile) -> Self {
-        self.inner.connection = Some(v);
-        self.touch(Dimension::Connection)
-    }
-
-    /// Sets the synthesized speech voices. Turns on [`Dimension::Speech`] (when
-    /// the list is not empty).
-    pub fn speech_voices(mut self, v: Vec<SpeechVoice>) -> Self {
-        let any = !v.is_empty();
-        self.inner.speech_voices = v;
-        if any {
-            self = self.touch(Dimension::Speech);
-        }
-        self
-    }
-
-    /// Sets the User-Agent Client Hints. Turns on [`Dimension::ClientHints`].
-    pub fn client_hints(mut self, v: ClientHints) -> Self {
-        self.inner.client_hints = Some(v);
-        self.touch(Dimension::ClientHints)
     }
 
     /// Sets the humanized input timing configuration.
+    #[must_use]
     pub fn humanize(mut self, v: HumanizeConfig) -> Self {
-        self.inner.humanize = v;
+        self.fields.humanize = v;
         self
     }
 
-    /// Sets a custom tracker host block list. Turns on [`Dimension::Trackers`]
-    /// (when the list is not empty).
-    pub fn blocked_trackers(mut self, v: Vec<String>) -> Self {
-        let any = !v.is_empty();
-        self.inner.blocked_trackers = v;
-        if any {
-            self = self.touch(Dimension::Trackers);
-        }
+    /// Sets the base [`StealthPolicy`], such as [`StealthPolicy::balanced`].
+    ///
+    /// It is a base: the order of this call against the settings does not
+    /// matter, and [`with_policy`](Self::with_policy) and the shortcuts apply on
+    /// top of it whenever they were called.
+    #[must_use]
+    pub fn policy(mut self, base: StealthPolicy) -> Self {
+        self.policy = base;
         self
     }
 
-    /// Enables Rust/CDP-level spoofing for dimensions that the browser can
-    /// override natively. When enabled, page JavaScript cannot detect the
-    /// spoof through `toString` or property-descriptor inspection because
-    /// there is no JS-visible override.
-    pub fn native_spoofing(mut self, v: bool) -> Self {
-        self.native_spoofing = Some(v);
+    /// Changes the policy after the base has been set. Several calls, and the
+    /// shortcuts, run in the order they were made.
+    #[must_use]
+    pub fn with_policy(
+        mut self,
+        change: impl Fn(StealthPolicy) -> StealthPolicy + Send + Sync + 'static,
+    ) -> Self {
+        self.changes.push(PolicyChange(Arc::new(change)));
         self
+    }
+
+    /// Sets the WebRTC IP-handling policy the browser is launched with; `None`
+    /// passes no flag.
+    #[must_use]
+    pub fn webrtc_policy(self, policy: impl Into<Option<WebRtcPolicy>>) -> Self {
+        let policy = policy.into();
+        self.with_policy(move |p| p.webrtc_policy(policy))
+    }
+
+    /// Sets the canvas read-back noise.
+    #[must_use]
+    pub fn canvas_noise(self, noise: CanvasNoise) -> Self {
+        self.with_policy(move |p| p.canvas_noise(noise))
+    }
+
+    /// Sets the audio read-back noise.
+    #[must_use]
+    pub fn audio_noise(self, noise: AudioNoise) -> Self {
+        self.with_policy(move |p| p.audio_noise(noise))
+    }
+
+    /// Delivers the claims through CDP and launch arguments instead of
+    /// JavaScript where the browser can, so a page finds no override to inspect.
+    #[must_use]
+    pub fn native_spoofing(self, on: bool) -> Self {
+        self.with_policy(move |p| p.native_spoofing(on))
+    }
+
+    /// Grants common permissions at start, so no permission prompt fires.
+    #[must_use]
+    pub fn grant_permissions(self, on: bool) -> Self {
+        self.with_policy(move |p| p.grant_permissions(on))
+    }
+
+    /// Blocks the default tracker hosts, or stops blocking.
+    #[must_use]
+    pub fn block_trackers(self, on: bool) -> Self {
+        self.with_policy(move |p| p.block_trackers(on))
+    }
+
+    /// Blocks these hosts instead of the default ones.
+    #[must_use]
+    pub fn blocked_trackers(self, hosts: Vec<String>) -> Self {
+        self.with_policy(move |p| p.blocked_trackers(hosts.clone()))
+    }
+
+    /// Sets the ports the browser may not reach on the loopback names.
+    #[must_use]
+    pub fn blocked_ports(self, ports: Vec<u16>) -> Self {
+        self.with_policy(move |p| p.blocked_ports(ports.clone()))
+    }
+
+    /// Bypasses Content-Security-Policy for the page context, or not.
+    #[must_use]
+    pub fn disable_csp(self, on: bool) -> Self {
+        self.with_policy(move |p| p.disable_csp(on))
+    }
+
+    /// Sets how QUIC is handled.
+    #[must_use]
+    pub fn quic(self, mode: QuicMode) -> Self {
+        self.with_policy(move |p| p.quic(mode))
     }
 
     /// Builds the fingerprint.
     ///
-    /// The flags are the base given with [`flags`](Self::flags) (or the
-    /// default), with every dimension a value was given for switched on, then
-    /// the [`with_flags`](Self::with_flags) changes. Two values are derived when
-    /// they were not given: the language list from the locale, and the
-    /// operating-system persona and `navigator.platform` from a recognised user
-    /// agent.
-    #[must_use]
-    pub fn build(self) -> Fingerprint {
-        let mut fp = self.inner;
+    /// The steps are: refuse an `Off` where it means nothing; take the
+    /// operating system from a recognised user agent when none was set; draw
+    /// every `Random` setting from one seeded draw (see the
+    /// [type documentation](Self#random)); derive the language list from a given
+    /// locale and `navigator.platform` from a recognised user agent when they
+    /// were not given; apply the policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`FingerprintError`] naming the setting when an `Off` means
+    /// nothing for it, when a `Random` has nothing to draw, or when nothing
+    /// coherent with the other settings can be drawn.
+    pub fn build(self) -> Result<Fingerprint, FingerprintError> {
+        let Self {
+            mut fields,
+            os_type_set,
+            browser_type_set,
+            seed,
+            policy,
+            changes,
+        } = self;
 
-        if fp.languages.is_none() {
-            fp.languages = fp.locale.as_deref().map(languages_for_locale);
-        }
-        if let Some(os) = fp.user_agent.as_deref().and_then(os_of_user_agent) {
-            if !self.os_type_set {
-                fp.os_type = os;
-            }
-            if fp.platform.is_none() {
-                fp.platform = Some(fp.os_type.platform().to_owned());
+        refuse_useless_off(&fields)?;
+        if !os_type_set {
+            if let Some(os) = fields.user_agent.as_str().and_then(os_of_user_agent) {
+                fields.os_type = os;
             }
         }
 
-        let mut flags = self.base.unwrap_or_default();
-        for dimension in ALL_VALUE_DIMENSIONS {
-            if self.touched & dimension.bit() != 0 {
-                turn_on(&mut flags, dimension);
+        let random = has_random(&fields);
+        let seed = seed.unwrap_or_else(|| {
+            if random {
+                Rng::from_entropy().next_u64()
+            } else {
+                stable_seed(&fields)
+            }
+        });
+        fields.seed = Some(seed);
+        if random {
+            draw_random(&mut fields, browser_type_set)?;
+        }
+
+        if fields.languages.is_natural() {
+            if let Some(locale) = fields.locale.as_str() {
+                fields.languages = Spoof::Value(languages_for_locale(locale));
             }
         }
-        if let Some(native) = self.native_spoofing {
-            flags.native_spoofing = native;
+        if fields.platform.is_natural() && fields.user_agent.is_value() {
+            fields.platform = Spoof::Value(fields.os_type.platform().to_owned());
         }
-        for change in &self.changes {
-            (change.0)(&mut flags);
-        }
-        // A tracker list is itself a request to block them, so a change that
-        // turned the block off again also drops the list.
-        if self.touched & Dimension::Trackers.bit() != 0 && !flags.block_trackers {
-            fp.blocked_trackers.clear();
-        }
-        fp.flags = flags;
-        fp
+        fields.policy = changes.iter().fold(policy, |p, change| (change.0)(p));
+        Ok(Fingerprint(fields))
     }
 }
 
-/// The audio seed is the canvas seed with this mask applied, so one `seed` gives
-/// both noises and they differ from each other.
-pub(crate) const AUDIO_SEED_MASK: u64 = 0x5DEE_CE66;
+/// Refuses an `Off` for a setting that has no off state.
+fn refuse_useless_off(f: &Fields) -> Result<(), FingerprintError> {
+    let off = [
+        ("user_agent", f.user_agent.is_off()),
+        ("platform", f.platform.is_off()),
+        ("hardware_concurrency", f.hardware_concurrency.is_off()),
+        ("device_memory", f.device_memory.is_off()),
+        ("max_touch_points", f.max_touch_points.is_off()),
+        ("vendor", f.vendor.is_off()),
+        ("oscpu", f.oscpu.is_off()),
+        ("product_sub", f.product_sub.is_off()),
+        ("build_id", f.build_id.is_off()),
+        ("app_version", f.app_version.is_off()),
+        ("locale", f.locale.is_off()),
+        ("languages", f.languages.is_off()),
+        ("accept_languages", f.accept_languages.is_off()),
+        ("timezone", f.timezone.is_off()),
+        ("screen", f.screen.is_off()),
+        ("avail_screen", f.avail_screen.is_off()),
+        ("pixel_ratio", f.pixel_ratio.is_off()),
+        ("color_depth", f.color_depth.is_off()),
+        ("webgl", f.webgl.is_off()),
+        ("fonts", f.fonts.is_off()),
+        ("proxy", f.proxy.is_off()),
+    ];
+    match off.iter().find(|(_, is_off)| *is_off) {
+        Some((setting, _)) => Err(FingerprintError::OffNotAvailable { setting }),
+        None => Ok(()),
+    }
+}
 
-/// The dimensions a builder value can switch on.
-const ALL_VALUE_DIMENSIONS: [Dimension; 18] = [
-    Dimension::Navigator,
-    Dimension::Localization,
-    Dimension::Timezone,
-    Dimension::Screen,
-    Dimension::Graphics,
-    Dimension::Fonts,
-    Dimension::MediaDevices,
-    Dimension::Geolocation,
-    Dimension::WebRtc,
-    Dimension::Canvas,
-    Dimension::Audio,
-    Dimension::Battery,
-    Dimension::Connection,
-    Dimension::Speech,
-    Dimension::ClientHints,
-    Dimension::Proxy,
-    Dimension::Ports,
-    Dimension::Trackers,
-];
+/// Whether any setting asks to be drawn at random.
+fn has_random(f: &Fields) -> bool {
+    [
+        f.user_agent.is_random(),
+        f.platform.is_random(),
+        f.hardware_concurrency.is_random(),
+        f.device_memory.is_random(),
+        f.max_touch_points.is_random(),
+        f.vendor.is_random(),
+        f.oscpu.is_random(),
+        f.product_sub.is_random(),
+        f.build_id.is_random(),
+        f.app_version.is_random(),
+        f.locale.is_random(),
+        f.languages.is_random(),
+        f.accept_languages.is_random(),
+        f.timezone.is_random(),
+        f.screen.is_random(),
+        f.avail_screen.is_random(),
+        f.pixel_ratio.is_random(),
+        f.color_depth.is_random(),
+        f.webgl.is_random(),
+        f.media_devices.is_random(),
+        f.geolocation.is_random(),
+        f.fonts.is_random(),
+        f.proxy.is_random(),
+        f.webrtc.is_random(),
+        f.battery.is_random(),
+        f.connection.is_random(),
+        f.speech_voices.is_random(),
+        f.bluetooth.is_random(),
+        f.client_hints.is_random(),
+    ]
+    .contains(&true)
+}
 
-/// Switches `dimension` on in `flags` if the flags had it explicitly off. A
-/// mode that is already on, or on `Auto`, is left as it is.
-fn turn_on(flags: &mut StealthFlags, dimension: Dimension) {
-    fn lift(mode: &mut MaskingMode) {
-        if mode.is_off() {
-            *mode = MaskingMode::Auto;
+/// A noise seed derived from the user agent, so a persona that draws nothing at
+/// random gets the same noise on every launch.
+fn stable_seed(f: &Fields) -> u64 {
+    f.user_agent
+        .as_str()
+        .map_or(DEFAULT_SEED, |ua| fnv1a(ua.as_bytes()))
+}
+
+/// The Chrome major a user agent names.
+fn chrome_major_of(ua: &str) -> Option<u32> {
+    let rest = ua.split("Chrome/").nth(1)?;
+    rest.split('.').next()?.parse().ok()
+}
+
+/// Replaces every `Random` setting with the value of one seeded draw.
+fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), FingerprintError> {
+    for (setting, random) in [
+        ("proxy", f.proxy.is_random()),
+        ("oscpu", f.oscpu.is_random()),
+        ("build_id", f.build_id.is_random()),
+    ] {
+        if random {
+            return Err(FingerprintError::NoRandomValue { setting });
         }
     }
-    match dimension {
-        Dimension::Navigator => lift(&mut flags.navigator_masking),
-        Dimension::Localization => lift(&mut flags.localization_masking),
-        Dimension::Timezone => lift(&mut flags.timezone_masking),
-        Dimension::Screen => lift(&mut flags.screen_masking),
-        Dimension::Graphics => lift(&mut flags.graphics_masking),
-        Dimension::Fonts => lift(&mut flags.fonts_masking),
-        Dimension::MediaDevices => lift(&mut flags.media_devices_masking),
-        Dimension::Geolocation => {
-            lift(&mut flags.geolocation_masking);
-            if flags.geolocation_popup == PopupMode::Prompt {
-                flags.geolocation_popup = PopupMode::Auto;
-            }
+
+    let seed = f.seed.unwrap_or(DEFAULT_SEED);
+    let os = f.os_type;
+
+    // The place the draw has to agree with: a given time zone first, then a
+    // given locale. `Some(None)` is a value the table of places does not know.
+    let anchor = match (f.timezone.as_str(), f.locale.as_str()) {
+        (Some(zone), _) => Some((
+            randomize::locale_of_timezone(zone),
+            format!("time zone '{zone}'"),
+        )),
+        (None, Some(locale)) => Some((
+            randomize::locale_by_tag(locale),
+            format!("locale '{locale}'"),
+        )),
+        (None, None) => None,
+    };
+    let place_known = anchor.as_ref().map_or(true, |(place, _)| place.is_some());
+    let need_place = |setting: &'static str| -> Result<(), FingerprintError> {
+        match &anchor {
+            Some((None, what)) if !place_known => Err(FingerprintError::Incoherent {
+                setting,
+                reason: format!(
+                    "the {what} is not in the table of places, so nothing can be drawn to agree with it"
+                ),
+            }),
+            _ => Ok(()),
         }
-        Dimension::WebRtc => lift(&mut flags.webrtc_masking),
-        Dimension::Canvas => {
-            if matches!(
-                flags.canvas_noise,
-                CanvasNoiseMode::Natural | CanvasNoiseMode::Disabled
-            ) {
-                flags.canvas_noise = CanvasNoiseMode::Auto;
-            }
+    };
+
+    // A given user agent decides the Chromium major the rest claims.
+    let ua = f.user_agent.as_str().map(str::to_owned);
+    let forced_major = f
+        .core_version
+        .or_else(|| ua.as_deref().and_then(chrome_major_of));
+    let draw = randomize::draw(os, seed, forced_major, anchor.as_ref().and_then(|a| a.0));
+    let profile = &draw.profile;
+
+    if f.user_agent.is_random() {
+        f.user_agent = Spoof::Value(profile.user_agent.clone());
+        if !browser_type_set {
+            f.browser_type = profile.browser_type;
         }
-        Dimension::Audio => lift(&mut flags.audio_masking),
-        Dimension::Battery => lift(&mut flags.battery_masking),
-        Dimension::Connection => lift(&mut flags.connection_masking),
-        Dimension::Speech => lift(&mut flags.speech_masking),
-        Dimension::ClientHints => lift(&mut flags.client_hints_masking),
-        Dimension::Proxy => {
-            if matches!(
-                flags.proxy_masking,
-                ProxyMaskingMode::Disabled | ProxyMaskingMode::Direct
-            ) {
-                flags.proxy_masking = ProxyMaskingMode::Auto;
-            }
+        if f.core_version.is_none() {
+            f.core_version = profile.core_version;
         }
-        Dimension::Ports => {
-            if matches!(flags.ports_masking, NoiseMode::Natural | NoiseMode::Off) {
-                flags.ports_masking = NoiseMode::Mask;
-            }
-        }
-        Dimension::Trackers => flags.block_trackers = true,
-        _ => {}
     }
+    if f.platform.is_random() {
+        f.platform = Spoof::Value(os.platform().to_owned());
+    }
+    if f.hardware_concurrency.is_random() {
+        f.hardware_concurrency = Spoof::Value(profile.cores);
+    }
+    if f.device_memory.is_random() {
+        // Safari has no `navigator.deviceMemory`, so there is nothing to claim.
+        f.device_memory = profile.memory_gb.map_or(Spoof::Natural, Spoof::Value);
+    }
+    if f.max_touch_points.is_random() {
+        f.max_touch_points = Spoof::Value(profile.touch_points);
+    }
+    if f.vendor.is_random() {
+        f.vendor = Spoof::Value(profile.vendor.to_owned());
+    }
+    if f.product_sub.is_random() {
+        f.product_sub = Spoof::Value("20030107".to_owned());
+    }
+    if f.app_version.is_random() {
+        let source = f.user_agent.as_str().map(str::to_owned).ok_or_else(|| {
+            FingerprintError::Incoherent {
+                setting: "app_version",
+                reason: "it is the user agent without its Mozilla/ prefix, and the user agent is not set"
+                    .to_owned(),
+            }
+        })?;
+        f.app_version = Spoof::Value(source.replacen("Mozilla/", "", 1));
+    }
+
+    if f.locale.is_random() {
+        need_place("locale")?;
+        f.locale = Spoof::Value(draw.region.tag.to_owned());
+    }
+    // The language list follows a given locale, else the place.
+    let languages = match f.locale.as_str() {
+        Some(locale) => randomize::locale_by_tag(locale).map_or_else(
+            || languages_for_locale(locale),
+            randomize::Locale::accept_language,
+        ),
+        None => {
+            if f.languages.is_random() || f.accept_languages.is_random() {
+                need_place("languages")?;
+            }
+            draw.region.accept_language()
+        }
+    };
+    if f.languages.is_random() {
+        f.languages = Spoof::Value(languages.clone());
+    }
+    if f.accept_languages.is_random() {
+        f.accept_languages = Spoof::Value(languages);
+    }
+    if f.timezone.is_random() {
+        need_place("timezone")?;
+        f.timezone = Spoof::Value(draw.region.timezone.to_owned());
+    }
+    if f.geolocation.is_random() {
+        need_place("geolocation")?;
+        f.geolocation = Spoof::Value(
+            Geolocation::new(draw.position.latitude, draw.position.longitude)
+                .accuracy(draw.position.accuracy),
+        );
+    }
+
+    if f.screen.is_random() {
+        f.screen = Spoof::Value(ScreenSize::new(profile.screen.width, profile.screen.height));
+    }
+    if f.avail_screen.is_random() {
+        // The page loses a taskbar's height on a desktop, nothing on a phone.
+        let (width, height) = f
+            .screen
+            .value()
+            .map_or((profile.screen.width, profile.screen.height), |size| {
+                (size.width, size.height)
+            });
+        let lost = if os.is_mobile() { 0 } else { 40 };
+        f.avail_screen = Spoof::Value(ScreenSize::new(width, height.saturating_sub(lost)));
+    }
+    if f.pixel_ratio.is_random() {
+        f.pixel_ratio = Spoof::Value(profile.screen.pixel_ratio);
+    }
+    if f.color_depth.is_random() {
+        f.color_depth = Spoof::Value(profile.color_depth);
+    }
+    if f.webgl.is_random() {
+        f.webgl = Spoof::Value(profile.graphics.clone());
+    }
+    if f.client_hints.is_random() {
+        // A browser without `navigator.userAgentData` (Safari) has none to claim.
+        let hints = match (&profile.client_hints, forced_major, ua.as_deref()) {
+            (Some(_), Some(major), Some(ua)) if ua.contains("Edg/") => {
+                Some(randomize::edge_hints(major))
+            }
+            (hints, ..) => hints.clone(),
+        };
+        f.client_hints = hints.map_or(Spoof::Off, Spoof::Value);
+    }
+
+    if f.fonts.is_random() {
+        f.fonts = Spoof::Value(draw.fonts());
+    }
+    if f.media_devices.is_random() {
+        f.media_devices = Spoof::Value(draw.media_devices());
+    }
+    if f.webrtc.is_random() {
+        f.webrtc = Spoof::Value(draw.webrtc());
+    }
+    if f.battery.is_random() {
+        f.battery = draw.battery().map_or(Spoof::Off, Spoof::Value);
+    }
+    if f.connection.is_random() {
+        f.connection = draw.connection().map_or(Spoof::Off, Spoof::Value);
+    }
+    if f.speech_voices.is_random() {
+        f.speech_voices = Spoof::Value(draw.speech_voices());
+    }
+    if f.bluetooth.is_random() {
+        f.bluetooth = draw.bluetooth().map_or(Spoof::Off, Spoof::Value);
+    }
+    Ok(())
 }
 
 /// The `navigator.languages` list for `locale`, as a comma-separated string:
 /// the table's list when the locale is in [`LOCALES`](super::randomize::LOCALES),
 /// otherwise the locale and its bare language.
 pub(crate) fn languages_for_locale(locale: &str) -> String {
-    if let Some(known) = super::randomize::LOCALES
+    if let Some(known) = randomize::LOCALES
         .iter()
         .find(|l| l.tag.eq_ignore_ascii_case(locale))
     {
@@ -2112,190 +2134,56 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 mod tests {
     use super::*;
 
+    impl Fingerprint {
+        /// Whether any setting still asks to be drawn: never, for a built one.
+        fn has_random_settings(&self) -> bool {
+            has_random(&self.0)
+        }
+    }
+
+    /// Builds, or fails the test with the error.
+    fn built(builder: FingerprintBuilder) -> Fingerprint {
+        builder.build().expect("the builder builds")
+    }
+
+    fn user_agent(fp: &Fingerprint) -> &str {
+        fp.user_agent().as_str().unwrap_or_default()
+    }
+
+    // ------------------------------------------------------------------
+    // The builder and the presets
+    // ------------------------------------------------------------------
+
     #[test]
     fn builder_builds_profile() {
-        let fp = Fingerprint::builder()
-            .os_type(OsType::Windows)
-            .user_agent("UA")
-            .screen(1920, 1080)
-            .hardware_concurrency(8)
-            .build();
-
-        assert_eq!(fp.os_type, OsType::Windows);
-        assert_eq!(fp.user_agent.as_deref(), Some("UA"));
-        assert_eq!(fp.screen_width, Some(1920));
-        assert_eq!(fp.hardware_concurrency, Some(8));
-    }
-
-    #[test]
-    fn presets_are_valid() {
-        assert_eq!(Fingerprint::windows_desktop().os_type, OsType::Windows);
-        assert_eq!(Fingerprint::macos_desktop().os_type, OsType::Macos);
-        assert_eq!(Fingerprint::linux_desktop().os_type, OsType::Linux);
-        assert_eq!(Fingerprint::android_mobile().os_type, OsType::Android);
-        let ios = Fingerprint::ios_mobile_safari();
-        assert_eq!(ios.os_type, OsType::Ios);
-        assert_eq!(ios.browser_type, BrowserType::MobileSafari);
-    }
-
-    #[test]
-    fn proxy_url_includes_auth() {
-        let proxy = ProxyConfig {
-            r#type: "http".to_owned(),
-            host: "proxy.example.com".to_owned(),
-            port: 8080,
-            username: Some("u".to_owned()),
-            password: Some("p".to_owned()),
-            save_traffic: false,
-        };
-        assert_eq!(proxy.to_url(), "http://u:p@proxy.example.com:8080");
-    }
-
-    #[test]
-    fn presets_are_coherent() {
-        for fp in [
-            Fingerprint::windows_desktop(),
-            Fingerprint::macos_desktop(),
-            Fingerprint::linux_desktop(),
-            Fingerprint::android_mobile(),
-            Fingerprint::ios_mobile_safari(),
-        ] {
-            let report = fp.validate();
-            assert!(report.is_coherent(), "preset errors: {:?}", report.errors);
-        }
-    }
-
-    #[test]
-    fn the_chrome_presets_claim_one_current_major_in_the_frozen_format() {
-        let version = format!(
-            "Chrome/{}.0.0.0",
-            crate::stealth::randomize::PRESET_CHROMIUM_MAJOR
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .user_agent("UA")
+                .screen(1920, 1080)
+                .hardware_concurrency(8),
         );
-        for (fp, platform) in [
-            (
-                Fingerprint::windows_desktop(),
-                "(Windows NT 10.0; Win64; x64)",
-            ),
-            (
-                Fingerprint::macos_desktop(),
-                "(Macintosh; Intel Mac OS X 10_15_7)",
-            ),
-            (Fingerprint::linux_desktop(), "(X11; Linux x86_64)"),
-            (Fingerprint::android_mobile(), "(Linux; Android 10; K)"),
-        ] {
-            let ua = fp.user_agent.as_deref().unwrap_or_default();
-            assert!(ua.contains(&version), "{ua}");
-            assert!(ua.contains(platform), "{ua}");
+
+        assert_eq!(fp.os_type(), OsType::Windows);
+        assert_eq!(user_agent(&fp), "UA");
+        assert_eq!(fp.screen().value().map(|s| s.width), Some(1920));
+        assert_eq!(fp.hardware_concurrency().value(), Some(&8));
+    }
+
+    #[test]
+    fn a_fingerprint_without_settings_leaves_every_setting_natural() {
+        let fp = Fingerprint::default();
+
+        for dimension in EVERY_DIMENSION {
+            // Only the `toString` mask is on by default, because the others rely on it.
+            assert_eq!(
+                fp.is_masked(dimension),
+                dimension == Dimension::NativeToString,
+                "{dimension:?}"
+            );
         }
-        let iphone = Fingerprint::ios_mobile_safari();
-        assert_eq!(
-            iphone.user_agent.as_deref(),
-            Some(
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 \
-                 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
-            )
-        );
+        assert!(fp.user_agent().is_natural() && fp.proxy().is_natural());
     }
-
-    #[test]
-    fn mismatched_platform_and_ua_is_incoherent() {
-        // macOS user-agent with a Windows platform string is a classic tell.
-        let fp = Fingerprint::builder()
-            .os_type(OsType::Macos)
-            .user_agent(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
-            )
-            .platform("Win32")
-            .build();
-        let report = fp.validate();
-        assert!(!report.is_coherent());
-        assert!(report.errors.iter().any(|e| e.contains("platform")));
-    }
-
-    #[test]
-    fn seed_is_deterministic_from_user_agent() {
-        let fp = Fingerprint::windows_desktop();
-        assert_eq!(fp.seed_value(), fp.seed_value());
-        let explicit = Fingerprint::builder().seed(1234).build();
-        assert_eq!(explicit.seed_value(), 1234);
-    }
-
-    #[test]
-    fn tracker_hosts_fall_back_to_defaults() {
-        let fp = Fingerprint::windows_desktop();
-        assert!(!fp.tracker_hosts().is_empty());
-        let custom = Fingerprint::builder()
-            .blocked_trackers(vec!["example-metrics.test".to_owned()])
-            .build();
-        assert_eq!(custom.tracker_hosts(), vec!["example-metrics.test"]);
-    }
-
-    #[test]
-    fn partial_fingerprint_deserializes() {
-        let raw = r#"{
-            "os_type": "Windows",
-            "hardware_concurrency": 8,
-            "webgl_vendor": "Google Inc. (NVIDIA)",
-            "fonts": ["Arial", "Helvetica"],
-            "seed": 42,
-            "flags": { "navigator_masking": "Custom", "canvas_noise": "Persistent" }
-        }"#;
-        let fp: Fingerprint = serde_json::from_str(raw).unwrap();
-        assert_eq!(fp.hardware_concurrency, Some(8));
-        assert_eq!(fp.os_type, OsType::Windows);
-        assert_eq!(fp.flags.navigator_masking, MaskingMode::Custom);
-        assert_eq!(fp.flags.canvas_noise, CanvasNoiseMode::Persistent);
-        assert_eq!(fp.fonts.len(), 2);
-        assert!(fp.user_agent.is_none());
-        // A flag the file does not name is `Auto`: on only for a value it holds.
-        assert_eq!(fp.flags.webrtc_masking, MaskingMode::Auto);
-    }
-
-    #[test]
-    fn client_hints_saved_before_wow64_and_form_factors_still_load() {
-        let raw = r#"{
-            "brands": [], "full_version_list": [], "platform": "macOS",
-            "platform_version": "15.0.0", "architecture": "arm", "bitness": "64",
-            "model": "", "ua_full_version": "155.0.0.0", "mobile": false
-        }"#;
-        let hints: ClientHints = serde_json::from_str(raw).unwrap();
-        assert!(!hints.wow64);
-        assert!(hints.form_factors.is_empty());
-        assert_eq!(hints.platform, "macOS");
-    }
-
-    #[test]
-    fn client_hints_carry_wow64_and_form_factors_through_serde() {
-        let hints = ClientHints {
-            wow64: true,
-            form_factors: vec!["Desktop".to_owned()],
-            ..ClientHints::default()
-        };
-        let again: ClientHints =
-            serde_json::from_str(&serde_json::to_string(&hints).unwrap()).unwrap();
-        assert_eq!(again, hints);
-    }
-
-    #[test]
-    fn randomized_with_major_claims_that_major_and_keeps_the_rest_of_the_seed() {
-        let free = Fingerprint::randomized(OsType::Macos, 12);
-        let pinned = Fingerprint::randomized_with_major(OsType::Macos, 12, 155);
-        assert_eq!(pinned.core_version, Some(155));
-        assert!(pinned
-            .user_agent
-            .as_deref()
-            .unwrap_or_default()
-            .contains("Chrome/155.0.0.0"));
-        assert_eq!(pinned.timezone, free.timezone);
-        assert_eq!(pinned.webgl_renderer, free.webgl_renderer);
-        assert_eq!(pinned.seed, free.seed);
-        assert!(pinned.validate().is_coherent());
-    }
-
-    // ------------------------------------------------------------------
-    // The value is the switch
-    // ------------------------------------------------------------------
 
     /// Every dimension.
     const EVERY_DIMENSION: [Dimension; 22] = [
@@ -2323,425 +2211,125 @@ mod tests {
         Dimension::NativeToString,
     ];
 
-    /// Flags that switch every dimension off explicitly, as a preset or a saved
-    /// file can.
-    fn natural_flags() -> StealthFlags {
-        let off = MaskingMode::Natural;
-        StealthFlags {
-            webrtc_masking: off,
-            audio_masking: off,
-            navigator_masking: off,
-            localization_masking: off,
-            timezone_masking: off,
-            graphics_masking: off,
-            fonts_masking: off,
-            media_devices_masking: off,
-            screen_masking: off,
-            geolocation_masking: off,
-            battery_masking: off,
-            connection_masking: off,
-            speech_masking: off,
-            bluetooth_masking: off,
-            client_hints_masking: off,
-            native_tostring_masking: off,
-            chrome_runtime_masking: off,
-            headless_masking: off,
-            geolocation_popup: PopupMode::Prompt,
-            ports_masking: NoiseMode::Off,
-            proxy_masking: ProxyMaskingMode::Disabled,
-            canvas_noise: CanvasNoiseMode::Natural,
-            block_trackers: false,
-            ..StealthFlags::default()
-        }
-    }
-
-    type Setter = fn(FingerprintBuilder) -> FingerprintBuilder;
-
-    /// Each value setter with the dimension it belongs to.
-    fn value_setters() -> Vec<(&'static str, Setter, Dimension)> {
-        vec![
-            (
-                "user_agent",
-                |b| b.user_agent("Mozilla/5.0"),
-                Dimension::Navigator,
-            ),
-            ("platform", |b| b.platform("Win32"), Dimension::Navigator),
-            (
-                "hardware_concurrency",
-                |b| b.hardware_concurrency(8),
-                Dimension::Navigator,
-            ),
-            (
-                "device_memory",
-                |b| b.device_memory(8.0),
-                Dimension::Navigator,
-            ),
-            (
-                "max_touch_points",
-                |b| b.max_touch_points(5),
-                Dimension::Navigator,
-            ),
-            ("vendor", |b| b.vendor("Google Inc."), Dimension::Navigator),
-            ("os_cpu", |b| b.os_cpu("Linux x86_64"), Dimension::Navigator),
-            (
-                "product_sub",
-                |b| b.product_sub("20030107"),
-                Dimension::Navigator,
-            ),
-            (
-                "build_id",
-                |b| b.build_id("20181001000000"),
-                Dimension::Navigator,
-            ),
-            (
-                "app_version",
-                |b| b.app_version("5.0"),
-                Dimension::Navigator,
-            ),
-            ("locale", |b| b.locale("de-DE"), Dimension::Localization),
-            (
-                "languages",
-                |b| b.languages("de-DE,de"),
-                Dimension::Localization,
-            ),
-            (
-                "accept_languages",
-                |b| b.accept_languages("de-DE"),
-                Dimension::Localization,
-            ),
-            (
-                "timezone",
-                |b| b.timezone("Europe/Berlin"),
-                Dimension::Timezone,
-            ),
-            ("screen", |b| b.screen(1440, 900), Dimension::Screen),
-            (
-                "avail_screen",
-                |b| b.avail_screen(1440, 860),
-                Dimension::Screen,
-            ),
-            ("pixel_ratio", |b| b.pixel_ratio(2.0), Dimension::Screen),
-            ("color_depth", |b| b.color_depth(30), Dimension::Screen),
-            (
-                "webgl",
-                |b| b.webgl("Vendor", "Renderer"),
-                Dimension::Graphics,
-            ),
-            (
-                "fonts",
-                |b| b.fonts(vec!["Arial".to_owned()]),
-                Dimension::Fonts,
-            ),
-            (
-                "media_device_counts",
-                |b| b.media_device_counts(1, 1, 1),
-                Dimension::MediaDevices,
-            ),
-            (
-                "media_device_specs",
-                |b| {
-                    b.media_device_specs(vec![MediaDeviceSpec {
-                        kind: "audioinput".to_owned(),
-                        device_id: "default".to_owned(),
-                        group_id: "g".to_owned(),
-                        label: "Mic".to_owned(),
-                    }])
-                },
-                Dimension::MediaDevices,
-            ),
-            (
-                "geolocation",
-                |b| b.geolocation(52.5, 13.4),
-                Dimension::Geolocation,
-            ),
-            (
-                "webrtc_ips",
-                |b| b.webrtc_ips("203.0.113.9", "10.0.0.2"),
-                Dimension::WebRtc,
-            ),
-            (
-                "webrtc_policy",
-                |b| b.webrtc_policy(WebRtcPolicy::PublicInterfaceOnly),
-                Dimension::WebRtc,
-            ),
-            ("canvas_seed", |b| b.canvas_seed(5), Dimension::Canvas),
-            ("seed (canvas)", |b| b.seed(5), Dimension::Canvas),
-            ("audio_seed", |b| b.audio_seed(5), Dimension::Audio),
-            ("seed (audio)", |b| b.seed(5), Dimension::Audio),
-            (
-                "battery",
-                |b| b.battery(BatteryProfile::default()),
-                Dimension::Battery,
-            ),
-            (
-                "connection",
-                |b| b.connection(ConnectionProfile::default()),
-                Dimension::Connection,
-            ),
-            (
-                "speech_voices",
-                |b| b.speech_voices(SpeechVoice::default_set()),
-                Dimension::Speech,
-            ),
-            (
-                "client_hints",
-                |b| b.client_hints(ClientHints::default()),
-                Dimension::ClientHints,
-            ),
-            (
-                "proxy",
-                |b| {
-                    b.proxy(ProxyConfig {
-                        r#type: "http".to_owned(),
-                        host: "proxy.test".to_owned(),
-                        port: 8080,
-                        username: None,
-                        password: None,
-                        save_traffic: false,
-                    })
-                },
-                Dimension::Proxy,
-            ),
-            (
-                "blocked_ports",
-                |b| b.blocked_ports(vec![9222]),
-                Dimension::Ports,
-            ),
-            (
-                "blocked_trackers",
-                |b| b.blocked_trackers(vec!["tracker.test".to_owned()]),
-                Dimension::Trackers,
-            ),
-        ]
-    }
-
     #[test]
-    fn a_fingerprint_without_values_masks_nothing_but_native_to_string() {
-        let fp = Fingerprint::default();
-        for dimension in EVERY_DIMENSION {
-            assert_eq!(
-                fp.is_masked(dimension),
-                dimension == Dimension::NativeToString,
-                "{dimension:?}"
-            );
-        }
-        assert!(!Fingerprint::builder().build().is_masked(Dimension::WebRtc));
-    }
+    fn a_value_turns_on_the_dimension_it_belongs_to_and_no_other() {
+        let on = |builder: FingerprintBuilder| -> Vec<Dimension> {
+            let fp = built(builder);
+            EVERY_DIMENSION
+                .into_iter()
+                .filter(|d| *d != Dimension::NativeToString && fp.is_masked(*d))
+                .collect()
+        };
+        let proxy = ProxyConfig {
+            r#type: "http".to_owned(),
+            host: "proxy.example".to_owned(),
+            port: 8080,
+            ..ProxyConfig::default()
+        };
 
-    #[test]
-    fn the_mode_decides_what_a_value_means() {
-        let mut fp = Fingerprint::builder().timezone("Europe/Berlin").build();
-        assert!(fp.is_masked(Dimension::Timezone), "a value turns it on");
-        assert!(!fp.fills_defaults(Dimension::Timezone));
-
-        fp.flags.timezone_masking = MaskingMode::Natural;
-        assert!(
-            !fp.is_masked(Dimension::Timezone),
-            "Natural is off whatever the fingerprint holds"
+        assert_eq!(
+            on(Fingerprint::builder().user_agent("UA")),
+            [Dimension::Navigator]
         );
-
-        fp.timezone = None;
-        fp.flags.timezone_masking = MaskingMode::Auto;
-        assert!(!fp.is_masked(Dimension::Timezone), "Auto needs a value");
-
-        fp.flags.timezone_masking = MaskingMode::Mask;
-        assert!(fp.is_masked(Dimension::Timezone) && fp.fills_defaults(Dimension::Timezone));
-
-        // The older spellings keep their meaning.
-        fp.flags.timezone_masking = MaskingMode::Custom;
-        assert!(fp.is_masked(Dimension::Timezone));
-        fp.flags.timezone_masking = MaskingMode::Disabled;
-        assert!(!fp.is_masked(Dimension::Timezone));
-    }
-
-    #[test]
-    fn every_value_setter_turns_its_dimension_on_whatever_the_preset_and_its_order() {
-        for (name, set, dimension) in value_setters() {
-            let runs: [(Option<StealthFlags>, bool); 5] = [
-                (None, true),
-                (Some(StealthFlags::balanced()), true),
-                (Some(StealthFlags::balanced()), false),
-                (Some(natural_flags()), true),
-                (Some(natural_flags()), false),
-            ];
-            for (preset, preset_first) in runs {
-                let mut builder = Fingerprint::builder();
-                if let (Some(preset), true) = (&preset, preset_first) {
-                    builder = builder.flags(preset.clone());
-                }
-                builder = set(builder);
-                if let (Some(preset), false) = (&preset, preset_first) {
-                    builder = builder.flags(preset.clone());
-                }
-                assert!(
-                    builder.build().is_masked(dimension),
-                    "{name} left {dimension:?} off (preset {preset:?}, preset first: {preset_first})"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn with_flags_has_the_last_word_in_any_order() {
-        for (name, set, dimension) in value_setters() {
-            // The override is given before the value, and after it.
-            let before = set(Fingerprint::builder().with_flags(|f| *f = natural_flags())).build();
-            let after = set(Fingerprint::builder())
-                .with_flags(|f| *f = natural_flags())
-                .build();
-            for (fp, order) in [(before, "before"), (after, "after")] {
-                assert!(
-                    !fp.is_masked(dimension),
-                    "{name}: an override given {order} the value did not switch {dimension:?} off"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn several_overrides_run_in_order_after_the_values() {
-        let fp = Fingerprint::builder()
-            .timezone("Asia/Tokyo")
-            .with_flags(|f| f.timezone_masking = MaskingMode::Natural)
-            .locale("ja-JP")
-            .with_flags(|f| f.timezone_masking = MaskingMode::Mask)
-            .build();
-        assert!(fp.is_masked(Dimension::Timezone) && fp.fills_defaults(Dimension::Timezone));
-        assert!(fp.is_masked(Dimension::Localization));
-    }
-
-    #[test]
-    fn the_order_of_the_preset_and_the_values_does_not_change_the_fingerprint() {
-        let before = Fingerprint::builder()
-            .flags(natural_flags())
-            .timezone("Asia/Tokyo")
-            .locale("ja-JP")
-            .build();
-        let after = Fingerprint::builder()
-            .timezone("Asia/Tokyo")
-            .locale("ja-JP")
-            .flags(natural_flags())
-            .build();
-        assert_eq!(before, after);
-    }
-
-    #[test]
-    fn a_tracker_list_is_a_request_to_block_and_an_override_can_still_refuse() {
-        let list = vec!["tracker.test".to_owned()];
-        let fp = Fingerprint::builder()
-            .blocked_trackers(list.clone())
-            .build();
-        assert!(fp.is_masked(Dimension::Trackers) && fp.flags.block_trackers);
-        assert_eq!(fp.tracker_hosts(), list);
-
-        let fp = Fingerprint::builder()
-            .blocked_trackers(list)
-            .with_flags(|f| f.block_trackers = false)
-            .build();
-        assert!(!fp.is_masked(Dimension::Trackers));
-        assert!(
-            fp.blocked_trackers.is_empty(),
-            "a list that is not used is not kept"
+        assert_eq!(
+            on(Fingerprint::builder().locale("de-DE")),
+            [Dimension::Localization]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().timezone("Europe/Berlin")),
+            [Dimension::Timezone]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().pixel_ratio(2.0)),
+            [Dimension::Screen]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().webgl(("V", "R"))),
+            [Dimension::Graphics]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().fonts(["Arial"])),
+            [Dimension::Fonts]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().media_device_counts(1, 1, 1)),
+            [Dimension::MediaDevices]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().geolocation((1.0, 2.0))),
+            [Dimension::Geolocation]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().webrtc(Spoof::Off)),
+            [Dimension::WebRtc]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().battery(Spoof::Off)),
+            [Dimension::Battery]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().connection(Spoof::Off)),
+            [Dimension::Connection]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().speech_voices(Spoof::Off)),
+            [Dimension::Speech]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().client_hints(Spoof::Off)),
+            [Dimension::ClientHints]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().bluetooth(false)),
+            [Dimension::Bluetooth]
+        );
+        assert_eq!(on(Fingerprint::builder().proxy(proxy)), [Dimension::Proxy]);
+        // The policy turns on the ones that have no setting of their own.
+        assert_eq!(
+            on(Fingerprint::builder().canvas_noise(CanvasNoise::Low)),
+            [Dimension::Canvas]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().audio_noise(AudioNoise::Persistent)),
+            [Dimension::Audio]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().blocked_ports(vec![9222])),
+            [Dimension::Ports]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().block_trackers(true)),
+            [Dimension::Trackers]
+        );
+        assert_eq!(
+            on(Fingerprint::builder().webrtc_policy(WebRtcPolicy::PublicInterfaceOnly)),
+            [Dimension::WebRtc]
         );
     }
 
     #[test]
-    fn the_locale_gives_the_language_list_and_the_user_agent_gives_the_os() {
-        let fp = Fingerprint::builder().locale("de-DE").build();
-        assert!(fp
-            .languages
-            .as_deref()
-            .is_some_and(|l| l.starts_with("de-DE")));
-        let unknown = Fingerprint::builder().locale("xx-YY").build();
-        assert_eq!(unknown.languages.as_deref(), Some("xx-YY,xx"));
-        let given = Fingerprint::builder()
-            .locale("de-DE")
-            .languages("de-DE")
-            .build();
-        assert_eq!(given.languages.as_deref(), Some("de-DE"));
-
-        let mac = Fingerprint::builder()
-            .user_agent(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
-            )
-            .build();
-        assert_eq!(mac.os_type, OsType::Macos);
-        assert_eq!(mac.platform.as_deref(), Some("MacIntel"));
-        let phone = Fingerprint::builder()
-            .user_agent(
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/155.0.0.0 Mobile",
-            )
-            .build();
-        assert_eq!(phone.os_type, OsType::Android);
-
-        // What the caller said is kept.
-        let said = Fingerprint::builder()
-            .os_type(OsType::Linux)
-            .platform("Linux x86_64")
-            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-            .build();
-        assert_eq!(said.os_type, OsType::Linux);
-        assert_eq!(said.platform.as_deref(), Some("Linux x86_64"));
-        assert!(!said.validate().is_coherent(), "the mismatch is reported");
+    fn presets_are_valid() {
+        assert_eq!(Fingerprint::windows_desktop().os_type(), OsType::Windows);
+        assert_eq!(Fingerprint::macos_desktop().os_type(), OsType::Macos);
+        assert_eq!(Fingerprint::linux_desktop().os_type(), OsType::Linux);
+        assert_eq!(Fingerprint::android_mobile().os_type(), OsType::Android);
+        let ios = Fingerprint::ios_mobile_safari();
+        assert_eq!(ios.os_type(), OsType::Ios);
+        assert_eq!(ios.browser_type(), BrowserType::MobileSafari);
     }
 
     #[test]
-    fn a_position_allows_the_geolocation_popup_unless_the_flags_say_otherwise() {
-        let none = Fingerprint::builder().build();
-        assert_eq!(none.geolocation_popup(), PopupMode::Prompt);
-
-        let placed = Fingerprint::builder().geolocation(52.5, 13.4).build();
-        assert_eq!(placed.geolocation_popup(), PopupMode::Allow);
-
-        let kept = Fingerprint::builder()
-            .geolocation(52.5, 13.4)
-            .with_flags(|f| f.geolocation_popup = PopupMode::Block)
-            .build();
-        assert_eq!(kept.geolocation_popup(), PopupMode::Block);
-
-        // A preset that says `Prompt` does not undo the request the position makes.
-        let preset = Fingerprint::builder()
-            .flags(natural_flags())
-            .geolocation(52.5, 13.4)
-            .build();
-        assert_eq!(preset.geolocation_popup(), PopupMode::Allow);
+    fn proxy_url_includes_auth() {
+        let proxy = ProxyConfig {
+            r#type: "http".to_owned(),
+            host: "proxy.example.com".to_owned(),
+            port: 8080,
+            username: Some("u".to_owned()),
+            password: Some("p".to_owned()),
+            save_traffic: false,
+        };
+        assert_eq!(proxy.to_url(), "http://u:p@proxy.example.com:8080");
     }
-
-    #[test]
-    fn one_seed_gives_both_noises_and_each_seed_gives_its_own() {
-        let both = Fingerprint::builder().seed(7).build();
-        assert_eq!(both.seed, Some(7));
-        assert_eq!(both.audio_seed, Some(7 ^ AUDIO_SEED_MASK));
-        assert!(both.is_masked(Dimension::Canvas) && both.is_masked(Dimension::Audio));
-
-        let canvas = Fingerprint::builder().canvas_seed(7).build();
-        assert!(canvas.is_masked(Dimension::Canvas) && !canvas.is_masked(Dimension::Audio));
-        let audio = Fingerprint::builder().audio_seed(7).build();
-        assert!(audio.is_masked(Dimension::Audio) && !audio.is_masked(Dimension::Canvas));
-    }
-
-    #[test]
-    fn a_native_spoofing_choice_survives_a_preset_given_later() {
-        let fp = Fingerprint::builder()
-            .native_spoofing(true)
-            .flags(StealthFlags::balanced())
-            .build();
-        assert!(fp.flags.native_spoofing);
-    }
-
-    #[test]
-    fn the_available_screen_defaults_to_the_screen_less_the_taskbar() {
-        let fp = Fingerprint::builder()
-            .screen(1920, 1080)
-            .avail_screen(1920, 1040)
-            .build();
-        assert_eq!((fp.avail_width, fp.avail_height), (Some(1920), Some(1040)));
-    }
-
-    // ------------------------------------------------------------------
-    // Presets and validate()
-    // ------------------------------------------------------------------
 
     fn every_preset() -> [(&'static str, Fingerprint); 6] {
         [
@@ -2764,20 +2352,39 @@ mod tests {
     }
 
     #[test]
+    fn a_preset_is_the_same_every_time_so_its_noise_is_stable() {
+        for (name, fp) in every_preset() {
+            assert!(!fp.has_random_settings(), "{name}");
+        }
+        assert_eq!(
+            Fingerprint::windows_desktop(),
+            Fingerprint::windows_desktop()
+        );
+        assert_eq!(
+            Fingerprint::windows_desktop().seed(),
+            Fingerprint::windows_desktop().seed()
+        );
+        assert_ne!(
+            Fingerprint::windows_desktop().seed(),
+            Fingerprint::macos_desktop().seed()
+        );
+    }
+
+    #[test]
     fn every_preset_has_a_position_in_the_city_of_its_time_zone() {
         for (name, fp) in every_preset() {
-            let zone = fp.timezone.as_deref().expect("a time zone");
-            let city = crate::stealth::randomize::locale_of_timezone(zone)
+            let zone = fp.timezone().as_str().expect("a time zone");
+            let city = randomize::locale_of_timezone(zone)
                 .unwrap_or_else(|| panic!("{name}: {zone} is not in the table"));
-            assert_eq!(fp.latitude, Some(city.latitude), "{name}");
-            assert_eq!(fp.longitude, Some(city.longitude), "{name}");
+            let place = fp.geolocation().value().expect("a position");
+            assert_eq!(place.latitude, city.latitude, "{name}");
+            assert_eq!(place.longitude, city.longitude, "{name}");
             assert!(fp.is_masked(Dimension::Geolocation), "{name}");
-            assert_eq!(fp.geolocation_popup(), PopupMode::Allow, "{name}");
         }
     }
 
     #[test]
-    fn every_preset_masks_the_dimensions_its_values_and_the_generic_ones_need() {
+    fn every_preset_masks_the_dimensions_its_values_and_its_policy_need() {
         for (name, fp) in every_preset() {
             for dimension in [
                 Dimension::Navigator,
@@ -2788,10 +2395,7 @@ mod tests {
                 Dimension::Geolocation,
                 Dimension::WebRtc,
                 Dimension::Canvas,
-                Dimension::Battery,
-                Dimension::Connection,
                 Dimension::Speech,
-                Dimension::Bluetooth,
                 Dimension::ChromeRuntime,
                 Dimension::Headless,
                 Dimension::NativeToString,
@@ -2802,18 +2406,54 @@ mod tests {
     }
 
     #[test]
+    fn safari_has_no_battery_connection_or_bluetooth_and_the_others_do() {
+        let ios = Fingerprint::ios_mobile_safari();
+        assert!(ios.battery().is_off() && ios.connection().is_off() && ios.bluetooth().is_off());
+        let windows = Fingerprint::windows_desktop();
+        assert!(windows.battery().is_value() && windows.connection().is_value());
+        assert_eq!(windows.bluetooth().value(), Some(&false));
+        assert_eq!(
+            Fingerprint::android_mobile().bluetooth().value(),
+            Some(&true)
+        );
+    }
+
+    #[test]
+    fn the_chrome_presets_claim_one_current_major_in_the_frozen_format() {
+        let version = format!("Chrome/{}.0.0.0", randomize::PRESET_CHROMIUM_MAJOR);
+        for (fp, platform) in [
+            (
+                Fingerprint::windows_desktop(),
+                "(Windows NT 10.0; Win64; x64)",
+            ),
+            (
+                Fingerprint::macos_desktop(),
+                "(Macintosh; Intel Mac OS X 10_15_7)",
+            ),
+            (Fingerprint::linux_desktop(), "(X11; Linux x86_64)"),
+            (Fingerprint::android_mobile(), "(Linux; Android 10; K)"),
+        ] {
+            let ua = user_agent(&fp);
+            assert!(ua.contains(&version), "{ua}");
+            assert!(ua.contains(platform), "{ua}");
+        }
+        assert_eq!(
+            user_agent(&Fingerprint::ios_mobile_safari()),
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 \
+             (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+        );
+    }
+
+    #[test]
     fn the_edge_preset_is_edge_and_not_chrome() {
         let fp = Fingerprint::edge_desktop();
-        let major = crate::stealth::randomize::PRESET_CHROMIUM_MAJOR;
-        let ua = fp.user_agent.as_deref().unwrap_or_default();
+        let major = randomize::PRESET_CHROMIUM_MAJOR;
+        let ua = user_agent(&fp);
         assert!(ua.ends_with(&format!("Edg/{major}.0.0.0")), "{ua}");
         assert!(ua.contains(&format!("Chrome/{major}.0.0.0")), "{ua}");
-        assert_eq!(fp.os_type, OsType::Windows);
-        assert_eq!(fp.platform.as_deref(), Some("Win32"));
-        assert_eq!(
-            Fingerprint::edge_desktop().webgl_renderer,
-            Fingerprint::windows_desktop().webgl_renderer
-        );
+        assert_eq!(fp.os_type(), OsType::Windows);
+        assert_eq!(fp.platform().as_str(), Some("Win32"));
+        assert_eq!(fp.webgl(), Fingerprint::windows_desktop().webgl());
     }
 
     #[test]
@@ -2831,29 +2471,665 @@ mod tests {
     #[test]
     fn the_linux_preset_reports_a_linux_graphics_stack_and_the_mac_one_metal() {
         let linux = Fingerprint::linux_desktop();
-        let renderer = linux.webgl_renderer.as_deref().unwrap_or_default();
+        let gl = linux.webgl().value().expect("webgl");
+        let renderer = gl.renderer.as_deref().unwrap_or_default();
         assert!(
             !renderer.contains("Direct3D") && !renderer.contains("D3D11"),
             "{renderer}"
         );
         assert!(renderer.contains("OpenGL"), "{renderer}");
         assert_eq!(
-            linux.webgl_vendor.as_deref(),
+            gl.vendor.as_deref(),
             Some("Google Inc. (NVIDIA Corporation)")
         );
 
         let mac = Fingerprint::macos_desktop();
-        let renderer = mac.webgl_renderer.as_deref().unwrap_or_default();
+        let renderer = mac
+            .webgl()
+            .value()
+            .and_then(|gl| gl.renderer.as_deref())
+            .unwrap_or_default();
         assert!(renderer.contains("Metal"), "{renderer}");
     }
 
+    #[test]
+    fn the_available_screen_is_what_was_given() {
+        let fp = built(
+            Fingerprint::builder()
+                .screen(1920, 1080)
+                .avail_screen((1920, 1040)),
+        );
+        assert_eq!(
+            fp.avail_screen().value(),
+            Some(&ScreenSize::new(1920, 1040))
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // What build derives, and what it refuses
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn the_locale_gives_the_language_list_and_the_user_agent_gives_the_os() {
+        let from_locale = built(Fingerprint::builder().locale("de-DE"));
+        assert_eq!(from_locale.languages().as_str(), Some("de-DE,de,en-US,en"));
+        let given = built(Fingerprint::builder().locale("de-DE").languages("de-DE"));
+        assert_eq!(given.languages().as_str(), Some("de-DE"));
+
+        let mac = built(Fingerprint::builder().user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/155.0.0.0 Safari/537.36",
+        ));
+        assert_eq!(mac.os_type(), OsType::Macos);
+        assert_eq!(mac.platform().as_str(), Some("MacIntel"));
+        // An explicit operating system is not overridden by the user agent.
+        let explicit = built(
+            Fingerprint::builder()
+                .os_type(OsType::Linux)
+                .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"),
+        );
+        assert_eq!(explicit.os_type(), OsType::Linux);
+    }
+
+    #[test]
+    fn mismatched_platform_and_ua_is_incoherent() {
+        // macOS user-agent with a Windows platform string is a classic tell.
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Macos)
+                .user_agent(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+                     (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+                )
+                .platform("Win32"),
+        );
+        let report = fp.validate();
+        assert!(!report.is_coherent());
+        assert!(report.errors.iter().any(|e| e.contains("platform")));
+    }
+
+    #[test]
+    fn off_where_it_means_nothing_names_the_setting() {
+        let refused = |builder: FingerprintBuilder| builder.build().unwrap_err();
+        let off: [(&str, FingerprintBuilder); 12] = [
+            ("user_agent", Fingerprint::builder().user_agent(Spoof::Off)),
+            (
+                "hardware_concurrency",
+                Fingerprint::builder().hardware_concurrency(Spoof::Off),
+            ),
+            ("locale", Fingerprint::builder().locale(Spoof::Off)),
+            ("timezone", Fingerprint::builder().timezone(Spoof::Off)),
+            ("screen", Fingerprint::builder().screen_spoof(Spoof::Off)),
+            (
+                "pixel_ratio",
+                Fingerprint::builder().pixel_ratio(Spoof::Off),
+            ),
+            ("webgl", Fingerprint::builder().webgl(Spoof::Off)),
+            ("fonts", Fingerprint::builder().fonts(Spoof::Off)),
+            ("proxy", Fingerprint::builder().proxy(Spoof::Off)),
+            (
+                "app_version",
+                Fingerprint::builder().app_version(Spoof::Off),
+            ),
+            (
+                "avail_screen",
+                Fingerprint::builder().avail_screen(Spoof::Off),
+            ),
+            (
+                "color_depth",
+                Fingerprint::builder().color_depth(Spoof::Off),
+            ),
+        ];
+        for (setting, builder) in off {
+            assert_eq!(
+                refused(builder),
+                FingerprintError::OffNotAvailable { setting },
+                "{setting}"
+            );
+        }
+        // The message says which setting.
+        let message = refused(Fingerprint::builder().timezone(Spoof::Off)).to_string();
+        assert!(message.starts_with("timezone cannot be Off"), "{message}");
+    }
+
+    #[test]
+    fn off_is_a_state_of_the_eight_settings_that_can_be_turned_off() {
+        let fp = built(
+            Fingerprint::builder()
+                .geolocation(Spoof::Off)
+                .webrtc(Spoof::Off)
+                .media_devices(Spoof::Off)
+                .battery(Spoof::Off)
+                .bluetooth(Spoof::Off)
+                .speech_voices(Spoof::Off)
+                .connection(Spoof::Off)
+                .client_hints(Spoof::Off),
+        );
+        assert!(fp.geolocation().is_off() && fp.client_hints().is_off() && fp.battery().is_off());
+        assert!(fp.webrtc().is_off() && fp.media_devices().is_off() && fp.bluetooth().is_off());
+        assert!(fp.speech_voices().is_off() && fp.connection().is_off());
+    }
+
+    #[test]
+    fn random_where_there_is_nothing_to_draw_names_the_setting() {
+        for (setting, builder) in [
+            ("proxy", Fingerprint::builder().proxy(Spoof::Random)),
+            ("oscpu", Fingerprint::builder().oscpu(Spoof::Random)),
+            ("build_id", Fingerprint::builder().build_id(Spoof::Random)),
+        ] {
+            assert_eq!(
+                builder.build().unwrap_err(),
+                FingerprintError::NoRandomValue { setting }
+            );
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Random
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn a_built_fingerprint_holds_no_random() {
+        let fp = built(
+            Fingerprint::builder()
+                .user_agent(Spoof::Random)
+                .locale(Spoof::Random)
+                .timezone(Spoof::Random)
+                .geolocation(Spoof::Random)
+                .screen_spoof(Spoof::Random)
+                .webgl(Spoof::Random)
+                .fonts(Spoof::Random)
+                .media_devices(Spoof::Random)
+                .webrtc(Spoof::Random)
+                .battery(Spoof::Random)
+                .client_hints(Spoof::Random),
+        );
+        assert!(!fp.has_random_settings());
+        assert!(fp.user_agent().is_value() && fp.fonts().is_value() && fp.webrtc().is_value());
+    }
+
+    #[test]
+    fn the_same_seed_gives_the_same_fingerprint_and_another_gives_another() {
+        let draw = |seed: u64| {
+            built(
+                Fingerprint::builder()
+                    .seed(seed)
+                    .user_agent(Spoof::Random)
+                    .timezone(Spoof::Random)
+                    .geolocation(Spoof::Random)
+                    .webgl(Spoof::Random),
+            )
+        };
+        assert_eq!(draw(7), draw(7));
+        assert_ne!(draw(7), draw(8));
+        assert_eq!(draw(7).seed(), 7);
+    }
+
+    #[test]
+    fn without_a_seed_a_draw_uses_fresh_entropy_and_keeps_the_seed_it_used() {
+        let draw = || {
+            built(
+                Fingerprint::builder()
+                    .user_agent(Spoof::Random)
+                    .geolocation(Spoof::Random),
+            )
+        };
+        let (first, second) = (draw(), draw());
+        assert_ne!(first.seed(), second.seed());
+        // Rebuilding from the kept seed gives the same fingerprint.
+        let again = built(
+            Fingerprint::builder()
+                .seed(first.seed())
+                .user_agent(Spoof::Random)
+                .geolocation(Spoof::Random),
+        );
+        assert_eq!(again, first);
+    }
+
+    #[test]
+    fn a_random_place_agrees_with_a_given_time_zone() {
+        for seed in 0..40 {
+            let fp = built(
+                Fingerprint::builder()
+                    .seed(seed)
+                    .timezone("Europe/Berlin")
+                    .locale(Spoof::Random)
+                    .languages(Spoof::Random)
+                    .geolocation(Spoof::Random),
+            );
+            assert_eq!(fp.locale().as_str(), Some("de-DE"), "seed {seed}");
+            assert!(
+                fp.languages()
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("de-DE"),
+                "seed {seed}"
+            );
+            let place = fp.geolocation().value().expect("a position");
+            assert!((place.latitude - 52.52).abs() < 0.1, "seed {seed}");
+            assert!((place.longitude - 13.405).abs() < 0.1, "seed {seed}");
+            let report = fp.validate();
+            assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+        }
+    }
+
+    #[test]
+    fn a_random_time_zone_agrees_with_a_given_locale() {
+        let fp = built(
+            Fingerprint::builder()
+                .locale("ja-JP")
+                .timezone(Spoof::Random)
+                .geolocation(Spoof::Random),
+        );
+        assert_eq!(fp.timezone().as_str(), Some("Asia/Tokyo"));
+        let place = fp.geolocation().value().expect("a position");
+        assert!((place.latitude - 35.68).abs() < 0.2, "{place:?}");
+    }
+
+    #[test]
+    fn a_random_place_next_to_a_zone_the_table_lacks_is_an_error_that_says_why() {
+        let error = Fingerprint::builder()
+            .timezone("Pacific/Chatham")
+            .locale(Spoof::Random)
+            .build()
+            .unwrap_err();
+        match error {
+            FingerprintError::Incoherent { setting, reason } => {
+                assert_eq!(setting, "locale");
+                assert!(reason.contains("Pacific/Chatham"), "{reason}");
+            }
+            other => panic!("{other:?}"),
+        }
+        // What does not depend on the place can still be drawn.
+        let fine = built(
+            Fingerprint::builder()
+                .timezone("Pacific/Chatham")
+                .screen_spoof(Spoof::Random)
+                .webgl(Spoof::Random),
+        );
+        assert!(fine.screen().is_value() && fine.webgl().is_value());
+    }
+
+    #[test]
+    fn a_random_machine_is_one_the_operating_system_reports() {
+        for (os, needle) in [
+            (OsType::Windows, "Direct3D"),
+            (OsType::Macos, "Metal"),
+            (OsType::Linux, "OpenGL"),
+        ] {
+            for seed in 0..25 {
+                let fp = built(
+                    Fingerprint::builder()
+                        .os_type(os)
+                        .seed(seed)
+                        .webgl(Spoof::Random)
+                        .platform(Spoof::Random),
+                );
+                let renderer = fp
+                    .webgl()
+                    .value()
+                    .and_then(|gl| gl.renderer.as_deref())
+                    .unwrap_or_default();
+                assert!(renderer.contains(needle), "{os:?} {renderer}");
+                assert_eq!(fp.platform().as_str(), Some(os.platform()));
+            }
+        }
+    }
+
+    #[test]
+    fn the_operating_system_of_a_given_user_agent_decides_what_is_drawn() {
+        let fp = built(
+            Fingerprint::builder()
+                .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/150.0.0.0 Safari/537.36")
+                .webgl(Spoof::Random)
+                .client_hints(Spoof::Random),
+        );
+        assert_eq!(fp.os_type(), OsType::Macos);
+        let renderer = fp
+            .webgl()
+            .value()
+            .and_then(|g| g.renderer.as_deref())
+            .unwrap_or_default();
+        assert!(renderer.contains("Metal"), "{renderer}");
+        // The Client Hints claim the major the user agent names.
+        let hints = fp.client_hints().value().expect("hints");
+        assert!(hints.brands.iter().any(|b| b.version == "150"), "{hints:?}");
+    }
+
+    #[test]
+    fn a_pinned_major_reaches_the_random_user_agent_and_client_hints() {
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .core_version(150)
+                .user_agent(Spoof::Random)
+                .client_hints(Spoof::Random),
+        );
+        assert!(
+            user_agent(&fp).contains("Chrome/150.0.0.0"),
+            "{}",
+            user_agent(&fp)
+        );
+        let hints = fp.client_hints().value().expect("hints");
+        assert!(hints.brands.iter().any(|b| b.version == "150"), "{hints:?}");
+        assert_eq!(fp.core_version(), Some(150));
+    }
+
+    #[test]
+    fn a_safari_draw_has_no_client_hints_battery_connection_or_bluetooth() {
+        let fp = Fingerprint::randomized(OsType::Ios, 3);
+        assert_eq!(fp.browser_type(), BrowserType::MobileSafari);
+        assert!(fp.client_hints().is_off());
+        assert!(fp.battery().is_off() && fp.connection().is_off() && fp.bluetooth().is_off());
+        // Safari has no `deviceMemory` either.
+        assert!(fp.device_memory().is_natural());
+    }
+
+    #[test]
+    fn randomized_with_major_claims_that_major_and_keeps_the_rest_of_the_seed() {
+        let free = Fingerprint::randomized(OsType::Macos, 12);
+        let pinned = Fingerprint::randomized_with_major(OsType::Macos, 12, 155);
+        assert_eq!(pinned.core_version(), Some(155));
+        assert!(user_agent(&pinned).contains("Chrome/155.0.0.0"));
+        assert_eq!(pinned.timezone(), free.timezone());
+        assert_eq!(pinned.webgl(), free.webgl());
+        assert_eq!(pinned.seed(), free.seed());
+        assert!(pinned.validate().is_coherent());
+    }
+
+    #[test]
+    fn every_randomized_persona_validates_without_a_warning() {
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+            OsType::Ios,
+        ] {
+            for seed in (0..40).chain([u64::MAX]) {
+                let report = Fingerprint::randomized(os, seed).validate();
+                assert!(
+                    report.errors.is_empty(),
+                    "{os:?} {seed}: {:?}",
+                    report.errors
+                );
+                assert!(
+                    report.warnings.is_empty(),
+                    "{os:?} {seed}: {:?}",
+                    report.warnings
+                );
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // The policy
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn the_policy_and_its_shortcuts_come_in_any_order() {
+        let a = built(
+            Fingerprint::builder()
+                .policy(StealthPolicy::balanced())
+                .canvas_noise(CanvasNoise::Random)
+                .grant_permissions(true),
+        );
+        let b = built(
+            Fingerprint::builder()
+                .canvas_noise(CanvasNoise::Random)
+                .grant_permissions(true)
+                .policy(StealthPolicy::balanced()),
+        );
+        assert_eq!(a, b);
+        assert_eq!(a.policy().canvas_noise, CanvasNoise::Random);
+        assert!(a.policy().grant_permissions && a.policy().chrome_runtime);
+    }
+
+    #[test]
+    fn with_policy_changes_run_in_order_after_the_base() {
+        let fp = built(
+            Fingerprint::builder()
+                .with_policy(|p| p.grant_permissions(true))
+                .with_policy(|p| p.grant_permissions(false).disable_csp(true))
+                .policy(StealthPolicy::max()),
+        );
+        assert!(!fp.policy().grant_permissions);
+        assert!(fp.policy().disable_csp && fp.policy().block_trackers);
+    }
+
+    #[test]
+    fn a_policy_never_changes_a_setting() {
+        let plain = built(Fingerprint::builder().timezone("Europe/Berlin"));
+        for policy in [
+            StealthPolicy::default(),
+            StealthPolicy::balanced(),
+            StealthPolicy::native_only(),
+            StealthPolicy::max(),
+        ] {
+            let with = built(
+                Fingerprint::builder()
+                    .timezone("Europe/Berlin")
+                    .policy(policy),
+            );
+            assert_eq!(with.timezone(), plain.timezone());
+            assert!(with.screen().is_natural() && with.webrtc().is_natural());
+            assert!(with.user_agent().is_natural() && with.battery().is_natural());
+        }
+    }
+
+    #[test]
+    fn a_tracker_list_is_a_request_to_block_and_can_be_refused_by_a_later_change() {
+        let fp = built(Fingerprint::builder().blocked_trackers(vec!["metrics.test".to_owned()]));
+        assert!(fp.is_masked(Dimension::Trackers));
+        assert_eq!(fp.tracker_hosts(), vec!["metrics.test"]);
+
+        let refused = built(
+            Fingerprint::builder()
+                .blocked_trackers(vec!["metrics.test".to_owned()])
+                .block_trackers(false),
+        );
+        assert!(!refused.is_masked(Dimension::Trackers));
+        assert!(!refused.tracker_hosts().is_empty(), "the default list");
+    }
+
+    #[test]
+    fn tracker_hosts_fall_back_to_defaults() {
+        assert!(!Fingerprint::windows_desktop().tracker_hosts().is_empty());
+    }
+
+    // ------------------------------------------------------------------
+    // Editing a built fingerprint
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn to_builder_changes_one_setting_and_keeps_the_rest() {
+        let fp = Fingerprint::windows_desktop();
+        let changed = built(fp.to_builder().timezone("Asia/Tokyo"));
+
+        assert_eq!(changed.timezone().as_str(), Some("Asia/Tokyo"));
+        assert_eq!(changed.screen(), fp.screen());
+        assert_eq!(changed.webgl(), fp.webgl());
+        assert_eq!(changed.policy(), fp.policy());
+        assert_eq!(changed.seed(), fp.seed());
+        // Rebuilding without a change gives the same fingerprint.
+        assert_eq!(built(fp.to_builder()), fp);
+    }
+
+    #[test]
+    fn to_builder_keeps_the_os_even_when_the_user_agent_is_changed() {
+        let fp = Fingerprint::linux_desktop();
+        let changed = built(fp.to_builder().user_agent("Mozilla/5.0 (Windows NT 10.0)"));
+        assert_eq!(changed.os_type(), OsType::Linux);
+    }
+
+    // ------------------------------------------------------------------
+    // JSON
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn json_leaves_natural_settings_out() {
+        let fp = built(
+            Fingerprint::builder()
+                .timezone("Europe/Berlin")
+                .webrtc(Spoof::Off),
+        );
+        let json = serde_json::to_value(&fp).unwrap();
+        let object = json.as_object().unwrap();
+
+        assert_eq!(object["timezone"], "Europe/Berlin");
+        assert_eq!(object["webrtc"], "off");
+        assert!(!object.contains_key("screen") && !object.contains_key("user_agent"));
+    }
+
+    #[test]
+    fn json_round_trips_every_preset_and_a_drawn_persona() {
+        for (name, fp) in every_preset() {
+            let text = serde_json::to_string(&fp).unwrap();
+            let again: Fingerprint = serde_json::from_str(&text).unwrap();
+            assert_eq!(again, fp, "{name}");
+        }
+        let drawn = Fingerprint::randomized(OsType::Windows, 9);
+        let again: Fingerprint =
+            serde_json::from_str(&serde_json::to_string(&drawn).unwrap()).unwrap();
+        assert_eq!(again, drawn);
+    }
+
+    #[test]
+    fn json_round_trips_a_fingerprint_with_every_setting_given() {
+        let everything = built(
+            Fingerprint::builder()
+                .os_type(OsType::Linux)
+                .seed(5)
+                .user_agent("Mozilla/5.0 (X11; Linux x86_64)")
+                .platform("Linux x86_64")
+                .hardware_concurrency(4)
+                .device_memory(8.0)
+                .max_touch_points(0)
+                .vendor("Google Inc.")
+                .oscpu("Linux x86_64")
+                .product_sub("20030107")
+                .build_id("20100101")
+                .app_version("5.0 (X11)")
+                .locale("de-DE")
+                .languages("de-DE,de")
+                .accept_languages("de-DE,de;q=0.9")
+                .timezone("Europe/Berlin")
+                .screen(1280, 720)
+                .avail_screen((1280, 680))
+                .pixel_ratio(1.5)
+                .color_depth(24)
+                .webgl(WebGl::new("V", "R").ids("0x1", "0x2"))
+                .media_devices(MediaDevices::counts(1, 1, 1))
+                .geolocation(Geolocation::new(1.0, 2.0).altitude(3.0).accuracy(4.0))
+                .fonts(["Arial"])
+                .proxy(ProxyConfig {
+                    r#type: "http".to_owned(),
+                    host: "proxy.example".to_owned(),
+                    port: 8080,
+                    ..ProxyConfig::default()
+                })
+                .webrtc(("203.0.113.9", "10.0.0.2"))
+                .battery(BatteryProfile::default())
+                .connection(ConnectionProfile::default())
+                .speech_voices(SpeechVoice::default_set())
+                .bluetooth(true)
+                .client_hints(ClientHints::default())
+                .local_storage(true)
+                .save_service_worker(true)
+                .custom_start_urls(vec!["https://example.com".to_owned()])
+                .policy(StealthPolicy::max()),
+        );
+        let text = serde_json::to_string(&everything).unwrap();
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, everything);
+    }
+
+    #[test]
+    fn a_battery_that_never_empties_survives_json() {
+        // JSON has no infinity: it is written as null and read back as infinity.
+        let fp = built(Fingerprint::builder().battery(BatteryProfile::default()));
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""discharging_time":null"#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(
+            again.battery().value().map(|b| b.discharging_time),
+            Some(f64::INFINITY)
+        );
+    }
+
+    #[test]
+    fn json_reads_a_keyword_in_place_of_a_value_and_resolves_random() {
+        let text = r#"{
+            "timezone": "Europe/Berlin",
+            "geolocation": "random",
+            "webrtc": "off",
+            "screen": {"width": 800, "height": 600},
+            "seed": 11
+        }"#;
+        let fp: Fingerprint = serde_json::from_str(text).unwrap();
+
+        assert!(
+            fp.geolocation().is_value(),
+            "random is drawn when it is read"
+        );
+        assert!(fp.webrtc().is_off());
+        assert_eq!(fp.screen().value().map(|s| s.height), Some(600));
+        assert_eq!(fp.seed(), 11);
+        let place = fp.geolocation().value().unwrap();
+        assert!((place.latitude - 52.52).abs() < 0.1);
+        // The same text gives the same fingerprint, because the seed is in it.
+        assert_eq!(serde_json::from_str::<Fingerprint>(text).unwrap(), fp);
+    }
+
+    #[test]
+    fn json_in_the_old_flat_shape_is_an_error_and_not_a_silent_loss() {
+        let old = r#"{ "os_type": "Windows", "hardware_concurrency": 8,
+            "screen_width": 1920, "flags": { "navigator_masking": "Custom" } }"#;
+        let error = serde_json::from_str::<Fingerprint>(old)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("unknown field"), "{error}");
+    }
+
+    #[test]
+    fn json_with_an_off_where_it_means_nothing_is_an_error() {
+        let error = serde_json::from_str::<Fingerprint>(r#"{ "timezone": "off" }"#)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("timezone cannot be Off"), "{error}");
+    }
+
+    #[test]
+    fn client_hints_saved_before_wow64_and_form_factors_still_load() {
+        let raw = r#"{
+            "brands": [], "full_version_list": [], "platform": "macOS",
+            "platform_version": "15.0.0", "architecture": "arm", "bitness": "64",
+            "model": "", "ua_full_version": "155.0.0.0", "mobile": false
+        }"#;
+        let hints: ClientHints = serde_json::from_str(raw).unwrap();
+        assert!(!hints.wow64);
+        assert!(hints.form_factors.is_empty());
+        assert_eq!(hints.platform, "macOS");
+    }
+
+    #[test]
+    fn client_hints_carry_wow64_and_form_factors_through_serde() {
+        let hints = ClientHints {
+            wow64: true,
+            form_factors: vec!["Desktop".to_owned()],
+            ..ClientHints::default()
+        };
+        let again: ClientHints =
+            serde_json::from_str(&serde_json::to_string(&hints).unwrap()).unwrap();
+        assert_eq!(again, hints);
+    }
+
+    // ------------------------------------------------------------------
+    // validate()
+    // ------------------------------------------------------------------
+
     /// A report for a persona with `os` and the WebGL strings given, and nothing else.
     fn graphics_report(os: OsType, vendor: &str, renderer: &str) -> CoherenceReport {
-        Fingerprint::builder()
-            .os_type(os)
-            .webgl(vendor, renderer)
-            .build()
-            .validate()
+        built(Fingerprint::builder().os_type(os).webgl((vendor, renderer))).validate()
     }
 
     #[test]
@@ -2895,13 +3171,14 @@ mod tests {
     fn a_safari_persona_must_not_claim_chrome() {
         let chrome_ua =
             "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 \
-                         (KHTML, like Gecko) Chrome/155.0.0.0 Mobile/15E148 Safari/604.1";
-        let fp = Fingerprint::builder()
-            .browser_type(BrowserType::MobileSafari)
-            .os_type(OsType::Ios)
-            .user_agent(chrome_ua)
-            .max_touch_points(5)
-            .build();
+             (KHTML, like Gecko) Chrome/155.0.0.0 Mobile/15E148 Safari/604.1";
+        let fp = built(
+            Fingerprint::builder()
+                .browser_type(BrowserType::MobileSafari)
+                .os_type(OsType::Ios)
+                .user_agent(chrome_ua)
+                .max_touch_points(5),
+        );
         let report = fp.validate();
         assert!(
             report.errors.iter().any(|e| e.contains("Chrome/")),
@@ -2914,26 +3191,30 @@ mod tests {
             .validate()
             .errors
             .is_empty());
-        let firefox = Fingerprint::builder()
-            .browser_type(BrowserType::Firefox)
-            .os_type(OsType::Linux)
-            .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0")
-            .build();
+        let firefox = built(
+            Fingerprint::builder()
+                .browser_type(BrowserType::Firefox)
+                .os_type(OsType::Linux)
+                .user_agent(
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0",
+                ),
+        );
         assert!(firefox.validate().errors.is_empty());
     }
 
     #[test]
     fn a_locale_from_another_country_than_the_time_zone_is_a_warning() {
         let warns = |locale: &str, zone: &str| {
-            Fingerprint::builder()
-                .locale(locale)
-                .timezone(zone)
-                .geolocation(0.0, 0.0)
-                .build()
-                .validate()
-                .warnings
-                .iter()
-                .any(|w| w.contains("time zone"))
+            built(
+                Fingerprint::builder()
+                    .locale(locale)
+                    .timezone(zone)
+                    .geolocation((0.0, 0.0)),
+            )
+            .validate()
+            .warnings
+            .iter()
+            .any(|w| w.contains("time zone"))
         };
         assert!(warns("de-DE", "Asia/Tokyo"));
         assert!(warns("ja-JP", "America/New_York"));
@@ -2945,67 +3226,37 @@ mod tests {
     }
 
     #[test]
-    fn masking_graphics_without_a_renderer_warns_when_the_fill_is_not_the_os() {
-        let masked = |os: OsType| {
-            Fingerprint::builder()
-                .os_type(os)
-                .with_flags(|f| f.graphics_masking = MaskingMode::Mask)
-                .build()
+    fn a_time_zone_without_a_position_is_a_warning_unless_the_position_is_denied() {
+        let warns = |builder: FingerprintBuilder| {
+            built(builder)
                 .validate()
                 .warnings
                 .iter()
-                .any(|w| w.contains("WebGL"))
+                .any(|w| w.contains("without geolocation"))
         };
-        // The generic fill is an Intel renderer worded for a Mac.
-        assert!(masked(OsType::Windows));
-        assert!(masked(OsType::Linux));
-        assert!(masked(OsType::Android));
-        assert!(!masked(OsType::Macos));
-        assert!(!masked(OsType::Ios));
-
-        // With the renderer given there is nothing to fill.
-        let given = Fingerprint::builder()
-            .os_type(OsType::Windows)
-            .webgl(
-                "Google Inc. (Intel)",
-                "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)",
-            )
-            .with_flags(|f| f.graphics_masking = MaskingMode::Mask)
-            .build();
-        assert!(!given
-            .validate()
-            .warnings
-            .iter()
-            .any(|w| w.contains("WebGL")));
+        assert!(warns(Fingerprint::builder().timezone("Europe/Berlin")));
+        assert!(!warns(
+            Fingerprint::builder()
+                .timezone("Europe/Berlin")
+                .geolocation(Spoof::Off)
+        ));
+        assert!(!warns(
+            Fingerprint::builder()
+                .timezone("Europe/Berlin")
+                .geolocation((52.5, 13.4))
+        ));
     }
 
     #[test]
-    fn saved_fingerprints_in_the_old_shape_still_load() {
-        // `webrtc_policy` was a bare value, the modes `Custom` and `Disabled`
-        // and the proxy mode `Socks5` existed, and no `Auto` or seed was saved.
-        let raw = r#"{
-            "os_type": "Windows",
-            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "proxy": { "type": "socks5", "host": "proxy.test", "port": 1080, "save_traffic": false },
-            "webrtc_policy": "PublicInterfaceOnly",
-            "flags": {
-                "navigator_masking": "Disabled",
-                "localization_masking": "Custom",
-                "proxy_masking": "Socks5",
-                "geolocation_popup": "Prompt",
-                "canvas_noise": "Mask",
-                "graphics_noise": "Mask",
-                "ports_masking": "Mask",
-                "startup_behavior": "Custom",
-                "humanize": true
-            }
-        }"#;
-        let fp: Fingerprint = serde_json::from_str(raw).unwrap();
-        assert_eq!(fp.webrtc_policy, Some(WebRtcPolicy::PublicInterfaceOnly));
-        assert!(fp.is_masked(Dimension::WebRtc));
-        assert!(!fp.is_masked(Dimension::Navigator), "Disabled stays off");
-        assert!(fp.is_masked(Dimension::Proxy), "Socks5 is still a proxy");
-        assert!(fp.is_masked(Dimension::Canvas), "Mask derives its seed");
-        assert!(fp.flags.open_shadow_roots, "a flag added later is on");
+    fn a_screen_of_no_pixels_is_an_error() {
+        let report = built(Fingerprint::builder().screen(0, 1080)).validate();
+        assert!(report.errors.iter().any(|e| e.contains("screen")));
+    }
+
+    #[test]
+    fn the_old_name_of_the_policy_still_resolves() {
+        #[allow(deprecated)]
+        let policy: StealthFlags = StealthFlags::balanced();
+        assert_eq!(policy, StealthPolicy::balanced());
     }
 }

@@ -55,8 +55,8 @@ mod profile;
 pub use profile::*;
 
 /// The old name of [`ProfileFlags`], which was easy to mistake for
-/// [`StealthFlags`](crate::stealth::fingerprint::StealthFlags).
-#[deprecated(note = "renamed ProfileFlags, so it is not mistaken for StealthFlags")]
+/// [`StealthPolicy`](crate::stealth::fingerprint::StealthPolicy).
+#[deprecated(note = "renamed ProfileFlags, so it is not mistaken for StealthPolicy")]
 pub type Flags = ProfileFlags;
 
 /// The old name of [`ProfileFingerprint`], which was easy to mistake for the
@@ -79,7 +79,7 @@ mod tests {
         let flags: Flags = ProfileFlags::default();
         let fingerprint: Fingerprint = ProfileFingerprint::default();
         let proxy: ProxyConfig = ProfileProxy::default();
-        assert_eq!(flags.webrtc_masking, "mask");
+        assert_eq!(flags.webrtc_masking, "auto");
         assert!(fingerprint.navigator.is_none());
         assert_eq!(proxy.port, 0);
     }
