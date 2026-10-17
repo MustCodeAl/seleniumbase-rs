@@ -69,6 +69,8 @@ work, `docs/parity.md` the per-API status).
 - `browser::driver_version::major_without_running` reads a program's major
   version from its files only, and `version_flag_major` runs `--version` with a
   time limit.
+- Tutorial [Testing Pages with a CAPTCHA](docs/tutorials/captcha_testing.md): vendor test keys, and tests that click the test widget and read the token.
+- `docs/completions/`: a Fig completion spec for `sbrs`, prepared for withfig/autocomplete (not submitted), with the steps.
 
 ### Fixed
 

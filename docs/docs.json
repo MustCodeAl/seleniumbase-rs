@@ -31,7 +31,13 @@
               "benchmarks"
             ]
           },
-          "rust-test-tooling",
+          {
+            "group": "Writing Browser Tests",
+            "pages": [
+              "rust-test-tooling",
+              "tutorials/captcha_testing"
+            ]
+          },
           {
             "group": "Migrate Python Tests",
             "pages": [
