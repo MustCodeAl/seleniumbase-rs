@@ -218,7 +218,17 @@ pub(crate) fn console_log_string_script(text: &str) -> String {
 /// Shows `message` in a corner of the page on a `color` background, replacing
 /// the one already there, and removes it after `seconds`.
 pub(crate) fn toast_script(message: &str, color: &str, seconds: u64) -> String {
-    let millis = seconds.saturating_mul(1000);
+    toast_script_for(message, color, std::time::Duration::from_secs(seconds))
+}
+
+/// [`toast_script`] for a duration with a millisecond part: removes the
+/// message after `duration`, as Python's `post_message(duration=2.55)` does.
+pub(crate) fn toast_script_for(
+    message: &str,
+    color: &str,
+    duration: std::time::Duration,
+) -> String {
+    let millis = duration.as_millis();
     format!(
         "var old = document.getElementById('sb-toast-message'); \
          if (old) {{ old.remove(); }} \
@@ -330,6 +340,14 @@ mod tests {
                 "payload escaped its literal: {script}"
             );
         }
+    }
+
+    #[test]
+    fn a_toast_lasts_the_milliseconds_it_was_given() {
+        let script = toast_script_for("hi", "#fff", std::time::Duration::from_millis(1500));
+        assert!(script.contains(", 1500);"), "{script}");
+        let whole = toast_script("hi", "#fff", 2);
+        assert!(whole.contains(", 2000);"), "{whole}");
     }
 
     #[test]

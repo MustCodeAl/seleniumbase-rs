@@ -20,6 +20,16 @@ work, `docs/parity.md` the per-API status).
   `with_fast_mode(true)` call to keep the old effect of "no pauses" by turning
   the mode off instead.
 
+### Added
+
+- `RunSettings::pause_for(PauseKind)` names what `pause(tiny: bool)` took as a
+  flag: `PauseKind::Full` after an action that changed the page, `Short` (1/3.4
+  of the time in demo mode) after one that did not. `message_duration()` keeps
+  the milliseconds of `--message-duration` (default `DEFAULT_MESSAGE_DURATION`,
+  Python's 2.55 s) and `message_duration_headless()` cuts it to 0.75 s as
+  Python does in a headless browser. New getters `slow_mode()` and
+  `demo_sleep()`. `pause` and `message_seconds` stay.
+
 ### Changed (breaking)
 
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,

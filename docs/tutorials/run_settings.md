@@ -33,35 +33,39 @@ and returns `RunSettings`.
 | `with_slow_mode(bool)` | `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`) | off | The same pauses, without the outline. |
 | `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode. |
 | `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 0.5 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
-| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 3 s | How long `post_message` and its relatives keep a message on the page. Rounded up to whole seconds. |
+| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 2.55 s | How long `post_message` and its relatives keep a message on the page. `message_duration()` keeps the milliseconds and `message_duration_headless()` cuts it to 0.75 s as Python does; `post_message` itself still rounds up to whole seconds. |
 | `with_skip_js_waits(bool)` | `--skip-js-waits` (also `--skip_js_waits`, `--sjw`) | off | Makes `wait_for_ready_state_complete` return at once. |
 | `with_record_sleep(bool)` | `--record-sleep` (also `--rec-sleep`) | off | Puts `BaseCase::sleep` calls into the recording. |
 | `with_visual_baseline_reset(bool)` | `--visual-baseline` (also `--visual_baseline`) | off | Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one. |
 
-The defaults are `DEFAULT_DEMO_PAUSE` (500 ms, Python's `DEFAULT_DEMO_MODE_TIMEOUT`) and `DEFAULT_MESSAGE_SECONDS`
-(3) in the same module.
+The defaults are `DEFAULT_DEMO_PAUSE` (500 ms, Python's `DEFAULT_DEMO_MODE_TIMEOUT`) and `DEFAULT_MESSAGE_DURATION`
+(2.55 s) in the same module.
 
-Two read-only helpers, `pause` and `message_seconds`, show the combined effect of
-the settings, which is handy in your own code and tests:
+Read-only helpers, `pause_for` and `message_duration`, show the combined effect of
+the settings, which is handy in your own code and tests. `PauseKind::Full` is a
+pause after an action that changed the page, `PauseKind::Short` one after an
+action that did not (1/3.4 of the time in demo mode):
 
 ```rust,no_run
 use std::time::Duration;
-use seleniumbase_rs::api::run_settings::RunSettings;
+use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
 
 let settings = RunSettings::default()
     .with_slow_mode(true)
     .with_demo_sleep(Duration::from_millis(500));
 
-// How long a click or open would pause (`false`), and how long typing would.
-assert_eq!(settings.pause(false), Duration::from_millis(500));
-assert_eq!(settings.pause(true), Duration::from_millis(500));
-// How many whole seconds post_message keeps its message.
-assert_eq!(settings.message_seconds(), 3);
+// How long a navigating action would pause, and how long a quiet one would.
+assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
+assert_eq!(settings.pause_for(PauseKind::Short), Duration::from_millis(500));
+// How long post_message keeps its message.
+assert_eq!(settings.message_duration(), Duration::from_millis(2550));
 ```
 
-`BaseCase::run_settings()` returns the settings in force. Besides `pause` and
-`message_seconds` there are plain getters `demo_mode()`, `skip_js_waits()`,
-`record_sleep()` and `reset_visual_baseline()`.
+`BaseCase::run_settings()` returns the settings in force. Besides `pause_for` and
+`message_duration` there are plain getters `demo_mode()`, `slow_mode()`,
+`demo_sleep()`, `skip_js_waits()`, `record_sleep()` and
+`reset_visual_baseline()`. The older `pause(tiny: bool)` and `message_seconds()`
+stay for code that already calls them.
 
 ## A complete test
 
