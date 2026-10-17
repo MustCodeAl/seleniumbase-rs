@@ -39,13 +39,7 @@ impl BaseCase {
     }
 
     /// Clicks the center of the first element matching `selector` using CDP
-    /// input events, after waiting up to 7 seconds for it and scrolling it into
-    /// view.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches, and
-    /// the browser's error if it refuses an input event.
+    /// input events.
     pub async fn cdp_click(&mut self, selector: &str) -> Result<(), SeleniumBaseError> {
         CdpPage::new(&self.session).click(selector).await
     }
@@ -85,20 +79,11 @@ impl BaseCase {
     }
 
     /// Returns the visible text of the first element matching `selector`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
     pub async fn cdp_get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         CdpPage::new(&self.session).get_text(selector).await
     }
 
-    /// Returns the named HTML attribute of the first matching element, or
-    /// `None` if it has no such attribute.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
+    /// Returns the named HTML attribute of the first matching element.
     pub async fn cdp_get_attribute(
         &self,
         selector: &str,
@@ -130,13 +115,7 @@ impl BaseCase {
         CdpPage::new(&self.session).get_url().await
     }
 
-    /// Evaluates `expression` in the page context via CDP `Runtime.evaluate`
-    /// and returns its value, as Python's `sb.cdp.evaluate` does. A `return `
-    /// that starts the last line is dropped.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError::CdpDriver`] if the script throws.
+    /// Evaluates `expression` in the page context via CDP `Runtime.evaluate`.
     pub async fn cdp_evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
         CdpPage::new(&self.session).evaluate(expression).await
     }
