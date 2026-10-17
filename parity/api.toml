@@ -179,10 +179,12 @@ rust = "BaseCase::assert_equal"
 [basecase."assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own)."
 
 [basecase."assert_exact_text_not_visible"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text_not_visible"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text_not_visible for a timeout of its own)."
 
 [basecase."assert_false"]
 status = "implemented"
@@ -243,14 +245,17 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own)."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
 rust = "BaseCase::assert_text_not_visible"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_not_visible for a timeout of its own)."
 
 [basecase."assert_text_visible"]
 status = "implemented"
 rust = "BaseCase::assert_text_visible"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_visible for a timeout of its own)."
 
 [basecase."assert_title"]
 status = "implemented"

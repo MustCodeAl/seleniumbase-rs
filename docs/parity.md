@@ -77,8 +77,8 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_elements_present` | implemented | `BaseCase::assert_elements_present` |  |
 | `assert_elements_visible` | implemented | `BaseCase::assert_elements_visible` |  |
 | `assert_equal` | implemented | `BaseCase::assert_equal` |  |
-| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` |  |
-| `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` |  |
+| `assert_exact_text` | implemented | `BaseCase::assert_exact_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own). |
+| `assert_exact_text_not_visible` | implemented | `BaseCase::assert_exact_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text_not_visible for a timeout of its own). |
 | `assert_false` | implemented | `BaseCase::assert_false` |  |
 | `assert_in` | implemented | `BaseCase::assert_in` |  |
 | `assert_link` | implemented | `BaseCase::assert_link` |  |
@@ -93,9 +93,9 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `assert_partial_link_text` | implemented | `BaseCase::assert_partial_link_text` |  |
 | `assert_pdf_text` | implemented | `BaseCase::assert_pdf_text` |  |
 | `assert_raises` | implemented | `BaseCase::assert_raises` |  |
-| `assert_text` | implemented | `BaseCase::assert_text` |  |
-| `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` |  |
-| `assert_text_visible` | implemented | `BaseCase::assert_text_visible` |  |
+| `assert_text` | implemented | `BaseCase::assert_text` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own). |
+| `assert_text_not_visible` | implemented | `BaseCase::assert_text_not_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_not_visible for a timeout of its own). |
+| `assert_text_visible` | implemented | `BaseCase::assert_text_visible` | Differs: Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_visible for a timeout of its own). |
 | `assert_title` | implemented | `BaseCase::assert_title` |  |
 | `assert_title_contains` | implemented | `BaseCase::assert_title_contains` |  |
 | `assert_true` | implemented | `BaseCase::assert_true` |  |
