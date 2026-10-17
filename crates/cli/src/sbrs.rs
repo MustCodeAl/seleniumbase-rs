@@ -3664,6 +3664,9 @@ mod strict_cli_tests {
             &["help", "plugin", "nosuch"],
             &["help", "nosuch", "plugin"],
             &["help", "plugin", "info", "extra"],
+            &["help", "nosuch", "--help"],
+            // `mkdir` has no subcommands, so no `help` of its own.
+            &["help", "mkdir", "help"],
             &["--headless", "help", "nosuch"],
         ] {
             let error = checked(words).expect_err(&format!("{words:?} was accepted"));
@@ -3683,7 +3686,31 @@ mod strict_cli_tests {
             &["help", "plugin"],
             &["help", "plugin", "info"],
             &["--headless", "help", "plugin"],
+            // The page of a command, asked for as the page of the page.
+            &["help", "--help"],
+            &["help", "help"],
+            &["help", "plugin", "help"],
+            &["help", "mkdir", "--help"],
+            &["help", "plugin", "info", "-h"],
         ] {
+            assert_eq!(checked(words), Ok(()), "{words:?}");
+        }
+    }
+
+    #[test]
+    fn a_value_written_after_help_or_the_version_is_refused() {
+        for words in [
+            &["--help=false"][..],
+            &["--help="],
+            &["mkdir", "--help=1"],
+            &["--version=1"],
+            &["--headless", "--version=true"],
+        ] {
+            let error = checked(words).expect_err(&format!("{words:?} was accepted"));
+            assert!(error.contains("takes no value"), "{words:?}: {error}");
+        }
+        // The first request answers: nothing after it is read.
+        for words in [&["-h", "--help=1"][..], &["--help", "--version=1"]] {
             assert_eq!(checked(words), Ok(()), "{words:?}");
         }
     }

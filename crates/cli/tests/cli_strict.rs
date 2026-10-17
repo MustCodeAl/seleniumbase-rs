@@ -318,6 +318,40 @@ fn help_alone_prints_the_main_page() {
 }
 
 #[test]
+fn help_for_a_command_may_be_asked_for_with_the_help_flag() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for path in [
+        &["help", "--help"][..],
+        &["help", "help"],
+        &["help", "mkdir", "--help"],
+        &["help", "plugin", "info", "--help"],
+    ] {
+        let output = run(dir.path(), &[], path);
+
+        assert!(output.status.success(), "{path:?}: {}", stderr(&output));
+        assert!(!stdout(&output).is_empty(), "{path:?} printed nothing");
+    }
+    assert_unrecognized(
+        &run(dir.path(), &[], &["help", "nosuch", "--help"]),
+        "nosuch",
+    );
+}
+
+#[test]
+fn a_value_written_after_help_or_the_version_is_refused() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for args in [
+        &["--help=false"][..],
+        &["mkdir", "--help=1"],
+        &["--version=1"],
+    ] {
+        let error = refused(&run(dir.path(), &[], args));
+
+        assert!(error.contains("takes no value"), "{args:?}: {error}");
+    }
+}
+
+#[test]
 fn the_help_flag_still_answers_before_a_mistake_after_it() {
     let dir = tempfile::tempdir().expect("temp dir");
 

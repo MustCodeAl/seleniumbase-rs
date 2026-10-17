@@ -55,9 +55,10 @@ pub fn check<'v>(
             }
             Ok(Event::Flag { flag, value, .. }) => {
                 // A request for help or the version is answered by the real parse, and
-                // what follows it is never read.
+                // what follows it is never read, but a value written after it is a
+                // mistake (`--help=1`), as it is after any other switch.
                 if usage::is_help_flag(flag) || usage::is_version_flag(flag) {
-                    return Ok(());
+                    return builtin_switch_value(flag, argv);
                 }
                 if let Some(value) = value.filter(|_| flag.bool_value && !flag.takes_value) {
                     return Err(switch_value(flag, value));
@@ -86,7 +87,7 @@ pub fn check<'v>(
                 };
             }
             // The `help` word, which the parser answers where the path of commands ends.
-            Err(Error::Help { .. }) => return help_path(&parser, argv),
+            Err(Error::Help { cmd, .. }) => return help_path(&parser, cmd, argv),
             // Anything else is the real parse's to report.
             Err(_) => return Ok(()),
         }
@@ -156,12 +157,43 @@ fn switch_value<'v>(flag: &Flag<'static>, value: &'v [u8]) -> Error<'static, 'v>
     }))
 }
 
+/// Refuses a value written after the built-in `--help` or `--version`.
+///
+/// The parser drops it and answers the request, so the word has to be found in `argv`: the
+/// first spelling of a help or version request is the one the parser just answered.
+fn builtin_switch_value<'v>(
+    flag: &Flag<'static>,
+    argv: &[&'v OsStr],
+) -> Result<(), Error<'static, 'v>> {
+    for word in argv {
+        let bytes = word.as_encoded_bytes();
+        if matches!(bytes, b"--" | b"-h" | b"-V") {
+            break;
+        }
+        let Some(body) = bytes.strip_prefix(b"--") else {
+            continue;
+        };
+        let (spelling, value) = match body.iter().position(|byte| *byte == b'=') {
+            Some(at) => (&body[..at], Some(&body[at + 1..])),
+            None => (body, None),
+        };
+        if matches!(spelling, b"help" | b"version") {
+            return value.map_or(Ok(()), |value| Err(switch_value(flag, value)));
+        }
+    }
+    Ok(())
+}
+
 /// Whether the words after a `help` path are all part of the path.
 ///
 /// `parser` has just answered the `help` word, so it knows where the path of commands
-/// ended: the first word after it, if there is one, names no command.
+/// ended and `cmd` is the command it ended at: the first word after it, if there is one,
+/// names no command. Two words are allowed there all the same: a request for help for the
+/// page itself (`help mkdir --help`), and `help` where `cmd` has the `help` subcommand of
+/// its own (`help help`).
 fn help_path<'v>(
     parser: &Parser<'static, '_, 'v>,
+    cmd: &Command<'_>,
     argv: &[&'v OsStr],
 ) -> Result<(), Error<'static, 'v>> {
     let (from, to) = parser.help_span();
@@ -170,6 +202,14 @@ fn help_path<'v>(
         return Ok(());
     }
     match argv.get(to).copied() {
+        Some(word) if matches!(word.as_encoded_bytes(), b"-h" | b"--help") => Ok(()),
+        Some(word)
+            if word.as_encoded_bytes() == b"help"
+                && !cmd.subcommands.is_empty()
+                && !cmd.disable_help_subcommand =>
+        {
+            Ok(())
+        }
         Some(word) => Err(Error::UnexpectedArg {
             token: word.as_encoded_bytes(),
         }),
