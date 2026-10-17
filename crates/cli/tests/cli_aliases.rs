@@ -43,6 +43,17 @@ fn the_version_command_prints_what_the_version_flag_prints() {
 }
 
 #[test]
+fn the_version_line_names_the_library_package_not_the_cli_crate() {
+    let flag = run(&["--version"], None);
+
+    assert!(flag.status.success(), "{}", stderr(&flag));
+    assert_eq!(
+        stdout(&flag),
+        format!("sbrs {} (seleniumbase-rs)", env!("CARGO_PKG_VERSION"))
+    );
+}
+
+#[test]
 fn obfuscate_and_unobfuscate_are_python_names_for_encrypt_and_decrypt() {
     let obfuscated = run(&["obfuscate", "my p@ssw0rd"], Some("correct horse"));
     assert!(obfuscated.status.success(), "{}", stderr(&obfuscated));

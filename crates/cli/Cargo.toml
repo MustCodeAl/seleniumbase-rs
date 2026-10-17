@@ -1,0 +1,82 @@
+[package]
+name = "seleniumbase-rs-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "The sbrs command line and the sbrs-mcp MCP server of seleniumbase-rs."
+repository.workspace = true
+# Not on crates.io: install it from the repository,
+# `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli`.
+publish = false
+default-run = "sbrs"
+
+# Where `cargo binstall` (and `cargo binstall --git <repository>`) finds the
+# prebuilt `sbrs` and `sbrs-mcp`: the archives `.github/workflows/release.yml`
+# attaches to the GitHub release of tag v<version>, with both binaries at the
+# archive's root. Keep the two in step. The archives are named after the library
+# package, as they were before the command line had a crate of its own, so the
+# URL does not use `{ name }`. The compile fallback is off because it would build
+# from crates.io, where the crate is not published.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/seleniumbase-rs-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+disabled-strategies = ["quick-install", "compile"]
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[[bin]]
+name = "sbrs"
+path = "src/sbrs.rs"
+
+[[bin]]
+name = "sbrs-mcp"
+path = "src/mcp_server.rs"
+required-features = ["mcp-server"]
+
+[dependencies]
+# The library; every other dependency below is one only the binaries use.
+seleniumbase-rs = { path = "../.." }
+clap = { version = "4.6", features = ["derive"] }
+clap_complete = "4.6"
+clap_complete_fig = "4.5"
+serde_json = "1.0"
+# The same features as the library, so one build of thirtyfour serves both.
+thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "cdp"] }
+tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
+# `sbrs install` downloads with `reqwest::get`; the TLS provider is the library's.
+reqwest = { version = "0.13", default-features = false }
+tempfile = { version = "3.27", default-features = false }
+dirs = "7.0"
+
+[features]
+# The prebuilt binaries and `cargo install` carry PDF text extraction and the MCP
+# server, as the release workflow always built them. The terminal UI, the desktop
+# dialogs and the results database stay opt-in, as in the library.
+default = ["pdf", "mcp-server"]
+# `sbrs pdf-text` and `sbrs assert-pdf-text`.
+pdf = ["seleniumbase-rs/pdf"]
+# The `sbrs-mcp` binary.
+mcp-server = ["seleniumbase-rs/mcp-server"]
+# `sbrs commander`, `sbrs behave-gui` and `sbrs caseplans`.
+tui = ["seleniumbase-rs/tui"]
+# Native dialogs and GUI automation (enigo/rfd).
+gui = ["seleniumbase-rs/gui"]
+# `sbrs report`: reading a results database.
+turso = ["seleniumbase-rs/turso"]
+# Scripted mock browser; the scratch crates of the tests turn it on in the library.
+test-util = ["seleniumbase-rs/test-util"]
+# Extra tracing integrations and tokio-console, as in the library.
+full-tracing = ["seleniumbase-rs/full-tracing"]
+tokio-console = ["seleniumbase-rs/tokio-console"]
+
+[dev-dependencies]
+# Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
+clap_usage = "5"
+# `cli_scaffold` parses what `sbrs mkfile` and `sbrs mkdir` write.
+syn = { version = "3", features = ["full", "visit"] }
+# Lists processes for the tests' leftover-process checks on every system (Windows
+# has no `pgrep`); only its process part.
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }

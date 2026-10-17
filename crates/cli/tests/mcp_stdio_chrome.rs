@@ -3,14 +3,14 @@
 //! The `sbrs-mcp` binary is spawned, spoken to in JSON-RPC over its stdin
 //! and stdout (the `initialize` handshake, `tools/list`, `tools/call`), and drives
 //! a real headless Chrome against a loopback page. Nothing here calls the library
-//! API: `tests/mcp_cdp_chrome.rs` and its neighbours do that. What these tests add
+//! API: the library's `tests/mcp_cdp_chrome.rs` and its neighbours do that. What these tests add
 //! is the wire: that stdout carries only JSON-RPC, that results and errors have the
 //! shape a client reads, and that the browser is gone when the server is.
 //!
 //! The tests that start a browser are ignored by default. Run them one at a time:
 //!
 //! ```text
-//! cargo test --features "mcp-server test-util" --test mcp_stdio_chrome -- --ignored --test-threads=1
+//! cargo test -p seleniumbase-rs-cli --features test-util --test mcp_stdio_chrome -- --ignored --test-threads=1
 //! ```
 //!
 //! The `sb` and `driver` servers need chromedriver; the crate finds or downloads
@@ -31,9 +31,10 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::timeout;
 
-#[path = "support/processes.rs"]
+// Both are shared with the library's tests, so they stay in the library's `tests/support`.
+#[path = "../../../tests/support/processes.rs"]
 mod processes;
-#[path = "support/scratch_crate.rs"]
+#[path = "../../../tests/support/scratch_crate.rs"]
 mod scratch_crate;
 
 /// How long one request may wait for its answer. Starting a browser is the

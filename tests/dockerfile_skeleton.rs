@@ -1,12 +1,13 @@
 //! The Dockerfile's dependency-cache step must create every source file that
-//! `Cargo.toml` names.
+//! `Cargo.toml` and `crates/cli/Cargo.toml` name.
 //!
 //! The `Dockerfile` copies only the manifests first and builds a skeleton of
 //! empty sources so Docker can cache the dependency build. Cargo refuses to read
 //! a manifest whose `[lib]`, `[[bin]]`, `[[example]]`, `[[bench]]` or `[[test]]`
-//! file is missing, even when the build asks for one binary. A target added to
-//! `Cargo.toml` and not to that step therefore breaks the image build, but only
-//! when somebody builds the image. This test finds it first.
+//! file is missing, even when the build asks for one binary, and a workspace whose
+//! member manifest is missing. A target added to a manifest and not to that step
+//! therefore breaks the image build, but only when somebody builds the image.
+//! This test finds it first.
 //!
 //! The step is read as plain text: the first `RUN` after `COPY Cargo.toml`, split
 //! at `&&`, where `mkdir` makes folders, `touch` makes files and `echo ... > file`
@@ -17,6 +18,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 const MANIFEST: &str = include_str!("../Cargo.toml");
+const CLI_MANIFEST: &str = include_str!("../crates/cli/Cargo.toml");
+const CLI_FOLDER: &str = "crates/cli";
 const DOCKERFILE: &str = include_str!("../Dockerfile");
 
 /// The sections of `Cargo.toml` that name a source file, and so need it to
@@ -48,6 +51,19 @@ fn normalize(path: &str) -> String {
 /// `[[example]]`, `[[bench]]` and `[[test]]`, at their `path` or the place
 /// Cargo defaults to.
 fn needed_files(manifest: &str) -> Vec<Needed> {
+    needed_files_in(manifest, "")
+}
+
+/// [`needed_files`] for the manifest in `folder`, with the paths from the root
+/// of the repository, which is where the Dockerfile creates them.
+fn needed_files_in(manifest: &str, folder: &str) -> Vec<Needed> {
+    let at = |path: &str| {
+        if folder.is_empty() {
+            normalize(path)
+        } else {
+            normalize(&format!("{folder}/{path}"))
+        }
+    };
     let manifest: toml::Table = manifest.parse().expect("Cargo.toml parses");
     let package = manifest
         .get("package")
@@ -63,7 +79,7 @@ fn needed_files(manifest: &str) -> Vec<Needed> {
             .unwrap_or("src/lib.rs");
         needed.push(Needed {
             wanted_by: "lib".to_owned(),
-            file: normalize(path),
+            file: at(path),
         });
     }
     for section in TARGET_SECTIONS {
@@ -88,7 +104,7 @@ fn needed_files(manifest: &str) -> Vec<Needed> {
                 .map_or(default, str::to_owned);
             needed.push(Needed {
                 wanted_by: format!("{section} `{name}`"),
-                file: normalize(&file),
+                file: at(&file),
             });
         }
     }
@@ -206,8 +222,14 @@ fn skeleton(dockerfile: &str) -> Result<Skeleton, String> {
 /// each target file it does not create, or creates in a folder it never made.
 fn problems(manifest: &str, dockerfile: &str) -> Vec<String> {
     let skeleton = skeleton(dockerfile).expect("the Dockerfile has a skeleton step");
+    missing(needed_files(manifest), &skeleton)
+}
+
+/// The `needed` files `skeleton` does not create, or creates in a folder it
+/// never made.
+fn missing(needed: Vec<Needed>, skeleton: &Skeleton) -> Vec<String> {
     let mut problems = Vec::new();
-    for need in needed_files(manifest) {
+    for need in needed {
         if !skeleton.files.contains(&need.file) {
             problems.push(format!(
                 "{} needs {}, which the skeleton step does not create",
@@ -238,6 +260,62 @@ fn the_skeleton_step_creates_every_file_cargo_toml_names() {
         "add these to the skeleton step of the Dockerfile, or the image build fails:\n{}",
         problems.join("\n")
     );
+}
+
+#[test]
+fn the_skeleton_step_creates_every_file_of_the_cli_manifest() {
+    let skeleton = skeleton(DOCKERFILE).expect("the Dockerfile has a skeleton step");
+    let needed = needed_files_in(CLI_MANIFEST, CLI_FOLDER);
+    assert!(
+        needed.iter().any(|need| need.wanted_by == "bin `sbrs`"),
+        "the CLI manifest is read: {needed:?}"
+    );
+
+    let problems = missing(needed, &skeleton);
+
+    assert!(
+        problems.is_empty(),
+        "add these to the skeleton step of the Dockerfile, or the image build fails:\n{}",
+        problems.join("\n")
+    );
+}
+
+#[test]
+fn every_workspace_member_has_its_manifest_copied_before_the_skeleton_step() {
+    let root: toml::Table = MANIFEST.parse().expect("Cargo.toml parses");
+    let members: Vec<&str> = root
+        .get("workspace")
+        .and_then(|workspace| workspace.get("members"))
+        .and_then(toml::Value::as_array)
+        .expect("the root manifest lists the workspace members")
+        .iter()
+        .filter_map(toml::Value::as_str)
+        .collect();
+    assert!(members.contains(&CLI_FOLDER), "members: {members:?}");
+
+    let all = instructions(DOCKERFILE);
+    let copy = all
+        .iter()
+        .position(|instruction| instruction.starts_with("COPY Cargo.toml"))
+        .expect("the Dockerfile has a `COPY Cargo.toml` step");
+    let run = all[copy..]
+        .iter()
+        .position(|instruction| instruction.starts_with("RUN "))
+        .expect("a RUN step follows")
+        + copy;
+    let copied: Vec<&String> = all[copy..run]
+        .iter()
+        .filter(|instruction| instruction.starts_with("COPY "))
+        .collect();
+    for member in members {
+        let manifest = format!("{member}/Cargo.toml");
+        assert!(
+            copied
+                .iter()
+                .any(|instruction| instruction.contains(&manifest)),
+            "the Dockerfile does not copy {manifest} before its skeleton step: {copied:?}"
+        );
+    }
 }
 
 #[test]
@@ -278,6 +356,30 @@ fn removing_any_one_target_from_the_real_skeleton_is_caught() {
         );
 
         let found = problems(MANIFEST, &without);
+
+        assert_eq!(found.len(), 1, "without {}: {found:?}", need.file);
+        assert!(
+            found[0].contains(&need.file) && found[0].starts_with(&need.wanted_by),
+            "{found:?}"
+        );
+    }
+}
+
+#[test]
+fn removing_any_one_cli_target_from_the_real_skeleton_is_caught() {
+    let needed = needed_files_in(CLI_MANIFEST, CLI_FOLDER);
+    assert!(!needed.is_empty());
+
+    for need in needed {
+        let without = DOCKERFILE.replace(&need.file, "");
+        assert_ne!(
+            without, DOCKERFILE,
+            "{} is not in the Dockerfile at all",
+            need.file
+        );
+        let skeleton = skeleton(&without).expect("the Dockerfile has a skeleton step");
+
+        let found = missing(needed_files_in(CLI_MANIFEST, CLI_FOLDER), &skeleton);
 
         assert_eq!(found.len(), 1, "without {}: {found:?}", need.file);
         assert!(

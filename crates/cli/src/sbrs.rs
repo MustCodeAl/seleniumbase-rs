@@ -49,7 +49,10 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 #[cfg(feature = "turso")]
 mod report;
 
-const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("CARGO_PKG_NAME"), ")");
+/// What `sbrs --version` prints after the program name. It names the library
+/// package, as it did when the binary was part of it, not this crate
+/// (`seleniumbase-rs-cli`), so the line is the same as before the split.
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (seleniumbase-rs)");
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum BrowserArg {
@@ -3144,19 +3147,23 @@ mod usage_spec_tests {
 
     /// `completions/sbrs.usage.kdl` is generated from the clap definitions. After
     /// changing the CLI, write it again with
-    /// `SB_UPDATE_COMPLETIONS=1 cargo test --bin sbrs usage_spec`.
+    /// `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
     #[test]
     fn the_committed_usage_spec_matches_the_cli() {
         let mut spec = Vec::new();
         clap_usage::generate(&mut Cli::command(), "sbrs", &mut spec);
         let spec = String::from_utf8(spec).expect("the spec is UTF-8");
         if std::env::var_os("SB_UPDATE_COMPLETIONS").is_some() {
-            let path = concat!(env!("CARGO_MANIFEST_DIR"), "/completions/sbrs.usage.kdl");
+            // The spec lives at the repository root, two folders above this crate.
+            let path = concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../completions/sbrs.usage.kdl"
+            );
             std::fs::write(path, &spec).expect("write the usage spec");
         } else {
             assert!(
                 USAGE_SPEC == spec,
-                "completions/sbrs.usage.kdl is stale: run SB_UPDATE_COMPLETIONS=1 cargo test --bin sbrs usage_spec"
+                "completions/sbrs.usage.kdl is stale: run SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec"
             );
         }
     }

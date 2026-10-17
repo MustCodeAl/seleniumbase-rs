@@ -11,33 +11,37 @@ WORKDIR /usr/src/seleniumbase-rs
 # pass `--build-arg CARGO_BUILD_JOBS=2` on a machine with little memory.
 ARG CARGO_BUILD_JOBS
 
-# The default build has no `gui` or `tui` feature, and none of its crates link
-# a system library (the TLS stack is rustls), so the toolchain image is enough:
-# no GTK, X11 or OpenSSL packages are installed.
+# The image builds `sbrs` without the CLI crate's default features (`pdf` and
+# `mcp-server`), as it always has, and without `gui` or `tui`; none of its crates
+# link a system library (the TLS stack is rustls), so the toolchain image is
+# enough: no GTK, X11 or OpenSSL packages are installed.
 #
 # Cache dependencies by copying the manifests first and creating a skeleton that
-# matches every target the manifest declares. Cargo refuses to read a manifest
+# matches every target the manifests declare. Cargo refuses to read a manifest
 # whose `[[bench]]`, `[[example]]`, `[[test]]` or `[[bin]]` files are missing, even
-# when the build asks for one binary.
+# when the build asks for one binary. The workspace has two packages: the library
+# at the root and the command line in `crates/cli`.
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir -p src/cli/bin src/bin benches examples tests && \
+COPY crates/cli/Cargo.toml ./crates/cli/Cargo.toml
+RUN mkdir -p src crates/cli/src benches examples tests && \
     touch src/lib.rs \
           benches/cdp_latency.rs benches/cpu.rs \
           examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs examples/pdf_example.rs && \
-    echo 'fn main() {}' > src/cli/bin/sbrs.rs && \
-    echo 'fn main() {}' > src/bin/mcp_server.rs
+    echo 'fn main() {}' > crates/cli/src/sbrs.rs && \
+    echo 'fn main() {}' > crates/cli/src/mcp_server.rs
 
 # Build the sbrs binary to download and compile all dependencies.
-RUN cargo build --release --locked --bin sbrs && rm -rf src
+RUN cargo build --release --locked --package seleniumbase-rs-cli --no-default-features --bin sbrs && rm -rf src crates/cli/src
 
 # Copy the source and build the real binary. `tests/golden` is compiled into the
-# binary (the `sbrs mkdir` and `sbrs mkfile` templates), so it comes along.
+# library (the `sbrs mkdir` and `sbrs mkfile` templates), so it comes along.
 COPY src ./src
+COPY crates/cli/src ./crates/cli/src
 COPY tests/golden ./tests/golden
 # The usage spec is embedded in the binary (`sbrs completions usage`).
 COPY completions ./completions
-RUN touch src/lib.rs src/cli/bin/sbrs.rs
-RUN cargo build --release --locked --bin sbrs
+RUN touch src/lib.rs crates/cli/src/sbrs.rs
+RUN cargo build --release --locked --package seleniumbase-rs-cli --no-default-features --bin sbrs
 
 # -----------------------------------------------------------------------------
 # Runtime stage

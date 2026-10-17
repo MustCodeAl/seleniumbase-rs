@@ -1,33 +1,37 @@
-[package]
-name = "seleniumbase-rs"
+# The library `seleniumbase-rs` is the package at the repository root. The command
+# line (`sbrs`, `sbrs-mcp`) is the workspace crate `crates/cli`, so that a project
+# that depends on the library compiles no command-line parser, completion
+# generator or binary-only dependency.
+[workspace]
+members = ["crates/cli"]
+# A plain `cargo build`, `cargo test` or `cargo run --bin sbrs` at the root covers
+# both packages, as it did when the binaries were part of the library. Use
+# `-p seleniumbase-rs` for the library alone.
+default-members = [".", "crates/cli"]
+resolver = "2"
+# The Tauri example has a manifest of its own and builds on its own.
+exclude = ["examples/tauri-profile-manager/src-tauri"]
+
+# Shared by both packages, so the command line always has the library's version.
+[workspace.package]
 version = "0.4.0"
 edition = "2021"
 rust-version = "1.99"
 license = "MIT"
-description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
 repository = "https://github.com/MustCodeAl/seleniumbase-rs"
 
-# Where `cargo binstall` (and `cargo binstall --git <repository>`) finds the
-# prebuilt `sbrs` and `sbrs-mcp`: the archives `.github/workflows/release.yml`
-# attaches to the GitHub release of tag v<version>, with both binaries at the
-# archive's root. Keep the two in step. The compile fallback is off because it
-# would build from crates.io, where the crate is not published.
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ target }{ archive-suffix }"
-bin-dir = "{ bin }{ binary-ext }"
-pkg-fmt = "tgz"
-disabled-strategies = ["quick-install", "compile"]
-
-[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
-pkg-fmt = "zip"
+[package]
+name = "seleniumbase-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
+repository.workspace = true
 
 [lib]
 name = "seleniumbase_rs"
 path = "src/lib.rs"
-
-[[bin]]
-name = "sbrs"
-path = "src/cli/bin/sbrs.rs"
 
 [[example]]
 name = "dialog"
@@ -45,11 +49,6 @@ required-features = ["gui"]
 name = "pdf_example"
 required-features = ["pdf"]
 
-[[bin]]
-name = "sbrs-mcp"
-path = "src/bin/mcp_server.rs"
-required-features = ["mcp-server"]
-
 # Timing harnesses without a framework: `cargo bench --bench cdp_latency`
 # drives a real Chrome, `cargo bench --bench cpu` needs no browser.
 [[bench]]
@@ -61,9 +60,6 @@ name = "cpu"
 harness = false
 
 [dependencies]
-clap = { version = "4.6", features = ["derive"] }
-clap_complete = "4.6"
-clap_complete_fig = "4.5"
 ratatui = { version = "0.30", optional = true }
 crossterm = { version = "0.29", optional = true }
 serde = { version = "1.0", features = ["derive"] }
@@ -183,8 +179,6 @@ visual = ["dep:image-compare", "dep:image"]
 pdf = ["dep:pdf-extract"]
 
 [dev-dependencies]
-# Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
-clap_usage = "5"
 # Paused clocks let tests play out human-paced input instantly.
 tokio = { version = "1.53", features = ["test-util"] }
 printpdf = "0.12"

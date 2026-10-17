@@ -5323,10 +5323,6 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "chrono",
- "clap",
- "clap_complete",
- "clap_complete_fig",
- "clap_usage",
  "console-subscriber",
  "crossterm",
  "dirs",
@@ -5372,6 +5368,25 @@ dependencies = [
  "url",
  "which 8.0.6",
  "zip",
+]
+
+[[package]]
+name = "seleniumbase-rs-cli"
+version = "0.4.0"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "clap_complete_fig",
+ "clap_usage",
+ "dirs",
+ "reqwest 0.13.5",
+ "seleniumbase-rs",
+ "serde_json",
+ "syn 3.0.7",
+ "sysinfo 0.39.6",
+ "tempfile",
+ "thirtyfour",
+ "tokio",
 ]
 
 [[package]]

@@ -1,9 +1,11 @@
-//! A scratch crate that depends on this one by path, for tests that must build or run code the
+//! A scratch crate that depends on the library by path, for tests that must build or run code the
 //! program under test wrote: the Rust test an MCP server exports, a file `sbrs mkfile` made.
 //!
 //! The crate shares this build's target directory and lockfile, with the features of the test
-//! build, so Cargo reuses the dependencies and builds only the crate itself (and this one once,
+//! build, so Cargo reuses the dependencies and builds only the crate itself (and the library once,
 //! because a path dependency is keyed by the place it was reached from). Cargo runs offline.
+//! It is included by the library's tests and by the tests of `crates/cli`: the library is the
+//! package at the workspace root, the folder that holds `Cargo.lock`.
 
 #![allow(dead_code)]
 
@@ -43,10 +45,19 @@ fn features() -> String {
     format!("[{}]", features.join(", "))
 }
 
-/// Writes the crate `name` into `dir`: a manifest that depends on this package by path, a copy
-/// of this package's `Cargo.lock`, and an empty `tests` folder.
+/// The workspace root, which is the library package: the nearest folder above the including
+/// crate (or the crate's own folder) that holds `Cargo.lock`.
+fn workspace_root() -> &'static Path {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .find(|folder| folder.join("Cargo.lock").is_file())
+        .expect("a Cargo.lock at the workspace root")
+}
+
+/// Writes the crate `name` into `dir`: a manifest that depends on the library by path, a copy
+/// of the workspace's `Cargo.lock`, and an empty `tests` folder.
 pub fn create(dir: &Path, name: &str) {
-    let package = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let package = workspace_root();
     std::fs::create_dir_all(dir.join("tests")).expect("create the scratch crate");
     std::fs::write(
         dir.join("Cargo.toml"),

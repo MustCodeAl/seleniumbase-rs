@@ -372,6 +372,14 @@ def rust_text(*parts):
     )
 
 
+def cli_text():
+    """The command line's sources: src/cli in the library and the binaries in crates/cli."""
+    binaries = sorted((ROOT / "crates" / "cli" / "src").glob("*.rs"))
+    return rust_text("cli/**/*.rs") + "\n" + "\n".join(
+        p.read_text(encoding="utf-8", errors="replace") for p in binaries
+    )
+
+
 def mcp_tool_names():
     names = {}
     for server in ("cdp", "driver", "sb", "stealth"):
@@ -420,7 +428,7 @@ def classify(api, methods, fields):
         else:
             put("driver", n, status="planned", note="No Rust counterpart yet.")
 
-    cli_text = rust_text("cli/**/*.rs")
+    cli_source = cli_text()
     for n in api["cli"]:
         camel = "".join(p.capitalize() for p in n.split("-"))
         if n in CLI_NOT_APPLICABLE:
@@ -428,7 +436,7 @@ def classify(api, methods, fields):
         elif n in CLI_COMPOSED:
             rust, note = CLI_COMPOSED[n]
             put("cli", n, status="composed", rust=rust, note=note)
-        elif re.search(rf'\b{camel}\b|"{re.escape(n)}"', cli_text):
+        elif re.search(rf'\b{camel}\b|"{re.escape(n)}"', cli_source):
             extra = {"divergence": CLI_DIVERGENCE[n]} if n in CLI_DIVERGENCE else {}
             put("cli", n, status="implemented", rust=f"sbase {n}", **extra)
         else:

@@ -180,9 +180,12 @@ fn rust_items() -> RustItems {
     items
 }
 
+/// The sources of the command line: the helpers in the library's `src/cli` and
+/// the `sbrs` and `sbrs-mcp` binaries in the workspace crate `crates/cli`.
 fn cli_source() -> String {
     let mut files = Vec::new();
     rust_files(&root().join("src").join("cli"), &mut files);
+    rust_files(&root().join("crates").join("cli").join("src"), &mut files);
     files
         .iter()
         .map(|file| fs::read_to_string(file).expect("readable source"))
@@ -345,7 +348,7 @@ fn every_rust_path_in_the_manifest_exists() {
             };
             if !exists {
                 problems.push(format!(
-                    "[{surface}.{name:?}] `{path}` is not defined in src/"
+                    "[{surface}.{name:?}] `{path}` is not defined in src/ or crates/cli/src/"
                 ));
             }
         }

@@ -1,8 +1,9 @@
 //! `sbrs mkdir` and `sbrs mkfile`, run as the real binary in a scratch folder.
 //!
-//! The generated files are compared with the golden files in
-//! `tests/golden/cli/`. After an intended template change, regenerate them with
-//! `UPDATE_GOLDEN=1 cargo test --test cli_scaffold` and review the diff. The Rust
+//! The generated files are compared with the golden files in the library's
+//! `tests/golden/cli/`, which the library compiles into the templates. After an
+//! intended template change, regenerate them with
+//! `UPDATE_GOLDEN=1 cargo test -p seleniumbase-rs-cli --test cli_scaffold` and review the diff. The Rust
 //! goldens are also compiled against the current API by the `cfg(doctest)` items
 //! in `src/cli/scripts/sb_mkfile.rs` and `sb_mkdir.rs`.
 
@@ -36,7 +37,10 @@ fn stdout(output: &Output) -> String {
 }
 
 fn golden_path(name: &str) -> PathBuf {
+    // The golden files stay with the library, at the repository root.
     Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
         .join("tests")
         .join("golden")
         .join("cli")
