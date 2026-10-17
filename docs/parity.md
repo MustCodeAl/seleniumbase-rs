@@ -21,7 +21,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 11 | 190 | 14 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 13 | 188 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
@@ -617,12 +617,12 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `click_active_element` | implemented | `Page::click_active_element` | `page.click_active_element()` calls `click()` on `document.activeElement`. Differs: Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait. |
 | `click_and_hold` | composed | `Locator::click_and_hold` | `page.locator(selector).click_and_hold(Duration::from_secs(2))` scrolls the element into view, presses at its centre, holds for the given time and releases there. Mouse::down and Mouse::up act at coordinates. |
 | `click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
-| `click_if_visible` | composed | `Locator::click` | Locator::click has no "only if visible" condition; check `page.locator(selector).is_visible()` first. |
+| `click_if_visible` | implemented | `Locator::click_if_visible` | `page.locator(selector).click_if_visible(timeout)` clicks if the element is visible, waiting up to `timeout` for it (`Duration::ZERO` is Python's default of 0: look once) and says whether it clicked. The Locator holds the selector, so it is not an argument of the call. Differs: Gives Ok(false) when the element is not visible in time or vanishes before the click; an invalid selector or a lost connection is still an error, where Python suppresses every error. The click always scrolls the element into view (`scroll=True`). |
 | `click_link` | composed | `Locator::click` | `page.locator(SelectorBuf::partial_link_text(link_text)).click()` clicks the first link whose text contains `link_text`. The argument is link text, not a selector, so build the selector with `SelectorBuf::partial_link_text` (or `link_text` for an exact match) rather than passing the bare text. |
 | `click_nth_element` | composed | `Locator::nth` | `page.locator(selector).nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_nth_visible_element` | composed | `Locator::nth` | `page.locator(selector).visible().nth(i).click()`; `nth` is zero-based, Python's number starts at 1. |
 | `click_visible_elements` | composed | `Locator::visible` | `page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`. |
-| `click_with_offset` | composed | `Locator::click_at` | `page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner. |
+| `click_with_offset` | implemented | `Locator::click_with_offset` | `page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false. Differs: Always scrolls the element into view (Python's `scroll=True`, its default). |
 | `close_active_tab` | composed | `Page::close` | `page.close()` closes that Page's tab. |
 | `download_file` | implemented | `Page::download_file` | `page.download_file(url, dir)` has the page fetch the address and save the response, as Python does, then waits for the browser to finish and returns the saved path. `page.download_by_click(selector, dir)` follows a download that a click starts. Differs: Takes the folder to save in (Python uses ./downloaded_files) and waits for the browser's own download events, bounded by the page timeout; a bad HTTP status, a fetch the page refuses (CORS) or a cancelled download is SeleniumBaseError::Download. The name comes from the Content-Disposition header when the server sends one, else from the address (Python: the address only). |
 | `drag_and_drop` | composed | `Locator::drag_to` | Call `page.locator(selector).drag_to(..)`; the Locator holds the selector, so it is not an argument of the call. |

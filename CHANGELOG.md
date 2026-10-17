@@ -13,6 +13,10 @@ work, `docs/parity.md` the per-API status).
 - `sb_cdp::Page::origin`, `locale_code`, `screen_rect` (a `ScreenRect` of the
   display) and `click_active_element`: Python's `sb.cdp.get_origin`,
   `get_locale_code`, `get_screen_rect` and `click_active_element`.
+- `sb_cdp::Locator::click_with_offset(x, y, center)` (the offset from the
+  top-left corner, or from the centre) and `click_if_visible(timeout)`:
+  Python's `sb.cdp.click_with_offset` and `click_if_visible`. `click_at` stays
+  and calls `click_with_offset`.
 
 ### Fixed
 

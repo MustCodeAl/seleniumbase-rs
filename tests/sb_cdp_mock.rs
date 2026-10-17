@@ -678,6 +678,136 @@ async fn clicking_at_an_offset_measures_from_the_elements_top_left() {
     assert_eq!(pressed, [(160.0, 85.0)]);
 }
 
+/// Answers the page helper calls for a 100x40 element centred at (200, 100),
+/// which is `visible` or not.
+fn script_sized_element(mock: &MockCtrl, visible: bool) {
+    mock.on("Runtime.evaluate", move |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("__sbcdp.center(") {
+            value(json!({ "x": 200.0, "y": 100.0, "covered": false }))
+        } else if expression.contains("__sbcdp.info(") {
+            value(json!({
+                "tag": "div", "text": "", "html": "", "attributes": {}, "visible": visible,
+                "rect": { "x": 150.0, "y": 80.0, "width": 100.0, "height": 40.0 },
+            }))
+        } else if expression.contains(".some(__sbcdp.visible)") {
+            value(json!(visible))
+        } else if expression.contains(".length > 0") {
+            value(json!(true))
+        } else {
+            value(Value::Null)
+        })
+    });
+}
+
+/// Where the mouse was pressed, in order.
+fn pressed_at(mock: &MockCtrl) -> Vec<(f64, f64)> {
+    mock.calls_to("Input.dispatchMouseEvent")
+        .into_iter()
+        .filter(|call| call.params["type"] == "mousePressed")
+        .map(|call| {
+            (
+                call.params["x"].as_f64().unwrap(),
+                call.params["y"].as_f64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn an_offset_click_measures_from_the_top_left_or_from_the_centre_as_asked() {
+    let (page, mock) = quick_page().await;
+    script_sized_element(&mock, true);
+    let target = page.locator("#target");
+
+    target.click_with_offset(10.0, 5.0, false).await.unwrap();
+    target.click_with_offset(10.0, 5.0, true).await.unwrap();
+    target.click_with_offset(-50.0, -20.0, false).await.unwrap();
+
+    assert_eq!(
+        pressed_at(&mock),
+        [(160.0, 85.0), (210.0, 105.0), (100.0, 60.0)]
+    );
+}
+
+#[tokio::test]
+async fn clicking_only_if_visible_clicks_a_visible_element_and_reports_it() {
+    let (page, mock) = quick_page().await;
+    script_sized_element(&mock, true);
+
+    let clicked = page
+        .locator("#banner")
+        .click_if_visible(Duration::ZERO)
+        .await
+        .unwrap();
+
+    assert!(clicked);
+    assert_eq!(pressed_at(&mock), [(200.0, 100.0)]);
+}
+
+#[tokio::test]
+async fn clicking_only_if_visible_leaves_a_hidden_element_alone_without_waiting() {
+    let (page, mock) = quick_page().await;
+    script_sized_element(&mock, false);
+    let started = std::time::Instant::now();
+
+    let clicked = page
+        .locator("#banner")
+        .click_if_visible(Duration::ZERO)
+        .await
+        .unwrap();
+
+    assert!(!clicked);
+    assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
+    assert!(
+        started.elapsed() < Duration::from_millis(100),
+        "a zero timeout must not wait"
+    );
+}
+
+#[tokio::test]
+async fn clicking_only_if_visible_waits_up_to_the_timeout_for_the_element() {
+    let (page, mock) = quick_page().await;
+    let looks = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&looks);
+    mock.on("Runtime.evaluate", move |params| {
+        let expression = params["expression"].as_str().unwrap_or_default();
+        Ok(if expression.contains("__sbcdp.center(") {
+            value(json!({ "x": 20.0, "y": 30.0, "covered": false }))
+        } else if expression.contains(".some(__sbcdp.visible)") {
+            // The banner shows up on the fourth look.
+            value(json!(counter.fetch_add(1, Ordering::SeqCst) >= 3))
+        } else {
+            value(json!(true))
+        })
+    });
+
+    let clicked = page
+        .locator("#banner")
+        .click_if_visible(Duration::from_secs(2))
+        .await
+        .unwrap();
+
+    assert!(clicked);
+    assert_eq!(pressed_at(&mock), [(20.0, 30.0)]);
+}
+
+#[tokio::test]
+async fn clicking_only_if_visible_still_reports_a_selector_that_is_invalid() {
+    let (page, mock) = quick_page().await;
+    mock.on("Runtime.evaluate", |_| {
+        Ok(exception("SyntaxError: 'div[' is not a valid selector."))
+    });
+
+    let error = page
+        .locator("div[")
+        .click_if_visible(Duration::ZERO)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, SeleniumBaseError::InvalidSelector(_)), "{error}");
+}
+
 #[tokio::test]
 async fn an_elements_urls_are_absolute_unique_and_in_page_order() {
     let (page, mock) = quick_page().await;

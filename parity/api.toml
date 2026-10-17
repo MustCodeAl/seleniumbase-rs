@@ -2058,9 +2058,10 @@ rust = "Page::solve_captcha"
 note = "A method of the Page that sb.cdp drives: `page.solve_captcha(..)`."
 
 [cdp."click_if_visible"]
-status = "composed"
-rust = "Locator::click"
-note = "Locator::click has no \"only if visible\" condition; check `page.locator(selector).is_visible()` first."
+status = "implemented"
+rust = "Locator::click_if_visible"
+note = "`page.locator(selector).click_if_visible(timeout)` clicks if the element is visible, waiting up to `timeout` for it (`Duration::ZERO` is Python's default of 0: look once) and says whether it clicked. The Locator holds the selector, so it is not an argument of the call."
+divergence = "Gives Ok(false) when the element is not visible in time or vanishes before the click; an invalid selector or a lost connection is still an error, where Python suppresses every error. The click always scrolls the element into view (`scroll=True`)."
 
 [cdp."click_link"]
 status = "composed"
@@ -2083,9 +2084,10 @@ rust = "Locator::visible"
 note = "`page.locator(selector).visible()` narrows the Locator to the displayed matches; click each with `nth`."
 
 [cdp."click_with_offset"]
-status = "composed"
-rust = "Locator::click_at"
-note = "`page.locator(selector).click_at(Point)`; the offset is from the element's top-left corner."
+status = "implemented"
+rust = "Locator::click_with_offset"
+note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false."
+divergence = "Always scrolls the element into view (Python's `scroll=True`, its default)."
 
 [cdp."close_active_tab"]
 status = "composed"

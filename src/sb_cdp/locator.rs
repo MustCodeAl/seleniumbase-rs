@@ -45,8 +45,8 @@ impl Step {
 ///
 /// Narrowing a locator returns a new one, so `page.locator("li").visible().nth(2)`
 /// reads left to right. This replaces the many near-duplicate methods other
-/// frameworks offer (click the nth visible element, click only if visible, click
-/// a child of a parent, and so on): compose them instead.
+/// frameworks offer (click the nth visible element, click a child of a parent,
+/// and so on): compose them instead.
 ///
 /// # Examples
 ///
@@ -888,28 +888,81 @@ fn parse_info(value: &Value) -> ElementInfo {
 }
 
 impl Locator {
+    /// Clicks `x` pixels right of and `y` pixels below a corner of the first
+    /// match, or of its centre, scrolling it into view first.
+    ///
+    /// Python's `click_with_offset(selector, x, y, center=False)`: the offset
+    /// is measured from the element's top-left corner, or, with
+    /// `center == true`, from its centre. A negative offset goes left or up.
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn click_with_offset(
+        &self,
+        x: f64,
+        y: f64,
+        center: bool,
+    ) -> Result<(), SeleniumBaseError> {
+        let middle = self.actionable_center().await?;
+        let origin = if center {
+            middle
+        } else {
+            let size = self.bounding_box().await?;
+            Point {
+                x: middle.x - size.width / 2.0,
+                y: middle.y - size.height / 2.0,
+            }
+        };
+        self.page
+            .mouse()
+            .click(Point {
+                x: origin.x + x,
+                y: origin.y + y,
+            })
+            .await
+    }
+
     /// Clicks at `offset` pixels right of and below the element's top-left
-    /// corner, scrolling it into view first. Corresponds to Python's
-    /// `click_with_offset`; to click relative to the centre, add half of
-    /// [`bounding_box`](Self::bounding_box)'s width and height to `offset`.
+    /// corner, scrolling it into view first.
+    ///
+    /// The same as `click_with_offset(offset.x, offset.y, false)`.
     ///
     /// # Errors
     ///
     /// See [`click`](Self::click).
     pub async fn click_at(&self, offset: Point) -> Result<(), SeleniumBaseError> {
-        let center = self.actionable_center().await?;
-        let size = self.bounding_box().await?;
-        let top_left = Point {
-            x: center.x - size.width / 2.0,
-            y: center.y - size.height / 2.0,
-        };
-        self.page
-            .mouse()
-            .click(Point {
-                x: top_left.x + offset.x,
-                y: top_left.y + offset.y,
-            })
-            .await
+        self.click_with_offset(offset.x, offset.y, false).await
+    }
+
+    /// Clicks the first match if it is visible, waiting up to `timeout` for it
+    /// to become so, and says whether it clicked.
+    ///
+    /// Python's `click_if_visible(selector, timeout=0)`: pass
+    /// [`Duration::ZERO`] to look once and not wait. It gives `false`, not an
+    /// error, when the element is not visible in time or disappears before the
+    /// click. Unlike Python, which suppresses every error, an invalid selector
+    /// or a lost connection is still an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] if the selector is
+    /// invalid, or the browser's error if it fails.
+    pub async fn click_if_visible(&self, timeout: Duration) -> Result<bool, SeleniumBaseError> {
+        match self.with_timeout(timeout).wait_for(State::Visible).await {
+            Ok(()) => {}
+            Err(SeleniumBaseError::WaitTimeout(_)) => return Ok(false),
+            Err(error) => return Err(error),
+        }
+        // It was visible a moment ago; do not wait again if it is gone now.
+        match self.with_timeout(Duration::ZERO).click().await {
+            Ok(()) => Ok(true),
+            Err(
+                SeleniumBaseError::ElementNotFound { .. }
+                | SeleniumBaseError::ElementNotInteractable { .. },
+            ) => Ok(false),
+            Err(error) => Err(error),
+        }
     }
 
     /// The first match's rectangle in screen coordinates, as a desktop
