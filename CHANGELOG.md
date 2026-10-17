@@ -28,9 +28,18 @@ work, `docs/parity.md` the per-API status).
   `mode = "stealth"` used to give Chrome in WebDriver mode without a word;
   `Settings::from_file`, `load`, `load_from` and `from_env` now call the new
   `Settings::validate`, which also refuses a window width without a height.
+- `sbrs` and `sbrs-mcp` fall back to `RUST_LOG` when `SB_LOG_LEVEL` is unset,
+  blank or invalid (then to `info`); `RUST_LOG` used to be ignored, and the
+  docs said both. One bad `SB_*` runtime variable no longer drops the good
+  ones: both binaries now use `RuntimeConfig::from_env_lenient`, so a typo in
+  `SB_SHUTDOWN_TIMEOUT_SECS` keeps `SB_LOG_LEVEL=debug` and is logged as a
+  warning after logging starts.
 
 ### Added
 
+- `RuntimeConfig::from_env_lenient` (the config and the list of variables that
+  did not parse), `from_vars` and `from_vars_lenient` (read the variables from
+  a function instead of the process environment).
 - `BrowserConfig::with_run_settings(RunSettings)` (and `run_settings()`) sets
   the demo, slow, message and timeout settings a test starts with, as Python's
   `SB(demo=, slow=, demo_sleep=, message_duration=)` does. They stay out of
@@ -39,7 +48,6 @@ work, `docs/parity.md` the per-API status).
   feeds it.
 - `Settings::load_from(path)` and `Settings::validate`; `DriverMode` implements
   `FromStr` and `Display` (`webdriver`, `cdp`, `uc`) and has `name()`.
-
 - `RunSettings::pause_for(PauseKind)` names what `pause(tiny: bool)` took as a
   flag: `PauseKind::Full` after an action that changed the page, `Short` (1/3.4
   of the time in demo mode) after one that did not. `message_duration()` keeps
@@ -52,6 +60,11 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed (breaking)
 
+- `RuntimeConfig::log_level` is an `Option<String>` that defaults to `None`
+  (it was `"info"`), so the binaries can tell "not set" from "set to info".
+  Migration: `config.log_level` becomes `config.log_level.as_deref()
+  .unwrap_or("info")` where you read it, and `config.log_level = Some(..)`
+  where you set it.
 - `Settings::load(path: Option<P>)` is split in two, so nobody writes
   `Settings::load(None::<&str>)`. Migration: `Settings::load(None::<&str>)?`
   becomes `Settings::load()?`, and `Settings::load(Some(path))?` becomes

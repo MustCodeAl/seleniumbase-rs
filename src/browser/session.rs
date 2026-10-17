@@ -1569,7 +1569,8 @@ async fn patch_chrome_binary_if_needed(
         return Ok(());
     }
 
-    let runtime = crate::config::RuntimeConfig::from_env().unwrap_or_default();
+    // A bad unrelated variable must not hide SB_CHROME_BIN.
+    let runtime = crate::config::RuntimeConfig::from_env_lenient().0;
     let source = runtime
         .chrome_bin
         .or_else(crate::stealth::patcher::find_system_chrome)

@@ -162,9 +162,10 @@ Directory for patched Chrome/Chromedriver copies.
 
 </ParamField>
 
-<ParamField body="SB_LOG_LEVEL" type="string" default="info">
+<ParamField body="SB_LOG_LEVEL" type="string">
 
-Default tracing log level.
+The tracing filter. Unset, blank or invalid, `sbrs` and `sbrs-mcp` use `RUST_LOG`,
+then `info`.
 
 </ParamField>
 
@@ -182,13 +183,14 @@ Graceful shutdown timeout.
 
 <ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
 
-Port for auto-started chromedriver (`0` = ephemeral).
+Parsed into `RuntimeConfig::chromedriver_port`; nothing in the crate reads it yet.
 
 </ParamField>
 
 <ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
 
-Default implicit wait timeout.
+Parsed into `RuntimeConfig::implicit_wait`; nothing in the crate reads it yet. For
+the default wait of a test, use `SB_TIMEOUT` or `BaseCase::set_timeout`.
 
 </ParamField>
 

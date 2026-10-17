@@ -1385,7 +1385,10 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
 
-    let runtime = RuntimeConfig::from_env().unwrap_or_default();
+    let (runtime, problems) = RuntimeConfig::from_env_lenient();
+    for problem in &problems {
+        println!("Invalid variable, default used: {problem}");
+    }
     println!("SB_WEBDRIVER_URL: {}", runtime.webdriver_url);
     println!(
         "SB_CHROME_BIN: {}",
@@ -1403,7 +1406,13 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
             .map(|p| p.display().to_string())
             .unwrap_or_else(|| "(platform cache)".to_owned())
     );
-    println!("SB_LOG_LEVEL: {}", runtime.log_level);
+    println!(
+        "SB_LOG_LEVEL: {}",
+        runtime
+            .log_level
+            .as_deref()
+            .unwrap_or("(unset: RUST_LOG, then info)")
+    );
     println!("SB_LOG_FORMAT: {:?}", runtime.log_format);
     println!(
         "SB_SHUTDOWN_TIMEOUT_SECS: {}",
@@ -1624,8 +1633,13 @@ fn run_command() -> std::process::ExitCode {
 }
 
 async fn execute() -> Result<(), Box<dyn std::error::Error>> {
-    let runtime = RuntimeConfig::from_env().unwrap_or_default();
+    // One bad SB_* variable must not drop the good ones, SB_LOG_LEVEL among
+    // them; the bad ones are reported once logging works.
+    let (runtime, problems) = RuntimeConfig::from_env_lenient();
     init_tracing_from_runtime(&runtime);
+    for problem in &problems {
+        tracing::warn!(%problem, "ignored an invalid SB_* variable, its default is used");
+    }
 
     let args = Cli::parse();
     let stops_itself = matches!(

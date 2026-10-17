@@ -18,8 +18,9 @@ Call `init_tracing()` and run with `RUST_LOG=seleniumbase_rs=debug`.
 
 <Tab title="sbrs and sbrs-mcp">
 
-`RUST_LOG` is ignored. They read `SB_LOG_LEVEL` (default `info`), for example
-`SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
+They read `SB_LOG_LEVEL`, for example `SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
+Without it (or with a blank or invalid one) they fall back to `RUST_LOG`, then
+to `info`.
 
 </Tab>
 

@@ -177,15 +177,16 @@ run because the same binary then needs no code change per environment:
 | `SB_WEBDRIVER_URL` | WebDriver endpoint | `http://localhost:4444` |
 | `SB_CHROME_BIN` | Browser binary path | system Chrome |
 | `SB_PATCH_CACHE_DIR` | Where patched binaries are cached | the platform cache directory |
-| `SB_LOG_LEVEL` | Tracing level (used by `init_tracing_from_runtime`) | `info` |
+| `SB_LOG_LEVEL` | Tracing filter (used by `init_tracing_from_runtime`); unset, it is `RUST_LOG`, then `info` | unset |
 | `SB_LOG_FORMAT` | `pretty` or `json` | `pretty` |
 | `SB_SHUTDOWN_TIMEOUT_SECS` | Graceful shutdown timeout | `30` |
-| `SB_CHROMEDRIVER_PORT` | Port for the auto-started chromedriver (`0` means a free port) | `0` |
-| `SB_IMPLICIT_WAIT_SECS` | Default wait for element queries | `30` |
+| `SB_CHROMEDRIVER_PORT` | Parsed, not yet used by the crate | `0` |
+| `SB_IMPLICIT_WAIT_SECS` | Parsed, not yet used by the crate | `30` |
 | `SB_REMOTE_WEBDRIVER_TIMEOUT` | Per-request client timeout for a remote grid, in seconds | unset |
 
 A value that does not parse (a non-number, or a `SB_LOG_FORMAT` other than
-`pretty` or `json`) makes `from_env` return `SeleniumBaseError::InvalidConfig`.
+`pretty` or `json`) makes `from_env` return `SeleniumBaseError::InvalidConfig`;
+`from_env_lenient` keeps the good values and lists the bad ones.
 
 ## A complete example that needs no network
 
