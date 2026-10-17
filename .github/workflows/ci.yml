@@ -222,6 +222,13 @@ jobs:
       - name: Run Clippy
         run: cargo clippy -p seleniumbase-rs --all-targets -- -D warnings
 
+      # The command line turns `pdf` on by default, so the matrix above never runs
+      # the tests that expect a build without it (the exit status 2 and the hint).
+      - name: Command line without default features
+        run: |
+          cargo test -p seleniumbase-rs-cli --no-default-features
+          cargo clippy -p seleniumbase-rs-cli --no-default-features --all-targets -- -D warnings
+
       # The library must stay free of the command-line crates (they belong to
       # crates/cli); tests/library_manifest.rs checks the manifest, this checks the
       # resolved graph.
