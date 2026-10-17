@@ -12,6 +12,7 @@ use std::{future::Future, pin::Pin};
 
 use futures_util::FutureExt;
 
+use crate::browser::config::whole_seconds;
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
 use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
 
@@ -164,11 +165,6 @@ pub(crate) async fn start_browser(config: BrowserConfig) -> Result<BaseCase> {
     }
     sb.set_run_settings(run);
     Ok(sb)
-}
-
-/// `timeout` in whole seconds, rounded up: `BaseCase` waits in seconds.
-fn whole_seconds(timeout: std::time::Duration) -> u64 {
-    timeout.as_secs() + u64::from(timeout.subsec_nanos() > 0)
 }
 
 pub(crate) async fn close_browser(sb: &mut BaseCase) -> Result<()> {

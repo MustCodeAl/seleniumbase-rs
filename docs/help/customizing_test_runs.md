@@ -69,8 +69,13 @@ Key builder methods:
 | `with_browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
 | `with_extra_args(vec)` / `push_extra_arg(s)` | Pass extra Chromium launch flags. |
 
-`remote_webdriver_timeout_seconds` has no builder method. Set it on the struct,
-which has public fields.
+`with_remote_webdriver_timeout(Duration)` sets the client-side timeout of each
+request to a Remote WebDriver server (a part of a second rounds up to a whole
+second), the field `remote_webdriver_timeout_seconds`.
+
+| Builder | Effect |
+|---|---|
+| `with_run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](../tutorials/run_settings.md). |
 
 ### Blocking ads
 

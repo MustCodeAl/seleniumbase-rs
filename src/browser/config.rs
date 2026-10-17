@@ -247,6 +247,12 @@ pub struct BrowserConfig {
     pub launch: LaunchSettings,
 }
 
+/// `timeout` in whole seconds, rounded up: the WebDriver client and
+/// `BaseCase` take seconds.
+pub(crate) fn whole_seconds(timeout: std::time::Duration) -> u64 {
+    timeout.as_secs() + u64::from(timeout.subsec_nanos() > 0)
+}
+
 impl Default for BrowserConfig {
     fn default() -> Self {
         Self::from_runtime_config(&crate::config::RuntimeConfig::default())
@@ -565,6 +571,16 @@ impl BrowserConfig {
         self.launch.has(LaunchSwitch::RecSbCdp)
     }
 
+    /// The client-side timeout of each request sent to a Remote WebDriver
+    /// server such as a Selenium Grid (`SB_REMOTE_WEBDRIVER_TIMEOUT`). A part of
+    /// a second rounds up to a whole second. See
+    /// [`remote_webdriver_timeout_seconds`](Self::remote_webdriver_timeout_seconds).
+    #[must_use]
+    pub fn with_remote_webdriver_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.remote_webdriver_timeout_seconds = Some(whole_seconds(timeout));
+        self
+    }
+
     /// The run-wide settings the test starts with: demo and slow mode, how
     /// long messages last, the default wait and the like (Python's `SB(demo=,
     /// slow=, demo_sleep=, message_duration=)`).
@@ -740,6 +756,18 @@ mod tests {
         let text = serde_json::to_string(&config).unwrap();
         let back: BrowserConfig = serde_json::from_str(&text).unwrap();
         assert_eq!(back.run_settings(), &RunSettings::default());
+    }
+
+    #[test]
+    fn the_remote_timeout_builder_rounds_up_to_whole_seconds() {
+        use std::time::Duration;
+        let config = BrowserConfig::default();
+        assert_eq!(config.remote_webdriver_timeout_seconds, None);
+        let set = config.with_remote_webdriver_timeout(Duration::from_millis(2500));
+        assert_eq!(set.remote_webdriver_timeout_seconds, Some(3));
+        let exact =
+            BrowserConfig::default().with_remote_webdriver_timeout(Duration::from_secs(600));
+        assert_eq!(exact.remote_webdriver_timeout_seconds, Some(600));
     }
 
     #[test]

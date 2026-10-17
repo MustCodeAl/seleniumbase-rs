@@ -65,6 +65,10 @@ Semantic Versioning.
   configuration files and of the key that decides which tests share a browser.
   `RunSettings::with_default_timeout` is new and `Settings::timeout_seconds`
   feeds it.
+- `BrowserConfig::with_remote_webdriver_timeout(Duration)` sets
+  `remote_webdriver_timeout_seconds`, which had no builder; a part of a second
+  rounds up. The common `with_*` builders of `BrowserConfig` gained doc
+  comments.
 - `Settings::load_from(path)` and `Settings::validate`; `DriverMode` implements
   `FromStr` and `Display` (`webdriver`, `cdp`, `uc`) and has `name()`.
 - `RunSettings::pause_for(PauseKind)` names what `pause(tiny: bool)` took as a
@@ -113,7 +117,9 @@ Semantic Versioning.
   nothing. Migration: `settings.timeout_seconds` is `settings.timeout_seconds
   .unwrap_or(10)` where you used the number; assign `Some(..)` where you set it.
   `screenshot_dir` is documented as stored for your code: the library never read
-  it.
+  it. `Settings` also has the new public fields `webdriver_url` and `chrome_bin`,
+  and `LaunchSettings` the new `run`: a struct literal that names every field
+  needs `..Default::default()`.
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
   `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF
