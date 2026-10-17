@@ -95,17 +95,19 @@ mod tests_cdp_input {
     }
 
     #[tokio::test]
-    async fn the_click_is_still_recorded_under_its_name() {
+    async fn both_clicks_are_recorded_once_as_cdp_click() {
+        // A generated program must not call the deprecated method.
         let driver = page();
         let mut sb = case(&driver).await;
+        sb.cdp_click("#go").await.unwrap();
         sb.cdp_click_element("#go").await.unwrap();
         let recorded = sb.recorded_actions().unwrap();
-        assert!(
-            recorded
-                .iter()
-                .any(|action| action.name == "cdp_click_element"),
-            "{recorded:?}"
-        );
+        let names: Vec<_> = recorded
+            .iter()
+            .filter(|action| action.name.starts_with("cdp_click"))
+            .map(|action| action.name.as_str())
+            .collect();
+        assert_eq!(names, ["cdp_click", "cdp_click"], "{recorded:?}");
     }
 
     #[tokio::test]

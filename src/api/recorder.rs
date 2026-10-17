@@ -413,7 +413,7 @@ const CALLS: &[(&str, &str, Shape)] = &[
         Shape::NoArgs,
     ),
     ("drag_and_drop", "drag_and_drop", Shape::TargetValue),
-    ("cdp_click_element", "cdp_click_element", Shape::Target),
+    ("cdp_click", "cdp_click", Shape::Target),
     (
         "wait_for_element_visible",
         "wait_for_element_visible",
@@ -579,6 +579,9 @@ const ALIASES: &[(&str, &str)] = &[
     ("goto", "open"),
     ("navigate", "open"),
     ("type", "type_text"),
+    // Deprecated since 0.5.0; older recordings keep the name, and a generated
+    // program must not call a deprecated method.
+    ("cdp_click_element", "cdp_click"),
 ];
 
 /// Actions `BaseCase` records without what it takes to run them again.
@@ -1554,6 +1557,21 @@ mod tests {
         recorder.record("js_click_all", Some(".check"), None);
         recorder.record("jquery_click", Some(".jq"), None);
         recorder
+    }
+
+    #[test]
+    fn a_cdp_click_is_generated_and_the_deprecated_name_is_written_as_cdp_click() {
+        for recorded in ["cdp_click", "cdp_click_element"] {
+            let mut recorder = ActionRecorder::default();
+            recorder.record(recorded, Some("#go"), None);
+            let script = recorder.to_rust_script();
+            assert!(
+                script.contains(r##"sb.cdp_click("#go").await?;"##),
+                "{recorded}: {script}"
+            );
+            assert!(!script.contains("cdp_click_element"), "{recorded}");
+            assert!(!script.contains("// skipped"), "{recorded}: {script}");
+        }
     }
 
     #[test]

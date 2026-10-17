@@ -1126,13 +1126,14 @@ impl BaseCase {
     /// It used to press at WebDriver's rectangle of the element, which is in
     /// the document, so on a page scrolled by N pixels the click landed N
     /// pixels too low. It now is [`cdp_click`](Self::cdp_click), which scrolls
-    /// the element into view and presses at its centre in the viewport.
+    /// the element into view and presses at its centre in the viewport. As
+    /// `cdp_click` does, it takes a CSS selector only (it used to accept the
+    /// XPath and `link=` forms) and records the click as `cdp_click`.
     #[deprecated(
         since = "0.5.0",
         note = "use cdp_click, which scrolls the element into view and clicks it at its place in the viewport"
     )]
     pub async fn cdp_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        self.record("cdp_click_element", Some(css), None);
         self.cdp_click(css).await
     }
 

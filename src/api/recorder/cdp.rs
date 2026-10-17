@@ -54,7 +54,7 @@ impl CdpCall {
 const CDP_ACTIONS: &[&str] = &[
     "open",
     "click",
-    "cdp_click_element",
+    "cdp_click",
     "slow_click",
     "hover",
     "double_click",
@@ -180,7 +180,7 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
             "page.goto({}).await?;",
             literal(need_target()?)
         ))),
-        "click" | "cdp_click_element" | "slow_click" => on_target("click()"),
+        "click" | "cdp_click" | "slow_click" => on_target("click()"),
         "hover" => on_target("hover()"),
         "double_click" => on_target("double_click()"),
         "context_click" => on_target("right_click()"),
@@ -374,7 +374,7 @@ mod tests {
                 vec![r##"page.locator("#go").click().await?;"##],
             ),
             (
-                "cdp_click_element",
+                "cdp_click",
                 Some("#shadow"),
                 None,
                 vec![r##"page.locator("#shadow").click().await?;"##],
