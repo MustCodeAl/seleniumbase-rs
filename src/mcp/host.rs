@@ -18,6 +18,7 @@ use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
 use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT};
 use super::journal::{CallRecord, Journal};
 use super::tool::{Args, Output, ToolDef, ToolError};
+use crate::config::plugins::PluginSelection;
 use crate::error::closest_match;
 
 /// Environment variable naming the directory tools write files into.
@@ -31,22 +32,44 @@ pub trait Closeable: Send + 'static {
     fn close(self) -> impl Future<Output = ()> + Send;
 }
 
-/// Where tools may write files.
+/// What the operator of the server decides: where tools may write files, and
+/// which plugins every browser the server starts gets.
 ///
-/// A model-supplied file name must never reach outside this directory, so
-/// every output path is built here and nowhere else.
+/// A model-supplied file name must never reach outside the output directory,
+/// so every output path is built here and nowhere else. The plugins are the
+/// operator's choice (`sbrs-mcp --plugin`): no tool argument adds one.
 #[derive(Debug, Clone)]
 pub struct Settings {
     output_dir: PathBuf,
+    plugins: PluginSelection,
 }
 
 impl Settings {
-    /// Writes into `output_dir`.
+    /// Writes into `output_dir`, and starts browsers without plugins.
     #[must_use]
     pub fn new(output_dir: impl Into<PathBuf>) -> Self {
         Self {
             output_dir: output_dir.into(),
+            plugins: PluginSelection::new(),
         }
+    }
+
+    /// Gives every browser the server starts the plugins `plugins` names
+    /// (the `[plugins]` table, `SB_PLUGINS`, `--plugin` and `--plugin-opt`).
+    ///
+    /// A build without the feature `plugins` refuses a browser start when the
+    /// selection is not empty; check it first with
+    /// [`check_selection`](crate::cli::plugin_cmd::check_selection).
+    #[must_use]
+    pub fn with_plugin_selection(mut self, plugins: PluginSelection) -> Self {
+        self.plugins = plugins;
+        self
+    }
+
+    /// The plugins every browser the server starts gets.
+    #[must_use]
+    pub fn plugin_selection(&self) -> &PluginSelection {
+        &self.plugins
     }
 
     /// Reads [`OUTPUT_DIR_VAR`], falling back to `./mcp_output`.

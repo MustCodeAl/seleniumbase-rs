@@ -786,6 +786,11 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     if let Some(proxy) = nonempty(&args, "proxy")? {
         options = options.proxy(proxy);
     }
+    // The operator's plugins (`sbrs-mcp --plugin`), never a tool argument.
+    let plugins = ctx.settings().plugin_selection();
+    plugins.ensure_supported()?;
+    #[cfg(feature = "plugins")]
+    let options = options.plugin_selection(plugins);
     let options = options.build()?;
 
     let started = ctx

@@ -110,10 +110,21 @@ impl std::str::FromStr for Profile {
 /// breaks, and [`SeleniumBaseError::Unsupported`] if the signal handlers
 /// cannot be installed.
 pub async fn serve(profile: Profile) -> Result<(), SeleniumBaseError> {
+    serve_with(profile, Settings::from_env()).await
+}
+
+/// [`serve`] with `settings` instead of the ones the environment gives, such
+/// as the plugins the operator chose
+/// ([`Settings::with_plugin_selection`]).
+///
+/// # Errors
+///
+/// As [`serve`].
+pub async fn serve_with(profile: Profile, settings: Settings) -> Result<(), SeleniumBaseError> {
     let result = match profile {
-        Profile::Cdp => run(cdp::host(Settings::from_env())).await,
-        Profile::Driver => run(driver::host(Settings::from_env())).await,
-        Profile::Sb => run(sb::host(Settings::from_env())).await,
+        Profile::Cdp => run(cdp::host(settings)).await,
+        Profile::Driver => run(driver::host(settings)).await,
+        Profile::Sb => run(sb::host(settings)).await,
     };
     // A `Drop` somewhere may have started its own cleanup; let it finish.
     drain_cleanups(timeout_from_env()).await;

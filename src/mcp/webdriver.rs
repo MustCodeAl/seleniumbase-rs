@@ -154,6 +154,11 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     if let Some(proxy) = nonempty(&args, "proxy")? {
         config = config.with_proxy(proxy);
     }
+    // The operator's plugins (`sbrs-mcp --plugin`), never a tool argument.
+    let plugins = ctx.settings().plugin_selection();
+    plugins.ensure_supported()?;
+    #[cfg(feature = "plugins")]
+    let config = config.with_plugin_selection(plugins)?;
 
     let started = ctx
         .start(async move { Ok::<_, ToolError>(Box::pin(BaseCase::new(config)).await?) })
