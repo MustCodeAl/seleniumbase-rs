@@ -10,8 +10,10 @@ use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 use seleniumbase_rs::cli::commands::{
     blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
-    looks_like_pdf, parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
+    parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
 };
+#[cfg(feature = "pdf")]
+use seleniumbase_rs::cli::commands::looks_like_pdf;
 use seleniumbase_rs::cli::devtools::{
     ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
 };
@@ -1224,6 +1226,7 @@ async fn http_download(url: &str, dest: &Path) -> Result<u64, Box<dyn std::error
 /// Resolve `url` to a PDF on disk, rendering the page when it is not already a PDF.
 ///
 /// Returns the PDF path plus an optional scratch directory that must outlive it.
+#[cfg(feature = "pdf")]
 async fn resolve_pdf(
     sb: &mut BaseCase,
     url: &str,
@@ -1334,6 +1337,17 @@ fn no_terminal_ui() -> ! {
     eprintln!(
         "this sbrs was built without the terminal UI; \
          reinstall it with `cargo install seleniumbase-rs --features tui`"
+    );
+    std::process::exit(2);
+}
+
+/// What `pdf-text` and `assert-pdf-text` do in a build without the `pdf`
+/// feature: say how to get it, before a browser is started.
+#[cfg(not(feature = "pdf"))]
+fn no_pdf_support() -> ! {
+    eprintln!(
+        "this sbrs was built without PDF text extraction; \
+         reinstall it with `cargo install seleniumbase-rs --features pdf`"
     );
     std::process::exit(2);
 }
@@ -2837,6 +2851,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or(0);
             println!("Saved PDF: {output} ({size} bytes)");
         }
+        #[cfg(not(feature = "pdf"))]
+        Commands::PdfText { .. } | Commands::AssertPdfText { .. } => no_pdf_support(),
+        #[cfg(feature = "pdf")]
         Commands::PdfText { url, save_pdf } => {
             let mut sb = BaseCase::new(config).await?;
             let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
@@ -2845,6 +2862,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
             println!("{text}");
         }
+        #[cfg(feature = "pdf")]
         Commands::AssertPdfText {
             url,
             text,

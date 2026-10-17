@@ -41,6 +41,10 @@ required-features = ["gui"]
 name = "gui_automation"
 required-features = ["gui"]
 
+[[example]]
+name = "pdf_example"
+required-features = ["pdf"]
+
 [[bin]]
 name = "sbrs-mcp"
 path = "src/bin/mcp_server.rs"
@@ -95,7 +99,7 @@ zip = { version = "9.0", default-features = false, features = ["deflate-flate2-z
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = "0.4"
 dirs = "7.0"
-pdf-extract = "0.12"
+pdf-extract = { version = "0.12", optional = true }
 # Without `main` (getopts, for scraper's own CLI) and `errors` (unused parse errors).
 scraper = { version = "0.27", default-features = false }
 rfd = { version = "0.17", optional = true }
@@ -173,6 +177,10 @@ plugins = ["dep:seleniumbase-rs-plugin"]
 # `BaseCase::assert_visual_match`): screenshots compared with a saved baseline
 # by structural similarity, with a diff image on a mismatch. Pure Rust.
 visual = ["dep:image-compare", "dep:image"]
+# PDF text extraction: the module `api::pdf`, `BaseCase::get_pdf_text` and
+# `assert_pdf_text`, and `sbrs pdf-text` / `assert-pdf-text`. It is optional because
+# pdf-extract (lopdf, fonts, ciphers) is 34 of the crates of a default build.
+pdf = ["dep:pdf-extract"]
 
 [dev-dependencies]
 # Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
