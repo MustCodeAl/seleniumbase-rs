@@ -719,12 +719,23 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   status 2 before any browser starts or the MCP server listens. A build without
   `plugins` (`--no-default-features`) fails closed with the feature to build
   with. The Docker image is built without the default features and has no
-  plugins. The library side: `PluginSelection::apply_flags`, `enable_once` and
-  `to_list` (and `PluginSelection` is `Eq`), `Settings::load_plugin_selection`
-  (the plugin part of the settings only), the module `cli::plugin_cmd`
-  (`list`, `info`, `check_selection`), `DevtoolsRequest::plugins`,
-  `mcp::Settings::with_plugin_selection` and `mcp::serve_with`. See
-  `docs/plugins/selecting.md`.
+  plugins. Only the `[plugins]` table of the settings file is read by `sbrs
+  devtools`, `sbrs plugin list|info` and `sbrs-mcp`, so a value of the file that
+  is wrong for a browser does not stop them; a command that starts no browser
+  ignores the options, even a wrong one. A `--plugin` that turns a plugin back
+  on after `SB_PLUGINS` left it out keeps the options the file gave it. Every
+  active plugin is logged at `INFO` with the place that turned it on, and a
+  plugin that declares `launch.proxy`, `artifacts.write` or a `host.*`
+  capability is refused when only the `sbase_config.toml` of the current folder
+  names it: a cloned project must not grant it (name it with `--plugin` or
+  `SB_PLUGINS`, or use `--config`). The library side:
+  `PluginSelection::apply_flags`, `enable_once`, `prune_unused`,
+  `set_enabled_keeping_options` and `to_list` (and `PluginSelection` is `Eq`),
+  `Settings::load_plugin_selection` and `load_plugin_table` (the plugin part of
+  the settings only), the module `cli::plugin_cmd` (`list`, `info`,
+  `check_selection`, `PluginChoice`, `PluginSource`, `apply_to_config`),
+  `DevtoolsRequest::plugins`, `mcp::Settings::with_plugin_selection` and
+  `mcp::serve_with`. See `docs/plugins/selecting.md`.
 - **The shield plugin** is documented (`docs/plugins/shield.md`): what it turns
   off, its levels, WebRTC modes and options, and what has not been verified in a
   real Chrome.

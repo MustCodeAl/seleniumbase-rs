@@ -159,7 +159,9 @@ Highest first:
 
 1. **The command line.** `--plugin` adds a name; `--plugin-opt` sets one key.
 2. **`SB_PLUGINS`**, which replaces the names the file enables, and drops the
-   options of the plugins it no longer names.
+   options of the plugins it no longer names (after the flags are applied, so a
+   `--plugin` that turns such a plugin back on keeps the options the file gave
+   it).
 3. **The `[plugins]` table of the settings file** (`--config FILE`, otherwise
    `sbase_config.toml` in the current folder).
 
@@ -179,11 +181,41 @@ quietly dropped. The same text is in `sbrs --help`.
 | `sbrs test` | Passes the names on to the tests as `SB_PLUGINS`, with the names the file and the variable already turn on, for a test that calls `with_plugin_selection(&settings.plugins)`. It refuses `--plugin-opt`, because the variable carries names only: put the options under `[plugins.NAME]` in the file |
 | `sbrs-mcp` | Every browser the server starts gets them; see below |
 | `sbrs plugin list`, `sbrs plugin info` | Show them; see below |
-| Commands that start no browser (`version`, `doctor`, `install`, `mkfile`, ...) | Ignore the options |
+| Commands that start no browser (`version`, `doctor`, `install`, `mkfile`, ...) | Ignore the options, even a wrong one: `sbrs --plugin 'a b' version` prints the version |
 
-`sbrs devtools`, `sbrs plugin list` and `sbrs plugin info` read the plugin part
-of the settings and nothing else, so a variable that is wrong for a browser
-(`SB_HEADLESS=maybe`) does not stop them.
+`sbrs devtools`, `sbrs plugin list`, `sbrs plugin info` and `sbrs-mcp` read the
+`[plugins]` table of the settings file and nothing else of it, so a variable
+that is wrong for a browser (`SB_HEADLESS=maybe`) or a value of the file that is
+(`headless = "maybe"`) does not stop them.
+
+### What a project file may not turn on alone
+
+The `sbase_config.toml` of the current folder may be a cloned project's, so it
+cannot grant a plugin the powers that reach beyond the browser. A plugin that
+declares `launch.proxy`, `artifacts.write` or a `host.*` capability (see
+`sbrs plugin info NAME`) and is named **only** by that file is refused, with
+exit status 2 and the way to name it yourself (`tunnel` is an example, not a
+built-in plugin):
+
+```text
+error: invalid configuration: plugin `tunnel` asks for launch.proxy, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin tunnel` or `SB_PLUGINS=tunnel`
+```
+
+`--plugin NAME`, `SB_PLUGINS` and a file named with `--config` count as the
+person choosing. The other powers a plugin can declare (`launch.args`,
+`launch.network`, `launch.extensions`, `page.script`, `cdp:*`) are not held back:
+the settings file can already set an extension folder itself. None of the three
+built-in plugins declares one of the held-back powers today. A settings file of
+the person (in their home folder), which would be trusted like `--config`, is
+not built yet.
+
+Every active plugin is logged at `INFO` with the place that turned it on, so a
+file in the folder cannot switch one on unseen:
+
+```text
+INFO plugin enabled plugin=shield source="the settings file in the current folder"
+INFO plugin enabled plugin=crx source="--plugin"
+```
 
 ### sbrs plugin list and sbrs plugin info
 
@@ -243,7 +275,8 @@ error: invalid configuration: no plugin named `sheild` (known: shield, block-res
 ### sbrs-mcp
 
 `sbrs-mcp` takes the same two options, and reads the same table (in the folder
-it runs in) and variable. **The operator chooses the plugins, not the model**:
+it runs in, and only that table) and variable, and logs the active plugins as
+`sbrs` does. **The operator chooses the plugins, not the model**:
 `start_browser` has no plugin argument, and an extra argument adds nothing. All
 three servers (`cdp`, `driver`, `sb`) give every browser they start the plugins,
 in the pure CDP and the WebDriver engine:

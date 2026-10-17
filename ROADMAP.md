@@ -408,7 +408,12 @@ page gets (puppeteer-extra and Zorilla are examples of the ecosystem). Design an
   and `sbrs-mcp --plugin`, with the plugins compiled into the prebuilt `sbrs`
   and `sbrs-mcp`. Tested as the real binaries against a fake WebDriver server
   and a script that records its arguments, not against a real Chrome.
-  **Missing** there: `sbrs plugin add|remove|enable|disable|verify|sync|audit`,
+  A plugin with `launch.proxy`, `host.*` or `artifacts.write` named only by the
+  project's `sbase_config.toml` is refused, and each active plugin is logged
+  with where it was enabled. **Missing** there: the user-config layer (a file
+  of the person, which would also be trusted to grant those powers; only
+  `--config` stands for it today),
+  `sbrs plugin add|remove|enable|disable|verify|sync|audit`,
   `--no-plugins` and `--plugins-dir`, a `plugins` argument for the MCP
   `start_browser` tool and `list_plugins`, the options a plugin accepts in
   `sbrs plugin info` (the plugin API does not describe them), the plugins in the
