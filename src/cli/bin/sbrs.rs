@@ -8,12 +8,12 @@ use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate, Shell};
 use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
+#[cfg(feature = "pdf")]
+use seleniumbase_rs::cli::commands::looks_like_pdf;
 use seleniumbase_rs::cli::commands::{
     blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
     parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
 };
-#[cfg(feature = "pdf")]
-use seleniumbase_rs::cli::commands::looks_like_pdf;
 use seleniumbase_rs::cli::devtools::{
     ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
 };

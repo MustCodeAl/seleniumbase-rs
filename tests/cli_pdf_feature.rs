@@ -58,7 +58,12 @@ fn without_the_pdf_feature_both_commands_exit_with_status_2_and_a_hint() {
     ] {
         let output = sbrs(dir.path(), &args);
 
-        assert_eq!(output.status.code(), Some(2), "{args:?}: {}", stderr(&output));
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{args:?}: {}",
+            stderr(&output)
+        );
         let hint = stderr(&output);
         assert!(
             hint.contains("built without PDF text extraction"),
