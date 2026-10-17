@@ -113,6 +113,9 @@ that break a call are listed first, each with the way to migrate.
 
 ### Fixed
 
+- `enter_totp_code` and `enter_mfa_code` now press Enter after the code, as
+  Python's `enter_mfa_code` does (it types the code and a newline). A test that
+  clicked a submit button after them submits twice and can drop the click.
 - `wait_for_exact_text` looked at every element of the page, `<title>`,
   `<script>` and hidden elements included, so it could find text that no
   visible element showed. It now looks at the selected element and requires it

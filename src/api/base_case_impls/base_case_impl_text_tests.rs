@@ -302,6 +302,42 @@ mod tests_text_argument_order {
     }
 
     #[tokio::test]
+    async fn the_mfa_code_is_typed_followed_by_enter() {
+        // Python types the code plus a newline, so the form is submitted.
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("code")),
+                ("POST", "/elements") => Reply::Value(json!([element("code")])),
+                ("GET", "/element/code/displayed" | "/element/code/enabled") => {
+                    Reply::Value(json!(true))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+        let secret = "JBSWY3DPEHPK3PXP";
+
+        for enter in 0..2 {
+            if enter == 0 {
+                sb.enter_totp_code("#code", secret).await.unwrap();
+            } else {
+                sb.enter_mfa_code("#code", secret).await.unwrap();
+            }
+            let sent = driver.requests("/element/code/value");
+            let typed = sent.last().expect("keys were sent").body["text"]
+                .as_str()
+                .expect("the keys")
+                .to_owned();
+            assert!(
+                typed.len() == 7
+                    && typed.ends_with('\n')
+                    && typed[..6].chars().all(|c| c.is_ascii_digit()),
+                "{typed:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn swapped_arguments_are_named_in_the_failure() {
         let driver = welcome_page();
         let mut sb = driver.base_case().await;

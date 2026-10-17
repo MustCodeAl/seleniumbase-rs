@@ -364,7 +364,7 @@ See the [GUI Automation](./gui_automation.md) tutorial for details.
 |--------|-------------|
 | `get_totp_code(secret)` | Generates a TOTP code from a base32 secret. |
 | `get_mfa_code(secret)` | Alias for `get_totp_code`. |
-| `enter_mfa_code(secret, selector)` | Generates and types a TOTP code into an input. |
+| `enter_mfa_code(selector, secret)` | Generates a TOTP code, types it into an input and presses Enter. |
 
 ## Tours, presentations, charts
 

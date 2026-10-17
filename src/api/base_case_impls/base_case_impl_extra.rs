@@ -1033,14 +1033,16 @@ impl BaseCase {
         self.get_totp_code(secret)
     }
 
-    /// Generates a TOTP code for `secret` and types it into `css`.
+    /// Generates a TOTP code for `secret`, types it into `css` and presses
+    /// Enter, as Python's `enter_mfa_code(selector, totp_key)` does (it types
+    /// the code followed by a newline).
     pub async fn enter_totp_code(
         &mut self,
         css: &str,
         secret: &str,
     ) -> Result<(), SeleniumBaseError> {
         let code = self.get_totp_code(secret)?;
-        self.type_text(css, &code).await
+        self.type_text(css, &format!("{code}\n")).await
     }
 
     /// Alias for `enter_totp_code`.
