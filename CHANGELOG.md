@@ -16,6 +16,13 @@ migrate.
 
 ### Breaking
 
+- **PDF text extraction is the opt-in feature `pdf`.** `pdf-extract` (lopdf, fonts,
+  ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
+  `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF
+  (`print_to_pdf`, `save_as_pdf`) does not. `sbrs pdf-text` and
+  `assert-pdf-text` stay in `--help` and, in a build without the feature, exit
+  with status 2 and say `cargo install seleniumbase-rs --features pdf`.
+
 - **Text assertions take the text first and the selector second**, as Python's
   `assert_text(text, selector)` does. A call with the old order still compiles
   (both arguments are `&str`), so search for these names: `assert_text`,

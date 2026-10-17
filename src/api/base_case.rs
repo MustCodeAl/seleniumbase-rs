@@ -12,6 +12,7 @@ use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::page_scripts::{self, TextMatch};
+#[cfg(feature = "pdf")]
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};

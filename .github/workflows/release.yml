@@ -141,7 +141,7 @@ jobs:
         shell: bash
         run: |
           cargo build --release --locked --target "${{ matrix.target }}" \
-            --bin sbrs --bin sbrs-mcp --features mcp-server
+            --bin sbrs --bin sbrs-mcp --features mcp-server,pdf
 
       - name: Download the completions
         uses: actions/download-artifact@v4

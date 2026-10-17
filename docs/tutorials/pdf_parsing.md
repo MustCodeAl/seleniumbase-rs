@@ -8,11 +8,20 @@ SeleniumBase for Rust can print pages to PDF and extract text from PDF files.
 This is useful for validating generated reports, invoices, receipts, and other
 printable documents.
 
+<Note>
+
+Printing a page to PDF is always available. Reading the text of a PDF needs the
+`pdf` Cargo feature, which pulls in the `pdf-extract` parser (about 34 crates):
+`seleniumbase-rs = { version = "0.4", features = ["pdf"] }`. For the CLI:
+`cargo install seleniumbase-rs --features pdf`. Without it, `sbrs pdf-text` and
+`sbrs assert-pdf-text` exit with status 2 and say how to get it.
+
+</Note>
+
 ## What you will learn
 
 - How to save a page as PDF.
-- How to configure PDF output options.
-- How to extract and assert text from PDF files and bytes.
+- How to extract and assert text from PDF files, bytes and URLs.
 
 ## Save a page as PDF
 
@@ -20,41 +29,41 @@ printable documents.
 sb.save_as_pdf("page.pdf").await?;
 ```
 
-## Print to PDF with options
+`print_to_pdf` is the same call; both print with the page background and the
+page's own CSS page size (CDP `Page.printToPDF`).
+
+## Extract text from a PDF (feature `pdf`)
+
+These are plain functions; they read the file and need no browser.
 
 ```rust
-use seleniumbase_rs::api::pdf::PdfOptions;
-
-let options = PdfOptions::default();
-sb.print_to_pdf("page.pdf", &options).await?;
-```
-
-<Info>
-
-`PdfOptions` lets you control page size, margins, header/footer, landscape mode,
-and other print parameters.
-
-</Info>
-
-## Extract text from a PDF
-
-```rust
-let text = sb.get_pdf_text("page.pdf").await?;
+let text = sb.get_pdf_text("page.pdf")?;
 println!("{text}");
 ```
 
-## Assert PDF contents
+## Assert PDF contents (feature `pdf`)
 
 ```rust
-sb.assert_pdf_text("page.pdf", "SeleniumBase").await?;
+sb.assert_pdf_text("page.pdf", "SeleniumBase")?;
 ```
 
-## Extract text from PDF bytes
+## Bytes, URLs, pages and passwords (feature `pdf`)
 
 ```rust
+use seleniumbase_rs::api::pdf::{self, PdfReader};
+
 let bytes = std::fs::read("page.pdf")?;
-let text = seleniumbase_rs::api::pdf::extract_pdf_text(&bytes)?;
+let text = pdf::extract_text_from_bytes(&bytes)?;
+let remote = pdf::extract_text_from_url("https://example.com/report.pdf").await?;
+
+let reader = PdfReader::open("locked.pdf", Some("secret"))?;
+for (number, page) in reader.pages()?.iter().enumerate() {
+    println!("page {}: {page}", number + 1);
+}
 ```
+
+`extract_text_from_url` refuses downloads larger than
+`pdf::MAX_DOWNLOAD_BYTES` (100 MB).
 
 ## Use cases
 
@@ -69,3 +78,4 @@ let text = seleniumbase_rs::api::pdf::extract_pdf_text(&bytes)?;
 | PDF is blank | Page not fully loaded | Wait for `readyState === 'complete'` before printing. |
 | Text extraction fails | PDF is scanned/image-only | Use OCR or ensure the PDF contains embedded text. |
 | `print_to_pdf` unsupported | Driver is Firefox | Use Chromium-based browsers for CDP print-to-PDF. |
+| `no method named get_pdf_text` | Built without the `pdf` feature | Add `features = ["pdf"]` to the dependency. |

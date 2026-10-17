@@ -16,15 +16,15 @@ test:
 
 # Run tests with all optional features enabled
 test-all:
-    cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
+    cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui,pdf
 
 # Run Clippy with the strictest settings for all features
 lint:
-    cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui -- -D warnings
+    cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui,pdf -- -D warnings
 
 # Build the library and all binaries
 build:
-    cargo build --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui
+    cargo build --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing,gui,tui,pdf
 
 # Build the mdBook documentation
 docs:

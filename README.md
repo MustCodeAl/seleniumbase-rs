@@ -12,6 +12,8 @@
 
 [Quick start](#quick-start) · [Install](#installation) · [Docs](./docs/README.md) · [Examples](#examples) · [Status](#project-status)
 
+**Documentation site: <https://mustcodeal-seleniumbase-rs.docs7.io>**
+
 </div>
 
 `seleniumbase-rs` is a Rust port of the Python SeleniumBase framework and its MCP

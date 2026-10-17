@@ -59,11 +59,17 @@ impl BaseCase {
     }
 
     /// Extracts text from a PDF file on disk.
+    ///
+    /// Needs the `pdf` Cargo feature.
+    #[cfg(feature = "pdf")]
     pub fn get_pdf_text(&self, filename: &str) -> Result<String, SeleniumBaseError> {
         pdf::extract_text_from_file(filename)
     }
 
     /// Asserts that `text` appears inside the given PDF.
+    ///
+    /// Needs the `pdf` Cargo feature.
+    #[cfg(feature = "pdf")]
     pub fn assert_pdf_text(&self, filename: &str, text: &str) -> Result<(), SeleniumBaseError> {
         let content = self.get_pdf_text(filename)?;
         if !content.contains(text) {

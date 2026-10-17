@@ -238,25 +238,29 @@ fn the_commands_that_speak_the_devtools_protocol_work_without_asking_for_a_mode(
     let pdf = std::fs::read(dir.path().join("fixture.pdf")).expect("the PDF is written");
     assert!(pdf.starts_with(b"%PDF"), "a real PDF");
 
-    let text = headless(dir.path(), &["pdf-text", &page]);
-    assert!(text.status.success(), "pdf-text: {}", stderr(&text));
-    assert!(
-        stdout(&text).contains("Welcome to the fixture"),
-        "{}",
-        stdout(&text)
-    );
+    // Reading the text back needs the `pdf` feature.
+    #[cfg(feature = "pdf")]
+    {
+        let text = headless(dir.path(), &["pdf-text", &page]);
+        assert!(text.status.success(), "pdf-text: {}", stderr(&text));
+        assert!(
+            stdout(&text).contains("Welcome to the fixture"),
+            "{}",
+            stdout(&text)
+        );
 
-    let found = headless(
-        dir.path(),
-        &["assert-pdf-text", &page, "--text", "Welcome to the fixture"],
-    );
-    assert!(found.status.success(), "{}", stderr(&found));
-    let absent = headless(
-        dir.path(),
-        &["assert-pdf-text", &page, "--text", "no such words"],
-    );
-    assert!(!absent.status.success());
-    assert!(stdout(&absent).is_empty(), "{}", stdout(&absent));
+        let found = headless(
+            dir.path(),
+            &["assert-pdf-text", &page, "--text", "Welcome to the fixture"],
+        );
+        assert!(found.status.success(), "{}", stderr(&found));
+        let absent = headless(
+            dir.path(),
+            &["assert-pdf-text", &page, "--text", "no such words"],
+        );
+        assert!(!absent.status.success());
+        assert!(stdout(&absent).is_empty(), "{}", stdout(&absent));
+    }
 }
 
 #[test]

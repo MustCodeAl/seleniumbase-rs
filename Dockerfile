@@ -23,7 +23,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir -p src/cli/bin src/bin benches examples tests && \
     touch src/lib.rs \
           benches/cdp_latency.rs benches/cpu.rs \
-          examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs && \
+          examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs examples/pdf_example.rs && \
     echo 'fn main() {}' > src/cli/bin/sbrs.rs && \
     echo 'fn main() {}' > src/bin/mcp_server.rs
 
