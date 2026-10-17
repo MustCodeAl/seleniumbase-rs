@@ -2,10 +2,11 @@
 //! engine instead of WebDriver.
 //!
 //! `BaseCase::activate_playwright_mode` starts a Chromium session with
-//! anti-detection launch arguments and stores it in the test case. The example
-//! then navigates to a page, reads text, evaluates a script, takes a
-//! screenshot, and closes the session. The `playwright` feature is **not**
-//! enabled by default, so the main build does not pull in the Playwright engine.
+//! anti-detection launch arguments, as the case's `BrowserConfig` says, and
+//! stores it in the test case. The example then navigates to a page, reads
+//! text, evaluates a script and takes a screenshot; `BaseCase::quit` closes the
+//! session. The `playwright` feature is **not** enabled by default, so the main
+//! build does not pull in the Playwright engine.
 //!
 //! Run it with:
 //!
@@ -17,8 +18,8 @@
 //! access, or point `BrowserConfig::browser_binary_path` at a local Chromium.
 //! The page itself is served from `127.0.0.1` by `local_site/mod.rs`, so the
 //! example makes no other requests. The browser opens a visible window, because
-//! `PlaywrightSession::launch` is headed on purpose (use `launch_with_config` with
-//! `BrowserConfig::with_headless(true)` for CI). The screenshot is written to `latest_logs/`.
+//! the configuration below says `with_headless(false)` (leave that out, or pass
+//! `true`, for CI). The screenshot is written to `latest_logs/`.
 
 #[cfg(feature = "playwright")]
 mod local_site;
@@ -33,7 +34,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
 
     // Playwright mode brings its own browser, so no WebDriver session is needed.
-    let mut sb = BaseCase::without_session(BrowserConfig::default());
+    let mut sb = BaseCase::without_session(BrowserConfig::default().with_headless(false));
     sb.activate_playwright_mode().await?;
     let session = sb.playwright_session().ok_or_else(|| {
         SeleniumBaseError::Playwright("the Playwright session did not start".to_owned())
@@ -50,7 +51,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
     session.screenshot(&screenshot).await?;
     println!("Screenshot saved to {}", screenshot.display());
 
-    session.close().await?;
+    // Closes the Playwright browser too.
     sb.quit().await
 }
 

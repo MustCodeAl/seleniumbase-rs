@@ -139,3 +139,39 @@ async fn a_missing_element_is_reported_as_not_found() {
 
     session.close().await.expect("Chrome closes");
 }
+
+#[tokio::test]
+#[ignore = "launches Chrome through chromedriver and a second one through rustwright"]
+async fn the_playwright_mode_of_a_case_uses_its_config_and_quit_closes_it() {
+    use seleniumbase_rs::BaseCase;
+
+    let port = serve();
+    let mut sb = BaseCase::new(config().with_user_agent("Agent/1.0"))
+        .await
+        .expect("the case starts");
+    sb.activate_playwright_mode()
+        .await
+        .expect("the Playwright browser starts");
+    {
+        let playwright = sb.playwright_session().expect("the session is active");
+        playwright
+            .goto(&format!("http://127.0.0.1:{port}/"))
+            .await
+            .expect("the page loads");
+        // The case's user agent reached the second browser; it used to start
+        // as a default headed one.
+        assert_eq!(
+            playwright
+                .evaluate("navigator.userAgent")
+                .await
+                .expect("the page runs script"),
+            json!("Agent/1.0")
+        );
+    }
+
+    sb.quit().await.expect("both browsers close");
+    assert!(
+        sb.playwright_session().is_none(),
+        "quit hands the session back and closes it"
+    );
+}

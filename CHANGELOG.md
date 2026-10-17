@@ -587,6 +587,15 @@ migrate.
   `BrowserConfig::with_window_size` instead of always starting maximised at
   1920 by 1080. Without a configured size it behaves as before.
 
+- `BaseCase::activate_playwright_mode` (feature `playwright`) starts its
+  Chromium as the case's `BrowserConfig` says (headless or not, proxy, user
+  agent, locale, fingerprint, binary path, window size), where it always
+  started a default headed one and ignored the configuration; the profile
+  folder is left out, since the WebDriver browser holds it. `quit()` now closes
+  the Playwright session too; it was left running. Behaviour change: a headless
+  configuration now gives a headless Playwright browser, and a test that called
+  `session.close()` itself before `quit()` should leave that to `quit()`.
+
 - `sb_cdp::Locator` reads (`text`, `html`, `attribute`, `info`, `bounding_box`,
   `viewport_rect`) reported every failure as `ElementNotFound`. Only a timeout
   does now. An invalid CSS or XPath selector is `InvalidSelector` (for reads

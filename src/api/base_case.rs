@@ -279,17 +279,45 @@ impl BaseCase {
 
     /// Activates the optional Playwright-compatible stealth browser mode.
     ///
-    /// This creates a fresh Chromium session through
+    /// This starts a second Chromium, through the
     /// [`rustwright`](https://github.com/Skyvern-AI/rustwright) native Rust CDP
-    /// engine and stores it in the test case. When this mode is active you can
-    /// use [`playwright_session`](BaseCase::playwright_session) or the helpers
-    /// in [`crate::api::playwright`] to interact with pages.
+    /// engine, beside the WebDriver browser, and stores it in the test case.
+    /// It is started as this case's configuration says (see
+    /// [`PlaywrightSession::launch_with_config`] for the settings used:
+    /// headless or not, the fingerprint, the proxy, the user agent, the browser
+    /// binary and the window size), except for the profile folder
+    /// ([`BrowserConfig::user_data_dir`]), which the WebDriver browser holds and
+    /// a second Chrome cannot share. A Playwright session that is already
+    /// active is closed first.
+    ///
+    /// When this mode is active you can use
+    /// [`playwright_session`](BaseCase::playwright_session) or the helpers in
+    /// [`crate::api::playwright`] to interact with pages. [`quit`](Self::quit)
+    /// closes the session.
     ///
     /// This method is only available when the `playwright` feature is enabled.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of [`PlaywrightSession::launch_with_config`] if
+    /// Chromium cannot be started, or of closing the session it replaces.
     #[cfg(feature = "playwright")]
     pub async fn activate_playwright_mode(&mut self) -> Result<(), SeleniumBaseError> {
-        self.playwright_session = Some(PlaywrightSession::launch().await?);
+        if let Some(previous) = self.playwright_session.take() {
+            previous.close().await?;
+        }
+        let config = self.playwright_config();
+        self.playwright_session = Some(PlaywrightSession::launch_with_config(&config).await?);
         Ok(())
+    }
+
+    /// The configuration of the Playwright browser: this case's, without the
+    /// profile folder the WebDriver browser already holds.
+    #[cfg(feature = "playwright")]
+    fn playwright_config(&self) -> BrowserConfig {
+        let mut config = self.config.clone();
+        config.user_data_dir = None;
+        config
     }
 
     /// Returns a mutable reference to the active Playwright session, if any.
@@ -1957,12 +1985,22 @@ impl BaseCase {
     /// open, for the next test instead (see [`crate::browser::reuse`]).
     ///
     /// Every browser the case opened is closed, those that
-    /// [`get_new_driver`](Self::get_new_driver) added too. The first error is
-    /// returned after all of them have been tried.
+    /// [`get_new_driver`](Self::get_new_driver) added too, and the Playwright
+    /// session of `activate_playwright_mode` (feature `playwright`). The first
+    /// error is returned after all of them have been tried.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
+        #[cfg(feature = "playwright")]
+        let playwright_closed = match self.playwright_session.take() {
+            Some(playwright) => playwright.close().await,
+            None => Ok(()),
+        };
         let mut result = self.session.quit().await;
+        #[cfg(feature = "playwright")]
+        {
+            result = playwright_closed.and(result);
+        }
         for mut parked in self.drivers.take_all_parked() {
             if let Err(error) = parked.quit().await {
                 result = result.and(Err(error));
@@ -3262,6 +3300,8 @@ include!("base_case_impls/base_case_impl_text_tests.rs");
 include!("base_case_impls/base_case_impl_element_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_demo_tests.rs");
+#[cfg(all(test, feature = "playwright"))]
+include!("base_case_impls/base_case_impl_playwright_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]

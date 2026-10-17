@@ -40,12 +40,8 @@ launch (that is `rustwright`'s behavior, not this crate's). Ensure the build
 host can reach the Chromium CDN, or install Chromium where `rustwright` looks
 for it.
 
-<Warning>
-
-This crate passes `rustwright` no executable path: `BrowserConfig::browser_binary_path`
-applies to the WebDriver sessions and has no effect on Playwright mode.
-
-</Warning>
+To use a Chromium of your own, give `BrowserConfig::browser_binary_path` (or
+`SB_CHROME_BIN`); `launch_with_config` and `activate_playwright_mode` pass it on.
 
 ## Example
 
@@ -62,9 +58,9 @@ if let Some(session) = sb.playwright_session() {
     session.goto("https://example.com").await?;
     let heading = session.get_text("h1").await?;
     println!("Page heading: {heading}");
-    session.close().await?;
 }
 
+// Closes the Playwright browser and the WebDriver one.
 sb.quit().await?;
 # Ok(())
 # }
@@ -73,12 +69,13 @@ sb.quit().await?;
 <Note>
 
 `BaseCase::new` still connects a WebDriver browser first; `activate_playwright_mode`
-then launches a second, separate Chromium through `rustwright`, in headed mode.
-It does not use the `BrowserConfig` you gave `BaseCase::new` (headless, proxy,
-user agent, fingerprint and binary path are not passed on), and `sb.quit()`
-does not close it. Close it with `session.close()`, and when the Playwright
-browser should follow your configuration, start it yourself with
-`PlaywrightSession::launch_with_config(&config)`.
+then launches a second, separate Chromium through `rustwright`. It is started as
+the `BrowserConfig` you gave `BaseCase::new` says: headless or not, proxy, user
+agent, locale, fingerprint, binary path, window size and extra Chrome switches.
+The one setting it leaves out is `user_data_dir`: Chrome locks a profile folder,
+and the WebDriver browser holds it. `sb.quit()` closes the Playwright browser as
+well, so leave that to it. The WebDriver methods of the case act on the first
+browser, not on the Playwright one.
 
 </Note>
 
