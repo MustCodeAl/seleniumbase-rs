@@ -26,8 +26,8 @@ use crate::error::SeleniumBaseError;
 
 /// How long demo mode and slow mode pause after an action unless
 /// [`RunSettings::with_demo_sleep`] says otherwise (Python's
-/// `DEFAULT_DEMO_MODE_TIMEOUT`).
-pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(1200);
+/// `DEFAULT_DEMO_MODE_TIMEOUT`, 0.5 s in 4.55.2).
+pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(500);
 
 /// How long [`BaseCase::post_message`](crate::BaseCase::post_message) shows a
 /// message unless [`RunSettings::with_message_duration`] says otherwise.
@@ -40,7 +40,6 @@ pub const DEFAULT_MESSAGE_SECONDS: u64 = 3;
 pub struct RunSettings {
     demo_mode: bool,
     slow_mode: bool,
-    fast_mode: bool,
     demo_sleep: Option<Duration>,
     message_duration: Option<Duration>,
     skip_js_waits: bool,
@@ -64,11 +63,15 @@ impl RunSettings {
         self
     }
 
-    /// Run at full speed: no demo or slow pauses, whatever else is set
-    /// (`--fast`).
+    /// Python's `--fast`. It does nothing here and never did what this method
+    /// first claimed: Python reads `--fast` only in CDP mode, where it skips
+    /// short waits this crate never makes. It does not cancel demo or slow mode.
+    #[deprecated(
+        since = "0.5.0",
+        note = "Python's --fast skips CDP-mode waits this crate never makes; it has no effect here"
+    )]
     #[must_use]
-    pub fn with_fast_mode(mut self, on: bool) -> Self {
-        self.fast_mode = on;
+    pub fn with_fast_mode(self, _on: bool) -> Self {
         self
     }
 
@@ -137,12 +140,12 @@ impl RunSettings {
 
     /// How long to pause after an action.
     ///
-    /// Zero in fast mode or when neither demo nor slow mode is on. In demo mode
+    /// Zero when neither demo nor slow mode is on. In demo mode
     /// a `tiny` action (typing) pauses for 1/3.4 of the full time, as in
     /// Python. Slow mode always pauses for the full time.
     #[must_use]
     pub fn pause(&self, tiny: bool) -> Duration {
-        if self.fast_mode || !(self.demo_mode || self.slow_mode) {
+        if !(self.demo_mode || self.slow_mode) {
             return Duration::ZERO;
         }
         let full = self.demo_sleep.unwrap_or(DEFAULT_DEMO_PAUSE);
@@ -480,6 +483,23 @@ mod tests {
     }
 
     #[test]
+    fn the_default_demo_pause_is_python_half_a_second() {
+        let settings = RunSettings::default().with_demo_mode(true);
+        assert_eq!(settings.pause(false), Duration::from_millis(500));
+        assert_eq!(DEFAULT_DEMO_PAUSE, Duration::from_millis(500));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn fast_mode_leaves_demo_and_slow_pauses_alone() {
+        let settings = RunSettings::default()
+            .with_demo_mode(true)
+            .with_slow_mode(true)
+            .with_fast_mode(true);
+        assert_eq!(settings.pause(false), DEFAULT_DEMO_PAUSE);
+    }
+
+    #[test]
     fn the_default_changes_nothing() {
         let settings = RunSettings::default();
         assert_eq!(settings.pause(false), Duration::ZERO);
@@ -502,15 +522,6 @@ mod tests {
             .with_demo_sleep(Duration::from_secs(34));
         assert_eq!(settings.pause(false), Duration::from_secs(34));
         assert_eq!(settings.pause(true), Duration::from_secs(10));
-    }
-
-    #[test]
-    fn fast_mode_wins_over_demo_and_slow() {
-        let settings = RunSettings::default()
-            .with_demo_mode(true)
-            .with_slow_mode(true)
-            .with_fast_mode(true);
-        assert_eq!(settings.pause(false), Duration::ZERO);
     }
 
     #[test]

@@ -31,14 +31,14 @@ and returns `RunSettings`.
 |---------|---------------|---------|--------|
 | `with_demo_mode(bool)` | `--demo` (also `--demo-mode`, `--demo_mode`) | off | Scrolls the element into view and outlines it before `click`, `type_text`, `update_text` and `press_keys`, then pauses after those calls and after `open`. |
 | `with_slow_mode(bool)` | `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`) | off | The same pauses, without the outline. |
-| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Cancels the demo and slow pauses, whatever else is set. |
-| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 1.2 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
+| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode. |
+| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 0.5 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
 | `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 3 s | How long `post_message` and its relatives keep a message on the page. Rounded up to whole seconds. |
 | `with_skip_js_waits(bool)` | `--skip-js-waits` (also `--skip_js_waits`, `--sjw`) | off | Makes `wait_for_ready_state_complete` return at once. |
 | `with_record_sleep(bool)` | `--record-sleep` (also `--rec-sleep`) | off | Puts `BaseCase::sleep` calls into the recording. |
 | `with_visual_baseline_reset(bool)` | `--visual-baseline` (also `--visual_baseline`) | off | Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one. |
 
-The defaults are `DEFAULT_DEMO_PAUSE` (1200 ms) and `DEFAULT_MESSAGE_SECONDS`
+The defaults are `DEFAULT_DEMO_PAUSE` (500 ms, Python's `DEFAULT_DEMO_MODE_TIMEOUT`) and `DEFAULT_MESSAGE_SECONDS`
 (3) in the same module.
 
 Two read-only helpers, `pause` and `message_seconds`, show the combined effect of
@@ -132,7 +132,6 @@ fn run_settings_from_env() -> RunSettings {
     let mut settings = RunSettings::default()
         .with_demo_mode(on("MY_DEMO"))
         .with_slow_mode(on("MY_SLOW"))
-        .with_fast_mode(on("MY_FAST"))
         .with_skip_js_waits(on("MY_SKIP_JS_WAITS"))
         .with_record_sleep(on("MY_RECORD_SLEEP"))
         .with_visual_baseline_reset(on("MY_VISUAL_BASELINE"));
@@ -272,9 +271,9 @@ times longer. Keep them off unless a person is watching.
   for example, never pause.
 - **One outline.** Python's `--highlights` (how many times to animate) has no
   counterpart; the outline is drawn once.
-- **Not a speed-up.** `with_fast_mode` removes pauses that demo and slow mode add.
-  It is not a faster browser. `with_skip_js_waits` removes one wait, at the cost
-  of more flaky clicks on pages that are still loading.
+- **Not a speed-up.** There is no switch that removes the pauses of demo and
+  slow mode except turning them off. `with_skip_js_waits` removes one wait, at
+  the cost of more flaky clicks on pages that are still loading.
 
 ## What is tested
 

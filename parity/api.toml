@@ -4807,19 +4807,16 @@ rust = "BrowserConfig::with_external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--fast"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_pytest."--fast-mode"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_pytest."--fast_mode"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_pytest."--fdebug"]
 status = "not-applicable"
@@ -5791,9 +5788,8 @@ rust = "BrowserConfig::with_external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_sb."fast"]
-status = "implemented"
-rust = "RunSettings::with_fast_mode"
-note = "Cancels the demo and slow pauses."
+status = "not-applicable"
+reason = "Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
 
 [options_sb."firefox_arg"]
 status = "implemented"

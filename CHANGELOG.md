@@ -8,6 +8,18 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Fixed
+
+- `RunSettings` demo and slow mode pause for 0.5 s after an action, as Python
+  4.55.2 does (`DEFAULT_DEMO_MODE_TIMEOUT`); `DEFAULT_DEMO_PAUSE` was 1.2 s.
+  Pass `with_demo_sleep` to keep a longer pause.
+- `RunSettings::with_fast_mode` (`--fast`) no longer cancels demo and slow
+  mode. Python reads `--fast` only in CDP mode, where it skips short waits this
+  crate never makes, so the method is deprecated and does nothing. Behaviour
+  change: a run with demo or slow mode and `--fast` now pauses; drop the
+  `with_fast_mode(true)` call to keep the old effect of "no pauses" by turning
+  the mode off instead.
+
 ### Changed (breaking)
 
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,
