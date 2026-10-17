@@ -345,3 +345,28 @@ async fn a_browser_attached_by_name_reports_the_host_it_was_reached_on() {
     attached.close().await.unwrap();
     browser.close().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+async fn origin_locale_screen_and_the_active_element_click() {
+    let (browser, page, base, _) = open().await;
+
+    assert_eq!(page.origin().await.unwrap(), base);
+    assert!(!page.locale_code().await.unwrap().is_empty());
+    let screen = page.screen_rect().await.unwrap();
+    assert!(screen.width > 0.0 && screen.height > 0.0, "{screen:?}");
+    assert!(screen.avail_width <= screen.width, "{screen:?}");
+
+    page.evaluate(
+        "window.clicked = 0; \
+         const go = document.getElementById('go'); \
+         go.onclick = () => { window.clicked += 1; }; \
+         go.focus();",
+    )
+    .await
+    .unwrap();
+    page.click_active_element().await.unwrap();
+    assert_eq!(page.evaluate("window.clicked").await.unwrap(), 1);
+
+    browser.close().await.unwrap();
+}

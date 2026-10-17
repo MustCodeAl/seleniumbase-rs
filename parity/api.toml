@@ -2042,9 +2042,10 @@ rust = "Locator::click"
 note = "Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."click_active_element"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"document.activeElement.click()\")`."
+status = "implemented"
+rust = "Page::click_active_element"
+note = "`page.click_active_element()` calls `click()` on `document.activeElement`."
+divergence = "Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait."
 
 [cdp."click_and_hold"]
 status = "composed"
@@ -2286,9 +2287,9 @@ rust = "Storage::get"
 note = "`page.local_storage().get(key)`."
 
 [cdp."get_locale_code"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"navigator.language\")`."
+status = "implemented"
+rust = "Page::locale_code"
+note = "`page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty."
 
 [cdp."get_mfa_code"]
 status = "composed"
@@ -2306,9 +2307,9 @@ rust = "Locator::locator"
 note = "Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call."
 
 [cdp."get_origin"]
-status = "composed"
-rust = "Page::evaluate"
-note = "No method: `page.evaluate(\"location.origin\")`."
+status = "implemented"
+rust = "Page::origin"
+note = "`page.origin()` is `window.location.origin`."
 
 [cdp."get_page_source"]
 status = "composed"
@@ -2351,9 +2352,10 @@ rust = "Browser::http_url"
 note = "`browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to."
 
 [cdp."get_screen_rect"]
-status = "composed"
-rust = "Page::evaluate"
-note = "Python returns `window.screen`. Read it with `page.evaluate(\"({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })\")`. `page.window().bounds()` is the browser window's rectangle, not the screen's."
+status = "implemented"
+rust = "Page::screen_rect"
+note = "`page.screen_rect()` returns a `ScreenRect` of the display (`window.screen`): size, usable area and colour depth. `page.window().bounds()` is the browser window's rectangle, not the screen's, and `Locator::screen_rect` is an element's rectangle in screen coordinates."
+divergence = "Python returns the `window.screen` object as it serialises, a dict; this is a typed struct of the numeric fields."
 
 [cdp."get_session_storage_item"]
 status = "composed"

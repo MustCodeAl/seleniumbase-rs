@@ -139,6 +139,8 @@ pub use state::{
     Cookie, Cookies, Emulation, SameSite, Storage, StorageArea, Window, WindowBounds, WindowState,
 };
 #[doc(inline)]
-pub use types::{ElementInfo, PageInfo, Permission, Point, Rect, Scroll, SelectBy, State};
+pub use types::{
+    ElementInfo, PageInfo, Permission, Point, Rect, Scroll, ScreenRect, SelectBy, State,
+};
 #[doc(inline)]
 pub use webrtc::{AddressKind, CandidateKind, IceCandidate, WebRtcReport};

@@ -13,7 +13,7 @@ use super::browser::Browser;
 use super::client::Events;
 use super::locator::Locator;
 use super::sync::locked;
-use super::types::{PageInfo, Scroll, State};
+use super::types::{PageInfo, ScreenRect, Scroll, State};
 use crate::error::SeleniumBaseError;
 use crate::utilities::retry::{poll_until, RetryPolicy};
 use crate::utils::selectors::SelectorBuf;
@@ -593,6 +593,68 @@ impl Page {
     /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
     pub async fn user_agent(&self) -> Result<String, SeleniumBaseError> {
         self.string_of("navigator.userAgent").await
+    }
+
+    /// The origin of the current document, such as `https://example.com`
+    /// (`window.location.origin`).
+    ///
+    /// Python's `sb.cdp.get_origin()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
+    pub async fn origin(&self) -> Result<String, SeleniumBaseError> {
+        self.string_of("window.location.origin").await
+    }
+
+    /// The browser's language, such as `en-US`: `navigator.language`, or the
+    /// first of `navigator.languages` when that is empty.
+    ///
+    /// Python's `sb.cdp.get_locale_code()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
+    pub async fn locale_code(&self) -> Result<String, SeleniumBaseError> {
+        self.string_of("navigator.language || navigator.languages[0]")
+            .await
+    }
+
+    /// The display the page is shown on (`window.screen`).
+    ///
+    /// Python's `sb.cdp.get_screen_rect()`. This is the monitor; for the
+    /// browser window see [`Page::window`], and for an element's rectangle in
+    /// screen coordinates [`Locator::screen_rect`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried,
+    /// or [`SeleniumBaseError::Json`] if it answers with something else.
+    pub async fn screen_rect(&self) -> Result<ScreenRect, SeleniumBaseError> {
+        // The properties of `window.screen` live on its prototype, so
+        // `JSON.stringify(screen)` would give `{}`; read them one by one.
+        self.evaluate_as(
+            "({ width: screen.width, height: screen.height, \
+             availWidth: screen.availWidth, availHeight: screen.availHeight, \
+             availLeft: screen.availLeft || 0, availTop: screen.availTop || 0, \
+             colorDepth: screen.colorDepth, pixelDepth: screen.pixelDepth })",
+        )
+        .await
+    }
+
+    /// Clicks the element that has keyboard focus (`document.activeElement`).
+    ///
+    /// Python's `sb.cdp.click_active_element()`. It calls the element's
+    /// `click()`, so the page sees a click event but not a mouse move; unlike
+    /// Python it does not pause for 0.2 seconds afterwards.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried,
+    /// or nothing has focus that can be clicked.
+    pub async fn click_active_element(&self) -> Result<(), SeleniumBaseError> {
+        self.evaluate("document.activeElement.click()").await?;
+        Ok(())
     }
 
     /// The uncaught script errors and unhandled promise rejections the current

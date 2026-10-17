@@ -21,7 +21,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | --- | ---: | ---: | ---: | ---: | ---: |
 | [BaseCase methods](#basecase-methods) | 453 | 439 | 4 | 10 | 0 |
 | [Driver methods](#driver-methods) | 79 | 77 | 2 | 0 | 0 |
-| [CDP Mode methods](#cdp-mode-methods) | 215 | 7 | 194 | 14 | 0 |
+| [CDP Mode methods](#cdp-mode-methods) | 215 | 11 | 190 | 14 | 0 |
 | [Command-line commands](#command-line-commands) | 36 | 21 | 7 | 8 | 0 |
 | [pytest options](#pytest-options) | 263 | 115 | 105 | 43 | 0 |
 | [`SB()` arguments](#sb()-arguments) | 107 | 51 | 40 | 16 | 0 |
@@ -614,7 +614,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `clear_cookies` | composed | `Cookies::clear` | `page.cookies().clear(..)`. |
 | `clear_input` | composed | `Locator::clear` | Call `page.locator(selector).clear(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `click` | composed | `Locator::click` | Call `page.locator(selector).click(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `click_active_element` | composed | `Page::evaluate` | No method: `page.evaluate("document.activeElement.click()")`. |
+| `click_active_element` | implemented | `Page::click_active_element` | `page.click_active_element()` calls `click()` on `document.activeElement`. Differs: Does not pause for 0.2 seconds afterwards; wait for what the click causes with a Locator wait. |
 | `click_and_hold` | composed | `Locator::click_and_hold` | `page.locator(selector).click_and_hold(Duration::from_secs(2))` scrolls the element into view, presses at its centre, holds for the given time and releases there. Mouse::down and Mouse::up act at coordinates. |
 | `click_captcha` | composed | `Page::solve_captcha` | A method of the Page that sb.cdp drives: `page.solve_captcha(..)`. |
 | `click_if_visible` | composed | `Locator::click` | Locator::click has no "only if visible" condition; check `page.locator(selector).is_visible()` first. |
@@ -663,11 +663,11 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_gui_element_rect` | composed | `Locator::screen_rect` | Call `page.locator(selector).screen_rect(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `get_html` | composed | `Page::content` | `page.content()` returns the whole page's HTML, `document.documentElement.outerHTML`, which is what Python returns with `include_shadow_dom=False`. Python's default (True) reads the html element's outer HTML through DevTools; whether that adds shadow-root content was not compared. For one element use `page.locator(selector).html()`. |
 | `get_local_storage_item` | composed | `Storage::get` | `page.local_storage().get(key)`. |
-| `get_locale_code` | composed | `Page::evaluate` | No method: `page.evaluate("navigator.language")`. |
+| `get_locale_code` | implemented | `Page::locale_code` | `page.locale_code()` is `navigator.language`, or the first of `navigator.languages` when that is empty. |
 | `get_mfa_code` | composed | `BaseCase::get_mfa_code` | BaseCase::get_mfa_code computes the TOTP code and needs no browser; it is a method of the WebDriver-engine BaseCase. |
 | `get_navigation_history` | composed | `Page::execute` | Raw protocol call: `page.execute(..)` with `Page.getNavigationHistory`. |
 | `get_nested_element` | composed | `Locator::locator` | Call `page.locator(selector).locator(..)`; the Locator holds the selector, so it is not an argument of the call. |
-| `get_origin` | composed | `Page::evaluate` | No method: `page.evaluate("location.origin")`. |
+| `get_origin` | implemented | `Page::origin` | `page.origin()` is `window.location.origin`. |
 | `get_page_source` | composed | `Page::content` | `page.content()` returns the page's HTML. |
 | `get_page_title` | composed | `Page::title` | `page.title()`. |
 | `get_parent` | composed | `Locator::parent` | Call `page.locator(selector).parent(..)`; the Locator holds the selector, so it is not an argument of the call. |
@@ -676,7 +676,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `get_rd_host` | composed | `Browser::debugging_host` | `browser.debugging_host()` is `127.0.0.1` for a launched browser and the host given to `Browser::connect` for an attached one. |
 | `get_rd_port` | composed | `Browser::debugging_port` | `browser.debugging_port()`. |
 | `get_rd_url` | composed | `Browser::http_url` | `browser.http_url()` is the DevTools HTTP endpoint, on the host the browser was launched on or attached to. |
-| `get_screen_rect` | composed | `Page::evaluate` | Python returns `window.screen`. Read it with `page.evaluate("({ width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight })")`. `page.window().bounds()` is the browser window's rectangle, not the screen's. |
+| `get_screen_rect` | implemented | `Page::screen_rect` | `page.screen_rect()` returns a `ScreenRect` of the display (`window.screen`): size, usable area and colour depth. `page.window().bounds()` is the browser window's rectangle, not the screen's, and `Locator::screen_rect` is an element's rectangle in screen coordinates. Differs: Python returns the `window.screen` object as it serialises, a dict; this is a typed struct of the numeric fields. |
 | `get_session_storage_item` | composed | `Storage::get` | `page.session_storage().get(key)`. |
 | `get_tabs` | composed | `Browser::pages` | `browser.pages()`. |
 | `get_text` | composed | `Locator::text` | Call `page.locator(selector).text(..)`; the Locator holds the selector, so it is not an argument of the call. |

@@ -8,6 +8,12 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Added
+
+- `sb_cdp::Page::origin`, `locale_code`, `screen_rect` (a `ScreenRect` of the
+  display) and `click_active_element`: Python's `sb.cdp.get_origin`,
+  `get_locale_code`, `get_screen_rect` and `click_active_element`.
+
 ### Fixed
 
 - `sb_cdp::Locator` reads (`text`, `html`, `attribute`, `info`, `bounding_box`,
