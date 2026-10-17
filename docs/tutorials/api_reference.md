@@ -174,7 +174,7 @@ is called. Useful for soft assertions.
 | `deferred_assert_element(selector)` | Checks the element is visible; records a failure if not. |
 | `deferred_assert_text(text, selector)` | Checks the element contains the text; records a failure if not. |
 | `deferred_assert_element_present(selector)` | Checks the element is in the page, visible or not. |
-| `deferred_assert_exact_text(selector, text)` | Checks the element's text is exactly `text`. |
+| `deferred_assert_exact_text(text, selector)` | Checks the element's text is exactly `text`. |
 | `deferred_assert_non_empty_text(selector)` | Checks the element shows some text. |
 | `deferred_check_window(name, level)` | Runs `check_window` and records a difference as a failure. |
 | `process_deferred_asserts()` | Fails if any deferred assertion failed. |

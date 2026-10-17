@@ -54,11 +54,12 @@ impl BaseCase {
 
     /// Checks now that the text of `css` is exactly `text`, and records a
     /// failure for [`process_deferred_asserts`](Self::process_deferred_asserts)
-    /// to report. Corresponds to Python's `deferred_assert_exact_text`.
+    /// to report. The text comes first and the selector second, as in
+    /// Python's `deferred_assert_exact_text(text, selector)`.
     pub async fn deferred_assert_exact_text(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_exact_text(self, text, css).await;
@@ -89,13 +90,14 @@ impl BaseCase {
         self.deferred_assert_element_present(css).await
     }
 
-    /// Alias for `deferred_assert_exact_text`.
+    /// Alias for `deferred_assert_exact_text`: the text comes first and the
+    /// selector second.
     pub async fn delayed_assert_exact_text(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.deferred_assert_exact_text(css, text).await
+        self.deferred_assert_exact_text(text, css).await
     }
 
     /// Alias for `deferred_assert_non_empty_text`.
@@ -106,11 +108,12 @@ impl BaseCase {
         self.deferred_assert_non_empty_text(css).await
     }
 
-    /// Alias for `deferred_assert_text`.
+    /// Alias for `deferred_assert_text`: the text comes first and the
+    /// selector second.
     pub async fn delayed_assert_text(
         &mut self,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.deferred_assert_text(text, css).await
     }

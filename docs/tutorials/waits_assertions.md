@@ -125,7 +125,7 @@ want to see all failures at once.
 ```rust
 sb.deferred_assert_element("#header").await?;
 sb.deferred_assert_text("Terms", "footer").await?;
-sb.deferred_assert_exact_text("#status", "Ready").await?;
+sb.deferred_assert_exact_text("Ready", "#status").await?;
 
 // Process all deferred assertions; this is where failures are raised.
 sb.process_deferred_asserts().await?;

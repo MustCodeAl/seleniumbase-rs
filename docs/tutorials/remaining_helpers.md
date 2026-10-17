@@ -207,7 +207,7 @@ called:
 
 ```rust
 sb.deferred_assert_element_present("#result").await?;
-sb.deferred_assert_exact_text("#result", "Done").await?; // (selector, text)
+sb.deferred_assert_exact_text("Done", "#result").await?;
 sb.process_deferred_asserts().await?;
 ```
 

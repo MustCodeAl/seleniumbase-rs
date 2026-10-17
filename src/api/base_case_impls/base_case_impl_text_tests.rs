@@ -134,6 +134,46 @@ mod tests_text_argument_order {
     }
 
     #[tokio::test]
+    async fn the_deferred_text_checks_and_their_delayed_aliases_take_the_text_first() {
+        // `delayed_assert_text` used to take the selector first while the
+        // method it calls takes the text first, so `("Welcome", "h1")` looked
+        // for an element called `Welcome`.
+        let driver = welcome_page();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        sb.deferred_assert_text("Welcome", "h1").await.unwrap();
+        sb.delayed_assert_text("Welcome", "h1").await.unwrap();
+        sb.deferred_assert_exact_text("Welcome", "h1").await.unwrap();
+        sb.delayed_assert_exact_text("Welcome", "h1").await.unwrap();
+        sb.process_deferred_asserts()
+            .await
+            .expect("all four checks hold");
+
+        assert!(
+            looked_up(&driver).iter().all(|selector| selector == "h1"),
+            "the driver was asked for something that is not a selector: {:?}",
+            looked_up(&driver)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_deferred_text_check_that_fails_is_reported_when_the_asserts_are_processed() {
+        let driver = welcome_page();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+
+        sb.delayed_assert_text("Goodbye", "h1").await.unwrap();
+        sb.delayed_assert_exact_text("Goodbye", "h1").await.unwrap();
+        let error = sb
+            .process_deferred_asserts()
+            .await
+            .expect_err("both checks failed")
+            .to_string();
+        assert!(error.contains("Goodbye"), "{error}");
+    }
+
+    #[tokio::test]
     async fn swapped_arguments_are_named_in_the_failure() {
         let driver = welcome_page();
         let mut sb = driver.base_case().await;

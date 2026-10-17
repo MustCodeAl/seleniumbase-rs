@@ -140,7 +140,7 @@ async fn deferred_asserts_look_at_the_page_they_were_made_on() {
 
     // The variants that used to check the wrong thing.
     sb.open(PAGE_A).await.expect("open page A");
-    sb.deferred_assert_exact_text("#only-a", "Welcome")
+    sb.deferred_assert_exact_text("Welcome", "#only-a")
         .await
         .expect("record");
     sb.deferred_assert_non_empty_text("#empty")

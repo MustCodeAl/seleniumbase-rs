@@ -61,6 +61,20 @@ that break a call are listed first, each with the way to migrate.
   `wait_for_text` now waits for the text to be displayed, like
   `wait_for_text_visible` (in Python the first is an alias of the second).
 
+- **The deferred and delayed text checks take `(text, css)`.**
+  `deferred_assert_exact_text`, `delayed_assert_exact_text` and
+  `delayed_assert_text` took the selector first. `delayed_assert_text` also
+  passed its arguments on in the other order, so `delayed_assert_text("Welcome",
+  "h1")` looked for an element called `Welcome`; all three now follow Python's
+  `(text, selector)`, like `deferred_assert_text`.
+
+  ```rust
+  // before
+  sb.deferred_assert_exact_text("#status", "Ready").await?;
+  // after
+  sb.deferred_assert_exact_text("Ready", "#status").await?;
+  ```
+
 ### Changed
 
 - `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
