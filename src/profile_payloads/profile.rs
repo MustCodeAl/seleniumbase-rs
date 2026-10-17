@@ -297,13 +297,13 @@ fn default_webrtc_masking() -> String {
     "mask".into()
 }
 fn default_proxy_masking() -> String {
-    "disabled".into()
+    "auto".into()
 }
 fn default_geolocation_popup() -> String {
-    "prompt".into()
+    "auto".into()
 }
 fn default_audio_masking() -> String {
-    "natural".into()
+    "auto".into()
 }
 fn default_graphics_noise() -> String {
     "mask".into()
@@ -327,7 +327,7 @@ fn default_fonts_masking() -> String {
     "mask".into()
 }
 fn default_media_devices_masking() -> String {
-    "natural".into()
+    "auto".into()
 }
 fn default_screen_masking() -> String {
     "mask".into()
@@ -351,6 +351,7 @@ fn default_save_service_worker() -> bool {
 
 fn parse_canvas_noise(s: &str) -> CanvasNoiseMode {
     match s.to_lowercase().as_str() {
+        "auto" => CanvasNoiseMode::Auto,
         "natural" => CanvasNoiseMode::Natural,
         "disabled" | "off" => CanvasNoiseMode::Disabled,
         "random" => CanvasNoiseMode::Random,
@@ -364,7 +365,8 @@ fn parse_popup(s: &str) -> PopupMode {
     match s.to_lowercase().as_str() {
         "allow" => PopupMode::Allow,
         "block" => PopupMode::Block,
-        _ => PopupMode::Prompt,
+        "prompt" => PopupMode::Prompt,
+        _ => PopupMode::Auto,
     }
 }
 
@@ -409,13 +411,13 @@ fn parse_dimensions(s: &str) -> Option<(u32, u32, u32)> {
 fn parse_screen_masking(s: &str) -> (MaskingMode, Option<(u32, u32, u32)>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "native" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "native" | "off" | "disabled" | "block" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "custom" | "mask" | "spoof" => return (MaskingMode::Mask, None),
         _ => {}
     }
     if let Some(dims) = parse_dimensions(s) {
-        return (MaskingMode::Custom, Some(dims));
+        return (MaskingMode::Mask, Some(dims));
     }
     (MaskingMode::Mask, None)
 }
@@ -423,8 +425,8 @@ fn parse_screen_masking(s: &str) -> (MaskingMode, Option<(u32, u32, u32)>) {
 fn parse_geolocation_masking(s: &str) -> (MaskingMode, Option<(f64, f64, f64)>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "auto" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "off" | "disabled" | "block" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "custom" | "mask" | "spoof" => return (MaskingMode::Mask, None),
         _ => {}
     }
@@ -435,7 +437,7 @@ fn parse_geolocation_masking(s: &str) -> (MaskingMode, Option<(f64, f64, f64)>) 
                 .get(2)
                 .and_then(|p| p.trim().parse().ok())
                 .unwrap_or(0.0);
-            return (MaskingMode::Custom, Some((latitude, longitude, altitude)));
+            return (MaskingMode::Mask, Some((latitude, longitude, altitude)));
         }
     }
     (MaskingMode::Mask, None)
@@ -444,15 +446,17 @@ fn parse_geolocation_masking(s: &str) -> (MaskingMode, Option<(f64, f64, f64)>) 
 fn parse_graphics_masking(s: &str) -> (MaskingMode, Option<(String, String)>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "pass_through" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "pass_through" | "off" | "disabled" | "block" => {
+            return (MaskingMode::Natural, None)
+        }
+        "auto" => return (MaskingMode::Auto, None),
         "spoof" | "generic" | "mask" => return (MaskingMode::Mask, None),
         _ => {}
     }
     let parts: Vec<&str> = s.split('~').collect();
     if parts.len() >= 2 {
         return (
-            MaskingMode::Custom,
+            MaskingMode::Mask,
             Some((parts[0].trim().to_string(), parts[1].trim().to_string())),
         );
     }
@@ -466,13 +470,13 @@ fn is_user_agent(s: &str) -> bool {
 fn parse_navigator_masking(s: &str) -> (MaskingMode, Option<String>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "off" | "disabled" | "block" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "mask" | "spoof" | "desktop_chrome" | "mobile_safari" => return (MaskingMode::Mask, None),
         _ => {}
     }
     if is_user_agent(s) {
-        return (MaskingMode::Custom, Some(s.trim().to_string()));
+        return (MaskingMode::Mask, Some(s.trim().to_string()));
     }
     (MaskingMode::Mask, None)
 }
@@ -480,13 +484,13 @@ fn parse_navigator_masking(s: &str) -> (MaskingMode, Option<String>) {
 fn parse_localization_masking(s: &str) -> (MaskingMode, Option<String>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "auto" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "off" | "disabled" | "block" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "mask" | "spoof" | "custom" => return (MaskingMode::Mask, None),
         _ => {}
     }
     if s.contains('-') {
-        return (MaskingMode::Custom, Some(s.trim().to_string()));
+        return (MaskingMode::Mask, Some(s.trim().to_string()));
     }
     (MaskingMode::Mask, None)
 }
@@ -494,13 +498,13 @@ fn parse_localization_masking(s: &str) -> (MaskingMode, Option<String>) {
 fn parse_timezone_masking(s: &str) -> (MaskingMode, Option<String>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "auto" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "off" | "disabled" | "block" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "mask" | "spoof" | "custom" => return (MaskingMode::Mask, None),
         _ => {}
     }
     if s.contains('/') {
-        return (MaskingMode::Custom, Some(s.trim().to_string()));
+        return (MaskingMode::Mask, Some(s.trim().to_string()));
     }
     (MaskingMode::Mask, None)
 }
@@ -508,8 +512,8 @@ fn parse_timezone_masking(s: &str) -> (MaskingMode, Option<String>) {
 fn parse_fonts_masking(s: &str) -> (MaskingMode, Option<Vec<String>>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" => return (MaskingMode::Disabled, None),
+        "natural" | "off" | "disabled" | "block" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "mask" | "spoof" | "system_only" | "random" | "blacklist" => {
             return (MaskingMode::Mask, None)
         }
@@ -521,7 +525,7 @@ fn parse_fonts_masking(s: &str) -> (MaskingMode, Option<Vec<String>>) {
         .filter(|f| !f.is_empty())
         .collect();
     if !fonts.is_empty() {
-        return (MaskingMode::Custom, Some(fonts));
+        return (MaskingMode::Mask, Some(fonts));
     }
     (MaskingMode::Mask, None)
 }
@@ -550,13 +554,13 @@ fn parse_media_devices_masking(
 ) -> (MaskingMode, Option<(u32, u32, u32, Vec<MediaDeviceSpec>)>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "off" => return (MaskingMode::Natural, None),
-        "disabled" | "block" | "empty" => return (MaskingMode::Disabled, None),
+        "natural" | "off" | "disabled" | "block" | "empty" => return (MaskingMode::Natural, None),
+        "auto" => return (MaskingMode::Auto, None),
         "mask" | "spoof" | "noise" => return (MaskingMode::Mask, None),
         _ => {}
     }
     if lower.starts_with("2_mic_1_cam") {
-        return (MaskingMode::Custom, Some((2, 1, 1, vec![])));
+        return (MaskingMode::Mask, Some((2, 1, 1, vec![])));
     }
     if s.contains(':') && s.contains('|') {
         let specs = parse_media_device_specs(s);
@@ -564,7 +568,7 @@ fn parse_media_devices_masking(
         let audio_outputs = specs.iter().filter(|d| d.kind == "audiooutput").count() as u32;
         let video_inputs = specs.iter().filter(|d| d.kind == "videoinput").count() as u32;
         return (
-            MaskingMode::Custom,
+            MaskingMode::Mask,
             Some((
                 audio_inputs.max(1),
                 audio_outputs.max(1),
@@ -632,12 +636,10 @@ fn parse_proxy_url(s: &str) -> Option<stealth_fp::ProxyConfig> {
 fn parse_proxy_masking(s: &str) -> (ProxyMaskingMode, Option<stealth_fp::ProxyConfig>) {
     let lower = s.to_lowercase();
     match lower.as_str() {
-        "natural" | "off" | "direct" => return (ProxyMaskingMode::Disabled, None),
-        "disabled" => return (ProxyMaskingMode::Disabled, None),
-        "socks5" => return (ProxyMaskingMode::Socks5, None),
-        "http" => return (ProxyMaskingMode::Http, None),
-        "https" => return (ProxyMaskingMode::Https, None),
-        "custom" => return (ProxyMaskingMode::Custom, None),
+        "natural" | "off" | "direct" | "disabled" => return (ProxyMaskingMode::Disabled, None),
+        "auto" => return (ProxyMaskingMode::Auto, None),
+        // The proxy's own type says how to reach it.
+        "socks5" | "http" | "https" | "custom" => return (ProxyMaskingMode::Custom, None),
         _ => {}
     }
     if let Some(cfg) = parse_proxy_url(s) {
@@ -650,9 +652,12 @@ fn parse_webrtc_masking(s: &str) -> (MaskingMode, Option<WebRtcPolicy>, Option<(
     let lower = s.to_lowercase();
     match lower.as_str() {
         "natural" | "off" => return (MaskingMode::Natural, None, None),
+        "auto" => return (MaskingMode::Auto, None, None),
+        // Blocking WebRTC is the policy that stops the leak, which a policy
+        // switches on whatever else the profile holds.
         "disabled" | "block" => {
             return (
-                MaskingMode::Disabled,
+                MaskingMode::Auto,
                 Some(WebRtcPolicy::DisableNonProxiedUdp),
                 None,
             )
@@ -692,7 +697,7 @@ fn parse_webrtc_masking(s: &str) -> (MaskingMode, Option<WebRtcPolicy>, Option<(
     }
     if public_ip.is_some() || local_ip.is_some() {
         return (
-            MaskingMode::Custom,
+            MaskingMode::Mask,
             Some(WebRtcPolicy::PublicAndPrivateInterfaces),
             Some((public_ip.unwrap_or_default(), local_ip.unwrap_or_default())),
         );
@@ -706,8 +711,8 @@ fn parse_webrtc_masking(s: &str) -> (MaskingMode, Option<WebRtcPolicy>, Option<(
 
 fn parse_audio_masking(s: &str) -> MaskingMode {
     match s.to_lowercase().as_str() {
-        "natural" | "off" => MaskingMode::Natural,
-        "disabled" | "block" => MaskingMode::Disabled,
+        "natural" | "off" | "disabled" | "block" => MaskingMode::Natural,
+        "auto" => MaskingMode::Auto,
         _ => MaskingMode::Mask,
     }
 }
@@ -727,12 +732,23 @@ impl ProfileParams {
     /// Converts the external profile payload into a [`StealthFingerprint`] that can
     /// be injected into a browser session.
     ///
-    /// Masking flags may be either behavioural keywords (e.g. `"mask"`,
-    /// `"custom"`) or concrete literal values (e.g. `"1920x1080x24"`,
-    /// `"America/New_York"`, `"socks5://user:pass@host:1080"`). When a literal
-    /// value is supplied, the corresponding mode is set to `Custom` and the
-    /// value is written into the fingerprint so providers and launch args can
-    /// use it.
+    /// Masking flags may be either behavioural keywords or concrete literal
+    /// values (e.g. `"1920x1080x24"`, `"America/New_York"`,
+    /// `"socks5://user:pass@host:1080"`):
+    ///
+    /// - `"natural"` and `"off"` (also `"disabled"` and `"block"`) switch the
+    ///   dimension off, whatever values the payload holds for it.
+    /// - `"auto"` switches it on exactly when the payload holds a value for it.
+    ///   It is the default of the audio, media device, geolocation popup and
+    ///   proxy flags.
+    /// - `"mask"` (also `"spoof"` and `"custom"`) switches it on and fills the
+    ///   values the payload lacks with generic ones.
+    /// - A literal value switches it on as `"mask"` does and is written into the
+    ///   fingerprint so the providers and launch arguments use it.
+    ///
+    /// The flags are applied as the explicit last word over the fingerprint
+    /// values, so none of the values turns a dimension on that a flag switched
+    /// off.
     pub fn to_fingerprint(&self) -> StealthFingerprint {
         let (screen_mode, screen_dims) =
             parse_screen_masking(&self.parameters.flags.screen_masking);
@@ -752,37 +768,42 @@ impl ProfileParams {
         let (webrtc_mode, webrtc_policy, webrtc_ips) =
             parse_webrtc_masking(&self.parameters.flags.webrtc_masking);
 
+        let flags = StealthFlags {
+            webrtc_masking: webrtc_mode,
+            audio_masking: parse_audio_masking(&self.parameters.flags.audio_masking),
+            graphics_noise: parse_graphics_noise(&self.parameters.flags.graphics_noise),
+            geolocation_popup: parse_popup(&self.parameters.flags.geolocation_popup),
+            navigator_masking: nav_mode,
+            localization_masking: loc_mode,
+            timezone_masking: tz_mode,
+            graphics_masking: gfx_mode,
+            fonts_masking: fonts_mode,
+            media_devices_masking: media_mode,
+            screen_masking: screen_mode,
+            geolocation_masking: geo_mode,
+            ports_masking: ports_mode,
+            proxy_masking: proxy_mode,
+            quic_mode: parse_quic(&self.parameters.flags.quic_mode),
+            // A payload that names no canvas mode keeps the seeded noise.
+            canvas_noise: self
+                .parameters
+                .flags
+                .canvas_noise
+                .as_deref()
+                .map_or(CanvasNoiseMode::Mask, parse_canvas_noise),
+            startup_behavior: parse_startup(&self.parameters.flags.startup_behavior),
+            disable_csp: self.parameters.flags.disable_csp,
+            grant_permissions: self.parameters.flags.grant_permissions,
+            native_spoofing: self.parameters.flags.native_spoofing,
+            ..StealthFlags::balanced()
+        };
+
         let mut builder = StealthFingerprint::builder()
             .os_type(parse_os(&self.os_type))
-            .flags(StealthFlags {
-                webrtc_masking: webrtc_mode,
-                audio_masking: parse_audio_masking(&self.parameters.flags.audio_masking),
-                graphics_noise: parse_graphics_noise(&self.parameters.flags.graphics_noise),
-                geolocation_popup: parse_popup(&self.parameters.flags.geolocation_popup),
-                navigator_masking: nav_mode,
-                localization_masking: loc_mode,
-                timezone_masking: tz_mode,
-                graphics_masking: gfx_mode,
-                fonts_masking: fonts_mode,
-                media_devices_masking: media_mode,
-                screen_masking: screen_mode,
-                geolocation_masking: geo_mode,
-                ports_masking: ports_mode,
-                proxy_masking: proxy_mode,
-                quic_mode: parse_quic(&self.parameters.flags.quic_mode),
-                canvas_noise: self
-                    .parameters
-                    .flags
-                    .canvas_noise
-                    .as_deref()
-                    .map(parse_canvas_noise)
-                    .unwrap_or_default(),
-                startup_behavior: parse_startup(&self.parameters.flags.startup_behavior),
-                disable_csp: self.parameters.flags.disable_csp,
-                grant_permissions: self.parameters.flags.grant_permissions,
-                native_spoofing: self.parameters.flags.native_spoofing,
-                ..StealthFlags::balanced()
-            })
+            // The payload's flags are explicit, so they have the last word: a
+            // dimension it names `natural` stays off although the payload also
+            // holds a value for it, and `auto` is on exactly when it does.
+            .with_flags(move |f| *f = flags.clone())
             .local_storage(self.parameters.storage.is_local)
             .save_service_worker(self.parameters.storage.save_service_worker)
             .custom_start_urls(self.parameters.custom_start_urls.clone())
@@ -1099,6 +1120,7 @@ impl ProfileParams {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::stealth::fingerprint::Dimension;
     use serde_json::json;
 
     #[test]
@@ -1369,7 +1391,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.screen_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.screen_masking, MaskingMode::Mask);
         assert_eq!(fp.screen_width, Some(1920));
         assert_eq!(fp.screen_height, Some(1080));
         assert_eq!(fp.color_depth, Some(24));
@@ -1383,7 +1405,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.geolocation_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.geolocation_masking, MaskingMode::Mask);
         assert_eq!(fp.latitude, Some(40.7128));
         assert_eq!(fp.longitude, Some(-74.0060));
         assert_eq!(fp.altitude, Some(10.5));
@@ -1397,7 +1419,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.graphics_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.graphics_masking, MaskingMode::Mask);
         assert_eq!(fp.webgl_vendor, Some("Intel Inc.".to_string()));
         assert_eq!(
             fp.webgl_renderer,
@@ -1414,7 +1436,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.navigator_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.navigator_masking, MaskingMode::Mask);
         assert_eq!(fp.user_agent, Some(ua.to_string()));
     }
 
@@ -1431,8 +1453,8 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.localization_masking, MaskingMode::Custom);
-        assert_eq!(fp.flags.timezone_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.localization_masking, MaskingMode::Mask);
+        assert_eq!(fp.flags.timezone_masking, MaskingMode::Mask);
         assert_eq!(fp.locale, Some("en-US,en;q=0.9".to_string()));
         assert_eq!(fp.timezone, Some("America/New_York".to_string()));
     }
@@ -1445,7 +1467,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.fonts_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.fonts_masking, MaskingMode::Mask);
         assert_eq!(fp.fonts, vec!["Arial", "Calibri", "Consolas"]);
     }
 
@@ -1457,7 +1479,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.media_devices_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.media_devices_masking, MaskingMode::Mask);
         assert_eq!(fp.audio_inputs, Some(1));
         assert_eq!(fp.video_inputs, Some(1));
         assert_eq!(fp.media_devices.len(), 2);
@@ -1502,7 +1524,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.webrtc_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.webrtc_masking, MaskingMode::Mask);
         assert_eq!(fp.webrtc_public_ip, Some("172.56.21.89".to_string()));
         assert_eq!(fp.webrtc_local_ip, Some("10.0.0.5".to_string()));
         assert_eq!(
@@ -1519,7 +1541,7 @@ mod tests {
         }))
         .unwrap();
         let fp = params.to_fingerprint();
-        assert_eq!(fp.flags.webrtc_masking, MaskingMode::Custom);
+        assert_eq!(fp.flags.webrtc_masking, MaskingMode::Mask);
         assert_eq!(fp.webrtc_public_ip, Some("2001:db8::1".to_string()));
         assert_eq!(fp.webrtc_local_ip, Some("fe80::1".to_string()));
     }
@@ -1563,5 +1585,142 @@ mod tests {
             crate::stealth::fingerprint::QuicMode::ForceHttp2
         );
         assert_eq!(fp.flags.ports_masking, NoiseMode::Block);
+    }
+
+    /// A payload with a value for every dimension a payload can carry, and
+    /// `flags` as its flags.
+    fn payload_with_values(flags: serde_json::Value) -> ProfileParams {
+        serde_json::from_value(json!({
+            "name": "Values",
+            "parameters": {
+                "flags": flags,
+                "fingerprint": {
+                    "navigator": {
+                        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+                        "platform": "Win32"
+                    },
+                    "localization": {
+                        "languages": "de-DE,de", "locale": "de-DE", "accept_languages": "de-DE,de;q=0.9"
+                    },
+                    "timezone": { "zone": "Europe/Berlin" },
+                    "graphic": { "vendor": "Intel Inc.", "renderer": "Intel Iris" },
+                    "media_devices": { "audio_inputs": 1, "audio_outputs": 1, "video_inputs": 1 },
+                    "screen": { "width": 1440, "height": 900, "pixel_ratio": 2 },
+                    "geolocation": { "latitude": 52.52, "longitude": 13.4, "accuracy": 20 },
+                    "fonts": ["Arial"]
+                },
+                "proxy": { "type": "http", "host": "proxy.example", "port": 8080 }
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn the_defaults_leave_each_dimension_to_its_value() {
+        let flags = Flags::default();
+        for (name, mode) in [
+            ("audio_masking", &flags.audio_masking),
+            ("media_devices_masking", &flags.media_devices_masking),
+            ("geolocation_popup", &flags.geolocation_popup),
+            ("proxy_masking", &flags.proxy_masking),
+        ] {
+            assert_eq!(mode, "auto", "{name}");
+        }
+    }
+
+    #[test]
+    fn a_value_in_the_payload_is_used_without_any_flag_for_it() {
+        let fp = payload_with_values(json!({})).to_fingerprint();
+
+        for dimension in [
+            Dimension::Navigator,
+            Dimension::Localization,
+            Dimension::Timezone,
+            Dimension::Graphics,
+            Dimension::MediaDevices,
+            Dimension::Screen,
+            Dimension::Geolocation,
+            Dimension::Fonts,
+            Dimension::Proxy,
+        ] {
+            assert!(fp.is_masked(dimension), "{dimension:?} is off");
+        }
+        assert_eq!(
+            fp.geolocation_popup(),
+            PopupMode::Allow,
+            "a position answers the request"
+        );
+    }
+
+    #[test]
+    fn an_explicit_natural_flag_stays_off_whatever_values_the_payload_holds() {
+        let fp = payload_with_values(json!({
+            "navigator_masking": "natural",
+            "localization_masking": "off",
+            "timezone_masking": "natural",
+            "graphics_masking": "natural",
+            "media_devices_masking": "natural",
+            "screen_masking": "natural",
+            "geolocation_masking": "natural",
+            "fonts_masking": "natural",
+            "proxy_masking": "disabled"
+        }))
+        .to_fingerprint();
+
+        for dimension in [
+            Dimension::Navigator,
+            Dimension::Localization,
+            Dimension::Timezone,
+            Dimension::Graphics,
+            Dimension::MediaDevices,
+            Dimension::Screen,
+            Dimension::Geolocation,
+            Dimension::Fonts,
+            Dimension::Proxy,
+        ] {
+            assert!(!fp.is_masked(dimension), "{dimension:?} is on");
+        }
+    }
+
+    #[test]
+    fn the_word_auto_leaves_a_dimension_to_its_value() {
+        let fp = payload_with_values(json!({
+            "geolocation_masking": "auto",
+            "localization_masking": "auto",
+            "timezone_masking": "auto",
+            "proxy_masking": "auto",
+            "geolocation_popup": "auto"
+        }))
+        .to_fingerprint();
+        assert_eq!(fp.flags.timezone_masking, MaskingMode::Auto);
+        assert_eq!(fp.flags.proxy_masking, ProxyMaskingMode::Auto);
+        assert_eq!(fp.flags.geolocation_popup, PopupMode::Auto);
+        assert!(fp.is_masked(Dimension::Timezone) && fp.is_masked(Dimension::Proxy));
+    }
+
+    #[test]
+    fn blocking_webrtc_still_passes_the_policy_that_stops_the_leak() {
+        for word in ["disabled", "block"] {
+            let fp = payload_with_values(json!({ "webrtc_masking": word })).to_fingerprint();
+            assert_eq!(
+                fp.webrtc_policy,
+                Some(crate::stealth::fingerprint::WebRtcPolicy::DisableNonProxiedUdp),
+                "{word}"
+            );
+            assert!(fp.is_masked(Dimension::WebRtc), "{word}");
+        }
+        let natural = payload_with_values(json!({ "webrtc_masking": "natural" })).to_fingerprint();
+        assert!(!natural.is_masked(Dimension::WebRtc));
+        assert_eq!(natural.webrtc_policy, None);
+    }
+
+    #[test]
+    fn a_payload_without_a_canvas_flag_keeps_the_seeded_canvas_noise() {
+        let fp = payload_with_values(json!({})).to_fingerprint();
+        assert_eq!(fp.flags.canvas_noise, CanvasNoiseMode::Mask);
+        assert!(fp.is_masked(Dimension::Canvas));
+        let auto = payload_with_values(json!({ "canvas_noise": "auto" })).to_fingerprint();
+        assert_eq!(auto.flags.canvas_noise, CanvasNoiseMode::Auto);
+        assert!(!auto.is_masked(Dimension::Canvas), "Auto needs a seed");
     }
 }
