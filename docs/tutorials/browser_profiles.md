@@ -38,9 +38,13 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
   traffic saving.
 - `parameters.custom_start_urls` — up to 5 URLs to open on launch.
 
-> **Backward compatibility:** The parser still accepts the legacy strings
-> `mimic` and `stealthfox`, but they are treated as aliases for `chromium` and
-> `firefox`. New profiles should use the generic names.
+<Note>
+
+**Backward compatibility:** The parser still accepts the legacy strings
+`mimic` and `stealthfox`, but they are treated as aliases for `chromium` and
+`firefox`. New profiles should use the generic names.
+
+</Note>
 
 ## Complete field reference
 
@@ -138,7 +142,11 @@ meaning and a matching JSON string value:
 
 ### Concrete mask-mode examples
 
-#### Custom user agent + platform (`navigator_masking: custom`)
+<Tabs>
+
+<Tab title="Custom user agent + platform">
+
+This profile sets `navigator_masking: custom`.
 
 ```json
 {
@@ -163,7 +171,11 @@ When `navigator_masking` is `"custom"`, the launcher passes the supplied
 `user_agent` to `--user-agent` and the `platform` value into the evasion
 bootstrap.
 
-#### Custom screen + geolocation (`screen_masking` / `geolocation_masking`)
+</Tab>
+
+<Tab title="Custom screen + geolocation">
+
+This profile sets `screen_masking` and `geolocation_masking`.
 
 ```json
 {
@@ -189,7 +201,11 @@ bootstrap.
 custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
 `timezone_masking: mask` picks a timezone that matches the geolocation.
 
-#### iOS Mobile Safari (`mobile_safari` / `ios`)
+</Tab>
+
+<Tab title="iOS Mobile Safari">
+
+This profile uses `mobile_safari` and `ios`.
 
 ```json
 {
@@ -225,6 +241,10 @@ custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
 Use `browser_type: mobile_safari` and `os_type: ios` to activate iOS personas.
 `native_spoofing: true` pushes the user agent, platform, locale, and screen
 metrics through CDP so page-side JS cannot detect the override.
+
+</Tab>
+
+</Tabs>
 
 ## Literal value shortcuts
 
@@ -304,8 +324,13 @@ without any extra code.
 ```
 
 `proxy_masking: custom` turns the `parameters.proxy` block into
-`--proxy-server=http://alice:secret@proxy.example.com:8080`. Use
-`proxy_masking: disabled` to leave proxy configuration empty.
+`--proxy-server=http://alice:secret@proxy.example.com:8080`.
+
+<Tip>
+
+Use `proxy_masking: disabled` to leave proxy configuration empty.
+
+</Tip>
 
 #### Native-level spoofing (`native_spoofing: true`)
 

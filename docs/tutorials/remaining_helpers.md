@@ -24,9 +24,17 @@ let source = sb.save_page_source("home.html").await?;
 ```
 
 Both methods return a `PathBuf` pointing to the saved file in the logs directory
-(`latest_logs/`). The name must be a plain file name: `"../home.png"` or
-`"/tmp/home.png"` is refused with an `InvalidConfig` error instead of writing
-outside the logs directory. A file of the same name is replaced. For an exact
+(`latest_logs/`).
+
+<Warning>
+
+The name must be a plain file name: `"../home.png"` or `"/tmp/home.png"` is
+refused with an `InvalidConfig` error instead of writing outside the logs
+directory. A file of the same name is replaced.
+
+</Warning>
+
+For an exact
 path of your own, use `save_screenshot_to_path`. Files the framework names
 itself (`save_screenshot_to_logs`) never replace an earlier one.
 
@@ -48,7 +56,11 @@ assert!(text.contains("Welcome"));
 let from_file = ocr.text_in_png(&std::fs::read("home.png")?).await?;
 ```
 
-The text comes back one line per line of text, top to bottom. The first
+The text comes back one line per line of text, top to bottom.
+
+<Info>
+
+The first
 `Ocr::load` downloads the two models (about 12 MB) into the cache folder
 (`~/Library/Caches/seleniumbase-rs/ocr` on macOS, `~/.cache/seleniumbase-rs/ocr`
 on Linux, `%LOCALAPPDATA%\seleniumbase-rs\ocr` on Windows) and checks them
@@ -56,6 +68,8 @@ against pinned SHA-256 hashes; later runs use the saved copies. On a machine
 without network access, set `SB_OCR_MODELS` to a folder that holds
 `text-detection.rten` and `text-recognition.rten`. Build with
 `--features ocr`; `tests/ocr_chrome.rs` reads a heading from a real Chrome.
+
+</Info>
 
 ## Window introspection
 
@@ -114,8 +128,12 @@ to a page of another origin.) Pass an empty string as the start page to begin on
 the page the browser is on. A page that is not a valid URL, or a chain of fewer
 than two pages, is refused before anything is clicked.
 
+<Note>
+
 Earlier versions of this crate returned the URL with a `?ref=` parameter added
 instead, which sends no `Referer` at all.
+
+</Note>
 
 ## Multi-series charts
 

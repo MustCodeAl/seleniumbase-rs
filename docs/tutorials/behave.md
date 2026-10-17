@@ -48,8 +48,14 @@ Feature: Login
 The parser reads `Feature:`, `Background:`, `Scenario:`, `Scenario Outline:`,
 `Examples:` tables, `@tags` and steps that start with `Given`, `When`, `Then`,
 `And` or `But`. Each outline row becomes its own scenario, named
-`<name> (example N)`. Tags on a scenario are the scenario's own; tags written
-above `Feature:` are not copied down to its scenarios.
+`<name> (example N)`.
+
+<Note>
+
+Tags on a scenario are the scenario's own; tags written above `Feature:` are not
+copied down to its scenarios.
+
+</Note>
 
 ## Sync runner
 
@@ -80,9 +86,13 @@ for r in &results {
 # }
 ```
 
+<Info>
+
 A step with no matching handler fails its scenario with
 `no handler registered for step: ...`; the scenario result's `messages` holds
 the reason. The Background steps run before each scenario.
+
+</Info>
 
 ## Browser-backed async steps
 
@@ -121,8 +131,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `I type "<text>" into "<selector>"`. Register your own with `register` and
 `register_regex`, for example the `I see "..."` step above. A handler receives
 the shared `Rc<RefCell<BaseCase>>`, the step text, and the regex captures.
+<Warning>
+
 `BaseCase::without_session` builds a `BaseCase` with no browser, for tests that
 never touch it; any browser call on it panics.
+
+</Warning>
 
 ## Tag filtering
 

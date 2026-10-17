@@ -86,9 +86,13 @@ step, then a summary line:
 **Summary:** 1 / 2 steps passed.
 ```
 
+<Note>
+
 The report lists only the manual verification steps. Automated steps are not
 recorded in it, and there is no timestamp inside the file (the file name carries
 one).
+
+</Note>
 
 ## When to use MasterQA
 
@@ -101,6 +105,12 @@ one).
 - Keep manual verification steps focused on a single question.
 - Run MasterQA in headed mode so the operator can see the browser
   (`BrowserConfig::default()` is headless).
-- Run it from an interactive terminal: a CI job with no standard input records
-  every manual step as failed.
+- Run it from an interactive terminal (see the warning below).
 - Store reports in CI artifacts for audit trails.
+
+<Warning>
+
+Run it from an interactive terminal: a CI job with no standard input records
+every manual step as failed.
+
+</Warning>

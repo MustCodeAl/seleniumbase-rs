@@ -23,14 +23,21 @@ overrides a lower-priority one:
 4. Programmatic `BrowserConfig`.
 5. CLI flags (when using `sbrs`).
 
+<Info>
+
 This means a `BrowserConfig` value in code wins over an environment variable,
 and a CLI flag wins over everything else.
 
+</Info>
+
 ## Global config file
 
-Create `sbase_config.toml` in your project root:
+Create `sbase_config.toml` in your project root (or, as a flat `.sbase_config` file
+in `KEY=VALUE` format):
 
-```toml
+<CodeGroup>
+
+```toml sbase_config.toml
 browser = "chrome"
 headless = false
 timeout_seconds = 30
@@ -53,17 +60,17 @@ esc_end = false
 rec_sb_cdp = false
 ```
 
-The file is optional. If it is missing, built-in defaults are used. The
-`Settings::load_global()` function searches for `sbase_config.toml`, then
-`.sbase_config.toml`, then `.sbase_config` in the current directory.
-
-You can also use a flat `.sbase_config` file in `KEY=VALUE` format:
-
-```text
+```text .sbase_config
 headless=false
 locale=en-US
 timeout_seconds=10
 ```
+
+</CodeGroup>
+
+The file is optional. If it is missing, built-in defaults are used. The
+`Settings::load_global()` function searches for `sbase_config.toml`, then
+`.sbase_config.toml`, then `.sbase_config` in the current directory.
 
 ## Loading settings programmatically
 
@@ -153,19 +160,27 @@ on a connection that never closes. `remote_webdriver_timeout_seconds` (or the
 request sent to the server.
 
 It is unset by default, matching SeleniumBase's `REMOTE_WEBDRIVER_TIMEOUT`, so
-the client keeps its own default until you opt in. If you set it, make it
-larger than your page-load timeout and larger than the longest a new-session
-request may wait in the grid's queue. A value below either one cuts off
-sessions that were healthy.
+the client keeps its own default until you opt in.
 
-```toml
-# sbase_config.toml
+<Warning>
+
+If you set it, make it larger than your page-load timeout and larger than the
+longest a new-session request may wait in the grid's queue. A value below either
+one cuts off sessions that were healthy.
+
+</Warning>
+
+<CodeGroup>
+
+```toml sbase_config.toml
 remote_webdriver_timeout_seconds = 600
 ```
 
-```bash
+```bash Environment
 export SB_REMOTE_WEBDRIVER_TIMEOUT=600
 ```
+
+</CodeGroup>
 
 ## BrowserConfig in code
 

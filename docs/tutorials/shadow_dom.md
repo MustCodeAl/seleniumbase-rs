@@ -77,10 +77,14 @@ button.click().await?;
 
 ## Limitations
 
+<Warning>
+
 - Only **open** shadow roots are accessible. Closed shadow roots cannot be pierced by WebDriver or CDP.
 - CSS selectors inside shadow roots must match the local DOM; they do not leak out to the parent tree.
 - Slots and distributed content are still rendered in the light DOM; use normal
   selectors for slotted children unless they themselves host a shadow root.
+
+</Warning>
 
 ## Troubleshooting
 

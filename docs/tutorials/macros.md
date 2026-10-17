@@ -66,7 +66,12 @@ not a reference), and runs your block inside an `async` block whose result type
 is `Result<(), SeleniumBaseError>`; use `?` on crate methods and finish with
 `Ok(())`. It panics if the `BaseCase` cannot be created, calls `quit` whether or
 not the block failed, and then panics with the error if the block returned one.
+
+<Warning>
+
 The macro quits for you, so do not call `sb_quit!` inside it.
+
+</Warning>
 
 ## `uc_config!`
 
@@ -124,8 +129,14 @@ let fp = fingerprint!(edge); // same preset as windows
 These macros call the corresponding [`BaseCase`](crate::BaseCase) method and
 await it. Without a trailing message the macro evaluates to the method's
 `Result`, so follow it with `?` (a bare call compiles but ignores the failure and
-draws an `unused_must_use` warning). With a trailing message the macro
-unwraps the `Result` with `.expect(message)`, which panics on failure.
+draws an `unused_must_use` warning).
+
+<Warning>
+
+With a trailing message the macro unwraps the `Result` with `.expect(message)`,
+which panics on failure.
+
+</Warning>
 
 | Macro | Calls |
 |---|---|
@@ -203,8 +214,12 @@ Use macros for:
 * Compile-time selectors that never change.
 * One-liner actions that would otherwise be dominated by `.await?` noise.
 
+<Tip>
+
 Prefer the explicit method API when you need fine-grained error handling,
 custom timeouts, or non-trivial control flow.
+
+</Tip>
 
 ## Troubleshooting
 

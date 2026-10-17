@@ -21,20 +21,26 @@ example on the screenshot a failure plugin saved. See
 
 ## Enabling backends
 
-Add the features you need:
+Add the features you need, in `Cargo.toml` or on the command line:
 
-```toml
+<CodeGroup>
+
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { version = "0.1", features = ["s3", "azure", "gcp"] }
 ```
 
-Or on the command line:
-
-```bash
+```bash Command line
 cargo run --features s3
 ```
 
-## Amazon S3
+</CodeGroup>
+
+## Providers
+
+<Tabs>
+
+<Tab title="Amazon S3">
 
 Set the standard AWS environment variables:
 
@@ -64,7 +70,9 @@ S3LoggingPlugin::upload_file(
 ).await?;
 ```
 
-## Azure Blob Storage
+</Tab>
+
+<Tab title="Azure Blob Storage">
 
 Azure support uses a blob URL that already contains a SAS token with write
 permission:
@@ -94,7 +102,9 @@ az storage blob generate-sas \
   --https-only
 ```
 
-## Google Cloud Storage
+</Tab>
+
+<Tab title="Google Cloud Storage">
 
 GCS support uses an OAuth access token. The easiest way to obtain one is:
 
@@ -114,6 +124,10 @@ GcpLoggingPlugin::upload_file(
     Path::new("latest_logs/last_run.log"),
 ).await?;
 ```
+
+</Tab>
+
+</Tabs>
 
 ## Running the example
 

@@ -15,16 +15,28 @@ own for developing, debugging and testing:
 | `driver` | WebDriver, `Driver()` toolset | 26 |
 | `sb` (default) | WebDriver, `SB()` toolset, plus this crate's stealth tools | 88 + 8 stealth + 9 developer tools |
 
+<Info>
+
 All three keep one browser session for the whole conversation: call
 `start_browser` once, use the other tools, then `close_browser`.
 
+</Info>
+
 ## Install and configure
+
+<Steps>
+
+<Step title="Install the binary">
 
 ```bash
 cargo install --path . --bin sbrs-mcp --features mcp-server
 ```
 
-Then register it with your client, for example in `.mcp.json`:
+</Step>
+
+<Step title="Register it with your client">
+
+For example in `.mcp.json`:
 
 ```json
 {
@@ -38,20 +50,42 @@ Then register it with your client, for example in `.mcp.json`:
 }
 ```
 
-Use `["--server", "driver"]` or `["--server", "sb"]` for the others. Logs go to
-stderr; stdout carries only the protocol.
+Use `["--server", "driver"]` or `["--server", "sb"]` for the others.
+
+</Step>
+
+</Steps>
+
+<Note>
+
+Logs go to stderr; stdout carries only the protocol.
+
+</Note>
 
 ## Which server?
 
-- **`cdp`** is the lightest and the hardest to detect: no chromedriver, and it
-  can pass common CAPTCHA widgets. Chrome or Chromium only. Its tools group
-  related actions behind an `action`/`mode`/`state` argument, so there are few of
-  them (`click_element`, `type_text`, `wait_for_condition`, `manage_tabs`, ...).
-- **`driver`** and **`sb`** use WebDriver, so they also work with Edge and
-  Firefox. `sb` has a tool for nearly every `BaseCase` method (`click_link`,
-  `drag_and_drop`, `get_mfa_code`, `download_file`, ...). They need a
-  chromedriver that matches your Chrome; a mismatch is reported as a readable
-  error when `start_browser` runs.
+<Tabs>
+
+<Tab title="cdp">
+
+`cdp` is the lightest and the hardest to detect: no chromedriver, and it
+can pass common CAPTCHA widgets. Chrome or Chromium only. Its tools group
+related actions behind an `action`/`mode`/`state` argument, so there are few of
+them (`click_element`, `type_text`, `wait_for_condition`, `manage_tabs`, ...).
+
+</Tab>
+
+<Tab title="driver and sb">
+
+`driver` and `sb` use WebDriver, so they also work with Edge and
+Firefox. `sb` has a tool for nearly every `BaseCase` method (`click_link`,
+`drag_and_drop`, `get_mfa_code`, `download_file`, ...). They need a
+chromedriver that matches your Chrome; a mismatch is reported as a readable
+error when `start_browser` runs.
+
+</Tab>
+
+</Tabs>
 
 ## How tools behave
 
@@ -263,7 +297,12 @@ and `sbrs devtools`, which starts such a browser from the command line.
 
 ## Security
 
-These tools let a model drive a real browser as you.
+<Danger>
+
+These tools let a model drive a real browser as you. Only connect clients you
+trust, and prefer a throwaway browser profile.
+
+</Danger>
 
 - `run_javascript`, `execute_script` and `evaluate` run arbitrary script in the
   current page.
@@ -279,8 +318,6 @@ These tools let a model drive a real browser as you.
   personal data; values of password and hidden inputs, cookies and storage, and
   the results of earlier tool calls are left out. `export_session_as_test` writes the text the model typed into the
   test, since the test must type it again.
-
-Only connect clients you trust, and prefer a throwaway browser profile.
 
 ## Using the servers from Rust
 

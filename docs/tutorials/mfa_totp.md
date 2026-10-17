@@ -65,16 +65,26 @@ sb.enter_totp_code("#otp", "JBSWY3DPEHPK3PXP").await?;
 
 Codes are compatible with Google Authenticator, Authy, Microsoft Authenticator,
 and other standard TOTP apps (RFC 6238 with HMAC-SHA1). The time step is 30
-seconds and the output length is 6 digits; neither can be changed, so a service
-that uses another length, step or hash will not accept these codes.
+seconds and the output length is 6 digits.
+
+<Info>
+
+Neither can be changed, so a service that uses another length, step or hash will
+not accept these codes.
+
+</Info>
 
 ## Security notes
+
+<Warning>
 
 - Keep MFA secrets out of source code; load them from environment variables or a
   secrets manager. If you keep one in a file, `sbrs encrypt` and `sbrs decrypt`
   (AES-256-GCM, passphrase from `SB_ENCRYPTION_KEY`) can protect it at rest.
 - Codes are generated locally; no network request is required.
 - Treat TOTP secrets with the same care as passwords. Rotate them if exposed.
+
+</Warning>
 
 ## Troubleshooting
 

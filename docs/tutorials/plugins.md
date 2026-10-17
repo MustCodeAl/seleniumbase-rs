@@ -14,11 +14,15 @@ are ordinary crates, compiled into your program, and anyone can publish one.
 The design is [ADR 004](../adr/004-plugin-framework.md). Today the hooks run in
 the Pure CDP engine (`sb_cdp`); the WebDriver engine (`BaseCase`) follows.
 
+<Note>
+
 Browser plugins are not [Test Plugins](test_plugins.md), which run around a
 test (screenshots on failure, reports), and not the
 [browser extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension),
 which runs inside the browser. A browser plugin is Rust code in the program that
 drives the browser.
+
+</Note>
 
 ## What you will learn
 
@@ -93,12 +97,16 @@ cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
     seleniumbase-rs-plugin-block-resources
 ```
 
+<Warning>
+
 The revision matters until the crates are on crates.io: two revisions of the
 same git repository are two different crates to Cargo, so a plugin built
 against another revision implements a different `Plugin` trait. The compiler
 then says the trait `Plugin` is not implemented for the plugin, and mentions two
 versions of `seleniumbase_rs_plugin`. Use one revision for every crate from that
 repository, and the one this crate pins.
+
+</Warning>
 
 ## Writing a plugin
 
@@ -255,9 +263,13 @@ stop the browser from closing.
 
 ## Security
 
+<Danger>
+
 A plugin is Rust code that runs with your program's rights. It sees every page,
 cookie and password the browser handles, and it can send any protocol command.
-Adding one is the same trust decision as adding any dependency:
+Adding one is the same trust decision as adding any dependency.
+
+</Danger>
 
 - Read it, or trust whoever wrote it, before you add it.
 - Pin it to a revision (`--rev`), as above, so it cannot change under you.
@@ -270,6 +282,8 @@ reaching every site the browser visits.
 
 ## What has and has not been verified
 
+<Warning>
+
 The hooks, their order, the commands they send, the fail-closed errors, closing
 a tab a plugin refused, and `on_close` on close and on drop are covered by tests
 against the mocked browser (`tests/sb_cdp_plugins.rs`); the conversion between
@@ -280,3 +294,5 @@ existing real-Chrome test of the same command, and the `Default/Preferences`
 file is the one Chrome reads at start-up, but neither was checked in a live
 browser for this feature. `connect_with_plugins` is tested only for its checks,
 not against a running browser.
+
+</Warning>
