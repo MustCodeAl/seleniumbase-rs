@@ -24,6 +24,14 @@
 
 `SB_SHUTDOWN_TIMEOUT_SECS={{seconds}} sbrs-mcp`
 
+- Give every browser the server starts a built-in plugin (the operator chooses, the model cannot add one):
+
+`sbrs-mcp --server {{cdp|driver|sb}} --plugin {{shield}}`
+
+- Set an option of a plugin, with a TOML value:
+
+`sbrs-mcp --plugin {{shield}} --plugin-opt '{{shield.level}}="{{strict}}"'`
+
 - Display help:
 
 `sbrs-mcp --help`

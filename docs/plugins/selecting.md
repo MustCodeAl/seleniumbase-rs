@@ -7,19 +7,20 @@ title: "Choosing Plugins"
 <Badge color="orange">Early</Badge> <Badge color="blue">Feature: plugins</Badge>
 
 The official plugins ship with seleniumbase-rs, one cargo feature each, and you
-turn them on **by name**, with no code: in the settings file, in an environment
-variable, or in a builder call. This page is that surface. For writing a plugin
-of your own, see [Writing your own](writing-your-own.md).
+turn them on **by name**, with no code: on the command line, in the settings
+file, in an environment variable, or in a builder call. This page is that
+surface. For writing a plugin of your own, see
+[Writing your own](writing-your-own.md).
 
 <Note>
 
-There are no command-line flags for this yet (`--plugin`, `--plugin-opt`,
-`sbrs plugin list`), and the `sbrs` binary does **not** apply the `[plugins]`
-table or `SB_PLUGINS` yet: it is about to move into a crate of its own, and its
-plugin flags and handling come with the move. This page is for Rust programs
-that load `Settings` and build their own browser. A build without the `plugins`
-feature stops at `Settings::load` when the table or `SB_PLUGINS` names a plugin;
-a build with it reads them and leaves the selection to the program.
+The prebuilt `sbrs` and `sbrs-mcp`, and `cargo install` of
+`seleniumbase-rs-cli`, have the official plugins compiled in, so there is
+nothing to install: `sbrs --plugin shield open https://example.com` (see
+[On the command line](#on-the-command-line)). The rest of the page is for Rust
+programs that load `Settings` and build their own browser. A build without the
+`plugins` feature stops at `Settings::load` when the table or `SB_PLUGINS` names
+a plugin; a build with it reads them and leaves the selection to the program.
 
 </Note>
 
@@ -27,6 +28,9 @@ a build with it reads them and leaves the selection to the program.
 
 | You want | Do |
 |---|---|
+| shield for one `sbrs` command | `sbrs --plugin shield open https://example.com` |
+| An option of a plugin on the command line | `--plugin-opt 'shield.level="strict"'` |
+| The plugins and what they may do | `sbrs plugin list`, `sbrs plugin info shield` |
 | shield in a Rust program | `features = ["plugin-shield"]`, then `.plugins_named(["shield"])` |
 | Every official plugin | `features = ["plugins-builtin"]` |
 | A plugin chosen by a file, not code | `[plugins] enable = ["shield"]` in `sbase_config.toml` |
@@ -127,6 +131,169 @@ is read by `Settings::load`, and it takes effect before the check for plugin
 support, so in a build without the `plugins` feature `SB_PLUGINS=` still
 overrides a `[plugins]` table of the file.
 
+## On the command line
+
+`sbrs` and `sbrs-mcp` apply the `[plugins]` table and `SB_PLUGINS` to every
+browser they start, and take two options of their own. Both go **before** the
+command, as the other global options of `sbrs` do, and both repeat:
+
+| Option | What it does |
+|---|---|
+| `--plugin NAME` | Turns the plugin on, after the ones the file and `SB_PLUGINS` turn on. A name that is on already stays where it is |
+| `--plugin-opt NAME.KEY=VALUE` | Sets one option of a plugin. `VALUE` is a TOML value, so a string is written with quotes |
+
+```sh
+sbrs --plugin shield open https://example.com
+sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
+sbrs --plugin block-resources --plugin-opt 'block-resources.preset="media"' screenshot
+sbrs --plugin shield --plugin-opt 'shield.extra_block_hosts=["tracker.example"]' devtools
+```
+
+Put the whole option in single quotes, so the shell keeps the double quotes TOML
+needs. `shield.level=strict` is not a TOML value; `sbrs` says so and shows the
+quoted spelling. `NAME` ends at the first `.`, and `KEY` is the option's name.
+
+### Precedence
+
+Highest first:
+
+1. **The command line.** `--plugin` adds a name; `--plugin-opt` sets one key.
+2. **`SB_PLUGINS`**, which replaces the names the file enables, and drops the
+   options of the plugins it no longer names.
+3. **The `[plugins]` table of the settings file** (`--config FILE`, otherwise
+   `sbase_config.toml` in the current folder).
+
+A `--plugin-opt` replaces the same key from the variable or the file and keeps
+the plugin's other options. With `level = "basic"` and `extra_block_hosts = [...]`
+under `[plugins.shield]` in the file, `--plugin-opt 'shield.level="strict"'`
+runs shield at the strict level with the file's hosts. The plugin has to be on:
+an option for a plugin that nothing turns on is an error, not an option that is
+quietly dropped. The same text is in `sbrs --help`.
+
+### Which commands
+
+| Command | What happens |
+|---|---|
+| Every command that starts a browser with `BaseCase` (`open`, `smoke`, `screenshot`, `record`, `replay`, `run-scenario`, `print-pdf`, ...) | The WebDriver engine runs the plugins (`BrowserConfig::with_plugin_selection`) |
+| `sbrs devtools` | The pure CDP engine runs them (`LaunchOptionsBuilder::plugin_selection`) |
+| `sbrs test` | Passes the names on to the tests as `SB_PLUGINS`, with the names the file and the variable already turn on, for a test that calls `with_plugin_selection(&settings.plugins)`. It refuses `--plugin-opt`, because the variable carries names only: put the options under `[plugins.NAME]` in the file |
+| `sbrs-mcp` | Every browser the server starts gets them; see below |
+| `sbrs plugin list`, `sbrs plugin info` | Show them; see below |
+| Commands that start no browser (`version`, `doctor`, `install`, `mkfile`, ...) | Ignore the options |
+
+`sbrs devtools`, `sbrs plugin list` and `sbrs plugin info` read the plugin part
+of the settings and nothing else, so a variable that is wrong for a browser
+(`SB_HEADLESS=maybe`) does not stop them.
+
+### sbrs plugin list and sbrs plugin info
+
+```text
+$ sbrs plugin list
+NAME             CATEGORY   ENABLED  SUMMARY
+shield           privacy    no       Turns off browser telemetry, WebRTC address leaks and third-party cookies; keeps no profile (clear_between_tests and sweep_stale_profiles are not active yet)
+block-resources  core       no       Stops pages from loading images, fonts, media or URLs you name
+crx              extension  no       Loads .crx extension files into the browser it starts
+
+Turn one on with --plugin NAME, SB_PLUGINS, or `enable` in the [plugins] table of the settings file. `sbrs plugin info NAME` shows what a plugin may do.
+```
+
+`ENABLED` says whether the file, the variable and the options together turn the
+plugin on. A name that is enabled but not in the build is listed below the table.
+
+```text
+$ sbrs --plugin shield --plugin-opt 'shield.level="strict"' plugin info shield
+shield 0.1.2
+Turns off browser telemetry, WebRTC address leaks and third-party cookies; keeps no profile (clear_between_tests and sweep_stale_profiles are not active yet)
+
+category      privacy
+enabled       yes
+phase         enforce
+needs         a Chromium-based browser
+capabilities  launch.args     low     enforced
+              launch.prefs    medium  enforced
+              launch.network  high    enforced
+              page.script:*   high    enforced
+              cdp:Network     medium  enforced
+optional      -
+requires      -
+conflicts     -
+runs after    -
+runs before   -
+seals         -
+options       level = "strict"
+```
+
+`info` shows what the plugin declares: its category and phase, each capability
+with its risk and whether the host enforces it (`declared only` means a native
+Rust plugin promises and the host cannot stop it), what it needs from the
+browser, its place among the other plugins, and the options in effect. When the
+plugin refuses those options, or cannot start without any (`crx` needs its
+`files`), the page says so with the plugin's own message. The plugin API of this
+release does not describe the options a plugin accepts, so the page cannot list
+them: each plugin's page does ([shield](shield.md),
+[block-resources](block-resources.md), [crx](crx.md)).
+
+An unknown name exits with status 2 and lists the ones the build has:
+
+```text
+$ sbrs plugin info sheild
+error: invalid configuration: no plugin named `sheild` (known: shield, block-resources, crx); `sbrs plugin list` shows them
+```
+
+### sbrs-mcp
+
+`sbrs-mcp` takes the same two options, and reads the same table (in the folder
+it runs in) and variable. **The operator chooses the plugins, not the model**:
+`start_browser` has no plugin argument, and an extra argument adds nothing. All
+three servers (`cdp`, `driver`, `sb`) give every browser they start the plugins,
+in the pure CDP and the WebDriver engine:
+
+```sh
+sbrs-mcp --server cdp --plugin shield
+sbrs-mcp --server driver --plugin shield --plugin-opt 'shield.level="strict"'
+```
+
+```json
+{
+  "mcpServers": {
+    "seleniumbase": {
+      "command": "sbrs-mcp",
+      "args": ["--server", "cdp", "--plugin", "shield"]
+    }
+  }
+}
+```
+
+A mistake in the plugins stops the server before it listens, with the same
+message and exit status as `sbrs`, not at the model's first `start_browser`.
+
+### Mistakes and exit status
+
+Nothing is skipped. These are reported **before any browser starts**, with exit
+status 2 (the status `sbrs` gives every value that does not parse):
+
+| Mistake | What you get |
+|---|---|
+| `--plugin sheild`, `SB_PLUGINS=sheild`, or `sheild` under `enable` | An error that says no plugin has that name and lists the ones the build has |
+| `--plugin-opt` for a plugin nothing turns on | The option, the plugin, and the three ways to turn it on |
+| An option the plugin does not know (`shield.lvel`) | The plugin's own message, with its name |
+| A value that is not TOML (`shield.level=strict`) | The text, and the quoted spelling to use |
+| `--plugin-opt` that is not `NAME.KEY=VALUE`, an empty `--plugin`, a comma in a name | What the option has to look like |
+| The same option twice (`--plugin-opt a.b=1 --plugin-opt a.b=2`) | Which one |
+
+### Builds
+
+`plugins-builtin` is a default feature of `seleniumbase-rs-cli`, as `pdf` and
+`mcp-server` are, and the release workflow builds with it. The package also
+passes `plugins`, `plugin-shield`, `plugin-block-resources` and `plugin-crx`
+through to the library. A build with `--no-default-features` has no plugin
+support and **fails closed**: `--plugin`, a `[plugins]` table, or `SB_PLUGINS`
+naming a plugin stops a browser command with status 2 and the text
+`rebuild with --features plugins-builtin`; `sbrs plugin list` says there are
+none; `sbrs plugin info` fails. An empty `SB_PLUGINS=` still turns the file's
+plugins off. The Docker image is built without the default features and has no
+plugins.
+
 ## In code
 
 On the pure CDP engine, `LaunchOptionsBuilder` takes names beside the plugins you
@@ -185,13 +352,19 @@ starts:
 | Names in a build without the `plugins` feature | `Settings::load` fails and says to rebuild with `--features plugins-builtin` |
 
 The last row is deliberate: a program that asked for privacy hardening and
-silently runs without it is worse than one that stops.
+silently runs without it is worse than one that stops. The command-line programs
+report the same mistakes with exit status 2 (see
+[Mistakes and exit status](#mistakes-and-exit-status)).
 
 ## Not here yet
 
-- `--plugin`, `--plugin-opt` and `sbrs plugin list|info` (see the note at the top).
+- `sbrs plugin add|remove|enable|disable|verify|sync|audit`, and the global
+  options `--no-plugins` and `--plugins-dir`.
 - Plugins that are not compiled in: WebAssembly modules and TOML manifests, and
   the store and lockfile that pin them.
-- The `sbrs-mcp` server taking plugin names.
+- A `plugins` argument for the MCP `start_browser` tool (a subset of what the
+  operator allowed), a `list_plugins` tool and `run_plugin_task`.
+- A list of the options a plugin accepts in `sbrs plugin info`; the plugin API
+  does not describe options yet.
 - The other official plugins of the design (tor, fetcher, extractor, browser,
   batcher, crawler).

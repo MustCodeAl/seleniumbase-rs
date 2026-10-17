@@ -15,6 +15,7 @@ files, and more. This page covers the most common workflows.
 - How to execute CDP commands and JSON scenarios.
 - How to patch binaries and diagnose the environment.
 - How to show the installed Chrome and its driver in your shell prompt.
+- How to turn on the built-in browser plugins.
 
 ## Build the CLI
 
@@ -70,6 +71,22 @@ version.
 Launches Chrome with its DevTools endpoint open, prints the endpoint and configs
 for Google's `chrome-devtools-mcp` and Microsoft's Playwright MCP, and runs until
 Ctrl+C, which closes the browser. See [DevTools MCP servers](devtools_mcp.md).
+
+## Run built-in plugins
+
+```bash
+./target/debug/sbrs plugin list                       # the plugins of this build
+./target/debug/sbrs plugin info shield                # what shield may do
+./target/debug/sbrs --plugin shield open https://seleniumbase.io
+./target/debug/sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://seleniumbase.io
+```
+
+`--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` (a TOML value, so quote a
+string) go before the command, repeat, and add to the `[plugins]` table of the
+settings file and `SB_PLUGINS`; the command line wins over the variable, which
+wins over the file. They apply to every command that starts a browser and to
+`sbrs devtools`. A mistake stops the command with exit status 2 before a browser
+starts. See [Choosing plugins](../plugins/selecting.md).
 
 ## Save artifacts
 

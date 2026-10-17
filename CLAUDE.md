@@ -28,7 +28,8 @@ status of every Python API, `parity/upstream.toml` the upstream version,
 (`default-members` = both packages): the library `seleniumbase-rs` at the root has
 no binary and no command-line crate; the binaries `sbrs` (CLI) and `sbrs-mcp`
 (MCP server) are the package `seleniumbase-rs-cli` in `crates/cli`, which turns
-`pdf` and `mcp-server` on by default and forwards `tui`, `gui` and `turso`. The
+`pdf`, `mcp-server` and `plugins-builtin` on by default and forwards `tui`, `gui`
+and `turso`. The
 library's default features are empty; `gui`, `tui`, `turso`, `playwright`,
 `plugins`, `ocr`, `visual` are opt-in. The
 experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
@@ -56,7 +57,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `stealth/` | `fingerprint.rs` (`Fingerprint`, one `Spoof` per setting, `ProxyConfig`, `ClientHints`), `spoof.rs`, `settings.rs` (value types), `policy.rs` (`StealthPolicy`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
 | `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
-| `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
+| `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `plugin_cmd.rs` (`sbrs plugin list|info`, the check of `--plugin` names and options), `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
 | `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (the command line, declared with the `usage` derives `Cli`, `Subcommands`, `Args` and `ValueEnum`), `src/fig.rs` (the Fig spec, written from the usage tables), `src/report.rs`, `src/mcp_server.rs`, and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns `usage` (the package `usage-rs`) and, for the tests, `usage-lib`. |
 | `behave/` | Gherkin runner and step registry. |
 | `plugins/` | Reporting and logging plugins (S3, GCP, Azure, screenshots, page source, driver manager, observer). |

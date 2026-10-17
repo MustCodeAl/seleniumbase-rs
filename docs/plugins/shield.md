@@ -34,7 +34,14 @@ enable = ["shield"]
 level = "strict"
 ```
 
-or `SB_PLUGINS=shield`, or in code:
+or `SB_PLUGINS=shield`, or on the command line of `sbrs` and `sbrs-mcp`, which
+have shield compiled in:
+
+```sh
+sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
+```
+
+or in code:
 
 ```rust
 use seleniumbase_rs::sb_cdp::LaunchOptions;

@@ -45,8 +45,10 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 
 The official plugins are features of their own (`plugin-shield`,
 `plugin-block-resources`, `plugin-crx`, and `plugins-builtin` for all of them),
-turned on by name in the settings file, in `SB_PLUGINS` or in a builder call:
-see [Choosing plugins](../plugins/selecting.md).
+turned on by name in the settings file, in `SB_PLUGINS`, in a builder call, or
+on the command line (`sbrs --plugin shield open https://example.com`, with the
+plugins compiled into the prebuilt `sbrs` and `sbrs-mcp`): see
+[Choosing plugins](../plugins/selecting.md).
 
 The plugin API is its own crate, `seleniumbase-rs-plugin`, in the
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)

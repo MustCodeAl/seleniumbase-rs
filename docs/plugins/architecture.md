@@ -85,7 +85,7 @@ error in a launch or page hook stops that launch or tab.
 |---|---|---|
 | Rust, built-in | A feature such as `plugin-shield` | Builder call, or a name in `[plugins]` / `SB_PLUGINS` |
 | Rust, third-party | `cargo add` the crate | `.plugin(...)`, or by name through a `Registry` |
-| Prebuilt `sbrs` | Nothing, built-ins are compiled in | `--plugin NAME`, `--plugin-opt NAME.KEY=<TOML>` |
+| Prebuilt `sbrs` and `sbrs-mcp` | Nothing, built-ins are compiled in | `--plugin NAME`, `--plugin-opt NAME.KEY=<TOML>`; `sbrs plugin list` and `sbrs plugin info NAME` show them |
 | WASM or manifest | `sbrs plugin add` into a content-addressed store | By the name it declares |
 
 WASM and manifest plugins are pinned by SHA-256 in a lockfile and their
