@@ -30,11 +30,11 @@ description = "Check formatting"
 run = "cargo fmt --all -- --check"
 
 [tasks.lint]
-description = "Clippy with warnings as errors, without and with the plugins and ocr features"
+description = "Clippy with warnings as errors, without and with the plugins, ocr and visual features"
 env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
 run = [
   'cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings',
-  'cargo clippy --all-targets --features "mcp-server test-util plugins ocr" -- -D warnings',
+  'cargo clippy --all-targets --features "mcp-server test-util plugins ocr visual" -- -D warnings',
 ]
 
 [tasks.test]
@@ -52,8 +52,9 @@ env = { CARGO_INCREMENTAL = "0", CARGO_PROFILE_DEV_DEBUG = "0" }
 run = [
   "cargo fmt --all -- --check",
   'cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings',
-  'cargo clippy --all-targets --features "mcp-server test-util plugins ocr" -- -D warnings',
+  'cargo clippy --all-targets --features "mcp-server test-util plugins ocr visual" -- -D warnings',
   'cargo test --features "mcp-server test-util plugins"',
+  'cargo test --features "visual test-util" --lib visual',
   "cargo deny check",
 ]
 

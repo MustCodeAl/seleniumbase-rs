@@ -71,6 +71,60 @@ without network access, set `SB_OCR_MODELS` to a folder that holds
 
 </Info>
 
+## Visual regression testing (pixels)
+
+`check_window` is the port of Python's: it compares the page's *layout*, the
+tags of the HTML and their attributes, and keeps the screenshot only for a
+person to look at. A new colour, font, image or position that leaves the HTML
+alone passes it. With the `visual` feature, `assert_visual_match` compares the
+*pixels* instead:
+
+```rust
+sb.open("https://example.com").await?;
+sb.check_window("home", 3.0).await?;     // the layout, as in Python
+sb.assert_visual_match("home").await?;   // the screenshot, by structural similarity
+```
+
+The first run saves the screenshot as `visual_baseline/<test>/home.png`, where
+`<test>` is the test's whole path: the test binary (the crate, or the file in
+`tests/`), the module path and the function, joined with `.`, such as
+`cart.checkout.renders`, so tests of the same name in other modules or files
+keep separate baselines. (`check_window` names its folder after the function
+alone, as Python does.) Later runs compare with it and fail with `AssertionFailed` when the
+similarity is below 0.999; the failure leaves `home.actual.png` (the new
+screenshot) and `home.diff.png` (the new screenshot in grey with what changed
+painted red) next to the baseline. A screenshot of another size fails without
+a comparison: set a fixed window size for visual tests. Run once with
+`RunSettings::with_visual_baseline_reset(true)` to accept intended changes, as
+for `check_window`.
+
+For another folder or threshold, or with the pure CDP engine, use
+`seleniumbase_rs::visual::VisualBaseline` directly. `check_page` takes a
+`BaseCase` or an `sb_cdp::Page`, and `check` takes PNG bytes:
+
+```rust
+use seleniumbase_rs::visual::{VisualBaseline, VisualOutcome};
+
+let baselines = VisualBaseline::new("tests/visual").with_threshold(0.9995);
+match baselines.check_page("checkout", &page).await? {
+    VisualOutcome::Created { baseline } => println!("saved {}", baseline.display()),
+    VisualOutcome::Matched { score } => println!("matched, {score:.5}"),
+    _ => {}
+}
+let logo = baselines.check("logo", &std::fs::read("logo.png")?)?;
+```
+
+The score is the mean structural similarity (SSIM over 8 × 8 pixel windows) of
+the red, green and blue channels, the lowest of the three: 1.0 for identical
+images. Because it is a mean over the whole screenshot, a small change moves it
+little: in headless Chrome at 800 × 600 a rewritten 48 px heading scored 0.980
+and failed, while one changed word of 16 px text scored 0.99926 and passed. To
+catch changes that small, compare a screenshot of the element, or raise the
+threshold. Rendering differs between machines and Chrome versions, so keep
+baselines per platform. The rustdoc of `seleniumbase_rs::visual` explains the
+algorithm and the threshold in full; `tests/visual_chrome.rs` runs both
+engines against a real Chrome.
+
 ## Window introspection
 
 ```rust

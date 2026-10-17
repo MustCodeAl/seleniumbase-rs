@@ -17,6 +17,8 @@
 //!   environment attached to a tab.
 //! * [`LocatorExpect`] and [`PageExpect`] are assertions that retry until they
 //!   hold.
+//! * [`HarRecorder`] records a tab's network traffic as a HAR file
+//!   ([`Page::start_har`]).
 //!
 //! Selectors are plain strings classified the way SeleniumBase classifies
 //! them: `"#id"` is CSS, `"//div"` is XPath, `"link=Home"` is a link. Use
@@ -66,6 +68,7 @@ mod endpoint;
 mod expect;
 #[cfg(feature = "gui")]
 pub mod gui_captcha;
+mod har;
 mod human;
 mod identity;
 mod inject;
@@ -99,6 +102,12 @@ pub use context::{BrowserContext, ContextOptions, ContextRoute};
 pub use endpoint::{DevToolsEndpoint, CHROME_DEVTOOLS_MCP_VERSION, PLAYWRIGHT_MCP_VERSION};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
+#[doc(inline)]
+pub use har::{
+    Har, HarCache, HarContent, HarCookie, HarCreator, HarEntry, HarLog, HarNameValue, HarOptions,
+    HarPage, HarPageTimings, HarPostData, HarRecorder, HarRequest, HarResponse, HarTimings,
+    DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
+};
 #[doc(inline)]
 pub use human::Human;
 #[doc(inline)]

@@ -33,9 +33,36 @@ work, `docs/parity.md` the per-API status).
   `addInitScript`.
 - With the `plugins` feature, `sb_cdp::Page` implements the plugin API's
   `PageHandle`, so a program can hand one of its tabs to plugin code.
+- Visual regression testing, behind the new opt-in `visual` feature:
+  `visual::VisualBaseline` saves a screenshot as a baseline PNG on the first
+  run and compares later screenshots with it by structural similarity (MSSIM
+  over 8 × 8 windows on each colour channel, `image-compare`), failing below a
+  threshold of 0.999 with `AssertionFailed` and leaving `<name>.actual.png` and
+  a `<name>.diff.png` that paints the differences red. Screenshots of another
+  size fail without a comparison. `check_page` takes a `BaseCase` or an
+  `sb_cdp::Page`, and `BaseCase::assert_visual_match(name)` keeps its baselines
+  in `visual_baseline/<test>/`, `<test>` being the test's whole path (test
+  binary, module path and function, as `cart.checkout.renders`), and follows
+  `with_visual_baseline_reset`.
+  `check_window` is unchanged: it compares the HTML layout, as in Python.
+- HAR recording for the pure CDP engine (no new dependency, no feature):
+  `Page::start_har()` / `start_har_with(HarOptions)` return a `HarRecorder`,
+  and `HarRecorder::finish()` returns a `Har` (HTTP Archive 1.2 serde types)
+  that `Har::save(path)` writes as JSON. Entries come from the `Network`
+  events of the tab and of its cross-site iframes, which run in targets of
+  their own and are attached while recording, extra-info headers included, with cookies, query strings, POST
+  bodies, one entry per redirect hop, failures with Chrome's `_error`, and
+  `blocked`/`dns`/`connect`/`ssl`/`send`/`wait`/`receive` timings; each
+  top-level navigation is a page with `onContentLoad` and `onLoad`. Response
+  bodies are off by default and capped at 1 MiB each when turned on; the cap
+  can be raised to 64 MiB (`MAX_CONTENT_BYTES`).
 
 ### Fixed
 
+- The pure CDP engine takes DevTools messages up to 256 MiB, as Puppeteer
+  does. Chrome sends each answer in one WebSocket frame, and one over the
+  default 16 MiB, such as a large screenshot or response body, used to close
+  the connection for every tab.
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
   (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
 

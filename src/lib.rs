@@ -125,6 +125,23 @@ pub mod stealth;
 pub mod tracing_util;
 pub mod utilities;
 pub mod utils;
+// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
+#[cfg(feature = "visual")]
+#[warn(
+    clippy::pedantic,
+    clippy::allow_attributes_without_reason,
+    clippy::clone_on_ref_ptr,
+    clippy::map_err_ignore,
+    clippy::semicolon_outside_block,
+    clippy::unused_result_ok,
+    clippy::too_long_first_doc_paragraph,
+    missing_debug_implementations,
+    redundant_imports,
+    redundant_lifetimes,
+    trivial_numeric_casts,
+    unused_lifetimes
+)]
+pub mod visual;
 
 pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};

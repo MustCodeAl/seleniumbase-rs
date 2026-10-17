@@ -16,6 +16,7 @@ It is the engine behind the `cdp` MCP server.
 - Wait and assert with retrying expectations
 - Work with frames, cookies, storage and tabs
 - Add scripts and styles to a page, and a script to every document it loads
+- Record a tab's network traffic as a HAR file
 - Keep WebRTC from revealing the machine's addresses
 - Test code that drives pages without launching Chrome
 
@@ -316,6 +317,66 @@ headers to every request from every tab. Prefer `page.intercept` unless you
 want exactly that.
 
 </Note>
+
+## Recording a HAR
+
+`page.start_har()` records everything the tab and its iframes request from
+then on;
+`finish()` stops and returns a `Har` (HTTP Archive 1.2), and `save` writes it
+as a `.har` file that Chrome's and Firefox's developer tools, HAR viewers and
+mitmproxy open.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{HarOptions, Page};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let recorder = page.start_har().await?;
+page.goto("https://example.com").await?;
+let har = recorder.finish().await?;
+
+for entry in &har.log.entries {
+    println!("{} {} {} ms", entry.response.status, entry.request.url, entry.time);
+}
+har.save("example.har")?;
+
+// With response bodies, each up to 256 KiB (the default limit is 1 MiB).
+let recorder = page
+    .start_har_with(HarOptions::new().content(true).max_content_bytes(256 * 1024))
+    .await?;
+# let _ = recorder;
+# Ok(())
+# }
+```
+
+Start the recorder before the navigation you want to see: only what happens
+after `start_har` returns is recorded, and only for that tab. Each request is
+an entry with its headers as they were sent (cookies included), query string,
+POST body, status, response headers and cookies, server address and timings
+(`blocked`, `dns`, `connect`, `ssl`, `send`, `wait`, `receive`, -1 for a phase
+that did not happen). A redirect is one entry per hop; a failed request has
+status 0 and the browser's error in `_error`, as in Chrome's own export; each
+top-level navigation adds a page with its `onContentLoad` and `onLoad` times.
+Bodies are off by default; with `content(true)` a body is fetched when it
+finishes loading, binary ones as base64, and one over the limit is left out
+with a `comment` saying so. The limit goes up to 64 MiB (`MAX_CONTENT_BYTES`),
+because each body comes back whole in one DevTools message. `Har` and its
+parts are serde types, so a saved HAR reads back with
+`serde_json::from_str::<Har>`.
+
+A cross-site iframe (an ad, a video player, a captcha) runs in a target of its
+own, which reports its requests on its own session. The recorder attaches to
+each one as it appears (`Target.setAutoAttach`), holds it until its requests
+are reported, and records them with the tab's; iframes inside it too. Requests
+of service workers, and of other workers that run as targets of their own, are
+not recorded. If the recorder falls so far behind the browser that it misses
+events, `log.comment` says so.
+
+Recording enables the tab's `Network` domain and leaves it on, since other
+features may rely on it. It attaches to the iframes only while it runs: finishing
+or dropping the recorder detaches them, so run one recording per tab at a time.
+A HAR records cookies and, with bodies, whatever the pages returned, so treat
+the file like the session it came from. `tests/sb_cdp_har_chrome.rs` records a
+visit to a local server, and a page with a cross-site iframe, in a real Chrome.
 
 ## Isolated contexts
 

@@ -165,7 +165,8 @@ The last line prints the browsers it found and whether their drivers match.
 ### Extras for single features
 
 Most features need nothing more: `tui`, `mcp-server`, `turso`, `playwright`,
-`azure`, `gcp`, `full-tracing`, `test-util`, `ocr` and `plugins`. The rest:
+`azure`, `gcp`, `full-tracing`, `test-util`, `ocr`, `visual` and `plugins`. The
+rest:
 
 <AccordionGroup>
 
@@ -369,6 +370,7 @@ desktop or cloud stacks.
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
 | `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](tutorials/remaining_helpers.md#reading-text-from-the-screen-ocr) |
+| `visual` | `visual::VisualBaseline` and `BaseCase::assert_visual_match`: screenshots compared with a baseline by structural similarity, with a diff image on a mismatch (`image-compare`, `image` with PNG only) | pure Rust; brings `rayon`; see [Visual regression testing](tutorials/remaining_helpers.md#visual-regression-testing-pixels) |
 
 Combine them with `--features "mcp-server tui"`. The features `scrape` and
 `impersonate` were removed in 0.3.0; see [Stealth Scraping](tutorials/stealth_scraping.md).
