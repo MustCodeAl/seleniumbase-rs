@@ -14,7 +14,7 @@ use futures_util::FutureExt;
 
 use crate::browser::config::whole_seconds;
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
-use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use crate::{BaseCase, BrowserConfig, Result, RunSettings, SeleniumBaseError};
 
 /// Boxed future returned by a browser test body.
 #[deprecated(
@@ -157,14 +157,30 @@ impl CdpCase {
 
 /// Starts the browser and gives the case the run settings the configuration
 /// carries.
+///
+/// The browser is closed again if the settings cannot be applied.
 pub(crate) async fn start_browser(config: BrowserConfig) -> Result<BaseCase> {
     let run = config.run_settings().clone();
     let mut sb = BaseCase::new(config).await?;
+    match apply_run_settings(&mut sb, run).await {
+        Ok(()) => Ok(sb),
+        Err(error) => Err(match sb.quit().await {
+            Ok(()) => error,
+            Err(cleanup) => SeleniumBaseError::TestLifecycle(format!(
+                "run settings not applied: '{error}'; cleanup failed with '{cleanup}'"
+            )),
+        }),
+    }
+}
+
+/// Gives `sb` the run-wide settings and, if they carry one, the default
+/// timeout.
+async fn apply_run_settings(sb: &mut BaseCase, run: RunSettings) -> Result<()> {
     if let Some(timeout) = run.default_timeout() {
         sb.set_timeout(whole_seconds(timeout)).await?;
     }
     sb.set_run_settings(run);
-    Ok(sb)
+    Ok(())
 }
 
 pub(crate) async fn close_browser(sb: &mut BaseCase) -> Result<()> {
@@ -187,10 +203,17 @@ impl Ended {
         &self.outcome
     }
 
-    /// The result, or the test's panic raised again.
+    /// The result, or the test's panic raised again. When the browser could
+    /// not be closed after a panic, the cleanup error is logged first: the
+    /// unwind can carry only the panic.
     pub(crate) fn finish(self) -> Result<()> {
         match self.panic {
-            Some(payload) => resume_unwind(payload),
+            Some(payload) => {
+                if let Err(error) = &self.outcome {
+                    tracing::warn!(%error, "the test panicked; its lifecycle result is dropped by the unwind");
+                }
+                resume_unwind(payload)
+            }
             None => self.outcome,
         }
     }
@@ -355,6 +378,34 @@ mod tests {
             panic_message(payload.as_ref()),
             "assertion failed in the test"
         );
+    }
+
+    #[tokio::test]
+    async fn the_run_settings_of_the_configuration_reach_the_case() {
+        use std::time::Duration;
+        let config = BrowserConfig::default().with_run_settings(
+            RunSettings::default().with_default_timeout(Duration::from_millis(7_500)),
+        );
+        let mut sb = BaseCase::without_session(config.clone());
+        assert_eq!(sb.run_settings().default_timeout(), None);
+        apply_run_settings(&mut sb, config.run_settings().clone())
+            .await
+            .unwrap();
+        assert_eq!(sb.timeout_secs(), 8, "rounded up to whole seconds");
+        assert_eq!(
+            sb.run_settings().default_timeout(),
+            Some(Duration::from_millis(7_500))
+        );
+    }
+
+    #[tokio::test]
+    async fn settings_without_a_default_timeout_keep_the_case_timeout() {
+        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        let before = sb.timeout_secs();
+        apply_run_settings(&mut sb, RunSettings::default())
+            .await
+            .unwrap();
+        assert_eq!(sb.timeout_secs(), before);
     }
 
     #[test]
