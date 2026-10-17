@@ -15,6 +15,12 @@ browser, interacts with a page, asserts on the result, and cleans up.
 - How to create a `BaseCase`, navigate, interact, assert, and quit.
 - How to run the test and interpret common startup errors.
 
+<Visibility for="agents">
+
+Summary for AI exports: add `seleniumbase-rs` and `tokio` to `Cargo.toml`, build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required.
+
+</Visibility>
+
 ## Prerequisites
 
 - Rust toolchain 1.99 or newer (the crate's `rust-version`).
@@ -23,7 +29,7 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 <Info>
 
-The crate can connect to an existing WebDriver endpoint or auto-start
+The crate can connect to an existing <Tooltip tip="The Selenium protocol: a test sends commands to a driver such as chromedriver, which drives the browser.">WebDriver</Tooltip> endpoint or auto-start
 `chromedriver` for you. With the default WebDriver URL it first looks for a
 driver already listening on `http://localhost:4444`; if there is none, it starts
 `downloaded_drivers/chromedriver` on a free port, downloading the latest stable

@@ -65,6 +65,12 @@ Wire fingerprints, identities and the browser scraper (experimental).
 
 </Columns>
 
+<Visibility for="agents">
+
+Summary for AI exports: `seleniumbase-rs` is a Rust port of Python SeleniumBase. `BaseCase` (WebDriver, with UC mode and CDP helpers) and `sb_cdp` (pure CDP, no driver) are the two engines. Settings come from `sbase_config.toml`, `SB_*` environment variables, `BrowserConfig` and CLI flags, in that order of priority. The `sbrs` CLI and the `sbrs-mcp` MCP server ship with the crate.
+
+</Visibility>
+
 ## Who this book is for
 
 - **Rust developers** writing browser tests for the first time.
@@ -92,7 +98,7 @@ By reading this book you will learn how to:
 
 ## What is included
 
-- **Browser modes**: WebDriver, CDP, UC (Undetected Chromedriver), and an optional
+- **Browser modes**: <Tooltip tip="The Selenium protocol: the test talks to chromedriver, which drives the browser.">WebDriver</Tooltip>, <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket.">CDP</Tooltip>, <Tooltip tip="Undetected Chromedriver mode: a patched driver and browser launch that avoids common bot checks.">UC</Tooltip> (Undetected Chromedriver), and an optional
   `rustwright`-based Playwright-compatible engine.
 - **`BaseCase` API**: more than 200 methods for navigation, element interaction,
   assertions, waits, frames, windows, cookies, storage, uploads, PDF handling,
