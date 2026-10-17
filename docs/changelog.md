@@ -22,8 +22,10 @@ migrate.
   stays at the repository root with the same name and path, so
   `seleniumbase-rs = { git = ... }` keeps working, but it no longer has a binary
   and no longer compiles clap, `clap_complete` or `clap_complete_fig` (15 crates
-  fewer in a default build). The commands, flags, help text and exit statuses of
-  `sbrs` are the same.
+  fewer in a default build). The commands, flags and help text of `sbrs` are the
+  same, and so are the exit statuses, with one difference: a plain `cargo build`,
+  `cargo install` or `cargo run` now includes `pdf`, so `sbrs pdf-text` and
+  `sbrs assert-pdf-text` work where they used to exit with status 2.
 
   ```bash
   # before

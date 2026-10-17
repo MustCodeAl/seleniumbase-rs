@@ -91,7 +91,10 @@ crates/cli/tests/          every test that runs CARGO_BIN_EXE_sbrs or sbrs-mcp
    workspace names both packages in `default-members`, the CLI package has
    `pdf` and `mcp-server` on by default, and `sbrs --version` still prints
    `(seleniumbase-rs)`. The library's default build lost the 15 crates of clap and
-   its completion generators.
+   its completion generators. `ratatui`, `crossterm`, `enigo` and `rfd` stayed in
+   the library on purpose: the commander and the dialogs (`src/cli/scripts`,
+   `src/api/dialog`) are library code that `BaseCase` and the MCP server reach, so
+   the CLI package only forwards the `tui` and `gui` features.
 2. Migrate `crates/cli` from clap to usage derives. `completions/sbrs.usage.kdl`
    is written by `Cli::to_kdl()` in a test that fails when the committed file is
    stale; shell completions and the Fig spec are generated from that KDL. The
