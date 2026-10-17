@@ -799,21 +799,12 @@ mod tests {
         let ua = map
             .get("Network.setUserAgentOverride")
             .expect("UA override");
-        let meta = ua.get("userAgentMetadata").expect("userAgentMetadata");
-        assert_eq!(
-            meta.get("platform").and_then(|v| v.as_str()),
-            Some("iPhone")
-        );
-        assert_eq!(
-            meta.get("platformVersion").and_then(|v| v.as_str()),
-            Some("26.0")
-        );
-        assert_eq!(
-            meta.get("architecture").and_then(|v| v.as_str()),
-            Some("arm")
-        );
-        assert_eq!(meta.get("model").and_then(|v| v.as_str()), Some("iPhone"));
-        assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(true));
+        // Safari has no User-Agent Client Hints, so none are claimed.
+        assert!(ua.get("userAgentMetadata").is_none(), "{ua}");
+        assert!(ua
+            .get("userAgent")
+            .and_then(|v| v.as_str())
+            .is_some_and(|agent| agent.contains("iPhone")));
     }
 
     #[test]

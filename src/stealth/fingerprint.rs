@@ -492,7 +492,9 @@ pub(crate) const AUDIO_SEED_MASK: u64 = 0x5DEE_CE66;
 #[serde(default, deny_unknown_fields)]
 struct Fields {
     browser_type: BrowserType,
-    os_type: OsType,
+    /// `None` until the builder works it out, and for JSON that does not say.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    os_type: Option<OsType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     core_version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -579,7 +581,7 @@ impl Default for Fields {
     fn default() -> Self {
         Self {
             browser_type: BrowserType::default(),
-            os_type: OsType::default(),
+            os_type: None,
             core_version: None,
             seed: None,
             user_agent: Spoof::Natural,
@@ -617,6 +619,16 @@ impl Default for Fields {
             save_service_worker: false,
             custom_start_urls: Vec::new(),
             cmd_params: HashMap::new(),
+        }
+    }
+}
+
+impl Fields {
+    /// The operating-system persona; Windows while none is set.
+    const fn os(&self) -> OsType {
+        match self.os_type {
+            Some(os) => os,
+            None => OsType::Windows,
         }
     }
 }
@@ -663,9 +675,19 @@ pub type StealthFlags = StealthPolicy;
 /// assert!(wider.hardware_concurrency().is_value());
 /// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
 /// ```
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct Fingerprint(Fields);
+
+/// The fingerprint of a builder with nothing set: every setting `Natural`, with
+/// the seed the builder gives it, so it equals `Fingerprint::builder().build()`.
+impl Default for Fingerprint {
+    fn default() -> Self {
+        Self::builder()
+            .build()
+            .unwrap_or_else(|_| Self(Fields::default()))
+    }
+}
 
 /// A fingerprint is read as the builder would build it: a `"random"` setting is
 /// drawn, an `"off"` where it means nothing is an error, and a field this
@@ -702,7 +724,7 @@ impl Fingerprint {
     /// The operating-system persona.
     #[must_use]
     pub const fn os_type(&self) -> OsType {
-        self.0.os_type
+        self.0.os()
     }
 
     /// The Chromium major version the identity claims, if it says.
@@ -893,10 +915,11 @@ impl Fingerprint {
         let ua = f.user_agent.as_str().unwrap_or("");
         let ua_lower = ua.to_lowercase();
 
-        let platform = f.platform.as_str().unwrap_or_else(|| f.os_type.platform());
+        let os = f.os();
+        let platform = f.platform.as_str().unwrap_or_else(|| os.platform());
 
         // OS persona vs navigator.platform.
-        let platform_ok = match f.os_type {
+        let platform_ok = match os {
             OsType::Windows => platform.starts_with("Win"),
             OsType::Macos => platform.contains("Mac"),
             OsType::Linux => platform.contains("Linux") && !platform.contains("arm"),
@@ -907,14 +930,13 @@ impl Fingerprint {
         };
         if !platform_ok {
             report.errors.push(format!(
-                "navigator.platform '{platform}' does not match OS persona {:?}",
-                f.os_type
+                "navigator.platform '{platform}' does not match OS persona {os:?}"
             ));
         }
 
         // OS persona vs user-agent token.
         if !ua.is_empty() {
-            let ua_os_ok = match f.os_type {
+            let ua_os_ok = match os {
                 OsType::Windows => ua_lower.contains("windows"),
                 OsType::Macos => ua_lower.contains("mac os"),
                 OsType::Linux => ua_lower.contains("linux") || ua_lower.contains("x11"),
@@ -923,8 +945,7 @@ impl Fingerprint {
             };
             if !ua_os_ok {
                 report.errors.push(format!(
-                    "user-agent does not contain a token for OS persona {:?}",
-                    f.os_type
+                    "user-agent does not contain a token for OS persona {os:?}"
                 ));
             }
         }
@@ -1016,11 +1037,11 @@ impl Fingerprint {
             if !needles.iter().any(|n| named.contains(n)) {
                 continue;
             }
-            if !systems.contains(&self.0.os_type) {
+            if !systems.contains(&self.0.os()) {
                 report.errors.push(format!(
                     "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
                     webgl.renderer.as_deref().unwrap_or(""),
-                    self.0.os_type
+                    self.0.os()
                 ));
             }
         }
@@ -1442,8 +1463,6 @@ macro_rules! setters {
 #[derive(Clone, Debug, Default)]
 pub struct FingerprintBuilder {
     fields: Fields,
-    /// Whether [`os_type`](Self::os_type) was called.
-    os_type_set: bool,
     /// Whether [`browser_type`](Self::browser_type) was called.
     browser_type_set: bool,
     seed: Option<u64>,
@@ -1460,7 +1479,6 @@ impl FingerprintBuilder {
         Self {
             seed: fields.seed,
             policy: fields.policy.clone(),
-            os_type_set: true,
             browser_type_set: true,
             fields,
             changes: Vec::new(),
@@ -1522,8 +1540,7 @@ impl FingerprintBuilder {
     /// takes it from a recognised user agent, and it is Windows otherwise.
     #[must_use]
     pub fn os_type(mut self, v: OsType) -> Self {
-        self.fields.os_type = v;
-        self.os_type_set = true;
+        self.fields.os_type = Some(v);
         self
     }
 
@@ -1587,7 +1604,10 @@ impl FingerprintBuilder {
         media_devices: MediaDevices;
         /// Sets the position `navigator.geolocation` reports. `(latitude,
         /// longitude)` works. `Off` denies the request; a position answers it
-        /// without a prompt.
+        /// without a prompt. A `Random` position is in the city of the given
+        /// time zone or locale; with neither it is in a drawn city, and the
+        /// browser's own time zone does not follow it, so draw the
+        /// [`timezone`](Self::timezone) with it (`Spoof::Random`).
         geolocation: Geolocation;
         /// Sets the installed fonts.
         fonts: Vec<String>;
@@ -1770,7 +1790,6 @@ impl FingerprintBuilder {
     pub fn build(self) -> Result<Fingerprint, FingerprintError> {
         let Self {
             mut fields,
-            os_type_set,
             browser_type_set,
             seed,
             policy,
@@ -1788,10 +1807,14 @@ impl FingerprintBuilder {
                 reason: "the proxy has no host".to_owned(),
             });
         }
-        if !os_type_set {
-            if let Some(os) = fields.user_agent.as_str().and_then(os_of_user_agent) {
-                fields.os_type = os;
-            }
+        if fields.os_type.is_none() {
+            fields.os_type = Some(
+                fields
+                    .user_agent
+                    .as_str()
+                    .and_then(os_of_user_agent)
+                    .unwrap_or_default(),
+            );
         }
 
         let random = has_random(&fields);
@@ -1813,7 +1836,7 @@ impl FingerprintBuilder {
             }
         }
         if fields.platform.is_natural() && fields.user_agent.is_value() {
-            fields.platform = Spoof::Value(fields.os_type.platform().to_owned());
+            fields.platform = Spoof::Value(fields.os().platform().to_owned());
         }
         fields.policy = changes.iter().fold(policy, |p, change| (change.0)(p));
         Ok(Fingerprint(fields))
@@ -1914,7 +1937,7 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     }
 
     let seed = f.seed.unwrap_or(DEFAULT_SEED);
-    let os = f.os_type;
+    let os = f.os();
 
     // The place the draw has to agree with: a given time zone first, then a
     // given locale. `Some(None)` is a value the table of places does not know.
@@ -2367,15 +2390,15 @@ mod tests {
     }
 
     #[test]
-    fn every_preset_has_a_position_in_the_city_of_its_time_zone() {
+    fn every_preset_time_zone_is_one_the_table_of_places_knows_and_its_locale_agrees() {
         for (name, fp) in every_preset() {
             let zone = fp.timezone().as_str().expect("a time zone");
-            let city = randomize::locale_of_timezone(zone)
-                .unwrap_or_else(|| panic!("{name}: {zone} is not in the table"));
-            let place = fp.geolocation().value().expect("a position");
-            assert_eq!(place.latitude, city.latitude, "{name}");
-            assert_eq!(place.longitude, city.longitude, "{name}");
-            assert!(fp.is_masked(Dimension::Geolocation), "{name}");
+            assert!(
+                randomize::locale_of_timezone(zone).is_some(),
+                "{name}: {zone} is not in the table"
+            );
+            // The position stays the browser's own: see the preset documentation.
+            assert!(!fp.is_masked(Dimension::Geolocation), "{name}");
         }
     }
 
@@ -2388,7 +2411,6 @@ mod tests {
                 Dimension::Timezone,
                 Dimension::Screen,
                 Dimension::Graphics,
-                Dimension::Geolocation,
                 Dimension::WebRtc,
                 Dimension::Canvas,
                 Dimension::Speech,
@@ -3245,7 +3267,7 @@ mod tests {
     }
 
     #[test]
-    fn a_time_zone_without_a_position_is_a_warning_unless_the_position_is_denied() {
+    fn a_time_zone_without_a_position_is_a_warning_only_when_permissions_are_granted() {
         let warns = |builder: FingerprintBuilder| {
             built(builder)
                 .validate()
@@ -3253,17 +3275,61 @@ mod tests {
                 .iter()
                 .any(|w| w.contains("without geolocation"))
         };
-        assert!(warns(Fingerprint::builder().timezone("Europe/Berlin")));
-        assert!(!warns(
+        let granting = || {
             Fingerprint::builder()
                 .timezone("Europe/Berlin")
-                .geolocation(Spoof::Off)
-        ));
-        assert!(!warns(
-            Fingerprint::builder()
-                .timezone("Europe/Berlin")
-                .geolocation((52.5, 13.4))
-        ));
+                .grant_permissions(true)
+        };
+        // Granted, the page gets the real position next to the made-up zone.
+        assert!(warns(granting()));
+        assert!(!warns(granting().geolocation(Spoof::Off)));
+        assert!(!warns(granting().geolocation((52.5, 13.4))));
+        // Not granted, a request is asked, as a real browser asks it.
+        assert!(!warns(Fingerprint::builder().timezone("Europe/Berlin")));
+    }
+
+    #[test]
+    fn the_presets_leave_the_position_natural_and_ios_claims_no_memory_or_hints() {
+        for preset in [
+            Fingerprint::windows_desktop(),
+            Fingerprint::edge_desktop(),
+            Fingerprint::macos_desktop(),
+            Fingerprint::linux_desktop(),
+            Fingerprint::android_mobile(),
+            Fingerprint::ios_mobile_safari(),
+        ] {
+            // A position is answered without a prompt, which a fresh browser
+            // does not do.
+            assert!(preset.geolocation().is_natural());
+            assert!(preset.timezone().is_value());
+        }
+        let ios = Fingerprint::ios_mobile_safari();
+        assert!(ios.device_memory().is_natural());
+        assert!(ios.client_hints().is_off());
+    }
+
+    #[test]
+    fn the_default_fingerprint_is_the_one_a_builder_with_nothing_set_builds() {
+        assert_eq!(Fingerprint::default(), built(Fingerprint::builder()));
+    }
+
+    #[test]
+    fn json_without_an_os_type_takes_it_from_the_user_agent() {
+        let mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36";
+        let fp: Fingerprint = serde_json::from_value(serde_json::json!({ "user_agent": mac }))
+            .expect("a fingerprint without an os_type");
+        assert_eq!(fp.os_type(), OsType::Macos);
+        assert_eq!(fp.platform().as_str(), Some("MacIntel"));
+        // An os_type that the JSON gives is kept, whatever the user agent says.
+        let kept: Fingerprint =
+            serde_json::from_value(serde_json::json!({ "os_type": "Windows", "user_agent": mac }))
+                .expect("a fingerprint with an os_type");
+        assert_eq!(kept.os_type(), OsType::Windows);
+        // And one that is built round-trips with its os_type.
+        let round: Fingerprint =
+            serde_json::from_str(&serde_json::to_string(&fp).expect("serialises"))
+                .expect("reads back");
+        assert_eq!(round, fp);
     }
 
     #[test]
