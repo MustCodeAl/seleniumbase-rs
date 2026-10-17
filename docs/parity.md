@@ -772,7 +772,7 @@ Python `sb.cdp.*`; Rust holds the selector in a `Locator`.
 | `set_download_path` | composed | `Browser::set_download_dir` | `browser.set_download_dir(dir)`. |
 | `set_local_storage_item` | composed | `Storage::set` | `page.local_storage().set(key, value)`. |
 | `set_locale` | composed | `Emulation::locale` | `page.emulation().locale(..)` sets the Intl locale and also the language the page reads from `navigator.language` and the browser sends in `Accept-Language`, keeping the user agent and client hints it had. As in Python the language takes effect from the next page load. |
-| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). |
+| `set_messenger_theme` | implemented | `Page::set_messenger_theme` | Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest. |
 | `set_session_storage_item` | composed | `Storage::set` | `page.session_storage().set(key, value)`. |
 | `set_value` | composed | `Locator::set_value` | Call `page.locator(selector).set_value(..)`; the Locator holds the selector, so it is not an argument of the call. |
 | `set_window_rect` | composed | `Window::set_bounds` | `page.window().set_bounds(x, y, width, height)`; it first restores a minimised or maximised window. |

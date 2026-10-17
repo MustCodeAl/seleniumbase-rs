@@ -2838,7 +2838,7 @@ note = "`page.emulation().locale(..)` sets the Intl locale and also the language
 [cdp."set_messenger_theme"]
 status = "implemented"
 rust = "Page::set_messenger_theme"
-note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8)."
+note = "Theme, location and the message limit are typed in MessengerSettings; the defaults are Python's (flat, bottom right, 8). A MessengerTheme or a MessengerLocation alone is accepted too and keeps the defaults for the rest."
 
 [cdp."set_session_storage_item"]
 status = "composed"
