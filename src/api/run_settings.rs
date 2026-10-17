@@ -31,8 +31,11 @@ pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(500);
 
 /// How long [`BaseCase::post_message`](crate::BaseCase::post_message) shows a
 /// message unless [`RunSettings::with_message_duration`] says otherwise, in
-/// whole seconds. Prefer [`DEFAULT_MESSAGE_DURATION`], which keeps Python's
-/// milliseconds.
+/// whole seconds.
+#[deprecated(
+    since = "0.5.0",
+    note = "use DEFAULT_MESSAGE_DURATION (2.55 s, as in Python); RunSettings::message_seconds rounds it up"
+)]
 pub const DEFAULT_MESSAGE_SECONDS: u64 = 3;
 
 /// How long a message stays on the page unless
@@ -213,8 +216,9 @@ impl RunSettings {
     }
 
     /// [`pause_for`](Self::pause_for) with a flag: `true` is
-    /// [`PauseKind::Short`] (Python's `tiny`). Kept for the callers that
-    /// already pass a flag; new code names the kind.
+    /// [`PauseKind::Short`] (Python's `tiny`). Kept, not deprecated, for the
+    /// callers that already pass a flag (`BaseCase` until it moves to
+    /// [`pause_for`](Self::pause_for)); new code names the kind.
     #[must_use]
     pub fn pause(&self, tiny: bool) -> Duration {
         self.pause_for(if tiny {
@@ -242,8 +246,7 @@ impl RunSettings {
     /// The whole seconds `post_message` keeps a message on the page.
     #[must_use]
     pub fn message_seconds(&self) -> u64 {
-        self.message_duration
-            .map_or(DEFAULT_MESSAGE_SECONDS, |d| d.as_secs_f64().ceil() as u64)
+        self.message_duration().as_secs_f64().ceil() as u64
     }
 }
 
@@ -655,7 +658,7 @@ mod tests {
         let settings = RunSettings::default();
         assert_eq!(settings.pause(false), Duration::ZERO);
         assert_eq!(settings.pause(true), Duration::ZERO);
-        assert_eq!(settings.message_seconds(), DEFAULT_MESSAGE_SECONDS);
+        assert_eq!(settings.message_seconds(), 3, "2.55 s rounded up");
         assert!(!settings.skip_js_waits() && !settings.record_sleep());
     }
 
