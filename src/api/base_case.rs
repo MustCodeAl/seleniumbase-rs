@@ -3318,6 +3318,8 @@ include!("base_case_impls/base_case_impl_element_tests.rs");
 include!("base_case_impls/base_case_impl_demo_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_cdp_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_mouse_tests.rs");
 #[cfg(all(test, feature = "playwright"))]
 include!("base_case_impls/base_case_impl_playwright_tests.rs");
 #[cfg(test)]

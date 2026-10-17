@@ -730,14 +730,11 @@ fn rust_call(action: &RecordedAction) -> Result<String, String> {
             )
         }
         Shape::TargetOffset => {
-            let offset = need_value()?;
-            let (x, y) = offset
-                .split_once(',')
-                .ok_or_else(|| format!("{name}: value {offset:?} is not x, y"))?;
+            let (x, y, center) = offset_parts(name, need_value()?)?;
             (
                 *method,
                 format!(
-                    "{}, {}, {}",
+                    "{}, {}, {}, {center}",
                     literal(need_target()?),
                     number::<i64>(name, "x offset", x)?,
                     number::<i64>(name, "y offset", y)?
@@ -1857,6 +1854,7 @@ mod tests {
                 syn::Lit::Str(_) => "string",
                 syn::Lit::Int(_) => "integer",
                 syn::Lit::Float(_) => "float",
+                syn::Lit::Bool(_) => "bool",
                 _ => "other",
             },
             // A negative number is a unary minus on a literal.
@@ -1917,6 +1915,7 @@ mod tests {
                     "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64"
                     | "isize" => kind == "integer",
                     "f64" => kind == "float",
+                    "bool" => kind == "bool",
                     _ => false,
                 };
                 if !fits {
@@ -1989,7 +1988,16 @@ mod tests {
         );
         assert_eq!(
             call("click_with_offset", Some("#a"), Some("10, -4")).unwrap(),
-            "sb.click_with_offset(\"#a\", 10, -4).await?;"
+            "sb.click_with_offset(\"#a\", 10, -4, false).await?;"
+        );
+        assert_eq!(
+            call(
+                "double_click_with_offset",
+                Some("#a"),
+                Some("10, -4, center")
+            )
+            .unwrap(),
+            "sb.double_click_with_offset(\"#a\", 10, -4, true).await?;"
         );
         assert_eq!(
             call("select_option_by_index", Some("#s"), Some("2")).unwrap(),

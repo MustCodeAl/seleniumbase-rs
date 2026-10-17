@@ -363,6 +363,26 @@ migrate.
   let title = page.evaluate("document.title").await?;
   ```
 
+- **`click_with_offset` and `double_click_with_offset` take `center`** and count
+  from the top-left corner of the element, as Python's do (`click_with_offset(
+  selector, x, y, center=False)`). They passed `(x, y)` straight to WebDriver,
+  which counts from the centre of the element, while their documentation said
+  "from the top-left corner", so every click was off by half the element's
+  size. The extra argument stops old calls compiling; to keep the old behaviour
+  (and the click it really made) pass `true`, and to get what the
+  documentation promised pass `false`. They also wait for the element to be
+  displayed now. The recorder writes the new form
+  (`sb.click_with_offset("#a", 10, -4, false)`), and a recording of an offset
+  from the centre says `x, y, center`.
+
+  ```rust
+  // before: x and y counted from the centre, whatever the docs said
+  sb.click_with_offset("#canvas", 10, -4).await?;
+  // after
+  sb.click_with_offset("#canvas", 10, -4, true).await?;  // from the centre, as before
+  sb.click_with_offset("#canvas", 10, 4, false).await?;  // from the top-left corner
+  ```
+
 - **`post_message_for(message, duration)` takes a `Duration`**, not a number of
   whole seconds, so a message can last 2.55 s as Python's default does. It also
   waits for the message to go now (see Changed).

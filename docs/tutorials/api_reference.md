@@ -69,7 +69,8 @@ browser processes do not leak when a test fails.
 | `slow_click(selector)` | Clicks after a small delay. |
 | `click_if_visible(selector)` | Clicks only if the element is visible. |
 | `click_visible_elements(selector)` | Clicks every visible matching element. |
-| `click_with_offset(selector, x, y)` | Clicks with a pixel offset from the element center. |
+| `click_with_offset(selector, x, y, center)` | Clicks at a pixel offset from the element's top-left corner, or from its centre when `center` is true, as Python does. |
+| `double_click_with_offset(selector, x, y, center)` | The same with a double click. |
 | `click_chain(selectors)` | Clicks each selector in order. |
 | `type_text(selector, text)` | Clears and types. |
 | `add_text(selector, text)` | Appends text. |

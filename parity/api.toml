@@ -367,6 +367,8 @@ rust = "BaseCase::click_visible_elements"
 [basecase."click_with_offset"]
 status = "implemented"
 rust = "BaseCase::click_with_offset"
+note = "The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
+divergence = "Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. In demo mode it outlines the element but draws no dot."
 
 [basecase."click_xpath"]
 status = "implemented"
@@ -555,6 +557,8 @@ rust = "BaseCase::double_click"
 [basecase."double_click_with_offset"]
 status = "implemented"
 rust = "BaseCase::double_click_with_offset"
+note = "The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
+divergence = "Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout."
 
 [basecase."download_file"]
 status = "implemented"

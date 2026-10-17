@@ -122,7 +122,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `click_partial_link` | implemented | `BaseCase::click_partial_link` |  |
 | `click_partial_link_text` | implemented | `BaseCase::click_partial_link_text` |  |
 | `click_visible_elements` | implemented | `BaseCase::click_visible_elements` |  |
-| `click_with_offset` | implemented | `BaseCase::click_with_offset` |  |
+| `click_with_offset` | implemented | `BaseCase::click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. In demo mode it outlines the element but draws no dot. |
 | `click_xpath` | implemented | `BaseCase::click_xpath` |  |
 | `console_log_script` | implemented | `BaseCase::console_log_script` |  |
 | `console_log_string` | implemented | `BaseCase::console_log_string` |  |
@@ -167,7 +167,7 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `dismiss_alert` | implemented | `BaseCase::dismiss_alert` |  |
 | `display_chart` | implemented | `BaseCase::display_chart` |  |
 | `double_click` | implemented | `BaseCase::double_click` |  |
-| `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` |  |
+| `double_click_with_offset` | implemented | `BaseCase::double_click_with_offset` | The offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. Differs: Takes whole-pixel offsets (Python takes numbers), and no `mark`, `timeout` or `scroll` arguments; it waits for the element to be displayed for the default timeout. |
 | `download_file` | implemented | `BaseCase::download_file` | Differs: Opens the URL in a browser tab and waits for the browser to save it, taking a file name and timeout; Python fetches it over HTTP into a folder. |
 | `drag_and_drop` | implemented | `BaseCase::drag_and_drop` |  |
 | `drag_and_drop_with_offset` | implemented | `BaseCase::drag_and_drop_with_offset` |  |

@@ -20,6 +20,21 @@ fn js_escape(s: &str) -> String {
         .replace('\t', "\\t")
 }
 
+/// The offset to give WebDriver for a click at `(x, y)` of an element `size`
+/// (width, height) big. WebDriver counts from the centre of the element;
+/// Python's `click_with_offset` counts from its top-left corner unless
+/// `center` is set (`x = -width / 2 + x`), and the driver then truncates the
+/// number to a whole one.
+fn offset_from_center((x, y): (i64, i64), (width, height): (f64, f64), center: bool) -> (i64, i64) {
+    if center {
+        return (x, y);
+    }
+    (
+        (x as f64 - width / 2.0) as i64,
+        (y as f64 - height / 2.0) as i64,
+    )
+}
+
 /// Generate a TOTP code for the given base32-encoded secret at `timestamp`.
 fn generate_totp(secret: &str, timestamp: u64) -> Result<String, SeleniumBaseError> {
     let secret = secret.replace([' ', '-'], "").to_uppercase();
@@ -1265,44 +1280,81 @@ impl BaseCase {
     // Interaction with offsets
     // ========================================================================
 
-    /// Clicks `css` at offset `(x, y)` relative to the element's top-left corner.
+    /// Clicks `css` at the offset `(x, y)` in pixels, as Python's
+    /// `click_with_offset(selector, x, y, center=...)` does: `(0, 0)` is the
+    /// top-left corner of the element, or with `center` its centre. Waits for
+    /// the element to be displayed.
+    ///
+    /// WebDriver measures an offset from the centre of the element. This
+    /// method used to pass `(x, y)` to it as it was while its documentation said
+    /// "from the top-left corner", so every click was off by half the element's
+    /// size; it now converts, as Python does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not show
+    /// up and the WebDriver error if the offset is outside the page.
     pub async fn click_with_offset(
         &mut self,
         css: &str,
         x: i64,
         y: i64,
+        center: bool,
     ) -> Result<(), SeleniumBaseError> {
-        self.record("click_with_offset", Some(css), Some(&format!("{}, {}", x, y)));
-        let by = Selector::auto(css).to_by()?;
-        let element = self.session.find(by).await?;
-        self.session
-            .driver()
-            .action_chain()
-            .move_to_element_with_offset(&element, x, y)
-            .click()
-            .perform()
+        self.click_at_offset("click_with_offset", css, (x, y), center, false)
             .await
-            .map_err(SeleniumBaseError::WebDriver)
     }
 
-    /// Double-clicks `css` at offset `(x, y)`.
+    /// Double-clicks `css` at the offset `(x, y)`; see
+    /// [`click_with_offset`](Self::click_with_offset) for what `(0, 0)` is.
     pub async fn double_click_with_offset(
         &mut self,
         css: &str,
         x: i64,
         y: i64,
+        center: bool,
     ) -> Result<(), SeleniumBaseError> {
-        self.record("double_click_with_offset", Some(css), Some(&format!("{}, {}", x, y)));
+        self.click_at_offset("double_click_with_offset", css, (x, y), center, true)
+            .await
+    }
+
+    /// The click behind [`click_with_offset`](Self::click_with_offset) and
+    /// [`double_click_with_offset`](Self::double_click_with_offset). It records
+    /// `action` with the offset as `x, y`, or `x, y, center` for an offset from
+    /// the centre, which is what the recorder's generators read.
+    async fn click_at_offset(
+        &mut self,
+        action: &str,
+        css: &str,
+        (x, y): (i64, i64),
+        center: bool,
+        double: bool,
+    ) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Visible).await?;
+        let offset = if center {
+            format!("{x}, {y}, center")
+        } else {
+            format!("{x}, {y}")
+        };
+        self.record(action, Some(css), Some(&offset));
+        self.demo_highlight(css).await?;
         let element = self.session.find(by).await?;
-        self.session
+        let size = element.rect().await?;
+        let (from_x, from_y) = offset_from_center((x, y), (size.width, size.height), center);
+        let chain = self
+            .session
             .driver()
             .action_chain()
-            .move_to_element_with_offset(&element, x, y)
-            .double_click()
-            .perform()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .move_to_element_with_offset(&element, from_x, from_y);
+        let chain = if double {
+            chain.double_click()
+        } else {
+            chain.click()
+        };
+        chain.perform().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
     }
 
     /// Drags `source_css` to `target_css` with an optional target offset.
