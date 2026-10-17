@@ -507,6 +507,8 @@ impl BaseCase {
                 path.display()
             )));
         };
+        // As Python does, let the page finish loading before the cookies go in.
+        self.wait_for_ready_state_complete().await?;
         let url = self.session.driver().current_url().await?;
         let origin = origin_of_url(url.as_str())?;
         let now = SystemTime::now()
@@ -794,7 +796,7 @@ impl BaseCase {
     pub async fn get_text(&self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Present).await?;
-        Ok(self.session.driver().find(by).await?.text().await?)
+        self.session.text(by).await
     }
 
     /// Hovers over the element selected by `css`.
@@ -905,18 +907,12 @@ impl BaseCase {
 
     /// Returns the current page title.
     pub async fn get_title(&self) -> Result<String, SeleniumBaseError> {
-        Ok(self.session.driver().title().await?)
+        self.session.current_title().await
     }
 
     /// Returns the current page URL.
     pub async fn get_current_url(&self) -> Result<String, SeleniumBaseError> {
-        Ok(self
-            .session
-            .driver()
-            .current_url()
-            .await?
-            .as_str()
-            .to_owned())
+        self.session.current_url().await
     }
 
     /// Executes the `assert_url_contains` action.

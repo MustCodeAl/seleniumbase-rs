@@ -62,6 +62,17 @@ fn read_saved_cookies(path: &Path) -> Result<Value, SeleniumBaseError> {
     })
 }
 
+/// The host of `origin` (`scheme://host[:port]`) without its port: a cookie's
+/// domain names a host, and a browser driver refuses one that carries a port.
+fn host_of_origin(origin: &str) -> &str {
+    let authority = origin.rsplit("://").next().unwrap_or(origin);
+    match authority.strip_prefix('[') {
+        // `[::1]:8080` is the address `::1` in brackets, then the port.
+        Some(_) => authority.split_inclusive(']').next().unwrap_or(authority),
+        None => authority.split(':').next().unwrap_or(authority),
+    }
+}
+
 /// Makes a saved cookie fit the page `origin` and `expiry`, as Python's
 /// `load_cookies` does: a domain that is not part of the origin becomes the
 /// origin's host, and the expiry is dropped, kept or set from `now` (seconds
@@ -77,8 +88,7 @@ fn prepare_cookie(
         .and_then(Value::as_str)
         .is_some_and(|domain| !origin.contains(domain));
     if foreign {
-        let host = origin.rsplit("://").next().unwrap_or(origin);
-        cookie.insert("domain".to_owned(), Value::from(host));
+        cookie.insert("domain".to_owned(), Value::from(host_of_origin(origin)));
     }
     match expiry {
         CookieExpiry::Session | CookieExpiry::Minutes(0) => {
@@ -431,7 +441,8 @@ mod parity_tests {
             CookieExpiry::Saved,
             0,
         );
-        assert_eq!(foreign["domain"], "www.other.test:8443");
+        // The port is not part of a cookie's domain.
+        assert_eq!(foreign["domain"], "www.other.test");
 
         // A domain the origin contains is left alone.
         let mut same = cookie();
@@ -443,6 +454,15 @@ mod parity_tests {
         bare.remove("domain");
         prepare_cookie(&mut bare, "https://www.other.test", CookieExpiry::Saved, 0);
         assert!(!bare.contains_key("domain"));
+    }
+
+    #[test]
+    fn the_domain_of_an_origin_has_no_port() {
+        assert_eq!(host_of_origin("https://www.example.test"), "www.example.test");
+        assert_eq!(host_of_origin("http://localhost:8000"), "localhost");
+        assert_eq!(host_of_origin("http://127.0.0.1:9"), "127.0.0.1");
+        assert_eq!(host_of_origin("http://[::1]:8080"), "[::1]");
+        assert_eq!(host_of_origin("example.test"), "example.test");
     }
 
     #[test]
@@ -488,6 +508,8 @@ mod tests_cookies {
                     "sameSite": "Lax"
                 }])),
                 ("GET", "/url") => Reply::Value(json!("https://www.example.test/home")),
+                // `document.readyState`, which loading cookies waits for.
+                ("POST", "/execute/sync") => Reply::Value(json!("complete")),
                 _ => Reply::Value(Value::Null),
             }
         })
@@ -516,10 +538,17 @@ mod tests_cookies {
         assert_eq!(saved[0]["name"], "sid");
         assert_eq!(saved[0]["expiry"], 4_102_444_800_i64);
 
-        // By default the domain becomes the page's and the expiry goes.
+        // By default the domain becomes the page's and the expiry goes. Like
+        // Python's `load_cookies`, it waits for the page to finish loading.
         sb.load_cookies_from_path(&file, CookieExpiry::default())
             .await
             .unwrap();
+        let asked_ready_state = driver.requests("/execute/sync").iter().any(|request| {
+            request.body["script"]
+                .as_str()
+                .is_some_and(|script| script.contains("document.readyState"))
+        });
+        assert!(asked_ready_state, "the page was not asked if it had loaded");
         let cookie = &added(&driver)[0];
         assert_eq!(cookie["name"], "sid");
         assert_eq!(cookie["domain"], "www.example.test");
