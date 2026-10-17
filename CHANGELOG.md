@@ -89,6 +89,50 @@ that break a call are listed first, each with the way to migrate.
   let el = sb.find_text("Welcome", "h1").await?;
   ```
 
+- **`post_message_and_highlight(message, css)` takes the element to highlight**,
+  as Python's `post_message_and_highlight(message, selector)` does. It used to
+  highlight the toast it had just shown. An error while highlighting is now
+  returned instead of ignored.
+
+  ```rust
+  // before
+  sb.post_message_and_highlight("Saved").await?;
+  // after
+  sb.post_message_and_highlight("Saved", "#save-button").await?;
+  ```
+
+- **The extra browsers are named by a `DriverId`, and switching to the default
+  one is repeatable.** `get_new_driver(Option<BrowserConfig>)` returned the
+  index of the browser it had just parked, and `switch_to_driver(index)` swapped
+  the active browser with the one in that slot, so the slot held whichever
+  browser was left last: `switch_to_default_driver()` (slot 0) reached the
+  first browser only once, and its second call went back to the other. A
+  `DriverId` now names a browser for good, and `switch_to_default_driver()`
+  always reaches the first one. Changes:
+
+  - `get_new_driver()` takes no argument and `get_new_driver_with(config)` takes
+    the configuration (no more `None`); both return the new browser's
+    `DriverId`.
+  - `switch_to_driver(DriverId)` makes that browser active and can be repeated;
+    `active_driver()` says which one is.
+  - `quit_extra_driver(DriverId)` refuses `DriverId::DEFAULT` (that browser is
+    closed by `quit()`); quitting the active extra browser falls back to the
+    default one, as in Python. A browser that was quit is an error to switch
+    to, not a disconnected session that panics.
+  - `quit()` closes every browser the case opened, not only the active one.
+  - `driver_count()` counts the browsers that are open, the active one
+    included (it counted the parked ones, quit placeholders too).
+
+  ```rust
+  // before
+  let first = sb.get_new_driver(None).await?; // the index of the parked browser
+  sb.switch_to_driver(first).await?;          // swaps: the slot now holds the other
+  // after
+  let second = sb.get_new_driver().await?;    // the new browser's id
+  sb.switch_to_default_driver().await?;       // always the first browser
+  sb.switch_to_driver(second).await?;
+  ```
+
 ### Changed
 
 - **The text assertions wait, as Python's do.** `assert_text`,

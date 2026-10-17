@@ -182,14 +182,21 @@ impl BaseCase {
         self.post_styled_message(message, "#dc3545").await
     }
 
-    /// Displays a toast message and highlights it.
+    /// Displays a toast message and then highlights the element `css`.
+    /// Corresponds to Python's `post_message_and_highlight(message,
+    /// selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be shown or `css` cannot be
+    /// highlighted (it is not on the page, for example).
     pub async fn post_message_and_highlight(
         &self,
         message: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.post_styled_message(message, "#ffc107").await?;
-        let _ = self.highlight("#sb-toast-message").await;
-        Ok(())
+        self.highlight(css).await
     }
 
     async fn post_styled_message(&self, message: &str, color: &str) -> Result<(), SeleniumBaseError> {

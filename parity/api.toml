@@ -833,6 +833,7 @@ rust = "BaseCase::get_mfa_code"
 [basecase."get_new_driver"]
 status = "implemented"
 rust = "BaseCase::get_new_driver"
+divergence = "Returns a DriverId, not the driver object. The browser options of Python's arguments go in a BrowserConfig: get_new_driver_with(config)."
 
 [basecase."get_origin"]
 status = "implemented"
@@ -1260,7 +1261,7 @@ rust = "BaseCase::post_message"
 [basecase."post_message_and_highlight"]
 status = "implemented"
 rust = "BaseCase::post_message_and_highlight"
-divergence = "Shows a plain box (see post_success_message) and highlights it; Python takes a selector and highlights that element after posting the message."
+divergence = "Shows a plain box (see post_success_message), then highlights the selector's element as Python does."
 
 [basecase."post_success_message"]
 status = "implemented"
@@ -1311,6 +1312,7 @@ rust = "BaseCase::process_delayed_asserts"
 [basecase."quit_extra_driver"]
 status = "implemented"
 rust = "BaseCase::quit_extra_driver"
+divergence = "Takes the DriverId get_new_driver returned, where Python takes the driver (or None for the active one); the default browser is refused, and quitting the active extra browser falls back to the default one."
 
 [basecase."refresh"]
 status = "implemented"
@@ -1691,6 +1693,7 @@ rust = "BaseCase::switch_to_default_window"
 [basecase."switch_to_driver"]
 status = "implemented"
 rust = "BaseCase::switch_to_driver"
+divergence = "Takes a DriverId, where Python takes the driver object."
 
 [basecase."switch_to_frame"]
 status = "implemented"

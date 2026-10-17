@@ -59,8 +59,10 @@ pub struct BaseCase {
     default_timeout_before: Option<u64>,
     #[cfg(feature = "gui")]
     gui_held: Option<(i32, i32)>,
-    /// Additional browser sessions created by [`BaseCase::get_new_driver`].
-    extra_sessions: Vec<BrowserSession>,
+    /// The browsers of this case other than the active one, which is
+    /// `session`: the extra ones [`BaseCase::get_new_driver`] opened, and the
+    /// default one while another is active.
+    drivers: DriverTable<BrowserSession>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
     /// The pages [`BaseCase::set_content_to_frame`] replaced, oldest first, for
@@ -115,7 +117,7 @@ impl BaseCase {
             default_timeout_before: None,
             #[cfg(feature = "gui")]
             gui_held: None,
-            extra_sessions: Vec::new(),
+            drivers: DriverTable::new(),
             run_settings: RunSettings::default(),
             swapped_pages: Vec::new(),
         }
@@ -1697,10 +1699,20 @@ impl BaseCase {
     ///
     /// With [`BrowserConfig::reuse_session`] on, the browser is given back,
     /// open, for the next test instead (see [`crate::browser::reuse`]).
+    ///
+    /// Every browser the case opened is closed, those that
+    /// [`get_new_driver`](Self::get_new_driver) added too. The first error is
+    /// returned after all of them have been tried.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
-        self.session.quit().await
+        let mut result = self.session.quit().await;
+        for mut parked in self.drivers.take_all_parked() {
+            if let Err(error) = parked.quit().await {
+                result = result.and(Err(error));
+            }
+        }
+        result
     }
 
     /// The WebDriver session id of the active browser (Python's

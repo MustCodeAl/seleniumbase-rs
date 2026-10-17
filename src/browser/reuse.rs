@@ -1300,7 +1300,7 @@ mod tests_with_a_driver {
         let driver = mock_with_windows(&["w1"]);
         let config = reusing(&driver);
         let mut sb = BaseCase::new(config.clone()).await.unwrap();
-        sb.get_new_driver(None).await.unwrap();
+        sb.get_new_driver().await.unwrap();
         sb.quit().await.unwrap();
         assert_eq!(
             ended_sessions(&driver),

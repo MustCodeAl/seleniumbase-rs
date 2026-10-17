@@ -181,22 +181,17 @@ impl BaseCase {
         Ok(path)
     }
 
-    /// Makes the driver parked at index 0 the active one, and parks the driver
-    /// that was active there. Corresponds to Python's `switch_to_default_driver`.
-    ///
-    /// Index 0 holds the browser this test started with only until the first
-    /// switch: [`BaseCase::switch_to_driver`] trades the active driver with the
-    /// one parked at the index, so after switching away from the first browser
-    /// by `get_new_driver`, slot 0 is that first browser, and calling this again
-    /// swaps back. Go through `switch_to_driver` with the index you were given
-    /// to be sure which browser you reach.
+    /// Makes the browser this case started with the active one, however many
+    /// others it has opened since and however often this is called. The
+    /// browser that was active stays open. Corresponds to Python's
+    /// `switch_to_default_driver`.
     ///
     /// # Errors
     ///
-    /// Returns [`SeleniumBaseError::InvalidConfig`] if no driver is parked at
-    /// index 0, which is the case until `get_new_driver` has been called.
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if the default browser has
+    /// been quit.
     pub async fn switch_to_default_driver(&mut self) -> Result<(), SeleniumBaseError> {
-        self.switch_to_driver(0).await
+        self.switch_to_driver(DriverId::DEFAULT).await
     }
 
     /// Waits until the page has no AngularJS requests in flight. Returns at

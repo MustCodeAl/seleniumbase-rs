@@ -143,7 +143,7 @@ pub mod utils;
 )]
 pub mod visual;
 
-pub use api::base_case::BaseCase;
+pub use api::base_case::{BaseCase, DriverId};
 pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
 pub use api::gui::Gui;

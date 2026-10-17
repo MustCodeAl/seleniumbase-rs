@@ -221,11 +221,12 @@ is called. Useful for soft assertions.
 | `set_window_rect(x, y, w, h)` | Sets position and size. |
 | `get_window_rect()` | Returns `(x, y, width, height)`. |
 | `get_screen_rect()` | Returns `(width, height)`. |
-| `get_new_driver(config)` | Opens a new browser session and makes it active (`None` reuses the current config). The previously active session is parked and the method returns its index. |
-| `switch_to_driver(index)` | Swaps the active session with the one parked at `index`. The session you leave stays open, parked at the same index, so the same call switches back. An out-of-range index returns `InvalidConfig` and changes nothing. |
-| `switch_to_default_driver()` | `switch_to_driver(0)`: a swap with slot 0, which holds the original session only until the first switch. |
-| `quit_extra_driver(index)` | Quits the parked session at `index`. The slot stays as a disconnected placeholder, so indices do not shift. |
-| `driver_count()` | Returns the number of parked sessions, including quit placeholders. |
+| `get_new_driver()` / `get_new_driver_with(config)` | Opens a new browser with the current configuration (or `config`), makes it active and returns its `DriverId`. The browser that was active stays open. |
+| `switch_to_driver(id)` | Makes the browser `id` the active one. Repeating the call changes nothing. An id that does not exist or was quit returns `InvalidConfig` and changes nothing. |
+| `switch_to_default_driver()` | Makes the browser the case started with (`DriverId::DEFAULT`) the active one, however many others were opened. |
+| `quit_extra_driver(id)` | Quits the browser `id`. When it is the active one, the case switches to the default browser. The default browser itself is quit with `quit()`. |
+| `active_driver()` | The `DriverId` of the active browser. |
+| `driver_count()` | The number of browsers still open, the active one included. |
 
 ## Cookies and storage
 
