@@ -175,6 +175,19 @@ that break a call are listed first, each with the way to migrate.
   sb.load_cookies_from_path(Path::new("cookies.json"), CookieExpiry::Saved).await?;
   ```
 
+- **`assert_data_in_downloaded_file(data, file)` takes the data first**, as
+  Python's does, and `assert_data_in_downloaded_file` and
+  `assert_downloaded_file_regex` are `async`: they wait up to the default timeout
+  for the download, as Python's do, instead of failing on a file that is still
+  arriving. The data is compared without the whitespace at its ends.
+
+  ```rust
+  // before
+  sb.assert_data_in_downloaded_file("report.csv", "id,name")?;
+  // after
+  sb.assert_data_in_downloaded_file("id,name", "report.csv").await?;
+  ```
+
 ### Changed
 
 - **`check_window` baselines can be told apart by test.** The baseline folder

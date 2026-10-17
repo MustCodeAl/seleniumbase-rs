@@ -1,5 +1,30 @@
 // Download helpers.
 
+/// Checks that the file `filename` in `folder` holds `data`, ignoring the
+/// whitespace at the ends of `data`, as Python's `assert_data_in_downloaded_file`
+/// does.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::AssertionFailed`] naming both when the data is
+/// not in the file, and the error of reading it otherwise.
+fn check_downloaded_data(
+    folder: &Path,
+    data: &str,
+    filename: &str,
+) -> Result<(), SeleniumBaseError> {
+    let path = crate::artifacts::confined_path(folder, filename)?;
+    let actual = fs::read_to_string(&path)?;
+    if actual.contains(data.trim()) {
+        Ok(())
+    } else {
+        Err(SeleniumBaseError::AssertionFailed(format!(
+            "Expected data [{}] is not in downloaded file [{filename}]!",
+            data.trim()
+        )))
+    }
+}
+
 impl BaseCase {
     /// Returns the path to the browser downloads folder.
     pub fn get_downloads_folder(&self) -> PathBuf {
@@ -42,34 +67,47 @@ impl BaseCase {
         Ok(fs::read_to_string(&path)?)
     }
 
-    /// Asserts that `filename` exists and matches `regex`.
-    pub fn assert_downloaded_file_regex(
-        &self,
-        regex: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        if !self.is_downloaded_file_regex_present(regex)? {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "No downloaded file matched regex '{}'",
-                regex
-            )));
-        }
-        Ok(())
+    /// Asserts that the name of a downloaded file matches `regex`, waiting up
+    /// to the default timeout ([`set_timeout`](Self::set_timeout)) for a
+    /// download that is still being written, as Python's
+    /// `assert_downloaded_file_regex` does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for a regex that does not
+    /// compile and [`SeleniumBaseError::AssertionFailed`] if no file matches
+    /// when the timeout ends.
+    pub async fn assert_downloaded_file_regex(&self, regex: &str) -> Result<(), SeleniumBaseError> {
+        regex_or_err(regex)?;
+        let timeout = self.default_wait_secs();
+        poll_until_true(timeout, String::new(), || async {
+            self.is_downloaded_file_regex_present(regex)
+        })
+        .await
+        .map_err(|error| match error {
+            SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                "No downloaded file matched regex '{regex}' after {timeout}s"
+            )),
+            other => other,
+        })
     }
 
-    /// Asserts that `filename` contains `text`.
-    pub fn assert_data_in_downloaded_file(
+    /// Asserts that the downloaded file `filename` contains `data` (ignoring
+    /// whitespace at its ends), waiting up to the default timeout for the file
+    /// to arrive. The data comes first and the file second, as in Python's
+    /// `assert_data_in_downloaded_file(data, file)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the file does not
+    /// arrive or does not hold the data.
+    pub async fn assert_data_in_downloaded_file(
         &self,
+        data: &str,
         filename: &str,
-        text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let data = self.get_data_from_downloaded_file(filename)?;
-        if !data.contains(text) {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Downloaded file '{}' did not contain '{}'",
-                filename, text
-            )));
-        }
-        Ok(())
+        self.assert_downloaded_file(filename).await?;
+        check_downloaded_data(&default_download_dir(), data, filename)
     }
 
     /// Deletes `filename` from the downloads folder if it exists.
@@ -79,5 +117,48 @@ impl BaseCase {
             fs::remove_file(&path)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests_downloads {
+    use super::*;
+
+    #[test]
+    fn the_data_comes_first_and_the_file_second() {
+        // The arguments used to be (file, data), the reverse of Python's, so a
+        // call written like Python's looked for a file named after the data.
+        let folder = tempfile::tempdir().unwrap();
+        fs::write(folder.path().join("report.csv"), "id,name\n1,Ada\n").unwrap();
+
+        check_downloaded_data(folder.path(), "1,Ada", "report.csv").unwrap();
+        let error = check_downloaded_data(folder.path(), "2,Grace", "report.csv").unwrap_err();
+        assert!(
+            matches!(&error, SeleniumBaseError::AssertionFailed(m)
+                if m.contains("2,Grace") && m.contains("report.csv")),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn whitespace_at_the_ends_of_the_data_is_ignored() {
+        let folder = tempfile::tempdir().unwrap();
+        fs::write(folder.path().join("a.txt"), "hello world").unwrap();
+        check_downloaded_data(folder.path(), "  hello\n", "a.txt").unwrap();
+        // What is inside the data still counts.
+        check_downloaded_data(folder.path(), "hello  world", "a.txt").unwrap_err();
+    }
+
+    #[test]
+    fn a_missing_file_or_a_path_instead_of_a_name_is_an_error() {
+        let folder = tempfile::tempdir().unwrap();
+        assert!(matches!(
+            check_downloaded_data(folder.path(), "x", "missing.txt"),
+            Err(SeleniumBaseError::Io(_))
+        ));
+        assert!(matches!(
+            check_downloaded_data(folder.path(), "x", "../a.txt"),
+            Err(SeleniumBaseError::InvalidConfig(_))
+        ));
     }
 }
