@@ -87,6 +87,11 @@ crates/cli/tests/          every test that runs CARGO_BIN_EXE_sbrs or sbrs-mcp
    their dependencies; nothing else changes. Gate: fmt, clippy for the workspace
    with `--all-features` minus `turso`, nextest, doctests, deny, mdbook, MDX,
    Dockerfile skeleton test. One commit series, one sonnet agent.
+   *Done:* the binaries, their 19 tests and clap moved to `crates/cli`; the
+   workspace names both packages in `default-members`, the CLI package has
+   `pdf` and `mcp-server` on by default, and `sbrs --version` still prints
+   `(seleniumbase-rs)`. The library's default build lost the 15 crates of clap and
+   its completion generators.
 2. Migrate `crates/cli` from clap to usage derives. `completions/sbrs.usage.kdl`
    is written by `Cli::to_kdl()` in a test that fails when the committed file is
    stale; shell completions and the Fig spec are generated from that KDL. The

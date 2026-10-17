@@ -24,9 +24,13 @@ A Rust port of Python SeleniumBase (tracks 4.55.2; `parity/api.toml` records the
 status of every Python API, `parity/upstream.toml` the upstream version,
 `docs/UPSTREAM_SYNC.md` the process). Crate `seleniumbase-rs`, MIT, edition 2021,
 `rust-version = "1.99"` (the newest stable; the `msrv` CI job and the
-`Dockerfile` base image must move with it). Binaries: `sbrs` (CLI) and
-`sbrs-mcp` (MCP server, feature `mcp-server`). Default features are
-empty; `gui`, `tui`, `turso`, `rustwright`, `plugins`, `ocr`, `visual` are opt-in. The
+`Dockerfile` base image must move with it). The repository is a Cargo workspace
+(`default-members` = both packages): the library `seleniumbase-rs` at the root has
+no binary and no command-line crate; the binaries `sbrs` (CLI) and `sbrs-mcp`
+(MCP server) are the package `seleniumbase-rs-cli` in `crates/cli`, which turns
+`pdf` and `mcp-server` on by default and forwards `tui`, `gui` and `turso`. The
+library's default features are empty; `gui`, `tui`, `turso`, `rustwright`,
+`plugins`, `ocr`, `visual` are opt-in. The
 experimental stealth layer (wire formats, `BrowserScraper`, `HttpSession`,
 `MitmProxy`, `StealthSession`; formerly the features `scrape` and `impersonate`)
 moved out in 0.3.0 to the workspace
@@ -51,8 +55,9 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `proxy_auth`, `webrtc`, `har` (`Page::start_har`, `HarRecorder`, the HAR 1.2 serde types), `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
 | `stealth/` | `fingerprint.rs` (`Fingerprint`, one `Spoof` per setting, `ProxyConfig`, `ClientHints`), `spoof.rs`, `settings.rs` (value types), `policy.rs` (`StealthPolicy`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
-| `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); entry `src/bin/mcp_server.rs`. Held to the pedantic lint set. |
-| `cli/` | `bin/sbrs.rs` (clap), `commands.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...), `bin/report.rs`. |
+| `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
+| `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
+| `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (clap), `src/report.rs`, `src/mcp_server.rs`, and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns clap, `clap_complete`, `clap_complete_fig` and `clap_usage`. |
 | `behave/` | Gherkin runner and step registry. |
 | `plugins/` | Reporting and logging plugins (S3, GCP, Azure, screenshots, page source, driver manager, observer). |
 | `config/` | Settings, runtime config, `proxy_list`, `ad_block_list`. |
@@ -63,8 +68,8 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `visual.rs` | `visual` feature: `VisualBaseline` (screenshot baselines compared by SSIM, `check`, `check_page`), behind `BaseCase::assert_visual_match`. Not `check_window`, which compares the HTML layout. |
 | rest | `error.rs` (`SeleniumBaseError`), `macros.rs`, `artifacts.rs`, `core/report_helper.rs`, `js_code`, `resources/`, `tracing_util.rs` (the crate logs with `tracing`). |
 
-Elsewhere: `tests/` (integration tests; `tests/golden` is compiled into the
-binary through `include_str!`), `benches/` (`cdp_latency`, `cpu`), `examples/`
+Elsewhere: `tests/` (integration tests of the library; `tests/golden` is compiled into the
+library through `include_str!`, `tests/support` is shared with `crates/cli/tests`), `benches/` (`cdp_latency`, `cpu`), `examples/`
 (`tauri-profile-manager` has its own manifest), `docs/` (mdBook, `SUMMARY.md`),
 `parity/`, `.config/nextest.toml`, `.github/workflows/` (`ci.yml`, `docker.yml`,
 `completions.yml`), `Dockerfile`, `Makefile`, `justfile`, `deny.toml`.
@@ -82,11 +87,17 @@ cargo audit && cargo deny check
 mdbook build
 ```
 
+These cover both packages. `-p seleniumbase-rs` builds the library alone with its
+own default features (a build of both unifies the CLI's `pdf` and `mcp-server`
+into the library); `-p seleniumbase-rs-cli` the command line alone. Install the
+binaries with `cargo install --path crates/cli`.
+
 - Count failures from the exit code or from `test result` lines, never from a
   filtered `grep`; read the whole output.
 - Tests that launch a real Chrome are named `*_chrome.rs` (plus `browser_smoke`)
   and are `#[ignore]`d. Run them one binary at a time (the nextest `chrome` group
-  has one thread). Mock-driven tests (`tests/sb_cdp_*.rs`) need no browser.
+  has one thread). Mock-driven tests (`tests/sb_cdp_*.rs`) need no browser. The
+  tests that run the `sbrs` binaries are in `crates/cli/tests`.
 - The stealth layer's gates, BoringSSL build (cmake) and Chrome tests live in
   the seleniumbase-rs-stealth repository, not here.
 - Publishing: gate the exact commit, `git fetch`, confirm `origin/main` has not
@@ -97,8 +108,10 @@ mdbook build
 
 - Errors are `SeleniumBaseError` (thiserror). `unwrap()` only in tests.
 - A public item gets a doc comment; a bug fix gets a test that fails without it.
-- A new `[[bin]]`, `[[bench]]` or `[[example]]` must also be added to the
-  `Dockerfile` skeleton step, or the image build fails.
+- A new `[[bin]]`, `[[bench]]` or `[[example]]`, in either manifest, must also be
+  added to the `Dockerfile` skeleton step, or the image build fails. A
+  command-line crate in the library's `[dependencies]` fails
+  `tests/library_manifest.rs`; it belongs in `crates/cli/Cargo.toml`.
 - A new Python-parity API gets an entry in `parity/api.toml`.
 - Tutorials in `docs/tutorials/` are not compiled; keep their code true by hand.
   Only the `sbrs mkdir`/`mkfile` golden templates are compiled as doctests.

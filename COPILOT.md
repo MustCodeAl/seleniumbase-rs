@@ -36,8 +36,10 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 | `src/macros.rs` | User-facing macros (`selector!`, `sb_test!`, `sb_click!`, `fingerprint!`, etc.). |
 | `src/behave/` | Gherkin/BDD runner and async step registry. |
 | `src/utilities/` | Python importer, Selenium IDE parser, Grid helpers. |
-| `src/bin/mcp_server.rs` | `sbrs-mcp` MCP server (gated by `mcp-server` feature). |
-| `src/cli/bin/sbrs.rs` | Main `sbrs` CLI binary. |
+| `src/mcp/` | The MCP servers and their tools. |
+| `src/cli/` | The library half of the command line (commands, scaffold, scripts). |
+| `crates/cli/src/mcp_server.rs` | `sbrs-mcp` MCP server (package `seleniumbase-rs-cli`, gated by its `mcp-server` feature, on by default). |
+| `crates/cli/src/sbrs.rs` | Main `sbrs` CLI binary (package `seleniumbase-rs-cli`). |
 | `docs/` | mdBook source. Add new tutorials/help pages to `SUMMARY.md`. |
 | `examples/` | Runnable examples. Add new examples to `Cargo.toml` automatically via filename. |
 
@@ -48,7 +50,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 - **Selectors**: Use `crate::Selector` (CSS, XPath, Id, LinkText, PartialLinkText).
 - **Stealth additions**: Add JS evasions to `src/stealth/evasions.rs`, flags to `src/stealth/fingerprint.rs`, launch args to `src/stealth/options.rs` or `src/stealth/patcher.rs::engine_spoofing_args`, and expose via crate root if user-facing.
 - **Macros**: `#[macro_export]` so they live at the crate root. Import as `use seleniumbase_rs::{selector, sb_click, ...};`.
-- **MCP tools**: Add the tool schema to `tools()` and the handler to `call_tool()` in `src/bin/mcp_server.rs`.
+- **MCP tools**: Add a `ToolDef` in `src/mcp/` (see "Adding an MCP Tool" in `CONTRIBUTING.md`).
 - **Documentation**: Every public API needs a rustdoc example. Every new feature needs a tutorial or help page and an entry in `docs/SUMMARY.md`.
 - **Feature flags**: `s3`, `azure`, `gcp`, `playwright`, `mcp-server`. Keep default builds minimal.
 

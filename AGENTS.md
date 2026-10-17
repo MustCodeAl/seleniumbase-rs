@@ -10,8 +10,10 @@ disagree, this file and `CLAUDE.md` win.
 `seleniumbase-rs` is a Rust port of Python SeleniumBase 4.55.2 and of its MCP
 server (crate `seleniumbase-rs`, MIT, Rust 1.99, not on crates.io). Two engines:
 WebDriver (`src/browser`, `src/api`, built on `thirtyfour`) and a pure CDP engine
-(`src/sb_cdp`). Stealth lives in `src/stealth`; MCP servers in `src/mcp`; the CLI
-(`sbrs`) in `src/cli`. Optional features are off by default. The experimental
+(`src/sb_cdp`). Stealth lives in `src/stealth`; MCP servers in `src/mcp`. The
+library has no binary: the CLI (`sbrs`, `sbrs-mcp`) is the workspace package
+`seleniumbase-rs-cli` in `crates/cli` (helpers in the library's `src/cli`).
+Optional features of the library are off by default. The experimental
 stealth scraping layer (wire fingerprints, TLS and HTTP/2 impersonation) is not
 here: since 0.3.0 it lives in
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
@@ -36,7 +38,8 @@ cargo check --features turso --all-targets
 - Run the narrowest test while you work (`cargo test --lib <filter>`,
   `cargo test --test <name>`); run the whole set once, at the end.
 - Tests that need a real Chrome are named `*_chrome.rs` and are `#[ignore]`d. Run
-  one binary at a time: `cargo test --test mcp_cdp_chrome -- --ignored`.
+  one binary at a time: `cargo test --test mcp_cdp_chrome -- --ignored`. Tests
+  that run the `sbrs` binaries are in `crates/cli/tests` (`-p seleniumbase-rs-cli`).
 - Count failures from the exit code and the `test result:` lines, not from a
   filtered search of the output.
 - Do not run two heavy cargo commands at once, and do not share one
@@ -60,8 +63,10 @@ cargo check --features turso --all-targets
   needs `reason = "..."`, and a function over 100 lines fails.
 - **Do not edit generated files by hand:** `docs/parity.md` is generated from
   `parity/api.toml` (`just parity-docs`).
-- **A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`** must also be
-  listed in the `Dockerfile` skeleton step (`tests/dockerfile_skeleton.rs` checks).
+- **A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`**, in either
+  manifest, must also be listed in the `Dockerfile` skeleton step
+  (`tests/dockerfile_skeleton.rs` checks). Keep clap and other command-line
+  dependencies in `crates/cli` (`tests/library_manifest.rs` checks).
 - **Update the docs and `CHANGELOG.md`** with the change.
 
 ## Honesty rules

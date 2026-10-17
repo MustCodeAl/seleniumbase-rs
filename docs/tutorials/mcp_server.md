@@ -29,8 +29,12 @@ All three keep one browser session for the whole conversation: call
 <Step title="Install the binary">
 
 ```bash
-cargo install --path . --bin sbrs-mcp --features mcp-server
+cargo install --path crates/cli --bin sbrs-mcp
 ```
+
+Or, without a checkout:
+`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`
+(both binaries; the `mcp-server` feature is on by default in that package).
 
 </Step>
 

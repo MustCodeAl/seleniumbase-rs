@@ -102,12 +102,18 @@ bash, zsh, fish and PowerShell that Warp uses too, plus Warp Workflows:
 brew install mustcodeal/tap/sbrs
 ```
 
-`cargo binstall`, mise and `cargo install --git` work too; see
-[Install without a checkout](./docs/building.md#install-without-a-checkout)
+`cargo binstall`, mise and `cargo install --git` work too; the command line is
+the workspace package `seleniumbase-rs-cli`:
+
+```bash
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked
+```
+
+See [Install without a checkout](./docs/building.md#install-without-a-checkout)
 (the prebuilt release archives wait for the release workflow's first run).
 
 **The library:** add the crate from GitHub (it is not on crates.io), with Tokio
-to run it:
+to run it. It carries no command-line code; `sbrs` is the separate package above:
 
 ```toml
 [dependencies]
@@ -429,8 +435,10 @@ stdio. Pick a toolset with `--server`:
 | `sb` (default) | WebDriver, the `SB()` toolset, plus stealth tools | 88 + 7 |
 
 ```bash
-cargo build --release --bin sbrs-mcp --features mcp-server
+cargo build --release --bin sbrs-mcp
 ```
+
+(The command-line package turns the `mcp-server` feature on by default.)
 
 Configure the client with the absolute path to the binary:
 

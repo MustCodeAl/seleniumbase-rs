@@ -16,6 +16,37 @@ migrate.
 
 ### Breaking
 
+- **`sbrs` and `sbrs-mcp` are built by the new workspace package
+  `seleniumbase-rs-cli` (`crates/cli`), not by `seleniumbase-rs`.** The library
+  stays at the repository root with the same name and path, so
+  `seleniumbase-rs = { git = ... }` keeps working, but it no longer has a binary
+  and no longer compiles clap, `clap_complete` or `clap_complete_fig` (15 crates
+  fewer in a default build). The commands, flags, help text and exit statuses of
+  `sbrs` are the same.
+
+  ```bash
+  # before
+  cargo install --path . --bin sbrs
+  cargo install --path . --bin sbrs-mcp --features mcp-server
+  cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --features mcp-server
+  # after
+  cargo install --path crates/cli
+  cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli
+  cargo binstall --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli
+  ```
+
+  The new package has `pdf` and `mcp-server` on by default (the release archives
+  always had them) and forwards `tui`, `gui`, `turso`, `test-util`,
+  `full-tracing` and `tokio-console` to the library, so
+  `cargo install ... seleniumbase-rs-cli --features tui` is the way to add the
+  terminal UI. `default-members` names both packages, so `cargo build`,
+  `cargo test` and `cargo run --bin sbrs` at the repository root work as before;
+  use `-p seleniumbase-rs` for the library alone. The release archives keep their
+  names (`seleniumbase-rs-v<version>-<target>`). The messages `sbrs` prints for a
+  build without `tui` or `pdf` still say `cargo install seleniumbase-rs --features
+  ...`, as before; the Homebrew formula has to build `--path crates/cli` from the
+  first release that has this change.
+
 - **PDF text extraction is the opt-in feature `pdf`.** `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
   `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF

@@ -17,6 +17,37 @@ migrate.
 
 ### Breaking
 
+- **`sbrs` and `sbrs-mcp` are built by the new workspace package
+  `seleniumbase-rs-cli` (`crates/cli`), not by `seleniumbase-rs`.** The library
+  stays at the repository root with the same name and path, so
+  `seleniumbase-rs = { git = ... }` keeps working, but it no longer has a binary
+  and no longer compiles clap, `clap_complete` or `clap_complete_fig` (15 crates
+  fewer in a default build). The commands, flags, help text and exit statuses of
+  `sbrs` are the same.
+
+  ```bash
+  # before
+  cargo install --path . --bin sbrs
+  cargo install --path . --bin sbrs-mcp --features mcp-server
+  cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --features mcp-server
+  # after
+  cargo install --path crates/cli
+  cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli
+  cargo binstall --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli
+  ```
+
+  The new package has `pdf` and `mcp-server` on by default (the release archives
+  always had them) and forwards `tui`, `gui`, `turso`, `test-util`,
+  `full-tracing` and `tokio-console` to the library, so
+  `cargo install ... seleniumbase-rs-cli --features tui` is the way to add the
+  terminal UI. `default-members` names both packages, so `cargo build`,
+  `cargo test` and `cargo run --bin sbrs` at the repository root work as before;
+  use `-p seleniumbase-rs` for the library alone. The release archives keep their
+  names (`seleniumbase-rs-v<version>-<target>`). The messages `sbrs` prints for a
+  build without `tui` or `pdf` still say `cargo install seleniumbase-rs --features
+  ...`, as before; the Homebrew formula has to build `--path crates/cli` from the
+  first release that has this change.
+
 - **PDF text extraction is the opt-in feature `pdf`.** `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
   `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF
@@ -311,6 +342,190 @@ migrate.
   `wait_for_element_visible` and `wait_for_element_present` is read from
   `timeout=`; a second positional argument is Python's `by`, not a timeout.
 
+A breaking change to the fingerprint API: **one field per setting, and intent
+given once.** Before, every setting was kept twice, as a value and as a mode that
+said whether to use it (`fp.screen_width` and `fp.flags.screen_masking`), which
+allowed states that mean nothing, and callers mutated the fingerprint after
+`build()` to say what they meant. Now every setting is one `Spoof<T>`
+(`Natural`, `Random`, `Value`, `Off`), the behaviour that is not a setting is a
+`StealthPolicy`, and a built `Fingerprint` is never mutated. The Python-parity
+methods (`parity/api.toml`) are unchanged; the fingerprint API is Rust-only. The
+design is `docs/design/fingerprint-api-v2.md`.
+
+### Breaking
+
+- **A setting is one `Spoof<T>`.** `Natural` is the browser's own value (the
+  default), `Random` is a valid value drawn when the fingerprint is built and
+  coherent with the rest (same operating system, region and locale; repeatable
+  with `.seed(u64)`), `Value(T)` is exactly this (a plain value converts to it),
+  and `Off` turns the API off, for geolocation, WebRTC, media devices, battery,
+  Bluetooth, speech voices, network information and Client Hints only.
+  `MaskingMode`, `NoiseMode`, `PopupMode`, `ProxyMaskingMode`, `StartupBehavior`
+  and `CanvasNoiseMode` are removed (`CanvasNoise` has `Natural`, `Persistent`,
+  `Random` and `Low`).
+- **`FingerprintBuilder::build()` returns `Result<Fingerprint, FingerprintError>`.**
+  It fails, naming the setting, when `Off` is given to a setting with no off
+  state, when `Random` is given to one with nothing to draw (`proxy`, `oscpu`,
+  `build_id`), when a proxy has no host, and when nothing coherent can be drawn
+  (a random locale next to a time zone the table of places lacks).
+- **A built `Fingerprint` has private fields and read accessors**
+  (`fp.screen()`, `fp.user_agent()`, ...). To change one, take `fp.to_builder()`,
+  change it and build again. `FingerprintBuilder` setters take
+  `impl Into<Spoof<T>>`; `geolocation`, `webgl`, `webrtc`, `avail_screen` and
+  `media_devices` take a tuple, and `screen_spoof` is the `Spoof` form of
+  `screen(width, height)`. The value types are `ScreenSize`, `Geolocation`,
+  `WebGl`, `WebRtcAddresses` and `MediaDevices`.
+- **`StealthFlags` is `StealthPolicy`** (`StealthFlags` stays as a deprecated
+  alias). A policy is how the claims are delivered, and it never changes a
+  setting: `webrtc_policy`, `canvas_noise`, `audio_noise`, `native_spoofing`,
+  `native_tostring`, `chrome_runtime`, `headless_fixes`, `grant_permissions`,
+  `block_trackers`, `blocked_trackers`, `blocked_ports`, `quic`, `disable_csp`
+  and `open_shadow_roots`. Presets are `default()`, `balanced()`,
+  `native_only()` and `max()`. Set it with `.policy(..)`, `.with_policy(|p| ..)`
+  and the shortcuts `.webrtc_policy`, `.canvas_noise`, `.audio_noise`,
+  `.native_spoofing`, `.grant_permissions`, `.block_trackers`,
+  `.blocked_trackers`, `.blocked_ports`, `.disable_csp` and `.quic`, in any
+  order.
+- Removed: `FingerprintBuilder::&#123;flags, with_flags, canvas_seed, audio_seed,
+  webrtc_ips, webgl_ids, altitude, accuracy, media_device_specs&#125;` and the
+  deprecated `media_devices(a, b, c)` (the new `media_devices` takes a
+  `Spoof<MediaDevices>`; `media_device_counts(a, b, c)` stays); the public fields
+  of `Fingerprint`; `Fingerprint::&#123;fills_defaults, geolocation_popup,
+  seed_value&#125;`. `os_cpu` is now `oscpu`. `Fingerprint::seed()` is a `u64`.
+- The built-in presets set their battery, network information, speech voices of
+  the system and Web Bluetooth, and Safari has none of the three it lacks (`Off`).
+  `Fingerprint::randomized` is the builder with the settings of a persona
+  `Random`; its noise seed is the seed it was given.
+- A fingerprint is serialised with `"natural"` settings left out, `"random"` and
+  `"off"` as words, and the value otherwise. A fingerprint saved by an older
+  version (the flat `screen_width`, the `flags` object) no longer loads: it is an
+  error that names the field, not a silent loss. A battery time that is infinite
+  is written as `null`.
+- A fingerprint with a `Random` setting that has no `.seed(..)` takes fresh
+  entropy, and a fingerprint with nothing to draw takes a seed from its user
+  agent, so a preset is the same every time.
+- **Profile payloads** read one set of words for every key (see the table in
+  `docs/tutorials/fingerprint_stealth.md`): `natural`, `native`, `pass_through`,
+  `whitelist` are `Natural`; `auto`, and a flag the payload leaves out, are the
+  value the payload holds, else `Natural` (the default was `mask` for the
+  navigator, localization, time zone, graphics, fonts, screen, geolocation and
+  WebRTC flags, which filled in generic values nobody asked for); `mask`,
+  `spoof`, `custom`, `generic`, `random`, `noise` are the held value, else a
+  drawn one; `off`, `disabled`, `block`, `empty` turn geolocation, WebRTC and
+  media devices off (they used to leave them natural) and are read as `Natural`
+  elsewhere; an unknown word is logged and read as `Natural` (it used to
+  switch the dimension on and fill it with generic values). A literal is taken
+  only in the format of its key (a locale or `Accept-Language` list, an IANA
+  zone, a comma-separated list of fonts, a `Mozilla/` user agent, `vendor~renderer`);
+  any other text is an unknown word. An empty string in a section is a value the
+  payload does not give, a navigator section without a core count no longer
+  invents 8, and the payload's `core_version` is the Chromium major a drawn user
+  agent claims. A profile's folder and name seed its draws.
+  `geolocation_popup` is the state of the geolocation setting: `block` denies,
+  `prompt` asks. `to_browser_config`, `user_agent()`, `locale()`, `proxy_string()`
+  and `apply_runtime_overrides` read the built fingerprint, so `natural` and the
+  off words launch with no `--user-agent`, locale, proxy, window size or position.
+- The Linux preset reports an ANGLE-over-OpenGL renderer instead of Direct3D,
+  and the macOS preset reports ANGLE over Metal. The presets leave the position
+  `Natural`, because a position is answered without a prompt and a fresh browser
+  asks. The iOS preset claims no `navigator.deviceMemory` and no Client Hints
+  (Safari has neither). `validate()` warns about a time zone without a position
+  only when the policy grants permissions.
+- `fingerprint!(edge)` is the new Edge preset, not the Windows Chrome one.
+- `profile_payloads::{Flags, Fingerprint, ProxyConfig}` are renamed
+  `ProfileFlags`, `ProfileFingerprint` and `ProfileProxy` (the old names are
+  deprecated aliases).
+- The MCP tool `build_stealth_bootstrap` is removed: it returned the same script
+  as `get_stealth_bootstrap_script`. That script, and the providers
+  `list_evasion_providers` lists, are now the 27 a browser session runs
+  (`session_registry`), not the 29 of `default_registry`. `build_fingerprint`
+  returns the new JSON shape (`screen: {width, height}`, no `flags`).
+- `Fingerprint::default()` equals `Fingerprint::builder().build()`, and JSON
+  without an `os_type` takes it from the user agent. A `Value(true)` or
+  `Value(false)` for Bluetooth now changes `getAvailability()` on a browser that
+  has Web Bluetooth.
+- **The companion repository** [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+  takes this crate from git and still uses the old API (field writes such as
+  `fp.timezone = ..`, `fp.flags.*`). Its `scrape` and `mimic` crates must move to
+  `to_builder()...build()?` before it follows this change; only `codec` is known
+  to build against it.
+- `evasions::launch_args` passes `--no-sandbox` and `--disable-setuid-sandbox`
+  only on Linux, as `StealthOptions` does.
+
+Migrating a fingerprint:
+
+```rust
+// before: the intent is spread over a value, a flag and a mutation after build
+let mut fp = Fingerprint::builder()
+    .screen(1920, 1080)
+    .geolocation(40.0, -74.0)
+    .flags(StealthFlags::balanced())
+    .build();
+fp.flags.screen_masking = MaskingMode::Custom;
+fp.flags.native_spoofing = true;
+let width = fp.screen_width; // Option<u32>
+
+// after: each intent is given once, and a built fingerprint is read, not edited
+let fp = Fingerprint::builder()
+    .screen(1920, 1080)
+    .geolocation((40.0, -74.0))      // or Spoof::Random, or Spoof::Off to deny
+    .policy(StealthPolicy::balanced())
+    .native_spoofing(true)
+    .build()?;
+let width = fp.screen().value().map(|s| s.width);
+
+// to change one thing later
+let wider = fp.to_builder().screen(2560, 1440).build()?;
+```
+
+| Before | After |
+|---|---|
+| `fp.flags.x_masking = MaskingMode::Natural` | leave the setting out, or give `Spoof::Natural` |
+| `MaskingMode::Mask` with no value (a generic fill) | `Spoof::Random` (a coherent drawn value) |
+| `PopupMode::Block` | `.geolocation(Spoof::Off)` |
+| `.webrtc_ips(public, local)` | `.webrtc((public, local))` |
+| `.webgl(vendor, renderer)` and `.webgl_ids(..)` | `.webgl((vendor, renderer))`, or `WebGl::new(..).ids(..)` |
+| `.geolocation(lat, lon).altitude(a).accuracy(m)` | `.geolocation(Geolocation::new(lat, lon).altitude(a).accuracy(m))` |
+| `.flags(StealthFlags::balanced())` | `.policy(StealthPolicy::balanced())` |
+| `.with_flags(\|f\| f.grant_permissions = true)` | `.grant_permissions(true)` or `.with_policy(\|p\| p.grant_permissions(true))` |
+| `.canvas_seed(v)`, `.seed(v)` | `.seed(v)` and `.canvas_noise(CanvasNoise::Persistent)` |
+| `fp.user_agent.as_deref()` | `fp.user_agent().as_str()` |
+| `fp.is_masked(Dimension::Screen)` | unchanged |
+
+### Deprecated
+
+- `evasions::cdp_overrides`: use `safe_cdp_overrides`, which leaves out the
+  `Proxy-Authorization` header that would hand the proxy's login to every site.
+- `StealthFlags` (use `StealthPolicy`), `StealthPolicy::{mask_all, all_custom}`
+  (use `max`).
+
+### Added
+
+- `Spoof<T>` with `is_natural`, `is_random`, `is_value`, `is_off`, `is_set`,
+  `value`, `as_str` and `map`, and the policy types `StealthPolicy`,
+  `CanvasNoise` and `AudioNoise`.
+- `Fingerprint::&#123;to_builder, is_masked, validate, randomized,
+  randomized_with_major&#125;`; `Dimension` lists what can be masked and
+  `Fingerprint::is_masked(Dimension)` is the one question the page-script
+  providers, the launch arguments, the protocol overrides and the proxy ask.
+- `FingerprintBuilder::&#123;seed, core_version, avail_screen, product_sub,
+  build_id, app_version, media_device_counts&#125;` and the policy shortcuts.
+  `build()` derives the language list from the locale and the OS persona and
+  `navigator.platform` from a recognised user agent, only when unset.
+- `Fingerprint::edge_desktop()` (`Edg/` user agent, `Microsoft Edge` Client
+  Hints through `randomize::{edge_user_agent, edge_hints}`), also in the MCP
+  preset list; `randomize::locale_of_timezone`.
+- `evasions::session_script`, the script the pure CDP engine runs, which the
+  WebDriver `Uc` and `Cdp` modes now run too.
+- An `Off` API is removed from the page, as a browser without it would be:
+  `getBattery`, `navigator.connection`, `navigator.bluetooth`,
+  `navigator.userAgentData`, WebRTC; `Off` media devices and speech voices list
+  nothing; a denied geolocation answers `PERMISSION_DENIED`.
+- `CanvasNoise::{Random, Persistent, Low}` and `AudioNoise::Random` add noise.
+- `Fingerprint::validate()` reports a WebGL renderer from another OS's graphics
+  API and a `MobileSafari` persona with a `Chrome/` user agent as errors, and a
+  locale from another country than the time zone as a warning.
+
 ### Fixed
 
 - `enter_totp_code` and `enter_mfa_code` now press Enter after the code, as
@@ -407,6 +622,33 @@ and the documentation gains a guide to testing pages with a CAPTCHA.
   the connection for every tab.
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
   (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
+- Canvas noise ran only for one mode; `Persistent`, `Random` and `Low` switched
+  it off.
+- WebDriver sessions in the `Uc` and `Cdp` modes ran the 29-provider script of a
+  browser without `navigator.plugins` (replaced getters a real Chrome does not
+  have), while the pure CDP engine ran the 27-provider one.
+- An allowed geolocation popup did not grant the geolocation permission, so the
+  position override waited on a prompt nobody presses. The ports a fingerprint
+  lists (`blocked_ports`) were stored and never blocked; they are now refused on
+  `localhost`, `127.0.0.1` and `[::1]` through the same `Network.setBlockedURLs`
+  command as the tracker list. The Modernizr hairline fix followed
+  `graphics_noise` and was switched off by `Low`, `Medium` and `High`; it
+  follows the headless fixes.
+- Ad blocking in the `Cdp` and `Uc` modes replaced the fingerprint's tracker and
+  port block, because a second `Network.setBlockedURLs` replaces the first; the
+  command now carries both.
+- `--user-agent`, `--lang`, `--window-size` and `--proxy-server` were sent twice,
+  from the options and from the fingerprint; each is sent once, with the value
+  that was already in effect.
+- The `Accept-Language` of the user agent override was sent (with an invented
+  `en-US,en;q=0.9`) whenever a user agent was set; it is sent only when the
+  localization is on.
+- The Tauri profile manager example applies a fingerprint with
+  `Page::apply_fingerprint` instead of its own copy, which used the unsafe
+  `cdp_overrides` and the 29-provider script. Its custom masking form reads and
+  writes the new fingerprint JSON (a screen is one `screen` object, the selects say
+  what to do with the settings left empty), and profiles saved in the old flat
+  shape no longer load.
 
 </Update>
 

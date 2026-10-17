@@ -133,13 +133,15 @@ seleniumbase-rs/
 │   ├── sb_cdp/                # The pure CDP engine: Browser, Page, Locator, pool, mock
 │   ├── stealth/               # Fingerprint, evasion providers, humanize, patcher, reactor
 │   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
-│   ├── cli/                   # sbrs: bin/sbrs.rs (clap), commands.rs, scripts/
+│   ├── cli/                   # the library half of sbrs: commands.rs, scaffold.rs, scripts/
 │   ├── behave/                # Gherkin/BDD runner
 │   ├── plugins/               # Reporting and logging plugins
 │   ├── config/, core/, common/, storage/, utilities/, utils/, profile_payloads/
-│   ├── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
-│   └── bin/mcp_server.rs      # The sbrs-mcp binary
-├── tests/                     # Integration tests (tests/golden is compiled in)
+│   └── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
+├── crates/cli/                # Package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries
+│   ├── src/                   # sbrs.rs (clap), report.rs, mcp_server.rs
+│   └── tests/                 # Every test that runs the real sbrs or sbrs-mcp binary
+├── tests/                     # Integration tests of the library (tests/golden is compiled in)
 ├── benches/                   # cpu, cdp_latency
 ├── examples/                  # Runnable examples
 ├── parity/                    # api.toml: the status of every Python API
@@ -252,7 +254,9 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
   retries and error paths can be tested without Chrome (see `tests/sb_cdp_*.rs`).
 - Tests that need a real Chrome are named `*_chrome.rs` (plus `browser_smoke`)
   and are `#[ignore]`d. Run them one test binary at a time:
-  `cargo test --test mcp_cdp_chrome -- --ignored`.
+  `cargo test --test mcp_cdp_chrome -- --ignored`. The tests that run the
+  `sbrs` binaries are in `crates/cli/tests`; name the package for those:
+  `cargo test -p seleniumbase-rs-cli --test cli_e2e_chrome -- --ignored`.
 - A test that fakes `java` or another executable must run the script once
   (`--warm`) before timing it: macOS can take seconds to run a freshly written
   script the first time.
@@ -272,10 +276,16 @@ mdbook build                                           # when docs changed
 ```
 
 Count failures from the exit code and the `test result:` lines, not from a
-filtered search of the output. A change that touches `Cargo.toml` must keep the
-`Dockerfile` skeleton step in step: a new `[[bin]]`, `[[bench]]`, `[[example]]`
-or `[[test]]` must be listed there, and `tests/dockerfile_skeleton.rs` fails
-if it is not.
+filtered search of the output. The repository is a workspace of two packages, the
+library `seleniumbase-rs` and the command line `seleniumbase-rs-cli`
+(`crates/cli`), and the commands above cover both (`default-members`). Use
+`-p seleniumbase-rs` for the library alone, with its own default features: the
+command line turns `pdf` and `mcp-server` on, and a build of both unifies them.
+A change that touches a `Cargo.toml` must keep the `Dockerfile` skeleton step in
+step: a new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`, in either
+manifest, must be listed there, and `tests/dockerfile_skeleton.rs` fails if it
+is not. `tests/library_manifest.rs` fails if a binary or a command-line crate
+(clap, its completion generators) comes back into the library package.
 
 `cargo deny check` gates advisories, licenses, banned crates, and dependency
 sources against `deny.toml`. Every advisory that is ignored there carries a
@@ -477,7 +487,8 @@ Update `docs/tutorials/macros.md` and the macro table in `README.md`.
 
 ## Adding an MCP Tool
 
-The MCP server in `src/bin/mcp_server.rs` uses the `rmcp` crate.
+The MCP server (`src/mcp/`, started by `crates/cli/src/mcp_server.rs`) uses the
+`rmcp` crate.
 
 A tool is a `ToolDef` in `src/mcp/`; read `src/mcp/devtools.rs` for working
 examples (they are generic over the session type, so one definition serves both
@@ -532,7 +543,7 @@ give it an entry in `parity/api.toml` if upstream has the same tool.
 
 <Step title="Add the variant">
 
-Add the new variant to `SbaseCommand` in `src/cli/bin/sbrs.rs` with an
+Add the new variant to `SbaseCommand` in `crates/cli/src/sbrs.rs` with an
 idiomatic `///` description.
 
 </Step>

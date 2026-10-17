@@ -22,6 +22,10 @@ files, and more. This page covers the most common workflows.
 cargo build --bin sbrs
 ```
 
+The binary is built by the workspace package `seleniumbase-rs-cli` (`crates/cli`);
+the library `seleniumbase-rs` at the repository root carries no command-line code.
+To install it: `cargo install --path crates/cli`.
+
 A `justfile` and `Makefile` provide common shortcuts such as `just lint`,
 `just test-all`, `just docs`, and `just completions`.
 
@@ -420,7 +424,8 @@ The generators are careful with what they write:
 ## Terminal apps
 
 Three commands are full-screen terminal apps. They are part of the opt-in `tui`
-feature (`cargo install seleniumbase-rs --features tui`).
+feature (`cargo install --path crates/cli --features tui`, or
+`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui`).
 
 <Note>
 
@@ -568,7 +573,7 @@ command palette when you are inside the repository; copy them to
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `sbrs: command not found` | Binary not on `PATH` | Use `./target/debug/sbrs` or install with `cargo install --path .`. |
+| `sbrs: command not found` | Binary not on `PATH` | Use `./target/debug/sbrs` or install with `cargo install --path crates/cli`. |
 | Global flag rejected | Flag placed after the subcommand | Put global flags before the subcommand: `sbrs --headless open URL`. |
 | CDP command fails | Not in CDP mode | Add `--cdp` or use a CDP-enabled config. |
 | `doctor` shows missing Chrome | Chrome not installed or not on PATH | Set `SB_CHROME_BIN` to the full path. |

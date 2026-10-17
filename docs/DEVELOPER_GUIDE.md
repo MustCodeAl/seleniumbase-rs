@@ -289,9 +289,11 @@ contained:
 | `json-logs` | off | Structured JSON log output. |
 | `error-backtrace` | off | Backtraces attached to `SeleniumBaseError`. |
 
-No feature is on by default, so a library user or a headless pool pulls in
-neither the terminal UI nor the desktop automation stacks. Turn them on when
-you want them:
+No feature of the library is on by default, so a library user or a headless pool
+pulls in neither the terminal UI nor the desktop automation stacks (nor any
+command-line crate: `sbrs` is the workspace package `seleniumbase-rs-cli`, in
+`crates/cli`, which forwards `tui`, `gui` and `turso`). Turn them on when you
+want them:
 
 <CodeGroup>
 
@@ -300,7 +302,7 @@ seleniumbase-rs = { version = "0.1", features = ["gui", "tui"] }
 ```
 
 ```bash Commands
-cargo install seleniumbase-rs --features tui   # sbrs commander
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui   # sbrs commander
 cargo run --example gui_automation --features gui
 ```
 
@@ -363,13 +365,19 @@ converted in `ProfileParams::to_browser_config()` and `browser()`.
 
 ### `src/cli/`
 
-- `bin/sbrs.rs` — the `sbrs` CLI command tree.
-- submodules handle per-command logic.
+The library half of the command line: `commands.rs`, `devtools.rs`, `prompt.rs`,
+`scaffold.rs` and the `scripts/` that the binaries, the MCP server and the golden
+tests share. It has no command-line parser.
 
-### `src/bin/mcp_server.rs`
+### `crates/cli/`
 
-The Model Context Protocol server. Tools are defined in `tools()` and dispatched
-in `call_tool()`.
+The workspace package `seleniumbase-rs-cli`, which builds the two binaries and
+owns the dependencies only they use (clap and its completion generators):
+
+- `src/sbrs.rs` — the `sbrs` CLI command tree (and `src/report.rs`, `sbrs report`).
+- `src/mcp_server.rs` — `sbrs-mcp`, which starts the Model Context Protocol
+  server of `src/mcp/` (the tools are `ToolDef`s there).
+- `tests/` — every test that runs the real `sbrs` or `sbrs-mcp` binary.
 
 ### `src/utilities/`
 
@@ -836,9 +844,10 @@ even when diagnostics are present.
 ## MCP server
 
 The `sbrs-mcp` binary exposes a subset of `BaseCase` through the Model
-Context Protocol. It is built when the `mcp-server` feature is enabled. See
-`src/bin/mcp_server.rs` for the tool definitions and `README.md` for client
-configuration examples.
+Context Protocol. It is built by the package `seleniumbase-rs-cli`
+(`crates/cli/src/mcp_server.rs`) when its `mcp-server` feature is enabled, which
+it is by default. See `src/mcp/` for the tool definitions and `README.md` for
+client configuration examples.
 
 ## Publishing
 

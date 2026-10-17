@@ -25,7 +25,7 @@ cargo run --features tui --bin sbrs -- commander
 ```
 
 ```bash Install the binary with it
-cargo install seleniumbase-rs --features tui
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui
 ```
 
 </CodeGroup>

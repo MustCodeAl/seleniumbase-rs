@@ -240,26 +240,30 @@ package lists come from the CI configuration, which has not been able to run
 git clone https://github.com/MustCodeAl/seleniumbase-rs.git
 cd seleniumbase-rs
 
-cargo build --release --locked --bin sbrs                              # the CLI
-cargo build --release --locked --bin sbrs-mcp --features mcp-server   # the MCP server
+cargo build --release --locked --bin sbrs        # the CLI
+cargo build --release --locked --bin sbrs-mcp    # the MCP server
 ```
 
-There are two binaries: `sbrs` (always built) and `sbrs-mcp` (needs the
-`mcp-server` feature). To put them on your `PATH`:
+The repository is a Cargo workspace of two packages: the library
+`seleniumbase-rs` at the root, and the command line `seleniumbase-rs-cli` in
+`crates/cli`, which holds both binaries. A project that depends on the library
+compiles none of the command-line crates. `sbrs` is always built; `sbrs-mcp`
+needs the `mcp-server` feature, which the command-line package turns on by
+default together with `pdf`. To put the binaries on your `PATH`:
 
 ```bash
-cargo install --path . --bin sbrs
-cargo install --path . --bin sbrs-mcp --features mcp-server
+cargo install --path crates/cli                       # sbrs and sbrs-mcp
+cargo install --path crates/cli --features tui        # and the terminal UI
 ```
 
-The crate is not published to crates.io, so `cargo install seleniumbase-rs` does
-not work; build from a checkout, install from git as below, or add it as a git
-dependency.
+Neither package is published to crates.io, so `cargo install seleniumbase-rs-cli`
+does not work; build from a checkout, install from git as below, or add the
+library as a git dependency.
 
 ## Install without a checkout
 
-Three ways to get `sbrs` and `sbrs-mcp` onto your `PATH` without cloning the
-repository. None of them uses crates.io.
+Three ways to get `sbrs` and `sbrs-mcp` (the package `seleniumbase-rs-cli`) onto
+your `PATH` without cloning the repository. None of them uses crates.io.
 
 <Warning>
 
@@ -285,12 +289,12 @@ every archive.
 ### cargo binstall
 
 [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) downloads the
-release archive for your system instead of compiling. `Cargo.toml` tells it where
-the archives are (`[package.metadata.binstall]`). With `--git` it reads that
-manifest from the repository, so no crates.io entry is needed:
+release archive for your system instead of compiling. `crates/cli/Cargo.toml`
+tells it where the archives are (`[package.metadata.binstall]`). With `--git` it
+reads that manifest from the repository, so no crates.io entry is needed:
 
 ```bash
-cargo binstall --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs
+cargo binstall --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli
 ```
 
 It installs both binaries. Two things to know: `--git` takes the default
@@ -319,8 +323,10 @@ version = "latest"
 
 Until the release archives exist, mise reports "No versions found" for it. To
 build from the git tag now, the `cargo:` backend runs `cargo install --git`
-(Rust 1.99 must be on `PATH`, for example with `mise use -g rust@1.99`); the
-`mcp-server` feature is what builds `sbrs-mcp` too:
+(Rust 1.99 must be on `PATH`, for example with `mise use -g rust@1.99`). The
+repository has one package with binaries, `seleniumbase-rs-cli`, so cargo finds
+it by itself, and it builds `sbrs-mcp` too (`features = ["tui"]` adds the
+terminal UI):
 
 ```bash
 mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.2.0'
@@ -329,8 +335,11 @@ mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.2.0'
 ```toml
 [tools."cargo:https://github.com/MustCodeAl/seleniumbase-rs"]
 version = "tag:v0.2.0"
-features = ["mcp-server"]
 ```
+
+The binaries moved from the package `seleniumbase-rs` to `seleniumbase-rs-cli`
+after v0.4.0. For a tag up to v0.4.0, add `features = ["mcp-server"]` to get
+`sbrs-mcp`.
 
 mise installs no completions for these backends either; its per-tool
 `postinstall` option can run `sbrs completions zsh` into your completions folder.
@@ -349,15 +358,22 @@ brew install mustcodeal/tap/sbrs
 What the methods above do when there is no archive, by hand:
 
 ```bash
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.2.0 --features mcp-server --locked
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked
 ```
 
-Without `--features mcp-server` only `sbrs` is built.
+That builds `sbrs` and `sbrs-mcp`; add `--no-default-features` for `sbrs` alone,
+without PDF text extraction. For a tag up to v0.4.0 the binaries are in the
+package `seleniumbase-rs`:
+`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.4.0 --features mcp-server --locked`.
 
 ## Features
 
-No feature is on by default, so a plain build is small and pulls in none of the
-desktop or cloud stacks.
+No feature of the library is on by default, so a plain build is small and pulls in
+none of the desktop or cloud stacks. The command-line package
+`seleniumbase-rs-cli` turns `pdf` and `mcp-server` on by default and forwards
+`tui`, `gui` and `turso` to the library; the rest of the features below belong
+to the library. Build the library alone, with its own defaults, with
+`cargo build -p seleniumbase-rs`.
 
 | Feature | Adds | Note |
 |---|---|---|

@@ -18,7 +18,7 @@ maintainer of this repository to decide.
   spec does not have yet. Generate the file again with the 0.4.0 `sbrs` before
   submitting it; nothing else in the CLI definition changed.
 - It is the CLI of a build **without the `turso` feature**, which is how the
-  Homebrew tap and a plain `cargo install --path .` build `sbrs`. `sbrs report`
+  Homebrew tap and a plain `cargo install --path crates/cli` build `sbrs`. `sbrs report`
   exists only with `turso`, so the spec has no `report` subcommand. The `tui`
   feature changes what some commands do, not the command line, so it does not
   matter here.
@@ -162,5 +162,5 @@ Checklist from the greeting comment:
 - [ ] Have all other checks passed (`pnpm lint`, `pnpm test`, `pnpm build`)?
 ```
 
-Install `sbrs` with `cargo install --path .` in this repository, or from the
+Install `sbrs` with `cargo install --path crates/cli` in this repository, or from the
 Homebrew tap, to run the generator yourself.
