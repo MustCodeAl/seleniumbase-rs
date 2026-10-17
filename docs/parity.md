@@ -337,10 +337,10 @@ This crate tracks SeleniumBase **4.55.2** (`5fc0c4bd5c`) and seleniumbase-mcp (`
 | `open_start_page` | implemented | `BaseCase::open_start_page` |  |
 | `open_url` | implemented | `BaseCase::open_url` |  |
 | `play_tour` | implemented | `BaseCase::play_tour` |  |
-| `post_error_message` | implemented | `BaseCase::post_error_message` | Differs: Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
-| `post_message` | implemented | `BaseCase::post_message` |  |
-| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message), then highlights the selector's element as Python does. |
-| `post_success_message` | implemented | `BaseCase::post_success_message` | Differs: Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments and does not wait for the box to go. |
+| `post_error_message` | implemented | `BaseCase::post_error_message` | Differs: Shows a plain error box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does. |
+| `post_message` | implemented | `BaseCase::post_message` | Differs: Shows a plain box, not Python's Messenger widget (activate_messenger and set_messenger_theme drive the widget), for the run's message duration, 0.75 s at most in a headless browser, and waits for it to go as the default pause=True does. It takes no duration, pause or style arguments: post_message_for takes the duration. |
+| `post_message_and_highlight` | implemented | `BaseCase::post_message_and_highlight` | Differs: Shows a plain box (see post_success_message), then highlights the selector's element as Python does; it does not wait for the message to go first. |
+| `post_success_message` | implemented | `BaseCase::post_success_message` | Differs: Shows a plain success box in the corner for the run's message duration, replacing the one showing; it is not Python's Messenger widget, takes no duration or pause arguments, and waits for the box to go as Python's default pause=True does. |
 | `press_down_arrow` | implemented | `BaseCase::press_down_arrow` | Differs: Presses the Down arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
 | `press_keys` | implemented | `BaseCase::press_keys` | Differs: Takes the CSS selector and the text, like Python, and types the text one key at a time with a trailing newline pressing Enter; it has no timeout argument (use set_timeout). BaseCase::press_key presses one named key on whatever has focus. |
 | `press_left_arrow` | implemented | `BaseCase::press_left_arrow` | Differs: Presses the Left arrow once on the element that has focus; Python's takes a selector (default body) and a repeat count. |
@@ -894,10 +894,10 @@ Python `--option` flags.
 | `--database-env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--database_env` | not-applicable |  | Picks which MySQL reporting database --with-db-reporting writes to; ResultStore is a local database opened from a path the caller gives, so there are no named environments. |
 | `--dcsp` | implemented | `BrowserConfig::with_disable_csp` | Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. |
-| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
-| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `--demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
+| `--demo-mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `--demo-sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
-| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `--demo_mode` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `--demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `--device-metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
@@ -986,8 +986,8 @@ Python `--option` flags.
 | `--maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--maximize-window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
 | `--maximize_window` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
-| `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
-| `--message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
+| `--message-duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
+| `--message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
 | `--metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `--mobile` | implemented | `BrowserConfig::mobile` |  |
 | `--mobile-emulator` | composed | `BrowserConfig::mobile` | Give the screen with `with_device_metrics`. |
@@ -1049,10 +1049,10 @@ Python `--option` flags.
 | `--sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip-js-waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `--skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
-| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
-| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
-| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
-| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `--slow` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
+| `--slow-mode` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
+| `--slow_mode` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
+| `--slowmo` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
 | `--ss` | composed | `BaseCase::save_teardown_screenshot` | Call it at the end of a test. |
 | `--start-page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `--start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
@@ -1131,7 +1131,7 @@ Keyword arguments of `SB()`.
 | `chs` | implemented | `BrowserConfig::browser` | chrome-headless-shell, downloaded into downloaded_drivers/chs/ when missing; it cannot run UC mode. |
 | `dark_mode` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `data` | not-applicable |  | Passes one free-text string into SB() tests as sb.data; a Rust test reads its own values from std::env or a fixture file. |
-| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after open, click, type_text, update_text and press_keys; hand the settings to BaseCase::set_run_settings. |
+| `demo` | implemented | `RunSettings::with_demo_mode` | Outlines the element and pauses after the actions Python's demo mode covers (open, the clicks, typing, the selects, submit, focus, drag and drop, the window size calls and more); a pause is full after an action that changed the URL and 1/3.4 of it after one that did not; hand the settings to BaseCase::set_run_settings. |
 | `demo_sleep` | implemented | `RunSettings::with_demo_sleep` | The pause demo and slow mode make after an action. |
 | `device_metrics` | implemented | `BrowserConfig::with_device_metrics` | Chrome's `mobileEmulation` experimental option. Differs: Python applies the metrics only together with --mobile; here setting them turns mobile emulation on. |
 | `devtools` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
@@ -1170,7 +1170,7 @@ Keyword arguments of `SB()`.
 | `log_cdp` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `log_cdp_events` | implemented | `BrowserConfig::with_cdp_events` | Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`. |
 | `maximize` | composed | `BaseCase::maximize_window` | Call `maximize_window()` once the session has started; it works for Firefox too. A session always starts with a --window-size, so --start-maximized alone is not relied on. |
-| `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, in whole seconds. |
+| `message_duration` | implemented | `RunSettings::with_message_duration` | How long BaseCase::post_message keeps its message, to the millisecond (2.55 s by default, 0.75 s at most in a headless browser). |
 | `mobile` | implemented | `BrowserConfig::mobile` |  |
 | `multi_proxy` | composed | `LaunchOptionsBuilder::proxy` | Each pure CDP browser answers its own proxy login over the protocol, so browsers running in parallel can use different authenticated proxies with no switch. The WebDriver engine passes the proxy as a flag and cannot log in to one. |
 | `no_screenshot` | not-applicable |  | Nothing to turn off: this crate saves a screenshot only when a test or ScreenshotOnFailurePlugin asks for one. |
@@ -1198,7 +1198,7 @@ Keyword arguments of `SB()`.
 | `size` | implemented | `BrowserConfig::with_window_size` | Chrome's `--window-size`; a Firefox window is resized once it runs. |
 | `sjw` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
 | `skip_js_waits` | implemented | `RunSettings::with_skip_js_waits` | Makes wait_for_ready_state_complete return at once. |
-| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses after open, click, type_text, update_text and press_keys. |
+| `slow` | implemented | `RunSettings::with_slow_mode` | Pauses, in full, after the same actions as --demo, which also outline the element. |
 | `start_page` | implemented | `BrowserConfig::start_page` | BaseCase::new opens the start page when one is set; BaseCase::open_start_page opens it again (about:blank when none is set). |
 | `swiftshader` | composed | `BrowserConfig::extra_args` | Passed to the browser as a command-line flag through BrowserConfig::extra_args. |
 | `test` | not-applicable |  | Marks an SB() context-manager block as a test so it prints pytest-style results; Rust code runs under cargo test, which reports results itself. |

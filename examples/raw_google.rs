@@ -28,6 +28,7 @@ mod local_site;
 
 use local_site::{Site, DEMO_PATH};
 use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use std::time::Duration;
 
 /// The demo page's text box, or the search box on Google's home page.
 const TEXT_BOX: &str = "#myTextInput, textarea[name='q'], input[name='q']";
@@ -45,9 +46,11 @@ async fn main() -> Result<()> {
 async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.open(&url).await?;
 
-    // The overlay disappears by itself after two seconds, so there is nothing
-    // to wait for or to clean up.
-    sb.post_message_for("SeleniumBase Rust demo", 2).await?;
+    // The overlay disappears by itself after two seconds, and the call returns
+    // once it has, so there is nothing to clean up. (A headless browser cuts
+    // the time to 0.75 s.)
+    sb.post_message_for("SeleniumBase Rust demo", Duration::from_secs(2))
+        .await?;
 
     sb.wait_for_element_visible(TEXT_BOX, 10)
         .await

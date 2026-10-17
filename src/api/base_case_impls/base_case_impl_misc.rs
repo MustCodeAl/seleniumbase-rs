@@ -188,17 +188,19 @@ impl BaseCase {
     }
 
     /// Displays a success toast message on the page for the run's message
-    /// duration ([`RunSettings`](crate::api::run_settings::RunSettings)). It
-    /// is a plain box, not Python's Messenger widget, and replaces the toast
-    /// already showing.
+    /// duration ([`RunSettings`](crate::api::run_settings::RunSettings), cut
+    /// to 0.75 s in a headless browser) and waits for it to go, as Python's
+    /// `post_success_message` does with its default `pause=True`. It is a plain
+    /// box, not Python's Messenger widget, and replaces the toast already
+    /// showing.
     pub async fn post_success_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.post_styled_message(message, "#28a745").await
+        self.show_message(message, "#28a745", None, true).await
     }
 
     /// Displays an error toast message on the page; see
     /// [`post_success_message`](Self::post_success_message).
     pub async fn post_error_message(&self, message: &str) -> Result<(), SeleniumBaseError> {
-        self.post_styled_message(message, "#dc3545").await
+        self.show_message(message, "#dc3545", None, true).await
     }
 
     /// Displays a toast message and then highlights the element `css`.
@@ -214,15 +216,10 @@ impl BaseCase {
         message: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.post_styled_message(message, "#ffc107").await?;
+        // The message stays while the element is outlined, so this does not
+        // wait for it to go first.
+        self.show_message(message, "#ffc107", None, false).await?;
         self.highlight(css).await
-    }
-
-    async fn post_styled_message(&self, message: &str, color: &str) -> Result<(), SeleniumBaseError> {
-        let seconds = self.run_settings.message_seconds();
-        self.execute_script(&page_scripts::toast_script(message, color, seconds))
-            .await?;
-        Ok(())
     }
 
     // Referral / traffic generators.

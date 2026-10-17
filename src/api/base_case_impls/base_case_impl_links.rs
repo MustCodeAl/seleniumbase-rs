@@ -32,14 +32,20 @@ impl BaseCase {
     pub async fn click_link(&mut self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("click_link", Some(text), None);
         let element = self.session.driver().find(By::LinkText(text)).await?;
-        element.click().await.map_err(SeleniumBaseError::WebDriver)
+        let before = self.demo_page_before().await;
+        element.click().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause_after(before).await;
+        Ok(())
     }
 
     /// Clicks the first `<a>` element whose visible text contains `text`.
     pub async fn click_partial_link(&mut self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("click_partial_link", Some(text), None);
         let element = self.session.driver().find(By::PartialLinkText(text)).await?;
-        element.click().await.map_err(SeleniumBaseError::WebDriver)
+        let before = self.demo_page_before().await;
+        element.click().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause_after(before).await;
+        Ok(())
     }
 
     /// Returns true if a link with exact `text` is in the DOM, visible or not.

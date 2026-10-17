@@ -138,12 +138,14 @@ sb.minimize().await?;
 ```rust
 sb.post_success_message("Operation completed").await?;
 sb.post_error_message("Something went wrong").await?;
-sb.post_message_for("Transient message", 3).await?;
+sb.post_message_for("Transient message", Duration::from_secs(3)).await?;
 ```
 
 These helpers inject a visible banner into the page, useful for demos or
 MasterQA reports. The banner replaces the one already showing and goes away
-after the run's message duration.
+after the run's message duration (`post_message_for` takes its own); in a headless
+browser that is at most 0.75 s, as in Python. Each call returns 0.15 s after the
+banner has gone, like Python's `pause=True`.
 
 ## Console logs
 

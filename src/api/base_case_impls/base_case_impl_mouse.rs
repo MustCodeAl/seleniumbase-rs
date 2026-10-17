@@ -3,7 +3,9 @@
 impl BaseCase {
     /// Clicks the currently focused element.
     pub async fn click_active_element(&self) -> Result<(), SeleniumBaseError> {
+        let before = self.demo_page_before().await;
         self.execute_script("document.activeElement.click();").await?;
+        self.demo_pause_after(before).await;
         Ok(())
     }
 

@@ -1175,6 +1175,7 @@ impl BaseCase {
             quote(css)
         );
         self.execute_script(&script).await?;
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
@@ -1207,6 +1208,7 @@ impl BaseCase {
             quote(text)
         );
         self.execute_script(&script).await?;
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
@@ -1322,7 +1324,9 @@ impl BaseCase {
             .drag_and_drop_element_by_offset(&target, x, y)
             .perform()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
     }
 
     /// Clicks a sequence of elements in order.

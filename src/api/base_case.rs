@@ -16,7 +16,7 @@ use crate::api::page_scripts::{self, TextMatch};
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
-use crate::api::run_settings::RunSettings;
+use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
 use crate::api::tour::{Tour, TourTheme};
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::{whole_seconds, BrowserConfig};
@@ -35,6 +35,12 @@ use thirtyfour::prelude::By;
 
 /// How long [`BaseCase::highlight`] leaves its outline on an element.
 const HIGHLIGHT_MILLIS: u32 = 900;
+
+/// The background of the box [`BaseCase::post_message`] shows.
+const INFO_MESSAGE_COLOR: &str = "rgba(20,20,20,0.92)";
+
+/// How much longer than the message lasts Python's `post_message` waits.
+const MESSAGE_SETTLE: Duration = Duration::from_millis(150);
 
 pub struct BaseCase {
     session: BrowserSession,
@@ -68,6 +74,10 @@ pub struct BaseCase {
     test_name: Option<String>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
+    /// The pauses demo and slow mode made, oldest first, for
+    /// [`BaseCase::demo_pauses`].
+    #[cfg(any(test, feature = "test-util"))]
+    demo_pauses_made: Mutex<Vec<PauseKind>>,
     /// The pages [`BaseCase::set_content_to_frame`] replaced, oldest first, for
     /// [`BaseCase::set_content_to_default`] to bring back.
     swapped_pages: Vec<SwappedPage>,
@@ -130,6 +140,8 @@ impl BaseCase {
             drivers: DriverTable::new(),
             test_name: None,
             run_settings,
+            #[cfg(any(test, feature = "test-util"))]
+            demo_pauses_made: Mutex::new(Vec::new()),
             swapped_pages: Vec::new(),
         }
     }
@@ -186,12 +198,61 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Pauses for the time demo or slow mode asks for after an action.
-    async fn demo_pause(&self, tiny: bool) {
-        let pause = self.run_settings.pause(tiny);
+    /// Pauses for the time demo or slow mode asks for after an action, and
+    /// does nothing when neither is on.
+    async fn demo_pause(&self, kind: PauseKind) {
+        if !(self.run_settings.demo_mode() || self.run_settings.slow_mode()) {
+            return;
+        }
+        #[cfg(any(test, feature = "test-util"))]
+        if let Ok(mut made) = self.demo_pauses_made.lock() {
+            made.push(kind);
+        }
+        let pause = self.run_settings.pause_for(kind);
         if !pause.is_zero() {
             tokio::time::sleep(pause).await;
         }
+    }
+
+    /// The URL the page is on before an action that may navigate, for
+    /// [`demo_pause_after`](Self::demo_pause_after). Read only in demo mode,
+    /// the one mode whose pause depends on it; `None` otherwise, and when the
+    /// URL cannot be read.
+    async fn demo_page_before(&self) -> Option<String> {
+        if !self.run_settings.demo_mode() {
+            return None;
+        }
+        self.get_current_url().await.ok()
+    }
+
+    /// Pauses after an action as Python's demo mode does: in full when the
+    /// action changed the page's URL (or the URL cannot be told), for 1/3.4 of
+    /// the time when it did not. Slow mode pauses in full either way.
+    /// `before` is [`demo_page_before`](Self::demo_page_before)'s answer from
+    /// before the action.
+    async fn demo_pause_after(&self, before: Option<String>) {
+        let kind = if self.run_settings.demo_mode() {
+            match (before, self.get_current_url().await) {
+                (Some(before), Ok(now)) if before == now => PauseKind::Short,
+                _ => PauseKind::Full,
+            }
+        } else {
+            PauseKind::Full
+        };
+        self.demo_pause(kind).await;
+    }
+
+    /// The pauses that demo mode and slow mode have made so far, oldest first,
+    /// so a test can say which actions paused, and how, without timing them.
+    /// A pause is listed when the mode is on, whatever its length
+    /// ([`RunSettings::with_demo_sleep`]).
+    #[cfg(any(test, feature = "test-util"))]
+    #[must_use]
+    pub fn demo_pauses(&self) -> Vec<PauseKind> {
+        self.demo_pauses_made
+            .lock()
+            .map(|made| made.clone())
+            .unwrap_or_default()
     }
 
     /// Creates a `BaseCase` without a live browser session. Useful for unit tests
@@ -355,6 +416,7 @@ impl BaseCase {
                 rect.height.try_into().unwrap_or(0),
             )
             .await?;
+        self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
 
@@ -726,7 +788,7 @@ impl BaseCase {
         info!(%url, "opening url");
         self.record("open", Some(&url), None);
         self.session.goto(&url).await?;
-        self.demo_pause(false).await;
+        self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -741,6 +803,7 @@ impl BaseCase {
     /// Navigates back in browser history.
     pub async fn go_back(&self) -> Result<(), SeleniumBaseError> {
         self.session.back().await?;
+        self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -748,6 +811,7 @@ impl BaseCase {
     /// Navigates forward in browser history.
     pub async fn go_forward(&self) -> Result<(), SeleniumBaseError> {
         self.session.forward().await?;
+        self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -761,8 +825,9 @@ impl BaseCase {
         self.await_ready(css, Ready::Clickable).await?;
         self.record("click", Some(css), None);
         self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
         self.session.click(by).await?;
-        self.demo_pause(false).await;
+        self.demo_pause_after(before).await;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -775,8 +840,9 @@ impl BaseCase {
         self.await_ready(css, Ready::Visible).await?;
         self.record("type_text", Some(css), Some(text));
         self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
         self.session.type_text(by, text).await?;
-        self.demo_pause(true).await;
+        self.demo_pause_after(before).await;
         Ok(())
     }
 
@@ -793,7 +859,9 @@ impl BaseCase {
         self.skip_if_esc().await?;
         let by = thirtyfour::prelude::By::LinkText(link_text.to_owned());
         self.record("click_link_text", Some(link_text), None);
+        let before = self.demo_page_before().await;
         self.session.click(by).await?;
+        self.demo_pause_after(before).await;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -803,7 +871,9 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Present).await?;
         self.record("submit", Some(css), None);
-        self.session.submit(by).await
+        self.session.submit(by).await?;
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
     }
 
     /// Returns the visible text of the element `css`.
@@ -818,6 +888,7 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Visible).await?;
         self.record("hover", Some(css), None);
+        self.demo_highlight(css).await?;
         self.session.hover(by).await
     }
 
@@ -841,7 +912,11 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Present).await?;
         self.record("select_option_by_text", Some(css), Some(text));
-        self.session.select_option_by_text(by, text).await
+        self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
+        self.session.select_option_by_text(by, text).await?;
+        self.demo_pause_after(before).await;
+        Ok(())
     }
 
     /// Selects the `<option>` whose `value` matches.
@@ -853,7 +928,11 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Present).await?;
         self.record("select_option_by_value", Some(css), Some(value));
-        self.session.select_option_by_value(by, value).await
+        self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
+        self.session.select_option_by_value(by, value).await?;
+        self.demo_pause_after(before).await;
+        Ok(())
     }
 
     /// Switches context into the frame selected by `css`.
@@ -880,7 +959,10 @@ impl BaseCase {
         self.await_ready(source_css, Ready::Visible).await?;
         self.await_ready(target_css, Ready::Visible).await?;
         self.record("drag_and_drop", Some(source_css), Some(target_css));
-        self.session.drag_and_drop(source_by, target_by).await
+        self.demo_highlight(source_css).await?;
+        self.session.drag_and_drop(source_by, target_by).await?;
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
     }
 
     /// Returns `true` if `css` exists in the DOM.
@@ -1291,39 +1373,57 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Displays a transient message overlay on the page for `duration_secs`.
+    /// Shows `message` in a corner of the page for `duration` and waits for it
+    /// to go (plus 0.15 s), as Python's `post_message(message, duration)` does
+    /// with its default `pause=True`. In a headless browser, where nobody
+    /// watches, `duration` is cut to 0.75 s as in Python. A new message
+    /// replaces the one showing.
+    ///
+    /// It is a plain box, not Python's Messenger widget: see
+    /// [`activate_messenger`](Self::activate_messenger) and
+    /// [`set_messenger_theme`](Self::set_messenger_theme) for the widget.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the page script fails.
     pub async fn post_message_for(
         &self,
         message: &str,
-        duration_secs: u64,
+        duration: Duration,
     ) -> Result<(), SeleniumBaseError> {
-        let escaped = quote(message);
-        let script = format!(
-            "(() => {{
-                const id='sb-rs-msg';
-                let box=document.getElementById(id);
-                if(!box) {{
-                  box=document.createElement('div');
-                  box.id=id;
-                  box.style.position='fixed';
-                  box.style.top='16px';
-                  box.style.right='16px';
-                  box.style.zIndex='2147483647';
-                  box.style.background='rgba(20,20,20,0.92)';
-                  box.style.color='#fff';
-                  box.style.padding='10px 14px';
-                  box.style.borderRadius='8px';
-                  box.style.fontFamily='Arial,sans-serif';
-                  box.style.fontSize='14px';
-                  document.body.appendChild(box);
-                }}
-                box.textContent={msg};
-                setTimeout(() => {{ if (box && box.parentNode) box.parentNode.removeChild(box); }}, {ms});
-            }})();",
-            msg = escaped,
-            ms = duration_secs.saturating_mul(1000),
-        );
-        self.execute_script(&script).await?;
+        self.show_message(message, INFO_MESSAGE_COLOR, Some(duration), true)
+            .await
+    }
+
+    /// How long a message stays on the page: `requested`, else the run's
+    /// message duration ([`RunSettings::message_duration`]); cut to 0.75 s in a
+    /// headless browser.
+    fn message_time(&self, requested: Option<Duration>) -> Duration {
+        match (requested, self.config.headless) {
+            (None, false) => self.run_settings.message_duration(),
+            (None, true) => self.run_settings.message_duration_headless(),
+            (Some(duration), false) => duration,
+            (Some(duration), true) => duration.min(HEADLESS_MESSAGE_CAP),
+        }
+    }
+
+    /// Shows `message` on a `color` background for [`message_time`] and, with
+    /// `wait`, waits for it to go and 0.15 s more (Python's `pause=True`).
+    ///
+    /// [`message_time`]: Self::message_time
+    async fn show_message(
+        &self,
+        message: &str,
+        color: &str,
+        requested: Option<Duration>,
+        wait: bool,
+    ) -> Result<(), SeleniumBaseError> {
+        let shown = self.message_time(requested);
+        self.execute_script(&page_scripts::toast_script_for(message, color, shown))
+            .await?;
+        if wait {
+            tokio::time::sleep(shown + MESSAGE_SETTLE).await;
+        }
         Ok(())
     }
 
@@ -1497,7 +1597,9 @@ impl BaseCase {
     /// Maximizes the browser window.
     pub async fn maximize_window(&self) -> Result<(), SeleniumBaseError> {
         self.record("maximize_window", None, None);
-        self.session.maximize_window().await
+        self.session.maximize_window().await?;
+        self.demo_pause(PauseKind::Short).await;
+        Ok(())
     }
 
     /// Resizes the browser window to `width` x `height`.
@@ -1507,7 +1609,9 @@ impl BaseCase {
             Some(&format!("{},{}", width, height)),
             None,
         );
-        self.session.set_window_size(width, height).await
+        self.session.set_window_size(width, height).await?;
+        self.demo_pause(PauseKind::Short).await;
+        Ok(())
     }
 
     /// Executes the `get_window_size` action.
@@ -1526,7 +1630,11 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Clickable).await?;
         self.record("double_click", Some(css), None);
-        self.session.double_click(by).await
+        self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
+        self.session.double_click(by).await?;
+        self.demo_pause_after(before).await;
+        Ok(())
     }
 
     /// Right-clicks the element selected by `css`.
@@ -1534,7 +1642,11 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Clickable).await?;
         self.record("context_click", Some(css), None);
-        self.session.context_click(by).await
+        self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
+        self.session.context_click(by).await?;
+        self.demo_pause_after(before).await;
+        Ok(())
     }
 
     /// Executes the `is_enabled` action.
@@ -1712,8 +1824,10 @@ impl BaseCase {
     /// Executes the `js_click` action.
     pub async fn js_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("js_click", Some(css), None);
+        self.demo_highlight(css).await?;
         let script = format!("document.querySelector({}).click();", quote(css));
         self.execute_script(&script).await?;
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
@@ -1782,10 +1896,12 @@ impl BaseCase {
             .map_err(|e| SeleniumBaseError::AssertionFailed(format!("File not found: {}", e)))?;
 
         // For choose_file, we use send_keys with the absolute file path on an <input type="file">
+        let before = self.demo_page_before().await;
         element
             .send_keys(abs_path.to_string_lossy().as_ref())
             .await
             .map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause_after(before).await;
         Ok(())
     }
 
@@ -1876,8 +1992,11 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Visible).await?;
         self.record("add_text", Some(css), Some(text));
+        self.demo_highlight(css).await?;
+        let before = self.demo_page_before().await;
         let elem = self.session.driver().find(by).await?;
         elem.send_keys(text).await?;
+        self.demo_pause_after(before).await;
         Ok(())
     }
 
@@ -1987,7 +2106,9 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::PartialLinkText(partial_link_text).to_by()?;
         self.record("click_partial_link_text", Some(partial_link_text), None);
+        let before = self.demo_page_before().await;
         self.session.driver().find(by).await?.click().await?;
+        self.demo_pause_after(before).await;
         Ok(())
     }
 
@@ -2370,12 +2491,14 @@ impl BaseCase {
     pub async fn focus(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!("document.querySelector({}).focus();", quote(css));
         self.execute_script(&script).await?;
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
     /// Minimize the browser window.
     pub async fn minimize_window(&self) -> Result<(), SeleniumBaseError> {
         self.session.driver().minimize_window().await?;
+        self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
 
@@ -2391,6 +2514,7 @@ impl BaseCase {
             .driver()
             .set_window_rect(x, y, width, height)
             .await?;
+        self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
 
@@ -2445,6 +2569,7 @@ impl BaseCase {
     /// Click the element using jQuery if available, otherwise fall back to JS click.
     pub async fn jquery_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("jquery_click", Some(css), None);
+        self.demo_highlight(css).await?;
         let literal = quote(css);
         let script = format!(
             "(function(){{
@@ -2453,6 +2578,7 @@ impl BaseCase {
             }})();"
         );
         self.execute_script(&script).await?;
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
@@ -2583,12 +2709,14 @@ impl BaseCase {
     /// Set the `value` property of the element.
     pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
         self.await_ready(css, Ready::Present).await?;
+        self.demo_highlight(css).await?;
         let script = format!(
             "document.querySelector({}).value = {};",
             quote(css),
             quote(value)
         );
         self.execute_script(&script).await?;
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
@@ -2610,6 +2738,7 @@ impl BaseCase {
         if found.as_bool() != Some(true) {
             return Err(SeleniumBaseError::element_not_found(css));
         }
+        self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
@@ -2847,7 +2976,13 @@ impl BaseCase {
         if enter {
             element.send_keys(Key::Enter.value().to_string()).await?;
         }
-        self.demo_pause(true).await;
+        // Python pauses in full after a typed Enter, which sends the page on.
+        self.demo_pause(if enter {
+            PauseKind::Full
+        } else {
+            PauseKind::Short
+        })
+        .await;
         Ok(())
     }
 
@@ -3125,6 +3260,8 @@ include!("base_case_impls/base_case_impl_driver_tests.rs");
 include!("base_case_impls/base_case_impl_text_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_element_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_demo_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]

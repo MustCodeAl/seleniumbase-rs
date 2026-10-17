@@ -363,6 +363,17 @@ migrate.
   let title = page.evaluate("document.title").await?;
   ```
 
+- **`post_message_for(message, duration)` takes a `Duration`**, not a number of
+  whole seconds, so a message can last 2.55 s as Python's default does. It also
+  waits for the message to go now (see Changed).
+
+  ```rust
+  // before
+  sb.post_message_for("Saved", 2).await?;
+  // after
+  sb.post_message_for("Saved", Duration::from_secs(2)).await?;
+  ```
+
 ### Added
 
 - `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
@@ -396,7 +407,11 @@ migrate.
   the milliseconds of `--message-duration` (default `DEFAULT_MESSAGE_DURATION`,
   Python's 2.55 s) and `message_duration_headless()` cuts it to 0.75 s as
   Python does in a headless browser. New getters `slow_mode()` and
-  `demo_sleep()`. `pause` and `message_seconds` stay.
+  `demo_sleep()`. `pause` and `message_seconds` are deprecated now that
+  `BaseCase` uses the new ones.
+- `BaseCase::demo_pauses()` (feature `test-util`) lists the `PauseKind` of each
+  pause demo and slow mode have made, so a test can assert that an action
+  paused without timing it.
 - `RunSettings`, `PauseKind`, `Settings` and `SettingsOverrides` are re-exported
   at the crate root, beside `RuntimeConfig`.
 
@@ -431,13 +446,33 @@ migrate.
   .with_fingerprint(..))`.
 - `run_settings::DEFAULT_MESSAGE_SECONDS` (3): use `DEFAULT_MESSAGE_DURATION`
   (2.55 s). `RunSettings::message_seconds` now rounds `message_duration()` up,
-  so the two cannot drift apart; the default is still 3.
+  so the two cannot drift apart; the default is still 3. It is deprecated too,
+  with `RunSettings::pause(tiny)`: use `message_duration()` and
+  `pause_for(PauseKind)`.
 
 - `sb_cdp::Locator::click_at(Point)`: use `click_with_offset(x, y, false)`,
   Python's name for it. `click_at` calls it.
 
 ### Changed
 
+- **Demo mode and slow mode follow Python's rule for how long to pause, and
+  reach the calls Python's do.** `open` always paused in full, `click` always
+  in full and typing always short; Python pauses after an action in full when
+  the page's URL changed and for 1/3.4 of the time when it did not (slow mode:
+  always in full). `BaseCase` now reads the URL before and after such an
+  action, in demo mode only, and pauses by `RunSettings::pause_for`. The pauses
+  and the outline now also cover `double_click`, `context_click`, the link
+  clicks, `click_active_element`, `choose_file`, the selects, `add_text`,
+  `send_keys`, `set_value`, `submit`, `focus`, `go_back`, `go_forward`, the JS
+  and jQuery clicks, `drag_and_drop`, the offset clicks and the window size and
+  position calls; `press_keys` pauses in full after a typed Enter. A demo or
+  slow run is longer for it: leave them off unless a person watches.
+- **`post_message`, `post_message_for`, `post_success_message` and
+  `post_error_message` last the run's message duration to the millisecond**
+  (2.55 s by default, not 3 s), at most 0.75 s in a headless browser, and **wait
+  for the message to go and 0.15 s more**, as Python's default `pause=True`
+  does; they returned at once. They share one box: `post_message_for` no longer
+  draws its own. `post_message_and_highlight` still does not wait.
 - **`check_window` baselines can be told apart by test.** The baseline folder
   was named after the thread's last path part, so tests of the same function
   name in different modules or files shared one folder, and a body run by

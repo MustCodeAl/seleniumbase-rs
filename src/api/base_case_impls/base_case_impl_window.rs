@@ -3,12 +3,16 @@
 impl BaseCase {
     /// Maximizes the browser window.
     pub async fn maximize(&self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().maximize_window().await.map_err(SeleniumBaseError::WebDriver)
+        self.session.driver().maximize_window().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause(PauseKind::Short).await;
+        Ok(())
     }
 
     /// Minimizes the browser window.
     pub async fn minimize(&self) -> Result<(), SeleniumBaseError> {
-        self.session.driver().minimize_window().await.map_err(SeleniumBaseError::WebDriver)
+        self.session.driver().minimize_window().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.demo_pause(PauseKind::Short).await;
+        Ok(())
     }
 
     /// Returns the browser window rectangle as `(x, y, width, height)`.

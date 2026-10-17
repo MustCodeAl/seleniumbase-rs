@@ -366,7 +366,9 @@ mod tests_page_scripts {
         let driver = quiet_driver();
         let sb = driver.base_case().await;
         for message in HOSTILE {
-            sb.post_message_for(message, 1).await.unwrap();
+            sb.post_message_for(message, Duration::from_millis(1))
+                .await
+                .unwrap();
             assert_carries(&last_script(&driver), &[message]);
         }
     }
