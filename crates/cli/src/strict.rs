@@ -1,7 +1,10 @@
 //! What usage 6 lets through that clap did not, refused before the real parse.
 //!
-//! usage 6.12 is looser than clap in places that no attribute of the derives closes:
+//! usage 6.12 is looser than clap in three places that no attribute of the derives closes:
 //!
+//! - A scalar flag given twice. `args_override_self = false` is a setting of one command:
+//!   the root and an `Args` struct can say it, an inline variant of the command enum
+//!   cannot, so after a subcommand the last value won.
 //! - A value written after a switch. The parser drops it (`--headless=false` would switch
 //!   the option on). A switch declared `bool_value` hands the value over instead, so the
 //!   parser can see it; the derive then accepts `true` and `false`, and clap accepted
@@ -10,32 +13,37 @@
 //!   that names one and prints that page, so `help nosuch` printed the main help.
 //!
 //! [`check`] reads the events the generated parser reads, from the same tables, and
-//! refuses these with the errors usage renders for everything else. Every other mistake,
+//! refuses these three with the errors usage renders for everything else. Every other mistake,
 //! and every help or version request, is left to the real parse.
 
 use std::ffi::OsStr;
 
-use usage::spec::{CommandMeta, Spec};
+use usage::spec::{CommandMeta, FlagMeta, Spec};
 use usage::{Command, Error, Event, Flag, InvalidValue, Parser};
 
-/// Whether `argv`, the command line without the program name, is one clap would have
-/// refused for one of the reasons above.
+/// Refuses a command line that clap would have refused for one of the three reasons above.
 ///
-/// `spec` and `root` are those of the same CLI (`Cli::spec()` and `Cli::command()`).
-/// Returns the first mistake, as the error the parser itself would have returned for it.
+/// `argv` is the command line without the program name. `spec` and `root` are those of the
+/// same CLI (`Cli::spec()` and `Cli::command()`). The first mistake comes back as the error
+/// the parser itself would have returned for it, to be rendered the same way.
 ///
 /// # Errors
 ///
-/// [`Error::InvalidValue`] for a value after a switch, and [`Error::UnexpectedArg`] for the
-/// word after a `help` path that names no command.
+/// [`Error::DuplicateFlag`] for a scalar flag given twice to a command whose declaration
+/// lets the last one win while the root's does not, [`Error::InvalidValue`] for a value
+/// after a switch, and [`Error::UnexpectedArg`] for the word after a `help` path that names
+/// no command.
 pub fn check<'v>(
     spec: &'static Spec<'static>,
     root: &'static Command<'static>,
     argv: &[&'v OsStr],
 ) -> Result<(), Error<'static, 'v>> {
+    // The rule is the root's: a command that says nothing about it is held to it too.
+    let strict = !spec.root.args_override_self;
     let mut parser = Parser::new(root, argv);
-    // The metadata of the command the parser is in.
+    // The metadata of the command the parser is in, and the flags it has been given.
     let mut meta = spec.root;
+    let mut given: Vec<u64> = Vec::new();
     while let Some(event) = parser.next_event() {
         match event {
             Ok(Event::Command(command)) => {
@@ -43,6 +51,7 @@ pub fn check<'v>(
                     return Ok(());
                 };
                 meta = next;
+                given.clear();
             }
             Ok(Event::Flag { flag, value, .. }) => {
                 // A request for help or the version is answered by the real parse, and
@@ -53,6 +62,19 @@ pub fn check<'v>(
                 if let Some(value) = value.filter(|_| flag.bool_value && !flag.takes_value) {
                     return Err(switch_value(flag, value));
                 }
+                let Some(flag_meta) = flag_meta(meta, flag) else {
+                    continue;
+                };
+                // Only a command whose own declaration lets the last value win needs the
+                // check: the root and the `Args` structs refuse a repeat themselves.
+                if strict
+                    && meta.args_override_self
+                    && !repeats(flag_meta)
+                    && given.contains(&flag.key)
+                {
+                    return Err(Error::DuplicateFlag { name: flag.name });
+                }
+                given.push(flag.key);
             }
             Ok(_) => {}
             // The parser's own refusal of a value other than `true` or `false` after a
@@ -81,6 +103,19 @@ fn subcommand_meta(
         .iter()
         .copied()
         .find(|candidate| candidate.cmd.key == command.key)
+}
+
+/// The metadata of `flag`, a flag of the command `meta` describes. A flag the command does
+/// not declare itself (one of an ancestor) has none here.
+fn flag_meta<'m>(meta: &'m CommandMeta<'static>, flag: &Flag<'_>) -> Option<&'m FlagMeta<'static>> {
+    meta.flags
+        .iter()
+        .find(|candidate| candidate.flag.key == flag.key)
+}
+
+/// Whether the flag may be given more than once: a collection, or a counter.
+fn repeats(flag: &FlagMeta<'_>) -> bool {
+    flag.repeatable || flag.count
 }
 
 /// The switch of the command `meta` describes that the parser calls `name`.

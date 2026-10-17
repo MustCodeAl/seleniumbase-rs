@@ -3544,6 +3544,120 @@ mod strict_cli_tests {
     }
 
     #[test]
+    fn a_scalar_flag_given_twice_to_a_subcommand_is_refused() {
+        for argv in [
+            &["sbrs", "get-text", "--css", "a", "--css", "b"][..],
+            &[
+                "sbrs",
+                "wait-for-text",
+                "--css",
+                "a",
+                "--text",
+                "t",
+                "--text",
+                "u",
+            ],
+            &["sbrs", "mkfile", "f.rs", "--url", "a", "--url", "b"],
+            &["sbrs", "mkdir", "d", "--force", "--force"],
+            &["sbrs", "mkdir", "d", "-b", "--basic"],
+            &["sbrs", "import-python", "f.py", "-o", "a", "--output", "b"],
+            &["sbrs", "devtools", "--port", "1", "--port", "2"],
+            &[
+                "sbrs",
+                "download-file",
+                "u",
+                "--timeout",
+                "1",
+                "--timeout",
+                "2",
+            ],
+        ] {
+            let error = refused(argv);
+            assert!(error.contains("multiple times"), "{argv:?}: {error}");
+        }
+    }
+
+    /// The check is for the commands whose own declaration lets the last value win, which
+    /// is every inline variant of `Commands`. Whatever flags they have now or get later,
+    /// each one that is not a collection or a counter is refused when it is given twice.
+    #[test]
+    fn every_scalar_flag_of_every_command_is_refused_when_given_twice() {
+        use usage::spec::CommandMeta;
+
+        fn walk(
+            meta: &CommandMeta<'_>,
+            path: &mut Vec<String>,
+            refused: &mut usize,
+            failures: &mut Vec<String>,
+        ) {
+            // The root and the `Args` structs refuse a repeat themselves.
+            if !path.is_empty() && meta.args_override_self {
+                for flag_meta in meta.flags {
+                    let flag = flag_meta.flag;
+                    if flag_meta.builtin
+                        || flag.action != usage::ArgAction::Set
+                        || flag_meta.repeatable
+                        || flag_meta.count
+                    {
+                        continue;
+                    }
+                    let spelling = match (flag.longs.first(), flag.shorts.first()) {
+                        (Some(long), _) => format!("--{long}"),
+                        (None, Some(short)) => format!("-{}", char::from(*short)),
+                        (None, None) => continue,
+                    };
+                    let mut words: Vec<&str> = path.iter().map(String::as_str).collect();
+                    for _ in 0..2 {
+                        words.push(&spelling);
+                        if flag.takes_value {
+                            words.push("1");
+                        }
+                    }
+                    match checked(&words) {
+                        Err(error) if error.contains("multiple times") => *refused += 1,
+                        other => failures.push(format!("{words:?}: {other:?}")),
+                    }
+                }
+            }
+            for sub in meta.subcommands {
+                path.push(sub.cmd.name.to_owned());
+                walk(sub, path, refused, failures);
+                path.pop();
+            }
+        }
+
+        let (mut refused, mut failures) = (0, Vec::new());
+        walk(
+            Cli::spec().root,
+            &mut Vec::new(),
+            &mut refused,
+            &mut failures,
+        );
+        assert!(refused > 40, "the walk found only {refused} flags");
+        assert!(failures.is_empty(), "accepted twice: {failures:#?}");
+    }
+
+    #[test]
+    fn a_flag_that_may_be_repeated_may_be_given_twice() {
+        for argv in [
+            &["sbrs", "deferred", "--assert", "a", "--assert", "b"][..],
+            &["sbrs", "test", "--features", "a", "--features", "b"],
+            &["sbrs", "--plugin", "a", "--plugin", "b", "open", "x"],
+        ] {
+            if let Err(error) = try_parse_checked(argv) {
+                panic!("{argv:?}: {error}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_same_name_in_two_commands_is_two_flags() {
+        let cli = try_parse_checked(&["sbrs", "--proxy", "a:1", "devtools", "--proxy", "b:2"])
+            .expect("parses");
+        assert_eq!(cli.proxy.as_deref(), Some("a:1"));
+    }
+
+    #[test]
     fn help_with_a_path_that_names_no_command_is_refused() {
         for words in [
             &["help", "nosuch"][..],
@@ -3577,7 +3691,8 @@ mod strict_cli_tests {
     #[test]
     fn a_request_for_help_or_the_version_ends_the_check() {
         for words in [
-            &["mkdir", "--help", "--force=2"][..],
+            &["mkdir", "--help", "--force", "--force"][..],
+            &["mkdir", "--help", "--force=2"],
             &["--version", "--headless=true"],
             &["mkdir", "-h", "--force=1"],
         ] {
@@ -3602,6 +3717,12 @@ mod strict_cli_tests {
 #[cfg(test)]
 mod usage_spec_tests {
     use super::*;
+
+    /// The check in `strict` holds every command to the rule of the root.
+    #[test]
+    fn the_root_refuses_a_flag_given_twice() {
+        assert!(!Cli::spec().root.args_override_self);
+    }
 
     /// The check in `strict` can see a value written after a switch only when the switch is
     /// declared `bool_value`: without it the parser drops the value before anything can look

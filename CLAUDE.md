@@ -128,16 +128,15 @@ binaries with `cargo install --path crates/cli`.
 - macOS delays the first run of a freshly written script, so tests that fake
   `java` run it once with `--warm` before timing it.
 - `sbrs commander` exits with status 2 and a hint when built without `tui`.
-- usage 6 is looser than clap was in three places that the root's
-  `unknown_flags = "error"` and `args_override_self = false` do not reach: an inline
-  struct variant of `Commands` cannot say `args_override_self`, so a flag repeated
-  after a subcommand takes its last value (`GridArgs` and `PromptArgs` are `Args`
-  structs and refuse it). A value written after a switch (`--headless=false`) and a
-  `help` path that names no command (`sbrs help nosuch`) are refused by
-  `crates/cli/src/strict.rs`, which reads the parser's events before the real parse;
-  it can see the value after a switch only because every switch is declared
-  `bool_value` (a test fails for one that is not). The help lists the commands
-  alphabetically, not in declaration order.
+- usage 6 is looser than clap was in three places that the declarations cannot close,
+  so `crates/cli/src/strict.rs` reads the parser's events before the real parse and
+  refuses them with status 2: a flag repeated after a subcommand (an inline struct
+  variant of `Commands` cannot say `args_override_self`, so the check holds every
+  command to the root's rule; a test walks the spec), a value written after a switch
+  (`--headless=false`; the parser drops it unless the switch is declared `bool_value`,
+  so every switch must be, and a test fails for one that is not) and a `help` path that
+  names no command (`sbrs help nosuch`). The help lists the commands alphabetically,
+  not in declaration order.
 - `thirtyfour` still depends on `zip` 8.6, so two `zip` versions are in the tree.
 - Real-Chrome behaviour differs between headless and headed runs; check which
   one a test uses before trusting a timing.

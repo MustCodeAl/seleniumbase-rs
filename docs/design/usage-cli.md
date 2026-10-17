@@ -114,7 +114,9 @@ crates/cli/tests/          every test that runs CARGO_BIN_EXE_sbrs or sbrs-mcp
    spec cannot close: usage 6.12 lets an inline struct variant repeat a flag (the
    rule is per command and only an `Args` struct or the root can set it), drops the
    `=value` of a plain switch (so every switch is `bool_value` and `--headless=false`
-   means false), and prints the root help for `help nosuch`. The help is laid out by
+   means false), and prints the root help for `help nosuch`. `crates/cli/src/strict.rs`
+   closed all three afterwards: it reads the parser's events before the real parse and
+   refuses them with status 2, as clap did. The help is laid out by
    usage (alphabetical command list, `Flags:`, a final period on short
    descriptions, `[aliases: x]`); the help tests that read the layout changed.
 3. Docs: the CLI reference page generated from the spec, the install lines,

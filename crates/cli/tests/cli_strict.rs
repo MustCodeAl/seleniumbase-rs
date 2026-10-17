@@ -1,5 +1,6 @@
-//! `sbrs` refuses what clap refused and usage 6 lets through (see `src/strict.rs`): a value
-//! written after a switch. It is checked against the real binary.
+//! `sbrs` refuses what clap refused and usage 6 lets through (see `src/strict.rs`): a flag
+//! given twice, a value written after a switch, and `help` with a path that names no command.
+//! Each is checked against the real binary.
 //!
 //! Nothing here starts a browser. The commands that would run one do so against a fake
 //! WebDriver server on a loopback port, which sees whether a session was asked for.
@@ -30,6 +31,144 @@ fn refused(output: &Output) -> String {
     assert!(stdout(output).is_empty(), "{}", stdout(output));
     error
 }
+
+fn assert_cannot_be_used_multiple_times(error: &str, flag: &str) {
+    assert!(
+        error.contains(&format!("the argument '{flag}")) && error.contains("multiple times"),
+        "{error}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// A scalar flag given twice after a subcommand
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_value_flag_given_twice_to_mkfile_is_refused_and_nothing_is_written() {
+    let (dir, output) = in_a_new_folder(&[
+        "mkfile",
+        "tests/login.rs",
+        "--url",
+        "https://a.test/",
+        "--url",
+        "https://b.test/",
+    ]);
+
+    assert_cannot_be_used_multiple_times(&refused(&output), "--url");
+    assert!(!dir.path().join("tests").exists(), "mkfile ran");
+}
+
+#[test]
+fn a_switch_given_twice_to_mkdir_is_refused_and_nothing_is_written() {
+    let (dir, output) = in_a_new_folder(&["mkdir", "ui", "--force", "--force"]);
+
+    assert_cannot_be_used_multiple_times(&refused(&output), "--force");
+    assert!(!dir.path().join("ui").exists(), "mkdir ran");
+}
+
+#[test]
+fn a_short_and_a_long_spelling_of_one_flag_count_as_the_flag_given_twice() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    std::fs::write(dir.path().join("login.py"), "def test_a(self):\n    pass\n").unwrap();
+
+    let output = run(
+        dir.path(),
+        &[],
+        &[
+            "import-python",
+            "login.py",
+            "-o",
+            "first.rs",
+            "--output",
+            "second.rs",
+        ],
+    );
+
+    assert_cannot_be_used_multiple_times(&refused(&output), "--output");
+    assert!(!dir.path().join("first.rs").exists());
+    assert!(!dir.path().join("second.rs").exists());
+}
+
+#[test]
+fn a_flag_given_twice_to_a_command_that_drives_a_browser_asks_for_no_session() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for command in [
+        &["get-text", "--css", "h1", "--css", "p"][..],
+        &["wait-for-text", "--css", "h1", "--text", "a", "--text", "b"],
+        &["hover", "--css", "h1", "--css", "h1"],
+    ] {
+        let driver = FakeWebDriver::start();
+        let mut args = vec!["--webdriver", driver.url()];
+        args.extend(command);
+
+        let output = run(dir.path(), &[], &args);
+
+        assert!(
+            refused(&output).contains("multiple times"),
+            "{command:?} was accepted"
+        );
+        assert!(
+            driver.requests().is_empty(),
+            "{command:?} asked for a browser"
+        );
+    }
+}
+
+#[test]
+fn a_flag_of_a_subcommand_that_may_be_repeated_still_may() {
+    let driver = FakeWebDriver::start();
+    let dir = tempfile::tempdir().expect("temp dir");
+
+    let output = run(
+        dir.path(),
+        &[],
+        &[
+            "--webdriver",
+            driver.url(),
+            "deferred",
+            "--assert",
+            "element=h1",
+            "--assert",
+            "title=Fake",
+        ],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(!driver.requests().is_empty(), "no browser was asked for");
+}
+
+#[cfg(feature = "plugins-builtin")]
+#[test]
+fn a_flag_of_the_root_that_may_be_repeated_still_may() {
+    let (_dir, output) = in_a_new_folder(&[
+        "--plugin",
+        "shield",
+        "--plugin",
+        "block-resources",
+        "plugin",
+        "list",
+    ]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+}
+
+#[test]
+fn the_commands_that_already_refused_a_repeated_flag_still_do() {
+    let (_dir, output) = in_a_new_folder(&["grid-hub", "status", "--wait", "1", "--wait", "2"]);
+    assert_cannot_be_used_multiple_times(&refused(&output), "--wait");
+
+    // usage names a flag of the root without its dashes when a subcommand follows it.
+    let (_dir, output) = in_a_new_folder(&["--browser", "chrome", "--browser", "edge", "version"]);
+    let error = refused(&output);
+    assert!(
+        error.contains("'browser'") && error.contains("multiple times"),
+        "{error}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// A value written after a switch
+// ---------------------------------------------------------------------------
 
 #[test]
 fn a_value_written_after_a_global_switch_is_refused() {
@@ -182,7 +321,7 @@ fn help_alone_prints_the_main_page() {
 fn the_help_flag_still_answers_before_a_mistake_after_it() {
     let dir = tempfile::tempdir().expect("temp dir");
 
-    let output = run(dir.path(), &[], &["mkdir", "--help", "--force=1"]);
+    let output = run(dir.path(), &[], &["mkdir", "--help", "--force", "--force"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(stdout(&output).contains("--force"), "{}", stdout(&output));
