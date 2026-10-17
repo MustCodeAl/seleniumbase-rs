@@ -22,7 +22,7 @@ use crate::stealth::fingerprint::{
     BrandVersion, Dimension, Fingerprint, OsType, PopupMode, QuicMode, WebRtcPolicy,
 };
 use crate::stealth::providers::{default_registry, session_registry, EvasionContext};
-use crate::stealth::randomize::{chromium_hints, PRESET_CHROMIUM_MAJOR};
+use crate::stealth::randomize::{chromium_hints, edge_hints, PRESET_CHROMIUM_MAJOR};
 
 /// Generates a single combined bootstrap script for the given fingerprint.
 ///
@@ -316,16 +316,13 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
             .platform
             .clone()
             .unwrap_or_else(|| fp.os_type.platform().to_owned());
-        let accept_language = fp
-            .accept_languages
-            .clone()
-            .or_else(|| fp.locale.clone())
-            .unwrap_or_else(|| "en-US,en;q=0.9".to_owned());
         let mut ua_override = serde_json::json!({
             "userAgent": ua,
-            "acceptLanguage": accept_language,
             "platform": platform,
         });
+        if let Some(accept_language) = accept_language_of(fp) {
+            ua_override["acceptLanguage"] = serde_json::Value::String(accept_language);
+        }
         if let Some(meta) = build_user_agent_metadata(fp, ua) {
             ua_override
                 .as_object_mut()
@@ -426,6 +423,24 @@ fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     map
 }
 
+/// The `Accept-Language` header the user agent override carries.
+///
+/// The header belongs to the localization, not to the user agent: it is sent
+/// only when that dimension is on, with the value the fingerprint has (a
+/// generic one only when the dimension fills defaults).
+fn accept_language_of(fp: &Fingerprint) -> Option<String> {
+    if !fp.is_masked(Dimension::Localization) {
+        return None;
+    }
+    fp.accept_languages
+        .clone()
+        .or_else(|| fp.locale.clone())
+        .or_else(|| {
+            fp.fills_defaults(Dimension::Localization)
+                .then(|| "en-US,en;q=0.9".to_owned())
+        })
+}
+
 /// The loopback names a blocked port is refused on.
 const LOOPBACK_HOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
 
@@ -492,7 +507,13 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
             .core_version
             .or_else(|| version_after(ua, "Chrome/").and_then(|v| major_of(&v)))
             .unwrap_or(PRESET_CHROMIUM_MAJOR);
-        let hints = chromium_hints(major);
+        // Edge words its brand list as Chromium does and names itself, and its
+        // user agent ends with an `Edg/` token.
+        let hints = if ua.contains("Edg/") {
+            edge_hints(major)
+        } else {
+            chromium_hints(major)
+        };
         (
             brand_list(&hints.brands),
             brand_list(&hints.full_version_list),
@@ -988,6 +1009,70 @@ mod tests {
         );
         assert_eq!(version_after("Chrome/ nothing", "Chrome/"), None);
         assert_eq!(major_of("155.0.8059.40"), Some(155));
+    }
+
+    #[test]
+    fn the_edge_preset_sends_edge_client_hints_and_not_chromes() {
+        let fp = Fingerprint::edge_desktop();
+        let ua = fp.user_agent.clone().expect("a user agent");
+        let meta = fallback_metadata(&fp);
+        let brands = brands_of(&meta["brands"]);
+        assert!(
+            brands.iter().any(|(b, _)| b == "Microsoft Edge"),
+            "{brands:?}"
+        );
+        assert!(brands.iter().any(|(b, _)| b == "Chromium"), "{brands:?}");
+        assert!(
+            !brands.iter().any(|(b, _)| b == "Google Chrome"),
+            "{brands:?}"
+        );
+        assert_eq!(
+            meta["fullVersion"],
+            format!("{PRESET_CHROMIUM_MAJOR}.0.0.0")
+        );
+        assert!(ua.contains("Edg/"));
+
+        // The Chrome preset still names Chrome.
+        let chrome = fallback_metadata(&Fingerprint::windows_desktop());
+        let brands = brands_of(&chrome["brands"]);
+        assert!(
+            brands.iter().any(|(b, _)| b == "Google Chrome"),
+            "{brands:?}"
+        );
+    }
+
+    #[test]
+    fn the_accept_language_header_follows_the_localization_not_the_user_agent() {
+        let ua_override = |fp: &Fingerprint| {
+            safe_cdp_overrides(fp)
+                .into_iter()
+                .find(|(method, _)| method == "Network.setUserAgentOverride")
+                .map(|(_, params)| params)
+                .expect("a user agent override")
+        };
+
+        // A user agent alone sends no language the fingerprint does not hold.
+        let only_ua = Fingerprint::builder()
+            .user_agent("Mozilla/5.0 (X11; Linux)")
+            .build();
+        assert!(ua_override(&only_ua).get("acceptLanguage").is_none());
+
+        // A locale gives the header.
+        let placed = Fingerprint::builder()
+            .user_agent("Mozilla/5.0 (X11; Linux)")
+            .locale("de-DE")
+            .build();
+        assert_eq!(ua_override(&placed)["acceptLanguage"], "de-DE");
+
+        // An explicit `Natural` leaves the browser's own language alone.
+        let natural = Fingerprint::builder()
+            .user_agent("Mozilla/5.0 (X11; Linux)")
+            .locale("de-DE")
+            .with_flags(|f| {
+                f.localization_masking = crate::stealth::fingerprint::MaskingMode::Natural
+            })
+            .build();
+        assert!(ua_override(&natural).get("acceptLanguage").is_none());
     }
 
     #[test]

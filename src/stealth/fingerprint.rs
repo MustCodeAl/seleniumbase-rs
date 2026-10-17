@@ -1172,7 +1172,90 @@ impl Fingerprint {
             }
         }
 
+        self.check_graphics(&mut report);
+        self.check_browser_persona(ua, &mut report);
+        self.check_place(&mut report);
+
         report
+    }
+
+    /// The WebGL strings against the operating system: each graphics API is
+    /// the one a single family of systems reports, so a renderer from another
+    /// family gives the persona away.
+    fn check_graphics(&self, report: &mut CoherenceReport) {
+        let named = format!(
+            "{} {}",
+            self.webgl_vendor.as_deref().unwrap_or(""),
+            self.webgl_renderer.as_deref().unwrap_or("")
+        );
+        // (what the strings name, the API's name, the systems that report it)
+        let families: [(&[&str], &str, &[OsType]); 4] = [
+            (&["Direct3D", "D3D11"], "Direct3D", &[OsType::Windows]),
+            (
+                &["Metal", "Apple"],
+                "Apple GPU or Metal",
+                &[OsType::Macos, OsType::Ios],
+            ),
+            (&["Mesa"], "Mesa", &[OsType::Linux]),
+            (
+                &["Adreno", "Mali", "PowerVR"],
+                "mobile GPU",
+                &[OsType::Android],
+            ),
+        ];
+        for (needles, api, systems) in families {
+            if !needles.iter().any(|n| named.contains(n)) {
+                continue;
+            }
+            if !systems.contains(&self.os_type) {
+                report.errors.push(format!(
+                    "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
+                    self.webgl_renderer.as_deref().unwrap_or(""),
+                    self.os_type
+                ));
+            }
+        }
+
+        // The generic renderer `Mask` fills in is an Intel one worded for a Mac.
+        if self.fills_defaults(Dimension::Graphics)
+            && (self.webgl_vendor.is_none() || self.webgl_renderer.is_none())
+            && !matches!(self.os_type, OsType::Macos | OsType::Ios)
+        {
+            report.warnings.push(format!(
+                "WebGL is masked without a vendor and a renderer, so the generic Mac-style Intel \
+                 renderer fills in, which does not match {:?}",
+                self.os_type
+            ));
+        }
+    }
+
+    /// The browser persona against its user agent.
+    fn check_browser_persona(&self, ua: &str, report: &mut CoherenceReport) {
+        if self.browser_type == BrowserType::MobileSafari && ua.contains("Chrome/") {
+            report.errors.push(
+                "browser persona MobileSafari but the user agent has a Chrome/ token".to_owned(),
+            );
+        }
+    }
+
+    /// The locale against the time zone: a locale is spoken in its own country,
+    /// so a time zone the table of places puts in another one is a tell.
+    fn check_place(&self, report: &mut CoherenceReport) {
+        let (Some(locale), Some(zone)) = (self.locale.as_deref(), self.timezone.as_deref()) else {
+            return;
+        };
+        let region = locale
+            .rsplit_once('-')
+            .map(|(_, region)| region)
+            .filter(|region| region.len() == 2);
+        let country = super::randomize::locale_of_timezone(zone).map(|l| l.country);
+        if let (Some(region), Some(country)) = (region, country) {
+            if !region.eq_ignore_ascii_case(country) {
+                report.warnings.push(format!(
+                    "locale '{locale}' is not spoken in the country of time zone '{zone}' ({country})"
+                ));
+            }
+        }
     }
 
     /// Generates a random but coherent identity for `os`, fully determined by
@@ -1287,7 +1370,35 @@ impl Fingerprint {
             .device_memory(8.0)
             .locale("en-US")
             .languages("en-US,en;q=0.9")
-            .timezone("America/New_York")
+            .place("America/New_York")
+            .webgl(
+                "Google Inc. (NVIDIA)",
+                "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            )
+            .flags(StealthFlags::balanced())
+            .build()
+    }
+
+    /// Quick preset for a Windows desktop Microsoft Edge profile.
+    ///
+    /// The Windows Chrome preset with Edge's `Edg/` token in the user agent. The
+    /// Client Hints name `Microsoft Edge` instead of `Google Chrome`: the
+    /// evasions derive them from the user agent, as they do for the Chrome
+    /// presets. [`fingerprint!(edge)`](crate::fingerprint) is this preset.
+    pub fn edge_desktop() -> Self {
+        Self::builder()
+            .os_type(OsType::Windows)
+            .user_agent(super::randomize::edge_user_agent(
+                "Windows NT 10.0; Win64; x64",
+                super::randomize::PRESET_CHROMIUM_MAJOR,
+            ))
+            .platform("Win32")
+            .screen(1920, 1080)
+            .hardware_concurrency(8)
+            .device_memory(8.0)
+            .locale("en-US")
+            .languages("en-US,en;q=0.9")
+            .place("America/New_York")
             .webgl(
                 "Google Inc. (NVIDIA)",
                 "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
@@ -1298,6 +1409,7 @@ impl Fingerprint {
 
     /// Quick preset for a macOS desktop Chrome profile.
     pub fn macos_desktop() -> Self {
+        let (vendor, renderer) = super::randomize::macos_webgl("Apple M3");
         Self::builder()
             .os_type(OsType::Macos)
             .user_agent(preset_user_agent(
@@ -1310,14 +1422,18 @@ impl Fingerprint {
             .device_memory(8.0)
             .locale("en-US")
             .languages("en-US,en;q=0.9")
-            .timezone("America/Los_Angeles")
-            .webgl("Apple Inc.", "Apple M3")
+            .place("America/Los_Angeles")
+            .webgl(vendor, renderer)
             .flags(StealthFlags::balanced())
             .build()
     }
 
     /// Quick preset for a Linux desktop Chrome profile.
+    ///
+    /// Its WebGL strings are worded the way Chrome words them on Linux, as a
+    /// generated Linux identity words them: ANGLE over desktop OpenGL.
     pub fn linux_desktop() -> Self {
+        let (vendor, renderer) = super::randomize::linux_preset_webgl();
         Self::builder()
             .os_type(OsType::Linux)
             .user_agent(preset_user_agent("X11; Linux x86_64", false))
@@ -1327,11 +1443,8 @@ impl Fingerprint {
             .device_memory(8.0)
             .locale("en-US")
             .languages("en-US,en;q=0.9")
-            .timezone("America/Chicago")
-            .webgl(
-                "Google Inc. (NVIDIA)",
-                "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)",
-            )
+            .place("America/Chicago")
+            .webgl(vendor, renderer)
             .flags(StealthFlags::balanced())
             .build()
     }
@@ -1350,7 +1463,7 @@ impl Fingerprint {
             .max_touch_points(5)
             .locale("en-US")
             .languages("en-US,en;q=0.9")
-            .timezone("America/New_York")
+            .place("America/New_York")
             .webgl("Qualcomm", "Adreno (TM) 740")
             .flags(StealthFlags::balanced())
             .build()
@@ -1373,7 +1486,7 @@ impl Fingerprint {
             .max_touch_points(5)
             .locale("en-US")
             .languages("en-US,en;q=0.9")
-            .timezone("America/New_York")
+            .place("America/New_York")
             .webgl("Apple Inc.", "Apple GPU")
             .vendor("Apple Computer, Inc.")
             .client_hints(ClientHints {
@@ -1456,6 +1569,17 @@ impl FingerprintBuilder {
     fn touch(mut self, dimension: Dimension) -> Self {
         self.touched |= dimension.bit();
         self
+    }
+
+    /// Sets the time zone and, when the table of places knows the zone, the
+    /// position of its main city, so the two agree. The presets use it.
+    fn place(self, timezone: &str) -> Self {
+        let city = super::randomize::locale_of_timezone(timezone);
+        let builder = self.timezone(timezone);
+        match city {
+            Some(city) => builder.geolocation(city.latitude, city.longitude),
+            None => builder,
+        }
     }
 
     /// Sets the browser persona.
@@ -2610,6 +2734,234 @@ mod tests {
             .avail_screen(1920, 1040)
             .build();
         assert_eq!((fp.avail_width, fp.avail_height), (Some(1920), Some(1040)));
+    }
+
+    // ------------------------------------------------------------------
+    // Presets and validate()
+    // ------------------------------------------------------------------
+
+    fn every_preset() -> [(&'static str, Fingerprint); 6] {
+        [
+            ("windows", Fingerprint::windows_desktop()),
+            ("edge", Fingerprint::edge_desktop()),
+            ("macos", Fingerprint::macos_desktop()),
+            ("linux", Fingerprint::linux_desktop()),
+            ("android", Fingerprint::android_mobile()),
+            ("ios", Fingerprint::ios_mobile_safari()),
+        ]
+    }
+
+    #[test]
+    fn every_preset_validates_without_errors_or_warnings() {
+        for (name, fp) in every_preset() {
+            let report = fp.validate();
+            assert!(report.errors.is_empty(), "{name}: {:?}", report.errors);
+            assert!(report.warnings.is_empty(), "{name}: {:?}", report.warnings);
+        }
+    }
+
+    #[test]
+    fn every_preset_has_a_position_in_the_city_of_its_time_zone() {
+        for (name, fp) in every_preset() {
+            let zone = fp.timezone.as_deref().expect("a time zone");
+            let city = crate::stealth::randomize::locale_of_timezone(zone)
+                .unwrap_or_else(|| panic!("{name}: {zone} is not in the table"));
+            assert_eq!(fp.latitude, Some(city.latitude), "{name}");
+            assert_eq!(fp.longitude, Some(city.longitude), "{name}");
+            assert!(fp.is_masked(Dimension::Geolocation), "{name}");
+            assert_eq!(fp.geolocation_popup(), PopupMode::Allow, "{name}");
+        }
+    }
+
+    #[test]
+    fn every_preset_masks_the_dimensions_its_values_and_the_generic_ones_need() {
+        for (name, fp) in every_preset() {
+            for dimension in [
+                Dimension::Navigator,
+                Dimension::Localization,
+                Dimension::Timezone,
+                Dimension::Screen,
+                Dimension::Graphics,
+                Dimension::Geolocation,
+                Dimension::WebRtc,
+                Dimension::Canvas,
+                Dimension::Battery,
+                Dimension::Connection,
+                Dimension::Speech,
+                Dimension::Bluetooth,
+                Dimension::ChromeRuntime,
+                Dimension::Headless,
+                Dimension::NativeToString,
+            ] {
+                assert!(fp.is_masked(dimension), "{name}: {dimension:?} is off");
+            }
+        }
+    }
+
+    #[test]
+    fn the_edge_preset_is_edge_and_not_chrome() {
+        let fp = Fingerprint::edge_desktop();
+        let major = crate::stealth::randomize::PRESET_CHROMIUM_MAJOR;
+        let ua = fp.user_agent.as_deref().unwrap_or_default();
+        assert!(ua.ends_with(&format!("Edg/{major}.0.0.0")), "{ua}");
+        assert!(ua.contains(&format!("Chrome/{major}.0.0.0")), "{ua}");
+        assert_eq!(fp.os_type, OsType::Windows);
+        assert_eq!(fp.platform.as_deref(), Some("Win32"));
+        assert_eq!(
+            Fingerprint::edge_desktop().webgl_renderer,
+            Fingerprint::windows_desktop().webgl_renderer
+        );
+    }
+
+    #[test]
+    fn the_linux_preset_reports_a_linux_graphics_stack_and_the_mac_one_metal() {
+        let linux = Fingerprint::linux_desktop();
+        let renderer = linux.webgl_renderer.as_deref().unwrap_or_default();
+        assert!(
+            !renderer.contains("Direct3D") && !renderer.contains("D3D11"),
+            "{renderer}"
+        );
+        assert!(renderer.contains("OpenGL"), "{renderer}");
+        assert_eq!(
+            linux.webgl_vendor.as_deref(),
+            Some("Google Inc. (NVIDIA Corporation)")
+        );
+
+        let mac = Fingerprint::macos_desktop();
+        let renderer = mac.webgl_renderer.as_deref().unwrap_or_default();
+        assert!(renderer.contains("Metal"), "{renderer}");
+    }
+
+    /// A report for a persona with `os` and the WebGL strings given, and nothing else.
+    fn graphics_report(os: OsType, vendor: &str, renderer: &str) -> CoherenceReport {
+        Fingerprint::builder()
+            .os_type(os)
+            .webgl(vendor, renderer)
+            .build()
+            .validate()
+    }
+
+    #[test]
+    fn a_renderer_from_another_operating_systems_graphics_api_is_an_error() {
+        let direct3d = "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)";
+        let metal = "ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)";
+        let mesa = "ANGLE (Intel, Mesa Intel(R) UHD Graphics 630 (CFL GT2), OpenGL 4.6)";
+        for (os, vendor, renderer, ok) in [
+            (OsType::Windows, "Google Inc. (NVIDIA)", direct3d, true),
+            (OsType::Linux, "Google Inc. (NVIDIA)", direct3d, false),
+            (OsType::Macos, "Google Inc. (NVIDIA)", direct3d, false),
+            (OsType::Android, "Google Inc. (NVIDIA)", direct3d, false),
+            (OsType::Ios, "Google Inc. (NVIDIA)", direct3d, false),
+            (OsType::Macos, "Google Inc. (Apple)", metal, true),
+            (OsType::Ios, "Apple Inc.", "Apple GPU", true),
+            (OsType::Windows, "Google Inc. (Apple)", metal, false),
+            (OsType::Linux, "Google Inc. (Apple)", metal, false),
+            (OsType::Android, "Apple Inc.", "Apple GPU", false),
+            (OsType::Linux, "Google Inc. (Intel)", mesa, true),
+            (OsType::Windows, "Google Inc. (Intel)", mesa, false),
+            (OsType::Android, "Qualcomm", "Adreno (TM) 740", true),
+            (OsType::Android, "ARM", "Mali-G715", true),
+            (OsType::Windows, "Qualcomm", "Adreno (TM) 740", false),
+            (OsType::Ios, "ARM", "Mali-G715", false),
+            (
+                OsType::Windows,
+                "Imagination Technologies",
+                "PowerVR Rogue GE8320",
+                false,
+            ),
+        ] {
+            let report = graphics_report(os, vendor, renderer);
+            let flagged = report.errors.iter().any(|e| e.contains("WebGL"));
+            assert_eq!(!flagged, ok, "{os:?} {renderer}: {:?}", report.errors);
+        }
+    }
+
+    #[test]
+    fn a_safari_persona_must_not_claim_chrome() {
+        let chrome_ua =
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 \
+                         (KHTML, like Gecko) Chrome/155.0.0.0 Mobile/15E148 Safari/604.1";
+        let fp = Fingerprint::builder()
+            .browser_type(BrowserType::MobileSafari)
+            .os_type(OsType::Ios)
+            .user_agent(chrome_ua)
+            .max_touch_points(5)
+            .build();
+        let report = fp.validate();
+        assert!(
+            report.errors.iter().any(|e| e.contains("Chrome/")),
+            "{:?}",
+            report.errors
+        );
+
+        // The real Safari persona, and a Firefox persona, are not flagged.
+        assert!(Fingerprint::ios_mobile_safari()
+            .validate()
+            .errors
+            .is_empty());
+        let firefox = Fingerprint::builder()
+            .browser_type(BrowserType::Firefox)
+            .os_type(OsType::Linux)
+            .user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0")
+            .build();
+        assert!(firefox.validate().errors.is_empty());
+    }
+
+    #[test]
+    fn a_locale_from_another_country_than_the_time_zone_is_a_warning() {
+        let warns = |locale: &str, zone: &str| {
+            Fingerprint::builder()
+                .locale(locale)
+                .timezone(zone)
+                .geolocation(0.0, 0.0)
+                .build()
+                .validate()
+                .warnings
+                .iter()
+                .any(|w| w.contains("time zone"))
+        };
+        assert!(warns("de-DE", "Asia/Tokyo"));
+        assert!(warns("ja-JP", "America/New_York"));
+        assert!(!warns("de-DE", "Europe/Berlin"));
+        assert!(!warns("en-US", "America/Chicago"));
+        // A zone the table does not know, or a locale with no country, is not judged.
+        assert!(!warns("en-US", "Pacific/Honolulu"));
+        assert!(!warns("en", "Asia/Tokyo"));
+    }
+
+    #[test]
+    fn masking_graphics_without_a_renderer_warns_when_the_fill_is_not_the_os() {
+        let masked = |os: OsType| {
+            Fingerprint::builder()
+                .os_type(os)
+                .with_flags(|f| f.graphics_masking = MaskingMode::Mask)
+                .build()
+                .validate()
+                .warnings
+                .iter()
+                .any(|w| w.contains("WebGL"))
+        };
+        // The generic fill is an Intel renderer worded for a Mac.
+        assert!(masked(OsType::Windows));
+        assert!(masked(OsType::Linux));
+        assert!(masked(OsType::Android));
+        assert!(!masked(OsType::Macos));
+        assert!(!masked(OsType::Ios));
+
+        // With the renderer given there is nothing to fill.
+        let given = Fingerprint::builder()
+            .os_type(OsType::Windows)
+            .webgl(
+                "Google Inc. (Intel)",
+                "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            )
+            .with_flags(|f| f.graphics_masking = MaskingMode::Mask)
+            .build();
+        assert!(!given
+            .validate()
+            .warnings
+            .iter()
+            .any(|w| w.contains("WebGL")));
     }
 
     #[test]

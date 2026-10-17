@@ -1156,24 +1156,59 @@ fn macos(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         } else {
             24
         },
-        graphics: Graphics {
-            vendor: "Google Inc. (Apple)".to_owned(),
-            renderer: format!(
-                "ANGLE (Apple, ANGLE Metal Renderer: {}, Unspecified Version)",
-                model.chip
-            ),
-            vendor_id: None,
-            renderer_id: None,
-        },
+        graphics: apple_graphics(model.chip),
     }
+}
+
+/// The WebGL strings of an Apple Silicon Mac: ANGLE over Metal.
+fn apple_graphics(chip: &str) -> Graphics {
+    Graphics {
+        vendor: "Google Inc. (Apple)".to_owned(),
+        renderer: format!("ANGLE (Apple, ANGLE Metal Renderer: {chip}, Unspecified Version)"),
+        vendor_id: None,
+        renderer_id: None,
+    }
+}
+
+/// The WebGL strings of a Linux machine: ANGLE over desktop OpenGL.
+fn linux_graphics(adapter: &Adapter) -> Graphics {
+    let maker = adapter.vendor.opengl_name();
+    let renderer = format!("ANGLE ({maker}, {})", adapter.name);
+    Graphics::pc(adapter, maker, renderer)
+}
+
+/// The WebGL vendor and renderer of the Apple Silicon `chip`, as Chrome on a Mac
+/// reports them. The macOS preset uses it, so it matches what a generated Mac says.
+#[must_use]
+pub(crate) fn macos_webgl(chip: &str) -> (String, String) {
+    let graphics = apple_graphics(chip);
+    (graphics.vendor, graphics.renderer)
+}
+
+/// The WebGL vendor and renderer of the Linux preset's machine (a desktop with
+/// an NVIDIA card), worded as a generated Linux identity words it.
+#[must_use]
+pub(crate) fn linux_preset_webgl() -> (String, String) {
+    let adapter = LINUX_ADAPTERS
+        .iter()
+        .find(|a| a.name.starts_with("NVIDIA GeForce RTX 4070"))
+        .unwrap_or(&LINUX_ADAPTERS[0]);
+    let graphics = linux_graphics(adapter);
+    (graphics.vendor, graphics.renderer)
+}
+
+/// The first place in [`LOCALES`] whose time zone is `timezone`: its locale,
+/// country and the coordinates of its city, so a fixed identity can be given a
+/// position that agrees with its time zone.
+#[must_use]
+pub fn locale_of_timezone(timezone: &str) -> Option<&'static Locale> {
+    LOCALES.iter().find(|l| l.timezone == timezone)
 }
 
 fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
     let major = chromium_major(rng, forced_major);
     let adapter = rng.pick(&LINUX_ADAPTERS);
     let spec = adapter.tier.spec();
-    let maker = adapter.vendor.opengl_name();
-    let renderer = format!("ANGLE ({maker}, {})", adapter.name);
     let client_hints = ClientHints {
         platform: "Linux".to_owned(),
         platform_version: (*rng.pick(&LINUX_VERSIONS)).to_owned(),
@@ -1192,7 +1227,7 @@ fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         touch_points: 0,
         screen: *rng.pick(&spec.linux_screens),
         color_depth: 24,
-        graphics: Graphics::pc(adapter, maker, renderer),
+        graphics: linux_graphics(adapter),
     }
 }
 
@@ -1256,6 +1291,46 @@ pub(super) fn chromium_user_agent(platform: &str, major: u32, mobile: bool) -> S
         "Mozilla/5.0 ({platform}) AppleWebKit/537.36 (KHTML, like Gecko) \
          Chrome/{major}.0.0.0{mobile} Safari/537.36"
     )
+}
+
+/// A Microsoft Edge user agent: the Chromium one with Edge's own `Edg/` token
+/// after Safari's, as Edge sends it.
+#[must_use]
+pub fn edge_user_agent(platform: &str, major: u32) -> String {
+    format!(
+        "{} Edg/{major}.0.0.0",
+        chromium_user_agent(platform, major, false)
+    )
+}
+
+/// The Client Hints of a Microsoft Edge release.
+///
+/// Edge builds its brand list the way Chromium does, and names itself
+/// `Microsoft Edge` where Chrome names itself `Google Chrome`, so this is
+/// [`chromium_hints`] with that one brand renamed and in the same position. The
+/// full versions are `{major}.0.0.0`: [`KNOWN_FULL_VERSIONS`] holds Chrome
+/// builds, and Edge's own build numbers differ from them. The caller fills in
+/// the platform fields.
+#[must_use]
+pub fn edge_hints(major: u32) -> ClientHints {
+    let mut hints = chromium_hints(major);
+    let full_version = format!("{major}.0.0.0");
+    for brand in hints
+        .brands
+        .iter_mut()
+        .chain(hints.full_version_list.iter_mut())
+    {
+        if brand.brand == "Google Chrome" {
+            "Microsoft Edge".clone_into(&mut brand.brand);
+        }
+    }
+    for brand in &mut hints.full_version_list {
+        if brand.brand == "Chromium" || brand.brand == "Microsoft Edge" {
+            brand.version.clone_from(&full_version);
+        }
+    }
+    hints.ua_full_version = full_version;
+    hints
 }
 
 /// The characters Chromium picks from to word its decoy ("GREASE") brand.
@@ -1724,5 +1799,101 @@ mod tests {
     fn the_noise_seed_is_not_the_callers_seed() {
         assert_ne!(generate(OsType::Windows, 0, None).seed, Some(0));
         assert_ne!(generate(OsType::Windows, 42, None).seed, Some(42));
+    }
+
+    #[test]
+    fn every_identity_has_an_audio_seed_derived_from_its_noise_seed() {
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+            OsType::Ios,
+        ] {
+            let fp = generate(os, 3, None);
+            let seed = fp.seed.expect("a canvas seed");
+            assert_eq!(fp.audio_seed, Some(seed ^ AUDIO_SEED_MASK), "{os:?}");
+        }
+    }
+
+    fn brand_names(hints: &ClientHints) -> Vec<&str> {
+        hints.brands.iter().map(|b| b.brand.as_str()).collect()
+    }
+
+    #[test]
+    fn edge_names_itself_where_chrome_would_and_keeps_chromiums_order() {
+        for major in CHROMIUM_MAJORS {
+            let edge = edge_hints(major);
+            let chrome = chromium_hints(major);
+            let names = brand_names(&edge);
+            assert!(names.contains(&"Microsoft Edge"), "{names:?}");
+            assert!(names.contains(&"Chromium"), "{names:?}");
+            assert!(!names.contains(&"Google Chrome"), "{names:?}");
+            // The same slot holds the renamed brand.
+            let renamed: Vec<&str> = brand_names(&chrome)
+                .into_iter()
+                .map(|b| {
+                    if b == "Google Chrome" {
+                        "Microsoft Edge"
+                    } else {
+                        b
+                    }
+                })
+                .collect();
+            assert_eq!(names, renamed, "{major}");
+        }
+    }
+
+    #[test]
+    fn edges_full_versions_are_the_frozen_form_not_a_chrome_build() {
+        let edge = edge_hints(155);
+        assert_eq!(edge.ua_full_version, "155.0.0.0");
+        for brand in &edge.full_version_list {
+            if brand.brand == "Chromium" || brand.brand == "Microsoft Edge" {
+                assert_eq!(brand.version, "155.0.0.0", "{}", brand.brand);
+            }
+        }
+        assert!(!edge.full_version_list.is_empty());
+    }
+
+    #[test]
+    fn the_edge_user_agent_is_the_chromium_one_with_edges_token() {
+        assert_eq!(
+            edge_user_agent("Windows NT 10.0; Win64; x64", 155),
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
+             Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+        );
+    }
+
+    #[test]
+    fn a_time_zone_finds_its_city() {
+        let berlin = locale_of_timezone("Europe/Berlin").expect("a known zone");
+        assert_eq!((berlin.country, berlin.tag), ("DE", "de-DE"));
+        assert!(locale_of_timezone("Pacific/Honolulu").is_none());
+        let chicago = locale_of_timezone("America/Chicago").expect("a US zone");
+        assert!((chicago.latitude - 41.88).abs() < 0.1);
+    }
+
+    #[test]
+    fn the_linux_and_mac_presets_word_webgl_as_a_generated_identity_does() {
+        let (vendor, renderer) = linux_preset_webgl();
+        assert_eq!(vendor, "Google Inc. (NVIDIA Corporation)");
+        assert!(
+            renderer.starts_with("ANGLE (NVIDIA Corporation, NVIDIA GeForce RTX 4070"),
+            "{renderer}"
+        );
+        assert!(!renderer.contains("Direct3D"), "{renderer}");
+        // It is one of the strings the Linux generator can produce.
+        assert!((0..200).any(|seed| {
+            let fp = generate(OsType::Linux, seed, None);
+            fp.webgl_renderer.as_deref() == Some(renderer.as_str())
+        }));
+
+        let (vendor, renderer) = macos_webgl("Apple M3");
+        assert_eq!(vendor, "Google Inc. (Apple)");
+        assert_eq!(
+            renderer,
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)"
+        );
     }
 }
