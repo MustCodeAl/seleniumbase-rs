@@ -1,7 +1,6 @@
 # sbrs
 
-> Automate browsers and run browser tests from the command line.
-> A Rust port of the SeleniumBase testing framework.
+> Automate browsers and run browser tests, a Rust port of SeleniumBase.
 > Some subcommands such as `install`, `mkdir`, `record`, etc. have their own usage documentation.
 > More information: <https://mustcodeal-seleniumbase-rs.docs7.io/tutorials/cli_usage>.
 
