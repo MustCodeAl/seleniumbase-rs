@@ -687,7 +687,11 @@ impl<'a> XPathReader<'a> {
 
     /// A quoted string, without its quotes.
     fn literal(&mut self) -> Option<&'a str> {
-        let quote = self.rest.chars().next().filter(|c| matches!(c, '\'' | '"'))?;
+        let quote = self
+            .rest
+            .chars()
+            .next()
+            .filter(|c| matches!(c, '\'' | '"'))?;
         let inner = &self.rest[1..];
         let end = inner.find(quote)?;
         self.rest = &inner[end + 1..];
@@ -832,7 +836,9 @@ impl<'a> XPathReader<'a> {
         let mut steps: Vec<(bool, Vec<String>)> = Vec::new();
         if self.eat("id(") {
             self.skip_space();
-            let id = self.literal().filter(|id| !id.contains(char::is_whitespace))?;
+            let id = self
+                .literal()
+                .filter(|id| !id.contains(char::is_whitespace))?;
             self.skip_space();
             if !self.eat(")") {
                 return None;
@@ -939,9 +945,9 @@ pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
     if trimmed.is_empty() {
         return Err(SeleniumBaseError::InvalidSelector("empty xpath".to_owned()));
     }
-    XPathReader { rest: trimmed }.path().ok_or_else(|| {
-        SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}"))
-    })
+    XPathReader { rest: trimmed }
+        .path()
+        .ok_or_else(|| SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}")))
 }
 
 #[cfg(test)]
@@ -1258,7 +1264,10 @@ mod tests {
             // Paths of several steps: `/` is a child, `//` a descendant.
             ("//div/span", "div > span"),
             ("//div//span", "div span"),
-            ("//form[@id='f']//input[@name='q']", "form[id='f'] input[name='q']"),
+            (
+                "//form[@id='f']//input[@name='q']",
+                "form[id='f'] input[name='q']",
+            ),
             (".//ul/li", "ul > li"),
             ("/html/body/div", "html > body > div"),
             // A position that comes before the other tests of its step.
@@ -1270,14 +1279,23 @@ mod tests {
             ("//a[contains(@href,'x')]", "a[href*='x']"),
             ("//a[contains( @class , \"it's\" )]", "a[class*='it\\'s']"),
             ("//a[starts-with(@href, '/x')]", "a[href^='/x']"),
-            ("//a[@rel='x' and contains(@class,'b')]", "a[rel='x'][class*='b']"),
+            (
+                "//a[@rel='x' and contains(@class,'b')]",
+                "a[rel='x'][class*='b']",
+            ),
             // id() and `or`.
             ("id('main')", "[id='main']"),
             ("id(\"main\")//a", "[id='main'] a"),
             ("//div[@id='a' or @id='b']", "div[id='a'], div[id='b']"),
-            ("//div[@a='1' and @b='2' or @c]", "div[a='1'][b='2'], div[c]"),
+            (
+                "//div[@a='1' and @b='2' or @c]",
+                "div[a='1'][b='2'], div[c]",
+            ),
             ("//div[@a or @b]/span", "div[a] > span, div[b] > span"),
-            ("//div[@a or @b][@c or @d]", "div[a][c], div[a][d], div[b][c], div[b][d]"),
+            (
+                "//div[@a or @b][@c or @d]",
+                "div[a][c], div[a][d], div[b][c], div[b][d]",
+            ),
         ];
         for (xpath, css) in table {
             assert_eq!(xpath_to_css(xpath).unwrap(), css, "{xpath:?}");
@@ -1511,7 +1529,9 @@ impl CssStep {
     fn render(&self) -> String {
         self.predicates
             .iter()
-            .fold(self.name.clone(), |step, predicate| format!("{step}[{predicate}]"))
+            .fold(self.name.clone(), |step, predicate| {
+                format!("{step}[{predicate}]")
+            })
     }
 }
 
@@ -1690,7 +1710,9 @@ impl<'a> CssParser<'a> {
         let predicate = match (pseudo.as_str(), argument.as_deref()) {
             ("first-child", None) => "not(preceding-sibling::*)".to_owned(),
             ("last-child", None) => "not(following-sibling::*)".to_owned(),
-            ("only-child", None) => "not(preceding-sibling::*) and not(following-sibling::*)".to_owned(),
+            ("only-child", None) => {
+                "not(preceding-sibling::*) and not(following-sibling::*)".to_owned()
+            }
             ("first-of-type", None) => same_name(true)?,
             ("last-of-type", None) => same_name(false)?,
             ("empty", None) => "not(node())".to_owned(),
@@ -1843,7 +1865,11 @@ mod tests_css_to_xpath {
             "//a[contains(concat(' ', normalize-space(@class), ' '), ' nav ')]\
              [contains(concat(' ', normalize-space(@class), ' '), ' big ')]"
         );
-        assert_eq!(xpath("DIV"), "//div", "type selectors are case-insensitive in HTML");
+        assert_eq!(
+            xpath("DIV"),
+            "//div",
+            "type selectors are case-insensitive in HTML"
+        );
     }
 
     #[test]
@@ -1865,7 +1891,10 @@ mod tests_css_to_xpath {
         assert_eq!(xpath("a[href^='/x']"), "//a[starts-with(@href, '/x')]");
         assert_eq!(xpath("a[href*=x]"), "//a[contains(@href, 'x')]");
         assert_eq!(xpath("a[href^='']"), "//a[false()]");
-        assert_eq!(xpath("a[rel~='nofollow']"), "//a[contains(concat(' ', normalize-space(@rel), ' '), ' nofollow ')]");
+        assert_eq!(
+            xpath("a[rel~='nofollow']"),
+            "//a[contains(concat(' ', normalize-space(@rel), ' '), ' nofollow ')]"
+        );
         assert_eq!(
             xpath("a[lang|=en]"),
             "//a[(@lang='en' or starts-with(@lang, 'en-'))]"
@@ -1876,10 +1905,22 @@ mod tests_css_to_xpath {
     fn pseudo_classes() {
         assert_eq!(xpath("li:first-child"), "//li[not(preceding-sibling::*)]");
         assert_eq!(xpath("li:last-child"), "//li[not(following-sibling::*)]");
-        assert_eq!(xpath("li:nth-child(2)"), "//li[count(preceding-sibling::*) = 1]");
-        assert_eq!(xpath("li:nth-of-type(odd)"), "//li[count(preceding-sibling::li) mod 2 = 0]");
-        assert_eq!(xpath("li:first-of-type"), "//li[not(preceding-sibling::li)]");
-        assert_eq!(xpath("button:contains(\"Go on\")"), "//button[contains(., 'Go on')]");
+        assert_eq!(
+            xpath("li:nth-child(2)"),
+            "//li[count(preceding-sibling::*) = 1]"
+        );
+        assert_eq!(
+            xpath("li:nth-of-type(odd)"),
+            "//li[count(preceding-sibling::li) mod 2 = 0]"
+        );
+        assert_eq!(
+            xpath("li:first-of-type"),
+            "//li[not(preceding-sibling::li)]"
+        );
+        assert_eq!(
+            xpath("button:contains(\"Go on\")"),
+            "//button[contains(., 'Go on')]"
+        );
         assert_eq!(xpath("td:empty"), "//td[not(node())]");
     }
 
@@ -1890,7 +1931,21 @@ mod tests_css_to_xpath {
 
     #[test]
     fn what_cannot_be_converted_is_an_error_not_a_broken_xpath() {
-        for css in ["", "   ", "a:hover", "a::before", "li:nth-child(2n+1)", "*:first-of-type", "[", "a[b=", "div >", "a[b!=c]", "#", ".", "a,"] {
+        for css in [
+            "",
+            "   ",
+            "a:hover",
+            "a::before",
+            "li:nth-child(2n+1)",
+            "*:first-of-type",
+            "[",
+            "a[b=",
+            "div >",
+            "a[b!=c]",
+            "#",
+            ".",
+            "a,",
+        ] {
             let result = css_to_xpath(css);
             assert!(
                 matches!(result, Err(SeleniumBaseError::InvalidSelector(_))),
