@@ -133,9 +133,14 @@ pub(crate) const AD_BLOCK_SELECTORS: &[&str] = &[
     "ytd-video-masthead-ad-v3-renderer",
 ];
 
-/// `s` as a JSON string literal, which is also a JavaScript one.
+/// `s` as a JSON string literal, which is also a JavaScript one. JSON lets the
+/// line and paragraph separators through; JavaScript before ES2019 ends a
+/// string at them, so they are written as escapes.
 fn literal(s: &str) -> String {
-    serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_owned())
+    serde_json::to_string(s)
+        .unwrap_or_else(|_| "\"\"".to_owned())
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029")
 }
 
 /// Sets the text of the element `css` picks: its `value` when it is an
@@ -307,6 +312,12 @@ mod tests {
                 "payload escaped its literal: {script}"
             );
         }
+    }
+
+    #[test]
+    fn a_literal_holds_no_raw_line_or_paragraph_separator() {
+        let written = literal("a\u{2028}b\u{2029}c\nd");
+        assert_eq!(written, "\"a\\u2028b\\u2029c\\nd\"");
     }
 
     #[test]
