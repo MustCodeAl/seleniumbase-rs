@@ -63,9 +63,12 @@ macro_rules! sb_test {
     ($name:ident, $config:expr, |$sb:ident| $body:expr) => {
         #[tokio::test]
         async fn $name() {
+            // The test's path names its `check_window` baselines, so tests of
+            // the same name in other modules do not share them.
             let mut $sb = $crate::BaseCase::new($config)
                 .await
-                .expect("failed to create BaseCase");
+                .expect("failed to create BaseCase")
+                .with_test_name(concat!(module_path!(), "::", stringify!($name)));
             let result: Result<(), $crate::SeleniumBaseError> = async { $body }.await;
             let cleanup = $sb.quit().await;
             // A failing quit must not hide the error of the test itself.

@@ -63,6 +63,8 @@ pub struct BaseCase {
     /// `session`: the extra ones [`BaseCase::get_new_driver`] opened, and the
     /// default one while another is active.
     drivers: DriverTable<BrowserSession>,
+    /// The name of the test this case runs, from [`BaseCase::with_test_name`].
+    test_name: Option<String>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
     /// The pages [`BaseCase::set_content_to_frame`] replaced, oldest first, for
@@ -118,9 +120,30 @@ impl BaseCase {
             #[cfg(feature = "gui")]
             gui_held: None,
             drivers: DriverTable::new(),
+            test_name: None,
             run_settings: RunSettings::default(),
             swapped_pages: Vec::new(),
         }
+    }
+
+    /// Names the test this case runs. [`check_window`](Self::check_window)
+    /// keeps its baselines in `visual_baseline/<name>`, so tests of the same
+    /// function name in different modules or files, and tests that do not run
+    /// on a thread named after them (`#[tokio::main]`, `tokio::spawn`), keep
+    /// separate baselines. [`sb_test!`](crate::sb_test) names its test.
+    ///
+    /// Without a name the folder is the function name of the thread that runs
+    /// the test, as in Python.
+    #[must_use]
+    pub fn with_test_name(mut self, name: impl Into<String>) -> Self {
+        self.test_name = Some(name.into());
+        self
+    }
+
+    /// The name given by [`with_test_name`](Self::with_test_name), if any.
+    #[must_use]
+    pub fn test_name(&self) -> Option<&str> {
+        self.test_name.as_deref()
     }
 
     /// The run-wide settings in force.
@@ -1928,7 +1951,8 @@ impl BaseCase {
     /// WebDriver session, creates a fresh one with the same config, and then
     /// navigates to `url`.
     pub async fn uc_open_with_disconnect(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        self.quit().await?;
+        // Only the active browser is replaced; the others stay open.
+        self.session.quit().await?;
         let session = BrowserSession::connect(self.config.clone()).await?;
         self.session = session;
         self.open(url).await?;
@@ -1999,9 +2023,12 @@ impl BaseCase {
     ///
     /// Corresponds to Python's `check_window`. The baseline is the folder
     /// `visual_baseline/<test>/<name>` in the working directory, where the
-    /// test is the name of the running test (the last part of the thread's
-    /// name under `cargo test`, the function), as in Python: two tests of the
-    /// same name share their baselines, so give each a `name` of its own. It
+    /// test is the name given by [`with_test_name`](Self::with_test_name)
+    /// (what [`sb_test!`](crate::sb_test) does), or else the name of the
+    /// running test (the last part of the thread's name under `cargo test`,
+    /// the function), as in Python: two tests of the same function name
+    /// share their baselines, so give each a test name or a `name` of its
+    /// own. It
     /// holds `page_url.txt`, `baseline.png` and
     /// `tags_level_1.txt` to `tags_level_3.txt`, one entry for each tag below
     /// `<body>`: the tag names (level 1), with the sorted names of its
@@ -2022,12 +2049,10 @@ impl BaseCase {
     /// the baseline at a `level` above 0, and
     /// [`SeleniumBaseError::InvalidConfig`] if `level` is not 0, 1, 2 or 3,
     /// `name` is not a plain name or the baseline cannot be read or written.
-    pub async fn check_window(&mut self, name: &str, level: f64) -> Result<(), SeleniumBaseError> {
-        use crate::api::run_settings::{
-            apply_check_level, baseline_dir, check_level, check_page_structure,
-        };
-        let checked = check_level(level)?;
-        let dir = baseline_dir(name)?;
+    pub async fn check_window(&mut self, name: &str, level: u8) -> Result<(), SeleniumBaseError> {
+        use crate::api::run_settings::{apply_check_level, check_level, check_page_structure};
+        let checked = check_level(f64::from(level))?;
+        let dir = check_window_folder(self.test_name.as_deref(), name)?;
         // Python waits for the page to settle before it reads it.
         let _ = self.wait_for_ready_state_complete().await;
         let url = self.get_current_url().await?;
@@ -2041,7 +2066,7 @@ impl BaseCase {
             self.run_settings.reset_visual_baseline(),
             checked,
         );
-        apply_check_level(outcome, level)
+        apply_check_level(outcome, f64::from(level))
     }
 
     /// Compares a screenshot of the page with the baseline image saved under

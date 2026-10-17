@@ -133,8 +133,29 @@ that break a call are listed first, each with the way to migrate.
   sb.switch_to_driver(second).await?;
   ```
 
+- **`check_window`'s level is a `u8`**, not an `f64`: `check_window("home", 3)`
+  instead of `check_window("home", 3.0)`; the same for `deferred_check_window`
+  and `delayed_check_window`. A float literal stops compiling. As before, a
+  level other than 0, 1, 2 or 3 is an `InvalidConfig` error.
+
+  ```rust
+  // before
+  sb.check_window("home", 3.0).await?;
+  // after
+  sb.check_window("home", 3).await?;
+  ```
+
 ### Changed
 
+- **`check_window` baselines can be told apart by test.** The baseline folder
+  was named after the thread's last path part, so tests of the same function
+  name in different modules or files shared one folder, and a body run by
+  `#[tokio::main]` or `tokio::spawn` was filed under `main` or
+  `tokio-runtime-worker`. `BaseCase::with_test_name("module::test")` (builder,
+  with `test_name()` to read it back) names the test, and the baselines go in
+  `visual_baseline/module__test/<name>`. `sb_test!` sets it from the module path
+  and the function, so its tests get a new folder: the first run saves a
+  baseline there again. Without a test name nothing changes.
 - **The text assertions wait, as Python's do.** `assert_text`,
   `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
   `assert_exact_text_not_visible` poll for up to the default timeout

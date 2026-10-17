@@ -81,7 +81,7 @@ alone passes it. With the `visual` feature, `assert_visual_match` compares the
 
 ```rust
 sb.open("https://example.com").await?;
-sb.check_window("home", 3.0).await?;     // the layout, as in Python
+sb.check_window("home", 3).await?;     // the layout, as in Python
 sb.assert_visual_match("home").await?;   // the screenshot, by structural similarity
 ```
 

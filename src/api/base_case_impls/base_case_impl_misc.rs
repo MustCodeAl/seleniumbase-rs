@@ -25,6 +25,25 @@ fn referral_link_script(destination: &str) -> String {
     )
 }
 
+/// The folder of the baseline `check_window` keeps for the check `name`: for
+/// a test called `test`, `visual_baseline/<test>/<name>`, where the test
+/// name's path separators and other unsafe characters become `_`; without one,
+/// the folder of the thread that runs the test (the function name, as in
+/// Python).
+fn check_window_folder(
+    test: Option<&str>,
+    name: &str,
+) -> Result<std::path::PathBuf, SeleniumBaseError> {
+    let Some(test) = test else {
+        return crate::api::run_settings::baseline_dir(name);
+    };
+    let name = if name.is_empty() { "default" } else { name };
+    crate::artifacts::confined_path(
+        &std::path::Path::new("visual_baseline").join(crate::artifacts::safe_stem(test, "default")),
+        name,
+    )
+}
+
 /// Checks that `url` is one Python's `is_valid_url` accepts, for the
 /// referral helpers, which refuse a page they could not navigate to before
 /// they touch the browser.
@@ -130,7 +149,7 @@ impl BaseCase {
     pub async fn deferred_check_window(
         &mut self,
         name: &str,
-        level: f64,
+        level: u8,
     ) -> Result<(), SeleniumBaseError> {
         if let Err(error) = self.check_window(name, level).await {
             let url = self.get_current_url().await.ok();
@@ -143,7 +162,7 @@ impl BaseCase {
     pub async fn delayed_check_window(
         &mut self,
         name: &str,
-        level: f64,
+        level: u8,
     ) -> Result<(), SeleniumBaseError> {
         self.deferred_check_window(name, level).await
     }
@@ -466,5 +485,63 @@ impl BaseCase {
     /// Marks the current test as skipped with `message`.
     pub fn skip_test(&self, message: &str) -> Result<(), SeleniumBaseError> {
         Err(SeleniumBaseError::Skipped(message.to_owned()))
+    }
+}
+
+#[cfg(test)]
+mod tests_check_window {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn tests_of_the_same_function_in_other_modules_keep_separate_baselines() {
+        let cart = check_window_folder(Some("shop::cart::tests::renders"), "home").unwrap();
+        let blog = check_window_folder(Some("blog::tests::renders"), "home").unwrap();
+        assert_ne!(cart, blog);
+        assert_eq!(
+            cart,
+            Path::new("visual_baseline")
+                .join("shop__cart__tests__renders")
+                .join("home")
+        );
+    }
+
+    #[test]
+    fn a_test_name_cannot_name_a_folder_outside_the_baselines() {
+        let folder = check_window_folder(Some("../../etc/passwd"), "home").unwrap();
+        assert_eq!(
+            folder,
+            Path::new("visual_baseline")
+                .join("______etc_passwd")
+                .join("home")
+        );
+        check_window_folder(Some("shop::cart"), "../home").unwrap_err();
+        check_window_folder(Some("shop::cart"), "a/b").unwrap_err();
+    }
+
+    #[test]
+    fn an_empty_check_name_is_the_default_one() {
+        let folder = check_window_folder(Some("shop::cart"), "").unwrap();
+        assert!(folder.ends_with("shop__cart/default"), "{folder:?}");
+    }
+
+    #[test]
+    fn without_a_test_name_the_folder_is_named_after_the_running_test_function() {
+        // The test harness names this thread `…::tests_check_window::without_a_…`.
+        let folder = check_window_folder(None, "home").unwrap();
+        assert_eq!(
+            folder,
+            Path::new("visual_baseline")
+                .join("without_a_test_name_the_folder_is_named_after_the_running_test_function")
+                .join("home")
+        );
+    }
+
+    #[test]
+    fn a_case_keeps_the_name_it_was_given() {
+        let sb = BaseCase::without_session(BrowserConfig::default());
+        assert_eq!(sb.test_name(), None);
+        let sb = sb.with_test_name("shop::cart::renders");
+        assert_eq!(sb.test_name(), Some("shop::cart::renders"));
     }
 }
