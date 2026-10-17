@@ -11,6 +11,7 @@ pub mod humanize;
 pub mod js;
 pub mod options;
 pub mod patcher;
+pub mod policy;
 pub mod providers;
 pub mod randomize;
 pub mod reactor;

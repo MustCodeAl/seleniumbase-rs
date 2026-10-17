@@ -24,6 +24,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
+pub use super::spoof::Spoof;
+
 /// Browser persona requested by a profile.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
