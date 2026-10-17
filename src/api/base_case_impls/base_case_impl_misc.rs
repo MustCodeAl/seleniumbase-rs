@@ -354,9 +354,28 @@ impl BaseCase {
 
     // Selector / soup / CDP aliases.
 
-    /// Alias for `convert_xpath_to_css`.
-    pub fn convert_to_css_selector(&self, xpath: &str) -> Result<String, SeleniumBaseError> {
-        self.convert_xpath_to_css(xpath)
+    /// Converts any kind of selector to CSS, for the jQuery and JavaScript
+    /// helpers that need a CSS selector. Corresponds to Python's
+    /// `convert_to_css_selector(selector, by)`, with the strategy read from the
+    /// selector as the other methods do: CSS is returned as it is, XPath is
+    /// converted as [`convert_xpath_to_css`](Self::convert_xpath_to_css) does,
+    /// and a bare element id (`Selector::Id`) becomes `[id='x']`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidSelector`] for XPath that has no CSS
+    /// equivalent and for link text (`link=Home`), which CSS cannot select.
+    pub fn convert_to_css_selector(&self, selector: &str) -> Result<String, SeleniumBaseError> {
+        match Selector::auto(selector) {
+            Selector::Css(css) => Ok(css.to_owned()),
+            Selector::XPath(xpath) => self.convert_xpath_to_css(xpath),
+            Selector::Id(id) => Ok(format!("[id='{}']", id.replace('\\', "\\\\").replace('\'', "\\'"))),
+            Selector::LinkText(_) | Selector::PartialLinkText(_) => {
+                Err(SeleniumBaseError::InvalidSelector(format!(
+                    "'{selector}' selects a link by its text, which has no CSS equivalent"
+                )))
+            }
+        }
     }
 
     /// Alias for `get_beautiful_soup_object`.
@@ -517,6 +536,23 @@ mod tests_check_window {
         );
         check_window_folder(Some("shop::cart"), "../home").unwrap_err();
         check_window_folder(Some("shop::cart"), "a/b").unwrap_err();
+    }
+
+    #[test]
+    fn any_selector_converts_to_css_where_css_can_say_it() {
+        let sb = BaseCase::without_session(BrowserConfig::default());
+        let css = |selector: &str| sb.convert_to_css_selector(selector);
+        assert_eq!(css("#a > .b").unwrap(), "#a > .b");
+        assert_eq!(css("//ul/li[2]").unwrap(), "ul > li:nth-of-type(2)");
+        // A link text has no CSS; so does XPath that CSS cannot say.
+        assert!(matches!(
+            css("link=Home"),
+            Err(SeleniumBaseError::InvalidSelector(_))
+        ));
+        assert!(matches!(
+            css("//a[text()='Home']"),
+            Err(SeleniumBaseError::InvalidSelector(_))
+        ));
     }
 
     #[test]

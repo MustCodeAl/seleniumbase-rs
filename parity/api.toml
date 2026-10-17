@@ -386,11 +386,12 @@ rust = "BaseCase::convert_css_to_xpath"
 [basecase."convert_to_css_selector"]
 status = "implemented"
 rust = "BaseCase::convert_to_css_selector"
+divergence = "Takes no by argument: the strategy is read from the selector, as the other methods do. Link text, which Python turns into a :contains() pseudo-class that is not CSS, is an InvalidSelector error."
 
 [basecase."convert_xpath_to_css"]
 status = "implemented"
 rust = "BaseCase::convert_xpath_to_css"
-divergence = "Converts only a tag (or *) found anywhere in the document, narrowed by attribute tests joined with and, and returns an InvalidSelector error for any other XPath (paths of several steps, positions, contains(), text(), or), where Python converts more forms. The CSS it returns is equivalent but spelled [id='x'] and [class='x'] where Python writes #x and .x."
+divergence = "Converts the forms that have an exact CSS equivalent: paths (//a/b, //a//b, /html/body), a position that is the first test of its step, contains(@a,'v'), starts-with(@a,'v') (Python has none), id('x') and or (a comma list). Returns an InvalidSelector error for text(), contains(.,...), parent:: and a position after another test, where Python writes a :contains() pseudo-class that is not CSS or a selector that matches other elements. The CSS is spelled [id='x'] and [class='x'] where Python writes #x and .x."
 
 [basecase."create_area_chart"]
 status = "implemented"
@@ -465,7 +466,7 @@ divergence = "Checks at once and records a failure for process_deferred_asserts,
 [basecase."deferred_assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_exact_text"
-divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (css, text); Python's is (text, selector)."
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_assert_non_empty_text"]
 status = "implemented"
@@ -475,7 +476,7 @@ divergence = "Checks at once and records a failure for process_deferred_asserts,
 [basecase."deferred_assert_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_text"
-divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (text, css), like Python's."
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_check_window"]
 status = "implemented"

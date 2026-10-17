@@ -66,10 +66,13 @@ Design rules that apply to everything below:
    Eighteen are recorded as `divergence` notes in `parity/api.toml` and shown
    in `docs/parity.md`: `click_nth_visible_element` counts from 0, `scroll_up`
    and `scroll_down` take no amount, `open_new_tab` always switches,
-   `download_file` goes through the browser, cookie files are JSON, and the
-   argument order of `assert_text`, `assert_exact_text` and `wait_for_text`
-   differs. Changing any of them shifts existing callers, so do it as a
-   deliberate breaking release, not quietly.
+   and `download_file` goes through the browser. The argument order of
+   `assert_text`, `assert_exact_text` and `wait_for_text`, the cookie helpers
+   (`saved_cookies/<name>.txt`), `find_text`, the deferred and delayed checks,
+   the multi-driver methods and the title and URL macros no longer differ from
+   Python (see the Unreleased section of `CHANGELOG.md`). Changing any of the
+   rest shifts existing callers, so do it as a deliberate breaking release, not
+   quietly.
 4. **Python names with no Rust counterpart (done).** Every one is classified
    in `parity/api.toml`: `get_jqc_button_input`, `get_jqc_form_inputs`,
    `get_jqc_text_input` and the unittest harness (`setUp`, `tearDown`,
