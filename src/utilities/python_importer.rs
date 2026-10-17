@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use regex::Regex;
 
-use crate::utils::selectors::xpath_to_css;
+use crate::utils::selectors::is_xpath_selector;
 
 /// Python API family used by the input file.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -103,7 +103,8 @@ enum Action {
 
 #[derive(Clone, Debug)]
 enum Locator {
-    Css(String),
+    /// A selector `BaseCase` classifies itself: CSS or XPath.
+    Selector(String),
     LinkText(String),
     PartialLinkText(String),
 }
@@ -347,15 +348,15 @@ fn parse_selenium(
             ));
         };
         return match (locator, &captures["method"]) {
-            (Locator::Css(css), "text") => ParseOutcome::Action(Action::GetText(css)),
-            (Locator::Css(css), "get_attribute") => match python_string(&captures["args"]) {
+            (Locator::Selector(css), "text") => ParseOutcome::Action(Action::GetText(css)),
+            (Locator::Selector(css), "get_attribute") => match python_string(&captures["args"]) {
                 Some(attr) => ParseOutcome::Action(Action::GetAttribute(css, attr)),
                 None => ParseOutcome::Invalid(
                     "get_attribute() requires a string literal attribute name".to_owned(),
                 ),
             },
             _ => ParseOutcome::Unsupported(
-                "this read operation is only supported for CSS-based element variables".to_owned(),
+                "this read operation is only supported for element variables with a CSS or XPath locator".to_owned(),
             ),
         };
     }
@@ -383,14 +384,14 @@ fn selenium_element_action(
         Err(message) => return ParseOutcome::Invalid(message),
     };
     match (locator, method) {
-        (Locator::Css(css), "click") => ParseOutcome::Action(Action::Click(css)),
+        (Locator::Selector(css), "click") => ParseOutcome::Action(Action::Click(css)),
         (Locator::LinkText(text), "click") => ParseOutcome::Action(Action::ClickLink(text)),
         (Locator::PartialLinkText(text), "click") => {
             ParseOutcome::Action(Action::ClickPartialLink(text))
         }
-        (Locator::Css(css), "clear") => ParseOutcome::Action(Action::Clear(css)),
-        (Locator::Css(css), "submit") => ParseOutcome::Action(Action::Submit(css)),
-        (Locator::Css(css), "send_keys") => match python_string(args) {
+        (Locator::Selector(css), "clear") => ParseOutcome::Action(Action::Clear(css)),
+        (Locator::Selector(css), "submit") => ParseOutcome::Action(Action::Submit(css)),
+        (Locator::Selector(css), "send_keys") => match python_string(args) {
             Some(text) => ParseOutcome::Action(Action::TypeText(css, text)),
             None => ParseOutcome::Invalid(
                 "send_keys() requires a string literal; key chords need manual migration"
@@ -412,16 +413,19 @@ fn parse_locator(input: &str) -> Result<Locator, String> {
         .ok_or_else(|| "dynamic Selenium locators need manual migration".to_owned())?;
     let strategy = args[0].trim().rsplit('.').next().unwrap_or_default();
     match strategy {
-        "CSS_SELECTOR" => Ok(Locator::Css(value)),
-        "ID" => Ok(Locator::Css(format!(r#"[id="{}"]"#, css_escape(&value)))),
-        "NAME" => Ok(Locator::Css(format!(r#"[name="{}"]"#, css_escape(&value)))),
+        "CSS_SELECTOR" => Ok(Locator::Selector(value)),
+        "ID" => Ok(Locator::Selector(format!(r#"[id="{}"]"#, css_escape(&value)))),
+        "NAME" => Ok(Locator::Selector(format!(r#"[name="{}"]"#, css_escape(&value)))),
         "CLASS_NAME" if !value.chars().any(char::is_whitespace) => {
-            Ok(Locator::Css(format!(".{}", css_escape(&value))))
+            Ok(Locator::Selector(format!(".{}", css_escape(&value))))
         }
-        "TAG_NAME" => Ok(Locator::Css(value)),
-        "XPATH" => xpath_to_css(&value)
-            .map(Locator::Css)
-            .map_err(|_| format!("XPath '{value}' cannot be represented safely as a CSS selector")),
+        "TAG_NAME" => Ok(Locator::Selector(value)),
+        // `BaseCase` takes XPath as it is; converting it to CSS would refuse
+        // every XPath CSS cannot say.
+        "XPATH" if is_xpath_selector(&value) => Ok(Locator::Selector(value)),
+        "XPATH" => Err(format!(
+            "XPath '{value}' does not start with '/', './', '../' or '(', so BaseCase would read it as CSS"
+        )),
         "LINK_TEXT" => Ok(Locator::LinkText(value)),
         "PARTIAL_LINK_TEXT" => Ok(Locator::PartialLinkText(value)),
         _ => Err(format!(
@@ -789,6 +793,30 @@ driver.quit()
         assert!(result
             .rust
             .contains("sb.assert_title_contains(\"Dashboard\")"));
+    }
+
+    #[test]
+    fn an_xpath_locator_is_passed_through_unchanged() {
+        let source = r#"
+from selenium.webdriver.common.by import By
+driver.find_element(By.XPATH, "//div[@class='a']/span[2]").click()
+driver.find_element(By.XPATH, "//a[text()='Home']").click()
+"#;
+        let result = import_python(source, &ImportOptions::default());
+        assert!(result.is_complete(), "{:?}", result.diagnostics);
+        assert!(result
+            .rust
+            .contains(r#"sb.click("//div[@class='a']/span[2]")"#));
+        assert!(result.rust.contains(r#"sb.click("//a[text()='Home']")"#));
+    }
+
+    #[test]
+    fn a_relative_xpath_that_would_be_read_as_css_is_reported() {
+        let result = import_python(
+            "driver.find_element(By.XPATH, \"div/a\").click()",
+            &ImportOptions::default(),
+        );
+        assert!(!result.is_complete());
     }
 
     #[test]
