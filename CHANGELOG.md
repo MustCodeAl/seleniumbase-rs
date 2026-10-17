@@ -41,7 +41,8 @@ Fixed.
   ```
 
   The new package has `pdf` and `mcp-server` on by default (the release archives
-  always had them) and forwards `tui`, `gui`, `turso`, `test-util`,
+  always had them), and `plugins-builtin` (the built-in browser plugins, see
+  *Added*), and forwards `tui`, `gui`, `turso`, `test-util`,
   `full-tracing` and `tokio-console` to the library, so
   `cargo install ... seleniumbase-rs-cli --features tui` is the way to add the
   terminal UI. `default-members` names both packages, so `cargo build`,
@@ -687,9 +688,43 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   lists the known ones and the cargo features that add the others; options for
   a plugin that is not enabled, options a plugin refuses and a name enabled
   twice are errors too. A build without the `plugins` feature refuses a
-  non-empty selection when it loads the settings (`Settings::plugins`). There
-  are no command-line flags yet: `sbrs` does not apply the table or
-  `SB_PLUGINS`. See `docs/plugins/selecting.md`.
+  non-empty selection when it loads the settings (`Settings::plugins`). `sbrs`
+  and `sbrs-mcp` apply the table and the variable, and take command-line
+  options (next entry). See `docs/plugins/selecting.md`.
+- **Plugins on the command line** (ADR 005, phase 1). `sbrs` and `sbrs-mcp` have
+  the built-in plugins compiled in: `plugins-builtin` is a default feature of
+  `seleniumbase-rs-cli` (with `pdf` and `mcp-server`, so the release archives and
+  `cargo install` have them), and `plugins`, `plugin-shield`,
+  `plugin-block-resources` and `plugin-crx` pass through to the library. They
+  honour the `[plugins]` table of the settings file and `SB_PLUGINS` for every
+  command that starts a browser in either engine (`BaseCase`, and `sbrs devtools`
+  on the pure CDP engine), which `sbrs` ignored before, and add two global
+  options that go before the command and repeat:
+  `--plugin NAME`, and `--plugin-opt NAME.KEY=VALUE` with a TOML value, as in
+  `sbrs --plugin shield --plugin-opt 'shield.level="strict"' open URL`. The
+  precedence is the command line over `SB_PLUGINS` over the file (said in
+  `--help`): `--plugin` adds a name after the ones the others turn on,
+  `--plugin-opt` replaces one key and keeps the plugin's other options. New
+  commands `sbrs plugin list` (name, category, whether it is on, summary) and
+  `sbrs plugin info NAME` (category, phase, capabilities with their risk and
+  whether the host enforces them, what it needs, ordering, the options in effect
+  and, if the plugin refuses them or cannot start without any, why); an unknown
+  name exits with status 2 and lists the known ones. `sbrs test` passes the
+  names on to the tests as `SB_PLUGINS` and refuses `--plugin-opt`, which the
+  variable cannot carry. `sbrs-mcp` takes `--plugin` and `--plugin-opt` too, and
+  reads the table and the variable from the folder it runs in; the operator
+  chooses the plugins, and no tool argument adds one. A mistake (an unknown
+  name, an option of a plugin nothing turns on, an option the plugin refuses, a
+  value that is not TOML such as `shield.level=strict`) is reported with exit
+  status 2 before any browser starts or the MCP server listens. A build without
+  `plugins` (`--no-default-features`) fails closed with the feature to build
+  with. The Docker image is built without the default features and has no
+  plugins. The library side: `PluginSelection::apply_flags`, `enable_once` and
+  `to_list` (and `PluginSelection` is `Eq`), `Settings::load_plugin_selection`
+  (the plugin part of the settings only), the module `cli::plugin_cmd`
+  (`list`, `info`, `check_selection`), `DevtoolsRequest::plugins`,
+  `mcp::Settings::with_plugin_selection` and `mcp::serve_with`. See
+  `docs/plugins/selecting.md`.
 - **The shield plugin** is documented (`docs/plugins/shield.md`): what it turns
   off, its levels, WebRTC modes and options, and what has not been verified in a
   real Chrome.

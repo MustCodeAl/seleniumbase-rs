@@ -42,7 +42,8 @@ Fixed.
   ```
 
   The new package has `pdf` and `mcp-server` on by default (the release archives
-  always had them) and forwards `tui`, `gui`, `turso`, `test-util`,
+  always had them), and `plugins-builtin` (the built-in browser plugins, see
+  *Added*), and forwards `tui`, `gui`, `turso`, `test-util`,
   `full-tracing` and `tokio-console` to the library, so
   `cargo install ... seleniumbase-rs-cli --features tui` is the way to add the
   terminal UI. `default-members` names both packages, so `cargo build`,
@@ -301,41 +302,6 @@ Fixed.
   `BaseCase`, and a skipped test passes instead of panicking. Migration: a body
   that moved `sb` (`sb.quit().await`, passing it by value) now borrows it, and
   the macro closes the browser.
-
-- **`sbrs` and `sbrs-mcp` parse their command line with [usage](https://usage.jdx.dev)
-  instead of clap.** `clap`, `clap_complete`, `clap_complete_fig` and `clap_usage`
-  leave the workspace. The commands, flags, aliases, defaults and exit statuses are
-  those of 0.4.0: both builds were run on 256 command lines, 250 act the same and the
-  six that do not fall into the three groups below. `completions/sbrs.usage.kdl` is
-  now written from the Rust declaration by a test that fails when the file is stale
-  (`SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`
-  writes it again), and so are the new page `docs/help/cli_reference.md` (a CLI
-  reference rendered from the spec) and the Fig spec `docs/completions/fig-sbrs.ts`.
-  What you can notice:
-
-  - `sbrs --help` is laid out by usage: the sections are `Commands:` and `Flags:`, the
-    commands are listed alphabetically instead of in the order they were declared, a
-    short description keeps the final period of its doc comment, an alias is shown as
-    `[aliases: new]`, and the usage line reads `Usage: sbrs [FLAGS] <SUBCOMMAND>`. The
-    banner still comes first.
-  - `sbrs completions bash|zsh|fish|elvish|powershell` print a short script that asks
-    `sbrs` for the candidates when the completion key is pressed (so `sbrs` has to be
-    on `PATH`), instead of a script that lists every command. A path argument
-    completes file names, as before. `completions fig` is written by
-    `crates/cli/src/fig.rs` from the tables of the parser: it marks an option as
-    required or repeatable only when it is, where the `clap_complete_fig` output marked
-    every option that takes a value as repeatable. `completions usage` prints the spec.
-  - Three groups of command lines behave differently, because usage is looser than
-    clap in these places. A flag repeated after a subcommand
-    (`sbrs wait-for-text --css a --css b`) takes its last value instead of ending
-    with status 2; the options before the
-    subcommand and those of `grid-hub`, `grid-node` and `prompt` are still refused,
-    since usage can set that rule on the root and on a struct, not on the inline
-    variants of the command enum. A value written after a switch, `--headless=false`
-    or `--headed=true`, is accepted and means what it says (the parser would have
-    ignored the value and switched the option on); any other value, such as
-    `--headless=0`, is still an error. `sbrs help nosuch` prints the main help and
-    exits with 0, where it ended with status 2.
 
 - **`Settings::timeout_seconds`, `window_width` and `window_height` are
   `Option`s** that default to `None`. The old defaults (30 s, 1920, 1080) were read by
@@ -723,9 +689,43 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   lists the known ones and the cargo features that add the others; options for
   a plugin that is not enabled, options a plugin refuses and a name enabled
   twice are errors too. A build without the `plugins` feature refuses a
-  non-empty selection when it loads the settings (`Settings::plugins`). There
-  are no command-line flags yet: `sbrs` does not apply the table or
-  `SB_PLUGINS`. See `docs/plugins/selecting.md`.
+  non-empty selection when it loads the settings (`Settings::plugins`). `sbrs`
+  and `sbrs-mcp` apply the table and the variable, and take command-line
+  options (next entry). See `docs/plugins/selecting.md`.
+- **Plugins on the command line** (ADR 005, phase 1). `sbrs` and `sbrs-mcp` have
+  the built-in plugins compiled in: `plugins-builtin` is a default feature of
+  `seleniumbase-rs-cli` (with `pdf` and `mcp-server`, so the release archives and
+  `cargo install` have them), and `plugins`, `plugin-shield`,
+  `plugin-block-resources` and `plugin-crx` pass through to the library. They
+  honour the `[plugins]` table of the settings file and `SB_PLUGINS` for every
+  command that starts a browser in either engine (`BaseCase`, and `sbrs devtools`
+  on the pure CDP engine), which `sbrs` ignored before, and add two global
+  options that go before the command and repeat:
+  `--plugin NAME`, and `--plugin-opt NAME.KEY=VALUE` with a TOML value, as in
+  `sbrs --plugin shield --plugin-opt 'shield.level="strict"' open URL`. The
+  precedence is the command line over `SB_PLUGINS` over the file (said in
+  `--help`): `--plugin` adds a name after the ones the others turn on,
+  `--plugin-opt` replaces one key and keeps the plugin's other options. New
+  commands `sbrs plugin list` (name, category, whether it is on, summary) and
+  `sbrs plugin info NAME` (category, phase, capabilities with their risk and
+  whether the host enforces them, what it needs, ordering, the options in effect
+  and, if the plugin refuses them or cannot start without any, why); an unknown
+  name exits with status 2 and lists the known ones. `sbrs test` passes the
+  names on to the tests as `SB_PLUGINS` and refuses `--plugin-opt`, which the
+  variable cannot carry. `sbrs-mcp` takes `--plugin` and `--plugin-opt` too, and
+  reads the table and the variable from the folder it runs in; the operator
+  chooses the plugins, and no tool argument adds one. A mistake (an unknown
+  name, an option of a plugin nothing turns on, an option the plugin refuses, a
+  value that is not TOML such as `shield.level=strict`) is reported with exit
+  status 2 before any browser starts or the MCP server listens. A build without
+  `plugins` (`--no-default-features`) fails closed with the feature to build
+  with. The Docker image is built without the default features and has no
+  plugins. The library side: `PluginSelection::apply_flags`, `enable_once` and
+  `to_list` (and `PluginSelection` is `Eq`), `Settings::load_plugin_selection`
+  (the plugin part of the settings only), the module `cli::plugin_cmd`
+  (`list`, `info`, `check_selection`), `DevtoolsRequest::plugins`,
+  `mcp::Settings::with_plugin_selection` and `mcp::serve_with`. See
+  `docs/plugins/selecting.md`.
 - **The shield plugin** is documented (`docs/plugins/shield.md`): what it turns
   off, its levels, WebRTC modes and options, and what has not been verified in a
   real Chrome.
@@ -785,6 +785,41 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
   (use `max`).
 
 ### Changed
+
+- **`sbrs` and `sbrs-mcp` parse their command line with [usage](https://usage.jdx.dev)
+  instead of clap.** `clap`, `clap_complete`, `clap_complete_fig` and `clap_usage`
+  leave the workspace. The commands, flags, aliases, defaults and exit statuses are
+  those of 0.4.0: both builds were run on 256 command lines, 250 act the same and the
+  six that do not fall into the three groups below. `completions/sbrs.usage.kdl` is
+  now written from the Rust declaration by a test that fails when the file is stale
+  (`SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`
+  writes it again), and so are the new page `docs/help/cli_reference.md` (a CLI
+  reference rendered from the spec) and the Fig spec `docs/completions/fig-sbrs.ts`.
+  What you can notice:
+
+  - `sbrs --help` is laid out by usage: the sections are `Commands:` and `Flags:`, the
+    commands are listed alphabetically instead of in the order they were declared, a
+    short description keeps the final period of its doc comment, an alias is shown as
+    `[aliases: new]`, and the usage line reads `Usage: sbrs [FLAGS] <SUBCOMMAND>`. The
+    banner still comes first.
+  - `sbrs completions bash|zsh|fish|elvish|powershell` print a short script that asks
+    `sbrs` for the candidates when the completion key is pressed (so `sbrs` has to be
+    on `PATH`), instead of a script that lists every command. A path argument
+    completes file names, as before. `completions fig` is written by
+    `crates/cli/src/fig.rs` from the tables of the parser: it marks an option as
+    required or repeatable only when it is, where the `clap_complete_fig` output marked
+    every option that takes a value as repeatable. `completions usage` prints the spec.
+  - Three groups of command lines behave differently, because usage is looser than
+    clap in these places. A flag repeated after a subcommand
+    (`sbrs wait-for-text --css a --css b`) takes its last value instead of ending
+    with status 2; the options before the
+    subcommand and those of `grid-hub`, `grid-node` and `prompt` are still refused,
+    since usage can set that rule on the root and on a struct, not on the inline
+    variants of the command enum. A value written after a switch, `--headless=false`
+    or `--headed=true`, is accepted and means what it says (the parser would have
+    ignored the value and switched the option on); any other value, such as
+    `--headless=0`, is still an error. `sbrs help nosuch` prints the main help and
+    exits with 0, where it ended with status 2.
 
 - `ActionRecorder::to_gherkin` writes Python SeleniumBase's `--rec-behave`
   wording, `Open "url"`, `Click "selector"`, `Type "text" into "selector"`,

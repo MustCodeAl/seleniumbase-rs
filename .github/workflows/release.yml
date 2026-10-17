@@ -142,12 +142,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libssl-dev pkg-config
 
-      # One build for both binaries: `sbrs-mcp` needs the `mcp-server` feature.
+      # One build for both binaries: `sbrs-mcp` needs the `mcp-server` feature. The
+      # features are the package's defaults, named here so that the archives
+      # cannot lose one: `plugins-builtin` compiles in the built-in browser
+      # plugins (`sbrs --plugin shield`, `sbrs plugin list`).
       - name: Build sbrs and sbrs-mcp
         shell: bash
         run: |
           cargo build --release --locked --target "${{ matrix.target }}" \
-            --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features mcp-server,pdf
+            --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp \
+            --features mcp-server,pdf,plugins-builtin
 
       - name: Download the completions
         uses: actions/download-artifact@v4
