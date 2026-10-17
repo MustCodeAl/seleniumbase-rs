@@ -1340,6 +1340,10 @@ impl BaseCase {
         self.record(action, Some(css), Some(&offset));
         self.demo_highlight(css).await?;
         let element = self.session.find(by).await?;
+        // Python scrolls first: the offset is measured from the centre of the
+        // part of the element in view, so an element below the fold or taller
+        // than the window must be where the click lands before it is measured.
+        element.scroll_into_view().await?;
         let size = element.rect().await?;
         let (from_x, from_y) = offset_from_center((x, y), (size.width, size.height), center);
         let chain = self
