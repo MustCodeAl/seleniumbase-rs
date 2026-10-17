@@ -39,6 +39,9 @@ use seleniumbase_rs_plugin::{PluginError, PluginSet, PluginSpec, Registry};
 use crate::config::plugins::PluginSelection;
 use crate::error::SeleniumBaseError;
 
+pub(crate) mod convert;
+pub(crate) mod guard;
+
 /// The cargo features that add a built-in plugin, for messages.
 const BUILTIN_FEATURES: &str = "plugin-shield, plugin-block-resources, plugin-crx \
                                 (plugins-builtin turns them all on)";

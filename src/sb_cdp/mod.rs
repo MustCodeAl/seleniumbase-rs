@@ -139,5 +139,9 @@ pub use state::{
 };
 #[doc(inline)]
 pub use types::{ElementInfo, PageInfo, Permission, Point, Rect, Scroll, SelectBy, State};
+/// The Chrome switch for a WebRTC policy, for the WebDriver engine's plugin
+/// hooks, which pass it as a launch argument.
+#[cfg(feature = "plugins")]
+pub(crate) use webrtc::chrome_flag as webrtc_chrome_flag;
 #[doc(inline)]
 pub use webrtc::{AddressKind, CandidateKind, IceCandidate, WebRtcReport};

@@ -165,6 +165,10 @@ pub(crate) enum ProfileMode {
 /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 /// ```
 #[derive(Debug, Clone)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the options mirror the independent on/off switches of the builder"
+)]
 pub struct LaunchOptions {
     pub(crate) url: Option<String>,
     pub(crate) headless: Option<bool>,
@@ -187,6 +191,17 @@ pub struct LaunchOptions {
     pub(crate) extensions: Vec<PathBuf>,
     /// Preferences written into the profile before the browser starts.
     pub(crate) prefs: Map<String, Value>,
+    /// `--host-resolver-rules` entries, joined into the one switch Chrome reads.
+    /// Only plugins set these.
+    pub(crate) host_resolver_rules: Vec<String>,
+    /// Features to turn off, merged with the library's own into one
+    /// `--disable-features` switch. Only plugins set these.
+    pub(crate) disable_features: Vec<String>,
+    /// Features to turn on, as one `--enable-features` switch. Only plugins
+    /// set these.
+    pub(crate) enable_features: Vec<String>,
+    /// Whether to pass `--disable-quic`. Only plugins set it.
+    pub(crate) disable_quic: bool,
     /// The plugins whose hooks run at launch, for every tab and at close.
     #[cfg(feature = "plugins")]
     pub(crate) plugins: seleniumbase_rs_plugin::PluginSet,
@@ -250,7 +265,12 @@ impl LaunchOptions {
             "--no-first-run".to_owned(),
             "--no-default-browser-check".to_owned(),
             "--disable-search-engine-choice-screen".to_owned(),
-            "--disable-features=Translate".to_owned(),
+            // Chrome keeps only the last `--disable-features`, so there is one:
+            // the library's own entry and the ones plugins ask for.
+            format!(
+                "--disable-features={}",
+                feature_list(&["Translate"], &self.disable_features)
+            ),
             // Keeps macOS from prompting for keychain access on launch.
             "--password-store=basic".to_owned(),
             "--use-mock-keychain".to_owned(),
@@ -268,6 +288,21 @@ impl LaunchOptions {
         }
         if let Some(policy) = self.webrtc {
             args.push(super::webrtc::chrome_flag(policy).to_owned());
+        }
+        if !self.enable_features.is_empty() {
+            args.push(format!(
+                "--enable-features={}",
+                feature_list(&[], &self.enable_features)
+            ));
+        }
+        if !self.host_resolver_rules.is_empty() {
+            args.push(format!(
+                "--host-resolver-rules={}",
+                feature_list(&[], &self.host_resolver_rules)
+            ));
+        }
+        if self.disable_quic {
+            args.push("--disable-quic".to_owned());
         }
         if let Some(proxy) = &self.proxy {
             // Chrome ignores credentials here; they are supplied over the
@@ -296,6 +331,19 @@ impl LaunchOptions {
         args.push("about:blank".to_owned());
         args
     }
+}
+
+/// The entries of `own` and then those of `extra`, each once, joined with the
+/// comma Chrome separates the values of one switch with.
+fn feature_list(own: &[&str], extra: &[String]) -> String {
+    let mut items: Vec<&str> = Vec::new();
+    for item in own.iter().copied().chain(extra.iter().map(String::as_str)) {
+        let item = item.trim();
+        if !item.is_empty() && !items.contains(&item) {
+            items.push(item);
+        }
+    }
+    items.join(",")
 }
 
 /// A string that never prints itself, for a proxy URL that may hold a password.
@@ -812,6 +860,10 @@ impl LaunchOptionsBuilder {
             extra_args: self.extra_args,
             extensions: self.extensions,
             prefs: self.prefs,
+            host_resolver_rules: Vec::new(),
+            disable_features: Vec::new(),
+            enable_features: Vec::new(),
+            disable_quic: false,
             #[cfg(feature = "plugins")]
             plugins: self.plugins,
             startup_timeout: self.startup_timeout,
@@ -1141,7 +1193,7 @@ mod tests {
 
         #[async_trait]
         impl Plugin for Mine {
-            fn name(&self) -> &str {
+            fn name(&self) -> &'static str {
                 "mine"
             }
         }

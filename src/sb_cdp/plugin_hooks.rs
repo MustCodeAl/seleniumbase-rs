@@ -9,16 +9,24 @@
 //! A [`Page`] is a [`PageHandle`] too, so a program can hand one of its tabs
 //! to code written against the plugin API.
 
+use std::collections::HashMap;
+use std::sync::Mutex as StdMutex;
+
 use seleniumbase_rs_plugin::{
-    async_trait, BrowserFamily, BrowserHandle, Engine, LaunchContext, LaunchSettings, PageHandle,
-    PluginError, PluginSet, Result as PluginResult,
+    async_trait, BrowserFamily, BrowserHandle, Engine, HostInfo, LaunchContext, LaunchSettings,
+    PageHandle, PluginError, PluginSet, ProfileView, Result as PluginResult,
 };
 use serde_json::{json, Value};
 
 use super::client::Client;
 use super::launch::{LaunchOptions, Proxy};
 use super::page::Page;
+use super::sync::locked;
 use crate::error::SeleniumBaseError;
+use crate::plugin_host::{convert, guard};
+
+/// What this engine supports for the plugins it hosts: everything.
+pub(super) const HOST: HostInfo = HostInfo::cdp();
 
 /// What the set checks its plugins against: always a Chromium browser on this
 /// engine.
@@ -41,10 +49,27 @@ pub(super) fn connect_context(version: &Value) -> LaunchContext {
     launch_context(headless, true)
 }
 
+/// The plugins of a browser attached with `connect`: fresh instances of the
+/// per-launch ones, checked against the browser's `/json/version` answer.
+///
+/// # Errors
+///
+/// [`SeleniumBaseError::Plugin`] when a plugin refuses the browser.
+pub(super) fn for_attach(
+    plugins: &PluginSet,
+    version: &Value,
+) -> Result<PluginSet, SeleniumBaseError> {
+    let plugins = plugins.for_launch();
+    plugins.check_with(&connect_context(version), &HOST)?;
+    Ok(plugins)
+}
+
 /// The start-up settings a plugin may change, taken from `options`.
 ///
 /// The proxy is given as its server only: a password in the options is not
-/// shown to plugins, and it stays when they leave the proxy as it is.
+/// shown to plugins, and it stays when they leave the proxy as it is. The
+/// profile is read-only to plugins: persistent when the options name a folder
+/// for it, and a throwaway one otherwise.
 pub(super) fn settings_of(options: &LaunchOptions) -> LaunchSettings {
     let mut settings = LaunchSettings::default();
     settings.args.clone_from(&options.extra_args);
@@ -56,6 +81,21 @@ pub(super) fn settings_of(options: &LaunchOptions) -> LaunchSettings {
         .map(|proxy| proxy.server().to_owned());
     settings.headless = options.is_headless();
     settings
+        .host_resolver_rules
+        .clone_from(&options.host_resolver_rules);
+    settings
+        .disable_features
+        .clone_from(&options.disable_features);
+    settings
+        .enable_features
+        .clone_from(&options.enable_features);
+    settings.disable_quic = options.disable_quic;
+    settings.webrtc_policy = options.webrtc.map(convert::webrtc_to_api);
+    settings.set_profile(match &options.user_data_dir {
+        Some(folder) => ProfileView::Persistent(folder.clone()),
+        None => ProfileView::Ephemeral,
+    });
+    settings
 }
 
 /// Puts the settings the plugins returned back into `options`.
@@ -63,7 +103,7 @@ pub(super) fn settings_of(options: &LaunchOptions) -> LaunchSettings {
 /// # Errors
 ///
 /// [`SeleniumBaseError::InvalidConfig`] when a plugin set a proxy that cannot
-/// be parsed.
+/// be parsed, or a WebRTC policy this version cannot apply.
 pub(super) fn apply_settings(
     options: &mut LaunchOptions,
     settings: LaunchSettings,
@@ -74,11 +114,24 @@ pub(super) fn apply_settings(
         extensions,
         proxy,
         headless,
+        host_resolver_rules,
+        webrtc_policy,
+        disable_features,
+        enable_features,
+        disable_quic,
         ..
     } = settings;
     options.extra_args = args;
     options.prefs = prefs;
     options.extensions = extensions;
+    options.host_resolver_rules = host_resolver_rules;
+    options.disable_features = disable_features;
+    options.enable_features = enable_features;
+    options.disable_quic = disable_quic;
+    options.webrtc = webrtc_policy
+        .map(convert::webrtc_from_api)
+        .transpose()?
+        .flatten();
     if proxy.as_deref() != options.proxy.as_ref().map(Proxy::server) {
         options.proxy = proxy
             .as_deref()
@@ -104,6 +157,12 @@ pub(super) fn apply_settings(
 /// The set is checked again afterwards, because one plugin may change what
 /// another was checked against, such as headless mode.
 ///
+/// The options come back with the set of *this* launch: each plugin that
+/// offers [`per_launch`](seleniumbase_rs_plugin::Plugin::per_launch) is
+/// replaced by a fresh instance, so browsers launched from one set (a pool)
+/// do not share a plugin's state, and the hooks that follow reach the same
+/// instances.
+///
 /// # Errors
 ///
 /// [`SeleniumBaseError::Plugin`] when a plugin is refused or its hook fails,
@@ -114,12 +173,13 @@ pub(super) async fn before_launch(
     if options.plugins.is_empty() {
         return Ok(options);
     }
+    options.plugins = options.plugins.for_launch();
     let plugins = options.plugins.clone();
-    plugins.check(&launch_context(options.is_headless(), false))?;
+    plugins.check_with(&launch_context(options.is_headless(), false), &HOST)?;
     let mut settings = settings_of(&options);
     plugins.before_launch(&mut settings).await?;
     apply_settings(&mut options, settings)?;
-    plugins.check(&launch_context(options.is_headless(), false))?;
+    plugins.check_with(&launch_context(options.is_headless(), false), &HOST)?;
     Ok(options)
 }
 
@@ -148,12 +208,17 @@ pub(super) async fn on_page_created(
     plugins: &PluginSet,
     client: &Client,
     session: &str,
+    blocked: &BlockedUrls,
 ) -> Result<(), SeleniumBaseError> {
     if plugins.is_empty() {
         return Ok(());
     }
     Ok(plugins
-        .on_page_created(&TabLink { client, session })
+        .on_page_created(&TabLink {
+            client,
+            session,
+            blocked,
+        })
         .await?)
 }
 
@@ -192,10 +257,47 @@ impl BrowserHandle for BrowserLink<'_> {
     }
 
     async fn send(&self, method: &str, params: Value) -> PluginResult<Value> {
+        guard::refuse_interception(method)?;
         self.client
             .send(method, params, None)
             .await
             .map_err(|error| refused(&error))
+    }
+}
+
+/// The blocklist of each tab session: the union of every pattern the library
+/// and its plugins asked it to block.
+///
+/// `Network.setBlockedURLs` replaces a tab's list, so plugins that each send
+/// theirs, or one that follows the library's ad-block list, would undo each
+/// other. Every raw send goes through [`TabLink`], which adds its patterns
+/// here and sends the union.
+#[derive(Debug, Default)]
+pub(super) struct BlockedUrls(StdMutex<HashMap<String, Vec<String>>>);
+
+impl BlockedUrls {
+    /// Starts the list of `session` with patterns the library blocked itself.
+    pub(super) fn seed(&self, session: &str, urls: &[&str]) {
+        let mut lists = locked(&self.0);
+        let list = lists.entry(session.to_owned()).or_default();
+        for url in urls {
+            if !list.iter().any(|seen| seen == url) {
+                list.push((*url).to_owned());
+            }
+        }
+    }
+
+    /// Forgets the list of a tab that went away.
+    pub(super) fn forget(&self, session: &str) {
+        locked(&self.0).remove(session);
+    }
+
+    /// Adds the patterns of a `Network.setBlockedURLs` command to the list of
+    /// `session` and returns the command to send.
+    fn merge(&self, session: &str, params: &Value) -> PluginResult<Value> {
+        let mut lists = locked(&self.0);
+        let list = lists.entry(session.to_owned()).or_default();
+        guard::merge_blocked_urls(list, params)
     }
 }
 
@@ -205,10 +307,19 @@ impl BrowserHandle for BrowserLink<'_> {
 struct TabLink<'a> {
     client: &'a Client,
     session: &'a str,
+    blocked: &'a BlockedUrls,
 }
 
 impl TabLink<'_> {
+    /// Sends `method` to the tab. The `Fetch` domain is refused, and a
+    /// blocklist is merged with the tab's others first (see [`BlockedUrls`]).
     async fn command(&self, method: &str, params: Value) -> PluginResult<Value> {
+        guard::refuse_interception(method)?;
+        let params = if method == guard::SET_BLOCKED_URLS {
+            self.blocked.merge(self.session, &params)?
+        } else {
+            params
+        };
         self.client
             .send(method, params, Some(self.session))
             .await
@@ -291,9 +402,11 @@ impl PageHandle for Page {
 impl Page {
     /// This tab as the hooks see a tab.
     fn tab_link(&self) -> TabLink<'_> {
+        let inner = self.browser().inner();
         TabLink {
-            client: &self.browser().inner().client,
+            client: &inner.client,
             session: self.session_id(),
+            blocked: &inner.plugin_blocked,
         }
     }
 }
@@ -473,5 +586,198 @@ mod tests {
 
         assert_eq!(options.extra_args, original.extra_args);
         assert_eq!(options.headless, None);
+    }
+
+    /// The command-line switches that start with `prefix`.
+    fn switches<'a>(args: &'a [String], prefix: &str) -> Vec<&'a str> {
+        args.iter()
+            .map(String::as_str)
+            .filter(|arg| arg.starts_with(prefix))
+            .collect()
+    }
+
+    fn args_of(options: &LaunchOptions) -> Vec<String> {
+        options.browser_args(std::path::Path::new("/tmp/profile"))
+    }
+
+    #[test]
+    fn plugin_settings_become_one_switch_each() {
+        let mut options = options(LaunchOptions::builder());
+        let mut settings = settings_of(&options);
+        settings.host_resolver_rules = vec![
+            "MAP a.example ^NOTFOUND".to_owned(),
+            "MAP b.example ^NOTFOUND".to_owned(),
+        ];
+        settings.disable_features = vec!["OptimizationHints".to_owned(), "Translate".to_owned()];
+        settings.enable_features = vec!["Foo".to_owned(), "Bar".to_owned(), "Foo".to_owned()];
+        settings.disable_quic = true;
+
+        apply_settings(&mut options, settings).unwrap();
+        let args = args_of(&options);
+
+        assert_eq!(
+            switches(&args, "--host-resolver-rules"),
+            ["--host-resolver-rules=MAP a.example ^NOTFOUND,MAP b.example ^NOTFOUND"]
+        );
+        assert_eq!(
+            switches(&args, "--disable-features"),
+            ["--disable-features=Translate,OptimizationHints"],
+            "the library's own Translate and the plugin's features, once each, in one switch"
+        );
+        assert_eq!(
+            switches(&args, "--enable-features"),
+            ["--enable-features=Foo,Bar"]
+        );
+        assert_eq!(switches(&args, "--disable-quic"), ["--disable-quic"]);
+    }
+
+    #[test]
+    fn a_launch_no_plugin_touched_keeps_its_switches() {
+        let args = args_of(&options(LaunchOptions::builder()));
+
+        assert_eq!(
+            switches(&args, "--disable-features"),
+            ["--disable-features=Translate"]
+        );
+        for absent in [
+            "--enable-features",
+            "--host-resolver-rules",
+            "--disable-quic",
+            "--force-webrtc-ip-handling-policy",
+        ] {
+            assert!(switches(&args, absent).is_empty(), "{absent}: {args:?}");
+        }
+    }
+
+    #[test]
+    fn a_webrtc_policy_a_plugin_sets_reaches_its_chrome_flag() {
+        use seleniumbase_rs_plugin::WebRtcPolicy as Api;
+
+        let flag = |policy: Api| {
+            let mut options = options(LaunchOptions::builder());
+            let mut settings = settings_of(&options);
+            settings.webrtc_policy = Some(policy);
+            apply_settings(&mut options, settings).unwrap();
+            switches(&args_of(&options), "--force-webrtc-ip-handling-policy")
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            flag(Api::DisableNonProxiedUdp),
+            ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+        );
+        assert_eq!(
+            flag(Api::DefaultPublicInterfaceOnly),
+            ["--force-webrtc-ip-handling-policy=default_public_interface_only"]
+        );
+        assert_eq!(
+            flag(Api::DefaultPublicAndPrivateInterfaces),
+            ["--force-webrtc-ip-handling-policy=default_public_and_private_interfaces"]
+        );
+        assert!(
+            flag(Api::Default).is_empty(),
+            "Chrome's own default is no switch"
+        );
+    }
+
+    #[test]
+    fn the_policy_the_options_already_have_is_shown_to_plugins_and_kept() {
+        let mut options = options(
+            LaunchOptions::builder()
+                .webrtc_policy(crate::stealth::fingerprint::WebRtcPolicy::PublicInterfaceOnly),
+        );
+
+        let settings = settings_of(&options);
+        assert_eq!(
+            settings.webrtc_policy,
+            Some(seleniumbase_rs_plugin::WebRtcPolicy::DefaultPublicInterfaceOnly)
+        );
+        apply_settings(&mut options, settings).unwrap();
+
+        assert_eq!(
+            options.webrtc,
+            Some(crate::stealth::fingerprint::WebRtcPolicy::PublicInterfaceOnly)
+        );
+    }
+
+    #[test]
+    fn the_profile_plugins_see_is_persistent_when_the_options_name_a_folder() {
+        let kept = options(LaunchOptions::builder().user_data_dir("/var/profile"));
+        assert_eq!(
+            settings_of(&kept).profile(),
+            &ProfileView::Persistent(std::path::PathBuf::from("/var/profile"))
+        );
+        let fresh = options(LaunchOptions::builder());
+        assert_eq!(settings_of(&fresh).profile(), &ProfileView::Ephemeral);
+    }
+
+    #[cfg(feature = "plugin-shield")]
+    mod with_shield {
+        use super::*;
+        use crate::builtin_plugins::shield::{Level, Shield, ShieldConfig};
+
+        fn shielded(config: ShieldConfig) -> PluginSet {
+            PluginSet::strict()
+                .with(Shield::new(config).unwrap())
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn strict_shield_reaches_the_command_line_as_single_switches() {
+            let plugins = shielded(ShieldConfig::new().level(Level::Strict));
+            let launched = before_launch(options(
+                LaunchOptions::builder().headless(true).plugins(plugins),
+            ))
+            .await
+            .unwrap();
+
+            let args = args_of(&launched);
+
+            let rules = switches(&args, "--host-resolver-rules");
+            assert_eq!(rules.len(), 1, "{rules:?}");
+            assert!(
+                rules[0].contains("MAP update.googleapis.com ^NOTFOUND,MAP clientservices"),
+                "{rules:?}"
+            );
+            let disabled = switches(&args, "--disable-features");
+            assert_eq!(
+                disabled,
+                ["--disable-features=Translate,OptimizationHints,MediaRouter"]
+            );
+            assert_eq!(
+                switches(&args, "--force-webrtc-ip-handling-policy"),
+                ["--force-webrtc-ip-handling-policy=disable_non_proxied_udp"]
+            );
+            assert!(args.contains(&"--disable-background-networking".to_owned()));
+            assert_eq!(launched.prefs["net.network_prediction_options"], 2);
+        }
+
+        #[tokio::test]
+        async fn shield_refuses_a_persistent_profile_because_the_options_show_it() {
+            let kept = options(
+                LaunchOptions::builder()
+                    .headless(true)
+                    .user_data_dir("/var/profile")
+                    .plugins(shielded(ShieldConfig::new())),
+            );
+
+            let error = before_launch(kept).await.unwrap_err();
+
+            assert!(
+                matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "shield"),
+                "{error:?}"
+            );
+            assert!(error.to_string().contains("persistent profile"), "{error}");
+
+            let allowed = options(
+                LaunchOptions::builder()
+                    .headless(true)
+                    .user_data_dir("/var/profile")
+                    .plugins(shielded(ShieldConfig::new().ephemeral_profile(false))),
+            );
+            before_launch(allowed).await.unwrap();
+        }
     }
 }
