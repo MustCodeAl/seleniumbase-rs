@@ -114,12 +114,30 @@ impl PluginSelection {
     /// is no longer enabled has no use for them and they would otherwise fail
     /// the build as stray options. An empty list turns every plugin off.
     pub fn set_enabled_from_list(&mut self, list: &str) {
+        self.set_enabled_keeping_options(list);
+        self.prune_unused();
+    }
+
+    /// [`set_enabled_from_list`](Self::set_enabled_from_list) that keeps every
+    /// option table, including those of the plugins the list no longer names.
+    ///
+    /// A program that applies command-line flags after the variable uses this,
+    /// so that a plugin the flags turn on again keeps the options of the
+    /// settings file, and calls [`prune_unused`](Self::prune_unused) when the
+    /// flags are applied.
+    pub fn set_enabled_keeping_options(&mut self, list: &str) {
         self.enable = list
             .split(',')
             .map(str::trim)
             .filter(|name| !name.is_empty())
             .map(str::to_owned)
             .collect();
+    }
+
+    /// Drops the options of the plugins that are not enabled: a plugin nothing
+    /// turns on has no use for them, and they would otherwise fail the build
+    /// as stray options.
+    pub fn prune_unused(&mut self) {
         let enable = &self.enable;
         self.options.retain(|name, _| enable.contains(name));
     }
@@ -459,6 +477,48 @@ mod tests {
 
         selection.set_enabled_from_list("");
         assert!(selection.is_empty(), "SB_PLUGINS= leaves nothing behind");
+    }
+
+    #[test]
+    fn keeping_the_options_until_the_flags_are_applied_lets_a_flag_bring_them_back() {
+        let mut selection: PluginSelection = toml::from_str(
+            r#"
+            enable = ["shield"]
+
+            [shield]
+            level = "strict"
+            "#,
+        )
+        .unwrap();
+
+        selection.set_enabled_keeping_options("crx");
+        assert_eq!(selection.enabled(), ["crx"]);
+        assert!(
+            selection.options_of("shield").is_some(),
+            "the options wait for the flags"
+        );
+
+        selection.apply_flags(&["shield"], &[] as &[&str]).unwrap();
+        selection.prune_unused();
+        assert_eq!(selection.enabled(), ["crx", "shield"]);
+        assert_eq!(
+            selection.options_of("shield").unwrap()["level"],
+            "strict",
+            "the flag turned shield on again with the file's level"
+        );
+    }
+
+    #[test]
+    fn pruning_drops_the_options_of_plugins_nothing_turned_on() {
+        let mut selection = PluginSelection::new()
+            .enable("crx")
+            .with_options("shield", json!({ "level": "strict" }))
+            .with_options("crx", json!({}));
+
+        selection.prune_unused();
+
+        assert!(selection.options_of("shield").is_none());
+        assert!(selection.options_of("crx").is_some());
     }
 
     #[test]

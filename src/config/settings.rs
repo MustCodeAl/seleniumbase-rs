@@ -231,6 +231,32 @@ impl SettingsOverrides {
     }
 }
 
+/// The part of a settings file that [`Settings::load_plugin_table`] reads. Every other key
+/// is left alone, so a value that is wrong for a browser does not stop a program that
+/// wants the plugins only.
+#[derive(Deserialize)]
+struct PluginsOnly {
+    #[serde(default)]
+    plugins: PluginSelection,
+}
+
+/// The `[plugins]` table of the settings file `path` (TOML for a `.toml` name, JSON
+/// otherwise), without checking the rest of the file.
+fn parse_plugins_table(path: &Path) -> Result<PluginSelection, SeleniumBaseError> {
+    let content = fs::read_to_string(path)
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}")))?;
+    let file: PluginsOnly = if path.extension().is_some_and(|ext| ext == "toml") {
+        toml::from_str(&content).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
+        })?
+    } else {
+        serde_json::from_str(&content).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
+        })?
+    };
+    Ok(file.plugins)
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -359,13 +385,17 @@ impl Settings {
 
     /// [`load_global`](Self::load_global) without the plugin support check.
     fn parse_global() -> Result<Self, SeleniumBaseError> {
-        let candidates = ["sbase_config.toml", ".sbase_config.toml", ".sbase_config"];
-        for candidate in &candidates {
-            if Path::new(candidate).is_file() {
-                return Self::parse_file(candidate);
-            }
+        match Self::global_file() {
+            Some(candidate) => Self::parse_file(candidate),
+            None => Ok(Self::default()),
         }
-        Ok(Self::default())
+    }
+
+    /// The global settings file of the current folder, if there is one.
+    fn global_file() -> Option<&'static str> {
+        ["sbase_config.toml", ".sbase_config.toml", ".sbase_config"]
+            .into_iter()
+            .find(|candidate| Path::new(candidate).is_file())
     }
 
     /// Loads the global config file if one exists ([`load_global`](Self::load_global)),
@@ -396,16 +426,18 @@ impl Settings {
     /// `plugins` without the rest of the settings.
     ///
     /// A command that starts a browser without needing the other settings
-    /// (`sbrs devtools`, `sbrs plugin list`, `sbrs-mcp`) uses this, so that an
-    /// invalid `SB_HEADLESS` is not its problem. The file is still read and
-    /// checked as a whole. Whether this build can run the plugins is not
+    /// (`sbrs devtools`, `sbrs plugin list`, `sbrs-mcp`) uses this, so that a
+    /// value of the file that is wrong for a browser (`headless = "maybe"`) or
+    /// an invalid `SB_HEADLESS` is not its problem: only the `[plugins]` table
+    /// is read from the file. Whether this build can run the plugins is not
     /// checked here, because the command line adds to the selection first:
     /// call [`PluginSelection::ensure_supported`] on the result, or build it.
     ///
     /// # Errors
     ///
-    /// [`SeleniumBaseError::InvalidConfig`] if the file cannot be read or
-    /// parsed.
+    /// [`SeleniumBaseError::InvalidConfig`] if the file cannot be read or is
+    /// not valid TOML (JSON for a name that does not end in `.toml`), or its
+    /// `[plugins]` table is not a plugin selection.
     pub fn load_plugin_selection<P: AsRef<Path>>(
         path: Option<P>,
     ) -> Result<PluginSelection, SeleniumBaseError> {
@@ -418,16 +450,36 @@ impl Settings {
         path: Option<P>,
         var: impl Fn(&str) -> Option<String>,
     ) -> Result<PluginSelection, SeleniumBaseError> {
-        let mut settings = match path {
-            Some(path) => Self::parse_file(path)?,
-            None => Self::parse_global()?,
-        };
+        let mut selection = Self::load_plugin_table(path)?;
         // As in `apply_overrides`: the variable names the plugins, and an
         // empty one is an answer, not an unset variable.
         if let Some(list) = var(PLUGINS_ENV) {
-            settings.plugins.set_enabled_from_list(&list);
+            selection.set_enabled_from_list(&list);
         }
-        Ok(settings.plugins)
+        Ok(selection)
+    }
+
+    /// The `[plugins]` table of the settings file `path` (the global file
+    /// when `None`, as [`load`](Self::load) finds it) and nothing else of it:
+    /// no other value of the file is checked, and `SB_PLUGINS` is not read.
+    /// A folder without a settings file selects no plugin.
+    ///
+    /// A program that applies `SB_PLUGINS` and command-line flags itself uses
+    /// this, and so can tell which plugins the file turned on.
+    ///
+    /// # Errors
+    ///
+    /// As [`load_plugin_selection`](Self::load_plugin_selection).
+    pub fn load_plugin_table<P: AsRef<Path>>(
+        path: Option<P>,
+    ) -> Result<PluginSelection, SeleniumBaseError> {
+        match path {
+            Some(path) => parse_plugins_table(path.as_ref()),
+            None => match Self::global_file() {
+                Some(candidate) => parse_plugins_table(Path::new(candidate)),
+                None => Ok(PluginSelection::new()),
+            },
+        }
     }
 
     /// [`load`](Self::load) and [`load_from`](Self::load_from) with the
@@ -998,6 +1050,47 @@ threads = 4
 
         let untouched = Settings::apply_overrides(from_file, |_| None).unwrap();
         assert_eq!(untouched.plugins.enabled(), ["shield"]);
+    }
+
+    #[test]
+    fn the_plugin_table_is_read_whatever_the_rest_of_the_file_holds() {
+        // Not a valid `Settings` file: `headless` is not a boolean, `browser` is no browser.
+        let body = "headless = \"maybe\"\nbrowser = \"nope\"\n[plugins]\nenable = [\"shield\"]\n\
+                    [plugins.shield]\nlevel = \"strict\"\n";
+        let mut toml_file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        toml_file.write_all(body.as_bytes()).unwrap();
+        assert!(
+            Settings::from_file(toml_file.path()).is_err(),
+            "the file as a whole is wrong"
+        );
+
+        let table = Settings::load_plugin_table(Some(toml_file.path())).unwrap();
+        assert_eq!(table.enabled(), ["shield"]);
+        assert_eq!(table.options_of("shield").unwrap()["level"], "strict");
+        let selection = Settings::plugin_selection_with(Some(toml_file.path()), |_| None).unwrap();
+        assert_eq!(selection, table);
+
+        let mut json_file = tempfile::NamedTempFile::with_suffix(".json").unwrap();
+        json_file
+            .write_all(br#"{"headless":"maybe","plugins":{"enable":["crx"]}}"#)
+            .unwrap();
+        let table = Settings::load_plugin_table(Some(json_file.path())).unwrap();
+        assert_eq!(table.enabled(), ["crx"]);
+
+        // A file that is not TOML at all still cannot be read.
+        let mut broken = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        broken.write_all(b"[plugins\n").unwrap();
+        let error = Settings::load_plugin_table(Some(broken.path())).unwrap_err();
+        assert!(error.to_string().contains("failed to parse"), "{error}");
+    }
+
+    #[test]
+    fn a_settings_file_without_a_plugins_table_selects_nothing() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"headless = true\n").unwrap();
+        assert!(Settings::load_plugin_table(Some(file.path()))
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
