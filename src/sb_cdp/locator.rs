@@ -267,11 +267,15 @@ impl Locator {
     }
 
     /// Waits for a match to exist, so reads fail with "not found".
+    ///
+    /// Only a timeout means "not found"; an invalid selector or a lost
+    /// connection keeps its own error.
     async fn wait_present(&self) -> Result<(), SeleniumBaseError> {
-        if self.wait_for(State::Present).await.is_ok() {
-            Ok(())
-        } else {
-            Err(SeleniumBaseError::element_not_found(self.to_string()))
+        match self.wait_for(State::Present).await {
+            Err(SeleniumBaseError::WaitTimeout(_)) => {
+                Err(SeleniumBaseError::element_not_found(self.to_string()))
+            }
+            other => other,
         }
     }
 

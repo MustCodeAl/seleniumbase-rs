@@ -8,6 +8,14 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Fixed
+
+- `sb_cdp::Locator` reads (`text`, `html`, `attribute`, `info`, `bounding_box`,
+  `viewport_rect`) reported every failure as `ElementNotFound`. Only a timeout
+  does now. An invalid CSS or XPath selector is `InvalidSelector` (for reads
+  and for actions, which used to say `CdpDriver`), and a lost connection keeps
+  its own error.
+
 ### Changed (breaking)
 
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,

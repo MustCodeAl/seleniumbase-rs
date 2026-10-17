@@ -268,6 +268,43 @@ async fn an_unknown_dropdown_option_is_a_selector_error_naming_the_option() {
 }
 
 #[tokio::test]
+async fn an_invalid_selector_is_a_selector_error_for_reads_and_for_clicks() {
+    let (page, mock) = quick_page().await;
+    mock.on("Runtime.evaluate", |_| {
+        Ok(exception(
+            "SyntaxError: Failed to execute 'querySelectorAll' on 'Document': 'div[' is not a valid selector.\n    at query",
+        ))
+    });
+    let broken = page.locator("div[");
+
+    let read = broken.text().await.unwrap_err();
+    assert!(
+        matches!(&read, SeleniumBaseError::InvalidSelector(m) if m.contains("div[")),
+        "a read said: {read}"
+    );
+    let click = broken.click().await.unwrap_err();
+    assert!(
+        matches!(&click, SeleniumBaseError::InvalidSelector(m) if m.contains("div[")),
+        "a click said: {click}"
+    );
+    assert!(mock.calls_to("Input.dispatchMouseEvent").is_empty());
+}
+
+#[tokio::test]
+async fn a_lost_connection_is_not_reported_as_a_missing_element() {
+    let (page, mock) = quick_page().await;
+    script_locator(&mock, 1, true);
+    mock.disconnect();
+
+    let error = page.locator("#name").text().await.unwrap_err();
+
+    assert!(
+        !matches!(error, SeleniumBaseError::ElementNotFound { .. }),
+        "a dead connection said: {error}"
+    );
+}
+
+#[tokio::test]
 async fn goto_normalises_a_bare_host_and_waits_for_the_load_event() {
     let (page, mock) = quick_page().await;
 

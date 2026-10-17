@@ -771,6 +771,17 @@ fn map_script_error(label: &str, description: &str) -> SeleniumBaseError {
             first_line(rest)
         ));
     }
+    if description.contains("is not a valid selector")
+        || description.contains("is not a valid XPath expression")
+        || description.contains("sbcdp:bad-selector:")
+    {
+        let reason = first_line(description);
+        return SeleniumBaseError::InvalidSelector(if label.is_empty() {
+            reason
+        } else {
+            format!("{label}: {reason}")
+        });
+    }
     SeleniumBaseError::cdp_driver(description.lines().next().unwrap_or(description))
 }
 
@@ -841,6 +852,23 @@ mod tests {
             map_script_error("select", "Error: sbcdp:no-option:text=Mars"),
             SeleniumBaseError::InvalidSelector(_)
         ));
+    }
+
+    #[test]
+    fn invalid_selectors_become_selector_errors() {
+        for description in [
+            "SyntaxError: Failed to execute 'querySelectorAll' on 'Document': 'div[' is not a valid selector.\n    at query",
+            "SyntaxError: Failed to execute 'evaluate' on 'Document': The string '//[' is not a valid XPath expression.",
+            "Error: sbcdp:bad-selector:regex",
+        ] {
+            assert!(
+                matches!(
+                    map_script_error("div[", description),
+                    SeleniumBaseError::InvalidSelector(ref m) if m.starts_with("div[: ")
+                ),
+                "{description}"
+            );
+        }
     }
 
     #[test]
