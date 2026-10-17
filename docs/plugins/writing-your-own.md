@@ -34,6 +34,62 @@ plugins, and `requirements` (run last, a visible window, a Chromium browser, a
 browser it starts itself). Errors in the launch and page hooks stop the launch or
 the tab instead of being skipped.
 
+## Declaring metadata and capabilities
+
+A plugin can say what it is and what it needs by overriding `metadata()`. The
+default is `Metadata::legacy()`, which keeps older plugins working.
+
+```rust
+use seleniumbase_rs_plugin::{
+    async_trait, Capability, Category, HostScope, Metadata, PageHandle, Plugin, Result,
+};
+
+pub struct Hello;
+
+#[async_trait]
+impl Plugin for Hello {
+    fn name(&self) -> &str {
+        "hello"
+    }
+
+    fn metadata(&self) -> Metadata {
+        Metadata::new(Category::Environment)
+            .summary("Says hello in every page")
+            .capability(Capability::PageScript(HostScope::Everywhere))
+    }
+
+    async fn on_page_created(&self, page: &dyn PageHandle) -> Result<()> {
+        page.add_init_script("console.log('hello from a plugin')").await
+    }
+}
+```
+
+`Metadata` also takes `version`, `optional` capabilities, `requires`,
+`conflicts_with`, `after`, `before`, `phase`, `seal` and `budget`. Without
+`phase`, the category sets it (`Category::default_phase`). For a pool,
+`per_launch()` can return a fresh instance for each browser.
+
+A set grants capabilities when you add a plugin:
+
+- `PluginSet::new().with(p)` grants what `p` declares, except Critical
+  capabilities.
+- `with_trusted(p, &[Capability])` also grants the Critical ones you name.
+- `with_grants(p, set)` grants exactly `set`.
+- `PluginSet::strict()` refuses plugins that declare no metadata. The command
+  line and the MCP server use strict sets.
+
+To let users enable a plugin by name with options, implement `Configurable`
+(`NAME`, `describe()`, `configure(&Value)`) and add
+`Descriptor::of::<P>()` to a `Registry`. The design is on the
+[architecture page](architecture.md).
+
+<Note>
+
+For a native Rust plugin, capabilities are a declared contract, not a sandbox.
+Only [WebAssembly](wasm.md) plugins are sandboxed.
+
+</Note>
+
 ## Write your own
 
 <Steps>

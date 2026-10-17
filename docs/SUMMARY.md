@@ -61,6 +61,7 @@ hidden: true
 - [Test Plugins](tutorials/test_plugins.md)
 - [Browser Plugins](tutorials/plugins.md)
 - [Plugins](plugins/overview.md)
+  - [Architecture](plugins/architecture.md)
   - [Writing your own plugin](plugins/writing-your-own.md)
   - [block-resources](plugins/block-resources.md)
   - [crx](plugins/crx.md)
