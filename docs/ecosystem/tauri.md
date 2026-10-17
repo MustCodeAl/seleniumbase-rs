@@ -186,6 +186,7 @@ seleniumbase-rs.
 | `SBRS_AUTOMATION` | on in debug builds, off in release; `1` turns it on, `0` off |
 | `SBRS_AUTOMATION_PORT` | `4445`; if the port is taken (a second instance, a Selenium container), the app runs without the endpoint and says so on stderr |
 | `SBRS_AUTOMATION_TOKEN` | random, printed when the app starts |
+| `SBRS_AUTOMATION_TRACE_WINDOW` | off; any value makes each window command print the window's state on stderr (Tauri's flags and, on macOS, the `NSWindow`'s style mask, frame and screen), for finding out why a resize did not stick |
 
 ## Supported commands
 
@@ -199,7 +200,7 @@ Every path starts with `/<token>`; session commands with
 | Timeouts | `GET`, `POST /timeouts` | `script`, `pageLoad`, `implicit` (finding looks again until it is over). |
 | Navigation | `POST /url`, `GET /url`, `GET /title`, `POST /back`, `/forward`, `/refresh` | Waits for the new page to load. |
 | Page source | `GET /source` | Of the current frame. |
-| Window | `GET /window`, `/window/handles`, `POST /window`, `GET`/`POST /window/rect`, `POST /window/maximize`, `/minimize`, `/fullscreen` | One window, `main`. |
+| Window | `GET /window`, `/window/handles`, `POST /window`, `GET`/`POST /window/rect`, `POST /window/maximize`, `/minimize`, `/fullscreen` | One window, `main`. A change waits (two seconds at most) until the window has it, and the answer is the window's rectangle then, which can differ from the one asked for: the system keeps a window below the menu bar and may refuse a size. |
 | Frames | `POST /frame`, `POST /frame/parent` | Same-origin frames only (see below). |
 | Find elements | `POST /element`, `/elements`, `/element/{id}/element`, `/element/{id}/elements`, `GET /element/active` | CSS, XPath, link text, partial link text, tag name. |
 | Element state | `GET /element/{id}/text`, `/name`, `/rect`, `/enabled`, `/selected`, `/displayed`, `/attribute/{name}`, `/property/{name}`, `/css/{name}` | |
