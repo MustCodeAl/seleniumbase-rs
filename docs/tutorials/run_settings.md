@@ -238,7 +238,8 @@ What `check_window` compares, and its levels 0 to 3, are in the rustdoc of
 `BaseCase::check_window`; the [API Guide](./api_reference.md) lists it. The
 reset applies to `assert_visual_match` (feature `visual`) too, which compares
 the screenshot's pixels instead of the HTML and keeps its baseline as
-`visual_baseline/<test>/<name>.png`; see
+`visual_baseline/<test>/<name>.png`, `<test>` there being the test's whole
+path (`cart.checkout.renders`); see
 [Visual regression testing](./remaining_helpers.md#visual-regression-testing-pixels).
 
 ## Limits

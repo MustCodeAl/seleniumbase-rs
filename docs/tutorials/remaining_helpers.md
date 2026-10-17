@@ -71,9 +71,12 @@ sb.check_window("home", 3.0).await?;     // the layout, as in Python
 sb.assert_visual_match("home").await?;   // the screenshot, by structural similarity
 ```
 
-The first run saves the screenshot as `visual_baseline/<test>/home.png` (the
-same `<test>` folder `check_window` uses, which keeps its own files in
-`home/`). Later runs compare with it and fail with `AssertionFailed` when the
+The first run saves the screenshot as `visual_baseline/<test>/home.png`, where
+`<test>` is the test's whole path: the test binary (the crate, or the file in
+`tests/`), the module path and the function, joined with `.`, such as
+`cart.checkout.renders`, so tests of the same name in other modules or files
+keep separate baselines. (`check_window` names its folder after the function
+alone, as Python does.) Later runs compare with it and fail with `AssertionFailed` when the
 similarity is below 0.999; the failure leaves `home.actual.png` (the new
 screenshot) and `home.diff.png` (the new screenshot in grey with what changed
 painted red) next to the baseline. A screenshot of another size fails without

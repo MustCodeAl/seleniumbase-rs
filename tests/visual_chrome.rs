@@ -122,13 +122,16 @@ async fn a_page_matches_its_baseline_and_a_rewritten_heading_does_not() {
 }
 
 /// The name of the test below: `BaseCase` keeps its baselines in a folder
-/// named after the running test.
+/// named after the running test, `check_window` by the function alone and
+/// `assert_visual_match` by its whole path, test file first.
 const BASE_CASE_TEST: &str = "assert_visual_match_sees_a_colour_change_check_window_does_not";
 
 #[tokio::test]
 #[ignore = "requires a local Chrome/chromedriver"]
 async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
-    let folder = PathBuf::from("visual_baseline").join(BASE_CASE_TEST);
+    let layout_folder = PathBuf::from("visual_baseline").join(BASE_CASE_TEST);
+    let folder = PathBuf::from("visual_baseline").join(format!("visual_chrome.{BASE_CASE_TEST}"));
+    let _ = std::fs::remove_dir_all(&layout_folder);
     let _ = std::fs::remove_dir_all(&folder);
     let config = BrowserConfig {
         headless: true,
@@ -162,6 +165,7 @@ async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
     let after_reset = sb.assert_visual_match("home").await;
     sb.quit().await.expect("quit");
     let diff_written = folder.join("home.diff.png").is_file();
+    let _ = std::fs::remove_dir_all(&layout_folder);
     let _ = std::fs::remove_dir_all(&folder);
     // The parent folder too, but only when no other test left anything in it.
     let _ = std::fs::remove_dir("visual_baseline");

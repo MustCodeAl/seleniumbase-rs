@@ -18,7 +18,9 @@ work, `docs/parity.md` the per-API status).
   a `<name>.diff.png` that paints the differences red. Screenshots of another
   size fail without a comparison. `check_page` takes a `BaseCase` or an
   `sb_cdp::Page`, and `BaseCase::assert_visual_match(name)` keeps its baselines
-  in `visual_baseline/<test>/` and follows `with_visual_baseline_reset`.
+  in `visual_baseline/<test>/`, `<test>` being the test's whole path (test
+  binary, module path and function, as `cart.checkout.renders`), and follows
+  `with_visual_baseline_reset`.
   `check_window` is unchanged: it compares the HTML layout, as in Python.
 - HAR recording for the pure CDP engine (no new dependency, no feature):
   `Page::start_har()` / `start_har_with(HarOptions)` return a `HarRecorder`,

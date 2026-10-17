@@ -1838,8 +1838,10 @@ impl BaseCase {
     ///
     /// Corresponds to Python's `check_window`. The baseline is the folder
     /// `visual_baseline/<test>/<name>` in the working directory, where the
-    /// test is the name of the running test (the thread's name under
-    /// `cargo test`). It holds `page_url.txt`, `baseline.png` and
+    /// test is the name of the running test (the last part of the thread's
+    /// name under `cargo test`, the function), as in Python: two tests of the
+    /// same name share their baselines, so give each a `name` of its own. It
+    /// holds `page_url.txt`, `baseline.png` and
     /// `tags_level_1.txt` to `tags_level_3.txt`, one entry for each tag below
     /// `<body>`: the tag names (level 1), with the sorted names of its
     /// attributes (level 2), with the attribute values (level 3).
@@ -1888,9 +1890,14 @@ impl BaseCase {
     /// Unlike [`check_window`](Self::check_window), which compares the HTML
     /// structure, this compares pixels, by structural similarity with the
     /// default threshold; see [`crate::visual`]. The baseline is
-    /// `visual_baseline/<test>/<name>.png`, `<test>` being the running test as
-    /// for `check_window`, and a mismatch leaves `<name>.actual.png` and
-    /// `<name>.diff.png` beside it.
+    /// `visual_baseline/<test>/<name>.png`, and a mismatch leaves
+    /// `<name>.actual.png` and `<name>.diff.png` beside it. `<test>` names the
+    /// running test by its whole path, from the thread `cargo test` runs it
+    /// on: the test binary (the crate or the file in `tests/`), the module
+    /// path and the function, joined with `.`, such as
+    /// `cart.checkout.renders`, so tests of the same name in other modules or
+    /// files keep separate baselines. (`check_window` names its folder after
+    /// the function alone, as Python does.)
     /// [`RunSettings::with_visual_baseline_reset`] saves new baselines instead
     /// of comparing. For another folder or threshold, use a
     /// [`VisualBaseline`](crate::visual::VisualBaseline) with
@@ -1905,10 +1912,10 @@ impl BaseCase {
     /// error otherwise.
     #[cfg(feature = "visual")]
     pub async fn assert_visual_match(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        use crate::api::run_settings::test_baseline_folder;
+        use crate::api::run_settings::visual_match_folder;
         use crate::visual::VisualBaseline;
 
-        let baselines = VisualBaseline::new(test_baseline_folder())
+        let baselines = VisualBaseline::new(visual_match_folder())
             .update_baselines(self.run_settings.reset_visual_baseline());
         // As check_window does, let the page settle before it is captured.
         let _ = self.wait_for_ready_state_complete().await;
