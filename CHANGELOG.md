@@ -141,6 +141,18 @@ migrate.
   sb.switch_to_driver(second).await?;
   ```
 
+- **`wait(seconds)` takes whole or fractional seconds, and no `u64`.** It is
+  `sleep`, as in Python, and takes `impl Into<f64>`: `wait(2)` and `wait(0.5)`
+  compile, but a `u64` variable (or a `usize`, an `i64`) no longer does.
+
+  ```rust
+  // before
+  let seconds: u64 = 3;
+  sb.wait(seconds).await;
+  // after
+  sb.wait(seconds as f64).await; // or keep the variable a u32 or an f64
+  ```
+
 - **`check_window`'s level is a `u8`**, not an `f64`: `check_window("home", 3)`
   instead of `check_window("home", 3.0)`; the same for `deferred_check_window`
   and `delayed_check_window`. A float literal stops compiling. As before, a
@@ -242,13 +254,23 @@ migrate.
   `wait_for_element_present`, as in Python, and `wait_for_element_present`
   takes `&self`. `AssertionApi::assert_element` is visible-and-waiting for the
   pure CDP `Page` too.
+- **`sb_test!` counts a skipped test as passed.** A body that ends with
+  `skip_test` used to panic with `test failed`, and now logs the reason and
+  passes, like `run_browser_test` (libtest cannot report a skip). A test that
+  relied on the panic must fail with an error instead.
+- `load_cookies` waits for the page to finish loading first, as Python's does,
+  and the domain it gives a foreign cookie is the page's host without its port
+  (a browser driver refuses a cookie domain with a port).
+- `assert_shadow_text(text, selector)`, the text waits and the deferred checks
+  changed their argument order silently (both are `&str`). Only `assert_text`
+  and `assert_exact_text` say "arguments look swapped" when they fail; search
+  your tests for the other names listed above.
 - `add_text` waits for the element to be displayed (it used to fail on an
   element that was not there yet), `send_keys` is `add_text`, and `update_text`
   is `type_text`, as in Python, where they are the same methods.
 - `wait` is `sleep`, as in Python (the two differed: `wait` took whole seconds
-  and skipped what `sleep` does). It takes whole or fractional seconds,
-  `wait(2)` or `wait(0.5)`; a `u64` variable needs a conversion (`wait(n as
-  f64)`).
+  and skipped what `sleep` does); see the breaking change above for its new
+  argument.
 - The getters and assertions that only read the page take `&self` instead of
   `&mut self`: `get_title`, `get_current_url`, `get_text`, `assert_title`,
   `assert_title_contains`, `assert_url`, `assert_url_contains`, `assert_text`,
