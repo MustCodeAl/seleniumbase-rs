@@ -2,6 +2,7 @@
 
 pub mod commands;
 pub mod devtools;
+pub mod plugin_cmd;
 pub mod prompt;
 pub mod scaffold;
 pub mod scripts;
