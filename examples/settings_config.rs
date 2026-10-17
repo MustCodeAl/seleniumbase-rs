@@ -9,7 +9,7 @@
 //! 2. `Settings::from_file(path)`, a TOML or JSON file you name.
 //! 3. `Settings::load_global()`, which looks for `sbase_config.toml`,
 //!    `.sbase_config.toml` or `.sbase_config` in the working directory.
-//! 4. `Settings::load(Some(path))`, the file plus any `SB_*` environment
+//! 4. `Settings::load_from(path)`, the file plus any `SB_*` environment
 //!    variables, which win over it.
 //! 5. `SettingsOverrides::apply`, what a command line asked for explicitly,
 //!    which wins over everything.
@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|name| name.starts_with("SB_"))
         .collect();
     println!("SB_* variables in this environment: {overridden:?}");
-    let mut settings = Settings::load(Some(&path))?;
+    let mut settings = Settings::load_from(&path)?;
     show("load (file + environment)", &settings);
 
     // 5. Explicit overrides win over the file and the environment.
@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn show(layer: &str, settings: &Settings) {
     println!(
-        "{layer}: browser={}, headless={}, timeout={}s, locale={:?}, mode={:?}",
+        "{layer}: browser={}, headless={}, timeout={:?}s, locale={:?}, mode={:?}",
         settings.browser,
         settings.headless,
         settings.timeout_seconds,

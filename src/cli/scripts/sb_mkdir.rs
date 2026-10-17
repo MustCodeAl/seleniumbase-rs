@@ -34,7 +34,7 @@ use seleniumbase_rs::{BrowserConfig, Result};
 /// It reads `sbase_config.toml` from the directory `cargo test` runs in, then
 /// lets `SB_*` environment variables (for example `SB_HEADLESS=true`) override it.
 pub fn config() -> Result<BrowserConfig> {
-    Ok(Settings::load(None::<&str>)?.to_browser_config())
+    Ok(Settings::load()?.to_browser_config())
 }
 ";
 

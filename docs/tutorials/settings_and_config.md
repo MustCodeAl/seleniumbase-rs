@@ -32,8 +32,8 @@ and a CLI flag wins over everything else.
 
 ## Global config file
 
-Create `sbase_config.toml` in your project root (or, as a flat `.sbase_config` file
-in `KEY=VALUE` format):
+Create `sbase_config.toml` in your project root (or a `.sbase_config` file in
+JSON; a flat `KEY=VALUE` file is not supported):
 
 <CodeGroup>
 
@@ -41,7 +41,6 @@ in `KEY=VALUE` format):
 browser = "chrome"
 headless = false
 timeout_seconds = 30
-screenshot_dir = "screenshots"
 window_width = 1920
 window_height = 1080
 proxy = "http://proxy.example.com:8080"
@@ -60,10 +59,8 @@ esc_end = false
 rec_sb_cdp = false
 ```
 
-```text .sbase_config
-headless=false
-locale=en-US
-timeout_seconds=10
+```json .sbase_config
+{ "headless": false, "locale": "en-US", "timeout_seconds": 10 }
 ```
 
 </CodeGroup>
@@ -79,9 +76,12 @@ use seleniumbase_rs::config::settings::Settings;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load the global config file (if present) and apply SB_* env overrides.
-    let settings = Settings::load(None::<&str>)?;
+    let settings = Settings::load()?;
 
-    // Or load from a specific file.
+    // Or load a specific file, with the SB_* overrides on top.
+    let settings = Settings::load_from("staging.toml")?;
+
+    // Or only the file, leaving the environment out.
     let settings = Settings::from_file("staging.toml")?;
 
     // Convert to BrowserConfig.
@@ -91,8 +91,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`Settings::load` accepts an optional path. When the path is `None`, the global
-config file is used and environment variables are applied on top.
+`Settings::load()` reads the global config file and `Settings::load_from(path)`
+reads the file you name; both apply the environment variables on top.
+`Settings::from_file` reads the file alone. All three refuse a `browser` or
+`mode` that is not a known name (`SB_BROWSER=chrom` is an error, not Chrome),
+and a `window_width` without a `window_height`.
 
 ## Environment variables
 
@@ -102,12 +105,14 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 |----------|---------|
 | `SB_BROWSER` | `browser` |
 | `SB_HEADLESS` | `headless` |
-| `SB_TIMEOUT` | `timeout_seconds` |
-| `SB_SCREENSHOT_DIR` | `screenshot_dir` |
+| `SB_TIMEOUT` | `timeout_seconds`: the default wait `run_browser_test` gives its `BaseCase` |
+| `SB_SCREENSHOT_DIR` | `screenshot_dir` (stored for your code; the library does not read it) |
 | `SB_PROXY` | `proxy` |
 | `SB_PROXY_PAC_URL` | `proxy_pac_url` |
-| `SB_WINDOW_WIDTH` | `window_width` |
+| `SB_WINDOW_WIDTH` | `window_width`: with `window_height`, the browser window's size |
 | `SB_WINDOW_HEIGHT` | `window_height` |
+| `SB_WEBDRIVER_URL` | `webdriver_url` (default `http://localhost:4444`) |
+| `SB_CHROME_BIN` | `chrome_bin`: the browser binary |
 | `SB_USER_DATA_DIR` | `user_data_dir` |
 | `SB_EXTENSION_DIR` | `extension_dir` |
 | `SB_LOCALE` | `locale` |

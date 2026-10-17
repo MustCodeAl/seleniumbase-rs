@@ -2041,7 +2041,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     // tests `sbrs test` runs, then apply only what the command line asked for
     // explicitly. An option left alone keeps the environment's value or, failing
     // that, the file's, and one that was passed beats both.
-    let mut settings = Settings::load(args.config.as_deref())?;
+    let mut settings = match args.config.as_deref() {
+        Some(path) => Settings::load_from(path)?,
+        None => Settings::load()?,
+    };
     let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
     let overrides = SettingsOverrides {
         browser: args
@@ -2072,9 +2075,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     };
     overrides.apply(&mut settings);
 
-    // The runtime variables the library reads for a `BrowserConfig`: the
-    // WebDriver server (unless `--webdriver` names one) and the browser binary.
-    let runtime = RuntimeConfig::from_env()?;
+    // `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` are settings too, so
+    // `to_browser_config` has them; `--webdriver` goes on top.
     let mut config = settings.to_browser_config();
     // A command that speaks the DevTools Protocol gets a session that has a
     // DevTools connection when no mode was asked for, on a Chromium browser.
@@ -2086,14 +2088,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mode = settings
         .mode
         .as_deref()
-        .map(|m| match m.to_lowercase().as_str() {
-            "uc" => DriverMode::Uc,
-            "cdp" => DriverMode::Cdp,
-            _ => DriverMode::WebDriver,
-        })
+        .and_then(|mode| mode.parse::<DriverMode>().ok())
         .unwrap_or(default_mode);
-    config.webdriver_url = args.webdriver.unwrap_or(runtime.webdriver_url);
-    config.browser_binary_path = runtime.chrome_bin;
+    if let Some(url) = args.webdriver {
+        config.webdriver_url = url;
+    }
     config.mode = mode;
     config.auto_start_driver = true;
 

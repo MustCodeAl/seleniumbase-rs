@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 
+use crate::api::run_settings::RunSettings;
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
-use crate::browser::options::{LaunchSettings, LaunchSwitch};
+use crate::browser::options::{LaunchSettings, LaunchSwitch, WindowSize};
 use crate::browser::reuse::ReuseClass;
 use crate::error::SeleniumBaseError;
 
@@ -12,12 +14,24 @@ use crate::error::SeleniumBaseError;
 pub struct Settings {
     pub browser: String,
     pub headless: bool,
-    pub timeout_seconds: u64,
+    /// The default wait, in whole seconds, of a test run by
+    /// [`run_browser_test`](crate::run_browser_test) (`SB_TIMEOUT`); see
+    /// [`RunSettings::with_default_timeout`]. `None` keeps the `BaseCase`
+    /// default of 10 seconds.
+    pub timeout_seconds: Option<u64>,
+    /// Where a person wants screenshots (`SB_SCREENSHOT_DIR`). The library
+    /// reads it nowhere: `BaseCase` saves screenshots under its logs folder, and
+    /// a program that wants this folder passes it to the call that saves one.
     pub screenshot_dir: String,
     pub proxy: Option<String>,
     pub proxy_pac_url: Option<String>,
-    pub window_width: u32,
-    pub window_height: u32,
+    /// The browser window's width in pixels (`SB_WINDOW_WIDTH`). The window
+    /// size applies when this and `window_height` are both set; unset, the
+    /// browser keeps its own default size.
+    pub window_width: Option<u32>,
+    /// The browser window's height in pixels (`SB_WINDOW_HEIGHT`); see
+    /// `window_width`.
+    pub window_height: Option<u32>,
     pub user_data_dir: Option<String>,
     pub extension_dir: Option<String>,
     pub locale: Option<String>,
@@ -44,6 +58,14 @@ pub struct Settings {
     /// WebDriver server. `None` keeps the WebDriver client's own default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_webdriver_timeout_seconds: Option<u64>,
+    /// The WebDriver server (`SB_WEBDRIVER_URL`). `None` is
+    /// `http://localhost:4444`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub webdriver_url: Option<String>,
+    /// The browser binary to run (`SB_CHROME_BIN`). `None` finds the system
+    /// one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chrome_bin: Option<PathBuf>,
 }
 
 /// The settings a command line asked for explicitly, and nothing else.
@@ -206,12 +228,12 @@ impl Default for Settings {
         Self {
             browser: "chrome".to_owned(),
             headless: false,
-            timeout_seconds: 30,
+            timeout_seconds: None,
             screenshot_dir: "screenshots".to_owned(),
             proxy: None,
             proxy_pac_url: None,
-            window_width: 1920,
-            window_height: 1080,
+            window_width: None,
+            window_height: None,
             user_data_dir: None,
             extension_dir: None,
             locale: None,
@@ -225,6 +247,8 @@ impl Default for Settings {
             esc_end: false,
             rec_sb_cdp: false,
             remote_webdriver_timeout_seconds: None,
+            webdriver_url: None,
+            chrome_bin: None,
         }
     }
 }
@@ -239,17 +263,57 @@ impl Settings {
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
         })?;
-        if path.extension().is_some_and(|ext| ext == "toml") {
+        let settings: Self = if path.extension().is_some_and(|ext| ext == "toml") {
             toml::from_str(&content).map_err(|e| {
                 SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
-            })
+            })?
         } else {
             serde_json::from_str(&content).map_err(|e| {
                 SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
-            })
-        }
+            })?
+        };
+        settings.validate()?;
+        Ok(settings)
     }
 
+    /// Checks the values that name something: the browser, the driver mode and
+    /// the window size.
+    ///
+    /// [`from_file`](Self::from_file), [`load`](Self::load) and
+    /// [`from_env`](Self::from_env) call it, so a misspelt `browser` or `mode`
+    /// is an error there instead of a silent Chrome in WebDriver mode. Call it
+    /// yourself on a `Settings` built by hand, before
+    /// [`to_browser_config`](Self::to_browser_config).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for an unknown browser or
+    /// mode, and for a window width without a height (or the other way round)
+    /// or one of zero pixels.
+    pub fn validate(&self) -> Result<(), SeleniumBaseError> {
+        self.browser
+            .parse::<Browser>()
+            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("browser: {e}")))?;
+        if let Some(mode) = &self.mode {
+            mode.parse::<DriverMode>()
+                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("mode: {e}")))?;
+        }
+        match (self.window_width, self.window_height) {
+            (None, None) => {}
+            (Some(width), Some(height)) if width > 0 && height > 0 => {}
+            other => {
+                return Err(SeleniumBaseError::InvalidConfig(format!(
+                    "window_width and window_height must both be set, and above zero: {other:?}"
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    #[deprecated(
+        since = "0.5.0",
+        note = "use Settings::from_file, which reads TOML for a .toml name and JSON otherwise"
+    )]
     pub fn from_toml<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read TOML settings: {e}"))
@@ -277,33 +341,54 @@ impl Settings {
         Ok(Self::default())
     }
 
-    pub fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, SeleniumBaseError> {
-        let settings = match path {
-            Some(p) => Self::from_file(p)?,
-            None => Self::load_global()?,
-        };
-        Self::apply_env_overrides(settings)
+    /// Loads the global config file if one exists ([`load_global`](Self::load_global)),
+    /// then applies the `SB_*` environment variables on top.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if the file cannot be read
+    /// or parsed, or a variable or the result is not valid.
+    pub fn load() -> Result<Self, SeleniumBaseError> {
+        Self::apply_env_overrides(Self::load_global()?)
+    }
+
+    /// Loads the settings file `path` (TOML for a `.toml` name, JSON
+    /// otherwise), then applies the `SB_*` environment variables on top.
+    /// [`from_file`](Self::from_file) alone does not read the environment.
+    ///
+    /// # Errors
+    ///
+    /// As [`load`](Self::load).
+    pub fn load_from<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
+        Self::apply_env_overrides(Self::from_file(path)?)
     }
 
     /// Converts these settings into a `BrowserConfig` used by `BaseCase`.
+    ///
+    /// Settings that came from a file or the environment are checked already.
+    /// For one built by hand, call [`validate`](Self::validate) first: an
+    /// unknown browser or mode becomes Chrome or WebDriver here.
     pub fn to_browser_config(&self) -> BrowserConfig {
-        // Every browser Python SeleniumBase names; an unknown name means Chrome.
         let browser = self.browser.parse::<Browser>().unwrap_or_default();
         let mode = self
             .mode
             .as_deref()
-            .map(|m| match m.to_lowercase().as_str() {
-                "cdp" => DriverMode::Cdp,
-                "uc" => DriverMode::Uc,
-                _ => DriverMode::WebDriver,
-            })
-            .unwrap_or(DriverMode::WebDriver);
+            .and_then(|mode| mode.parse::<DriverMode>().ok())
+            .unwrap_or_default();
         let mut launch = LaunchSettings::default();
+        if let (Some(width), Some(height)) = (self.window_width, self.window_height) {
+            launch.window_size = Some(WindowSize::new(width, height));
+        }
+        if let Some(seconds) = self.timeout_seconds {
+            launch.run = RunSettings::default().with_default_timeout(Duration::from_secs(seconds));
+        }
         launch.set(LaunchSwitch::EscEnd, self.esc_end);
         launch.set(LaunchSwitch::RecSbCdp, self.rec_sb_cdp);
         launch.reuse_class = self.reuse_class_session.then_some(ReuseClass::TestModule);
         BrowserConfig {
-            webdriver_url: "http://localhost:4444".to_owned(),
+            webdriver_url: self.webdriver_url.clone().unwrap_or_else(|| {
+                crate::config::RuntimeConfig::default().webdriver_url
+            }),
             browser,
             headless: self.headless,
             mode,
@@ -321,7 +406,7 @@ impl Settings {
             start_page: None,
             extra_args: Vec::new(),
             fingerprint: None,
-            browser_binary_path: None,
+            browser_binary_path: self.chrome_bin.clone(),
             remote_webdriver_timeout_seconds: self.remote_webdriver_timeout_seconds,
             launch,
         }
@@ -346,9 +431,16 @@ impl Settings {
             settings.headless = parse_bool(&v)?;
         }
         if let Some(v) = var("SB_TIMEOUT") {
-            settings.timeout_seconds = v
-                .parse()
-                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_TIMEOUT: {e}")))?;
+            settings.timeout_seconds = Some(
+                v.parse()
+                    .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_TIMEOUT: {e}")))?,
+            );
+        }
+        if let Some(v) = var("SB_WEBDRIVER_URL") {
+            settings.webdriver_url = Some(v);
+        }
+        if let Some(v) = var("SB_CHROME_BIN") {
+            settings.chrome_bin = Some(PathBuf::from(v));
         }
         if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
             settings.remote_webdriver_timeout_seconds = Some(v.parse().map_err(|e| {
@@ -362,14 +454,18 @@ impl Settings {
             settings.proxy = Some(v);
         }
         if let Some(v) = var("SB_WINDOW_WIDTH") {
-            settings.window_width = v
-                .parse()
-                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_WIDTH: {e}")))?;
+            settings.window_width = Some(
+                v.parse().map_err(|e| {
+                    SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_WIDTH: {e}"))
+                })?,
+            );
         }
         if let Some(v) = var("SB_WINDOW_HEIGHT") {
-            settings.window_height = v
-                .parse()
-                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_HEIGHT: {e}")))?;
+            settings.window_height = Some(
+                v.parse().map_err(|e| {
+                    SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_HEIGHT: {e}"))
+                })?,
+            );
         }
         if let Some(v) = var("SB_USER_DATA_DIR") {
             settings.user_data_dir = Some(v);
@@ -413,6 +509,7 @@ impl Settings {
         if let Some(v) = var("SB_REC_SB_CDP") {
             settings.rec_sb_cdp = parse_bool(&v)?;
         }
+        settings.validate()?;
         Ok(settings)
     }
 }
@@ -437,11 +534,81 @@ mod tests {
         let s = Settings::default();
         assert_eq!(s.browser, "chrome");
         assert!(!s.headless);
-        assert_eq!(s.timeout_seconds, 30);
+        assert_eq!(s.timeout_seconds, None);
         assert_eq!(s.screenshot_dir, "screenshots");
-        assert_eq!(s.window_width, 1920);
-        assert_eq!(s.window_height, 1080);
+        assert_eq!((s.window_width, s.window_height), (None, None));
         assert!(s.proxy.is_none());
+    }
+
+    fn with_vars(
+        pairs: &'static [(&'static str, &'static str)],
+    ) -> Result<Settings, SeleniumBaseError> {
+        Settings::apply_overrides(Settings::default(), |name| {
+            pairs
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_owned())
+        })
+    }
+
+    #[test]
+    fn the_webdriver_url_and_the_browser_binary_reach_the_browser_config() {
+        let defaults = Settings::default().to_browser_config();
+        assert_eq!(defaults.webdriver_url, "http://localhost:4444");
+        assert_eq!(defaults.browser_binary_path, None);
+
+        let config = with_vars(&[
+            ("SB_WEBDRIVER_URL", "http://grid.test:4444"),
+            ("SB_CHROME_BIN", "/opt/chrome/chrome"),
+        ])
+        .unwrap()
+        .to_browser_config();
+        assert_eq!(config.webdriver_url, "http://grid.test:4444");
+        assert_eq!(
+            config.browser_binary_path,
+            Some(PathBuf::from("/opt/chrome/chrome"))
+        );
+    }
+
+    #[test]
+    fn the_window_size_reaches_the_launch_settings_when_both_sides_are_set() {
+        assert_eq!(Settings::default().to_browser_config().launch.window_size, None);
+        let config = with_vars(&[("SB_WINDOW_WIDTH", "1280"), ("SB_WINDOW_HEIGHT", "720")])
+            .unwrap()
+            .to_browser_config();
+        assert_eq!(config.launch.window_size, Some(WindowSize::new(1280, 720)));
+    }
+
+    #[test]
+    fn a_lone_or_empty_window_dimension_is_an_error() {
+        assert!(with_vars(&[("SB_WINDOW_WIDTH", "1280")]).is_err());
+        assert!(with_vars(&[("SB_WINDOW_WIDTH", "0"), ("SB_WINDOW_HEIGHT", "720")]).is_err());
+    }
+
+    #[test]
+    fn the_timeout_reaches_the_run_settings() {
+        assert_eq!(
+            Settings::default().to_browser_config().run_settings().default_timeout(),
+            None
+        );
+        let config = with_vars(&[("SB_TIMEOUT", "5")]).unwrap().to_browser_config();
+        assert_eq!(
+            config.run_settings().default_timeout(),
+            Some(Duration::from_secs(5))
+        );
+    }
+
+    #[test]
+    fn an_unknown_browser_or_mode_is_an_error_not_chrome() {
+        let browser = with_vars(&[("SB_BROWSER", "chrom")]).unwrap_err();
+        assert!(browser.to_string().contains("chrom"), "{browser}");
+        let mode = with_vars(&[("SB_MODE", "stealth")]).unwrap_err();
+        assert!(mode.to_string().contains("stealth"), "{mode}");
+        assert!(with_vars(&[("SB_BROWSER", "Firefox"), ("SB_MODE", "UC")]).is_ok());
+
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"browser = \"chrom\"\n").unwrap();
+        assert!(Settings::from_file(file.path()).is_err());
     }
 
     #[test]
@@ -488,11 +655,11 @@ mod tests {
         let s = Settings::from_file(tmp.path()).unwrap();
         assert_eq!(s.browser, "firefox");
         assert!(s.headless);
-        assert_eq!(s.timeout_seconds, 60);
+        assert_eq!(s.timeout_seconds, Some(60));
         assert_eq!(s.screenshot_dir, "shots");
         assert_eq!(s.proxy, Some("http://proxy:8080".to_string()));
-        assert_eq!(s.window_width, 1280);
-        assert_eq!(s.window_height, 720);
+        assert_eq!(s.window_width, Some(1280));
+        assert_eq!(s.window_height, Some(720));
     }
 
     #[test]

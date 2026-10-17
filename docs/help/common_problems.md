@@ -430,14 +430,15 @@ Where a variable is read depends on how you build the configuration:
 - `BrowserConfig::default()` reads **no** variables. `BrowserConfig::from_env()`
   reads the runtime ones (`SB_WEBDRIVER_URL`, `SB_CHROME_BIN`,
   `SB_REMOTE_WEBDRIVER_TIMEOUT`, and so on).
-- `Settings::load()` and `Settings::from_env()` read the settings ones
+- `Settings::load()`, `Settings::load_from(path)` and `Settings::from_env()`
+  read the settings ones, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` among them
   (`SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`, and the rest of the list in
   [Customizing Test Runs](./customizing_test_runs.md)). `sbrs test` passes the
   flags you give it to the tests as such variables.
-- The `sbrs` binary reads both kinds. Its browser commands (`open`, `smoke`,
-  and the rest) start from the config file (`--config FILE`, else the global
-  one), apply the settings variables on top, and then its own flags, which win.
-  The WebDriver URL is `--webdriver`, else `SB_WEBDRIVER_URL`, else
+- The `sbrs` binary reads the settings ones. Its browser commands (`open`,
+  `smoke`, and the rest) start from the config file (`--config FILE`, else the
+  global one), apply the settings variables on top, and then its own flags,
+  which win. The WebDriver URL is `--webdriver`, else `SB_WEBDRIVER_URL`, else
   `http://localhost:4444`; the browser binary is `SB_CHROME_BIN`.
 
 See [Customizing Test Runs](./customizing_test_runs.md) for the full list.

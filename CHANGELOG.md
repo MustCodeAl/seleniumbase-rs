@@ -19,8 +19,26 @@ work, `docs/parity.md` the per-API status).
   change: a run with demo or slow mode and `--fast` now pauses; drop the
   `with_fast_mode(true)` call to keep the old effect of "no pauses" by turning
   the mode off instead.
+- `Settings::to_browser_config` honours `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`
+  (the new fields `Settings::webdriver_url` and `chrome_bin`). Before, they
+  reached only `BrowserConfig::from_env` and `sbrs`, which patched them in by
+  hand, so the `sbrs mkdir` test helper ignored them. `SB_WINDOW_WIDTH` and
+  `SB_WINDOW_HEIGHT` now size the browser window (when both are set).
+- An unknown browser or driver mode is an error. `SB_BROWSER=chrom` or
+  `mode = "stealth"` used to give Chrome in WebDriver mode without a word;
+  `Settings::from_file`, `load`, `load_from` and `from_env` now call the new
+  `Settings::validate`, which also refuses a window width without a height.
 
 ### Added
+
+- `BrowserConfig::with_run_settings(RunSettings)` (and `run_settings()`) sets
+  the demo, slow, message and timeout settings a test starts with, as Python's
+  `SB(demo=, slow=, demo_sleep=, message_duration=)` does. They stay out of
+  configuration files and of the key that decides which tests share a browser.
+  `RunSettings::with_default_timeout` is new and `Settings::timeout_seconds`
+  feeds it.
+- `Settings::load_from(path)` and `Settings::validate`; `DriverMode` implements
+  `FromStr` and `Display` (`webdriver`, `cdp`, `uc`) and has `name()`.
 
 - `RunSettings::pause_for(PauseKind)` names what `pause(tiny: bool)` took as a
   flag: `PauseKind::Full` after an action that changed the page, `Short` (1/3.4
@@ -34,6 +52,17 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed (breaking)
 
+- `Settings::load(path: Option<P>)` is split in two, so nobody writes
+  `Settings::load(None::<&str>)`. Migration: `Settings::load(None::<&str>)?`
+  becomes `Settings::load()?`, and `Settings::load(Some(path))?` becomes
+  `Settings::load_from(path)?`. `Settings::from_toml` is deprecated; use
+  `from_file`, which reads TOML for a `.toml` name.
+- `Settings::timeout_seconds`, `window_width` and `window_height` are `Option`s
+  that default to `None`. The old defaults (30 s, 1920, 1080) were read by
+  nothing. Migration: `settings.timeout_seconds` is `settings.timeout_seconds
+  .unwrap_or(10)` where you used the number; assign `Some(..)` where you set it.
+  `screenshot_dir` is documented as stored for your code: the library never read
+  it.
 - PDF text extraction is the opt-in feature `pdf`. `pdf-extract` (lopdf, fonts,
   ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
   `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF

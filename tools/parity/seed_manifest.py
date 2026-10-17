@@ -318,7 +318,7 @@ OPTION_GROUPS = [
     ),
     (
         ("settings_file", "settings"), "composed", "Settings::from_file",
-        "`sbase --config FILE` or Settings::load(Some(path)) read a TOML or JSON file; the keys are the Settings fields.",
+        "`sbase --config FILE` or Settings::load_from(path) read a TOML or JSON file; the keys are the Settings fields.",
     ),
     (
         ("with_screen_shots",), "composed", "ScreenshotOnFailurePlugin::new",
