@@ -1519,7 +1519,10 @@ mod fingerprint_tests {
                 &crate::stealth::providers::EvasionContext::new(&fingerprint)
             )
         );
-        assert!(!script.contains("mimeTypes"), "a spoof Chrome does not need");
+        assert!(
+            !script.contains("mimeTypes"),
+            "a spoof Chrome does not need"
+        );
     }
 
     #[test]
