@@ -191,7 +191,7 @@ State these plainly to yourself before you build on any of this.
 ---
 
 Verified against commit `4184e74` and the re-exports added after it, by reading
-`crates/codec/src/**`, `crates/scrape/src/**`, `crates/impersonate/src/**`, `examples/capture_*.rs`,
+`crates/codec/src/**`, `crates/scrape/src/**`, `crates/mimic/src/**`, `crates/scrape/examples/capture_*.rs`, `crates/mimic/examples/capture_h2.rs`,
 `crates/codec/src/measured/chrome-155-macos.json` and the tests that pin the behaviour
 described here. The code samples were checked against the signatures in those
 files; they were not compiled or run for this check. The real-Chrome tests named

@@ -42,8 +42,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+<Info>
+
 `DriverMode::Cdp` still uses WebDriver for the session lifecycle but activates
 CDP domains so you can call raw CDP commands and use CDP-based helpers.
+
+</Info>
 
 ## Activating CDP domains
 
@@ -53,8 +57,12 @@ Before sending raw CDP commands, activate CDP mode on the session:
 sb.activate_cdp_mode().await?;
 ```
 
+<Tip>
+
 This is done automatically by helpers that need CDP, but explicit activation is
 useful when you send raw commands directly.
+
+</Tip>
 
 ## CDP helpers on BaseCase
 
@@ -81,7 +89,13 @@ useful when you send raw commands directly.
 `cdp_type` sends one key event per character, which is what pages watching for
 genuine keyboard input expect. `cdp_fast_type` clears the field and inserts the
 whole string in a single operation: much quicker, but it emits no per-character
-key events, so it is the wrong choice when you are trying not to stand out.
+key events.
+
+<Warning>
+
+`cdp_fast_type` is the wrong choice when you are trying not to stand out.
+
+</Warning>
 
 ```rust,no_run
 # use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
@@ -188,10 +202,14 @@ sb.clear_browser_cookies().await?;
 
 Use CDP mode when:
 
+<Check>
+
 - A page detects and blocks normal WebDriver commands.
 - You need to set custom request headers or throttle the network.
 - You want lower-level control over input events and JavaScript evaluation.
 - You are building custom anti-detection tooling that needs raw protocol access.
+
+</Check>
 
 ## Troubleshooting
 

@@ -4,6 +4,9 @@
   "colors": {
     "primary": "#CE422B"
   },
+  "feedback": {
+    "thumbsRating": true
+  },
   "navigation": {
     "groups": [
       {
@@ -20,6 +23,7 @@
             ]
           },
           "faq",
+          "changelog",
           {
             "group": "Why Rust?",
             "pages": [
@@ -31,7 +35,13 @@
               "benchmarks"
             ]
           },
-          "rust-test-tooling",
+          {
+            "group": "Writing Browser Tests",
+            "pages": [
+              "rust-test-tooling",
+              "tutorials/captcha_testing"
+            ]
+          },
           {
             "group": "Migrate Python Tests",
             "pages": [
@@ -106,6 +116,7 @@
             "group": "Plugins",
             "pages": [
               "plugins/overview",
+              "plugins/architecture",
               "plugins/writing-your-own",
               "plugins/block-resources",
               "plugins/crx",
@@ -155,7 +166,8 @@
               "adr/004-plugin-framework"
             ]
           },
-          "CONTRIBUTING"
+          "CONTRIBUTING",
+          "feature-requests"
         ]
       }
     ]

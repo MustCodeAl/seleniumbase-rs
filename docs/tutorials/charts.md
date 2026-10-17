@@ -98,7 +98,12 @@ label, and a label it lacks is drawn as `0`.
 `save_chart` (and `Chart::save`) writes one HTML file that draws the chart with
 [Chart.js](https://www.chartjs.org/). The file embeds the data but loads the
 Chart.js library from `cdn.jsdelivr.net`, so opening it needs internet access.
+
+<Info>
+
 Open it in any browser or attach it to test reports.
+
+</Info>
 
 Related methods on `BaseCase`:
 

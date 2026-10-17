@@ -14,9 +14,11 @@ guide shows how to migrate those tests into Rust code.
 - How to replay parsed commands with `BaseCase`.
 - Which commands map directly and which need manual translation.
 
-## Parse an IDE HTML file
+## Parse an IDE HTML file or string
 
-```rust
+<CodeGroup>
+
+```rust From a file
 use seleniumbase_rs::utilities::selenium_ide::parse_ide_file;
 
 let commands = parse_ide_file("tests/login.html")?;
@@ -25,9 +27,7 @@ for cmd in &commands {
 }
 ```
 
-## Parse an HTML string
-
-```rust
+```rust From a string
 use seleniumbase_rs::utilities::selenium_ide::parse_ide_html;
 
 let html = r#"<table>
@@ -38,6 +38,8 @@ let html = r#"<table>
 
 let commands = parse_ide_html(html)?;
 ```
+
+</CodeGroup>
 
 ## Replay commands with BaseCase
 
@@ -92,9 +94,13 @@ exposes `command`, `target`, and `value` as `String` fields.
 
 ## Limitations
 
+<Warning>
+
 - This parser targets the legacy Selenium IDE HTML format, not the modern
   `.side` JSON format.
 - Flow-control commands (`if`, `while`, `storeEval`) are not interpreted;
   map them to Rust control flow manually.
 - Variables and stored values are not automatically carried over; use Rust
   variables or the `store_*` helpers if available.
+
+</Warning>

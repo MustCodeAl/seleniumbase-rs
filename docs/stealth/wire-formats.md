@@ -41,12 +41,18 @@ assert!(matches!(windows, Err(EmulationError::NotMeasured { .. })));
 `EmulationError`. The TLS and HTTP/2 refusals live in two other enums with the
 same name, `codec::tls_spec::SpecError` and `codec::h2_spec::SpecError`.
 
+<Note>
+
 Why an unmeasured system is refused rather than approximated: a made-up persona
 is worse than no persona. A TLS stack that claims to be Chrome on Windows with
 values copied from Chrome on macOS is a contradiction a detector can see, and
 the crate has no way to know which of the two differ. Windows, Linux, Android,
 iOS and Safari stay refused until someone runs the capture tools on that system
-and commits the result. The same rule shows up higher up:
+and commits the result.
+
+</Note>
+
+The same rule shows up higher up:
 
 - `ImpersonationProfile::for_system(BrowserKind::Chrome, OsType::Windows)` and
   `ImpersonationProfile::from_fingerprint` of a Windows `Fingerprint` return
@@ -127,7 +133,7 @@ from that list.
 
 <Step title="Run the wire tests">
 
-Run the wire tests, including `crates/impersonate/tests/impersonate_wire.rs`. They compare what
+Run the wire tests, including `crates/mimic/tests/impersonate_wire.rs`. They compare what
 our client sends with the measured file and fail, by name, when a known gap
 closes or a new difference appears.
 
@@ -178,9 +184,13 @@ assert_eq!(ja3.version, 771);
 # }
 ```
 
+<Tip>
+
 Chrome shuffles its TLS extensions on every connection, so its JA3 changes from
 one connection to the next by design. JA4 sorts them first and stays stable.
 Compare JA4 when you compare a browser with a client.
+
+</Tip>
 
 The spec types sit on top of the parsers. A `TlsSpec`
 (`TlsSpec::from_client_hello`) is the whole TLS profile as plain data, and an
@@ -276,7 +286,7 @@ client exists.
 
 BoringSSL and wreq cannot emit everything a browser can. Anything they cannot
 reproduce is refused with a named error before a client exists, and
-`crates/impersonate/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
+`crates/mimic/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
 given. The errors are variants of `ImpersonateError`: `Tls(..)` wraps
 `codec::tls_spec::SpecError`, `Http2(..)` wraps `codec::h2_spec::SpecError`,
 `Convert(..)` wraps the rules that belong to the client stack itself. A string that

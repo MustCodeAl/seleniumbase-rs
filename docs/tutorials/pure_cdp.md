@@ -15,6 +15,8 @@ It is the engine behind the `cdp` MCP server.
 - Fill forms, click, and press keys with trusted input
 - Wait and assert with retrying expectations
 - Work with frames, cookies, storage and tabs
+- Add scripts and styles to a page, and a script to every document it loads
+- Record a tab's network traffic as a HAR file
 - Keep WebRTC from revealing the machine's addresses
 - Test code that drives pages without launching Chrome
 
@@ -38,10 +40,14 @@ browser.close().await?;
 # }
 ```
 
+<Note>
+
 `LaunchOptions::builder()` validates when you call `build()`: combining
 `incognito` with `guest`, or `use_chromium` with an explicit
 `executable_path`, is an error before anything launches. A `Proxy` with
 credentials never shows its password in `Debug`, `Display` or the command line.
+
+</Note>
 
 ## Locators
 
@@ -103,8 +109,13 @@ page.locator("#payment").locator("button.pay").click().await?;
 # }
 ```
 
-Same-origin frames nest to any depth and clicks land at the right pixel. A
-cross-origin frame cannot be entered from page script, so it matches nothing.
+Same-origin frames nest to any depth and clicks land at the right pixel.
+
+<Warning>
+
+A cross-origin frame cannot be entered from page script, so it matches nothing.
+
+</Warning>
 
 ## Cookies, storage, tabs
 
@@ -190,9 +201,15 @@ differ. It is slower than `locator.click()` by design. `Behavior::builder()
 
 `page.post_message`, `page.set_messenger_theme` and `page.activate_messenger`
 show a short message in a corner of the page, the way Python SeleniumBase's CDP
-Mode does with the Messenger library. The library and jQuery load from public
-CDNs, so the page needs network access; `post_message` loads them itself when
-they are missing, and a navigation drops them with the page.
+Mode does with the Messenger library.
+
+<Info>
+
+The library and jQuery load from public CDNs, so the page needs network access;
+`post_message` loads them itself when they are missing, and a navigation drops
+them with the page.
+
+</Info>
 
 ```rust,no_run
 use std::time::Duration;
@@ -222,6 +239,43 @@ page.post_message(
 The message is escaped before it is posted, so `<b>` appears as typed rather
 than as bold text. With `pause` left on (the default) the call returns after the
 message's duration, so the next step does not start until it is gone.
+
+## Scripts and styles in the page
+
+`page.add_script_tag` and `page.add_style_tag` add a `<script>` tag or a
+stylesheet to the current document, from a file (`TagSource::url`) or from the
+code itself (`TagSource::content`). For a file they wait until the browser has
+loaded it, up to the page's timeout, and a file that does not load is an error;
+inline script code that throws is an error too. `page.add_init_script` runs a
+script in every document the tab loads from now on, in every frame, before the
+page's own scripts, and returns an identifier for `page.remove_init_script`.
+They are Playwright's `addScriptTag`, `addStyleTag` and `addInitScript`; on
+`BaseCase` the counterparts are `add_js_link`, `add_css_link` and `add_js_code`.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{Page, TagSource};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+page.add_script_tag(TagSource::url(
+    "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js",
+))
+.await?;
+page.add_style_tag(TagSource::content("header { display: none; }"))
+    .await?;
+
+let id = page.add_init_script("window.startedAt = Date.now();").await?;
+page.goto("https://example.com").await?; // runs before the page's scripts
+page.remove_init_script(&id).await?; // the next documents do without it
+# Ok(())
+# }
+```
+
+A tag reaches only the current document, and a navigation drops it.
+`add_init_script` leaves the document already loaded alone, as Playwright
+does; run the script there with `page.evaluate` if it needs it too. The page's
+Content Security Policy still applies: it can refuse a file's host, which is an
+error, or forbid inline scripts, which stops `TagSource::content` code without
+one. What you pass reaches the page as a string, never spliced into code.
 
 ## Intercepting requests
 
@@ -256,9 +310,73 @@ an HTTP method, and a resource type; conditions combine with "and". `modify`
 rules can set or remove headers, change the URL or method, and replace the body.
 `interception.log()` lists the requests seen and how each was answered.
 
+<Note>
+
 `stealth::reactor::CdpReactor` is the older, browser-wide alternative: it adds
 headers to every request from every tab. Prefer `page.intercept` unless you
 want exactly that.
+
+</Note>
+
+## Recording a HAR
+
+`page.start_har()` records everything the tab and its iframes request from
+then on;
+`finish()` stops and returns a `Har` (HTTP Archive 1.2), and `save` writes it
+as a `.har` file that Chrome's and Firefox's developer tools, HAR viewers and
+mitmproxy open.
+
+```rust,no_run
+use seleniumbase_rs::sb_cdp::{HarOptions, Page};
+
+# async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+let recorder = page.start_har().await?;
+page.goto("https://example.com").await?;
+let har = recorder.finish().await?;
+
+for entry in &har.log.entries {
+    println!("{} {} {} ms", entry.response.status, entry.request.url, entry.time);
+}
+har.save("example.har")?;
+
+// With response bodies, each up to 256 KiB (the default limit is 1 MiB).
+let recorder = page
+    .start_har_with(HarOptions::new().content(true).max_content_bytes(256 * 1024))
+    .await?;
+# let _ = recorder;
+# Ok(())
+# }
+```
+
+Start the recorder before the navigation you want to see: only what happens
+after `start_har` returns is recorded, and only for that tab. Each request is
+an entry with its headers as they were sent (cookies included), query string,
+POST body, status, response headers and cookies, server address and timings
+(`blocked`, `dns`, `connect`, `ssl`, `send`, `wait`, `receive`, -1 for a phase
+that did not happen). A redirect is one entry per hop; a failed request has
+status 0 and the browser's error in `_error`, as in Chrome's own export; each
+top-level navigation adds a page with its `onContentLoad` and `onLoad` times.
+Bodies are off by default; with `content(true)` a body is fetched when it
+finishes loading, binary ones as base64, and one over the limit is left out
+with a `comment` saying so. The limit goes up to 64 MiB (`MAX_CONTENT_BYTES`),
+because each body comes back whole in one DevTools message. `Har` and its
+parts are serde types, so a saved HAR reads back with
+`serde_json::from_str::<Har>`.
+
+A cross-site iframe (an ad, a video player, a captcha) runs in a target of its
+own, which reports its requests on its own session. The recorder attaches to
+each one as it appears (`Target.setAutoAttach`), holds it until its requests
+are reported, and records them with the tab's; iframes inside it too. Requests
+of service workers, and of other workers that run as targets of their own, are
+not recorded. If the recorder falls so far behind the browser that it misses
+events, `log.comment` says so.
+
+Recording enables the tab's `Network` domain and leaves it on, since other
+features may rely on it. It attaches to the iframes only while it runs: finishing
+or dropping the recorder detaches them, so run one recording per tab at a time.
+A HAR records cookies and, with bodies, whatever the pages returned, so treat
+the file like the session it came from. `tests/sb_cdp_har_chrome.rs` records a
+visit to a local server, and a page with a cross-site iframe, in a real Chrome.
 
 ## Isolated contexts
 
@@ -457,8 +575,17 @@ that could leave the logs directory.
 
 `page.solve_captcha()` attempts a Cloudflare Turnstile, reCAPTCHA, hCaptcha,
 Friendly Captcha or DataDome widget with trusted mouse events and returns which
-one it tried. The widgets live in cross-origin frames, so success is up to the
-site: check the page afterwards.
+one it tried.
+
+<Note>
+
+The widgets live in cross-origin frames, so success is up to the site: check the
+page afterwards.
+
+</Note>
+
+To test your own pages with the vendors' test keys, see
+[Testing Pages with a CAPTCHA](captcha_testing.md).
 
 Some challenge frames refuse events that did not come from the operating
 system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt
@@ -485,15 +612,22 @@ the mouse for about a second. The click goes to whatever window is on top at
 that point. A headless browser and a minimised window are refused, as is a
 point outside the main display. The position is exact for a window at 100
 percent zoom on an unscaled display; a page zoom or a docked browser panel
-shifts it. It is covered by unit tests and a mocked browser, and has not been
-tried on a live CAPTCHA.
+shifts it.
+
+<Warning>
+
+It is covered by unit tests and a mocked browser, and has not been tried on a
+live CAPTCHA.
+
+</Warning>
 
 ## Plugins
 
 With the `plugins` feature, `LaunchOptionsBuilder::plugins` takes a set of
 browser plugins: crates whose hooks run before the browser starts, once it runs,
 for every tab and at close, to block resources, add scripts, set preferences or
-load extensions. See [Browser Plugins](plugins.md).
+load extensions. See [Browser Plugins](plugins.md). A `Page` is also the plugin
+API's `PageHandle`, so code written for plugins can be given one of your tabs.
 
 ## Testing without Chrome
 
@@ -511,7 +645,11 @@ assert!(!mock.calls_to("Runtime.evaluate").is_empty());
 
 ## Coming from Python
 
+<Tip>
+
 `sb.cdp.click(sel)` is `page.locator(sel).click()`; `sb.cdp.assert_text(...)` is
 `locator.expect().to_contain_text(...)`; `sb.cdp.get_text` is `locator.text()`.
 The full mapping of every `sb.cdp` method is in the
 [API parity table](../parity.md).
+
+</Tip>

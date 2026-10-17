@@ -8,13 +8,16 @@ use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate, Shell};
 use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
+#[cfg(feature = "pdf")]
+use seleniumbase_rs::cli::commands::looks_like_pdf;
 use seleniumbase_rs::cli::commands::{
     blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
-    looks_like_pdf, parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
+    parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
 };
 use seleniumbase_rs::cli::devtools::{
     ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
 };
+use seleniumbase_rs::cli::prompt;
 use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
 use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
 use seleniumbase_rs::cli::scripts::sb_mkfile::TestFile;
@@ -91,6 +94,37 @@ impl From<GridActionArg> for sb_grid::GridAction {
             GridActionArg::Status => Self::Status,
         }
     }
+}
+
+/// The options of `sbrs prompt`.
+///
+/// A struct of their own, not fields of the `Prompt` variant: clap builds each
+/// struct's arguments in a function of its own, which keeps the one that builds
+/// every subcommand small enough for a test thread's stack in a debug build.
+#[derive(clap::Args, Debug)]
+struct PromptArgs {
+    #[arg(
+        long,
+        value_name = "TEMPLATE",
+        default_value = prompt::DEFAULT_FORMAT,
+        help = "The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces"
+    )]
+    format: prompt::PromptFormat,
+    #[arg(long, help = "Mark the driver with + - ? instead of ✓ ✗ ?")]
+    ascii: bool,
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Browser to report on (default: SB_CHROME_BIN, else the installed Chrome or Chromium)"
+    )]
+    browser_path: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Run --version again instead of using the versions cached in the user cache folder"
+    )]
+    no_cache: bool,
+    #[arg(long, help = "Explain on standard error what was found and how")]
+    verbose: bool,
 }
 
 /// The options `grid-hub` and `grid-node` share.
@@ -542,6 +576,18 @@ enum Commands {
     },
     /// Run a diagnostic check on the environment and configuration.
     Doctor,
+    /// Print one short line for a shell prompt: the installed Chrome's major
+    /// version and whether a matching chromedriver is at hand.
+    ///
+    /// Prints `chrome 155 ✓driver`, with `✗driver` when the chromedriver is
+    /// missing or of another version and `?driver` when its version cannot be
+    /// read. It starts no browser and uses no network: versions come from
+    /// files (a macOS app's Info.plist, the version folder beside chrome.exe),
+    /// and one that only `--version` tells is cached for ten minutes in the
+    /// user cache folder. Prints nothing and exits with 0 when no browser is
+    /// found; --verbose says why, on standard error. The chromedriver is looked
+    /// for as `sbrs doctor` does: CHROMEDRIVER_PATH, downloaded_drivers/, PATH.
+    Prompt(PromptArgs),
     /// Assert that an element contains the expected text.
     AssertTextVisible {
         #[arg(long, help = "CSS selector for the target element")]
@@ -1180,6 +1226,7 @@ async fn http_download(url: &str, dest: &Path) -> Result<u64, Box<dyn std::error
 /// Resolve `url` to a PDF on disk, rendering the page when it is not already a PDF.
 ///
 /// Returns the PDF path plus an optional scratch directory that must outlive it.
+#[cfg(feature = "pdf")]
 async fn resolve_pdf(
     sb: &mut BaseCase,
     url: &str,
@@ -1290,6 +1337,17 @@ fn no_terminal_ui() -> ! {
     eprintln!(
         "this sbrs was built without the terminal UI; \
          reinstall it with `cargo install seleniumbase-rs --features tui`"
+    );
+    std::process::exit(2);
+}
+
+/// What `pdf-text` and `assert-pdf-text` do in a build without the `pdf`
+/// feature: say how to get it, before a browser is started.
+#[cfg(not(feature = "pdf"))]
+fn no_pdf_support() -> ! {
+    eprintln!(
+        "this sbrs was built without PDF text extraction; \
+         reinstall it with `cargo install seleniumbase-rs --features pdf`"
     );
     std::process::exit(2);
 }
@@ -1453,6 +1511,52 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    Ok(())
+}
+
+/// `sbrs prompt`: the line for a shell prompt, or nothing when no browser is
+/// found. Nothing it finds is an error; `--verbose` notes go to standard error
+/// so that `$(sbrs prompt --verbose)` still holds only the line.
+async fn run_prompt(options: &PromptArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let browser = prompt::locate_browser(
+        options.browser_path.as_deref(),
+        std::env::var_os("SB_CHROME_BIN").as_deref(),
+        find_system_chrome,
+    );
+    let driver = assets::lookup_chromedriver();
+    let cache_path = prompt::VersionCache::default_path().filter(|_| !options.no_cache);
+    let mut cache = cache_path
+        .clone()
+        .map_or_else(prompt::VersionCache::disabled, prompt::VersionCache::open);
+    let now = std::time::SystemTime::now();
+    let found = prompt::probe(&browser, &driver, &mut cache, now).await;
+    // A cache that cannot be written only makes the next prompt slower.
+    let saved = cache.save(now);
+    if options.verbose {
+        for note in &found.notes {
+            eprintln!("sbrs prompt: {note}");
+        }
+        match (&cache_path, saved) {
+            (None, _) => eprintln!("sbrs prompt: cache: off"),
+            (Some(path), Ok(())) => eprintln!("sbrs prompt: cache: {}", path.display()),
+            (Some(path), Err(error)) => {
+                eprintln!(
+                    "sbrs prompt: cache: could not write {}: {error}",
+                    path.display()
+                );
+            }
+        }
+    }
+    if let Some(segment) = &found.segment {
+        let marks = if options.ascii {
+            prompt::Marks::Ascii
+        } else {
+            prompt::Marks::Unicode
+        };
+        let mut out = std::io::stdout().lock();
+        writeln!(out, "{}", options.format.render(segment, marks))?;
+        out.flush()?;
+    }
     Ok(())
 }
 
@@ -1924,6 +2028,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Devtools { .. } => return run_devtools(&args).await,
+        Commands::Prompt(options) => return run_prompt(options).await,
         _ => {}
     }
 
@@ -2078,7 +2183,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::WaitForText { css, text, timeout } => {
             let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_text(&css, &text, timeout).await?;
+            sb.wait_for_text(&text, &css, timeout).await?;
             println!("Text found for selector '{css}': {text}");
             sb.quit().await?;
         }
@@ -2399,12 +2504,16 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::SaveCookies { file } => {
             let sb = BaseCase::new(config).await?;
-            sb.save_cookies(&file).await?;
+            sb.save_cookies_to_path(std::path::Path::new(&file)).await?;
             println!("Saved cookies to '{}'", file);
         }
         Commands::LoadCookies { file } => {
             let sb = BaseCase::new(config).await?;
-            sb.load_cookies(&file).await?;
+            sb.load_cookies_from_path(
+                std::path::Path::new(&file),
+                seleniumbase_rs::CookieExpiry::Saved,
+            )
+            .await?;
             println!("Loaded cookies from '{}'", file);
         }
         Commands::HighlightClick { css } => {
@@ -2454,7 +2563,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::WaitForElementPresent { css, timeout } => {
-            let mut sb = BaseCase::new(config).await?;
+            let sb = BaseCase::new(config).await?;
             sb.wait_for_element_present(&css, timeout).await?;
             println!("Element '{}' is present", css);
         }
@@ -2746,6 +2855,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or(0);
             println!("Saved PDF: {output} ({size} bytes)");
         }
+        #[cfg(not(feature = "pdf"))]
+        Commands::PdfText { .. } | Commands::AssertPdfText { .. } => no_pdf_support(),
+        #[cfg(feature = "pdf")]
         Commands::PdfText { url, save_pdf } => {
             let mut sb = BaseCase::new(config).await?;
             let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
@@ -2754,6 +2866,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
             println!("{text}");
         }
+        #[cfg(feature = "pdf")]
         Commands::AssertPdfText {
             url,
             text,
@@ -2811,7 +2924,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let outcome = match entry {
                     DeferredSpec::Element(selector) => sb.assert_element(selector).await,
                     DeferredSpec::Text(selector, expected) => {
-                        sb.assert_text(selector, expected).await
+                        sb.assert_text(expected, selector).await
                     }
                     DeferredSpec::Title(expected) => sb.assert_title_contains(expected).await,
                     DeferredSpec::Url(expected) => sb.assert_url_contains(expected).await,
@@ -2903,7 +3016,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Completions { .. }
         | Commands::ImportPython { .. }
         | Commands::ImportPlaywright { .. }
-        | Commands::ImportPuppeteer { .. } => {
+        | Commands::ImportPuppeteer { .. }
+        | Commands::Prompt(_) => {
             unreachable!("pure CLI commands return before browser configuration")
         }
     }

@@ -18,14 +18,24 @@ convenient way to explore the project without memorizing every example path.
 Commander is an opt-in feature. The default build leaves out the terminal UI
 (`ratatui` and `crossterm`), so enable the `tui` feature:
 
-```bash
+<CodeGroup>
+
+```bash Run from source
 cargo run --features tui --bin sbrs -- commander
-# or install the binary with it
+```
+
+```bash Install the binary with it
 cargo install seleniumbase-rs --features tui
 ```
 
+</CodeGroup>
+
+<Note>
+
 An `sbrs` built without the feature still has the subcommand, but it only
-prints the following message and exits with status 2:
+prints the following message and exits with status 2.
+
+</Note>
 
 ```text
 this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`

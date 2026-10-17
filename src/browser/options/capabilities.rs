@@ -117,6 +117,35 @@ impl CapabilityOverrides {
         self.0.is_empty()
     }
 
+    /// Sets `field` of the object capability `key` to `value`, or removes the
+    /// field when `value` is `None` (and `key` with it when nothing is left).
+    /// A `key` that holds something other than an object is replaced.
+    #[cfg(feature = "plugins")]
+    pub(crate) fn set_field(&mut self, key: &str, field: &str, value: Option<Value>) {
+        match value {
+            Some(value) => {
+                let entry = self
+                    .0
+                    .entry(key.to_owned())
+                    .or_insert_with(|| Value::Object(Map::new()));
+                if !entry.is_object() {
+                    *entry = Value::Object(Map::new());
+                }
+                if let Value::Object(object) = entry {
+                    object.insert(field.to_owned(), value);
+                }
+            }
+            None => {
+                if let Some(Value::Object(object)) = self.0.get_mut(key) {
+                    object.remove(field);
+                    if object.is_empty() {
+                        self.0.remove(key);
+                    }
+                }
+            }
+        }
+    }
+
     /// Merges these capabilities into `caps`, as the type's documentation
     /// describes.
     pub fn apply_to(&self, caps: &mut Capabilities) {

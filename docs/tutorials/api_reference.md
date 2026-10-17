@@ -23,6 +23,8 @@ cargo doc --no-deps --open
 - Wait and assertion patterns.
 - Script execution, scrolling, file handling, and advanced interactions.
 - CDP/UC helpers and when to use them.
+- The capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`) that both engines implement.
+- The public items re-exported at the crate root and what each is for.
 - Where to find rustdocs for deeper detail.
 
 ## Lifecycle
@@ -33,10 +35,13 @@ cargo doc --no-deps --open
 | `BaseCase::without_session(config)` | Creates a `BaseCase` without connecting a driver (used by some runners). |
 | `sb.quit().await` | Closes the browser and ends the session. |
 | `sb.reconnect().await` | Replaces the WebDriver session while keeping the driver process. |
-| `sb.restart().await` | Quits and restarts the browser with the same config. |
+
+<Warning>
 
 Always call `quit()` in a `Drop` guard, `sb_test!` macro, or `finally` block so
 browser processes do not leak when a test fails.
+
+</Warning>
 
 ## Navigation
 
@@ -50,8 +55,7 @@ browser processes do not leak when a test fails.
 | `refresh_page()` | Reloads the page. |
 | `get_current_url()` | Returns the current URL. |
 | `get_title()` | Returns the page title. |
-| `get_html_source()` | Returns the full page source. |
-| `get_page_source()` | Alias for `get_html_source`. |
+| `get_page_source()` | Returns the full page source. |
 | `open_new_window()` | Opens a new browser window. |
 | `open_new_tab()` | Opens a new browser tab. |
 
@@ -75,10 +79,10 @@ browser processes do not leak when a test fails.
 | `clear(selector)` | Clears the element. |
 | `submit(selector)` | Submits the parent form. |
 | `hover(selector)` | Hovers over the element. |
-| `hover_and_click(selector)` | Hovers then clicks the element. |
+| `hover_and_click(hover_selector, click_selector)` | Hovers over the first element, pauses 0.1 s, then clicks the second. |
 | `hover_and_double_click(selector)` | Hovers then double-clicks the element. |
 | `drag_and_drop(src, dst)` | Drags one element onto another. |
-| `drag_and_drop_with_offset(src, x, y)` | Drags an element by an offset. |
+| `drag_and_drop_with_offset(src, dst, x, y)` | Drags `src` to `dst` with an offset (`x` and `y` are `i64`). |
 | `select_option_by_text(selector, text)` | Selects by visible text. |
 | `select_option_by_value(selector, value)` | Selects by value. |
 | `select_option_by_index(selector, index)` | Selects by zero-based index and fires `input` and `change`; fails if there is no such option. |
@@ -125,14 +129,16 @@ All `selector` arguments accept the same formats described in the
 | `wait_for_element_not_visible(selector, timeout)` | Waits for element invisible. |
 | `wait_for_element_clickable(selector, timeout)` | Waits for element clickable. |
 | `wait_for_element_absent(selector, timeout)` | Waits for element removed. |
-| `wait_for_text_visible(text, selector, timeout)` | Waits for text to appear. |
-| `wait_for_text_not_visible(text, selector, timeout)` | Waits for text to disappear. |
+| `wait_for_text_visible(text, selector, timeout_secs)` | Waits until the element shows the text (pass `"body"` for the whole page). |
+| `wait_for_text_not_visible(text, selector, timeout_secs)` | Waits until the element no longer shows the text. |
+| `wait_for_text(text, selector, timeout_secs)` | Waits until the element's text contains `text`; the same as `wait_for_text_visible`. |
+| `wait_for_exact_text(text, selector, timeout_secs)` | Waits until the element's text equals `text` (whitespace at the ends ignored). |
 | `wait_for_ready_state_complete()` | Waits for `document.readyState === 'complete'`. |
 | `set_time_limit(seconds)` | Fails the test at its next open, wait or element action once it has run longer than this. |
 | `set_timeout(seconds)` | Sets the default implicit wait timeout. |
 | `set_default_timeout(seconds)` / `reset_default_timeout()` | Changes the default wait (1 to 60 seconds) and puts it back. |
 | `sleep(seconds)` | Async sleep helper. |
-| `wait(seconds)` | Alias for `sleep` using whole seconds. |
+| `wait(seconds)` | The same as `sleep`; takes whole or fractional seconds (`wait(2)`, `wait(0.5)`). |
 
 See [Waits and Assertions](./waits_assertions.md) for detailed examples.
 
@@ -143,7 +149,8 @@ See [Waits and Assertions](./waits_assertions.md) for detailed examples.
 | `assert_title(expected)` | Asserts page title equals `expected`. |
 | `assert_text_visible(text, selector)` | Asserts text visible. |
 | `assert_text_not_visible(text, selector)` | Asserts text not visible. |
-| `assert_exact_text(text, selector)` | Asserts exact text match. |
+| `assert_text(text, selector)` | Waits for the element to show the text, then asserts it. Same as `assert_text_visible`. |
+| `assert_exact_text(text, selector)` | Asserts the element's text equals `text` exactly (whitespace at the ends ignored); waits like `assert_text`. |
 | `assert_element_visible(selector)` | Asserts element is visible. |
 | `assert_element_not_visible(selector)` | Asserts element is not visible. |
 | `assert_attribute(selector, attr, value)` | Asserts attribute value. |
@@ -170,7 +177,7 @@ is called. Useful for soft assertions.
 | `deferred_assert_element(selector)` | Checks the element is visible; records a failure if not. |
 | `deferred_assert_text(text, selector)` | Checks the element contains the text; records a failure if not. |
 | `deferred_assert_element_present(selector)` | Checks the element is in the page, visible or not. |
-| `deferred_assert_exact_text(selector, text)` | Checks the element's text is exactly `text`. |
+| `deferred_assert_exact_text(text, selector)` | Checks the element's text is exactly `text`. |
 | `deferred_assert_non_empty_text(selector)` | Checks the element shows some text. |
 | `deferred_check_window(name, level)` | Runs `check_window` and records a difference as a failure. |
 | `process_deferred_asserts()` | Fails if any deferred assertion failed. |
@@ -182,7 +189,7 @@ is called. Useful for soft assertions.
 | `is_element_present(selector)` | Returns true if in DOM. |
 | `is_element_visible(selector)` | Returns true if visible. |
 | `is_element_enabled(selector)` | Returns true if enabled. |
-| `is_element_selected(selector)` | Returns true if selected. |
+| `is_selected(selector)` | Returns true if the element is selected. |
 | `is_text_visible(text, selector)` | Returns true if text visible. |
 | `get_text(selector)` | Returns element text. |
 | `get_attribute(selector, attr)` | Returns attribute value. |
@@ -217,18 +224,22 @@ is called. Useful for soft assertions.
 | `set_window_rect(x, y, w, h)` | Sets position and size. |
 | `get_window_rect()` | Returns `(x, y, width, height)`. |
 | `get_screen_rect()` | Returns `(width, height)`. |
-| `get_new_driver(config)` | Opens a new browser session and makes it active (`None` reuses the current config). The previously active session is parked and the method returns its index. |
-| `switch_to_driver(index)` | Swaps the active session with the one parked at `index`. The session you leave stays open, parked at the same index, so the same call switches back. An out-of-range index returns `InvalidConfig` and changes nothing. |
-| `switch_to_default_driver()` | `switch_to_driver(0)`: a swap with slot 0, which holds the original session only until the first switch. |
-| `quit_extra_driver(index)` | Quits the parked session at `index`. The slot stays as a disconnected placeholder, so indices do not shift. |
-| `driver_count()` | Returns the number of parked sessions, including quit placeholders. |
+| `get_new_driver()` / `get_new_driver_with(config)` | Opens a new browser with the current configuration (or `config`), makes it active and returns its `DriverId`. The browser that was active stays open. |
+| `switch_to_driver(id)` | Makes the browser `id` the active one. Repeating the call changes nothing. An id that does not exist or was quit returns `InvalidConfig` and changes nothing. |
+| `switch_to_default_driver()` | Makes the browser the case started with (`DriverId::DEFAULT`) the active one, however many others were opened. |
+| `quit_extra_driver(id)` | Quits the browser `id`. When it is the active one, the case switches to the default browser. The default browser itself is quit with `quit()`. |
+| `active_driver()` | The `DriverId` of the active browser. |
+| `driver_count()` | The number of browsers still open, the active one included. |
 
 ## Cookies and storage
 
 | Method | Description |
 |--------|-------------|
-| `save_cookies(path)` | Saves cookies to JSON. |
-| `load_cookies(path)` | Loads cookies from JSON. |
+| `save_cookies(name)` | Saves the cookies, as JSON, to `saved_cookies/<name>.txt` in the working directory (the last path part of `name`, `.txt` added) and returns the path. |
+| `load_cookies(name)` | Adds the cookies in `saved_cookies/<name>.txt`; a cookie of another domain gets the page's and the expiry is dropped. `load_cookies_with(name, CookieExpiry)` says what to do with the expiry. |
+| `get_saved_cookies(name)` | Reads `saved_cookies/<name>.txt` without adding the cookies. |
+| `delete_saved_cookies(name)` | Deletes `saved_cookies/<name>.txt` (not the cookies of the browser). |
+| `save_cookies_to_path(path)` / `load_cookies_from_path(path, expiry)` | The same for a file at any path. |
 | `add_cookie(name, value)` | Adds a browser cookie. |
 | `get_cookie(name)` | Returns a cookie by name. |
 | `delete_all_cookies()` | Deletes all cookies. |
@@ -248,6 +259,7 @@ is called. Useful for soft assertions.
 | `save_screenshot_to_path(path)` | Writes screenshot to an arbitrary path. |
 | `screenshot_as_png()` | Returns the current page screenshot as PNG bytes. |
 | `check_window(name, level)` | Compares the page's tag structure to a baseline saved under `visual_baseline/<test>/<name>/`, as Python 4.55.2 does: level 1 the tag names in order, level 2 adds the sorted attribute names, level 3 adds the attribute values. The first run (or a missing file) saves the baseline; level 0 is a dry run that only logs a difference; levels 1 to 3 fail on a difference. The screenshot is saved, not compared. |
+| `assert_visual_match(name)` | Feature `visual`, not in Python. Compares the screenshot's pixels with `visual_baseline/<test>/<name>.png`, `<test>` being the test binary, module path and function joined with `.`, by structural similarity (threshold 0.999), saving it the first time; a mismatch fails and leaves `<name>.actual.png` and `<name>.diff.png`. See [Visual regression testing](./remaining_helpers.md#visual-regression-testing-pixels). |
 
 ## Script execution and DOM modification
 
@@ -255,7 +267,7 @@ is called. Useful for soft assertions.
 |--------|-------------|
 | `execute_script(script)` | Executes JavaScript and returns the result. |
 | `execute_async_script(script)` | Executes asynchronous JavaScript. |
-| `safe_execute_script(script)` | Executes JavaScript and returns `Option<Value>`. |
+| `safe_execute_script(script, default)` | Executes JavaScript; on an error returns `default` (a `serde_json::Value`) instead of failing. |
 | `evaluate(script)` | Alias for `execute_script`. |
 | `set_attribute(selector, attr, value)` | Sets an element attribute. |
 | `remove_attribute(selector, attr)` | Removes an element attribute. |
@@ -280,7 +292,7 @@ is called. Useful for soft assertions.
 | Method | Description |
 |--------|-------------|
 | `choose_file(selector, path)` | Sets a file input value. |
-| `download_file(url, destination)` | Downloads `url` to `destination`. |
+| `download_file(url, filename, timeout_secs)` | Navigates to `url` in a new tab, waits up to `timeout_secs` for `filename` in the downloads folder, returns to the first tab and returns the file's `PathBuf`. |
 | `save_file_as(data, filename)` | Saves raw bytes to the logs directory. `filename` must be a plain file name. |
 | `print_to_pdf(filename)` | Saves the current page as a PDF. |
 | `get_downloads_folder()` | Returns the default downloads directory. |
@@ -321,8 +333,12 @@ is called. Useful for soft assertions.
 
 ## UC / GUI bypass helpers
 
+<Info>
+
 These methods use native OS input instead of WebDriver to bypass some
 anti-detection checks. They require a graphical desktop session.
+
+</Info>
 
 | Method | Description |
 |--------|-------------|
@@ -355,7 +371,7 @@ See the [GUI Automation](./gui_automation.md) tutorial for details.
 |--------|-------------|
 | `get_totp_code(secret)` | Generates a TOTP code from a base32 secret. |
 | `get_mfa_code(secret)` | Alias for `get_totp_code`. |
-| `enter_mfa_code(secret, selector)` | Generates and types a TOTP code into an input. |
+| `enter_mfa_code(selector, secret)` | Generates a TOTP code, types it into an input and presses Enter. |
 
 ## Tours, presentations, charts
 
@@ -399,6 +415,159 @@ See the [Tours](./tours.md) and [Charts](./charts.md) pages for details.
 | `disable_beforeunload()` | Disables `beforeunload` prompts. |
 | `print_unique_links_with_status_codes()` | Prints all unique links and their HTTP status codes. |
 
+## Capability traits
+
+`seleniumbase_rs::{BrowserApi, ElementApi, AssertionApi, ScreenshotApi}` are
+four small `async_trait` traits (defined in `src/api/traits.rs`). Both engines
+implement all four: `BaseCase` (WebDriver) and `sb_cdp::Page` (pure CDP). A helper
+written over the traits runs on either engine. None of them names an engine
+type; to keep an element handle, use `BaseCase::find_element` (a
+`thirtyfour::WebElement`) or `Page::locator(..)`. Every method returns
+`seleniumbase_rs::Result<T>`. Selector strings are the same on both engines:
+CSS by default, XPath for `//...`, link text for `link=...` (see the
+[Selectors guide](./selectors.md)).
+
+```rust,no_run
+use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};
+
+async fn sign_in<E>(sb: &mut E) -> Result<(), seleniumbase_rs::SeleniumBaseError>
+where
+    E: BrowserApi + ElementApi + AssertionApi,
+{
+    sb.open("https://example.com/login").await?;
+    sb.type_text("#user", "alice").await?;
+    sb.click("#submit").await?;
+    sb.assert_element("#dashboard").await
+}
+```
+
+### BrowserApi
+
+| Method | `BaseCase` | `Page` |
+|---|---|---|
+| `open(&mut self, url: &str) -> Result<()>` | Navigates the active window; a URL without a scheme gets `https://`; a file path or an unsupported scheme (`ftp:`, `javascript:`, `mailto:`) is refused with `InvalidConfig` (use `file://` for a local file). | `Page::goto(url)`. |
+| `quit(&mut self) -> Result<()>` | Closes the browser session. | Closes this tab only. To close the browser call `Browser::close`. |
+| `refresh(&self) -> Result<()>` | Reloads the page. | `Page::reload()`. |
+| `go_back(&self) -> Result<()>` | Browser back. | `Page::back()`. |
+| `go_forward(&self) -> Result<()>` | Browser forward. | `Page::forward()`. |
+| `get_title(&mut self) -> Result<String>` | The page title. | `Page::title()`. |
+| `get_url(&mut self) -> Result<String>` | The current URL. | `Page::url()`. |
+
+### ElementApi
+
+| Method | `BaseCase` | `Page` |
+|---|---|---|
+| `click(&mut self, css: &str) -> Result<()>` | Clicks the element. | `locator(css).click()`. |
+| `double_click(&mut self, css: &str) -> Result<()>` | Double-clicks it. | `locator(css).double_click()`. |
+| `type_text(&mut self, css: &str, text: &str) -> Result<()>` | Waits for the element to be visible, clears it and types. | Clears the field, then types one key at a time. |
+| `get_text(&mut self, css: &str) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(css).text()`. |
+| `get_attribute(&mut self, css: &str, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(css).attribute(attr)`. |
+
+### AssertionApi
+
+| Method | `BaseCase` | `Page` |
+|---|---|---|
+| `assert_title(&mut self, expected: &str) -> Result<()>` | Fails with `AssertionFailed` unless the title equals `expected` exactly. | `expect().to_have_title(expected)`, which retries until the timeout. |
+| `assert_element(&self, css: &str) -> Result<()>` | Fails unless the element is present in the DOM (visible or not). | `locator(css).expect().to_exist()`. |
+| `assert_text(&mut self, expected: &str, css: &str) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(css).expect().to_contain_text(expected)`. |
+| `assert_no_js_errors(&self) -> Result<()>` | Fails if the browser log holds a `SEVERE` entry (a few known CDN sources are ignored). | Fails if the document raised an uncaught script error; the message names the first. |
+
+<Note>
+
+The trait method `assert_text(expected, css)` takes the text first, like
+`BaseCase::assert_text(text, selector)` and Python's `assert_text`.
+
+</Note>
+
+### ScreenshotApi
+
+| Method | Behaviour |
+|---|---|
+| `save_screenshot(&self, filename: &str) -> Result<PathBuf>` | Saves a PNG into the logs directory and returns its path. `filename` must be a plain file name (no directory part, no `..`). The same for both engines. |
+| `screenshot_as_png(&self) -> Result<Vec<u8>>` | The current page as PNG bytes. |
+
+## Public items of the crate root
+
+Everything below is importable as `seleniumbase_rs::Name` (from `src/lib.rs`).
+Items marked with a feature need that Cargo feature; the default feature set
+is empty.
+
+### Browser, configuration and test runner
+
+| Item | What it is |
+|---|---|
+| `BaseCase` | The WebDriver-engine test case; every method in the tables above. `BaseCase::new(config).await` connects, `BaseCase::without_session(config)` does not. |
+| `BrowserConfig` | The session configuration. Fields and `with_*` builders are listed in [Getting Started](./getting_started.md#configuration). `BrowserConfig::default()` reads no environment variables; `BrowserConfig::from_env()` returns `Result<BrowserConfig>` and honours the `SB_*` variables. |
+| `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
+| `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
+| `BrowserSession` | Owns the WebDriver session, an optional CDP client and an optional auto-started driver process. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. |
+| `run_browser_test(config, test)` | Starts a `BaseCase`, runs `test` (a closure `FnOnce(&mut BaseCase) -> BrowserTestFuture`), always calls `quit`, and returns the test's error, the cleanup error, or both. A test that ends with `skip_test` counts as passed. |
+| `BrowserTestFuture<'a>` | `Pin<Box<dyn Future<Output = Result<()>> + 'a>>`, the future your test closure returns. |
+| `shutdown_reused_sessions() -> usize` | Closes every idle browser kept for `reuse_session` and returns how many it closed. A browser a test still holds is left alone. |
+| `install_tls_provider()` | Installs `ring` as the process-wide rustls crypto provider unless one is installed. Call it before you build your own `reqwest` client in a program that uses this crate, which builds `reqwest` without a provider; a client built before any provider is set panics. |
+| `RuntimeConfig`, `LogFormat` | Environment configuration (below). `LogFormat` is `Pretty` (default) or `Json`. |
+| `Gui` (feature `gui`) | Native mouse and keyboard through `enigo`. Not stored in `BaseCase`; build a fresh one where you need it. |
+
+### Errors
+
+| Item | What it is |
+|---|---|
+| `Result<T>` | `std::result::Result<T, SeleniumBaseError>`. |
+| `SeleniumBaseError` | The one error type (a `thiserror` enum). Variants: `ElementNotFound`, `ElementNotInteractable`, `StaleElement`, `InvalidSelector`, `WaitTimeout`, `BrowserLaunch`, `BrowserDisconnected`, `SessionNotStarted`, `Navigation`, `WebDriver`, `CdpDriver`, `Playwright`, `Patcher`, `Stealth`, `Network`, `Download`, `Io`, `Json`, `Parse`, `InvalidConfig`, `AssertionFailed`, `Unsupported`, `Gui`, `Screenshot`, `Pdf`, `Authentication`, `Mcp`, `PythonMigration`, `Skipped`, `TestLifecycle`, `Database`, `Plugin`. |
+| Error helpers | `is_transient()` is true for `BrowserDisconnected`, `Network`, `Download` and `WaitTimeout`. `is_skipped()`, `is_element_error()`, `category()` (a stable snake_case tag such as `wait_timeout`), `hint()` (`Option<String>`), `exit_code()` (`u8`), `log()` and `log_in_context(operation)` (a structured `tracing::error!`). Constructors such as `SeleniumBaseError::element_not_found(selector)`, `wait_timeout(operation, duration)`, `invalid_config(reason)`, `assertion_failed(reason)`. |
+| `ResultExt<T, E>` | On any `Result<T, E: Display>`: `sb_context(context)` turns the error into `InvalidConfig("context: error")`, and `log_err()` logs it with `tracing::error!` and passes it through. |
+
+### Retry, selectors and logging
+
+| Item | What it is |
+|---|---|
+| `RetryPolicy` | Fields `max_attempts`, `base_delay`, `backoff_factor`, `max_delay`. `RetryPolicy::default()` is 3 attempts, 200 ms, factor 2.0, at most 5 s. Presets: `webdriver()` (3, 250 ms, 3 s), `network()` (5, 500 ms, 10 s), `seleniumbase()` (6, 1 s, 32 s, as Python's `retry_on_exception`), `every(interval)` (a fixed interval that never gives up, for `poll_until`). `attempts()` is never below 1, `delay_for_attempt(n)` is zero for the first attempt, and `retry(..)` and `retry_blocking(..)` run an operation again, with backoff, while a predicate says the error is worth retrying. `utilities::retry` also has `poll_until` and `RateLimiter`. |
+| `Selector` | A borrowed selector with its kind decided: `LinkText`, `PartialLinkText`, `Css`, `XPath`, `Id`. `Selector::auto(text)` guesses from the start of the string: `link=`, `link_text=`, `text=` is exact link text; `partial_link=`, `partial_link_text=`, `partial_text=`, `p_link=`, `p_link_text=`, `p_text=` is partial link text; `/`, `./`, `../`, `(` or an XPath axis such as `parent::` is XPath; anything else is CSS. `to_by()` and `auto_by(text)` return a `thirtyfour::By` and fail with `InvalidSelector` for empty text. The pure CDP engine uses the owned twin `utils::selectors::SelectorBuf`. |
+| `init_tracing()`, `init_tracing_json()` | Install the global `tracing` subscriber (text or JSON) and bridge `log`. They read `RUST_LOG` (default `info`) and ignore a second call. |
+| `init_tracing_with_filter(filter)`, `init_tracing_json_with_filter(filter)` | The same with an `EnvFilter` string; an unparsable filter falls back to `RUST_LOG`, then `info`. The process environment is not changed. |
+| `init_tracing_from_runtime(&RuntimeConfig)` | Uses `SB_LOG_LEVEL` and `SB_LOG_FORMAT`. |
+| `UPSTREAM_SELENIUMBASE_VERSION` | The constant `"4.55.2"`, the Python SeleniumBase version the API tracks. |
+
+### Charts and tours
+
+| Item | What it is |
+|---|---|
+| `Chart`, `ChartType` | A chart that renders to HTML with Chart.js: `Chart::new(title, chart_type)` with `ChartType::Pie`, `Bar` (horizontal), `Line`, `Area` or `Column` (vertical). Data points are `(label, i32)` pairs; extra series go in `extra_series`. See [Charts](./charts.md). |
+| `TourTheme` | `SeleniumBase` (default), `Shepherd`, `IntroJs`, `DriverJs`, `Bootstrap`, `Hopscotch`; `as_str()` gives the lowercase name. See [Tours](./tours.md). |
+
+### Fingerprint and stealth
+
+These are re-exported for convenience; the [Fingerprint & Stealth Profiles](./fingerprint_stealth.md)
+tutorial is the reference for them.
+
+| Item | What it is |
+|---|---|
+| Fingerprint types | `Fingerprint`, `OsType`, `BrowserType`, `StealthFlags`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `ProxyMaskingMode`, `MaskingMode`, `NoiseMode`, `CanvasNoiseMode`, `PopupMode`, `QuicMode`, `WebRtcPolicy`, `StartupBehavior`, `HumanizeConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `CoherenceReport`. |
+| Evasion providers | `default_registry()` returns an `EvasionRegistry` with every built-in provider. `session_registry(&Fingerprint)` is the registry for a pure CDP tab: it leaves out the providers named in `SESSION_OMITTED_PROVIDERS` (`"plugins"` and `"connection"`), because Chrome already answers for those itself. `EvasionProvider` is the trait for your own, `EvasionContext` the data a provider's script is built from, `EvasionConfig` its settings. |
+| Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](./binary_patching.md). |
+
+### Python migration
+
+`import_python(source: &str, options: &ImportOptions) -> ImportResult` converts
+common Python SeleniumBase or Selenium statements into a Rust test.
+`ImportOptions` has `source: PythonSource` (`Auto` by default, `SeleniumBase` or
+`Selenium`) and `test_name` (default `imported_python_test`). `ImportResult` has
+`rust` (the generated source), `diagnostics: Vec<ImportDiagnostic>` (each with
+`line`, `severity` of `Warning` or `Error`, and `message`) and `detected_source`;
+`is_complete()` is true when there are no error-level diagnostics. Dynamic
+Python and unsupported locators stay in the output as `TODO` comments with a
+diagnostic.
+
+### Modules
+
+The remaining public API sits in modules: `api`, `artifacts`, `behave`,
+`browser`, `cli`, `common`, `config`, `core`, `error`, `js_code`, `macros`,
+`plugins` (test-reporting plugins), `profile_payloads`, `resources`,
+`sb_cdp` (the [pure CDP engine](./pure_cdp.md)), `stealth`, `tracing_util`,
+`utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
+`plugin_api` (`plugins`, the browser plugin API), `storage` (`turso`) and
+`visual` (`visual`).
+
 ## Common error handling pattern
 
 Most `BaseCase` methods return `Result<T, SeleniumBaseError>`. Use `?` inside an
@@ -430,4 +599,8 @@ For exact signatures, run `cargo doc --no-deps --open`.
 
 ---
 
-Verified against commit 8e9180f: only the multi-driver rows (`get_new_driver` to `driver_count`) were re-checked against the code in this pass; the rest of this page was not.
+<Note>
+
+Checked against the source of this branch: the argument lists and argument order of the `BaseCase` tables (names and counts, by script), the capability traits and the crate-root items. The multi-driver rows (`get_new_driver` to `driver_count`) were checked earlier, against commit 8e9180f. The one-line descriptions of the other `BaseCase` methods were not all re-read.
+
+</Note>

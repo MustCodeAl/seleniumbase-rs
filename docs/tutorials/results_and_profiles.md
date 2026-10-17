@@ -8,8 +8,14 @@ Two things a team ends up needing are a history of test runs, and a safe place
 for browser profiles. Both live in one embedded database,
 [Turso](https://github.com/tursodatabase/turso), behind the `turso` feature. It
 is off by default, runs in your process, and keeps everything in a local file;
-nothing is sent over the network. A Turso dependency needs Rust 1.90, which the
-crate's `rust-version` (1.99) already covers.
+nothing is sent over the network.
+
+<Note>
+
+A Turso dependency needs Rust 1.90, which the crate's `rust-version` (1.99)
+already covers.
+
+</Note>
 
 ```toml
 [dependencies]
@@ -73,8 +79,13 @@ for test in store.flaky_tests(20).await? {
 ```
 
 A test that always fails is broken, not flaky, so `flaky_tests` leaves it out.
+
+<Warning>
+
 Test messages are stored as written; if an assertion message can contain a
 secret, redact it before recording.
+
+</Warning>
 
 ## `sbrs report`
 
@@ -127,8 +138,12 @@ let profiles: Vec<(String, Profile)> = vault.list("profiles").await?;
   transaction, so a failure part-way leaves the old passphrase working.
 - **`Debug` never shows the key.**
 
+<Warning>
+
 What it does not do: it cannot protect a vault that is open in a process an
 attacker controls, because the key has to be in memory to be used, and it does
 not hide the number or size of documents. Keep the passphrase somewhere
 better than the source tree, such as the operating system's keychain or an
 environment variable your deployment injects.
+
+</Warning>

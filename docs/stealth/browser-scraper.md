@@ -5,9 +5,15 @@ title: "BrowserScraper"
 # BrowserScraper
 
 `scrape::runtime::browser_scraper::BrowserScraper` drives one real Chrome through
-the pure CDP engine. It does no TLS spoofing: Chrome's own handshake leaves the
-machine, so the page sees a genuine browser. What it adds is the loop a
-bot-protected site needs around it.
+the pure CDP engine.
+
+<Note>
+
+It does no TLS spoofing: Chrome's own handshake leaves the machine, so the page
+sees a genuine browser. What it adds is the loop a bot-protected site needs
+around it.
+
+</Note>
 
 ```rust
 use seleniumbase_rs_scrape::egress::geo::CountryCode;
@@ -56,10 +62,17 @@ window)` limits fetches per site.
 ## Egress and the profile
 
 Proxies are `(spec, country)` pairs. A spec is `scheme://[user:password@]host:port`
-with `http`, `https`, `socks5` or `socks5h`; the credentials are taken out of the
-string at once and never appear in `Debug`, `Display`, logs, events, errors or
-serialized state, which carry the `EgressKey` (scheme, host, port, country)
-instead. The country decides the language and the time zone the browser presents
+with `http`, `https`, `socks5` or `socks5h`.
+
+<Info>
+
+The credentials are taken out of the string at once and never appear in `Debug`,
+`Display`, logs, events, errors or serialized state, which carry the `EgressKey`
+(scheme, host, port, country) instead.
+
+</Info>
+
+The country decides the language and the time zone the browser presents
 while it leaves through that proxy, from a built-in locale table (the
 `StaticGeoResolver`; no IP lookup service ships).
 
@@ -104,6 +117,10 @@ too, and which map to `SeleniumBaseError::Stealth` at the crate boundary.
 
 ## Lifetime
 
+<Warning>
+
 A launched browser lives until `close()`. There is no idle timeout and no
 deadline in the scraper: it can sit unused for as long as the process lives and
 be used again.
+
+</Warning>

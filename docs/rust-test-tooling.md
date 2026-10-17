@@ -38,7 +38,7 @@ async fn user_can_open_the_home_page() -> Result<()> {
         Box::pin(async move {
             sb.open("https://example.com").await?;
             sb.assert_element("h1").await?;
-            sb.assert_text("h1", "Example Domain").await
+            sb.assert_text("Example Domain", "h1").await
         })
     })
     .await
@@ -57,26 +57,35 @@ cargo test user_can_open_the_home_page
 
 ## Running the full suite
 
-For small suites, the default test runner is fine:
+For small suites, the default test runner is fine. For larger suites, install and
+use [cargo-nextest](https://nexte.st/):
 
-```bash
+<CodeGroup>
+
+```bash cargo test
 cargo test
 ```
 
-For larger suites, install and use [cargo-nextest](https://nexte.st/):
-
-```bash
+```bash cargo nextest
 cargo install cargo-nextest
 cargo nextest run
 ```
+
+</CodeGroup>
+
+<Note>
 
 Nextest runs each test as a separate process, which isolates browser failures
 and makes parallel execution safer. The repository profile intentionally does
 not retry failed tests, so flaky behavior is not hidden.
 
+</Note>
+
 ## Sharing helpers
 
 As your suite grows, extract reusable helpers into modules or crates:
+
+<View title="BaseCase (WebDriver)">
 
 ```rust
 // tests/helpers/mod.rs
@@ -90,6 +99,13 @@ pub async fn login(sb: &mut BaseCase, user: &str, pass: &str) -> Result<()> {
     sb.assert_element_visible("#dashboard").await
 }
 ```
+
+`BaseCase::find_element` is still there when you want the `thirtyfour::WebElement`
+handle.
+
+</View>
+
+<View title="sb_cdp (pure CDP)">
 
 Use the capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`,
 `ScreenshotApi`) when you want helpers to work with any type that exposes the
@@ -105,8 +121,9 @@ async fn fill_email<E: ElementApi>(sb: &mut E, email: &str) -> Result<(), seleni
 
 Both `BaseCase` (WebDriver) and `sb_cdp::Page` (Pure CDP) implement the traits,
 so the same helper runs on either. `ElementApi` no longer has `find_element`,
-because its `thirtyfour::WebElement` return type tied the trait to WebDriver;
-`BaseCase::find_element` is still there when you want that handle.
+because its `thirtyfour::WebElement` return type tied the trait to WebDriver.
+
+</View>
 
 ## Parameterized tests
 
@@ -137,18 +154,22 @@ async fn login_with_multiple_users() -> Result<()> {
 
 A typical project layout looks like this:
 
-```text
-my_project/
-├── Cargo.toml
-├── sbase_config.toml
-├── src/
-│   └── main.rs
-└── tests/
-    ├── helpers/
-    │   └── mod.rs
-    ├── login.rs
-    └── checkout.rs
-```
+<Tree>
+<Tree.Folder name="my_project" defaultOpen>
+<Tree.File name="Cargo.toml" />
+<Tree.File name="sbase_config.toml" />
+<Tree.Folder name="src">
+<Tree.File name="main.rs" />
+</Tree.Folder>
+<Tree.Folder name="tests" defaultOpen>
+<Tree.Folder name="helpers">
+<Tree.File name="mod.rs" />
+</Tree.Folder>
+<Tree.File name="login.rs" />
+<Tree.File name="checkout.rs" />
+</Tree.Folder>
+</Tree.Folder>
+</Tree>
 
 Integration tests in `tests/` are compiled as separate binaries, which gives
 each test its own browser process and reduces shared-state bugs.
@@ -189,7 +210,7 @@ use seleniumbase_rs::{sb_test, BrowserConfig};
 
 sb_test!(home_page_loads, BrowserConfig::default(), |sb| {
     sb.open("https://example.com").await?;
-    sb.assert_text("h1", "Example Domain").await
+    sb.assert_text("Example Domain", "h1").await
 });
 ```
 
@@ -200,14 +221,37 @@ See [Macros](tutorials/macros.md) for the full macro catalog.
 
 ## Common pitfalls
 
-- **Forgetting `Box::pin`**: `run_browser_test` requires a pinned future. The
-  compiler error if you omit `Box::pin` is usually clear.
-- **Mixing sync and async cleanup**: `BaseCase::quit` is async. Do not rely on
-  `Drop` for cleanup; use `run_browser_test` or call `quit` explicitly.
-- **Heavy setup in every test**: if every test logs in, consider a helper or a
-  shared session strategy, but be aware that shared browsers can leak state.
-- **Too much parallelism**: browsers are expensive. Start with low concurrency
-  and increase only after measuring.
+<AccordionGroup>
+
+<Accordion title="Forgetting Box::pin">
+
+`run_browser_test` requires a pinned future. The compiler error if you omit
+`Box::pin` is usually clear.
+
+</Accordion>
+
+<Accordion title="Mixing sync and async cleanup">
+
+`BaseCase::quit` is async. Do not rely on `Drop` for cleanup; use
+`run_browser_test` or call `quit` explicitly.
+
+</Accordion>
+
+<Accordion title="Heavy setup in every test">
+
+If every test logs in, consider a helper or a shared session strategy, but be
+aware that shared browsers can leak state.
+
+</Accordion>
+
+<Accordion title="Too much parallelism">
+
+Browsers are expensive. Start with low concurrency and increase only after
+measuring.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Testing checklist
 

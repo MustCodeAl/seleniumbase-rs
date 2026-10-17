@@ -93,8 +93,10 @@ pub mod ocr;
 /// `BrowserHandle` and `PageHandle` traits.
 ///
 /// Give a set of plugins to
-/// [`LaunchOptionsBuilder::plugins`](sb_cdp::LaunchOptionsBuilder::plugins).
-/// A plugin crate depends on `seleniumbase-rs-plugin` itself, never on this
+/// [`LaunchOptionsBuilder::plugins`](sb_cdp::LaunchOptionsBuilder::plugins)
+/// for the pure CDP engine, or to
+/// [`BrowserConfig::with_plugins`](crate::BrowserConfig::with_plugins) for the
+/// WebDriver engine (`BaseCase`). A plugin crate depends on `seleniumbase-rs-plugin` itself, never on this
 /// crate. Not to be confused with [`plugins`], the test-reporting plugins.
 #[cfg(feature = "plugins")]
 pub use seleniumbase_rs_plugin as plugin_api;
@@ -123,8 +125,25 @@ pub mod stealth;
 pub mod tracing_util;
 pub mod utilities;
 pub mod utils;
+// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
+#[cfg(feature = "visual")]
+#[warn(
+    clippy::pedantic,
+    clippy::allow_attributes_without_reason,
+    clippy::clone_on_ref_ptr,
+    clippy::map_err_ignore,
+    clippy::semicolon_outside_block,
+    clippy::unused_result_ok,
+    clippy::too_long_first_doc_paragraph,
+    missing_debug_implementations,
+    redundant_imports,
+    redundant_lifetimes,
+    trivial_numeric_casts,
+    unused_lifetimes
+)]
+pub mod visual;
 
-pub use api::base_case::BaseCase;
+pub use api::base_case::{BaseCase, CookieExpiry, DriverId};
 pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
 pub use api::gui::Gui;

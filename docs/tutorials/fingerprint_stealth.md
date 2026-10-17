@@ -440,6 +440,8 @@ When `native_spoofing` is true:
 
 ### Caveats
 
+<Warning>
+
 * The protocol overrides and the script need a CDP connection. In
   `DriverMode::WebDriver`, neither is applied whether or not `native_spoofing` is
   set: only the launch arguments (and, with `native_spoofing`, the patched
@@ -451,10 +453,16 @@ When `native_spoofing` is true:
 * Whether a given detector can still tell the difference is not something this
   crate measures.
 
+</Warning>
+
 ## rustwright / Playwright mode
+
+<Info>
 
 This mode needs the `playwright` Cargo feature (`rustwright`); it is not on by
 default.
+
+</Info>
 
 ```rust
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
@@ -473,10 +481,15 @@ session.close().await?;
 `launch_headless_with_fingerprint` for headless. The session passes the
 fingerprint's launch arguments, then evaluates the evasion script in the first
 page and again after every `goto` and `new_page`, because rustwright cannot
-register a script to run in each new document. The script therefore runs after
-navigation, not before the page's own scripts, so a page that reads the identity
-while it loads can see the browser's real one. The protocol overrides listed above
-are not sent in this mode.
+register a script to run in each new document.
+
+<Warning>
+
+The script therefore runs after navigation, not before the page's own scripts,
+so a page that reads the identity while it loads can see the browser's real one.
+The protocol overrides listed above are not sent in this mode.
+
+</Warning>
 
 ## External profile payloads
 
@@ -610,11 +623,18 @@ is the same over `session_registry`, the script a browser session runs.
 
 ### Adding your own evasion
 
-1. Implement `EvasionProvider` for a unit struct. Return the JavaScript from
-   `script`, gate inclusion with `applies`, and order it with `priority`.
-   `providers::SB_PREAMBLE` brings in the `sb` helpers that make a replaced
-   function look native; the example below skips it for brevity.
-2. Register it at runtime:
+<Steps>
+
+<Step title="Implement EvasionProvider">
+
+Implement `EvasionProvider` for a unit struct. Return the JavaScript from
+`script`, gate inclusion with `applies`, and order it with `priority`.
+`providers::SB_PREAMBLE` brings in the `sb` helpers that make a replaced
+function look native; the example below skips it for brevity.
+
+</Step>
+
+<Step title="Register it at runtime">
 
 ```rust
 use seleniumbase_rs::{default_registry, EvasionContext, EvasionProvider, Fingerprint};
@@ -634,6 +654,10 @@ let fp = Fingerprint::windows_desktop();
 let script = registry.bootstrap(&EvasionContext::new(&fp));
 assert!(script.contains("hide_print"));
 ```
+
+</Step>
+
+</Steps>
 
 See [Contributing](../CONTRIBUTING.md) for adding a built-in provider.
 
@@ -773,10 +797,14 @@ configuration has a fingerprint.
 `HumanizeConfig` (its minimum and maximum keystroke delay) into the matching
 behaviour.
 
+<Tip>
+
 The older `stealth::humanize` helpers (`bezier_mouse_path`,
 `keystroke_delays`) remain, but they sample a Bézier curve at evenly spaced
 parameter values and draw delays uniformly between two bounds; prefer
 `behavior`.
+
+</Tip>
 
 ## What is spoofed
 
@@ -833,6 +861,8 @@ automation markers:
 
 ## Limitations
 
+<Warning>
+
 * Nothing on this page changes the TLS or HTTP/2 behaviour of the browser. A
   fingerprint reaches the page through scripts and protocol overrides; the
   `ClientHello`, the HTTP/2 connection start and the header order that leave the
@@ -848,6 +878,8 @@ automation markers:
   when `native_spoofing` is enabled.
 * Chromium source patching is not performed. The binary patchers edit byte
   strings in an existing `chromedriver` or Chrome binary.
+
+</Warning>
 
 ## Troubleshooting
 

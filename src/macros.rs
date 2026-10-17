@@ -63,12 +63,17 @@ macro_rules! sb_test {
     ($name:ident, $config:expr, |$sb:ident| $body:expr) => {
         #[tokio::test]
         async fn $name() {
+            // The test's path names its `check_window` baselines, so tests of
+            // the same name in other modules do not share them.
             let mut $sb = $crate::BaseCase::new($config)
                 .await
-                .expect("failed to create BaseCase");
+                .expect("failed to create BaseCase")
+                .with_test_name(concat!(module_path!(), "::", stringify!($name)));
             let result: Result<(), $crate::SeleniumBaseError> = async { $body }.await;
-            $sb.quit().await.expect("failed to quit BaseCase");
-            result.expect("test failed");
+            let cleanup = $sb.quit().await;
+            // A failing quit must not hide the error of the test itself.
+            // A test that called `skip_test` passes, as with `run_browser_test`.
+            $crate::api::runner::finish_test(result, cleanup);
         }
     };
 }
@@ -142,24 +147,51 @@ macro_rules! sb_select {
 }
 
 /// Asserts that an element contains the expected text.
+///
+/// The text comes first and the selector second, as in Python's
+/// `assert_text(text, selector)`.
+///
+/// ```ignore
+/// sb_assert_text!(sb, "Signed in", "#status")?;
+/// ```
 #[macro_export]
 macro_rules! sb_assert_text {
-    ($sb:expr, $selector:expr, $expected:expr $(, $msg:expr)?) => {
-        $sb.assert_text($selector, $expected).await $(.expect($msg))?
+    ($sb:expr, $expected:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.assert_text($expected, $selector).await $(.expect($msg))?
     };
 }
 
-/// Asserts that the page title contains the expected text.
+/// Asserts that the page title is the expected text, as Python's
+/// `assert_title` does. Use [`sb_assert_title_contains!`] for part of it.
 #[macro_export]
 macro_rules! sb_assert_title {
+    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_title($expected).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that the page title contains the expected text, as Python's
+/// `assert_title_contains` does.
+#[macro_export]
+macro_rules! sb_assert_title_contains {
     ($sb:expr, $expected:expr $(, $msg:expr)?) => {
         $sb.assert_title_contains($expected).await $(.expect($msg))?
     };
 }
 
-/// Asserts that the current URL contains the expected substring.
+/// Asserts that the current URL is the expected one, as Python's `assert_url`
+/// does. Use [`sb_assert_url_contains!`] for part of it.
 #[macro_export]
 macro_rules! sb_assert_url {
+    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_url($expected).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that the current URL contains the expected substring, as Python's
+/// `assert_url_contains` does.
+#[macro_export]
+macro_rules! sb_assert_url_contains {
     ($sb:expr, $expected:expr $(, $msg:expr)?) => {
         $sb.assert_url_contains($expected).await $(.expect($msg))?
     };
@@ -189,11 +221,26 @@ macro_rules! sb_quit {
     };
 }
 
-/// A short-hand macro for asserting that an element is visible.
+/// Asserts that an element is visible, waiting for it for up to the default
+/// timeout.
+///
+/// ```ignore
+/// sb_assert_visible!(sb, "#status")?;
+/// ```
+#[macro_export]
+macro_rules! sb_assert_visible {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.assert_element_visible($selector).await $(.expect($msg))?
+    };
+}
+
+/// The old name of [`sb_assert_visible!`], which every other macro of the
+/// crate follows with its `sb_` prefix.
+#[deprecated(since = "0.5.0", note = "use `sb_assert_visible!`")]
 #[macro_export]
 macro_rules! assert_visible {
     ($sb:expr, $selector:expr $(, $msg:expr)?) => {
-        $sb.assert_element_visible($selector).await $(.expect($msg))?
+        $crate::sb_assert_visible!($sb, $selector $(, $msg)?)
     };
 }
 
@@ -323,25 +370,45 @@ macro_rules! sb_fill_form {
 }
 
 /// Waits for an element to be visible using the default timeout, then clicks it.
+///
+/// Without a message the macro evaluates to a `Result` that carries the error
+/// of the wait or of the click; with a message it panics with it instead.
 #[macro_export]
 macro_rules! sb_wait_and_click {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {{
-        $sb.wait_for_element_visible_default($selector).await$(.expect($msg))?;
-        $sb.click($selector).await$(.expect($msg))?
+    ($sb:expr, $selector:expr) => {{
+        match $sb.wait_for_element_visible_default($selector).await {
+            Ok(_) => $sb.click($selector).await,
+            Err(error) => Err(error),
+        }
+    }};
+    ($sb:expr, $selector:expr, $msg:expr) => {{
+        $sb.wait_for_element_visible_default($selector)
+            .await
+            .expect($msg);
+        $sb.click($selector).await.expect($msg)
     }};
 }
 
 /// Asserts that an element is not visible.
+///
+/// Without a message the macro evaluates to a `Result`: an error when the
+/// element is visible or cannot be looked up. With a message it panics with
+/// it instead.
 #[macro_export]
 macro_rules! sb_assert_not_visible {
-    ($sb:expr, $selector:expr $(, $msg:expr)?) => {{
-        let visible = $sb.is_element_visible($selector).await$(.expect($msg))?;
-        if visible {
-            return Err($crate::SeleniumBaseError::AssertionFailed(
-                format!("element '{}' was unexpectedly visible", stringify!($selector))
-            ));
+    ($sb:expr, $selector:expr) => {{
+        let selector = $selector;
+        match $sb.is_element_visible(selector).await {
+            Ok(true) => Err($crate::SeleniumBaseError::AssertionFailed(format!(
+                "element '{}' was unexpectedly visible",
+                selector
+            ))),
+            Ok(false) => Ok::<(), $crate::SeleniumBaseError>(()),
+            Err(error) => Err(error),
         }
-        Ok::<(), $crate::SeleniumBaseError>(())
+    }};
+    ($sb:expr, $selector:expr, $msg:expr) => {{
+        $crate::sb_assert_not_visible!($sb, $selector).expect($msg)
     }};
 }
 
@@ -362,7 +429,122 @@ macro_rules! sb_with_timeout {
 
 #[cfg(test)]
 mod tests {
-    use crate::Selector;
+    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
+    use crate::{Selector, SeleniumBaseError};
+    use serde_json::{json, Value};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A page whose element `#a` is displayed or not.
+    fn page_with_element(displayed: bool) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("GET", "/element/e1/displayed") => Reply::Value(json!(displayed)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn assert_not_visible_without_a_message_is_a_result() {
+        let visible = page_with_element(true);
+        let sb = visible.base_case().await;
+        let error = sb_assert_not_visible!(sb, "#a").expect_err("the element is visible");
+        assert!(
+            matches!(&error, SeleniumBaseError::AssertionFailed(text) if text.contains("#a")),
+            "{error:?}"
+        );
+
+        let hidden = page_with_element(false);
+        let sb = hidden.base_case().await;
+        sb_assert_not_visible!(sb, "#a").expect("the element is hidden");
+        sb_assert_not_visible!(sb, "#a", "the element is hidden");
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "still there")]
+    async fn assert_not_visible_with_a_message_panics_when_visible() {
+        let visible = page_with_element(true);
+        let sb = visible.base_case().await;
+        sb_assert_not_visible!(sb, "#a", "still there");
+    }
+
+    #[tokio::test]
+    async fn wait_and_click_without_a_message_returns_the_error_of_the_wait() {
+        // The first lookup finds nothing, every later one finds the element, so
+        // a click that ran after the failed wait would succeed.
+        let lookups = AtomicUsize::new(0);
+        let driver = MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") if lookups.fetch_add(1, Ordering::SeqCst) == 0 => {
+                    Reply::Error(404, "no such element")
+                }
+                ("POST", "/element") => Reply::Value(element("e1")),
+                ("GET", "/element/e1/displayed" | "/element/e1/enabled") => {
+                    Reply::Value(json!(true))
+                }
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(0).await.unwrap();
+        let outcome = sb_wait_and_click!(sb, "#a");
+        let error = outcome.expect_err("the wait failed, so the click must not run");
+        assert!(
+            matches!(error, SeleniumBaseError::WaitTimeout(_)),
+            "{error:?}"
+        );
+        assert!(driver.requests("/element/e1/click").is_empty());
+    }
+
+    /// A page titled "My Page" at `https://example.test/a?b=1`.
+    fn titled_page() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("GET", "/title") => Reply::Value(json!("My Page")),
+                ("GET", "/url") => Reply::Value(json!("https://example.test/a?b=1")),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn the_title_and_url_macros_want_the_whole_value_as_python_does() {
+        // `sb_assert_title!` and `sb_assert_url!` used to accept part of the
+        // title or URL, which Python's `assert_title` and `assert_url` do not.
+        let driver = titled_page();
+        let sb = driver.base_case().await;
+
+        sb_assert_title!(sb, "My Page").unwrap();
+        sb_assert_title!(sb, "Page").unwrap_err();
+        sb_assert_url!(sb, "https://example.test/a?b=1").unwrap();
+        sb_assert_url!(sb, "example.test").unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn the_contains_macros_accept_part_of_the_title_and_url() {
+        let driver = titled_page();
+        let sb = driver.base_case().await;
+
+        sb_assert_title_contains!(sb, "Page").unwrap();
+        sb_assert_title_contains!(sb, "Nope").unwrap_err();
+        sb_assert_url_contains!(sb, "example.test").unwrap();
+        sb_assert_url_contains!(sb, "other.test").unwrap_err();
+        // With a message they unwrap, so a failure panics.
+        sb_assert_title_contains!(sb, "Page", "the title has Page");
+        sb_assert_url_contains!(sb, "/a", "the URL has /a");
+        sb_assert_title!(sb, "My Page", "the title is My Page");
+    }
+
+    #[tokio::test]
+    #[allow(deprecated)]
+    async fn the_old_visible_macro_still_works_and_the_new_one_has_the_prefix() {
+        let driver = page_with_element(true);
+        let sb = driver.base_case().await;
+        sb_assert_visible!(sb, "#a").unwrap();
+        crate::assert_visible!(sb, "#a").unwrap();
+        sb_assert_visible!(sb, "#a", "the element is visible");
+    }
 
     #[test]
     fn selector_macro_css() {

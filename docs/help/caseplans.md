@@ -20,14 +20,24 @@ without the Tkinter window.
 
 The app is part of the opt-in `tui` feature, with `sbrs commander`:
 
-```bash
+<CodeGroup>
+
+```bash Run from source
 cargo run --features tui --bin sbrs -- caseplans
-# or install the binary with it
+```
+
+```bash Install the binary with it
 cargo install seleniumbase-rs --features tui
 ```
 
+</CodeGroup>
+
+<Note>
+
 An `sbrs` built without the feature still has the subcommand, but it only
-prints the following message and exits with status 2, as `commander` does:
+prints the following message and exits with status 2, as `commander` does.
+
+</Note>
 
 ```text
 this sbrs was built without the terminal UI; reinstall it with `cargo install seleniumbase-rs --features tui`
@@ -70,8 +80,12 @@ the name is the last part of the row with `::` turned into `.`:
 | `tests/ui/cart.rs::empty` | `tests/ui/case_plans/cart.empty.md` |
 | `tests/about.rs` | `tests/case_plans/about.rs.md` |
 
+<Info>
+
 Cargo ignores a `case_plans` folder inside `tests/`, so the plans do not become
 test targets.
+
+</Info>
 
 A new plan is the Python template:
 

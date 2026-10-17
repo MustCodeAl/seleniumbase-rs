@@ -12,6 +12,8 @@
 
 [Quick start](#quick-start) · [Install](#installation) · [Docs](./docs/README.md) · [Examples](#examples) · [Status](#project-status)
 
+**Documentation site: <https://mustcodeal-seleniumbase-rs.docs7.io>**
+
 </div>
 
 `seleniumbase-rs` is a Rust port of the Python SeleniumBase framework and its MCP
@@ -19,7 +21,7 @@ server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pur
 Chrome DevTools engine that needs no driver at all.
 
 > [!NOTE]
-> Young and moving fast: version `0.3.0`, installed from GitHub (not on
+> Young and moving fast: version `0.4.0`, installed from GitHub (not on
 > crates.io). See [Project status](#project-status) for what is verified and what
 > is not.
 
@@ -109,14 +111,14 @@ to run it:
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.3.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.4.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.3.0", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.4.0", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
@@ -495,6 +497,7 @@ in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-steal
 - [Getting Started](./docs/tutorials/getting_started.md)
 - [Selectors](./docs/tutorials/selectors.md)
 - [Waits and Assertions](./docs/tutorials/waits_assertions.md)
+- [Testing Pages with a CAPTCHA](./docs/tutorials/captcha_testing.md)
 - [Shadow DOM](./docs/tutorials/shadow_dom.md)
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)

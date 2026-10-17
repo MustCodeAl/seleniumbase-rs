@@ -102,8 +102,12 @@ if !inspection.is_clean() {
 # }
 ```
 
+<Tip>
+
 To fail only on errors and let warnings through, test `inspection.has_errors()`
 instead.
+
+</Tip>
 
 ## Why it matters
 
@@ -116,6 +120,10 @@ IDs and best-effort element selectors make findings suitable for CI allowlists.
 It does not execute JavaScript, compute styles or contrast, test keyboard
 behavior, or inspect the browser accessibility tree.
 
+<Warning>
+
 Use it as an early check alongside browser-based accessibility testing such as
 axe-core and manual keyboard and assistive-technology review. A clean result is
 not a claim of WCAG conformance.
+
+</Warning>

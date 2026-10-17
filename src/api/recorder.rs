@@ -437,7 +437,7 @@ const CALLS: &[(&str, &str, Shape)] = &[
         "wait_for_ready_state_complete",
         Shape::NoArgs,
     ),
-    ("assert_text", "assert_text", Shape::TargetValue),
+    ("assert_text", "assert_text", Shape::ValueTarget),
     (
         "assert_text_visible",
         "assert_text_visible",
@@ -448,7 +448,7 @@ const CALLS: &[(&str, &str, Shape)] = &[
         "assert_text_not_visible",
         Shape::ValueTarget,
     ),
-    ("assert_exact_text", "assert_exact_text", Shape::TargetValue),
+    ("assert_exact_text", "assert_exact_text", Shape::ValueTarget),
     ("assert_attribute", "assert_attribute", Shape::TargetPair),
     ("assert_title", "assert_title", Shape::Target),
     (
@@ -1175,17 +1175,19 @@ impl RecorderSession {
     }
 
     /// Asserts that `css` contains `text` and records an `assert_text` action.
+    /// The text comes first and the selector second, like
+    /// [`BaseCase::assert_text`].
     pub async fn assert_text(
         &mut self,
         sb: &mut BaseCase,
-        css: &str,
         text: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
         // Flush pending in-page events first so the recording stays ordered.
         if self.installed {
             let _ = self.drain(sb).await;
         }
-        sb.assert_text(css, text).await?;
+        sb.assert_text(text, css).await?;
         self.push("assert_text", Some(css), Some(text));
         Ok(())
     }
@@ -1320,7 +1322,7 @@ impl RecorderSession {
                 "assert_text" => match (target, value) {
                     (Some(css), Some(text)) => (
                         format!("assert_text {text:?} in {css}"),
-                        sb.assert_text(css, text).await,
+                        sb.assert_text(text, css).await,
                     ),
                     _ => {
                         report.skipped += 1;
@@ -1669,7 +1671,7 @@ mod tests {
             script.contains("sb.type_text(\"#name\", \"Ada \\\"A\\\" Lovelace\").await?;"),
             "{script}"
         );
-        assert!(script.contains("sb.assert_text(\"#msg\", \"Welcome\")"));
+        assert!(script.contains("sb.assert_text(\"Welcome\", \"#msg\")"));
         assert!(!script.contains("skipped"), "{script}");
         syn::parse_file(&script).expect("generated script should parse");
     }
@@ -1981,10 +1983,14 @@ mod tests {
 
     #[test]
     fn text_assertions_pass_their_arguments_in_the_order_the_methods_take_them() {
-        // `assert_text(css, text)` but `assert_text_visible(text, css)`.
+        // The text comes first and the selector second, as in Python.
         assert_eq!(
             call("assert_text", Some("#m"), Some("Hi")).unwrap(),
-            "sb.assert_text(\"#m\", \"Hi\").await?;"
+            "sb.assert_text(\"Hi\", \"#m\").await?;"
+        );
+        assert_eq!(
+            call("assert_exact_text", Some("#m"), Some("Hi")).unwrap(),
+            "sb.assert_exact_text(\"Hi\", \"#m\").await?;"
         );
         assert_eq!(
             call("assert_text_visible", Some("#m"), Some("Hi")).unwrap(),

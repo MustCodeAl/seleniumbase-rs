@@ -104,11 +104,12 @@ impl BaseCase {
         }
     }
 
-    /// Asserts that text appears inside a shadow-pierced element.
+    /// Asserts that text appears inside a shadow-pierced element. The text
+    /// comes first and the selector second, like `assert_text`.
     pub async fn assert_shadow_text(
         &self,
-        selector: &str,
         text: &str,
+        selector: &str,
     ) -> Result<(), SeleniumBaseError> {
         let actual = self.shadow_get_text(selector).await?;
         if !actual.contains(text) {

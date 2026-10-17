@@ -61,7 +61,7 @@ jobs:
           - os: ubuntu-latest
             features: "s3,azure,gcp"
           - os: ubuntu-latest
-            features: "mcp-server"
+            features: "mcp-server,pdf"
           # `gui` and `tui` are off by default, so the default build skips them.
           - os: ubuntu-latest
             features: "gui,tui"
@@ -72,7 +72,7 @@ jobs:
           - os: macos-latest
             features: "s3,azure,gcp"
           - os: macos-latest
-            features: "mcp-server"
+            features: "mcp-server,pdf"
           - os: macos-latest
             features: "gui,tui"
           - os: macos-latest
@@ -82,7 +82,7 @@ jobs:
           - os: windows-latest
             features: "s3,azure,gcp"
           - os: windows-latest
-            features: "mcp-server"
+            features: "mcp-server,pdf"
           - os: windows-latest
             features: "playwright"
 

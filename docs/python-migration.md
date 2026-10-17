@@ -22,8 +22,12 @@ Use `sbrs import-python` when:
 - You want a starting point for a manual migration.
 - You need to compare the original Python with generated Rust side by side.
 
+<Warning>
+
 Do not expect the importer to produce production-ready Rust for complex suites
 without review. Treat its output as a first draft.
+
+</Warning>
 
 ## Convert a file from the CLI
 
@@ -44,7 +48,12 @@ command then exits with an error if any diagnostic has the `Error` severity.
 The importer skips `import`, `from`, `def`, `class`, decorator and `with SB(`
 lines and reads the statements that remain, so every statement in the file ends
 up in one generated test, even when the Python file has several test methods.
-Split them by hand.
+
+<Note>
+
+Split the test methods by hand: every statement of the file lands in one generated test.
+
+</Note>
 
 ## Override detection
 
@@ -68,6 +77,9 @@ cargo run --bin sbrs -- import-python tests/login_test.py \
 
 The importer reads one statement at a time and understands these. In all cases
 the arguments must be string (or, for waits and `sleep`, number) literals.
+Arguments are matched with Python's parameters, so `selector="#a"` and
+`timeout=5` work as well as positional ones, and a left-out selector is `body`,
+as in Python.
 
 SeleniumBase, as `self.` or `sb.` calls:
 
@@ -75,16 +87,23 @@ SeleniumBase, as `self.` or `sb.` calls:
   `go_forward`, `maximize_window`.
 - Interactions: `click`, `click_link`, `click_link_text`,
   `click_partial_link_text`, `double_click`, `right_click`, `type`, `type_text`,
-  `update_text`, `send_keys`, `clear`, `submit`, `hover`, `check_if_unchecked`,
-  `uncheck_if_checked`, `select_option_by_text`.
+  `update_text` (which clear the field), `add_text` and `send_keys` (which add
+  to it, as in Python), `enter_mfa_code`, `clear`, `submit`, `hover`,
+  `check_if_unchecked`, `uncheck_if_checked`, `select_option_by_text`.
 - Assertions: `assert_element`, `assert_element_visible`, `assert_text`,
-  `assert_exact_text`, `assert_title`, `assert_title_contains`, `assert_url`,
-  `assert_url_contains`. For `assert_text` and `assert_exact_text` the importer
-  swaps the arguments, because Python takes the text first and the Rust methods
-  take the selector first.
+  `assert_text_visible`, `assert_exact_text`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible`, `assert_title`, `assert_title_contains`,
+  `assert_url`, `assert_url_contains`. The text assertions take the text first
+  and the selector second in Rust too, so the arguments are copied as they
+  are. A `timeout` argument is refused (the assertion waits for the default
+  timeout), and so is a `by` that is not the CSS strategy.
+- Soft assertions: `deferred_assert_element`, `deferred_assert_text`,
+  `deferred_assert_exact_text` (and their `delayed_` names) and
+  `process_deferred_asserts`.
 - Reads: `get_text`, `get_attribute` (the value is bound to an unused variable).
-- Waits: `wait_for_element_visible`, `wait_for_element_present` (the timeout
-  defaults to 10 seconds), and `sleep`.
+- Waits: `wait_for_element_visible`, `wait_for_element_present`,
+  `wait_for_text` and `wait_for_exact_text` (and their `_visible` names). The
+  timeout is the `timeout=` argument and defaults to 10 seconds. And `sleep`.
 
 Selenium WebDriver, as `driver.` or `self.driver.` calls:
 
@@ -93,7 +112,9 @@ Selenium WebDriver, as `driver.` or `self.driver.` calls:
   generated test closes the browser itself.
 - Saved element variables assigned from `find_element` calls, and
   `driver.find_element(...)` used directly, followed by `click`, `clear`,
-  `submit` or `send_keys` with a string literal; `.text` and `.get_attribute()`
+  `submit` or `send_keys` with a string literal (`send_keys` becomes
+  `add_text`, since Selenium's does not clear the field); `.text` and
+  `.get_attribute()`
   on CSS-based variables.
 - Locators: `By.CSS_SELECTOR`, `By.ID`, `By.NAME`, `By.CLASS_NAME` (one class),
   `By.TAG_NAME`, `By.XPATH`, `By.LINK_TEXT`, `By.PARTIAL_LINK_TEXT`. Link-text
@@ -122,14 +143,20 @@ non-literal argument, an XPath with no CSS equivalent, an unknown `By` strategy)
 becomes a `TODO` comment and an `Error` diagnostic, which makes the CLI exit
 with an error.
 
+<Danger>
+
 Always review the generated file before running it.
+
+</Danger>
 
 ## Example conversion
 
-Given this Python file:
+Given this Python file, the importer produces the Rust file next to it (the layout
+is rustfmt-able but not formatted):
 
-```python
-# tests/login_test.py
+<CodeGroup>
+
+```python tests/login_test.py
 from seleniumbase import BaseCase
 
 class LoginTest(BaseCase):
@@ -141,9 +168,7 @@ class LoginTest(BaseCase):
         self.assert_text("Welcome", "body")
 ```
 
-The importer produces (the layout is rustfmt-able but not formatted):
-
-```rust
+```rust tests/login_test.rs
 use seleniumbase_rs::{BrowserConfig, run_browser_test};
 
 #[tokio::test]
@@ -153,21 +178,51 @@ async fn login_test() -> seleniumbase_rs::Result<()> {
         sb.type_text("#username", "alice").await?;
         sb.type_text("#password", "secret").await?;
         sb.click("#submit").await?;
-        sb.assert_text("body", "Welcome").await?;
+        sb.assert_text("Welcome", "body").await?;
         Ok(())
     })).await
 }
 ```
 
+</CodeGroup>
+
 ## Validate the generated Rust
 
 After conversion, run these steps before trusting the test:
 
-1. Read the file and resolve every `TODO` comment.
-2. Run `cargo fmt` to normalize formatting.
-3. Compile with `cargo check` or `cargo build`.
-4. Run the test against a safe environment first.
-5. Review diagnostics printed by the importer.
+<Steps>
+
+<Step title="Resolve the TODOs">
+
+Read the file and resolve every `TODO` comment.
+
+</Step>
+
+<Step title="Format">
+
+Run `cargo fmt` to normalize formatting.
+
+</Step>
+
+<Step title="Compile">
+
+Compile with `cargo check` or `cargo build`.
+
+</Step>
+
+<Step title="Run it safely">
+
+Run the test against a safe environment first.
+
+</Step>
+
+<Step title="Review the diagnostics">
+
+Review diagnostics printed by the importer.
+
+</Step>
+
+</Steps>
 
 ## Programmatic API
 
@@ -208,11 +263,39 @@ if !result.is_complete() {
 For large suites, a full automated migration is usually not practical. A more
 realistic approach is:
 
-1. Pick a small, stable subset of tests to migrate first.
-2. Use `sbrs import-python` to generate drafts.
-3. Refactor the generated code into helpers and page objects in Rust.
-4. Run both Python and Rust suites in parallel until confidence is high.
-5. Gradually migrate the remaining tests, prioritizing the most valuable ones.
+<Steps>
+
+<Step title="Start small">
+
+Pick a small, stable subset of tests to migrate first.
+
+</Step>
+
+<Step title="Generate drafts">
+
+Use `sbrs import-python` to generate drafts.
+
+</Step>
+
+<Step title="Refactor">
+
+Refactor the generated code into helpers and page objects in Rust.
+
+</Step>
+
+<Step title="Run both suites">
+
+Run both Python and Rust suites in parallel until confidence is high.
+
+</Step>
+
+<Step title="Migrate the rest">
+
+Gradually migrate the remaining tests, prioritizing the most valuable ones.
+
+</Step>
+
+</Steps>
 
 ## Related reading
 

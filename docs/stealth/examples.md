@@ -7,9 +7,15 @@ title: "Runnable Examples"
 Five small programs in `examples/` run the layers on your own machine. None of them
 reaches the outside network or targets a third-party site, and none tries to pass a
 real detection service: each one needs nothing, or starts its own site on
-`127.0.0.1`. That site, the "shop" of `http_session` and `stealth_session`
+`127.0.0.1`.
+
+<Info>
+
+That site, the "shop" of `http_session` and `stealth_session`
 (`examples/stealth_support/shop.rs`), is a stand-in written for the examples. It is
 not any vendor's challenge, and getting past it says nothing about a real service.
+
+</Info>
 
 | Example | Feature | Needs | What it shows |
 |---|---|---|---|
@@ -27,12 +33,18 @@ cargo run -p seleniumbase-rs-mimic --example stealth_session
 cargo run -p seleniumbase-rs-scrape      --example browser_scraper
 ```
 
+<Warning>
+
 The three that use the measured emulation stop at once with the `NotMeasured`
 message on any system but macOS: they do not borrow the values of another system.
 `stealth_session` also needs the installed Chrome to be the measured major, or it is
 refused before it loads a page. The two that drive Chrome should run one at a time,
 and not beside another Chrome-driving program. The `mimic` ones start from the
 [feature costs](overview.md#two-features); the first build compiles BoringSSL.
+
+</Warning>
+
+<Check>
 
 What was run: each example was run once on macOS with Chrome 155.0.8059.40, the two
 that drive Chrome headless, and each exited with status 0. `browser_scraper` solved
@@ -44,14 +56,20 @@ requests come and go);
 (see [Limits](limits.md#limits)). Nothing was run on another system, so the `NotMeasured` stop
 of the three is read from the code and was not observed.
 
+</Check>
+
 ## Example reference by crate
 
 Every example is a file under `crates/<crate>/examples/`. Run them from the workspace root with
 `cargo run -p <package> --example <name>`. None of them reaches the outside network: the sites
 they talk to are started on `127.0.0.1` by the example itself.
 
+<Note>
+
 Only Chrome 155 on macOS is measured. An example that needs a measured system stops at once with
 the `NotMeasured` error anywhere else; it never borrows the values of another system.
+
+</Note>
 
 ### seleniumbase-rs-scrape
 
@@ -71,8 +89,12 @@ cargo run -p seleniumbase-rs-scrape --example capture_hints -- --snippet
 
 ### seleniumbase-rs-mimic
 
+<Warning>
+
 These build BoringSSL through `btls`, so they need `cmake` and a C/C++ toolchain, and about 1 GB
 of target directory on the first build.
+
+</Warning>
 
 | Example | What it shows | Needs |
 |---|---|---|

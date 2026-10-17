@@ -22,39 +22,78 @@ The files involved:
 
 ## The loop
 
-1. **Update the checkouts.** Pull the new release of SeleniumBase and
-   seleniumbase-mcp into two local clones.
-2. **Extract the API.**
+<Steps>
 
-   ```bash
-   just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp
-   ```
+<Step title="Update the checkouts">
 
-   The output is sorted and stable, so `git diff parity/upstream-api.json` is
-   exactly what upstream added, removed or changed.
-3. **Pin the release.** Set `version` and `commit` in `parity/upstream.toml` to
-   match the extraction, and update `UPSTREAM_SELENIUMBASE_VERSION` in
-   `src/lib.rs`.
-4. **Classify the new names.**
+Pull the new release of SeleniumBase and seleniumbase-mcp into two local clones.
 
-   ```bash
-   just parity-seed
-   ```
+</Step>
 
-   This adds an entry for every upstream name that has none: `implemented` if a
-   Rust item has the same name, `composed` for known compositions, and
-   otherwise `planned`. It never changes entries that already exist.
-5. **Run the test.** `just parity-check` lists what is still wrong, as a
-   to-do list: names with no entry, entries for names upstream removed, entries
-   missing a `rust`, `reason` or `note`, and `rust` paths that do not exist.
-6. **Work the list.** For each `planned` name, decide:
-   - *Port it.* Write it the way a Rust library would (see below), add tests,
-     then set `status = "implemented"` (or `"composed"`) with the `rust` path.
-   - *Compose it.* If an existing Rust item already does the job, say which.
-   - *Skip it.* Set `not-applicable` with a `reason` (for example Python-only
-     test-harness plumbing).
-7. **Regenerate the docs.** `just parity-docs` rewrites `docs/parity.md`.
-8. **Update `ROADMAP.md`**, run the quality gate, and commit.
+<Step title="Extract the API">
+
+```bash
+just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp
+```
+
+The output is sorted and stable, so `git diff parity/upstream-api.json` is
+exactly what upstream added, removed or changed.
+
+</Step>
+
+<Step title="Pin the release">
+
+Set `version` and `commit` in `parity/upstream.toml` to
+match the extraction, and update `UPSTREAM_SELENIUMBASE_VERSION` in
+`src/lib.rs`.
+
+</Step>
+
+<Step title="Classify the new names">
+
+```bash
+just parity-seed
+```
+
+This adds an entry for every upstream name that has none: `implemented` if a
+Rust item has the same name, `composed` for known compositions, and
+otherwise `planned`. It never changes entries that already exist.
+
+</Step>
+
+<Step title="Run the test">
+
+`just parity-check` lists what is still wrong, as a
+to-do list: names with no entry, entries for names upstream removed, entries
+missing a `rust`, `reason` or `note`, and `rust` paths that do not exist.
+
+</Step>
+
+<Step title="Work the list">
+
+For each `planned` name, decide:
+
+- *Port it.* Write it the way a Rust library would (see below), add tests,
+  then set `status = "implemented"` (or `"composed"`) with the `rust` path.
+- *Compose it.* If an existing Rust item already does the job, say which.
+- *Skip it.* Set `not-applicable` with a `reason` (for example Python-only
+  test-harness plumbing).
+
+</Step>
+
+<Step title="Regenerate the docs">
+
+`just parity-docs` rewrites `docs/parity.md`.
+
+</Step>
+
+<Step title="Finish">
+
+Update `ROADMAP.md`, run the quality gate, and commit.
+
+</Step>
+
+</Steps>
 
 ## Porting a feature
 

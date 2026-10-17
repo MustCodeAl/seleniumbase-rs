@@ -34,29 +34,43 @@ let tls = accept(&server, &leaf, tcp, DEFAULT_HANDSHAKE_TIMEOUT).await?;
 
 Things to know before you use it:
 
-- It is for a local browser talking to something on loopback. Nothing in the
-  module binds a socket; the caller binds `127.0.0.1` only. The CA is never
-  installed in a trust store, never written to disk, and `--ignore-certificate-errors`
-  is never used.
-- Chrome trusts the leaves through `--ignore-certificate-errors-spki-list` with
-  the pin of the shared leaf key. **That switch trusts every certificate chain that
-  contains the pinned public key, from any sender, and runs no other check.** A
-  public key is not secret, so the pin is safe only while every connection of that
-  Chrome profile ends at your server. The module keeps the trusted set as small
-  as the switch allows (only the leaf key is pinned, and the server presents the
-  leaf alone). That a chain carrying the pinned key is accepted is **measured on
-  Chrome 155** (headless, macOS). In `tests/impersonate_mitm_chrome.rs`,
-  `without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key`
-  starts Chrome with the pin and no proxy, and Chrome loads a page from a
-  loopback server whose chain is its own self-signed certificate followed by the
-  proxy's leaf. Behind the proxy the same server is never served to the page
-  (`a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page`).
-  Both tests are `#[ignore]`d because they start Chrome. They do not separate the
-  individual checks the switch skips (signature, host name, validity,
-  revocation); those stay as read in the Chromium source.
-- The CA lives seven days by default (at most 90), a leaf one day. Private keys
-  stay in BoringSSL memory and never appear in `Debug`, logs or errors. They are
-  freed, not wiped, when the CA drops, because BoringSSL offers no zeroize hook.
+<Info>
+
+It is for a local browser talking to something on loopback. Nothing in the
+module binds a socket; the caller binds `127.0.0.1` only. The CA is never
+installed in a trust store, never written to disk, and `--ignore-certificate-errors`
+is never used.
+
+</Info>
+
+<Danger>
+
+Chrome trusts the leaves through `--ignore-certificate-errors-spki-list` with
+the pin of the shared leaf key. **That switch trusts every certificate chain that
+contains the pinned public key, from any sender, and runs no other check.** A
+public key is not secret, so the pin is safe only while every connection of that
+Chrome profile ends at your server. The module keeps the trusted set as small
+as the switch allows (only the leaf key is pinned, and the server presents the
+leaf alone). That a chain carrying the pinned key is accepted is **measured on
+Chrome 155** (headless, macOS). In `tests/impersonate_mitm_chrome.rs`,
+`without_the_proxy_the_leaf_pin_alone_trusts_a_chain_carrying_the_leaf_key`
+starts Chrome with the pin and no proxy, and Chrome loads a page from a
+loopback server whose chain is its own self-signed certificate followed by the
+proxy's leaf. Behind the proxy the same server is never served to the page
+(`a_loopback_server_carrying_the_pinned_key_is_never_served_to_the_page`).
+Both tests are `#[ignore]`d because they start Chrome. They do not separate the
+individual checks the switch skips (signature, host name, validity,
+revocation); those stay as read in the Chromium source.
+
+</Danger>
+
+<Note>
+
+The CA lives seven days by default (at most 90), a leaf one day. Private keys
+stay in BoringSSL memory and never appear in `Debug`, logs or errors. They are
+freed, not wiped, when the CA drops, because BoringSSL offers no zeroize hook.
+
+</Note>
 
 ## MitmProxy
 
@@ -99,22 +113,45 @@ launch at the proxy and adds the switches it needs.
 
 ### What the proxy does with each connection
 
-1. It requires `Proxy-Authorization: Basic` with a random 128-bit token (user
-   name `sb`), compared in constant time, and answers `407` otherwise. Chrome
-   gets the token through `ProxyAuth` over `Fetch.authRequired`, so it is never
-   on Chrome's command line.
-2. It refuses a target it cannot intercept with an empty `502` and closes the
-   connection. Nothing is ever tunnelled blind: a tunnel whose first bytes are
-   neither a TLS handshake for the `CONNECT` host nor a plain-text WebSocket
-   handshake (`ws://`, see [WebSocket](#websocket)) is closed.
-3. It answers `200` and ends the browser's TLS with a leaf for exactly the
-   `CONNECT` host. The browser leg offers ALPN `http/1.1` only, and the SNI must
-   name the same host.
-4. It reads each request, drops the hop-by-hop and proxy headers, keeps Chrome's
-   header order, adds the HTTP/2-only `priority` header from the measured table,
-   and sends the request upstream with certificate verification on. The reply
-   streams back without being buffered whole. An upstream failure, an untrusted
-   certificate included, is an empty `502`.
+<Steps>
+
+<Step title="Authenticate">
+
+It requires `Proxy-Authorization: Basic` with a random 128-bit token (user
+name `sb`), compared in constant time, and answers `407` otherwise. Chrome
+gets the token through `ProxyAuth` over `Fetch.authRequired`, so it is never
+on Chrome's command line.
+
+</Step>
+
+<Step title="Refuse what it cannot intercept">
+
+It refuses a target it cannot intercept with an empty `502` and closes the
+connection. Nothing is ever tunnelled blind: a tunnel whose first bytes are
+neither a TLS handshake for the `CONNECT` host nor a plain-text WebSocket
+handshake (`ws://`, see [WebSocket](#websocket)) is closed.
+
+</Step>
+
+<Step title="End the browser's TLS">
+
+It answers `200` and ends the browser's TLS with a leaf for exactly the
+`CONNECT` host. The browser leg offers ALPN `http/1.1` only, and the SNI must
+name the same host.
+
+</Step>
+
+<Step title="Replay each request">
+
+It reads each request, drops the hop-by-hop and proxy headers, keeps Chrome's
+header order, adds the HTTP/2-only `priority` header from the measured table,
+and sends the request upstream with certificate verification on. The reply
+streams back without being buffered whole. An upstream failure, an untrusted
+certificate included, is an empty `502`.
+
+</Step>
+
+</Steps>
 
 An absolute-form `http://` request is checked the same way and forwarded without
 `CONNECT`. A WebSocket handshake inside a tunnel is relayed (see
@@ -175,31 +212,59 @@ A page's `wss://` WebSocket reaches the proxy as a `CONNECT` whose TLS the proxy
 ends, followed by the opening handshake (`GET` with `Upgrade: websocket` and
 `Connection: Upgrade`, RFC 6455). The proxy:
 
-1. checks the handshake like any request (the token, the destination, `Host`,
-   the Chrome major), and that it is a whole handshake: a bodiless HTTP/1.1 `GET`
-   with both `Upgrade: websocket` and `Connection: upgrade`. Half of one
-   (`Connection: upgrade` without `Upgrade`, or the other way round), another
-   method, HTTP/1.0 or a body is an empty `400`; an upgrade to anything else
-   (`h2c`, `TLS/1.2`, a list) is an empty `502`;
-2. sends it upstream over HTTP/1.1 with the measured WebSocket `ClientHello`
-   (`tls_websocket` in the measured file, minus the known gaps). Chrome offers
-   only `http/1.1` on a WebSocket connection, so this hello's JA4 is not the
-   ordinary one. The egress, the destination filter, the trusted roots and the
-   timeouts are those of ordinary requests;
-3. keeps the browser's header order without the hop-by-hop and proxy fields, and
-   writes the `Connection: Upgrade` and `Upgrade: websocket` pair itself. Header
-   names take the measured spelling, and the handshake fields the measured lists
-   do not hold take Chrome's (`Sec-WebSocket-Key`, `Sec-WebSocket-Version`,
-   `Sec-WebSocket-Extensions`, `Origin`, ...);
-4. relays the upstream's `101 Switching Protocols` with its own headers.
-   `Sec-WebSocket-Accept` is checked by the browser, as it would be without a
-   proxy. A `101` that switches to another protocol is an empty `502`, and any
-   other answer (a `403`, say) reaches the page as an ordinary answer;
-5. then copies bytes both ways without reading frames, until a side closes, no
-   byte has passed for `websocket_idle_timeout`, one direction has carried more
-   than `max_websocket_bytes` (the read that crosses the limit is not passed on,
-   so one frame larger than the limit ends the connection), or the proxy stops.
-   Both sides are then shut down.
+<Steps>
+
+<Step title="Checks the handshake">
+
+It checks the handshake like any request (the token, the destination, `Host`,
+the Chrome major), and that it is a whole handshake: a bodiless HTTP/1.1 `GET`
+with both `Upgrade: websocket` and `Connection: upgrade`. Half of one
+(`Connection: upgrade` without `Upgrade`, or the other way round), another
+method, HTTP/1.0 or a body is an empty `400`; an upgrade to anything else
+(`h2c`, `TLS/1.2`, a list) is an empty `502`.
+
+</Step>
+
+<Step title="Sends it upstream">
+
+It sends it upstream over HTTP/1.1 with the measured WebSocket `ClientHello`
+(`tls_websocket` in the measured file, minus the known gaps). Chrome offers
+only `http/1.1` on a WebSocket connection, so this hello's JA4 is not the
+ordinary one. The egress, the destination filter, the trusted roots and the
+timeouts are those of ordinary requests.
+
+</Step>
+
+<Step title="Keeps the header order">
+
+It keeps the browser's header order without the hop-by-hop and proxy fields, and
+writes the `Connection: Upgrade` and `Upgrade: websocket` pair itself. Header
+names take the measured spelling, and the handshake fields the measured lists
+do not hold take Chrome's (`Sec-WebSocket-Key`, `Sec-WebSocket-Version`,
+`Sec-WebSocket-Extensions`, `Origin`, ...).
+
+</Step>
+
+<Step title="Relays the answer">
+
+It relays the upstream's `101 Switching Protocols` with its own headers.
+`Sec-WebSocket-Accept` is checked by the browser, as it would be without a
+proxy. A `101` that switches to another protocol is an empty `502`, and any
+other answer (a `403`, say) reaches the page as an ordinary answer.
+
+</Step>
+
+<Step title="Copies bytes">
+
+It then copies bytes both ways without reading frames, until a side closes, no
+byte has passed for `websocket_idle_timeout`, one direction has carried more
+than `max_websocket_bytes` (the read that crosses the limit is not passed on,
+so one frame larger than the limit ends the connection), or the proxy stops.
+Both sides are then shut down.
+
+</Step>
+
+</Steps>
 
 Chrome sends no keep-alive of its own on a WebSocket, so a site that pings less
 often than `websocket_idle_timeout` loses its idle connections. A custom
@@ -277,6 +342,8 @@ aborts what is left; dropping the last clone stops it too.
 
 ### What is not intercepted
 
+<Warning>
+
 - **Upgrades other than WebSocket are refused**, and so is plain text in a
   tunnel that is not a WebSocket handshake (see [WebSocket](#websocket)).
 - QUIC is off in Chrome, so there is no HTTP/3.
@@ -287,7 +354,11 @@ aborts what is left; dropping the last clone stops it too.
   header names take the measured spelling; a name outside the measured lists
   keeps the lower case the browser leg delivers.
 
+</Warning>
+
 ### What was run
+
+<Check>
 
 `tests/impersonate_mitm.rs` runs the proxy against loopback sites, an egress
 proxy and raw clients, with no browser: the token and the `407`, the priming
@@ -331,3 +402,5 @@ refuses a request that claims another Chrome major. Run that way on linux/arm64
 with Debian's Chromium 154 (`docker/Dockerfile.verify`, headless, no sandbox),
 the seven ran and passed and the persona test skipped; before the split every
 test of the file skipped there.
+
+</Check>

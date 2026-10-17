@@ -4,8 +4,14 @@
 //! The test starts the app Cargo built for it, waits for the endpoint, then
 //! reads the title, finds the profile list, creates a profile through the
 //! dialog, filters the list by typing in the search box, adds a folder, and
-//! reads and resizes the window. It stops the app when it ends, also when it
-//! fails.
+//! reads and resizes the window. Then it adds a few controls of its own to the
+//! page (the app has no dialogs, frames or double clicks) to answer confirm
+//! and prompt dialogs, enter a same-origin frame (and be refused a sandboxed
+//! one), double-click, hover and press keys through W3C actions (also onto a
+//! paragraph far below, on a page that scrolls smoothly), and take
+//! screenshots on macOS (elsewhere the plugin answers `unsupported operation`
+//! for them, which the test checks). It stops the app when it ends, also when
+//! it fails.
 //!
 //! It opens the app's window, so it is ignored by default. Run it with:
 //!
@@ -44,6 +50,59 @@ const WEBDRIVER_URL: &str = "http://127.0.0.1:4545/e2etoken/";
 const CARD: &str = "#profile-list li.profile-card";
 /// The window's title, from `src/index.html`.
 const TITLE: &str = "Profiles — SeleniumBase Profile Manager";
+/// Controls the test adds to the page, fixed at its top left corner: a
+/// button that counts clicks, one for a confirm, one for an alert followed by
+/// a confirm and one for a prompt, a hover target, a form, a same-origin
+/// frame and a sandboxed (cross-origin) one.
+const CONTROLS: &str = r#"
+    const area = document.createElement('div');
+    area.id = 'e2e';
+    area.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647;background:#fff;padding:8px';
+    area.innerHTML = `
+      <button id="e2e-twice" type="button">Twice</button> <span id="e2e-clicks"></span>
+      <button id="e2e-confirm" type="button">Confirm</button>
+      <button id="e2e-leave" type="button">Leave</button>
+      <button id="e2e-prompt" type="button">Prompt</button> <span id="e2e-answer"></span>
+      <span id="e2e-hover">Hover me</span>
+      <form id="e2e-form"><input id="e2e-field"></form> <span id="e2e-submitted"></span>
+      <iframe id="e2e-frame" srcdoc="<p id=inside>Inside the frame</p><button id=frame-alert>Alert</button>"></iframe>
+      <iframe id="e2e-sealed" sandbox srcdoc="<p>Sealed</p>"></iframe>`;
+    document.body.append(area);
+    const show = (id, text) => { document.getElementById(id).textContent = text; };
+    const clicks = [];
+    const twice = document.getElementById('e2e-twice');
+    twice.addEventListener('click', (event) => { clicks.push(`click${event.detail}`); show('e2e-clicks', clicks.join(' ')); });
+    twice.addEventListener('dblclick', () => { clicks.push('dblclick'); show('e2e-clicks', clicks.join(' ')); });
+    document.getElementById('e2e-confirm').addEventListener('click', () => {
+      show('e2e-answer', `confirm ${window.confirm('Delete the E2E profile?')}`);
+    });
+    document.getElementById('e2e-leave').addEventListener('click', () => {
+      window.alert('Unsaved changes');
+      show('e2e-answer', `leave ${window.confirm('Leave the page?')}`);
+    });
+    document.getElementById('e2e-prompt').addEventListener('click', () => {
+      show('e2e-answer', `prompt ${window.prompt('Your name?', 'nobody')}`);
+    });
+    document.getElementById('e2e-hover').addEventListener('mouseover', () => show('e2e-hover', 'Hovered'));
+    document.getElementById('e2e-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      show('e2e-submitted', `submitted [${document.getElementById('e2e-field').value}]`);
+    });
+"#;
+
+/// A paragraph far below the part of the page in view, which says when the
+/// pointer reaches it, on a page that from then on scrolls smoothly (CSS
+/// `scroll-behavior: smooth`).
+const FAR: &str = r#"
+    document.documentElement.style.scrollBehavior = 'smooth';
+    const far = document.createElement('p');
+    far.id = 'e2e-far';
+    far.textContent = 'Far below';
+    // At the right, clear of the controls fixed at the top left.
+    far.style.cssText = 'position:absolute;top:3000px;right:20px;margin:0;padding:8px;background:#fff';
+    far.addEventListener('mouseover', () => { far.textContent = 'Reached'; });
+    document.body.append(far);
+"#;
 
 /// The app, started for this test and stopped when this is dropped.
 struct App {
@@ -133,7 +192,7 @@ async fn wait_for_cards(sb: &mut BaseCase, count: usize) -> Result<(), Box<dyn E
 /// What the test does in the window.
 async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     assert_eq!(sb.get_title().await?, TITLE);
-    sb.assert_text("h1", "Profile Manager").await?;
+    sb.assert_text("Profile Manager", "h1").await?;
 
     // A new vault starts with sample profiles; the list fills in after load.
     sb.wait_for_element_visible(CARD, 30).await?;
@@ -146,20 +205,20 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.type_text("#container-url", "http://localhost:4444")
         .await?;
     sb.click("#save-profile").await?;
-    sb.wait_for_text("#status", "Created E2E Profile", 10)
+    sb.wait_for_text("Created E2E Profile", "#status", 10)
         .await?;
-    sb.wait_for_text("#profile-list", "E2E Profile", 10).await?;
+    sb.wait_for_text("E2E Profile", "#profile-list", 10).await?;
     wait_for_cards(sb, before + 1).await?;
 
     // Typing in the search box leaves only the new profile.
     sb.type_text("#profile-search", "E2E").await?;
     wait_for_cards(sb, 1).await?;
-    sb.assert_text(CARD, "E2E Profile").await?;
+    sb.assert_text("E2E Profile", CARD).await?;
 
     // A new folder; the window sends it to the app's REST API.
     sb.type_text("#new-folder", "E2E Folder").await?;
     sb.click("#folder-form button[type='submit']").await?;
-    sb.wait_for_text("#folder-list", "E2E Folder", 10).await?;
+    sb.wait_for_text("E2E Folder", "#folder-list", 10).await?;
 
     // The window's own rectangle (the page alone would say 0 x 0): at least
     // the 800 x 600 of tauri.conf.json, and it can be resized.
@@ -171,6 +230,191 @@ async fn drive(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
     sb.set_window_size(900, 700).await?;
     let (_, _, width, height) = sb.get_window_rect().await?;
     assert_eq!((width, height), (900, 700));
+
+    sb.execute_script(CONTROLS).await?;
+    sb.wait_for_element_visible("#e2e-twice", 10).await?;
+    dialogs(sb).await?;
+    frames(sb).await?;
+    actions(sb).await?;
+    screenshots(sb).await
+}
+
+/// Dialogs answer at once (they cannot wait for the client): a confirm or a
+/// prompt with the answer set before it opened, else it is dismissed; an
+/// alert leaves that answer to the next one. Each dialog's text stays
+/// readable, oldest first, until it is accepted or dismissed as the page was
+/// answered.
+async fn dialogs(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    // No answer set: the confirm is dismissed. Accepting it afterwards, the
+    // usual WebDriver order, is refused rather than reported as done; its
+    // text can be read until it is dismissed.
+    sb.click("#e2e-confirm").await?;
+    sb.wait_for_text("confirm false", "#e2e-answer", 10).await?;
+    let refusal = sb
+        .wait_for_and_accept_alert(5)
+        .await
+        .expect_err("a confirm dismissed when it opened was accepted afterwards")
+        .to_string();
+    assert!(
+        refusal.contains("dismissed when it opened"),
+        "unexpected refusal: {refusal}"
+    );
+    eprintln!("a late accept is refused: {refusal}");
+    assert_eq!(sb.get_alert_text().await?, "Delete the E2E profile?");
+    sb.dismiss_alert().await?;
+    assert!(
+        sb.get_alert_text().await.is_err(),
+        "the dialog was dismissed, yet its text is still there"
+    );
+
+    // Accepted before it opens: the confirm answers true.
+    sb.accept_alert().await?;
+    sb.click("#e2e-confirm").await?;
+    sb.wait_for_text("confirm true", "#e2e-answer", 10).await?;
+    sb.accept_alert().await?;
+
+    // An alert before the confirm leaves the answer to it, and the two are
+    // read and cleared in the order they opened.
+    sb.accept_alert().await?;
+    sb.click("#e2e-leave").await?;
+    sb.wait_for_text("leave true", "#e2e-answer", 10).await?;
+    assert_eq!(sb.get_alert_text().await?, "Unsaved changes");
+    sb.accept_alert().await?;
+    assert_eq!(sb.get_alert_text().await?, "Leave the page?");
+    sb.accept_alert().await?;
+
+    // A prompt's text, sent and accepted before it opens.
+    sb.type_alert_text("Ada").await?;
+    sb.accept_alert().await?;
+    sb.click("#e2e-prompt").await?;
+    sb.wait_for_text("prompt Ada", "#e2e-answer", 10).await?;
+    assert_eq!(sb.get_alert_text().await?, "Your name?");
+    sb.accept_alert().await?;
+
+    // And with nothing set, the prompt is dismissed.
+    sb.click("#e2e-prompt").await?;
+    sb.wait_for_text("prompt null", "#e2e-answer", 10).await?;
+    sb.dismiss_alert().await?;
+    Ok(())
+}
+
+/// Finding, scripts, clicks and dialogs inside a same-origin frame; a
+/// sandboxed frame has an origin of its own and cannot be entered.
+async fn frames(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    sb.switch_to_frame("#e2e-frame").await?;
+    sb.assert_text("Inside the frame", "#inside").await?;
+    // The script runs in the frame: its `document` is the frame's.
+    let found = sb
+        .execute_script(
+            "document.getElementById('frame-alert').addEventListener('click', () => alert('From the frame'));
+             return document.getElementById('inside').textContent;",
+        )
+        .await?;
+    assert_eq!(found, "Inside the frame");
+    sb.click("#frame-alert").await?;
+    assert_eq!(sb.get_alert_text().await?, "From the frame");
+    sb.accept_alert().await?;
+    sb.switch_to_default_content().await?;
+    assert!(
+        !sb.is_element_present("#inside").await?,
+        "the top page sees the frame's element"
+    );
+    sb.assert_element("#e2e-twice").await?;
+
+    let sealed = sb.switch_to_frame("#e2e-sealed").await;
+    let refusal = sealed
+        .expect_err("a sandboxed frame was entered")
+        .to_string();
+    assert!(
+        refusal.contains("cross-origin"),
+        "unexpected refusal: {refusal}"
+    );
+    eprintln!("a sandboxed frame is refused: {refusal}");
+    sb.assert_element("#e2e-twice").await?;
+    Ok(())
+}
+
+/// W3C actions as DOM events: a double click, a hover, keys typed into the
+/// focused field, Enter submitting its form, and a hover far below on a page
+/// that scrolls smoothly.
+async fn actions(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    sb.double_click("#e2e-twice").await?;
+    assert_eq!(sb.get_text("#e2e-clicks").await?, "click1 click2 dblclick");
+
+    sb.hover("#e2e-hover").await?;
+    sb.wait_for_text("Hovered", "#e2e-hover", 10).await?;
+
+    sb.type_text("#e2e-field", "E2E").await?;
+    sb.press_key("space").await?;
+    sb.press_key("enter").await?;
+    sb.wait_for_text("submitted [E2E ]", "#e2e-submitted", 10)
+        .await?;
+
+    // The move scrolls the paragraph into view at once, not over the frames
+    // that follow, so it lands on it.
+    sb.execute_script(FAR).await?;
+    sb.hover("#e2e-far").await?;
+    sb.wait_for_text("Reached", "#e2e-far", 10).await?;
+    Ok(())
+}
+
+/// The PNG's width and height, from its header.
+#[cfg(target_os = "macos")]
+fn png_size(png: &[u8]) -> Option<(u32, u32)> {
+    let signature = b"\x89PNG\r\n\x1a\n";
+    if png.len() < 24 || &png[..8] != signature || &png[12..16] != b"IHDR" {
+        return None;
+    }
+    let number = |at: usize| u32::from_be_bytes([png[at], png[at + 1], png[at + 2], png[at + 3]]);
+    Some((number(16), number(20)))
+}
+
+/// Off macOS the plugin takes no screenshots yet: it says so.
+#[cfg(not(target_os = "macos"))]
+async fn screenshots(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    let refusal = sb
+        .screenshot_as_png()
+        .await
+        .expect_err("a screenshot was taken off macOS")
+        .to_string();
+    assert!(
+        refusal.contains("macOS only"),
+        "unexpected refusal: {refusal}"
+    );
+    eprintln!("screenshots are refused off macOS: {refusal}");
+    Ok(())
+}
+
+/// A screenshot of the whole view, and one of an element cut out of it.
+#[cfg(target_os = "macos")]
+async fn screenshots(sb: &mut BaseCase) -> Result<(), Box<dyn Error>> {
+    let page = sb.screenshot_as_png().await?;
+    let (page_width, page_height) = png_size(&page).ok_or("the page screenshot is not a PNG")?;
+    assert!(
+        page_width >= 900 && page_height >= 600,
+        "the page screenshot is {page_width} x {page_height}"
+    );
+    let button = sb.find_element("#e2e-twice").await?;
+    let element = button.screenshot_as_png().await?;
+    let (width, height) = png_size(&element).ok_or("the element screenshot is not a PNG")?;
+    assert!(
+        width > 0 && height > 0 && width < page_width && height < page_height,
+        "the element screenshot is {width} x {height}"
+    );
+    eprintln!("screenshots: the page {page_width} x {page_height}, the button {width} x {height}");
+
+    // The far paragraph, out of view again, on a page that scrolls smoothly:
+    // its screenshot scrolls it into view at once and is cut where it shows.
+    sb.execute_script("window.scrollTo({ top: 0, behavior: 'instant' });")
+        .await?;
+    let far = sb.find_element("#e2e-far").await?;
+    let shot = far.screenshot_as_png().await?;
+    let (width, height) = png_size(&shot).ok_or("the far screenshot is not a PNG")?;
+    assert!(
+        width > 0 && height > 0 && width < page_width && height < page_height,
+        "the far paragraph's screenshot is {width} x {height}"
+    );
+    eprintln!("screenshots: the far paragraph {width} x {height}");
     Ok(())
 }
 

@@ -15,21 +15,31 @@ The helpers exist only when the `gui` Cargo feature is on. It is off by default
 because it pulls in `enigo` (and `rfd` for native dialogs), which link GTK and
 X11 on Linux:
 
-```toml
+<CodeGroup>
+
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { version = "0.1", features = ["gui"] }
 ```
 
-```bash
+```bash Example
 cargo run --example gui_automation --features gui
 ```
+
+</CodeGroup>
 
 The example serves a one-field page from `127.0.0.1`, opens it in a visible
 browser window (headless Chrome has no window for native keys to land in), gives
 the field focus, types into it with the operating system's keyboard, and checks
-what arrived. It takes over your keyboard for a moment, so leave the browser
-window in front and do not type while it runs. On macOS your terminal needs the
-Accessibility permission (System Settings > Privacy & Security > Accessibility).
+what arrived.
+
+<Warning>
+
+It takes over your keyboard for a moment, so leave the browser window in front
+and do not type while it runs. On macOS your terminal needs the Accessibility
+permission (System Settings > Privacy & Security > Accessibility).
+
+</Warning>
 
 Without the feature, `BaseCase::gui_*`, `seleniumbase_rs::Gui` and the native
 dialog helpers (`show_message`, `show_confirm`, `show_prompt`,
@@ -115,9 +125,13 @@ sb.gui_press_key("return")?;
 
 ## Limitations
 
+<Warning>
+
 - GUI automation moves the real cursor and keyboard focus.
 - Coordinates are platform-dependent.
 - It is slower and less reliable than WebDriver interactions; prefer WebDriver when possible.
+
+</Warning>
 
 ## Troubleshooting
 

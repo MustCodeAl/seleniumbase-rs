@@ -38,9 +38,13 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
   traffic saving.
 - `parameters.custom_start_urls` — up to 5 URLs to open on launch.
 
-> **Backward compatibility:** The parser still accepts the legacy strings
-> `mimic` and `stealthfox`, but they are treated as aliases for `chromium` and
-> `firefox`. New profiles should use the generic names.
+<Note>
+
+**Backward compatibility:** The parser still accepts the legacy strings
+`mimic` and `stealthfox`, but they are treated as aliases for `chromium` and
+`firefox`. New profiles should use the generic names.
+
+</Note>
 
 ## Complete field reference
 
@@ -136,7 +140,9 @@ launch, because its folder and name seed the draw.
 
 ### Concrete mask-mode examples
 
-#### A user agent and platform
+<Tabs>
+
+<Tab title="A user agent and platform">
 
 ```json
 {
@@ -163,7 +169,9 @@ browser's own navigator whatever the profile holds, or `"mask"` to draw the
 settings the profile does not give (the memory, the touch points, the vendor)
 from the same machine.
 
-#### A screen, a position and a time zone
+</Tab>
+
+<Tab title="A screen, a position and a time zone">
 
 ```json
 {
@@ -186,7 +194,11 @@ position answers the geolocation popup with `allow`, grants the permission. The
 time zone is `Europe/Berlin`; a flag set to `mask` with no time zone in the
 profile would draw one that matches the rest of the profile.
 
-#### iOS Mobile Safari (`mobile_safari` / `ios`)
+</Tab>
+
+<Tab title="iOS Mobile Safari">
+
+This profile uses `mobile_safari` and `ios`.
 
 ```json
 {
@@ -218,6 +230,10 @@ profile would draw one that matches the rest of the profile.
 Use `browser_type: mobile_safari` and `os_type: ios` to activate iOS personas.
 `native_spoofing: true` pushes the user agent, platform, locale, and screen
 metrics through CDP so page-side JS cannot detect the override.
+
+</Tab>
+
+</Tabs>
 
 ## Literal value shortcuts
 

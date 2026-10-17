@@ -116,9 +116,49 @@ pub fn confined_path(dir: &Path, name: &str) -> Result<PathBuf, SeleniumBaseErro
     Ok(dir.join(bare_file_name(name)?))
 }
 
+/// The folder, in the working directory, where the cookie helpers keep their
+/// files: Python's `SavedCookies.STORAGE_FOLDER`.
+pub const SAVED_COOKIES_FOLDER: &str = "saved_cookies";
+
+/// The file name the cookie helpers store the cookies called `requested`
+/// under, as Python's `save_cookies(name)` works it out: only the last path
+/// part is kept (`/` and `\` both separate parts), and `.txt` is added when it
+/// is missing, so `../../etc/passwd` becomes `passwd.txt` and a name cannot
+/// leave the folder.
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::InvalidConfig`] if `requested` ends with a
+/// separator or has no file name (`""`, `.`, `..`).
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::artifacts::saved_cookies_file_name;
+///
+/// assert_eq!(saved_cookies_file_name("login").unwrap(), "login.txt");
+/// assert_eq!(saved_cookies_file_name("a/b/login.txt").unwrap(), "login.txt");
+/// assert!(saved_cookies_file_name("a/").is_err());
+/// ```
+pub fn saved_cookies_file_name(requested: &str) -> Result<String, SeleniumBaseError> {
+    let last = requested.rsplit(['/', '\\']).next().unwrap_or_default();
+    if requested.ends_with(['/', '\\']) || matches!(last, "" | "." | "..") {
+        return Err(SeleniumBaseError::InvalidConfig(format!(
+            "{requested:?} is not a file name for cookies"
+        )));
+    }
+    let name = if last.ends_with(".txt") {
+        last.to_owned()
+    } else {
+        format!("{last}.txt")
+    };
+    bare_file_name(&name)?;
+    Ok(name)
+}
+
 /// `raw` with every character except ASCII letters, digits, `-` and `_`
 /// replaced by `_`.
-fn replace_unsafe(raw: &str) -> String {
+pub(crate) fn replace_unsafe(raw: &str) -> String {
     raw.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || c == '-' || c == '_' {

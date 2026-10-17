@@ -51,7 +51,7 @@ async fn my_first_test() -> Result<()> {
         Box::pin(async move {
             sb.open(\"https://example.com\").await?;
             sb.assert_title(\"Example Domain\").await?;
-            sb.assert_text(\"h1\", \"Example Domain\").await
+            sb.assert_text(\"Example Domain\", \"h1\").await
         })
     })
     .await
@@ -79,7 +79,7 @@ async fn every_page_has_its_heading() -> Result<()> {
         run_browser_test(helpers::config()?, move |sb| {
             Box::pin(async move {
                 sb.open(page).await?;
-                sb.assert_text(\"h1\", heading).await
+                sb.assert_text(heading, \"h1\").await
             })
         })
         .await?;

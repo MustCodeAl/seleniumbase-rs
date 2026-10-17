@@ -21,11 +21,30 @@ them (Homebrew, apt, dnf, winget), are in
 
 The library looks in the usual install locations, and you can always name one:
 
-| System | Looked at | Override |
-|---|---|---|
-| macOS | `/Applications/Google Chrome.app`, `~/Applications/Google Chrome.app`, Chromium, Chrome Canary | `SB_CHROME_BIN` or `CHROME_BIN` |
-| Linux | `google-chrome`, `google-chrome-stable`, `chromium` and `chromium-browser` in `/usr/bin` (and `/snap/bin/chromium`), then the same names on the `PATH` | `SB_CHROME_BIN`, `CHROME_BIN` or `CHROMIUM_BIN` |
-| Windows | `Program Files`, `Program Files (x86)` and the per-user `Google\Chrome\Application\chrome.exe` | `SB_CHROME_BIN` or `CHROME_BIN` |
+<Tabs>
+
+<Tab title="macOS">
+
+- **Looked at:** `/Applications/Google Chrome.app`, `~/Applications/Google Chrome.app`, Chromium, Chrome Canary
+- **Override:** `SB_CHROME_BIN` or `CHROME_BIN`
+
+</Tab>
+
+<Tab title="Linux">
+
+- **Looked at:** `google-chrome`, `google-chrome-stable`, `chromium` and `chromium-browser` in `/usr/bin` (and `/snap/bin/chromium`), then the same names on the `PATH`
+- **Override:** `SB_CHROME_BIN`, `CHROME_BIN` or `CHROMIUM_BIN`
+
+</Tab>
+
+<Tab title="Windows">
+
+- **Looked at:** `Program Files`, `Program Files (x86)` and the per-user `Google\Chrome\Application\chrome.exe`
+- **Override:** `SB_CHROME_BIN` or `CHROME_BIN`
+
+</Tab>
+
+</Tabs>
 
 For the WebDriver engine, `sbrs install` downloads the chromedriver that matches
 your Chrome's major version, and `CHROMEDRIVER_PATH` points at one you already
@@ -100,7 +119,14 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   `SB_NO_SANDBOX` (it is read as set or not set: `SB_NO_SANDBOX=0` also turns the
   sandbox off), or call `LaunchOptionsBuilder::no_sandbox(true)`. The real-browser
   tests of this repository read `CI` instead and pass `--no-sandbox` when it is
-  set. That weakens Chrome's isolation, so use it only in a container you control.
+  set.
+
+  <Warning>
+
+  `--no-sandbox` weakens Chrome's isolation, so use it only in a container you control.
+
+  </Warning>
+
 - **No display.** Run headless (`SB_HEADLESS=true`, which `sbrs open` and the other
   browser commands read, or `--headless` before the subcommand). To
   see a window on a server, or to run the few tests that need a headed Chrome (the
@@ -123,11 +149,15 @@ The host was an Apple-silicon Mac, so the containers were
 154.0.8037.92** from Debian's `chromium` and `chromium-driver` packages. Cargo ran
 with `CARGO_BUILD_JOBS=2` in a container limited to 4 GB.
 
+<Info>
+
 These runs predate 0.3.0: the feature set still had `scrape`, so the counts below
 include the tests of the stealth layer, which has since moved to
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
+[seleniumbase-rs-stealth](stealth/overview.md)
 (its `impersonate` runs, the measured-persona checks and a flaky JA3 test fixed
 then are no longer part of this crate).
+
+</Info>
 
 | Run | Result |
 |---|---|
@@ -149,11 +179,15 @@ What the runs showed:
   headed browser needs a display, which Xvfb gives; Chromium needs `--no-sandbox`
   as root.
 
+<Note>
+
 Not run: x86-64 Linux, Google Chrome (only Debian's Chromium), other Linux
 distributions, the `playwright`, `gui`, `tui`, `s3`, `azure`, `turso` and `gcp`
 features, `stealth_audit_network` (it needs outside sites), `playwright_chrome`, and
 the macOS-only `driver_repair_macos`. Whether the pure CDP engine starts as the
 non-root `sbrs` user of the image with the sandbox on was not tried.
+
+</Note>
 
 ## Windows
 
@@ -163,7 +197,7 @@ and the Tauri example builds its `.msi` and setup `.exe`. (The stealth layer,
 then the `impersonate` feature, built and passed there too; it now lives in
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 with its CMake, NASM and LLVM requirements.) Install steps:
-[Building and installing](building.md#windows-powershell).
+[Building and installing](building.md#what-you-need).
 
 **What works differently**
 
@@ -174,16 +208,19 @@ with its CMake, NASM and LLVM requirements.) Install steps:
 - Build in a short folder (`C:\src\seleniumbase-rs`) if a deep `target\` path
   hits the 260-character limit. In Rust code, use raw strings for Windows paths.
 
-> [!WARNING]
-> **Not there yet on Windows**
->
-> - If the program that started a browser is killed, the browser can keep
->   running (macOS and Linux end it; Windows needs a job object). A driver whose
->   session fails, or that is dropped, is ended.
-> - The tests' leftover-process checks list processes with `sysinfo` now, so
->   they run on Windows too, but they have not been run on a Windows PC yet.
+<Warning>
+
+**Not there yet on Windows**
+
+- If the program that started a browser is killed, the browser can keep
+  running (macOS and Linux end it; Windows needs a job object). A driver whose
+  session fails, or that is dropped, is ended.
+- The tests' leftover-process checks list processes with `sysinfo` now, so
+  they run on Windows too, but they have not been run on a Windows PC yet.
 - Measured fingerprints exist for Chrome 155 on macOS only; the TLS and HTTP/2
   tables refuse other systems with `NotMeasured`.
+
+</Warning>
 
 ## WSL and remote machines
 

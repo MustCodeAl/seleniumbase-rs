@@ -6,7 +6,8 @@
 //! secret)` types it into a field. The example serves a login page whose own
 //! JavaScript checks the code with the browser's WebCrypto, independently of the
 //! Rust implementation, so an accepted code proves the code is right. A wrong
-//! code must be rejected.
+//! code must be rejected. (`enter_totp_code` presses Enter after the code, as
+//! Python's `enter_mfa_code` does.)
 //!
 //! The secret comes from the `TOTP_SECRET` environment variable. When it is
 //! not set the example uses the public test key from RFC 6238's reference
@@ -129,9 +130,9 @@ async fn sign_in(sb: &mut BaseCase, url: String, secret: String) -> Result<()> {
     sb.click("#verify").await?;
     wait_for_status(sb, "Invalid code").await?;
 
-    // The right code is accepted. `enter_totp_code` generates and types it.
+    // The right code is accepted. `enter_totp_code` generates the code, types
+    // it and presses Enter, which submits the form.
     sb.enter_totp_code("#code", &secret).await?;
-    sb.click("#verify").await?;
     wait_for_status(sb, "Verified: welcome alice").await?;
     println!("The one-time password was accepted");
     Ok(())
@@ -139,5 +140,5 @@ async fn sign_in(sb: &mut BaseCase, url: String, secret: String) -> Result<()> {
 
 /// The page checks the code asynchronously, so wait for its verdict.
 async fn wait_for_status(sb: &mut BaseCase, expected: &str) -> Result<()> {
-    sb.wait_for_text("#status", expected, 5).await
+    sb.wait_for_text(expected, "#status", 5).await
 }

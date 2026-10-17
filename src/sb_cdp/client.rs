@@ -19,8 +19,9 @@ use serde_json::{json, Value};
 use tokio::net::TcpStream;
 use tokio::sync::{broadcast, oneshot, Mutex};
 use tokio::task::JoinHandle;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{connect_async_with_config, MaybeTlsStream, WebSocketStream};
 
 use super::sync::locked;
 use crate::error::SeleniumBaseError;
@@ -39,6 +40,16 @@ const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 /// Capacity of the event channel. A subscriber that falls this far behind
 /// misses events rather than slowing the reader task down.
 const EVENT_BACKLOG: usize = 1024;
+
+/// The largest message the connection takes from the browser: 256 MiB, as in
+/// Puppeteer.
+///
+/// Chrome sends each message as one WebSocket frame, and some answers are
+/// large: `Network.getResponseBody` returns a whole body, base64 (a third
+/// larger) when it is binary. A message over the limit is a read error that
+/// closes the connection for every tab, and the WebSocket defaults (16 MiB a
+/// frame) are reached by a 12 MiB image.
+const MAX_MESSAGE_BYTES: usize = 256 << 20;
 
 /// A protocol event pushed by the browser, such as `Page.loadEventFired`.
 #[derive(Debug, Clone, PartialEq)]
@@ -59,6 +70,8 @@ pub struct CdpEvent {
 pub struct Events {
     rx: broadcast::Receiver<CdpEvent>,
     session: Option<Arc<str>>,
+    /// The events skipped so far for falling behind, of every session.
+    missed: u64,
 }
 
 impl Events {
@@ -83,10 +96,17 @@ impl Events {
                         return Some(event);
                     }
                 }
-                Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Lagged(skipped)) => self.missed += skipped,
                 Err(broadcast::error::RecvError::Closed) => return None,
             }
         }
+    }
+
+    /// How many events [`next`](Self::next) has skipped so far because this
+    /// listener fell too far behind, counting those of every session.
+    #[must_use]
+    pub(crate) fn missed(&self) -> u64 {
+        self.missed
     }
 
     /// Waits for the next event named `method`, skipping all others.
@@ -156,7 +176,11 @@ impl Client {
     /// Connects to a DevTools WebSocket such as
     /// `ws://127.0.0.1:9222/devtools/browser/<id>`.
     pub(crate) async fn connect(ws_url: &str) -> Result<Self, SeleniumBaseError> {
-        let (stream, _) = connect_async(ws_url).await.map_err(|e| {
+        let config = WebSocketConfig::default()
+            .max_message_size(Some(MAX_MESSAGE_BYTES))
+            .max_frame_size(Some(MAX_MESSAGE_BYTES));
+        let connecting = connect_async_with_config(ws_url, Some(config), false);
+        let (stream, _) = connecting.await.map_err(|e| {
             SeleniumBaseError::cdp_driver(format!("WebSocket connect to {ws_url} failed: {e}"))
         })?;
         let (sink, source) = stream.split();
@@ -188,7 +212,11 @@ impl Client {
             #[cfg(any(test, feature = "test-util"))]
             Link::Mock(ctrl) => ctrl.subscribe(),
         };
-        Events { rx, session: None }
+        Events {
+            rx,
+            session: None,
+            missed: 0,
+        }
     }
 
     /// Sends a command and waits for its response.
@@ -487,5 +515,65 @@ mod tests {
         assert_eq!(event.method, "Page.loadEventFired");
         assert_eq!(event.session_id.as_deref(), Some("S1"));
         assert_eq!(pending.lock().unwrap().len(), 1);
+    }
+
+    /// A DevTools endpoint on a local port that answers every command with
+    /// `result`, each answer in one WebSocket frame as Chrome sends them.
+    async fn endpoint_answering(result: Value) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("ws://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+            while let Some(Ok(Message::Text(text))) = socket.next().await {
+                let id = serde_json::from_str::<Value>(&text).unwrap()["id"].clone();
+                let answer = json!({ "id": id, "result": result }).to_string();
+                if socket.send(Message::text(answer)).await.is_err() {
+                    break;
+                }
+            }
+        });
+        url
+    }
+
+    #[tokio::test]
+    async fn an_answer_over_16_mib_arrives_and_keeps_the_connection() {
+        // A binary body of 13 MiB comes back base64 in one message of over
+        // 16 MiB, the frame limit a WebSocket client has by default.
+        let body = "A".repeat(17 << 20);
+        let url = endpoint_answering(json!({ "body": body, "base64Encoded": true })).await;
+        let client = Client::connect(&url).await.unwrap();
+
+        let answer = client
+            .send("Network.getResponseBody", json!({ "requestId": "1" }), None)
+            .await
+            .expect("the large answer");
+
+        assert_eq!(answer["body"].as_str().map(str::len), Some(17 << 20));
+        assert!(client.is_open(), "the connection is still up");
+    }
+
+    #[tokio::test]
+    async fn a_listener_that_falls_behind_counts_what_it_skipped() {
+        let (sender, rx) = broadcast::channel(2);
+        let mut events = Events {
+            rx,
+            session: None,
+            missed: 0,
+        };
+        for n in 0..5 {
+            sender
+                .send(CdpEvent {
+                    method: format!("E{n}"),
+                    params: json!({}),
+                    session_id: None,
+                })
+                .unwrap();
+        }
+
+        let next = events.next().await.unwrap();
+
+        assert_eq!(next.method, "E3", "the oldest events were lost");
+        assert_eq!(events.missed(), 3);
     }
 }

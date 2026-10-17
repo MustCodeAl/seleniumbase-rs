@@ -29,9 +29,13 @@ If the element never gets there, the action fails with
 waiting for. You do not need a manual wait before every action, but explicit
 waits are still useful for precise timing or for waiting on dynamic state.
 
+<Note>
+
 The wait is a poll, not a WebDriver implicit wait, so checks such as
 `is_element_present` still answer at once instead of waiting out the timeout
 when the element is absent.
+
+</Note>
 
 ## Explicit waits
 
@@ -58,8 +62,12 @@ sb.wait_for_element_absent(".error", 5).await?;
 sb.wait_for_ready_state_complete().await?;
 ```
 
+<Info>
+
 Timeouts are in seconds and are passed as `u64` values. Some methods also have
 a `_default` variant that uses the configured implicit timeout.
+
+</Info>
 
 ## Text and title waits
 
@@ -67,10 +75,10 @@ Wait for text or page title conditions:
 
 ```rust
 // Wait until the given text is visible inside the selector
-sb.wait_for_text("body", "Welcome", 10).await?;
+sb.wait_for_text("Welcome", "body", 10).await?;
 
 // Wait until text is no longer visible anywhere on the page
-sb.wait_for_text_not_visible("Loading", 10).await?;
+sb.wait_for_text_not_visible("Loading", "body", 10).await?;
 
 // Wait until the page title equals the expected value
 sb.assert_title("Dashboard").await?;
@@ -82,6 +90,8 @@ sb.assert_title_contains("Dashboard").await?;
 ## Assertions
 
 Assertions return `Result<(), SeleniumBaseError>` and stop the test on failure.
+The text assertions take the text first and the selector second, as in Python,
+and wait for it for up to the default timeout (see below) before they fail.
 
 ```rust
 // Title assertions
@@ -89,10 +99,10 @@ sb.assert_title("My App").await?;
 sb.assert_title_contains("My App").await?;
 
 // Text assertions
-sb.assert_text("body", "Welcome!").await?;
+sb.assert_text("Welcome!", "body").await?;
 sb.assert_text_visible("Welcome!", "body").await?;
 sb.assert_text_not_visible("Error", "body").await?;
-sb.assert_exact_text("#greeting", "Hello, Alice").await?;
+sb.assert_exact_text("Hello, Alice", "#greeting").await?;
 
 // Element assertions
 sb.assert_element("#success").await?;
@@ -117,7 +127,7 @@ want to see all failures at once.
 ```rust
 sb.deferred_assert_element("#header").await?;
 sb.deferred_assert_text("Terms", "footer").await?;
-sb.deferred_assert_exact_text("#status", "Ready").await?;
+sb.deferred_assert_exact_text("Ready", "#status").await?;
 
 // Process all deferred assertions; this is where failures are raised.
 sb.process_deferred_asserts().await?;
@@ -146,16 +156,26 @@ sb.set_time_limit(120)?;
 
 Once the test has run longer than the limit, counted from creating the
 `BaseCase`, its next `open`, readiness wait or element action fails with a
-time-limit error, and waits are cut to the time left. A test that does none of
-those is not interrupted; wrap the test in `tokio::time::timeout` for a hard stop.
+time-limit error, and waits are cut to the time left.
+
+<Warning>
+
+A test that does none of those is not interrupted; wrap the test in
+`tokio::time::timeout` for a hard stop.
+
+</Warning>
 
 ## Anti-patterns
+
+<Warning>
 
 - **Do not use `tokio::time::sleep` to wait for pages**. It makes tests slow and
   does not eliminate timing races. Use explicit waits instead.
 - **Do not assert on exact styling**. Assert on content, attributes, and state.
 - **Do not silently swallow assertion failures**. Let errors propagate with `?`
   so the test runner reports them.
+
+</Warning>
 
 ## Wait and assertion checklist
 

@@ -62,8 +62,12 @@ mdbook build
 Features, binaries, the Dockerfile and build-time tips are in
 [docs/building.md](building.md).
 
+<Tip>
+
 Read `CLAUDE.md` once even if you are not using an AI assistant: it is a short map
 of the modules, the commands and the things that have bitten before.
+
+</Tip>
 
 Three environment flags keep builds cheap on a small machine, and they let
 several checkouts share compiled dependencies:
@@ -72,18 +76,26 @@ several checkouts share compiled dependencies:
 export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 ```
 
+<Warning>
+
 Do not run two heavy cargo commands at once in the same target directory (cargo
 serialises them with a lock), and do not share one `CARGO_TARGET_DIR` between
 several checkouts of this repository: they overwrite each other's compiled
 library and doctests then fail with "extern location does not exist".
 
+</Warning>
+
 ## Development Environment
+
+<Info>
 
 With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
 `mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
 scripts, Node for the Tauri example, mdBook, just and cargo-deny), and
 `mise run gate` runs the checks a change has to pass; `mise tasks` lists the
 rest (`chrome`, `parity-docs`, `docs`, `smoke`).
+
+</Info>
 
 ### Required
 
@@ -268,8 +280,13 @@ if it is not.
 `cargo deny check` gates advisories, licenses, banned crates, and dependency
 sources against `deny.toml`. Every advisory that is ignored there carries a
 written rationale, so if a new one appears, either upgrade the dependency or
-add an entry explaining why the risk is acceptable — do not widen the ignore
-list silently.
+add an entry explaining why the risk is acceptable.
+
+<Warning>
+
+Do not widen the ignore list silently.
+
+</Warning>
 
 The crate declares `rust-version = "1.99"`, the newest stable release when it was
 last raised, which the `msrv` CI job enforces with that exact toolchain. The
@@ -277,11 +294,15 @@ floor is a choice to track current stable, not something the crate's own source
 needs, so when it moves, bump `rust-version`, the `msrv` job, and the
 `Dockerfile` base image together.
 
+<Tip>
+
 On macOS, if a test binary cannot load `libpython`, prefix the test commands with:
 
 ```bash
 DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib" cargo test --features "mcp-server test-util"
 ```
+
+</Tip>
 
 ## Parity with Python SeleniumBase
 
@@ -304,7 +325,11 @@ MCP server) exists here or has a stated reason why not.
 The stealth layer uses a provider registry. `evasions::bootstrap_script(fp)` is
 a thin wrapper over the registry.
 
-1. Open `src/stealth/providers/builtin.rs` and implement `EvasionProvider`:
+<Steps>
+
+<Step title="Implement EvasionProvider">
+
+Open `src/stealth/providers/builtin.rs` and implement `EvasionProvider`:
 
 ```rust
 use seleniumbase_rs::stealth::providers::{EvasionContext, EvasionProvider};
@@ -338,9 +363,18 @@ impl EvasionProvider for MyEvasionProvider {
 }
 ```
 
-2. Register it in `all()` at the bottom of `builtin.rs` (keep sorted by priority).
-3. Wrap replaced natives so `Function.prototype.toString` still reports
-   `[native code]`:
+</Step>
+
+<Step title="Register it">
+
+Register it in `all()` at the bottom of `builtin.rs` (keep sorted by priority).
+
+</Step>
+
+<Step title="Wrap replaced natives">
+
+Wrap replaced natives so `Function.prototype.toString` still reports
+`[native code]`:
 
 ```js
 obj.method = (window.__sbNative || function(f){return f;})(patched, 'method');
@@ -349,10 +383,28 @@ obj.method = (window.__sbNative || function(f){return f;})(patched, 'method');
 The `native_to_string` provider (priority 5) installs `window.__sbNative`
 before any other provider runs.
 
-4. Use `ctx.seed` for deterministic per-session noise (canvas, audio, WebGL).
-5. Add a unit test asserting the snippet contains expected markers and that
-   `applies` is gated correctly.
-6. Update `docs/tutorials/fingerprint_stealth.md`.
+</Step>
+
+<Step title="Seed the noise">
+
+Use `ctx.seed` for deterministic per-session noise (canvas, audio, WebGL).
+
+</Step>
+
+<Step title="Test it">
+
+Add a unit test asserting the snippet contains expected markers and that
+`applies` is gated correctly.
+
+</Step>
+
+<Step title="Document it">
+
+Update `docs/tutorials/fingerprint_stealth.md`.
+
+</Step>
+
+</Steps>
 
 ## Adding a Fingerprint Setting or Policy Field
 
@@ -401,9 +453,27 @@ macro_rules! sb_focus {
 }
 ```
 
-1. Add the macro with `#[macro_export]`.
-2. Write a compile-time unit test under the definition.
-3. Update `docs/tutorials/macros.md` and the macro table in `README.md`.
+<Steps>
+
+<Step title="Add the macro">
+
+Add the macro with `#[macro_export]`.
+
+</Step>
+
+<Step title="Test it">
+
+Write a compile-time unit test under the definition.
+
+</Step>
+
+<Step title="Document it">
+
+Update `docs/tutorials/macros.md` and the macro table in `README.md`.
+
+</Step>
+
+</Steps>
 
 ## Adding an MCP Tool
 
@@ -413,40 +483,119 @@ A tool is a `ToolDef` in `src/mcp/`; read `src/mcp/devtools.rs` for working
 examples (they are generic over the session type, so one definition serves both
 engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
 
-1. Declare it with `ToolDef::new(name, title, description, effect, schema,
-   handler)`. The handler is an `async fn(Ctx<S>, Args) -> Result<Output,
-   ToolError>`. Pick the `Effect` honestly: `Observe` reads the open web,
-   `Inspect` looks at this machine, `Act` changes the page, `Set` changes the
-   session idempotently, `Overwrite` writes local files.
-2. Return `ToolError::Failed(SeleniumBaseError)` for failures: the server turns it
-   into a failure report with the page's state, the hint and the next tools to
-   try. Files a tool writes go through the output directory
-   (`SB_MCP_OUTPUT_DIR`), never to an arbitrary path.
-3. Register it in the server that offers it (`cdp.rs`, `driver.rs`, `sb.rs`).
-4. Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
-   then with a real Chrome in a `*_chrome.rs` test if it reads a page.
-5. Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and
-   give it an entry in `parity/api.toml` if upstream has the same tool.
+<Steps>
+
+<Step title="Declare it">
+
+Declare it with `ToolDef::new(name, title, description, effect, schema,
+handler)`. The handler is an `async fn(Ctx<S>, Args) -> Result<Output,
+ToolError>`. Pick the `Effect` honestly: `Observe` reads the open web,
+`Inspect` looks at this machine, `Act` changes the page, `Set` changes the
+session idempotently, `Overwrite` writes local files.
+
+</Step>
+
+<Step title="Report failures">
+
+Return `ToolError::Failed(SeleniumBaseError)` for failures: the server turns it
+into a failure report with the page's state, the hint and the next tools to
+try. Files a tool writes go through the output directory
+(`SB_MCP_OUTPUT_DIR`), never to an arbitrary path.
+
+</Step>
+
+<Step title="Register it">
+
+Register it in the server that offers it (`cdp.rs`, `driver.rs`, `sb.rs`).
+
+</Step>
+
+<Step title="Test it">
+
+Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
+then with a real Chrome in a `*_chrome.rs` test if it reads a page.
+
+</Step>
+
+<Step title="Document it">
+
+Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and
+give it an entry in `parity/api.toml` if upstream has the same tool.
+
+</Step>
+
+</Steps>
 
 ## Adding an `sbrs` Subcommand
 
-1. Add the new variant to `SbaseCommand` in `src/cli/bin/sbrs.rs` with an
-   idiomatic `///` description.
-2. Add argument parsing in the `clap` derive macro.
-3. Add a handler branch in `async fn main()`.
-4. If the command launches a browser, prefer creating a `BaseCase` through
-   `run_browser_test()` so cleanup is deterministic.
-5. Update `docs/help/commander.md` and `README.md` if the command is user-facing.
+<Steps>
+
+<Step title="Add the variant">
+
+Add the new variant to `SbaseCommand` in `src/cli/bin/sbrs.rs` with an
+idiomatic `///` description.
+
+</Step>
+
+<Step title="Parse the arguments">
+
+Add argument parsing in the `clap` derive macro.
+
+</Step>
+
+<Step title="Handle it">
+
+Add a handler branch in `async fn main()`.
+
+</Step>
+
+<Step title="Clean up">
+
+If the command launches a browser, prefer creating a `BaseCase` through
+`run_browser_test()` so cleanup is deterministic.
+
+</Step>
+
+<Step title="Document it">
+
+Update `docs/help/commander.md` and `README.md` if the command is user-facing.
+
+</Step>
+
+</Steps>
 
 ## Adding a Profile Payload Field
 
 External profile payloads are parsed in `src/profile_payloads/profile.rs`.
 
-1. Add the field to `ProfileParams` (or the appropriate nested struct).
-2. Map it to `BrowserConfig` or `Fingerprint` in `to_browser_config()` and
-   `browser()`.
-3. Add a unit test for parsing and round-tripping.
-4. Update `docs/tutorials/browser_profiles.md`.
+<Steps>
+
+<Step title="Add the field">
+
+Add the field to `ProfileParams` (or the appropriate nested struct).
+
+</Step>
+
+<Step title="Map it">
+
+Map it to `BrowserConfig` or `Fingerprint` in `to_browser_config()` and
+`browser()`.
+
+</Step>
+
+<Step title="Test it">
+
+Add a unit test for parsing and round-tripping.
+
+</Step>
+
+<Step title="Document it">
+
+Update `docs/tutorials/browser_profiles.md`.
+
+</Step>
+
+</Steps>
 
 ## Binary Patching
 
@@ -493,16 +642,45 @@ the result:
 
 ## Opening a Pull Request
 
-1. Branch from `main` unless told otherwise.
-2. Keep commits focused and atomic, with conventional-commit subjects
-   (`feat(scope): ...`, `fix(scope): ...`, `test: ...`, `docs: ...`, `refactor: ...`).
-   Commits carry no co-author or tool trailers, and never contain secrets.
-3. Update the tests, `CHANGELOG.md` and the docs in the same change.
-4. Fill out the PR description with:
-   - What changed and why.
-   - Verification commands that passed.
-   - Any breaking API changes and migration notes.
-5. Ensure CI is green.
+<Steps>
+
+<Step title="Branch">
+
+Branch from `main` unless told otherwise.
+
+</Step>
+
+<Step title="Commit">
+
+Keep commits focused and atomic, with conventional-commit subjects
+(`feat(scope): ...`, `fix(scope): ...`, `test: ...`, `docs: ...`, `refactor: ...`).
+Commits carry no co-author or tool trailers, and never contain secrets.
+
+</Step>
+
+<Step title="Update tests and docs">
+
+Update the tests, `CHANGELOG.md` and the docs in the same change.
+
+</Step>
+
+<Step title="Describe the change">
+
+Fill out the PR description with:
+
+- What changed and why.
+- Verification commands that passed.
+- Any breaking API changes and migration notes.
+
+</Step>
+
+<Step title="Check CI">
+
+Ensure CI is green.
+
+</Step>
+
+</Steps>
 
 ### PR review checklist
 
@@ -524,12 +702,35 @@ the result:
 The crate is not published to crates.io; it is distributed from the repository.
 To publish a change to `main`:
 
-1. Run the full verification matrix on the exact commit you will push.
-2. `git fetch`, and confirm `origin/main` has not moved since you started.
-3. Push as a fast-forward only (for example
-   `git push origin <commit>:refs/heads/main`), then check that your local
-   branch and `origin/main` are the same commit.
-4. Never force-push.
+<Steps>
+
+<Step title="Verify the exact commit">
+
+Run the full verification matrix on the exact commit you will push.
+
+</Step>
+
+<Step title="Fetch">
+
+`git fetch`, and confirm `origin/main` has not moved since you started.
+
+</Step>
+
+<Step title="Fast-forward push">
+
+Push as a fast-forward only (for example
+`git push origin <commit>:refs/heads/main`), then check that your local
+branch and `origin/main` are the same commit.
+
+</Step>
+
+</Steps>
+
+<Danger>
+
+Never force-push.
+
+</Danger>
 
 A docs-only commit on top of a commit that passed the checks may be pushed
 after it, and its message should say so.

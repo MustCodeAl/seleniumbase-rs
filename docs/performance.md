@@ -37,8 +37,12 @@ The following costs are largely independent of the language driving the browser:
 - Browser process startup and shutdown.
 - Time spent waiting for JavaScript frameworks to hydrate the DOM.
 
+<Warning>
+
 Because of this, do not assume that porting a test from Python or JavaScript to
 Rust will automatically make it faster. Measure first.
+
+</Warning>
 
 ## How to measure
 
@@ -92,11 +96,15 @@ cargo run --bin sbrs -- -n 4 run-scenario --file suite.json
 Repeated polling from test code wastes time and adds WebDriver round trips.
 Prefer a single action that expresses intent:
 
-```rust
-// Good: one wait that polls internally
-sb.wait_for_element_visible("#results", 10).await?;
+<CodeGroup>
 
-// Less good: manual polling loop
+```rust Good
+// One wait that polls internally
+sb.wait_for_element_visible("#results", 10).await?;
+```
+
+```rust Less good
+// Manual polling loop
 loop {
     if sb.is_element_visible("#results").await? {
         break;
@@ -104,6 +112,8 @@ loop {
     tokio::time::sleep(Duration::from_millis(200)).await;
 }
 ```
+
+</CodeGroup>
 
 Use CDP directly only when it removes a measured bottleneck or provides behavior
 that WebDriver cannot expose.
@@ -124,7 +134,7 @@ CDP can reduce round trips for some operations, but it also adds complexity:
 
 - **Demo and slow modes** pause after `open`, `click`, `type_text`,
   `update_text` and `press_keys` (demo mode also outlines the element first), so a person can
-  follow the run. Never leave them on in CI.
+  follow the run. They must not stay on in CI (see below).
 - **Fast mode** cancels those demo and slow pauses. It does not make the browser
   faster.
 - **Skip JavaScript waits** makes `wait_for_ready_state_complete` return at once.
@@ -132,20 +142,46 @@ CDP can reduce round trips for some operations, but it also adds complexity:
   clicks.
 - **Message duration** sets how long `post_message` toasts stay on screen.
 
+<Warning>
+
+Never leave the demo and slow modes on in CI.
+
+</Warning>
+
+<Note>
+
 These pauses were added in the parity work and have been unit-tested without a
 browser, but their cost has not been benchmarked.
 
+</Note>
+
 ## Choosing the engine
 
-- The **pure CDP engine** (`sb_cdp`) has no chromedriver process and no HTTP
-  request per command, and the library's own part of a round trip is about 0.1 ms
-  (see [Benchmarks](benchmarks.md)). It is the lower-overhead choice when you do
-  not need the Selenium API. The saving over WebDriver is structural, not
-  measured.
-- The **WebDriver engine** is the choice when you need Selenium Grid, Firefox or
-  an existing `BaseCase` suite. Match the chromedriver to Chrome's major version
-  (the launcher and `sbrs install` do this); a mismatch costs far more than any
-  tuning.
+<Tabs>
+
+<Tab title="Pure CDP engine">
+
+The pure CDP engine (`sb_cdp`) has no chromedriver process and no HTTP
+request per command, and the library's own part of a round trip is about 0.1 ms
+(see [Benchmarks](benchmarks.md)). It is the lower-overhead choice when you do
+not need the Selenium API. The saving over WebDriver is structural, not
+measured.
+
+</Tab>
+
+<Tab title="WebDriver engine">
+
+The WebDriver engine is the choice when you need Selenium Grid, Firefox or
+an existing `BaseCase` suite. Match the chromedriver to Chrome's major version
+(the launcher and `sbrs install` do this); a mismatch costs far more than any
+tuning.
+
+</Tab>
+
+</Tabs>
+
+Whichever engine you pick:
+
 - Launching Chrome to a DevTools connection takes about 0.5 s, while attaching
   and loading a first page takes about 50 ms, so reuse a browser through
   `BrowserPool` leases instead of launching one per test.

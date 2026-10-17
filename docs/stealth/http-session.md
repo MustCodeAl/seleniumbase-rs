@@ -44,6 +44,8 @@ session.sync_cookies_back(&page).await?;
 
 Both refuse, before any request, what would contradict the measured handshake:
 
+<Warning>
+
 - A Chrome of another major version than the measured one:
   `HttpError::VersionMismatch { browser, measured }`. For a page, both the user
   agent and `Browser.getVersion` are checked.
@@ -53,6 +55,8 @@ Both refuse, before any request, what would contradict the measured handshake:
   announces itself, so give it one or run it headed.
 - An identity of another egress than the one passed, or a page whose context
   proxy is another than `egress`: `HttpError::Identity(..)`.
+
+</Warning>
 
 ## Requests
 
@@ -158,23 +162,37 @@ println!("{}: {}", reply.status(), reply.text()?);
 
 ## What to know
 
-- **The first request to an origin is written for HTTP/2.** The `priority` header
-  is a Chrome HTTP/2 header. The session cannot know the protocol before it
-  connects, so when an origin turns out to speak HTTP/1.1 only, that first
-  request carries an HTTP/2 `priority` header. The session then remembers the
-  origin and writes the HTTP/1.1 headers from the second request on. The tests
-  assert the second half (the second request has no `priority` header,
-  `the_protocol_an_origin_settled_on_is_remembered` in
-  `tests/impersonate_http/basics.rs`); the first request's header is what the
-  module documentation states, and no test asserts it.
-- It does not run JavaScript, solve a challenge, open a WebSocket, or pass
-  canvas, WebGL or behavioural checks, and it does not make automation permitted
-  by a site's terms. A matching handshake is one signal among many.
-- **What was run against a real Chrome.** `tests/impersonate_http_chrome.rs`
-  (`#[ignore]`d, headless Chrome 155 on macOS, against a loopback TLS site)
-  shows that the real `navigator.userAgent`, `navigator.languages`,
-  `Browser.getVersion` and `Network.getAllCookies` are what `from_page` reads,
-  that a host-only cookie set by a response reaches Chrome as host-only, that a
-  removal reaches it too, and that a page announcing itself as headless is
-  refused. The rest of `HttpSession` is tested against loopback sites
-  (`tests/impersonate_http.rs`) and a scripted browser, with no Chrome.
+<Info>
+
+**The first request to an origin is written for HTTP/2.** The `priority` header
+is a Chrome HTTP/2 header. The session cannot know the protocol before it
+connects, so when an origin turns out to speak HTTP/1.1 only, that first
+request carries an HTTP/2 `priority` header. The session then remembers the
+origin and writes the HTTP/1.1 headers from the second request on. The tests
+assert the second half (the second request has no `priority` header,
+`the_protocol_an_origin_settled_on_is_remembered` in
+`tests/impersonate_http/basics.rs`); the first request's header is what the
+module documentation states, and no test asserts it.
+
+</Info>
+
+<Warning>
+
+It does not run JavaScript, solve a challenge, open a WebSocket, or pass
+canvas, WebGL or behavioural checks, and it does not make automation permitted
+by a site's terms. A matching handshake is one signal among many.
+
+</Warning>
+
+<Check>
+
+**What was run against a real Chrome.** `tests/impersonate_http_chrome.rs`
+(`#[ignore]`d, headless Chrome 155 on macOS, against a loopback TLS site)
+shows that the real `navigator.userAgent`, `navigator.languages`,
+`Browser.getVersion` and `Network.getAllCookies` are what `from_page` reads,
+that a host-only cookie set by a response reaches Chrome as host-only, that a
+removal reaches it too, and that a page announcing itself as headless is
+refused. The rest of `HttpSession` is tested against loopback sites
+(`tests/impersonate_http.rs`) and a scripted browser, with no Chrome.
+
+</Check>

@@ -74,15 +74,19 @@ The recorder produces method calls such as:
 # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.click("#myButton").await?;
 sb.type_text("#myInput", "hello").await?;
-sb.assert_text("body", "Success!").await?;
+sb.assert_text("Success!", "body").await?;
 # Ok(())
 # }
 ```
+
+<Warning>
 
 Only some `BaseCase` methods record themselves: navigation and interaction ones
 such as `open`, `click`, `type_text`, `clear`, `hover`, the `select_option_*`
 methods and a few waits, and among assertions only `assert_text`. Calls to
 other methods leave no trace in the recording.
+
+</Warning>
 
 `export_recording_as_rust` (and the `.rs` file `save_recording_to_logs` writes)
 is a complete `#[tokio::main]` program: it imports `BaseCase` and
@@ -90,8 +94,13 @@ is a complete `#[tokio::main]` program: it imports `BaseCase` and
 calls, and quits. To get a `#[tokio::test]` function instead, call
 `ActionRecorder::to_rust_test(name)`, or `save_recording_as_test(dir, name)` to
 write it to `dir/name.rs`. The generated code has no custom timeout and does not
-use the `sb_test!` macro. Always review the output before committing it to your
-suite.
+use the `sb_test!` macro.
+
+<Tip>
+
+Always review the output before committing it to your suite.
+
+</Tip>
 
 ## Pure CDP code (`--rec-sb-cdp`)
 
@@ -156,10 +165,14 @@ Replay it with the CLI:
 cargo run --bin sbrs -- replay latest_logs/recorded.json
 ```
 
+<Warning>
+
 This is not the file `sbrs run-scenario` reads. That command takes a
 hand-written scenario, an object with a `name` and a list of `steps` such as
 `{ "action": "click", "css": "#myButton" }`; passing it an action file fails to
 parse. See [Recorder CLI](../help/recorder_cli.md) for both formats.
+
+</Warning>
 
 Action files are portable and can be replayed by CI jobs without recompiling a
 test binary. `replay` understands `goto`/`open`, `click`, `type`/`type_text`,

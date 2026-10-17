@@ -179,11 +179,12 @@ rust = "BaseCase::assert_equal"
 [basecase."assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text"
-divergence = "Argument order is (css, expected); Python's is (text, selector)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text for a timeout of its own)."
 
 [basecase."assert_exact_text_not_visible"]
 status = "implemented"
 rust = "BaseCase::assert_exact_text_not_visible"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_exact_text_not_visible for a timeout of its own)."
 
 [basecase."assert_false"]
 status = "implemented"
@@ -244,15 +245,17 @@ rust = "BaseCase::assert_raises"
 [basecase."assert_text"]
 status = "implemented"
 rust = "BaseCase::assert_text"
-divergence = "Argument order is (css, expected); Python's is (text, selector)."
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text for a timeout of its own)."
 
 [basecase."assert_text_not_visible"]
 status = "implemented"
 rust = "BaseCase::assert_text_not_visible"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_not_visible for a timeout of its own)."
 
 [basecase."assert_text_visible"]
 status = "implemented"
 rust = "BaseCase::assert_text_visible"
+divergence = "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); has no timeout or by arguments (use set_timeout, or wait_for_text_visible for a timeout of its own)."
 
 [basecase."assert_title"]
 status = "implemented"
@@ -297,7 +300,7 @@ rust = "BaseCase::check_if_unchecked"
 [basecase."check_window"]
 status = "implemented"
 rust = "BaseCase::check_window"
-divergence = "Saves and compares the page's tag structure as Python does: visual_baseline/<test>/<name> holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below <body> (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so <test> is the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of <body>, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a number and anything but 0, 1, 2 or 3 is an InvalidConfig error."
+divergence = "Saves and compares the page's tag structure as Python does: visual_baseline/<test>/<name> holds page_url.txt, baseline.png and tags_level_1.txt to tags_level_3.txt, with one entry for each tag below <body> (the tag names, then the sorted attribute names, then the attribute values), a level of 0 is a dry run, and a page on another domain fails. Differs: Rust has no test id, so <test> is the name given with BaseCase::with_test_name (sb_test! does) or else the name of the running thread (the test's name under cargo test); the screenshot is of the window, not of <body>, and is not compared; the page source is parsed by the scraper crate, not html.parser; the baseline, check_domain and full_diff arguments are not ported, nor is the side-by-side report Python writes for a level-0 difference; level is a u8 and anything but 0, 1, 2 or 3 is an InvalidConfig error."
 
 [basecase."choose_file"]
 status = "implemented"
@@ -388,11 +391,12 @@ rust = "BaseCase::convert_css_to_xpath"
 [basecase."convert_to_css_selector"]
 status = "implemented"
 rust = "BaseCase::convert_to_css_selector"
+divergence = "Takes no by argument: the strategy is read from the selector, as the other methods do. Link text, which Python turns into a :contains() pseudo-class that is not CSS, is an InvalidSelector error."
 
 [basecase."convert_xpath_to_css"]
 status = "implemented"
 rust = "BaseCase::convert_xpath_to_css"
-divergence = "Converts only a tag (or *) found anywhere in the document, narrowed by attribute tests joined with and, and returns an InvalidSelector error for any other XPath (paths of several steps, positions, contains(), text(), or), where Python converts more forms. The CSS it returns is equivalent but spelled [id='x'] and [class='x'] where Python writes #x and .x."
+divergence = "Converts the forms that have an exact CSS equivalent: paths (//a/b, //a//b, /html/body), a position that is the first test of its step, contains(@a,'v'), starts-with(@a,'v') (Python has none), id('x') and or (a comma list). Returns an InvalidSelector error for text(), contains(.,...), parent:: and a position after another test, where Python writes a :contains() pseudo-class that is not CSS or a selector that matches other elements. The CSS is spelled [id='x'] and [class='x'] where Python writes #x and .x."
 
 [basecase."create_area_chart"]
 status = "implemented"
@@ -467,7 +471,7 @@ divergence = "Checks at once and records a failure for process_deferred_asserts,
 [basecase."deferred_assert_exact_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_exact_text"
-divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (css, text); Python's is (text, selector)."
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_assert_non_empty_text"]
 status = "implemented"
@@ -477,7 +481,7 @@ divergence = "Checks at once and records a failure for process_deferred_asserts,
 [basecase."deferred_assert_text"]
 status = "implemented"
 rust = "BaseCase::deferred_assert_text"
-divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken). Argument order is (text, css), like Python's."
+divergence = "Checks at once and records a failure for process_deferred_asserts, as Python does; returns Ok(()) instead of True or False, and has no timeout or fs arguments (a failure screenshot is not taken)."
 
 [basecase."deferred_check_window"]
 status = "implemented"
@@ -527,7 +531,6 @@ rust = "BaseCase::delete_local_storage"
 [basecase."delete_saved_cookies"]
 status = "implemented"
 rust = "BaseCase::delete_saved_cookies"
-divergence = "Deletes the file from latest_logs/ and from the working directory, the two places save_saved_cookies and save_cookies write; Python's saved_cookies/ folder and .txt suffix are not used."
 
 [basecase."delete_session_storage"]
 status = "implemented"
@@ -624,7 +627,7 @@ divergence = "Returns thirtyfour::WebElements; takes CSS or XPath only."
 [basecase."find_exact_text"]
 status = "implemented"
 rust = "BaseCase::find_exact_text"
-divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
+divergence = "Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout."
 
 [basecase."find_link_text"]
 status = "implemented"
@@ -633,7 +636,7 @@ rust = "BaseCase::find_link_text"
 [basecase."find_non_empty_text"]
 status = "implemented"
 rust = "BaseCase::find_non_empty_text"
-divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> with visible text and returns the deepest first one, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
+divergence = "Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout."
 
 [basecase."find_partial_link_text"]
 status = "implemented"
@@ -642,7 +645,7 @@ rust = "BaseCase::find_partial_link_text"
 [basecase."find_text"]
 status = "implemented"
 rust = "BaseCase::find_text"
-divergence = "Takes no selector or timeout: it waits for the default timeout (set_timeout) for a displayed element under <body> and returns the deepest one holding the text, where Python returns the selector's element. Fails with a wait timeout instead of returning None."
+divergence = "Takes no timeout: it waits for the default timeout (set_timeout). Fails with a wait timeout."
 
 [basecase."find_visible_elements"]
 status = "implemented"
@@ -835,6 +838,7 @@ rust = "BaseCase::get_mfa_code"
 [basecase."get_new_driver"]
 status = "implemented"
 rust = "BaseCase::get_new_driver"
+divergence = "Returns a DriverId, not the driver object. The browser options of Python's arguments go in a BrowserConfig: get_new_driver_with(config)."
 
 [basecase."get_origin"]
 status = "implemented"
@@ -1183,7 +1187,7 @@ rust = "BaseCase::js_update_text"
 [basecase."load_cookies"]
 status = "implemented"
 rust = "BaseCase::load_cookies"
-divergence = "Reads the JSON that save_cookies writes; Python reads a pickle."
+divergence = "The expiry argument is a CookieExpiry (load_cookies_with); load_cookies_from_path reads a file at any path, for the MCP server and the CLI."
 
 [basecase."load_html_file"]
 status = "implemented"
@@ -1262,7 +1266,7 @@ rust = "BaseCase::post_message"
 [basecase."post_message_and_highlight"]
 status = "implemented"
 rust = "BaseCase::post_message_and_highlight"
-divergence = "Shows a plain box (see post_success_message) and highlights it; Python takes a selector and highlights that element after posting the message."
+divergence = "Shows a plain box (see post_success_message), then highlights the selector's element as Python does."
 
 [basecase."post_success_message"]
 status = "implemented"
@@ -1313,6 +1317,7 @@ rust = "BaseCase::process_delayed_asserts"
 [basecase."quit_extra_driver"]
 status = "implemented"
 rust = "BaseCase::quit_extra_driver"
+divergence = "Takes the DriverId get_new_driver returned, where Python takes the driver (or None for the active one); the default browser is refused, and quitting the active extra browser falls back to the default one."
 
 [basecase."refresh"]
 status = "implemented"
@@ -1402,7 +1407,7 @@ rust = "BaseCase::save_chart"
 [basecase."save_cookies"]
 status = "implemented"
 rust = "BaseCase::save_cookies"
-divergence = "Writes JSON to a path you give; Python writes a pickle under saved_cookies."
+divergence = "Returns the path it wrote; save_cookies_to_path writes to any path, for the MCP server and the CLI."
 
 [basecase."save_data_as"]
 status = "implemented"
@@ -1693,6 +1698,7 @@ rust = "BaseCase::switch_to_default_window"
 [basecase."switch_to_driver"]
 status = "implemented"
 rust = "BaseCase::switch_to_driver"
+divergence = "Takes a DriverId, where Python takes the driver object."
 
 [basecase."switch_to_frame"]
 status = "implemented"
@@ -1875,7 +1881,6 @@ rust = "BaseCase::wait_for_selector"
 [basecase."wait_for_text"]
 status = "implemented"
 rust = "BaseCase::wait_for_text"
-divergence = "Argument order is (css, text, timeout); Python's is (text, selector, timeout)."
 
 [basecase."wait_for_text_not_visible"]
 status = "implemented"

@@ -12,6 +12,7 @@ use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::page_scripts::{self, TextMatch};
+#[cfg(feature = "pdf")]
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
@@ -24,7 +25,7 @@ use crate::browser::playwright::PlaywrightSession;
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
-use crate::utils::selectors::Selector;
+use crate::utils::selectors::{css_to_xpath, Selector};
 use serde_json::Value;
 use std::collections::HashMap;
 use thirtyfour::common::keys::Key;
@@ -59,8 +60,12 @@ pub struct BaseCase {
     default_timeout_before: Option<u64>,
     #[cfg(feature = "gui")]
     gui_held: Option<(i32, i32)>,
-    /// Additional browser sessions created by [`BaseCase::get_new_driver`].
-    extra_sessions: Vec<BrowserSession>,
+    /// The browsers of this case other than the active one, which is
+    /// `session`: the extra ones [`BaseCase::get_new_driver`] opened, and the
+    /// default one while another is active.
+    drivers: DriverTable<BrowserSession>,
+    /// The name of the test this case runs, from [`BaseCase::with_test_name`].
+    test_name: Option<String>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
     /// The pages [`BaseCase::set_content_to_frame`] replaced, oldest first, for
@@ -115,10 +120,31 @@ impl BaseCase {
             default_timeout_before: None,
             #[cfg(feature = "gui")]
             gui_held: None,
-            extra_sessions: Vec::new(),
+            drivers: DriverTable::new(),
+            test_name: None,
             run_settings: RunSettings::default(),
             swapped_pages: Vec::new(),
         }
+    }
+
+    /// Names the test this case runs. [`check_window`](Self::check_window)
+    /// keeps its baselines in `visual_baseline/<name>`, so tests of the same
+    /// function name in different modules or files, and tests that do not run
+    /// on a thread named after them (`#[tokio::main]`, `tokio::spawn`), keep
+    /// separate baselines. [`sb_test!`](crate::sb_test) names its test.
+    ///
+    /// Without a name the folder is the function name of the thread that runs
+    /// the test, as in Python.
+    #[must_use]
+    pub fn with_test_name(mut self, name: impl Into<String>) -> Self {
+        self.test_name = Some(name.into());
+        self
+    }
+
+    /// The name given by [`with_test_name`](Self::with_test_name), if any.
+    #[must_use]
+    pub fn test_name(&self) -> Option<&str> {
+        self.test_name.as_deref()
     }
 
     /// The run-wide settings in force.
@@ -198,35 +224,39 @@ impl BaseCase {
     }
 
     /// Asserts that `text` is visible inside the element selected by `css`.
+    /// The same as [`assert_text`](Self::assert_text), as in Python, where
+    /// `assert_text_visible` is its alias.
     pub async fn assert_text_visible(
-        &mut self,
+        &self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let is_visible = self.is_text_visible(text, css).await?;
-        if !is_visible {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Text '{}' was not visible in element '{}'",
-                text, css
-            )));
-        }
-        Ok(())
+        self.assert_text(text, css).await
     }
 
-    /// Asserts that `text` is not visible inside the element selected by `css`.
+    /// Asserts that `text` is not visible inside the element selected by
+    /// `css`, giving the text up to the default timeout to go away.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still
+    /// visible when the timeout ends.
     pub async fn assert_text_not_visible(
-        &mut self,
+        &self,
         text: &str,
         css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let is_visible = self.is_text_visible(text, css).await?;
-        if is_visible {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Text '{}' was unexpectedly visible in element '{}'",
-                text, css
-            )));
-        }
-        Ok(())
+        self.check_time_limit()?;
+        poll_until_true(self.default_wait_secs(), String::new(), || async {
+            Ok(!self.is_text_visible(text, css).await?)
+        })
+        .await
+        .map_err(|error| match error {
+            SeleniumBaseError::WaitTimeout(_) => SeleniumBaseError::AssertionFailed(format!(
+                "Text '{text}' was unexpectedly visible in element '{css}'"
+            )),
+            other => other,
+        })
     }
 
     /// Asserts that the attribute named `attribute` on `css` equals `value`.
@@ -250,7 +280,7 @@ impl BaseCase {
     }
 
     /// Asserts that the current page title equals `expected`.
-    pub async fn assert_title(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_title(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let title = self.get_title().await?;
         if title != expected {
             return Err(SeleniumBaseError::AssertionFailed(format!(
@@ -380,28 +410,127 @@ impl BaseCase {
         }
     }
 
-    /// Saves all current cookies to `file_path` as JSON.
-    pub async fn save_cookies(&self, file_path: &str) -> Result<(), SeleniumBaseError> {
-        let cookies = self.session.driver().get_all_cookies().await?;
-        let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {}", e))
-        })?;
-        std::fs::write(file_path, json).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to write cookies: {}", e))
-        })?;
-        Ok(())
+    /// Saves the page's cookies, as JSON, to `saved_cookies/<name>.txt` in the
+    /// working directory, and returns that path. Corresponds to Python's
+    /// `save_cookies(name)`: only the last part of `name` is used and `.txt`
+    /// is added when it is missing, so `"login"` and `"login.txt"` name the
+    /// same file and a name cannot leave the folder. Use
+    /// [`save_cookies_to_path`](Self::save_cookies_to_path) for a file
+    /// somewhere else.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` ends with a
+    /// separator or has no file name, and the browser's or the file system's
+    /// error otherwise.
+    pub async fn save_cookies(&self, name: &str) -> Result<PathBuf, SeleniumBaseError> {
+        let path = saved_cookies_path(&std::env::current_dir()?, name)?;
+        self.save_cookies_to_path(&path).await?;
+        Ok(path)
     }
 
-    /// Loads cookies from `file_path` (JSON) and adds them to the browser.
-    pub async fn load_cookies(&self, file_path: &str) -> Result<(), SeleniumBaseError> {
-        let content = std::fs::read_to_string(file_path).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to read cookies: {}", e))
+    /// Saves the page's cookies to `path` as JSON, creating the folder it is
+    /// in. The file is the one [`load_cookies_from_path`](Self::load_cookies_from_path)
+    /// reads, and the format Python's `save_cookies` writes.
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's error, or [`SeleniumBaseError::InvalidConfig`] if
+    /// the file cannot be written.
+    pub async fn save_cookies_to_path(&self, path: &Path) -> Result<(), SeleniumBaseError> {
+        let cookies = self.session.driver().get_all_cookies().await?;
+        let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {e}"))
         })?;
-        let cookies: Vec<thirtyfour::cookie::Cookie> =
-            serde_json::from_str(&content).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("Failed to deserialize cookies: {}", e))
-            })?;
-        for cookie in cookies {
+        let write = || -> std::io::Result<()> {
+            if let Some(folder) = path.parent() {
+                std::fs::create_dir_all(folder)?;
+            }
+            std::fs::write(path, json)
+        };
+        write().map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!(
+                "Failed to write cookies to {}: {e}",
+                path.display()
+            ))
+        })
+    }
+
+    /// Adds the cookies saved in `saved_cookies/<name>.txt` to the browser.
+    /// Corresponds to Python's `load_cookies(name)`: the cookies of another
+    /// domain are given the current page's, and their expiry is dropped, so
+    /// they last for the browser session (see
+    /// [`load_cookies_with`](Self::load_cookies_with) to change that). Open a
+    /// page of the right site first; the browser refuses a cookie of another
+    /// site.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is not a usable
+    /// file name or the file is missing or is not a list of cookies, and the
+    /// browser's error otherwise.
+    pub async fn load_cookies(&self, name: &str) -> Result<(), SeleniumBaseError> {
+        self.load_cookies_with(name, CookieExpiry::default()).await
+    }
+
+    /// [`load_cookies`](Self::load_cookies) with a say in what happens to the
+    /// expiry of the cookies, as Python's `expiry` argument.
+    ///
+    /// # Errors
+    ///
+    /// As for [`load_cookies`](Self::load_cookies).
+    pub async fn load_cookies_with(
+        &self,
+        name: &str,
+        expiry: CookieExpiry,
+    ) -> Result<(), SeleniumBaseError> {
+        let path = saved_cookies_path(&std::env::current_dir()?, name)?;
+        self.load_cookies_from_path(&path, expiry).await
+    }
+
+    /// Adds the cookies in the JSON file `path` (written by
+    /// [`save_cookies_to_path`](Self::save_cookies_to_path) or Python's
+    /// `save_cookies`) to the browser; see
+    /// [`load_cookies`](Self::load_cookies) for how.
+    ///
+    /// # Errors
+    ///
+    /// As for [`load_cookies`](Self::load_cookies).
+    pub async fn load_cookies_from_path(
+        &self,
+        path: &Path,
+        expiry: CookieExpiry,
+    ) -> Result<(), SeleniumBaseError> {
+        let Value::Array(cookies) = read_saved_cookies(path)? else {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "{} does not hold a list of cookies",
+                path.display()
+            )));
+        };
+        // As Python does, let the page finish loading before the cookies go in.
+        self.wait_for_ready_state_complete().await?;
+        let url = self.session.driver().current_url().await?;
+        let origin = origin_of_url(url.as_str())?;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |since| {
+                i64::try_from(since.as_secs()).unwrap_or(i64::MAX)
+            });
+        for mut cookie in cookies {
+            let Value::Object(fields) = &mut cookie else {
+                return Err(SeleniumBaseError::InvalidConfig(format!(
+                    "{} holds a cookie that is not an object",
+                    path.display()
+                )));
+            };
+            prepare_cookie(fields, &origin, expiry, now);
+            let cookie: thirtyfour::cookie::Cookie =
+                serde_json::from_value(cookie).map_err(|e| {
+                    SeleniumBaseError::InvalidConfig(format!(
+                        "{} holds a cookie that cannot be used: {e}",
+                        path.display()
+                    ))
+                })?;
             self.session.driver().add_cookie(cookie).await?;
         }
         Ok(())
@@ -436,9 +565,14 @@ impl BaseCase {
     }
 
     /// Executes the `open_new_window` action.
+    ///
+    /// With browser plugins (feature `plugins`), the new window gets their
+    /// packages and `on_page_created`, as the first window did.
     pub async fn open_new_window(&mut self) -> Result<(), SeleniumBaseError> {
         self.execute_script("window.open('');").await?;
         self.switch_to_newest_window().await?;
+        #[cfg(feature = "plugins")]
+        self.session.apply_plugins_to_window().await?;
         Ok(())
     }
 
@@ -485,6 +619,26 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Gives the window the session is on the packages and `on_page_created`
+    /// of its browser plugins (feature `plugins`,
+    /// [`BrowserConfig::with_plugins`]).
+    ///
+    /// `BaseCase::new` does this for the first window, and
+    /// [`open_new_window`](Self::open_new_window), `open_new_tab` and
+    /// [`switch_to_new_window`](Self::switch_to_new_window) for the windows
+    /// they open. Call it after switching to a window the page opened, such
+    /// as a pop-up: switching alone runs no hook. It does nothing without
+    /// plugins.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Plugin`] for the first package or hook that
+    /// fails.
+    #[cfg(feature = "plugins")]
+    pub async fn apply_plugins_to_window(&self) -> Result<(), SeleniumBaseError> {
+        self.session.apply_plugins_to_window().await
+    }
+
     /// Executes the `get_active_element_css` action.
     pub async fn get_active_element_css(&self) -> Result<String, SeleniumBaseError> {
         let script = r#"
@@ -521,7 +675,7 @@ impl BaseCase {
     /// The element is looked for at least once, so an element that is already
     /// there is found even with a `timeout` of zero.
     pub async fn wait_for_element_present(
-        &mut self,
+        &self,
         css: &str,
         timeout: u64,
     ) -> Result<(), SeleniumBaseError> {
@@ -639,7 +793,7 @@ impl BaseCase {
     }
 
     /// Returns the visible text of the element `css`.
-    pub async fn get_text(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+    pub async fn get_text(&self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
         self.await_ready(css, Ready::Present).await?;
         self.session.text(by).await
@@ -721,14 +875,24 @@ impl BaseCase {
         self.session.element_present(by).await
     }
 
-    /// Executes the `assert_element` action.
+    /// Asserts that the element `css` is displayed, waiting up to the default
+    /// timeout ([`set_timeout`](Self::set_timeout)) for it, as Python's
+    /// `assert_element` does. Use
+    /// [`assert_element_present`](Self::assert_element_present) for an element
+    /// that only has to be in the DOM.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] if the element is not
+    /// displayed when the timeout ends.
     pub async fn assert_element(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        if self.is_element_present(css).await? {
-            return Ok(());
+        let timeout = self.default_wait_secs();
+        match self.wait_for_element_visible(css, timeout).await {
+            Err(SeleniumBaseError::WaitTimeout(_)) => Err(SeleniumBaseError::AssertionFailed(
+                format!("expected element '{css}' to be visible after {timeout}s"),
+            )),
+            other => other,
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{css}' to be present"
-        )))
     }
 
     /// Executes the `assert_element_absent` action.
@@ -742,17 +906,17 @@ impl BaseCase {
     }
 
     /// Returns the current page title.
-    pub async fn get_title(&mut self) -> Result<String, SeleniumBaseError> {
+    pub async fn get_title(&self) -> Result<String, SeleniumBaseError> {
         self.session.current_title().await
     }
 
     /// Returns the current page URL.
-    pub async fn get_current_url(&mut self) -> Result<String, SeleniumBaseError> {
+    pub async fn get_current_url(&self) -> Result<String, SeleniumBaseError> {
         self.session.current_url().await
     }
 
     /// Executes the `assert_url_contains` action.
-    pub async fn assert_url_contains(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_url_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url.contains(expected) {
             return Ok(());
@@ -857,15 +1021,17 @@ impl BaseCase {
             .await
     }
 
-    /// Alias for `wait_for_element_present`.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed. The
+    /// same as [`wait_for_element_visible`](Self::wait_for_element_visible), as
+    /// in Python, where `wait_for_element` is its alias; use
+    /// [`wait_for_element_present`](Self::wait_for_element_present) for an
+    /// element that only has to be in the DOM.
     pub async fn wait_for_element(
         &self,
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.session.wait_for_element(by, timeout_secs).await?;
-        Ok(())
+        self.wait_for_element_visible(css, timeout_secs).await
     }
 
     /// Returns the value of `attribute` on the element `css`, if present.
@@ -927,21 +1093,26 @@ impl BaseCase {
         self.session.wait_for_element_absent(by, timeout_secs).await
     }
 
-    /// Executes the `wait_for_text` action.
+    /// Waits up to `timeout_secs` for the element `css` to be displayed and
+    /// contain `text`. The same as
+    /// [`wait_for_text_visible`](Self::wait_for_text_visible), as in Python,
+    /// where `wait_for_text(text, selector)` is its alias.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text and the
+    /// selector if the text does not show up in time.
     pub async fn wait_for_text(
         &self,
+        text: &str,
         css: &str,
-        expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        let by = Selector::auto(css).to_by()?;
-        self.session
-            .wait_for_text(by, expected_substring, timeout_secs)
-            .await
+        self.wait_for_text_visible(text, css, timeout_secs).await
     }
 
     /// Executes the `assert_title_contains` action.
-    pub async fn assert_title_contains(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_title_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let title = self.get_title().await?;
         if title.contains(expected) {
             return Ok(());
@@ -951,36 +1122,147 @@ impl BaseCase {
         )))
     }
 
-    /// Executes the `assert_text` action.
-    pub async fn assert_text(
-        &mut self,
-        css: &str,
-        expected: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    /// Asserts that the element selected by `css` is displayed and its text
+    /// contains `expected`, waiting for it for up to the default timeout
+    /// ([`set_timeout`](Self::set_timeout)), as Python's `assert_text` does.
+    ///
+    /// The text comes first and the selector second, as in Python's
+    /// `assert_text(text, selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] when the text is not
+    /// there when the timeout ends. If the two arguments look swapped
+    /// (`expected` selects an element whose text contains `css`), the message
+    /// says so.
+    pub async fn assert_text(&self, expected: &str, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("assert_text", Some(css), Some(expected));
-        let by = Selector::auto(css).to_by()?;
-        let text = self.session.text(by).await?;
-        if text.contains(expected) {
-            return Ok(());
-        }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected text '{expected}' in element '{css}', got '{text}'"
-        )))
+        self.assert_shown_text(expected, css, TextMatch::Contains, self.default_wait_secs())
+            .await
     }
 
-    /// Executes the `assert_exact_text` action.
+    /// Asserts that the element selected by `css` is displayed and its text
+    /// is exactly `expected`, ignoring whitespace at the ends of both, and
+    /// waiting for it for up to the default timeout, as Python's
+    /// `assert_exact_text` does.
+    ///
+    /// The text comes first and the selector second, as in Python's
+    /// `assert_exact_text(text, selector)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::AssertionFailed`] when the text differs
+    /// when the timeout ends; the message says so if the two arguments look
+    /// swapped.
     pub async fn assert_exact_text(
-        &mut self,
-        css: &str,
+        &self,
         expected: &str,
+        css: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let text = self.get_text(css).await?;
-        if text == expected {
+        self.assert_shown_text(expected, css, TextMatch::Exact, self.default_wait_secs())
+            .await
+    }
+
+    /// Polls for up to `timeout_secs` until the element `css` is displayed
+    /// with text that `kind` finds in `expected`, and fails with the text it
+    /// last saw, or says that no displayed element matched.
+    pub(crate) async fn assert_shown_text(
+        &self,
+        expected: &str,
+        css: &str,
+        kind: TextMatch,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        self.check_time_limit()?;
+        let shown = self
+            .poll_shown_text(css, timeout_secs, |text| kind.holds(text, expected))
+            .await?;
+        if shown.held {
             return Ok(());
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected exact text '{expected}' in element '{css}', got '{text}'"
-        )))
+        let what = if kind == TextMatch::Exact {
+            "exact text"
+        } else {
+            "text"
+        };
+        let message = match shown.seen {
+            Some(text) => format!("expected {what} '{expected}' in element '{css}', got '{text}'"),
+            None => format!(
+                "expected {what} '{expected}' in element '{css}', but no element matched or it was not displayed"
+            ),
+        };
+        Err(self
+            .text_assertion_failed(message, expected, css, kind == TextMatch::Exact)
+            .await)
+    }
+
+    /// Looks at the element `css` until it is displayed and `holds` of its
+    /// text, or `timeout_secs` have passed. The check runs at least once.
+    async fn poll_shown_text(
+        &self,
+        css: &str,
+        timeout_secs: u64,
+        holds: impl Fn(&str) -> bool,
+    ) -> Result<ShownText, SeleniumBaseError> {
+        let by = Selector::auto(css).to_by()?;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            let seen = match self.session.driver().find(by.clone()).await {
+                Ok(element) if element.is_displayed().await.unwrap_or(false) => {
+                    element.text().await.ok()
+                }
+                _ => None,
+            };
+            let held = seen.as_deref().is_some_and(&holds);
+            let now = tokio::time::Instant::now();
+            if held || now >= deadline {
+                return Ok(ShownText { held, seen });
+            }
+            tokio::time::sleep(WAIT_POLL_INTERVAL.min(deadline - now)).await;
+        }
+    }
+
+    /// A failed text assertion, with the hint about swapped arguments added
+    /// when it applies.
+    async fn text_assertion_failed(
+        &self,
+        message: String,
+        expected: &str,
+        css: &str,
+        exact: bool,
+    ) -> SeleniumBaseError {
+        match self.swapped_text_hint(expected, css, exact).await {
+            Some(hint) => SeleniumBaseError::AssertionFailed(format!("{message}; {hint}")),
+            None => SeleniumBaseError::AssertionFailed(message),
+        }
+    }
+
+    /// Says that a text assertion was called with its arguments the wrong way
+    /// round, if it was: `expected` selects an element whose text is `css`.
+    /// Looked at only after an assertion failed, so a passing one costs
+    /// nothing.
+    async fn swapped_text_hint(&self, expected: &str, css: &str, exact: bool) -> Option<String> {
+        let by = Selector::auto(expected).to_by().ok()?;
+        let shown = self
+            .session
+            .driver()
+            .find(by)
+            .await
+            .ok()?
+            .text()
+            .await
+            .ok()?;
+        let fits = if exact {
+            shown.trim() == css.trim()
+        } else {
+            shown.contains(css)
+        };
+        fits.then(|| {
+            format!(
+                "the arguments look swapped: the order is (text, selector), as in Python, \
+                 and '{expected}' selects an element whose text is '{css}'"
+            )
+        })
     }
 
     /// Scrolls the element `css` into view and outlines it in magenta for
@@ -1339,15 +1621,10 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `assert_element_visible` action.
-    pub async fn assert_element_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        if self.is_displayed(css).await? {
-            return Ok(());
-        }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{}' to be visible",
-            css
-        )))
+    /// Asserts that the element `css` is displayed. The same as
+    /// [`assert_element`](Self::assert_element), as in Python.
+    pub async fn assert_element_visible(&self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.assert_element(css).await
     }
 
     /// Executes the `assert_element_not_visible` action.
@@ -1548,10 +1825,20 @@ impl BaseCase {
     ///
     /// With [`BrowserConfig::reuse_session`] on, the browser is given back,
     /// open, for the next test instead (see [`crate::browser::reuse`]).
+    ///
+    /// Every browser the case opened is closed, those that
+    /// [`get_new_driver`](Self::get_new_driver) added too. The first error is
+    /// returned after all of them have been tried.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
-        self.session.quit().await
+        let mut result = self.session.quit().await;
+        for mut parked in self.drivers.take_all_parked() {
+            if let Err(error) = parked.quit().await {
+                result = result.and(Err(error));
+            }
+        }
+        result
     }
 
     /// The WebDriver session id of the active browser (Python's
@@ -1568,18 +1855,22 @@ impl BaseCase {
         }
     }
 
-    /// Appends `text` to the element selected by `css`.
+    /// Appends `text` to the element selected by `css`, waiting for it to be
+    /// displayed first, as Python's `add_text` does. Unlike
+    /// [`type_text`](Self::type_text) it does not clear the field.
     pub async fn add_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::auto(css).to_by()?;
+        self.await_ready(css, Ready::Visible).await?;
         self.record("add_text", Some(css), Some(text));
         let elem = self.session.driver().find(by).await?;
         elem.send_keys(text).await?;
         Ok(())
     }
 
-    /// Executes the `send_keys` action.
+    /// Appends `text` to the element selected by `css`. The same as
+    /// [`add_text`](Self::add_text), as in Python, where `send_keys` is its
+    /// alias.
     pub async fn send_keys(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.await_ready(css, Ready::Visible).await?;
         self.add_text(css, text).await
     }
 
@@ -1767,7 +2058,8 @@ impl BaseCase {
     /// WebDriver session, creates a fresh one with the same config, and then
     /// navigates to `url`.
     pub async fn uc_open_with_disconnect(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        self.quit().await?;
+        // Only the active browser is replaced; the others stay open.
+        self.session.quit().await?;
         let session = BrowserSession::connect(self.config.clone()).await?;
         self.session = session;
         self.open(url).await?;
@@ -1838,8 +2130,13 @@ impl BaseCase {
     ///
     /// Corresponds to Python's `check_window`. The baseline is the folder
     /// `visual_baseline/<test>/<name>` in the working directory, where the
-    /// test is the name of the running test (the thread's name under
-    /// `cargo test`). It holds `page_url.txt`, `baseline.png` and
+    /// test is the name given by [`with_test_name`](Self::with_test_name)
+    /// (what [`sb_test!`](crate::sb_test) does), or else the name of the
+    /// running test (the last part of the thread's name under `cargo test`,
+    /// the function), as in Python: two tests of the same function name
+    /// share their baselines, so give each a test name or a `name` of its
+    /// own. It
+    /// holds `page_url.txt`, `baseline.png` and
     /// `tags_level_1.txt` to `tags_level_3.txt`, one entry for each tag below
     /// `<body>`: the tag names (level 1), with the sorted names of its
     /// attributes (level 2), with the attribute values (level 3).
@@ -1859,12 +2156,10 @@ impl BaseCase {
     /// the baseline at a `level` above 0, and
     /// [`SeleniumBaseError::InvalidConfig`] if `level` is not 0, 1, 2 or 3,
     /// `name` is not a plain name or the baseline cannot be read or written.
-    pub async fn check_window(&mut self, name: &str, level: f64) -> Result<(), SeleniumBaseError> {
-        use crate::api::run_settings::{
-            apply_check_level, baseline_dir, check_level, check_page_structure,
-        };
-        let checked = check_level(level)?;
-        let dir = baseline_dir(name)?;
+    pub async fn check_window(&mut self, name: &str, level: u8) -> Result<(), SeleniumBaseError> {
+        use crate::api::run_settings::{apply_check_level, check_level, check_page_structure};
+        let checked = check_level(f64::from(level))?;
+        let dir = check_window_folder(self.test_name.as_deref(), name)?;
         // Python waits for the page to settle before it reads it.
         let _ = self.wait_for_ready_state_complete().await;
         let url = self.get_current_url().await?;
@@ -1878,7 +2173,46 @@ impl BaseCase {
             self.run_settings.reset_visual_baseline(),
             checked,
         );
-        apply_check_level(outcome, level)
+        apply_check_level(outcome, f64::from(level))
+    }
+
+    /// Compares a screenshot of the page with the baseline image saved under
+    /// `name` (feature `visual`), or saves it as the baseline when there is
+    /// none (or when the run resets baselines).
+    ///
+    /// Unlike [`check_window`](Self::check_window), which compares the HTML
+    /// structure, this compares pixels, by structural similarity with the
+    /// default threshold; see [`crate::visual`]. The baseline is
+    /// `visual_baseline/<test>/<name>.png`, and a mismatch leaves
+    /// `<name>.actual.png` and `<name>.diff.png` beside it. `<test>` names the
+    /// running test by its whole path, from the thread `cargo test` runs it
+    /// on: the test binary (the crate or the file in `tests/`), the module
+    /// path and the function, joined with `.`, such as
+    /// `cart.checkout.renders`, so tests of the same name in other modules or
+    /// files keep separate baselines. (`check_window` names its folder after
+    /// the function alone, as Python does.)
+    /// [`RunSettings::with_visual_baseline_reset`] saves new baselines instead
+    /// of comparing. For another folder or threshold, use a
+    /// [`VisualBaseline`](crate::visual::VisualBaseline) with
+    /// [`check_page`](crate::visual::VisualBaseline::check_page).
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::AssertionFailed`] when the page looks different
+    /// from the baseline or the screenshot has another size,
+    /// [`SeleniumBaseError::InvalidConfig`] when `name` is not 1 to 80 ASCII
+    /// letters, digits, `-` or `_`, and the screenshot's or the file system's
+    /// error otherwise.
+    #[cfg(feature = "visual")]
+    pub async fn assert_visual_match(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
+        use crate::api::run_settings::visual_match_folder;
+        use crate::visual::VisualBaseline;
+
+        let baselines = VisualBaseline::new(visual_match_folder())
+            .update_baselines(self.run_settings.reset_visual_baseline());
+        // As check_window does, let the page settle before it is captured.
+        let _ = self.wait_for_ready_state_complete().await;
+        baselines.check_page(name, &*self).await.map(|_| ())
     }
 
     // --- MasterQA Integration ---
@@ -2010,14 +2344,12 @@ impl BaseCase {
 
     // --- Additional Python parity methods ---
 
-    /// Alias for `type_text` that clears the field first.
+    /// Clears the field `css` and types `text` into it. The same as
+    /// [`type_text`](Self::type_text), as in Python, where `update_text` and
+    /// `type` are one method: it waits for the element to be displayed, and a
+    /// trailing newline presses Enter.
     pub async fn update_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.record("update_text", Some(css), Some(text));
-        let by = Selector::auto(css).to_by()?;
-        self.demo_highlight(css).await?;
-        self.session.type_text(by, text).await?;
-        self.demo_pause(true).await;
-        Ok(())
+        self.type_text(css, text).await
     }
 
     /// Focus the element matching `css`.
@@ -2160,7 +2492,7 @@ impl BaseCase {
     }
 
     /// Assert that the current URL exactly equals `expected`.
-    pub async fn assert_url(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_url(&self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url == expected {
             return Ok(());
@@ -2400,7 +2732,7 @@ impl BaseCase {
         let by = Selector::auto(css).to_by()?;
         match self.session.driver().find(by).await {
             Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
-                && elem.text().await.unwrap_or_default() == text),
+                && elem.text().await.unwrap_or_default().trim() == text.trim()),
             Err(_) => Ok(false),
         }
     }
@@ -2422,13 +2754,14 @@ impl BaseCase {
         self.assert_element_absent(css).await
     }
 
-    /// Assert that all provided CSS selectors are present.
+    /// Asserts that every selector in `selectors` is in the DOM, waiting for
+    /// each up to the default timeout.
     pub async fn assert_elements_present(
         &self,
         selectors: &[&str],
     ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            self.assert_element(css).await?;
+            self.assert_element_present(css).await?;
         }
         Ok(())
     }
@@ -2730,13 +3063,15 @@ impl BaseCase {
         self.wait_for_element_visible(css, timeout_secs).await
     }
 
-    /// Alias for `wait_for_element` (present).
+    /// Waits up to `timeout_secs` for `css` to be in the DOM. The same as
+    /// [`wait_for_element_present`](Self::wait_for_element_present), as in
+    /// Python.
     pub async fn wait_for_query_selector(
         &self,
         css: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        self.wait_for_element(css, timeout_secs).await
+        self.wait_for_element_present(css, timeout_secs).await
     }
 }
 
@@ -2772,6 +3107,10 @@ include!("base_case_impls/base_case_impl_esc.rs");
 include!("base_case_impls/base_case_impl_rec_cdp.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_text_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_element_tests.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_traffic_tests.rs");
 #[cfg(test)]

@@ -6,7 +6,309 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## Unreleased
+## [Unreleased]
+
+An API clean-up of `BaseCase`: the text assertions and waits take their
+arguments in Python's order, the helpers that did not match Python are fixed,
+and the macros that did not compile or hid an error now work. The BREAKING
+changes, those that break a call, are listed first, each with the way to
+migrate.
+
+### Breaking
+
+- **PDF text extraction is the opt-in feature `pdf`.** `pdf-extract` (lopdf, fonts,
+  ciphers) was 34 of the crates of a default build. `BaseCase::get_pdf_text`,
+  `assert_pdf_text` and the module `api::pdf` need it; printing a page to PDF
+  (`print_to_pdf`, `save_as_pdf`) does not. `sbrs pdf-text` and
+  `assert-pdf-text` stay in `--help` and, in a build without the feature, exit
+  with status 2 and say `cargo install seleniumbase-rs --features pdf`.
+
+- **Text assertions take the text first and the selector second**, as Python's
+  `assert_text(text, selector)` does. A call with the old order still compiles
+  (both arguments are `&str`), so search for these names: `assert_text`,
+  `assert_exact_text`, `assert_exact_text_not_visible`, `assert_shadow_text`,
+  `RecorderSession::assert_text`, `AssertionApi::assert_text` and the macro
+  `sb_assert_text!`. A failing assertion whose arguments look swapped says so in
+  its message.
+
+  ```rust
+  // before
+  sb.assert_text("h1", "Example Domain").await?;
+  sb_assert_text!(sb, "#status", "Saved")?;
+  // after
+  sb.assert_text("Example Domain", "h1").await?;
+  sb_assert_text!(sb, "Saved", "#status")?;
+  ```
+
+  The generators follow: the recorder, the scenario runner, `sbrs mkdir`,
+  `sbrs mkfile`, the MCP export tools and the Python importer now write the new
+  order. `RecorderSession::assert_text(sb, text, css)` and the
+  `AssertionApi::assert_text(expected, css)` trait method changed with it. If
+  you generated tests with an earlier version, run the same search over them.
+
+- **The text waits take `(text, css, timeout_secs)`**, as Python's
+  `wait_for_text(text, selector, timeout)` does. `wait_for_text`,
+  `wait_for_exact_text_visible` and `wait_for_exact_text_not_visible` swapped
+  their first two arguments (a silent change: both are `&str`).
+  `wait_for_text_visible`, `wait_for_text_not_visible` and `wait_for_exact_text`
+  gained the selector they lacked, so an old call stops compiling. Pass `"body"`
+  to look at the whole page, as the old `wait_for_text_visible(text, timeout)`
+  did.
+
+  ```rust
+  // before
+  sb.wait_for_text("#status", "Saved", 10).await?;
+  sb.wait_for_text_visible("Saved", 10).await?;
+  sb.wait_for_exact_text("Saved", 10).await?;
+  // after
+  sb.wait_for_text("Saved", "#status", 10).await?;
+  sb.wait_for_text_visible("Saved", "body", 10).await?;
+  sb.wait_for_exact_text("Saved", "#status", 10).await?;
+  ```
+
+  `wait_for_text` now waits for the text to be displayed, like
+  `wait_for_text_visible` (in Python the first is an alias of the second).
+
+- **The deferred and delayed text checks take `(text, css)`.**
+  `deferred_assert_exact_text`, `delayed_assert_exact_text` and
+  `delayed_assert_text` took the selector first. `delayed_assert_text` also
+  passed its arguments on in the other order, so `delayed_assert_text("Welcome",
+  "h1")` looked for an element called `Welcome`; all three now follow Python's
+  `(text, selector)`, like `deferred_assert_text`.
+
+  ```rust
+  // before
+  sb.deferred_assert_exact_text("#status", "Ready").await?;
+  // after
+  sb.deferred_assert_exact_text("Ready", "#status").await?;
+  ```
+
+- **`find_text`, `find_exact_text` and `find_non_empty_text` follow Python.**
+  They took no selector, searched all of `<body>` for the deepest element that
+  held the text, and returned `Result<Option<WebElement>>` (the `Option` was
+  never `None`). They now take the selector and return `Result<WebElement>`,
+  the element of that selector, as Python's `find_text(text, selector)` does.
+  Pass `"body"` to look at the page.
+
+  ```rust
+  // before
+  if let Some(el) = sb.find_text("Welcome").await? { /* ... */ }
+  // after
+  let el = sb.find_text("Welcome", "h1").await?;
+  ```
+
+- **`post_message_and_highlight(message, css)` takes the element to highlight**,
+  as Python's `post_message_and_highlight(message, selector)` does. It used to
+  highlight the toast it had just shown. An error while highlighting is now
+  returned instead of ignored.
+
+  ```rust
+  // before
+  sb.post_message_and_highlight("Saved").await?;
+  // after
+  sb.post_message_and_highlight("Saved", "#save-button").await?;
+  ```
+
+- **The extra browsers are named by a `DriverId`, and switching to the default
+  one is repeatable.** `get_new_driver(Option<BrowserConfig>)` returned the
+  index of the browser it had just parked, and `switch_to_driver(index)` swapped
+  the active browser with the one in that slot, so the slot held whichever
+  browser was left last: `switch_to_default_driver()` (slot 0) reached the
+  first browser only once, and its second call went back to the other. A
+  `DriverId` now names a browser for good, and `switch_to_default_driver()`
+  always reaches the first one. Changes:
+
+  - `get_new_driver()` takes no argument and `get_new_driver_with(config)` takes
+    the configuration (no more `None`); both return the new browser's
+    `DriverId`.
+  - `switch_to_driver(DriverId)` makes that browser active and can be repeated;
+    `active_driver()` says which one is.
+  - `quit_extra_driver(DriverId)` refuses `DriverId::DEFAULT` (that browser is
+    closed by `quit()`); quitting the active extra browser falls back to the
+    default one, as in Python. A browser that was quit is an error to switch
+    to, not a disconnected session that panics.
+  - `quit()` closes every browser the case opened, not only the active one.
+  - `driver_count()` counts the browsers that are open, the active one
+    included (it counted the parked ones, quit placeholders too).
+
+  ```rust
+  // before
+  let first = sb.get_new_driver(None).await?; // the index of the parked browser
+  sb.switch_to_driver(first).await?;          // swaps: the slot now holds the other
+  // after
+  let second = sb.get_new_driver().await?;    // the new browser's id
+  sb.switch_to_default_driver().await?;       // always the first browser
+  sb.switch_to_driver(second).await?;
+  ```
+
+- **`wait(seconds)` takes whole or fractional seconds, and no `u64`.** It is
+  `sleep`, as in Python, and takes `impl Into<f64>`: `wait(2)` and `wait(0.5)`
+  compile, but a `u64` variable (or a `usize`, an `i64`) no longer does.
+
+  ```rust
+  // before
+  let seconds: u64 = 3;
+  sb.wait(seconds).await;
+  // after
+  sb.wait(seconds as f64).await; // or keep the variable a u32 or an f64
+  ```
+
+- **`check_window`'s level is a `u8`**, not an `f64`: `check_window("home", 3)`
+  instead of `check_window("home", 3.0)`; the same for `deferred_check_window`
+  and `delayed_check_window`. A float literal stops compiling. As before, a
+  level other than 0, 1, 2 or 3 is an `InvalidConfig` error.
+
+  ```rust
+  // before
+  sb.check_window("home", 3.0).await?;
+  // after
+  sb.check_window("home", 3).await?;
+  ```
+
+- **The cookie helpers take a name and use `saved_cookies/`, as Python's do.**
+  `save_cookies(path)` and `load_cookies(path)` took any file path, so a call
+  written like Python's (`save_cookies("login")`) wrote a file called `login`
+  in the working directory. They now take a name: the file is
+  `saved_cookies/<name>.txt` in the working directory (only the last part of
+  the name is used, `.txt` is added, a name ending with `/` is refused), still
+  JSON. `save_cookies` returns the path it wrote. `get_saved_cookies(name)` is a
+  method (it was an associated function that took a path), and
+  `delete_saved_cookies(name)` deletes that file (it looked in `latest_logs` and
+  the working directory). `load_cookies` now does what Python's does: a cookie
+  of another domain gets the page's, and the expiry is dropped, so the cookies
+  last for the browser session; `load_cookies_with(name, CookieExpiry)` keeps
+  the saved expiry or sets a new one.
+
+  For a file at a path of your own there are `save_cookies_to_path(&Path)` and
+  `load_cookies_from_path(&Path, CookieExpiry)`; the MCP server and
+  `sbrs save-cookies` / `load-cookies` use them. The Rust-only
+  `save_saved_cookies` and `load_saved_cookies` are deprecated.
+
+  ```rust
+  // before
+  sb.save_cookies("cookies.json").await?;           // any path
+  sb.load_cookies("cookies.json").await?;
+  // after
+  sb.save_cookies("login").await?;                  // saved_cookies/login.txt
+  sb.load_cookies("login").await?;
+  sb.save_cookies_to_path(Path::new("cookies.json")).await?;      // any path
+  sb.load_cookies_from_path(Path::new("cookies.json"), CookieExpiry::Saved).await?;
+  ```
+
+- **`assert_data_in_downloaded_file(data, file)` takes the data first**, as
+  Python's does, and `assert_data_in_downloaded_file` and
+  `assert_downloaded_file_regex` are `async`: they wait up to the default timeout
+  for the download, as Python's do, instead of failing on a file that is still
+  arriving. The data is compared without the whitespace at its ends.
+
+  ```rust
+  // before
+  sb.assert_data_in_downloaded_file("report.csv", "id,name")?;
+  // after
+  sb.assert_data_in_downloaded_file("id,name", "report.csv").await?;
+  ```
+
+- **`sb_assert_title!` and `sb_assert_url!` check the whole value**, as
+  Python's `assert_title` and `assert_url` do; they checked that the title or
+  URL contained the text. The old behaviour is in the new
+  `sb_assert_title_contains!` and `sb_assert_url_contains!`. A test that passed
+  a part of the title keeps passing only with the `_contains` macro.
+
+  ```rust
+  // before
+  sb_assert_title!(sb, "Dashboard")?;       // the title contained "Dashboard"
+  // after
+  sb_assert_title_contains!(sb, "Dashboard")?;
+  ```
+
+### Added
+
+- `sb_assert_visible!`, the macro `assert_visible!` was missing the `sb_`
+  prefix of.
+
+### Deprecated
+
+- `assert_visible!`: use `sb_assert_visible!`.
+- `save_saved_cookies` and `load_saved_cookies`: use `save_cookies` and
+  `load_cookies`.
+
+### Changed
+
+- **`check_window` baselines can be told apart by test.** The baseline folder
+  was named after the thread's last path part, so tests of the same function
+  name in different modules or files shared one folder, and a body run by
+  `#[tokio::main]` or `tokio::spawn` was filed under `main` or
+  `tokio-runtime-worker`. `BaseCase::with_test_name("module::test")` (builder,
+  with `test_name()` to read it back) names the test, and the baselines go in
+  `visual_baseline/module__test/<name>`. `sb_test!` sets it from the module path
+  and the function, so its tests get a new folder: the first run saves a
+  baseline there again. Without a test name nothing changes.
+- **The element assertions and waits mean what Python's mean.** `assert_element`,
+  `assert_element_visible`, `assert_elements` and `wait_for_element` need the
+  element to be displayed and wait for it (`wait_for_element` for its own
+  timeout, the others for the default one); they used to look once for an
+  element in the DOM, hidden or not. A test that asserted a hidden element (a hidden input, a
+  `display: none` template) with `assert_element` must use
+  `assert_element_present`, which now waits as well, like
+  `assert_elements_present`. `wait_for_query_selector` is
+  `wait_for_element_present`, as in Python, and `wait_for_element_present`
+  takes `&self`. `AssertionApi::assert_element` is visible-and-waiting for the
+  pure CDP `Page` too.
+- **`sb_test!` counts a skipped test as passed.** A body that ends with
+  `skip_test` used to panic with `test failed`, and now logs the reason and
+  passes, like `run_browser_test` (libtest cannot report a skip). A test that
+  relied on the panic must fail with an error instead.
+- `load_cookies` waits for the page to finish loading first, as Python's does,
+  and the domain it gives a foreign cookie is the page's host without its port
+  (a browser driver refuses a cookie domain with a port).
+- `assert_shadow_text(text, selector)`, the text waits and the deferred checks
+  changed their argument order silently (both are `&str`). Only `assert_text`
+  and `assert_exact_text` say "arguments look swapped" when they fail; search
+  your tests for the other names listed above.
+- `add_text` waits for the element to be displayed (it used to fail on an
+  element that was not there yet), `send_keys` is `add_text`, and `update_text`
+  is `type_text`, as in Python, where they are the same methods.
+- `wait` is `sleep`, as in Python (the two differed: `wait` took whole seconds
+  and skipped what `sleep` does); see the breaking change above for its new
+  argument.
+- The getters and assertions that only read the page take `&self` instead of
+  `&mut self`: `get_title`, `get_current_url`, `get_text`, `assert_title`,
+  `assert_title_contains`, `assert_url`, `assert_url_contains`, `assert_text`,
+  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible` and `assert_element_visible`, so a test can
+  call them from a closure that holds only `&BaseCase`. Existing calls compile
+  as before.
+- **The text assertions wait, as Python's do.** `assert_text`,
+  `assert_exact_text`, `assert_text_visible`, `assert_text_not_visible` and
+  `assert_exact_text_not_visible` poll for up to the default timeout
+  (`set_timeout`) instead of reading the page once, so a page that is still
+  rendering no longer fails them. The first three also require the element to
+  be displayed, and `assert_exact_text` and `is_exact_text_visible` ignore
+  whitespace at the ends of both strings. A failing assertion now arrives after
+  the timeout rather than at once: lower it with `set_timeout` where a test
+  expects a failure. `assert_text_visible` is `assert_text`, as in Python. The
+  deferred checks wait 2 seconds, whatever the default is.
+- `convert_xpath_to_css` handles more XPath: paths (`//a/b` becomes `a > b`,
+  `//a//b` becomes `a b`, `/html/body/...`), a position before the other tests
+  (`tag[n]` becomes `tag:nth-of-type(n)`, `*[n]` becomes `*:nth-child(n)`),
+  `contains(@a,'v')`, `starts-with(@a,'v')` (an addition; Python has none),
+  `id('x')` and `or` (a comma list). A form with no exact CSS equivalent (a
+  position after another test, `text()`, `parent::`) is still refused instead
+  of being converted into something close.
+- The Python importer passes `By.XPATH` locators through as XPath, so XPath
+  that CSS cannot say is no longer refused.
+- The Python importer matches the arguments of a call with Python's parameters:
+  `self.assert_text("x")` gets Python's default selector `body`, and keyword
+  arguments (`selector=`, `text=`, `timeout=`) work. It imports
+  `assert_text_visible`, `assert_text_not_visible`,
+  `assert_exact_text_not_visible`, `wait_for_text`, `wait_for_exact_text`, the
+  deferred and delayed asserts, `process_deferred_asserts` and
+  `enter_mfa_code`, which it used to leave as TODOs. An argument Rust cannot
+  carry over (`timeout=` on an assertion, a `by` that is not CSS) is an error
+  instead of being dropped. `send_keys` becomes `add_text`, not `type_text`:
+  Python's and Selenium's `send_keys` do not clear the field. The timeout of
+  `wait_for_element_visible` and `wait_for_element_present` is read from
+  `timeout=`; a second positional argument is Python's `by`, not a timeout.
 
 A breaking change to the fingerprint API: **one field per setting, and intent
 given once.** Before, every setting was kept twice, as a value and as a mode that
@@ -194,6 +496,96 @@ let wider = fp.to_builder().screen(2560, 1440).build()?;
 
 ### Fixed
 
+- `enter_totp_code` and `enter_mfa_code` now press Enter after the code, as
+  Python's `enter_mfa_code` does (it types the code and a newline). A test that
+  clicked a submit button after them submits twice and can drop the click.
+- `wait_for_exact_text` looked at every element of the page, `<title>`,
+  `<script>` and hidden elements included, so it could find text that no
+  visible element showed. It now looks at the selected element and requires it
+  to be displayed.
+- `sb_assert_not_visible!` without a message did not compile, and `sb_wait_and_click!`
+  without a message dropped the error of the wait. `sb_test!` quit the browser
+  before it reported the test's result, so a quit that failed hid the test's own
+  error; it now reports both.
+
+## [0.4.0] - 2026-10-16
+
+A feature release: browser plugins now run in the WebDriver engine as well as
+the Pure CDP one, the Pure CDP engine gains page script and style tags and HAR
+recording, the opt-in `visual` feature compares screenshots by structural
+similarity, `sbrs prompt` prints a browser and driver segment for shell prompts,
+and the documentation gains a guide to testing pages with a CAPTCHA.
+
+### Added
+
+- **Browser plugins for the WebDriver engine** (feature `plugins`; ADR 004
+  phase 3). `BrowserConfig::with_plugins` gives a `PluginSet` to
+  `BaseCase::new` and `BrowserSession::connect`: the set is checked against the
+  browser, `before_launch` changes the start-up settings (Chromium arguments,
+  capability preferences, extension folders, proxy and headless; Firefox
+  arguments, preferences and headless), and once the session runs the plugins
+  get `on_browser`, then the packages and `on_page_created` for the first
+  window, for each window `switch_to_new_window` or `open_new_window` opens, and
+  for any other on `apply_plugins_to_window`; `quit` or a drop calls
+  `on_close`, and `reconnect` runs the hooks again. On Chromium browsers
+  plugins send protocol commands through chromedriver's DevTools channel; on
+  Firefox and Safari `send` is refused and scripts for every document run at
+  once and again after each `open`. A refusal or a failing hook stops the
+  session with `SeleniumBaseError::Plugin`. Plugins with `reuse_session` are
+  refused. See the WebDriver section of `docs/tutorials/plugins.md`.
+- `sb_cdp::Page::add_script_tag` and `add_style_tag` add a script or a
+  stylesheet to the current document from a URL or inline (`TagSource`),
+  waiting for a file to load; `add_init_script` runs a script in every
+  document the tab loads from then on and returns an `InitScriptId` for
+  `remove_init_script`. Playwright's `addScriptTag`, `addStyleTag` and
+  `addInitScript`.
+- With the `plugins` feature, `sb_cdp::Page` implements the plugin API's
+  `PageHandle`, so a program can hand one of its tabs to plugin code.
+- Visual regression testing, behind the new opt-in `visual` feature:
+  `visual::VisualBaseline` saves a screenshot as a baseline PNG on the first
+  run and compares later screenshots with it by structural similarity (MSSIM
+  over 8 × 8 windows on each colour channel, `image-compare`), failing below a
+  threshold of 0.999 with `AssertionFailed` and leaving `<name>.actual.png` and
+  a `<name>.diff.png` that paints the differences red. Screenshots of another
+  size fail without a comparison. `check_page` takes a `BaseCase` or an
+  `sb_cdp::Page`, and `BaseCase::assert_visual_match(name)` keeps its baselines
+  in `visual_baseline/<test>/`, `<test>` being the test's whole path (test
+  binary, module path and function, as `cart.checkout.renders`), and follows
+  `with_visual_baseline_reset`.
+  `check_window` is unchanged: it compares the HTML layout, as in Python.
+- HAR recording for the pure CDP engine (no new dependency, no feature):
+  `Page::start_har()` / `start_har_with(HarOptions)` return a `HarRecorder`,
+  and `HarRecorder::finish()` returns a `Har` (HTTP Archive 1.2 serde types)
+  that `Har::save(path)` writes as JSON. Entries come from the `Network`
+  events of the tab and of its cross-site iframes, which run in targets of
+  their own and are attached while recording, extra-info headers included, with cookies, query strings, POST
+  bodies, one entry per redirect hop, failures with Chrome's `_error`, and
+  `blocked`/`dns`/`connect`/`ssl`/`send`/`wait`/`receive` timings; each
+  top-level navigation is a page with `onContentLoad` and `onLoad`. Response
+  bodies are off by default and capped at 1 MiB each when turned on; the cap
+  can be raised to 64 MiB (`MAX_CONTENT_BYTES`).
+- `sbrs prompt` prints one short line for a shell prompt: the installed
+  Chrome's major version and whether a matching chromedriver is at hand
+  (`chrome 155 ✓driver`, `✗driver`, `?driver`), with `--ascii` marks and a
+  `--format` of `{browser}`, `{major}`, `{driver}`, `{mark}` and
+  `{driver_major}`. It starts no browser and uses no network: versions come
+  from files (a macOS app's `Info.plist`, the version folder beside
+  `chrome.exe`), and one that only `--version` tells is cached for ten minutes
+  in the user cache folder. It prints nothing and exits with 0 when no browser
+  is found (`--verbose` says why). The CLI page has setups for Bash, Zsh,
+  Fish, PowerShell, Starship and Warp, and `.warp/workflows/` a Workflow for it.
+- `browser::driver_version::major_without_running` reads a program's major
+  version from its files only, and `version_flag_major` runs `--version` with a
+  time limit.
+- Tutorial [Testing Pages with a CAPTCHA](docs/tutorials/captcha_testing.md): vendor test keys, and tests that click the test widget and read the token.
+- `docs/completions/`: a Fig completion spec for `sbrs`, prepared for withfig/autocomplete (not submitted), with the steps.
+
+### Fixed
+
+- The pure CDP engine takes DevTools messages up to 256 MiB, as Puppeteer
+  does. Chrome sends each answer in one WebSocket frame, and one over the
+  default 16 MiB, such as a large screenshot or response body, used to close
+  the connection for every tab.
 - `sbrs` exits quietly with status 0 when the reader of its output goes away
   (`sbrs completions zsh | head`), instead of printing "error: Broken pipe".
 - Canvas noise ran only for one mode; `Persistent`, `Random` and `Low` switched
@@ -1023,3 +1415,10 @@ listed first under *Fixed*.
   `bundle.json`: the result of a successful call is replaced by its length, so a
   cookie, a stored token or a page's text read by `get_cookies`,
   `manage_cookies` or a storage tool is not saved with the bug report.
+
+[Unreleased]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/MustCodeAl/seleniumbase-rs/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.1.0

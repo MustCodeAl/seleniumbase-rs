@@ -27,7 +27,10 @@ where
 /// The result of a test whose browser was then closed: the test's own error if
 /// only it failed, the cleanup error if only that failed, and both if both did.
 /// A skip is not a failure; see [`run_browser_test`].
-pub(crate) fn combine_outcomes(test_result: Result<()>, cleanup_result: Result<()>) -> Result<()> {
+///
+/// Public only because [`sb_test!`](crate::sb_test) expands to a call of it.
+#[doc(hidden)]
+pub fn combine_outcomes(test_result: Result<()>, cleanup_result: Result<()>) -> Result<()> {
     match (test_result, cleanup_result) {
         (Err(skipped), Ok(())) if skipped.is_skipped() => {
             tracing::info!(reason = %skipped, "test skipped");
@@ -42,9 +45,43 @@ pub(crate) fn combine_outcomes(test_result: Result<()>, cleanup_result: Result<(
     }
 }
 
+/// What [`sb_test!`](crate::sb_test) does once its body ran and the browser was
+/// closed: panics, which fails a libtest test, unless the outcome is a pass or a
+/// skip (see [`combine_outcomes`]).
+///
+/// # Panics
+///
+/// When the test or the cleanup failed.
+#[doc(hidden)]
+#[track_caller]
+pub fn finish_test(test_result: Result<()>, cleanup_result: Result<()>) {
+    combine_outcomes(test_result, cleanup_result).expect("test failed");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finish_test_lets_a_pass_and_a_skip_through() {
+        finish_test(Ok(()), Ok(()));
+        finish_test(
+            Err(SeleniumBaseError::Skipped("no browser here".to_owned())),
+            Ok(()),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "test failed")]
+    fn finish_test_panics_on_a_failure() {
+        finish_test(failure("boom"), Ok(()));
+    }
+
+    #[test]
+    #[should_panic(expected = "test failed")]
+    fn finish_test_panics_on_a_failed_cleanup() {
+        finish_test(Ok(()), failure("stuck"));
+    }
 
     fn failure(message: &str) -> Result<()> {
         Err(SeleniumBaseError::AssertionFailed(message.to_owned()))

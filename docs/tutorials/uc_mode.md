@@ -48,9 +48,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 On the command line, `sbrs --uc open URL` selects UC mode (a global option, so
 it goes before the subcommand; `--cdp` and `--uc` cannot be combined).
 
+<Warning>
+
 UC mode drives Chrome through CDP, so it needs a Chromium-based browser (Chrome,
 Chromium or Edge). With Firefox, `BaseCase::new` returns an
 `InvalidConfig` error.
+
+</Warning>
 
 ## What is patched automatically
 
@@ -75,15 +79,23 @@ If you set no user agent and Chrome reports `HeadlessChrome`, the user agent is
 overridden to say `Chrome`. If the `BrowserConfig` carries a `Fingerprint`, its
 bootstrap script and CDP overrides are applied too.
 
+<Note>
+
 UC mode does **not** patch the chromedriver binary for you; see
 [Patch the chromedriver binary](#patch-the-chromedriver-binary).
+
+</Note>
 
 ## Extra evasions you can apply
 
 ### Timezone and geolocation
 
+<Info>
+
 These use CDP, so they work in `Cdp` and `Uc` mode; in plain WebDriver mode they
 return an "Enable mode cdp or uc" error.
+
+</Info>
 
 ```rust,no_run
 # use seleniumbase_rs::BaseCase;
@@ -175,17 +187,50 @@ networking and default apps.
 
 If a site still flags the browser, combine all layers:
 
-1. Patch `chromedriver` with `ChromedriverPatcher` and verify `needs_patch()`
-   returns `false`.
-2. Add `engine_spoofing_args()` to the launch flags.
-3. Use a coherent [`Fingerprint`](./fingerprint_stealth.md) with consistent user
-   agent, platform, screen size, WebGL vendor, and geolocation.
-4. Run headful (`with_headless(false)`). A headless session already uses
-   `--headless=new`, not the legacy headless implementation.
-5. Enable `native_spoofing` to move spoofing out of JavaScript and into CDP
-   where possible.
-6. Try the [pure CDP engine](./pure_cdp.md), which launches Chrome without
-   chromedriver at all.
+<Steps>
+
+<Step title="Patch chromedriver">
+
+Patch `chromedriver` with `ChromedriverPatcher` and verify `needs_patch()`
+returns `false`.
+
+</Step>
+
+<Step title="Add the spoofing arguments">
+
+Add `engine_spoofing_args()` to the launch flags.
+
+</Step>
+
+<Step title="Use a coherent fingerprint">
+
+Use a coherent [`Fingerprint`](./fingerprint_stealth.md) with consistent user
+agent, platform, screen size, WebGL vendor, and geolocation.
+
+</Step>
+
+<Step title="Run headful">
+
+Run headful (`with_headless(false)`). A headless session already uses
+`--headless=new`, not the legacy headless implementation.
+
+</Step>
+
+<Step title="Enable native spoofing">
+
+Enable `native_spoofing` to move spoofing out of JavaScript and into CDP
+where possible.
+
+</Step>
+
+<Step title="Try the pure CDP engine">
+
+Try the [pure CDP engine](./pure_cdp.md), which launches Chrome without
+chromedriver at all.
+
+</Step>
+
+</Steps>
 
 ## When to use UC mode
 
@@ -195,8 +240,12 @@ Use UC mode when:
 - You need to interact with Cloudflare-like challenges.
 - You want the most human-like browser fingerprint possible.
 
+<Warning>
+
 Avoid UC mode when you do not need anti-detection, because the extra flags and
 patches can make debugging harder and may conflict with some CI environments.
+
+</Warning>
 
 ## Related reading
 

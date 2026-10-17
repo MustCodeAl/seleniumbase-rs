@@ -130,10 +130,14 @@ impl TestPlugin for SlackOnFailure {
 
 ## When a plugin fails
 
+<Info>
+
 A plugin can never change how a test turns out. If a hook returns an error, it
 is logged as a warning (with the plugin, hook and test name as fields) and the
 remaining plugins still run. The test's own result, combined with any error
 from closing the browser, is what you get back.
+
+</Info>
 
 ## Uploading what a plugin saved
 
@@ -142,6 +146,8 @@ not hooks: call their `upload_file` after a test on the files the failure
 plugins wrote. See [Cloud Integrations](cloud_integrations.md).
 
 ## Migrating from the old plugin API
+
+<Warning>
 
 Earlier releases had a `SeleniumBasePlugin` trait with `before_command` and
 `after_command`, a `PluginManager`, and a `DbReportingPlugin`. Nothing ever
@@ -152,10 +158,16 @@ same JSON row format, one row per test instead of one per command), and
 There is no per-command hook any more: the per-test hooks are the ones with a
 natural place to run.
 
+</Warning>
+
 ## What has and has not been verified
+
+<Note>
 
 The plugins, the dispatch order, failure isolation, the file naming and the
 reports are covered by tests that need no browser, and the screenshot and
 page-source plugins are tested through the Pure CDP mock. `Plugins::run_browser_test`
 (the `BaseCase` path) has not been run against a real WebDriver on the machine
 this was written on.
+
+</Note>

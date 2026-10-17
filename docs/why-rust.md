@@ -4,11 +4,15 @@ title: "Why Rust?"
 
 # Why Rust?
 
+<Tip>
+
 **Short answer.** Choose `seleniumbase-rs` if your tests or tooling already live
 in Rust, if you want to ship the runner as one native binary, or if you want the
 pure CDP engine and the agent tools that upstream Python SeleniumBase does not
 have. Do not choose it because you expect faster tests: the browser sets the
 pace (see [Performance](performance.md)).
+
+</Tip>
 
 | You are... | Then |
 |---|---|
@@ -121,11 +125,15 @@ three real-Chrome tests (`diagnose_environment` ran only against a mock):
   follows the error's category, and failed tests carry their page and evidence
   into the reports.
 
+<Note>
+
 Not here: TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation, the impersonating
 HTTP session, the MITM proxy and the combined stealth session moved in 0.3.0 to
 the separate, experimental seleniumbase-rs-stealth project, measured for one
 browser and system (Chrome 155 on macOS). See
 [Stealth Scraping](tutorials/stealth_scraping.md).
+
+</Note>
 
 ## Evidence from this crate
 
@@ -153,10 +161,14 @@ about Rust:
   against the lockfile (currently no vulnerabilities, 3 allowed unmaintained
   warnings).
 
+<Warning>
+
 Rust did not prevent every bug. During this port the WebDriver path sent a proxy
 login as an extra header to every site, which is a logic error the compiler
 cannot see; a review found it and a test now guards it. Timing-dependent tests
 also flaked until they were made to wait for what they check.
+
+</Warning>
 
 ## What it costs
 
@@ -172,6 +184,8 @@ also flaked until they were made to wait for what they check.
 
 ## What does not change
 
+<Info>
+
 Rust does not make the browser faster. Page loads, JavaScript execution, network
 round trips, and browser startup still dominate most end-to-end tests. A Rust
 test that opens a heavy web page waits just as long as a Python or JavaScript
@@ -180,6 +194,8 @@ test opening the same page.
 Rust also does not fix flaky selectors, race conditions in the application under
 test, or unstable infrastructure. Those problems require the same test-design
 discipline in every language.
+
+</Info>
 
 ## Practical comparison
 
@@ -192,7 +208,11 @@ discipline in every language.
 | Dependencies | Cargo lockfiles and feature flags provide reproducible selection | Dependencies still require auditing and updates |
 | Integration | Tests can share typed models with Rust services | Cross-language teams may prefer their existing stack |
 
-## Compared to Python SeleniumBase
+## Compared to other stacks
+
+<Tabs>
+
+<Tab title="Python SeleniumBase">
 
 Python SeleniumBase has the largest existing example library and the most mature
 upstream ecosystem. It is often the right choice when:
@@ -208,7 +228,9 @@ upstream ecosystem. It is often the right choice when:
 - To share code with Rust services.
 - Fine-grained control over dependencies via feature flags.
 
-## Compared to JavaScript / TypeScript
+</Tab>
+
+<Tab title="JavaScript / TypeScript">
 
 JavaScript and TypeScript are convenient for frontend teams and have rich
 browser-first tooling. They fit well when:
@@ -222,6 +244,10 @@ browser-first tooling. They fit well when:
 - Deterministic resource cleanup through `run_browser_test`.
 - A smaller runtime footprint because the compiled CLI does not pull in a Node
  runtime.
+
+</Tab>
+
+</Tabs>
 
 ## How to decide
 

@@ -41,8 +41,12 @@ sb.perform_named_action(&action, "#button").await?;
 
 ## Add a new language
 
+<Tip>
+
 Translations are stored in the `Translator` module. Add entries to the language
 map to support additional languages, then rebuild.
+
+</Tip>
 
 ## When to use
 

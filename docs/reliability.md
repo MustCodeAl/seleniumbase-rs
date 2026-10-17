@@ -58,23 +58,30 @@ Key properties:
   background and cannot be awaited, which is why `run_browser_test` closes it
   explicitly.
 
-Run the test with the standard harness:
+Run the test with the standard harness or with [cargo-nextest](https://nexte.st/):
 
-```bash
+<CodeGroup>
+
+```bash cargo test
 cargo test example_domain
 ```
 
-Or with [cargo-nextest](https://nexte.st/):
-
-```bash
+```bash cargo nextest
 cargo nextest run example_domain
 ```
 
+</CodeGroup>
+
 ## Do not hide flaky behavior
 
-Retries are sometimes necessary for transient network or driver issues, but
-unconditional retries hide race conditions and broken selectors. The repository's
+Retries are sometimes necessary for transient network or driver issues.
+
+<Warning>
+
+Unconditional retries hide race conditions and broken selectors. The repository's
 included nextest profile uses zero automatic retries.
+
+</Warning>
 
 Retry a browser action only when:
 
@@ -135,14 +142,18 @@ finer control, use explicit waits:
 # use seleniumbase_rs::BaseCase;
 # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.wait_for_element_visible("#submit", 10).await?;
-sb.wait_for_text("body", "Order confirmed", 15).await?;
+sb.wait_for_text("Order confirmed", "body", 15).await?;
 sb.wait_for_element_not_visible(".spinner", 10).await?;
 # Ok(())
 # }
 ```
 
+<Tip>
+
 Avoid `tokio::time::sleep` whenever possible. It makes tests slower and does not
 eliminate timing races.
+
+</Tip>
 
 ## Errors that say what to do
 
@@ -190,6 +201,8 @@ that races that start-up is flaky by construction.
 
 ## Known gaps
 
+<Warning>
+
 - Most behaviour is covered by unit tests and a mock browser; only part of it has
   been run against a real Chrome (155).
 - The parity entries classified as composed or not-applicable were audited once
@@ -199,6 +212,8 @@ that races that start-up is flaky by construction.
 - The `RunSettings` pause arithmetic, sleep recording and skip-js-waits are unit
   tested; the hooks inside `open`, `click`, `type_text`, `update_text` and
   `press_keys` run under no test.
+
+</Warning>
 
 ## Capture artifacts on failure
 
@@ -224,8 +239,14 @@ The files go to the `latest_logs` folder of the working directory, named
 `screenshot_<milliseconds>.png` and `page_source_<milliseconds>.html`. The
 `sbrs screenshot` and `sbrs save-source` commands write the same files, but
 each starts its own fresh browser, so they capture a blank page, not your test's
-failing one. For failure evidence use the code above, or the test plugins in
-[Test Plugins](tutorials/test_plugins.md).
+failing one.
+
+<Warning>
+
+For failure evidence use the code above, or the test plugins in
+[Test Plugins](tutorials/test_plugins.md), not the CLI commands.
+
+</Warning>
 
 ## Use configuration, not code, for environment differences
 
@@ -270,9 +291,14 @@ cleanup_within(timeout_from_env(), close_browsers()).await;
 Dropping a `BrowserSession` (and so a `BaseCase`) that was not quit starts its
 cleanup on the Tokio runtime with `spawn_cleanup`, because `Drop` cannot await.
 Call `drain_cleanups(timeout_from_env()).await` before the program exits so that
-cleanup is not cut off; `sbrs` does. Once a handler is installed, a signal no
-longer ends the process by itself, so the code that installs one must keep
-waiting on it.
+cleanup is not cut off; `sbrs` does.
+
+<Note>
+
+Once a handler is installed, a signal no longer ends the process by itself, so
+the code that installs one must keep waiting on it.
+
+</Note>
 
 ## Reliability checklist
 

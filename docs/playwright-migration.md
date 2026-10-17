@@ -19,8 +19,13 @@ The output is a Rust file with one `#[tokio::test]` per Playwright test. Each
 launches a browser, drives its page with `Page` and `Locator` calls, and closes
 it, the way the recorder's `--rec-sb-cdp` output does. Anything the importer
 does not convert stays in place as a `// TODO(playwright): <statement>` comment
-and is reported with its line number, so nothing is dropped silently. Treat the
-output as a first draft and review every `TODO`.
+and is reported with its line number, so nothing is dropped silently.
+
+<Warning>
+
+Treat the output as a first draft and review every `TODO`.
+
+</Warning>
 
 ## Convert a file
 
@@ -46,7 +51,11 @@ From Rust, call `seleniumbase_rs::utilities::importer::import_playwright`;
 
 ## What a converted test looks like
 
-```typescript
+A Playwright test becomes a Rust test:
+
+<CodeGroup>
+
+```typescript Playwright
 test.describe('shop', () => {
   test.beforeEach(async ({ page }) => { await page.goto('https://shop.test/'); });
   test('orders', async ({ page }) => {
@@ -57,9 +66,7 @@ test.describe('shop', () => {
 });
 ```
 
-becomes
-
-```rust,ignore
+```rust,ignore Rust
 #[tokio::test]
 async fn shop_orders() -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::launch(support::launch_options()?).await?;
@@ -72,6 +79,8 @@ async fn shop_orders() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+</CodeGroup>
 
 Group titles become a prefix of the test name; two tests with the same name
 get `_2`, `_3`. Hooks are inlined into every test of their group, in order. A
@@ -201,12 +210,16 @@ or `listbox`; `<li>`, `<ul>`, `<ol>`, `<nav>`, `<main>`, `<table>`, `<tr>`,
 common landmarks. The name matches the element's `aria-label`, text, `value`,
 `title`, `alt`, or the text of its `<label>` (by `for` or by wrapping).
 
+<Warning>
+
 Not covered: `aria-labelledby` and `aria-describedby`, roles that depend on
 context (a `<header>` inside an `<article>` is not a `banner`), hidden elements
 being left out (the engine's actions wait for a visible match anyway), the
 precedence of `aria-label` over the text, and the `level`, `checked`,
 `pressed`, `expanded`, `selected` and `includeHidden` options, which become a
 `TODO`.
+
+</Warning>
 
 ## What becomes a TODO
 
@@ -237,6 +250,8 @@ with the `Error` severity, and make the command exit with status 1.
 
 ## Dropped on purpose
 
+<Info>
+
 These have no effect on the generated test and are left out without a `TODO`:
 `import`/`require` lines, the launch call and its options (the test launches
 with `support::launch_options()`), `newContext()` without options (with
@@ -246,9 +261,17 @@ options, a `TODO` says they are not carried over), `context.close()` and
 Comments inside a test are kept; blank lines and comments outside tests are
 not.
 
+</Info>
+
 ## Safety
 
-The input is untrusted text and the output is code you compile. The importer
+<Warning>
+
+The input is untrusted text and the output is code you compile.
+
+</Warning>
+
+The importer
 reads it with its own small tokenizer and parser (no regular expressions, no
 evaluation), refuses files over 2 MB, and stops a statement that nests deeper
 than 100 levels. Text from the input reaches the Rust only inside string

@@ -11,18 +11,19 @@
 //! | [`scenario`] | JSON scenarios, replayed against a `BaseCase` |
 //! | [`recorder`] | Recording of actions, Rust test generation and replay |
 //! | [`html`], [`html_inspector`] | Parsing page source, and static HTML/accessibility checks |
-//! | [`pdf`] | PDF text extraction |
+//! | [`pdf`] | PDF text extraction (feature `pdf`) |
 //! | [`chart`], [`presentation`] | Chart.js and reveal.js pages |
 //! | [`tour`], [`master_qa`] | Website tours and manual verification sessions |
 //!
-//! Three modules are behind Cargo features, because they pull in platform
-//! libraries that a headless test run does not need:
+//! Some modules are behind Cargo features, because they pull in platform
+//! libraries or large dependency trees that a headless test run does not need:
 //!
 //! | Feature | Module | What it is |
 //! |---------|--------|------------|
 //! | `gui` | `dialog` | Native message, confirm, text-prompt and file dialogs |
 //! | `gui` | `gui` | Mouse and keyboard input at the OS level |
 //! | `playwright` | `playwright` | Helpers for the Playwright-compatible engine |
+//! | `pdf` | `pdf` | PDF text extraction, and `BaseCase::get_pdf_text` / `assert_pdf_text` |
 
 pub mod base_case;
 pub mod cdp_driver;
@@ -37,6 +38,7 @@ pub mod html;
 pub mod html_inspector;
 pub mod master_qa;
 pub(crate) mod page_scripts;
+#[cfg(feature = "pdf")]
 pub mod pdf;
 pub mod presentation;
 pub mod recorder;

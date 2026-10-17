@@ -392,7 +392,7 @@ async fn diagnose_selector<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<Out
 
     let mut advice: Vec<String> = selector_advice(raw).into_iter().collect();
     if raw.contains(":contains(") {
-        let xpath = crate::api::base_case::css_to_xpath(raw).ok();
+        let xpath = crate::utils::selectors::css_to_xpath(raw).ok();
         advice.push(match xpath {
             Some(xpath) => format!(
                 ":contains() is not CSS, and querySelector rejects it. The same element in \

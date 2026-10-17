@@ -153,7 +153,11 @@ Run the test with `MY_DEMO=1 cargo test login_for_a_demo -- --nocapture`.
 
 ## Which calls honour which setting
 
+<Warning>
+
 This is the part to read before trusting a setting.
+
+</Warning>
 
 **Demo, slow, fast and the demo sleep** act in five `BaseCase` methods and no
 others:
@@ -180,9 +184,13 @@ How the three modes combine:
 | demo and slow | full | full divided by 3.4 |
 | fast, with or without demo or slow | none | none |
 
+<Note>
+
 Fast mode cancels the pauses only. It does not make the browser or any wait
 faster, and demo mode still outlines elements under it, so leave demo mode off
 too for a plain fast run.
+
+</Note>
 
 The outline is one magenta box, drawn by a script in the page and put back by a
 timer after about a second, so the call does not wait for it. It is not Python's
@@ -227,17 +235,29 @@ accept the page as it is now, then go back to the default:
 # use seleniumbase_rs::BaseCase;
 # async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
-sb.check_window("home", 3.0).await?; // saves the baseline
+sb.check_window("home", 3).await?; // saves the baseline
 sb.set_run_settings(RunSettings::default());
-sb.check_window("home", 3.0).await?; // compares with it
+sb.check_window("home", 3).await?; // compares with it
 # Ok(())
 # }
 ```
 
 What `check_window` compares, and its levels 0 to 3, are in the rustdoc of
-`BaseCase::check_window`; the [API Guide](./api_reference.md) lists it.
+`BaseCase::check_window`; the [API Guide](./api_reference.md) lists it. The
+reset applies to `assert_visual_match` (feature `visual`) too, which compares
+the screenshot's pixels instead of the HTML and keeps its baseline as
+`visual_baseline/<test>/<name>.png`, `<test>` there being the test's whole
+path (`cart.checkout.renders`); see
+[Visual regression testing](./remaining_helpers.md#visual-regression-testing-pixels).
 
 ## Limits
+
+<Danger>
+
+**Never in CI.** A demo or slow run waits on purpose and can make a suite many
+times longer. Keep them off unless a person is watching.
+
+</Danger>
 
 - **Code only.** Nothing reads these from the command line, the environment, a
   config file or `Settings`. The `sbrs` CLI and the MCP servers do not set them.
@@ -252,8 +272,6 @@ What `check_window` compares, and its levels 0 to 3, are in the rustdoc of
   for example, never pause.
 - **One outline.** Python's `--highlights` (how many times to animate) has no
   counterpart; the outline is drawn once.
-- **Never in CI.** A demo or slow run waits on purpose and can make a suite many
-  times longer. Keep them off unless a person is watching.
 - **Not a speed-up.** `with_fast_mode` removes pauses that demo and slow mode add.
   It is not a faster browser. `with_skip_js_waits` removes one wait, at the cost
   of more flaky clicks on pages that are still loading.

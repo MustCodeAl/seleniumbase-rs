@@ -1,6 +1,6 @@
 [package]
 name = "seleniumbase-rs"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.99"
 license = "MIT"
@@ -40,6 +40,10 @@ required-features = ["gui"]
 [[example]]
 name = "gui_automation"
 required-features = ["gui"]
+
+[[example]]
+name = "pdf_example"
+required-features = ["pdf"]
 
 [[bin]]
 name = "sbrs-mcp"
@@ -93,14 +97,14 @@ ring = "0.17"
 zip = { version = "9.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 # The zlib-rs backend zip already builds (lopdf still enables flate2's default one).
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
-tar = "0.4"
+tar = { version = "0.4", default-features = false }
 dirs = "7.0"
-pdf-extract = "0.12"
+pdf-extract = { version = "0.12", optional = true }
 # Without `main` (getopts, for scraper's own CLI) and `errors` (unused parse errors).
 scraper = { version = "0.27", default-features = false }
 rfd = { version = "0.17", optional = true }
 toml = "1.1"
-tempfile = "3.27"
+tempfile = { version = "3.27", default-features = false }
 which = "8.0"
 async-trait = "0.1"
 # `http` and `bytes` name the types of thirtyfour's `HttpClient` trait, which
@@ -128,6 +132,10 @@ image = { version = "0.25", optional = true, default-features = false, features 
 # crates.io. No `rev`: plugin crates added with `cargo add --git` use the same
 # source, so Cargo resolves both to one commit and the `Plugin` traits match.
 seleniumbase-rs-plugin = { version = "0.1", git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", optional = true }
+# `visual`: structural similarity (SSIM) between a screenshot and its baseline.
+# MIT; no default features; brings rayon and itertools, and `image` without
+# defaults (the PNG codec comes from the `image` line above).
+image-compare = { version = "0.5", optional = true }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -160,10 +168,19 @@ turso = ["dep:turso"]
 # Reads text from screenshots and images (`ocr::Ocr`): ocrs, pure Rust. Its two
 # models (about 12 MB) are downloaded into the cache folder on first use.
 ocr = ["dep:ocrs", "dep:rten", "dep:image"]
-# Plugins for the pure CDP engine (ADR 004): `LaunchOptionsBuilder::plugins` and
-# the hooks at launch, connect, every new tab and close. The API is re-exported as
+# Browser plugins (ADR 004) for both engines: `LaunchOptionsBuilder::plugins`
+# (pure CDP) and `BrowserConfig::with_plugins` (WebDriver), with hooks at launch,
+# connect, every new tab or window and close. The API is re-exported as
 # `seleniumbase_rs::plugin_api`.
 plugins = ["dep:seleniumbase-rs-plugin"]
+# Visual regression testing (`visual::VisualBaseline`,
+# `BaseCase::assert_visual_match`): screenshots compared with a saved baseline
+# by structural similarity, with a diff image on a mismatch. Pure Rust.
+visual = ["dep:image-compare", "dep:image"]
+# PDF text extraction: the module `api::pdf`, `BaseCase::get_pdf_text` and
+# `assert_pdf_text`, and `sbrs pdf-text` / `assert-pdf-text`. It is optional because
+# pdf-extract (lopdf, fonts, ciphers) is 34 of the crates of a default build.
+pdf = ["dep:pdf-extract"]
 
 [dev-dependencies]
 # Generates completions/sbrs.usage.kdl in a test; the binary embeds the file.
