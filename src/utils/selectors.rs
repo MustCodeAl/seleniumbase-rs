@@ -634,65 +634,262 @@ pub(crate) fn css_quoted(value: &str, quote: char) -> String {
     quoted
 }
 
-/// One `@name` or `@name='value'` test from an XPath predicate.
-struct AttributeTest<'a> {
-    name: &'a str,
-    value: Option<&'a str>,
+/// The most selectors one XPath may fan out to when it uses `or`.
+const MAX_XPATH_ALTERNATIVES: usize = 16;
+
+/// Reads the XPath forms [`xpath_to_css`] converts. Every method returns
+/// `None` for a form it does not convert, and the whole conversion then fails.
+struct XPathReader<'a> {
+    rest: &'a str,
 }
 
-/// Reads one attribute test from the start of `input` and returns it with the
-/// text that follows.
-fn attribute_test(input: &str) -> Option<(AttributeTest<'_>, &str)> {
-    let rest = input.strip_prefix('@')?;
-    let name_len = rest
-        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
-        .unwrap_or(rest.len());
-    let (name, rest) = rest.split_at(name_len);
-    if !name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
-        return None;
+impl<'a> XPathReader<'a> {
+    fn skip_space(&mut self) {
+        self.rest = self.rest.trim_start();
     }
-    let Some(rest) = rest.trim_start().strip_prefix('=') else {
-        return Some((AttributeTest { name, value: None }, rest));
-    };
-    let rest = rest.trim_start();
-    let quote = rest.chars().next().filter(|c| matches!(c, '\'' | '"'))?;
-    let rest = &rest[1..];
-    let end = rest.find(quote)?;
-    let test = AttributeTest {
-        name,
-        value: Some(&rest[..end]),
-    };
-    Some((test, &rest[end + 1..]))
-}
 
-/// Reads `[test and test][test]...` and returns every test in it.
-fn attribute_tests(predicates: &str) -> Option<Vec<AttributeTest<'_>>> {
-    let mut tests = Vec::new();
-    let mut rest = predicates.trim();
-    while !rest.is_empty() {
-        rest = rest.strip_prefix('[')?.trim_start();
+    /// Consumes `token` if the text begins with it.
+    fn eat(&mut self, token: &str) -> bool {
+        match self.rest.strip_prefix(token) {
+            Some(rest) => {
+                self.rest = rest;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Consumes an operator word such as `and`, which must be followed by
+    /// white space.
+    fn eat_operator(&mut self, word: &str) -> bool {
+        match self.rest.strip_prefix(word) {
+            Some(rest) if rest.starts_with(char::is_whitespace) => {
+                self.rest = rest.trim_start();
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// An element or attribute name.
+    fn name(&mut self) -> Option<&'a str> {
+        let len = self
+            .rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+            .unwrap_or(self.rest.len());
+        let (name, rest) = self.rest.split_at(len);
+        if !name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+            return None;
+        }
+        self.rest = rest;
+        Some(name)
+    }
+
+    /// A quoted string, without its quotes.
+    fn literal(&mut self) -> Option<&'a str> {
+        let quote = self.rest.chars().next().filter(|c| matches!(c, '\'' | '"'))?;
+        let inner = &self.rest[1..];
+        let end = inner.find(quote)?;
+        self.rest = &inner[end + 1..];
+        Some(&inner[..end])
+    }
+
+    /// A whole number.
+    fn number(&mut self) -> Option<usize> {
+        let len = self
+            .rest
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(self.rest.len());
+        let number = self.rest[..len].parse().ok()?;
+        self.rest = &self.rest[len..];
+        Some(number)
+    }
+
+    /// `@name`, `@name='value'`, `contains(@name, 'value')` or
+    /// `starts-with(@name, 'value')`, as the CSS that tests the same.
+    fn test(&mut self) -> Option<String> {
+        if self.eat("@") {
+            let name = self.name()?;
+            let before_space = self.rest;
+            self.skip_space();
+            if !self.eat("=") {
+                self.rest = before_space;
+                return Some(format!("[{name}]"));
+            }
+            self.skip_space();
+            return Some(format!("[{name}={}]", css_quoted(self.literal()?, '\'')));
+        }
+        let operator = if self.eat("contains(") {
+            "*="
+        } else if self.eat("starts-with(") {
+            "^="
+        } else {
+            return None;
+        };
+        self.skip_space();
+        if !self.eat("@") {
+            return None;
+        }
+        let name = self.name()?;
+        self.skip_space();
+        if !self.eat(",") {
+            return None;
+        }
+        self.skip_space();
+        // XPath finds the empty string in every string; `[a*='']` matches
+        // nothing.
+        let value = self.literal().filter(|value| !value.is_empty())?;
+        self.skip_space();
+        if !self.eat(")") {
+            return None;
+        }
+        Some(format!("[{name}{operator}{}]", css_quoted(value, '\'')))
+    }
+
+    /// Tests joined with `and`, as one run of CSS qualifiers.
+    fn and_list(&mut self) -> Option<String> {
+        let mut css = self.test()?;
         loop {
-            let (test, after) = attribute_test(rest)?;
-            tests.push(test);
-            rest = after.trim_start();
-            let Some(after_and) = rest.strip_prefix("and") else {
-                break;
-            };
-            if !after_and.starts_with(char::is_whitespace) {
+            let before_space = self.rest;
+            self.skip_space();
+            if !self.eat_operator("and") {
+                self.rest = before_space;
+                return Some(css);
+            }
+            css.push_str(&self.test()?);
+        }
+    }
+
+    /// `and` lists joined with `or`: one CSS qualifier run for each.
+    fn or_list(&mut self) -> Option<Vec<String>> {
+        let mut alternatives = vec![self.and_list()?];
+        loop {
+            let before_space = self.rest;
+            self.skip_space();
+            if !self.eat_operator("or") {
+                self.rest = before_space;
+                return Some(alternatives);
+            }
+            alternatives.push(self.and_list()?);
+        }
+    }
+
+    /// One step, `tag[position][tests]...`, as the compound selectors it
+    /// stands for (several when a test uses `or`), with its tag.
+    fn step(&mut self) -> Option<(&'a str, Vec<String>)> {
+        let tag = if self.eat("*") { "*" } else { self.name()? };
+        let mut position = None;
+        let mut variants = vec![String::new()];
+        let mut first = true;
+        while self.eat("[") {
+            self.skip_space();
+            let before_number = self.rest;
+            if let Some(number) = self.number() {
+                // `tag[n]` is the nth element of the tag among its siblings,
+                // which is `:nth-of-type`. After another test it would be the
+                // nth of the elements that passed it, which CSS cannot say.
+                if !first || number == 0 {
+                    return None;
+                }
+                position = Some(number);
+            } else {
+                self.rest = before_number;
+                let alternatives = self.or_list()?;
+                variants = variants
+                    .iter()
+                    .flat_map(|variant| {
+                        alternatives
+                            .iter()
+                            .map(move |alternative| format!("{variant}{alternative}"))
+                    })
+                    .collect();
+                if variants.len() > MAX_XPATH_ALTERNATIVES {
+                    return None;
+                }
+            }
+            self.skip_space();
+            if !self.eat("]") {
                 return None;
             }
-            rest = after_and.trim_start();
+            first = false;
         }
-        rest = rest.strip_prefix(']')?.trim_start();
+        let pseudo = match position {
+            None => String::new(),
+            Some(number) if tag == "*" => format!(":nth-child({number})"),
+            Some(number) => format!(":nth-of-type({number})"),
+        };
+        let compounds = variants
+            .into_iter()
+            .map(|variant| format!("{tag}{variant}{pseudo}"))
+            .collect();
+        Some((tag, compounds))
     }
-    Some(tests)
+
+    /// The whole expression.
+    fn path(&mut self) -> Option<String> {
+        // Each step with whether a `/` (child) rather than a `//` (descendant)
+        // joins it to the step before.
+        let mut steps: Vec<(bool, Vec<String>)> = Vec::new();
+        if self.eat("id(") {
+            self.skip_space();
+            let id = self.literal().filter(|id| !id.contains(char::is_whitespace))?;
+            self.skip_space();
+            if !self.eat(")") {
+                return None;
+            }
+            steps.push((false, vec![format!("[id={}]", css_quoted(id, '\''))]));
+        } else {
+            let from_root = if self.eat(".//") || self.eat("//") {
+                false
+            } else if self.eat("/") {
+                true
+            } else {
+                return None;
+            };
+            let (tag, compounds) = self.step()?;
+            // Only `html` is certain to be the root, as CSS `html` is.
+            if from_root && tag != "html" {
+                return None;
+            }
+            steps.push((false, compounds));
+        }
+        while !self.rest.is_empty() {
+            let child = if self.eat("//") {
+                false
+            } else if self.eat("/") {
+                true
+            } else {
+                return None;
+            };
+            let (_, compounds) = self.step()?;
+            steps.push((child, compounds));
+        }
+        let mut selectors = vec![String::new()];
+        for (index, (child, compounds)) in steps.iter().enumerate() {
+            let joint = match (index, child) {
+                (0, _) => "",
+                (_, true) => " > ",
+                (_, false) => " ",
+            };
+            selectors = selectors
+                .iter()
+                .flat_map(|prefix| {
+                    compounds
+                        .iter()
+                        .map(move |compound| format!("{prefix}{joint}{compound}"))
+                })
+                .collect();
+            if selectors.len() > MAX_XPATH_ALTERNATIVES {
+                return None;
+            }
+        }
+        Some(selectors.join(", "))
+    }
 }
 
-/// Converts a simple XPath expression to the equivalent CSS selector.
+/// Converts an XPath expression to the equivalent CSS selector.
 ///
-/// Only the simplest expressions have an exact CSS equivalent, and only those
-/// are converted: a tag (or `*`) found anywhere in the document, optionally
-/// narrowed by attribute tests joined with `and`:
+/// Only the forms that have an exact CSS equivalent are converted:
 ///
 /// | XPath | CSS |
 /// |---|---|
@@ -700,11 +897,27 @@ fn attribute_tests(predicates: &str) -> Option<Vec<AttributeTest<'_>>> {
 /// | `//*[@id='x']` | `*[id='x']` |
 /// | `//input[@type="text" and @name='q']` | `input[type='text'][name='q']` |
 /// | `//a[@href][@target='_blank']` | `a[href][target='_blank']` |
+/// | `//form//input`, `//ul/li` | `form input`, `ul > li` |
+/// | `/html/body/div` | `html > body > div` |
+/// | `//li[2]`, `//*[2]` | `li:nth-of-type(2)`, `*:nth-child(2)` |
+/// | `//a[contains(@href,'x')]` | `a[href*='x']` |
+/// | `//a[starts-with(@href,'x')]` | `a[href^='x']` |
+/// | `id('x')` | `[id='x']` |
+/// | `//a[@x='1' or @y='2']` | `a[x='1'], a[y='2']` |
 ///
-/// A leading `.//` is accepted too. Anything else (`or`, `contains()`,
-/// `text()`, positions, paths with more than one step, other axes) is
-/// refused: a CSS selector that quietly left part of the XPath out would match
-/// other elements than the XPath does.
+/// A position converts only when it is the first test of its step
+/// (`li[2][@class='x']`, not `li[@class='x'][2]`: the second counts only the
+/// elements that passed the first test, which CSS cannot say). An `or` becomes
+/// a comma-separated list, and is refused when the list would pass
+/// sixteen selectors. A leading `.//` is accepted, and a leading `/` only
+/// before `html`. `starts-with()` is an addition of this crate: Python
+/// SeleniumBase has no such form.
+///
+/// Everything else (`text()`, `contains(.,...)`, `not()`, `last()`, other
+/// axes such as `parent::`, unions, a position after another test) is
+/// refused: a CSS selector that quietly left part of the XPath out would
+/// match other elements than the XPath does. Python SeleniumBase converts
+/// some of those to a `:contains()` pseudo-class that is not CSS.
 ///
 /// # Errors
 ///
@@ -717,7 +930,8 @@ fn attribute_tests(predicates: &str) -> Option<Vec<AttributeTest<'_>>> {
 /// use seleniumbase_rs::utils::selectors::xpath_to_css;
 ///
 /// assert_eq!(xpath_to_css("//div[@id='x']")?, "div[id='x']");
-/// assert!(xpath_to_css("//div[@id='x' or @id='y']").is_err());
+/// assert_eq!(xpath_to_css("//ul/li[2]")?, "ul > li:nth-of-type(2)");
+/// assert!(xpath_to_css("//div[text()='x']").is_err());
 /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 /// ```
 pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
@@ -725,32 +939,9 @@ pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
     if trimmed.is_empty() {
         return Err(SeleniumBaseError::InvalidSelector("empty xpath".to_owned()));
     }
-    let unsupported = || SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}"));
-    let body = trimmed
-        .strip_prefix(".//")
-        .or_else(|| trimmed.strip_prefix("//"))
-        .ok_or_else(unsupported)?;
-    let tag_len = if body.starts_with('*') {
-        1
-    } else {
-        body.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
-            .unwrap_or(body.len())
-    };
-    let (tag, predicates) = body.split_at(tag_len);
-    if tag.is_empty() || !(tag == "*" || tag.starts_with(|c: char| c.is_ascii_alphabetic())) {
-        return Err(unsupported());
-    }
-    let mut css = tag.to_owned();
-    for test in attribute_tests(predicates).ok_or_else(unsupported)? {
-        css.push('[');
-        css.push_str(test.name);
-        if let Some(value) = test.value {
-            css.push('=');
-            css.push_str(&css_quoted(value, '\''));
-        }
-        css.push(']');
-    }
-    Ok(css)
+    XPathReader { rest: trimmed }.path().ok_or_else(|| {
+        SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}"))
+    })
 }
 
 #[cfg(test)]
@@ -1064,6 +1255,29 @@ mod tests {
             ("//a[@title='日本語']", "a[title='日本語']"),
             ("//my-element[@x='1']", "my-element[x='1']"),
             ("//h1", "h1"),
+            // Paths of several steps: `/` is a child, `//` a descendant.
+            ("//div/span", "div > span"),
+            ("//div//span", "div span"),
+            ("//form[@id='f']//input[@name='q']", "form[id='f'] input[name='q']"),
+            (".//ul/li", "ul > li"),
+            ("/html/body/div", "html > body > div"),
+            // A position that comes before the other tests of its step.
+            ("//div[2]", "div:nth-of-type(2)"),
+            ("//ul/li[1]", "ul > li:nth-of-type(1)"),
+            ("//*[3]", "*:nth-child(3)"),
+            ("//li[2][@class='x']", "li[class='x']:nth-of-type(2)"),
+            // contains() and starts-with() on an attribute.
+            ("//a[contains(@href,'x')]", "a[href*='x']"),
+            ("//a[contains( @class , \"it's\" )]", "a[class*='it\\'s']"),
+            ("//a[starts-with(@href, '/x')]", "a[href^='/x']"),
+            ("//a[@rel='x' and contains(@class,'b')]", "a[rel='x'][class*='b']"),
+            // id() and `or`.
+            ("id('main')", "[id='main']"),
+            ("id(\"main\")//a", "[id='main'] a"),
+            ("//div[@id='a' or @id='b']", "div[id='a'], div[id='b']"),
+            ("//div[@a='1' and @b='2' or @c]", "div[a='1'][b='2'], div[c]"),
+            ("//div[@a or @b]/span", "div[a] > span, div[b] > span"),
+            ("//div[@a or @b][@c or @d]", "div[a][c], div[a][d], div[b][c], div[b][d]"),
         ];
         for (xpath, css) in table {
             assert_eq!(xpath_to_css(xpath).unwrap(), css, "{xpath:?}");
@@ -1078,10 +1292,17 @@ mod tests {
             "//",
             "//[@id='x']",
             "//a[text()='Home']",
-            "//a[contains(@class,'x')]",
-            "//div[2]",
+            "//a[contains(@class,'')]",
+            "//a[starts-with(@class,'')]",
+            "//a[contains(@class,x)]",
+            "//a[contains(text(),'x')]",
             "//div[last()]",
-            "//div[@id='a' or @id='b']",
+            // A position after another test counts among the elements that
+            // passed it; `:nth-of-type` counts every sibling of the tag.
+            "//div[@id='a'][2]",
+            "//div[2][3]",
+            "//div[0]",
+            "//div[@id='a' or 2]",
             "//div[@id='a' and 1=1]",
             "//div[@id='a'and@x='b']",
             "//div[@id=a]",
@@ -1090,10 +1311,14 @@ mod tests {
             "//div[@id='a']junk",
             "//div[@1abc='a']",
             "//div[@a:b='c']",
-            "//div/span",
-            "//div//span",
             "//div | //span",
             "/div",
+            "/div/span",
+            "//div/",
+            "//div/@id",
+            "//div/..",
+            "id('a b')",
+            "id('a')x",
             "div",
             "(//div)[1]",
             "//1div",
@@ -1108,6 +1333,14 @@ mod tests {
                 "{xpath:?} -> {error:?}"
             );
         }
+    }
+
+    #[test]
+    fn xpath_to_css_refuses_an_or_that_fans_out_too_far() {
+        let sixteen = format!("//a[{}]", vec!["@x"; 16].join(" or "));
+        assert_eq!(xpath_to_css(&sixteen).unwrap().matches(", ").count(), 15);
+        let seventeen = format!("//a[{}]", vec!["@x"; 17].join(" or "));
+        assert!(xpath_to_css(&seventeen).is_err());
     }
 
     #[test]
