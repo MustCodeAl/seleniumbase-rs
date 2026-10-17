@@ -988,6 +988,7 @@ impl BaseCase {
         self.await_ready(target_css, Ready::Visible).await?;
         self.record("drag_and_drop", Some(source_css), Some(target_css));
         self.demo_highlight(source_css).await?;
+        self.demo_highlight(target_css).await?;
         self.session.drag_and_drop(source_by, target_by).await?;
         self.demo_pause(PauseKind::Full).await;
         Ok(())

@@ -206,6 +206,26 @@ mod tests_demo_pauses {
     }
 
     #[tokio::test]
+    async fn a_drag_outlines_both_the_source_and_the_target_in_demo_mode() {
+        // Python highlights the drag selector and the drop selector.
+        let driver = page(false);
+        let mut sb = demo_case(&driver).await;
+        sb.drag_and_drop("#src", "#dst").await.unwrap();
+        let scripts: Vec<String> = driver
+            .requests("/execute/sync")
+            .iter()
+            .filter_map(|request| request.body["script"].as_str().map(str::to_owned))
+            .filter(|script| script.contains("3px solid magenta"))
+            .collect();
+        for selector in ["#src", "#dst"] {
+            assert!(
+                scripts.iter().any(|script| script.contains(selector)),
+                "{selector} was not outlined: {scripts:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn the_pause_lasts_what_the_run_settings_say() {
         let driver = page(false);
         let mut sb = driver.base_case().await;
