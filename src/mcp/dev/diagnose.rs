@@ -288,10 +288,6 @@ fn quoted(text: &str) -> (&str, &str) {
 ///
 /// Parts the message does not carry are left empty or generic, so the hint the
 /// library writes for them is the general one.
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm for each category reads best as one list"
-)]
 fn rebuild(category: &str, rest: &str) -> Option<SeleniumBaseError> {
     use SeleniumBaseError as E;
     let rest = rest.trim();
@@ -475,7 +471,7 @@ fn plain(markdown: &str) -> String {
             }
             continue;
         }
-        if trimmed.is_empty() && lines.last().is_some_and(|last| last.is_empty()) {
+        if trimmed.is_empty() && lines.last().is_some_and(String::is_empty) {
             continue;
         }
         lines.push(line.to_owned());

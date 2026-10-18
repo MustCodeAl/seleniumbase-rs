@@ -67,10 +67,10 @@ pub fn host(settings: Settings) -> Host<NoBrowser> {
 /// that a test installs without the network.
 #[must_use]
 pub fn host_with_installer(settings: Settings, installer: Installer) -> Host<NoBrowser> {
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools(&installer), settings)
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools(installer), settings)
 }
 
-fn tools(installer: &Installer) -> Vec<ToolDef<NoBrowser>> {
+fn tools(installer: Installer) -> Vec<ToolDef<NoBrowser>> {
     let mut tools = api::tools();
     tools.extend(author::tools());
     tools.extend(cli::tools(installer));
@@ -186,6 +186,24 @@ mod tests {
 
         let report = environment.as_json().unwrap();
         assert_eq!(report["browser_session"], "none");
+        // What it covers: the browser, the driver and their fit, the driver cache, the
+        // output folder, and the features of this build.
+        for key in [
+            "chrome",
+            "chromedriver",
+            "versions",
+            "driver_cache",
+            "output_dir",
+            "build",
+        ] {
+            assert!(!report[key].is_null(), "{key}: {report}");
+        }
+        assert!(report["driver_cache"]["path"].is_string());
+        assert!(report["driver_cache"]["exists"].is_boolean());
+        assert!(report["build"]["features"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("mcp-server")));
         assert!(host.ctx().try_session().await.is_none());
     }
 

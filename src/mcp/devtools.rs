@@ -329,7 +329,8 @@ pub(super) fn environment_tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
         "Diagnose Environment",
         "Check this machine before or after a browser problem: the platform, whether Chrome and \
          chromedriver are found and their major versions match (with the command that fixes a \
-         mismatch), whether the output directory is writable and how much disk is free, the \
+         mismatch), the driver cache folder and what is in it, whether the output directory is \
+         writable and how much disk is free, the cargo features this build has and lacks, the \
          SB_* settings in the environment (secret values redacted), and whether a session is \
          running. Needs no browser.",
         Effect::Inspect,
@@ -893,22 +894,50 @@ async fn export_session_as_test<S: DevSession>(
 // Environment
 // ----------------------------------------------------------------------
 
+/// Whether `path` is a folder that can be written to, by its permissions.
+fn is_writable_folder(path: &std::path::Path) -> bool {
+    std::fs::metadata(path).is_ok_and(|meta| meta.is_dir() && !meta.permissions().readonly())
+}
+
+/// The nearest folder at or above `path` that exists: where a folder that is
+/// not there yet would be made.
+fn nearest_existing_folder(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let absolute = std::path::absolute(path).ok()?;
+    absolute
+        .ancestors()
+        .find(|folder| folder.is_dir())
+        .map(std::path::Path::to_path_buf)
+}
+
 /// Whether the output directory exists, whether it is writable and how much
 /// disk is free there; a problem is appended for each thing that will hurt.
+///
+/// A directory that is not there yet is made by the first tool that writes
+/// into it, so then it is the nearest folder above it that has to be writable.
 async fn check_output_dir(
     output_dir: &std::path::Path,
     problems: &mut Vec<String>,
 ) -> (bool, Option<bool>, Option<u64>) {
     let metadata = std::fs::metadata(output_dir).ok();
-    let writable = metadata
-        .as_ref()
-        .map(|meta| meta.is_dir() && !meta.permissions().readonly());
+    let writable = if metadata.is_some() {
+        Some(is_writable_folder(output_dir))
+    } else {
+        nearest_existing_folder(output_dir).map(|folder| is_writable_folder(&folder))
+    };
     if writable == Some(false) {
-        problems.push(format!(
-            "The output directory {} is not a writable directory; set {OUTPUT_DIR_VAR} to one \
-             that is.",
-            output_dir.display()
-        ));
+        problems.push(if metadata.is_some() {
+            format!(
+                "The output directory {} is not a writable directory; set {OUTPUT_DIR_VAR} to one \
+                 that is.",
+                output_dir.display()
+            )
+        } else {
+            format!(
+                "The output directory {} does not exist yet, and the folder it would be made in \
+                 is not writable; set {OUTPUT_DIR_VAR} to a folder that is.",
+                output_dir.display()
+            )
+        });
     }
     let free = free_disk_bytes(output_dir).await;
     if free.is_some_and(|bytes| bytes < LOW_DISK) {
@@ -1003,12 +1032,16 @@ async fn diagnose_environment<S: Send + 'static>(
             DriverLookup::NotFound => json!({ "found": false }),
         },
         "versions": versions,
+        "driver_cache": driver_cache(std::path::Path::new(
+            crate::browser::binaries::DOWNLOADS_DIR,
+        )),
         "output_dir": {
             "path": output_dir.display().to_string(),
             "exists": exists,
             "writable": writable,
             "free_disk_bytes": free,
         },
+        "build": build_info(),
         "chromedriver_path_variable": variable("CHROMEDRIVER_PATH"),
         "sb_settings": settings,
         "problems": problems,
@@ -1017,6 +1050,74 @@ async fn diagnose_environment<S: Send + 'static>(
 
 /// Below this much free space, saving evidence is likely to fail.
 const LOW_DISK: u64 = 1024 * 1024 * 1024;
+
+/// The cargo features that change what this library can do, with whether this
+/// build has each. A feature that is off makes the calls that need it fail
+/// with an error that names it.
+const FEATURES: [(&str, bool); 18] = [
+    ("mcp-server", cfg!(feature = "mcp-server")),
+    ("test-util", cfg!(feature = "test-util")),
+    ("plugins", cfg!(feature = "plugins")),
+    ("plugin-shield", cfg!(feature = "plugin-shield")),
+    (
+        "plugin-block-resources",
+        cfg!(feature = "plugin-block-resources"),
+    ),
+    ("plugin-crx", cfg!(feature = "plugin-crx")),
+    ("plugins-builtin", cfg!(feature = "plugins-builtin")),
+    ("pdf", cfg!(feature = "pdf")),
+    ("visual", cfg!(feature = "visual")),
+    ("ocr", cfg!(feature = "ocr")),
+    ("turso", cfg!(feature = "turso")),
+    ("tui", cfg!(feature = "tui")),
+    ("gui", cfg!(feature = "gui")),
+    ("playwright", cfg!(feature = "playwright")),
+    ("s3", cfg!(feature = "s3")),
+    ("azure", cfg!(feature = "azure")),
+    ("gcp", cfg!(feature = "gcp")),
+    ("error-backtrace", cfg!(feature = "error-backtrace")),
+];
+
+/// What this build is: the library version and the features it has and lacks.
+fn build_info() -> Value {
+    let names = |wanted: bool| -> Vec<&str> {
+        FEATURES
+            .iter()
+            .filter(|(_, on)| *on == wanted)
+            .map(|(name, _)| *name)
+            .collect()
+    };
+    json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "features": names(true),
+        "features_off": names(false),
+        "note": "A call that needs a feature this build lacks fails with an error that names it; \
+                 rebuild with --features NAME to get it.",
+    })
+}
+
+/// The folder the drivers `sbrs install` fetches go to: where it is, whether
+/// it is there, and what is in it.
+fn driver_cache(dir: &std::path::Path) -> Value {
+    let absolute = std::path::absolute(dir).unwrap_or_else(|_| dir.to_path_buf());
+    let entries = std::fs::read_dir(dir).ok().map(|entries| {
+        let mut names: Vec<String> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names.truncate(50);
+        names
+    });
+    json!({
+        "path": absolute.display().to_string(),
+        "exists": entries.is_some(),
+        "entries": entries.unwrap_or_default(),
+        "note": "Relative to the folder the server runs in. The library looks here first for a \
+                 chromedriver, geckodriver or msedgedriver; install_driver and `sbrs install` \
+                 fill it.",
+    })
+}
 
 /// Words in a setting's name that mark its value as secret.
 const SECRET_NAMES: [&str; 7] = [
@@ -1183,6 +1284,104 @@ mod tests {
         let names: Vec<&String> = settings.keys().collect();
         assert_eq!(names, ["SB_BROWSER", "SB_HEADLESS", "SB_PROXY"]);
         assert_eq!(settings["SB_PROXY"], "[redacted]@h:1");
+    }
+
+    #[tokio::test]
+    async fn a_missing_output_folder_is_fine_when_the_folder_it_would_be_made_in_is_writable() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("out").join("deeper");
+        let mut problems = Vec::new();
+
+        let (exists, writable, _) = check_output_dir(&missing, &mut problems).await;
+
+        assert!(!exists);
+        assert_eq!(writable, Some(true));
+        assert!(problems.is_empty(), "{problems:?}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_missing_output_folder_under_a_folder_that_cannot_be_written_is_a_problem() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+        let mut problems = Vec::new();
+
+        let (exists, writable, _) = check_output_dir(&dir.path().join("out"), &mut problems).await;
+
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(!exists);
+        assert_eq!(writable, Some(false));
+        assert!(
+            problems[0].contains("does not exist yet") && problems[0].contains(OUTPUT_DIR_VAR),
+            "{problems:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_existing_output_folder_that_is_a_file_is_not_writable() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("not-a-folder");
+        std::fs::write(&file, "x").unwrap();
+        let mut problems = Vec::new();
+
+        let (exists, writable, _) = check_output_dir(&file, &mut problems).await;
+
+        assert!(exists);
+        assert_eq!(writable, Some(false));
+        assert!(
+            problems[0].contains("not a writable directory"),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn the_driver_cache_lists_what_is_in_it_and_says_when_it_is_not_there() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = dir.path().join("downloaded_drivers");
+
+        let missing = driver_cache(&cache);
+        assert_eq!(missing["exists"], false);
+        assert_eq!(missing["entries"], json!([]));
+        assert!(missing["path"]
+            .as_str()
+            .unwrap()
+            .ends_with("downloaded_drivers"));
+
+        std::fs::create_dir(&cache).unwrap();
+        std::fs::write(cache.join("geckodriver"), "").unwrap();
+        std::fs::write(cache.join("chromedriver"), "").unwrap();
+        let present = driver_cache(&cache);
+        assert_eq!(present["exists"], true);
+        assert_eq!(present["entries"], json!(["chromedriver", "geckodriver"]));
+    }
+
+    #[test]
+    fn the_build_says_which_features_it_has_and_lacks() {
+        let build = build_info();
+        let on: Vec<&str> = build["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        let off: Vec<&str> = build["features_off"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+
+        // This code is compiled only with the MCP server, and every feature is one or the other.
+        assert!(on.contains(&"mcp-server"));
+        assert_eq!(on.len() + off.len(), FEATURES.len());
+        assert_eq!(on.contains(&"pdf"), cfg!(feature = "pdf"));
+        assert_eq!(
+            on.contains(&"plugins-builtin"),
+            cfg!(feature = "plugins-builtin")
+        );
+        assert_eq!(build["version"], env!("CARGO_PKG_VERSION"));
     }
 
     #[test]

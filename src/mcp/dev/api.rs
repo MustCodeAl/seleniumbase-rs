@@ -476,7 +476,7 @@ mod tests {
 
         // A word that is nowhere finds nothing, even if another word matches.
         let found = search(&index, "click banana", "any").unwrap();
-        assert!(found.matches.is_empty());
+        assert_eq!(names(&found), Vec::<String>::new());
     }
 
     #[test]

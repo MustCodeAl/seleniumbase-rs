@@ -7,15 +7,13 @@
 
 use std::fmt::Write as _;
 
-use serde_json::json;
-
 use super::NoBrowser;
 use crate::cli::scaffold::ScaffoldError;
 use crate::cli::scripts::sb_mkdir::Suite;
 use crate::cli::scripts::sb_mkfile::TestFile;
 use crate::error::SeleniumBaseError;
 use crate::mcp::devtools::is_test_name;
-use crate::mcp::support::{json_output, nonempty};
+use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::utilities::python_importer::{
     import_python, ImportOptions, ImportSeverity, PythonSource,
@@ -128,32 +126,44 @@ async fn python_to_rust(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, Tool
                 "the importer stopped on this input: {error}"
             )))
         })?;
-    let diagnostics: Vec<_> = result
-        .diagnostics
-        .iter()
-        .map(|diagnostic| {
-            json!({
-                "line": diagnostic.line,
-                "severity": match diagnostic.severity {
-                    ImportSeverity::Error => "error",
-                    ImportSeverity::Warning => "warning",
-                },
-                "message": diagnostic.message,
-            })
-        })
-        .collect();
-    json_output(json!({
-        "detected_source": match result.detected_source {
-            PythonSource::SeleniumBase => "seleniumbase",
-            PythonSource::Selenium => "selenium",
-            PythonSource::Auto => "auto",
-        },
-        "complete": result.is_complete(),
-        "diagnostics": diagnostics,
-        "rust": result.rust,
-        "note": "A static conversion: the Python was read, not run. Every `// TODO` comment is a \
-                 statement to port by hand; parity_lookup and find_api find the Rust methods.",
-    }))
+    let family = match result.detected_source {
+        PythonSource::SeleniumBase => "seleniumbase",
+        PythonSource::Selenium => "selenium",
+        PythonSource::Auto => "auto",
+    };
+    let mut text = format!(
+        "Detected API: {family}. {}\n",
+        if result.is_complete() {
+            "The conversion is complete: no statement was refused."
+        } else {
+            "The conversion has errors: some statements could not be read."
+        }
+    );
+    if result.diagnostics.is_empty() {
+        text.push_str("Diagnostics: none.\n");
+    } else {
+        let _ = writeln!(text, "Diagnostics ({}):", result.diagnostics.len());
+        for diagnostic in &result.diagnostics {
+            let severity = match diagnostic.severity {
+                ImportSeverity::Error => "error",
+                ImportSeverity::Warning => "warning",
+            };
+            let _ = writeln!(
+                text,
+                "- line {}, {severity}: {}",
+                diagnostic.line, diagnostic.message
+            );
+        }
+    }
+    let _ = write!(text, "\n=== Rust test {test_name} ===\n{}", result.rust);
+    if !result.rust.ends_with('\n') {
+        text.push('\n');
+    }
+    text.push_str(
+        "\nA static conversion: the Python was read, not run. Every `// TODO` comment is a \
+         statement to port by hand; parity_lookup and find_api find the Rust methods.\n",
+    );
+    Ok(text.into())
 }
 
 async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError> {
@@ -221,7 +231,7 @@ async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
+    use serde_json::{json, Value};
 
     use super::*;
     use crate::mcp::Settings;
@@ -250,13 +260,16 @@ mod tests {
         .await
         .unwrap();
 
-        let answer = answer.as_json().unwrap();
-        assert_eq!(answer["detected_source"], "seleniumbase");
-        assert_eq!(answer["complete"], true);
-        let rust = answer["rust"].as_str().unwrap();
-        assert!(rust.contains("async fn example"), "{rust}");
-        assert!(rust.contains("https://example.com"), "{rust}");
-        assert_eq!(answer["diagnostics"], json!([]));
+        let text = answer.as_text().unwrap();
+        assert!(
+            text.starts_with("Detected API: seleniumbase. The conversion is complete"),
+            "{text}"
+        );
+        assert!(text.contains("Diagnostics: none."), "{text}");
+        assert!(text.contains("=== Rust test example ==="), "{text}");
+        assert!(text.contains("async fn example"), "{text}");
+        assert!(text.contains("sb.open(\"https://example.com\")"), "{text}");
+        assert!(text.contains("the Python was read, not run"), "{text}");
     }
 
     #[tokio::test]
@@ -270,12 +283,13 @@ mod tests {
             .await
             .unwrap();
 
-        let answer = answer.as_json().unwrap();
-        let diagnostics = answer["diagnostics"].as_array().unwrap();
-        assert!(!diagnostics.is_empty(), "{answer}");
-        assert!(diagnostics[0]["line"].as_u64().unwrap() >= 1);
-        assert!(["warning", "error"].contains(&diagnostics[0]["severity"].as_str().unwrap()));
-        assert!(answer["rust"].as_str().unwrap().contains("TODO"));
+        let text = answer.as_text().unwrap();
+        assert!(text.contains("Diagnostics (1):"), "{text}");
+        assert!(
+            text.contains("- line 5, warning: SeleniumBase method 'some_helper_nobody_has'"),
+            "{text}"
+        );
+        assert!(text.contains("// TODO(source line 5)"), "{text}");
     }
 
     #[tokio::test]
@@ -290,7 +304,9 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(answer.as_json().unwrap()["detected_source"], "selenium");
+        let text = answer.as_text().unwrap();
+        assert!(text.starts_with("Detected API: selenium. "), "{text}");
+        assert!(text.contains("https://example.com"), "{text}");
     }
 
     #[tokio::test]

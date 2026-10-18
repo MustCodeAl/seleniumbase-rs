@@ -364,4 +364,65 @@ mod tests {
         assert!(result.is_ok(), "{result:?}");
         assert_eq!(started.elapsed(), Duration::from_secs(7));
     }
+
+    /// The `dev` server over the protocol, as `serve` runs it, with nothing to
+    /// close: a client lists its tools, calls one and goes away.
+    #[tokio::test]
+    async fn the_dev_server_lists_its_tools_and_answers_a_call_over_the_protocol() {
+        let host = dev::host(Settings::new("out"));
+        let expected: Vec<&str> = host.tool_names();
+        let (server_end, mut client) = tokio::io::duplex(1 << 20);
+        let (shutdown, _trigger) = Shutdown::manual();
+
+        let (result, ()) = tokio::join!(
+            run_on(host, server_end, shutdown, Duration::from_secs(10)),
+            async {
+                handshake(&mut client).await;
+                send(
+                    &mut client,
+                    r#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#,
+                )
+                .await;
+                let listed: serde_json::Value =
+                    serde_json::from_str(&read_line(&mut client).await).unwrap();
+                let names: Vec<&str> = listed["result"]["tools"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|tool| tool["name"].as_str().unwrap())
+                    .collect();
+                assert_eq!(names, expected);
+                assert_eq!(names.len(), 12);
+
+                send(
+                    &mut client,
+                    r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"find_api","arguments":{"query":"save_screenshot","limit":2}}}"#,
+                )
+                .await;
+                let called: serde_json::Value =
+                    serde_json::from_str(&read_line(&mut client).await).unwrap();
+                assert_ne!(
+                    called["result"]["isError"],
+                    serde_json::json!(true),
+                    "{called}"
+                );
+                let text = called["result"]["content"][0]["text"].as_str().unwrap();
+                assert!(text.contains("\"name\": \"save_screenshot\""), "{text}");
+
+                send(
+                    &mut client,
+                    r#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"click_element","arguments":{}}}"#,
+                )
+                .await;
+                let missing: serde_json::Value =
+                    serde_json::from_str(&read_line(&mut client).await).unwrap();
+                assert!(missing["error"]["message"]
+                    .as_str()
+                    .is_some_and(|message| message.starts_with("unknown tool: click_element")));
+                drop(client);
+            }
+        );
+
+        assert!(result.is_ok(), "{result:?}");
+    }
 }

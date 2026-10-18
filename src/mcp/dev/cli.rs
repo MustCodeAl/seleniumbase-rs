@@ -9,6 +9,7 @@
 //! the MCP server; the page already holds every flag, default, alias and
 //! choice.
 
+use std::fmt::Write as _;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -49,8 +50,7 @@ pub(super) fn sbrs_installer() -> Installer {
 }
 
 /// The tools of this file.
-pub(super) fn tools(installer: &Installer) -> Vec<ToolDef<NoBrowser>> {
-    let installer = Arc::clone(installer);
+pub(super) fn tools(installer: Installer) -> Vec<ToolDef<NoBrowser>> {
     vec![
         ToolDef::new(
             "cli_help",
@@ -164,7 +164,7 @@ fn heading_name(line: &str) -> Option<&str> {
     (name == "sbrs" || name.starts_with("sbrs ")).then_some(name)
 }
 
-/// The text after `label` in a line such as `- **Usage:** `sbrs open``.
+/// The text after the bold label of a fact line, such as the usage line of a command.
 fn fact<'a>(lines: &'a [String], label: &str) -> Option<&'a str> {
     let prefix = format!("- **{label}:** ");
     lines
@@ -223,12 +223,13 @@ fn reference() -> &'static [Section] {
 fn overview(sections: &[Section]) -> String {
     let mut text = String::new();
     if let Some(root) = sections.first().filter(|section| section.name == "sbrs") {
-        text.push_str(&format!(
+        let _ = write!(
+            text,
             "sbrs {}\n{}\nUsage: {}\n\n",
             root.version.as_deref().unwrap_or(""),
             root.description,
             root.usage
-        ));
+        );
         // The root's flags follow its own facts, under a `## Flags` heading. The overview
         // keeps the first line of each; their choices, aliases and long help are in
         // `cli_help global`.
@@ -251,18 +252,19 @@ fn overview(sections: &[Section]) -> String {
         .iter()
         .filter(|section| section.name != "sbrs")
         .collect();
-    text.push_str(&format!(
+    let _ = writeln!(
+        text,
         "Commands ({}); cli_help with a command gives its arguments, flags, defaults and \
-         aliases:\n",
+         aliases:",
         commands.len()
-    ));
+    );
     for section in commands {
-        text.push_str(&format!("- {}", section.command()));
+        let _ = write!(text, "- {}", section.command());
         if !section.aliases.is_empty() {
-            text.push_str(&format!(" (alias {})", section.aliases.join(", ")));
+            let _ = write!(text, " (alias {})", section.aliases.join(", "));
         }
         if !section.description.is_empty() {
-            text.push_str(&format!(": {}", section.description));
+            let _ = write!(text, ": {}", section.description);
         }
         text.push('\n');
     }
@@ -298,7 +300,7 @@ fn find_command<'a>(sections: &'a [Section], command: &str) -> Vec<&'a Section> 
         .or_else(|| {
             sections
                 .iter()
-                .find(|section| section.aliases.iter().any(|alias| *alias == wanted))
+                .find(|section| section.aliases.contains(&wanted))
         });
     let children = sections
         .iter()
@@ -319,7 +321,7 @@ async fn cli_help(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
             .map(Section::command);
         let mut reason = format!("no command `{command}`; cli_help without a command lists them");
         if let Some(near) = closest_match(&bare(command), names) {
-            reason.push_str(&format!("; did you mean `{near}`?"));
+            let _ = write!(reason, "; did you mean `{near}`?");
         }
         return Err(ToolError::invalid("command", reason));
     }
@@ -404,15 +406,15 @@ async fn install_driver(
         let _one_at_a_time = INSTALLING.lock().await;
         installer(driver, version.map(str::to_owned)).await?
     };
-    let installed = version_line(&path).await;
+    let printed = version_line(&path).await;
     json_output(json!({
         "driver": driver.to_string(),
         "browser": browser,
         "requested_version": version,
         "path": path.display().to_string(),
-        "installed_version": installed,
+        "installed_version": printed,
         "cache": "the downloaded_drivers folder of the folder the server runs in",
-        "note": if installed.is_none() {
+        "note": if printed.is_none() {
             "The driver was installed but did not print a version (it may need to be allowed to \
              run, as on macOS); diagnose_environment checks it against the browser."
         } else {
@@ -608,11 +610,11 @@ mod tests {
     // install_driver
     // ------------------------------------------------------------------
 
+    /// What an installer was asked for: the driver and the version.
+    type Asked = Arc<std::sync::Mutex<Vec<(DriverName, Option<String>)>>>;
+
     /// An installer that records what it was asked for and downloads nothing.
-    fn recording(
-        asked: &Arc<std::sync::Mutex<Vec<(DriverName, Option<String>)>>>,
-        path: PathBuf,
-    ) -> Installer {
+    fn recording(asked: &Asked, path: PathBuf) -> Installer {
         let asked = Arc::clone(asked);
         Arc::new(move |driver, version| {
             asked.lock().unwrap().push((driver, version));
