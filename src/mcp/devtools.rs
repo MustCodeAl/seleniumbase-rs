@@ -314,6 +314,14 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
     ]
 }
 
+/// The developer tools of [`tools`] called `names`, for a server that offers
+/// only some of them. Each keeps its single definition above.
+pub(super) fn tools_named<S: DevSession>(names: &[&str]) -> Vec<ToolDef<S>> {
+    let mut tools = tools::<S>();
+    tools.retain(|tool| names.contains(&tool.name()));
+    tools
+}
+
 /// The developer tools that need no browser.
 pub(super) fn environment_tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
     vec![ToolDef::new(
@@ -828,7 +836,7 @@ async fn capture_debug_bundle<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<
 }
 
 /// Whether `name` can be both a Rust function name and a file name.
-fn is_test_name(name: &str) -> bool {
+pub(super) fn is_test_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars
         .next()
@@ -1070,7 +1078,7 @@ fn sb_settings(vars: impl IntoIterator<Item = (String, String)>) -> Map<String, 
 
 /// `value` of the setting `name`, safe to show: the whole value when the
 /// name says it is secret, and the user and password of a URL or proxy.
-fn redact_setting(name: &str, value: &str) -> String {
+pub(super) fn redact_setting(name: &str, value: &str) -> String {
     let upper = name.to_ascii_uppercase();
     if SECRET_NAMES.iter().any(|word| upper.contains(word)) {
         return "[redacted]".to_owned();

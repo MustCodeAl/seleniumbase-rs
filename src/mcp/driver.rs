@@ -1,5 +1,5 @@
 //! The `driver` server: the 26 tools of upstream's `Driver()` server, on
-//! [`BaseCase`].
+//! [`BaseCase`], with eight debugging tools it shares with the `sb` server.
 
 use super::webdriver::{self as w, selector_prop, start_schema, timeout_prop};
 use super::{devtools, Effect, Host, Prop, Schema, Settings, ToolDef};
@@ -11,15 +11,36 @@ const INSTRUCTIONS: &str = "\
 Drives a browser through WebDriver, with undetected mode on by default. Call \
 start_browser once, use the other tools, then call close_browser. Failed actions \
 come back as errors you can read and retry; use wait_for_element before acting on \
-content that loads late.";
+content that loads late. When something fails, inspect_page, diagnose_selector, \
+suggest_selectors, get_console_messages and capture_debug_bundle say what the page \
+looks like, diagnose_environment checks Chrome and the driver without a browser, and \
+export_session_as_test turns the session into a Rust test.";
+
+/// The debugging tools this server shares with `sb`: the definitions are the ones of
+/// `devtools.rs`, picked by name.
+const DEBUG_TOOLS: [&str; 6] = [
+    "inspect_page",
+    "suggest_selectors",
+    "diagnose_selector",
+    "get_console_messages",
+    "capture_debug_bundle",
+    "export_session_as_test",
+];
 
 /// Builds the `driver` server.
 ///
-/// It keeps upstream's tool list; a failed call is still reported with the
-/// page's state, read the same way the `sb` server reads it.
+/// It keeps upstream's tool list and adds `get_page_info`, `diagnose_environment`
+/// and the debugging tools of [`DEBUG_TOOLS`]: they run on `BaseCase` as they do
+/// on `sb`. `get_failed_requests` and `audit_page` are left to `cdp` and `sb`.
+/// A failed call is reported with the page's state, read the same way the `sb`
+/// server reads it.
 #[must_use]
 pub fn host(settings: Settings) -> Host<BaseCase> {
-    Host::new(SERVER_NAME, INSTRUCTIONS, tools(), settings).with_probe(devtools::probe::<BaseCase>)
+    let mut tools = tools();
+    tools.push(w::page_info_tool());
+    tools.extend(devtools::tools_named(&DEBUG_TOOLS));
+    tools.extend(devtools::environment_tools());
+    Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings).with_probe(devtools::probe::<BaseCase>)
 }
 
 fn dropdown_schema(option: Prop) -> Schema {

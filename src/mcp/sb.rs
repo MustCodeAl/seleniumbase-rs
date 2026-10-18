@@ -49,15 +49,7 @@ running.",
             Schema::new(),
             w::close_browser,
         ),
-        ToolDef::new(
-            "get_page_info",
-            "Get Page Info",
-            "Report whether a browser is running and, if so, the page's URL, title, \
-origin and user agent.",
-            Effect::Observe,
-            Schema::new(),
-            w::get_page_info,
-        ),
+        w::page_info_tool(),
         ToolDef::new(
             "open_url",
             "Open URL",

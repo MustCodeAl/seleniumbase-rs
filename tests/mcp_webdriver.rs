@@ -156,11 +156,71 @@ fn sorted(mut names: Vec<&'static str>) -> Vec<&'static str> {
     names
 }
 
+/// The debugging tools the `driver` server shares with `sb`: the same
+/// definitions, registered by name, so that a model that drives with `Driver()`
+/// can also look at the page and the session.
+const DRIVER_DEBUG_TOOLS: [&str; 8] = [
+    "capture_debug_bundle",
+    "diagnose_environment",
+    "diagnose_selector",
+    "export_session_as_test",
+    "get_console_messages",
+    "get_page_info",
+    "inspect_page",
+    "suggest_selectors",
+];
+
 #[test]
-fn the_driver_server_offers_exactly_the_tools_of_the_python_driver_server() {
+fn the_driver_server_offers_the_tools_of_the_python_driver_server_plus_the_debugging_tools() {
+    let host = driver::host(Settings::new("unused"));
+    let offered = sorted(host.tool_names());
+
+    let mut expected: Vec<&str> = UPSTREAM_DRIVER_TOOLS
+        .into_iter()
+        .chain(DRIVER_DEBUG_TOOLS)
+        .collect();
+    expected.sort_unstable();
+    assert_eq!(offered, expected);
+    assert_eq!(offered.len(), 34);
+}
+
+#[test]
+fn the_debugging_tools_of_the_driver_server_are_the_ones_of_the_sb_server() {
+    let driver = driver::host(Settings::new("unused"));
+    let sb = sb::host(Settings::new("unused"));
+    let described = |host: &Host<BaseCase>, name: &str| {
+        host.describe_tools()
+            .into_iter()
+            .find(|tool| tool.name == name)
+            .map(|tool| (tool.description, tool.input_schema, tool.annotations))
+    };
+
+    for name in DRIVER_DEBUG_TOOLS {
+        let on_driver = described(&driver, name);
+        assert!(on_driver.is_some(), "{name} is not on the driver server");
+        assert_eq!(
+            on_driver,
+            described(&sb, name),
+            "{name} differs from the sb server's"
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_driver_servers_debugging_tools_need_a_started_browser_like_the_sb_servers() {
     let host = driver::host(Settings::new("unused"));
 
-    assert_eq!(sorted(host.tool_names()), UPSTREAM_DRIVER_TOOLS);
+    for tool in ["inspect_page", "diagnose_selector", "capture_debug_bundle"] {
+        let arguments = if tool == "diagnose_selector" {
+            json!({ "selector": "#x" })
+        } else {
+            json!({})
+        };
+        let error = call(&host, tool, arguments).await.unwrap_err();
+        assert!(matches!(error, ToolError::NoBrowser), "{tool}: {error}");
+    }
+    let info = call(&host, "get_page_info", json!({})).await.unwrap();
+    assert_eq!(info.as_json(), Some(&json!({ "running": false })));
 }
 
 /// The tools this crate adds for developing, debugging and testing.

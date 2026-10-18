@@ -166,11 +166,18 @@ async fn list_evasion_providers<S>(_ctx: Ctx<S>, _args: Args) -> Result<Output, 
 }
 
 async fn validate_fingerprint<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {
-    let report = preset(&args)?.validate();
-    Ok(json!({
+    Ok(coherence_report(&preset(&args)?).into())
+}
+
+/// What `Fingerprint::validate` finds in `fingerprint`: whether it is
+/// coherent, and the errors and warnings. The `sb` server's
+/// `validate_fingerprint` and the `dev` server's `check_fingerprint` both
+/// answer with it.
+pub(super) fn coherence_report(fingerprint: &Fingerprint) -> serde_json::Value {
+    let report = fingerprint.validate();
+    json!({
         "coherent": report.is_coherent(),
         "errors": report.errors,
         "warnings": report.warnings,
     })
-    .into())
 }

@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 
 use super::devtools::DevSession;
 use super::support::{cookie_file, json_output, nonempty, write_file};
-use super::{Args, Closeable, Ctx, Output, Started, ToolError};
+use super::{Args, Closeable, Ctx, Effect, Output, Schema, Started, ToolDef, ToolError};
 use crate::api::base_case::BaseCase;
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::error::SeleniumBaseError;
@@ -182,7 +182,20 @@ pub(super) async fn close_browser(ctx: Ctx<BaseCase>, _args: Args) -> Result<Out
     Ok("Browser closed.".into())
 }
 
-pub(super) async fn get_page_info(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
+/// The `get_page_info` tool, for the servers that offer it (`sb` and `driver`).
+pub(super) fn page_info_tool() -> ToolDef<BaseCase> {
+    ToolDef::new(
+        "get_page_info",
+        "Get Page Info",
+        "Report whether a browser is running and, if so, the page's URL, title, origin and user \
+         agent.",
+        Effect::Observe,
+        Schema::new(),
+        get_page_info,
+    )
+}
+
+async fn get_page_info(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
     let Some(mut case) = ctx.try_session().await else {
         return Ok(json!({ "running": false }).into());
     };
@@ -1112,8 +1125,8 @@ pub(super) fn timeout_prop(default: f64) -> super::Prop {
 }
 
 /// The arguments of `start_browser`, which both servers accept.
-pub(super) fn start_schema() -> super::Schema {
-    use super::{Prop, Schema};
+pub(super) fn start_schema() -> Schema {
+    use super::Prop;
     Schema::new()
         .optional(
             "browser",
