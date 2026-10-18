@@ -660,25 +660,25 @@ Measured browser fingerprint data is macOS only for now. Per-system notes are in
 
 <Columns cols={2}>
 
-<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+<Card title="Getting started" icon="rocket" href="/tutorials/getting_started" horizontal>
 
 Write and run your first browser test.
 
 </Card>
 
-<Card title="Operating systems" icon="desktop" href="/platforms">
+<Card title="Operating systems" icon="desktop" href="/platforms" horizontal>
 
 Per-system notes for macOS, Windows and Linux.
 
 </Card>
 
-<Card title="Command line" icon="terminal" href="/tutorials/cli_usage">
+<Card title="Command line" icon="terminal" href="/tutorials/cli_usage" horizontal>
 
 One-off commands with `sbrs`, no project needed.
 
 </Card>
 
-<Card title="Docker Guide" icon="box" href="/help/docker">
+<Card title="Docker Guide" icon="box" href="/help/docker" horizontal>
 
 Containerized configuration.
 

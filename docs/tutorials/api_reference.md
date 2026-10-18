@@ -610,37 +610,37 @@ async fn login(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErr
 
 <Columns cols={2}>
 
-<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors" horizontal>
 
 CSS, XPath, link text and shadow DOM: how a selector string is read.
 
 </Card>
 
-<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions">
+<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" horizontal>
 
 Wait for the page, then check it, without sleeps.
 
 </Card>
 
-<Card title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode">
+<Card title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode" horizontal>
 
 The CDP helpers on `BaseCase`, raw commands and the network reactor.
 
 </Card>
 
-<Card title="UC Mode" icon="user-secret" href="/tutorials/uc_mode">
+<Card title="UC Mode" icon="user-secret" href="/tutorials/uc_mode" horizontal>
 
 Run Chrome so sites see a person's browser.
 
 </Card>
 
-<Card title="Macros" icon="wand-magic-sparkles" href="/tutorials/macros">
+<Card title="Macros" icon="wand-magic-sparkles" href="/tutorials/macros" horizontal>
 
 Convenience macros from the crate root.
 
 </Card>
 
-<Card title="GUI Automation" icon="computer-mouse" href="/tutorials/gui_automation">
+<Card title="GUI Automation" icon="computer-mouse" href="/tutorials/gui_automation" horizontal>
 
 Native OS input instead of WebDriver.
 
@@ -652,8 +652,8 @@ For exact signatures, run `cargo doc --no-deps --open`.
 
 ---
 
-<Note>
+<Callout icon="clipboard-check" color="#10B981">
 
 Checked against the source of this branch: the argument lists and argument order of the `BaseCase` tables (names and counts, by script), the capability traits and the crate-root items. The multi-driver rows (`get_new_driver` to `driver_count`) were checked earlier, against commit 8e9180f. The one-line descriptions of the other `BaseCase` methods were not all re-read.
 
-</Note>
+</Callout>

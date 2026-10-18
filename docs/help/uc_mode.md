@@ -27,7 +27,7 @@ Summary for AI exports: turn UC mode on with `BrowserConfig::default().with_mode
 
 ## Quick enable
 
-Set the driver mode to `Uc` in [`BrowserConfig`](crate::BrowserConfig):
+Set the driver mode to `Uc` in `BrowserConfig`:
 
 <Tabs>
 

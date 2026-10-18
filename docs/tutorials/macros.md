@@ -39,7 +39,7 @@ Summary for AI exports: the macros are exported from the crate root and the acti
 
 ## `selector!`
 
-Builds a [`Selector`](crate::Selector) variant at compile time.
+Builds a `Selector` variant at compile time.
 
 ```rust
 use seleniumbase_rs::{selector, Selector};
@@ -56,8 +56,8 @@ let s = selector!(partial_link, "Terms");
 ## `sb_test!`
 
 Generates a `#[tokio::test]` async function that runs the supplied block with
-[`run_browser_test`](crate::run_browser_test): it creates a
-[`BaseCase`](crate::BaseCase), runs the block, and always calls `quit()` before
+`run_browser_test`: it creates a
+`BaseCase`, runs the block, and always calls `quit()` before
 returning. The test fails if the block returns an `Err`.
 
 ```rust,no_run
@@ -86,7 +86,7 @@ The macro quits for you, so do not call `sb_quit!` inside it.
 
 ## `uc_config!`
 
-Returns a [`BrowserConfig`](crate::BrowserConfig) with UC mode enabled.
+Returns a `BrowserConfig` with UC mode enabled.
 
 ```rust
 use seleniumbase_rs::uc_config;
@@ -96,7 +96,7 @@ let config = uc_config!();
 
 ## `cdp_config!`
 
-Returns a [`BrowserConfig`](crate::BrowserConfig) with CDP mode enabled.
+Returns a `BrowserConfig` with CDP mode enabled.
 
 ```rust
 use seleniumbase_rs::cdp_config;
@@ -106,7 +106,7 @@ let config = cdp_config!();
 
 ## `sb_config!`
 
-Builds a [`BrowserConfig`](crate::BrowserConfig) using common field
+Builds a `BrowserConfig` using common field
 permutations. Fields can be chained in any order supported by the macro.
 
 ```rust
@@ -121,7 +121,7 @@ let config = sb_config! {
 
 ## `fingerprint!`
 
-Returns a built-in [`Fingerprint`](crate::Fingerprint) preset.
+Returns a built-in `Fingerprint` preset.
 
 ```rust
 use seleniumbase_rs::fingerprint;
@@ -137,7 +137,7 @@ let fp = fingerprint!(safari); // same preset as ios
 
 ## Action macros
 
-These macros call the corresponding [`BaseCase`](crate::BaseCase) method and
+These macros call the corresponding `BaseCase` method and
 await it. Without a trailing message the macro evaluates to the method's
 `Result`, so follow it with `?` (a bare call compiles but ignores the failure and
 draws an `unused_must_use` warning).
@@ -174,7 +174,7 @@ which panics on failure.
 ## Form and timeout macros
 
 `sb_fill_form!` types into multiple fields in sequence and returns a
-[`Result`](crate::Result), so it works with the `?` operator inside tests:
+`Result`, so it works with the `?` operator inside tests:
 
 ```rust,no_run
 use seleniumbase_rs::sb_fill_form;

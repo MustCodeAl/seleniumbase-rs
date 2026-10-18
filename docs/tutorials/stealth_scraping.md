@@ -17,6 +17,8 @@ as three crates. The features `scrape` and `impersonate` and the modules
 
 </Update>
 
+<GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
+
 <Visibility for="agents">
 
 Summary for AI exports: the stealth scraping layer left this crate in 0.3.0 and lives in seleniumbase-rs-stealth, as the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`. They are not on crates.io: depend on them by git next to `seleniumbase-rs`, and write the `seleniumbase-rs` line with the plain git URL so that Cargo resolves one commit. The layer is experimental; only Chrome 155 on macOS is measured.
