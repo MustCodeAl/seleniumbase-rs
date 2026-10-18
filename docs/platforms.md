@@ -136,7 +136,8 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   </Warning>
 
 - **No display.** Run headless (`SB_HEADLESS=true`, which `sbrs open` and the other
-  browser commands read, or `--headless` before the subcommand). To
+  browser commands read, or `--headless` before the subcommand; see
+  [Headless and headed browsers](/tutorials/headless)). To
   see a window on a server, or to run the few tests that need a headed Chrome (the
   measurement tools), run under a virtual display such as Xvfb. Start `Xvfb` in the
   background and export `DISPLAY`; `xvfb-run` can wait forever for a signal that a

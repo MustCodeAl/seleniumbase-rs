@@ -114,7 +114,11 @@ Chromium only. A `playwright` feature gives a Playwright-compatible mode.
 
 <Accordion title="Does it work headless?" icon="eye-slash">
 
-Yes: `SB_HEADLESS=true`. Always use it in containers and CI.
+Yes, and use it in containers and CI. How you turn it on depends on the entry
+point: `BrowserConfig::default()` is already headless, `sbrs` and code that loads
+`Settings` read `SB_HEADLESS=true`, and the pure CDP engine is headless on Linux
+by default (`LaunchOptionsBuilder::headless(true)` anywhere). See
+[Headless and headed browsers](/tutorials/headless).
 
 </Accordion>
 

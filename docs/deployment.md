@@ -46,7 +46,7 @@ different values. The ones to know:
 
 | Variable | Effect |
 |---|---|
-| `SB_HEADLESS` | run the browser without a window (always in containers and CI) |
+| `SB_HEADLESS` | run the browser without a window (always in containers and CI; see [Headless and headed browsers](/tutorials/headless)) |
 | `SB_BROWSER`, `SB_MODE` | which browser and which engine mode |
 | `SB_PROXY`, `SB_PROXY_PAC_URL` | route traffic through a proxy |
 | `SB_THREADS` | how many tests run in parallel |

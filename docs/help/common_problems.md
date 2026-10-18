@@ -208,7 +208,9 @@ let config = BrowserConfig::default()
 ```
 
 Combine this with a `Fingerprint` and binary patching. On a server with no
-display, run the headed browser under a virtual display such as Xvfb.
+display, run the headed browser under a virtual display such as Xvfb. The
+defaults of every entry point and what gives a headless browser away are in
+[Headless and headed browsers](/tutorials/headless).
 
 ## Item not found: a Cargo feature is off
 

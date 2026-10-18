@@ -131,10 +131,14 @@ More on running in CI and containers.
 
 ## Headless in Docker
 
-Always run browsers in headless mode inside containers (`SB_HEADLESS=true`).
-The image does not add `--no-sandbox` for you: if Chromium fails with a sandbox
-error, set `SB_NO_SANDBOX=1` (or `LaunchOptionsBuilder::no_sandbox(true)` in the
-pure CDP engine).
+Always run browsers headless inside containers. `sbrs` and code that loads
+`Settings` read `SB_HEADLESS=true`; `BrowserConfig::default()` is already
+headless, and the pure CDP engine is headless on Linux unless told otherwise
+(see [Headless and headed browsers](/tutorials/headless)).
+
+The WebDriver engine always adds `--no-sandbox` on Linux. The pure CDP engine
+does not: if Chromium fails with a sandbox error there, set `SB_NO_SANDBOX=1`
+(or `LaunchOptionsBuilder::no_sandbox(true)`).
 
 <Warning>
 

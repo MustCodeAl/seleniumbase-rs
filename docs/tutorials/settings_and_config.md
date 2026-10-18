@@ -109,7 +109,7 @@ Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
 | Variable | Maps to |
 |----------|---------|
 | `SB_BROWSER` | `browser` |
-| `SB_HEADLESS` | `headless` |
+| `SB_HEADLESS` | `headless` (see [Headless and headed browsers](/tutorials/headless) for which entry points read it) |
 | `SB_TIMEOUT` | `timeout_seconds`: the default wait `run_browser_test` gives its `BaseCase` |
 | `SB_SCREENSHOT_DIR` | `screenshot_dir` (stored for your code; the library does not read it) |
 | `SB_PROXY` | `proxy` |
