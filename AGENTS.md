@@ -54,7 +54,12 @@ cargo check --features turso --all-targets
   test that fails without the fix.
 - **Prefer structural tools over text search** when you have them: a code index
   or a language server for symbols and callers, `ast-grep` for code shapes. Read a
-  slice of a file, not all of it.
+  slice of a file, not all of it. Recommended: [TokenSave](https://github.com/aovestdipaperino/tokensave)
+  (`tokensave init` here, then its MCP tools for symbols, callers, impact and
+  file reads) and [RTK](https://www.rtk-ai.app/) (run `cargo`, `git` and test
+  commands as `rtk cargo test` and so on, to get condensed output with the same
+  exit codes). When `.tokensave/` exists, search and read code through TokenSave
+  rather than `grep` or whole-file reads.
 - **Check external APIs against their documentation**, not memory (crates,
   protocols, browser flags).
 - **Match the neighbours:** `thiserror` errors in the library, no `unwrap()`

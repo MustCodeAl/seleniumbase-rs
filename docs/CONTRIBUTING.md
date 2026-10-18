@@ -121,6 +121,21 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 - `libwebkit2gtk-4.1-dev` (Linux) or Xcode (macOS) if you build the Tauri
   example.
 
+### Recommended for working with an AI assistant
+
+- [TokenSave](https://github.com/aovestdipaperino/tokensave)
+  (`brew install aovestdipaperino/tap/tokensave`, then `tokensave init` in the
+  checkout; `.tokensave/` is ignored by git): a code graph of the repository
+  that an assistant queries over MCP (`tokensave serve`): symbols by name,
+  callers and callees, the impact of a change, and files read by symbol. The
+  assistant reads far less of the code to answer a question or make a change.
+- [RTK](https://www.rtk-ai.app/) (`brew install rtk`): a command proxy that
+  condenses the output of `cargo`, `git`, test runners and similar tools before
+  it reaches an assistant (`rtk cargo test`, `rtk git log`), so long build and
+  test logs do not fill its context. Exit codes are unchanged.
+
+Neither is needed to build, test or contribute.
+
 ## Project Layout
 
 ```text

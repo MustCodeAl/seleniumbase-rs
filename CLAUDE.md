@@ -9,6 +9,11 @@ fix a line here when the code stops matching it. Human contributors want
 
 - Start from the module map below rather than a repository-wide search, and use
   rust-analyzer (or `cargo check`) for types and references before a full build.
+- Recommended: [TokenSave](https://github.com/aovestdipaperino/tokensave) for code
+  search, callers, impact and reads (`tokensave init`, then its MCP tools; when
+  `.tokensave/` exists, use it instead of `grep` or whole-file reads), and
+  [RTK](https://www.rtk-ai.app/) for condensed command output (`rtk cargo test`,
+  `rtk git log`; exit codes unchanged).
 - Check a change with the commands under *Build and check*; count failures from
   the `test result` lines, never from a filtered search of the output.
 - Tests that start a real browser are `#[ignore]`d `*_chrome.rs` files: run them one
