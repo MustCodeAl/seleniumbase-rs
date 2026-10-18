@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "CHANGELOG.md"
 OUT = ROOT / "docs" / "changelog.md"
+REPO = "https://github.com/MustCodeAl/seleniumbase-rs"
 
 RELEASE = re.compile(r"^## \[?(?P<version>[^\]\s]+)\]?(?: - (?P<date>\d{4}-\d{2}-\d{2}))?\s*$")
 LINK_DEFINITION = re.compile(r"^\[[^\]]+\]: \S+\s*$")
@@ -105,18 +106,65 @@ def clean(body):
     return out
 
 
+def tag_of(version):
+    """The git tag of a released version: 0.5.1 and v0.5.1 both give v0.5.1."""
+    return version if version.startswith("v") else f"v{version}"
+
+
+def downloads(tag):
+    """One line of links to a release: its page and the two source archives."""
+    return (
+        f"**Downloads:** [Release notes]({REPO}/releases/tag/{tag}) · "
+        f"[Source (.zip)]({REPO}/archive/refs/tags/{tag}.zip) · "
+        f"[Source (.tar.gz)]({REPO}/archive/refs/tags/{tag}.tar.gz)"
+    )
+
+
+def latest(tag):
+    """Cards for the newest release and the command that installs it."""
+    return [
+        f"## Latest release: {tag}",
+        "",
+        "<Columns cols={3}>",
+        "",
+        f'<Card title="Release notes" icon="github" color="#1a85d4" href="{REPO}/releases/tag/{tag}">',
+        f"  {tag} on GitHub.",
+        "</Card>",
+        "",
+        f'<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="{REPO}/archive/refs/tags/{tag}.zip">',
+        "  The source of this release as a zip archive.",
+        "</Card>",
+        "",
+        f'<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="{REPO}/archive/refs/tags/{tag}.tar.gz">',
+        "  The source of this release as a tarball.",
+        "</Card>",
+        "",
+        "</Columns>",
+        "",
+        "The releases publish no prebuilt binaries; install the command line from the tag:",
+        "",
+        "```bash Terminal",
+        f"cargo install --git {REPO} --tag {tag} seleniumbase-rs-cli",
+        "```",
+        "",
+        "## All releases",
+        "",
+    ]
+
+
 def render(releases):
     lines = [
         "---",
         'title: "Changelog"',
         "---",
         "",
-        "# Changelog",
-        "",
         "Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow",
         "Semantic Versioning.",
         "",
     ]
+    released = [version for version, date, _ in releases if date]
+    if released:
+        lines += latest(tag_of(released[0]))
     for version, date, body in releases:
         label = date or "Unreleased"
         description = version if date else "Next release"
@@ -124,6 +172,8 @@ def render(releases):
             description = f"v{version}"
         tag_list = ", ".join(f'"{t}"' for t in tags(body))
         lines += [f'<Update label="{label}" description="{description}" tags={{[{tag_list}]}}>', ""]
+        if date:
+            lines += [downloads(tag_of(version)), ""]
         lines += clean(body)
         lines += ["", "</Update>", ""]
     return "\n".join(lines)
