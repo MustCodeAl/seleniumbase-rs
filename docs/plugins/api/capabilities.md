@@ -64,15 +64,15 @@ assert!(feature_refused("IsolateOrigins"));
 
 <ResponseExample>
 
-```text refusal("--no-sandbox")
+```text Refused switch
 the switch `--no-sandbox` is refused for every plugin
 ```
 
-```text refusal("--enable-features=site-per-process:x/y")
+```text Refused feature
 the feature `site-per-process:x/y` may not be changed by a plugin
 ```
 
-```text "nonsense".parse::<Capability>()
+```text Parse error
 unknown capability `nonsense`
 ```
 
