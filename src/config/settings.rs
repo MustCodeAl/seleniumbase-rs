@@ -303,6 +303,13 @@ impl Settings {
     /// plugins it names, so that [`load`](Self::load) can let `SB_PLUGINS`
     /// replace them first and check the result.
     fn parse_file<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
+        let settings = Self::read_file(path)?;
+        settings.validate()?;
+        Ok(settings)
+    }
+
+    /// Reads and deserializes a settings file, without validating its values.
+    fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
         let path = path.as_ref();
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
@@ -316,7 +323,6 @@ impl Settings {
                 SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
             })?
         };
-        settings.validate()?;
         Ok(settings)
     }
 
@@ -497,6 +503,59 @@ impl Settings {
         Self::apply_overrides(settings, var)
     }
 
+    /// Reads the settings as [`load_from`](Self::load_from) does (the file `path`, or the
+    /// global file when `None`, then the `SB_*` variables), and reports everything it
+    /// would refuse, not only the first thing: the file that cannot be read, each variable
+    /// that does not parse, then the browser, the mode and the window size, and the plugins.
+    ///
+    /// A part that cannot be read is left at its default, so the rest is still checked and
+    /// the returned settings are the ones a program would run with if it ignored the
+    /// problems. Nothing is started.
+    pub fn check<P: AsRef<Path>>(path: Option<P>) -> SettingsCheck {
+        Self::check_with(path, |name| std::env::var(name).ok())
+    }
+
+    /// [`check`](Self::check) with the variables taken from `var`.
+    pub fn check_with<P: AsRef<Path>>(
+        path: Option<P>,
+        var: impl Fn(&str) -> Option<String>,
+    ) -> SettingsCheck {
+        let file = match &path {
+            Some(path) => Some(path.as_ref().to_path_buf()),
+            None => Self::global_file().map(PathBuf::from),
+        };
+        let mut problems = Vec::new();
+        let from_file = match &file {
+            Some(file) => Self::read_file(file).unwrap_or_else(|error| {
+                problems.push(SettingsProblem {
+                    source: file.display().to_string(),
+                    error,
+                });
+                Self::default()
+            }),
+            None => Self::default(),
+        };
+        let (settings, from_variables) = Self::apply_overrides_lenient(from_file, var);
+        problems.extend(from_variables);
+        if let Err(error) = settings.validate() {
+            problems.push(SettingsProblem {
+                source: "validation".to_owned(),
+                error,
+            });
+        }
+        if let Err(error) = settings.plugins.ensure_supported() {
+            problems.push(SettingsProblem {
+                source: "plugins".to_owned(),
+                error,
+            });
+        }
+        SettingsCheck {
+            file,
+            settings,
+            problems,
+        }
+    }
+
     /// Converts these settings into a `BrowserConfig` used by `BaseCase`.
     ///
     /// Settings that came from a file or the environment are checked already.
@@ -559,22 +618,41 @@ impl Settings {
     /// unset, as `SB_LOG_LEVEL` does in `RuntimeConfig`; `SB_PLUGINS` is the
     /// exception, where an empty value is an answer: no plugin at all.
     fn apply_overrides(
-        mut settings: Self,
+        settings: Self,
         var: impl Fn(&str) -> Option<String>,
     ) -> Result<Self, SeleniumBaseError> {
+        let (settings, problems) = Self::apply_overrides_lenient(settings, var);
+        if let Some(problem) = problems.into_iter().next() {
+            return Err(problem.error);
+        }
+        settings.validate()?;
+        // Plugins that cannot run are an error here, not a silent omission.
+        settings.plugins.ensure_supported()?;
+        Ok(settings)
+    }
+
+    /// [`apply_overrides`](Self::apply_overrides) up to the checks: a variable that does
+    /// not parse is left out and comes back in the list, in the order the variables are
+    /// read, instead of ending the function. Nothing is validated.
+    fn apply_overrides_lenient(
+        mut settings: Self,
+        var: impl Fn(&str) -> Option<String>,
+    ) -> (Self, Vec<SettingsProblem>) {
+        let mut problems = Vec::new();
         let plugins_variable = var(PLUGINS_ENV);
         let var = |name: &str| var(name).filter(|value| !value.trim().is_empty());
         if let Some(v) = var("SB_BROWSER") {
             settings.browser = v;
         }
         if let Some(v) = var("SB_HEADLESS") {
-            settings.headless = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_HEADLESS", &v, &mut problems) {
+                settings.headless = flag;
+            }
         }
         if let Some(v) = var("SB_TIMEOUT") {
-            settings.timeout_seconds = Some(
-                v.parse()
-                    .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_TIMEOUT: {e}")))?,
-            );
+            if let Some(seconds) = number("SB_TIMEOUT", &v, &mut problems) {
+                settings.timeout_seconds = Some(seconds);
+            }
         }
         if let Some(v) = var("SB_WEBDRIVER_URL") {
             settings.webdriver_url = Some(v);
@@ -583,9 +661,9 @@ impl Settings {
             settings.chrome_bin = Some(PathBuf::from(v));
         }
         if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
-            settings.remote_webdriver_timeout_seconds = Some(v.parse().map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("SB_REMOTE_WEBDRIVER_TIMEOUT: {e}"))
-            })?);
+            if let Some(seconds) = number("SB_REMOTE_WEBDRIVER_TIMEOUT", &v, &mut problems) {
+                settings.remote_webdriver_timeout_seconds = Some(seconds);
+            }
         }
         if let Some(v) = var("SB_SCREENSHOT_DIR") {
             settings.screenshot_dir = v;
@@ -594,16 +672,14 @@ impl Settings {
             settings.proxy = Some(v);
         }
         if let Some(v) = var("SB_WINDOW_WIDTH") {
-            settings.window_width =
-                Some(v.parse().map_err(|e| {
-                    SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_WIDTH: {e}"))
-                })?);
+            if let Some(width) = number("SB_WINDOW_WIDTH", &v, &mut problems) {
+                settings.window_width = Some(width);
+            }
         }
         if let Some(v) = var("SB_WINDOW_HEIGHT") {
-            settings.window_height =
-                Some(v.parse().map_err(|e| {
-                    SeleniumBaseError::InvalidConfig(format!("SB_WINDOW_HEIGHT: {e}"))
-                })?);
+            if let Some(height) = number("SB_WINDOW_HEIGHT", &v, &mut problems) {
+                settings.window_height = Some(height);
+            }
         }
         if let Some(v) = var("SB_USER_DATA_DIR") {
             settings.user_data_dir = Some(v);
@@ -621,40 +697,104 @@ impl Settings {
             settings.mode = Some(v);
         }
         if let Some(v) = var("SB_AD_BLOCK") {
-            settings.ad_block = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_AD_BLOCK", &v, &mut problems) {
+                settings.ad_block = flag;
+            }
         }
         if let Some(v) = var("SB_REUSE_SESSION") {
-            settings.reuse_session = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_REUSE_SESSION", &v, &mut problems) {
+                settings.reuse_session = flag;
+            }
         }
         if let Some(v) = var("SB_REUSE_CLASS_SESSION") {
-            settings.reuse_class_session = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_REUSE_CLASS_SESSION", &v, &mut problems) {
+                settings.reuse_class_session = flag;
+            }
         }
         if let Some(v) = var("SB_MOBILE") {
-            settings.mobile = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_MOBILE", &v, &mut problems) {
+                settings.mobile = flag;
+            }
         }
         if let Some(v) = var("SB_THREADS") {
-            settings.threads = Some(
-                v.parse()
-                    .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_THREADS: {e}")))?,
-            );
+            if let Some(threads) = number("SB_THREADS", &v, &mut problems) {
+                settings.threads = Some(threads);
+            }
         }
         if let Some(v) = var("SB_PROXY_PAC_URL") {
             settings.proxy_pac_url = Some(v);
         }
         if let Some(v) = var("SB_ESC_END") {
-            settings.esc_end = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_ESC_END", &v, &mut problems) {
+                settings.esc_end = flag;
+            }
         }
         if let Some(v) = plugins_variable {
             // The variable names the plugins; the options of the file stay.
             settings.plugins.set_enabled_from_list(&v);
         }
         if let Some(v) = var("SB_REC_SB_CDP") {
-            settings.rec_sb_cdp = parse_bool(&v)?;
+            if let Some(flag) = flag("SB_REC_SB_CDP", &v, &mut problems) {
+                settings.rec_sb_cdp = flag;
+            }
         }
-        settings.validate()?;
-        // Plugins that cannot run are an error here, not a silent omission.
-        settings.plugins.ensure_supported()?;
-        Ok(settings)
+        (settings, problems)
+    }
+}
+
+/// What [`Settings::check`] found.
+#[derive(Debug)]
+pub struct SettingsCheck {
+    /// The settings file that was read: the one named, or the one found in the current
+    /// folder. `None` when there is none.
+    pub file: Option<PathBuf>,
+    /// The settings: the file's, with the variables on top. A part that could not be read
+    /// is at its default.
+    pub settings: Settings,
+    /// Everything [`Settings::load_from`] would refuse, in the order it would meet it; empty
+    /// when it would succeed.
+    pub problems: Vec<SettingsProblem>,
+}
+
+/// Something wrong with the settings, and where it came from.
+#[derive(Debug)]
+pub struct SettingsProblem {
+    /// The settings file, an `SB_*` variable, or `validation` or `plugins` for a check of the
+    /// result.
+    pub source: String,
+    /// What is wrong.
+    pub error: SeleniumBaseError,
+}
+
+/// `value` of the variable `name` as a flag; a value that is not one goes to `problems`.
+fn flag(name: &str, value: &str, problems: &mut Vec<SettingsProblem>) -> Option<bool> {
+    match parse_bool(value) {
+        Ok(flag) => Some(flag),
+        Err(error) => {
+            problems.push(SettingsProblem {
+                source: name.to_owned(),
+                error,
+            });
+            None
+        }
+    }
+}
+
+/// `value` of the variable `name` as a number; a value that is not one goes to `problems`.
+fn number<T>(name: &str, value: &str, problems: &mut Vec<SettingsProblem>) -> Option<T>
+where
+    T: std::str::FromStr,
+    T::Err: std::fmt::Display,
+{
+    match value.parse() {
+        Ok(number) => Some(number),
+        Err(error) => {
+            problems.push(SettingsProblem {
+                source: name.to_owned(),
+                error: SeleniumBaseError::InvalidConfig(format!("{name}: {error}")),
+            });
+            None
+        }
     }
 }
 
@@ -1178,6 +1318,108 @@ threads = 4
             (name == "SB_PLUGINS").then(String::new)
         })
         .unwrap();
+    }
+
+    fn variables(
+        pairs: &'static [(&'static str, &'static str)],
+    ) -> impl Fn(&str) -> Option<String> {
+        move |name| {
+            pairs
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| (*value).to_owned())
+        }
+    }
+
+    #[test]
+    fn check_reports_every_bad_variable_and_keeps_the_good_ones() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"locale = \"de-DE\"\n").unwrap();
+
+        let check = Settings::check_with(
+            Some(file.path()),
+            variables(&[
+                ("SB_HEADLESS", "maybe"),
+                ("SB_THREADS", "many"),
+                ("SB_WINDOW_WIDTH", "wide"),
+                ("SB_BROWSER", "chrom"),
+                ("SB_MOBILE", "yes"),
+            ]),
+        );
+
+        let sources: Vec<&str> = check.problems.iter().map(|p| p.source.as_str()).collect();
+        assert_eq!(
+            sources,
+            ["SB_HEADLESS", "SB_WINDOW_WIDTH", "SB_THREADS", "validation"]
+        );
+        assert!(check.problems[0].error.to_string().contains("maybe"));
+        assert!(check.problems[2]
+            .error
+            .to_string()
+            .starts_with("invalid configuration: SB_THREADS:"));
+        assert!(check.problems[3].error.to_string().contains("chrom"));
+        // The good variables and the file are kept.
+        assert!(check.settings.mobile);
+        assert_eq!(check.settings.locale.as_deref(), Some("de-DE"));
+        assert_eq!(check.file.as_deref(), Some(file.path()));
+    }
+
+    #[test]
+    fn check_finds_nothing_in_good_settings_and_load_agrees() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"browser = \"edge\"\nthreads = 2\n")
+            .unwrap();
+        let pairs: &'static [(&str, &str)] = &[("SB_HEADLESS", "true"), ("SB_TIMEOUT", "7")];
+
+        let check = Settings::check_with(Some(file.path()), variables(pairs));
+        let loaded = Settings::load_with(Some(file.path()), variables(pairs)).unwrap();
+
+        assert!(check.problems.is_empty(), "{:?}", check.problems);
+        assert_eq!(check.settings, loaded);
+    }
+
+    #[test]
+    fn check_names_a_file_that_cannot_be_read_and_still_checks_the_variables() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"headless = \"maybe\"\n").unwrap();
+
+        let broken = Settings::check_with(Some(file.path()), variables(&[("SB_THREADS", "x")]));
+        let missing = Settings::check_with(Some("no-such-settings.toml"), variables(&[]));
+
+        let sources: Vec<&str> = broken.problems.iter().map(|p| p.source.as_str()).collect();
+        assert_eq!(
+            sources,
+            [file.path().display().to_string().as_str(), "SB_THREADS"]
+        );
+        assert!(broken.problems[0]
+            .error
+            .to_string()
+            .contains("failed to parse TOML settings"));
+        assert_eq!(missing.problems.len(), 1);
+        assert!(missing.problems[0]
+            .error
+            .to_string()
+            .contains("failed to read"));
+    }
+
+    #[test]
+    fn the_first_problem_check_reports_is_the_error_load_returns() {
+        let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
+        file.write_all(b"browser = \"firefox\"\n").unwrap();
+        for pairs in [
+            &[("SB_HEADLESS", "maybe"), ("SB_THREADS", "x")][..],
+            &[("SB_BROWSER", "chrom")][..],
+            &[("SB_WINDOW_WIDTH", "800")][..],
+        ] {
+            let pairs: &'static [(&str, &str)] = Box::leak(pairs.to_vec().into_boxed_slice());
+            let check = Settings::check_with(Some(file.path()), variables(pairs));
+            let error = Settings::load_with(Some(file.path()), variables(pairs)).unwrap_err();
+            assert_eq!(
+                check.problems[0].error.to_string(),
+                error.to_string(),
+                "{pairs:?}"
+            );
+        }
     }
 
     #[test]
