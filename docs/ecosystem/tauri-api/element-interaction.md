@@ -26,7 +26,7 @@ curl -s -X POST "http://127.0.0.1:4445/$TOKEN/session/$SESSION/element/$ELEMENT/
 
 ```bash Type and press Enter
 curl -s -X POST "http://127.0.0.1:4445/$TOKEN/session/$SESSION/element/$ELEMENT/value" \
-  -d '{"text": "Work"}'
+  -d '{"text": "Work\uE007"}'
 ```
 
 </RequestExample>
@@ -126,7 +126,7 @@ Focuses the element and adds the text at the end of its value (its text, for
 an editable element) through the native value setter, then fires `input` and
 `change` once. The page sees no key events for the text.
 
-The WebDriver Enter key, ``, is taken out of the text: when the text
+The WebDriver Enter key, `\uE007`, is taken out of the text: when the text
 holds one, the element then gets `keydown`, `keypress` and `keyup` for Enter
 and its form is submitted (`requestSubmit`). Other WebDriver key codes are not
 read here; they are added as characters.

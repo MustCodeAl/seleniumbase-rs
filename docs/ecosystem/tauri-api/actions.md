@@ -27,7 +27,7 @@ curl -s -X POST "http://127.0.0.1:4445/$TOKEN/session/$SESSION/actions" -d '{
 curl -s -X POST "http://127.0.0.1:4445/$TOKEN/session/$SESSION/actions" -d '{
   "actions": [{
     "id": "keyboard", "type": "key",
-    "actions": [{"type": "keyDown", "value": ""}, {"type": "keyUp", "value": ""}]
+    "actions": [{"type": "keyDown", "value": "\uE007"}, {"type": "keyUp", "value": "\uE007"}]
   }]
 }'
 ```
@@ -153,7 +153,7 @@ milliseconds, from 0 to 2^53 - 1.
 <ParamField body="value" type="string">
 
 For `keyDown` and `keyUp`, required: a key. A WebDriver key code, such as
-``, names a key ([Keys](#keys)); any other value is the text it types.
+`\uE007`, names a key ([Keys](#keys)); any other value is the text it types.
 
 </ParamField>
 
@@ -252,10 +252,10 @@ A WebDriver key code is turned into the key name W3C gives it; a few:
 
 | Code | Key | Code | Key |
 |---|---|---|---|
-| `` | Backspace | `` | Escape |
-| `` | Tab | `` | Space (`" "`) |
-| ``, `` | Enter | `` | Delete |
-| `` | Shift | `` | Meta |
+| `\uE003` | Backspace | `\uE00C` | Escape |
+| `\uE004` | Tab | `\uE00D` | Space (`" "`) |
+| `\uE006`, `\uE007` | Enter | `\uE017` | Delete |
+| `\uE008` | Shift | `\uE03D` | Meta |
 
 The arrows, Home, End, Page Up and Down, Insert, the digits of the number pad,
 F1 to F12 and the right-hand modifier codes are mapped the same way.
