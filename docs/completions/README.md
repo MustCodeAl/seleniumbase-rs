@@ -1,6 +1,6 @@
 ---
 title: "Fig completion spec"
-sidebarTitle: "Fig completions"
+sidebarTitle: "Submit the Fig spec"
 ---
 
 `fig-sbrs.ts` is a completion spec for the `sbrs` command in the Fig format, the

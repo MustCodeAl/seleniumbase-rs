@@ -158,8 +158,7 @@
             "pages": [
               "help/cli_tldr",
               "tutorials/cli_usage",
-              "help/cli_reference",
-              "completions/README"
+              "help/cli_reference"
             ]
           },
           {
@@ -353,6 +352,7 @@
               "contributing/debugging",
               "contributing/benchmarking",
               "UPSTREAM_SYNC",
+              "completions/README",
               "feature-requests"
             ]
           },
