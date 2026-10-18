@@ -2,6 +2,8 @@
 title: "Browser Plugins"
 ---
 
+<Badge color="blue">Feature: plugins</Badge>
+
 A browser plugin is a Rust crate that changes how a browser starts and what
 every tab gets: block images, add a script to every page, set a preference,
 load an extension, route through a proxy. You add one to a `PluginSet`, give the
@@ -35,12 +37,18 @@ drives the browser.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: a browser plugin is a Rust crate that implements `Plugin` and runs hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`) around a browser launch. Turn plugins on with the `plugins` feature, build a `PluginSet`, and give it to `LaunchOptionsBuilder::plugins` (pure CDP engine) or `BrowserConfig::with_plugins` (`BaseCase`). Plugins fail closed: a refusal or a hook error stops the launch or the tab with `SeleniumBaseError::Plugin`. A plugin is Rust code that runs with your program's rights.
+
+</Visibility>
+
 ## Turning plugins on
 
 Plugins are behind the `plugins` feature, off by default. The feature is in
 release 0.3.0 and later (the WebDriver engine from 0.4.0):
 
-```toml
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.5.1", features = ["plugins"] }
 ```
@@ -59,9 +67,15 @@ program needs no second dependency to use or write plugins.
 
 ## Using a plugin
 
+Build a set, then give it to the engine you use:
+
+<Tabs>
+
+<Tab title="Pure CDP engine" icon="bolt">
+
 Build a set, give it to `LaunchOptionsBuilder::plugins`, and launch as usual:
 
-```rust,no_run
+```rust,no_run src/main.rs
 use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs_plugin_block_resources::BlockResources;
@@ -80,16 +94,17 @@ browser.close().await?;
 # }
 ```
 
-`PluginSet::with` refuses a second plugin with the same name. Plugins run in
-the order they were added, except those that ask to run last.
-
 To attach to a browser that is already running, use
 `Browser::connect_with_plugins(host, port, plugins)` instead of `connect`. There
 is nothing to launch, so `before_launch` does not run; the rest does.
 
+</Tab>
+
+<Tab title="BaseCase (WebDriver)" icon="flask">
+
 With `BaseCase`, the same set goes to `BrowserConfig::with_plugins`:
 
-```rust,no_run
+```rust,no_run src/main.rs
 use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 use seleniumbase_rs_plugin_block_resources::BlockResources;
@@ -107,6 +122,13 @@ sb.quit().await?;
 Chromium browsers give plugins everything the Pure CDP engine does; Firefox and
 Safari give less, as [The WebDriver engine](#the-webdriver-engine) explains.
 
+</Tab>
+
+</Tabs>
+
+`PluginSet::with` refuses a second plugin with the same name. Plugins run in
+the order they were added, except those that ask to run last.
+
 ## Installing a plugin
 
 Plugins are crates named `seleniumbase-rs-plugin-<name>`. The official ones live
@@ -122,7 +144,7 @@ Add one with `cargo add`, from the same revision of the plugins repository
 that this crate pins (the `rev` of `seleniumbase-rs-plugin` in its
 `Cargo.toml`, currently `628991af0e6c5711298e3bd3692dc2974887401a`):
 
-```sh
+```sh Terminal
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
     --rev 628991af0e6c5711298e3bd3692dc2974887401a \
     seleniumbase-rs-plugin-block-resources
@@ -149,7 +171,7 @@ revision, move the plugin crates with it.
 Implement `Plugin`. Every hook is optional; `name` is the only method you must
 write.
 
-```rust,no_run
+```rust,no_run src/lib.rs
 use seleniumbase_rs::plugin_api::{
     async_trait, BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginError, Result,
 };

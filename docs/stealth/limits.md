@@ -2,6 +2,26 @@
 title: "Limits and Troubleshooting"
 ---
 
+<Badge color="orange">Experimental</Badge>
+
+<Panel>
+
+<Card title="What is measured" icon="ruler">
+
+Chrome 155.0.8059.40 on macOS, and nothing else. Every other browser and system pair is refused with `NotMeasured`.
+
+Tested against local captures and servers, not against live services. No guarantee against any detection service.
+
+</Card>
+
+</Panel>
+
+<Visibility for="agents">
+
+Summary for AI exports: only Chrome 155.0.8059.40 on macOS is measured and every other pair is refused with `NotMeasured`. The handshake has known gaps against Chrome (`trust_anchors`, the ML-DSA signature algorithms and a GREASE signature algorithm), there is no HTTP/3, and nothing was checked against a live bot-protection service. Follow each site's terms and the law where you are.
+
+</Visibility>
+
 ## Limits
 
 <Warning>
@@ -24,7 +44,7 @@ State these plainly to yourself before you build on any of this.
     hash too.
   - A **GREASE signature algorithm**: Chrome writes one first, and the vendored
     BoringSSL writes none. This one is not a `KnownGap` variant. JA3 and JA4 strip
-    GREASE, so only the peetprint shows it. A test pins the difference and fails
+    <Tooltip tip="Random reserved values a client adds to its handshake so servers do not depend on a fixed list (RFC 8701).">GREASE</Tooltip>, so only the <Tooltip tip="A JA3-like format that also records signature algorithms.">peetprint</Tooltip> shows it. A test pins the difference and fails
     when a newer BoringSSL closes it.
 
   The first two are recorded in the measured file's `provenance.known_gaps`; the
@@ -72,7 +92,7 @@ State these plainly to yourself before you build on any of this.
 
 <AccordionGroup>
 
-<Accordion title="`NotMeasured { kind, os }`">
+<Accordion title="`NotMeasured { kind, os }`" icon="ruler">
 
 **Likely cause.** The browser and system pair has no capture.
 
@@ -80,7 +100,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`VersionMismatch { browser, measured }`">
+<Accordion title="`VersionMismatch { browser, measured }`" icon="code-compare">
 
 **Likely cause.** The identity's user agent claims another Chrome major than the measured profile.
 
@@ -88,7 +108,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`UnsupportedExtension`, `UnsupportedSigalg`, `UnsupportedSetting`">
+<Accordion title="`UnsupportedExtension`, `UnsupportedSigalg`, `UnsupportedSetting`" icon="ban">
 
 **Likely cause.** The input asks for something BoringSSL or wreq cannot send.
 
@@ -96,7 +116,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="The build fails while compiling BoringSSL">
+<Accordion title="The build fails while compiling BoringSSL" icon="hammer">
 
 **Likely cause.** `cmake` or a C/C++ toolchain is missing.
 
@@ -104,7 +124,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`IdentityFileError::Permissions`">
+<Accordion title="`IdentityFileError::Permissions`" icon="lock">
 
 **Likely cause.** Group or others can read the identity file.
 
@@ -112,15 +132,15 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::CoolingDown`">
+<Accordion title="`ScrapeError::CoolingDown`" icon="hourglass-half">
 
 **Likely cause.** The site answered with a block or rate limit and is being left alone.
 
-**Fix.** Wait until the time in the error (seconds since the Unix epoch), or give the scraper another egress.
+**Fix.** Wait until the time in the error (seconds since the Unix epoch), or give the scraper another <Tooltip tip="The proxy a request leaves through.">egress</Tooltip>.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::Unsolved`">
+<Accordion title="`ScrapeError::Unsolved`" icon="puzzle-piece">
 
 **Likely cause.** A challenge was still there after the attempts allowed.
 
@@ -128,7 +148,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::NoEgressAvailable`">
+<Accordion title="`ScrapeError::NoEgressAvailable`" icon="network-wired">
 
 **Likely cause.** A rotation was asked for and the pool has nothing else in rotation.
 
@@ -136,7 +156,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::VersionMismatch`, `StealthError::Impersonate`">
+<Accordion title="`HttpError::VersionMismatch`, `StealthError::Impersonate`" icon="code-compare">
 
 **Likely cause.** The page, the identity or the installed Chrome is another major than the measured one.
 
@@ -144,7 +164,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::Impersonate` for a page">
+<Accordion title="`HttpError::Impersonate` for a page" icon="user-secret">
 
 **Likely cause.** The page announces itself as `HeadlessChrome`, is not Chrome, or runs on a system that was not measured.
 
@@ -152,7 +172,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::ReservedHeader`">
+<Accordion title="`HttpError::ReservedHeader`" icon="tag">
 
 **Likely cause.** A request set a header the profile owns (`User-Agent`, `Sec-CH-UA*`, `Accept-Language`, `Accept-Encoding`, `Cookie`, `priority`).
 
@@ -160,7 +180,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::RedirectRefused`, `TooManyRedirects`">
+<Accordion title="`HttpError::RedirectRefused`, `TooManyRedirects`" icon="route">
 
 **Likely cause.** A hop led somewhere the session refuses, or past the limit.
 
@@ -168,7 +188,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::Identity(EgressMismatch)`">
+<Accordion title="`HttpError::Identity(EgressMismatch)`" icon="fingerprint">
 
 **Likely cause.** The identity or the page belongs to another egress than the one passed.
 
@@ -176,7 +196,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="Chrome behind `MitmProxy` shows a `502` page">
+<Accordion title="Chrome behind `MitmProxy` shows a `502` page" icon="server">
 
 **Likely cause.** The proxy refused the request or the upstream failed (an untrusted certificate, a non-WebSocket upgrade, a version mismatch).
 

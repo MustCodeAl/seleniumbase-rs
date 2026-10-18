@@ -5,6 +5,12 @@ title: "ABI & API Stability"
 This page describes the public API surface of `seleniumbase-rs`, the stability
 guarantees that apply, and how to integrate the crate with foreign code.
 
+<Visibility for="agents">
+
+Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `Selector`, `Fingerprint`, `StealthPolicy`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. `stealth::providers::session_registry` is experimental.
+
+</Visibility>
+
 ## Public modules
 
 The crate root exposes the following modules:
@@ -83,12 +89,16 @@ mentions an engine's own types:
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 
+<Frame caption="Both engines implement the capability traits; a helper depends on the traits, not on an engine.">
+
 ```mermaid
 flowchart LR
   A["BaseCase (WebDriver)"] -- implements --> T["BrowserApi, ElementApi, AssertionApi, ScreenshotApi"]
   B["sb_cdp::Page (Pure CDP)"] -- implements --> T
   H["your helper"] -- needs --> T
 ```
+
+</Frame>
 
 Use these traits when writing helpers that should work with any type exposing
 the same capability, or as a blueprint for adding new cross-cutting concerns:
@@ -119,7 +129,7 @@ If you need to drive the crate from another language, write a
 small `extern "C"` shim that accepts C-compatible arguments and internally
 builds a `BaseCase` or calls the Rust API:
 
-```rust,ignore
+```rust,ignore C shim
 #[no_mangle]
 pub extern "C" fn sb_open_url(url: *const c_char) {
     let url = unsafe { CStr::from_ptr(url).to_string_lossy() };

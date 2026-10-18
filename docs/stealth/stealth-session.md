@@ -2,9 +2,11 @@
 title: "StealthSession"
 ---
 
+<Badge color="blue">Crate: mimic</Badge>
+
 `mimic::stealth_session::StealthSession` joins the pieces. It presents one
 `StealthIdentity` (the fingerprint, the measured browser it belongs to, the
-cookies it earned and the egress they were earned through) in one of two modes
+cookies it earned and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were earned through) in one of two modes
 and moves between them by the policies:
 
 - `Mode::Http`: an [`HttpSession`](/stealth/http-session#httpsession) sends the requests. It is fast
@@ -36,7 +38,7 @@ A session starts in the mode its `SessionPolicy` prefers (HTTP by default).
 
 <Steps>
 
-<Step title="Before the request">
+<Step title="Before the request" icon="hourglass-start">
 
 `SessionPolicy::before_fetch`: does the identity hold
 a clearance for the site that is about to end, must it hold one and does not,
@@ -45,7 +47,7 @@ the browser first.
 
 </Step>
 
-<Step title="After the answer">
+<Step title="After the answer" icon="magnifying-glass">
 
 `MitigationPolicy::decide`: a real page ends the loop; a
 challenge met over HTTP sends the session to the browser (an escalation); in
@@ -55,7 +57,7 @@ stops the fetch.
 
 </Step>
 
-<Step title="After a solve">
+<Step title="After a solve" icon="circle-check">
 
 `SessionPolicy::after_fetch`: a browser that earned a
 clearance hands the identity back to HTTP (a demotion), which carries it on.
@@ -87,12 +89,16 @@ went back to HTTP to use it. A body that is not UTF-8 is read lossily.
 
 In short, the two modes and what moves a session between them:
 
+<Frame caption="The two modes, and what moves a session between them">
+
 ```mermaid
 stateDiagram-v2
     [*] --> Http: preferred mode (default)
     Http --> Browser: before_fetch, or a challenge met over HTTP (escalation)
     Browser --> Http: a clearance earned (demotion, after_fetch)
 ```
+
+</Frame>
 
 ## What adapts, and what it presents
 
@@ -112,9 +118,31 @@ the earlier fetches wrote:
   holds the clearance (`demote_after_solve`, on by default); repeated blocks rotate
   the egress and then the profile.
 
-`SessionPolicy` holds the four switches: `prefer` (the mode a session starts in
-and returns to, HTTP by default), `require_clearance_for_http`,
-`clearance_margin` and `demote_after_solve`.
+`SessionPolicy` holds four switches:
+
+<ParamField body="prefer" type="Mode" default="Http">
+
+The mode a session starts in and returns to.
+
+</ParamField>
+
+<ParamField body="require_clearance_for_http" type="boolean">
+
+Whether HTTP needs a clearance.
+
+</ParamField>
+
+<ParamField body="clearance_margin" default="120 seconds">
+
+A clearance that ends within this margin sends the next fetch back to the browser to renew it.
+
+</ParamField>
+
+<ParamField body="demote_after_solve" type="boolean" default="true">
+
+Whether a challenge solved in the browser sends the session back to HTTP once the identity holds the clearance.
+
+</ParamField>
 
 The fingerprint a session presents is drawn once from its seed:
 `Fingerprint::randomized_with_major(os, seed, major)` gives a coherent persona

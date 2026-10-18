@@ -2,6 +2,40 @@
 title: "Docker Guide"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 Run SeleniumBase for Rust tests inside a container for reproducible CI/CD builds.
 This guide covers building the image, running the CLI, using Docker Compose, and
 configuring CI.
@@ -16,6 +50,20 @@ configuring CI.
 - How to run headless browsers in Docker.
 
 </Info>
+
+<Panel>
+
+<Card title="Key facts" icon="docker">
+
+The image's entry point is `sbrs`: the arguments after the image name are `sbrs` arguments.
+
+Set `SB_HEADLESS=true` (or pass `--headless`) in a container.
+
+For a sandbox error, set `SB_NO_SANDBOX=1`. For crashes under load, use `--shm-size=1g`.
+
+</Card>
+
+</Panel>
 
 ## Build the image
 
@@ -65,11 +113,21 @@ docker compose up --build
 
 See `.github/workflows/` for the GitHub Actions jobs:
 
-- `ci.yml` — format, lint, build and test on Linux, macOS and Windows.
-- `docker.yml` — build the Docker image.
-- `completions.yml` — generate the shell completions.
+<LayoutTree>
+  <LayoutDir name=".github" open>
+    <LayoutDir name="workflows" open>
+      <LayoutFile name="ci.yml" highlight note="format, lint, build and test on Linux, macOS and Windows" />
+      <LayoutFile name="docker.yml" note="build the Docker image" />
+      <LayoutFile name="completions.yml" note="generate the shell completions" />
+    </LayoutDir>
+  </LayoutDir>
+</LayoutTree>
 
-More on running in CI and containers: [Deployment](/deployment).
+<Card title="Deployment" icon="server" href="/deployment" horizontal>
+
+More on running in CI and containers.
+
+</Card>
 
 ## Headless in Docker
 

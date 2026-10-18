@@ -172,7 +172,7 @@ Always the empty string.
 
 ## Element references
 
-An element travels as the W3C web element reference: an object with one key,
+An element travels as the W3C <Tooltip tip="Clients read an element only under this key; any other object is not an element to them.">web element reference</Tooltip>: an object with one key,
 `element-6066-11e4-a52e-4f735466cecf`, whose value is the element's id.
 
 ```json
@@ -317,3 +317,30 @@ The page or one element, as PNG, on macOS.
 </Card>
 
 </Columns>
+
+<Visibility for="agents">
+
+Summary for AI agents. Base URL `http://127.0.0.1:4445/{token}/` (port from
+`SBRS_AUTOMATION_PORT`, token from `SBRS_AUTOMATION_TOKEN` or printed at
+start-up). Send no `Origin` header. Bodies are JSON. Every reply is
+`{"value": ...}`; an error is `{"value": {"error": "<W3C code>", "message": "...", "stacktrace": ""}}`.
+Elements are `{"element-6066-11e4-a52e-4f735466cecf": "<id>"}`. One session at a
+time; session routes start with `/session/{sessionId}`.
+
+- `GET /status`
+- `POST /session`; `DELETE /session/{sessionId}`
+- `GET /timeouts`; `POST /timeouts`
+- `POST /url`; `GET /url`; `GET /title`; `POST /back`; `POST /forward`; `POST /refresh`; `GET /source`
+- `GET /window`; `GET /window/handles`; `POST /window`; `GET /window/rect`; `POST /window/rect`; `POST /window/maximize`; `POST /window/minimize`; `POST /window/fullscreen`
+- `POST /frame`; `POST /frame/parent`
+- `POST /element`; `POST /elements`; `POST /element/{elementId}/element`; `POST /element/{elementId}/elements`; `GET /element/active`
+- `GET /element/{elementId}/text`, `/name`, `/rect`, `/enabled`, `/selected`, `/displayed`, `/attribute/{name}`, `/property/{name}`, `/css/{name}`
+- `POST /element/{elementId}/click`; `POST /element/{elementId}/clear`; `POST /element/{elementId}/value`
+- `POST /execute/sync`; `POST /execute/async`
+- `POST /actions`; `DELETE /actions`
+- `GET /alert/text`; `POST /alert/accept`; `POST /alert/dismiss`; `POST /alert/text`
+- `GET /screenshot`; `GET /element/{elementId}/screenshot` (macOS only)
+
+Anything else answers `404 unknown command`.
+
+</Visibility>

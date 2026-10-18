@@ -5,7 +5,7 @@ title: "Behave Commander"
 <Badge color="blue">Feature: tui</Badge>
 
 `sbrs behave-gui` (also `sbrs gui-behave`) is a terminal app that lists the
-Gherkin feature files of a project, runs the scenarios you mark through this
+<Tooltip tip="Gherkin is the plain-text format of behave feature files: a Feature, its Scenarios, and Given/When/Then steps.">Gherkin</Tooltip> feature files of a project, runs the scenarios you mark through this
 crate's behave runner and shows what came of each. It is the Python Behave
 Commander without the Tkinter window.
 
@@ -64,12 +64,16 @@ Every `*.feature` file under the folder (subfolders included, sorted by path;
 folders whose name starts with a dot, and `target` and `node_modules`, are not
 entered), with its scenarios below it:
 
+<Frame caption="The list the app shows">
+
 ```text
   [-] features/login.feature => Log in (3 scenarios)
       [x] line 10: valid login
       [ ] line 14: wrong value
       [ ] line 26: undefined step
 ```
+
+</Frame>
 
 A feature shows `[x]` when all its scenarios are marked, `[-]` when some are.
 An outline is one row, whatever the number of examples.

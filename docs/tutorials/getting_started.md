@@ -45,22 +45,22 @@ chromedriver into that folder first when it is missing (it does not look on your
 
 ## Create a new project
 
-<Steps>
+<Steps titleSize="h3">
 
-<Step title="Create the project">
+<Step title="Create the project" icon="folder-plus">
 
-```bash
+```bash Terminal
 cargo new my_first_test
 cd my_first_test
 ```
 
 </Step>
 
-<Step title="Add the dependencies">
+<Step title="Add the dependencies" icon="box">
 
 Open `Cargo.toml` and add the dependencies:
 
-```toml
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
@@ -78,13 +78,13 @@ The `tokio` runtime is required because `BaseCase` methods are async.
 
 ## Write your first test
 
-<Steps>
+<Steps titleSize="h3">
 
-<Step title="Write the program">
+<Step title="Write the program" icon="code">
 
 Replace the contents of `src/main.rs` with the following program:
 
-```rust,no_run
+```rust,no_run src/main.rs
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
@@ -114,9 +114,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 </Step>
 
-<Step title="Run it">
+<Step title="Run it" icon="play">
 
-```bash
+```bash Terminal
 cargo run
 ```
 
@@ -134,7 +134,7 @@ welcome message, and close.
 ## How it works
 
 - `BrowserConfig::default()` returns a default configuration pointing at
-  `http://localhost:4444` with headless mode enabled.
+  `http://localhost:4444` with <Tooltip tip="The browser runs without a visible window.">headless</Tooltip> mode enabled.
 - `with_mode(DriverMode::Uc)` enables Undetected Chromedriver mode, which
   applies anti-detection evasions.
 - `with_headless(false)` runs the browser with a visible window so you can watch
@@ -176,17 +176,59 @@ defaults above and reads no environment variable. `BrowserConfig::from_env()`
 returns a `Result` and reads the `SB_*` variables, which suits a deployed test
 run because the same binary then needs no code change per environment:
 
-| Variable | Meaning | Default |
-|---|---|---|
-| `SB_WEBDRIVER_URL` | WebDriver endpoint | `http://localhost:4444` |
-| `SB_CHROME_BIN` | Browser binary path | system Chrome |
-| `SB_PATCH_CACHE_DIR` | Where patched binaries are cached | the platform cache directory |
-| `SB_LOG_LEVEL` | Tracing filter (used by `init_tracing_from_runtime`); unset, it is `RUST_LOG`, then `info` | unset |
-| `SB_LOG_FORMAT` | `pretty` or `json` | `pretty` |
-| `SB_SHUTDOWN_TIMEOUT_SECS` | Graceful shutdown timeout | `30` |
-| `SB_CHROMEDRIVER_PORT` | Parsed, not yet used by the crate | `0` |
-| `SB_IMPLICIT_WAIT_SECS` | Parsed, not yet used by the crate | `30` |
-| `SB_REMOTE_WEBDRIVER_TIMEOUT` | Per-request client timeout for a remote grid, in seconds | unset |
+<ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
+
+WebDriver endpoint.
+
+</ParamField>
+
+<ParamField body="SB_CHROME_BIN" type="string" default="system Chrome">
+
+Browser binary path.
+
+</ParamField>
+
+<ParamField body="SB_PATCH_CACHE_DIR" type="string" default="the platform cache directory">
+
+Where patched binaries are cached.
+
+</ParamField>
+
+<ParamField body="SB_LOG_LEVEL" type="string">
+
+Tracing filter (used by `init_tracing_from_runtime`); unset, it is `RUST_LOG`, then `info`.
+
+</ParamField>
+
+<ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
+
+`pretty` or `json`.
+
+</ParamField>
+
+<ParamField body="SB_SHUTDOWN_TIMEOUT_SECS" type="integer" default="30">
+
+Graceful shutdown timeout.
+
+</ParamField>
+
+<ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
+
+Parsed, not yet used by the crate.
+
+</ParamField>
+
+<ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
+
+Parsed, not yet used by the crate.
+
+</ParamField>
+
+<ParamField body="SB_REMOTE_WEBDRIVER_TIMEOUT" type="integer">
+
+Per-request client timeout for a remote grid, in seconds. Unset by default.
+
+</ParamField>
 
 A value that does not parse (a non-number, or a `SB_LOG_FORMAT` other than
 `pretty` or `json`) makes `from_env` return `SeleniumBaseError::InvalidConfig`;
@@ -199,7 +241,7 @@ This program is the whole project: `Cargo.toml` from above and this
 screenshot, and closes the browser even if an assertion fails
 (`run_browser_test` always calls `quit`).
 
-```rust,no_run
+```rust,no_run src/main.rs
 use seleniumbase_rs::{init_tracing, run_browser_test, BrowserConfig};
 
 const PAGE: &str = r#"<!doctype html>
@@ -240,7 +282,7 @@ The pure CDP engine (`seleniumbase_rs::sb_cdp`) talks to Chrome directly, so
 there is no chromedriver to download or start. It uses the same `tokio`
 dependency:
 
-```rust,no_run
+```rust,no_run src/main.rs
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 
 #[tokio::main]
@@ -268,7 +310,7 @@ The full engine is in [Pure CDP](/tutorials/pure_cdp).
 
 For real test suites, use the test harness:
 
-```rust,no_run
+```rust,no_run tests/login.rs
 // tests/login.rs
 use seleniumbase_rs::{run_browser_test, BrowserConfig, DriverMode, Result};
 
@@ -291,7 +333,7 @@ async fn login_succeeds() -> Result<()> {
 
 Run the test:
 
-```bash
+```bash Terminal
 cargo test login_succeeds
 ```
 
@@ -303,32 +345,80 @@ cargo test login_succeeds
 
 ## Common startup errors
 
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| `WebDriver` connection error | No driver running, and auto-start does not apply: it needs `auto_start_driver` (on by default) and the default WebDriver URL `http://localhost:4444`. | Remove the custom URL, or start `chromedriver` yourself and pass its URL. |
-| `chromedriver` not found | The driver executable is missing. | Install it with `sbrs install` or download it from the Chrome for Testing dashboard. |
-| Chrome not found | The browser binary path is wrong. | Use `BrowserConfig::with_browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables). |
-| Headless detected | Site blocks headless Chrome (headless sessions already use `--headless=new`). | Use `with_headless(false)`. |
+<AccordionGroup>
+
+<Accordion title="`WebDriver` connection error" icon="plug">
+
+**Cause.** No driver running, and auto-start does not apply: it needs `auto_start_driver` (on by default) and the default WebDriver URL `http://localhost:4444`.
+
+**Solution.** Remove the custom URL, or start `chromedriver` yourself and pass its URL.
+
+</Accordion>
+
+<Accordion title="`chromedriver` not found" icon="magnifying-glass">
+
+**Cause.** The driver executable is missing.
+
+**Solution.** Install it with `sbrs install` or download it from the Chrome for Testing dashboard.
+
+</Accordion>
+
+<Accordion title="Chrome not found" icon="globe">
+
+**Cause.** The browser binary path is wrong.
+
+**Solution.** Use `BrowserConfig::with_browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables).
+
+</Accordion>
+
+<Accordion title="Headless detected" icon="eye-slash">
+
+**Cause.** Site blocks headless Chrome (headless sessions already use `--headless=new`).
+
+**Solution.** Use `with_headless(false)`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Next steps
 
-<CardGroup cols={2}>
-  <Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
-    CSS, XPath, link text and shadow DOM: how a selector string is read.
-  </Card>
-  <Card title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
-    Wait for the page, then check it, without sleeps.
-  </Card>
-  <Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
-    Run Chrome so sites see a person's browser.
-  </Card>
-  <Card title="Run settings" icon="sliders" href="/tutorials/run_settings">
-    Slow a run down to watch it, and the other run-wide switches.
-  </Card>
-  <Card title="API reference" icon="code" href="/tutorials/api_reference">
-    Every `BaseCase` method, the capability traits and the crate root.
-  </Card>
-  <Card title="Command line" icon="terminal" href="/tutorials/cli_usage">
-    One-off commands with `sbrs`, no project needed.
-  </Card>
-</CardGroup>
+<Columns cols={2}>
+
+<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+
+CSS, XPath, link text and shadow DOM: how a selector string is read.
+
+</Card>
+
+<Card title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
+
+Wait for the page, then check it, without sleeps.
+
+</Card>
+
+<Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
+
+Run Chrome so sites see a person's browser.
+
+</Card>
+
+<Card title="Run settings" icon="sliders" href="/tutorials/run_settings">
+
+Slow a run down to watch it, and the other run-wide switches.
+
+</Card>
+
+<Card title="API reference" icon="code" href="/tutorials/api_reference">
+
+Every `BaseCase` method, the capability traits and the crate root.
+
+</Card>
+
+<Card title="Command line" icon="terminal" href="/tutorials/cli_usage">
+
+One-off commands with `sbrs`, no project needed.
+
+</Card>
+
+</Columns>

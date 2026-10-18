@@ -7,6 +7,12 @@ run it in a container. For writing and running tests with it, start with
 [Getting started](/tutorials/getting_started); for working on the crate, see
 `CONTRIBUTING.md`.
 
+<Visibility for="agents">
+
+Summary for AI exports: install Rust 1.99 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The prebuilt release archives do not exist yet, so `cargo binstall` and mise's `github:` backend find nothing to download. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`.
+
+</Visibility>
+
 ## What you need
 
 Pick your system below and paste its box into a terminal. Each box installs what

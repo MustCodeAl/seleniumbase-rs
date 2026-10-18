@@ -24,6 +24,12 @@ to `info`.
 
 </Tabs>
 
+<Visibility for="agents">
+
+Summary for AI exports: run `sbrs doctor` first; it reports the Chrome and chromedriver it finds and whether their major versions match. `BaseCase::new` auto-starts `downloaded_drivers/chromedriver` only for the default WebDriver URL (`http://localhost:4444`) when `auto_start_driver` is on; a driver you start yourself and pass with `--webdriver` is never replaced. In a container or as root, set `SB_NO_SANDBOX=1` and run headless. Settings variables use the `SB_` prefix, not `SBASE_`. Debug logging: `RUST_LOG=seleniumbase_rs=debug` in your own program, `SB_LOG_LEVEL` for `sbrs` and `sbrs-mcp`. `sbrs` exit status: 1 a check or test failed, 2 wrong input, 3 element or wait, 4 browser or driver, 5 network or site, 6 local file or database, 7 MCP server, 130 or 143 stopped by Ctrl-C or SIGTERM.
+
+</Visibility>
+
 ## Start here
 
 <Tip>
@@ -109,6 +115,8 @@ launches Chrome directly, so there is no driver binary to leak markers.
 default (`http://localhost:4444`) and `auto_start_driver` is on (it is by
 default).
 
+<Frame caption="How BaseCase::new finds or starts a chromedriver">
+
 ```mermaid
 flowchart TD
   A["BaseCase::new"] --> B{"Default URL and auto_start_driver on?"}
@@ -122,12 +130,14 @@ flowchart TD
   D --> L
 ```
 
+</Frame>
+
 `BaseCase::new` first tries to connect to a driver already listening there; if
 none answers, it launches `downloaded_drivers/chromedriver` (`chromedriver.exe`
 on Windows) on a free port. A chromedriver only drives the Chrome of its own
 major version, so before launching it the crate runs `--version` on the driver
 and on your Chrome. If the driver is missing, or is for another major version,
-it downloads the driver of your Chrome's milestone into `downloaded_drivers/`
+it downloads the driver of your Chrome's <Tooltip tip="A Chrome milestone is its major version number, such as 155.">milestone</Tooltip> into `downloaded_drivers/`
 first (the latest stable one when Chrome cannot be found). If both downloads
 fail it keeps the old driver and logs a warning. The download needs network
 access to the Chrome for Testing endpoint. To fetch the driver ahead of time:

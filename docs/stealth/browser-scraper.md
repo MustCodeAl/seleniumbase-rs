@@ -2,6 +2,8 @@
 title: "BrowserScraper"
 ---
 
+<Badge color="blue">Crate: scrape</Badge>
+
 `scrape::runtime::browser_scraper::BrowserScraper` drives one real Chrome through
 the pure CDP engine.
 
@@ -37,9 +39,9 @@ scraper.close().await?;
 
 - a real page ends the loop and comes back as a `BrowserFetch` (URL after
   redirects, status, headers, the rendered body, the `Detection`, how many loads
-  it took, the challenge solved on the way, and the egress);
+  it took, the challenge solved on the way, and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip>);
 - a challenge is solved in the browser (`solve_challenge`), then the page is
-  loaded again with the clearance it earned;
+  loaded again with the <Tooltip tip="The cookie a site gives once a challenge is solved.">clearance</Tooltip> it earned;
 - repeated challenges change the egress (`rotate_egress`) and then the browser
   profile (`rotate_profile`). With the default of three attempts, a fetch gives
   up before the profile ladder starts unless the site's stored streak was already
@@ -48,6 +50,24 @@ scraper.close().await?;
   site, which the next fetch respects (`ScrapeError::CoolingDown`);
 - when the attempts run out the fetch fails: `ScrapeError::Unsolved` if a
   challenge was still there, `ScrapeError::GaveUp` for another reason.
+
+In short:
+
+<Frame caption="One fetch, and where each answer leads">
+
+```mermaid
+flowchart TD
+    A["fetch(url): load the URL"] --> B["detect, then MitigationPolicy"]
+    B -->|a real page| C["BrowserFetch"]
+    B -->|a challenge| D["solve_challenge"]
+    D -->|load again with the clearance| A
+    B -->|repeated challenges| E["rotate_egress, then rotate_profile"]
+    E --> A
+    B -->|a rate limit, or a block with no egress to change to| F["cooldown for the site"]
+    B -->|the attempts run out| G["ScrapeError::Unsolved or ScrapeError::GaveUp"]
+```
+
+</Frame>
 
 What each site did is kept in a `StateStore` (successes, challenges, blocks, the
 streak, a cooldown, the egress it last answered through). The default is in

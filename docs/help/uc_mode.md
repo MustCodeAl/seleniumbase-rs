@@ -19,6 +19,12 @@ you run yourself (below).
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: turn UC mode on with `BrowserConfig::default().with_mode(DriverMode::Uc)` or `sbrs --uc` before the subcommand. It needs Chrome, Chromium or Edge. UC mode does not patch the driver: run `sbrs patch-chromedriver --path /path/to/chromedriver` and check that `needs_patch()` is `false`. Pass `engine_spoofing_args()` through `BrowserConfig::with_extra_args`. If a site still detects the browser, use a coherent `Fingerprint`, run headful with `with_headless(false)`, align the egress IP with the spoofed geolocation and timezone, or use the pure CDP engine.
+
+</Visibility>
+
 ## Quick enable
 
 Set the driver mode to `Uc` in [`BrowserConfig`](crate::BrowserConfig):

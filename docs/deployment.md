@@ -6,6 +6,12 @@ How to run `seleniumbase-rs` somewhere other than your laptop: a container, a CI
 job, a Selenium Grid, or as an MCP server for an AI agent. To build the binaries
 first, see [Building and installing](/building).
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs` and `sbrs-mcp` are single native binaries that drive a Chrome or Chromium (plus a chromedriver of the same major version for the WebDriver engine; the pure CDP engine needs none). Configure them with `SB_*` environment variables, run browsers headless in containers and CI (`SB_HEADLESS=true`), set `SB_NO_SANDBOX` only where Chrome's sandbox cannot start, and give artifacts a place to go. `sbrs-mcp` speaks MCP over standard input and output and opens no network port.
+
+</Visibility>
+
 ## The shape of a deployment
 
 `sbrs` and `sbrs-mcp` are single native binaries with no Python or Node
@@ -16,6 +22,18 @@ runtime. What they drive is a Chrome or Chromium, so every deployment needs:
    version; the pure CDP engine needs none),
 3. configuration through environment variables, and
 4. somewhere for artifacts (screenshots, reports, debug bundles) to go.
+
+<Frame caption="What a deployment is made of.">
+
+```mermaid
+flowchart LR
+  E["SB_* environment variables"] --> B["sbrs or sbrs-mcp"]
+  B -- "pure CDP engine" --> C["Chrome or Chromium"]
+  B -- "WebDriver engine" --> D["chromedriver, same major version"] --> C
+  B --> A["artifacts: screenshots, reports, debug bundles"]
+```
+
+</Frame>
 
 Chrome, not the library, dominates memory and CPU. The process that drives the
 browsers stayed near 9 MiB in the [benchmarks](/benchmarks), so size the machine

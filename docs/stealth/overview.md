@@ -28,23 +28,29 @@ change between releases. The parts that exist are tested against local captures
 and a local Chrome, on one system. Read [Limits](/stealth/limits#limits) before you rely on any
 of it.
 
+<Visibility for="agents">
+
+Summary for AI exports: the stealth layer lives in the seleniumbase-rs-stealth repository as three crates. `seleniumbase-rs-codec` holds the wire formats and the measured tables, `seleniumbase-rs-scrape` holds `BrowserScraper`, the identity and the challenge detection (no TLS spoofing), and `seleniumbase-rs-mimic` holds the impersonating client, `HttpSession`, `MitmProxy` and `StealthSession` (it builds BoringSSL and needs cmake and a C/C++ toolchain). All of it is experimental and measured only for Chrome 155 on macOS.
+
+</Visibility>
+
 ## Status
 
 | Part | Crate | State |
 |---|---|---|
-| Wire parsers: `ClientHello`, JA3, JA4 and `JA4_r`, peetprint, Akamai HTTP/2 strings | `codec` | Available |
-| Measured browser tables (Chrome 155 on macOS) and the lookup that refuses everything else | `codec` | Available |
-| Capture tools `capture_tls` and `capture_hints` | `scrape` | Available |
-| Capture tool `capture_h2` | `mimic` | Available |
-| `ImpersonationProfile`, `CustomProfileBuilder`, `impersonation_client` (wreq with BoringSSL) | `mimic` | Available |
-| RFC 6265 cookie jar | `scrape` | Available |
-| `StealthIdentity`, its identity file, `SessionPolicy` | `scrape` | Available |
-| Challenge detection, mitigation policy, proxy pool, per-site state, events | `scrape` | Available |
-| `BrowserScraper` (a real Chrome, no TLS spoofing) | `scrape` | Available |
-| Ephemeral-CA TLS server | `mimic` | Available |
-| `HttpSession` | `mimic` | Available |
-| `MitmProxy` | `mimic` | Available |
-| `StealthSession` | `mimic` | Available |
+| Wire parsers: `ClientHello`, JA3, JA4 and `JA4_r`, peetprint, Akamai HTTP/2 strings | `codec` | <Badge color="green">Available</Badge> |
+| Measured browser tables (Chrome 155 on macOS) and the lookup that refuses everything else | `codec` | <Badge color="green">Available</Badge> |
+| Capture tools `capture_tls` and `capture_hints` | `scrape` | <Badge color="green">Available</Badge> |
+| Capture tool `capture_h2` | `mimic` | <Badge color="green">Available</Badge> |
+| `ImpersonationProfile`, `CustomProfileBuilder`, `impersonation_client` (wreq with BoringSSL) | `mimic` | <Badge color="green">Available</Badge> |
+| RFC 6265 cookie jar | `scrape` | <Badge color="green">Available</Badge> |
+| `StealthIdentity`, its identity file, `SessionPolicy` | `scrape` | <Badge color="green">Available</Badge> |
+| Challenge detection, mitigation policy, proxy pool, per-site state, events | `scrape` | <Badge color="green">Available</Badge> |
+| `BrowserScraper` (a real Chrome, no TLS spoofing) | `scrape` | <Badge color="green">Available</Badge> |
+| Ephemeral-CA TLS server | `mimic` | <Badge color="green">Available</Badge> |
+| `HttpSession` | `mimic` | <Badge color="green">Available</Badge> |
+| `MitmProxy` | `mimic` | <Badge color="green">Available</Badge> |
+| `StealthSession` | `mimic` | <Badge color="green">Available</Badge> |
 
 <Warning>
 
@@ -117,7 +123,7 @@ is read as a stream and capped.
 ### Dual-mode sessions
 
 `StealthSession` holds one `StealthIdentity` (the fingerprint with its locale,
-the measured browser, the cookies, the client hints, and the egress they were
+the measured browser, the cookies, the client hints, and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were
 earned through) and works in one of two modes. In HTTP mode an `HttpSession`
 sends the requests. In browser mode a real Chrome sends them behind the
 `MitmProxy`, so both modes show the same handshake and a clearance earned in one
@@ -298,9 +304,9 @@ carries its own licences.
 
 <Tabs>
 
-<Tab title="scrape">
+<Tab title="scrape" icon="cube">
 
-```toml
+```toml Cargo.toml
 [dependencies]
 # No BoringSSL and no cmake. Adds the `psl` crate (the Public Suffix List) and
 # `ring` (through `codec`, for hashing), which the core already builds.
@@ -310,9 +316,9 @@ seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-
 
 </Tab>
 
-<Tab title="mimic">
+<Tab title="mimic" icon="lock">
 
-```toml
+```toml Cargo.toml
 [dependencies]
 # Also builds BoringSSL through btls and drives it with wreq. Needs cmake and a
 # C/C++ toolchain. It depends on `scrape`.
@@ -384,9 +390,9 @@ The workspace builds against a checkout of seleniumbase-rs next to it: the
 
 <Steps>
 
-<Step title="Clone both repositories">
+<Step title="Clone both repositories" icon="code-branch">
 
-```sh
+```sh Terminal
 git clone https://github.com/MustCodeAl/seleniumbase-rs
 git clone https://github.com/MustCodeAl/seleniumbase-rs-stealth
 cd seleniumbase-rs-stealth
@@ -394,9 +400,9 @@ cd seleniumbase-rs-stealth
 
 </Step>
 
-<Step title="Check and test">
+<Step title="Check and test" icon="flask">
 
-```sh
+```sh Terminal
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
@@ -420,6 +426,8 @@ An arrow reads "is used by". The `scrape` crate has no BoringSSL; `mimic`
 depends on it and adds BoringSSL. `StealthSession` moves between `HttpSession`
 and a real Chrome behind `MitmProxy`.
 
+<Frame caption="How the crates and sessions layer">
+
 ```mermaid
 flowchart TD
     NF["seleniumbase_rs_codec<br/>wire formats, measured tables"]
@@ -436,56 +444,42 @@ flowchart TD
     MP --> SS
 ```
 
+</Frame>
+
 ## Where to go next
 
 <Columns cols={2}>
 
-<Card title="Wire formats" icon="fingerprint" href="/stealth/wire-formats">
+<Tile href="/stealth/wire-formats" title="Wire formats" description="Measured tables, JA3, JA4, peetprint, Akamai strings, impersonating clients.">
+  <Icon icon="fingerprint" size={48} />
+</Tile>
 
-Measured tables, JA3, JA4, peetprint, Akamai strings, impersonating clients.
+<Tile href="/stealth/identity" title="Cookies and identity" description="The cookie jar, the stealth identity, session policy, challenge detection.">
+  <Icon icon="cookie" size={48} />
+</Tile>
 
-</Card>
+<Tile href="/stealth/browser-scraper" title="BrowserScraper" description="Fetch with a real Chrome, detect a challenge, mitigate, rotate egress.">
+  <Icon icon="globe" size={48} />
+</Tile>
 
-<Card title="Cookies and identity" icon="cookie" href="/stealth/identity">
+<Tile href="/stealth/http-session" title="HttpSession" description="Continue a browser's session as plain requests with the same fingerprint.">
+  <Icon icon="network-wired" size={48} />
+</Tile>
 
-The cookie jar, the stealth identity, session policy, challenge detection.
+<Tile href="/stealth/mitm-proxy" title="TLS server and MitmProxy" description="Put a real Chrome behind the same fingerprint.">
+  <Icon icon="shield" size={48} />
+</Tile>
 
-</Card>
+<Tile href="/stealth/stealth-session" title="StealthSession" description="Move between HTTP and a browser as the policies decide.">
+  <Icon icon="shuffle" size={48} />
+</Tile>
 
-<Card title="BrowserScraper" icon="globe" href="/stealth/browser-scraper">
+<Tile href="/stealth/examples" title="Runnable examples" description="Local programs that run each layer on your machine.">
+  <Icon icon="play" size={48} />
+</Tile>
 
-Fetch with a real Chrome, detect a challenge, mitigate, rotate egress.
-
-</Card>
-
-<Card title="HttpSession" icon="network-wired" href="/stealth/http-session">
-
-Continue a browser's session as plain requests with the same fingerprint.
-
-</Card>
-
-<Card title="TLS server and MitmProxy" icon="shield" href="/stealth/mitm-proxy">
-
-Put a real Chrome behind the same fingerprint.
-
-</Card>
-
-<Card title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
-
-Move between HTTP and a browser as the policies decide.
-
-</Card>
-
-<Card title="Runnable examples" icon="play" href="/stealth/examples">
-
-Local programs that run each layer on your machine.
-
-</Card>
-
-<Card title="Limits and troubleshooting" icon="triangle-exclamation" href="/stealth/limits">
-
-What is measured, what is refused, and what the errors mean.
-
-</Card>
+<Tile href="/stealth/limits" title="Limits and troubleshooting" description="What is measured, what is refused, and what the errors mean.">
+  <Icon icon="triangle-exclamation" size={48} />
+</Tile>
 
 </Columns>

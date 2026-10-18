@@ -17,6 +17,12 @@ and structural problems before they reach production.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `BaseCase::inspect_html` inspects the current page source and `HtmlInspector::inspect(html)` inspects any HTML string without a browser. Each finding has a rule ID (such as `image-alt`), an error or warning severity and an optional selector. `is_clean()` is true only when there are no findings; `has_errors()` is true when at least one finding is an error. It is a static check and no claim of WCAG conformance.
+
+</Visibility>
+
 ## Run an inspection
 
 <Tabs>

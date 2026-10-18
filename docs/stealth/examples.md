@@ -17,6 +17,12 @@ not any vendor's challenge, and getting past it says nothing about a real servic
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape` crate (`cookie_jar` needs nothing, `browser_scraper` needs a Chrome); `custom_profile`, `http_session` and `stealth_session` belong to the `mimic` crate and need `cmake` and Chrome 155 on macOS (`stealth_session` also needs that Chrome installed). Run one with `cargo run -p <package> --example <name>` from the workspace root. None reaches the outside network, and on any system but macOS the three measured ones stop with `NotMeasured`.
+
+</Visibility>
+
 | Example | Feature | Needs | What it shows |
 |---|---|---|---|
 | `examples/cookie_jar.rs` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/stealth/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |

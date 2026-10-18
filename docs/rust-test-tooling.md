@@ -10,6 +10,12 @@ use the full Rust testing ecosystem.
 This page maps common testing concepts from Python and JavaScript to Rust, shows
 the recommended test shape, and explains how to organize a growing suite.
 
+<Visibility for="agents">
+
+Summary for AI exports: write a browser test as a `#[tokio::test]` that calls `run_browser_test(BrowserConfig::default(), async |sb| { .. }).await`; it creates a `BaseCase` and calls `quit` even when the body fails or panics. For the pure CDP engine use `run_cdp_test(LaunchOptions::default(), async |page| { .. })`. `sb_test!` generates the same wrapper. Run with `cargo test NAME` or `cargo nextest run`. Put integration tests in `tests/` and shared helpers in `tests/helpers/`.
+
+</Visibility>
+
 ## Concept mapping
 
 | Python or JavaScript concept | Rust equivalent |
@@ -86,7 +92,7 @@ not retry failed tests, so flaky behavior is not hidden.
 
 As your suite grows, extract reusable helpers into modules or crates:
 
-<View title="BaseCase (WebDriver)">
+<View title="BaseCase (WebDriver)" icon="server">
 
 ```rust
 // tests/helpers/mod.rs
@@ -106,7 +112,7 @@ handle.
 
 </View>
 
-<View title="sb_cdp (pure CDP)">
+<View title="sb_cdp (pure CDP)" icon="bolt">
 
 Use the capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`,
 `ScreenshotApi`) when you want helpers to work with any type that exposes the
@@ -220,7 +226,7 @@ See [Macros](/tutorials/macros) for the full macro catalog.
 
 <AccordionGroup>
 
-<Accordion title="Using the old Box::pin closure">
+<Accordion title="Using the old Box::pin closure" icon="code">
 
 `run_browser_test` takes an async closure now, so `|sb| Box::pin(async move { .. })`
 does not compile ("implementation of `AsyncFnOnce` is not general enough"). Write
@@ -228,21 +234,21 @@ does not compile ("implementation of `AsyncFnOnce` is not general enough"). Writ
 
 </Accordion>
 
-<Accordion title="Mixing sync and async cleanup">
+<Accordion title="Mixing sync and async cleanup" icon="arrows-rotate">
 
 `BaseCase::quit` is async. Do not rely on `Drop` for cleanup; use
 `run_browser_test` or call `quit` explicitly.
 
 </Accordion>
 
-<Accordion title="Heavy setup in every test">
+<Accordion title="Heavy setup in every test" icon="weight-hanging">
 
 If every test logs in, consider a helper or a shared session strategy, but be
 aware that shared browsers can leak state.
 
 </Accordion>
 
-<Accordion title="Too much parallelism">
+<Accordion title="Too much parallelism" icon="gauge-high">
 
 Browsers are expensive. Start with low concurrency and increase only after
 measuring.

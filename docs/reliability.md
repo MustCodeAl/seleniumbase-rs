@@ -10,6 +10,12 @@ is wrong instead of silently continuing. Rust's type system and the design of
 This page explains the lifecycle helpers, anti-patterns, and observability
 practices that make a suite reliable.
 
+<Visibility for="agents">
+
+Summary for AI exports: write each test with `run_browser_test`, which always awaits `BaseCase::quit`, even when the body fails or panics. Prefer explicit waits to `tokio::time::sleep`. Retry only transient, idempotent operations, with `RetryPolicy` and `SeleniumBaseError::is_transient`. Save a screenshot and the page source on failure with `save_screenshot_to_logs` and `save_page_source_to_logs`. Stop on SIGINT and SIGTERM with `seleniumbase_rs::common::shutdown`.
+
+</Visibility>
+
 ## Compile-time reliability
 
 Rust catches many harness defects before any browser launches:
@@ -28,7 +34,7 @@ The safest way to write a Tokio test is with `run_browser_test`. It creates a
 `BaseCase`, runs the test body, and then awaits `BaseCase::quit` even if the
 body returns an error:
 
-```rust,no_run
+```rust,no_run tests/example_domain.rs
 use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
 #[tokio::test]
@@ -84,12 +90,12 @@ included nextest profile uses zero automatic retries.
 Retry a browser action only when:
 
 - The failure is known to be transient (for example, a brief driver disconnect).
-- The operation is idempotent (clicking the same button twice has no harmful side
+- The operation is <Tooltip tip="Safe to repeat: doing it twice has the same effect as doing it once.">idempotent</Tooltip> (clicking the same button twice has no harmful side
   effect).
 - You log every retry attempt.
 
 When those hold, `RetryPolicy` (in `seleniumbase_rs::utilities::retry`, and
-re-exported at the crate root) does the retrying with exponential backoff and
+re-exported at the crate root) does the retrying with <Tooltip tip="Each wait is longer than the one before: doubled, up to a maximum.">exponential backoff</Tooltip> and
 logs each retry at `warn`. You say which errors are transient;
 `SeleniumBaseError::is_transient` is a ready-made answer (browser disconnects,
 network and download failures, wait timeouts):
@@ -107,10 +113,16 @@ let body = RetryPolicy::network()
 # }
 ```
 
-The presets are `RetryPolicy::default()` (3 attempts, 200 ms doubling to 5 s),
-`webdriver()`, `network()` (5 attempts), and `seleniumbase()` (the Python
-`retry_on_exception` defaults: 6 attempts, 1 s doubling to 32 s); or fill in the
-four public fields yourself. `retry_blocking` is the version for synchronous
+The presets all double the wait after each attempt, up to a longest wait:
+
+| Preset | Attempts | First wait | Longest wait |
+|---|---|---|---|
+| `RetryPolicy::default()` | 3 | 200 ms | 5 s |
+| `webdriver()` | 3 | 250 ms | 3 s |
+| `network()` | 5 | 500 ms | 10 s |
+| `seleniumbase()` (the Python `retry_on_exception` defaults) | 6 | 1 s | 32 s |
+
+Or fill in the four public fields yourself. `retry_blocking` is the version for synchronous
 code. This module replaces the older `retry_on_exception`,
 `retry_on_exception_async` and `rate_limited` functions in `common::decorators`,
 which are deprecated.

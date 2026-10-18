@@ -11,7 +11,7 @@ stealth, CDP, tours, and screenshots.
 This page is a high-level reference. For exact signatures and generic bounds,
 build the rustdocs with:
 
-```bash
+```bash Terminal
 cargo doc --no-deps --open
 ```
 
@@ -29,6 +29,12 @@ cargo doc --no-deps --open
 - Where to find rustdocs for deeper detail.
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: `BaseCase` methods are grouped as lifecycle, navigation, interaction, scrolling, waits, assertions, deferred assertions, queries, windows, frames and drivers, cookies and storage, screenshots, script execution, downloads and PDF, CDP and UC helpers, GUI helpers (feature `gui`), alerts, MFA, tours and charts, recorder, and utilities. Selectors are CSS by default, XPath for `//...`, and link text for `link=...`. Methods return `seleniumbase_rs::Result<T>`, so use `?`. `assert_text(text, selector)` takes the text first. `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi` are implemented by both `BaseCase` (WebDriver) and `sb_cdp::Page` (pure CDP). For exact signatures run `cargo doc --no-deps --open`.
+
+</Visibility>
 
 ## Lifecycle
 
@@ -338,6 +344,8 @@ is called. Useful for soft assertions.
 
 ## UC / GUI bypass helpers
 
+<Badge color="blue">Feature: gui</Badge>
+
 <Info>
 
 These methods use native OS input instead of WebDriver to bypass some
@@ -600,12 +608,45 @@ async fn login(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErr
 
 ## Further reading
 
-- [Selectors](/tutorials/selectors)
-- [Waits and Assertions](/tutorials/waits_assertions)
-- [CDP Mode](/tutorials/cdp_mode)
-- [UC Mode](/tutorials/uc_mode)
-- [Macros](/tutorials/macros)
-- [GUI Automation](/tutorials/gui_automation)
+<Columns cols={2}>
+
+<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+
+CSS, XPath, link text and shadow DOM: how a selector string is read.
+
+</Card>
+
+<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions">
+
+Wait for the page, then check it, without sleeps.
+
+</Card>
+
+<Card title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode">
+
+The CDP helpers on `BaseCase`, raw commands and the network reactor.
+
+</Card>
+
+<Card title="UC Mode" icon="user-secret" href="/tutorials/uc_mode">
+
+Run Chrome so sites see a person's browser.
+
+</Card>
+
+<Card title="Macros" icon="wand-magic-sparkles" href="/tutorials/macros">
+
+Convenience macros from the crate root.
+
+</Card>
+
+<Card title="GUI Automation" icon="computer-mouse" href="/tutorials/gui_automation">
+
+Native OS input instead of WebDriver.
+
+</Card>
+
+</Columns>
 
 For exact signatures, run `cargo doc --no-deps --open`.
 

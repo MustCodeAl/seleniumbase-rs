@@ -3,6 +3,8 @@ title: "Cookies, Identity and Challenges"
 sidebarTitle: "Identity and cookies"
 ---
 
+<Badge color="orange">Experimental</Badge>
+
 ## The cookie jar
 
 `scrape::jar::store::CookieJar` is an RFC 6265 cookie store with the RFC 6265bis
@@ -73,7 +75,7 @@ Things to know:
 
 <AccordionGroup>
 
-<Accordion title="A clearance belongs to the address that earned it">
+<Accordion title="A clearance belongs to the address that earned it" icon="globe">
 
 A clearance cookie is
 bound to the exit address, so an identity is used again only through the same
@@ -83,7 +85,7 @@ measured one.
 
 </Accordion>
 
-<Accordion title="It never holds a proxy">
+<Accordion title="It never holds a proxy" icon="shield">
 
 A proxy can carry a password, so
 `StealthIdentity::new` clears it, serialization leaves it out, and `verify`
@@ -92,7 +94,7 @@ egress key only. A clearance records the cookie's name, never its value.
 
 </Accordion>
 
-<Accordion title="The identity file is private">
+<Accordion title="The identity file is private" icon="lock">
 
 It holds cookies, which are credentials. It
 is written atomically (a synced temporary file renamed over the target) with
@@ -139,6 +141,16 @@ applies them. [`HttpSession`](/stealth/http-session#httpsession) offers `preflig
 caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session#stealthsession) applies
 them for you.
 
+<Frame caption="How SessionPolicy moves a session">
+
+```mermaid
+flowchart LR
+  H["HTTP"] -- "Escalate" --> B["Browser"]
+  B -- "Demote after a solve, once the identity holds a clearance" --> H
+```
+
+</Frame>
+
 ## Challenge detection and mitigation
 
 `scrape::challenge::detect::detect` reads a `ResponseView` (URL, status, headers,
@@ -149,7 +161,7 @@ body) and returns a `Detection`: a `ChallengeKind` and the `Evidence` behind it.
 - The vendors are Cloudflare, DataDome, PerimeterX, Akamai, Imperva, Kasada and
   AWS WAF, with the clearance cookie each one sets (`clearance_cookie(vendor)`;
   Kasada has none).
-- A response is a challenge only when it carries an interstitial marker. A vendor
+- A response is a challenge only when it carries an <Tooltip tip="A page shown instead of the content you asked for, such as a check page.">interstitial</Tooltip> marker. A vendor
   header, a CAPTCHA widget on a normal page, or a bare 403 is evidence and
   nothing more. A 429 with no marker is `RateLimited`; the `Retry-After` header
   is read only as a number of seconds, not as a date.

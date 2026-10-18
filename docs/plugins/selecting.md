@@ -22,6 +22,12 @@ a plugin; a build with it reads them and leaves the selection to the program.
 
 </Note>
 
+<Visibility for="agents">
+
+Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`) are turned on by name, with no code. On the command line, `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` go before the command and both repeat (`sbrs --plugin shield open https://example.com`); `VALUE` is a TOML value, so `'shield.level="strict"'` is quoted. Other sources are `SB_PLUGINS=shield,block-resources` and `enable = [...]` in the `[plugins]` table of `sbase_config.toml`. Precedence, highest first: the command line, `SB_PLUGINS`, the settings file. In Rust, turn on the feature (`plugin-shield`, `plugin-block-resources`, `plugin-crx` or `plugins-builtin`) and use `plugins_named` or `plugin_selection`. A wrong name or option stops the run before a browser starts, with exit status 2. `sbrs plugin list` and `sbrs plugin info NAME` show the plugins and what they may do.
+
+</Visibility>
+
 ## The short version
 
 | You want | Do |
@@ -207,12 +213,17 @@ that is wrong for a browser (`SB_HEADLESS=maybe`) or a value of the file that is
 
 ### What a project file may not turn on alone
 
+<Warning>
+
 The `sbase_config.toml` of the current folder may be a cloned project's, so it
-cannot grant a plugin the powers that reach beyond the browser. A plugin that
-declares `launch.proxy`, `artifacts.write` or a `host.*` capability (see
-`sbrs plugin info NAME`) and is named **only** by that file is refused, with
-exit status 2 and the way to name it yourself (`tunnel` is an example, not a
-built-in plugin):
+cannot grant a plugin the powers that reach beyond the browser.
+
+</Warning>
+
+A plugin that declares `launch.proxy`, `artifacts.write` or a `host.*`
+capability (see `sbrs plugin info NAME`) and is named **only** by that file is
+refused, with exit status 2 and the way to name it yourself (`tunnel` is an
+example, not a built-in plugin):
 
 ```text
 error: invalid configuration: plugin `tunnel` asks for launch.proxy, which the settings file in the current folder cannot grant by itself: a project you clone would decide. Name the plugin yourself, with `--plugin tunnel` or `SB_PLUGINS=tunnel`

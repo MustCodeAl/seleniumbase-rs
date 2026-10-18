@@ -11,7 +11,7 @@ pluggable evasion system.
 This page explains how to use built-in fingerprint presets, build custom
 profiles, say per setting whether the browser's own value, a drawn value, a given
 value or nothing is wanted, choose how the claims are delivered, and apply
-native-level spoofing through CDP. It covers what a page can read inside the
+native-level spoofing through <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket." cta="Pure CDP engine" href="/tutorials/pure_cdp">CDP</Tooltip>. It covers what a page can read inside the
 browser. The TLS and HTTP/2 side, and the scraper built on it, is a separate
 project now; see [Stealth Scraping](/tutorials/stealth_scraping).
 
@@ -30,6 +30,12 @@ project now; see [Stealth Scraping](/tutorials/stealth_scraping).
 - How the evasion provider registry assembles the JavaScript bootstrap.
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: a `Fingerprint` holds one `Spoof` per setting (`Natural`, `Random`, `Value` or `Off`). Build one from a preset such as `Fingerprint::windows_desktop()`, from `Fingerprint::randomized(os, seed)`, or with `Fingerprint::builder()`. A `StealthPolicy` decides how the claims are delivered. A fingerprint reaches the page only through a launch path that applies it: `DriverMode::Uc`, `DriverMode::Cdp`, the Pure CDP engine or the Playwright session. With `DriverMode::WebDriver` only the launch arguments apply.
+
+</Visibility>
 
 ## Quick start
 
@@ -459,12 +465,10 @@ When `native_spoofing` is true:
 
 ## rustwright / Playwright mode
 
-<Info>
+<Badge color="blue">Feature: playwright</Badge>
 
 This mode needs the `playwright` Cargo feature (`rustwright`); it is not on by
 default.
-
-</Info>
 
 ```rust
 use seleniumbase_rs::browser::playwright::PlaywrightSession;
@@ -631,7 +635,7 @@ is the same over `session_registry`, the script a browser session runs.
 
 <Steps>
 
-<Step title="Implement EvasionProvider">
+<Step title="Implement EvasionProvider" icon="code">
 
 Implement `EvasionProvider` for a unit struct. Return the JavaScript from
 `script`, gate inclusion with `applies`, and order it with `priority`.
@@ -640,7 +644,7 @@ function look native; the example below skips it for brevity.
 
 </Step>
 
-<Step title="Register it at runtime">
+<Step title="Register it at runtime" icon="plug">
 
 ```rust
 use seleniumbase_rs::{default_registry, EvasionContext, EvasionProvider, Fingerprint};
@@ -889,16 +893,73 @@ automation markers:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the setting is `Natural`, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](/tutorials/stealth_scraping)), the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, build the fingerprint from a preset or `Fingerprint::randomized`, check `fp.is_masked(Dimension::...)` for the dimension, and match the egress IP to the identity's place. |
-| A value was given and the page does not show it | A later call for the same setting replaced it (`Natural` included), or the profile payload's flag for it is a `natural` word, which beats the values the payload holds | Read the setting back (`fp.timezone()`), and remove the later call or the `natural` word. |
-| `build()` fails with "cannot be Off" or "cannot be Random" | `Off` was given to a setting with no off state, or `Random` to one with nothing to draw (`proxy`, `oscpu`, `build_id`) | Give a value or leave it `Natural`; the message names the setting. |
-| `build()` fails with "no coherent random" | A random locale, language or position next to a time zone or locale the table of places lacks | Give the locale and the position as values, or use a zone the table holds (`randomize::locale_of_timezone`). |
-| `navigator.webdriver` still `true` | The bootstrap script did not run: `DriverMode::WebDriver`, or no fingerprint on the config. The `webdriver` provider has no flag that turns it off. | Use `DriverMode::Uc` or `Cdp`, or `Page::apply_fingerprint` on the Pure CDP engine. For driver-level markers, see binary patching. |
-| Geolocation is wrong or never answers | The `geolocation` setting is `Natural` or `Off`, or there is no CDP session | Set `.geolocation((lat, lon))` and use `DriverMode::Uc` or `Cdp`. The position grants the permission itself; `Off` refuses it on purpose. |
-| Inconsistent locale and time zone | `locale` and `timezone` come from different countries. `validate()` warns about this pair. | Align both, or use `Fingerprint::randomized`, which draws them from one place. |
-| WebRTC leaks local IP | The policy has no `webrtc_policy` or a looser one, and the `webrtc` setting is `Natural` | Use `StealthPolicy::balanced()` (the presets do), which keeps `WebRtcPolicy::DisableNonProxiedUdp`, or turn WebRTC `Off`. |
+<AccordionGroup>
+
+<Accordion title="Still flagged by bot detection" icon="flag">
+
+**Likely cause.** The evasion script was never installed (`DriverMode::WebDriver`), the setting is `Natural`, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](/tutorials/stealth_scraping)), the IP address, the browser's real version.
+
+**Fix.** Use `DriverMode::Uc` or the Pure CDP engine, build the fingerprint from a preset or `Fingerprint::randomized`, check `fp.is_masked(Dimension::...)` for the dimension, and match the egress IP to the identity's place.
+
+</Accordion>
+
+<Accordion title="A value was given and the page does not show it" icon="eye-slash">
+
+**Likely cause.** A later call for the same setting replaced it (`Natural` included), or the profile payload's flag for it is a `natural` word, which beats the values the payload holds.
+
+**Fix.** Read the setting back (`fp.timezone()`), and remove the later call or the `natural` word.
+
+</Accordion>
+
+<Accordion title='`build()` fails with "cannot be Off" or "cannot be Random"' icon="circle-xmark">
+
+**Likely cause.** `Off` was given to a setting with no off state, or `Random` to one with nothing to draw (`proxy`, `oscpu`, `build_id`).
+
+**Fix.** Give a value or leave it `Natural`; the message names the setting.
+
+</Accordion>
+
+<Accordion title='`build()` fails with "no coherent random"' icon="circle-xmark">
+
+**Likely cause.** A random locale, language or position next to a time zone or locale the table of places lacks.
+
+**Fix.** Give the locale and the position as values, or use a zone the table holds (`randomize::locale_of_timezone`).
+
+</Accordion>
+
+<Accordion title="`navigator.webdriver` still `true`" icon="robot">
+
+**Likely cause.** The bootstrap script did not run: `DriverMode::WebDriver`, or no fingerprint on the config. The `webdriver` provider has no flag that turns it off.
+
+**Fix.** Use `DriverMode::Uc` or `Cdp`, or `Page::apply_fingerprint` on the Pure CDP engine. For driver-level markers, see binary patching.
+
+</Accordion>
+
+<Accordion title="Geolocation is wrong or never answers" icon="location-dot">
+
+**Likely cause.** The `geolocation` setting is `Natural` or `Off`, or there is no CDP session.
+
+**Fix.** Set `.geolocation((lat, lon))` and use `DriverMode::Uc` or `Cdp`. The position grants the permission itself; `Off` refuses it on purpose.
+
+</Accordion>
+
+<Accordion title="Inconsistent locale and time zone" icon="clock">
+
+**Likely cause.** `locale` and `timezone` come from different countries. `validate()` warns about this pair.
+
+**Fix.** Align both, or use `Fingerprint::randomized`, which draws them from one place.
+
+</Accordion>
+
+<Accordion title="WebRTC leaks local IP" icon="network-wired">
+
+**Likely cause.** The policy has no `webrtc_policy` or a looser one, and the `webrtc` setting is `Natural`.
+
+**Fix.** Use `StealthPolicy::balanced()` (the presets do), which keeps `WebRtcPolicy::DisableNonProxiedUdp`, or turn WebRTC `Off`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ---
 

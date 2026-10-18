@@ -24,6 +24,12 @@ Install it from the same revision of the plugins repository that your seleniumba
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: a wasm plugin module has no imports and exports `memory`, `sbrs_abi_version() -> i32` (returns `1`) and `sbrs_name() -> i64`, and optionally `sbrs_launch_args`, `sbrs_scripts` and `sbrs_blocked_urls`. Each text-returning function packs a pointer and a length into one `i64`, `(pointer << 32) | length`, pointing at UTF-8 JSON in the module's memory. Load it with `WasmPlugin::from_file` or `from_bytes`; the host reads the data once, checks it and drops the module. Defaults: module 4 MiB, memory 16 MiB, 20,000,000 fuel for each call.
+
+</Visibility>
+
 ## Use it
 
 ```rust,no_run
@@ -199,9 +205,7 @@ it describes then reaches three places, so review a module you did not write.
 
 A module can be written in WAT or in any language that compiles to WebAssembly. Two examples:
 
-<Tabs>
-
-<Tab title="WAT" icon="file-code">
+<View title="WAT" icon="file-code">
 
 [`examples/hello.wat`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/blob/main/plugins/wasm/examples/hello.wat) is a whole plugin: it is named
 `hello` and logs a line on `example.com`. The two strings sit in the data
@@ -231,9 +235,9 @@ the low half.
 Build the binary with `wasm-tools parse examples/hello.wat -o hello.wasm`, or
 in Rust with `wat::parse_str`.
 
-</Tab>
+</View>
 
-<Tab title="Rust" icon="code">
+<View title="Rust" icon="code">
 
 Compile a plugin to `wasm32-unknown-unknown` as a `cdylib`, with no dependencies
 and no `unsafe`:
@@ -283,9 +287,7 @@ stays valid after the function returns: `pack(Box::leak(json.into_boxed_str()))`
 The host calls each function once and then discards the module, so the leak is
 a single allocation.
 
-</Tab>
-
-</Tabs>
+</View>
 
 ## Test a module
 

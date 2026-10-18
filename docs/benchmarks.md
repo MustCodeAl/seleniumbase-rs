@@ -9,6 +9,24 @@ release build, headless, a local page, nothing else running). Timings from
 another machine will differ; the harnesses are in `benches/` so you can
 repeat them.
 
+<Panel>
+
+<Card title="Measured on" icon="microchip">
+
+Apple M1, 8 cores, macOS 27, Chrome 155, release build, headless, a local page, nothing else running.
+
+Re-measured on 2026-10-11 at commit `a3348a8`, in one run of each harness.
+
+</Card>
+
+</Panel>
+
+<Visibility for="agents">
+
+Summary for AI exports: on an Apple M1 with Chrome 155 (release build, headless, one run on 2026-10-11) the Pure CDP engine took a median of 458 µs to click a button and 469 µs to fill a field, a protocol round trip costs about 0.1 ms, launching Chrome to a DevTools connection took a median of 570 ms, and the process that drives the browsers used about 7 MiB. There is no comparison with Python SeleniumBase on this page.
+
+</Visibility>
+
 <CodeGroup>
 
 ```bash CPU
@@ -25,7 +43,7 @@ cargo bench --bench cdp_latency            # the Pure CDP engine against Chrome
 
 </CodeGroup>
 
-<Note>
+<Callout icon="clock" color="#F59E0B">
 
 **Status of these figures.** Re-measured on 2026-10-11 at commit `a3348a8`
 (after the `RunSettings` hooks, the MCP developer tools and the stealth layer
@@ -36,7 +54,7 @@ guarantee: the eight-tab figure below came out at roughly half of an earlier run
 `turso` figures were not re-run. Re-run the commands above on your machine
 before quoting a number.
 
-</Note>
+</Callout>
 
 <Warning>
 
@@ -51,7 +69,7 @@ process and an HTTP request per command; that cost was not measured.
 
 ## One tab, one command at a time
 
-| operation | median | <Tooltip tip="95 of every 100 measurements were at or below this time.">p95</Tooltip> |
+| operation | <Tooltip tip="The middle measurement: half the runs were faster and half slower.">median</Tooltip> | <Tooltip tip="95 of every 100 measurements were at or below this time.">p95</Tooltip> |
 |---|---|---|
 | evaluate `1 + 1` | 156 µs | 854 µs |
 | locator count | 123 µs | 185 µs |
@@ -139,11 +157,15 @@ Before this work, a click took **33.4 ms** and eight tabs together managed
   that run, 13 times more (a later run measured 0.46 ms per click and 1,634
   clicks a second at eight tabs, still about seven times the starting figure).
 
+<Frame caption="How a click was sent before and after the change.">
+
 ```mermaid
 flowchart TB
   A["Before: pointer move"] --> B["wait for the move to be acknowledged (a frame or two, 33 ms)"] --> C["press"] --> D["release"]
   E["After: pointer move, press and release sent back to back"] --> F["awaited together (0.48 ms)"]
 ```
+
+</Frame>
 
 ## What was measured and left alone
 
