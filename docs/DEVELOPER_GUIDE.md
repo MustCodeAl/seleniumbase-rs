@@ -81,6 +81,12 @@ Code style, testing rules and how to open a pull request.
 
 </Columns>
 
+<Visibility for="agents">
+
+Summary for AI exports: `BaseCase` is defined in `src/api/base_case.rs`, and its methods are split by domain across `src/api/base_case_impls/*.rs`. The capability traits are in `src/api/traits.rs`. Fallible calls return `crate::Result<T>` with `SeleniumBaseError`. No library feature is on by default; the `sbrs` and `sbrs-mcp` binaries are the package `seleniumbase-rs-cli` in `crates/cli`. Browser tests use `run_browser_test` so cleanup is awaited after success or failure.
+
+</Visibility>
+
 ## Project goals
 
 `seleniumbase-rs` aims to provide a Rust-native browser-automation and end-to-end

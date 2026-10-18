@@ -465,7 +465,7 @@ the results database is checked by `cargo check --features turso --all-targets`.
 
 ## Tests that need a real Chrome
 
-<Badge color="orange" icon="chrome">Needs Chrome</Badge>
+<Badge color="orange" icon="globe">Needs Chrome</Badge>
 
 Tests that start a real browser live in files named `*_chrome.rs`, plus
 `browser_smoke.rs`; `edge_msedgedriver.rs` and `firefox_geckodriver.rs` drive
