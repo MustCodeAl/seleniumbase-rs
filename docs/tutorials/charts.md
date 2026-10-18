@@ -1,5 +1,6 @@
 ---
 title: "Chart Maker Guide"
+sidebarTitle: "Charts"
 ---
 
 Generate charts from your test data and save them as standalone HTML files.

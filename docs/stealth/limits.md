@@ -1,5 +1,6 @@
 ---
 title: "Limits and Troubleshooting"
+sidebarTitle: "Limits"
 ---
 
 <Badge color="orange">Experimental</Badge>

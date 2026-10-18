@@ -1,5 +1,6 @@
 ---
 title: "Migrate Puppeteer Tests"
+sidebarTitle: "From Puppeteer"
 ---
 
 `sbrs import-puppeteer` converts Puppeteer code into Rust tests for the

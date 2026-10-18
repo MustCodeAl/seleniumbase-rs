@@ -1,5 +1,6 @@
 ---
 title: "Selectors Guide"
+sidebarTitle: "Selectors"
 ---
 
 Selectors are the addresses your tests use to find elements on the page.

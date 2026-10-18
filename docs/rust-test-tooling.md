@@ -1,5 +1,6 @@
 ---
 title: "Writing Browser Tests"
+sidebarTitle: "Write a test"
 ---
 
 export const LayoutTree = ({ children }) => (

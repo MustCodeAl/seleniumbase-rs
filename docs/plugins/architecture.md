@@ -1,5 +1,6 @@
 ---
 title: "Plugin Architecture"
+sidebarTitle: "Architecture"
 ---
 
 <Badge color="orange">Proposed</Badge>

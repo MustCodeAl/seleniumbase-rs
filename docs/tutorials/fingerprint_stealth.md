@@ -1,5 +1,6 @@
 ---
 title: "Fingerprint & Stealth Profiles"
+sidebarTitle: "Fingerprints"
 ---
 
 Websites detect automation by looking at many browser signals: `navigator.webdriver`,

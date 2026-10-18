@@ -1,5 +1,6 @@
 ---
 title: "Homebrew Tap"
+sidebarTitle: "Homebrew tap"
 ---
 
 export const LayoutTree = ({ children }) => (

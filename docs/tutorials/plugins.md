@@ -1,5 +1,6 @@
 ---
 title: "Browser Plugins"
+sidebarTitle: "Use plugins"
 ---
 
 <Badge color="blue">Feature: plugins</Badge>

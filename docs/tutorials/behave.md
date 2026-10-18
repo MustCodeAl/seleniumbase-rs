@@ -1,5 +1,6 @@
 ---
 title: "Behave / Gherkin Support"
+sidebarTitle: "Behave and Gherkin"
 ---
 
 SeleniumBase for Rust includes a lightweight Gherkin parser and step runner so

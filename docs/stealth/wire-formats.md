@@ -1,5 +1,6 @@
 ---
 title: "Wire Formats and Impersonation"
+sidebarTitle: "Wire formats"
 ---
 
 <Badge color="orange">Experimental</Badge>

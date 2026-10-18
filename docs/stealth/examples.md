@@ -1,5 +1,6 @@
 ---
 title: "Runnable Examples"
+sidebarTitle: "Examples"
 ---
 
 <Badge color="orange">Experimental</Badge>

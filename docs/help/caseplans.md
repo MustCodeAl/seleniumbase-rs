@@ -1,5 +1,6 @@
 ---
 title: "Case Plans Generator"
+sidebarTitle: "Case plans"
 ---
 
 export const LayoutTree = ({ children }) => (

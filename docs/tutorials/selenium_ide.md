@@ -1,5 +1,6 @@
 ---
 title: "Selenium IDE Migration"
+sidebarTitle: "Selenium IDE"
 ---
 
 <Badge color="orange">Legacy .html format</Badge>

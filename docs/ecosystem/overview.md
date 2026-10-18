@@ -1,5 +1,6 @@
 ---
 title: "Ecosystem"
+sidebarTitle: "Overview"
 ---
 
 seleniumbase-rs has companion projects in their own repositories. Their

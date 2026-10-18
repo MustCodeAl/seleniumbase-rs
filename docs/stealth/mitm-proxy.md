@@ -1,5 +1,6 @@
 ---
 title: "TLS Server and MitmProxy"
+sidebarTitle: "MitmProxy"
 ---
 
 <Badge color="orange">Experimental</Badge>

@@ -1,5 +1,6 @@
 ---
 title: "GUI Automation Guide"
+sidebarTitle: "GUI automation"
 ---
 
 Some scenarios require controlling the operating system's mouse and keyboard

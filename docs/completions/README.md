@@ -1,5 +1,6 @@
 ---
 title: "Fig completion spec"
+sidebarTitle: "Fig completions"
 ---
 
 `fig-sbrs.ts` is a completion spec for the `sbrs` command in the Fig format, the

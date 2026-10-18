@@ -1,5 +1,6 @@
 ---
 title: "Choosing Plugins"
+sidebarTitle: "Choose plugins"
 ---
 
 <Badge color="orange">Early</Badge> <Badge color="blue">Feature: plugins</Badge>

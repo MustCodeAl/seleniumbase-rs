@@ -1,5 +1,6 @@
 ---
 title: "Stealth Scraping"
+sidebarTitle: "Overview"
 ---
 
 <Badge color="orange">Experimental</Badge>

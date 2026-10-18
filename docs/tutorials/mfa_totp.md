@@ -1,5 +1,6 @@
 ---
 title: "MFA / TOTP Guide"
+sidebarTitle: "MFA and TOTP"
 ---
 
 Multi-factor authentication (MFA) flows that use time-based one-time passwords

@@ -1,5 +1,6 @@
 ---
 title: "Browser Extension"
+sidebarTitle: "Browser extension"
 ---
 
 export const LayoutTree = ({ children }) => (

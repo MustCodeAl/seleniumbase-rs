@@ -1,5 +1,6 @@
 ---
 title: "Writing Your Own Plugin"
+sidebarTitle: "Write a plugin"
 ---
 
 export const LayoutTree = ({ children }) => (

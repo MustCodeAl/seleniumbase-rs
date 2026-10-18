@@ -1,5 +1,6 @@
 ---
 title: "Remaining BaseCase Helpers"
+sidebarTitle: "More helpers"
 ---
 
 export const LayoutTree = ({ children }) => (

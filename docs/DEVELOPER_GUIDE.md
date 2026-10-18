@@ -1,5 +1,6 @@
 ---
 title: "Developer Guide"
+sidebarTitle: "Developer guide"
 ---
 
 export const LayoutTree = ({ children }) => (

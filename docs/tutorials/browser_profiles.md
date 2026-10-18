@@ -1,5 +1,6 @@
 ---
 title: "Browser Profiles"
+sidebarTitle: "Browser profiles"
 ---
 
 `seleniumbase-rs` can import external browser profile payloads in a generic

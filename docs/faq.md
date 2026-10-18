@@ -1,5 +1,6 @@
 ---
 title: "Frequently asked questions"
+sidebarTitle: "FAQ"
 ---
 
 Short answers, with a pointer to the page that has the detail.

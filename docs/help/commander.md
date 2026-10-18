@@ -1,5 +1,6 @@
 ---
 title: "SeleniumBase Commander"
+sidebarTitle: "Commander"
 ---
 
 <Badge color="blue">Feature: tui</Badge>

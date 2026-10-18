@@ -1,5 +1,6 @@
 ---
 title: "block-resources Plugin"
+sidebarTitle: "block-resources"
 ---
 
 <Badge color="blue">Feature: plugin-block-resources</Badge> <Badge color="gray">Chromium only</Badge>

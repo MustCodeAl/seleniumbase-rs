@@ -1,5 +1,6 @@
 ---
 title: "Building and installing"
+sidebarTitle: "Install"
 ---
 
 export const LayoutTree = ({ children }) => (

@@ -1,5 +1,6 @@
 ---
 title: "Tauri Plugin"
+sidebarTitle: "Tauri plugin"
 ---
 
 export const LayoutTree = ({ children }) => (

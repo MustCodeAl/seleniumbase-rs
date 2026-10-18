@@ -1,5 +1,6 @@
 ---
 title: "crx Plugin"
+sidebarTitle: "crx"
 ---
 
 A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).

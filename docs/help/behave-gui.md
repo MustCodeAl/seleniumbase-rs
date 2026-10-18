@@ -1,5 +1,6 @@
 ---
 title: "Behave Commander"
+sidebarTitle: "Behave commander"
 ---
 
 <Badge color="blue">Feature: tui</Badge>

@@ -1,5 +1,6 @@
 ---
 title: "Common Problems"
+sidebarTitle: "Common problems"
 ---
 
 This page collects common pitfalls and their solutions. If you run into

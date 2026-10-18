@@ -1,5 +1,6 @@
 ---
 title: "Recorder Mode Guide"
+sidebarTitle: "Recorder mode"
 ---
 
 Recorder Mode captures your browser interactions and generates either a Rust

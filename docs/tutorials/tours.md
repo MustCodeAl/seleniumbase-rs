@@ -1,5 +1,6 @@
 ---
 title: "Interactive Tours Guide"
+sidebarTitle: "Tours"
 ---
 
 Create guided product tours directly from your tests. Tours are rendered as HTML

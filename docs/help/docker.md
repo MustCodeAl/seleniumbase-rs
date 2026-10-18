@@ -1,5 +1,6 @@
 ---
 title: "Docker Guide"
+sidebarTitle: "Docker"
 ---
 
 export const LayoutTree = ({ children }) => (

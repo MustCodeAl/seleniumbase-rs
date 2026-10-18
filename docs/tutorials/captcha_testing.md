@@ -1,5 +1,6 @@
 ---
 title: "Testing Pages with a CAPTCHA"
+sidebarTitle: "Pages with a CAPTCHA"
 ---
 
 A CAPTCHA exists to stop automation, so a test that has to get past a real one

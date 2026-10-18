@@ -1,5 +1,6 @@
 ---
 title: "Tauri WebDriver API"
+sidebarTitle: "Overview"
 description: "The W3C WebDriver endpoint that tauri-plugin-sbrs-automation serves inside a Tauri app: base URL, token, request and reply format, error codes, and every command group."
 ---
 

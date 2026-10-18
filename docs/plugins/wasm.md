@@ -1,5 +1,6 @@
 ---
 title: "wasm Plugin Host"
+sidebarTitle: "wasm"
 ---
 
 Run [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs) plugins that

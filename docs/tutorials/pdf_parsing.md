@@ -1,5 +1,6 @@
 ---
 title: "PDF Parsing Guide"
+sidebarTitle: "PDF parsing"
 ---
 
 SeleniumBase for Rust can print pages to PDF and extract text from PDF files.

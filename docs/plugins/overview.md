@@ -1,5 +1,6 @@
 ---
 title: "Plugins"
+sidebarTitle: "Overview"
 ---
 
 <Badge color="orange">Early</Badge> <Badge color="blue">Feature: plugins</Badge>

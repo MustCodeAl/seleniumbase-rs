@@ -1,5 +1,6 @@
 ---
 title: "Playwright Mode"
+sidebarTitle: "Playwright mode"
 ---
 
 <Badge color="blue">Feature: playwright</Badge>
