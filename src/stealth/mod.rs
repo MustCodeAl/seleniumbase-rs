@@ -3,6 +3,7 @@
 //! JavaScript helpers.
 
 pub mod behavior;
+pub mod capture;
 pub mod cdp;
 pub mod dprocess;
 pub mod evasions;
@@ -21,6 +22,7 @@ pub mod uc;
 
 #[allow(deprecated, reason = "the old name stays importable for one release")]
 pub use fingerprint::StealthFlags;
+pub use capture::{CapturedFingerprint, ProbeInfo};
 pub use fingerprint::{
     BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Fingerprint,
     FingerprintError, HumanizeConfig, SpeechVoice, StealthPolicy,

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "url": "https://example.test/",
+  "secureContext": true,
+  "navigator": {
+    "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1",
+    "platform": "iPhone",
+    "language": "en-US",
+    "languages": ["en-US"],
+    "hardwareConcurrency": 6,
+    "deviceMemory": null,
+    "maxTouchPoints": 5,
+    "vendor": "Apple Computer, Inc.",
+    "productSub": "20030107",
+    "appVersion": "5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1",
+    "oscpu": null,
+    "buildID": null,
+    "webdriver": false,
+    "pluginsLength": 0,
+    "mimeTypesLength": 0,
+    "cookieEnabled": true,
+    "doNotTrack": null,
+    "pdfViewerEnabled": true
+  },
+  "userAgentData": { "supported": false },
+  "screen": {
+    "width": 390,
+    "height": 844,
+    "availWidth": 390,
+    "availHeight": 844,
+    "colorDepth": 24,
+    "pixelDepth": 24,
+    "devicePixelRatio": 3,
+    "orientation": { "type": "portrait-primary", "angle": 0 }
+  },
+  "window": { "innerWidth": 390, "innerHeight": 664, "outerWidth": 390, "outerHeight": 664, "screenX": 0, "screenY": 0 },
+  "intl": { "timeZone": "America/New_York", "locale": "en-US", "offsetMinutes": 240 },
+  "webgl": {
+    "supported": true,
+    "vendor": "Apple Inc.",
+    "renderer": "Apple GPU",
+    "version": "WebGL 1.0",
+    "shadingLanguageVersion": "WebGL GLSL ES 1.0"
+  },
+  "mediaDevices": { "supported": true, "audioInputs": 1, "audioOutputs": 0, "videoInputs": 2 },
+  "battery": { "supported": false },
+  "connection": { "supported": false },
+  "speech": {
+    "supported": true,
+    "voices": [{ "name": "Samantha", "lang": "en-US", "default": true, "localService": true, "voiceURI": "com.apple.voice.compact.en-US.Samantha" }]
+  },
+  "bluetooth": { "supported": false },
+  "permissions": { "geolocation": "prompt", "notifications": "prompt" },
+  "canvasHash": "a19f33e0",
+  "audioHash": "35.10893232002854",
+  "headless": [],
+  "errors": {}
+}
