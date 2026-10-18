@@ -36,6 +36,80 @@ Summary for AI exports: `BaseCase` methods are grouped as lifecycle, navigation,
 
 </Visibility>
 
+## Reading this page
+
+The tables list each method as `name(arguments)`, without the `sb.` in front
+and the `.await?` after. So the row `set_attribute(selector, attr, value)`
+stands for a call like this:
+
+<CodeGroup>
+
+```rust,ignore As written in a test
+sb.set_attribute("#email", "placeholder", "you@example.com").await?;
+```
+
+```rust,ignore The signature
+pub async fn set_attribute(&mut self, css: &str, attribute: &str, value: &str)
+    -> Result<(), SeleniumBaseError>
+```
+
+</CodeGroup>
+
+### Common arguments
+
+The same names mean the same thing in every table. The signatures sometimes
+use a longer name (`css` for `selector`, `timeout_secs` for `timeout`).
+
+| Argument | Type | What it is |
+|---|---|---|
+| `selector` (also `src`, `dst`, `container`) | `&str` | Which element to act on, as CSS, XPath or link text (see [Selector syntax](#selector-syntax)). The first match is used. |
+| `text`, `expected` | `&str` | Text to type, or the text an assertion expects. `assert_text(text, selector)` takes the text first. |
+| `attr`, `prop` | `&str` | An attribute or property name, such as `"href"` or `"value"`. |
+| `value` | `&str` | The value to set: of an attribute, a field or a storage item. |
+| `url` | `&str` | A full URL, such as `"https://example.com/login"`. |
+| `timeout`, `timeout_secs` | `u64` | How many seconds to wait before failing. A method that takes a `Duration` says so in its signature. |
+| `seconds` | `f64` | A pause, as in `sleep(1.5)`. |
+| `x`, `y` | integer | A position in pixels (`i32` or `i64`, depending on the method). |
+| `path`, `filename` | `&str` or `&Path` | A file to read or write. |
+| `index` | `usize` | A position in a list, such as an `<option>` of a `<select>`. |
+| `key` | `&str` | A storage key (`get_local_storage_item(key)`) or a key name (`gui_press_key(key)`). |
+| `name` | `&str` | A name the method looks up: a cookie, a tour, a chart, a saved baseline. |
+| `script` | `&str` | JavaScript to run in the page. |
+
+### Selector syntax
+
+A `selector` string picks its own lookup strategy, as SeleniumBase does:
+
+| Selector starts with | Strategy | Example |
+|---|---|---|
+| anything else | CSS (the default) | `"#submit"`, `"form input[name=q]"` |
+| `/`, `./`, `../`, `(`, or an axis such as `parent::` | XPath | `"//button[text()='Go']"`, `"(//a)[2]"` |
+| `link=`, `link_text=`, `text=` | Link text (exact) | `"link=Sign in"` |
+| `partial_link_text=`, `partial_link=`, `partial_text=`, `p_link_text=`, `p_link=`, `p_text=` | Link text (contains) | `"p_text=Sign"` |
+
+The prefixes are case-sensitive (`LINK=Home` is CSS). More in the
+[Selectors guide](/tutorials/selectors).
+
+### What methods return
+
+Almost every method returns `seleniumbase_rs::Result<T>`, so a test ends each
+call with `?` (`sleep` is an exception: it cannot fail).
+
+| Kind of method | Returns |
+|---|---|
+| Actions (`click`, `type_text`, `open`, `set_attribute`, ...) and assertions | `()`: nothing, or an error |
+| `get_text`, `get_title`, `get_current_url` and the like | `String` |
+| `get_attribute(selector, attr)`, `get_property(selector, prop)` | `Option<String>`: `None` when it is not set |
+| `find_element(selector)` | an element: a `thirtyfour::WebElement` handle to the first match, found within 10 seconds |
+| `find_elements(selector)` | `Vec<thirtyfour::WebElement>`: every match, possibly none |
+| `execute_script(script)` | `serde_json::Value`: what the script returned |
+| `save_screenshot(filename)` | `PathBuf`: where the file was written |
+
+An element handle is the WebDriver engine's own type. Keep the selector
+instead when you can: the `BaseCase` methods look the element up again on each
+call, so they do not go stale when the page re-renders. The pure CDP engine's
+`Locator` (from `page.locator(selector)`) is lazy in the same way.
+
 ## Lifecycle
 
 | Method | Description |
