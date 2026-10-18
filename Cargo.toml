@@ -196,6 +196,9 @@ pdf = ["dep:pdf-extract"]
 tokio = { version = "1.53", features = ["test-util"] }
 printpdf = "0.12"
 syn = { version = "3", features = ["full", "visit"] }
+# With line and column of a span, so the test that writes the `find_api` index
+# (`src/mcp/dev/api/index_gen.rs`) can cut a signature out of the source as written.
+proc-macro2 = { version = "1", features = ["span-locations"] }
 # Lists processes for the tests' leftover-process checks on every system (Windows
 # has no `pgrep`); only its process part.
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }

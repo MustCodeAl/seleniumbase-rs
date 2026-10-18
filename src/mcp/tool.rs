@@ -344,6 +344,9 @@ pub enum Effect {
     Set,
     /// Writes local files, possibly replacing existing ones.
     Overwrite,
+    /// Downloads files from the network into a local cache, replacing what is
+    /// there. Repeating it leaves the same result.
+    Fetch,
     /// Actions of different kinds behind one tool.
     Mixed,
 }
@@ -377,6 +380,11 @@ impl Effect {
                 .destructive(true)
                 .idempotent(false)
                 .open_world(false),
+            Self::Fetch => base
+                .read_only(false)
+                .destructive(true)
+                .idempotent(true)
+                .open_world(true),
             Self::Mixed => base,
         }
     }
@@ -619,6 +627,16 @@ mod tests {
         assert_eq!(
             (overwrite.read_only_hint, overwrite.destructive_hint),
             (Some(false), Some(true))
+        );
+        let fetch = Effect::Fetch.annotations("T");
+        assert_eq!(
+            (
+                fetch.read_only_hint,
+                fetch.destructive_hint,
+                fetch.idempotent_hint,
+                fetch.open_world_hint
+            ),
+            (Some(false), Some(true), Some(true), Some(true))
         );
         let mixed = Effect::Mixed.annotations("T");
         assert_eq!(

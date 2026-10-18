@@ -412,7 +412,11 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
             );
         }
         match server {
-            "driver" => assert_eq!(listed.len(), 26, "the Driver() toolset: {listed:?}"),
+            "driver" => assert_eq!(
+                listed.len(),
+                34,
+                "the Driver() toolset and the debugging tools: {listed:?}"
+            ),
             "sb" => assert!(
                 listed.len() > 88,
                 "the SB() toolset and ours: {}",
@@ -420,20 +424,26 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
             ),
             _ => {}
         }
-        if server != "driver" {
-            for needed in [
-                "inspect_page",
-                "suggest_selectors",
-                "diagnose_selector",
-                "get_console_messages",
-                "get_failed_requests",
-                "audit_page",
-                "capture_debug_bundle",
-                "export_session_as_test",
-                "diagnose_environment",
-            ] {
-                assert!(listed.contains(&needed), "{server} lacks {needed}");
-            }
+        // The debugging tools: the `driver` server has the ones that run on its engine
+        // without recording network events.
+        for needed in [
+            "inspect_page",
+            "suggest_selectors",
+            "diagnose_selector",
+            "get_console_messages",
+            "capture_debug_bundle",
+            "export_session_as_test",
+            "diagnose_environment",
+            "get_page_info",
+        ] {
+            assert!(listed.contains(&needed), "{server} lacks {needed}");
+        }
+        for only_here in ["get_failed_requests", "audit_page"] {
+            assert_eq!(
+                listed.contains(&only_here),
+                server != "driver",
+                "{server}: {only_here}"
+            );
         }
 
         // A server with no browser says so, as a failure report a model can act on.
@@ -480,11 +490,9 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
             .expect_err("an unknown method is an error");
         assert_eq!(unknown["code"], -32601, "{unknown}");
 
-        if server != "driver" {
-            let environment = mcp.json("diagnose_environment", json!({})).await;
-            assert!(environment.is_object(), "{environment}");
-            assert_eq!(environment["browser_session"], "none", "{environment}");
-        }
+        let environment = mcp.json("diagnose_environment", json!({})).await;
+        assert!(environment.is_object(), "{environment}");
+        assert_eq!(environment["browser_session"], "none", "{environment}");
         if server == "sb" {
             let presets = mcp.json("list_fingerprint_presets", json!({})).await;
             assert!(presets.to_string().contains("macos"), "{presets}");
@@ -498,6 +506,103 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
         let log = mcp.stderr();
         assert!(!log.contains("panicked"), "{server} panicked:\n{log}");
     }
+}
+
+/// The `dev` server needs no browser at all: it answers over the wire, finds methods,
+/// explains the command line and errors, and still stops when its client leaves.
+#[tokio::test]
+async fn the_dev_server_speaks_mcp_over_stdio_and_needs_no_browser() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut mcp = Client::spawn("dev", dir.path());
+
+    let init = mcp.initialize().await;
+    assert_eq!(init["serverInfo"]["name"], "seleniumbase-dev", "{init}");
+    assert!(
+        init["instructions"]
+            .as_str()
+            .is_some_and(|text| text.contains("find_api") && !text.contains("start_browser")),
+        "{init}"
+    );
+
+    let tools = mcp.tools().await;
+    let listed = names(&tools);
+    assert_eq!(
+        listed,
+        [
+            "find_api",
+            "parity_lookup",
+            "python_to_rust",
+            "scaffold",
+            "cli_help",
+            "list_plugins",
+            "plugin_info",
+            "install_driver",
+            "explain_error",
+            "check_config",
+            "check_fingerprint",
+            "diagnose_environment",
+        ]
+    );
+    for tool in &tools {
+        let name = tool["name"].as_str().unwrap();
+        assert_eq!(tool["inputSchema"]["type"], "object", "{name}");
+        let read_only = tool["annotations"]["readOnlyHint"] == json!(true);
+        assert_eq!(
+            read_only,
+            name != "install_driver",
+            "{name}: {}",
+            tool["annotations"]
+        );
+    }
+
+    let found = mcp
+        .json(
+            "find_api",
+            json!({ "query": "save_screenshot", "limit": 3 }),
+        )
+        .await;
+    assert_eq!(found["matches"][0]["name"], "save_screenshot", "{found}");
+    assert!(
+        found["matches"][0]["signature"]
+            .as_str()
+            .is_some_and(|signature| signature.starts_with("pub async fn save_screenshot(")),
+        "{found}"
+    );
+
+    let help = mcp.text("cli_help", json!({ "command": "install" })).await;
+    assert!(help.starts_with("## sbrs install"), "{help}");
+
+    let explained = mcp
+        .json(
+            "explain_error",
+            json!({ "message": "wait timeout: visible #go (after 5000ms)" }),
+        )
+        .await;
+    assert_eq!(explained["category"], "wait_timeout", "{explained}");
+    assert_eq!(explained["exit_code"], 3);
+
+    // There is no browser to start, and a browser tool is not here.
+    let wrong = mcp
+        .request(
+            "tools/call",
+            json!({ "name": "start_browser", "arguments": {} }),
+        )
+        .await
+        .expect_err("a browser tool is a protocol error on the dev server");
+    assert!(
+        wrong["message"]
+            .as_str()
+            .is_some_and(|m| m.contains("unknown tool")),
+        "{wrong}"
+    );
+
+    // An argument error is a failure report the model can act on.
+    let bad = mcp.call("find_api", json!({})).await.failed();
+    assert_eq!(bad.structured["kind"], "invalid_argument", "{}", bad.text);
+
+    assert_eq!(mcp.hang_up().await, Some(0), "{}", mcp.stderr());
+    let log = mcp.stderr();
+    assert!(!log.contains("panicked"), "the dev server panicked:\n{log}");
 }
 
 // ----------------------------------------------------------------------

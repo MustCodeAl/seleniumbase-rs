@@ -1,10 +1,17 @@
-//! Model Context Protocol servers for browser automation.
+//! Model Context Protocol servers for browser automation and for developing
+//! with this library.
 //!
 //! Three servers expose SeleniumBase to an MCP client, each over one shared
 //! browser session:
 //!
 //! - [`cdp`]: the Pure CDP engine ([`sb_cdp`](crate::sb_cdp)), which drives
 //!   Chrome directly without a WebDriver.
+//! - [`driver`]: the `Driver()` toolset over WebDriver.
+//! - [`sb`]: the broader `SB()` toolset over WebDriver, with the stealth tools.
+//!
+//! A fourth, [`dev`], starts no browser. It helps with the library, the `sbrs`
+//! command line and with diagnosing problems; load it next to one of the
+//! three.
 //!
 //! A server is a [`Host`]: a list of [`ToolDef`]s plus the session they share.
 //! Tool failures are returned to the model as error results it can act on,
@@ -31,6 +38,7 @@ mod tool;
 mod webdriver;
 
 pub mod cdp;
+pub mod dev;
 pub mod driver;
 pub mod sb;
 mod stealth;
@@ -63,11 +71,14 @@ pub enum Profile {
     Driver,
     /// WebDriver with the broader `SB()` toolset and the stealth tools.
     Sb,
+    /// No browser: tools for developing with the library, using `sbrs` and
+    /// diagnosing problems. Load it next to one of the others.
+    Dev,
 }
 
 impl Profile {
     /// Every profile, in the order they are documented.
-    pub const ALL: [Self; 3] = [Self::Cdp, Self::Driver, Self::Sb];
+    pub const ALL: [Self; 4] = [Self::Cdp, Self::Driver, Self::Sb, Self::Dev];
 
     /// The name used on the command line.
     #[must_use]
@@ -76,6 +87,7 @@ impl Profile {
             Self::Cdp => "cdp",
             Self::Driver => "driver",
             Self::Sb => "sb",
+            Self::Dev => "dev",
         }
     }
 }
@@ -125,6 +137,7 @@ pub async fn serve_with(profile: Profile, settings: Settings) -> Result<(), Sele
         Profile::Cdp => run(cdp::host(settings)).await,
         Profile::Driver => run(driver::host(settings)).await,
         Profile::Sb => run(sb::host(settings)).await,
+        Profile::Dev => run(dev::host(settings)).await,
     };
     // A `Drop` somewhere may have started its own cleanup; let it finish.
     drain_cleanups(timeout_from_env()).await;

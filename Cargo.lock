@@ -5157,6 +5157,7 @@ dependencies = [
  "ocrs",
  "pdf-extract",
  "printpdf",
+ "proc-macro2",
  "rand 0.10.3",
  "rand_distr",
  "ratatui",
