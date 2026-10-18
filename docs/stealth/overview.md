@@ -438,49 +438,49 @@ flowchart TD
 
 <Columns cols={2}>
 
-<Card title="Wire formats" icon="fingerprint" href="wire-formats.md">
+<Card title="Wire formats" icon="fingerprint" href="/stealth/wire-formats">
 
 Measured tables, JA3, JA4, peetprint, Akamai strings, impersonating clients.
 
 </Card>
 
-<Card title="Cookies and identity" icon="cookie" href="identity.md">
+<Card title="Cookies and identity" icon="cookie" href="/stealth/identity">
 
 The cookie jar, the stealth identity, session policy, challenge detection.
 
 </Card>
 
-<Card title="BrowserScraper" icon="globe" href="browser-scraper.md">
+<Card title="BrowserScraper" icon="globe" href="/stealth/browser-scraper">
 
 Fetch with a real Chrome, detect a challenge, mitigate, rotate egress.
 
 </Card>
 
-<Card title="HttpSession" icon="network-wired" href="http-session.md">
+<Card title="HttpSession" icon="network-wired" href="/stealth/http-session">
 
 Continue a browser's session as plain requests with the same fingerprint.
 
 </Card>
 
-<Card title="TLS server and MitmProxy" icon="shield" href="mitm-proxy.md">
+<Card title="TLS server and MitmProxy" icon="shield" href="/stealth/mitm-proxy">
 
 Put a real Chrome behind the same fingerprint.
 
 </Card>
 
-<Card title="StealthSession" icon="shuffle" href="stealth-session.md">
+<Card title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
 
 Move between HTTP and a browser as the policies decide.
 
 </Card>
 
-<Card title="Runnable examples" icon="play" href="examples.md">
+<Card title="Runnable examples" icon="play" href="/stealth/examples">
 
 Local programs that run each layer on your machine.
 
 </Card>
 
-<Card title="Limits and troubleshooting" icon="triangle-exclamation" href="limits.md">
+<Card title="Limits and troubleshooting" icon="triangle-exclamation" href="/stealth/limits">
 
 What is measured, what is refused, and what the errors mean.
 

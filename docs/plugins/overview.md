@@ -54,43 +54,43 @@ topic `seleniumbase-rs-plugin` to find community ones.
 
 <Columns cols={2}>
 
-<Card title="Choosing plugins" icon="toggle-on" href="selecting.md">
+<Card title="Choosing plugins" icon="toggle-on" href="/plugins/selecting">
 
 The cargo features, the command-line options, the `[plugins]` table, `SB_PLUGINS` and the builder calls.
 
 </Card>
 
-<Card title="shield" icon="shield" href="shield.md">
+<Card title="shield" icon="shield" href="/plugins/shield">
 
 Privacy hardening for the browser seleniumbase-rs starts.
 
 </Card>
 
-<Card title="Browser Plugins guide" icon="book" href="../tutorials/plugins.md">
+<Card title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
 
 The user guide: turn plugins on, attach a set to a browser, when each hook runs.
 
 </Card>
 
-<Card title="Writing your own" icon="pen" href="writing-your-own.md">
+<Card title="Writing your own" icon="pen" href="/plugins/writing-your-own">
 
 A plugin in a few lines, the template, and how to test it without a browser.
 
 </Card>
 
-<Card title="block-resources" icon="ban" href="block-resources.md">
+<Card title="block-resources" icon="ban" href="/plugins/block-resources">
 
 Stop pages from loading images, fonts or media.
 
 </Card>
 
-<Card title="crx" icon="puzzle-piece" href="crx.md">
+<Card title="crx" icon="puzzle-piece" href="/plugins/crx">
 
 Load packed Chrome extensions.
 
 </Card>
 
-<Card title="wasm" icon="cube" href="wasm.md">
+<Card title="wasm" icon="cube" href="/plugins/wasm">
 
 Plugins written in any language that compiles to WebAssembly.
 

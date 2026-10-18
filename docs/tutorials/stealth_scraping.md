@@ -22,25 +22,25 @@ The full tutorial is part of this site now, under
 
 <Columns cols={2}>
 
-<Card title="Overview and crates" icon="layer-group" href="../stealth/overview.md">
+<Card title="Overview and crates" icon="layer-group" href="/stealth/overview">
 
 The three crates, how to depend on them, and how the pieces layer.
 
 </Card>
 
-<Card title="Wire formats" icon="fingerprint" href="../stealth/wire-formats.md">
+<Card title="Wire formats" icon="fingerprint" href="/stealth/wire-formats">
 
 Measured tables, JA3, JA4, peetprint, re-measuring when Chrome updates.
 
 </Card>
 
-<Card title="BrowserScraper and HttpSession" icon="globe" href="../stealth/browser-scraper.md">
+<Card title="BrowserScraper and HttpSession" icon="globe" href="/stealth/browser-scraper">
 
 A real Chrome with challenge detection, and plain requests that continue its session.
 
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" href="../stealth/limits.md">
+<Card title="Limits" icon="triangle-exclamation" href="/stealth/limits">
 
 What is measured, what is refused, and troubleshooting.
 

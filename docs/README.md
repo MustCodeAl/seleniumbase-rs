@@ -15,49 +15,49 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Card title="Getting Started" icon="rocket" href="tutorials/getting_started.md">
+<Card title="Getting Started" icon="rocket" href="/tutorials/getting_started">
 
 Create a Rust project, add `seleniumbase-rs`, and run your first test.
 
 </Card>
 
-<Card title="Writing Browser Tests" icon="flask" href="rust-test-tooling.md">
+<Card title="Writing Browser Tests" icon="flask" href="/rust-test-tooling">
 
 `BaseCase`, selectors, waits and assertions for maintainable tests.
 
 </Card>
 
-<Card title="Migrate from Python, Playwright or Puppeteer" icon="arrow-right-arrow-left" href="python-migration.md">
+<Card title="Migrate from Python, Playwright or Puppeteer" icon="arrow-right-arrow-left" href="/python-migration">
 
 Keep a similar API while gaining compile-time guarantees.
 
 </Card>
 
-<Card title="Stealth and Browser Modes" icon="user-secret" href="tutorials/uc_mode.md">
+<Card title="Stealth and Browser Modes" icon="user-secret" href="/tutorials/uc_mode">
 
 UC mode, CDP, pure CDP, fingerprints and binary patching.
 
 </Card>
 
-<Card title="CLI Usage" icon="terminal" href="tutorials/cli_usage.md">
+<Card title="CLI Usage" icon="terminal" href="/tutorials/cli_usage">
 
 The `sbrs` CLI, Commander, and the MCP servers for AI agents.
 
 </Card>
 
-<Card title="Why Rust?" icon="gear" href="why-rust.md">
+<Card title="Why Rust?" icon="gear" href="/why-rust">
 
 Security, reliability, performance and how it compares.
 
 </Card>
 
-<Card title="Plugins" icon="plug" href="plugins/overview.md">
+<Card title="Plugins" icon="plug" href="/plugins/overview">
 
 Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.
 
 </Card>
 
-<Card title="Stealth scraping" icon="fingerprint" href="stealth/overview.md">
+<Card title="Stealth scraping" icon="fingerprint" href="/stealth/overview">
 
 Wire fingerprints, identities and the browser scraper (experimental).
 

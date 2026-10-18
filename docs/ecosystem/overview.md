@@ -41,31 +41,31 @@ A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge
 
 <Columns cols={2}>
 
-<Card title="Plugins" icon="plug" href="../plugins/overview.md">
+<Card title="Plugins" icon="plug" href="/plugins/overview">
 
 Overview, the plugin list, writing your own, wasm, crx and block-resources.
 
 </Card>
 
-<Card title="Stealth scraping" icon="user-secret" href="../stealth/overview.md">
+<Card title="Stealth scraping" icon="user-secret" href="/stealth/overview">
 
 The tutorial, split into pages by topic.
 
 </Card>
 
-<Card title="Tauri plugin" icon="window-maximize" href="tauri.md">
+<Card title="Tauri plugin" icon="window-maximize" href="/ecosystem/tauri">
 
 A WebDriver endpoint inside your Tauri app.
 
 </Card>
 
-<Card title="Browser extension" icon="puzzle-piece" href="browser-extension.md">
+<Card title="Browser extension" icon="puzzle-piece" href="/ecosystem/browser-extension">
 
 Recorder, inspector and DevTools Recorder export.
 
 </Card>
 
-<Card title="Homebrew tap" icon="beer-mug-empty" href="homebrew.md">
+<Card title="Homebrew tap" icon="beer-mug-empty" href="/ecosystem/homebrew">
 
 Install `sbrs` and `sbrs-mcp` with Homebrew.
 
