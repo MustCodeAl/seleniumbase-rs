@@ -3,10 +3,78 @@ title: "Contributing to SeleniumBase-rs"
 sidebarTitle: "Contributing"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 Thank you for helping make `seleniumbase-rs` a powerful, idiomatic Rust
 browser-automation framework. Whether you are fixing a bug, adding a new stealth
 evasion, writing a tutorial, or improving the MCP server, this guide will get
 you oriented quickly.
+
+<Columns cols={2}>
+
+<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+
+Clone, set up Rust 1.99, build, and run the checks, including the real-Chrome tests.
+
+</Card>
+
+<Card title="Debugging" icon="bug" href="/contributing/debugging">
+
+Logs, headed runs, evidence when a test fails, and a mocked browser.
+
+</Card>
+
+<Card title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
+
+Run the harnesses in `benches/` and compare a change fairly.
+
+</Card>
+
+<Card title="Building and installing" icon="box-open" href="/building">
+
+Features, binaries, the Dockerfile and build-time tips.
+
+</Card>
+
+</Columns>
+
+<Visibility for="agents">
+
+Summary for AI exports: every change must pass `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`; `cargo deny check` and `cargo audit` when `Cargo.lock` changed, and `mdbook build` when docs changed. Tests that need a real Chrome are `*_chrome.rs` (plus `browser_smoke`), `#[ignore]`d, run one binary at a time. A bug fix gets a test that fails without it. Commits carry no co-author or tool trailers; never force-push.
+
+</Visibility>
 
 ## Table of Contents
 
@@ -44,7 +112,7 @@ you oriented quickly.
 
 ## Quick Start
 
-```bash
+```bash Terminal
 # Clone the crate
 git clone https://github.com/MustCodeAl/seleniumbase-rs.git
 cd seleniumbase-rs
@@ -59,7 +127,8 @@ mdbook build
 ```
 
 Features, binaries, the Dockerfile and build-time tips are in
-[docs/building.md](/building).
+[docs/building.md](/building). Every step from a fresh machine to a passing
+check is in [Build from source](/contributing/from-source).
 
 <Tip>
 
@@ -71,7 +140,7 @@ of the modules, the commands and the things that have bitten before.
 Three environment flags keep builds cheap on a small machine, and they let
 several checkouts share compiled dependencies:
 
-```bash
+```bash Terminal
 export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 ```
 
@@ -99,7 +168,7 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 ### Required
 
 - [Rust](https://rustup.rs/) 1.99 or newer (stable channel); `rust-version` in
-  `Cargo.toml` is the newest stable release and the `msrv` CI job enforces it.
+  `Cargo.toml` is the newest stable release and the <Tooltip tip="Minimum supported Rust version: the CI job that checks the crate with exactly the declared rust-version.">`msrv`</Tooltip> CI job enforces it.
 - `cargo`, `rustfmt` and `clippy`.
 - Python 3.10+ only for the scripts in `tools/` (the parity tables). The crate
   itself, every feature included, needs no Python.
@@ -122,46 +191,70 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 
 ### Recommended for working with an AI assistant
 
-- [TokenSave](https://github.com/aovestdipaperino/tokensave)
-  (`brew install aovestdipaperino/tap/tokensave`, then `tokensave init` in the
-  checkout; `.tokensave/` is ignored by git): a code graph of the repository
-  that an assistant queries over MCP (`tokensave serve`): symbols by name,
-  callers and callees, the impact of a change, and files read by symbol. The
-  assistant reads far less of the code to answer a question or make a change.
-- [RTK](https://www.rtk-ai.app/) (`brew install rtk`): a command proxy that
-  condenses the output of `cargo`, `git`, test runners and similar tools before
-  it reaches an assistant (`rtk cargo test`, `rtk git log`), so long build and
-  test logs do not fill its context. Exit codes are unchanged.
+<Columns cols={2}>
 
-Neither is needed to build, test or contribute.
+<Card title="TokenSave" icon="diagram-project" href="https://github.com/aovestdipaperino/tokensave">
+
+`brew install aovestdipaperino/tap/tokensave`, then `tokensave init` in the
+checkout; `.tokensave/` is ignored by git. A code graph of the repository
+that an assistant queries over MCP (`tokensave serve`): symbols by name,
+callers and callees, the impact of a change, and files read by symbol. The
+assistant reads far less of the code to answer a question or make a change.
+
+</Card>
+
+<Card title="RTK" icon="compress" href="https://www.rtk-ai.app/">
+
+`brew install rtk`. A command proxy that condenses the output of `cargo`,
+`git`, test runners and similar tools before it reaches an assistant
+(`rtk cargo test`, `rtk git log`), so long build and test logs do not fill its
+context. Exit codes are unchanged.
+
+</Card>
+
+</Columns>
+
+Neither is needed to build, test or contribute. How to set them up, with a
+prompt that runs the checks, is in
+[Build from source](/contributing/from-source#working-with-an-ai-assistant).
 
 ## Project Layout
 
-```text
-seleniumbase-rs/
-├── src/
-│   ├── lib.rs                 # Crate root and public re-exports
-│   ├── api/                   # BaseCase (base_case.rs, base_case_impls/), capability
-│   │                          # traits, recorder, scenario, run_settings, charts, tours
-│   ├── browser/               # BrowserConfig, launcher, session, options/, driver matching
-│   ├── sb_cdp/                # The pure CDP engine: Browser, Page, Locator, pool, mock
-│   ├── stealth/               # Fingerprint, evasion providers, humanize, patcher, reactor
-│   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
-│   ├── cli/                   # the library half of sbrs: commands.rs, scaffold.rs, scripts/
-│   ├── behave/                # Gherkin/BDD runner
-│   ├── plugins/               # Reporting and logging plugins
-│   ├── config/, core/, common/, storage/, utilities/, utils/, profile_payloads/
-│   └── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
-├── crates/cli/                # Package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries
-│   ├── src/                   # sbrs.rs (usage derives), fig.rs, report.rs, mcp_server.rs
-│   └── tests/                 # Every test that runs the real sbrs or sbrs-mcp binary
-├── tests/                     # Integration tests of the library (tests/golden is compiled in)
-├── benches/                   # cpu, cdp_latency
-├── examples/                  # Runnable examples
-├── parity/                    # api.toml: the status of every Python API
-├── docs/                      # mdBook sources, help pages, design/ notes
-└── CLAUDE.md                  # The module map for coding assistants
-```
+<LayoutTree>
+<LayoutDir name="seleniumbase-rs" open>
+<LayoutDir name="src" open>
+<LayoutFile name="lib.rs" highlight note="Crate root and public re-exports" />
+<LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), capability traits, recorder, scenario, run_settings, charts, tours" />
+<LayoutDir name="browser" note="BrowserConfig, launcher, session, options/, driver matching" />
+<LayoutDir name="sb_cdp" note="The pure CDP engine: Browser, Page, Locator, pool, mock" />
+<LayoutDir name="stealth" note="Fingerprint, evasion providers, humanize, patcher, reactor" />
+<LayoutDir name="mcp" note="MCP servers: cdp, driver, sb; developer tools in devtools.rs" />
+<LayoutDir name="cli" note="the library half of sbrs: commands.rs, scaffold.rs, scripts/" />
+<LayoutDir name="behave" note="Gherkin/BDD runner" />
+<LayoutDir name="plugins" note="Reporting and logging plugins" />
+<LayoutDir name="config" note="Settings, runtime config, proxy and ad-block lists" />
+<LayoutDir name="core" note="report_helper: test result records" />
+<LayoutDir name="common" note="Graceful shutdown, encryption, obfuscation" />
+<LayoutDir name="storage" note="turso feature: ResultStore, ProfileVault" />
+<LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer" />
+<LayoutDir name="utils" note="Selectors, shadow DOM, URLs, geometry, extensions, translations" />
+<LayoutDir name="profile_payloads" note="Parses external browser-profile JSON into a Fingerprint" />
+<LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
+</LayoutDir>
+<LayoutDir name="crates" open>
+<LayoutDir name="cli" open note="Package seleniumbase-rs-cli: the sbrs and sbrs-mcp binaries">
+<LayoutDir name="src" note="sbrs.rs (usage derives), fig.rs, report.rs, mcp_server.rs" />
+<LayoutDir name="tests" note="Every test that runs the real sbrs or sbrs-mcp binary" />
+</LayoutDir>
+</LayoutDir>
+<LayoutDir name="tests" note="Integration tests of the library (tests/golden is compiled in)" />
+<LayoutDir name="benches" note="cpu, cdp_latency" />
+<LayoutDir name="examples" note="Runnable examples" />
+<LayoutDir name="parity" note="api.toml: the status of every Python API" />
+<LayoutDir name="docs" note="mdBook sources, help pages, design/ notes" />
+<LayoutFile name="CLAUDE.md" note="The module map for coding assistants" />
+</LayoutDir>
+</LayoutTree>
 
 ## Architecture at a Glance
 
@@ -216,7 +309,7 @@ should not contain browser logic directly.
 - Instrument error paths with `tracing::error!` and include context with
   `ResultExt::sb_context()`:
 
-```rust
+```rust Adding context
 use seleniumbase_rs::{ResultExt, SeleniumBaseError};
 
 some_fallible_op()
@@ -232,7 +325,7 @@ philosophy.
 
 The crate uses `tracing` throughout. Common patterns:
 
-```rust
+```rust Instrumenting a function
 use tracing::{info, warn, error, instrument};
 
 #[instrument(skip(self), fields(url = %url))]
@@ -251,11 +344,13 @@ Feature flags control subscriber output:
 
 Run the CLI with tracing enabled:
 
-```bash
+```bash Terminal
 RUST_LOG=info cargo run --bin sbrs --features full-tracing -- open https://example.com
 ```
 
-See `docs/tutorials/tracing.md` for subscriber configuration examples.
+See `docs/tutorials/tracing.md` for subscriber configuration examples. How to
+turn the logs on, and the other ways to find out why a run fails, are in
+[Debugging](/contributing/debugging).
 
 ## Testing
 

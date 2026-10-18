@@ -2,6 +2,40 @@
 title: "Developer Guide"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 This guide is for anyone who wants to understand, extend, or maintain the Rust
 port of SeleniumBase (`seleniumbase-rs`). It covers the repository layout, the
 `BaseCase` architecture, how to add new helpers, the stealth system, testing, and
@@ -19,6 +53,34 @@ release considerations.
 
 </Info>
 
+<Columns cols={2}>
+
+<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+
+Clone, build, keep builds small, and run the checks and the real-Chrome tests.
+
+</Card>
+
+<Card title="Debugging" icon="bug" href="/contributing/debugging">
+
+Logs, headed and slowed-down runs, evidence on failure, and a mocked browser.
+
+</Card>
+
+<Card title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
+
+The `cpu` and `cdp_latency` harnesses, and how to compare a change.
+
+</Card>
+
+<Card title="Contributing" icon="code-branch" href="/CONTRIBUTING">
+
+Code style, testing rules and how to open a pull request.
+
+</Card>
+
+</Columns>
+
 ## Project goals
 
 `seleniumbase-rs` aims to provide a Rust-native browser-automation and end-to-end
@@ -29,61 +91,70 @@ presentations, and optional stealth/CDP integrations.
 
 ## Repository layout
 
-```text
-seleniumbase-rs/
-├── Cargo.toml              # Crate manifest (optional cloud/Playwright/MCP features)
-├── README.md               # User-facing quick-start and feature index
-├── DOCS.md                 # Overview of major features
-├── docs/                   # Tutorials and help pages
-│   ├── tutorials/          # Step-by-step guides
-│   └── DEVELOPER_GUIDE.md  # This file
-├── examples/               # Runnable example programs
-├── src/
-│   ├── lib.rs              # Crate root, public re-exports
-│   ├── api/                # Public test API
-│   │   ├── base_case.rs    # BaseCase struct and core inherent impl
-│   │   ├── base_case_impls/ # Per-domain BaseCase method modules
-│   │   ├── chart.rs        # Chart generation
-│   │   ├── tour.rs         # Guided tour builder
-│   │   ├── presentation.rs # HTML presentation builder
-│   │   ├── deferred.rs     # Deferred assertion state
-│   │   ├── recorder.rs     # Action recorder
-│   │   ├── html.rs         # BeautifulSoup-style HTML parsing
-│   │   ├── pdf.rs          # PDF helpers
-│   │   ├── runner.rs       # Async browser test lifecycle
-│   │   ├── traits.rs       # Capability traits (BrowserApi, ElementApi, ...)
-│   │   └── ...
-│   ├── sb_cdp/             # Pure CDP engine: Browser, Page, Locator, input, state, CAPTCHA
-│   ├── mcp/                # MCP servers: cdp, driver and sb toolsets
-│   ├── browser/            # Browser launch, session, and configuration
-│   │   ├── config.rs       # BrowserConfig, Browser, DriverMode
-│   │   ├── session.rs      # BrowserSession (WebDriver wrapper)
-│   │   ├── launcher.rs     # WebDriver/chromedriver launching
-│   │   └── playwright.rs   # Optional Playwright-backed session
-│   ├── stealth/            # Stealth / undetected automation helpers
-│   │   ├── dprocess.rs     # Detached browser/driver process management
-│   │   ├── options.rs      # StealthOptions builder
-│   │   └── reactor.rs      # CDP Fetch interceptor
-│   ├── behave/             # Gherkin/BDD runner and step registry
-│   ├── cli/                # Command-line tooling (sbrs binary)
-│   ├── common/             # Encryption, obfuscation, graceful shutdown
-│   ├── config/             # Settings and proxy/ad-block lists
-│   ├── core/               # Test result records, JSON/HTML report writers
-│   ├── js_code/            # `quote`: safe JavaScript string literals for built scripts
-│   ├── plugins/            # Cloud/logging plugin interfaces
-│   ├── utilities/          # Selenium IDE, Grid, and Python migration
-│   ├── utils/              # Selectors, shadow DOM, translations, extensions
-│   └── bin/                # Additional binary targets (MCP server, ...)
-├── parity/                 # Upstream API manifest (see docs/UPSTREAM_SYNC.md)
-├── tools/parity/           # Scripts that extract and seed the manifest
-└── tests/                  # Integration tests
-```
+<LayoutTree>
+<LayoutDir name="seleniumbase-rs" open>
+<LayoutFile name="Cargo.toml" highlight note="Crate manifest (optional cloud/Playwright/MCP features)" />
+<LayoutFile name="README.md" note="User-facing quick-start and feature index" />
+<LayoutFile name="DOCS.md" note="Overview of major features" />
+<LayoutDir name="docs" open note="Tutorials and help pages">
+<LayoutDir name="tutorials" note="Step-by-step guides" />
+<LayoutFile name="DEVELOPER_GUIDE.md" note="This file" />
+</LayoutDir>
+<LayoutDir name="examples" note="Runnable example programs" />
+<LayoutDir name="src" open>
+<LayoutFile name="lib.rs" highlight note="Crate root, public re-exports" />
+<LayoutDir name="api" open note="Public test API; more modules than the ones listed">
+<LayoutFile name="base_case.rs" highlight note="BaseCase struct and core inherent impl" />
+<LayoutDir name="base_case_impls" note="Per-domain BaseCase method modules" />
+<LayoutFile name="chart.rs" note="Chart generation" />
+<LayoutFile name="tour.rs" note="Guided tour builder" />
+<LayoutFile name="presentation.rs" note="HTML presentation builder" />
+<LayoutFile name="deferred.rs" note="Deferred assertion state" />
+<LayoutFile name="recorder.rs" note="Action recorder" />
+<LayoutFile name="html.rs" note="BeautifulSoup-style HTML parsing" />
+<LayoutFile name="pdf.rs" note="PDF helpers" />
+<LayoutFile name="runner.rs" note="Async browser test lifecycle" />
+<LayoutFile name="traits.rs" highlight note="Capability traits (BrowserApi, ElementApi, ...)" />
+</LayoutDir>
+<LayoutDir name="sb_cdp" note="Pure CDP engine: Browser, Page, Locator, input, state, CAPTCHA" />
+<LayoutDir name="mcp" note="MCP servers: cdp, driver and sb toolsets" />
+<LayoutDir name="browser" note="Browser launch, session, and configuration">
+<LayoutFile name="config.rs" note="BrowserConfig, Browser, DriverMode" />
+<LayoutFile name="session.rs" note="BrowserSession (WebDriver wrapper)" />
+<LayoutFile name="launcher.rs" note="WebDriver/chromedriver launching" />
+<LayoutFile name="playwright.rs" note="Optional Playwright-backed session" />
+</LayoutDir>
+<LayoutDir name="stealth" note="Stealth / undetected automation helpers">
+<LayoutFile name="dprocess.rs" note="Detached browser/driver process management" />
+<LayoutFile name="options.rs" note="StealthOptions builder" />
+<LayoutFile name="reactor.rs" note="CDP Fetch interceptor" />
+</LayoutDir>
+<LayoutDir name="behave" note="Gherkin/BDD runner and step registry" />
+<LayoutDir name="cli" note="Command-line tooling: the library half of the sbrs binary" />
+<LayoutDir name="common" note="Encryption, obfuscation, graceful shutdown" />
+<LayoutDir name="config" note="Settings and proxy/ad-block lists" />
+<LayoutDir name="core" note="Test result records, JSON/HTML report writers" />
+<LayoutDir name="js_code" note="quote: safe JavaScript string literals for built scripts" />
+<LayoutDir name="plugins" note="Cloud/logging plugin interfaces" />
+<LayoutDir name="utilities" note="Selenium IDE, Grid, and Python migration" />
+<LayoutDir name="utils" note="Selectors, shadow DOM, translations, extensions" />
+</LayoutDir>
+<LayoutDir name="crates" open>
+<LayoutDir name="cli" note="Binary targets: sbrs and the MCP server sbrs-mcp (package seleniumbase-rs-cli)" />
+</LayoutDir>
+<LayoutDir name="parity" note="Upstream API manifest (see docs/UPSTREAM_SYNC.md)" />
+<LayoutDir name="tools">
+<LayoutDir name="parity" note="Scripts that extract and seed the manifest" />
+</LayoutDir>
+<LayoutDir name="tests" note="Integration tests" />
+</LayoutDir>
+</LayoutTree>
 
 ## BaseCase architecture
 
 `BaseCase` is a single struct that owns the test state:
 
-```rust
+```rust src/api/base_case.rs
 pub struct BaseCase {
     session: BrowserSession,
     config: BrowserConfig,
@@ -109,62 +180,65 @@ block; they rely on the imports declared at the top of `base_case.rs`.
 
 Domain files:
 
-- `base_case_impl_common.rs` — constructors, lifecycle, and widely-shared helpers.
-- `base_case_impl_alerts.rs` — alert and prompt handling.
-- `base_case_impl_browser.rs` — browser introspection and state.
-- `base_case_impl_charts.rs` — chart generation helpers.
-- `base_case_impl_dom.rs` — DOM querying and manipulation.
-- `base_case_impl_downloads.rs` — file download helpers.
-- `base_case_impl_links.rs` — link and anchor helpers.
-- `base_case_impl_storage.rs` — cookies and web-storage helpers.
-- `base_case_impl_window.rs` — windows, frames, and tabs.
-- `base_case_impl_mouse.rs` — mouse and hover actions.
-- `base_case_impl_nav.rs` — navigation and URL helpers.
-- `base_case_impl_media.rs` — media and screenshot helpers.
-- `base_case_impl_tours.rs` — guided tour helpers.
-- `base_case_impl_presentations.rs` — presentation helpers.
-- `base_case_impl_jslibs.rs` — third-party JS library injection.
-- `base_case_impl_misc.rs` — test-control and message-overload helpers.
-- `base_case_impl_pdf_html.rs` — PDF and HTML parsing helpers.
-- `base_case_impl_extra.rs` — extra assertion and wait helpers.
-- `base_case_impl_cdp_page.rs` — CDP-page helpers.
-- `base_case_impl_dialog_inspector.rs` — dialog inspection helpers.
-- `base_case_impl_shadow.rs` — shadow-DOM helpers.
-- `base_case_impl_gui.rs` — GUI automation helpers (compiled only with the `gui`
-  feature, so lint and test it with `--features gui`).
-- `base_case_impl_masterqa.rs` — MasterQA helpers.
+<LayoutTree>
+<LayoutDir name="src/api/base_case_impls" open>
+<LayoutFile name="base_case_impl_common.rs" highlight note="constructors, lifecycle, and widely-shared helpers" />
+<LayoutFile name="base_case_impl_alerts.rs" note="alert and prompt handling" />
+<LayoutFile name="base_case_impl_browser.rs" note="browser introspection and state" />
+<LayoutFile name="base_case_impl_charts.rs" note="chart generation helpers" />
+<LayoutFile name="base_case_impl_dom.rs" note="DOM querying and manipulation" />
+<LayoutFile name="base_case_impl_downloads.rs" note="file download helpers" />
+<LayoutFile name="base_case_impl_links.rs" note="link and anchor helpers" />
+<LayoutFile name="base_case_impl_storage.rs" note="cookies and web-storage helpers" />
+<LayoutFile name="base_case_impl_window.rs" note="windows, frames, and tabs" />
+<LayoutFile name="base_case_impl_mouse.rs" note="mouse and hover actions" />
+<LayoutFile name="base_case_impl_nav.rs" note="navigation and URL helpers" />
+<LayoutFile name="base_case_impl_media.rs" note="media and screenshot helpers" />
+<LayoutFile name="base_case_impl_tours.rs" note="guided tour helpers" />
+<LayoutFile name="base_case_impl_presentations.rs" note="presentation helpers" />
+<LayoutFile name="base_case_impl_jslibs.rs" note="third-party JS library injection" />
+<LayoutFile name="base_case_impl_misc.rs" note="test-control and message-overload helpers" />
+<LayoutFile name="base_case_impl_pdf_html.rs" note="PDF and HTML parsing helpers" />
+<LayoutFile name="base_case_impl_extra.rs" note="extra assertion and wait helpers" />
+<LayoutFile name="base_case_impl_cdp_page.rs" note="CDP-page helpers" />
+<LayoutFile name="base_case_impl_dialog_inspector.rs" note="dialog inspection helpers" />
+<LayoutFile name="base_case_impl_shadow.rs" note="shadow-DOM helpers" />
+<LayoutFile name="base_case_impl_gui.rs" note="GUI automation helpers; compiled only with the gui feature, so lint and test it with --features gui" />
+<LayoutFile name="base_case_impl_masterqa.rs" note="MasterQA helpers" />
+</LayoutDir>
+</LayoutTree>
 
 ### Adding a new `BaseCase` helper
 
 <Steps>
 
-<Step title="Choose the domain file">
+<Step title="Choose the domain file" icon="folder-open">
 
 Choose the appropriate domain file in `src/api/base_case_impls/` (or create
 a new one if the domain does not exist).
 
 </Step>
 
-<Step title="Add the method">
+<Step title="Add the method" icon="code">
 
 Add the method inside the existing `impl BaseCase { ... }` block.
 
 </Step>
 
-<Step title="Return a Result">
+<Step title="Return a Result" icon="reply">
 
 Return `crate::Result<T>` (an alias for `Result<T, SeleniumBaseError>`).
 
 </Step>
 
-<Step title="Record the action">
+<Step title="Record the action" icon="video">
 
 Record the action with `self.record(...)` when it represents a user-facing
 test step.
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Add a unit test when the helper does not require a live browser. A test that
 needs a `BaseCase` with a WebDriver session can start a `MockWebDriver` (in
@@ -173,7 +247,7 @@ records what the `BaseCase` sent.
 
 </Step>
 
-<Step title="Lint and run">
+<Step title="Lint and run" icon="circle-check">
 
 Run `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
@@ -183,7 +257,7 @@ Run `cargo clippy --all-targets -- -D warnings` and `cargo test`.
 
 Example:
 
-```rust
+```rust Example helper
 impl BaseCase {
     /// Asserts that `css` matches exactly `count` elements.
     pub async fn assert_element_count(
@@ -222,7 +296,7 @@ blueprint when adding new cross-cutting concerns.
 
 All fallible operations return `crate::Result<T>`, defined as:
 
-```rust
+```rust The Result alias
 pub type Result<T> = std::result::Result<T, SeleniumBaseError>;
 ```
 
@@ -248,7 +322,7 @@ messages.
 
 Prefer constructors over manual formatting:
 
-```rust
+```rust Helper constructors
 use seleniumbase_rs::SeleniumBaseError;
 
 SeleniumBaseError::element_not_found("#submit")
@@ -260,7 +334,7 @@ SeleniumBaseError::driver_not_ready("chromedriver")
 
 Errors can emit `tracing::error!` events:
 
-```rust
+```rust Runtime diagnostics
 use seleniumbase_rs::{ResultExt, SeleniumBaseError};
 
 // Adds context and logs on failure
@@ -502,7 +576,7 @@ and emitting `Fetch.continueRequest` / `FulfillRequest` calls.
 `ChromedriverPatcher` applies byte-level search/replace patches to a driver
 binary. Each patch is an `EnginePatch`:
 
-```rust
+```rust An EnginePatch
 EnginePatch {
     id: "cdc_marker",
     description: "Replace cdc_... markers",
@@ -519,14 +593,14 @@ whenever a patch targets a new driver version.
 
 <Steps>
 
-<Step title="A new JavaScript evasion">
+<Step title="A new JavaScript evasion" icon="code">
 
 If the change is a new JavaScript evasion, add a provider in
 `src/stealth/providers/builtin.rs` and register it in `all()`.
 
 </Step>
 
-<Step title="Launch arguments">
+<Step title="Launch arguments" icon="terminal">
 
 If it changes launch arguments, update `StealthOptions::apply_to` in
 `src/stealth/options.rs` or add a helper such as `engine_spoofing_args()` in
@@ -534,20 +608,20 @@ If it changes launch arguments, update `StealthOptions::apply_to` in
 
 </Step>
 
-<Step title="Binary patches">
+<Step title="Binary patches" icon="microchip">
 
 If it patches the binary, add an `EnginePatch` in
 `src/stealth/patcher.rs`.
 
 </Step>
 
-<Step title="Re-export">
+<Step title="Re-export" icon="share-from-square">
 
 Re-export new public types from `src/stealth/mod.rs` and `src/lib.rs`.
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Add a unit test that exercises the new logic without requiring a live browser.
 
@@ -562,26 +636,26 @@ Macros are defined in `src/macros.rs` and re-exported at the crate root via
 
 <Steps>
 
-<Step title="Define it">
+<Step title="Define it" icon="code">
 
 Add the macro definition in `src/macros.rs` using `$crate::` for any path.
 
 </Step>
 
-<Step title="Document it in code">
+<Step title="Document it in code" icon="comment">
 
 Include a short doc comment with an `ignore` example.
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Add a unit test in the `#[cfg(test)]` module if the macro builds a value that
 can be asserted without a browser.
 
 </Step>
 
-<Step title="Document it">
+<Step title="Document it" icon="book">
 
 Update `docs/tutorials/macros.md` with the macro name, signature, and example.
 
@@ -597,7 +671,7 @@ the `mcp` module, built with the `mcp-server` feature. A server is a
 
 <Steps>
 
-<Step title="Pick the server file">
+<Step title="Pick the server file" icon="server">
 
 Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
 `src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
@@ -605,7 +679,7 @@ Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
 
 </Step>
 
-<Step title="Write the handler">
+<Step title="Write the handler" icon="code">
 
 Write an `async fn(Ctx<S>, Args) -> Result<Output, ToolError>` handler. Read
 arguments with the typed accessors on `Args` (`str`, `opt_bool`, `choice`,
@@ -614,7 +688,7 @@ with `ctx.session().await?`. Return `Output::Text` or `Output::Json`.
 
 </Step>
 
-<Step title="Register it">
+<Step title="Register it" icon="list-ol">
 
 Register a `ToolDef::new(name, title, description, Effect, Schema, handler)`.
 Choose the `Effect` that is true of the tool (it becomes the MCP annotation
@@ -622,21 +696,21 @@ hints) and describe each argument with `Prop`.
 
 </Step>
 
-<Step title="Write files safely">
+<Step title="Write files safely" icon="folder-closed">
 
 Write files only through `ctx.settings().output_path(folder, name)`, which
 keeps them inside the output directory.
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
 browser; `tests/mcp_webdriver.rs` covers the catalogues.
 
 </Step>
 
-<Step title="Check the parity">
+<Step title="Check the parity" icon="scale-balanced">
 
 If the tool exists upstream, `tests/parity.rs` checks it against
 `parity/api.toml`; see [Syncing with upstream](/UPSTREAM_SYNC).
@@ -660,7 +734,7 @@ If the tool exists upstream, `tests/parity.rs` checks it against
   test.
 - Run the full verification matrix before pushing:
 
-```bash
+```bash Terminal
 cargo build
 cargo test
 cargo clippy --all-targets -- -D warnings
@@ -670,6 +744,9 @@ cargo test --features s3,azure,gcp,playwright,mcp-server
 cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D warnings
 cargo publish --dry-run
 ```
+
+The checks CI runs today, the low-memory build settings and the tests that need
+a real Chrome are in [Build from source](/contributing/from-source#run-the-checks).
 
 ## Tracing internals
 
@@ -683,7 +760,7 @@ operations (launch, open, click, patch). Events include:
 
 To add tracing to a new component:
 
-```rust
+```rust Instrumenting a component
 use tracing::{info, instrument};
 
 #[instrument(skip_all, fields(component = "my_component"))]
@@ -700,20 +777,45 @@ Enable JSON output with the `json-logs` feature for ingestion by log analytics.
 External profile payloads are normalized in `src/profile_payloads/profile.rs`.
 The flow is:
 
-```text
-JSON file ──► ProfileParams ──► to_fingerprint() ──► Fingerprint
-                         └──► to_browser_config() ──► BrowserConfig (holds that Fingerprint)
+```mermaid
+flowchart LR
+    J["JSON file"] --> P["ProfileParams"]
+    P -->|"to_fingerprint()"| F["Fingerprint"]
+    P -->|"to_browser_config()"| B["BrowserConfig (holds that Fingerprint)"]
 ```
 
 When adding a new JSON field:
 
-1. Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
-2. Convert it in `fingerprint_builder()` (one `Spoof` per setting, through
-   `read` and `settle`), so the flag decides its state.
-3. Launch-time settings (`to_browser_config()`, `apply_runtime_overrides()`) read
-   the built fingerprint, never the raw payload, so a `natural` flag launches
-   nothing of that setting.
-4. Add a parser test and a round-trip coherence test.
+<Steps>
+
+<Step title="Declare it" icon="code">
+
+Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
+
+</Step>
+
+<Step title="Convert it" icon="arrow-right-arrow-left">
+
+Convert it in `fingerprint_builder()` (one `Spoof` per setting, through
+`read` and `settle`), so the flag decides its state.
+
+</Step>
+
+<Step title="Leave launch-time settings to the fingerprint" icon="rocket">
+
+Launch-time settings (`to_browser_config()`, `apply_runtime_overrides()`) read
+the built fingerprint, never the raw payload, so a `natural` flag launches
+nothing of that setting.
+
+</Step>
+
+<Step title="Test it" icon="flask">
+
+Add a parser test and a round-trip coherence test.
+
+</Step>
+
+</Steps>
 
 Keep parser logic defensive: unknown fields should not fail; invalid values
 should produce `SeleniumBaseError::InvalidConfig` with the field name.
@@ -722,7 +824,7 @@ should produce `SeleniumBaseError::InvalidConfig` with the field name.
 
 ### Pure-logic tests
 
-```rust
+```rust Pure-logic test
 #[test]
 fn selector_parses_link_text() {
     let s = Selector::LinkText("Dashboard".into());
@@ -732,7 +834,7 @@ fn selector_parses_link_text() {
 
 ### Async tests without browser
 
-```rust
+```rust Async test without a browser
 #[tokio::test]
 async fn a_value_turns_its_dimension_on() -> Result<(), FingerprintError> {
     let fp = Fingerprint::builder().timezone("Europe/Berlin").build()?;
@@ -746,7 +848,7 @@ async fn a_value_turns_its_dimension_on() -> Result<(), FingerprintError> {
 
 Use `run_browser_test` from `src/api/runner.rs`:
 
-```rust
+```rust Browser lifecycle test
 use seleniumbase_rs::{run_browser_test, BrowserConfig};
 
 #[tokio::test]
@@ -808,6 +910,9 @@ push using the Chrome/chromedriver preinstalled on GitHub-hosted runners.
   repeated string concatenation.
 - Run `cargo build --release` when benchmarking; debug builds are 10–100× slower.
 
+How to run the harnesses in `benches/`, and compare a change fairly, is in
+[Benchmarking](/contributing/benchmarking).
+
 ## Security considerations
 
 - Never hardcode secrets. `BrowserConfig` proxy passwords and cloud credentials
@@ -829,6 +934,9 @@ push using the Chrome/chromedriver preinstalled on GitHub-hosted runners.
 - Inspect generated bootstrap with `sbrs stealth-bootstrap --fingerprint ...`.
 - For CI-only failures, reproduce with `--features s3,azure,gcp,playwright,mcp-server`
   because feature gates change code paths.
+
+A full walkthrough, from the logs to a mocked browser and the driver checks, is
+in [Debugging](/contributing/debugging).
 
 ## Python importer architecture
 
@@ -873,9 +981,33 @@ See `CONTRIBUTING.md` for the full contributor guide. In short:
 
 ## See also
 
-- [ABI & API Stability](/ABI_API) for the public API contract.
-- [Contributing](/CONTRIBUTING) for the full contributor guide.
-- [Rust Test Tooling](/rust-test-tooling) for writing tests against `BaseCase`.
+<Columns cols={2}>
+
+<Card title="ABI & API Stability" icon="file-contract" href="/ABI_API">
+
+The public API contract.
+
+</Card>
+
+<Card title="Contributing" icon="code-branch" href="/CONTRIBUTING">
+
+The full contributor guide.
+
+</Card>
+
+<Card title="Rust Test Tooling" icon="flask" href="/rust-test-tooling">
+
+Writing tests against `BaseCase`.
+
+</Card>
+
+<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+
+The toolchain, the checks and the real-Chrome tests.
+
+</Card>
+
+</Columns>
 
 ### AI agent conventions
 
