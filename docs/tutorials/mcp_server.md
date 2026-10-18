@@ -154,29 +154,15 @@ Or, without a checkout:
 
 <Step title="Register it with your client" icon="plug">
 
-For example in `.mcp.json`:
-
-```json .mcp.json
-{
-  "mcpServers": {
-    "seleniumbase-cdp": {
-      "command": "sbrs-mcp",
-      "args": ["--server", "cdp"],
-      "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
-    }
-  }
-}
+```bash Terminal
+sbrs-mcp install claude-code
 ```
 
-Use `["--server", "driver"]` or `["--server", "sb"]` for the others, and add
-`seleniumbase-dev` with `["--server", "dev"]` next to the browser server you chose
-(see [Beyond the browser](#beyond-the-browser-development-library-and-cli-tools)).
-
-To run a built-in plugin in every browser the server starts, add
-`"--plugin", "shield"` to `args` (and `"--plugin-opt", "shield.level=\"strict\""`
-for an option, a TOML value). The operator chooses the plugins; no tool argument
-adds one, and a mistake in them stops the server before it listens. See
-[Choosing plugins](/plugins/selecting#sbrs-mcp).
+One command gives the assistant both the browser (`seleniumbase`) and the
+development tools (`seleniumbase-dev`). Name several clients to register with all of
+them. [Install into a client](#install-into-a-client) has the clients, the flags and
+what is changed on disk; [Register by hand](#register-by-hand) shows the entry to
+write yourself.
 
 </Step>
 
@@ -187,6 +173,131 @@ adds one, and a mistake in them stops the server before it listens. See
 Logs go to stderr; stdout carries only the protocol.
 
 </Note>
+
+## Install into a client
+
+```bash Terminal
+sbrs-mcp install claude-code cursor   # register with these clients
+sbrs-mcp install --print vscode       # show what would be written, change nothing
+sbrs-mcp clients                      # where each client keeps its config, what is registered
+sbrs-mcp uninstall cursor             # remove the registrations
+```
+
+`install` registers two servers with each client, so that one command gives an
+assistant the browser and the development tools:
+
+| Entry | Starts | For |
+| --- | --- | --- |
+| `seleniumbase` | `sbrs-mcp --server cdp` | Driving a browser. `--server driver` or `--server sb` picks another browser toolset. |
+| `seleniumbase-dev` | `sbrs-mcp --server dev` | Development, library, CLI and diagnostics tools. It starts no browser. |
+
+Both entries start the binary by its **absolute path** (the one you ran, with links
+resolved), because desktop apps do not have your shell `PATH`, and both get the same
+`SB_MCP_OUTPUT_DIR`. Running `sbrs-mcp` with no command still starts the server, so a
+client that starts it with only flags keeps working.
+
+### Flags
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--server` | `cdp` | The browser toolset: `cdp` (the lightest), `driver` or `sb`. |
+| `--name NAME` | `seleniumbase` | The name of the browser entry. The development entry is `NAME-dev`. |
+| `--only browser` or `--only dev` | both | Register, or on `uninstall` remove, just one of the two entries. |
+| `--output-dir DIR` | `sbrs-mcp` in your data folder | Where the tools write their files. It becomes `SB_MCP_OUTPUT_DIR` and is created. |
+| `--plugin NAME` and `--plugin-opt NAME.KEY=VALUE` | none | Added to the browser entry's arguments, as on the server itself, and checked now against the plugins this build has. The development entry starts no browser and gets none. |
+| `--scope user` or `--scope project` | `user` | Your own config, or the config file in the current folder. A client without a project file refuses `project` with exit status 2. |
+| `--print` | off | Show exactly what would be written or run, and write and run nothing. |
+| `--force` | off | Replace an entry of the same name that starts something different. |
+
+### Clients
+
+| Client | User config | `--scope project` | How it is changed |
+| --- | --- | --- | --- |
+| `claude-code` | `~/.claude.json` | `.mcp.json` | `claude mcp add-json` and `claude mcp remove`, never by writing the file, which Claude Code writes itself. Without `claude` on `PATH` the commands are printed and the exit status is 2. |
+| `claude-desktop` | macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, Windows `%APPDATA%\Claude\claude_desktop_config.json`, not Linux | none | JSON, key `mcpServers`. |
+| `codex` | `~/.codex/config.toml` (in `$CODEX_HOME` when that is set) | none | `codex mcp add` and `codex mcp remove` when the installed `codex` has them, else the tables `[mcp_servers.NAME]` and `[mcp_servers.NAME.env]` of `config.toml`, edited so that its comments and other tables stay. |
+| `cursor` | `~/.cursor/mcp.json` | `.cursor/mcp.json` | JSON, key `mcpServers`, with `"type": "stdio"`. |
+| `gemini-cli` | `~/.gemini/settings.json` | `.gemini/settings.json` | JSON, key `mcpServers`. |
+| `opencode` | `~/.config/opencode/opencode.json`, or the `opencode.jsonc` that is there instead | `opencode.json` | JSON, key `mcp`, with `"type": "local"`, the command and its arguments as one array, and `environment`. |
+| `vscode` | macOS `~/Library/Application Support/Code/User/mcp.json`, Windows `%APPDATA%\Code\User\mcp.json`, Linux `~/.config/Code/User/mcp.json` | `.vscode/mcp.json` | JSON, key `servers`, with `"type": "stdio"`. Only the default profile's file. |
+| `zed` | macOS and Linux `~/.config/zed/settings.json` (`$XDG_CONFIG_HOME/zed` on Linux), Windows `%APPDATA%\Zed\settings.json` | none | JSON, key `context_servers`. |
+
+`sbrs-mcp clients` prints the same for your machine: the paths, whether each config
+and each client's program (`claude`, `codex`, `code`) was found, and which of the two
+entries are registered. The paths and formats were checked against the clients' own
+documentation:
+[Claude Code](https://code.claude.com/docs/en/mcp),
+[Claude Desktop](https://modelcontextprotocol.io/quickstart/user),
+[Codex](https://developers.openai.com/codex/mcp),
+[Cursor](https://cursor.com/docs/context/mcp),
+[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md),
+[opencode](https://opencode.ai/docs/mcp-servers/),
+[VS Code](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) and
+[Zed](https://zed.dev/docs/ai/mcp).
+Windsurf and LM Studio are not in the list: their documentation does not give the
+path (LM Studio) or no longer gives the one that was used (Windsurf).
+
+<Warning>
+
+The Claude app rewrites `claude_desktop_config.json` while it runs, and an entry
+written while it ran has been seen to disappear. Quit Claude before you run
+`sbrs-mcp install claude-desktop`, and open it again after. The command prints this
+reminder every time.
+
+</Warning>
+
+### What it does to your files
+
+- **Only the entries change.** For a JSON file, every other key, entry, blank line
+  and inline array keeps its exact text; the new entries are written in the layout
+  of the ones around them. In `config.toml` the comments and the other tables stay.
+- **A backup comes first.** A file that exists is copied to `FILE.bak-sbrs-mcp`
+  before it changes. The new content goes to a temporary file in the same folder, is
+  flushed, takes the old permissions and is renamed over the original, and missing
+  folders are created. A file that needs no change is not touched.
+- **An entry that is there already** and starts the same process is left alone
+  (exit status 0, `unchanged`). A different one of the same name is left alone and
+  reported (exit status 2) unless you pass `--force`. The two entries are decided and
+  reported separately.
+- **A file with comments is not rewritten.** Zed's `settings.json` and VS Code's
+  `mcp.json` often have them, and a rewrite would lose them. The same goes for a
+  file that is not valid JSON. The snippet to add by hand is printed and the exit
+  status is 2; for VS Code the `code --add-mcp` command is printed too.
+- **Exit status.** `0` when every entry is added, replaced or unchanged; `2` for an
+  unknown client, a scope the client does not have, a file or program that cannot be
+  used, or a different entry left alone; `1` when a write or a client's own program
+  fails.
+
+### Register by hand
+
+To write the entry yourself, for example in `.mcp.json`, give the absolute path of
+the binary:
+
+```json .mcp.json
+{
+  "mcpServers": {
+    "seleniumbase": {
+      "command": "/absolute/path/to/sbrs-mcp",
+      "args": ["--server", "cdp"],
+      "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
+    },
+    "seleniumbase-dev": {
+      "command": "/absolute/path/to/sbrs-mcp",
+      "args": ["--server", "dev"],
+      "env": { "SB_MCP_OUTPUT_DIR": "/tmp/seleniumbase-output" }
+    }
+  }
+}
+```
+
+Use `["--server", "driver"]` or `["--server", "sb"]` for the other browser toolsets.
+
+To run a built-in plugin in every browser the server starts, add
+`"--plugin", "shield"` to the browser entry's `args` (and
+`"--plugin-opt", "shield.level=\"strict\""` for an option, a TOML value). The
+operator chooses the plugins; no tool argument adds one, and a mistake in them stops
+the server before it listens. See
+[Choosing plugins](/plugins/selecting#sbrs-mcp).
 
 ## Which server?
 

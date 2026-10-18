@@ -446,7 +446,16 @@ cargo build --release --bin sbrs-mcp
 
 (The command-line package turns the `mcp-server` feature on by default.)
 
-Configure the client with the absolute path to the binary:
+Register it with your clients (Claude Code, Claude Desktop, Codex, Cursor, Gemini
+CLI, opencode, VS Code, Zed) in one command, which adds the browser server as
+`seleniumbase` and the development server as `seleniumbase-dev`:
+
+```bash
+sbrs-mcp install claude-code cursor
+sbrs-mcp clients    # where each client keeps its config, and what is registered
+```
+
+Or configure the client by hand with the absolute path to the binary:
 
 ```json
 {

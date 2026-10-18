@@ -8,34 +8,30 @@
 
 `sbrs-mcp`
 
-- Serve the Pure CDP toolset (Chrome or Chromium, no WebDriver):
+- Serve the Pure CDP toolset (Chrome or Chromium, no WebDriver) or the WebDriver `Driver()` toolset:
 
-`sbrs-mcp --server cdp`
-
-- Serve the WebDriver `Driver()` toolset:
-
-`sbrs-mcp --server driver`
+`sbrs-mcp --server {{cdp|driver}}`
 
 - Write screenshots, saved pages, PDFs, and downloads to a directory (default: `./mcp_output`):
 
 `SB_MCP_OUTPUT_DIR={{path/to/directory}} sbrs-mcp --server {{cdp|driver|sb}}`
 
-- Wait a number of seconds for the browser to close on shutdown (default: 30):
-
-`SB_SHUTDOWN_TIMEOUT_SECS={{seconds}} sbrs-mcp`
-
-- Give every browser the server starts a built-in plugin (the operator chooses, the model cannot add one):
-
-`sbrs-mcp --server {{cdp|driver|sb}} --plugin {{shield}}`
-
-- Set an option of a plugin, with a TOML value:
+- Give every browser the server starts a built-in plugin, with an option as a TOML value (the operator chooses, the model cannot add one):
 
 `sbrs-mcp --plugin {{shield}} --plugin-opt '{{shield.level}}="{{strict}}"'`
 
-- Display help:
+- Register the browser server (`seleniumbase`) and the development server (`seleniumbase-dev`) with MCP clients, by this program's absolute path:
 
-`sbrs-mcp --help`
+`sbrs-mcp install {{claude-code|claude-desktop|codex|cursor|gemini-cli|opencode|vscode|zed}}`
 
-- Display version:
+- Show what `install` would write or run, and change nothing:
 
-`sbrs-mcp --version`
+`sbrs-mcp install --print {{client1 client2 ...}}`
+
+- Remove the registrations of the browser and development servers from MCP clients:
+
+`sbrs-mcp uninstall {{client1 client2 ...}}`
+
+- List the clients, where each keeps its config, whether it is on this machine, and what is registered:
+
+`sbrs-mcp clients`
