@@ -8,12 +8,16 @@ that ship with the crate save a screenshot and the page source on failure and
 write a report. They are the counterpart of Python SeleniumBase's pytest
 plugins.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Attach the bundled plugins to a test run
 - Use the same plugins with the Pure CDP engine
 - Write your own plugin
 - What happens when a plugin itself fails
+
+</Info>
 
 ## Attaching plugins to a test
 

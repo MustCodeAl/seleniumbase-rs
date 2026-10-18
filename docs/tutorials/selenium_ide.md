@@ -6,11 +6,15 @@ If you have legacy Selenium IDE `.html` test cases, SeleniumBase for Rust can
 parse them into a list of commands that you can replay with `BaseCase`. This
 guide shows how to migrate those tests into Rust code.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to parse legacy `.html` IDE files and strings.
 - How to replay parsed commands with `BaseCase`.
 - Which commands map directly and which need manual translation.
+
+</Info>
 
 ## Parse an IDE HTML file or string
 

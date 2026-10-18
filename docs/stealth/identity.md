@@ -1,5 +1,6 @@
 ---
 title: "Cookies, Identity and Challenges"
+sidebarTitle: "Identity and cookies"
 ---
 
 ## The cookie jar

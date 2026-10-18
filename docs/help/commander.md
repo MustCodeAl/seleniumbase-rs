@@ -5,11 +5,15 @@ title: "SeleniumBase Commander"
 Commander is a terminal UI for browsing and running tests or examples. It is a
 convenient way to explore the project without memorizing every example path.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to build and launch Commander.
 - How to navigate and filter the list.
 - What kinds of files Commander discovers, and what it runs for each.
+
+</Info>
 
 ## Build and launch
 

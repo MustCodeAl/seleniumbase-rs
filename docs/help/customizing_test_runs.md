@@ -7,13 +7,17 @@ global config file, environment variables, or CLI flags. This guide explains the
 full hierarchy and shows how to make each source of configuration work for your
 workflow.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to configure a run with the `BrowserConfig` builder.
 - How to create a global TOML config file.
 - How to override settings with `SB_*` environment variables.
 - How CLI flags interact with programmatic and file configuration, and how
   `sbrs test` hands them to your tests.
+
+</Info>
 
 ## BrowserConfig builder
 

@@ -7,12 +7,16 @@ case plan for each of your tests: a short markdown table of the steps the test
 performs and the result each one expects. It is the Python Case Plans Generator
 without the Tkinter window.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to build and launch the app.
 - Which tests it lists and where it keeps their plans.
 - How to create, edit and save a plan, and how to write the summary of all
   plans.
+
+</Info>
 
 ## Build and launch
 

@@ -1,5 +1,6 @@
 ---
-title: "BaseCase API Reference"
+title: "API Reference: BaseCase, Capability Traits and the Crate Root"
+sidebarTitle: "API reference"
 ---
 
 `BaseCase` is the main entry point for writing browser automation in
@@ -14,7 +15,9 @@ build the rustdocs with:
 cargo doc --no-deps --open
 ```
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - The lifecycle methods for creating and closing sessions.
 - Common navigation, interaction, and query methods.
@@ -24,6 +27,8 @@ cargo doc --no-deps --open
 - The capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`) that both engines implement.
 - The public items re-exported at the crate root and what each is for.
 - Where to find rustdocs for deeper detail.
+
+</Info>
 
 ## Lifecycle
 

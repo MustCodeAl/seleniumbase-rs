@@ -6,11 +6,15 @@ Create guided product tours directly from your tests. Tours are rendered as HTML
 overlays that walk the user through elements. The exported files are standalone
 and can be shared or embedded in test reports.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to create and export a tour.
 - Which tour themes are available.
 - How to play a tour and common use cases.
+
+</Info>
 
 ## Basic tour
 

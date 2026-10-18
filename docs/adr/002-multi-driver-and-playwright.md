@@ -1,5 +1,6 @@
 ---
 title: "ADR 002: Multi-Driver and Playwright Feature Design"
+sidebarTitle: "002: Multi-driver and Playwright"
 ---
 
 ## Status

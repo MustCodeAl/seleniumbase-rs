@@ -1,5 +1,6 @@
 ---
 title: "Undetected (UC) Mode Guide"
+sidebarTitle: "UC mode"
 ---
 
 Undetected (UC) mode reduces the fingerprints that websites use to identify
@@ -10,12 +11,16 @@ session.
 This page explains how to enable UC mode, what it does automatically, and how to
 layer additional evasions when a site is still detecting you.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to enable UC mode with `BrowserConfig`.
 - Which automation markers are masked automatically.
 - How to spoof timezone, geolocation, user agent, and locale.
 - How to patch `chromedriver` and add engine spoofing arguments.
+
+</Info>
 
 ## Enable UC mode
 

@@ -11,12 +11,16 @@ persona, a set of masking modes, and optional runtime overrides. `seleniumbase-r
 translates the parts it can apply directly into `BrowserConfig`, command-line
 flags, CDP calls, and window settings.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - The structure of a profile payload.
 - How the words of a flag map to `BrowserConfig` and `Fingerprint`.
 - How to load a profile programmatically.
 - How to use the Tauri profile-manager example.
+
+</Info>
 
 ## Supported fields
 

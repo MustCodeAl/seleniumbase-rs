@@ -1,12 +1,15 @@
 ---
 title: "CLI Usage (sbrs)"
+sidebarTitle: "CLI usage"
 ---
 
 The `sbrs` binary provides quick commands for common tasks: opening pages,
 running smoke tests, executing CDP commands, patching binaries, generating
 files, and more. This page covers the most common workflows.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to build and invoke the CLI.
 - How to run smoke tests and assertions from the command line.
@@ -14,6 +17,8 @@ files, and more. This page covers the most common workflows.
 - How to patch binaries and diagnose the environment.
 - How to show the installed Chrome and its driver in your shell prompt.
 - How to turn on the built-in browser plugins.
+
+</Info>
 
 ## Build the CLI
 

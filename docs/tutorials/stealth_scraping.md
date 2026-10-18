@@ -1,5 +1,6 @@
 ---
 title: "Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper"
+sidebarTitle: "Stealth scraping"
 ---
 
 <Badge color="orange">Experimental</Badge>

@@ -1,12 +1,15 @@
 ---
 title: "Pure CDP: Chrome without a WebDriver"
+sidebarTitle: "Pure CDP"
 ---
 
 `sb_cdp` drives Chrome directly over the DevTools Protocol. There is no
 chromedriver, so there is none of the markers a WebDriver leaves in the page.
 It is the engine behind the `cdp` MCP server.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Launch Chrome and open a page
 - Find elements with a `Locator` that waits for them
@@ -17,6 +20,8 @@ It is the engine behind the `cdp` MCP server.
 - Record a tab's network traffic as a HAR file
 - Keep WebRTC from revealing the machine's addresses
 - Test code that drives pages without launching Chrome
+
+</Info>
 
 ## Launch and navigate
 

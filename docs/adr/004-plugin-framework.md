@@ -1,5 +1,6 @@
 ---
 title: "ADR 004: A Plugin Framework for Community Crates"
+sidebarTitle: "004: Plugin framework"
 ---
 
 ## Status

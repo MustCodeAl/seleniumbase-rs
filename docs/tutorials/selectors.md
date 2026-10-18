@@ -7,12 +7,16 @@ Selectors are the addresses your tests use to find elements on the page.
 locators automatically. Choosing the right selector is one of the most important
 things you can do for test maintainability.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - The selector formats supported by `BaseCase`.
 - How to pierce open Shadow DOM trees.
 - How to convert between CSS and XPath.
 - Best practices for stable, readable selectors.
+
+</Info>
 
 ## Supported formats
 

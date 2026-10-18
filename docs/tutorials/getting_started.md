@@ -1,12 +1,15 @@
 ---
 title: "Getting Started with SeleniumBase for Rust"
+sidebarTitle: "Getting started"
 ---
 
 This guide walks you through your first browser automation test with
 `seleniumbase-rs`. By the end you will have a working Rust project that opens a
 browser, interacts with a page, asserts on the result, and cleans up.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to create a new Rust project and add `seleniumbase-rs` as a dependency.
 - How to configure a `BrowserConfig`.
@@ -14,6 +17,8 @@ browser, interacts with a page, asserts on the result, and cleans up.
 - How to run the test and interpret common startup errors.
 - How to configure a session in code and through `SB_*` environment variables.
 - A complete example that needs no network, and the same flow on the driverless CDP engine.
+
+</Info>
 
 <Visibility for="agents">
 
@@ -301,16 +306,29 @@ cargo test login_succeeds
 | Problem | Cause | Solution |
 |---------|-------|----------|
 | `WebDriver` connection error | No driver running, and auto-start does not apply: it needs `auto_start_driver` (on by default) and the default WebDriver URL `http://localhost:4444`. | Remove the custom URL, or start `chromedriver` yourself and pass its URL. |
-| `chromedriver` not found | The driver executable is missing. | Install it with `cargo run --bin sbrs -- install` or download it from the Chrome for Testing dashboard. |
+| `chromedriver` not found | The driver executable is missing. | Install it with `sbrs install` or download it from the Chrome for Testing dashboard. |
 | Chrome not found | The browser binary path is wrong. | Use `BrowserConfig::with_browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables). |
 | Headless detected | Site blocks headless Chrome (headless sessions already use `--headless=new`). | Use `with_headless(false)`. |
 
 ## Next steps
 
-- Learn about selectors in the [Selectors Guide](/tutorials/selectors).
-- Understand waits and assertions in [Waits and Assertions](/tutorials/waits_assertions).
-- Explore anti-detection in [Undetected (UC) Mode](/tutorials/uc_mode).
-- Slow a run down so you can watch it, or set the run-wide knobs, in
-  [Run Settings](/tutorials/run_settings).
-- Browse the [API Reference](/tutorials/api_reference) for the full method list.
-- Use the [CLI helper](/tutorials/cli_usage) for quick one-off commands.
+<CardGroup cols={2}>
+  <Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+    CSS, XPath, link text and shadow DOM: how a selector string is read.
+  </Card>
+  <Card title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
+    Wait for the page, then check it, without sleeps.
+  </Card>
+  <Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
+    Run Chrome so sites see a person's browser.
+  </Card>
+  <Card title="Run settings" icon="sliders" href="/tutorials/run_settings">
+    Slow a run down to watch it, and the other run-wide switches.
+  </Card>
+  <Card title="API reference" icon="code" href="/tutorials/api_reference">
+    Every `BaseCase` method, the capability traits and the crate root.
+  </Card>
+  <Card title="Command line" icon="terminal" href="/tutorials/cli_usage">
+    One-off commands with `sbrs`, no project needed.
+  </Card>
+</CardGroup>

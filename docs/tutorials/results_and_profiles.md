@@ -1,5 +1,6 @@
 ---
 title: "Results Database and Encrypted Profiles"
+sidebarTitle: "Results and profiles"
 ---
 
 Two things a team ends up needing are a history of test runs, and a safe place
@@ -20,11 +21,15 @@ already covers.
 seleniumbase-rs = { version = "0.1", features = ["turso"] }
 ```
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Record test runs and results, and ask which tests are flaky
 - Read them from the command line with `sbrs report`
 - Keep browser profiles encrypted at rest
+
+</Info>
 
 ## Recording test runs
 

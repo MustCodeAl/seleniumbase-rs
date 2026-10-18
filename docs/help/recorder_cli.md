@@ -9,11 +9,15 @@ the API is stored in an internal `ActionRecorder`, which you can turn into Rust
 source or the same action file. And `sbrs run-scenario` runs a hand-written JSON
 scenario, which is a different, richer format.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to record manual browsing with `sbrs record` and replay it.
 - How `BaseCase` records actions automatically, and how to export them.
 - The two JSON formats: recorded actions, and scenarios for `run-scenario`.
+
+</Info>
 
 ## Record manual browsing
 

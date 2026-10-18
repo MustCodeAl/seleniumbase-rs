@@ -6,12 +6,16 @@ Run SeleniumBase for Rust tests inside a container for reproducible CI/CD builds
 This guide covers building the image, running the CLI, using Docker Compose, and
 configuring CI.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to build the Docker image.
 - How to run `sbrs` inside a container.
 - How to write a Docker Compose service.
 - How to run headless browsers in Docker.
+
+</Info>
 
 ## Build the image
 

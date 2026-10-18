@@ -6,11 +6,15 @@ Generate charts from your test data and save them as standalone HTML files.
 Charts are useful for visualizing benchmark results, test metrics, or any numeric
 data produced during a run.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which chart types are supported.
 - How to create single-series and multi-series charts.
 - How to export charts to HTML.
+
+</Info>
 
 ## Supported chart types
 

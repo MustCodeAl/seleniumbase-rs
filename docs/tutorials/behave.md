@@ -7,12 +7,16 @@ you can write BDD-style feature files similar to Python's `behave` framework.
 This lets product owners, QA engineers, and developers share a common language
 for describing acceptance criteria.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to write `.feature` files.
 - How to register sync and async step definitions.
 - How to filter scenarios by tags.
 - How to run feature files from Rust tests, and what the CLI offers.
+
+</Info>
 
 ## Feature files
 

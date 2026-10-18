@@ -1,5 +1,6 @@
 ---
 title: "Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation"
+sidebarTitle: "Stealth parity plan"
 ---
 
 > **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-wire`, `-scrape`, `-impersonate`); this plan is kept as design history, with the paths the code had here.

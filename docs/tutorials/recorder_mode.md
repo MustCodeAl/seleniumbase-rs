@@ -7,13 +7,17 @@ source file or a JSON action file that can be replayed later. It is a fast way
 to bootstrap a UI test: point, click, type, assert, and then refine the
 generated output.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to record from the CLI and from code.
 - What the generated Rust test looks like.
 - How to export and replay JSON action files, and how they differ from the
   scenario files `run-scenario` reads.
 - Tips for keeping generated tests maintainable.
+
+</Info>
 
 ## Record from the CLI
 

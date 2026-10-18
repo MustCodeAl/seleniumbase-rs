@@ -7,12 +7,16 @@ can pierce through open shadow roots with `::shadow` selectors, making it easy
 to interact with buttons, inputs, and lists that are otherwise invisible to a
 traditional CSS or XPath search.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How `::shadow` selectors work.
 - How to chain shadow roots.
 - How to query shadow roots directly with `WebDriver`/`thirtyfour` APIs.
 - The limits of shadow-DOM automation.
+
+</Info>
 
 ## Basic usage
 

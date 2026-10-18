@@ -271,7 +271,9 @@ a plain WebSocket; `codec` and `mimic` also use `ring` for hashing. The three
 stealth crates are MIT (workspace `Cargo.toml` and `LICENSE`); BoringSSL
 carries its own licences.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which crate to depend on, and what each one costs to build.
 - What is measured, what is refused, and why a Windows or Linux persona gets an
@@ -289,6 +291,8 @@ carries its own licences.
 - What the ephemeral-CA TLS server is for, and how `MitmProxy` uses it to put a
   real Chrome behind the same fingerprint.
 - How `StealthSession` moves between the two as the policies decide.
+
+</Info>
 
 ## Which crate to depend on
 

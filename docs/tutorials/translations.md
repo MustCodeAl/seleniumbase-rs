@@ -6,11 +6,15 @@ SeleniumBase for Rust includes a small translator utility that maps simple
 action names into multiple languages. This is useful for localized test reports
 or for teams that prefer non-English step names.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which languages are supported.
 - How to translate action names.
 - How to use translated actions in tests.
+
+</Info>
 
 ## Supported languages
 

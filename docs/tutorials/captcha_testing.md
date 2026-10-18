@@ -15,7 +15,9 @@ key is one of them, and `solve_captcha` is a click helper, not a solver.
 Whether you may use it on a site you do not control is a question for that
 site's terms, and it is out of scope here.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which test keys Google reCAPTCHA, hCaptcha and Cloudflare Turnstile document,
   and where.
@@ -23,6 +25,8 @@ site's terms, and it is out of scope here.
 - How to click the widget with `BaseCase` (WebDriver) and with `sb_cdp` (pure
   CDP), read the token, and submit.
 - How to test the failure paths, and what to do about reCAPTCHA v3.
+
+</Info>
 
 ## How the pieces fit
 

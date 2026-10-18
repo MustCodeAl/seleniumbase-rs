@@ -7,11 +7,15 @@ native Rust CDP engine, to drive Chromium with a Playwright-compatible API. It
 can bypass bot-detection systems that target WebDriver fingerprints without
 requiring a Node Playwright driver.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to enable the optional `playwright` feature.
 - How `rustwright` resolves Chromium.
 - How to activate and use a Playwright session.
+
+</Info>
 
 ## Enable the feature
 

@@ -1,5 +1,6 @@
 ---
 title: "Design: the sbrs CLI on usage, in its own workspace crate"
+sidebarTitle: "The CLI on usage"
 ---
 
 Status: accepted (2026-10-17): derives, package `seleniumbase-rs-cli`, work

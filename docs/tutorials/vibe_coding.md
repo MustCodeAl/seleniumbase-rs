@@ -1,5 +1,6 @@
 ---
 title: "Vibe coding with seleniumbase-rs"
+sidebarTitle: "Vibe coding"
 ---
 
 "Vibe coding" here means: you describe a browser test in plain words, an AI agent

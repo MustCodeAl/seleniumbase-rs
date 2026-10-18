@@ -1,5 +1,6 @@
 ---
 title: "ADR 003: Stealth Scraping Layout"
+sidebarTitle: "003: Stealth scraping layout"
 ---
 
 > **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-wire`, `-scrape`, `-impersonate`); the paths below are the ones it had here.

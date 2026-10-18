@@ -6,11 +6,15 @@ SeleniumBase for Rust supports three primary ways to express automation:
 direct API calls in Rust, CLI commands, and JSON-based scenarios. This page
 compares the formats and links to deeper guides.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How the same action looks in each format.
 - How selectors are represented across formats.
 - When to choose one format over another.
+
+</Info>
 
 ## The formats
 

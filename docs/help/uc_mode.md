@@ -1,5 +1,6 @@
 ---
 title: "UC Mode (Undetected Chromedriver)"
+sidebarTitle: "UC mode options"
 ---
 
 UC Mode launches Chromium with stealth flags and applies JavaScript evasions that
@@ -7,12 +8,16 @@ mask `navigator.webdriver`, plugins, WebGL, and other fingerprints. Removing the
 automation markers from the chromedriver binary itself is a separate step that
 you run yourself (below).
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to enable UC mode.
 - How binary patching removes injected markers.
 - How engine spoofing args hide additional automation signals.
 - What to do if a site still detects the browser.
+
+</Info>
 
 ## Quick enable
 

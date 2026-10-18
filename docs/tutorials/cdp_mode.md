@@ -10,12 +10,16 @@ cookies, or headers.
 This page explains how to enable CDP mode, use the CDP helpers on `BaseCase`,
 send raw CDP commands, and intercept network requests.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to enable CDP mode in `BrowserConfig`.
 - Which CDP helpers are available on `BaseCase`.
 - How to send raw CDP commands with and without parameters.
 - How to use the `CdpReactor` to mutate request headers.
+
+</Info>
 
 ## Enable CDP mode
 

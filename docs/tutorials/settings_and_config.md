@@ -1,5 +1,6 @@
 ---
 title: "Settings and Global Configuration"
+sidebarTitle: "Settings"
 ---
 
 `seleniumbase-rs` supports multiple configuration layers: built-in defaults, a

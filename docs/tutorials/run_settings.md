@@ -1,5 +1,6 @@
 ---
 title: "Run Settings: Demo, Slow and Fast Runs"
+sidebarTitle: "Run settings"
 ---
 
 Python SeleniumBase reads a handful of run-wide options from the pytest command
@@ -12,12 +13,16 @@ This page lists each setting with the Python option it replaces, shows a
 complete test, says exactly which `BaseCase` calls honour which setting, and
 lists the limits.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - The eight settings and the Python option behind each.
 - How to turn them on in a test, or from environment variables.
 - Which calls pause in demo and slow mode, and how long.
 - What `RunSettings` does not do.
+
+</Info>
 
 ## The settings
 

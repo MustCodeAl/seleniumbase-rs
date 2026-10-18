@@ -6,12 +6,16 @@ The HTML Inspector scans a page for common accessibility and markup issues. It
 is a fast static check that can catch missing attributes, invalid references,
 and structural problems before they reach production.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to run an inspection.
 - Which checks are performed.
 - How to use the inspector in CI.
 - The scope and limitations of static analysis.
+
+</Info>
 
 ## Run an inspection
 

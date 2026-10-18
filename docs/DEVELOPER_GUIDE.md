@@ -7,13 +7,17 @@ port of SeleniumBase (`seleniumbase-rs`). It covers the repository layout, the
 `BaseCase` architecture, how to add new helpers, the stealth system, testing, and
 release considerations.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How the repository is organized.
 - How `BaseCase` methods are split across domain files.
 - How to add a new `BaseCase` helper or evasion provider.
 - How to run tests and interpret CI checks.
 - Where to find the public API contract and stability notes.
+
+</Info>
 
 ## Project goals
 

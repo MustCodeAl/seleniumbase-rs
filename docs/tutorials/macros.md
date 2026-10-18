@@ -20,12 +20,16 @@ use seleniumbase_rs::{
 };
 ```
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to build selectors with `selector!`.
 - How to declare a test with `sb_test!`.
 - How to use config and fingerprint macros.
 - How action macros map to `BaseCase` methods.
+
+</Info>
 
 ## `selector!`
 

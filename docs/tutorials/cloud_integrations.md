@@ -10,12 +10,16 @@ These types are uploaders, not test hooks: call `upload_file` after a test, for
 example on the screenshot a failure plugin saved. See
 [Test Plugins](/tutorials/test_plugins) for the hooks.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which Cargo features enable each cloud backend.
 - How to authenticate with AWS, Azure, and GCS.
 - How to upload files from a test.
 - How to run the included `cloud_upload` example.
+
+</Info>
 
 ## Enabling backends
 

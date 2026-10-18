@@ -22,7 +22,9 @@ drives the browser.
 
 </Note>
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Turn plugins on and use one, with either engine
 - Install a plugin from the plugins repository
@@ -30,6 +32,8 @@ drives the browser.
 - When each hook runs, and what happens when one fails
 - What each browser lets a plugin do on the WebDriver engine
 - What you trust when you add a plugin
+
+</Info>
 
 ## Turning plugins on
 

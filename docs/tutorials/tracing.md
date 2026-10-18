@@ -8,12 +8,16 @@ title: "Tracing and Logging"
 control verbosity, configure runtime settings through the environment, and use
 tracing in your own tests.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to set log levels with `RUST_LOG`.
 - How `SB_*` environment variables configure runtime behavior.
 - How spans and structured errors help diagnose failures.
 - How to use tracing in your own async code.
+
+</Info>
 
 ## Log levels
 

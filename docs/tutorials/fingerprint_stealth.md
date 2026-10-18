@@ -15,7 +15,9 @@ native-level spoofing through CDP. It covers what a page can read inside the
 browser. The TLS and HTTP/2 side, and the scraper built on it, is a separate
 project now; see [Stealth Scraping](/tutorials/stealth_scraping).
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to use built-in fingerprint presets.
 - How to generate a random but coherent `Fingerprint` from a seed.
@@ -26,6 +28,8 @@ project now; see [Stealth Scraping](/tutorials/stealth_scraping).
 - Which launch paths apply a fingerprint, and what each one does.
 - How an external profile payload maps onto all of this.
 - How the evasion provider registry assembles the JavaScript bootstrap.
+
+</Info>
 
 ## Quick start
 

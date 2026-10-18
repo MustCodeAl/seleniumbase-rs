@@ -18,10 +18,14 @@ exit with status 2 and say how to get it.
 
 </Note>
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to save a page as PDF.
 - How to extract and assert text from PDF files, bytes and URLs.
+
+</Info>
 
 ## Save a page as PDF
 

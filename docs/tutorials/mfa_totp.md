@@ -7,11 +7,15 @@ Multi-factor authentication (MFA) flows that use time-based one-time passwords
 from a base32-encoded shared secret, so you can complete MFA login steps without
 manual intervention.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to generate a TOTP code.
 - How to use the code in a login flow.
 - Security best practices for handling secrets.
+
+</Info>
 
 ## Generate a TOTP code
 

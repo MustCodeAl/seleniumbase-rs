@@ -7,11 +7,15 @@ Gherkin feature files of a project, runs the scenarios you mark through this
 crate's behave runner and shows what came of each. It is the Python Behave
 Commander without the Tkinter window.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to build and launch the app.
 - What it lists, and how to pick scenarios and tags.
 - What the run can and cannot do.
+
+</Info>
 
 ## Build and launch
 

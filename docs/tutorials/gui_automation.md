@@ -43,11 +43,15 @@ Without the feature, `BaseCase::gui_*`, `seleniumbase_rs::Gui` and the native
 dialog helpers (`show_message`, `show_confirm`, `show_prompt`,
 `choose_file_dialog`, `save_file_dialog`) are not compiled.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which GUI helpers are available.
 - How to perform keyboard shortcuts and text entry.
 - Common use cases and limitations.
+
+</Info>
 
 ## Available helpers
 

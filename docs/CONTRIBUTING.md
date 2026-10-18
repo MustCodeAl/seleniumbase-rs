@@ -1,5 +1,6 @@
 ---
 title: "Contributing to SeleniumBase-rs"
+sidebarTitle: "Contributing"
 ---
 
 Thank you for helping make `seleniumbase-rs` a powerful, idiomatic Rust

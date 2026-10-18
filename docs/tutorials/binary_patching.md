@@ -20,13 +20,17 @@ has no driver to patch).
 
 </Info>
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - Which markers `ChromedriverPatcher` removes.
 - How to use `EnginePatch` presets and backups.
 - How to patch from Rust code and from the CLI.
 - How to combine patching with fingerprints and UC mode.
 - Safety and licensing considerations.
+
+</Info>
 
 ## What is patched
 

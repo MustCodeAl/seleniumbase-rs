@@ -1,5 +1,6 @@
 ---
 title: "Syncing with upstream SeleniumBase"
+sidebarTitle: "Upstream sync"
 ---
 
 This crate follows the Python [SeleniumBase](https://github.com/seleniumbase/SeleniumBase)

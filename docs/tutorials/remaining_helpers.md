@@ -7,12 +7,16 @@ Python SeleniumBase. These helpers handle page artifacts, window introspection,
 on-page messaging, console logs, traffic generation, charts, and deferred
 assertions.
 
-## What you will learn
+<Info>
+
+**What you will learn**
 
 - How to save screenshots and page source.
 - How to inspect and manipulate the browser window.
 - How to post messages and read console logs.
 - How to use deferred assertions for soft failures.
+
+</Info>
 
 ## Page artifacts
 
