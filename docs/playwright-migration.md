@@ -34,10 +34,17 @@ Summary for AI exports: `sbrs import-playwright FILE --output tests/FILE.rs` con
 
 ## Convert a file
 
-```bash
+<CodeGroup>
+
+```bash TypeScript spec
 cargo run --bin sbrs -- import-playwright e2e/login.spec.ts --output tests/login.rs
+```
+
+```bash Python test
 cargo run --bin sbrs -- import-pw tests/test_login.py   # prints to stdout
 ```
+
+</CodeGroup>
 
 <ParamField body="--output, -o" type="file path">
 
@@ -120,6 +127,28 @@ JavaScript ones (`get_by_role("button", name="Go")` is
 
 ### The page
 
+<CodeGroup>
+
+```typescript Playwright
+await page.goto('https://shop.test/');
+await page.reload();
+await page.waitForLoadState();
+await page.setViewportSize({ width: 1280, height: 800 });
+await page.keyboard.press('Enter');
+const title = await page.title();
+```
+
+```rust,ignore Rust
+page.goto("https://shop.test/").await?;
+page.reload().await?;
+page.wait_for_load().await?;
+page.window().set_bounds(0, 0, 1280, 800).await?;
+page.keyboard().press(Key::Enter).await?;
+let title = page.title().await?;
+```
+
+</CodeGroup>
+
 | Playwright | Rust |
 |---|---|
 | `goto(url)` | `page.goto(url)` (the `waitUntil` and `timeout` options are not carried over) |
@@ -137,6 +166,28 @@ JavaScript ones (`get_by_role("button", name="Go")` is
 | `setDefaultTimeout(ms)` | `let page = page.with_timeout(...)` |
 
 ### Locators and selectors
+
+<CodeGroup>
+
+```typescript Playwright
+page.locator('#cart');
+page.getByText('Checkout', { exact: true });
+page.getByLabel('Email');
+page.getByRole('button', { name: 'Go' });
+page.locator('ul > li').nth(2);
+page.getByTestId('total');
+```
+
+```rust,ignore Rust
+page.locator("#cart");
+page.locator(SelectorBuf::text("Checkout", true));
+page.locator(SelectorBuf::label("Email", false));
+page.locator(SelectorBuf::role("button", Some("Go"), false));
+page.locator("ul > li").nth(2);
+page.locator(r#"[data-testid="total"]"#);
+```
+
+</CodeGroup>
 
 | Playwright | Rust |
 |---|---|
@@ -159,6 +210,28 @@ a substring match that ignores case (ASCII letters only, since it is done in
 XPath 1.0).
 
 ### Actions
+
+<CodeGroup>
+
+```typescript Playwright
+await page.locator('#email').fill('a@b.test');
+await page.locator('#terms').check();
+await page.locator('#size').selectOption({ label: 'Large' });
+await page.locator('#search').press('Enter');
+await page.locator('#menu').hover();
+await page.locator('#row').dblclick();
+```
+
+```rust,ignore Rust
+page.locator("#email").fill("a@b.test").await?;
+page.locator("#terms").check().await?;
+page.locator("#size").select_option(SelectBy::Text("Large")).await?;
+page.locator("#search").press(Key::Enter).await?;
+page.locator("#menu").hover().await?;
+page.locator("#row").double_click().await?;
+```
+
+</CodeGroup>
 
 | Playwright | Rust |
 |---|---|
@@ -183,6 +256,24 @@ so on) map to the same calls on `page.locator(selector)`.
 `const x = await ...` (Python `x = ...`) becomes `let x = ...;`, and a later use
 of `x` as a value becomes `&x`. A value that is never used is named `_x`.
 
+<CodeGroup>
+
+```typescript Playwright
+const total = await page.locator('#total').textContent();
+const href = await page.locator('a.help').getAttribute('href');
+const rows = await page.locator('tr').count();
+const shown = await page.locator('#toast').isVisible();
+```
+
+```rust,ignore Rust
+let total = page.locator("#total").text().await?;
+let href = page.locator("a.help").attribute("href").await?;
+let rows = page.locator("tr").count().await?;
+let shown = page.locator("#toast").is_visible().await?;
+```
+
+</CodeGroup>
+
 | Playwright | Rust | Type |
 |---|---|---|
 | `textContent()`, `innerText()` | `.text()` (the rendered text) | `String` |
@@ -194,6 +285,24 @@ of `x` as a value becomes `&x`. A value that is never used is named `_x`.
 | `evaluate(...)` | `page.evaluate(...)` | `serde_json::Value` |
 
 ### Expectations
+
+<CodeGroup>
+
+```typescript Playwright
+await expect(page.locator('#status')).toHaveText('Ordered');
+await expect(page.locator('.item')).toHaveCount(3);
+await expect(page.locator('#spinner')).not.toBeVisible();
+await expect(page).toHaveTitle('Shop');
+```
+
+```rust,ignore Rust
+page.locator("#status").expect().to_have_text("Ordered").await?;
+page.locator(".item").expect().to_have_count(3).await?;
+page.locator("#spinner").expect().not().to_be_visible().await?;
+page.expect().to_have_title("Shop").await?;
+```
+
+</CodeGroup>
 
 | Playwright | Rust |
 |---|---|
