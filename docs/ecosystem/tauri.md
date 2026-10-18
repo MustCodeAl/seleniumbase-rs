@@ -120,8 +120,6 @@ have WebDriver drivers, but **macOS
 has none**. This plugin runs a small W3C WebDriver endpoint inside your app, so
 the same tests drive the app everywhere.
 
-<Panel>
-
 <Card title="Key facts" icon="circle-info">
 
 - Endpoint: `http://127.0.0.1:4445/{token}/`
@@ -138,8 +136,6 @@ the same tests drive the app everywhere.
 Every route with its fields, replies and errors.
 
 </Card>
-
-</Panel>
 
 <Note>
 

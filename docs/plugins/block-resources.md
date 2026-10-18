@@ -11,8 +11,6 @@ Blocking images, fonts or media makes pages load faster and use less data in
 tests and scrapers that do not look at them. It uses the Chrome DevTools
 Protocol (`Network.setBlockedURLs`), so it needs a Chromium-based browser.
 
-<Panel>
-
 <Card title="Quick reference" icon="ban">
 
 Plugin name: `block-resources`. Needs a Chromium browser.
@@ -20,8 +18,6 @@ Plugin name: `block-resources`. Needs a Chromium browser.
 Constructors: `BlockResources::images_and_fonts()`, `BlockResources::media()` and `BlockResources::patterns(...)`.
 
 </Card>
-
-</Panel>
 
 ```sh Terminal
 cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a

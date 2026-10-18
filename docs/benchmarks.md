@@ -9,8 +9,6 @@ release build, headless, a local page, nothing else running). Timings from
 another machine will differ; the harnesses are in `benches/` so you can
 repeat them.
 
-<Panel>
-
 <Card title="Measured on" icon="microchip">
 
 Apple M1, 8 cores, macOS 27, Chrome 155, release build, headless, a local page, nothing else running.
@@ -18,8 +16,6 @@ Apple M1, 8 cores, macOS 27, Chrome 155, release build, headless, a local page, 
 Re-measured on 2026-10-11 at commit `a3348a8`, in one run of each harness.
 
 </Card>
-
-</Panel>
 
 <Visibility for="agents">
 

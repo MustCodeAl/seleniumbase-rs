@@ -29,8 +29,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 
 </CodeGroup>
 
-<Panel>
-
 <Card title="Quick reference" icon="file-pdf">
 
 `save_as_pdf` and `print_to_pdf` print a page to PDF (always available).
@@ -38,8 +36,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 With feature `pdf`: `get_pdf_text`, `assert_pdf_text`, `pdf::extract_text_from_bytes`, `pdf::extract_text_from_url` (refuses downloads over 100 MB) and `PdfReader::open`.
 
 </Card>
-
-</Panel>
 
 <Info>
 

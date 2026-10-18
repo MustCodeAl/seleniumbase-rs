@@ -7,8 +7,6 @@ A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).
 
 <Badge color="blue">Chromium only</Badge> <Badge color="blue">Launch only</Badge>
 
-<Panel>
-
 <Card title="At a glance" icon="puzzle-piece">
 
 - **Name:** `crx`
@@ -18,8 +16,6 @@ A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).
 - **Size guard:** unpacked archives above 512 MiB are refused
 
 </Card>
-
-</Panel>
 
 Chrome only loads unpacked extension folders from the command line. This
 plugin takes `.crx` files (CRX3, the current format, and the older CRX2),

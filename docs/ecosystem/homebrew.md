@@ -162,12 +162,8 @@ If zsh does not complete `sbrs`, make sure Homebrew's completions are on your
 
 </Tip>
 
-<Panel>
-
 <Card title="Building and installing" icon="hammer" href="/building">
 
 For building from source instead of Homebrew.
 
 </Card>
-
-</Panel>

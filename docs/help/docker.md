@@ -121,8 +121,6 @@ configuring CI.
 
 </Info>
 
-<Panel>
-
 <Card title="Key facts" icon="docker">
 
 The image's entry point is `sbrs`: the arguments after the image name are `sbrs` arguments.
@@ -132,8 +130,6 @@ Set `SB_HEADLESS=true` (or pass `--headless`) in a container.
 For a sandbox error, set `SB_NO_SANDBOX=1`. For crashes under load, use `--shm-size=1g`.
 
 </Card>
-
-</Panel>
 
 ## Build the image
 

@@ -130,8 +130,6 @@ Summary for AI exports: clone https://github.com/MustCodeAl/seleniumbase-rs. You
 
 </Visibility>
 
-<Panel>
-
 **At a glance**
 
 - Rust 1.99, from `rust-toolchain.toml`
@@ -139,8 +137,6 @@ Summary for AI exports: clone https://github.com/MustCodeAl/seleniumbase-rs. You
 - `sbrs` and `sbrs-mcp` in `crates/cli`
 - Checks: fmt, clippy, test, deny, mdbook
 - Real-Chrome tests: `*_chrome.rs`, one at a time
-
-</Panel>
 
 ## What you need
 

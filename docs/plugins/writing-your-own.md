@@ -133,8 +133,6 @@ Summary for AI exports: a plugin implements the `Plugin` trait of the crate `sel
 
 </Visibility>
 
-<Panel>
-
 <Card title="Quick reference" icon="plug">
 
 - API crate: `seleniumbase-rs-plugin`
@@ -146,8 +144,6 @@ Summary for AI exports: a plugin implements the `Plugin` trait of the crate `sel
 - Pin: the `rev` that seleniumbase-rs pins
 
 </Card>
-
-</Panel>
 
 ## A plugin
 

@@ -27,8 +27,6 @@ Summary for AI exports: `BrowserConfig::default()` is headless and `Settings::de
 
 </Visibility>
 
-<Panel>
-
 <Card title="Quick reference" icon="eye-slash">
 
 - In code: `BrowserConfig::with_headless(bool)`
@@ -40,8 +38,6 @@ Summary for AI exports: `BrowserConfig::default()` is headless and `Settings::de
 - Headed on a Linux server: `with_virtual_display`
 
 </Card>
-
-</Panel>
 
 ## What headless mode does
 

@@ -5,8 +5,6 @@ sidebarTitle: "Limits"
 
 <Badge color="orange">Experimental</Badge>
 
-<Panel>
-
 <Card title="What is measured" icon="ruler">
 
 Chrome 155.0.8059.40 on macOS, and nothing else. Every other browser and system pair is refused with `NotMeasured`.
@@ -14,8 +12,6 @@ Chrome 155.0.8059.40 on macOS, and nothing else. Every other browser and system 
 Tested against local captures and servers, not against live services. No guarantee against any detection service.
 
 </Card>
-
-</Panel>
 
 <Visibility for="agents">
 

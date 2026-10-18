@@ -18,8 +18,6 @@ manual intervention.
 
 </Info>
 
-<Panel>
-
 <Card title="Quick reference" icon="key">
 
 `get_totp_code(secret)` returns the code. Its aliases are `get_mfa_code` and `get_google_auth_code`.
@@ -29,8 +27,6 @@ manual intervention.
 RFC 6238 with HMAC-SHA1, a 30 second step and 6 digits.
 
 </Card>
-
-</Panel>
 
 <Visibility for="agents">
 
