@@ -2,7 +2,12 @@
   "$schema": "https://context7.com/schema/docs7.json",
   "name": "SeleniumBase for Rust",
   "colors": {
-    "primary": "#CE422B"
+    "primary": "#CE422B",
+    "light": "#F07B5F",
+    "dark": "#A8321F"
+  },
+  "background": {
+    "decoration": "gradient"
   },
   "feedback": {
     "thumbsRating": true
