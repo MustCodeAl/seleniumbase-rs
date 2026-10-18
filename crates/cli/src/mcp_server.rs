@@ -22,6 +22,10 @@
 //! The server stops when the client disconnects, or on SIGINT or SIGTERM. Either
 //! way it closes the browser first, waiting at most `SB_SHUTDOWN_TIMEOUT_SECS`
 //! seconds (30 by default) for it to go.
+//!
+//! With no command the program serves. `sbrs-mcp install CLIENT...` registers it with MCP
+//! clients (`uninstall` removes the registration, `clients` lists them); see
+//! [`mcp_install`].
 
 use std::path::Path;
 
@@ -29,6 +33,11 @@ use seleniumbase_rs::cli::plugin_cmd::PluginChoice;
 use seleniumbase_rs::cli::scripts::rich_helper;
 use seleniumbase_rs::mcp::{self, Profile};
 use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
+
+mod mcp_install;
+
+// The derive of `Cli` names the type of the subcommand field by its last path segment.
+use mcp_install::Command;
 
 #[derive(Debug, usage::Cli)]
 // usage prints `bin` in `--version`, in help and in the `Usage:` line of an error, so the
@@ -39,7 +48,9 @@ use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseErro
     version,
     about = "SeleniumBaseRust MCP server (stdio)",
     unknown_flags = "error",
-    args_override_self = false
+    args_override_self = false,
+    // `sbrs-mcp --server cdp install cursor` would drop the flag without a word.
+    args_conflicts_with_subcommands
 )]
 struct Cli {
     /// Which toolset to serve: cdp, driver or sb.
@@ -62,6 +73,8 @@ struct Cli {
     /// must be turned on by --plugin, SB_PLUGINS or the file.
     #[usage(long, value_name = "NAME.KEY=VALUE")]
     plugin_opt: Vec<String>,
+    #[usage(subcommand)]
+    command: Option<Command>,
 }
 
 /// The plugins the operator chose: the `[plugins]` table of the settings file (only that
@@ -74,7 +87,10 @@ fn plugin_choice(cli: &Cli) -> Result<PluginChoice, SeleniumBaseError> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    if let Some(command) = cli.command.take() {
+        std::process::exit(mcp_install::run(command));
+    }
     let choice = plugin_choice(&cli).unwrap_or_else(|error| {
         // The same report and exit status as `sbrs`: 2 for what the operator typed.
         rich_helper::print_error_report(&error);
