@@ -502,7 +502,7 @@ Print one short line for a shell prompt: the installed Chrome's major version an
 Prints `chrome 155 ✓driver`, with `✗driver` when the chromedriver is missing or of another version and `?driver` when its version cannot be read. It starts no browser and uses no network: versions come from files (a macOS app's Info.plist, the version folder beside chrome.exe), and one that only `--version` tells is cached for ten minutes in the user cache folder. Prints nothing and exits with 0 when no browser is found; --verbose says why, on standard error. The chromedriver is looked for as `sbrs doctor` does: CHROMEDRIVER_PATH, downloaded_drivers/, PATH.
 
 ### Flags
-- **`--format <TEMPLATE>`** — The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces
+- **`--format <TEMPLATE>`** — The line to print; placeholders \{browser\} \{major\} \{driver\} \{mark\} \{driver_major\}, \{\{ and \}\} for braces
 
   **Default:** `{browser} {major} {driver}`
 - **`--ascii`** — Mark the driver with + - ? instead of ✓ ✗ ?

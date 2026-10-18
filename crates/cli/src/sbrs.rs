@@ -3879,6 +3879,7 @@ mod usage_spec_tests {
             .with_html_encode(true)
             .render_spec()
             .expect("the reference renders");
+        let reference = escape_mdx_braces(&reference);
         let page = format!(
             "---\ntitle: \"CLI reference\"\n---\n\n\
              *Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by \
@@ -3886,5 +3887,43 @@ mod usage_spec_tests {
              Do not edit it by hand.*\n\n{reference}"
         );
         assert_generated("docs/help/cli_reference.md", &page);
+    }
+
+    /// Braces outside code are JavaScript expressions in MDX (the Docs7 site), so a
+    /// help text such as `{browser} {major}` would fail there; `\{` is a literal brace
+    /// in MDX and in CommonMark (mdBook) alike. Code spans and fenced blocks keep theirs.
+    fn escape_mdx_braces(markdown: &str) -> String {
+        let mut out = String::with_capacity(markdown.len());
+        let mut in_fence = false;
+        for line in markdown.split_inclusive('\n') {
+            if line.trim_start().starts_with("```") {
+                in_fence = !in_fence;
+                out.push_str(line);
+                continue;
+            }
+            if in_fence {
+                out.push_str(line);
+                continue;
+            }
+            let mut in_code = false;
+            for ch in line.chars() {
+                match ch {
+                    '`' => in_code = !in_code,
+                    '{' | '}' if !in_code => out.push('\\'),
+                    _ => {}
+                }
+                out.push(ch);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn braces_outside_code_are_escaped_for_mdx() {
+        let text = "placeholders {browser}, {{ and }}\n`{kept}` and\n```\n{fenced}\n```\n";
+        assert_eq!(
+            escape_mdx_braces(text),
+            "placeholders \\{browser\\}, \\{\\{ and \\}\\}\n`{kept}` and\n```\n{fenced}\n```\n"
+        );
     }
 }
