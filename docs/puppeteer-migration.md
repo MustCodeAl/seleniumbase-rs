@@ -30,11 +30,21 @@ Summary for AI exports: `sbrs import-puppeteer FILE --output tests/FILE.rs` conv
 
 ## Convert a file
 
-```bash
+<CodeGroup>
+
+```bash Script
 cargo run --bin sbrs -- import-puppeteer scripts/checkout.js --output tests/checkout.rs
+```
+
+```bash jest test
 cargo run --bin sbrs -- import-pptr __tests__/shop.test.ts
+```
+
+```bash Recorder export
 cargo run --bin sbrs -- import-puppeteer recordings/checkout.json   # a Recorder export
 ```
+
+</CodeGroup>
 
 <ParamField body="--output, -o" type="file path">
 
@@ -77,6 +87,26 @@ features.
 
 ### The page
 
+<CodeGroup>
+
+```javascript Puppeteer
+await page.goto('https://shop.test/');
+await page.setViewport({ width: 1280, height: 800 });
+await page.waitForSelector('#cart', { visible: true });
+await page.keyboard.press('Enter');
+const title = await page.title();
+```
+
+```rust,ignore Rust
+page.goto("https://shop.test/").await?;
+page.window().set_bounds(0, 0, 1280, 800).await?;
+page.locator("#cart").wait_for(State::Visible).await?;
+page.keyboard().press(Key::Enter).await?;
+let title = page.title().await?;
+```
+
+</CodeGroup>
+
 | Puppeteer | Rust |
 |---|---|
 | `goto(url, { waitUntil })` | `page.goto(url)` (it waits for the load event) |
@@ -98,6 +128,26 @@ features.
 
 ### Actions
 
+<CodeGroup>
+
+```javascript Puppeteer
+await page.click('#buy');
+await page.type('#email', 'a@b.test');
+await page.hover('#menu');
+await page.select('#size', 'large');
+await page.click('#row', { clickCount: 2 });
+```
+
+```rust,ignore Rust
+page.locator("#buy").click().await?;
+page.locator("#email").send_keys("a@b.test").await?;
+page.locator("#menu").hover().await?;
+page.locator("#size").select_option(SelectBy::Value("large")).await?;
+page.locator("#row").double_click().await?;
+```
+
+</CodeGroup>
+
 | Puppeteer | Rust |
 |---|---|
 | `page.click(sel)`, `{ button: 'right' }`, `{ clickCount: 2 }`, `page.tap(sel)` | `page.locator(sel).click()`, `.right_click()`, `.double_click()` |
@@ -110,6 +160,26 @@ features.
 
 `const el = await page.$(sel)` becomes `let el = page.locator(sel);`: a lazy
 locator, which looks the element up again each time it is used.
+
+<CodeGroup>
+
+```javascript Puppeteer
+const total = await page.$eval('#total', el => el.textContent);
+const href = await page.$eval('a.help', el => el.getAttribute('href'));
+const rows = await page.$$eval('tr', els => els.length);
+const items = await page.$$('.item');
+await items[0].click();
+```
+
+```rust,ignore Rust
+let total = page.locator("#total").text().await?;
+let href = page.locator("a.help").attribute("href").await?;
+let rows = page.locator("tr").count().await?;
+let items = page.locator(".item");
+items.nth(0).click().await?;
+```
+
+</CodeGroup>
 
 | Puppeteer | Rust |
 |---|---|
@@ -125,6 +195,24 @@ locator, which looks the element up again each time it is used.
 
 ### Selectors
 
+<CodeGroup>
+
+```javascript Puppeteer
+await page.click('#cart');
+await page.click('xpath///button[@id="go"]');
+await page.click('text/Checkout');
+await page.click('aria/Place order[role="button"]');
+```
+
+```rust,ignore Rust
+page.locator("#cart").click().await?;
+page.locator(r#"//button[@id="go"]"#).click().await?;
+page.locator(SelectorBuf::text("Checkout", false)).click().await?;
+page.locator(SelectorBuf::role("button", Some("Place order"), true)).click().await?;
+```
+
+</CodeGroup>
+
 | Puppeteer | Rust |
 |---|---|
 | CSS | `page.locator("css")` |
@@ -136,6 +224,22 @@ locator, which looks the element up again each time it is used.
 | `pierce/...`, `>>>` | a `TODO`: the pure CDP engine's selectors do not enter shadow roots |
 
 ### Assertions
+
+<CodeGroup>
+
+```javascript Puppeteer
+await expect(page).toMatchElement('#status', { text: 'Ordered' });
+expect(title).toBe('Shop');
+expect(rows).toBeGreaterThan(0);
+```
+
+```rust,ignore Rust
+page.locator("#status").locator(SelectorBuf::has_text("Ordered")).expect().to_exist().await?;
+assert_eq!(title, "Shop");
+assert!(rows > 0);
+```
+
+</CodeGroup>
 
 | Source | Rust |
 |---|---|
