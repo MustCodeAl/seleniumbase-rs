@@ -652,6 +652,6 @@ assert!(!mock.calls_to("Runtime.evaluate").is_empty());
 `sb.cdp.click(sel)` is `page.locator(sel).click()`; `sb.cdp.assert_text(...)` is
 `locator.expect().to_contain_text(...)`; `sb.cdp.get_text` is `locator.text()`.
 The full mapping of every `sb.cdp` method is in the
-[API parity table](../parity.md).
+[API parity table](/parity).
 
 </Tip>

@@ -40,7 +40,7 @@ message on any system but macOS: they do not borrow the values of another system
 `stealth_session` also needs the installed Chrome to be the measured major, or it is
 refused before it loads a page. The two that drive Chrome should run one at a time,
 and not beside another Chrome-driving program. The `mimic` ones start from the
-[feature costs](overview.md#two-features); the first build compiles BoringSSL.
+[feature costs](/stealth/overview#two-features); the first build compiles BoringSSL.
 
 </Warning>
 
@@ -53,7 +53,7 @@ escalated to Chrome, came back to HTTP, and in two runs the shop saw one JA4 and
 user agent on every request of both legs (six and seven requests, as Chrome's favicon
 requests come and go);
 `http_session` printed a JA4 that differs from the measured one by the known gaps
-(see [Limits](limits.md#limits)). Nothing was run on another system, so the `NotMeasured` stop
+(see [Limits](/stealth/limits#limits)). Nothing was run on another system, so the `NotMeasured` stop
 of the three is read from the code and was not observed.
 
 </Check>

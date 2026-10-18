@@ -204,7 +204,7 @@ Add `engine_spoofing_args()` to the launch flags.
 
 <Step title="Use a coherent fingerprint">
 
-Use a coherent [`Fingerprint`](./fingerprint_stealth.md) with consistent user
+Use a coherent [`Fingerprint`](/tutorials/fingerprint_stealth) with consistent user
 agent, platform, screen size, WebGL vendor, and geolocation.
 
 </Step>
@@ -225,7 +225,7 @@ where possible.
 
 <Step title="Try the pure CDP engine">
 
-Try the [pure CDP engine](./pure_cdp.md), which launches Chrome without
+Try the [pure CDP engine](/tutorials/pure_cdp), which launches Chrome without
 chromedriver at all.
 
 </Step>

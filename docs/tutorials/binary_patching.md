@@ -17,7 +17,7 @@ arguments that hide additional automation markers.
 <Info>
 
 Nothing here runs by itself for a chromedriver: UC mode does not patch the
-driver, so patch it yourself (or use the [pure CDP engine](./pure_cdp.md), which
+driver, so patch it yourself (or use the [pure CDP engine](/tutorials/pure_cdp), which
 has no driver to patch).
 
 </Info>

@@ -32,7 +32,7 @@ let text = sb.get_text("h1").await?;
 # }
 ```
 
-The [pure CDP engine](../tutorials/pure_cdp.md) has its own API, in which the
+The [pure CDP engine](/tutorials/pure_cdp) has its own API, in which the
 selector lives in a `Locator` instead of being passed to every call:
 
 ```rust,no_run
@@ -86,7 +86,7 @@ Run the scenario:
 cargo run --bin sbrs -- run-scenario --file scenario.json
 ```
 
-The list of actions is in [Recorder CLI](./recorder_cli.md#run-a-json-scenario).
+The list of actions is in [Recorder CLI](/help/recorder_cli#run-a-json-scenario).
 `sbrs record` writes a different file, an array of recorded actions, which you
 replay with `sbrs replay`.
 

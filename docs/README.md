@@ -119,32 +119,32 @@ By reading this book you will learn how to:
 
 <Tab title="New to the crate">
 
-Start with [Getting Started](tutorials/getting_started.md)
-and then read [Writing Browser Tests](rust-test-tooling.md) and
-[Waits and Assertions](tutorials/waits_assertions.md).
+Start with [Getting Started](/tutorials/getting_started)
+and then read [Writing Browser Tests](/rust-test-tooling) and
+[Waits and Assertions](/tutorials/waits_assertions).
 
 </Tab>
 
 <Tab title="Migrating from Python">
 
-Jump to [Migrate Python Tests](python-migration.md)
-and then read [Selectors](tutorials/selectors.md) for the differences in selector
+Jump to [Migrate Python Tests](/python-migration)
+and then read [Selectors](/tutorials/selectors) for the differences in selector
 syntax and test lifecycle.
 
 </Tab>
 
 <Tab title="Anti-detection">
 
-Read [Undetected (UC) Mode](tutorials/uc_mode.md),
-[Fingerprint & Stealth Profiles](tutorials/fingerprint_stealth.md), and
-[Binary Patching](tutorials/binary_patching.md) in that order.
+Read [Undetected (UC) Mode](/tutorials/uc_mode),
+[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth), and
+[Binary Patching](/tutorials/binary_patching) in that order.
 
 </Tab>
 
 <Tab title="Day to day">
 
-Keep [CLI Usage](tutorials/cli_usage.md) and
-[Common Problems](help/common_problems.md) handy.
+Keep [CLI Usage](/tutorials/cli_usage) and
+[Common Problems](/help/common_problems) handy.
 
 </Tab>
 
@@ -160,7 +160,7 @@ and releases are tagged there.
 <Note>
 
 The crate is not on crates.io yet: install it
-from a release tag (see [Building and installing](building.md)).
+from a release tag (see [Building and installing](/building)).
 
 </Note>
 

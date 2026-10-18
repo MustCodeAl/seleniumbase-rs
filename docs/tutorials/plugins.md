@@ -16,7 +16,7 @@ engines: the Pure CDP engine (`sb_cdp`) and the WebDriver engine (`BaseCase`).
 
 <Note>
 
-Browser plugins are not [Test Plugins](test_plugins.md), which run around a
+Browser plugins are not [Test Plugins](/tutorials/test_plugins), which run around a
 test (screenshots on failure, reports), and not the
 [browser extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension),
 which runs inside the browser. A browser plugin is Rust code in the program that

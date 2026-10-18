@@ -95,7 +95,7 @@ comment rather than silently disappearing.
 <Step title="You run it">
 
 Put the test in `tests/` and run `cargo test`. Wrapping it in
-`run_browser_test` (see [Reliability](../reliability.md)) closes the browser
+`run_browser_test` (see [Reliability](/reliability)) closes the browser
 even when an assertion fails.
 
 </Step>

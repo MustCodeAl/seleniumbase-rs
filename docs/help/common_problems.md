@@ -58,7 +58,7 @@ UC mode removes many fingerprints, but detection is layered. Check each defense:
 
 <Step title="Patch the chromedriver binary">
 
-Use [`ChromedriverPatcher`](../tutorials/binary_patching.md) or
+Use [`ChromedriverPatcher`](/tutorials/binary_patching) or
 `cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver`.
 Verify with `needs_patch()`.
 
@@ -75,7 +75,7 @@ Pass `engine_spoofing_args()` through `BrowserConfig::with_extra_args` or
 
 A Windows user agent with a macOS WebGL vendor or a mobile screen on a desktop
 platform is suspicious. Build a
-[`Fingerprint`](../tutorials/fingerprint_stealth.md), keep the values
+[`Fingerprint`](/tutorials/fingerprint_stealth), keep the values
 consistent, and check it with `Fingerprint::validate()`, whose
 `CoherenceReport::is_coherent()` is `false` when the values contradict each
 other.
@@ -98,7 +98,7 @@ still tell headless from headed. See [Headless detected](#headless-detected).
 
 <Step title="Drop chromedriver altogether">
 
-The [pure CDP engine](../tutorials/pure_cdp.md) (`seleniumbase_rs::sb_cdp`)
+The [pure CDP engine](/tutorials/pure_cdp) (`seleniumbase_rs::sb_cdp`)
 launches Chrome directly, so there is no driver binary to leak markers.
 
 </Step>

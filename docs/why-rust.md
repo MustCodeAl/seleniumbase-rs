@@ -10,7 +10,7 @@ title: "Why Rust?"
 in Rust, if you want to ship the runner as one native binary, or if you want the
 pure CDP engine and the agent tools that upstream Python SeleniumBase does not
 have. Do not choose it because you expect faster tests: the browser sets the
-pace (see [Performance](performance.md)).
+pace (see [Performance](/performance)).
 
 </Tip>
 
@@ -131,7 +131,7 @@ Not here: TLS (JA3/JA4) and HTTP/2 (Akamai) impersonation, the impersonating
 HTTP session, the MITM proxy and the combined stealth session moved in 0.3.0 to
 the separate, experimental seleniumbase-rs-stealth project, measured for one
 browser and system (Chrome 155 on macOS). See
-[Stealth Scraping](tutorials/stealth_scraping.md).
+[Stealth Scraping](/tutorials/stealth_scraping).
 
 </Note>
 

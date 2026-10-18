@@ -163,7 +163,7 @@ browser, but their cost has not been benchmarked.
 
 The pure CDP engine (`sb_cdp`) has no chromedriver process and no HTTP
 request per command, and the library's own part of a round trip is about 0.1 ms
-(see [Benchmarks](benchmarks.md)). It is the lower-overhead choice when you do
+(see [Benchmarks](/benchmarks)). It is the lower-overhead choice when you do
 not need the Selenium API. The saving over WebDriver is structural, not
 measured.
 

@@ -54,11 +54,19 @@ def tags(body):
 
 
 def fix_link(target):
-    """A link target that works from docs/changelog.md, or None to drop the link."""
+    """A link target that works from the changelog page, or None to drop the link.
+
+    Every entry sits inside an <Update> component, where Docs7 does not rewrite
+    `x.md` links (they would open the raw file), so a docs page becomes its site
+    route: docs/tutorials/x.md#a gives /tutorials/x#a.
+    """
     if re.match(r"https?://", target) or target.startswith("#"):
         return target
     if target.startswith("docs/"):
-        return target[len("docs/"):]
+        page, _, anchor = target[len("docs/"):].partition("#")
+        if page.endswith(".md"):
+            page = page[: -len(".md")]
+        return f"/{page}" + (f"#{anchor}" if anchor else "")
     return None
 
 

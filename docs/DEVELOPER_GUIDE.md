@@ -637,7 +637,7 @@ browser; `tests/mcp_webdriver.rs` covers the catalogues.
 <Step title="Check the parity">
 
 If the tool exists upstream, `tests/parity.rs` checks it against
-`parity/api.toml`; see [Syncing with upstream](UPSTREAM_SYNC.md).
+`parity/api.toml`; see [Syncing with upstream](/UPSTREAM_SYNC).
 
 </Step>
 

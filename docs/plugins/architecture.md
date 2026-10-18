@@ -12,7 +12,7 @@ record, with the checks behind each decision, is
 <Note>
 
 The ADR is **proposed**. Only phase 1 of its plan has begun: the plugin API crate,
-the built-in plugins crate with [shield](shield.md), and the core side that
+the built-in plugins crate with [shield](/plugins/shield), and the core side that
 uses them (see [What is built](#what-is-built) and
 [What core does with it](#what-core-does-with-it)). Later phases are a plan,
 not a promise of dates.

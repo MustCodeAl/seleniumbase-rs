@@ -52,7 +52,7 @@ pushes the folder onto the launch settings' `extensions`. Unpacked archives abov
 <Step title="Loading">
 
 The pure CDP engine loads the folders as extensions over the protocol, as
-described in the [Browser Plugins guide](../tutorials/plugins.md#when-the-hooks-run).
+described in the [Browser Plugins guide](/tutorials/plugins#when-the-hooks-run).
 
 </Step>
 

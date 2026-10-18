@@ -60,7 +60,7 @@ To run a built-in plugin in every browser the server starts, add
 `"--plugin", "shield"` to `args` (and `"--plugin-opt", "shield.level=\"strict\""`
 for an option, a TOML value). The operator chooses the plugins; no tool argument
 adds one, and a mistake in them stops the server before it listens. See
-[Choosing plugins](../plugins/selecting.md#sbrs-mcp).
+[Choosing plugins](/plugins/selecting#sbrs-mcp).
 
 </Step>
 

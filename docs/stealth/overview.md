@@ -52,7 +52,7 @@ of it.
 
 The last three are tested against loopback sites, a scripted browser and, in
 tests marked `#[ignore]`, a local Chrome 155 on macOS, run headless. None of
-them was checked against a live service. [Limits](limits.md#limits) lists what that
+them was checked against a live service. [Limits](/stealth/limits#limits) lists what that
 leaves open.
 
 </Warning>

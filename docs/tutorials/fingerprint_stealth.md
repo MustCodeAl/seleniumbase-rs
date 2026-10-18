@@ -875,8 +875,8 @@ automation markers:
   sends that handshake or one you specify, and `MitmProxy`, which gives a real
   Chrome on the Pure CDP engine the impersonated handshake, are in the separate,
   experimental seleniumbase-rs-stealth crates since 0.3.0; see
-  [Stealth Scraping](stealth_scraping.md). The design history is the
-  [Stealth and impersonation plan](../design/stealth_parity_plan.md).
+  [Stealth Scraping](/tutorials/stealth_scraping). The design history is the
+  [Stealth and impersonation plan](/design/stealth_parity_plan).
 * Some dimensions (WebGL vendor/renderer, canvas/audio noise, media devices,
   fonts, battery, etc.) have no CDP override and remain JavaScript-based even
   when `native_spoofing` is enabled.

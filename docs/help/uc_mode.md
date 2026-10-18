@@ -110,7 +110,7 @@ Add `engine_spoofing_args()` to the launch flags.
 
 <Step title="Use a coherent fingerprint">
 
-Use a [`Fingerprint`](../tutorials/fingerprint_stealth.md) with consistent
+Use a [`Fingerprint`](/tutorials/fingerprint_stealth) with consistent
 user agent, platform, screen size, WebGL vendor, and geolocation.
 
 </Step>
@@ -130,7 +130,7 @@ Align egress IP with the spoofed geolocation and timezone.
 
 <Step title="Try the pure CDP engine">
 
-Try the [pure CDP engine](../tutorials/pure_cdp.md), which needs no
+Try the [pure CDP engine](/tutorials/pure_cdp), which needs no
 chromedriver.
 
 </Step>

@@ -17,7 +17,7 @@ cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCo
 <Note>
 
 Install it from the same revision of the plugins repository that your
-seleniumbase-rs pins; see [Installing a plugin](../tutorials/plugins.md#installing-a-plugin).
+seleniumbase-rs pins; see [Installing a plugin](/tutorials/plugins#installing-a-plugin).
 
 </Note>
 

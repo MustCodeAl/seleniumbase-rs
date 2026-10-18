@@ -171,7 +171,7 @@ cargo run --bin sbrs -- replay latest_logs/recorded.json
 This is not the file `sbrs run-scenario` reads. That command takes a
 hand-written scenario, an object with a `name` and a list of `steps` such as
 `{ "action": "click", "css": "#myButton" }`; passing it an action file fails to
-parse. See [Recorder CLI](../help/recorder_cli.md) for both formats.
+parse. See [Recorder CLI](/help/recorder_cli) for both formats.
 
 </Warning>
 

@@ -188,6 +188,6 @@ are kept; blank lines and comments outside tests are not.
 The input is read as untrusted text by the importer's own tokenizer and
 parser, with a 2 MB limit and a nesting limit; text from it reaches the Rust
 only in escaped string literals and neutralised comments, and names keep only
-`a-z`, `0-9` and `_`. See [Migrate Playwright Tests](playwright-migration.md#safety).
+`a-z`, `0-9` and `_`. See [Migrate Playwright Tests](/playwright-migration#safety).
 
 </Warning>

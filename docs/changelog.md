@@ -1195,7 +1195,7 @@ and the documentation gains a guide to testing pages with a CAPTCHA.
 - `browser::driver_version::major_without_running` reads a program's major
   version from its files only, and `version_flag_major` runs `--version` with a
   time limit.
-- Tutorial [Testing Pages with a CAPTCHA](tutorials/captcha_testing.md): vendor test keys, and tests that click the test widget and read the token.
+- Tutorial [Testing Pages with a CAPTCHA](/tutorials/captcha_testing): vendor test keys, and tests that click the test widget and read the token.
 - `docs/completions/`: a Fig completion spec for `sbrs`, prepared for withfig/autocomplete (not submitted), with the steps.
 
 ### Fixed
@@ -1257,7 +1257,7 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   experimental. Depend on them by git, for example
   `seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }`,
   and give `seleniumbase-rs` by its plain git URL next to them so both resolve to
-  one commit ([Stealth Scraping](tutorials/stealth_scraping.md)).
+  one commit ([Stealth Scraping](/tutorials/stealth_scraping)).
 - With the layer go the optional dependencies `psl`, `wreq`, `btls`,
   `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
   examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,

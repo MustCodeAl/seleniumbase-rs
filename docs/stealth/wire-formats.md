@@ -110,7 +110,7 @@ cargo run -p seleniumbase-rs-mimic --example capture_h2
   cannot drive, `--snippet` prints a script to paste into its developer
   console.
 - `capture_h2` serves a small HTTPS site with an [ephemeral
-  CA](mitm-proxy.md#the-ephemeral-ca-tls-server), starts Chrome so that it trusts only
+  CA](/stealth/mitm-proxy#the-ephemeral-ca-tls-server), starts Chrome so that it trusts only
   that CA, and reads the first request on each of five connections (a
   navigation, a `fetch`, an image, a script, a stylesheet), once over HTTP/2
   and once over HTTP/1.1. `--h1` and `--h2` run one pass only.

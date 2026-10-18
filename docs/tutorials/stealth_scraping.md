@@ -16,7 +16,7 @@ as three crates. The features `scrape` and `impersonate` and the modules
 <Tip>
 
 The full tutorial is part of this site now, under
-[Stealth scraping](../stealth/overview.md). Start there.
+[Stealth scraping](/stealth/overview). Start there.
 
 </Tip>
 

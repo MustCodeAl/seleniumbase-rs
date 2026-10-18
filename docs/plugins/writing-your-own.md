@@ -97,7 +97,7 @@ the same revision of the plugins repository as seleniumbase-rs
 <Note>
 
 For a native Rust plugin, capabilities are a declared contract, not a sandbox.
-Only [WebAssembly](wasm.md) plugins are sandboxed.
+Only [WebAssembly](/plugins/wasm) plugins are sandboxed.
 
 </Note>
 

@@ -12,7 +12,7 @@ current documentation before you decide, because every one of them keeps moving.
 <Note>
 
 Nothing here is a benchmark: there is no measured speed comparison with any other
-tool (see [Benchmarks](benchmarks.md) for what this crate itself costs).
+tool (see [Benchmarks](/benchmarks) for what this crate itself costs).
 
 </Note>
 

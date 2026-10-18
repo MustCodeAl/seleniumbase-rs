@@ -244,7 +244,7 @@ failing one.
 <Warning>
 
 For failure evidence use the code above, or the test plugins in
-[Test Plugins](tutorials/test_plugins.md), not the CLI commands.
+[Test Plugins](/tutorials/test_plugins), not the CLI commands.
 
 </Warning>
 

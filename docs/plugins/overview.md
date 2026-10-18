@@ -18,7 +18,7 @@ puppeteer-extra plugins do for Puppeteer. The design is
 
 Early. Plugins run in seleniumbase-rs 0.3.0 and later, behind its `plugins`
 feature, in the pure CDP engine (`sb_cdp`), and from 0.4.0 in the WebDriver
-engine (`BaseCase`) too. The [Browser Plugins guide](../tutorials/plugins.md)
+engine (`BaseCase`) too. The [Browser Plugins guide](/tutorials/plugins)
 is the user guide: it shows how to attach a set to a browser.
 
 </Note>

@@ -226,7 +226,7 @@ boundary it maps to `SeleniumBaseError`.
   closed. There is no idle timeout and no deadline in the session.
 - It runs the same fetch loop as `BrowserScraper`, with plain HTTP as the first
   move. A matching handshake is one signal among many, and a session does not
-  make automation permitted by a site's terms. See [Limits](limits.md#limits).
+  make automation permitted by a site's terms. See [Limits](/stealth/limits#limits).
 
 </Warning>
 
