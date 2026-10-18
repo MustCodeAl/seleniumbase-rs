@@ -121,7 +121,7 @@ configuring CI.
 
 </Info>
 
-<Card title="Key facts" icon="docker">
+<Card color="#1a85d4" title="Key facts" icon="docker">
 
 The image's entry point is `sbrs`: the arguments after the image name are `sbrs` arguments.
 
@@ -189,7 +189,7 @@ See `.github/workflows/` for the GitHub Actions jobs:
   </LayoutDir>
 </LayoutTree>
 
-<Card title="Deployment" icon="server" href="/deployment" horizontal>
+<Card color="#199f43" title="Deployment" icon="server" href="/deployment" horizontal>
 
 More on running in CI and containers.
 

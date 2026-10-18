@@ -682,37 +682,37 @@ The full mapping of every `sb.cdp` method is in the
 
 <Columns cols={2}>
 
-<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Getting started" icon="rocket" href="/tutorials/getting_started">
 
 Your first test, on either engine.
 
 </Card>
 
-<Card title="MCP servers" icon="robot" href="/tutorials/mcp_server">
+<Card color="#199f43" title="MCP servers" icon="robot" href="/tutorials/mcp_server">
 
 The `cdp` server runs on this engine.
 
 </Card>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 What a `Fingerprint` says a browser is.
 
 </Card>
 
-<Card title="Browser Plugins" icon="plug" href="/tutorials/plugins">
+<Card color="#a631be" title="Browser Plugins" icon="plug" href="/tutorials/plugins">
 
 Hooks that run before the browser starts, for every tab and at close.
 
 </Card>
 
-<Card title="Testing Pages with a CAPTCHA" icon="shield-halved" href="/tutorials/captcha_testing">
+<Card color="#1ca1c7" title="Testing Pages with a CAPTCHA" icon="shield-halved" href="/tutorials/captcha_testing">
 
 Test your own pages with the vendors' test keys.
 
 </Card>
 
-<Card title="API parity table" icon="table" href="/parity">
+<Card color="#d32a61" title="API parity table" icon="table" href="/parity">
 
 The full mapping of every `sb.cdp` method.
 

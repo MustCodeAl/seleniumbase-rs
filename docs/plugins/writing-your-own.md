@@ -133,7 +133,7 @@ Summary for AI exports: a plugin implements the `Plugin` trait of the crate `sel
 
 </Visibility>
 
-<Card title="Quick reference" icon="plug">
+<Card color="#1a85d4" title="Quick reference" icon="plug">
 
 - API crate: `seleniumbase-rs-plugin`
 - From seleniumbase-rs: `seleniumbase_rs::plugin_api`, feature `plugins`
@@ -1719,37 +1719,37 @@ async runtime: use `#[tokio::test]`, as in
 
 <Columns cols={2}>
 
-<Card title="Choosing plugins" icon="toggle-on" href="/plugins/selecting">
+<Card color="#199f43" title="Choosing plugins" icon="toggle-on" href="/plugins/selecting">
 
 The cargo features, the `[plugins]` table, `SB_PLUGINS`, `--plugin` and the builder calls.
 
 </Card>
 
-<Card title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
+<Card color="#d47628" title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
 
 Attach a set to a browser, and see when each hook runs on each engine.
 
 </Card>
 
-<Card title="Plugin architecture" icon="sitemap" href="/plugins/architecture">
+<Card color="#a631be" title="Plugin architecture" icon="sitemap" href="/plugins/architecture">
 
 Categories, capabilities, ordering and what the host enforces.
 
 </Card>
 
-<Card title="wasm plugin host" icon="cube" href="/plugins/wasm">
+<Card color="#1ca1c7" title="wasm plugin host" icon="cube" href="/plugins/wasm">
 
 Plugins written in any language that compiles to WebAssembly.
 
 </Card>
 
-<Card title="block-resources" icon="ban" href="/plugins/block-resources">
+<Card color="#d32a61" title="block-resources" icon="ban" href="/plugins/block-resources">
 
 The worked example above, as a plugin you can turn on.
 
 </Card>
 
-<Card title="shield" icon="shield" href="/plugins/shield">
+<Card color="#693acf" title="shield" icon="shield" href="/plugins/shield">
 
 A privacy plugin with `packages`, launch settings and serde options.
 

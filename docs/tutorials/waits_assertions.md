@@ -205,13 +205,13 @@ A test that does none of those is not interrupted; wrap the test in
 
 <Columns cols={2}>
 
-<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+<Card color="#1a85d4" title="Selectors" icon="crosshairs" href="/tutorials/selectors">
 
 Choosing stable element locators.
 
 </Card>
 
-<Card title="API Reference" icon="code" href="/tutorials/api_reference">
+<Card color="#199f43" title="API Reference" icon="code" href="/tutorials/api_reference">
 
 Complete list of wait and assertion methods.
 

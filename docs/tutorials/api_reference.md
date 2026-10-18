@@ -114,55 +114,55 @@ call, so they do not go stale when the page re-renders. The pure CDP engine's
 
 <Columns cols={2}>
 
-<Card title="Lifecycle and navigation" icon="rocket" href="/api/lifecycle-navigation">
+<Card color="#1a85d4" title="Lifecycle and navigation" icon="rocket" href="/api/lifecycle-navigation">
   Create and close a BaseCase session, open pages and move through history.
 </Card>
 
-<Card title="Interaction" icon="hand-pointer" href="/api/interaction">
+<Card color="#199f43" title="Interaction" icon="hand-pointer" href="/api/interaction">
   Click, type, select, hover, drag, press keys and scroll.
 </Card>
 
-<Card title="Waits and assertions" icon="hourglass-half" href="/api/waits-assertions">
+<Card color="#d47628" title="Waits and assertions" icon="hourglass-half" href="/api/waits-assertions">
   Wait for elements and text, assert on the page, and collect deferred assertions.
 </Card>
 
-<Card title="Queries" icon="magnifying-glass" href="/api/queries">
+<Card color="#a631be" title="Queries" icon="magnifying-glass" href="/api/queries">
   Read text, attributes, properties, counts and page state.
 </Card>
 
-<Card title="Windows, frames and drivers" icon="window-restore" href="/api/windows-frames">
+<Card color="#1ca1c7" title="Windows, frames and drivers" icon="window-restore" href="/api/windows-frames">
   Switch windows, tabs and frames, and drive several browsers.
 </Card>
 
-<Card title="Cookies and storage" icon="cookie-bite" href="/api/cookies-storage">
+<Card color="#d32a61" title="Cookies and storage" icon="cookie-bite" href="/api/cookies-storage">
   Read and write cookies, local storage and session storage.
 </Card>
 
-<Card title="Screenshots and scripts" icon="camera" href="/api/screenshots-scripts">
+<Card color="#693acf" title="Screenshots and scripts" icon="camera" href="/api/screenshots-scripts">
   Take screenshots, run JavaScript and change the DOM.
 </Card>
 
-<Card title="Files, downloads and PDF" icon="file-arrow-down" href="/api/files">
+<Card color="#d5a910" title="Files, downloads and PDF" icon="file-arrow-down" href="/api/files">
   Download and upload files and work with PDFs.
 </Card>
 
-<Card title="CDP and UC helpers" icon="user-secret" href="/api/cdp-uc">
+<Card color="#17a5af" title="CDP and UC helpers" icon="user-secret" href="/api/cdp-uc">
   Chrome DevTools and undetected-mode helpers, including the GUI bypass helpers.
 </Card>
 
-<Card title="Alerts and MFA" icon="bell" href="/api/alerts-mfa">
+<Card color="#d52c36" title="Alerts and MFA" icon="bell" href="/api/alerts-mfa">
   Handle JavaScript dialogs and generate TOTP codes.
 </Card>
 
-<Card title="Tours, charts, recorder and utilities" icon="map" href="/api/tours-recorder">
+<Card color="#1a85d4" title="Tours, charts, recorder and utilities" icon="map" href="/api/tours-recorder">
   Tours, presentations, charts, the recorder and other helpers.
 </Card>
 
-<Card title="Capability traits" icon="layer-group" href="/api/traits">
+<Card color="#199f43" title="Capability traits" icon="layer-group" href="/api/traits">
   BrowserApi, ElementApi, AssertionApi and ScreenshotApi, shared by both engines.
 </Card>
 
-<Card title="Public items of the crate root" icon="cube" href="/api/crate-root">
+<Card color="#d47628" title="Public items of the crate root" icon="cube" href="/api/crate-root">
   What seleniumbase_rs re-exports at its root and what each item is for.
 </Card>
 
@@ -190,37 +190,37 @@ async fn login(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErr
 
 <Columns cols={2}>
 
-<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors" horizontal>
+<Card color="#a631be" title="Selectors" icon="crosshairs" href="/tutorials/selectors" horizontal>
 
 CSS, XPath, link text and shadow DOM: how a selector string is read.
 
 </Card>
 
-<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" horizontal>
+<Card color="#1ca1c7" title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" horizontal>
 
 Wait for the page, then check it, without sleeps.
 
 </Card>
 
-<Card title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode" horizontal>
+<Card color="#d32a61" title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode" horizontal>
 
 The CDP helpers on `BaseCase`, raw commands and the network reactor.
 
 </Card>
 
-<Card title="UC Mode" icon="user-secret" href="/tutorials/uc_mode" horizontal>
+<Card color="#693acf" title="UC Mode" icon="user-secret" href="/tutorials/uc_mode" horizontal>
 
 Run Chrome so sites see a person's browser.
 
 </Card>
 
-<Card title="Macros" icon="wand-magic-sparkles" href="/tutorials/macros" horizontal>
+<Card color="#d5a910" title="Macros" icon="wand-magic-sparkles" href="/tutorials/macros" horizontal>
 
 Convenience macros from the crate root.
 
 </Card>
 
-<Card title="GUI Automation" icon="computer-mouse" href="/tutorials/gui_automation" horizontal>
+<Card color="#17a5af" title="GUI Automation" icon="computer-mouse" href="/tutorials/gui_automation" horizontal>
 
 Native OS input instead of WebDriver.
 

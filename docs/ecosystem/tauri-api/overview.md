@@ -239,79 +239,79 @@ yet.
 
 <Columns cols={2}>
 
-<Card title="Status" icon="heart-pulse" href="/ecosystem/tauri-api/status">
+<Card color="#1a85d4" title="Status" icon="heart-pulse" href="/ecosystem/tauri-api/status">
 
 `GET /status`: whether the endpoint answers.
 
 </Card>
 
-<Card title="Sessions" icon="play" href="/ecosystem/tauri-api/sessions">
+<Card color="#199f43" title="Sessions" icon="play" href="/ecosystem/tauri-api/sessions">
 
 Start and end the one session.
 
 </Card>
 
-<Card title="Timeouts" icon="clock" href="/ecosystem/tauri-api/timeouts">
+<Card color="#d47628" title="Timeouts" icon="clock" href="/ecosystem/tauri-api/timeouts">
 
 Script, page-load and implicit-wait timeouts.
 
 </Card>
 
-<Card title="Navigation" icon="compass" href="/ecosystem/tauri-api/navigation">
+<Card color="#a631be" title="Navigation" icon="compass" href="/ecosystem/tauri-api/navigation">
 
 URL, title, back, forward, refresh and the page source.
 
 </Card>
 
-<Card title="Window" icon="window-maximize" href="/ecosystem/tauri-api/window">
+<Card color="#1ca1c7" title="Window" icon="window-maximize" href="/ecosystem/tauri-api/window">
 
 The handle, the rectangle, maximize, minimize and full screen.
 
 </Card>
 
-<Card title="Frames" icon="table-columns" href="/ecosystem/tauri-api/frames">
+<Card color="#d32a61" title="Frames" icon="table-columns" href="/ecosystem/tauri-api/frames">
 
 Enter same-origin frames and leave them.
 
 </Card>
 
-<Card title="Find elements" icon="magnifying-glass" href="/ecosystem/tauri-api/elements">
+<Card color="#693acf" title="Find elements" icon="magnifying-glass" href="/ecosystem/tauri-api/elements">
 
 CSS, XPath, link text and tag name, and the active element.
 
 </Card>
 
-<Card title="Element state" icon="eye" href="/ecosystem/tauri-api/element-state">
+<Card color="#d5a910" title="Element state" icon="eye" href="/ecosystem/tauri-api/element-state">
 
 Text, name, rectangle, state, attributes, properties and CSS.
 
 </Card>
 
-<Card title="Element interaction" icon="hand-pointer" href="/ecosystem/tauri-api/element-interaction">
+<Card color="#17a5af" title="Element interaction" icon="hand-pointer" href="/ecosystem/tauri-api/element-interaction">
 
 Click, clear and type.
 
 </Card>
 
-<Card title="Scripts" icon="code" href="/ecosystem/tauri-api/scripts">
+<Card color="#d52c36" title="Scripts" icon="code" href="/ecosystem/tauri-api/scripts">
 
 Run JavaScript, sync and async, in the current frame.
 
 </Card>
 
-<Card title="Actions" icon="keyboard" href="/ecosystem/tauri-api/actions">
+<Card color="#1a85d4" title="Actions" icon="keyboard" href="/ecosystem/tauri-api/actions">
 
 W3C actions: a keyboard, mouse pointers and pauses.
 
 </Card>
 
-<Card title="User prompts" icon="message" href="/ecosystem/tauri-api/alerts">
+<Card color="#199f43" title="User prompts" icon="message" href="/ecosystem/tauri-api/alerts">
 
 Alert, confirm and prompt, answered before they open.
 
 </Card>
 
-<Card title="Screenshots" icon="camera" href="/ecosystem/tauri-api/screenshots">
+<Card color="#d47628" title="Screenshots" icon="camera" href="/ecosystem/tauri-api/screenshots">
 
 The page or one element, as PNG, on macOS.
 

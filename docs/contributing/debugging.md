@@ -606,25 +606,25 @@ The binary was built without the `tui` feature. It prints a hint; build with
 
 <Columns cols={2}>
 
-<Card title="Tracing and Logging" icon="scroll" href="/tutorials/tracing">
+<Card color="#1a85d4" title="Tracing and Logging" icon="scroll" href="/tutorials/tracing">
 
 Spans, error events and the `SB_*` variables in full.
 
 </Card>
 
-<Card title="Common problems" icon="life-ring" href="/help/common_problems">
+<Card color="#199f43" title="Common problems" icon="life-ring" href="/help/common_problems">
 
 Error messages and what to do about them.
 
 </Card>
 
-<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+<Card color="#d47628" title="Build from source" icon="hammer" href="/contributing/from-source">
 
 The toolchain, the checks and the real-Chrome tests.
 
 </Card>
 
-<Card title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
+<Card color="#a631be" title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
 
 Measure what a change costs.
 

@@ -324,19 +324,19 @@ what you asked for. See [Blocking ads](/help/customizing_test_runs#blocking-ads)
 
 <Columns cols={2}>
 
-<Card title="CLI Usage" icon="terminal" href="/tutorials/cli_usage">
+<Card color="#1a85d4" title="CLI Usage" icon="terminal" href="/tutorials/cli_usage">
 
 Command-line overrides and flags.
 
 </Card>
 
-<Card title="Tracing and Logging" icon="list" href="/tutorials/tracing">
+<Card color="#199f43" title="Tracing and Logging" icon="list" href="/tutorials/tracing">
 
 `SB_LOG_LEVEL` and `SB_LOG_FORMAT`.
 
 </Card>
 
-<Card title="Docker Guide" icon="box" href="/help/docker">
+<Card color="#d47628" title="Docker Guide" icon="box" href="/help/docker">
 
 Containerized configuration.
 

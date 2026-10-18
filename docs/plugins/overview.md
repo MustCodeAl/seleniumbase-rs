@@ -94,43 +94,43 @@ topic `seleniumbase-rs-plugin` to find community ones.
 
 <Columns cols={2}>
 
-<Card title="Choosing plugins" icon="toggle-on" href="/plugins/selecting">
+<Card color="#1a85d4" title="Choosing plugins" icon="toggle-on" href="/plugins/selecting">
 
 The cargo features, the command-line options, the `[plugins]` table, `SB_PLUGINS` and the builder calls.
 
 </Card>
 
-<Card title="shield" icon="shield" href="/plugins/shield">
+<Card color="#199f43" title="shield" icon="shield" href="/plugins/shield">
 
 Privacy hardening for the browser seleniumbase-rs starts.
 
 </Card>
 
-<Card title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
+<Card color="#d47628" title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
 
 The user guide: turn plugins on, attach a set to a browser, when each hook runs.
 
 </Card>
 
-<Card title="Writing your own" icon="pen" href="/plugins/writing-your-own">
+<Card color="#a631be" title="Writing your own" icon="pen" href="/plugins/writing-your-own">
 
 A plugin in a few lines, the template, and how to test it without a browser.
 
 </Card>
 
-<Card title="block-resources" icon="ban" href="/plugins/block-resources">
+<Card color="#1ca1c7" title="block-resources" icon="ban" href="/plugins/block-resources">
 
 Stop pages from loading images, fonts or media.
 
 </Card>
 
-<Card title="crx" icon="puzzle-piece" href="/plugins/crx">
+<Card color="#d32a61" title="crx" icon="puzzle-piece" href="/plugins/crx">
 
 Load packed Chrome extensions.
 
 </Card>
 
-<Card title="wasm" icon="cube" href="/plugins/wasm">
+<Card color="#693acf" title="wasm" icon="cube" href="/plugins/wasm">
 
 Plugins written in any language that compiles to WebAssembly.
 

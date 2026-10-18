@@ -120,7 +120,7 @@ have WebDriver drivers, but **macOS
 has none**. This plugin runs a small W3C WebDriver endpoint inside your app, so
 the same tests drive the app everywhere.
 
-<Card title="Key facts" icon="circle-info">
+<Card color="#1a85d4" title="Key facts" icon="circle-info">
 
 - Endpoint: `http://127.0.0.1:4445/{token}/`
 - On in debug builds, or with `SBRS_AUTOMATION=1`
@@ -131,7 +131,7 @@ the same tests drive the app everywhere.
 
 </Card>
 
-<Card title="API reference" icon="code" href="/ecosystem/tauri-api/overview">
+<Card color="#199f43" title="API reference" icon="code" href="/ecosystem/tauri-api/overview">
 
 Every route with its fields, replies and errors.
 
@@ -404,39 +404,39 @@ gets `unsupported operation`. See [User prompts](/ecosystem/tauri-api/alerts).
 
 <Columns cols={2}>
 
-<Card title="User prompts" icon="message" href="/ecosystem/tauri-api/alerts">
+<Card color="#d47628" title="User prompts" icon="message" href="/ecosystem/tauri-api/alerts">
 
 How `alert`, `confirm` and `prompt` are replaced, recorded and answered.
 
 </Card>
 
-<Card title="Frames" icon="table-columns" href="/ecosystem/tauri-api/frames">
+<Card color="#a631be" title="Frames" icon="table-columns" href="/ecosystem/tauri-api/frames">
 
 Same-origin frames only, and what acts in the frame entered.
 
 </Card>
 
-<Card title="Actions" icon="keyboard" href="/ecosystem/tauri-api/actions">
+<Card color="#1ca1c7" title="Actions" icon="keyboard" href="/ecosystem/tauri-api/actions">
 
 Tick by tick, as DOM events: the events the page sees, and why CSS `:hover`
 and HTML drag and drop do not happen.
 
 </Card>
 
-<Card title="Screenshots" icon="camera" href="/ecosystem/tauri-api/screenshots">
+<Card color="#d32a61" title="Screenshots" icon="camera" href="/ecosystem/tauri-api/screenshots">
 
 WKWebView's own snapshot at the screen's scale; an element's part of it.
 
 </Card>
 
-<Card title="Window changes" icon="window-maximize" href="/ecosystem/tauri-api/window#set-window-rect">
+<Card color="#693acf" title="Window changes" icon="window-maximize" href="/ecosystem/tauri-api/window#set-window-rect">
 
 Set Window Rect first brings the window back to its normal state, as
 WebDriver asks: out of full screen, not maximized, not minimized.
 
 </Card>
 
-<Card title="Errors" icon="triangle-exclamation" href="/ecosystem/tauri-api/overview#errors">
+<Card color="#d5a910" title="Errors" icon="triangle-exclamation" href="/ecosystem/tauri-api/overview#errors">
 
 Every error code the plugin answers, its HTTP status, and when.
 

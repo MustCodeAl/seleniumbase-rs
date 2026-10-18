@@ -388,37 +388,37 @@ times longer. Keep them off unless a person is watching.
 
 <Columns cols={2}>
 
-<Card title="Settings and Configuration" icon="gear" href="/tutorials/settings_and_config">
+<Card color="#1a85d4" title="Settings and Configuration" icon="gear" href="/tutorials/settings_and_config">
 
 `BrowserConfig`, the config file and the `SB_*` variables.
 
 </Card>
 
-<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions">
+<Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions">
 
 The waits that `with_skip_js_waits` leaves alone.
 
 </Card>
 
-<Card title="Recorder Mode" icon="circle-dot" href="/tutorials/recorder_mode">
+<Card color="#d47628" title="Recorder Mode" icon="circle-dot" href="/tutorials/recorder_mode">
 
 Recording actions and exporting them as a test.
 
 </Card>
 
-<Card title="API Guide" icon="code" href="/tutorials/api_reference">
+<Card color="#a631be" title="API Guide" icon="code" href="/tutorials/api_reference">
 
 `check_window`, `post_message` and the rest.
 
 </Card>
 
-<Card title="Performance" icon="gauge-high" href="/performance">
+<Card color="#1ca1c7" title="Performance" icon="gauge-high" href="/performance">
 
 The pauses that are there on purpose.
 
 </Card>
 
-<Card title="API parity table" icon="table" href="/parity">
+<Card color="#d32a61" title="API parity table" icon="table" href="/parity">
 
 Every Python option and its Rust name.
 

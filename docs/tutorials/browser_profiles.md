@@ -737,13 +737,13 @@ show an `external` badge in the profile list.
 
 <Columns cols={2}>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#1a85d4" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 The table of keywords for every flag.
 
 </Card>
 
-<Card title="BrowserLeaks" icon="globe" href="https://browserleaks.com/" />
+<Card color="#199f43" title="BrowserLeaks" icon="globe" href="https://browserleaks.com/" />
 
 </Columns>
 

@@ -327,25 +327,25 @@ Add the file to the skeleton step of the `Dockerfile`, or the image build fails;
 
 <Columns cols={2}>
 
-<Card title="Benchmarks" icon="chart-column" href="/benchmarks">
+<Card color="#1a85d4" title="Benchmarks" icon="chart-column" href="/benchmarks">
 
 The figures from these harnesses, and what changed because of them.
 
 </Card>
 
-<Card title="Performance" icon="gauge-high" href="/performance">
+<Card color="#199f43" title="Performance" icon="gauge-high" href="/performance">
 
 How to make your own tests faster, and how to measure them.
 
 </Card>
 
-<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+<Card color="#d47628" title="Build from source" icon="hammer" href="/contributing/from-source">
 
 The toolchain, the build settings and the checks.
 
 </Card>
 
-<Card title="Debugging" icon="bug" href="/contributing/debugging">
+<Card color="#a631be" title="Debugging" icon="bug" href="/contributing/debugging">
 
 Logs, evidence on failure, and a browser you can watch.
 

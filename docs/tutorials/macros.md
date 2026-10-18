@@ -224,7 +224,7 @@ sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
 
 <Columns cols={2}>
 
-<Card title="Use macros for" icon="bolt">
+<Card color="#1a85d4" title="Use macros for" icon="bolt">
 
 - Quick, linear test scripts where the shorter syntax improves readability.
 - Compile-time selectors that never change.
@@ -232,7 +232,7 @@ sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
 
 </Card>
 
-<Card title="Prefer the explicit method API" icon="sliders">
+<Card color="#199f43" title="Prefer the explicit method API" icon="sliders">
 
 When you need fine-grained error handling, custom timeouts, or non-trivial control flow.
 

@@ -8,7 +8,7 @@ and [seleniumbase-mcp](https://github.com/seleniumbase/seleniumbase-mcp)
 releases. Keeping up is a short, mechanical loop, because the public API of
 both is recorded as data and checked by a test.
 
-<Card title="The loop in four commands" icon="terminal">
+<Card color="#1a85d4" title="The loop in four commands" icon="terminal">
 
 - `just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp`
 - `just parity-seed`

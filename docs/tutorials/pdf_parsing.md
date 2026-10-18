@@ -29,7 +29,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 
 </CodeGroup>
 
-<Card title="Quick reference" icon="file-pdf">
+<Card color="#1a85d4" title="Quick reference" icon="file-pdf">
 
 `save_as_pdf` and `print_to_pdf` print a page to PDF (always available).
 

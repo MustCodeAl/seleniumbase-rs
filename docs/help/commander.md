@@ -102,13 +102,13 @@ The same feature builds two more terminal apps:
 
 <Columns cols={2}>
 
-<Card title="Case Plans Generator" icon="clipboard-list" href="/help/caseplans" horizontal>
+<Card color="#1a85d4" title="Case Plans Generator" icon="clipboard-list" href="/help/caseplans" horizontal>
 
 `sbrs caseplans`
 
 </Card>
 
-<Card title="Behave Commander" icon="terminal" href="/help/behave-gui" horizontal>
+<Card color="#199f43" title="Behave Commander" icon="terminal" href="/help/behave-gui" horizontal>
 
 `sbrs behave-gui`
 

@@ -510,19 +510,19 @@ overrides, and the builder or CLI flags for one-off experiments.
 
 <Columns cols={3}>
 
-<Card title="Run settings" icon="sliders" href="/tutorials/run_settings">
+<Card color="#1a85d4" title="Run settings" icon="sliders" href="/tutorials/run_settings">
 
 Demo and slow mode, and the other run-wide settings.
 
 </Card>
 
-<Card title="Settings and Global Configuration" icon="gear" href="/tutorials/settings_and_config">
+<Card color="#199f43" title="Settings and Global Configuration" icon="gear" href="/tutorials/settings_and_config">
 
 The table of settings and the separate runtime variables.
 
 </Card>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 What `with_fingerprint` applies.
 

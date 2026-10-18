@@ -272,19 +272,19 @@ Use CDP mode when:
 
 <Columns cols={2}>
 
-<Card title="Undetected (UC) Mode" icon="user-secret" href="/tutorials/uc_mode">
+<Card color="#1a85d4" title="Undetected (UC) Mode" icon="user-secret" href="/tutorials/uc_mode">
 
 Combining CDP with anti-detection.
 
 </Card>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#199f43" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 Using CDP for native spoofing.
 
 </Card>
 
-<Card title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+<Card color="#d47628" title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
 
 Removing driver-level markers.
 

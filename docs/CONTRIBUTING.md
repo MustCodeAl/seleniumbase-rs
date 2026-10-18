@@ -113,25 +113,25 @@ you oriented quickly.
 
 <Columns cols={2}>
 
-<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+<Card color="#1a85d4" title="Build from source" icon="hammer" href="/contributing/from-source">
 
 Clone, set up Rust 1.99, build, and run the checks, including the real-Chrome tests.
 
 </Card>
 
-<Card title="Debugging" icon="bug" href="/contributing/debugging">
+<Card color="#199f43" title="Debugging" icon="bug" href="/contributing/debugging">
 
 Logs, headed runs, evidence when a test fails, and a mocked browser.
 
 </Card>
 
-<Card title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
+<Card color="#d47628" title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
 
 Run the harnesses in `benches/` and compare a change fairly.
 
 </Card>
 
-<Card title="Building and installing" icon="box-open" href="/building">
+<Card color="#a631be" title="Building and installing" icon="box-open" href="/building">
 
 Features, binaries, the Dockerfile and build-time tips.
 
@@ -262,7 +262,7 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 
 <Columns cols={2}>
 
-<Card title="TokenSave" icon="diagram-project" href="https://github.com/aovestdipaperino/tokensave">
+<Card color="#1ca1c7" title="TokenSave" icon="diagram-project" href="https://github.com/aovestdipaperino/tokensave">
 
 `brew install aovestdipaperino/tap/tokensave`, then `tokensave init` in the
 checkout; `tokensave init` keeps `.tokensave/` out of git by adding it to
@@ -273,7 +273,7 @@ assistant reads far less of the code to answer a question or make a change.
 
 </Card>
 
-<Card title="RTK" icon="compress" href="https://www.rtk-ai.app/">
+<Card color="#d32a61" title="RTK" icon="compress" href="https://www.rtk-ai.app/">
 
 `brew install rtk`. A command proxy that condenses the output of `cargo`,
 `git`, test runners and similar tools before it reaches an assistant

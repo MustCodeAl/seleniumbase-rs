@@ -18,7 +18,7 @@ manual intervention.
 
 </Info>
 
-<Card title="Quick reference" icon="key">
+<Card color="#1a85d4" title="Quick reference" icon="key">
 
 `get_totp_code(secret)` returns the code. Its aliases are `get_mfa_code` and `get_google_auth_code`.
 

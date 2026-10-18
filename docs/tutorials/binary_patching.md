@@ -282,19 +282,19 @@ non-production environment first.
 
 <Columns cols={3}>
 
-<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+<Card color="#1a85d4" title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
 
 An engine with no driver to patch.
 
 </Card>
 
-<Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
+<Card color="#199f43" title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
 
 Combine patching with UC mode.
 
 </Card>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 Combine patching with a matching `Fingerprint`.
 

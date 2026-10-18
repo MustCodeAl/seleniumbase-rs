@@ -269,19 +269,19 @@ that ecosystem may be more productive.
 
 <Columns cols={3}>
 
-<Card title="Security" icon="shield" horizontal href="/security">
+<Card color="#1a85d4" title="Security" icon="shield" horizontal href="/security">
 
 How Rust's safety properties affect browser automation.
 
 </Card>
 
-<Card title="Reliability" icon="circle-check" horizontal href="/reliability">
+<Card color="#199f43" title="Reliability" icon="circle-check" horizontal href="/reliability">
 
 Test lifecycle, flaky behavior, and cleanup.
 
 </Card>
 
-<Card title="Performance" icon="gauge-high" horizontal href="/performance">
+<Card color="#d47628" title="Performance" icon="gauge-high" horizontal href="/performance">
 
 What to measure and what not to expect.
 

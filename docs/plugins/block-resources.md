@@ -11,7 +11,7 @@ Blocking images, fonts or media makes pages load faster and use less data in
 tests and scrapers that do not look at them. It uses the Chrome DevTools
 Protocol (`Network.setBlockedURLs`), so it needs a Chromium-based browser.
 
-<Card title="Quick reference" icon="ban">
+<Card color="#1a85d4" title="Quick reference" icon="ban">
 
 Plugin name: `block-resources`. Needs a Chromium browser.
 

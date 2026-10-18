@@ -213,19 +213,19 @@ other direction is `BaseCase::convert_css_to_xpath`.
 
 <Columns cols={3}>
 
-<Card title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
+<Card color="#1a85d4" title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
 
 How to wait for elements to be ready.
 
 </Card>
 
-<Card title="Shadow DOM" icon="layer-group" horizontal href="/tutorials/shadow_dom">
+<Card color="#199f43" title="Shadow DOM" icon="layer-group" horizontal href="/tutorials/shadow_dom">
 
 Deeper coverage of Web Components.
 
 </Card>
 
-<Card title="API Reference" icon="code" horizontal href="/tutorials/api_reference">
+<Card color="#d47628" title="API Reference" icon="code" horizontal href="/tutorials/api_reference">
 
 All methods that accept selectors.
 

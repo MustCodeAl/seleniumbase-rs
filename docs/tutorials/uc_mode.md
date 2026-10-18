@@ -277,21 +277,21 @@ patches can make debugging harder and may conflict with some CI environments.
 
 <Columns cols={2}>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#1a85d4" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 A coherent `Fingerprint`: user agent, platform, screen size, WebGL vendor and geolocation.
 
 </Card>
 
-<Card title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+<Card color="#199f43" title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
 
 Backup, restore, and safety notes.
 
 </Card>
 
-<Card title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode" />
+<Card color="#d47628" title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode" />
 
-<Card title="Pure CDP" icon="plug" href="/tutorials/pure_cdp">
+<Card color="#a631be" title="Pure CDP" icon="plug" href="/tutorials/pure_cdp">
 
 Launches Chrome without chromedriver at all.
 

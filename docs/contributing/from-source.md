@@ -653,7 +653,7 @@ read far less:
 
 <Columns cols={2}>
 
-<Card title="TokenSave" icon="diagram-project" href="https://github.com/aovestdipaperino/tokensave">
+<Card color="#1a85d4" title="TokenSave" icon="diagram-project" href="https://github.com/aovestdipaperino/tokensave">
 
 A code graph of the repository. Run `tokensave init` in the checkout; the
 assistant then asks it for symbols, callers, the impact of a change, and reads
@@ -661,7 +661,7 @@ files by symbol instead of searching and reading whole files.
 
 </Card>
 
-<Card title="RTK" icon="compress" href="https://www.rtk-ai.app/">
+<Card color="#199f43" title="RTK" icon="compress" href="https://www.rtk-ai.app/">
 
 A command proxy that condenses the output of `cargo`, `git` and test runners
 before it reaches the assistant: `rtk cargo test`, `rtk git log`. Exit codes
@@ -771,25 +771,25 @@ More system-specific notes are in [Operating systems](/platforms).
 
 <Columns cols={2}>
 
-<Card title="Debugging" icon="bug" href="/contributing/debugging">
+<Card color="#d47628" title="Debugging" icon="bug" href="/contributing/debugging">
 
 Logs, headed runs, evidence when a test fails, and tests without Chrome.
 
 </Card>
 
-<Card title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
+<Card color="#a631be" title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
 
 Run the harnesses in `benches/` and compare a change fairly.
 
 </Card>
 
-<Card title="Contributing" icon="code-branch" href="/CONTRIBUTING">
+<Card color="#1ca1c7" title="Contributing" icon="code-branch" href="/CONTRIBUTING">
 
 Code style, testing rules and how to open a pull request.
 
 </Card>
 
-<Card title="Developer guide" icon="book-open" href="/DEVELOPER_GUIDE">
+<Card color="#d32a61" title="Developer guide" icon="book-open" href="/DEVELOPER_GUIDE">
 
 How `BaseCase`, the engines and the stealth layer fit together.
 

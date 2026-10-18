@@ -143,37 +143,37 @@ Be honest with yourself about these before choosing it:
 
 <Columns cols={2}>
 
-<Card title="Why Rust?" icon="gear" href="/why-rust">
+<Card color="#1a85d4" title="Why Rust?" icon="gear" href="/why-rust">
 
 When the crate is the right choice, and when another stack fits better.
 
 </Card>
 
-<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+<Card color="#199f43" title="Getting started" icon="rocket" href="/tutorials/getting_started">
 
 Write a first test with `BaseCase`.
 
 </Card>
 
-<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+<Card color="#d47628" title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
 
 Chrome without a WebDriver.
 
 </Card>
 
-<Card title="Parity table" icon="table" href="/parity">
+<Card color="#a631be" title="Parity table" icon="table" href="/parity">
 
 The recorded status of every upstream API.
 
 </Card>
 
-<Card title="Benchmarks" icon="gauge-high" href="/benchmarks">
+<Card color="#1ca1c7" title="Benchmarks" icon="gauge-high" href="/benchmarks">
 
 What this crate itself costs.
 
 </Card>
 
-<Card title="Stealth scraping" icon="user-secret" href="/tutorials/stealth_scraping">
+<Card color="#d32a61" title="Stealth scraping" icon="user-secret" href="/tutorials/stealth_scraping">
 
 The separate, experimental seleniumbase-rs-stealth project.
 

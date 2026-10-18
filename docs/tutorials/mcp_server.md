@@ -660,25 +660,25 @@ tool" in the [developer guide](/DEVELOPER_GUIDE).
 
 <Columns cols={2}>
 
-<Card title="DevTools MCP servers" icon="screwdriver-wrench" href="/tutorials/devtools_mcp">
+<Card color="#1a85d4" title="DevTools MCP servers" icon="screwdriver-wrench" href="/tutorials/devtools_mcp">
 
 Attach `chrome-devtools-mcp` or Playwright MCP to the same browser.
 
 </Card>
 
-<Card title="Choosing plugins" icon="plug" href="/plugins/selecting#sbrs-mcp">
+<Card color="#199f43" title="Choosing plugins" icon="plug" href="/plugins/selecting#sbrs-mcp">
 
 Run built-in plugins in every browser the server starts.
 
 </Card>
 
-<Card title="Vibe coding" icon="wand-magic-sparkles" href="/tutorials/vibe_coding">
+<Card color="#d47628" title="Vibe coding" icon="wand-magic-sparkles" href="/tutorials/vibe_coding">
 
 Describe a test, let an agent drive the browser, review the Rust it hands you.
 
 </Card>
 
-<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+<Card color="#a631be" title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
 
 The engine behind the `cdp` server.
 

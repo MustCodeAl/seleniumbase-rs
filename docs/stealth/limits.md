@@ -5,7 +5,7 @@ sidebarTitle: "Limits"
 
 <Badge color="orange">Experimental</Badge>
 
-<Card title="What is measured" icon="ruler">
+<Card color="#1a85d4" title="What is measured" icon="ruler">
 
 Chrome 155.0.8059.40 on macOS, and nothing else. Every other browser and system pair is refused with `NotMeasured`.
 

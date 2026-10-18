@@ -660,18 +660,18 @@ a headed browser.
 
 <Columns cols={3}>
 
-<Card title="Pure CDP" icon="plug" href="/tutorials/pure_cdp">
+<Card color="#1a85d4" title="Pure CDP" icon="plug" href="/tutorials/pure_cdp">
 
 For `Browser`, `Page` and `Locator`.
 
 </Card>
 
-<Card title="Writing Browser Tests" icon="flask" href="/rust-test-tooling">
+<Card color="#199f43" title="Writing Browser Tests" icon="flask" href="/rust-test-tooling">
 
 For `run_browser_test`.
 
 </Card>
 
-<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" />
+<Card color="#d47628" title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" />
 
 </Columns>

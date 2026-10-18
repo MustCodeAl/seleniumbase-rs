@@ -27,7 +27,7 @@ Summary for AI exports: `BrowserConfig::default()` is headless and `Settings::de
 
 </Visibility>
 
-<Card title="Quick reference" icon="eye-slash">
+<Card color="#1a85d4" title="Quick reference" icon="eye-slash">
 
 - In code: `BrowserConfig::with_headless(bool)`
 - Pure CDP: `LaunchOptionsBuilder::headless(bool)`
@@ -53,7 +53,7 @@ Each engine turns headless mode into a browser flag:
 
 <Columns cols={2}>
 
-<Card title="Use headless mode" icon="eye-slash">
+<Card color="#199f43" title="Use headless mode" icon="eye-slash">
 
 Use it when nobody watches the run:
 
@@ -65,7 +65,7 @@ Use it when nobody watches the run:
 
 </Card>
 
-<Card title="Run headed" icon="window-maximize">
+<Card color="#d47628" title="Run headed" icon="window-maximize">
 
 Run headed when someone has to see or use the window:
 
@@ -584,22 +584,22 @@ first, then run headed (on a virtual display on a server).
 ## Next steps
 
 <Columns cols={2}>
-  <Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
+  <Card color="#a631be" title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
     Hide the automation markers, headless or headed.
   </Card>
-  <Card title="Docker" icon="docker" href="/help/docker">
+  <Card color="#1ca1c7" title="Docker" icon="docker" href="/help/docker">
     Build the image and run `sbrs` headless in a container.
   </Card>
-  <Card title="Pure CDP" icon="code" href="/tutorials/pure_cdp">
+  <Card color="#d32a61" title="Pure CDP" icon="code" href="/tutorials/pure_cdp">
     Drive Chrome without a driver, headless by default on Linux.
   </Card>
-  <Card title="Settings" icon="gear" href="/tutorials/settings_and_config">
+  <Card color="#693acf" title="Settings" icon="gear" href="/tutorials/settings_and_config">
     The settings file, the `SB_*` variables and their order.
   </Card>
-  <Card title="Fingerprints and stealth" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+  <Card color="#d5a910" title="Fingerprints and stealth" icon="fingerprint" href="/tutorials/fingerprint_stealth">
     The stealth policy and the headless fixes it turns on.
   </Card>
-  <Card title="Common problems" icon="triangle-exclamation" href="/help/common_problems#headless-detected">
+  <Card color="#17a5af" title="Common problems" icon="triangle-exclamation" href="/help/common_problems#headless-detected">
     What to try when a site detects the headless browser.
   </Card>
 </Columns>

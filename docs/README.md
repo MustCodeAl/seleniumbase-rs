@@ -56,12 +56,12 @@ Summary for AI exports: `seleniumbase-rs` is a Rust port of Python SeleniumBase.
 
 ## Who this book is for
 
-- <Icon icon="code" /> **Rust developers** writing browser tests for the first time.
-- <Icon icon="people-group" /> **Teams migrating** from Python SeleniumBase or Selenium who want to keep a
+- <Icon color="#1a85d4" icon="code" /> **Rust developers** writing browser tests for the first time.
+- <Icon color="#199f43" icon="people-group" /> **Teams migrating** from Python SeleniumBase or Selenium who want to keep a
   similar API while gaining compile-time guarantees.
-- <Icon icon="robot" /> **Automation engineers** who need undetected browser execution, CDP control,
+- <Icon color="#d47628" icon="robot" /> **Automation engineers** who need undetected browser execution, CDP control,
   or cloud artifact uploads.
-- <Icon icon="server" /> **Operators** who want a small native CLI (`sbrs`) and Docker image for CI/CD.
+- <Icon color="#a631be" icon="server" /> **Operators** who want a small native CLI (`sbrs`) and Docker image for CI/CD.
 
 ## What you will learn
 

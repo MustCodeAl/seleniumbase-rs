@@ -228,13 +228,13 @@ refused. The rest of `HttpSession` is tested against loopback sites
 
 <Columns cols={2}>
 
-<Card title="Identity" icon="id-card" href="/stealth/identity">
+<Card color="#1a85d4" title="Identity" icon="id-card" href="/stealth/identity">
 
 Identity, session policy, the cookie jar and challenge detection.
 
 </Card>
 
-<Card title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
+<Card color="#199f43" title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
 
 The loop built from `fetch`, `assess` and `preflight`.
 

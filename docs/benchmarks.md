@@ -9,7 +9,7 @@ release build, headless, a local page, nothing else running). Timings from
 another machine will differ; the harnesses are in `benches/` so you can
 repeat them.
 
-<Card title="Measured on" icon="microchip">
+<Card color="#1a85d4" title="Measured on" icon="microchip">
 
 Apple M1, 8 cores, macOS 27, Chrome 155, release build, headless, a local page, nothing else running.
 

@@ -125,25 +125,25 @@ release considerations.
 
 <Columns cols={2}>
 
-<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+<Card color="#1a85d4" title="Build from source" icon="hammer" href="/contributing/from-source">
 
 Clone, build, keep builds small, and run the checks and the real-Chrome tests.
 
 </Card>
 
-<Card title="Debugging" icon="bug" href="/contributing/debugging">
+<Card color="#199f43" title="Debugging" icon="bug" href="/contributing/debugging">
 
 Logs, headed and slowed-down runs, evidence on failure, and a mocked browser.
 
 </Card>
 
-<Card title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
+<Card color="#d47628" title="Benchmarking" icon="gauge-high" href="/contributing/benchmarking">
 
 The `cpu` and `cdp_latency` harnesses, and how to compare a change.
 
 </Card>
 
-<Card title="Contributing" icon="code-branch" href="/CONTRIBUTING">
+<Card color="#a631be" title="Contributing" icon="code-branch" href="/CONTRIBUTING">
 
 Code style, testing rules and how to open a pull request.
 
@@ -1062,25 +1062,25 @@ See `CONTRIBUTING.md` for the full contributor guide. In short:
 
 <Columns cols={2}>
 
-<Card title="ABI & API Stability" icon="file-contract" href="/ABI_API">
+<Card color="#1ca1c7" title="ABI & API Stability" icon="file-contract" href="/ABI_API">
 
 The public API contract.
 
 </Card>
 
-<Card title="Contributing" icon="code-branch" href="/CONTRIBUTING">
+<Card color="#d32a61" title="Contributing" icon="code-branch" href="/CONTRIBUTING">
 
 The full contributor guide.
 
 </Card>
 
-<Card title="Rust Test Tooling" icon="flask" href="/rust-test-tooling">
+<Card color="#693acf" title="Rust Test Tooling" icon="flask" href="/rust-test-tooling">
 
 Writing tests against `BaseCase`.
 
 </Card>
 
-<Card title="Build from source" icon="hammer" href="/contributing/from-source">
+<Card color="#d5a910" title="Build from source" icon="hammer" href="/contributing/from-source">
 
 The toolchain, the checks and the real-Chrome tests.
 

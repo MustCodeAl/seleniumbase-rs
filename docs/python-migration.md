@@ -330,19 +330,19 @@ Gradually migrate the remaining tests, prioritizing the most valuable ones.
 
 <Columns cols={3}>
 
-<Card title="Writing Browser Tests" icon="flask" horizontal href="/rust-test-tooling">
+<Card color="#1a85d4" title="Writing Browser Tests" icon="flask" horizontal href="/rust-test-tooling">
 
 How to structure Rust tests.
 
 </Card>
 
-<Card title="Selectors" icon="crosshairs" horizontal href="/tutorials/selectors">
+<Card color="#199f43" title="Selectors" icon="crosshairs" horizontal href="/tutorials/selectors">
 
 Selector syntax differences.
 
 </Card>
 
-<Card title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
+<Card color="#d47628" title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
 
 Equivalent Rust methods.
 

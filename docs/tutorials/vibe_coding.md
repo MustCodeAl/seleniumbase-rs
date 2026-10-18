@@ -203,13 +203,13 @@ substitute for the review.
 
 <Columns cols={2}>
 
-<Card title="MCP servers" icon="robot" href="/tutorials/mcp_server">
+<Card color="#1a85d4" title="MCP servers" icon="robot" href="/tutorials/mcp_server">
 
 The tools the agent calls, and how to register the server.
 
 </Card>
 
-<Card title="Reliability" icon="shield-halved" href="/reliability">
+<Card color="#199f43" title="Reliability" icon="shield-halved" href="/reliability">
 
 `run_browser_test` closes the browser even when an assertion fails.
 

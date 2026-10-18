@@ -117,19 +117,19 @@ plain JavaScript for each browser.
 
 <Columns cols={1}>
 
-<Card title="Recorder" icon="circle-dot">
+<Card color="#1a85d4" title="Recorder" icon="circle-dot">
 
 Start and stop recording from the toolbar popup (or the Chrome side panel, or the Firefox sidebar). Clicks, double clicks, typing (one step per field), selects, checkboxes, key presses (Enter, Escape, arrows), file inputs (the file name only) and, if you turn it on, scrolls become steps you can edit, reorder and delete. Export as a seleniumbase-rs **pure CDP** Rust test, a **BaseCase** Rust test, or a **Chrome DevTools Recorder** JSON file (the `@puppeteer/replay` format that `sbrs import-puppeteer` reads).
 
 </Card>
 
-<Card title="Inspector" icon="magnifying-glass">
+<Card color="#199f43" title="Inspector" icon="magnifying-glass">
 
 Pick an element (hover, click; Escape cancels) and see its selectors, each with the number of elements it matches, and calls to copy for both engines (`page.locator(...).click()`, `sb.click(...)`, ...). The **Page** tab shows what the page sees: `navigator.webdriver`, user agent and client hints, languages, platform, hardware, screen and window sizes, time zone, WebGL vendor and renderer, a canvas hash, plugin counts, permission states and headless markers, and copies, exports and imports it as the JSON of seleniumbase-rs's `Fingerprint` (see [The Page tab](#the-page-tab-capture-copy-export-import)).
 
 </Card>
 
-<Card title="DevTools Recorder export" icon="file-export">
+<Card color="#d47628" title="DevTools Recorder export" icon="file-export">
 
 <Badge color="blue">Chrome, Edge</Badge>
 

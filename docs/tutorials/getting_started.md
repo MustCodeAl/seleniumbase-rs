@@ -385,37 +385,37 @@ cargo test login_succeeds
 
 <Columns cols={2}>
 
-<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+<Card color="#1a85d4" title="Selectors" icon="crosshairs" href="/tutorials/selectors">
 
 CSS, XPath, link text and shadow DOM: how a selector string is read.
 
 </Card>
 
-<Card title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
+<Card color="#199f43" title="Waits and assertions" icon="clock" href="/tutorials/waits_assertions">
 
 Wait for the page, then check it, without sleeps.
 
 </Card>
 
-<Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
+<Card color="#d47628" title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
 
 Run Chrome so sites see a person's browser.
 
 </Card>
 
-<Card title="Run settings" icon="sliders" href="/tutorials/run_settings">
+<Card color="#a631be" title="Run settings" icon="sliders" href="/tutorials/run_settings">
 
 Slow a run down to watch it, and the other run-wide switches.
 
 </Card>
 
-<Card title="API reference" icon="code" href="/tutorials/api_reference">
+<Card color="#1ca1c7" title="API reference" icon="code" href="/tutorials/api_reference">
 
 Every `BaseCase` method, the capability traits and the crate root.
 
 </Card>
 
-<Card title="Command line" icon="terminal" href="/tutorials/cli_usage">
+<Card color="#d32a61" title="Command line" icon="terminal" href="/tutorials/cli_usage">
 
 One-off commands with `sbrs`, no project needed.
 

@@ -214,19 +214,19 @@ chromedriver.
 
 <Columns cols={3}>
 
-<Card title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+<Card color="#1a85d4" title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
 
 The full API, backup/restore, and safety notes.
 
 </Card>
 
-<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+<Card color="#199f43" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
 
 A consistent user agent, platform, screen size, WebGL vendor and geolocation.
 
 </Card>
 
-<Card title="Pure CDP engine" icon="bolt" href="/tutorials/pure_cdp">
+<Card color="#d47628" title="Pure CDP engine" icon="bolt" href="/tutorials/pure_cdp">
 
 Drives Chrome with no chromedriver.
 

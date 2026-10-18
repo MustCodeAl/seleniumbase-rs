@@ -7,7 +7,7 @@ A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).
 
 <Badge color="blue">Chromium only</Badge> <Badge color="blue">Launch only</Badge>
 
-<Card title="At a glance" icon="puzzle-piece">
+<Card color="#1a85d4" title="At a glance" icon="puzzle-piece">
 
 - **Name:** `crx`
 - **Formats:** CRX3 and CRX2

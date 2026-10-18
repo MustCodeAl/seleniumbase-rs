@@ -133,25 +133,25 @@ link text; anything else is CSS.
 
 <Columns cols={2}>
 
-<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Getting started" icon="rocket" href="/tutorials/getting_started">
 
 Your first test with `BaseCase`.
 
 </Card>
 
-<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+<Card color="#199f43" title="Selectors" icon="crosshairs" href="/tutorials/selectors">
 
 CSS, XPath, link text and shadow DOM.
 
 </Card>
 
-<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+<Card color="#d47628" title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
 
 The driverless engine and its `Locator` API.
 
 </Card>
 
-<Card title="Recorder CLI" icon="circle-dot" href="/help/recorder_cli">
+<Card color="#a631be" title="Recorder CLI" icon="circle-dot" href="/help/recorder_cli">
 
 The scenario file and the recorded action file.
 
