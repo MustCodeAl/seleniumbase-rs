@@ -451,36 +451,36 @@ flowchart TD
 
 <Columns cols={2}>
 
-<Tile href="/stealth/wire-formats" title="Wire formats" description="Measured tables, JA3, JA4, peetprint, Akamai strings, impersonating clients.">
-  <Icon icon="fingerprint" size={48} />
-</Tile>
+<Card title="Wire formats" icon="fingerprint" color="#d47628" href="/stealth/wire-formats">
+  Measured tables, JA3, JA4, peetprint, Akamai strings, impersonating clients.
+</Card>
 
-<Tile href="/stealth/identity" title="Cookies and identity" description="The cookie jar, the stealth identity, session policy, challenge detection.">
-  <Icon icon="cookie" size={48} />
-</Tile>
+<Card title="Cookies and identity" icon="cookie" color="#199f43" href="/stealth/identity">
+  The cookie jar, the stealth identity, session policy, challenge detection.
+</Card>
 
-<Tile href="/stealth/browser-scraper" title="BrowserScraper" description="Fetch with a real Chrome, detect a challenge, mitigate, rotate egress.">
-  <Icon icon="globe" size={48} />
-</Tile>
+<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+  Fetch with a real Chrome, detect a challenge, mitigate, rotate egress.
+</Card>
 
-<Tile href="/stealth/http-session" title="HttpSession" description="Continue a browser's session as plain requests with the same fingerprint.">
-  <Icon icon="network-wired" size={48} />
-</Tile>
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/stealth/http-session">
+  Continue a browser's session as plain requests with the same fingerprint.
+</Card>
 
-<Tile href="/stealth/mitm-proxy" title="TLS server and MitmProxy" description="Put a real Chrome behind the same fingerprint.">
-  <Icon icon="shield" size={48} />
-</Tile>
+<Card title="TLS server and MitmProxy" icon="shield" color="#1ca1c7" href="/stealth/mitm-proxy">
+  Put a real Chrome behind the same fingerprint.
+</Card>
 
-<Tile href="/stealth/stealth-session" title="StealthSession" description="Move between HTTP and a browser as the policies decide.">
-  <Icon icon="shuffle" size={48} />
-</Tile>
+<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/stealth/stealth-session">
+  Move between HTTP and a browser as the policies decide.
+</Card>
 
-<Tile href="/stealth/examples" title="Runnable examples" description="Local programs that run each layer on your machine.">
-  <Icon icon="play" size={48} />
-</Tile>
+<Card title="Runnable examples" icon="play" color="#693acf" href="/stealth/examples">
+  Local programs that run each layer on your machine.
+</Card>
 
-<Tile href="/stealth/limits" title="Limits and troubleshooting" description="What is measured, what is refused, and what the errors mean.">
-  <Icon icon="triangle-exclamation" size={48} />
-</Tile>
+<Card title="Limits and troubleshooting" icon="triangle-exclamation" color="#d5a910" href="/stealth/limits">
+  What is measured, what is refused, and what the errors mean.
+</Card>
 
 </Columns>

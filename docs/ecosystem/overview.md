@@ -46,24 +46,24 @@ A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge
 
 <Columns cols={3}>
 
-<Tile href="/plugins/overview" title="Plugins" description="Overview, the plugin list, writing your own, wasm, crx and block-resources.">
-<Icon icon="plug" size={48} />
-</Tile>
+<Card title="Plugins" icon="plug" color="#d47628" href="/plugins/overview">
+  Overview, the plugin list, writing your own, wasm, crx and block-resources.
+</Card>
 
-<Tile href="/stealth/overview" title="Stealth scraping" description="The tutorial, split into pages by topic.">
-<Icon icon="user-secret" size={48} />
-</Tile>
+<Card title="Stealth scraping" icon="user-secret" color="#199f43" href="/stealth/overview">
+  The tutorial, split into pages by topic.
+</Card>
 
-<Tile href="/ecosystem/tauri" title="Tauri plugin" description="A WebDriver endpoint inside your Tauri app.">
-<Icon icon="window-maximize" size={48} />
-</Tile>
+<Card title="Tauri plugin" icon="window-maximize" color="#1a85d4" href="/ecosystem/tauri">
+  A WebDriver endpoint inside your Tauri app.
+</Card>
 
-<Tile href="/ecosystem/browser-extension" title="Browser extension" description="Recorder, inspector and DevTools Recorder export.">
-<Icon icon="puzzle-piece" size={48} />
-</Tile>
+<Card title="Browser extension" icon="puzzle-piece" color="#a631be" href="/ecosystem/browser-extension">
+  Recorder, inspector and DevTools Recorder export.
+</Card>
 
-<Tile href="/ecosystem/homebrew" title="Homebrew tap" description="Install sbrs and sbrs-mcp with Homebrew.">
-<Icon icon="beer-mug-empty" size={48} />
-</Tile>
+<Card title="Homebrew tap" icon="beer-mug-empty" color="#1ca1c7" href="/ecosystem/homebrew">
+  Install sbrs and sbrs-mcp with Homebrew.
+</Card>
 
 </Columns>

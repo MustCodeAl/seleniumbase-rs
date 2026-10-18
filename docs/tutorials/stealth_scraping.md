@@ -34,21 +34,21 @@ The full tutorial is part of this site now, under
 
 <Columns cols={2}>
 
-<Tile href="/stealth/overview" title="Overview and crates" description="The three crates, how to depend on them, and how the pieces layer.">
-  <Icon icon="layer-group" size={48} />
-</Tile>
+<Card title="Overview and crates" icon="layer-group" color="#d47628" href="/stealth/overview">
+  The three crates, how to depend on them, and how the pieces layer.
+</Card>
 
-<Tile href="/stealth/wire-formats" title="Wire formats" description="Measured tables, JA3, JA4, peetprint, re-measuring when Chrome updates.">
-  <Icon icon="fingerprint" size={48} />
-</Tile>
+<Card title="Wire formats" icon="fingerprint" color="#199f43" href="/stealth/wire-formats">
+  Measured tables, JA3, JA4, peetprint, re-measuring when Chrome updates.
+</Card>
 
-<Tile href="/stealth/browser-scraper" title="BrowserScraper and HttpSession" description="A real Chrome with challenge detection, and plain requests that continue its session.">
-  <Icon icon="globe" size={48} />
-</Tile>
+<Card title="BrowserScraper and HttpSession" icon="globe" color="#1a85d4" href="/stealth/browser-scraper">
+  A real Chrome with challenge detection, and plain requests that continue its session.
+</Card>
 
-<Tile href="/stealth/limits" title="Limits" description="What is measured, what is refused, and troubleshooting.">
-  <Icon icon="triangle-exclamation" size={48} />
-</Tile>
+<Card title="Limits" icon="triangle-exclamation" color="#a631be" href="/stealth/limits">
+  What is measured, what is refused, and troubleshooting.
+</Card>
 
 </Columns>
 

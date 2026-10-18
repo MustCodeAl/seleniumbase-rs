@@ -14,37 +14,37 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Tile href="/tutorials/getting_started" title="Getting Started" description="Create a Rust project, add seleniumbase-rs, and run your first test.">
-  <Icon icon="rocket" size={48} />
-</Tile>
+<Card title="Getting Started" icon="rocket" color="#d47628" href="/tutorials/getting_started">
+  Create a Rust project, add seleniumbase-rs, and run your first test.
+</Card>
 
-<Tile href="/rust-test-tooling" title="Writing Browser Tests" description="BaseCase, selectors, waits and assertions for maintainable tests.">
-  <Icon icon="flask" size={48} />
-</Tile>
+<Card title="Writing Browser Tests" icon="flask" color="#199f43" href="/rust-test-tooling">
+  BaseCase, selectors, waits and assertions for maintainable tests.
+</Card>
 
-<Tile href="/python-migration" title="Migrate from Python, Playwright or Puppeteer" description="Keep a similar API while gaining compile-time guarantees.">
-  <Icon icon="arrow-right-arrow-left" size={48} />
-</Tile>
+<Card title="Migrate from Python, Playwright or Puppeteer" icon="arrow-right-arrow-left" color="#1a85d4" href="/python-migration">
+  Keep a similar API while gaining compile-time guarantees.
+</Card>
 
-<Tile href="/tutorials/uc_mode" title="Stealth and Browser Modes" description="UC mode, CDP, pure CDP, fingerprints and binary patching.">
-  <Icon icon="user-secret" size={48} />
-</Tile>
+<Card title="Stealth and Browser Modes" icon="user-secret" color="#a631be" href="/tutorials/uc_mode">
+  UC mode, CDP, pure CDP, fingerprints and binary patching.
+</Card>
 
-<Tile href="/tutorials/cli_usage" title="CLI Usage" description="The sbrs CLI, Commander, and the MCP servers for AI agents.">
-  <Icon icon="terminal" size={48} />
-</Tile>
+<Card title="CLI Usage" icon="terminal" color="#1ca1c7" href="/tutorials/cli_usage">
+  The sbrs CLI, Commander, and the MCP servers for AI agents.
+</Card>
 
-<Tile href="/why-rust" title="Why Rust?" description="Security, reliability, performance and how it compares.">
-  <Icon icon="gear" size={48} />
-</Tile>
+<Card title="Why Rust?" icon="gear" color="#d32a61" href="/why-rust">
+  Security, reliability, performance and how it compares.
+</Card>
 
-<Tile href="/plugins/overview" title="Plugins" description="Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.">
-  <Icon icon="plug" size={48} />
-</Tile>
+<Card title="Plugins" icon="plug" color="#693acf" href="/plugins/overview">
+  Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.
+</Card>
 
-<Tile href="/stealth/overview" title="Stealth scraping" description="Wire fingerprints, identities and the browser scraper (experimental).">
-  <Icon icon="fingerprint" size={48} />
-</Tile>
+<Card title="Stealth scraping" icon="fingerprint" color="#d5a910" href="/stealth/overview">
+  Wire fingerprints, identities and the browser scraper (experimental).
+</Card>
 
 </Columns>
 
