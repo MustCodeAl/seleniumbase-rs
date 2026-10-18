@@ -42,6 +42,7 @@ hidden: true
 - [HTML Inspector](help/html_inspector.md)
 - [Common Problems](help/common_problems.md)
 - [CLI Usage](tutorials/cli_usage.md)
+  - [CLI TL;DR](help/cli_tldr.md)
   - [CLI reference](help/cli_reference.md)
   - [Commander](help/commander.md)
   - [Case Plans Generator](help/caseplans.md)

@@ -143,6 +143,7 @@
             "group": "Command line",
             "icon": "terminal",
             "pages": [
+              "help/cli_tldr",
               "tutorials/cli_usage",
               "help/cli_reference",
               "completions/README",
