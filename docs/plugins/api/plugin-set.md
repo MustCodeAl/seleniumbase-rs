@@ -415,7 +415,8 @@ The checks, in this order:
       (`Unsupported`), and the set granted it (`Capability`, `it is required but
       not granted`). Capabilities in `optional` are never checked.
 
-The engines call it before `before_launch` and again after it. The WebDriver
+The engines call it before `before_launch` and again after it; an attach is
+checked once. The WebDriver
 engine passes `HostInfo::webdriver(family)`, except that a set holding an
 undeclared plugin is checked as for Chromium; see
 [Limits](/plugins/architecture#limits).
@@ -470,7 +471,7 @@ plugin's change right after its hook:
 |---|---|---|
 | An entry removed from `args`, `disable_features`, `enable_features`, `host_resolver_rules` or `extensions` | never allowed | `list settings only grow; it removed an entry` |
 | New `args` | `launch.args` | `it changed a setting without the capability` |
-| A new arg in `REFUSED_SWITCHES`, or a `--disable-features=`/`--enable-features=` arg naming a refused feature | `raw:switches` | `the switch --NAME is refused for every plugin`, or `the feature NAME may not be changed by a plugin` |
+| A new arg in `REFUSED_SWITCHES`, or a `--disable-features=`/`--enable-features=` arg naming a refused feature | `raw:switches` | ``the switch `--NAME` is refused for every plugin``, or ``the feature `NAME` may not be changed by a plugin`` |
 | New `disable_features` or `enable_features` | `launch.args`; a refused feature needs `raw:switches` too | `that feature may not be changed by a plugin` |
 | `host_resolver_rules`, `webrtc_policy` or `disable_quic` changed | `launch.network` | `it changed a setting without the capability` |
 | A key removed from `prefs` | never allowed | `it removed a preference another plugin set` |
