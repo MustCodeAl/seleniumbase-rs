@@ -2,15 +2,23 @@
 title: "TLS Server and MitmProxy"
 ---
 
+<Badge color="orange">Experimental</Badge>
+
+<Visibility for="agents">
+
+Summary for AI exports: `mimic::tls_server` makes an ephemeral P-256 certificate authority in memory and issues one-day leaves for single host names. `mimic::mitm::MitmProxy` is a loopback forward proxy that requires a random `Proxy-Authorization` token, ends Chrome's TLS with a leaf of that CA and replays each request through the impersonating client, so the origin sees the measured `ClientHello`, HTTP/2 start and header spelling. `configure_launch` points a Chrome launch at it. Only WebSocket upgrades are relayed; QUIC is off.
+
+</Visibility>
+
 ## The ephemeral-CA TLS server
 
 `mimic::tls_server` is the building block under `capture_h2` and under
 [`MitmProxy`](#mitmproxy). `EphemeralCa::generate()` creates a P-256
 certificate authority in memory for the life of one process. `leaf_for(host,
 now)` issues a leaf for one DNS name or IP address (never a wildcard), cached in
-a count-bounded LRU. `acceptor(&[ALPN_HTTP1])` builds the BoringSSL server
+a count-bounded <Tooltip tip="Least recently used: when the cache is full, the entry used longest ago is dropped.">LRU</Tooltip>. `acceptor(&[ALPN_HTTP1])` builds the BoringSSL server
 context (TLS 1.2 and 1.3, no session resumption), and `accept` runs one
-handshake and refuses the connection when the client's SNI names another host.
+handshake and refuses the connection when the client's <Tooltip tip="Server Name Indication: the host name a client states in its TLS handshake.">SNI</Tooltip> names another host.
 
 ```rust
 use std::time::SystemTime;
@@ -81,6 +89,16 @@ ones, minus the [known gaps](/stealth/limits#limits)) instead of whatever the in
 would have sent. Both legs then look alike on the wire, and a clearance earned in
 the browser is valid over `HttpSession`.
 
+<Frame caption="One request through MitmProxy.">
+
+```mermaid
+flowchart LR
+  A["Chrome"] -- "CONNECT with the proxy token" --> B["MitmProxy: ends the browser's TLS with an ephemeral-CA leaf"]
+  B -- "replays the request through the impersonating client" --> C["Origin"]
+```
+
+</Frame>
+
 ```rust
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,7 +131,7 @@ launch at the proxy and adds the switches it needs.
 
 <Steps>
 
-<Step title="Authenticate">
+<Step title="Authenticate" icon="key">
 
 It requires `Proxy-Authorization: Basic` with a random 128-bit token (user
 name `sb`), compared in constant time, and answers `407` otherwise. Chrome
@@ -122,7 +140,7 @@ on Chrome's command line.
 
 </Step>
 
-<Step title="Refuse what it cannot intercept">
+<Step title="Refuse what it cannot intercept" icon="ban">
 
 It refuses a target it cannot intercept with an empty `502` and closes the
 connection. Nothing is ever tunnelled blind: a tunnel whose first bytes are
@@ -131,15 +149,15 @@ handshake (`ws://`, see [WebSocket](#websocket)) is closed.
 
 </Step>
 
-<Step title="End the browser's TLS">
+<Step title="End the browser's TLS" icon="lock">
 
 It answers `200` and ends the browser's TLS with a leaf for exactly the
-`CONNECT` host. The browser leg offers ALPN `http/1.1` only, and the SNI must
+`CONNECT` host. The browser leg offers <Tooltip tip="Application-Layer Protocol Negotiation: the handshake field that agrees on HTTP/1.1 or HTTP/2.">ALPN</Tooltip> `http/1.1` only, and the SNI must
 name the same host.
 
 </Step>
 
-<Step title="Replay each request">
+<Step title="Replay each request" icon="paper-plane">
 
 It reads each request, drops the hop-by-hop and proxy headers, keeps Chrome's
 header order, adds the HTTP/2-only `priority` header from the measured table,
@@ -165,16 +183,26 @@ An absolute-form `http://` request is checked the same way and forwarded without
 
 `mitm.configure_launch(builder)` sets the proxy, makes the proxy's priming page
 the start page (see [the priming page](#the-priming-page)) and adds
-`mitm.chrome_args()`: the `--ignore-certificate-errors-spki-list` switch with the
-leaf pin only (never
-the CA pin), `--proxy-bypass-list=<-loopback>` so loopback hosts go through the
-proxy too, and `--disable-quic`. Because that switch trusts any chain that
-carries the pinned key (see [the CA section](#the-ephemeral-ca-tls-server)), the
-pin is safe only while every connection of the profile ends at the proxy.
-Without the last two switches a loopback server or a QUIC connection would reach
-Chrome directly. Chrome honours the pin only together with `--user-data-dir`, so
-do not reuse that profile directory for a Chrome that runs without the proxy. The
-proxy refuses a request whose `User-Agent` claims a Chrome major other than the
+`mitm.chrome_args()`:
+
+- the `--ignore-certificate-errors-spki-list` switch with the leaf pin only (never
+  the CA pin),
+- `--proxy-bypass-list=<-loopback>` so loopback hosts go through the proxy too, and
+- `--disable-quic`.
+
+Because that switch trusts any chain that carries the pinned key (see
+[the CA section](#the-ephemeral-ca-tls-server)), the pin is safe only while every
+connection of the profile ends at the proxy. Without the last two switches a
+loopback server or a QUIC connection would reach Chrome directly.
+
+<Warning>
+
+Chrome honours the pin only together with `--user-data-dir`, so do not reuse that
+profile directory for a Chrome that runs without the proxy.
+
+</Warning>
+
+The proxy refuses a request whose `User-Agent` claims a Chrome major other than the
 profile's.
 
 ### Bounds and options
@@ -182,18 +210,65 @@ profile's.
 `MitmOptions` sets the bounds; `MitmProxy::start` refuses a value outside them
 with `MitmError::InvalidOptions`.
 
-| Setting | Default | Range |
-|---|---|---|
-| `max_connections`, served at once (further clients wait in the listen queue) | 256 | 1 to 4096 |
-| `max_header_bytes`, the request head (a larger one is answered `431`) | 64 KiB | 8 KiB to 1 MiB |
-| `max_headers` | 128 | 1 to 1024 |
-| `max_body_bytes`, each body in either direction (`413` when announced larger; cut when it grows past it) | 512 MiB | at least 1 |
-| `idle_timeout`, a connection waiting for its next request | 60 s | not zero |
-| `handshake_timeout`, the browser's TLS handshake | 10 s | not zero |
-| `connect_timeout`, the upstream connection | 30 s | not zero |
-| `read_timeout`, one upstream read | 60 s | not zero |
-| `websocket_idle_timeout`, a relayed WebSocket carrying no byte either way | 300 s | not zero |
-| `max_websocket_bytes`, each direction of a relayed WebSocket | 512 MiB | at least 1 |
+<ParamField body="max_connections" default="256">
+
+Served at once (further clients wait in the listen queue). Range: 1 to 4096.
+
+</ParamField>
+
+<ParamField body="max_header_bytes" default="64 KiB">
+
+The request head (a larger one is answered `431`). Range: 8 KiB to 1 MiB.
+
+</ParamField>
+
+<ParamField body="max_headers" default="128">
+
+Range: 1 to 1024.
+
+</ParamField>
+
+<ParamField body="max_body_bytes" default="512 MiB">
+
+Each body in either direction (`413` when announced larger; cut when it grows past it). Range: at least 1.
+
+</ParamField>
+
+<ParamField body="idle_timeout" default="60 s">
+
+A connection waiting for its next request. Range: not zero.
+
+</ParamField>
+
+<ParamField body="handshake_timeout" default="10 s">
+
+The browser's TLS handshake. Range: not zero.
+
+</ParamField>
+
+<ParamField body="connect_timeout" default="30 s">
+
+The upstream connection. Range: not zero.
+
+</ParamField>
+
+<ParamField body="read_timeout" default="60 s">
+
+One upstream read. Range: not zero.
+
+</ParamField>
+
+<ParamField body="websocket_idle_timeout" default="300 s">
+
+A relayed WebSocket carrying no byte either way. Range: not zero.
+
+</ParamField>
+
+<ParamField body="max_websocket_bytes" default="512 MiB">
+
+Each direction of a relayed WebSocket. Range: at least 1.
+
+</ParamField>
 
 `trust_upstream_root(der)` adds a root for upstream verification; once one is
 added, only the added roots are trusted, not the built-in web roots, and
@@ -212,7 +287,7 @@ ends, followed by the opening handshake (`GET` with `Upgrade: websocket` and
 
 <Steps>
 
-<Step title="Checks the handshake">
+<Step title="Checks the handshake" icon="circle-check">
 
 It checks the handshake like any request (the token, the destination, `Host`,
 the Chrome major), and that it is a whole handshake: a bodiless HTTP/1.1 `GET`
@@ -223,7 +298,7 @@ method, HTTP/1.0 or a body is an empty `400`; an upgrade to anything else
 
 </Step>
 
-<Step title="Sends it upstream">
+<Step title="Sends it upstream" icon="paper-plane">
 
 It sends it upstream over HTTP/1.1 with the measured WebSocket `ClientHello`
 (`tls_websocket` in the measured file, minus the known gaps). Chrome offers
@@ -233,7 +308,7 @@ timeouts are those of ordinary requests.
 
 </Step>
 
-<Step title="Keeps the header order">
+<Step title="Keeps the header order" icon="list">
 
 It keeps the browser's header order without the hop-by-hop and proxy fields, and
 writes the `Connection: Upgrade` and `Upgrade: websocket` pair itself. Header
@@ -243,7 +318,7 @@ do not hold take Chrome's (`Sec-WebSocket-Key`, `Sec-WebSocket-Version`,
 
 </Step>
 
-<Step title="Relays the answer">
+<Step title="Relays the answer" icon="reply">
 
 It relays the upstream's `101 Switching Protocols` with its own headers.
 `Sec-WebSocket-Accept` is checked by the browser, as it would be without a
@@ -252,7 +327,7 @@ other answer (a `403`, say) reaches the page as an ordinary answer.
 
 </Step>
 
-<Step title="Copies bytes">
+<Step title="Copies bytes" icon="copy">
 
 It then copies bytes both ways without reading frames, until a side closes, no
 byte has passed for `websocket_idle_timeout`, one direction has carried more
@@ -272,14 +347,20 @@ browser.
 `ws://` takes the same road without TLS. Measured on Chrome 155: a page's
 `ws://` WebSocket reaches an HTTP proxy as a `CONNECT` (to port 80 when the URL
 names none) whose tunnel then carries the opening handshake in plain text, with
-the fields of a `wss://` one in the same order. The proxy reads the tunnel's
+the fields of a `wss://` one in the same order.
+
+The proxy reads the tunnel's
 first bytes. A TLS handshake is ended as above. `GET ` is read as HTTP/1.1, and
 a WebSocket handshake in it takes steps 1 and 3 to 5 like a `wss://` one, with
 `Host` checked against the `CONNECT` target; it goes upstream as `http://` over
-a plain connection, so there is no `ClientHello` to impersonate. Any other
+a plain connection, so there is no `ClientHello` to impersonate.
+
+Any other
 plain-text request gets an empty `502` (`400` for half an upgrade) and the
 tunnel is closed, and bytes that start neither way close it unanswered: plain
-text is relayed only after an upgrade the site accepted, as for `wss://`. A
+text is relayed only after an upgrade the site accepted, as for `wss://`.
+
+A
 handshake outside a tunnel (an absolute-form `http://` request, which Chrome does
 not send for `ws://`) is an empty `502`. Through an egress, the plain handshake
 leaves the way any `http://` request does, so an HTTP egress has to relay the
@@ -363,7 +444,9 @@ proxy and raw clients, with no browser: the token and the `407`, the priming
 page (answered behind the token, a `404` for anything else on its host, nothing
 upstream), targets it refuses, the SNI check, the bounds, the measured JA4 and Akamai string and
 `priority` at the origin, header order, the refusals above, a 64 MiB body
-streaming through, swapping the egress, and shutdown leaving no task. Its
+streaming through, swapping the egress, and shutdown leaving no task.
+
+Its
 `websocket` tests run a WebSocket echo site written in the test (raw tokio, no
 WebSocket library on the site's side): the echo, a handshake completed by
 `tokio-tungstenite` as an independent client, the measured WebSocket JA4 at the
@@ -371,28 +454,39 @@ site, the handshake's header order, a WebSocket through an egress proxy with its
 credentials, and the hostile inputs (half upgrades, other
 protocols, a body, an oversize frame, an idle peer, a name resolving to loopback
 without `allow_private_destinations`, a handshake outside a tunnel, and a proxy
-that stops under an open WebSocket). For `ws://` they run a plain-text echo site:
+that stops under an open WebSocket).
+
+For `ws://` they run a plain-text echo site:
 the handshake in a tunnel without TLS is relayed in the browser's order and
 echoes, and a plain `GET`, a `POST`, an `h2c` upgrade, half an upgrade, a `Host`
 other than the target and a loopback name without the switch are refused without
 reaching the site.
 
 `tests/impersonate_mitm_chrome.rs` drives the real Chrome 155 on macOS, headless,
-and is `#[ignore]`d. A page loads through the proxy, and the loopback origin
+and is `#[ignore]`d.
+
+A page loads through the proxy, and the loopback origin
 sees the measured JA4 and Akamai string with the measured `priority` and a
-Chrome user agent; the token reaches Chrome only through the `407`. A page
+Chrome user agent; the token reaches Chrome only through the `407`.
+
+A page
 opens a `wss://` WebSocket through the proxy to a loopback echo site and gets its
 echo back; the site sees the measured WebSocket JA4 and Chrome's handshake fields
 in Chrome's order. A `ws://` WebSocket reaches a plain loopback echo site through
-the proxy and gets its echo, without a TLS tunnel. A WebSocket that is a new
+the proxy and gets its echo, without a TLS tunnel.
+
+A WebSocket that is a new
 tab's first request gets its echo, because the launch loaded the
 priming page; a context created after the launch fails its first WebSocket on the
 `407` until one of its tabs has loaded the priming page, and then gets the echo.
+
 Two more
 tests are about the pin: a loopback server carrying the pinned key is never
 served to the page behind the proxy, and the same server is served to a Chrome
 that has the pin and no proxy. The origin in these tests is a server of the test,
-not a live site. Only the first test compares the browser with the measured
+not a live site.
+
+Only the first test compares the browser with the measured
 persona, so only it skips on a system that is not measured. The others are about
 the proxy's own rules and run on any Chrome or Chromium; one whose major is not
 the measured one is started with the profile's user agent, because the proxy

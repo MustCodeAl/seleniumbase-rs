@@ -19,6 +19,12 @@ requiring a Node Playwright driver.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: Playwright Mode needs the `playwright` Cargo feature, which is off by default. `BaseCase::activate_playwright_mode` starts a second Chromium through `rustwright` next to the WebDriver one, and `sb.quit()` closes both. `PlaywrightSession::launch_with_config` starts a session on its own, and `PlaywrightSession::connect_over_cdp` attaches to a browser that is already running.
+
+</Visibility>
+
 ## Enable the feature
 
 The feature is off by default, so a plain build does not compile `rustwright`.

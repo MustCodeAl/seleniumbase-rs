@@ -31,6 +31,12 @@ use seleniumbase_rs::{
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: the macros are exported from the crate root and the action macros expand `.await`, so call them inside an `async` function or closure and end each with `?` (with a trailing message they unwrap with `expect` and panic on failure). `sb_test!(name, config, |sb| { ...; Ok(()) })` generates a `#[tokio::test]` that always quits. Config macros are `uc_config!()`, `cdp_config!()`, `sb_config! { mode: .., headless: .., browser: .. }` and `fingerprint!(windows)` (also `edge`, `macos`, `linux`, `android`, `ios`, `safari`). `sb_fill_form!` and `sb_with_timeout!` return a `Result`. `selector!(css | xpath | id | link | partial_link, text)` builds a `Selector`.
+
+</Visibility>
+
 ## `selector!`
 
 Builds a [`Selector`](crate::Selector) variant at compile time.
@@ -216,25 +222,66 @@ sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
 
 ## When to use macros
 
-Use macros for:
+<Columns cols={2}>
 
-* Quick, linear test scripts where the shorter syntax improves readability.
-* Compile-time selectors that never change.
-* One-liner actions that would otherwise be dominated by `.await?` noise.
+<Card title="Use macros for" icon="bolt">
 
-<Tip>
+- Quick, linear test scripts where the shorter syntax improves readability.
+- Compile-time selectors that never change.
+- One-liner actions that would otherwise be dominated by `.await?` noise.
 
-Prefer the explicit method API when you need fine-grained error handling,
-custom timeouts, or non-trivial control flow.
+</Card>
 
-</Tip>
+<Card title="Prefer the explicit method API" icon="sliders">
+
+When you need fine-grained error handling, custom timeouts, or non-trivial control flow.
+
+</Card>
+
+</Columns>
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Macro expansion error | Used outside an `async` function | Wrap the call in an async block or `sb_test!`. |
-| `sb_test!` not found | Macro not imported | Import `seleniumbase_rs::sb_test`. |
-| Action macro panics | A trailing message was given, so a failure is unwrapped with `expect` (for example because the selector did not match) | Drop the message and use `?`, or add an explicit `sb_wait_for!` first or raise the timeout. |
-| Warning that a `Result` must be used | An action macro without a message was called without `?` | Add `?`: the failure is otherwise ignored. |
-| `selector!` type mismatch | Wrong variant name | Use `css`, `xpath`, `id`, `link`, or `partial_link`. |
+<AccordionGroup>
+
+<Accordion title="Macro expansion error" icon="code">
+
+**Likely cause:** Used outside an `async` function.
+
+**Fix:** Wrap the call in an async block or `sb_test!`.
+
+</Accordion>
+
+<Accordion title="sb_test! not found" icon="magnifying-glass">
+
+**Likely cause:** Macro not imported.
+
+**Fix:** Import `seleniumbase_rs::sb_test`.
+
+</Accordion>
+
+<Accordion title="Action macro panics" icon="bomb">
+
+**Likely cause:** A trailing message was given, so a failure is unwrapped with `expect` (for example because the selector did not match).
+
+**Fix:** Drop the message and use `?`, or add an explicit `sb_wait_for!` first or raise the timeout.
+
+</Accordion>
+
+<Accordion title="Warning that a Result must be used" icon="triangle-exclamation">
+
+**Likely cause:** An action macro without a message was called without `?`.
+
+**Fix:** Add `?`: the failure is otherwise ignored.
+
+</Accordion>
+
+<Accordion title="selector! type mismatch" icon="crosshairs">
+
+**Likely cause:** Wrong variant name.
+
+**Fix:** Use `css`, `xpath`, `id`, `link`, or `partial_link`.
+
+</Accordion>
+
+</AccordionGroup>

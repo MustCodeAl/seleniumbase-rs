@@ -2,6 +2,14 @@
 title: "Wire Formats and Impersonation"
 ---
 
+<Badge color="orange">Experimental</Badge>
+
+<Visibility for="agents">
+
+Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_mimic` turns a measured `ImpersonationProfile` into a wreq client, and `ImpersonationProfile::custom()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
+
+</Visibility>
+
 ## What is measured, and what is refused
 
 Every wire value this crate imitates was measured from a real browser by a
@@ -77,7 +85,7 @@ To add the new version:
 
 <Steps>
 
-<Step title="Update Chrome">
+<Step title="Update Chrome" icon="download">
 
 Update Chrome. The tools start their own browser (the system Chrome, or the
 one `--chrome PATH` names), headed. Leave `--headless` off: a headless
@@ -86,7 +94,7 @@ Chrome reports a different identity, so `capture_hints` refuses it
 
 </Step>
 
-<Step title="Run the three tools">
+<Step title="Run the three tools" icon="terminal">
 
 Run the three tools in this order, from the repository root. Each extends the
 same file, named `<browser>-<major>-<os>.json`, and `capture_h2` refuses a
@@ -121,7 +129,7 @@ They share these options: `--out DIR` (default `crates/codec/src/measured`),
 
 </Step>
 
-<Step title="Register the new file">
+<Step title="Register the new file" icon="file-code">
 
 Add the new file to the `SOURCES` list in `crates/codec/src/emulation.rs`. The test
 `crates/codec/tests/wire_emulation.rs` fails when a file in `crates/codec/src/measured` is missing
@@ -129,7 +137,7 @@ from that list.
 
 </Step>
 
-<Step title="Run the wire tests">
+<Step title="Run the wire tests" icon="flask">
 
 Run the wire tests, including `crates/mimic/tests/impersonate_wire.rs`. They compare what
 our client sends with the measured file and fail, by name, when a known gap
@@ -151,7 +159,7 @@ for hostile or truncated bytes instead of panicking.
 | Format | Type | What it is |
 |---|---|---|
 | TLS `ClientHello` | `codec::client_hello::ClientHello` | `ClientHello::parse(records)` decodes the first handshake message, across TLS records. `ClientHello::needed_len(prefix)` says how many bytes a capture loop still needs. |
-| JA3 | `codec::ja3::Ja3` | Five comma-separated fields with GREASE removed. `Ja3::parse`, `Ja3::of(&hello)`, `hash()` (MD5, as JA3 defines it). |
+| JA3 | `codec::ja3::Ja3` | Five comma-separated fields with <Tooltip tip="Random reserved values a client adds to its handshake so servers do not depend on a fixed list (RFC 8701).">GREASE</Tooltip> removed. `Ja3::parse`, `Ja3::of(&hello)`, `hash()` (MD5, as JA3 defines it). |
 | JA4 | `codec::ja4::Ja4` | `a_b_c` of FoxIO's TLS-client definition. `Ja4::of`, `Ja4::of_original_order` (`JA4_o`), `Ja4::parse`, `diff`. |
 | `JA4_r`, `JA4_ro` | `codec::ja4::Ja4Raw` | The unhashed, sorted or wire-order variants. `Ja4::raw(&hello)`, `Ja4Raw::parse`, `Ja4Raw::hashed()`. |
 | peetprint | `codec::ja3::Peetprint` | A JA3-like format that also records signature algorithms. GREASE shows as `GREASE`. |
@@ -323,6 +331,10 @@ assert!(matches!(
 # }
 ```
 
+<Info>
+
 A refusal is not a bug to work around. It means the pinned BoringSSL and wreq
 cannot send what you asked for, and sending something close would be a different
 fingerprint from the one you named.
+
+</Info>

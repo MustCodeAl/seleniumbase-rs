@@ -78,7 +78,7 @@ Run headed when someone has to see or use the window:
   [Run settings](/tutorials/run_settings)). `with_esc_end(true)` lets the person
   watching press ESC in the browser to end the test.
 - **Recording.** `sbrs record` saves the clicks and typing you do in the browser.
-  It is headed unless you pass `--headless`.
+  Like the other `sbrs` browser commands, it is headed by default.
 - **Clicking with the system pointer.** `Page::gui_click_captcha` and
   `Page::gui_captcha_plan` (feature `gui`) refuse a headless browser, because it
   has no window on the screen to click.
@@ -119,8 +119,9 @@ settings file and no `SB_HEADLESS`.
 
 </Warning>
 
-For `Settings` and the `sbrs` commands, each source below overrides the one
-before it. A `BrowserConfig` you build in code with `with_headless` is final.
+For `Settings` and the `sbrs` commands, each step in this chain overrides the one
+before it, and `to_browser_config()` turns the result into a `BrowserConfig`. A
+`BrowserConfig` you build in code with `with_headless` is final.
 
 ```mermaid
 graph LR
@@ -352,26 +353,34 @@ The stealth layer changes these:
 | Layer | What it does about headless |
 |---|---|
 | UC mode (`DriverMode::Uc`) | If you set no user agent and Chrome reports `HeadlessChrome`, it overrides the user agent to say `Chrome` over CDP. |
-| A `Fingerprint` whose policy has `headless_fixes` on (`StealthPolicy::balanced()`, which every preset uses) | Runs the `headless`, `permissions` and `hairline` evasions and `Emulation.setFocusEmulationEnabled`: `matchMedia` gives a headed browser's answers, the page is visible, and the two permission answers agree. The outer window size is left to the `window_geometry` evasion. |
+| A `Fingerprint` whose policy has `headless_fixes` on (`StealthPolicy::balanced()`, which every preset uses) | Runs the `headless`, `permissions` and `hairline` evasions and turns on `Emulation.setFocusEmulationEnabled`. `matchMedia` then reports no reduced motion, no dark color scheme and a fine pointer, `document.hidden` is `false`, `visibilityState` is `visible`, and the two permission answers agree. The outer window size is left to the `window_geometry` evasion. |
 | A user agent from `with_user_agent`, `LaunchOptionsBuilder::user_agent` or a fingerprint | Replaces the `HeadlessChrome` user agent at launch. |
 | `native_spoofing` on a WebDriver session (Chrome, Chromium, Edge) | Runs a patched copy of Chrome (`EnginePatch::chrome_binary()`), which also overwrites the `HeadlessChrome` marker in the binary. |
 | Pure CDP engine without a user agent or fingerprint | Changes nothing: the user agent still says `HeadlessChrome`. |
 
+<Note>
+
 None of this makes a headless browser identical to a headed one. The network audit
-test (`tests/stealth_audit_network.rs`) only requires that, on CreepJS, a browser
+test (`tests/stealth_audit_network.rs`) only requires that, on <Tooltip tip="A public bot-detection test page that grades how headless and how patched a browser looks.">CreepJS</Tooltip>, a browser
 with a fingerprint looks no more headless than the same Chrome without one. On its
 first run (headless Chrome 155 on macOS), CreepJS still found two signs.
+
+</Note>
+
+<Tip>
 
 **Recommendation.** If a site still blocks a headless browser after these
 measures, run headed with `with_headless(false)` (or `sbrs --headed`). On a server
 with no display, give the headed browser a virtual display; see the last step below.
 [UC mode](/tutorials/uc_mode#still-detected) lists the other measures.
 
+</Tip>
+
 ## Containers and CI
 
 <Steps>
 
-<Step title="Turn headless mode on">
+<Step title="Turn headless mode on" icon="eye-slash">
 
 Set `SB_HEADLESS=true` for `sbrs` and for tests that load `Settings`. Keep
 `BrowserConfig::default()` (already headless) or call `with_headless(true)` in
@@ -381,7 +390,7 @@ has no display.
 
 </Step>
 
-<Step title="Let Chrome start without its sandbox">
+<Step title="Let Chrome start without its sandbox" icon="shield">
 
 On Linux, the WebDriver engine passes `--no-sandbox` to Chromium browsers itself.
 The pure CDP engine passes it only with `LaunchOptionsBuilder::no_sandbox(true)` or
@@ -398,12 +407,12 @@ control.
 
 </Step>
 
-<Step title="Give the browser shared memory">
+<Step title="Give the browser shared memory" icon="memory">
 
 WebDriver sessions pass `--disable-dev-shm-usage`. The repository's own container
 commands also start Docker with `--shm-size=1g`:
 
-```bash
+```bash Terminal
 docker run --rm --shm-size=1g seleniumbase-rs --headless smoke 'data:text/html,<title>Smoke</title><h1>hi</h1>' --title-contains Smoke
 ```
 
@@ -412,13 +421,15 @@ The image's entry point is `sbrs`, so the arguments after the image name are
 
 </Step>
 
-<Step title="Give a test that needs a window a virtual display">
+<Step title="Give a test that needs a window a virtual display" icon="desktop">
 
-On Linux, `BrowserConfig::with_virtual_display` starts Xvfb and opens the headed
+<Badge color="orange">Linux only</Badge> <Badge color="gray">WebDriver engine</Badge>
+
+On Linux, `BrowserConfig::with_virtual_display` starts <Tooltip tip="A virtual X display that a headed browser opens its window on when the machine has no screen.">Xvfb</Tooltip> and opens the headed
 browser on it. This is Python SeleniumBase's `--xvfb`. The screen is 1366 by 768
 unless you pass another `VirtualDisplay`:
 
-```rust,no_run
+```rust,no_run tests/headed_on_a_server.rs
 use seleniumbase_rs::browser::options::VirtualDisplay;
 use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
@@ -456,8 +467,9 @@ async fn runs_headed_on_a_server() -> Result<()> {
   and `save_page_source_to_logs()` and `save_as_pdf_to_logs(name)` save the HTML and
   a PDF. In the pure CDP engine, `page.screenshot()` and `page.pdf()` return the
   bytes.
-- **Check the mode in the log.** `BaseCase::new` and the session log `headless = true`
-  or `false` at the `info` level (`init_tracing()`, then `RUST_LOG=info`).
+- **Check the mode in the log.** `BaseCase::new` and the session log a `headless`
+  field at the `info` level, which `init_tracing()` shows unless `RUST_LOG` says
+  otherwise.
 - **Check what the page sees.** `sb.get_user_agent()` returns a user agent with
   `HeadlessChrome` in it when nothing replaced it.
 - **Attach DevTools.** `BrowserConfig::with_remote_debug(true)` opens Chrome's
@@ -479,7 +491,7 @@ async fn runs_headed_on_a_server() -> Result<()> {
 
 <AccordionGroup>
 
-<Accordion title="SB_HEADLESS=true has no effect">
+<Accordion title="SB_HEADLESS=true has no effect" icon="circle-question">
 
 Only `Settings::load()`, `Settings::load_from`, `Settings::from_env()` and the
 `sbrs` browser commands read the variable. A program that builds
@@ -491,7 +503,7 @@ variable (or put it before the command on the same line).
 
 </Accordion>
 
-<Accordion title="A window opens in CI, or Chrome fails because there is no display">
+<Accordion title="A window opens in CI, or Chrome fails because there is no display" icon="window-maximize">
 
 The settings file, `SB_HEADLESS` and `sbrs` are headed by default, and a headed
 browser needs a display. Set `SB_HEADLESS=true`, pass `--headless` before the
@@ -499,29 +511,29 @@ subcommand, or give the browser a virtual display.
 
 </Accordion>
 
-<Accordion title="sbrs refuses --headless=false">
+<Accordion title="sbrs refuses --headless=false" icon="terminal">
 
 `--headless` and `--headed` take no value. Pass `--headed` to open a window, and
 write global options before the subcommand: `sbrs --headless open URL`.
 
 </Accordion>
 
-<Accordion title="cannot parse bool: maybe">
+<Accordion title="cannot parse bool: maybe" icon="triangle-exclamation">
 
-`SB_HEADLESS` (or `headless` in the settings file) has a value that is not one of
-`true`, `false`, `1`, `0`, `yes`, `no`, `on` or `off`. `sbrs` stops before it starts
-a browser.
+`SB_HEADLESS` has a value that is not one of `true`, `false`, `1`, `0`, `yes`,
+`no`, `on` or `off`. `sbrs` stops before it starts a browser. In the settings file,
+`headless` must be a boolean (`true` or `false`), or the file does not load.
 
 </Accordion>
 
-<Accordion title="chrome-headless-shell cannot run the undetected (UC) mode">
+<Accordion title="chrome-headless-shell cannot run the undetected (UC) mode" icon="user-secret">
 
 `Browser::ChromeHeadlessShell` cannot run with `DriverMode::Uc`. Use Chrome with
 `with_headless(true)`, which UC mode supports, or drop UC mode.
 
 </Accordion>
 
-<Accordion title="chrome-headless-shell is not installed">
+<Accordion title="chrome-headless-shell is not installed" icon="download">
 
 The session looks for it under `downloaded_drivers/chs/` and downloads the stable
 build there when it is missing. If the download fails, put the program there, or
@@ -529,7 +541,7 @@ name it with `BrowserConfig::with_browser_binary_path`.
 
 </Accordion>
 
-<Accordion title="Xvfb is not installed or not on the PATH">
+<Accordion title="Xvfb is not installed or not on the PATH" icon="desktop">
 
 `with_virtual_display` needs the `Xvfb` program. Install it (`apt install xvfb`)
 or run headless. If no virtual display starts, check the log: the session skips it
@@ -537,7 +549,7 @@ for a headless browser, outside Linux, and with a driver it did not start itself
 
 </Accordion>
 
-<Accordion title="a headless browser has no window on the screen to click">
+<Accordion title="a headless browser has no window on the screen to click" icon="computer-mouse">
 
 `Page::gui_click_captcha` moves the system pointer, so it needs a window on the
 screen. Launch the browser headed, or use `solve_captcha`, which clicks over
@@ -545,7 +557,7 @@ DevTools.
 
 </Accordion>
 
-<Accordion title="A plugin refuses the browser">
+<Accordion title="A plugin refuses the browser" icon="puzzle-piece">
 
 A plugin with `Requirements::HEADFUL` refuses a headless launch with a
 `SeleniumBaseError::Plugin` error. `sbrs plugin info NAME` lists what a plugin
@@ -553,7 +565,7 @@ needs. Run headed, or drop that plugin. See [Browser plugins](/tutorials/plugins
 
 </Accordion>
 
-<Accordion title="The site detects the headless browser">
+<Accordion title="The site detects the headless browser" icon="fingerprint">
 
 See [Headless and stealth](#headless-and-stealth): use UC mode or a fingerprint
 first, then run headed (on a virtual display on a server).
@@ -587,5 +599,11 @@ first, then run headed (on a virtual display on a server).
   </Card>
   <Card title="Settings" icon="gear" href="/tutorials/settings_and_config">
     The settings file, the `SB_*` variables and their order.
+  </Card>
+  <Card title="Fingerprints and stealth" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+    The stealth policy and the headless fixes it turns on.
+  </Card>
+  <Card title="Common problems" icon="triangle-exclamation" href="/help/common_problems#headless-detected">
+    What to try when a site detects the headless browser.
   </Card>
 </Columns>

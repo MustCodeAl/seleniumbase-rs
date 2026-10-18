@@ -2,6 +2,40 @@
 title: "Building and installing"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 How to build `seleniumbase-rs` from source, which features cost what, and how to
 run it in a container. For writing and running tests with it, start with
 [Getting started](/tutorials/getting_started); for working on the crate, see
@@ -282,10 +316,20 @@ Homebrew) work today.
 </Warning>
 
 Each release archive (`seleniumbase-rs-v<version>-<target>.tgz`, `.zip` on
-Windows) holds `sbrs` and `sbrs-mcp` at its root, `completions/` (bash, zsh,
-fish, PowerShell, a Fig spec and the usage spec), the Warp workflows in
-`warp/workflows/`, `README.md` and `LICENSE`. `SHA256SUMS` lists the checksum of
-every archive.
+Windows) holds these at its root:
+
+<LayoutTree>
+  <LayoutFile name="sbrs" highlight note="the CLI" />
+  <LayoutFile name="sbrs-mcp" highlight note="the MCP server" />
+  <LayoutDir name="completions" note="bash, zsh, fish, PowerShell, a Fig spec and the usage spec" />
+  <LayoutDir name="warp" open>
+    <LayoutDir name="workflows" note="the Warp workflows" />
+  </LayoutDir>
+  <LayoutFile name="README.md" />
+  <LayoutFile name="LICENSE" />
+</LayoutTree>
+
+`SHA256SUMS` lists the checksum of every archive.
 
 ### cargo binstall
 

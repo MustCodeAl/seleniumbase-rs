@@ -174,12 +174,41 @@ chromedriver.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `navigator.webdriver` still `true` | chromedriver not patched | Run `patch-chromedriver` and verify `needs_patch()`. |
-| Detection after patching | Missing engine args | Add `engine_spoofing_args()` to launch flags. |
-| Detection only in headless | Headless artifacts | Run headful with `with_headless(false)` (or `sbrs --headed`). |
-| Inconsistent signals | Fingerprint values mismatch | Validate with `Fingerprint::validate()`. |
+<AccordionGroup>
+
+<Accordion title="navigator.webdriver is still true" icon="wrench">
+
+**Likely cause:** chromedriver not patched.
+
+**Fix:** Run `patch-chromedriver` and verify `needs_patch()`.
+
+</Accordion>
+
+<Accordion title="Detection after patching" icon="flag">
+
+**Likely cause:** Missing engine args.
+
+**Fix:** Add `engine_spoofing_args()` to launch flags.
+
+</Accordion>
+
+<Accordion title="Detection only in headless" icon="window-maximize">
+
+**Likely cause:** Headless artifacts.
+
+**Fix:** Run headful with `with_headless(false)` (or `sbrs --headed`).
+
+</Accordion>
+
+<Accordion title="Inconsistent signals" icon="fingerprint">
+
+**Likely cause:** Fingerprint values mismatch.
+
+**Fix:** Validate with `Fingerprint::validate()`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Next steps
 

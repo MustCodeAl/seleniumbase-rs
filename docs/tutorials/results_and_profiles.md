@@ -3,6 +3,8 @@ title: "Results Database and Encrypted Profiles"
 sidebarTitle: "Results and profiles"
 ---
 
+<Badge color="blue">Feature: turso</Badge>
+
 Two things a team ends up needing are a history of test runs, and a safe place
 for browser profiles. Both live in one embedded database,
 [Turso](https://github.com/tursodatabase/turso), behind the `turso` feature. It
@@ -16,7 +18,7 @@ already covers.
 
 </Note>
 
-```toml
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["turso"] }
 ```
@@ -25,11 +27,17 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", featu
 
 **What you will learn**
 
-- Record test runs and results, and ask which tests are flaky
+- Record test runs and results, and ask which tests are <Tooltip tip="Passes in some runs and fails in others.">flaky</Tooltip>
 - Read them from the command line with `sbrs report`
 - Keep browser profiles encrypted at rest
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: with the `turso` feature, `ResultStore` keeps test runs and results in a local Turso file (`start_run`, `record_outcome`, `runs`, `flaky_tests`), `sbrs report --db <file>` reads it, and `ProfileVault` stores browser profiles sealed with AES-256-GCM under a passphrase-derived key. Nothing is sent over the network.
+
+</Visibility>
 
 ## Recording test runs
 
@@ -94,7 +102,7 @@ secret, redact it before recording.
 
 Build the CLI with the feature, and read a database without writing any code:
 
-```bash
+```bash Terminal
 cargo build --features turso
 sbrs report --db reports/results.db            # the latest runs, newest first
 sbrs report --db reports/results.db --run 12   # one run, with failure messages

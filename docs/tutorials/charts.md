@@ -16,6 +16,12 @@ data produced during a run.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `Chart::new(title, ChartType::Pie)` needs no browser; call `add_data_point(label, value)` (values are `i32`) and `save("file.html")`. On `BaseCase`, `create_pie_chart`, `create_bar_chart`, `create_line_chart`, `create_area_chart` or `create_column_chart` start a chart, then `add_data_point`, `add_series_to_chart` and `save_chart`. The saved HTML file draws the chart with Chart.js loaded from `cdn.jsdelivr.net`, so opening it needs internet access.
+
+</Visibility>
+
 ## Supported chart types
 
 - Pie
@@ -27,6 +33,10 @@ data produced during a run.
 Values are `i32`.
 
 ## Single-series chart
+
+<Tabs>
+
+<Tab title="Chart (no browser)" icon="chart-pie">
 
 The `Chart` type needs no browser. Build it, add data points, and save it:
 
@@ -43,6 +53,10 @@ chart.save("market_share.html")?;
 # Ok(())
 # }
 ```
+
+</Tab>
+
+<Tab title="BaseCase" icon="window-maximize">
 
 `BaseCase` has the same operations as async methods, for tests that already hold
 one (`create_pie_chart`, `create_bar_chart`, `create_line_chart`,
@@ -66,6 +80,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+</Tab>
+
+</Tabs>
 
 ## Multi-series chart
 
@@ -101,11 +119,11 @@ label, and a label it lacks is drawn as `0`.
 [Chart.js](https://www.chartjs.org/). The file embeds the data but loads the
 Chart.js library from `cdn.jsdelivr.net`, so opening it needs internet access.
 
-<Info>
+<Tip>
 
 Open it in any browser or attach it to test reports.
 
-</Info>
+</Tip>
 
 Related methods on `BaseCase`:
 
@@ -119,9 +137,38 @@ Passed/Failed/Skipped bar chart) to edit by hand.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Chart file is empty | No data points added | Call `add_data_point` before `save_chart`. |
-| `No chart created` error | `add_data_point` or `save_chart` before any `create_*_chart` | Create the chart first. |
-| Extra series shows zeros | Its labels differ from the primary series | Use the same labels as the primary series. |
-| Chart does not render | Offline: Chart.js is loaded from a CDN | Open the file on a machine with internet access, or edit the `<script src>` to point at a local copy. |
+<AccordionGroup>
+
+<Accordion title="Chart file is empty" icon="file">
+
+**Likely cause:** No data points added.
+
+**Fix:** Call `add_data_point` before `save_chart`.
+
+</Accordion>
+
+<Accordion title="No chart created error" icon="circle-exclamation">
+
+**Likely cause:** `add_data_point` or `save_chart` before any `create_*_chart`.
+
+**Fix:** Create the chart first.
+
+</Accordion>
+
+<Accordion title="Extra series shows zeros" icon="chart-line">
+
+**Likely cause:** Its labels differ from the primary series.
+
+**Fix:** Use the same labels as the primary series.
+
+</Accordion>
+
+<Accordion title="Chart does not render" icon="wifi">
+
+**Likely cause:** Offline: Chart.js is loaded from a CDN.
+
+**Fix:** Open the file on a machine with internet access, or edit the `<script src>` to point at a local copy.
+
+</Accordion>
+
+</AccordionGroup>

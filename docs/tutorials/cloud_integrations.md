@@ -21,6 +21,12 @@ example on the screenshot a failure plugin saved. See
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: these types are uploaders, not test hooks. `S3LoggingPlugin::upload_file(bucket, key, path, region)` needs feature `s3` and `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (optional `AWS_REGION` and `AWS_ENDPOINT_URL`). `AzureLoggingPlugin::upload_file(path)` needs feature `azure` and `AZURE_BLOB_URL`, a blob URL with a SAS token that has write permission. `GcpLoggingPlugin::upload_file(bucket, key, path)` needs feature `gcp` and `GCS_ACCESS_TOKEN`. Try them with `cargo run --example cloud_upload --features s3,azure,gcp`.
+
+</Visibility>
+
 ## Enabling backends
 
 Add the features you need, in `Cargo.toml` or on the command line:
@@ -40,9 +46,9 @@ cargo run --features s3
 
 ## Providers
 
-<Tabs>
+<View title="Amazon S3" icon="aws" iconType="brands">
 
-<Tab title="Amazon S3">
+<Badge color="blue">Feature: s3</Badge>
 
 Set the standard AWS environment variables:
 
@@ -72,11 +78,13 @@ S3LoggingPlugin::upload_file(
 ).await?;
 ```
 
-</Tab>
+</View>
 
-<Tab title="Azure Blob Storage">
+<View title="Azure Blob Storage" icon="microsoft" iconType="brands">
 
-Azure support uses a blob URL that already contains a SAS token with write
+<Badge color="blue">Feature: azure</Badge>
+
+Azure support uses a blob URL that already contains a <Tooltip tip="Shared access signature: a token in the URL query string that grants limited, time-bound access to a blob.">SAS token</Tooltip> with write
 permission:
 
 ```bash
@@ -104,9 +112,11 @@ az storage blob generate-sas \
   --https-only
 ```
 
-</Tab>
+</View>
 
-<Tab title="Google Cloud Storage">
+<View title="Google Cloud Storage" icon="google" iconType="brands">
+
+<Badge color="blue">Feature: gcp</Badge>
 
 GCS support uses an OAuth access token. The easiest way to obtain one is:
 
@@ -127,9 +137,7 @@ GcpLoggingPlugin::upload_file(
 ).await?;
 ```
 
-</Tab>
-
-</Tabs>
+</View>
 
 ## Running the example
 
@@ -152,9 +160,38 @@ name from the environment, so nothing is hard-coded:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Upload function not found | Feature not enabled | Add the matching feature in `Cargo.toml`. |
-| S3 credentials error | Missing `AWS_*` variables | Export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. |
-| Azure SAS rejected | Token lacks write permission | Regenerate with `--permissions rw`. |
-| GCS token expired | `GCS_ACCESS_TOKEN` timed out | Re-run `gcloud auth print-access-token`. |
+<AccordionGroup>
+
+<Accordion title="Upload function not found" icon="magnifying-glass">
+
+**Likely cause:** Feature not enabled.
+
+**Fix:** Add the matching feature in `Cargo.toml`.
+
+</Accordion>
+
+<Accordion title="S3 credentials error" icon="key">
+
+**Likely cause:** Missing `AWS_*` variables.
+
+**Fix:** Export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+
+</Accordion>
+
+<Accordion title="Azure SAS rejected" icon="ban">
+
+**Likely cause:** Token lacks write permission.
+
+**Fix:** Regenerate with `--permissions rw`.
+
+</Accordion>
+
+<Accordion title="GCS token expired" icon="clock">
+
+**Likely cause:** `GCS_ACCESS_TOKEN` timed out.
+
+**Fix:** Re-run `gcloud auth print-access-token`.
+
+</Accordion>
+
+</AccordionGroup>

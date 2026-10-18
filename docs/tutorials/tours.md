@@ -18,7 +18,7 @@ and can be shared or embedded in test reports.
 
 ## Basic tour
 
-```rust
+```rust src/main.rs
 use seleniumbase_rs::{BaseCase, BrowserConfig, TourTheme};
 
 #[tokio::main]
@@ -67,8 +67,30 @@ tour, or serve them from your test report.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Tour element not highlighted | Selector is hidden or inside Shadow DOM | Ensure the element is visible or use a shadow-aware selector. |
-| Export file is empty | No steps added | Call `add_tour_step` before `export_tour`. |
-| Theme styling missing | Offline environment | Use a theme that bundles CSS or serve the file with internet access. |
+<AccordionGroup>
+
+<Accordion title="Tour element not highlighted" icon="highlighter">
+
+**Likely cause.** Selector is hidden or inside Shadow DOM.
+
+**Fix.** Ensure the element is visible or use a shadow-aware selector.
+
+</Accordion>
+
+<Accordion title="Export file is empty" icon="file">
+
+**Likely cause.** No steps added.
+
+**Fix.** Call `add_tour_step` before `export_tour`.
+
+</Accordion>
+
+<Accordion title="Theme styling missing" icon="palette">
+
+**Likely cause.** Offline environment.
+
+**Fix.** Use a theme that bundles CSS or serve the file with internet access.
+
+</Accordion>
+
+</AccordionGroup>

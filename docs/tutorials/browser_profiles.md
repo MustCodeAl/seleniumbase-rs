@@ -9,7 +9,20 @@ anti-detect JSON format. The format is exposed through the
 This is **not** tied to any third-party product. The payload describes a browser
 persona, a set of masking modes, and optional runtime overrides. `seleniumbase-rs`
 translates the parts it can apply directly into `BrowserConfig`, command-line
-flags, CDP calls, and window settings.
+flags, <Tooltip tip="Chrome DevTools Protocol: the protocol DevTools uses to control Chrome.">CDP</Tooltip> calls, and window settings.
+
+<Frame caption="From a payload to a running browser.">
+
+```mermaid
+flowchart LR
+  P["Profile payload (JSON)"] --> S["ProfileParams"]
+  S --> C["to_browser_config: BrowserConfig"]
+  S --> R["apply_runtime_overrides: CDP calls and window settings"]
+  C --> B["Browser"]
+  R --> B
+```
+
+</Frame>
 
 <Info>
 
@@ -21,6 +34,12 @@ flags, CDP calls, and window settings.
 - How to use the Tauri profile-manager example.
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: a profile payload (`ProfileParams`, from `seleniumbase_rs::profile_payloads`) describes a browser persona with `name`, `browser_type`, `os_type`, `parameters.flags` (a word or literal per key), `parameters.fingerprint` (explicit values), `parameters.storage` and `parameters.proxy`. `params.to_browser_config(url)` builds the `BrowserConfig` and `apply_runtime_overrides(&mut sb)` applies the CDP and window parts. An unknown flag word is logged and read as `natural`.
+
+</Visibility>
 
 ## Supported fields
 
@@ -52,30 +71,109 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 
 ### Top-level profile fields
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `name` | string | yes | Profile name. |
-| `browser_type` | `chromium` \| `firefox` \| `mobile_safari` | yes | Browser engine. Legacy aliases `mimic`/`stealthfox` still work. |
-| `os_type` | `linux` \| `macos` \| `windows` \| `android` \| `ios` | yes | Operating-system persona. |
-| `automation` | `selenium` \| `playwright` \| `puppeteer` | no | Automation backend. `selenium` is default; `playwright`/`puppeteer` map to CDP mode. |
-| `is_headless` | boolean | no | Run the browser headlessly. Default `false`. |
-| `folder_id` | string | no | Persistent folder identifier for local storage. |
-| `core_version` | number | no | The Chromium major version. A drawn user agent and drawn Client Hints claim it (not for Firefox or iOS Safari personas). |
-| `core_minor_version` | number | no | Browser minor version (informational). |
-| `auto_update_core` | boolean | no | Whether to auto-update the core version. |
-| `tags` | string[] | no | Arbitrary tags. |
-| `times` | number | no | Usage counter. Default `1`. |
-| `notes` | string | no | Human-readable notes. |
+<ParamField body="name" type="string" required>
+
+Profile name.
+
+</ParamField>
+
+<ParamField body="browser_type" type="chromium | firefox | mobile_safari" required>
+
+Browser engine. Legacy aliases `mimic`/`stealthfox` still work.
+
+</ParamField>
+
+<ParamField body="os_type" type="linux | macos | windows | android | ios" required>
+
+Operating-system persona.
+
+</ParamField>
+
+<ParamField body="automation" type="selenium | playwright | puppeteer" default="selenium">
+
+Automation backend. `selenium` is default; `playwright`/`puppeteer` map to CDP mode.
+
+</ParamField>
+
+<ParamField body="is_headless" type="boolean" default="false">
+
+Run the browser headlessly.
+
+</ParamField>
+
+<ParamField body="folder_id" type="string">
+
+Persistent folder identifier for local storage.
+
+</ParamField>
+
+<ParamField body="core_version" type="number">
+
+The Chromium major version. A drawn user agent and drawn Client Hints claim it (not for Firefox or iOS Safari personas).
+
+</ParamField>
+
+<ParamField body="core_minor_version" type="number">
+
+Browser minor version (informational).
+
+</ParamField>
+
+<ParamField body="auto_update_core" type="boolean">
+
+Whether to auto-update the core version.
+
+</ParamField>
+
+<ParamField body="tags" type="string[]">
+
+Arbitrary tags.
+
+</ParamField>
+
+<ParamField body="times" type="number" default="1">
+
+Usage counter.
+
+</ParamField>
+
+<ParamField body="notes" type="string">
+
+Human-readable notes.
+
+</ParamField>
 
 ### `parameters`
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `flags` | object | yes | One word or literal per key (see below). |
-| `fingerprint` | object | yes | Explicit fingerprint values. A value is used unless the flag for it says `natural`, or `off` for the keys that can be off. |
-| `storage` | object | yes | `is_local` and `save_service_worker`. |
-| `proxy` | object | no | Proxy configuration. |
-| `custom_start_urls` | string[] | no | URLs opened on launch. Maximum **5**; extras are ignored. |
+<ParamField body="flags" type="object" required>
+
+One word or literal per key (see below).
+
+</ParamField>
+
+<ParamField body="fingerprint" type="object" required>
+
+Explicit fingerprint values. A value is used unless the flag for it says `natural`, or `off` for the keys that can be off.
+
+</ParamField>
+
+<ParamField body="storage" type="object" required>
+
+`is_local` and `save_service_worker`.
+
+</ParamField>
+
+<ParamField body="proxy" type="object">
+
+Proxy configuration.
+
+</ParamField>
+
+<ParamField body="custom_start_urls" type="string[]">
+
+URLs opened on launch. Maximum **5**; extras are ignored.
+
+</ParamField>
 
 ### `parameters.flags`
 
@@ -90,41 +188,245 @@ A flag the payload leaves out is `auto`, except `ports_masking` (`mask`: the por
 of `fingerprint.ports` are blocked), `canvas_noise` (seeded noise) and `quic_mode`
 (`disabled`). The rest:
 
-| Flag | Accepted values | Required | Notes |
-|---|---|---|---|
-| `graphics_noise` | `natural`, `mask` | no | Also accepts `low`, `medium`, `high`, `off`. Ignored: it never drove graphics noise. |
-| `disable_csp` | `true`, `false` | no | Bypass Content-Security-Policy for the page context. |
-| `grant_permissions` | `true`, `false` | no | Grant common browser permissions at startup so prompts do not fire. |
-| `startup_behavior` | `recover`, `custom` | no | `recover` restores last-session tabs; `custom` opens `custom_start_urls`. |
-| `native_spoofing` | `true`, `false` | no | When `true`, spoofing is applied through CDP/launch args instead of JS where possible, making it invisible to page-side inspection. |
+<ParamField body="graphics_noise" type="natural | mask">
+
+Also accepts `low`, `medium`, `high`, `off`. Ignored: it never drove graphics noise.
+
+</ParamField>
+
+<ParamField body="disable_csp" type="true | false">
+
+Bypass Content-Security-Policy for the page context.
+
+</ParamField>
+
+<ParamField body="grant_permissions" type="true | false">
+
+Grant common browser permissions at startup so prompts do not fire.
+
+</ParamField>
+
+<ParamField body="startup_behavior" type="recover | custom">
+
+`recover` restores last-session tabs; `custom` opens `custom_start_urls`.
+
+</ParamField>
+
+<ParamField body="native_spoofing" type="true | false">
+
+When `true`, spoofing is applied through CDP/launch args instead of JS where possible, making it invisible to page-side inspection.
+
+</ParamField>
 
 ### `parameters.fingerprint`
 
-| Sub-field | Fields | Required when flag is `custom` | Notes |
-|---|---|---|---|
-| `navigator` | `hardware_concurrency`, `device_memory`, `user_agent`, `platform`, `os_cpu` | `hardware_concurrency`, `user_agent`, `platform` | `os_cpu` is optional; mostly relevant for Firefox personas. |
-| `localization` | `languages`, `locale`, `accept_languages` | all | Pass an empty string for `languages`/`locale` if you only need `accept_languages`. |
-| `timezone` | `zone` | yes | IANA zone such as `America/New_York`. |
-| `graphic` | `vendor`, `renderer`, `vendor_id`, `renderer_id` | `vendor`, `renderer` | `vendor_id`/`renderer_id` are optional GPU identifiers attached to the WebGL context. |
-| `webrtc` | `public_ip` | yes | Also supports `local_ip` via the flag literal. |
-| `media_devices` | `audio_outputs`, `audio_inputs`, `video_inputs` | all | |
-| `screen` | `width`, `height`, `pixel_ratio` | all | `width` 360–5000, `height` 640–3000, `pixel_ratio` 1.0–5.0. |
-| `geolocation` | `accuracy`, `altitude`, `longitude`, `latitude` | all except `accuracy` | |
-| `ports` | number[] | no | List of ports to block/allow. |
-| `fonts` | string[] | no | List of installed fonts. |
-| `cmd_params` | `{ params: [{ flag, value }] }` | no | Extra Chromium command-line flags. |
-| `max_touch_points` | number | no | Android/iOS only; default `5`. |
+Fields marked required are needed when the flag for the group is `custom`.
+
+<ParamField body="navigator" type="object">
+
+<Expandable title="fields">
+
+<ParamField body="hardware_concurrency" required />
+
+<ParamField body="device_memory" />
+
+<ParamField body="user_agent" required />
+
+<ParamField body="platform" required />
+
+<ParamField body="os_cpu">
+
+Optional; mostly relevant for Firefox personas.
+
+</ParamField>
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="localization" type="object">
+
+Pass an empty string for `languages`/`locale` if you only need `accept_languages`.
+
+<Expandable title="fields">
+
+<ParamField body="languages" required />
+
+<ParamField body="locale" required />
+
+<ParamField body="accept_languages" required />
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="timezone" type="object">
+
+<Expandable title="fields">
+
+<ParamField body="zone" required>
+
+IANA zone such as `America/New_York`.
+
+</ParamField>
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="graphic" type="object">
+
+<Expandable title="fields">
+
+<ParamField body="vendor" required />
+
+<ParamField body="renderer" required />
+
+<ParamField body="vendor_id">
+
+Optional GPU identifier attached to the WebGL context.
+
+</ParamField>
+
+<ParamField body="renderer_id">
+
+Optional GPU identifier attached to the WebGL context.
+
+</ParamField>
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="webrtc" type="object">
+
+Also supports `local_ip` via the flag literal.
+
+<Expandable title="fields">
+
+<ParamField body="public_ip" required />
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="media_devices" type="object">
+
+<Expandable title="fields">
+
+<ParamField body="audio_outputs" required />
+
+<ParamField body="audio_inputs" required />
+
+<ParamField body="video_inputs" required />
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="screen" type="object">
+
+<Expandable title="fields">
+
+<ParamField body="width" required>
+
+360–5000.
+
+</ParamField>
+
+<ParamField body="height" required>
+
+640–3000.
+
+</ParamField>
+
+<ParamField body="pixel_ratio" required>
+
+1.0–5.0.
+
+</ParamField>
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="geolocation" type="object">
+
+<Expandable title="fields">
+
+<ParamField body="accuracy" />
+
+<ParamField body="altitude" required />
+
+<ParamField body="longitude" required />
+
+<ParamField body="latitude" required />
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="ports" type="number[]">
+
+List of ports to block/allow.
+
+</ParamField>
+
+<ParamField body="fonts" type="string[]">
+
+List of installed fonts.
+
+</ParamField>
+
+<ParamField body="cmd_params" type="{ params: [{ flag, value }] }">
+
+Extra Chromium command-line flags.
+
+</ParamField>
+
+<ParamField body="max_touch_points" type="number" default="5">
+
+Android/iOS only.
+
+</ParamField>
 
 ### `parameters.proxy`
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `type` | `http` \| `https` \| `socks5` | yes | Proxy scheme. |
-| `host` | string | yes | Proxy host. IPv6 addresses should **not** include brackets when supplied in this object (use them only in `proxy_masking` URL literals). |
-| `port` | number | yes | Proxy port. |
-| `username` | string | no | Basic-auth username. |
-| `password` | string | no | Basic-auth password. |
-| `save_traffic` | boolean | no | When `true`, disables image/video loading to save proxy bandwidth. Default `false`. |
+<ParamField body="type" type="http | https | socks5" required>
+
+Proxy scheme.
+
+</ParamField>
+
+<ParamField body="host" type="string" required>
+
+Proxy host. IPv6 addresses should **not** include brackets when supplied in this object (use them only in `proxy_masking` URL literals).
+
+</ParamField>
+
+<ParamField body="port" type="number" required>
+
+Proxy port.
+
+</ParamField>
+
+<ParamField body="username" type="string">
+
+Basic-auth username.
+
+</ParamField>
+
+<ParamField body="password" type="string">
+
+Basic-auth password.
+
+</ParamField>
+
+<ParamField body="save_traffic" type="boolean" default="false">
+
+When `true`, disables image/video loading to save proxy bandwidth.
+
+</ParamField>
 
 ## The words of a flag
 
@@ -144,7 +446,7 @@ launch, because its folder and name seed the draw.
 
 <Tabs>
 
-<Tab title="A user agent and platform">
+<Tab title="A user agent and platform" icon="id-card">
 
 ```json
 {
@@ -173,7 +475,7 @@ from the same machine.
 
 </Tab>
 
-<Tab title="A screen, a position and a time zone">
+<Tab title="A screen, a position and a time zone" icon="location-dot">
 
 ```json
 {
@@ -198,7 +500,7 @@ profile would draw one that matches the rest of the profile.
 
 </Tab>
 
-<Tab title="iOS Mobile Safari">
+<Tab title="iOS Mobile Safari" icon="mobile">
 
 This profile uses `mobile_safari` and `ios`.
 
@@ -432,15 +734,60 @@ show an `external` badge in the profile list.
 
 ## Further reading
 
-- [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
-- [BrowserLeaks](https://browserleaks.com/)
+<Columns cols={2}>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+The table of keywords for every flag.
+
+</Card>
+
+<Card title="BrowserLeaks" icon="globe" href="https://browserleaks.com/" />
+
+</Columns>
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Profile fails to parse | Unknown browser or OS type | Use `chromium`/`firefox`/`mobile_safari` and `linux`/`macos`/`windows`/`android`/`ios`. |
-| A value is ignored | The flag for it is `natural` (or `off`, for the keys that can be off) | Set the flag to `auto` or `mask`, or leave it out. |
-| A flag does nothing | The word is not one of the words above; it is logged and read as `natural` | Check the log for the keyword, and use a word from the table. |
-| Proxy not applied | `proxy_masking` is `natural` or `disabled`, or the proxy has no host | Leave `proxy_masking` at `auto` (or set `custom`) and provide `parameters.proxy` with a host. |
-| Native spoofing has no effect | Driver is in pure WebDriver mode | Use `DriverMode::Cdp` or `DriverMode::Uc`. |
+<AccordionGroup>
+
+<Accordion title="Profile fails to parse" icon="triangle-exclamation">
+
+**Likely cause.** Unknown browser or OS type.
+
+**Fix.** Use `chromium`/`firefox`/`mobile_safari` and `linux`/`macos`/`windows`/`android`/`ios`.
+
+</Accordion>
+
+<Accordion title="A value is ignored" icon="eye-slash">
+
+**Likely cause.** The flag for it is `natural` (or `off`, for the keys that can be off).
+
+**Fix.** Set the flag to `auto` or `mask`, or leave it out.
+
+</Accordion>
+
+<Accordion title="A flag does nothing" icon="flag">
+
+**Likely cause.** The word is not one of the words above; it is logged and read as `natural`.
+
+**Fix.** Check the log for the keyword, and use a word from the table.
+
+</Accordion>
+
+<Accordion title="Proxy not applied" icon="network-wired">
+
+**Likely cause.** `proxy_masking` is `natural` or `disabled`, or the proxy has no host.
+
+**Fix.** Leave `proxy_masking` at `auto` (or set `custom`) and provide `parameters.proxy` with a host.
+
+</Accordion>
+
+<Accordion title="Native spoofing has no effect" icon="shield">
+
+**Likely cause.** Driver is in pure WebDriver mode.
+
+**Fix.** Use `DriverMode::Cdp` or `DriverMode::Uc`.
+
+</Accordion>
+
+</AccordionGroup>

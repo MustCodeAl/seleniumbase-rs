@@ -19,7 +19,15 @@ scenario, which is a different, richer format.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs record URL -o actions.json` records manual browsing and `sbrs replay actions.json` plays it back. `BaseCase` records its own actions, which `save_recorded_actions` and `export_recording_as_rust` write out. `sbrs recorder` turns typed lines into a Rust test with no browser. `sbrs run-scenario --file scenario.json` runs a hand-written JSON scenario, and a failing step does not change its exit status of 0.
+
+</Visibility>
+
 The three routes at a glance:
+
+<Frame caption="Record, write by hand, or run a scenario">
 
 ```mermaid
 flowchart LR
@@ -29,6 +37,8 @@ flowchart LR
     F --> P["sbrs replay"]
     S["scenario.json<br/>(written by hand)"] --> X["sbrs run-scenario"]
 ```
+
+</Frame>
 
 ## Record manual browsing
 
@@ -133,7 +143,7 @@ or replay with `replay_actions`.
 `sbrs recorder` needs no browser. You type one action per line, as `<action>
 <selector> [value]`, and it writes the Rust test:
 
-```text
+```text sbrs recorder
 > click #login
 Recorded: click #login
 > type #user admin

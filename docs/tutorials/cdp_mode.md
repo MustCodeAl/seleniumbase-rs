@@ -21,6 +21,12 @@ send raw CDP commands, and intercept network requests.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `DriverMode::Cdp` still uses WebDriver for the session and activates CDP domains. Call `sb.activate_cdp_mode().await?` before raw commands, then `execute_cdp(method)` or `execute_cdp_with_params(method, params)`. Helpers on `BaseCase` include `cdp_click`, `cdp_insert_text`, `cdp_fast_type`, `set_network_conditions`, `set_timezone`, `set_geolocation`, `clear_browser_cache` and `clear_browser_cookies`. `CdpReactor::start(host, port, headers)` continues every paused request with custom headers and needs a browser launched with `--remote-debugging-port=9222`.
+
+</Visibility>
+
 ## Enable CDP mode
 
 Set the driver mode to `Cdp`:
@@ -157,6 +163,20 @@ The `CdpReactor` connects to a browser's debug WebSocket, enables the `Fetch`
 domain, and continues every paused request with custom headers. This lets you
 mutate requests in real time without blocking the main WebDriver loop.
 
+<Frame caption="What CdpReactor does">
+
+```mermaid
+sequenceDiagram
+    participant R as CdpReactor
+    participant B as Browser
+    R->>B: connect to the debug WebSocket
+    R->>B: enable the Fetch domain
+    B-->>R: a request is paused
+    R->>B: continue it with the custom headers
+```
+
+</Frame>
+
 ```rust
 use std::collections::HashMap;
 use seleniumbase_rs::stealth::reactor::CdpReactor;
@@ -206,27 +226,67 @@ sb.clear_browser_cookies().await?;
 
 ## When to use CDP mode
 
-Use CDP mode when:
+<Tip>
 
-<Check>
+Use CDP mode when:
 
 - A page detects and blocks normal WebDriver commands.
 - You need to set custom request headers or throttle the network.
 - You want lower-level control over input events and JavaScript evaluation.
 - You are building custom anti-detection tooling that needs raw protocol access.
 
-</Check>
+</Tip>
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `execute_cdp` fails | CDP not activated | Call `activate_cdp_mode()` first. |
-| `cdp_mouse_click` misses | The coordinates are the document's, not the viewport's, on a scrolled page | Click by selector with `cdp_click`, which scrolls the element into view first. |
-| Reactor does not intercept | Wrong debugger port | Verify the browser was launched with `--remote-debugging-port=9222`. |
+<AccordionGroup>
+
+<Accordion title="execute_cdp fails" icon="plug">
+
+**Likely cause:** CDP not activated.
+
+**Fix:** Call `activate_cdp_mode()` first.
+
+</Accordion>
+
+<Accordion title="cdp_mouse_click misses" icon="computer-mouse">
+
+**Likely cause:** The coordinates are the document's, not the viewport's, on a scrolled page.
+
+**Fix:** Click by selector with `cdp_click`, which scrolls the element into view first.
+
+</Accordion>
+
+<Accordion title="Reactor does not intercept" icon="network-wired">
+
+**Likely cause:** Wrong debugger port.
+
+**Fix:** Verify the browser was launched with `--remote-debugging-port=9222`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Related reading
 
-- [Undetected (UC) Mode](/tutorials/uc_mode) — combining CDP with anti-detection.
-- [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) — using CDP for native spoofing.
-- [Binary Patching](/tutorials/binary_patching) — removing driver-level markers.
+<Columns cols={2}>
+
+<Card title="Undetected (UC) Mode" icon="user-secret" href="/tutorials/uc_mode">
+
+Combining CDP with anti-detection.
+
+</Card>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+Using CDP for native spoofing.
+
+</Card>
+
+<Card title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+
+Removing driver-level markers.
+
+</Card>
+
+</Columns>

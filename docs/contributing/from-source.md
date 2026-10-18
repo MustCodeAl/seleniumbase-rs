@@ -4,6 +4,40 @@ description: "Clone seleniumbase-rs, set up Rust 1.99 and a C compiler, build th
 sidebarTitle: "Build from source"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 This page takes you from a fresh machine to a checkout that builds and passes
 the checks. To install `sbrs` without a checkout, or for every system package a
 feature needs, see [Building and installing](/building).
@@ -186,75 +220,62 @@ it found with its major version next to Chrome's.
 The repository is a Cargo workspace of two packages. `default-members` names
 both, so a plain `cargo build` or `cargo test` at the root covers both.
 
-<Tree>
-<Tree.Folder name="seleniumbase-rs" defaultOpen>
-<Tree.File name="Cargo.toml" highlight />
-<Tree.File name="Cargo.lock" />
-<Tree.File name="rust-toolchain.toml" />
-<Tree.Folder name="src" defaultOpen>
-<Tree.File name="lib.rs" />
-<Tree.Folder name="api" />
-<Tree.Folder name="browser" />
-<Tree.Folder name="sb_cdp" />
-<Tree.Folder name="stealth" />
-<Tree.Folder name="mcp" />
-<Tree.Folder name="cli" />
-</Tree.Folder>
-<Tree.Folder name="crates" defaultOpen>
-<Tree.Folder name="cli" defaultOpen>
-<Tree.File name="Cargo.toml" highlight />
-<Tree.Folder name="src" defaultOpen>
-<Tree.File name="sbrs.rs" />
-<Tree.File name="mcp_server.rs" />
-<Tree.File name="fig.rs" />
-<Tree.File name="report.rs" />
-<Tree.File name="strict.rs" />
-</Tree.Folder>
-<Tree.Folder name="tests" />
-</Tree.Folder>
-</Tree.Folder>
-<Tree.Folder name="tests">
-<Tree.Folder name="golden" />
-<Tree.Folder name="support" />
-<Tree.File name="sb_cdp_mock.rs" />
-<Tree.File name="sb_cdp_chrome.rs" />
-<Tree.File name="browser_smoke.rs" />
-</Tree.Folder>
-<Tree.Folder name="benches">
-<Tree.File name="cdp_latency.rs" />
-<Tree.File name="cpu.rs" />
-</Tree.Folder>
-<Tree.Folder name="examples">
-<Tree.Folder name="tauri-profile-manager" />
-</Tree.Folder>
-<Tree.Folder name="docs" />
-<Tree.Folder name="parity" />
-<Tree.Folder name="completions" />
-<Tree.Folder name="tools" />
-<Tree.Folder name="docker" />
-<Tree.Folder name=".config">
-<Tree.File name="nextest.toml" />
-</Tree.Folder>
-<Tree.File name="Dockerfile" />
-<Tree.File name="Makefile" />
-<Tree.File name="justfile" />
-<Tree.File name="mise.toml" />
-<Tree.File name="deny.toml" />
-<Tree.File name="rust-analyzer.toml" />
-<Tree.File name="CLAUDE.md" />
-</Tree.Folder>
-</Tree>
-
-| Path | What it holds |
-|---|---|
-| `src/` | The library `seleniumbase-rs`: both engines, the MCP tools and the library half of the command line. It has no binary. |
-| `crates/cli/` | The package `seleniumbase-rs-cli`: the binaries `sbrs` (`src/sbrs.rs`) and `sbrs-mcp` (`src/mcp_server.rs`), and every test that runs them. |
-| `tests/` | Integration tests of the library. `tests/golden` is compiled into the library; `tests/support` is shared with `crates/cli/tests`. |
-| `benches/` | `cdp_latency` and `cpu`; see [Benchmarking](/contributing/benchmarking). |
-| `examples/` | Runnable examples. `tauri-profile-manager` has its own manifest and is not part of the workspace. |
-| `docs/` | This site. |
-| `parity/` | `api.toml`, the status of every Python SeleniumBase API. |
-| `completions/` | `sbrs.usage.kdl`, generated from `crates/cli/src/sbrs.rs`. |
+<LayoutTree>
+<LayoutDir name="seleniumbase-rs" open note="the workspace root">
+<LayoutFile name="Cargo.toml" highlight note="the workspace and the library package: version, rust-version 1.99, features" />
+<LayoutFile name="Cargo.lock" note="the locked dependency versions" />
+<LayoutFile name="rust-toolchain.toml" note="pins Rust 1.99 with clippy and rustfmt" />
+<LayoutDir name="src" open note="the library seleniumbase-rs: both engines, the MCP tools and the library half of the command line; no binary">
+<LayoutFile name="lib.rs" highlight note="the crate root and its public re-exports" />
+<LayoutDir name="api" note="BaseCase and the capability traits" />
+<LayoutDir name="browser" note="BrowserConfig, the launcher and the WebDriver session" />
+<LayoutDir name="sb_cdp" note="the pure CDP engine" />
+<LayoutDir name="stealth" note="fingerprints, evasions and binary patching" />
+<LayoutDir name="mcp" note="the tools of the MCP server" />
+<LayoutDir name="cli" note="the library half of sbrs, with no parser" />
+</LayoutDir>
+<LayoutDir name="crates" open>
+<LayoutDir name="cli" open note="the package seleniumbase-rs-cli">
+<LayoutFile name="Cargo.toml" note="default features: pdf, mcp-server, plugins-builtin" />
+<LayoutDir name="src" open>
+<LayoutFile name="sbrs.rs" highlight note="the sbrs command line" />
+<LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
+<LayoutFile name="fig.rs" note="the Fig completion spec" />
+<LayoutFile name="report.rs" note="sbrs report" />
+<LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
+</LayoutDir>
+<LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />
+</LayoutDir>
+</LayoutDir>
+<LayoutDir name="tests" note="integration tests of the library">
+<LayoutDir name="golden" note="compiled into the library" />
+<LayoutDir name="support" note="shared with crates/cli/tests" />
+<LayoutFile name="sb_cdp_mock.rs" note="the pure CDP API against a mocked browser" />
+<LayoutFile name="sb_cdp_chrome.rs" note="the same against a real Chrome, ignored by default" />
+<LayoutFile name="browser_smoke.rs" note="the WebDriver path against a real Chrome, ignored by default" />
+</LayoutDir>
+<LayoutDir name="benches" note="see Benchmarking">
+<LayoutFile name="cdp_latency.rs" note="the pure CDP engine against a real Chrome" />
+<LayoutFile name="cpu.rs" note="the library's own work, no browser" />
+</LayoutDir>
+<LayoutDir name="examples" note="runnable examples">
+<LayoutDir name="tauri-profile-manager" note="has its own manifest and is not part of the workspace" />
+</LayoutDir>
+<LayoutDir name="docs" note="this site" />
+<LayoutDir name="parity" note="api.toml, the status of every Python SeleniumBase API" />
+<LayoutDir name="completions" note="sbrs.usage.kdl, generated from crates/cli/src/sbrs.rs" />
+<LayoutDir name="tools" note="the parity scripts and the Docs7 navigation script" />
+<LayoutDir name="docker" note="the image that runs the test suite on Linux" />
+<LayoutDir name=".config" note="the nextest configuration and its chrome test group" />
+<LayoutFile name="Dockerfile" note="the sbrs image; its skeleton step lists every target" />
+<LayoutFile name="Makefile" note="make targets" />
+<LayoutFile name="justfile" note="just recipes" />
+<LayoutFile name="mise.toml" note="tools and tasks for mise" />
+<LayoutFile name="deny.toml" note="the cargo-deny policy" />
+<LayoutFile name="rust-analyzer.toml" note="settings for rust-analyzer" />
+<LayoutFile name="CLAUDE.md" note="the module map for coding assistants" />
+</LayoutDir>
+</LayoutTree>
 
 The module map of `src/` is in `CLAUDE.md` and in the
 [Developer guide](/DEVELOPER_GUIDE#repository-layout).

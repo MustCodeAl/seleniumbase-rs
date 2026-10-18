@@ -2,6 +2,40 @@
 title: "Remaining BaseCase Helpers"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 This guide covers additional `BaseCase` helpers that close the parity gap with
 Python SeleniumBase. These helpers handle page artifacts, window introspection,
 on-page messaging, console logs, traffic generation, charts, and deferred
@@ -42,6 +76,8 @@ itself (`save_screenshot_to_logs`) never replace an earlier one.
 
 ## Reading text from the screen (OCR)
 
+<Badge color="blue">Feature: ocr</Badge>
+
 With the `ocr` feature, `seleniumbase_rs::ocr::Ocr` reads the text a page
 shows from its screenshot, including text drawn on a canvas or inside an image,
 which the DOM does not hold as text. It runs
@@ -63,17 +99,35 @@ The text comes back one line per line of text, top to bottom.
 <Info>
 
 The first
-`Ocr::load` downloads the two models (about 12 MB) into the cache folder
-(`~/Library/Caches/seleniumbase-rs/ocr` on macOS, `~/.cache/seleniumbase-rs/ocr`
-on Linux, `%LOCALAPPDATA%\seleniumbase-rs\ocr` on Windows) and checks them
-against pinned SHA-256 hashes; later runs use the saved copies. On a machine
-without network access, set `SB_OCR_MODELS` to a folder that holds
+`Ocr::load` downloads the two models (about 12 MB) into the cache folder (below)
+and checks them against pinned SHA-256 hashes; later runs use the saved copies.
+On a machine without network access, set `SB_OCR_MODELS` to a folder that holds
 `text-detection.rten` and `text-recognition.rten`. Build with
 `--features ocr`; `tests/ocr_chrome.rs` reads a heading from a real Chrome.
 
 </Info>
 
+The cache folder, by system:
+
+<CodeGroup>
+
+```text macOS
+~/Library/Caches/seleniumbase-rs/ocr
+```
+
+```text Linux
+~/.cache/seleniumbase-rs/ocr
+```
+
+```text Windows
+%LOCALAPPDATA%\seleniumbase-rs\ocr
+```
+
+</CodeGroup>
+
 ## Visual regression testing (pixels)
+
+<Badge color="blue">Feature: visual</Badge>
 
 `check_window` is the port of Python's: it compares the page's *layout*, the
 tags of the HTML and their attributes, and keeps the screenshot only for a
@@ -93,9 +147,19 @@ The first run saves the screenshot as `visual_baseline/<test>/home.png`, where
 `cart.checkout.renders`, so tests of the same name in other modules or files
 keep separate baselines. (`check_window` names its folder after the function
 alone, as Python does.) Later runs compare with it and fail with `AssertionFailed` when the
-similarity is below 0.999; the failure leaves `home.actual.png` (the new
-screenshot) and `home.diff.png` (the new screenshot in grey with what changed
-painted red) next to the baseline. A screenshot of another size fails without
+similarity is below 0.999; the failure leaves two more files next to the baseline:
+
+<LayoutTree>
+  <LayoutDir name="visual_baseline" open>
+    <LayoutDir name="<test>" open note="the test's whole path, such as cart.checkout.renders">
+      <LayoutFile name="home.png" highlight note="the baseline, saved by the first run" />
+      <LayoutFile name="home.actual.png" note="the new screenshot, left by a failing run" />
+      <LayoutFile name="home.diff.png" note="the new screenshot in grey with what changed painted red" />
+    </LayoutDir>
+  </LayoutDir>
+</LayoutTree>
+
+A screenshot of another size fails without
 a comparison: set a fixed window size for visual tests. Run once with
 `RunSettings::with_visual_baseline_reset(true)` to accept intended changes, as
 for `check_window`.

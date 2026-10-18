@@ -2,6 +2,40 @@
 title: "Writing Browser Tests"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 `seleniumbase-rs` does not ship its own test runner. Instead, it integrates with
 standard Rust tooling: `#[tokio::test]`, `cargo test`, `cargo nextest run`, and
 the `run_browser_test` lifecycle helper. This keeps tests idiomatic and lets you
@@ -159,22 +193,22 @@ async fn login_with_multiple_users() -> Result<()> {
 
 A typical project layout looks like this:
 
-<Tree>
-<Tree.Folder name="my_project" defaultOpen>
-<Tree.File name="Cargo.toml" />
-<Tree.File name="sbase_config.toml" />
-<Tree.Folder name="src">
-<Tree.File name="main.rs" />
-</Tree.Folder>
-<Tree.Folder name="tests" defaultOpen>
-<Tree.Folder name="helpers">
-<Tree.File name="mod.rs" />
-</Tree.Folder>
-<Tree.File name="login.rs" />
-<Tree.File name="checkout.rs" />
-</Tree.Folder>
-</Tree.Folder>
-</Tree>
+<LayoutTree>
+  <LayoutDir name="my_project" open>
+    <LayoutFile name="Cargo.toml" />
+    <LayoutFile name="sbase_config.toml" note="global defaults for every test" />
+    <LayoutDir name="src">
+      <LayoutFile name="main.rs" />
+    </LayoutDir>
+    <LayoutDir name="tests" open note="integration tests, each compiled as a separate binary">
+      <LayoutDir name="helpers" note="shared helpers">
+        <LayoutFile name="mod.rs" />
+      </LayoutDir>
+      <LayoutFile name="login.rs" />
+      <LayoutFile name="checkout.rs" />
+    </LayoutDir>
+  </LayoutDir>
+</LayoutTree>
 
 Integration tests in `tests/` are compiled as separate binaries, which gives
 each test its own browser process and reduces shared-state bugs.

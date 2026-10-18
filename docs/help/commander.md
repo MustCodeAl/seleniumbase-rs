@@ -41,9 +41,13 @@ prints the following message and exits with status 2.
 
 </Note>
 
-```text
+<ResponseExample>
+
+```text Output
 this sbrs was built without the terminal UI; reinstall it with `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui`
 ```
+
+</ResponseExample>
 
 Run it from the project root: Commander looks for `tests/` and `examples/` in
 the current directory.
@@ -97,13 +101,13 @@ The same feature builds two more terminal apps:
 
 <Columns cols={2}>
 
-<Card title="Case Plans Generator" icon="clipboard-list" href="/help/caseplans">
+<Card title="Case Plans Generator" icon="clipboard-list" href="/help/caseplans" horizontal>
 
 `sbrs caseplans`
 
 </Card>
 
-<Card title="Behave Commander" icon="terminal" href="/help/behave-gui">
+<Card title="Behave Commander" icon="terminal" href="/help/behave-gui" horizontal>
 
 `sbrs behave-gui`
 

@@ -2,6 +2,8 @@
 title: "Selenium IDE Migration"
 ---
 
+<Badge color="orange">Legacy .html format</Badge>
+
 If you have legacy Selenium IDE `.html` test cases, SeleniumBase for Rust can
 parse them into a list of commands that you can replay with `BaseCase`. This
 guide shows how to migrate those tests into Rust code.
@@ -45,7 +47,7 @@ let commands = parse_ide_html(html)?;
 
 ## Replay commands with BaseCase
 
-```rust
+```rust src/main.rs
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 use seleniumbase_rs::utilities::selenium_ide::parse_ide_file;
 

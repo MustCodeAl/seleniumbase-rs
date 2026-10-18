@@ -3,7 +3,7 @@ title: "Behave / Gherkin Support"
 ---
 
 SeleniumBase for Rust includes a lightweight Gherkin parser and step runner so
-you can write BDD-style feature files similar to Python's `behave` framework.
+you can write <Tooltip tip="Behaviour-driven development: acceptance criteria written as examples in plain language.">BDD</Tooltip>-style feature files similar to Python's `behave` framework.
 This lets product owners, QA engineers, and developers share a common language
 for describing acceptance criteria.
 
@@ -18,11 +18,17 @@ for describing acceptance criteria.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: write `.feature` files in Gherkin. The sync `StepRegistry` runs them with `run_feature_file`; the browser-backed `AsyncStepRegistry` runs them with `run_feature_file_async` and `register_common_browser_steps`. Both hand each step to the registry with its keyword. `RunFilter` selects scenarios by tag. `sbrs behave-gui` (feature `tui`) runs feature files with the built-in steps only.
+
+</Visibility>
+
 ## Feature files
 
 Create a `.feature` file using standard Gherkin syntax:
 
-```gherkin
+```gherkin tests/login.feature
 Feature: Login
 
   Background:
@@ -158,14 +164,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`register_common_browser_steps` registers these steps and no others:
-`I open "<url>"`, `I go back`, `I go forward`, `I click "<selector>"` and
-`I type "<text>" into "<selector>"`, plus the wording that Python
-SeleniumBase's `--rec-behave` recorder writes for the same: `Open "<url>"`
-(also `Open 'url'` and `Open URL "url"`), `Go back`, `Go forward`,
-`Click "<selector>"` (also `Click element "selector"`) and
-`Type "<text>" into "<selector>"` (also `Type text ...`, and `in` for `into`),
-in single or double quotes. `ActionRecorder::to_gherkin` writes this wording
+`register_common_browser_steps` registers these steps and no others, plus the
+wording that Python SeleniumBase's `--rec-behave` recorder writes for the same:
+
+| Step | Python recorder wording |
+|---|---|
+| `I open "<url>"` | `Open "<url>"` (also `Open 'url'` and `Open URL "url"`) |
+| `I go back` | `Go back` |
+| `I go forward` | `Go forward` |
+| `I click "<selector>"` | `Click "<selector>"` (also `Click element "selector"`) |
+| `I type "<text>" into "<selector>"` | `Type "<text>" into "<selector>"` (also `Type text ...`, and `in` for `into`) |
+
+Quotes may be single or double. `ActionRecorder::to_gherkin` writes this wording
 too, so a recorded feature runs here and in Python SeleniumBase. Register
 your own with `register`, `register_regex` and `register_step`, as the
 `I see "..."` step above. A handler gets the shared
@@ -230,9 +240,38 @@ runner).
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Step not matched | In the sync runner, the pattern leaves out the keyword (`When`, `And`, ...), or has unescaped quotes or regex metacharacters | Match the keyword too, use raw strings, and test the regex first. |
-| Step not matched in the async registry | Same as the sync runner: the registry gets the step with its keyword | Match the keyword too, as the built-in steps do. |
-| Scenario Outline fails | Placeholder not replaced | Ensure the `Examples` table headers match `<placeholders>`. |
-| A run hangs | A step called `registry.run` or locked the `BaseCase` twice | Lock it once per step and run steps from the runner, not from each other. |
+<AccordionGroup>
+
+<Accordion title="Step not matched" icon="magnifying-glass">
+
+**Likely cause.** In the sync runner, the pattern leaves out the keyword (`When`, `And`, ...), or has unescaped quotes or regex metacharacters.
+
+**Fix.** Match the keyword too, use raw strings, and test the regex first.
+
+</Accordion>
+
+<Accordion title="Step not matched in the async registry" icon="bolt">
+
+**Likely cause.** Same as the sync runner: the registry gets the step with its keyword.
+
+**Fix.** Match the keyword too, as the built-in steps do.
+
+</Accordion>
+
+<Accordion title="Scenario Outline fails" icon="table">
+
+**Likely cause.** Placeholder not replaced.
+
+**Fix.** Ensure the `Examples` table headers match `<placeholders>`.
+
+</Accordion>
+
+<Accordion title="A run hangs" icon="hourglass-half">
+
+**Likely cause.** A step called `registry.run` or locked the `BaseCase` twice.
+
+**Fix.** Lock it once per step and run steps from the runner, not from each other.
+
+</Accordion>
+
+</AccordionGroup>

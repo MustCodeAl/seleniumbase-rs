@@ -13,53 +13,37 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Card title="Getting Started" icon="rocket" href="/tutorials/getting_started">
+<Tile href="/tutorials/getting_started" title="Getting Started" description="Create a Rust project, add seleniumbase-rs, and run your first test.">
+  <Icon icon="rocket" size={48} />
+</Tile>
 
-Create a Rust project, add `seleniumbase-rs`, and run your first test.
+<Tile href="/rust-test-tooling" title="Writing Browser Tests" description="BaseCase, selectors, waits and assertions for maintainable tests.">
+  <Icon icon="flask" size={48} />
+</Tile>
 
-</Card>
+<Tile href="/python-migration" title="Migrate from Python, Playwright or Puppeteer" description="Keep a similar API while gaining compile-time guarantees.">
+  <Icon icon="arrow-right-arrow-left" size={48} />
+</Tile>
 
-<Card title="Writing Browser Tests" icon="flask" href="/rust-test-tooling">
+<Tile href="/tutorials/uc_mode" title="Stealth and Browser Modes" description="UC mode, CDP, pure CDP, fingerprints and binary patching.">
+  <Icon icon="user-secret" size={48} />
+</Tile>
 
-`BaseCase`, selectors, waits and assertions for maintainable tests.
+<Tile href="/tutorials/cli_usage" title="CLI Usage" description="The sbrs CLI, Commander, and the MCP servers for AI agents.">
+  <Icon icon="terminal" size={48} />
+</Tile>
 
-</Card>
+<Tile href="/why-rust" title="Why Rust?" description="Security, reliability, performance and how it compares.">
+  <Icon icon="gear" size={48} />
+</Tile>
 
-<Card title="Migrate from Python, Playwright or Puppeteer" icon="arrow-right-arrow-left" href="/python-migration">
+<Tile href="/plugins/overview" title="Plugins" description="Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.">
+  <Icon icon="plug" size={48} />
+</Tile>
 
-Keep a similar API while gaining compile-time guarantees.
-
-</Card>
-
-<Card title="Stealth and Browser Modes" icon="user-secret" href="/tutorials/uc_mode">
-
-UC mode, CDP, pure CDP, fingerprints and binary patching.
-
-</Card>
-
-<Card title="CLI Usage" icon="terminal" href="/tutorials/cli_usage">
-
-The `sbrs` CLI, Commander, and the MCP servers for AI agents.
-
-</Card>
-
-<Card title="Why Rust?" icon="gear" href="/why-rust">
-
-Security, reliability, performance and how it compares.
-
-</Card>
-
-<Card title="Plugins" icon="plug" href="/plugins/overview">
-
-Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.
-
-</Card>
-
-<Card title="Stealth scraping" icon="fingerprint" href="/stealth/overview">
-
-Wire fingerprints, identities and the browser scraper (experimental).
-
-</Card>
+<Tile href="/stealth/overview" title="Stealth scraping" description="Wire fingerprints, identities and the browser scraper (experimental).">
+  <Icon icon="fingerprint" size={48} />
+</Tile>
 
 </Columns>
 
@@ -71,12 +55,12 @@ Summary for AI exports: `seleniumbase-rs` is a Rust port of Python SeleniumBase.
 
 ## Who this book is for
 
-- **Rust developers** writing browser tests for the first time.
-- **Teams migrating** from Python SeleniumBase or Selenium who want to keep a
+- <Icon icon="code" /> **Rust developers** writing browser tests for the first time.
+- <Icon icon="people-group" /> **Teams migrating** from Python SeleniumBase or Selenium who want to keep a
   similar API while gaining compile-time guarantees.
-- **Automation engineers** who need undetected browser execution, CDP control,
+- <Icon icon="robot" /> **Automation engineers** who need undetected browser execution, CDP control,
   or cloud artifact uploads.
-- **Operators** who want a small native CLI (`sbrs`) and Docker image for CI/CD.
+- <Icon icon="server" /> **Operators** who want a small native CLI (`sbrs`) and Docker image for CI/CD.
 
 ## What you will learn
 
@@ -96,7 +80,7 @@ By reading this book you will learn how to:
 
 ## What is included
 
-- **Browser modes**: <Tooltip tip="The Selenium protocol: the test talks to chromedriver, which drives the browser.">WebDriver</Tooltip>, <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket.">CDP</Tooltip>, <Tooltip tip="Undetected Chromedriver mode: a patched driver and browser launch that avoids common bot checks.">UC</Tooltip> (Undetected Chromedriver), and an optional
+- **Browser modes**: <Tooltip tip="The Selenium protocol: the test talks to chromedriver, which drives the browser.">WebDriver</Tooltip>, <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket." cta="Pure CDP engine" href="/tutorials/pure_cdp">CDP</Tooltip>, <Tooltip tip="Undetected Chromedriver mode: a patched driver and browser launch that avoids common bot checks." cta="Undetected (UC) mode" href="/tutorials/uc_mode">UC</Tooltip> (Undetected Chromedriver), and an optional
   `rustwright`-based Playwright-compatible engine.
 - **`BaseCase` API**: more than 200 methods for navigation, element interaction,
   assertions, waits, frames, windows, cookies, storage, uploads, PDF handling,
