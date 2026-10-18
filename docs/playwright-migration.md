@@ -25,6 +25,12 @@ Treat the output as a first draft and review every `TODO`.
 
 </Warning>
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs import-playwright FILE --output tests/FILE.rs` converts Playwright tests and scripts (JavaScript, TypeScript and Python) into Rust tests for the pure CDP engine, with one `#[tokio::test]` per Playwright test. A statement it does not convert stays as a `// TODO(playwright): <statement>` comment and is reported with its line. Exit status: 0 when everything was read, 1 when a statement could not be read, 6 when the file cannot be read, 2 for a source it refuses.
+
+</Visibility>
+
 ## Convert a file
 
 ```bash

@@ -16,11 +16,17 @@ compares the formats and links to deeper guides.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: there are three formats. Direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
+
+</Visibility>
+
 ## The formats
 
 <Tabs>
 
-<Tab title="Direct API">
+<Tab title="Direct API" icon="code">
 
 The most flexible format. Use it for production tests and complex logic.
 
@@ -48,13 +54,13 @@ let text = page.locator("h1").text().await?;
 
 </Tab>
 
-<Tab title="CLI commands">
+<Tab title="CLI commands" icon="terminal">
 
 Useful for quick checks, CI one-liners, and ad-hoc debugging. Every `sbrs`
 command starts its own browser and closes it when it finishes, so the one-liners
 that make sense are the ones that take a URL:
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- open https://seleniumbase.io
 cargo run --bin sbrs -- smoke https://seleniumbase.io --title-contains SeleniumBase
 cargo run --bin sbrs -- deferred --url https://seleniumbase.io \
@@ -65,13 +71,13 @@ For a flow with several steps, use a scenario or a Rust test.
 
 </Tab>
 
-<Tab title="JSON scenario">
+<Tab title="JSON scenario" icon="file-code">
 
 Scenarios are portable and do not require recompiling a test binary. A scenario
 is an object with a `name` and a list of `steps`; each step has an `action` and
 the fields that action takes (`url`, `css`, `text`, `contains`, ...):
 
-```json
+```json scenario.json
 {
   "name": "basic_flow",
   "steps": [
@@ -84,7 +90,7 @@ the fields that action takes (`url`, `css`, `text`, `contains`, ...):
 
 Run the scenario:
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- run-scenario --file scenario.json
 ```
 
@@ -121,3 +127,33 @@ link text; anything else is CSS.
 | CI smoke checks | CLI or JSON scenarios |
 | Prototyping / demos | Recorder → Rust or JSON |
 | Non-developer authors | JSON scenarios |
+
+## Next steps
+
+<Columns cols={2}>
+
+<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+
+Your first test with `BaseCase`.
+
+</Card>
+
+<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+
+CSS, XPath, link text and shadow DOM.
+
+</Card>
+
+<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+
+The driverless engine and its `Locator` API.
+
+</Card>
+
+<Card title="Recorder CLI" icon="circle-dot" href="/help/recorder_cli">
+
+The scenario file and the recorded action file.
+
+</Card>
+
+</Columns>

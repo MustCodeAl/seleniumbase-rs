@@ -5,6 +5,12 @@ title: "Ecosystem"
 seleniumbase-rs has companion projects in their own repositories. Their
 documentation is part of this site.
 
+<Visibility for="agents">
+
+Summary for AI exports: the companion projects are seleniumbase-rs-plugins (browser plugins as Rust crates), seleniumbase-rs-stealth (experimental stealth scraping), tauri-plugin-sbrs-automation (Tauri automation), seleniumbase-rs-browser-extension (recorder, inspector and DevTools Recorder export) and homebrew-tap (`brew install mustcodeal/tap/sbrs` for `sbrs` and `sbrs-mcp`).
+
+</Visibility>
+
 ## Plugins
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
@@ -37,36 +43,26 @@ A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge
 
 `brew install mustcodeal/tap/sbrs` for the `sbrs` CLI and the `sbrs-mcp` MCP server. See [Homebrew tap](/ecosystem/homebrew).
 
-<Columns cols={2}>
+<Columns cols={3}>
 
-<Card title="Plugins" icon="plug" href="/plugins/overview">
+<Tile href="/plugins/overview" title="Plugins" description="Overview, the plugin list, writing your own, wasm, crx and block-resources.">
+<Icon icon="plug" size={48} />
+</Tile>
 
-Overview, the plugin list, writing your own, wasm, crx and block-resources.
+<Tile href="/stealth/overview" title="Stealth scraping" description="The tutorial, split into pages by topic.">
+<Icon icon="user-secret" size={48} />
+</Tile>
 
-</Card>
+<Tile href="/ecosystem/tauri" title="Tauri plugin" description="A WebDriver endpoint inside your Tauri app.">
+<Icon icon="window-maximize" size={48} />
+</Tile>
 
-<Card title="Stealth scraping" icon="user-secret" href="/stealth/overview">
+<Tile href="/ecosystem/browser-extension" title="Browser extension" description="Recorder, inspector and DevTools Recorder export.">
+<Icon icon="puzzle-piece" size={48} />
+</Tile>
 
-The tutorial, split into pages by topic.
-
-</Card>
-
-<Card title="Tauri plugin" icon="window-maximize" href="/ecosystem/tauri">
-
-A WebDriver endpoint inside your Tauri app.
-
-</Card>
-
-<Card title="Browser extension" icon="puzzle-piece" href="/ecosystem/browser-extension">
-
-Recorder, inspector and DevTools Recorder export.
-
-</Card>
-
-<Card title="Homebrew tap" icon="beer-mug-empty" href="/ecosystem/homebrew">
-
-Install `sbrs` and `sbrs-mcp` with Homebrew.
-
-</Card>
+<Tile href="/ecosystem/homebrew" title="Homebrew tap" description="Install sbrs and sbrs-mcp with Homebrew.">
+<Icon icon="beer-mug-empty" size={48} />
+</Tile>
 
 </Columns>

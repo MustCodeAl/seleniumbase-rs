@@ -29,6 +29,12 @@ and a CLI flag wins over everything else.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: settings resolve from lowest to highest priority: built-in defaults, the global config file (`sbase_config.toml`, `.sbase_config.toml` or `.sbase_config` in the current directory), `SB_*` environment variables, a programmatic `BrowserConfig`, and CLI flags when using `sbrs`. `Settings::load()` reads the global file and applies the variables; `Settings::from_file(path)` reads the file alone; `settings.to_browser_config()` makes the `BrowserConfig`. `BrowserConfig::default()` reads no variables, while `BrowserConfig::from_env()` reads the runtime ones such as `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`.
+
+</Visibility>
+
 ## Global config file
 
 Create `sbase_config.toml` in your project root (or a `.sbase_config` file in
@@ -182,11 +188,15 @@ Graceful shutdown timeout.
 
 <ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
 
+<Badge color="gray">Not read yet</Badge>
+
 Parsed into `RuntimeConfig::chromedriver_port`; nothing in the crate reads it yet.
 
 </ParamField>
 
 <ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
+
+<Badge color="gray">Not read yet</Badge>
 
 Parsed into `RuntimeConfig::implicit_wait`; nothing in the crate reads it yet. For
 the default wait of a test, use `SB_TIMEOUT` or `BaseCase::set_timeout`.
@@ -312,6 +322,24 @@ what you asked for. See [Blocking ads](/help/customizing_test_runs#blocking-ads)
 
 ## Related reading
 
-- [CLI Usage](/tutorials/cli_usage) — command-line overrides and flags.
-- [Tracing and Logging](/tutorials/tracing) — `SB_LOG_LEVEL` and `SB_LOG_FORMAT`.
-- [Docker Guide](/help/docker) — containerized configuration.
+<Columns cols={2}>
+
+<Card title="CLI Usage" icon="terminal" href="/tutorials/cli_usage">
+
+Command-line overrides and flags.
+
+</Card>
+
+<Card title="Tracing and Logging" icon="list" href="/tutorials/tracing">
+
+`SB_LOG_LEVEL` and `SB_LOG_FORMAT`.
+
+</Card>
+
+<Card title="Docker Guide" icon="box" href="/help/docker">
+
+Containerized configuration.
+
+</Card>
+
+</Columns>

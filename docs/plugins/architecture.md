@@ -21,6 +21,12 @@ not a promise of dates.
 
 ## The design in short
 
+<Visibility for="agents">
+
+Summary for AI exports: the plugin platform keeps one `Plugin` trait with default hook bodies, and the API crate stays on 0.1.x and changes only by addition. A plugin may describe itself with `metadata()` (category, phase, needed capabilities, ordering edges). Capabilities are checked where a plugin reaches the browser. For a native Rust plugin they are a contract and not a sandbox; only WebAssembly modules are sandboxed. The ADR is proposed and only phase 1 has begun.
+
+</Visibility>
+
 - One `Plugin` trait with more hooks, all with default bodies. The API crate
   stays on 0.1.x and changes only by addition, so existing plugins keep
   working as "legacy" plugins.

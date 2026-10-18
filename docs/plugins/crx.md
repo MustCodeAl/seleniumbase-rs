@@ -6,6 +6,20 @@ A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).
 
 <Badge color="blue">Chromium only</Badge> <Badge color="blue">Launch only</Badge>
 
+<Panel>
+
+<Card title="At a glance" icon="puzzle-piece">
+
+- **Name:** `crx`
+- **Formats:** CRX3 and CRX2
+- **Needs:** a Chromium browser that the plugin set starts itself
+- **Unpacks to:** a temporary folder (prefix `sbrs-crx-`), deleted when the browser closes
+- **Size guard:** unpacked archives above 512 MiB are refused
+
+</Card>
+
+</Panel>
+
 Chrome only loads unpacked extension folders from the command line. This
 plugin takes `.crx` files (CRX3, the current format, and the older CRX2),
 strips the signed header, unpacks the zip into a temporary folder and adds
@@ -73,10 +87,17 @@ cannot be used with a browser attached by `connect_with_plugins`.
 An unreadable file or an archive that cannot be unpacked stops the launch with
 an error that names the file. `CrxError` says why a file could not be unpacked:
 
-| Variant | Meaning |
-|---|---|
-| `CrxError::NotCrx` | The file does not start like a CRX file (`Cr24`), has an unknown version, or its header is cut short. |
-| `CrxError::Archive` | The archive inside could not be read or written out. |
+<ResponseField name="CrxError::NotCrx">
+
+The file does not start like a CRX file (`Cr24`), has an unknown version, or its header is cut short.
+
+</ResponseField>
+
+<ResponseField name="CrxError::Archive">
+
+The archive inside could not be read or written out.
+
+</ResponseField>
 
 The public function `archive(&[u8])` returns the zip archive inside a CRX file
 (CRX3 or CRX2), without its header, or `CrxError::NotCrx` when the bytes are not

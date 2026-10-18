@@ -16,6 +16,12 @@ It does **not** spoof fingerprints or hide automation. That is the job of
 
 </Note>
 
+<Visibility for="agents">
+
+Summary for AI exports: shield is a privacy-hardening plugin for Chromium browsers (feature `plugin-shield`). It turns off the browser's background reporting, blocks third-party cookies, sets a WebRTC IP-handling policy and refuses a persistent profile by default. It does not spoof fingerprints or hide automation. Options live in `[plugins.shield]`: `level` (`basic` or `strict`), `webrtc`, `block_third_party_cookies`, `ephemeral_profile`, `extra_block_hosts` and `safe_browsing`. Nothing in it has run in a real Chrome yet.
+
+</Visibility>
+
 ## Turn it on
 
 shield ships with seleniumbase-rs behind one cargo feature, and is switched on

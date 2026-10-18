@@ -12,6 +12,12 @@ puppeteer-extra plugins do for Puppeteer. The design is
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 
+<Visibility for="agents">
+
+Summary for AI exports: plugins are Rust crates with optional hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`). The official ones are `shield`, `block-resources`, `crx` and `wasm`. The prebuilt `sbrs` and `sbrs-mcp` have them compiled in and switch them on with `--plugin NAME`. Plugins run in seleniumbase-rs 0.3.0 and later behind the `plugins` feature, in the pure CDP engine, and from 0.4.0 in the WebDriver engine too.
+
+</Visibility>
+
 <Note>
 
 Early. Plugins run in seleniumbase-rs 0.3.0 and later, behind its `plugins`
@@ -140,6 +146,8 @@ plugins, and `requirements` (run last, a visible window, a Chromium browser, a
 browser it starts itself). Errors in the launch and page hooks stop the launch or
 the tab instead of being skipped.
 
+<Frame caption="The hooks, in the order they run">
+
 ```mermaid
 flowchart LR
     A["before_launch<br/>(change the start-up settings)"] --> B["browser starts"]
@@ -147,6 +155,8 @@ flowchart LR
     C --> D["for every tab:<br/>packages, then on_page_created"]
     D --> E["on_close<br/>(once per launch)"]
 ```
+
+</Frame>
 
 The details of each hook, and what the pure CDP engine does at each point, are
 in [When the hooks run](/tutorials/plugins#when-the-hooks-run).

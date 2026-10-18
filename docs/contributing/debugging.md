@@ -558,9 +558,9 @@ settings.
 
 <Callout icon="clock" color="#F59E0B">
 
-**Headless and headed runs time differently.** Chrome answers a pointer move
-only at the next frame, and the frame rate differs between the two modes. Check
-which mode a test uses before you trust a timing. `BrowserConfig` is headless by
+**Headless and headed runs time differently.** A real Chrome behaves
+differently in the two modes, so check which mode a test uses before you trust
+a timing. `BrowserConfig` is headless by
 default; the MCP server's `start_browser` and `sbrs devtools` are headed except
 on Linux.
 

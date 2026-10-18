@@ -2,6 +2,40 @@
 title: "Browser Extension"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 Browser extensions for [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs), the Rust port of
 SeleniumBase. One source tree builds Manifest V3 extensions for Chrome (also Edge and other Chromium
 browsers) and Firefox.
@@ -42,6 +76,12 @@ Download, Copy or Export. The value of a password or payment field is never read
 generated code reads it from an environment variable instead (`RECORDED_PASSWORD`, ...).
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: build the extension with `bun install` and `bun run build`, then load `dist/chrome` (Chrome, Edge) or `dist/firefox`. The recorder exports a seleniumbase-rs pure CDP Rust test, a BaseCase Rust test or a Chrome DevTools Recorder JSON file; the inspector shows selectors and the page's fingerprint. Nothing is sent anywhere.
+
+</Visibility>
 
 ## The Page tab: capture, copy, export, import
 
@@ -144,63 +184,47 @@ mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" be
 
 ## Layout and extension points
 
-<Tree>
-  <Tree.Folder name="src" defaultOpen>
-    <Tree.Folder name="manifest">
-      <Tree.File name="base.json" />
-    </Tree.Folder>
-    <Tree.Folder name="shared">
-      <Tree.File name="selectors.ts" />
-      <Tree.File name="steps.ts" />
-      <Tree.Folder name="codegen">
-        <Tree.File name="cdp.ts" />
-        <Tree.File name="basecase.ts" />
-        <Tree.File name="replay.ts" />
-        <Tree.File name="common.ts" />
-        <Tree.File name="index.ts" />
-      </Tree.Folder>
-      <Tree.File name="rust.ts" />
-      <Tree.File name="guards.ts" />
-      <Tree.File name="fingerprint.ts" />
-      <Tree.File name="fingerprint-file.ts" />
-      <Tree.File name="download.ts" />
-    </Tree.Folder>
-    <Tree.Folder name="background" />
-    <Tree.Folder name="recorder" />
-    <Tree.Folder name="inspector" />
-    <Tree.Folder name="devtools-recorder" />
-    <Tree.Folder name="ui" />
-    <Tree.Folder name="bridge" />
-    <Tree.Folder name="converter" />
-  </Tree.Folder>
-  <Tree.Folder name="scripts">
-    <Tree.File name="build.ts" />
-  </Tree.Folder>
-  <Tree.Folder name="tests" />
-  <Tree.Folder name="e2e" />
-</Tree>
-
-The same layout, with what each part is for:
-
-```text Layout
-src/
-  manifest/base.json     manifest keys for every browser; base.json's "chrome" and "firefox" keys are per browser
-  shared/                no browser APIs except api.ts: selector generation, code generation, the step model
-    selectors.ts           generateSelectors(): candidates in order of preference, each with its match count
-    steps.ts               the step model, merging typing, masking secrets, sanitising incoming steps
-    codegen/               cdp.ts, basecase.ts, replay.ts (DevTools Recorder JSON, both ways), index.ts
-    rust.ts                rustStr() and friends: everything recorded goes into Rust through these
-    fingerprint.ts         the page report as API v2 Fingerprint JSON; the export file name
-    fingerprint-file.ts    reads a Fingerprint file (v2 yes, flat v1 refused) and compares it with a page
-    calls.ts, protocol.ts, api.ts, dom.ts, download.ts, clipboard.ts, pickview.ts, guards.ts
-  background/            the router: registerHandler(type, handler, from); store.ts helpers
-  recorder/  inspector/  devtools-recorder/    one folder per feature (see below)
-  ui/                    the panel (popup, side panel, sidebar) and its views
-  bridge/  converter/    placeholders: disabled features waiting for their code
-scripts/build.ts         src/ to dist/<browser>/ and zips
-tests/                   bun test
-e2e/                     a Rust crate that loads dist/chrome-e2e into Chrome
-```
+<LayoutTree>
+  <LayoutDir name="src" open>
+    <LayoutDir name="manifest">
+      <LayoutFile name="base.json" note={"manifest keys for every browser; base.json's \"chrome\" and \"firefox\" keys are per browser"} />
+    </LayoutDir>
+    <LayoutDir name="shared" open note="no browser APIs except api.ts: selector generation, code generation, the step model">
+      <LayoutFile name="selectors.ts" highlight note="generateSelectors(): candidates in order of preference, each with its match count" />
+      <LayoutFile name="steps.ts" highlight note="the step model, merging typing, masking secrets, sanitising incoming steps" />
+      <LayoutDir name="codegen">
+        <LayoutFile name="cdp.ts" />
+        <LayoutFile name="basecase.ts" />
+        <LayoutFile name="replay.ts" note="DevTools Recorder JSON, both ways" />
+        <LayoutFile name="common.ts" />
+        <LayoutFile name="index.ts" />
+      </LayoutDir>
+      <LayoutFile name="rust.ts" note="rustStr() and friends: everything recorded goes into Rust through these" />
+      <LayoutFile name="fingerprint.ts" note="the page report as API v2 Fingerprint JSON; the export file name" />
+      <LayoutFile name="fingerprint-file.ts" note="reads a Fingerprint file (v2 yes, flat v1 refused) and compares it with a page" />
+      <LayoutFile name="calls.ts" />
+      <LayoutFile name="protocol.ts" highlight />
+      <LayoutFile name="api.ts" />
+      <LayoutFile name="dom.ts" />
+      <LayoutFile name="download.ts" />
+      <LayoutFile name="clipboard.ts" />
+      <LayoutFile name="pickview.ts" />
+      <LayoutFile name="guards.ts" />
+    </LayoutDir>
+    <LayoutDir name="background" note="the router: registerHandler(type, handler, from); store.ts helpers" />
+    <LayoutDir name="recorder" note="one folder per feature (see below)" />
+    <LayoutDir name="inspector" note="one folder per feature (see below)" />
+    <LayoutDir name="devtools-recorder" note="one folder per feature (see below)" />
+    <LayoutDir name="ui" note="the panel (popup, side panel, sidebar) and its views" />
+    <LayoutDir name="bridge" note="placeholder: a disabled feature waiting for its code" />
+    <LayoutDir name="converter" note="placeholder: a disabled feature waiting for its code" />
+  </LayoutDir>
+  <LayoutDir name="scripts" open>
+    <LayoutFile name="build.ts" highlight note="src/ to dist/<browser>/ and zips" />
+  </LayoutDir>
+  <LayoutDir name="tests" note="bun test" />
+  <LayoutDir name="e2e" note="a Rust crate that loads dist/chrome-e2e into Chrome" />
+</LayoutTree>
 
 **A feature is a folder with a `feature.json`.** The build finds `src/*/feature.json` (a folder with
 `"enabled": false` is skipped) and, for each browser it lists (`"browsers"`, both by default):

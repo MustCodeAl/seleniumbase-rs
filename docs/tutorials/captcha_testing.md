@@ -9,11 +9,15 @@ this: with them the widget gives a known answer and the vendor's server accepts
 those keys, and the browser test clicks the test widget, checks that the token
 field was filled, and submits.
 
+<Warning>
+
 This page is about your own application. It is not about getting through real
 CAPTCHAs on sites you do not own: the keys below only work on a page whose site
 key is one of them, and `solve_captcha` is a click helper, not a solver.
 Whether you may use it on a site you do not control is a question for that
 site's terms, and it is out of scope here.
+
+</Warning>
 
 <Info>
 
@@ -28,6 +32,12 @@ site's terms, and it is out of scope here.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: test a CAPTCHA widget against your own application with the vendors' published test keys (reCAPTCHA v2, hCaptcha and Cloudflare Turnstile; Google documents none for v3 or Enterprise). Use the test keys only in the test deployment. Click the widget with `Page::solve_captcha()` or `BaseCase::solve_captcha()`, read the token from the hidden field (`g-recaptcha-response`, `h-captcha-response` or `cf-turnstile-response`), then submit. `solve_captcha` is a click helper, not a solver. The keys were compared with the vendors' pages on 2026-10-15: check them again before you rely on them.
+
+</Visibility>
+
 ## How the pieces fit
 
 1. Your page embeds the vendor's widget with a **site key**.
@@ -35,6 +45,23 @@ site's terms, and it is out of scope here.
    form.
 3. Your server sends the token and its **secret key** to the vendor's
    verification endpoint (`siteverify`) and acts on the answer.
+
+<Frame caption="Who talks to whom.">
+
+```mermaid
+sequenceDiagram
+  participant P as Your page
+  participant W as Vendor widget
+  participant S as Your server
+  participant V as Vendor siteverify
+  P->>W: embeds the widget with the site key
+  W->>P: writes a token into a hidden form field
+  P->>S: the form is submitted with the token
+  S->>V: token and secret key
+  V-->>S: the answer
+```
+
+</Frame>
 
 With the vendor's test keys, step 1 hands out a token without a real risk check
 and step 3 accepts it (or refuses it, for the keys made to fail). Only the keys
@@ -45,7 +72,7 @@ differ from production, so the code under test is the code you ship.
 Keep the keys in the environment, as for any other deploy-specific setting, and
 set the test keys only in the test deployment:
 
-```bash
+```bash .env.test
 # .env.test: the test deployment only, never production
 CAPTCHA_SITE_KEY=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
 CAPTCHA_SECRET_KEY=6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
@@ -72,7 +99,7 @@ Every value below was compared character by character with the vendor's page on
 
 <Tabs>
 
-<Tab title="reCAPTCHA v2 (checkbox)">
+<Tab title="reCAPTCHA v2 (checkbox)" icon="square-check">
 
 Source: [reCAPTCHA FAQ, "I'd like to run automated tests with reCAPTCHA"](https://developers.google.com/recaptcha/docs/faq).
 
@@ -103,7 +130,7 @@ Google Cloud's documentation, but the keys still worked when checked.
 
 </Tab>
 
-<Tab title="reCAPTCHA v3 and Enterprise">
+<Tab title="reCAPTCHA v3 and Enterprise" icon="gauge">
 
 Google documents no test keys for v3 or for Enterprise. The FAQ above advises a
 separate key for testing environments and warns that v3 scores may be inaccurate
@@ -121,7 +148,7 @@ advice, not something the vendor documents):
 
 </Tab>
 
-<Tab title="hCaptcha">
+<Tab title="hCaptcha" icon="hand">
 
 Source: [hCaptcha, integration testing and test keys](https://docs.hcaptcha.com/#integration-testing-test-keys).
 
@@ -156,7 +183,7 @@ so every Enterprise field comes back.
 
 </Tab>
 
-<Tab title="Cloudflare Turnstile">
+<Tab title="Cloudflare Turnstile" icon="cloud">
 
 Source: [Turnstile, test your Turnstile implementation](https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
 
@@ -220,11 +247,34 @@ rejected and of an already-used token without opening a browser.
 
 The test has the same four steps for every vendor:
 
-1. Wait until the widget has drawn.
-2. Click it.
-3. Wait until the token field is non-empty. If it stays empty for a few
-   seconds, the click probably came before the widget was ready: click again.
-4. Submit the form and assert what your application does.
+<Steps>
+
+<Step title="Wait for the widget" icon="hourglass-half">
+
+Wait until the widget has drawn.
+
+</Step>
+
+<Step title="Click the widget" icon="computer-mouse">
+
+Click it.
+
+</Step>
+
+<Step title="Wait for the token" icon="key">
+
+Wait until the token field is non-empty. If it stays empty for a few
+seconds, the click probably came before the widget was ready: click again.
+
+</Step>
+
+<Step title="Submit" icon="paper-plane">
+
+Submit the form and assert what your application does.
+
+</Step>
+
+</Steps>
 
 | Vendor | Widget, as the page sees it | Token field |
 |---|---|---|
@@ -508,16 +558,61 @@ challenge:
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `solve_captcha` returns `None` | The widget has not drawn yet, its script was blocked, or it is hidden | Wait for the frame or container first; allow the hosts listed under [In CI](#in-ci) in your CSP and on the CI runner. |
-| `solve_captcha` returns `Some(..)` but the token stays empty | The wrong site key (not a test key), or the click came before the widget was ready | Press again after a few seconds, as `press_until_token` does; check the key in the page source; take a screenshot (`save_screenshot`) to see the widget. |
-| The widget says the site key is invalid | A production key on a test host, or a key from another vendor | Use the test key of the vendor whose script the page loads. |
-| An hCaptcha widget appears where a reCAPTCHA one should | Both scripts on one page | One vendor per page, or `recaptchacompat=off` on the hCaptcha script. |
-| `siteverify` refuses the dummy token | A production secret with a test site key | Use the secret of the same test set. |
-| `wait_for_function` fails at once with a script error | The field does not exist yet and the expression read `.value` of `null` | Use `?.value`, as above. |
+<AccordionGroup>
+
+<Accordion title="solve_captcha returns None" icon="eye-slash">
+
+**Likely cause.** The widget has not drawn yet, its script was blocked, or it is hidden.
+
+**Fix.** Wait for the frame or container first; allow the hosts listed under [In CI](#in-ci) in your CSP and on the CI runner.
+
+</Accordion>
+
+<Accordion title="solve_captcha returns Some(..) but the token stays empty" icon="key">
+
+**Likely cause.** The wrong site key (not a test key), or the click came before the widget was ready.
+
+**Fix.** Press again after a few seconds, as `press_until_token` does; check the key in the page source; take a screenshot (`save_screenshot`) to see the widget.
+
+</Accordion>
+
+<Accordion title="The widget says the site key is invalid" icon="triangle-exclamation">
+
+**Likely cause.** A production key on a test host, or a key from another vendor.
+
+**Fix.** Use the test key of the vendor whose script the page loads.
+
+</Accordion>
+
+<Accordion title="An hCaptcha widget appears where a reCAPTCHA one should" icon="clone">
+
+**Likely cause.** Both scripts on one page.
+
+**Fix.** One vendor per page, or `recaptchacompat=off` on the hCaptcha script.
+
+</Accordion>
+
+<Accordion title="siteverify refuses the dummy token" icon="ban">
+
+**Likely cause.** A production secret with a test site key.
+
+**Fix.** Use the secret of the same test set.
+
+</Accordion>
+
+<Accordion title="wait_for_function fails at once with a script error" icon="code">
+
+**Likely cause.** The field does not exist yet and the expression read `.value` of `null`.
+
+**Fix.** Use `?.value`, as above.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Security notes
+
+<Warning>
 
 - Test keys give no protection and their secrets are public. Never deploy them,
   and make the application fail at start-up when it finds one in production.
@@ -526,7 +621,11 @@ challenge:
 - Keep production keys out of test environments and out of the repository.
 - Do not point these tests at a site you do not own or have permission to test.
 
+</Warning>
+
 ## What has been checked
+
+<Check>
 
 On 2026-10-15, on macOS:
 
@@ -544,14 +643,34 @@ On 2026-10-15, on macOS:
 - The four Rust listings on this page type-check against this crate
   (rust-analyzer; tutorials are not compiled by `cargo`).
 
+</Check>
+
+<Note>
+
 Not checked: none of the listings was run; `BaseCase::solve_captcha`, the
 frame-switching listing and `#recaptcha-anchor` were not tried on a live widget;
 the hCaptcha Enterprise key sets were not exercised in a browser;
 `recaptchacompat=off` was not tried; and nothing was tried through the crate in
 a headed browser.
 
+</Note>
+
 ## See also
 
-- [Pure CDP](/tutorials/pure_cdp) for `Browser`, `Page` and `Locator`.
-- [Writing Browser Tests](/rust-test-tooling) for `run_browser_test`.
-- [Waits and Assertions](/tutorials/waits_assertions).
+<Columns cols={3}>
+
+<Card title="Pure CDP" icon="plug" href="/tutorials/pure_cdp">
+
+For `Browser`, `Page` and `Locator`.
+
+</Card>
+
+<Card title="Writing Browser Tests" icon="flask" href="/rust-test-tooling">
+
+For `run_browser_test`.
+
+</Card>
+
+<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions" />
+
+</Columns>

@@ -21,6 +21,12 @@ one test), each launching a browser and driving its page with `Page` and
 `Locator` calls. What is not converted stays in place as a
 `// TODO(puppeteer): <statement>` comment and a diagnostic with its line.
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs import-puppeteer FILE --output tests/FILE.rs` converts Puppeteer code (plain scripts, jest-puppeteer and Mocha tests, and a Chrome DevTools Recorder JSON export) into Rust tests for the pure CDP engine. A statement it does not convert stays as a `// TODO(puppeteer): <statement>` comment and is reported with its line. Exit status: 0 when everything was read, 1 when a statement could not be read, 6 when the file cannot be read, 2 for a source it refuses.
+
+</Visibility>
+
 ## Convert a file
 
 ```bash

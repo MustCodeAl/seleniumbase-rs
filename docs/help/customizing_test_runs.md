@@ -19,6 +19,12 @@ workflow.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: a run is configured by the `BrowserConfig` builder, a global `sbase_config.toml` (or `.sbase_config.toml`, `.sbase_config`) in the working directory, `SB_*` environment variables and `sbrs` flags. Later sources win: defaults, config file, `SB_*` variables, then programmatic changes. `sbrs` options go before the subcommand. `sbrs test` passes the global options to tests as `SB_*` variables.
+
+</Visibility>
+
 ## BrowserConfig builder
 
 The most direct way to configure a run is the `BrowserConfig` builder. Every
@@ -58,7 +64,7 @@ Key builder methods:
 | `with_mobile(bool)` | Emulate a mobile device: a 390x844 window and an Android Chrome user agent, unless you set your own user agent. |
 | `with_locale(s)` | Set `navigator.languages` / `Accept-Language`. |
 | `with_proxy(url)` | Route traffic through an HTTP/HTTPS/SOCKS proxy. |
-| `with_proxy_pac_url(url)` | Load proxy configuration from a PAC file. |
+| `with_proxy_pac_url(url)` | Load proxy configuration from a <Tooltip tip="Proxy auto-config: a script that tells the browser which proxy to use for a URL.">PAC</Tooltip> file. |
 | `with_user_data_dir(path)` | Launch with an existing Chromium profile. |
 | `with_extension_dir(path)` | Load an unpacked extension. |
 | `with_start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
@@ -80,6 +86,8 @@ second), the field `remote_webdriver_timeout_seconds`.
 | `with_run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](/tutorials/run_settings). |
 
 ### Blocking ads
+
+<Badge color="blue">Chromium WebDriver sessions</Badge>
 
 `ad_block` makes a Chromium WebDriver session (Chrome, Chromium, Edge, Brave,
 Comet, Opera, Chrome for Testing, `chrome-headless-shell`) refuse every request
@@ -147,7 +155,7 @@ work.
 | `with_driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
 | `with_remote_debug(bool)`, `with_remote_debug_port(p)` | `--remote-debug` | Open Chrome's debugger (9222 or a port you name). |
 | `with_cdp_events(c)` | `--log-cdp-events`, `--uc-cdp-events` | Keep the DevTools events; read them with `BrowserSession::cdp_events`. |
-| `with_virtual_display(d)` | `--xvfb`, `--xvfb-metrics` | Run a headed browser on Xvfb (Linux). |
+| `with_virtual_display(d)` | `--xvfb`, `--xvfb-metrics` | Run a headed browser on <Tooltip tip="A virtual display server: it lets a headed browser run on a machine with no screen.">Xvfb</Tooltip> (Linux). |
 
 `with_browser` also takes `Brave`, `Comet`, `Opera`, `Safari`,
 `InternetExplorer`, `ChromeForTesting` and `ChromeHeadlessShell` (the Python
@@ -157,6 +165,8 @@ when missing; Opera, Safari and Internet Explorer need their own driver
 (`operadriver`, `safaridriver`, `IEDriverServer`) on the `PATH`.
 
 ### Ending a test with ESC
+
+<Badge color="blue">WebDriver engine (`BaseCase`) only</Badge>
 
 `with_esc_end(true)` lets the person watching a headed run stop the test: `BaseCase`
 puts a key listener in the page, and the first `open`, `click`, `click_link_text`,
@@ -225,9 +235,17 @@ test binary has no hook that runs after its last test, and it usually exits
 sooner than the idle timeout. On macOS and Linux the browser of the last tests
 still ends with the binary: every chromedriver and browser this crate starts
 belongs to a process group that a small watcher ends when the program that
-started it exits, also when that program is killed. On Windows nothing watches
+started it exits, also when that program is killed.
+
+<Warning>
+
+On Windows nothing watches
 them, so call `shutdown_reused_sessions()` where your run ends (the `main` of a
-`harness = false` test target, or the end of a program). Under cargo-nextest
+`harness = false` test target, or the end of a program).
+
+</Warning>
+
+Under cargo-nextest
 each test is a process of its own, so nothing is shared.
 
 ## Global config file
@@ -275,7 +293,7 @@ reads one specific file by the same rule.
 
 </Warning>
 
-<Warning>
+<Note>
 
 `timeout_seconds` becomes the default wait of every `BaseCase` made from
 `settings.to_browser_config()` (`BaseCase::new`, so `run_browser_test` and the
@@ -283,7 +301,7 @@ plugin runner too); `sb.set_timeout(..)` changes it later. `window_width` and
 `window_height` set the browser window when both are present. `screenshot_dir`
 is stored for your code to read; nothing in the crate applies it.
 
-</Warning>
+</Note>
 
 To build a `BrowserConfig` from the file in your own test:
 
@@ -313,7 +331,7 @@ methods afterwards.
 
 Environment variables override file values. The prefix is `SB_` (not `SBASE_`):
 
-```bash
+```bash Terminal
 export SB_HEADLESS=true
 export SB_LOCALE=fr-FR
 export SB_BROWSER=chrome
@@ -335,7 +353,7 @@ for the table, including the separate runtime variables (`SB_LOG_LEVEL`,
 `BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL` and
 `SB_CHROME_BIN`:
 
-```bash
+```bash Terminal
 export SB_WEBDRIVER_URL=http://localhost:4444/wd/hub
 ```
 
@@ -354,7 +372,7 @@ is rejected.
 
 </Warning>
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- --headless --proxy http://proxy.example.com:8080 open https://seleniumbase.io
 ```
 
@@ -390,7 +408,7 @@ Run `sbrs --help` and `sbrs <subcommand> --help` for the full list of flags.
 into the tests as `SB_*` environment variables, so a test that loads `Settings`
 sees them:
 
-```bash
+```bash Terminal
 # Sets SB_HEADLESS=true and SB_BROWSER=firefox, and runs 2 tests at a time.
 cargo run --bin sbrs -- --headless --browser firefox -n 2 test
 cargo run --bin sbrs -- test login --test checkout --release --features turso
@@ -412,6 +430,13 @@ it, later sources win:
 3. Environment variables (`SB_*`).
 4. Programmatic changes, such as `BrowserConfig` builder calls.
 
+```mermaid
+graph LR
+  A["Settings::default()"] -->|later wins| B["Config file"]
+  B -->|later wins| C["SB_* variables"]
+  C -->|later wins| D["Programmatic changes"]
+```
+
 `sbrs test` adds the command-line flags as step 3 for its tests. The `sbrs`
 binary follows the same order when it drives a browser directly (`sbrs open`
 and the like): it starts from the config file (the global one, or the one named
@@ -428,11 +453,78 @@ overrides, and the builder or CLI flags for one-off experiments.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Environment variable ignored | Used `SBASE_` instead of `SB_`, or the variable is not one `Settings` reads | Use the `SB_` prefix and a name from the list above. |
-| `sbrs open` still shows a window with `SB_HEADLESS=true` | A `--headed` flag beats the variable, or the variable is not exported to `sbrs` | Drop `--headed`, and `export` the variable (or put it before the command on the same line). |
-| Config file not loaded | File is in a parent directory, or has another name | Put it in the directory you run from, named `sbase_config.toml`. |
-| Config file fails to parse | A flat `key=value` file, or a float for `timeout_seconds` | Use TOML (`.toml` name) or JSON, and whole numbers of seconds. |
-| CLI flag rejected as unexpected | The flag was placed after the subcommand | Put it before: `sbrs --headless open URL`. |
-| Proxy not used | Format is invalid | Pass a full URL such as `http://host:8080`. |
+<AccordionGroup>
+
+<Accordion title="Environment variable ignored" icon="key">
+
+**Likely cause:** Used `SBASE_` instead of `SB_`, or the variable is not one `Settings` reads.
+
+**Fix:** Use the `SB_` prefix and a name from the list above.
+
+</Accordion>
+
+<Accordion title="sbrs open still shows a window with SB_HEADLESS=true" icon="window-maximize">
+
+**Likely cause:** A `--headed` flag beats the variable, or the variable is not exported to `sbrs`.
+
+**Fix:** Drop `--headed`, and `export` the variable (or put it before the command on the same line).
+
+</Accordion>
+
+<Accordion title="Config file not loaded" icon="folder-open">
+
+**Likely cause:** File is in a parent directory, or has another name.
+
+**Fix:** Put it in the directory you run from, named `sbase_config.toml`.
+
+</Accordion>
+
+<Accordion title="Config file fails to parse" icon="file-circle-exclamation">
+
+**Likely cause:** A flat `key=value` file, or a float for `timeout_seconds`.
+
+**Fix:** Use TOML (`.toml` name) or JSON, and whole numbers of seconds.
+
+</Accordion>
+
+<Accordion title="CLI flag rejected as unexpected" icon="flag">
+
+**Likely cause:** The flag was placed after the subcommand.
+
+**Fix:** Put it before: `sbrs --headless open URL`.
+
+</Accordion>
+
+<Accordion title="Proxy not used" icon="network-wired">
+
+**Likely cause:** Format is invalid.
+
+**Fix:** Pass a full URL such as `http://host:8080`.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Next steps
+
+<Columns cols={3}>
+
+<Card title="Run settings" icon="sliders" href="/tutorials/run_settings">
+
+Demo and slow mode, and the other run-wide settings.
+
+</Card>
+
+<Card title="Settings and Global Configuration" icon="gear" href="/tutorials/settings_and_config">
+
+The table of settings and the separate runtime variables.
+
+</Card>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+What `with_fingerprint` applies.
+
+</Card>
+
+</Columns>

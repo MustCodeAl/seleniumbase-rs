@@ -8,6 +8,19 @@ and [seleniumbase-mcp](https://github.com/seleniumbase/seleniumbase-mcp)
 releases. Keeping up is a short, mechanical loop, because the public API of
 both is recorded as data and checked by a test.
 
+<Panel>
+
+<Card title="The loop in four commands" icon="terminal">
+
+- `just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp`
+- `just parity-seed`
+- `just parity-check`
+- `just parity-docs`
+
+</Card>
+
+</Panel>
+
 The files involved:
 
 | File | What it is |
@@ -124,3 +137,9 @@ the manifest. See "Adding an MCP tool" in the developer guide.
 `.github/workflows/upstream-watch.yml` runs weekly, compares the latest
 SeleniumBase release with `parity/upstream.toml`, and opens an issue titled
 "Upstream sync: SeleniumBase vX.Y.Z" when it is behind. The issue points here.
+
+<Visibility for="agents">
+
+Summary for AI exports: to sync with a new upstream release, update the two checkouts, run `just parity-extract`, set `version` and `commit` in `parity/upstream.toml` and `UPSTREAM_SELENIUMBASE_VERSION` in `src/lib.rs`, run `just parity-seed`, work through what `just parity-check` lists (port, compose or mark `not-applicable`), run `just parity-docs`, then update `ROADMAP.md`, run the quality gate and commit.
+
+</Visibility>

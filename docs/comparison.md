@@ -14,6 +14,12 @@ tool (see [Benchmarks](/benchmarks) for what this crate itself costs).
 
 </Note>
 
+<Visibility for="agents">
+
+Summary for AI exports: choose seleniumbase-rs for a Rust test framework with the SeleniumBase API, or for driverless Chrome automation in Rust with locators that wait. Choose Playwright for Chromium, Firefox and WebKit from one API with a trace viewer, Selenium (WebDriver) for the most mature and widest-supported standard, Python SeleniumBase for a Python suite, `chromiumoxide` for a raw Rust DevTools Protocol library and `thirtyfour` for a low-level Rust WebDriver client. This crate is young (`0.1.0`, not on crates.io) and the page contains no benchmark comparison.
+
+</Visibility>
+
 ## The short version
 
 | If you need... | Reach for |
