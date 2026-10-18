@@ -444,6 +444,7 @@
             "pages": [
               "design/fingerprint-api-v2",
               "design/usage-cli",
+              "design/mcp-dev-tools",
               "design/stealth_parity_plan"
             ]
           },
