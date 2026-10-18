@@ -2,10 +2,34 @@
 title: "Changelog"
 ---
 
-# Changelog
-
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
+
+## Latest release: v0.5.1
+
+<Columns cols={3}>
+
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.5.1">
+  v0.5.1 on GitHub.
+</Card>
+
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.1.zip">
+  The source of this release as a zip archive.
+</Card>
+
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.1.tar.gz">
+  The source of this release as a tarball.
+</Card>
+
+</Columns>
+
+The releases publish no prebuilt binaries; install the command line from the tag:
+
+```bash Terminal
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 seleniumbase-rs-cli
+```
+
+## All releases
 
 <Update label="Unreleased" description="Next release" tags={[]}>
 
@@ -13,6 +37,8 @@ Semantic Versioning.
 </Update>
 
 <Update label="2026-10-17" description="v0.5.1" tags={["New", "Fix"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.5.1) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.1.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.1.tar.gz)
 
 A patch release of the command line: it refuses again what clap refused in 0.4.0,
 and `sbrs-mcp` names itself.
@@ -38,6 +64,8 @@ and `sbrs-mcp` names itself.
 </Update>
 
 <Update label="2026-10-17" description="v0.5.0" tags={["New", "Fix", "Breaking"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.5.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.5.0.tar.gz)
 
 A release of API clean-ups and new structure. The fingerprint API is one
 `Spoof` per setting with a separate `StealthPolicy`, built once and never
@@ -1128,6 +1156,8 @@ design is `docs/design/fingerprint-api-v2.md`.
 
 <Update label="2026-10-16" description="v0.4.0" tags={["New", "Fix"]}>
 
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.4.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.4.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.4.0.tar.gz)
+
 A feature release: browser plugins now run in the WebDriver engine as well as
 the Pure CDP one, the Pure CDP engine gains page script and style tags and HAR
 recording, the opt-in `visual` feature compares screenshots by structural
@@ -1237,6 +1267,8 @@ and the documentation gains a guide to testing pages with a CAPTCHA.
 </Update>
 
 <Update label="2026-10-15" description="v0.3.0" tags={["New", "Fix", "Breaking"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.3.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.3.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.3.0.tar.gz)
 
 A breaking release: the experimental stealth scraping layer leaves this crate.
 
@@ -1374,6 +1406,8 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
 
 <Update label="2026-10-12" description="v0.2.0" tags={["New"]}>
 
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.2.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.2.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.2.0.tar.gz)
+
 ### Changed
 
 - **The binaries are renamed** so they no longer clash with Python
@@ -1399,6 +1433,8 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
 
 <Update label="2026-10-12" description="v0.1.1" tags={["New", "Fix"]}>
 
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.1.1) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.1.1.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.1.1.tar.gz)
+
 Windows fixes from a second round of runs on a Windows 11 PC (Chrome 154 and
 155, Edge 155, Firefox 153). There, formatting, clippy, the whole test suite,
 the real-Chrome tests, Edge, Firefox and the Tauri 3 installer build now pass.
@@ -1422,6 +1458,8 @@ the real-Chrome tests, Edge, Firefox and the Tauri 3 installer build now pass.
 </Update>
 
 <Update label="2026-10-12" description="v0.1.0" tags={["New", "Fix"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.1.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.1.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.1.0.tar.gz)
 
 The first release, tagged `v0.1.0` on GitHub (not published to crates.io).
 Windows is being verified: the first runs on a Windows PC found the problems
