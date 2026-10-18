@@ -2,8 +2,6 @@
 title: "SeleniumBase Commander"
 ---
 
-# SeleniumBase Commander
-
 Commander is a terminal UI for browsing and running tests or examples. It is a
 convenient way to explore the project without memorizing every example path.
 

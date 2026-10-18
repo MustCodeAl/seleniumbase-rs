@@ -2,8 +2,6 @@
 title: "ADR 004: A Plugin Framework for Community Crates"
 ---
 
-# ADR 004: A Plugin Framework for Community Crates
-
 ## Status
 
 Accepted, in progress. Proposed (2026-10-12), revised the same day: the

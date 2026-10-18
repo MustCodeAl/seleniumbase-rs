@@ -2,8 +2,6 @@
 title: "Performance"
 ---
 
-# Performance
-
 Rust's low runtime overhead and native binaries can make test orchestration
 faster, especially for suites that process a lot of data, generate reports, or
 coordinate many parallel browsers. However, browser tests are usually dominated

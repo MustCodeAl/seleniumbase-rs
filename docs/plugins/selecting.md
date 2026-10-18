@@ -2,8 +2,6 @@
 title: "Choosing Plugins"
 ---
 
-# Choosing plugins
-
 <Badge color="orange">Early</Badge> <Badge color="blue">Feature: plugins</Badge>
 
 The official plugins ship with seleniumbase-rs, one cargo feature each, and you

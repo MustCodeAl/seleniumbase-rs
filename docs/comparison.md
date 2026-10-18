@@ -2,8 +2,6 @@
 title: "How it compares"
 ---
 
-# How it compares
-
 Where `seleniumbase-rs` fits among the tools people use to automate a browser,
 and where each of them is the better choice. This page is written from general
 knowledge of these projects and from this crate's own state; check a competitor's

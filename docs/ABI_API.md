@@ -2,8 +2,6 @@
 title: "ABI & API Stability"
 ---
 
-# ABI & API Stability
-
 This page describes the public API surface of `seleniumbase-rs`, the stability
 guarantees that apply, and how to integrate the crate with foreign code.
 

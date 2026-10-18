@@ -2,8 +2,6 @@
 title: "Writing Your Own Plugin"
 ---
 
-# Writing your own plugin
-
 For turning plugins on and attaching a set to a browser, read the
 [Browser Plugins guide](/tutorials/plugins). This page is about the plugin
 itself.

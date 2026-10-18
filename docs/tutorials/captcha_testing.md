@@ -2,8 +2,6 @@
 title: "Testing Pages with a CAPTCHA"
 ---
 
-# Testing Pages with a CAPTCHA
-
 A CAPTCHA exists to stop automation, so a test that has to get past a real one
 is fighting its own application. The three big vendors publish **test keys** for
 this: with them the widget gives a known answer and the vendor's server accepts

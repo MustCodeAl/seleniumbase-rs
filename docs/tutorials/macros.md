@@ -2,8 +2,6 @@
 title: "Macros"
 ---
 
-# Macros
-
 `seleniumbase-rs` exports a set of convenience macros from the crate root. They
 reduce boilerplate for selectors, test setup, common interactions, and
 assertions. Because the action macros expand `.await` internally, use them

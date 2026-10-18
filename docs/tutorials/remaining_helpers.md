@@ -2,8 +2,6 @@
 title: "Remaining BaseCase Helpers"
 ---
 
-# Remaining BaseCase Helpers
-
 This guide covers additional `BaseCase` helpers that close the parity gap with
 Python SeleniumBase. These helpers handle page artifacts, window introspection,
 on-page messaging, console logs, traffic generation, charts, and deferred

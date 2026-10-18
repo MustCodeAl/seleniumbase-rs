@@ -2,8 +2,6 @@
 title: "Homebrew Tap"
 ---
 
-# Homebrew tap for seleniumbase-rs
-
 [SeleniumBase for Rust](https://github.com/MustCodeAl/seleniumbase-rs): browser
 automation and testing from Rust, with the `sbrs` CLI and the `sbrs-mcp` MCP server.
 

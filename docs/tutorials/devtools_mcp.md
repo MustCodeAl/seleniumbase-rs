@@ -2,8 +2,6 @@
 title: "DevTools MCP servers"
 ---
 
-# DevTools MCP servers
-
 Browser vendors ship their own MCP servers that give a model the browser's
 developer tools: performance traces, network and console inspection, the
 accessibility tree. They attach to a browser that is already running, through

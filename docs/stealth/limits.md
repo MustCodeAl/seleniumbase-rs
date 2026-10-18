@@ -2,8 +2,6 @@
 title: "Limits and Troubleshooting"
 ---
 
-# Limits and Troubleshooting
-
 ## Limits
 
 <Warning>

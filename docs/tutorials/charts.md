@@ -2,8 +2,6 @@
 title: "Chart Maker Guide"
 ---
 
-# Chart Maker Guide
-
 Generate charts from your test data and save them as standalone HTML files.
 Charts are useful for visualizing benchmark results, test metrics, or any numeric
 data produced during a run.

@@ -2,8 +2,6 @@
 title: "Selenium IDE Migration"
 ---
 
-# Selenium IDE Migration
-
 If you have legacy Selenium IDE `.html` test cases, SeleniumBase for Rust can
 parse them into a list of commands that you can replay with `BaseCase`. This
 guide shows how to migrate those tests into Rust code.

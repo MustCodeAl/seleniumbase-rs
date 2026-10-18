@@ -2,8 +2,6 @@
 title: "HTML Inspector"
 ---
 
-# HTML Inspector
-
 The HTML Inspector scans a page for common accessibility and markup issues. It
 is a fast static check that can catch missing attributes, invalid references,
 and structural problems before they reach production.

@@ -2,8 +2,6 @@
 title: "Recorder Mode Guide"
 ---
 
-# Recorder Mode Guide
-
 Recorder Mode captures your browser interactions and generates either a Rust
 source file or a JSON action file that can be replayed later. It is a fast way
 to bootstrap a UI test: point, click, type, assert, and then refine the

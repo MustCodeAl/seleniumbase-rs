@@ -2,8 +2,6 @@
 title: "Case Plans Generator"
 ---
 
-# Case Plans Generator
-
 `sbrs caseplans` (also `sbrs case-plans`) is a terminal app for writing a
 case plan for each of your tests: a short markdown table of the steps the test
 performs and the result each one expects. It is the Python Case Plans Generator

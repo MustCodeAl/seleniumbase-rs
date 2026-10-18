@@ -2,8 +2,6 @@
 title: "Waits and Assertions"
 ---
 
-# Waits and Assertions
-
 Browser tests fail most often because they interact with elements before the
 page is ready. `seleniumbase-rs` provides implicit waiting in many action
 methods, plus explicit waits and assertions that retry until a condition is met

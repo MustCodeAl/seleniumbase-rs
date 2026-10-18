@@ -2,8 +2,6 @@
 title: "Behave / Gherkin Support"
 ---
 
-# Behave / Gherkin Support
-
 SeleniumBase for Rust includes a lightweight Gherkin parser and step runner so
 you can write BDD-style feature files similar to Python's `behave` framework.
 This lets product owners, QA engineers, and developers share a common language

@@ -2,8 +2,6 @@
 title: "Developer Guide"
 ---
 
-# Developer Guide
-
 This guide is for anyone who wants to understand, extend, or maintain the Rust
 port of SeleniumBase (`seleniumbase-rs`). It covers the repository layout, the
 `BaseCase` architecture, how to add new helpers, the stealth system, testing, and

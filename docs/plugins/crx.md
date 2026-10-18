@@ -2,8 +2,6 @@
 title: "crx Plugin"
 ---
 
-# crx
-
 A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).
 
 Chrome only loads unpacked extension folders from the command line. This

@@ -2,8 +2,6 @@
 title: "Customizing Test Runs"
 ---
 
-# Customizing Test Runs
-
 SeleniumBase for Rust can be configured through the `BrowserConfig` builder, a
 global config file, environment variables, or CLI flags. This guide explains the
 full hierarchy and shows how to make each source of configuration work for your

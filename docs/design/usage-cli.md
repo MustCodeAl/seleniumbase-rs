@@ -2,8 +2,6 @@
 title: "Design: the sbrs CLI on usage, in its own workspace crate"
 ---
 
-# Design: the `sbrs` CLI on usage, in its own workspace crate
-
 Status: accepted (2026-10-17): derives, package `seleniumbase-rs-cli`, work
 starts after the fingerprint API v2 lands. Replaces the earlier plan of a
 hand-written KDL spec parsed at runtime.

@@ -2,8 +2,6 @@
 title: "Security"
 ---
 
-# Security
-
 Rust's memory-safety guarantees, explicit error handling, and type system make
 the implementation of `seleniumbase-rs` more robust than many dynamic-language
 alternatives.

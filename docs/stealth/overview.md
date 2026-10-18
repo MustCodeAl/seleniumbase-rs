@@ -2,8 +2,6 @@
 title: "Stealth Scraping"
 ---
 
-# Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper
-
 <Badge color="orange">Experimental</Badge>
 
 <Note>

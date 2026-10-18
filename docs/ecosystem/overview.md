@@ -2,8 +2,6 @@
 title: "Ecosystem"
 ---
 
-# Ecosystem
-
 seleniumbase-rs has companion projects in their own repositories. Their
 documentation is part of this site.
 

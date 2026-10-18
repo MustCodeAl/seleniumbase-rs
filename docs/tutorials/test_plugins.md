@@ -2,8 +2,6 @@
 title: "Test Plugins"
 ---
 
-# Test Plugins
-
 A test plugin runs code around a test: when it starts, when it fails (with the
 browser still open, so it can take evidence), and when it finishes. The ones
 that ship with the crate save a screenshot and the page source on failure and

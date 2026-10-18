@@ -2,8 +2,6 @@
 title: "Frequently asked questions"
 ---
 
-# Frequently asked questions
-
 Short answers, with a pointer to the page that has the detail.
 
 ## Choosing and getting started

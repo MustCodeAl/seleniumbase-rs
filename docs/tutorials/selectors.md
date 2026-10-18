@@ -2,8 +2,6 @@
 title: "Selectors Guide"
 ---
 
-# Selectors Guide
-
 Selectors are the addresses your tests use to find elements on the page.
 `seleniumbase-rs` accepts several formats and converts them into `thirtyfour::By`
 locators automatically. Choosing the right selector is one of the most important

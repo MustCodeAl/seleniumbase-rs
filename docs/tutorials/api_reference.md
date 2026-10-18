@@ -2,8 +2,6 @@
 title: "BaseCase API Reference"
 ---
 
-# BaseCase API Reference
-
 `BaseCase` is the main entry point for writing browser automation in
 `seleniumbase-rs`. It wraps a WebDriver/CDP session, provides a fluent API for
 navigation, interaction, waits, assertions, and exposes advanced helpers for

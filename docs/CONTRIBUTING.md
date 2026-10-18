@@ -2,8 +2,6 @@
 title: "Contributing to SeleniumBase-rs"
 ---
 
-# Contributing to SeleniumBase-rs
-
 Thank you for helping make `seleniumbase-rs` a powerful, idiomatic Rust
 browser-automation framework. Whether you are fixing a bug, adding a new stealth
 evasion, writing a tutorial, or improving the MCP server, this guide will get

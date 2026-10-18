@@ -2,8 +2,6 @@
 title: "Wire Formats and Impersonation"
 ---
 
-# Wire Formats and Impersonation
-
 ## What is measured, and what is refused
 
 Every wire value this crate imitates was measured from a real browser by a

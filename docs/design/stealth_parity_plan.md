@@ -2,8 +2,6 @@
 title: "Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation"
 ---
 
-# Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impersonation
-
 > **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (crates `seleniumbase-rs-wire`, `-scrape`, `-impersonate`); this plan is kept as design history, with the paths the code had here.
 
 Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `4184e74`): **WP0 to WP17 are merged,

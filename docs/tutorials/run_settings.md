@@ -2,8 +2,6 @@
 title: "Run Settings: Demo, Slow and Fast Runs"
 ---
 
-# Run Settings: Demo, Slow and Fast Runs
-
 Python SeleniumBase reads a handful of run-wide options from the pytest command
 line: `--demo`, `--slow`, `--fast`, `--demo-sleep`, `--message-duration` and a
 few more. A Rust test has no pytest, so `RunSettings` carries the same knobs as

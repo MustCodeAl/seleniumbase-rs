@@ -2,8 +2,6 @@
 title: "Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper"
 ---
 
-# Stealth Scraping: Wire Fingerprints, Identities and the Browser Scraper
-
 <Badge color="orange">Experimental</Badge>
 
 The stealth scraping layer is no longer part of `seleniumbase-rs`. Since version

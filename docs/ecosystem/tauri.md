@@ -2,8 +2,6 @@
 title: "Tauri Plugin"
 ---
 
-# tauri-plugin-sbrs-automation
-
 <GitHub.Repo repo="MustCodeAl/tauri-plugin-sbrs-automation" />
 
 Test a [Tauri](https://tauri.app) app's real window with

@@ -2,8 +2,6 @@
 title: "Fingerprint & Stealth Profiles"
 ---
 
-# Fingerprint & Stealth Profiles
-
 Websites detect automation by looking at many browser signals: `navigator.webdriver`,
 user agent, platform, screen size, hardware concurrency, WebGL vendor, canvas
 noise, audio noise, time zone, geolocation, media devices, fonts, and more.

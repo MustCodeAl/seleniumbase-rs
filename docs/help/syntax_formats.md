@@ -2,8 +2,6 @@
 title: "Syntax Formats"
 ---
 
-# Syntax Formats
-
 SeleniumBase for Rust supports three primary ways to express automation:
 direct API calls in Rust, CLI commands, and JSON-based scenarios. This page
 compares the formats and links to deeper guides.

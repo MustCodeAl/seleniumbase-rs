@@ -2,8 +2,6 @@
 title: "Fig completion spec"
 ---
 
-# Fig completion spec for `sbrs`
-
 `fig-sbrs.ts` is a completion spec for the `sbrs` command in the Fig format, the
 format of the [withfig/autocomplete](https://github.com/withfig/autocomplete)
 repository. Warp's built-in completions, inshellisense and Amazon Q Developer

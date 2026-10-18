@@ -2,8 +2,6 @@
 title: "SeleniumBase for Rust"
 ---
 
-# SeleniumBase for Rust
-
 Welcome to the SeleniumBase for Rust book. This guide explains how to build
 browser automation scripts, end-to-end tests, and operational tooling with
 `seleniumbase-rs`.

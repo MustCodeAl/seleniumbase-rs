@@ -2,8 +2,6 @@
 title: "wasm Plugin Host"
 ---
 
-# wasm: plugins in WebAssembly
-
 Run [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs) plugins that
 are written in **any language that compiles to WebAssembly** (Rust, C, Zig, Go,
 AssemblyScript, or plain WAT), sandboxed by the pure-Rust interpreter

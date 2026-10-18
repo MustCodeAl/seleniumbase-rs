@@ -2,8 +2,6 @@
 title: "HttpSession"
 ---
 
-# HttpSession
-
 `mimic::http_session::HttpSession` sends plain HTTP requests that look like
 the Chrome a browser page came from. A browser spends a second or more on a page;
 a request spends milliseconds. Once a page has earned its cookies (a login, a

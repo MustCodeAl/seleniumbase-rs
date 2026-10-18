@@ -2,8 +2,6 @@
 title: "Behave Commander"
 ---
 
-# Behave Commander
-
 `sbrs behave-gui` (also `sbrs gui-behave`) is a terminal app that lists the
 Gherkin feature files of a project, runs the scenarios you mark through this
 crate's behave runner and shows what came of each. It is the Python Behave

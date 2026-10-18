@@ -2,8 +2,6 @@
 title: "Common Problems"
 ---
 
-# Common Problems
-
 This page collects common pitfalls and their solutions. If you run into
 something not listed here, turn on debug logging and check the error category
 and hint:

@@ -2,8 +2,6 @@
 title: "Browser Profiles"
 ---
 
-# Browser Profiles
-
 `seleniumbase-rs` can import external browser profile payloads in a generic
 anti-detect JSON format. The format is exposed through the
 `seleniumbase_rs::profile_payloads` module and the Tauri profile-manager example.

@@ -2,8 +2,6 @@
 title: "Test Translations Guide"
 ---
 
-# Test Translations Guide
-
 SeleniumBase for Rust includes a small translator utility that maps simple
 action names into multiple languages. This is useful for localized test reports
 or for teams that prefer non-English step names.

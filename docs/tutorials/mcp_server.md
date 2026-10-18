@@ -2,8 +2,6 @@
 title: "MCP servers"
 ---
 
-# MCP servers
-
 `sbrs-mcp` exposes a browser to any [Model Context Protocol] client
 (Claude Desktop, Claude Code, ...) over stdio. It serves one of three toolsets,
 the same tools as the Python `seleniumbase-mcp` project, and adds tools of its

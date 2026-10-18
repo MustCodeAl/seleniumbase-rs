@@ -2,8 +2,6 @@
 title: "Pure CDP: Chrome without a WebDriver"
 ---
 
-# Pure CDP: Chrome without a WebDriver
-
 `sb_cdp` drives Chrome directly over the DevTools Protocol. There is no
 chromedriver, so there is none of the markers a WebDriver leaves in the page.
 It is the engine behind the `cdp` MCP server.

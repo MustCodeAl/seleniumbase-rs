@@ -2,8 +2,6 @@
 title: "MFA / TOTP Guide"
 ---
 
-# MFA / TOTP Guide
-
 Multi-factor authentication (MFA) flows that use time-based one-time passwords
 (TOTP) can be automated with `seleniumbase-rs`. The crate generates codes locally
 from a base32-encoded shared secret, so you can complete MFA login steps without

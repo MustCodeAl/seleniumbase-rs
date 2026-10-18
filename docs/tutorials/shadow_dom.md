@@ -2,8 +2,6 @@
 title: "Shadow DOM Guide"
 ---
 
-# Shadow DOM Guide
-
 Web Components often hide markup inside Shadow DOM trees. SeleniumBase for Rust
 can pierce through open shadow roots with `::shadow` selectors, making it easy
 to interact with buttons, inputs, and lists that are otherwise invisible to a

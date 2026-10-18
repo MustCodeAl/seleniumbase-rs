@@ -2,8 +2,6 @@
 title: "Operating systems"
 ---
 
-# Operating systems
-
 What differs between macOS, Linux and Windows when you build and run
 `seleniumbase-rs`. The CI workflow (`.github/workflows/ci.yml`) is set up to
 build and test on all three, but has not been able to run yet; day-to-day

@@ -2,8 +2,6 @@
 title: "CDP Mode Guide"
 ---
 
-# CDP Mode Guide
-
 CDP mode lets you control the browser through the Chrome DevTools Protocol
 (CDP). It is useful when WebDriver is too high-level, when a site detects
 WebDriver traffic, or when you need to manipulate network behavior, cache,

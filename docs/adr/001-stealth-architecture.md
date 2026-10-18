@@ -2,8 +2,6 @@
 title: "ADR 001: Stealth and Fingerprinting Architecture"
 ---
 
-# ADR 001: Stealth and Fingerprinting Architecture
-
 ## Status
 Accepted
 

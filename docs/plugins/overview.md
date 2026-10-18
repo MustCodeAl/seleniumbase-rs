@@ -2,8 +2,6 @@
 title: "Plugins"
 ---
 
-# seleniumbase-rs plugins
-
 <Badge color="orange">Early</Badge> <Badge color="blue">Feature: plugins</Badge>
 
 Plugins for [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs): Rust

@@ -2,8 +2,6 @@
 title: "Binary Patching"
 ---
 
-# Binary Patching
-
 Chromedriver and similar Chromium drivers embed static signatures that bot
 detection scripts can read at runtime. The most famous are the `cdc_` variables
 and quoted `$cdc_` strings that the driver injects into every page. The

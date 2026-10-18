@@ -2,8 +2,6 @@
 title: "Interactive Tours Guide"
 ---
 
-# Interactive Tours Guide
-
 Create guided product tours directly from your tests. Tours are rendered as HTML
 overlays that walk the user through elements. The exported files are standalone
 and can be shared or embedded in test reports.

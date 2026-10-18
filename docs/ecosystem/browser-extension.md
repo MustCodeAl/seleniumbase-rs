@@ -2,8 +2,6 @@
 title: "Browser Extension"
 ---
 
-# seleniumbase-rs companion (browser extension)
-
 Browser extensions for [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs), the Rust port of
 SeleniumBase. One source tree builds Manifest V3 extensions for Chrome (also Edge and other Chromium
 browsers) and Firefox.

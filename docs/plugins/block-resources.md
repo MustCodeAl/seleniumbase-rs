@@ -2,8 +2,6 @@
 title: "block-resources Plugin"
 ---
 
-# block-resources
-
 A seleniumbase-rs plugin that stops pages from loading some resources.
 
 Blocking images, fonts or media makes pages load faster and use less data in

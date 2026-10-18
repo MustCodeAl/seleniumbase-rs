@@ -2,8 +2,6 @@
 title: "MasterQA Guide"
 ---
 
-# MasterQA Guide
-
 MasterQA is a hybrid testing workflow that mixes automated navigation with
 manual verification steps. It is useful when some checks require human judgment
 or sign-off, but the setup and navigation can still be scripted.

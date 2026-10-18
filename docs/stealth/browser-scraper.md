@@ -2,8 +2,6 @@
 title: "BrowserScraper"
 ---
 
-# BrowserScraper
-
 `scrape::runtime::browser_scraper::BrowserScraper` drives one real Chrome through
 the pure CDP engine.
 

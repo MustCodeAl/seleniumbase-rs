@@ -2,8 +2,6 @@
 title: "Browser Plugins"
 ---
 
-# Browser Plugins
-
 A browser plugin is a Rust crate that changes how a browser starts and what
 every tab gets: block images, add a script to every page, set a preference,
 load an extension, route through a proxy. You add one to a `PluginSet`, give the

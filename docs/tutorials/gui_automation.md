@@ -2,8 +2,6 @@
 title: "GUI Automation Guide"
 ---
 
-# GUI Automation Guide
-
 Some scenarios require controlling the operating system's mouse and keyboard
 instead of the browser. SeleniumBase for Rust exposes GUI automation helpers via
 `enigo`. Use these helpers only when WebDriver cannot reach the target, because

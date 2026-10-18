@@ -2,8 +2,6 @@
 title: "StealthSession"
 ---
 
-# StealthSession
-
 `mimic::stealth_session::StealthSession` joins the pieces. It presents one
 `StealthIdentity` (the fingerprint, the measured browser it belongs to, the
 cookies it earned and the egress they were earned through) in one of two modes

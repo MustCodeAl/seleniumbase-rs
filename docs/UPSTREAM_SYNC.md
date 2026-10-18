@@ -2,8 +2,6 @@
 title: "Syncing with upstream SeleniumBase"
 ---
 
-# Syncing with upstream SeleniumBase
-
 This crate follows the Python [SeleniumBase](https://github.com/seleniumbase/SeleniumBase)
 and [seleniumbase-mcp](https://github.com/seleniumbase/seleniumbase-mcp)
 releases. Keeping up is a short, mechanical loop, because the public API of

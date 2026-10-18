@@ -2,8 +2,6 @@
 title: "Runnable Examples"
 ---
 
-# Runnable examples
-
 Five small programs in `examples/` run the layers on your own machine. None of them
 reaches the outside network or targets a third-party site, and none tries to pass a
 real detection service: each one needs nothing, or starts its own site on

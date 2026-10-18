@@ -2,8 +2,6 @@
 title: "Migrate Puppeteer Tests"
 ---
 
-# Migrate Puppeteer Tests
-
 `sbrs import-puppeteer` converts Puppeteer code into Rust tests for the
 [pure CDP engine](/tutorials/pure_cdp). It reads JavaScript and TypeScript:
 

@@ -2,8 +2,6 @@
 title: "Undetected (UC) Mode Guide"
 ---
 
-# Undetected (UC) Mode Guide
-
 Undetected (UC) mode reduces the fingerprints that websites use to identify
 automated browsers. It combines Chromium launch flags, JavaScript evasions,
 and optional binary patching to make the browser look more like a regular user

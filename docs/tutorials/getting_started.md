@@ -2,8 +2,6 @@
 title: "Getting Started with SeleniumBase for Rust"
 ---
 
-# Getting Started with SeleniumBase for Rust
-
 This guide walks you through your first browser automation test with
 `seleniumbase-rs`. By the end you will have a working Rust project that opens a
 browser, interacts with a page, asserts on the result, and cleans up.

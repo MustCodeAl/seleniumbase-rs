@@ -2,8 +2,6 @@
 title: "Benchmarks"
 ---
 
-# Benchmarks
-
 What the library costs, measured, and what Chrome costs instead. For advice on
 making your own tests faster, see [Performance](/performance). Every figure
 here was measured on one machine (Apple M1, 8 cores, macOS 27, Chrome 155,

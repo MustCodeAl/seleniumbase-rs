@@ -2,8 +2,6 @@
 title: "Reliability"
 ---
 
-# Reliability
-
 Reliable browser automation requires more than a good API. Tests must clean up
 after themselves, wait for the right conditions, and fail loudly when something
 is wrong instead of silently continuing. Rust's type system and the design of

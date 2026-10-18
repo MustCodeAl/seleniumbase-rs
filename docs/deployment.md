@@ -2,8 +2,6 @@
 title: "Deployment"
 ---
 
-# Deployment
-
 How to run `seleniumbase-rs` somewhere other than your laptop: a container, a CI
 job, a Selenium Grid, or as an MCP server for an AI agent. To build the binaries
 first, see [Building and installing](/building).

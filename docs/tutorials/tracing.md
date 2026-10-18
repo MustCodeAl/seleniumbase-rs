@@ -2,8 +2,6 @@
 title: "Tracing and Logging"
 ---
 
-# Tracing and Logging
-
 `seleniumbase-rs` uses the `tracing` ecosystem for structured logging. Both the
 `sbrs` CLI and the `sbrs-mcp` server initialize a default
 `tracing_subscriber::fmt()` subscriber on startup. This page explains how to

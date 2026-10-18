@@ -2,8 +2,6 @@
 title: "Playwright Mode"
 ---
 
-# Playwright Mode
-
 Playwright Mode uses [`rustwright`](https://github.com/Skyvern-AI/rustwright), a
 native Rust CDP engine, to drive Chromium with a Playwright-compatible API. It
 can bypass bot-detection systems that target WebDriver fingerprints without

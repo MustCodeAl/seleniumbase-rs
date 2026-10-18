@@ -2,8 +2,6 @@
 title: "Plugin Architecture"
 ---
 
-# Plugin architecture
-
 This page summarizes the design of the plugin platform, version 2. The full
 record, with the checks behind each decision, is
 [ADR 0001 in the plugins repository](https://github.com/MustCodeAl/seleniumbase-rs-plugins/blob/main/docs/adr/0001-plugin-architecture.md)

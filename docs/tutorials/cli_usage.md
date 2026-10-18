@@ -2,8 +2,6 @@
 title: "CLI Usage (sbrs)"
 ---
 
-# CLI Usage (`sbrs`)
-
 The `sbrs` binary provides quick commands for common tasks: opening pages,
 running smoke tests, executing CDP commands, patching binaries, generating
 files, and more. This page covers the most common workflows.

@@ -2,8 +2,6 @@
 title: "Cookies, Identity and Challenges"
 ---
 
-# Cookies, Identity and Challenges
-
 ## The cookie jar
 
 `scrape::jar::store::CookieJar` is an RFC 6265 cookie store with the RFC 6265bis

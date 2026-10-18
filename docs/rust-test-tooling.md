@@ -2,8 +2,6 @@
 title: "Writing Browser Tests"
 ---
 
-# Writing Browser Tests
-
 `seleniumbase-rs` does not ship its own test runner. Instead, it integrates with
 standard Rust tooling: `#[tokio::test]`, `cargo test`, `cargo nextest run`, and
 the `run_browser_test` lifecycle helper. This keeps tests idiomatic and lets you

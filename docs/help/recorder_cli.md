@@ -2,8 +2,6 @@
 title: "Recorder CLI"
 ---
 
-# Recorder CLI
-
 There are three ways to produce something you can replay. `sbrs record` watches
 you use a real browser and saves what you did; `sbrs replay` plays that file
 back. The `BaseCase` recorder is code-driven: every action you perform through

@@ -2,8 +2,6 @@
 title: "Docker Guide"
 ---
 
-# Docker Guide
-
 Run SeleniumBase for Rust tests inside a container for reproducible CI/CD builds.
 This guide covers building the image, running the CLI, using Docker Compose, and
 configuring CI.

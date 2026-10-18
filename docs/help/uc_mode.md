@@ -2,8 +2,6 @@
 title: "UC Mode (Undetected Chromedriver)"
 ---
 
-# UC Mode (Undetected Chromedriver)
-
 UC Mode launches Chromium with stealth flags and applies JavaScript evasions that
 mask `navigator.webdriver`, plugins, WebGL, and other fingerprints. Removing the
 automation markers from the chromedriver binary itself is a separate step that

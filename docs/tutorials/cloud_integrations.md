@@ -2,8 +2,6 @@
 title: "Cloud Integrations Tutorial"
 ---
 
-# Cloud Integrations Tutorial
-
 SeleniumBase for Rust can upload test artifacts (screenshots, logs, PDFs) to
 Amazon S3, Azure Blob Storage, and Google Cloud Storage. Each backend is behind
 an optional Cargo feature so the default build stays lightweight.

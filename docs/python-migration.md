@@ -2,8 +2,6 @@
 title: "Migrate Python Tests"
 ---
 
-# Migrate Python Tests
-
 Moving an existing Python SeleniumBase or Selenium WebDriver test suite to Rust
 is rarely a pure translation exercise. Tests often contain dynamic expressions,
 custom helpers, fixtures, and framework plugins that cannot be converted

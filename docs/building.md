@@ -2,8 +2,6 @@
 title: "Building and installing"
 ---
 
-# Building and installing
-
 How to build `seleniumbase-rs` from source, which features cost what, and how to
 run it in a container. For writing and running tests with it, start with
 [Getting started](/tutorials/getting_started); for working on the crate, see

@@ -2,8 +2,6 @@
 title: "TLS Server and MitmProxy"
 ---
 
-# TLS Server and MitmProxy
-
 ## The ephemeral-CA TLS server
 
 `mimic::tls_server` is the building block under `capture_h2` and under

@@ -2,8 +2,6 @@
 title: "shield Plugin"
 ---
 
-# shield
-
 <Badge color="orange">Early</Badge> <Badge color="blue">Feature: plugin-shield</Badge>
 
 Privacy hardening for the Chromium browser that seleniumbase-rs starts. It
