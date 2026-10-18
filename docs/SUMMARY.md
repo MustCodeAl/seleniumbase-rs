@@ -130,6 +130,7 @@ hidden: true
   - [API parity table](parity.md)
   - [Stealth and impersonation plan](design/stealth_parity_plan.md)
   - [Fingerprint API v2](design/fingerprint-api-v2.md)
+  - [Fingerprint capture, export and import](design/fingerprint-capture.md)
   - [The sbrs CLI on usage](design/usage-cli.md)
   - [The dev MCP server](design/mcp-dev-tools.md)
 - [ABI & API Stability](ABI_API.md)

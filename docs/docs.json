@@ -454,6 +454,7 @@
             "icon": "compass-drafting",
             "pages": [
               "design/fingerprint-api-v2",
+              "design/fingerprint-capture",
               "design/usage-cli",
               "design/mcp-dev-tools",
               "design/stealth_parity_plan"
