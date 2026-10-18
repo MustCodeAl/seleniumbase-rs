@@ -47,6 +47,8 @@ use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
 mod fig;
+#[cfg(test)]
+mod reference;
 #[cfg(feature = "turso")]
 mod report;
 mod strict;
@@ -3867,63 +3869,12 @@ mod usage_spec_tests {
         assert_generated("docs/completions/fig-sbrs.ts", &fig::spec(Cli::spec()));
     }
 
-    /// `docs/help/cli_reference.md` is the usage spec rendered as Markdown by the
-    /// renderer of the usage tool, so the reference lists what the parser accepts.
+    /// `docs/help/cli_reference.md` is the usage spec rendered as a page of the Docs7
+    /// site (`reference.rs`), so the reference lists what the parser accepts.
     #[cfg(not(feature = "turso"))]
     #[test]
     fn the_committed_cli_reference_matches_the_cli() {
-        use usage_lib::docs::markdown::MarkdownRenderer;
-
         let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
-        let reference = MarkdownRenderer::new(spec)
-            .with_html_encode(true)
-            .render_spec()
-            .expect("the reference renders");
-        let reference = escape_mdx_braces(&reference);
-        let page = format!(
-            "---\ntitle: \"CLI reference\"\n---\n\n\
-             *Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by \
-             `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`. \
-             Do not edit it by hand.*\n\n{reference}"
-        );
-        assert_generated("docs/help/cli_reference.md", &page);
-    }
-
-    /// Braces outside code are JavaScript expressions in MDX (the Docs7 site), so a
-    /// help text such as `{browser} {major}` would fail there; `\{` is a literal brace
-    /// in MDX and in CommonMark (mdBook) alike. Code spans and fenced blocks keep theirs.
-    fn escape_mdx_braces(markdown: &str) -> String {
-        let mut out = String::with_capacity(markdown.len());
-        let mut in_fence = false;
-        for line in markdown.split_inclusive('\n') {
-            if line.trim_start().starts_with("```") {
-                in_fence = !in_fence;
-                out.push_str(line);
-                continue;
-            }
-            if in_fence {
-                out.push_str(line);
-                continue;
-            }
-            let mut in_code = false;
-            for ch in line.chars() {
-                match ch {
-                    '`' => in_code = !in_code,
-                    '{' | '}' if !in_code => out.push('\\'),
-                    _ => {}
-                }
-                out.push(ch);
-            }
-        }
-        out
-    }
-
-    #[test]
-    fn braces_outside_code_are_escaped_for_mdx() {
-        let text = "placeholders {browser}, {{ and }}\n`{kept}` and\n```\n{fenced}\n```\n";
-        assert_eq!(
-            escape_mdx_braces(text),
-            "placeholders \\{browser\\}, \\{\\{ and \\}\\}\n`{kept}` and\n```\n{fenced}\n```\n"
-        );
+        assert_generated("docs/help/cli_reference.md", &reference::render(&spec));
     }
 }
