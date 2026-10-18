@@ -26,7 +26,7 @@ Enable it in `Cargo.toml` or on the command line:
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { version = "0.1", features = ["playwright"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["playwright"] }
 ```
 
 ```bash Command line

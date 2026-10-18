@@ -300,7 +300,7 @@ want them:
 <CodeGroup>
 
 ```toml Cargo.toml
-seleniumbase-rs = { version = "0.1", features = ["gui", "tui"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["gui", "tui"] }
 ```
 
 ```bash Commands

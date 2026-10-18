@@ -17,7 +17,7 @@ X11 on Linux:
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { version = "0.1", features = ["gui"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["gui"] }
 ```
 
 ```bash Example

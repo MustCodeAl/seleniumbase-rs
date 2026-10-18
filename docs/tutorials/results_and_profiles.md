@@ -18,7 +18,7 @@ already covers.
 
 ```toml
 [dependencies]
-seleniumbase-rs = { version = "0.1", features = ["turso"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["turso"] }
 ```
 
 <Info>

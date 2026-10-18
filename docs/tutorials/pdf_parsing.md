@@ -10,7 +10,7 @@ printable documents.
 
 Printing a page to PDF is always available. Reading the text of a PDF needs the
 `pdf` Cargo feature, which pulls in the `pdf-extract` parser (about 34 crates):
-`seleniumbase-rs = { version = "0.4", features = ["pdf"] }`. The CLI package
+`seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["pdf"] }`. The CLI package
 `seleniumbase-rs-cli` has it on by default
 (`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli`).
 Built with `--no-default-features`, `sbrs pdf-text` and `sbrs assert-pdf-text`

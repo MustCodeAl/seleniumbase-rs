@@ -29,7 +29,7 @@ Add the features you need, in `Cargo.toml` or on the command line:
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { version = "0.1", features = ["s3", "azure", "gcp"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["s3", "azure", "gcp"] }
 ```
 
 ```bash Command line

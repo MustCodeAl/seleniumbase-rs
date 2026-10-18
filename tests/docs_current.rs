@@ -45,6 +45,11 @@ const GONE: &[(&str, &str)] = &[
     // The Playwright feature is `playwright` (the dependency is still rustwright).
     ("--features rustwright", "--features playwright"),
     ("features = [\"rustwright\"", "features = [\"playwright\"]"),
+    // The crate is not on crates.io: it is installed from git.
+    (
+        "seleniumbase-rs = { version",
+        "seleniumbase-rs = { git = \"https://github.com/MustCodeAl/seleniumbase-rs\" }",
+    ),
     // The binaries are the package seleniumbase-rs-cli since 0.5.0.
     (
         "cargo install seleniumbase-rs --",
