@@ -222,73 +222,119 @@
       {
         "tab": "Reference",
         "icon": "code",
-        "groups": [
+        "pages": [
+          "tutorials/api_reference"
+        ],
+        "productGroups": [
           {
-            "group": "API",
-            "icon": "code",
-            "pages": [
-              "tutorials/api_reference",
-              "api/lifecycle-navigation",
-              "api/interaction",
-              "api/waits-assertions",
-              "api/queries",
-              "api/windows-frames",
-              "api/cookies-storage",
-              "api/screenshots-scripts",
-              "api/files",
-              "api/cdp-uc",
-              "api/alerts-mfa",
-              "api/tours-recorder",
-              "api/traits",
-              "api/crate-root",
-              "tutorials/remaining_helpers",
-              "ABI_API"
+            "group": "API references",
+            "products": [
+              {
+                "product": "BaseCase API",
+                "icon": "code",
+                "description": "Every BaseCase method, by topic",
+                "groups": [
+                  {
+                    "group": "BaseCase API",
+                    "pages": [
+                      "api/lifecycle-navigation",
+                      "api/interaction",
+                      "api/waits-assertions",
+                      "api/queries",
+                      "api/windows-frames",
+                      "api/cookies-storage",
+                      "api/screenshots-scripts",
+                      "api/files",
+                      "api/cdp-uc",
+                      "api/alerts-mfa",
+                      "api/tours-recorder",
+                      "api/traits",
+                      "api/crate-root",
+                      "tutorials/remaining_helpers",
+                      "ABI_API"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Tauri plugin API",
+                "icon": "window-maximize",
+                "description": "The plugin's WebDriver endpoint",
+                "groups": [
+                  {
+                    "group": "Tauri plugin API",
+                    "icon": "code",
+                    "pages": [
+                      "ecosystem/tauri-api/overview",
+                      "ecosystem/tauri-api/status",
+                      "ecosystem/tauri-api/sessions",
+                      "ecosystem/tauri-api/timeouts",
+                      "ecosystem/tauri-api/navigation",
+                      "ecosystem/tauri-api/window",
+                      "ecosystem/tauri-api/frames",
+                      "ecosystem/tauri-api/elements",
+                      "ecosystem/tauri-api/element-state",
+                      "ecosystem/tauri-api/element-interaction",
+                      "ecosystem/tauri-api/scripts",
+                      "ecosystem/tauri-api/actions",
+                      "ecosystem/tauri-api/alerts",
+                      "ecosystem/tauri-api/screenshots"
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
-            "group": "Tauri plugin API",
-            "icon": "code",
-            "pages": [
-              "ecosystem/tauri-api/overview",
-              "ecosystem/tauri-api/status",
-              "ecosystem/tauri-api/sessions",
-              "ecosystem/tauri-api/timeouts",
-              "ecosystem/tauri-api/navigation",
-              "ecosystem/tauri-api/window",
-              "ecosystem/tauri-api/frames",
-              "ecosystem/tauri-api/elements",
-              "ecosystem/tauri-api/element-state",
-              "ecosystem/tauri-api/element-interaction",
-              "ecosystem/tauri-api/scripts",
-              "ecosystem/tauri-api/actions",
-              "ecosystem/tauri-api/alerts",
-              "ecosystem/tauri-api/screenshots"
-            ]
-          },
-          {
-            "group": "Python parity",
-            "icon": "scale-balanced",
-            "pages": [
-              "parity"
-            ]
-          },
-          {
-            "group": "Why Rust?",
-            "icon": "gauge-high",
-            "pages": [
-              "why-rust",
-              "comparison",
-              "performance",
-              "benchmarks",
-              "reliability",
-              "security"
-            ]
-          },
-          {
-            "group": "Releases",
-            "icon": "tag",
-            "pages": [
-              "changelog"
+            "group": "About the project",
+            "products": [
+              {
+                "product": "Python parity",
+                "icon": "scale-balanced",
+                "description": "The status of every Python SeleniumBase API",
+                "groups": [
+                  {
+                    "group": "Python parity",
+                    "icon": "scale-balanced",
+                    "pages": [
+                      "parity"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Why Rust?",
+                "icon": "gauge-high",
+                "description": "Security, reliability, performance and benchmarks",
+                "groups": [
+                  {
+                    "group": "Why Rust?",
+                    "icon": "gauge-high",
+                    "pages": [
+                      "why-rust",
+                      "comparison",
+                      "performance",
+                      "benchmarks",
+                      "reliability",
+                      "security"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Releases",
+                "icon": "tag",
+                "description": "The changelog",
+                "groups": [
+                  {
+                    "group": "Releases",
+                    "icon": "tag",
+                    "pages": [
+                      "changelog"
+                    ]
+                  }
+                ]
+              }
             ]
           }
         ]
