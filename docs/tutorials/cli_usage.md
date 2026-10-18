@@ -618,6 +618,10 @@ and Amazon Q read Fig completion specs
 ./target/debug/sbrs completions fig > sbrs.ts
 ```
 
+The spec is not in withfig/autocomplete yet, so these tools do not know `sbrs`
+until it is. How the repository's copy is made and how to submit it is in
+[Submit the Fig spec](/completions/README).
+
 **Warp Workflows:** the repository has ready-made `sbrs` commands in
 `.warp/workflows/` (smoke test, install a driver, doctor, explain the prompt
 segment, record, import Playwright or Puppeteer tests, create a test folder). Warp shows them in the
