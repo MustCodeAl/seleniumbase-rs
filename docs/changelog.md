@@ -35,6 +35,25 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
 
 ### Added
 
+- **`sbrs-mcp install CLIENT...`, `sbrs-mcp uninstall CLIENT...` and `sbrs-mcp clients`**
+  register the server with MCP clients, remove the registration, and list the clients
+  with where each keeps its config and whether its config and program were found.
+  One install registers two servers, so an assistant gets the browser and the
+  development tools at once: the browser server as `seleniumbase` (`--server cdp`, the
+  default, `driver` or `sb`) and the development server as `seleniumbase-dev`
+  (`--server dev`, no browser). `--name` renames them (`NAME`, `NAME-dev`), `--only
+  browser|dev` registers just one, `--output-dir` sets `SB_MCP_OUTPUT_DIR` (default:
+  `sbrs-mcp` in your data folder), `--plugin` and `--plugin-opt` go to the browser
+  server's arguments, `--scope project` writes the client's file in the current folder,
+  `--print` shows what would be written or run, and `--force` replaces a different entry
+  of the same name (without it the entry is left alone: exit status 2). The command
+  registered is the absolute path of the running binary. Clients: `claude-code` (through
+  `claude mcp add-json`), `claude-desktop`, `codex` (through `codex mcp add`, else
+  `config.toml` edited with `toml_edit`), `cursor`, `gemini-cli`, `opencode`, `vscode` and
+  `zed`. A config file is backed up to `FILE.bak-sbrs-mcp`, changed only in the entries
+  concerned and replaced atomically, and a file with comments is not rewritten (the
+  snippet to add by hand is printed). Running `sbrs-mcp` with no command still serves.
+  See [the MCP server tutorial](/tutorials/mcp_server#install-into-a-client).
 - **A fourth MCP server, `dev`** (`sbrs-mcp --server dev`, `mcp::Profile::Dev`,
   `mcp::dev::host`). It starts no browser and helps with developing with the
   library, using the `sbrs` command line and diagnosing problems, in twelve tools.
