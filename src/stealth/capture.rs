@@ -82,6 +82,11 @@ pub fn capture_async_script() -> String {
     )
 }
 
+/// The time to record for a capture taken now: RFC 3339, UTC, whole seconds.
+pub(crate) fn timestamp() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
 /// Where and when a capture was taken.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProbeInfo {
@@ -802,6 +807,9 @@ mod tests {
     const CHROME_INSECURE: &str =
         include_str!("../../tests/fixtures/fingerprint/probe_chrome_insecure.json");
     const SAFARI_IOS: &str = include_str!("../../tests/fixtures/fingerprint/probe_safari_ios.json");
+    /// Recorded by `tests/sb_cdp_capture_chrome.rs` from a headless Chrome 155 on a Mac.
+    const REAL_HEADLESS: &str =
+        include_str!("../../tests/fixtures/fingerprint/probe_chrome_real_headless.json");
 
     const AT: &str = "2026-10-18T12:00:00Z";
 
@@ -1013,6 +1021,33 @@ mod tests {
         // The locale is English, the zone German: a real person's browser can be.
         assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
         assert!(report.warnings[0].contains("Europe/Berlin"));
+    }
+
+    #[test]
+    fn the_readings_recorded_from_a_real_headless_chrome_map_to_a_coherent_fingerprint() {
+        let captured = capture(REAL_HEADLESS);
+        let fp = &captured.fingerprint;
+
+        assert!(fp.validate().is_coherent(), "{:?}", fp.validate().errors);
+        assert_eq!(fp.core_version(), Some(155));
+        assert_eq!(fp.os_type(), OsType::Macos);
+        assert!(fp.user_agent().as_str().is_some_and(|ua| ua.contains("HeadlessChrome/155")));
+        assert_eq!(captured.probe.browser_version.as_deref(), Some("155.0.8059.85"));
+        let hints = fp.client_hints().value().expect("client hints");
+        assert_eq!(hints.brands[0].brand, "Google Chrome");
+        assert_eq!(hints.platform_version, "27.0.1");
+        let battery = fp.battery().value().expect("battery");
+        assert!(!battery.charging && battery.charging_time.is_infinite());
+        assert!((battery.discharging_time - 3660.0).abs() < f64::EPSILON);
+        assert_eq!(fp.speech_voices().value().map(Vec::len), Some(19));
+        assert_eq!(fp.accept_languages().as_str(), Some("en-US,en;q=0.9"));
+        // A headless Chrome says so, and is automated.
+        assert_eq!(
+            captured.unmapped["headless_markers"],
+            json!(["user_agent_says_headless", "navigator_webdriver_true"])
+        );
+        assert_eq!(captured.unmapped["webdriver"], json!(true));
+        assert!(captured.unanswered().is_empty(), "{:?}", captured.unanswered());
     }
 
     #[test]

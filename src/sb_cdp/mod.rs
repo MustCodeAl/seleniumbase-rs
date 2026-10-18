@@ -61,6 +61,7 @@
 
 mod browser;
 mod captcha;
+mod capture;
 mod client;
 mod context;
 mod download;

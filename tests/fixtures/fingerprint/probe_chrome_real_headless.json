@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "url": "http://127.0.0.1:62914/",
+  "secureContext": true,
+  "navigator": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "platform": "MacIntel",
+    "language": "en-US",
+    "languages": [
+      "en-US",
+      "en"
+    ],
+    "hardwareConcurrency": 8,
+    "deviceMemory": 8,
+    "maxTouchPoints": 0,
+    "vendor": "Google Inc.",
+    "productSub": "20030107",
+    "appVersion": "5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+    "oscpu": null,
+    "buildID": null,
+    "webdriver": true,
+    "pluginsLength": 5,
+    "mimeTypesLength": 2,
+    "cookieEnabled": true,
+    "doNotTrack": null,
+    "pdfViewerEnabled": true
+  },
+  "userAgentData": {
+    "supported": true,
+    "brands": [
+      {
+        "brand": "Google Chrome",
+        "version": "155"
+      },
+      {
+        "brand": "Chromium",
+        "version": "155"
+      },
+      {
+        "brand": "Not(A:Brand",
+        "version": "24"
+      }
+    ],
+    "mobile": false,
+    "platform": "macOS",
+    "architecture": "arm",
+    "bitness": "64",
+    "model": "",
+    "platformVersion": "27.0.1",
+    "uaFullVersion": "155.0.8059.85",
+    "fullVersionList": [
+      {
+        "brand": "Google Chrome",
+        "version": "155.0.8059.85"
+      },
+      {
+        "brand": "Chromium",
+        "version": "155.0.8059.85"
+      },
+      {
+        "brand": "Not(A:Brand",
+        "version": "24.0.0.0"
+      }
+    ],
+    "wow64": false,
+    "formFactors": [
+      "Desktop"
+    ]
+  },
+  "screen": {
+    "width": 800,
+    "height": 600,
+    "availWidth": 800,
+    "availHeight": 600,
+    "colorDepth": 24,
+    "pixelDepth": 24,
+    "devicePixelRatio": 1,
+    "orientation": {
+      "type": "landscape-primary",
+      "angle": 0
+    }
+  },
+  "window": {
+    "innerWidth": 756,
+    "innerHeight": 469,
+    "outerWidth": 756,
+    "outerHeight": 556,
+    "screenX": 22,
+    "screenY": 22
+  },
+  "intl": {
+    "timeZone": "America/Chicago",
+    "locale": "en-US",
+    "offsetMinutes": 300
+  },
+  "webgl": {
+    "supported": true,
+    "vendor": "WebKit",
+    "renderer": "WebKit WebGL",
+    "version": "WebGL 1.0 (OpenGL ES 2.0 Chromium)",
+    "shadingLanguageVersion": "WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)",
+    "unmaskedVendor": "Google Inc. (Apple)",
+    "unmaskedRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  "mediaDevices": {
+    "supported": true,
+    "audioInputs": 1,
+    "audioOutputs": 1,
+    "videoInputs": 1
+  },
+  "battery": {
+    "supported": true,
+    "charging": false,
+    "level": 0.56,
+    "chargingTime": null,
+    "dischargingTime": 3660
+  },
+  "connection": {
+    "supported": true,
+    "effectiveType": "4g",
+    "rtt": 100,
+    "downlink": 1.45,
+    "saveData": false,
+    "type": null
+  },
+  "speech": {
+    "supported": true,
+    "voices": [
+      {
+        "name": "Google Deutsch",
+        "lang": "de-DE",
+        "default": true,
+        "localService": false,
+        "voiceURI": "Google Deutsch"
+      },
+      {
+        "name": "Google US English",
+        "lang": "en-US",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google US English"
+      },
+      {
+        "name": "Google UK English Female",
+        "lang": "en-GB",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google UK English Female"
+      },
+      {
+        "name": "Google UK English Male",
+        "lang": "en-GB",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google UK English Male"
+      },
+      {
+        "name": "Google español",
+        "lang": "es-ES",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google español"
+      },
+      {
+        "name": "Google español de Estados Unidos",
+        "lang": "es-US",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google español de Estados Unidos"
+      },
+      {
+        "name": "Google français",
+        "lang": "fr-FR",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google français"
+      },
+      {
+        "name": "Google हिन्दी",
+        "lang": "hi-IN",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google हिन्दी"
+      },
+      {
+        "name": "Google Bahasa Indonesia",
+        "lang": "id-ID",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google Bahasa Indonesia"
+      },
+      {
+        "name": "Google italiano",
+        "lang": "it-IT",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google italiano"
+      },
+      {
+        "name": "Google 日本語",
+        "lang": "ja-JP",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google 日本語"
+      },
+      {
+        "name": "Google 한국의",
+        "lang": "ko-KR",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google 한국의"
+      },
+      {
+        "name": "Google Nederlands",
+        "lang": "nl-NL",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google Nederlands"
+      },
+      {
+        "name": "Google polski",
+        "lang": "pl-PL",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google polski"
+      },
+      {
+        "name": "Google português do Brasil",
+        "lang": "pt-BR",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google português do Brasil"
+      },
+      {
+        "name": "Google русский",
+        "lang": "ru-RU",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google русский"
+      },
+      {
+        "name": "Google 普通话（中国大陆）",
+        "lang": "zh-CN",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google 普通话（中国大陆）"
+      },
+      {
+        "name": "Google 粤語（香港）",
+        "lang": "zh-HK",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google 粤語（香港）"
+      },
+      {
+        "name": "Google 國語（臺灣）",
+        "lang": "zh-TW",
+        "default": false,
+        "localService": false,
+        "voiceURI": "Google 國語（臺灣）"
+      }
+    ]
+  },
+  "bluetooth": {
+    "supported": true,
+    "available": true
+  },
+  "permissions": {
+    "geolocation": "prompt",
+    "notifications": "prompt",
+    "camera": "prompt",
+    "microphone": "prompt",
+    "midi": "prompt",
+    "clipboard-read": "prompt",
+    "clipboard-write": "granted",
+    "persistent-storage": "prompt",
+    "background-sync": "granted",
+    "accelerometer": "granted",
+    "gyroscope": "granted",
+    "magnetometer": "granted"
+  },
+  "canvasHash": "61afedd7",
+  "audioHash": "124.0434748024636",
+  "headless": [
+    "user_agent_says_headless",
+    "navigator_webdriver_true"
+  ],
+  "errors": {}
+}
