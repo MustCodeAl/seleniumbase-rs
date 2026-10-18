@@ -224,7 +224,9 @@ The default is `--format '{browser} {major} {driver}'`. `{{` and `}}` print a
 brace. An unknown placeholder is refused with exit status 2, so a typo shows
 when you set the prompt up, not as a segment that never appears.
 
-### Bash
+<Tabs>
+
+<Tab title="Bash">
 
 ```bash
 # ~/.bashrc
@@ -234,7 +236,9 @@ PS1='$(sbrs prompt --format "[{browser} {major} {driver}] " 2>/dev/null)'"$PS1"
 The single quotes keep `$(...)` for later: Bash runs it each time it draws the
 prompt (the `promptvars` option, on by default).
 
-### Zsh
+</Tab>
+
+<Tab title="Zsh">
 
 ```zsh
 # ~/.zshrc
@@ -246,7 +250,9 @@ For the right-hand side instead, set `RPROMPT='$(sbrs prompt 2>/dev/null)'`.
 With `PROMPT_SUBST` the line goes through prompt expansion, so a `%` in your own
 `--format` has to be written `%%`.
 
-### Fish
+</Tab>
+
+<Tab title="Fish">
 
 ```fish
 # ~/.config/fish/functions/fish_right_prompt.fish
@@ -258,7 +264,9 @@ end
 Fish draws the right prompt beside your own `fish_prompt` and runs the function
 every time; this file replaces a right prompt you already have.
 
-### PowerShell
+</Tab>
+
+<Tab title="PowerShell">
 
 ```powershell
 # In your profile: notepad $PROFILE
@@ -274,7 +282,9 @@ Windows PowerShell 5.1 turns `✓` into other characters; hence `--ascii`. In
 PowerShell 7 with `[Console]::OutputEncoding = [Text.Encoding]::UTF8` in the
 profile, the marks show and `--ascii` can go.
 
-### Starship
+</Tab>
+
+<Tab title="Starship">
 
 ```toml
 # ~/.config/starship.toml
@@ -294,7 +304,9 @@ out the space too when `sbrs prompt` prints nothing. The module comes where
 `$all` is in your `format` (the default), or where you put `${custom.sbrs}`.
 Starship gives a command 500 ms (`command_timeout`), far more than it needs.
 
-### Warp
+</Tab>
+
+<Tab title="Warp">
 
 Warp draws its own prompt by default (the Warp prompt, made of its context
 chips), which does not show your shell's `PS1`. To see the segment, open
@@ -307,6 +319,10 @@ in Zsh and Fish but not in Bash.
 
 The repository's Warp Workflow `.warp/workflows/sbrs-prompt.yaml` runs
 `sbrs prompt --verbose`, to see what the segment says and why.
+
+</Tab>
+
+</Tabs>
 
 ## Run your tests
 

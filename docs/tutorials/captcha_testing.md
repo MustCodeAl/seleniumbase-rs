@@ -70,7 +70,9 @@ CAPTCHA_SECRET_KEY=6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
 Every value below was compared character by character with the vendor's page on
 2026-10-15 and each page can change, so check it again before you rely on it.
 
-### Google reCAPTCHA v2 (checkbox)
+<Tabs>
+
+<Tab title="reCAPTCHA v2 (checkbox)">
 
 Source: [reCAPTCHA FAQ, "I'd like to run automated tests with reCAPTCHA"](https://developers.google.com/recaptcha/docs/faq).
 
@@ -99,7 +101,9 @@ Google Cloud's documentation, but the keys still worked when checked.
   The widget's frame has the title `reCAPTCHA` and a `src` starting with
   `https://www.google.com/recaptcha/api2/anchor`.
 
-### reCAPTCHA v3 and Enterprise
+</Tab>
+
+<Tab title="reCAPTCHA v3 and Enterprise">
 
 Google documents no test keys for v3 or for Enterprise. The FAQ above advises a
 separate key for testing environments and warns that v3 scores may be inaccurate
@@ -115,7 +119,9 @@ advice, not something the vendor documents):
 - Drive the action that makes the page ask for a token, then assert on what your
   server does with it (the page after submit), not on a token field.
 
-### hCaptcha
+</Tab>
+
+<Tab title="hCaptcha">
 
 Source: [hCaptcha, integration testing and test keys](https://docs.hcaptcha.com/#integration-testing-test-keys).
 
@@ -148,7 +154,9 @@ so every Enterprise field comes back.
   script option `recaptchacompat=off` for this
   ([configuration](https://docs.hcaptcha.com/configuration)); it was not tried.
 
-### Cloudflare Turnstile
+</Tab>
+
+<Tab title="Cloudflare Turnstile">
 
 Source: [Turnstile, test your Turnstile implementation](https://developers.cloudflare.com/turnstile/troubleshooting/testing/).
 
@@ -187,6 +195,10 @@ secret does the reverse, and the test keys work on any domain including
   up in `document.querySelectorAll("iframe")` while the widget was on screen), so
   there is no frame to switch into. The `.cf-turnstile` container is what a test
   can see.
+
+</Tab>
+
+</Tabs>
 
 ### What `siteverify` answered
 
