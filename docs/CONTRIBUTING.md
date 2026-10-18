@@ -196,7 +196,8 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 <Card title="TokenSave" icon="diagram-project" href="https://github.com/aovestdipaperino/tokensave">
 
 `brew install aovestdipaperino/tap/tokensave`, then `tokensave init` in the
-checkout; `.tokensave/` is ignored by git. A code graph of the repository
+checkout; `tokensave init` keeps `.tokensave/` out of git by adding it to
+`.git/info/exclude`. A code graph of the repository
 that an assistant queries over MCP (`tokensave serve`): symbols by name,
 callers and callees, the impact of a change, and files read by symbol. The
 assistant reads far less of the code to answer a question or make a change.
@@ -340,7 +341,7 @@ Feature flags control subscriber output:
 | Feature | Effect |
 |---|---|
 | `full-tracing` | Enables detailed span lifecycle logging. |
-| `error-backtrace` | Captures backtraces on `SeleniumBaseError`. |
+| `error-backtrace` | Declared for backtraces on `SeleniumBaseError`; no code reads it yet. |
 
 Run the CLI with tracing enabled:
 

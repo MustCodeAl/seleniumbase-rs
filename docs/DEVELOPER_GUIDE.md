@@ -350,8 +350,9 @@ some_op().sb_context("while patching chromedriver")?;
 SeleniumBaseError::download_failed(url).log();
 ```
 
-When `error-backtrace` is enabled, `SeleniumBaseError::backtrace()` captures a
-full backtrace at construction time.
+The `error-backtrace` feature is declared but no code reads it yet, so it adds
+no backtrace to `SeleniumBaseError`. For the backtrace of a panic, set
+`RUST_BACKTRACE=1`.
 
 ## Feature flags
 
@@ -368,8 +369,9 @@ contained:
 | `gcp` | off | Placeholder for Google Cloud integrations. |
 | `mcp-server` | off | Builds the `sbrs-mcp` binary using `rmcp`. |
 | `full-tracing` | off | Verbose `tracing` span events for debugging. |
-| `json-logs` | off | Structured JSON log output. |
-| `error-backtrace` | off | Backtraces attached to `SeleniumBaseError`. |
+| `error-backtrace` | off | Declared for backtraces on `SeleniumBaseError`; no code reads it yet. |
+
+JSON logs need no feature: set `SB_LOG_FORMAT=json` or call `init_tracing_json`.
 
 No feature of the library is on by default, so a library user or a headless pool
 pulls in neither the terminal UI nor the desktop automation stacks (nor any
@@ -776,7 +778,8 @@ pub async fn do_work(&self) -> crate::Result<()> {
 }
 ```
 
-Enable JSON output with the `json-logs` feature for ingestion by log analytics.
+For JSON output, for ingestion by log analytics, set `SB_LOG_FORMAT=json` or call
+`init_tracing_json`.
 
 ## Profile payload mapping
 
@@ -935,7 +938,7 @@ How to run the harnesses in `benches/`, and compare a change fairly, is in
 ## Debugging tips
 
 - Set `RUST_LOG=seleniumbase_rs=debug` to see driver launch args and CDP traffic.
-- Use `RUST_BACKTRACE=1` with the `error-backtrace` feature for full traces.
+- Use `RUST_BACKTRACE=1` for the backtrace of a panic.
 - Run `sbrs doctor` to print environment diagnostics: the `SB_*` settings, the Chrome it found, and the chromedriver it found with its version next to Chrome's.
 - Inspect generated bootstrap with `sbrs stealth-bootstrap --fingerprint ...`.
 - For CI-only failures, reproduce with `--features s3,azure,gcp,playwright,mcp-server`
