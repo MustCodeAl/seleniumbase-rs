@@ -42,7 +42,9 @@ seleniumbase-rs = { path = "../.." }
 # The command line parser: derives that generate the parser, the help, the shell
 # completions and the usage spec (`completions/sbrs.usage.kdl`) from one declaration.
 usage = { package = "usage-rs", version = "6", features = ["completions"] }
-serde_json = "1.0"
+# `preserve_order`: `sbrs-mcp install` rewrites a client's JSON config and must keep the order
+# of its keys (thirtyfour turns the feature on already).
+serde_json = { version = "1.0", features = ["preserve_order"] }
 # The same features as the library, so one build of thirtyfour serves both.
 thirtyfour = { version = "0.37", default-features = false, features = ["reqwest", "cdp"] }
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
@@ -52,6 +54,10 @@ tempfile = { version = "3.27", default-features = false }
 dirs = "7.0"
 # The warning for an invalid `SB_*` variable, written once logging works.
 tracing = "0.1"
+# `sbrs-mcp install`: edits a client's config.toml (Codex) and keeps its comments and
+# other tables, and finds the `claude`, `codex` and `code` programs on PATH.
+toml_edit = "0.25"
+which = "8.0"
 
 [features]
 # The prebuilt binaries and `cargo install` carry PDF text extraction, the MCP
