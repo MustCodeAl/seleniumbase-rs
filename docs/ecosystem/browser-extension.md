@@ -10,6 +10,9 @@ browsers) and Firefox.
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-browser-extension" />
 
+The extension is written in strict TypeScript and built with [Bun](https://bun.sh); the built `dist/` holds
+plain JavaScript for each browser.
+
 | Feature | What it does |
 | --- | --- |
 | **Recorder** | Start and stop recording from the toolbar popup (or the Chrome side panel, or the Firefox sidebar). Clicks, double clicks, typing (one step per field), selects, checkboxes, key presses (Enter, Escape, arrows), file inputs (the file name only) and, if you turn it on, scrolls become steps you can edit, reorder and delete. Export as a seleniumbase-rs **pure CDP** Rust test, a **BaseCase** Rust test, or a **Chrome DevTools Recorder** JSON file (the `@puppeteer/replay` format that `sbrs import-puppeteer` reads). |
@@ -92,6 +95,7 @@ reports: Safari has no `sidePanel` and no DevTools Recorder, and may treat optio
 ```sh
 mise run build       # or: bun run scripts/build.ts
 mise run test        # bun test: selectors, code generators, steps, manifests, build output
+bun run typecheck    # tsc --noEmit, strict, on the tooling and on the extension sources
 mise run lint        # manifest rules, then web-ext lint on both dists
 mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" below)
 ```
@@ -104,15 +108,17 @@ mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" be
       <Tree.File name="base.json" />
     </Tree.Folder>
     <Tree.Folder name="shared">
-      <Tree.File name="selectors.js" />
-      <Tree.File name="steps.js" />
+      <Tree.File name="selectors.ts" />
+      <Tree.File name="steps.ts" />
       <Tree.Folder name="codegen">
-        <Tree.File name="cdp.js" />
-        <Tree.File name="basecase.js" />
-        <Tree.File name="replay.js" />
-        <Tree.File name="index.js" />
+        <Tree.File name="cdp.ts" />
+        <Tree.File name="basecase.ts" />
+        <Tree.File name="replay.ts" />
+        <Tree.File name="common.ts" />
+        <Tree.File name="index.ts" />
       </Tree.Folder>
-      <Tree.File name="rust.js" />
+      <Tree.File name="rust.ts" />
+      <Tree.File name="guards.ts" />
     </Tree.Folder>
     <Tree.Folder name="background" />
     <Tree.Folder name="recorder" />
@@ -134,13 +140,13 @@ The same layout, with what each part is for:
 ```
 src/
   manifest/base.json     manifest keys for every browser; base.json's "chrome" and "firefox" keys are per browser
-  shared/                no browser APIs except api.js: selector generation, code generation, the step model
-    selectors.js           generateSelectors(): candidates in order of preference, each with its match count
-    steps.js               the step model, merging typing, masking secrets, sanitising incoming steps
-    codegen/               cdp.js, basecase.js, replay.js (DevTools Recorder JSON, both ways), index.js
-    rust.js                rustStr() and friends: everything recorded goes into Rust through these
-    calls.js, fingerprint.js, protocol.js, api.js, dom.js, clipboard.js, pickview.js
-  background/            the router: registerHandler(type, handler, from); store.js helpers
+  shared/                no browser APIs except api.ts: selector generation, code generation, the step model
+    selectors.ts           generateSelectors(): candidates in order of preference, each with its match count
+    steps.ts               the step model, merging typing, masking secrets, sanitising incoming steps
+    codegen/               cdp.ts, basecase.ts, replay.ts (DevTools Recorder JSON, both ways), index.ts
+    rust.ts                rustStr() and friends: everything recorded goes into Rust through these
+    calls.ts, fingerprint.ts, protocol.ts, api.ts, dom.ts, clipboard.ts, pickview.ts
+  background/            the router: registerHandler(type, handler, from); store.ts helpers
   recorder/  inspector/  devtools-recorder/    one folder per feature (see below)
   ui/                    the panel (popup, side panel, sidebar) and its views
   bridge/  converter/    placeholders: disabled features waiting for their code
@@ -152,10 +158,10 @@ e2e/                     a Rust crate that loads dist/chrome-e2e into Chrome
 **A feature is a folder with a `feature.json`.** The build finds `src/*/feature.json` (a folder with
 `"enabled": false` is skipped) and, for each browser it lists (`"browsers"`, both by default):
 
-* bundles `background` (a module) into the one background bundle, after `src/background/index.js`;
+* bundles `background` (a module) into the one background bundle, after `src/background/index.ts`;
 * bundles each file of `scripts` on its own, as a classic script, to `dist/<browser>/<feature>/<file>`
   (content scripts, page scripts, a DevTools page script);
-* bundles `panelViews` (a module that calls `registerView` from `src/ui/registry.js`) into the panel;
+* bundles `panelViews` (a module that calls `registerView` from `src/ui/registry.ts`) into the panel;
 * copies every other file (html, css, images) as it is, except `feature.json`, `*.md`, files starting with `_`;
 * merges `manifest` (and `chrome` / `firefox`) into that browser's manifest. Arrays are joined without
   repeats, objects are merged, and two different values for one key stop the build, so features cannot
@@ -168,18 +174,18 @@ open it with `ext.runtime.getURL("<feature>/page.html")`; to make it reachable f
 list in `scripts/lint.ts` on purpose. Static `host_permissions` and `content_scripts` are not used: the extension
 injects its scripts into the tab you point it at (`activeTab`), or into any tab once you allow all sites.
 
-**Messages** (`src/shared/protocol.js`): `{ v: 1, type: "<feature>/<name>", ...payload }`, answered with
+**Messages** (`src/shared/protocol.ts`): `{ v: 1, type: "<feature>/<name>", ...payload }`, answered with
 `{ ok: true, ...data }` or `{ ok: false, error }`. The panel talks to the background with
 `ext.runtime.sendMessage`; a content script does the same; the background talks to a content script with
 `ext.tabs.sendMessage`. A feature adds a type from its background module:
 
 ```js
-import { registerHandler, broadcast } from "../background/router.js";
+import { registerHandler, broadcast } from "../background/router.ts";
 registerHandler("bridge/connect", async (message, sender) => ({ connected: true }), "ui"); // "ui" | "content" | "any"
 ```
 
 The router refuses a message from the wrong kind of sender. After a change, `broadcast(MSG.STATE_CHANGED, { area })`
-makes the panel's `ctx.onChange(area, fn)` run. Anything a feature keeps goes through `src/background/store.js`
+makes the panel's `ctx.onChange(area, fn)` run. Anything a feature keeps goes through `src/background/store.ts`
 (`local` survives a restart, `session` does not), and the background must not hold state in memory: the browser
 stops and starts it.
 
@@ -199,15 +205,15 @@ To build it:
 
    ```json
    {
-     "background": "background.js",
-     "panelViews": "view.js",
+     "background": "background.ts",
+     "panelViews": "view.ts",
      "manifest": { "optional_permissions": ["nativeMessaging"] }
    }
    ```
 
-2. `background.js` registers its message types with `registerHandler` (`../background/router.js`); message type
-   names start with `bridge/` and are added to `src/shared/protocol.js`.
-3. `view.js` calls `registerView` (`../ui/registry.js`) to add a tab to the panel.
+2. `background.ts` registers its message types with `registerHandler` (`../background/router.ts`); message type
+   names start with `bridge/` and are added to `src/shared/protocol.ts`.
+3. `view.ts` calls `registerView` (`../ui/registry.ts`) to add a tab to the panel.
 4. Any permission is added to the allow list in `scripts/lint.ts` on purpose, and explained in the README.
 
 See "Layout and extension points" above for what the build does with each field.
@@ -221,7 +227,7 @@ seleniumbase-rs Rust). Nothing here yet.
 
 To build it: turn on `feature.json` (remove `"enabled": false`), put the conversion in a module under
 `src/shared/` if the recorder or the DevTools Recorder export should use it too (they already share
-`src/shared/codegen/`: a converter that produces steps — see `src/shared/steps.js` — gets all three export
+`src/shared/codegen/`: a converter that produces steps — see `src/shared/steps.ts` — gets all three export
 formats for free), add a panel tab with `"panelViews"`, and register any message types with `registerHandler`.
 
 See "Layout and extension points" above.

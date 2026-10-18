@@ -87,6 +87,8 @@ hidden: true
   - [Syncing with upstream](UPSTREAM_SYNC.md)
   - [API parity table](parity.md)
   - [Stealth and impersonation plan](design/stealth_parity_plan.md)
+  - [Fingerprint API v2](design/fingerprint-api-v2.md)
+  - [The sbrs CLI on usage](design/usage-cli.md)
 - [ABI & API Stability](ABI_API.md)
 - [Architecture Decision Records](adr/001-stealth-architecture.md)
   - [Multi-Driver & Playwright](adr/002-multi-driver-and-playwright.md)

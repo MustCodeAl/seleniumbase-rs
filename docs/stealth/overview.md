@@ -195,6 +195,26 @@ document before its scripts run. The country comes from the proxy spec, and
 lookup): language list, `Accept-Language`, time zone and a position near the city,
 derived from the fingerprint seed.
 
+A built `Fingerprint` is never changed (fingerprint API v2), so moving one to a
+locale builds the next one. `LocaleExt::localize` and `EgressLocale::localize`
+return the fingerprint in that locale (language list, `Accept-Language`, time zone
+and a position near the city, from the fingerprint's seed) and leave the one they
+were given as it was. Every other setting is kept, and a fingerprint that denies
+geolocation (`Spoof::Off`) keeps denying it.
+
+```rust
+use seleniumbase_rs::stealth::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_scrape::egress::geo::{Locale, LocaleExt};
+
+# fn demo() -> Result<(), Box<dyn std::error::Error>> {
+let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
+let german = Locale::by_tag("de-DE").ok_or("no such locale")?;
+let moved = german.localize(&fingerprint)?;
+assert_eq!(moved.timezone().as_str(), Some("Europe/Berlin"));
+# Ok(())
+# }
+```
+
 ### Profile and identity rotation
 
 `BrowserScraper::rotate_profile` draws a new fingerprint from a derived seed for

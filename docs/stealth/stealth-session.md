@@ -96,6 +96,39 @@ stateDiagram-v2
     Browser --> Http: a clearance earned (demotion, after_fetch)
 ```
 
+## What adapts, and what it presents
+
+Nothing in a session guesses. It adapts because each decision reads state that
+the earlier fetches wrote:
+
+- **Per site:** the ledger counts successes and challenges for each site. A site
+  whose history says plain requests fail is fetched in the browser first
+  (`EscalateReason::SiteNeedsBrowser`), and a blocked or rate-limited site gets a
+  cooldown, so it is not asked again until the cooldown ends.
+- **Per identity:** the identity holds the clearances it earned. A clearance that
+  ends within `clearance_margin` (120 seconds by default) sends the next fetch back
+  to the browser to renew it (`EscalateReason::ClearanceExpiring`); a valid one
+  keeps the session on plain HTTP.
+- **Per answer:** the mitigation policy reads each response. A challenge met over
+  HTTP escalates; a challenge solved in the browser demotes once the identity
+  holds the clearance (`demote_after_solve`, on by default); repeated blocks rotate
+  the egress and then the profile.
+
+`SessionPolicy` holds the four switches: `prefer` (the mode a session starts in
+and returns to, HTTP by default), `require_clearance_for_http`,
+`clearance_margin` and `demote_after_solve`.
+
+The fingerprint a session presents is drawn once from its seed:
+`Fingerprint::randomized_with_major(os, seed, major)` gives a coherent persona
+for this machine's operating system that claims the measured Chrome major, and
+it is then moved to the language and time zone of the egress country. Like every
+randomized identity it carries `StealthPolicy::balanced()`: the WebRTC leak
+policy `DisableNonProxiedUdp`, seeded canvas and audio noise, the `window.chrome`
+stubs and the headless fixes (see the
+[fingerprint tutorial](../tutorials/fingerprint_stealth.md)). The fingerprint
+only changes when you rotate the profile or the egress, or pass your own with
+`fingerprint(..)`, which must claim the measured Chrome.
+
 ## Building one
 
 `StealthSession::builder()` has a default for everything: Chrome with the
@@ -134,6 +167,45 @@ legs.
 
 On an error from a rotation, an import or a change of mode the session is as it
 was.
+
+### When to move by hand
+
+The policies move a session when a site answers with a challenge. Move it
+yourself when you know more than the answers show:
+
+- **`escalate()` before** a step that needs a real page: a login form, a page
+  that renders its content with JavaScript, a button that must be clicked. The
+  cookies HTTP collected go with it.
+- **`demote()` after** that step, once the browser holds what you came for (the
+  login cookie, a clearance): the following fetches are plain HTTP again, much
+  faster, and carry the browser's cookies.
+- Leave both alone for ordinary fetching; `fetch` escalates and demotes on its own.
+
+```rust
+use seleniumbase_rs_mimic::StealthSession;
+
+# async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
+let mut session = StealthSession::builder().build().await?;
+
+// Log in where a real browser is needed.
+session.escalate().await?;
+let page = session.page().expect("a session in browser mode has a page");
+page.goto("https://shop.example/login").await?;
+page.locator("#user").type_text("me@example.com").await?;
+page.locator("#password").type_text(password).await?;
+page.locator("button[type=submit]").click().await?;
+
+// Back to plain HTTP: the browser's cookies, the login among them, move into the
+// identity and the browser closes.
+session.demote().await?;
+for n in 1..=20 {
+    let orders = session.fetch(&format!("https://shop.example/orders?page={n}")).await?;
+    println!("page {n}: {} bytes over {:?}", orders.body.len(), orders.mode);
+}
+session.close().await?;
+# Ok(())
+# }
+```
 
 ## Errors
 

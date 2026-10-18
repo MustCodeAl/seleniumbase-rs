@@ -156,7 +156,9 @@
               "DEVELOPER_GUIDE",
               "UPSTREAM_SYNC",
               "parity",
-              "design/stealth_parity_plan"
+              "design/stealth_parity_plan",
+              "design/fingerprint-api-v2",
+              "design/usage-cli"
             ]
           },
           "ABI_API",

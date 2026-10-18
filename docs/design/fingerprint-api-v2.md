@@ -1,6 +1,10 @@
+---
+title: "Design: fingerprint API v2"
+---
+
 # Fingerprint API v2: one field per setting, intent given once
 
-Status: implemented on this branch. The fingerprint API is Rust-only (no
+Status: implemented, released in 0.5.0. The fingerprint API is Rust-only (no
 Python SeleniumBase counterpart, nothing in `parity/api.toml` changes), so this
 is a breaking change, listed in `CHANGELOG.md` with a migration snippet.
 

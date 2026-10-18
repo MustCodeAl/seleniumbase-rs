@@ -503,6 +503,10 @@ is empty.
 | `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
 | `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
 | `BrowserSession` | Owns the WebDriver session, an optional CDP client and an optional auto-started driver process. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. |
+| `RunSettings`, `PauseKind` | Run-wide behaviour, Python's `--demo`, `--slow`, `--demo-sleep`, `--message-duration`, `--skip-js-waits`, `--record-sleep` and `--visual-baseline`: built with `RunSettings::default().with_slow_mode(true)` and the other `with_*` methods, given with `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`. The default changes nothing. `pause_for(PauseKind::Full \| Short)` is the pause after an action: full when the page changed, 1/3.4 of it otherwise in demo mode. |
+| `Settings`, `SettingsOverrides` | The settings file (TOML or JSON) and the `SB_*` variables: `Settings::load()` reads both, `load_from(path)` one file; `validate()` refuses an unknown browser or mode; `to_browser_config()` makes the `BrowserConfig`. `plugins` is the `[plugins]` table (with `SB_PLUGINS`). `SettingsOverrides::apply(&mut settings)` lays command-line values over them. |
+| `DriverId` | Names one browser of a `BaseCase`: `DriverId::DEFAULT` for the one it started with, or the id `get_new_driver` returned; `index()` is its position. It stays the same browser while the case lives. |
+| `CookieExpiry` | What `load_cookies_with` does with expiries, Python's `expiry` argument: `Session` (the default, drop it), `Day` (24 hours), `Saved` (keep the saved one) or `Minutes(n)`. |
 | `run_browser_test(config, test)` | Starts a `BaseCase`, runs `test` (an async closure over `&mut BaseCase`), always calls `quit`, and returns the test's error, the cleanup error, or both. A panic in the test still closes the browser and is then raised again. A test that ends with `skip_test` counts as passed. The run settings of `config` (`with_run_settings`) go to the case first. |
 | `run_cdp_test(options, test)` | The same for the Pure CDP engine: launches a browser, runs `test` (an async closure over `&Page`) on its first tab and always closes the browser. `Plugins::run_cdp_test` adds the plugins. |
 | `run_browser_test_boxed`, `BrowserTestFuture<'a>` | Deprecated: the closure form that returns `Pin<Box<dyn Future<Output = Result<()>> + 'a>>`, from before async closures. |
@@ -545,7 +549,7 @@ tutorial is the reference for them.
 
 | Item | What it is |
 |---|---|
-| Fingerprint types | `Fingerprint`, `OsType`, `BrowserType`, `StealthFlags`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `ProxyMaskingMode`, `MaskingMode`, `NoiseMode`, `CanvasNoiseMode`, `PopupMode`, `QuicMode`, `WebRtcPolicy`, `StartupBehavior`, `HumanizeConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `CoherenceReport`. |
+| Fingerprint types | `Fingerprint` (built once with `Fingerprint::builder()`, read through accessors, changed with `to_builder()`), `FingerprintBuilder`, `FingerprintError`, `Spoof<T>` (each setting: `Natural`, `Random`, `Value(T)` or `Off`), `StealthPolicy` (how the claims are delivered; presets `default()`, `balanced()`, `native_only()`, `max()`), `Dimension`, and the value types `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `OsType`, `BrowserType`; the policy enums `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy`; `HumanizeConfig` and `CoherenceReport`. `StealthFlags` is an old name of `StealthPolicy`. |
 | Evasion providers | `default_registry()` returns an `EvasionRegistry` with every built-in provider. `session_registry(&Fingerprint)` is the registry for a pure CDP tab: it leaves out the providers named in `SESSION_OMITTED_PROVIDERS` (`"plugins"` and `"connection"`), because Chrome already answers for those itself. `EvasionProvider` is the trait for your own, `EvasionContext` the data a provider's script is built from, `EvasionConfig` its settings. |
 | Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](./binary_patching.md). |
 
@@ -568,8 +572,10 @@ The remaining public API sits in modules: `api`, `artifacts`, `behave`,
 `plugins` (test-reporting plugins), `profile_payloads`, `resources`,
 `sb_cdp` (the [pure CDP engine](./pure_cdp.md)), `stealth`, `tracing_util`,
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
-`plugin_api` (`plugins`, the browser plugin API), `storage` (`turso`) and
-`visual` (`visual`).
+`plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
+`plugin-shield`, `plugin-block-resources`, `plugin-crx` or `plugins-builtin`: the
+official plugins and their `registry()`, see [Choosing plugins](../plugins/selecting.md)),
+`storage` (`turso`) and `visual` (`visual`).
 
 ## Common error handling pattern
 
