@@ -234,9 +234,9 @@ let response = request.send().await?;
   `priority` header of the measured table for the request's `Sec-Fetch-Dest`;
   Chrome sends it on HTTP/2 only.
 - The profile carries the measured TLS without its known gaps (see
-  [Limits](limits.md#limits)) and keeps extension permutation on, as Chrome does.
+  [Limits](/stealth/limits#limits)) and keeps extension permutation on, as Chrome does.
 - Cookies, redirects, body limits and the hand-over from a browser are not part
-  of this client. That is what [`HttpSession`](http-session.md#httpsession) is for.
+  of this client. That is what [`HttpSession`](/stealth/http-session#httpsession) is for.
 
 Other ways to get a profile: `ImpersonationProfile::for_system(kind, os)`,
 `ImpersonationProfile::from_fingerprint(&fp)` (a Chromium identity that claims

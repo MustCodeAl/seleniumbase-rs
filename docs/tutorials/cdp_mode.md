@@ -225,6 +225,6 @@ Use CDP mode when:
 
 ## Related reading
 
-- [Undetected (UC) Mode](./uc_mode.md) — combining CDP with anti-detection.
-- [Fingerprint & Stealth Profiles](./fingerprint_stealth.md) — using CDP for native spoofing.
-- [Binary Patching](./binary_patching.md) — removing driver-level markers.
+- [Undetected (UC) Mode](/tutorials/uc_mode) — combining CDP with anti-detection.
+- [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) — using CDP for native spoofing.
+- [Binary Patching](/tutorials/binary_patching) — removing driver-level markers.

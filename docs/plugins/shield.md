@@ -17,7 +17,7 @@ It does **not** spoof fingerprints or hide automation. That is the job of
 ## Turn it on
 
 shield ships with seleniumbase-rs behind one cargo feature, and is switched on
-by its name. See [Choosing plugins](selecting.md) for every way to do that.
+by its name. See [Choosing plugins](/plugins/selecting) for every way to do that.
 
 ```toml
 [dependencies]

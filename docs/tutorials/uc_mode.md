@@ -165,7 +165,7 @@ if patcher.needs_patch()? {
 
 The auto-started driver is `downloaded_drivers/chromedriver` (`sbrs install`
 puts it there), so that is the file to patch. See
-[Binary Patching](./binary_patching.md) for backup, restore, and safety notes.
+[Binary Patching](/tutorials/binary_patching) for backup, restore, and safety notes.
 
 ## Engine spoofing arguments
 
@@ -249,7 +249,7 @@ patches can make debugging harder and may conflict with some CI environments.
 
 ## Related reading
 
-- [Fingerprint & Stealth Profiles](./fingerprint_stealth.md)
-- [Binary Patching](./binary_patching.md)
-- [CDP Mode](./cdp_mode.md)
-- [Pure CDP](./pure_cdp.md)
+- [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
+- [Binary Patching](/tutorials/binary_patching)
+- [CDP Mode](/tutorials/cdp_mode)
+- [Pure CDP](/tutorials/pure_cdp)

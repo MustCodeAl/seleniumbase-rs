@@ -6,7 +6,7 @@ title: "Building and installing"
 
 How to build `seleniumbase-rs` from source, which features cost what, and how to
 run it in a container. For writing and running tests with it, start with
-[Getting started](tutorials/getting_started.md); for working on the crate, see
+[Getting started](/tutorials/getting_started); for working on the crate, see
 `CONTRIBUTING.md`.
 
 ## What you need
@@ -233,7 +233,7 @@ Everything on macOS (Apple Silicon). The default build and the test features
 on Debian 12 arm64 in Docker. The default build, the test features, the
 real-browser tests and the Tauri example on Windows 11 x64. The Linux `gui` and Tauri
 package lists come from the CI configuration, which has not been able to run
-(see [Operating systems](platforms.md)).
+(see [Operating systems](/platforms)).
 
 ## Build
 
@@ -303,7 +303,7 @@ branch, so it fetches the release whose version the branch's `Cargo.toml`
 names, and that release must have its archives; and the metadata turns off the
 compile fallback, because cargo-binstall would compile from crates.io, where the
 crate is not. cargo-binstall installs no completions: write them with `sbrs
-completions <shell>` (see [the CLI page](tutorials/cli_usage.md)).
+completions <shell>` (see [the CLI page](/tutorials/cli_usage)).
 
 ### mise
 
@@ -386,11 +386,11 @@ to the library. Build the library alone, with its own defaults, with
 | `turso` | `ResultStore`, `ProfileVault`, `sbrs report` | an embedded database |
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
-| `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](tutorials/remaining_helpers.md#reading-text-from-the-screen-ocr) |
-| `visual` | `visual::VisualBaseline` and `BaseCase::assert_visual_match`: screenshots compared with a baseline by structural similarity, with a diff image on a mismatch (`image-compare`, `image` with PNG only) | pure Rust; brings `rayon`; see [Visual regression testing](tutorials/remaining_helpers.md#visual-regression-testing-pixels) |
+| `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](/tutorials/remaining_helpers#reading-text-from-the-screen-ocr) |
+| `visual` | `visual::VisualBaseline` and `BaseCase::assert_visual_match`: screenshots compared with a baseline by structural similarity, with a diff image on a mismatch (`image-compare`, `image` with PNG only) | pure Rust; brings `rayon`; see [Visual regression testing](/tutorials/remaining_helpers#visual-regression-testing-pixels) |
 
 Combine them with `--features "mcp-server tui"`. The features `scrape` and
-`impersonate` were removed in 0.3.0; see [Stealth Scraping](tutorials/stealth_scraping.md).
+`impersonate` were removed in 0.3.0; see [Stealth Scraping](/tutorials/stealth_scraping).
 
 ## Check your build
 
@@ -487,7 +487,7 @@ memory instead if you have it.
 The image sets `CI=true` and `SB_NO_SANDBOX=1` (Chromium cannot start its sandbox as
 root in a container, and the real-browser tests read `CI`) and `SB_HEADLESS=true`.
 The results, and what they showed, are under
-[Verified on Linux](platforms.md#verified-on-linux). Remove everything when you are
+[Verified on Linux](/platforms#verified-on-linux). Remove everything when you are
 done:
 
 ```bash
@@ -569,4 +569,4 @@ CI builds and tests on Linux, macOS and Windows (`.github/workflows/ci.yml`);
 development and the project's own checks run on macOS (Apple silicon). The suite
 was also run on Linux arm64 (Debian 12, Chromium 154) in a container, as above.
 Measured browser fingerprint data is macOS only for now. Per-system notes are in
-[Operating systems](platforms.md).
+[Operating systems](/platforms).

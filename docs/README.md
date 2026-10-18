@@ -153,7 +153,7 @@ Keep [CLI Usage](/tutorials/cli_usage) and
 ## Current status
 
 Every API of Python SeleniumBase 4.55.2 has a recorded status in the
-[parity table](parity.md). Development happens on
+[parity table](/parity). Development happens on
 [MustCodeAl/seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs),
 and releases are tagged there.
 
@@ -167,7 +167,7 @@ from a release tag (see [Building and installing](/building)).
 ## The ecosystem
 
 Companion projects live in their own repositories and are documented on this
-site: see the [Ecosystem](ecosystem/overview.md) page.
+site: see the [Ecosystem](/ecosystem/overview) page.
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 

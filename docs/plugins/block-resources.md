@@ -33,7 +33,7 @@ assert_eq!(plugins.names(), ["block-resources"]);
 ```
 
 Give the set to `LaunchOptionsBuilder::plugins`, as shown in the
-[Browser Plugins guide](../tutorials/plugins.md#using-a-plugin).
+[Browser Plugins guide](/tutorials/plugins#using-a-plugin).
 
 ## Constructors
 

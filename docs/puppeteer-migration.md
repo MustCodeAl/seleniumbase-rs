@@ -5,7 +5,7 @@ title: "Migrate Puppeteer Tests"
 # Migrate Puppeteer Tests
 
 `sbrs import-puppeteer` converts Puppeteer code into Rust tests for the
-[pure CDP engine](tutorials/pure_cdp.md). It reads JavaScript and TypeScript:
+[pure CDP engine](/tutorials/pure_cdp). It reads JavaScript and TypeScript:
 
 - plain scripts on `puppeteer`, `puppeteer-core` and `puppeteer-extra`
   (`const browser = await puppeteer.launch(); const page = await browser.newPage(); ...`),
@@ -17,7 +17,7 @@ title: "Migrate Puppeteer Tests"
 - the Chrome DevTools Recorder's JSON export (the `@puppeteer/replay` format).
 
 It shares its tokenizer, parser, escaping and Rust writer with
-[`sbrs import-playwright`](playwright-migration.md), so the generated file
+[`sbrs import-playwright`](/playwright-migration), so the generated file
 has the same shape: one `#[tokio::test]` per test (a script or a recording is
 one test), each launching a browser and driving its page with `Page` and
 `Locator` calls. What is not converted stays in place as a
@@ -110,7 +110,7 @@ locator, which looks the element up again each time it is used.
 | `text/...`, `::-p-text(...)` | `SelectorBuf::text(text, false)`: the innermost elements containing the text (case-insensitive here, case-sensitive in Puppeteer) |
 | `css ::-p-text(...)` (descendant) | `.locator(css).locator(SelectorBuf::text(...))` |
 | `css::-p-text(...)` (the element itself) | `.locator(css).locator(SelectorBuf::has_text(...))` |
-| `aria/Name`, `aria/Name[role="button"]`, `::-p-aria(...)` | `SelectorBuf::role(role, Some(name), true)`, the role approximation described in [Migrate Playwright Tests](playwright-migration.md#the-getbyrole-approximation) |
+| `aria/Name`, `aria/Name[role="button"]`, `::-p-aria(...)` | `SelectorBuf::role(role, Some(name), true)`, the role approximation described in [Migrate Playwright Tests](/playwright-migration#the-getbyrole-approximation) |
 | `pierce/...`, `>>>` | a `TODO`: the pure CDP engine's selectors do not enter shadow roots |
 
 ### Assertions

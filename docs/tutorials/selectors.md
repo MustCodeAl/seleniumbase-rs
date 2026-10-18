@@ -173,6 +173,6 @@ other direction is `BaseCase::convert_css_to_xpath`.
 
 ## Related reading
 
-- [Waits and Assertions](./waits_assertions.md) — how to wait for elements to be ready.
-- [Shadow DOM](./shadow_dom.md) — deeper coverage of Web Components.
-- [API Reference](./api_reference.md) — all methods that accept selectors.
+- [Waits and Assertions](/tutorials/waits_assertions) — how to wait for elements to be ready.
+- [Shadow DOM](/tutorials/shadow_dom) — deeper coverage of Web Components.
+- [API Reference](/tutorials/api_reference) — all methods that accept selectors.

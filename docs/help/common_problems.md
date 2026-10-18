@@ -125,7 +125,7 @@ cargo run --bin sbrs -- install
 
 `sbrs install` with no argument fetches chromedriver; `sbrs install geckodriver`
 and `sbrs install edgedriver` fetch the drivers of Firefox and Edge (see the
-[CLI page](../tutorials/cli_usage.md#install-a-driver)). For Chrome the
+[CLI page](/tutorials/cli_usage#install-a-driver)). For Chrome the
 auto-start does not look at your `PATH`
 or at `CHROMEDRIVER_PATH`; those are consulted only by `sbrs doctor`, which
 prints which chromedriver it finds (`CHROMEDRIVER_PATH`, then
@@ -234,7 +234,7 @@ path to the built binary. It serves the `sb` toolset unless you pass
 `--server cdp` or `--server driver`. Listing tools does not require a running
 browser, but no browser exists until the client calls the `start_browser` tool;
 any other browser tool called first returns "no browser session is running; call
-start_browser first". See the [MCP servers guide](../tutorials/mcp_server.md).
+start_browser first". See the [MCP servers guide](/tutorials/mcp_server).
 
 ## Macro not found
 
@@ -247,12 +247,12 @@ use seleniumbase_rs::{sb_open, sb_click, sb_test, selector};
 
 Action macros expand `.await` internally, so they must be called inside an
 `async` block or function. `sb_test!` generates a `#[tokio::test]` wrapper for
-you. See the [macros guide](../tutorials/macros.md).
+you. See the [macros guide](/tutorials/macros).
 
 ## Chrome is not found
 
 The library looks in the usual install locations for your system (see
-[Operating systems](../platforms.md)). If yours is elsewhere, or you want a
+[Operating systems](/platforms)). If yours is elsewhere, or you want a
 specific build, name it:
 
 ```bash
@@ -276,7 +276,7 @@ control.
 </Warning>
 
 If it crashes under load rather than at start, give the container more shared
-memory (`--shm-size=1g`). See [Deployment](../deployment.md).
+memory (`--shm-size=1g`). See [Deployment](/deployment).
 
 ## An element is not found or a wait times out
 
@@ -324,7 +324,7 @@ The usual causes are shared state and too much parallelism. Give each test its
 own browser context (the pool's `Lease` isolates cookies and storage), do not
 reuse a logged-in profile between tests, and lower `SB_THREADS` to see whether the
 failure goes away. Do not add retries to hide it; see
-[Reliability](../reliability.md).
+[Reliability](/reliability).
 
 ## Reading an error
 
@@ -368,7 +368,7 @@ the page's URL and title when it failed, and, with
 `ReportPlugin::html(path).with_evidence()`, links to the screenshot and page
 source saved next to the report. The MCP servers answer a failed call with a
 report that includes the page's state and the next tools to try; see the
-[MCP tutorial](../tutorials/mcp_server.md#when-a-call-fails).
+[MCP tutorial](/tutorials/mcp_server#when-a-call-fails).
 
 ## Errors are not descriptive enough
 
@@ -415,7 +415,7 @@ match err {
 ```
 
 To retry transient failures with backoff, see `RetryPolicy` in the
-[reliability guide](../reliability.md).
+[reliability guide](/reliability).
 
 ## Environment variable not applied
 
@@ -434,7 +434,7 @@ Where a variable is read depends on how you build the configuration:
 - `Settings::load()`, `Settings::load_from(path)` and `Settings::from_env()`
   read the settings ones, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` among them
   (`SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`, and the rest of the list in
-  [Customizing Test Runs](./customizing_test_runs.md)). `sbrs test` passes the
+  [Customizing Test Runs](/help/customizing_test_runs)). `sbrs test` passes the
   flags you give it to the tests as such variables.
 - The `sbrs` binary reads the settings ones. Its browser commands (`open`,
   `smoke`, and the rest) start from the config file (`--config FILE`, else the
@@ -442,4 +442,4 @@ Where a variable is read depends on how you build the configuration:
   which win. The WebDriver URL is `--webdriver`, else `SB_WEBDRIVER_URL`, else
   `http://localhost:4444`; the browser binary is `SB_CHROME_BIN`.
 
-See [Customizing Test Runs](./customizing_test_runs.md) for the full list.
+See [Customizing Test Runs](/help/customizing_test_runs) for the full list.

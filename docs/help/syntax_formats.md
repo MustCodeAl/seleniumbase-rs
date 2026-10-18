@@ -96,7 +96,7 @@ replay with `sbrs replay`.
 
 ## Selector syntax
 
-SeleniumBase accepts multiple selector formats. See the [Selectors Guide](../tutorials/selectors.md) for details.
+SeleniumBase accepts multiple selector formats. See the [Selectors Guide](/tutorials/selectors) for details.
 
 | Format | Example |
 |--------|---------|

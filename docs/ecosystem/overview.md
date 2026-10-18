@@ -11,7 +11,7 @@ documentation is part of this site.
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 
-Browser plugins as Rust crates: block resources, load `.crx` extensions, run WebAssembly plugins, and a template for your own. See [Plugins](../plugins/overview.md).
+Browser plugins as Rust crates: block resources, load `.crx` extensions, run WebAssembly plugins, and a template for your own. See [Plugins](/plugins/overview).
 
 ## Stealth scraping
 
@@ -19,25 +19,25 @@ Browser plugins as Rust crates: block resources, load `.crx` extensions, run Web
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
 
-Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` and `StealthSession` as three crates. See [Stealth scraping](../stealth/overview.md).
+Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` and `StealthSession` as three crates. See [Stealth scraping](/stealth/overview).
 
 ## Tauri automation
 
 <GitHub.Repo repo="MustCodeAl/tauri-plugin-sbrs-automation" />
 
-Test a Tauri app's real window with `BaseCase` and `sbrs` on macOS, Windows and Linux. See [Tauri plugin](tauri.md).
+Test a Tauri app's real window with `BaseCase` and `sbrs` on macOS, Windows and Linux. See [Tauri plugin](/ecosystem/tauri).
 
 ## Browser extension
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-browser-extension" />
 
-A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge and Firefox. See [Browser extension](browser-extension.md).
+A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge and Firefox. See [Browser extension](/ecosystem/browser-extension).
 
 ## Homebrew tap
 
 <GitHub.Repo repo="MustCodeAl/homebrew-tap" />
 
-`brew install mustcodeal/tap/sbrs` for the `sbrs` CLI and the `sbrs-mcp` MCP server. See [Homebrew tap](homebrew.md).
+`brew install mustcodeal/tap/sbrs` for the `sbrs` CLI and the `sbrs-mcp` MCP server. See [Homebrew tap](/ecosystem/homebrew).
 
 <Columns cols={2}>
 

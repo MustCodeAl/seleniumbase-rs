@@ -117,7 +117,7 @@ scenario that the tags left out, or an outline with no example rows, is
 
 To run features with your own steps, register them in a
 `seleniumbase_rs::behave::StepRegistry` in a test of your own, as the
-[behave tutorial](../tutorials/behave.md) shows.
+[behave tutorial](/tutorials/behave) shows.
 
 ## Differences from Python
 

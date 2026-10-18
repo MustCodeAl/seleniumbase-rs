@@ -10,7 +10,7 @@ The official plugins ship with seleniumbase-rs, one cargo feature each, and you
 turn them on **by name**, with no code: on the command line, in the settings
 file, in an environment variable, or in a builder call. This page is that
 surface. For writing a plugin of your own, see
-[Writing your own](writing-your-own.md).
+[Writing your own](/plugins/writing-your-own).
 
 <Note>
 
@@ -35,16 +35,16 @@ a plugin; a build with it reads them and leaves the selection to the program.
 | Every official plugin | `features = ["plugins-builtin"]` |
 | A plugin chosen by a file, not code | `[plugins] enable = ["shield"]` in `sbase_config.toml` |
 | A plugin for one run | `SB_PLUGINS=shield` |
-| A plugin from another crate | Add the crate, then `PluginSet::with` (see [Writing your own](writing-your-own.md)) |
+| A plugin from another crate | Add the crate, then `PluginSet::with` (see [Writing your own](/plugins/writing-your-own)) |
 
 ## Cargo features
 
 | Feature | Turns on |
 |---|---|
 | `plugins` | The plugin API (`seleniumbase_rs::plugin_api`) and the hooks of both engines. No plugin of its own |
-| `plugin-shield` | `plugins`, and the [shield](shield.md) plugin |
-| `plugin-block-resources` | `plugins`, and the [block-resources](block-resources.md) plugin |
-| `plugin-crx` | `plugins`, and the [crx](crx.md) plugin |
+| `plugin-shield` | `plugins`, and the [shield](/plugins/shield) plugin |
+| `plugin-block-resources` | `plugins`, and the [block-resources](/plugins/block-resources) plugin |
+| `plugin-crx` | `plugins`, and the [crx](/plugins/crx) plugin |
 | `plugins-builtin` | All three above |
 
 A build compiles only the plugin crates it asks for: `plugin-shield` does not
@@ -262,8 +262,8 @@ browser, its place among the other plugins, and the options in effect. When the
 plugin refuses those options, or cannot start without any (`crx` needs its
 `files`), the page says so with the plugin's own message. The plugin API of this
 release does not describe the options a plugin accepts, so the page cannot list
-them: each plugin's page does ([shield](shield.md),
-[block-resources](block-resources.md), [crx](crx.md)).
+them: each plugin's page does ([shield](/plugins/shield),
+[block-resources](/plugins/block-resources), [crx](/plugins/crx)).
 
 An unknown name exits with status 2 and lists the ones the build has:
 

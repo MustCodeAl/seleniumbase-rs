@@ -15,7 +15,7 @@ profiles, say per setting whether the browser's own value, a drawn value, a give
 value or nothing is wanted, choose how the claims are delivered, and apply
 native-level spoofing through CDP. It covers what a page can read inside the
 browser. The TLS and HTTP/2 side, and the scraper built on it, is a separate
-project now; see [Stealth Scraping](stealth_scraping.md).
+project now; see [Stealth Scraping](/tutorials/stealth_scraping).
 
 ## What you will learn
 
@@ -204,7 +204,7 @@ Things to know:
   instead (Safari and iOS ignore it), and so does `.core_version(major)` on a
   builder that draws a user agent or Client Hints; the stealth scraper of
   seleniumbase-rs-stealth uses it so the identity claims the Chrome that is
-  running (see [Stealth Scraping](stealth_scraping.md)).
+  running (see [Stealth Scraping](/tutorials/stealth_scraping)).
 - **iOS differs.** Safari has no `navigator.deviceMemory` and no
   `navigator.userAgentData`, so an iOS identity leaves `device_memory` `Natural`
   and turns `client_hints` `Off`.
@@ -224,7 +224,7 @@ Things to know:
   for them with `Spoof::Random` on a builder; the proxy has no random value.
 - **Applying it.** For the Pure CDP engine, hand it to the launch options with
   `LaunchOptions::builder().fingerprint(&fp)` (see
-  [Pure CDP](pure_cdp.md#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
+  [Pure CDP](/tutorials/pure_cdp#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
   does the same for one tab. For `BaseCase`, pass it to
   `BrowserConfig::with_fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
   You can also feed it to the evasion registry yourself.
@@ -663,7 +663,7 @@ assert!(script.contains("hide_print"));
 
 </Steps>
 
-See [Contributing](../CONTRIBUTING.md) for adding a built-in provider.
+See [Contributing](/CONTRIBUTING) for adding a built-in provider.
 
 ### Built-in providers
 
@@ -793,7 +793,7 @@ assert_eq!(keys.len(), 5);
 ```
 
 To play a plan out on a page, use `page.human(behavior)` from the Pure CDP
-engine (see [Pure CDP](pure_cdp.md#human-paced-input)). `BaseCase::human_type`
+engine (see [Pure CDP](/tutorials/pure_cdp#human-paced-input)). `BaseCase::human_type`
 uses the same typing model, taking its pace from `Fingerprint::humanize()` when the
 configuration has a fingerprint.
 
@@ -855,7 +855,7 @@ automation markers:
 * Patch the `chromedriver` binary with `ChromedriverPatcher` (for example
   `ChromedriverPatcher::new(path).patch(EnginePatch::all())?`) to remove injected
   `cdc_` and `__webdriver` signatures. See the
-  [Binary Patching tutorial](./binary_patching.md).
+  [Binary Patching tutorial](/tutorials/binary_patching).
 * Pass the extra Chromium flags returned by `engine_spoofing_args()` (a
   `Vec<String>`) through `BrowserConfig::with_extra_args`, which replaces the
   list (`push_extra_arg` adds one), or through `StealthOptions::extra_args`.
@@ -889,7 +889,7 @@ automation markers:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the setting is `Natural`, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](stealth_scraping.md)), the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, build the fingerprint from a preset or `Fingerprint::randomized`, check `fp.is_masked(Dimension::...)` for the dimension, and match the egress IP to the identity's place. |
+| Still flagged by bot detection | The evasion script was never installed (`DriverMode::WebDriver`), the setting is `Natural`, or the site checks what this page does not change: the browser's own TLS and HTTP/2 fingerprint (see [Stealth Scraping](/tutorials/stealth_scraping)), the IP address, the browser's real version | Use `DriverMode::Uc` or the Pure CDP engine, build the fingerprint from a preset or `Fingerprint::randomized`, check `fp.is_masked(Dimension::...)` for the dimension, and match the egress IP to the identity's place. |
 | A value was given and the page does not show it | A later call for the same setting replaced it (`Natural` included), or the profile payload's flag for it is a `natural` word, which beats the values the payload holds | Read the setting back (`fp.timezone()`), and remove the later call or the `natural` word. |
 | `build()` fails with "cannot be Off" or "cannot be Random" | `Off` was given to a setting with no off state, or `Random` to one with nothing to draw (`proxy`, `oscpu`, `build_id`) | Give a value or leave it `Natural`; the message names the setting. |
 | `build()` fails with "no coherent random" | A random locale, language or position next to a time zone or locale the table of places lacks | Give the locale and the position as values, or use a zone the table holds (`randomize::locale_of_timezone`). |

@@ -6,7 +6,7 @@ title: "Deployment"
 
 How to run `seleniumbase-rs` somewhere other than your laptop: a container, a CI
 job, a Selenium Grid, or as an MCP server for an AI agent. To build the binaries
-first, see [Building and installing](building.md).
+first, see [Building and installing](/building).
 
 ## The shape of a deployment
 
@@ -20,7 +20,7 @@ runtime. What they drive is a Chrome or Chromium, so every deployment needs:
 4. somewhere for artifacts (screenshots, reports, debug bundles) to go.
 
 Chrome, not the library, dominates memory and CPU. The process that drives the
-browsers stayed near 9 MiB in the [benchmarks](benchmarks.md), so size the machine
+browsers stayed near 9 MiB in the [benchmarks](/benchmarks), so size the machine
 for the browsers and for how many you run at once (`SB_THREADS`).
 
 ## Configuration is environment variables
@@ -69,8 +69,8 @@ docker run --rm --network none --shm-size=1g seleniumbase-rs --headless smoke \
 These four commands exited with status 0 on linux/arm64 (Debian 12, Chromium
 154), and the last one starts a headless Chromium with no network. The full
 commands, the build time and the test results are in
-[Building and installing](building.md#container) and
-[Operating systems](platforms.md#verified-on-linux).
+[Building and installing](/building#container) and
+[Operating systems](/platforms#verified-on-linux).
 
 <AccordionGroup>
 
@@ -150,7 +150,7 @@ measurement tools need a headed Chrome, so run those under a virtual display
 
 Run browser tests in a controlled number of parallel workers and keep
 `cargo nextest`'s zero-retry profile: retries hide flaky tests (see
-[Reliability](reliability.md)). Upload the HTML and JSON reports and the
+[Reliability](/reliability)). Upload the HTML and JSON reports and the
 screenshots as build artifacts; the `s3`, `azure` and `gcp` features upload them
 to a bucket directly.
 
@@ -184,7 +184,7 @@ drive the browser.
 - Use the `diagnose_environment` tool to check the Chrome and chromedriver
   versions, the redacted `SB_*` settings and the output directory without
   starting a browser. For using it with an agent, see
-  [Vibe coding](tutorials/vibe_coding.md).
+  [Vibe coding](/tutorials/vibe_coding).
 
 ## Stopping cleanly
 

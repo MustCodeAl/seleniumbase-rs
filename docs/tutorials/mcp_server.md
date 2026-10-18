@@ -462,7 +462,7 @@ Microsoft's Playwright MCP (`--cdp-endpoint`) to the same browser, plus the
 
 When to use it: to hand the session to a second DevTools client, for example
 the performance traces of `chrome-devtools-mcp`, while this server keeps
-driving the page. [DevTools MCP servers](devtools_mcp.md) covers those servers
+driving the page. [DevTools MCP servers](/tutorials/devtools_mcp) covers those servers
 and `sbrs devtools`, which starts such a browser from the command line.
 
 ## Prompts to try
@@ -531,6 +531,6 @@ mcp::serve(Profile::Cdp).await?;
 `mcp::cdp::host`, `mcp::driver::host` and `mcp::sb::host` build a `Host` you can
 call directly with `Host::call(name, arguments)`, which is how the test suite
 exercises every tool against a mocked browser. To add a tool, see "Adding an MCP
-tool" in the [developer guide](../DEVELOPER_GUIDE.md).
+tool" in the [developer guide](/DEVELOPER_GUIDE).
 
 [Model Context Protocol]: https://modelcontextprotocol.io

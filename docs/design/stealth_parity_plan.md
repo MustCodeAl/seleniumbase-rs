@@ -11,8 +11,8 @@ including WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`). 
 passes) are done and their fixes are in progress. WP19 (re-exports and documentation) is in progress.**
 The plan was written on 2026-10-10 as design only, at `8c1394d`. Where the code differs from what is
 written below, [the next section](#status-and-what-the-code-changed) says how, and the code wins. Sections
-3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](../tutorials/stealth_scraping.md);
-the layout rules are recorded in [ADR 003](../adr/003-stealth-scraping-layout.md).
+3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](/tutorials/stealth_scraping);
+the layout rules are recorded in [ADR 003](/adr/003-stealth-scraping-layout).
 Sources: the project memory (`stealthscraper-feature-parity`, `project-priorities-2026-10-10`),
 three Context7 reads of `/ypno/stealthscraper-rs`, the wreq 6.0.0-rc.31, wreq-proto 0.2.6,
 http2 0.5.20 and btls 0.5.6 sources in `~/.cargo/registry`, and our code read through TokenSave.

@@ -60,7 +60,7 @@ mdbook build
 ```
 
 Features, binaries, the Dockerfile and build-time tips are in
-[docs/building.md](building.md).
+[docs/building.md](/building).
 
 <Tip>
 

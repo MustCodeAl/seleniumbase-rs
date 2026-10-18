@@ -19,11 +19,11 @@ not any vendor's challenge, and getting past it says nothing about a real servic
 
 | Example | Feature | Needs | What it shows |
 |---|---|---|---|
-| `examples/cookie_jar.rs` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](identity.md#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
-| `examples/custom_profile.rs` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](wire-formats.md#what-is-refused). |
-| `examples/http_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](http-session.md#httpsession) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the JA4 the shop saw next to the measured one. |
-| `examples/stealth_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](stealth-session.md#stealthsession) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
-| `examples/browser_scraper.rs` | `scrape` | A Chrome | A [`BrowserScraper`](browser-scraper.md#browserscraper) detecting and solving the same kind of challenge in a headless Chrome. |
+| `examples/cookie_jar.rs` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/stealth/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
+| `examples/custom_profile.rs` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/wire-formats#what-is-refused). |
+| `examples/http_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/stealth/http-session#httpsession) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the JA4 the shop saw next to the measured one. |
+| `examples/stealth_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/stealth/stealth-session#stealthsession) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
+| `examples/browser_scraper.rs` | `scrape` | A Chrome | A [`BrowserScraper`](/stealth/browser-scraper#browserscraper) detecting and solving the same kind of challenge in a headless Chrome. |
 
 ```text
 cargo run -p seleniumbase-rs-scrape      --example cookie_jar
@@ -118,7 +118,7 @@ Run `capture_tls`, then `capture_hints`, then `capture_h2` against the new Chrom
 `crates/codec/src/measured/<browser>-<major>-<os>.json` and the raw fixtures next to the wire
 tests; `cargo test -p seleniumbase-rs-codec --test wire_emulation` and
 `cargo test -p seleniumbase-rs-mimic --test impersonate_capture_h2` then check the files
-against each other. The full procedure is in [Re-measuring when Chrome updates](wire-formats.md#re-measuring-when-chrome-updates).
+against each other. The full procedure is in [Re-measuring when Chrome updates](/stealth/wire-formats#re-measuring-when-chrome-updates).
 
 ### Tests that start a real Chrome
 

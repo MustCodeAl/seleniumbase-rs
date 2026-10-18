@@ -14,7 +14,7 @@ This page explains where Rust helps, where it does not, and how to measure
 performance meaningfully. For what the library itself costs, measured against a
 real Chrome (a click takes about half a millisecond, a protocol round trip
 about 0.1 ms, and the driving process stays near 9 MiB), see
-[Benchmarks](benchmarks.md).
+[Benchmarks](/benchmarks).
 
 ## Where Rust helps
 

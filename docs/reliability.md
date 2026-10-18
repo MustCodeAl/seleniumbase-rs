@@ -255,7 +255,7 @@ Hard-coding URLs, credentials, or timeouts in tests makes them fragile. Use
 This keeps tests portable between local development, staging, and production
 environments.
 
-See [Settings and Configuration](tutorials/settings_and_config.md) for the full
+See [Settings and Configuration](/tutorials/settings_and_config) for the full
 configuration hierarchy.
 
 ## Shutdown and signals

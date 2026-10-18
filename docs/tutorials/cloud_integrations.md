@@ -10,7 +10,7 @@ an optional Cargo feature so the default build stays lightweight.
 
 These types are uploaders, not test hooks: call `upload_file` after a test, for
 example on the screenshot a failure plugin saved. See
-[Test Plugins](test_plugins.md) for the hooks.
+[Test Plugins](/tutorials/test_plugins) for the hooks.
 
 ## What you will learn
 

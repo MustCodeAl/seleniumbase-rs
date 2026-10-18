@@ -48,4 +48,4 @@ If zsh does not complete `sbrs`, make sure Homebrew's completions are on your
 
 </Tip>
 
-For building from source instead, see [Building and installing](../building.md).
+For building from source instead, see [Building and installing](/building).

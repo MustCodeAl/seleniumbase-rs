@@ -5,7 +5,7 @@ title: "Migrate Playwright Tests"
 # Migrate Playwright Tests
 
 `sbrs import-playwright` converts Playwright tests and scripts into Rust tests
-for the [pure CDP engine](tutorials/pure_cdp.md). It reads:
+for the [pure CDP engine](/tutorials/pure_cdp). It reads:
 
 - `@playwright/test` files in JavaScript or TypeScript: `test()`,
   `test.describe()`, the `beforeEach`/`beforeAll`/`afterEach` hooks,

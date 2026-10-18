@@ -11,7 +11,7 @@ set to the launch options, and its hooks run at fixed points. It is the idea of
 [puppeteer-extra](https://github.com/berstend/puppeteer-extra) in Rust: plugins
 are ordinary crates, compiled into your program, and anyone can publish one.
 
-The design is [ADR 004](../adr/004-plugin-framework.md). The hooks run in both
+The design is [ADR 004](/adr/004-plugin-framework). The hooks run in both
 engines: the Pure CDP engine (`sb_cdp`) and the WebDriver engine (`BaseCase`).
 
 <Note>
@@ -48,7 +48,7 @@ The official plugins are features of their own (`plugin-shield`,
 turned on by name in the settings file, in `SB_PLUGINS`, in a builder call, or
 on the command line (`sbrs --plugin shield open https://example.com`, with the
 plugins compiled into the prebuilt `sbrs` and `sbrs-mcp`): see
-[Choosing plugins](../plugins/selecting.md).
+[Choosing plugins](/plugins/selecting).
 
 The plugin API is its own crate, `seleniumbase-rs-plugin`, in the
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
@@ -127,7 +127,7 @@ cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
 ```
 
 The official plugins also come with this crate, one cargo feature each, and are
-turned on by name without code; see [Choosing plugins](../plugins/selecting.md).
+turned on by name without code; see [Choosing plugins](/plugins/selecting).
 
 <Warning>
 

@@ -265,7 +265,7 @@ afterwards.
 
 With the `gui` feature, `Page::gui_click_captcha()` makes the same press with the
 machine's own pointer; test widgets do not need it (see
-[Pure CDP](pure_cdp.md#captchas)).
+[Pure CDP](/tutorials/pure_cdp#captchas)).
 
 ### With the pure CDP engine
 
@@ -538,6 +538,6 @@ a headed browser.
 
 ## See also
 
-- [Pure CDP](pure_cdp.md) for `Browser`, `Page` and `Locator`.
-- [Writing Browser Tests](../rust-test-tooling.md) for `run_browser_test`.
-- [Waits and Assertions](waits_assertions.md).
+- [Pure CDP](/tutorials/pure_cdp) for `Browser`, `Page` and `Locator`.
+- [Writing Browser Tests](/rust-test-tooling) for `run_browser_test`.
+- [Waits and Assertions](/tutorials/waits_assertions).

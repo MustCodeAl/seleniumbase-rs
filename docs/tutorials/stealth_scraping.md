@@ -87,7 +87,7 @@ and a local Chrome, never against live services.
 
 The long guide this page used to hold (the wire formats, re-measuring when
 Chrome updates, the identity file, `BrowserScraper`, `HttpSession`, `MitmProxy`,
-`StealthSession` and their limits) is now the [Stealth scraping](../stealth/overview.md)
+`StealthSession` and their limits) is now the [Stealth scraping](/stealth/overview)
 section of this site. What stays here is the in-browser side:
-[Fingerprint & Stealth Profiles](fingerprint_stealth.md) covers what a page can
+[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) covers what a page can
 read from inside the browser and how this crate hides it.

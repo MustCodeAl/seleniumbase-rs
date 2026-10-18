@@ -31,7 +31,7 @@ cargo run --bin sbrs -- replay actions.json
 
 Run it headed (the default), and put any global options such as `--browser`
 before `record`. `replay` runs the file in a fresh browser and exits with status
-1 if a step fails. See [Recorder CLI](../help/recorder_cli.md) for the file
+1 if a step fails. See [Recorder CLI](/help/recorder_cli) for the file
 format and the actions replay understands.
 
 ## Record from code

@@ -36,7 +36,7 @@ tool (see [Benchmarks](/benchmarks) for what this crate itself costs).
 This crate is its port, so the comparison is about language and age. Python has
 the largest example library, the most users, a mature plugin ecosystem and the
 fastest path to a first test. The Rust port is new (`0.1.0`, unreleased), has
-every upstream API recorded in [the parity table](parity.md) but with the
+every upstream API recorded in [the parity table](/parity) but with the
 `composed` and `not-applicable` entries not yet independently reviewed, and
 cannot run Python plugins. In exchange it has compile-time checks, a single native
 binary, a driver-free engine, a browser pool, request interception and agent
@@ -90,7 +90,7 @@ a browser's session (`HttpSession`), a loopback proxy for a real Chrome
 (`MitmProxy`) and a session that moves between the two (`StealthSession`), is a
 separate, experimental project on top of this crate:
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(see [Stealth Scraping](tutorials/stealth_scraping.md)). No tool, this one
+(see [Stealth Scraping](/tutorials/stealth_scraping)). No tool, this one
 included, can promise to pass a given detection service.
 
 ### HTTP impersonation clients (curl-impersonate, wreq and similar)

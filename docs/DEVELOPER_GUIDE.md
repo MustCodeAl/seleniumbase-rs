@@ -871,9 +871,9 @@ See `CONTRIBUTING.md` for the full contributor guide. In short:
 
 ## See also
 
-- [ABI & API Stability](./ABI_API.md) for the public API contract.
-- [Contributing](./CONTRIBUTING.md) for the full contributor guide.
-- [Rust Test Tooling](./rust-test-tooling.md) for writing tests against `BaseCase`.
+- [ABI & API Stability](/ABI_API) for the public API contract.
+- [Contributing](/CONTRIBUTING) for the full contributor guide.
+- [Rust Test Tooling](/rust-test-tooling) for writing tests against `BaseCase`.
 
 ### AI agent conventions
 

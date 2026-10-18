@@ -70,7 +70,7 @@ version.
 
 Launches Chrome with its DevTools endpoint open, prints the endpoint and configs
 for Google's `chrome-devtools-mcp` and Microsoft's Playwright MCP, and runs until
-Ctrl+C, which closes the browser. See [DevTools MCP servers](devtools_mcp.md).
+Ctrl+C, which closes the browser. See [DevTools MCP servers](/tutorials/devtools_mcp).
 
 ## Run built-in plugins
 
@@ -86,7 +86,7 @@ string) go before the command, repeat, and add to the `[plugins]` table of the
 settings file and `SB_PLUGINS`; the command line wins over the variable, which
 wins over the file. They apply to every command that starts a browser and to
 `sbrs devtools`. A mistake stops the command with exit status 2 before a browser
-starts. See [Choosing plugins](../plugins/selecting.md).
+starts. See [Choosing plugins](/plugins/selecting).
 
 ## Save artifacts
 
@@ -159,7 +159,7 @@ from Chrome for Testing (the latest stable one when Chrome is not found or no
 driver is listed for its version), msedgedriver the one for the installed
 Edge's major version from `msedgedriver.microsoft.com`, and geckodriver the
 newest GitHub release. It needs network access and fetches only the driver: the
-[Pure CDP engine](pure_cdp.md) needs none. Starting a WebDriver session finds or
+[Pure CDP engine](/tutorials/pure_cdp) needs none. Starting a WebDriver session finds or
 fetches the driver by itself, so run `install` ahead of time only to prepare an
 offline machine or a container. Python's `--path` (copy the driver to a folder
 on the `PATH`) is not supported.
@@ -381,7 +381,7 @@ key.
 
 With the `turso` feature (`cargo build --features turso`), `sbrs report` reads
 the database a `ResultStore` writes. See
-[Results Database and Encrypted Profiles](results_and_profiles.md).
+[Results Database and Encrypted Profiles](/tutorials/results_and_profiles).
 
 ```bash
 sbrs report --db reports/results.db            # the latest runs
@@ -422,7 +422,7 @@ sbrs mkdir tests/ui                              # a suite: main.rs, helpers.rs,
 sbrs mkdir tests/ui --basic                      # the scaffolding only, no example tests
 ```
 
-The generated Rust uses `run_browser_test` (see [Writing Browser Tests](../rust-test-tooling.md)),
+The generated Rust uses `run_browser_test` (see [Writing Browser Tests](/rust-test-tooling)),
 and a test in `tests/` runs with `cargo test --test login`. A folder sitting
 directly inside `tests/` is one test target; `tests/ui/README.md` says how to
 register a folder anywhere else.
@@ -459,7 +459,7 @@ sbrs behave-gui features/       # pick Gherkin scenarios, run them, see the resu
 `caseplans` (alias `case-plans`) and `behave-gui` (alias `gui-behave`) are the
 Python Case Plans Generator and Behave Commander, which open Tkinter windows
 there. Each takes an optional folder or file; see [Case Plans
-Generator](../help/caseplans.md) and [Behave Commander](../help/behave-gui.md).
+Generator](/help/caseplans) and [Behave Commander](/help/behave-gui).
 `sbrs caseplans --starter` and `sbrs behave-gui --new` are the earlier
 commands that only write a file (a checklist, a new feature); they need no
 feature.
@@ -509,8 +509,8 @@ status 0), a statement the importer could not read is an error (status 1), a
 file it cannot read fails with status 6, and a source it refuses (over 2 MB, or
 a Recorder export given to `import-playwright`) with status 2. Run the
 generated tests headless with `SB_HEADLESS=true cargo test`. See
-[Migrate Playwright Tests](../playwright-migration.md) and
-[Migrate Puppeteer Tests](../puppeteer-migration.md) for every mapping.
+[Migrate Playwright Tests](/playwright-migration) and
+[Migrate Puppeteer Tests](/puppeteer-migration) for every mapping.
 
 ## Install shell completions
 
@@ -520,7 +520,7 @@ The shell scripts are short: each time you press the completion key they ask
 `sbrs` itself for the candidates, so `sbrs` has to be on `PATH`, and the
 candidates are exactly the commands, aliases, flags and values the command line
 accepts. Every command and flag is listed in the
-[CLI reference](../help/cli_reference.md).
+[CLI reference](/help/cli_reference).
 
 <CodeGroup>
 

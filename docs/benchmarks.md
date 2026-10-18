@@ -5,7 +5,7 @@ title: "Benchmarks"
 # Benchmarks
 
 What the library costs, measured, and what Chrome costs instead. For advice on
-making your own tests faster, see [Performance](performance.md). Every figure
+making your own tests faster, see [Performance](/performance). Every figure
 here was measured on one machine (Apple M1, 8 cores, macOS 27, Chrome 155,
 release build, headless, a local page, nothing else running). Timings from
 another machine will differ; the harnesses are in `benches/` so you can

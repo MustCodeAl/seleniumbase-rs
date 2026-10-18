@@ -34,7 +34,7 @@ let plugins = PluginSet::new().with(CrxExtensions::new(["extensions/dark-reader.
 ```
 
 Give the set to `LaunchOptionsBuilder::plugins`, as shown in the
-[Browser Plugins guide](../tutorials/plugins.md#using-a-plugin).
+[Browser Plugins guide](/tutorials/plugins#using-a-plugin).
 
 ## How it works
 

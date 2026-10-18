@@ -529,7 +529,7 @@ navigates). It works on a tab inside an isolated `BrowserContext` too.
   (user agent, language, window size, WebRTC flag, proxy); one made after it
   replaces it.
 - A fingerprint adds only what it holds and has switched on (see
-  [A value is the switch](fingerprint_stealth.md#a-value-is-the-switch)): a
+  [A value is the switch](/tutorials/fingerprint_stealth#a-value-is-the-switch)): a
   fingerprint with no WebRTC policy and no WebRTC masking passes no WebRTC flag,
   and a dimension named `Natural` adds no argument and no override.
 - A fingerprint's proxy password is never sent to the browser as a header, which
@@ -587,7 +587,7 @@ page afterwards.
 </Note>
 
 To test your own pages with the vendors' test keys, see
-[Testing Pages with a CAPTCHA](captcha_testing.md).
+[Testing Pages with a CAPTCHA](/tutorials/captcha_testing).
 
 Some challenge frames refuse events that did not come from the operating
 system. With the `gui` feature, `page.gui_click_captcha()` is the same attempt
@@ -628,7 +628,7 @@ live CAPTCHA.
 With the `plugins` feature, `LaunchOptionsBuilder::plugins` takes a set of
 browser plugins: crates whose hooks run before the browser starts, once it runs,
 for every tab and at close, to block resources, add scripts, set preferences or
-load extensions. See [Browser Plugins](plugins.md). A `Page` is also the plugin
+load extensions. See [Browser Plugins](/tutorials/plugins). A `Page` is also the plugin
 API's `PageHandle`, so code written for plugins can be given one of your tabs.
 
 ## Testing without Chrome

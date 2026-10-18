@@ -65,7 +65,7 @@ Key builder methods:
 | `with_threads(n)` | Sets `threads`. `BaseCase` ignores it; only `sbrs test` acts on a thread count (`-n`, as `--test-threads`). |
 | `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
 | `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
-| `with_fingerprint(fp)` | Apply a [`Fingerprint`](../tutorials/fingerprint_stealth.md). |
+| `with_fingerprint(fp)` | Apply a [`Fingerprint`](/tutorials/fingerprint_stealth). |
 | `with_browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
 | `with_extra_args(vec)` / `push_extra_arg(s)` | Pass extra Chromium launch flags. |
 
@@ -75,7 +75,7 @@ second), the field `remote_webdriver_timeout_seconds`.
 
 | Builder | Effect |
 |---|---|
-| `with_run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](../tutorials/run_settings.md). |
+| `with_run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](/tutorials/run_settings). |
 
 ### Blocking ads
 
@@ -139,7 +139,7 @@ work.
 | `with_extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
 | `with_automation_extension(bool)`, `with_recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
 | `with_esc_end(bool)` | `--esc-end`, `--esc_end`, `--ee` | End the test when ESC is pressed in the browser (see below). |
-| `with_rec_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](../tutorials/recorder_mode.md#pure-cdp-code---rec-sb-cdp)). |
+| `with_rec_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](/tutorials/recorder_mode#pure-cdp-code---rec-sb-cdp)). |
 | `with_firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
 | `with_capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
 | `with_driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
@@ -327,7 +327,7 @@ field of the same name: `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
 `SB_ESC_END`, `SB_REC_SB_CDP`, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`. Booleans accept `true`/`false`, `1`/`0`, `yes`/`no` and
 `on`/`off`. There is no automatic name mapping: a
 variable that is not in this list, such as `SB_LOGGING__LOG_LEVEL`, does
-nothing. See [Settings and Global Configuration](../tutorials/settings_and_config.md)
+nothing. See [Settings and Global Configuration](/tutorials/settings_and_config)
 for the table, including the separate runtime variables (`SB_LOG_LEVEL`,
 `SB_LOG_FORMAT`, ...), which `RuntimeConfig::from_env()` reads, and
 `BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL` and

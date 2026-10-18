@@ -210,7 +210,7 @@ the feature files under `features/`, runs the scenarios you mark through the
 runner above and shows the results. It only has the built-in steps, since steps
 written in Rust cannot be loaded into `sbrs`, so a scenario that uses your own
 steps is reported as undefined there; run those from a test of your own, as in
-this chapter. See [Behave Commander](../help/behave-gui.md).
+this chapter. See [Behave Commander](/help/behave-gui).
 
 `sbrs behave-gui --new` needs no feature: it prompts for a feature name, title,
 scenarios and steps and writes `features/<name>.feature` (plus a

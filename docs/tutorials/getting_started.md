@@ -166,7 +166,7 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 | Ad blocking | `with_ad_block(bool)` | `false` |
 | Reuse browsers between tests | `with_reuse_session(bool)` | `false` |
 | Extra Chromium arguments | `with_extra_args([..])`, `push_extra_arg(arg)` | none |
-| Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](./fingerprint_stealth.md) |
+| Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth) |
 
 Two constructors build the starting point. `BrowserConfig::default()` uses the
 defaults above and reads no environment variable. `BrowserConfig::from_env()`
@@ -258,8 +258,8 @@ async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 
 `Page` also implements the capability traits (`BrowserApi`, `ElementApi`,
 `AssertionApi`, `ScreenshotApi`), so a helper written over those traits runs on
-both engines; see [Capability traits](./api_reference.md#capability-traits).
-The full engine is in [Pure CDP](./pure_cdp.md).
+both engines; see [Capability traits](/tutorials/api_reference#capability-traits).
+The full engine is in [Pure CDP](/tutorials/pure_cdp).
 
 ## Writing a `#[tokio::test]` instead of `main`
 
@@ -309,10 +309,10 @@ cargo test login_succeeds
 
 ## Next steps
 
-- Learn about selectors in the [Selectors Guide](./selectors.md).
-- Understand waits and assertions in [Waits and Assertions](./waits_assertions.md).
-- Explore anti-detection in [Undetected (UC) Mode](./uc_mode.md).
+- Learn about selectors in the [Selectors Guide](/tutorials/selectors).
+- Understand waits and assertions in [Waits and Assertions](/tutorials/waits_assertions).
+- Explore anti-detection in [Undetected (UC) Mode](/tutorials/uc_mode).
 - Slow a run down so you can watch it, or set the run-wide knobs, in
-  [Run Settings](./run_settings.md).
-- Browse the [API Reference](./api_reference.md) for the full method list.
-- Use the [CLI helper](./cli_usage.md) for quick one-off commands.
+  [Run Settings](/tutorials/run_settings).
+- Browse the [API Reference](/tutorials/api_reference) for the full method list.
+- Use the [CLI helper](/tutorials/cli_usage) for quick one-off commands.

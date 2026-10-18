@@ -299,7 +299,7 @@ Gradually migrate the remaining tests, prioritizing the most valuable ones.
 
 ## Related reading
 
-- [Writing Browser Tests](rust-test-tooling.md) — how to structure Rust tests.
-- [Selectors](tutorials/selectors.md) — selector syntax differences.
-- [Waits and Assertions](tutorials/waits_assertions.md) — equivalent Rust methods.
+- [Writing Browser Tests](/rust-test-tooling) — how to structure Rust tests.
+- [Selectors](/tutorials/selectors) — selector syntax differences.
+- [Waits and Assertions](/tutorials/waits_assertions) — equivalent Rust methods.
 

@@ -37,8 +37,8 @@ docker run --rm --shm-size=1g seleniumbase-rs --headless smoke 'data:text/html,<
 
 `sbrs open` and `smoke` need `--headless` or `SB_HEADLESS=true` in a container
 (the flag beats the variable). The build, the test results on Linux arm64
-and the commands that worked are in [Building](../building.md#container) and
-[Operating systems](../platforms.md).
+and the commands that worked are in [Building](/building#container) and
+[Operating systems](/platforms).
 
 ## Docker Compose
 
@@ -67,7 +67,7 @@ See `.github/workflows/` for the GitHub Actions jobs:
 - `docker.yml` — build the Docker image.
 - `completions.yml` — generate the shell completions.
 
-More on running in CI and containers: [Deployment](../deployment.md).
+More on running in CI and containers: [Deployment](/deployment).
 
 ## Headless in Docker
 

@@ -83,7 +83,7 @@ The masking flags (`webrtc_masking`, `proxy_masking`, `geolocation_popup`,
 `media_devices_masking`, `screen_masking`, `ports_masking`,
 `geolocation_masking`, `canvas_noise` and `quic_mode`) take the words and the
 literal formats in the one table in
-[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads).
+[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#keywords-in-json-payloads).
 A flag the payload leaves out is `auto`, except `ports_masking` (`mask`: the ports
 of `fingerprint.ports` are blocked), `canvas_noise` (seeded noise) and `quic_mode`
 (`disabled`). The rest:
@@ -128,7 +128,7 @@ of `fingerprint.ports` are blocked), `canvas_noise` (seeded noise) and `quic_mod
 
 A flag is a word or a literal value. Every key reads the same words, and each
 setting ends in one of the four states of a `Spoof`. One table in
-[Fingerprint & Stealth Profiles](./fingerprint_stealth.md#keywords-in-json-payloads)
+[Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#keywords-in-json-payloads)
 lists, for every key, the words that give `Natural`, `Random`, a value and `Off`,
 and the format of the literal it reads. A value in `fingerprint.*` is the switch:
 unless the flag says `natural` (or `off` for a key that can be off), the setting
@@ -241,7 +241,7 @@ Most masking flags also accept a concrete literal string instead of a word. The
 parser reads the flag as `mask` with that value and writes the value into the
 fingerprint so it is applied automatically. The format of each literal is in the
 Value column of the
-[table of keywords](./fingerprint_stealth.md#keywords-in-json-payloads).
+[table of keywords](/tutorials/fingerprint_stealth#keywords-in-json-payloads).
 
 ### Full literal-value profile
 
@@ -430,7 +430,7 @@ show an `external` badge in the profile list.
 
 ## Further reading
 
-- [Fingerprint & Stealth Profiles](./fingerprint_stealth.md)
+- [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
 - [BrowserLeaks](https://browserleaks.com/)
 
 ## Troubleshooting

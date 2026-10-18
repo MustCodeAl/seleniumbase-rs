@@ -38,7 +38,7 @@ session.sync_cookies_back(&page).await?;
   proxy, such as a MITM proxy the browser was launched with, is not visible to a
   page, so say so with `egress`.
 - `HttpSession::from_identity(&identity, egress, options)` builds one from a
-  [`StealthIdentity`](identity.md#identity-session-policy-and-the-identity-file): its
+  [`StealthIdentity`](/stealth/identity#identity-session-policy-and-the-identity-file): its
   fingerprint becomes the user agent, hints and languages, and its cookies fill
   the jar.
 
@@ -98,7 +98,7 @@ println!("{}: {}", reply.status(), reply.text()?);
 
 ## What the session does
 
-- **Cookies.** The jar is the RFC 6265 [`CookieJar`](identity.md#the-cookie-jar). The
+- **Cookies.** The jar is the RFC 6265 [`CookieJar`](/stealth/identity#the-cookie-jar). The
   session writes the `Cookie` header and reads `Set-Cookie` itself; wreq's own
   store is off. A cookie for a public suffix, for another host, or against the
   `Secure`, `__Host-` and `SameSite` rules is refused as a browser refuses it.
@@ -126,14 +126,14 @@ println!("{}: {}", reply.status(), reply.text()?);
   `installed_chrome_major(major)` and `clock(..)`. `HttpOptions::validate`
   refuses a value out of range before a client exists.
 - **Judging replies.** `reply.detect()` runs the [challenge
-  detection](identity.md#challenge-detection-and-mitigation). `session.assess(&reply,
+  detection](/stealth/identity#challenge-detection-and-mitigation). `session.assess(&reply,
   &Attempt, &Rules, &identity)` adds what the `MitigationPolicy` and the
   `SessionPolicy` make of it, as a `Verdict { detection, action, transition }`;
   `session.fetch(url, &attempt, &rules, &identity)` sends a `GET` and judges it
   in one call (`Fetched { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
   about to end so that the browser should take the URL first. They are the
-  pieces of your own loop; [`StealthSession`](stealth-session.md#stealthsession) is that loop.
+  pieces of your own loop; [`StealthSession`](/stealth/stealth-session#stealthsession) is that loop.
 
   ```rust
   use seleniumbase_rs_mimic::http_session::{Attempt, Rules};

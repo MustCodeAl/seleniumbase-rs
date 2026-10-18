@@ -34,7 +34,7 @@ maintainer of this repository to decide.
   `http://localhost:4444`), which upstream's review bot lists.
 
 To regenerate it after the CLI changes (the same test writes the usage spec and the
-[CLI reference](../help/cli_reference.md) too):
+[CLI reference](/help/cli_reference) too):
 
 ```bash
 SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec
@@ -73,7 +73,7 @@ Checked on 2026-10-15:
   comment). Among other things it has you state that the work is yours.
 - Without the upstream spec, `sbrs completions bash|zsh|fish` still gives
   shell-native completion, and Warp uses that by default (see
-  [CLI Usage](../tutorials/cli_usage.md#install-shell-completions)).
+  [CLI Usage](/tutorials/cli_usage#install-shell-completions)).
 
 What was checked on the file, and what was not:
 

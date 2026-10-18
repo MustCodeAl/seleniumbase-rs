@@ -197,7 +197,7 @@ async fn uc_smoke_test() -> Result<()> {
 ```
 
 For global defaults, use `sbase_config.toml` or `SB_*` environment variables.
-See [Settings and Configuration](tutorials/settings_and_config.md) for details.
+See [Settings and Configuration](/tutorials/settings_and_config) for details.
 
 ## Macros for shorter tests
 
@@ -216,7 +216,7 @@ sb_test!(home_page_loads, BrowserConfig::default(), |sb| {
 This expands to the same shape as the manual example above. It is optional but
 useful for linear tests where the reduced noise improves readability.
 
-See [Macros](tutorials/macros.md) for the full macro catalog.
+See [Macros](/tutorials/macros) for the full macro catalog.
 
 ## Common pitfalls
 

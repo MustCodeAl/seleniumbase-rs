@@ -261,7 +261,7 @@ Two small types in `seleniumbase_rs::config` hold lists that are too long for
 a config file field.
 
 `ProxyList` is Python's `PROXY_LIST`: proxies, optionally named, read from a
-text file (see [CLI usage](cli_usage.md#proxies-from-a-list) for the format).
+text file (see [CLI usage](/tutorials/cli_usage#proxies-from-a-list) for the format).
 Each entry is validated when it is read. It resolves a name or a literal proxy
 (`resolve`), and hands proxies out in turn (`next_round_robin`) or at random
 (`random`); the turn counter is atomic, so one list can serve parallel tests:
@@ -290,7 +290,7 @@ A Chromium WebDriver session sends such a list to the browser when
 `with_ad_block_list(list)`, which replaces it. `bounded_url_patterns()` is what
 is sent. It leaves out a host whose parent domain is also listed and refuses a
 list that needs more than 2,000 patterns, so the browser is never given half of
-what you asked for. See [Blocking ads](../help/customizing_test_runs.md#blocking-ads).
+what you asked for. See [Blocking ads](/help/customizing_test_runs#blocking-ads).
 
 ## Best practices
 
@@ -313,6 +313,6 @@ what you asked for. See [Blocking ads](../help/customizing_test_runs.md#blocking
 
 ## Related reading
 
-- [CLI Usage](./cli_usage.md) — command-line overrides and flags.
-- [Tracing and Logging](./tracing.md) — `SB_LOG_LEVEL` and `SB_LOG_FORMAT`.
-- [Docker Guide](../help/docker.md) — containerized configuration.
+- [CLI Usage](/tutorials/cli_usage) — command-line overrides and flags.
+- [Tracing and Logging](/tutorials/tracing) — `SB_LOG_LEVEL` and `SB_LOG_FORMAT`.
+- [Docker Guide](/help/docker) — containerized configuration.

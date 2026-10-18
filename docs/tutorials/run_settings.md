@@ -263,12 +263,12 @@ sb.check_window("home", 3).await?; // compares with it
 ```
 
 What `check_window` compares, and its levels 0 to 3, are in the rustdoc of
-`BaseCase::check_window`; the [API Guide](./api_reference.md) lists it. The
+`BaseCase::check_window`; the [API Guide](/tutorials/api_reference) lists it. The
 reset applies to `assert_visual_match` (feature `visual`) too, which compares
 the screenshot's pixels instead of the HTML and keeps its baseline as
 `visual_baseline/<test>/<name>.png`, `<test>` there being the test's whole
 path (`cart.checkout.renders`); see
-[Visual regression testing](./remaining_helpers.md#visual-regression-testing-pixels).
+[Visual regression testing](/tutorials/remaining_helpers#visual-regression-testing-pixels).
 
 ## Limits
 
@@ -317,12 +317,12 @@ times longer. Keep them off unless a person is watching.
 
 ## Related reading
 
-- [Settings and Configuration](./settings_and_config.md): `BrowserConfig`, the
+- [Settings and Configuration](/tutorials/settings_and_config): `BrowserConfig`, the
   config file and the `SB_*` variables.
-- [Waits and Assertions](./waits_assertions.md): the waits that
+- [Waits and Assertions](/tutorials/waits_assertions): the waits that
   `with_skip_js_waits` leaves alone.
-- [Recorder Mode](./recorder_mode.md): recording actions and exporting them as
+- [Recorder Mode](/tutorials/recorder_mode): recording actions and exporting them as
   a test.
-- [API Guide](./api_reference.md): `check_window`, `post_message` and the rest.
-- [Performance](../performance.md): the pauses that are there on purpose.
-- [API parity table](../parity.md): every Python option and its Rust name.
+- [API Guide](/tutorials/api_reference): `check_window`, `post_message` and the rest.
+- [Performance](/performance): the pauses that are there on purpose.
+- [API parity table](/parity): every Python option and its Rust name.

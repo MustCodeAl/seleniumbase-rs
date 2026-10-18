@@ -250,7 +250,7 @@ reaching every site the browser visits.
    there: the `Page::add_script_tag`, `add_style_tag` and `add_init_script`
    methods, and `PageHandle` for `sb_cdp::Page` itself (the hooks use a handle
    on the tab's session). The tests run against the mock transport, not a real
-   Chrome. Guide: [Browser Plugins](../tutorials/plugins.md).
+   Chrome. Guide: [Browser Plugins](/tutorials/plugins).
 3. **Hook points, WebDriver engine.** `BrowserConfig::with_plugins`, the
    Chromium page hooks through the DevTools bridge, `test_plugin`.
 

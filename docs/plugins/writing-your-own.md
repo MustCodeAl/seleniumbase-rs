@@ -5,7 +5,7 @@ title: "Writing Your Own Plugin"
 # Writing your own plugin
 
 For turning plugins on and attaching a set to a browser, read the
-[Browser Plugins guide](../tutorials/plugins.md). This page is about the plugin
+[Browser Plugins guide](/tutorials/plugins). This page is about the plugin
 itself.
 
 ## A plugin
@@ -82,17 +82,17 @@ To let users enable a plugin by name with options, implement `Configurable`
 (`NAME`, `describe()`, `configure(&Value)`) and add
 `Descriptor::of::<P>()` to a `Registry`. A program then builds the set from the
 `[plugins]` table or `SB_PLUGINS` with `seleniumbase_rs::plugin_host::build_with`
-(see [Choosing plugins](selecting.md#in-code)). A plugin that keeps state per
+(see [Choosing plugins](/plugins/selecting#in-code)). A plugin that keeps state per
 browser should return a fresh instance from `per_launch()`: seleniumbase-rs
 calls it for every launch, so browsers launched from one set do not share it.
-The design is on the [architecture page](architecture.md).
+The design is on the [architecture page](/plugins/architecture).
 
 Two commands are not a plugin's to send as it likes. A plugin that sends
 `Fetch.*` is refused, because the host owns request interception; to stop
 requests send `Network.setBlockedURLs`, which the host merges with the other
 plugins' lists and the `ad_block` list of the tab. Install your plugin crate from
 the same revision of the plugins repository as seleniumbase-rs
-(see [Choosing plugins](selecting.md#cargo-features)).
+(see [Choosing plugins](/plugins/selecting#cargo-features)).
 
 <Note>
 
@@ -128,9 +128,9 @@ Publish it on GitHub with the topic `seleniumbase-rs-plugin` so people find it.
 </Steps>
 
 Not a Rust programmer? Write the plugin in any language that compiles to
-WebAssembly and load it with the [`wasm`](wasm.md) host: the module only
+WebAssembly and load it with the [`wasm`](/plugins/wasm) host: the module only
 describes the plugin in JSON (a name, browser switches, page scripts, URLs to
-block) and runs in a sandbox. The ABI is on the [wasm page](wasm.md).
+block) and runs in a sandbox. The ABI is on the [wasm page](/plugins/wasm).
 
 <Info>
 

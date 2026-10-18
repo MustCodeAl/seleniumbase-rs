@@ -187,5 +187,5 @@ A test that does none of those is not interrupted; wrap the test in
 
 ## Related reading
 
-- [Selectors](./selectors.md) — choosing stable element locators.
-- [API Reference](./api_reference.md) — complete list of wait and assertion methods.
+- [Selectors](/tutorials/selectors) — choosing stable element locators.
+- [API Reference](/tutorials/api_reference) — complete list of wait and assertion methods.

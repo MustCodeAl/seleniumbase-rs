@@ -27,7 +27,7 @@ The port needs to support both WebDriver (thirtyfour) and a Playwright-compatibl
 - Negative: Helpers that depend on Playwright-specific behavior live on `PlaywrightSession`, requiring users to learn two APIs.
 
 ## Later addition: the pure CDP engine
-`src/sb_cdp` is a third, independent backend: it launches Chrome and speaks the DevTools Protocol directly (`Browser`, `Page`, `Locator`, with `BrowserContext`, `BrowserPool` and `SessionStore` on top). It has no chromedriver and no `thirtyfour` dependency, is always compiled, and is not reached through `BaseCase`. See the [Pure CDP guide](../tutorials/pure_cdp.md).
+`src/sb_cdp` is a third, independent backend: it launches Chrome and speaks the DevTools Protocol directly (`Browser`, `Page`, `Locator`, with `BrowserContext`, `BrowserPool` and `SessionStore` on top). It has no chromedriver and no `thirtyfour` dependency, is always compiled, and is not reached through `BaseCase`. See the [Pure CDP guide](/tutorials/pure_cdp).
 
 ---
 

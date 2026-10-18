@@ -15,7 +15,7 @@ was not run, is under [Verified on Linux](#verified-on-linux).
 
 The packages each system and each feature needs, with the commands that install
 them (Homebrew, apt, dnf, winget), are in
-[Building and installing](building.md#what-you-need).
+[Building and installing](/building#what-you-need).
 
 ## Which Chrome it finds
 
@@ -100,7 +100,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
   overwritten in place; if a driver is "killed" or refused, run `sbrs install`
-  again and see [Common problems](help/common_problems.md).
+  again and see [Common problems](/help/common_problems).
 - **Gatekeeper and quarantine.** A browser or driver downloaded by another tool
   can carry a quarantine flag; clear it with
   `xattr -d com.apple.quarantine <file>` if macOS refuses to open it.
@@ -143,7 +143,7 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
 ### Verified on Linux
 
 Run on 2026-10-11 to 12 with `docker/Dockerfile.verify` and `docker/verify-linux.sh`
-(commands in [Building and installing](building.md#run-the-tests-in-a-container)).
+(commands in [Building and installing](/building#run-the-tests-in-a-container)).
 The host was an Apple-silicon Mac, so the containers were
 **linux/arm64** on **Debian 12 (bookworm)** with **Rust 1.99** and **Chromium
 154.0.8037.92** from Debian's `chromium` and `chromium-driver` packages. Cargo ran
@@ -197,7 +197,7 @@ and the Tauri example builds its `.msi` and setup `.exe`. (The stealth layer,
 then the `impersonate` feature, built and passed there too; it now lives in
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 with its CMake, NASM and LLVM requirements.) Install steps:
-[Building and installing](building.md#what-you-need).
+[Building and installing](/building#what-you-need).
 
 **What works differently**
 

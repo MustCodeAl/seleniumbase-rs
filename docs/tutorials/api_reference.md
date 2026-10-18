@@ -97,7 +97,7 @@ browser processes do not leak when a test fails.
 | `choose_file(selector, path)` | Sets a file input value. |
 
 All `selector` arguments accept the same formats described in the
-[Selectors guide](./selectors.md).
+[Selectors guide](/tutorials/selectors).
 
 ## Keyboard arrow keys
 
@@ -141,7 +141,7 @@ All `selector` arguments accept the same formats described in the
 | `sleep(seconds)` | Async sleep helper. |
 | `wait(seconds)` | The same as `sleep`; takes whole or fractional seconds (`wait(2)`, `wait(0.5)`). |
 
-See [Waits and Assertions](./waits_assertions.md) for detailed examples.
+See [Waits and Assertions](/tutorials/waits_assertions) for detailed examples.
 
 ## Assertions
 
@@ -260,7 +260,7 @@ is called. Useful for soft assertions.
 | `save_screenshot_to_path(path)` | Writes screenshot to an arbitrary path. |
 | `screenshot_as_png()` | Returns the current page screenshot as PNG bytes. |
 | `check_window(name, level)` | Compares the page's tag structure to a baseline saved under `visual_baseline/<test>/<name>/`, as Python 4.55.2 does: level 1 the tag names in order, level 2 adds the sorted attribute names, level 3 adds the attribute values. The first run (or a missing file) saves the baseline; level 0 is a dry run that only logs a difference; levels 1 to 3 fail on a difference. The screenshot is saved, not compared. |
-| `assert_visual_match(name)` | Feature `visual`, not in Python. Compares the screenshot's pixels with `visual_baseline/<test>/<name>.png`, `<test>` being the test binary, module path and function joined with `.`, by structural similarity (threshold 0.999), saving it the first time; a mismatch fails and leaves `<name>.actual.png` and `<name>.diff.png`. See [Visual regression testing](./remaining_helpers.md#visual-regression-testing-pixels). |
+| `assert_visual_match(name)` | Feature `visual`, not in Python. Compares the screenshot's pixels with `visual_baseline/<test>/<name>.png`, `<test>` being the test binary, module path and function joined with `.`, by structural similarity (threshold 0.999), saving it the first time; a mismatch fails and leaves `<name>.actual.png` and `<name>.diff.png`. See [Visual regression testing](/tutorials/remaining_helpers#visual-regression-testing-pixels). |
 
 ## Script execution and DOM modification
 
@@ -354,7 +354,7 @@ anti-detection checks. They require a graphical desktop session.
 | `uc_gui_press_key(key)` | UC alias for `gui_press_key`. |
 | `uc_gui_handle_captcha(selector)` | Native click fallback for simple CAPTCHAs. |
 
-See the [GUI Automation](./gui_automation.md) tutorial for details.
+See the [GUI Automation](/tutorials/gui_automation) tutorial for details.
 
 ## Alerts
 
@@ -392,7 +392,7 @@ See the [GUI Automation](./gui_automation.md) tutorial for details.
 | `add_data_point(label, value)` | Adds data to the current chart. |
 | `save_chart(path)` | Saves chart HTML. |
 
-See the [Tours](./tours.md) and [Charts](./charts.md) pages for details.
+See the [Tours](/tutorials/tours) and [Charts](/tutorials/charts) pages for details.
 
 ## Recorder
 
@@ -427,7 +427,7 @@ type; to keep an element handle, use `BaseCase::find_element` (a
 `thirtyfour::WebElement`) or `Page::locator(..)`. Every method returns
 `seleniumbase_rs::Result<T>`. Selector strings are the same on both engines:
 CSS by default, XPath for `//...`, link text for `link=...` (see the
-[Selectors guide](./selectors.md)).
+[Selectors guide](/tutorials/selectors)).
 
 ```rust,no_run
 use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};
@@ -499,7 +499,7 @@ is empty.
 | Item | What it is |
 |---|---|
 | `BaseCase` | The WebDriver-engine test case; every method in the tables above. `BaseCase::new(config).await` connects, `BaseCase::without_session(config)` does not. |
-| `BrowserConfig` | The session configuration. Fields and `with_*` builders are listed in [Getting Started](./getting_started.md#configuration). `BrowserConfig::default()` reads no environment variables; `BrowserConfig::from_env()` returns `Result<BrowserConfig>` and honours the `SB_*` variables. |
+| `BrowserConfig` | The session configuration. Fields and `with_*` builders are listed in [Getting Started](/tutorials/getting_started#configuration). `BrowserConfig::default()` reads no environment variables; `BrowserConfig::from_env()` returns `Result<BrowserConfig>` and honours the `SB_*` variables. |
 | `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
 | `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
 | `BrowserSession` | Owns the WebDriver session, an optional CDP client and an optional auto-started driver process. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. |
@@ -539,19 +539,19 @@ is empty.
 
 | Item | What it is |
 |---|---|
-| `Chart`, `ChartType` | A chart that renders to HTML with Chart.js: `Chart::new(title, chart_type)` with `ChartType::Pie`, `Bar` (horizontal), `Line`, `Area` or `Column` (vertical). Data points are `(label, i32)` pairs; extra series go in `extra_series`. See [Charts](./charts.md). |
-| `TourTheme` | `SeleniumBase` (default), `Shepherd`, `IntroJs`, `DriverJs`, `Bootstrap`, `Hopscotch`; `as_str()` gives the lowercase name. See [Tours](./tours.md). |
+| `Chart`, `ChartType` | A chart that renders to HTML with Chart.js: `Chart::new(title, chart_type)` with `ChartType::Pie`, `Bar` (horizontal), `Line`, `Area` or `Column` (vertical). Data points are `(label, i32)` pairs; extra series go in `extra_series`. See [Charts](/tutorials/charts). |
+| `TourTheme` | `SeleniumBase` (default), `Shepherd`, `IntroJs`, `DriverJs`, `Bootstrap`, `Hopscotch`; `as_str()` gives the lowercase name. See [Tours](/tutorials/tours). |
 
 ### Fingerprint and stealth
 
-These are re-exported for convenience; the [Fingerprint & Stealth Profiles](./fingerprint_stealth.md)
+These are re-exported for convenience; the [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
 tutorial is the reference for them.
 
 | Item | What it is |
 |---|---|
 | Fingerprint types | `Fingerprint` (built once with `Fingerprint::builder()`, read through accessors, changed with `to_builder()`), `FingerprintBuilder`, `FingerprintError`, `Spoof<T>` (each setting: `Natural`, `Random`, `Value(T)` or `Off`), `StealthPolicy` (how the claims are delivered; presets `default()`, `balanced()`, `native_only()`, `max()`), `Dimension`, and the value types `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `OsType`, `BrowserType`; the policy enums `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy`; `HumanizeConfig` and `CoherenceReport`. `StealthFlags` is an old name of `StealthPolicy`. |
 | Evasion providers | `default_registry()` returns an `EvasionRegistry` with every built-in provider. `session_registry(&Fingerprint)` is the registry for a pure CDP tab: it leaves out the providers named in `SESSION_OMITTED_PROVIDERS` (`"plugins"` and `"connection"`), because Chrome already answers for those itself. `EvasionProvider` is the trait for your own, `EvasionContext` the data a provider's script is built from, `EvasionConfig` its settings. |
-| Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](./binary_patching.md). |
+| Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](/tutorials/binary_patching). |
 
 ### Python migration
 
@@ -570,11 +570,11 @@ diagnostic.
 The remaining public API sits in modules: `api`, `artifacts`, `behave`,
 `browser`, `cli`, `common`, `config`, `core`, `error`, `js_code`, `macros`,
 `plugins` (test-reporting plugins), `profile_payloads`, `resources`,
-`sb_cdp` (the [pure CDP engine](./pure_cdp.md)), `stealth`, `tracing_util`,
+`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `stealth`, `tracing_util`,
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
 `plugin-shield`, `plugin-block-resources`, `plugin-crx` or `plugins-builtin`: the
-official plugins and their `registry()`, see [Choosing plugins](../plugins/selecting.md)),
+official plugins and their `registry()`, see [Choosing plugins](/plugins/selecting)),
 `storage` (`turso`) and `visual` (`visual`).
 
 ## Common error handling pattern
@@ -597,12 +597,12 @@ async fn login(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErr
 
 ## Further reading
 
-- [Selectors](./selectors.md)
-- [Waits and Assertions](./waits_assertions.md)
-- [CDP Mode](./cdp_mode.md)
-- [UC Mode](./uc_mode.md)
-- [Macros](./macros.md)
-- [GUI Automation](./gui_automation.md)
+- [Selectors](/tutorials/selectors)
+- [Waits and Assertions](/tutorials/waits_assertions)
+- [CDP Mode](/tutorials/cdp_mode)
+- [UC Mode](/tutorials/uc_mode)
+- [Macros](/tutorials/macros)
+- [GUI Automation](/tutorials/gui_automation)
 
 For exact signatures, run `cargo doc --no-deps --open`.
 

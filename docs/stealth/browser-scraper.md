@@ -99,7 +99,7 @@ failures in a row is out of rotation for ten minutes by default.
 
 `export_identity()` takes the identity out of the scraper: the fingerprint, the
 cookies the browser holds, the clearances among them, and the egress. Save it
-with the [identity file](identity.md#identity-session-policy-and-the-identity-file).
+with the [identity file](/stealth/identity#identity-session-policy-and-the-identity-file).
 `import_identity(&id)` puts one back: it refuses an identity for another egress
 or another Chrome major, restarts the browser when the fingerprint differs, and
 sets the cookies. `save_session(name)` and `load_session(name)` keep cookies and

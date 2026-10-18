@@ -21,7 +21,7 @@ decide whether it is a good test.
 
 Build the server and point your MCP client (Claude Code, Claude Desktop, or any
 client that speaks MCP over stdio) at it, as in the
-[MCP Servers](mcp_server.md) page:
+[MCP Servers](/tutorials/mcp_server) page:
 
 <Steps>
 

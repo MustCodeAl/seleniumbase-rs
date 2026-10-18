@@ -79,7 +79,7 @@ covers the ones a real Chrome makes. It is a loopback forward proxy that ends
 the browser's TLS with a leaf of the [ephemeral CA](#the-ephemeral-ca-tls-server)
 and replays each request through the impersonating client, so the origin sees the
 `ClientHello`, HTTP/2 start and header spelling of the profile (the measured
-ones, minus the [known gaps](limits.md#limits)) instead of whatever the installed browser
+ones, minus the [known gaps](/stealth/limits#limits)) instead of whatever the installed browser
 would have sent. Both legs then look alike on the wire, and a clearance earned in
 the browser is valid over `HttpSession`.
 

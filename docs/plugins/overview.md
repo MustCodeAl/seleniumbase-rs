@@ -9,7 +9,7 @@ title: "Plugins"
 Plugins for [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs): Rust
 crates that change how a browser starts and what every tab gets, the way
 puppeteer-extra plugins do for Puppeteer. The design is
-[ADR 004](../adr/004-plugin-framework.md). The repository is
+[ADR 004](/adr/004-plugin-framework). The repository is
 [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins):
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
@@ -28,17 +28,17 @@ is the user guide: it shows how to attach a set to a browser.
 Every plugin is its own crate. The official ones also ship with seleniumbase-rs
 behind a cargo feature each (`plugin-shield`, `plugin-block-resources`,
 `plugin-crx`, or `plugins-builtin` for all) and are switched on by name; see
-[Choosing plugins](selecting.md). The prebuilt `sbrs` and `sbrs-mcp` have all of
+[Choosing plugins](/plugins/selecting). The prebuilt `sbrs` and `sbrs-mcp` have all of
 them compiled in: `sbrs --plugin shield open https://example.com`, and
 `sbrs plugin list` shows them. Add the crate of one yourself to use it in code;
 the plugins are also examples of how to write one.
 
 | Plugin | What it does | Install |
 |---|---|---|
-| [`shield`](shield.md) | Privacy hardening: turns off the browser's background reporting, keeps WebRTC from leaking addresses, blocks third-party cookies, refuses a persistent profile | feature `plugin-shield`, or `cargo add seleniumbase-rs-plugin-shield --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
-| [`block-resources`](block-resources.md) | Stops pages from loading images, fonts or media (faster, less data) | `cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
-| [`crx`](crx.md) | Loads packed Chrome extensions (`.crx`, CRX3 and CRX2) | `cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
-| [`wasm`](wasm.md) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) | `cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`shield`](/plugins/shield) | Privacy hardening: turns off the browser's background reporting, keeps WebRTC from leaking addresses, blocks third-party cookies, refuses a persistent profile | feature `plugin-shield`, or `cargo add seleniumbase-rs-plugin-shield --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`block-resources`](/plugins/block-resources) | Stops pages from loading images, fonts or media (faster, less data) | `cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`crx`](/plugins/crx) | Loads packed Chrome extensions (`.crx`, CRX3 and CRX2) | `cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
+| [`wasm`](/plugins/wasm) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) | `cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
 
 The framework itself:
 
@@ -46,10 +46,10 @@ The framework itself:
 |---|---|---|
 | [`seleniumbase-rs-plugin`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/crates/seleniumbase-rs-plugin) | The API: `Plugin`, `PluginSet`, `LaunchSettings`, `Package`, the `BrowserHandle` and `PageHandle` traits | `cargo add seleniumbase-rs-plugin --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
 | [`seleniumbase-rs-plugin-testing`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/crates/seleniumbase-rs-plugin-testing) | Recording fakes of the handles, to test a plugin without a browser | `cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a` |
-| [`template`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/template) | Start your own plugin from here (see [Writing your own](writing-your-own.md)) | copy the folder |
+| [`template`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/template) | Start your own plugin from here (see [Writing your own](/plugins/writing-your-own)) | copy the folder |
 
 More plugins live in their own repositories, such as
-[tauri-plugin-sbrs-automation](../ecosystem/tauri.md). Search GitHub for the
+[tauri-plugin-sbrs-automation](/ecosystem/tauri). Search GitHub for the
 topic `seleniumbase-rs-plugin` to find community ones.
 
 <Columns cols={2}>
@@ -116,7 +116,7 @@ flowchart LR
 ```
 
 The details of each hook, and what the pure CDP engine does at each point, are
-in [When the hooks run](../tutorials/plugins.md#when-the-hooks-run).
+in [When the hooks run](/tutorials/plugins#when-the-hooks-run).
 
 <Warning>
 

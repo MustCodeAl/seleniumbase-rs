@@ -73,7 +73,7 @@ patch_chromedriver("/path/to/chromedriver")?;
 # }
 ```
 
-See [Binary Patching](../tutorials/binary_patching.md) for the full API,
+See [Binary Patching](/tutorials/binary_patching) for the full API,
 backup/restore, and safety notes.
 
 ## Engine spoofing arguments

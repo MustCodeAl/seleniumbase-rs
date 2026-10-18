@@ -15,7 +15,7 @@ ADR 001 covers what a page can read inside the browser. Stealth scraping adds th
 wire: the TLS `ClientHello`, the HTTP/2 connection start and the header order,
 plus the layer that keeps an identity, its cookies and its exit address together
 while a scraper works through a site's defences. The design is in
-[the plan](../design/stealth_parity_plan.md). Its first draft grouped the files
+[the plan](/design/stealth_parity_plan). Its first draft grouped the files
 by hexagonal layer (`scrape/domain`, `scrape/adapters`). On 2026-10-11 the tree
 was regrouped by concern, with the work packages and the type names unchanged.
 This record states the layout as it is in the code and the rules that hold it.

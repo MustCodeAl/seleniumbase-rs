@@ -90,5 +90,5 @@ last 20 lines of the combined standard output and standard error.
 ## See also
 
 The same feature builds two more terminal apps: the
-[Case Plans Generator](./caseplans.md) (`sbrs caseplans`) and the
-[Behave Commander](./behave-gui.md) (`sbrs behave-gui`).
+[Case Plans Generator](/help/caseplans) (`sbrs caseplans`) and the
+[Behave Commander](/help/behave-gui) (`sbrs behave-gui`).

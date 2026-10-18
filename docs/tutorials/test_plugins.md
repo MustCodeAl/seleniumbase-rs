@@ -56,7 +56,7 @@ valid even if the run stops part-way.
 | `ScreenshotOnFailurePlugin` | a test fails | Saves a PNG named after the test and the time. |
 | `PageSourceOnFailurePlugin` | a test fails | Saves the page's HTML the same way. |
 | `ReportPlugin::json` / `::html` | a test finishes | Rewrites a JSON or HTML report of all tests so far. |
-| `ResultStorePlugin` (`turso` feature) | a test finishes | Records the test in a [`ResultStore`](results_and_profiles.md), for trends and `sbrs report`. |
+| `ResultStorePlugin` (`turso` feature) | a test finishes | Records the test in a [`ResultStore`](/tutorials/results_and_profiles), for trends and `sbrs report`. |
 
 Details worth knowing:
 
@@ -162,7 +162,7 @@ from closing the browser, is what you get back.
 
 `S3LoggingPlugin`, `AzureLoggingPlugin` and `GcpLoggingPlugin` are uploaders,
 not hooks: call their `upload_file` after a test on the files the failure
-plugins wrote. See [Cloud Integrations](cloud_integrations.md).
+plugins wrote. See [Cloud Integrations](/tutorials/cloud_integrations).
 
 ## Migrating from the old plugin API
 

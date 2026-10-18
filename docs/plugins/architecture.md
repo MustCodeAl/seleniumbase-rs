@@ -115,8 +115,8 @@ Phase 1 starts in the API crate `seleniumbase-rs-plugin`, all additive:
 
 Next to the API crate there is the `seleniumbase-rs-plugins-builtin` crate
 (one cargo feature per plugin, and `registry()`), and the first plugin written
-for the new API, [shield](shield.md). How a program turns them on is in
-[Choosing plugins](selecting.md).
+for the new API, [shield](/plugins/shield). How a program turns them on is in
+[Choosing plugins](/plugins/selecting).
 
 Not part of this page's claim: the command-line options, the prebuilt
 binaries with built-ins, the store, manifests, WASM ABI 2 and the other six
@@ -131,7 +131,7 @@ plugins belong to the later work. The plan, from the ADR:
 | 4 | WebDriver parity, ABI 2.1 events, CRX3 signature checks |
 
 To declare metadata in your own plugin, see
-[Writing your own plugin](writing-your-own.md#declaring-metadata-and-capabilities).
+[Writing your own plugin](/plugins/writing-your-own#declaring-metadata-and-capabilities).
 
 ## What core does with it
 

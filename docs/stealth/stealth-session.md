@@ -9,10 +9,10 @@ title: "StealthSession"
 cookies it earned and the egress they were earned through) in one of two modes
 and moves between them by the policies:
 
-- `Mode::Http`: an [`HttpSession`](http-session.md#httpsession) sends the requests. It is fast
+- `Mode::Http`: an [`HttpSession`](/stealth/http-session#httpsession) sends the requests. It is fast
   and cheap, with the measured handshake and headers.
 - `Mode::Browser`: a real Chrome sends them, behind a
-  [`MitmProxy`](mitm-proxy.md#mitmproxy) that replays each request with the same measured
+  [`MitmProxy`](/stealth/mitm-proxy#mitmproxy) that replays each request with the same measured
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
@@ -125,7 +125,7 @@ it is then moved to the language and time zone of the egress country. Like every
 randomized identity it carries `StealthPolicy::balanced()`: the WebRTC leak
 policy `DisableNonProxiedUdp`, seeded canvas and audio noise, the `window.chrome`
 stubs and the headless fixes (see the
-[fingerprint tutorial](../tutorials/fingerprint_stealth.md)). The fingerprint
+[fingerprint tutorial](/tutorials/fingerprint_stealth)). The fingerprint
 only changes when you rotate the profile or the egress, or pass your own with
 `fingerprint(..)`, which must claim the measured Chrome.
 

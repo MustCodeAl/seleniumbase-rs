@@ -77,7 +77,7 @@ and start its client.
 The Pure CDP server (`sbrs-mcp --server cdp`) has a tool for this:
 `get_devtools_endpoint` returns the same addresses and configs for the browser
 that `start_browser` launched, or `running: false` before one runs. See
-[MCP servers](mcp_server.md#get_devtools_endpoint).
+[MCP servers](/tutorials/mcp_server#get_devtools_endpoint).
 
 From Rust, `Browser::devtools_endpoint()` returns a `DevToolsEndpoint` with
 `http_url()`, `websocket_url()`, `chrome_devtools_mcp_config()`,

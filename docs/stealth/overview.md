@@ -20,14 +20,14 @@ repository. Where a page still says "feature `scrape`" or "feature `impersonate`
 
 A site can tell a client apart before any page script runs: by the TLS
 `ClientHello`, by the HTTP/2 connection start, and by the order and spelling of
-the request headers. [Fingerprint & Stealth Profiles](../tutorials/fingerprint_stealth.md)
+the request headers. [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
 covers what a page can read from inside the browser. This page covers the
 other side, the wire, and the pieces that keep an identity, its cookies and its
 exit address together while a scraper works through a site's defences.
 
 Everything here is young, and it is not a stable API yet: types and paths may
 change between releases. The parts that exist are tested against local captures
-and a local Chrome, on one system. Read [Limits](limits.md#limits) before you rely on any
+and a local Chrome, on one system. Read [Limits](/stealth/limits#limits) before you rely on any
 of it.
 
 ## Status
@@ -408,7 +408,7 @@ The first build of `mimic` compiles BoringSSL (about 1 GB of target
 directory). Tests that start a real Chrome are the `*_chrome.rs` files and are
 `#[ignore]`d; run them one binary at a time with `-- --ignored --test-threads=1`.
 The examples, what each needs, and how to run them are on
-[Runnable examples](examples.md). The repository is on GitHub:
+[Runnable examples](/stealth/examples). The repository is on GitHub:
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
 
