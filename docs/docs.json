@@ -57,6 +57,7 @@
             "pages": [
               "tutorials/settings_and_config",
               "tutorials/run_settings",
+              "tutorials/headless",
               "help/customizing_test_runs",
               "tutorials/browser_profiles",
               "tutorials/tracing",
@@ -190,6 +191,25 @@
               "ecosystem/overview",
               "ecosystem/browser-extension",
               "ecosystem/tauri",
+              {
+                "group": "Tauri plugin API",
+                "pages": [
+                  "ecosystem/tauri-api/overview",
+                  "ecosystem/tauri-api/status",
+                  "ecosystem/tauri-api/sessions",
+                  "ecosystem/tauri-api/timeouts",
+                  "ecosystem/tauri-api/navigation",
+                  "ecosystem/tauri-api/window",
+                  "ecosystem/tauri-api/frames",
+                  "ecosystem/tauri-api/elements",
+                  "ecosystem/tauri-api/element-state",
+                  "ecosystem/tauri-api/element-interaction",
+                  "ecosystem/tauri-api/scripts",
+                  "ecosystem/tauri-api/actions",
+                  "ecosystem/tauri-api/alerts",
+                  "ecosystem/tauri-api/screenshots"
+                ]
+              },
               "ecosystem/homebrew"
             ]
           }
@@ -240,6 +260,9 @@
             "pages": [
               "CONTRIBUTING",
               "DEVELOPER_GUIDE",
+              "contributing/from-source",
+              "contributing/debugging",
+              "contributing/benchmarking",
               "UPSTREAM_SYNC",
               "feature-requests"
             ]
