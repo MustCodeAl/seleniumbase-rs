@@ -228,6 +228,19 @@
             "icon": "code",
             "pages": [
               "tutorials/api_reference",
+              "api/lifecycle-navigation",
+              "api/interaction",
+              "api/waits-assertions",
+              "api/queries",
+              "api/windows-frames",
+              "api/cookies-storage",
+              "api/screenshots-scripts",
+              "api/files",
+              "api/cdp-uc",
+              "api/alerts-mfa",
+              "api/tours-recorder",
+              "api/traits",
+              "api/crate-root",
               "tutorials/remaining_helpers",
               "ABI_API"
             ]

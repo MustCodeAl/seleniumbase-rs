@@ -303,7 +303,7 @@ async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 
 `Page` also implements the capability traits (`BrowserApi`, `ElementApi`,
 `AssertionApi`, `ScreenshotApi`), so a helper written over those traits runs on
-both engines; see [Capability traits](/tutorials/api_reference#capability-traits).
+both engines; see [Capability traits](/api/traits).
 The full engine is in [Pure CDP](/tutorials/pure_cdp).
 
 ## Writing a `#[tokio::test]` instead of `main`
