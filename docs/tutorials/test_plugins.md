@@ -8,6 +8,18 @@ that ship with the crate save a screenshot and the page source on failure and
 write a report. They are the counterpart of Python SeleniumBase's pytest
 plugins.
 
+<Frame caption="The hooks of a test plugin">
+
+```mermaid
+flowchart LR
+  S["started"] --> T["the test"]
+  T -- "error" --> F["failed: the browser is still open"]
+  F --> E["finished"]
+  T -- "no error" --> E
+```
+
+</Frame>
+
 <Info>
 
 **What you will learn**
@@ -18,6 +30,12 @@ plugins.
 - What happens when a plugin itself fails
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: build a `Plugins` set, for example `Plugins::new().with(ScreenshotOnFailurePlugin::new("latest_logs"))`, and run each test through `plugins.run_browser_test(name, BrowserConfig::default(), async |sb| { .. }).await?`, or `plugins.run_cdp_test(name, LaunchOptions::default(), async |page| { .. }).await?` for the pure CDP engine. The bundled plugins are `ScreenshotOnFailurePlugin`, `PageSourceOnFailurePlugin`, `ReportPlugin::json` and `::html`, and `ResultStorePlugin` (feature `turso`). A custom plugin implements `TestPlugin`; every hook is optional. A hook that returns an error is logged as a warning and never changes how the test turns out.
+
+</Visibility>
 
 ## Attaching plugins to a test
 
@@ -75,6 +93,11 @@ Details worth knowing:
 
 Evidence comes from anything that implements `PageEvidence`. It is implemented
 for `BaseCase` and for `sb_cdp::Page`, so the same plugins work with either.
+
+<Tabs>
+
+<Tab title="run_cdp_test" icon="play">
+
 `Plugins::run_cdp_test` is the CDP twin of `run_browser_test`: it launches the
 browser, runs the test on its first tab (an async closure over `&Page`), shows
 the plugins the tab on failure and always closes the browser:
@@ -95,6 +118,10 @@ plugins
 # Ok(())
 # }
 ```
+
+</Tab>
+
+<Tab title="Call the hooks yourself" icon="wrench">
 
 Outside those runners, call the hooks yourself:
 
@@ -121,6 +148,10 @@ plugins.finished("checkout", std::time::Duration::ZERO, &outcome).await;
 # Ok(())
 # }
 ```
+
+</Tab>
+
+</Tabs>
 
 ## Writing your own
 

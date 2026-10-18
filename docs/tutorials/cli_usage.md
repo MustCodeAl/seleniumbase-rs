@@ -20,6 +20,12 @@ files, and more. This page covers the most common workflows.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs` is the command line of the `seleniumbase-rs-cli` package (`cargo install --path crates/cli`). Global options such as `--uc`, `--cdp`, `--headless`, `--browser`, `--proxy` and `--proxy-list` go before the subcommand. Commands on this page include `open`, `smoke`, `cdp`, `devtools`, `plugin`, `screenshot`, `save-source`, `assert-element`, `wait-for-text`, `patch-chromedriver`, `patch-chrome`, `doctor`, `install`, `prompt`, `test`, `encrypt`, `decrypt`, `report`, `run-scenario`, `mkfile`, `mkdir`, `import-python`, `import-playwright`, `import-puppeteer` and `completions`. Every command and flag is in the [CLI reference](/help/cli_reference).
+
+</Visibility>
+
 ## Build the CLI
 
 ```bash
@@ -133,7 +139,7 @@ file is reported rather than skipped. It also prints the driver's major version
 next to Chrome's, because a chromedriver only drives the Chrome of its own major
 version:
 
-```text
+```text doctor output
 Chromedriver
   Found: downloaded_drivers/chromedriver
   Version: 151, but Chrome is 155
@@ -226,9 +232,9 @@ when you set the prompt up, not as a segment that never appears.
 
 <Tabs>
 
-<Tab title="Bash">
+<Tab title="Bash" icon="terminal">
 
-```bash
+```bash ~/.bashrc
 # ~/.bashrc
 PS1='$(sbrs prompt --format "[{browser} {major} {driver}] " 2>/dev/null)'"$PS1"
 ```
@@ -238,9 +244,9 @@ prompt (the `promptvars` option, on by default).
 
 </Tab>
 
-<Tab title="Zsh">
+<Tab title="Zsh" icon="terminal">
 
-```zsh
+```zsh ~/.zshrc
 # ~/.zshrc
 setopt PROMPT_SUBST
 PROMPT='$(sbrs prompt --format "[{browser} {major} {driver}] " 2>/dev/null)'"$PROMPT"
@@ -252,9 +258,9 @@ With `PROMPT_SUBST` the line goes through prompt expansion, so a `%` in your own
 
 </Tab>
 
-<Tab title="Fish">
+<Tab title="Fish" icon="fish">
 
-```fish
+```fish fish_right_prompt.fish
 # ~/.config/fish/functions/fish_right_prompt.fish
 function fish_right_prompt
     type -q sbrs; and sbrs prompt
@@ -266,9 +272,9 @@ every time; this file replaces a right prompt you already have.
 
 </Tab>
 
-<Tab title="PowerShell">
+<Tab title="PowerShell" icon="windows">
 
-```powershell
+```powershell PowerShell profile
 # In your profile: notepad $PROFILE
 $global:SbrsPromptBefore = $function:prompt
 function prompt {
@@ -284,9 +290,9 @@ profile, the marks show and `--ascii` can go.
 
 </Tab>
 
-<Tab title="Starship">
+<Tab title="Starship" icon="rocket">
 
-```toml
+```toml starship.toml
 # ~/.config/starship.toml
 [custom.sbrs]
 description = "The installed Chrome and whether a matching chromedriver is at hand"
@@ -306,7 +312,7 @@ Starship gives a command 500 ms (`command_timeout`), far more than it needs.
 
 </Tab>
 
-<Tab title="Warp">
+<Tab title="Warp" icon="bolt">
 
 Warp draws its own prompt by default (the Warp prompt, made of its context
 chips), which does not show your shell's `PS1`. To see the segment, open
@@ -459,9 +465,22 @@ The generators are careful with what they write:
 
 ## Terminal apps
 
+<Badge color="gray">Feature: tui</Badge>
+
 Three commands are full-screen terminal apps. They are part of the opt-in `tui`
-feature (`cargo install --path crates/cli --features tui`, or
-`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui`).
+feature:
+
+<CodeGroup>
+
+```bash From a clone
+cargo install --path crates/cli --features tui
+```
+
+```bash From git
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui
+```
+
+</CodeGroup>
 
 <Note>
 
@@ -523,11 +542,17 @@ named after its `describe` and test titles; a script without titles (codegen
 output, a plain script) becomes one test named after the file, or after
 `--test-name`. Without `--output` the Rust goes to standard output; one line
 per statement that became a `TODO(playwright)` or `TODO(puppeteer)` comment
-goes to standard error. As with `import-python`, a gap is a warning (exit
-status 0), a statement the importer could not read is an error (status 1), a
-file it cannot read fails with status 6, and a source it refuses (over 2 MB, or
-a Recorder export given to `import-playwright`) with status 2. Run the
-generated tests headless with `SB_HEADLESS=true cargo test`. See
+goes to standard error. As with `import-python`, the exit status tells what
+happened:
+
+| Case | Exit status |
+|---|---|
+| A gap, a statement that became a `TODO` comment: a warning | 0 |
+| A statement the importer could not read: an error | 1 |
+| A file it cannot read | 6 |
+| A source it refuses (over 2 MB, or a Recorder export given to `import-playwright`) | 2 |
+
+Run the generated tests headless with `SB_HEADLESS=true cargo test`. See
 [Migrate Playwright Tests](/playwright-migration) and
 [Migrate Puppeteer Tests](/puppeteer-migration) for every mapping.
 
@@ -601,22 +626,90 @@ command palette when you are inside the repository; copy them to
 
 ## Common global flags
 
-| Flag | Description |
-|---|---|
-| `--uc` | Enable UC (undetected) mode. |
-| `--cdp` | Enable CDP mode. |
-| `--headless` | Run browser headlessly. |
-| `--browser NAME` | Select browser (`chrome`, `chromium`, `edge`, `firefox`). Without it the config file's browser, else Chrome. |
-| `--proxy PROXY` | Route traffic through a proxy (`host:port`, or a name from `--proxy-list`). |
-| `--proxy-list FILE` | Choose the proxy from a list of proxies. |
-| `-n N` | Number of parallel tests for `sbrs test`. |
+<ParamField body="--uc">
+
+Enable UC (undetected) mode.
+
+</ParamField>
+
+<ParamField body="--cdp">
+
+Enable CDP mode.
+
+</ParamField>
+
+<ParamField body="--headless">
+
+Run browser headlessly.
+
+</ParamField>
+
+<ParamField body="--browser" type="NAME">
+
+Select browser (`chrome`, `chromium`, `edge`, `firefox`). Without it the config file's browser, else Chrome.
+
+</ParamField>
+
+<ParamField body="--proxy" type="PROXY">
+
+Route traffic through a proxy (`host:port`, or a name from `--proxy-list`).
+
+</ParamField>
+
+<ParamField body="--proxy-list" type="FILE">
+
+Choose the proxy from a list of proxies.
+
+</ParamField>
+
+<ParamField body="-n" type="N">
+
+Number of parallel tests for `sbrs test`.
+
+</ParamField>
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `sbrs: command not found` | Binary not on `PATH` | Use `./target/debug/sbrs` or install with `cargo install --path crates/cli`. |
-| Global flag rejected | Flag placed after the subcommand | Put global flags before the subcommand: `sbrs --headless open URL`. |
-| CDP command fails | Not in CDP mode | Add `--cdp` or use a CDP-enabled config. |
-| `doctor` shows missing Chrome | Chrome not installed or not on PATH | Set `SB_CHROME_BIN` to the full path. |
-| The `sbrs prompt` segment does not appear | No browser found, or `SB_CHROME_BIN` names no file | Run `sbrs prompt --verbose`. |
+<AccordionGroup>
+
+<Accordion title="sbrs: command not found" icon="terminal">
+
+**Likely cause.** Binary not on `PATH`.
+
+**Fix.** Use `./target/debug/sbrs` or install with `cargo install --path crates/cli`.
+
+</Accordion>
+
+<Accordion title="Global flag rejected" icon="flag">
+
+**Likely cause.** Flag placed after the subcommand.
+
+**Fix.** Put global flags before the subcommand: `sbrs --headless open URL`.
+
+</Accordion>
+
+<Accordion title="CDP command fails" icon="bolt">
+
+**Likely cause.** Not in CDP mode.
+
+**Fix.** Add `--cdp` or use a CDP-enabled config.
+
+</Accordion>
+
+<Accordion title="doctor shows missing Chrome" icon="stethoscope">
+
+**Likely cause.** Chrome not installed or not on PATH.
+
+**Fix.** Set `SB_CHROME_BIN` to the full path.
+
+</Accordion>
+
+<Accordion title="The sbrs prompt segment does not appear" icon="eye-slash">
+
+**Likely cause.** No browser found, or `SB_CHROME_BIN` names no file.
+
+**Fix.** Run `sbrs prompt --verbose`.
+
+</Accordion>
+
+</AccordionGroup>

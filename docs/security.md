@@ -17,6 +17,12 @@ machine to a compromised page.
 This page explains the security properties that Rust provides, the risks that
 remain, and the operational practices that reduce them.
 
+<Visibility for="agents">
+
+Summary for AI exports: Rust gives memory safety in safe code, explicit errors, locked dependencies, feature gates and no `unsafe` in this crate. It does not protect against credential exposure, malicious pages, generated code, MCP server access or supply-chain attacks. Keep credentials in environment variables or a secrets manager, connect only trusted MCP clients, review generated Rust before running it, run untrusted pages in disposable containers, and treat stealth modes as not a security control.
+
+</Visibility>
+
 ## What Rust gives you
 
 - **Memory safety in safe code**: buffer overflows, use-after-free, and data races
@@ -159,4 +165,34 @@ in UC mode can still be exploited by a malicious page.
 - [ ] MCP server is restricted to trusted clients.
 - [ ] Untrusted-page tests run in isolated environments.
 - [ ] The team understands that stealth modes are not security controls.
+
+## Related reading
+
+<Columns cols={2}>
+
+<Card title="MCP servers" icon="robot" href="/tutorials/mcp_server">
+
+What each tool can do, and the security notes for the server.
+
+</Card>
+
+<Card title="Binary Patching" icon="screwdriver-wrench" href="/tutorials/binary_patching">
+
+Safety and licensing before you patch a driver or a browser.
+
+</Card>
+
+<Card title="Operating systems" icon="desktop" href="/platforms">
+
+Running as root, `--no-sandbox` and containers.
+
+</Card>
+
+<Card title="Why Rust?" icon="gear" href="/why-rust">
+
+When the crate is the right choice.
+
+</Card>
+
+</Columns>
 

@@ -280,7 +280,7 @@ See `docs/tutorials/tracing.md` for subscriber configuration examples.
 
 ### Verification matrix (run before every PR)
 
-```bash
+```bash Terminal
 cargo fmt --all -- --check
 cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
 cargo test --features "mcp-server test-util"
@@ -351,11 +351,11 @@ a thin wrapper over the registry.
 
 <Steps>
 
-<Step title="Implement EvasionProvider">
+<Step title="Implement EvasionProvider" icon="code">
 
 Open `src/stealth/providers/builtin.rs` and implement `EvasionProvider`:
 
-```rust
+```rust src/stealth/providers/builtin.rs
 use seleniumbase_rs::stealth::providers::{EvasionContext, EvasionProvider};
 use seleniumbase_rs::stealth::fingerprint::Dimension;
 
@@ -389,18 +389,18 @@ impl EvasionProvider for MyEvasionProvider {
 
 </Step>
 
-<Step title="Register it">
+<Step title="Register it" icon="list-ol">
 
 Register it in `all()` at the bottom of `builtin.rs` (keep sorted by priority).
 
 </Step>
 
-<Step title="Wrap replaced natives">
+<Step title="Wrap replaced natives" icon="mask">
 
 Wrap replaced natives so `Function.prototype.toString` still reports
 `[native code]`:
 
-```js
+```js Wrapping a native
 obj.method = (window.__sbNative || function(f){return f;})(patched, 'method');
 ```
 
@@ -409,20 +409,20 @@ before any other provider runs.
 
 </Step>
 
-<Step title="Seed the noise">
+<Step title="Seed the noise" icon="seedling">
 
 Use `ctx.seed` for deterministic per-session noise (canvas, audio, WebGL).
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Add a unit test asserting the snippet contains expected markers and that
 `applies` is gated correctly.
 
 </Step>
 
-<Step title="Document it">
+<Step title="Document it" icon="book">
 
 Update `docs/tutorials/fingerprint_stealth.md`.
 
@@ -438,27 +438,65 @@ policy field is how the claims are delivered (a field of `StealthPolicy` in
 
 For a setting:
 
-1. Add the field to `Fields` in `src/stealth/fingerprint.rs`, with its default
-   in `impl Default for Fields` and `#[serde(skip_serializing_if = "Spoof::is_natural")]`,
-   and a read accessor in the `accessors!` list of `Fingerprint`. If its value is
-   not a plain type, add the value type to `src/stealth/settings.rs` with a
-   conversion from the obvious tuple.
-2. Add its setter to the `setters!` list of `FingerprintBuilder`, and its name to
-   `has_random` and `without_random`. Decide whether it has an off state: if not,
-   add it to `refuse_useless_off`; and what `Random` draws: add the arm to
-   `draw_random` (taking the value from the `Draw` in `randomize.rs`), or make it
-   an error there.
-3. Give the dimension it belongs to (or a new `Dimension` variant, which is
-   `#[non_exhaustive]`) an arm in `Fingerprint::is_masked`. Providers, launch
-   arguments and overrides ask `is_masked`, never a field by hand.
-4. Add coherence validation in `Fingerprint::validate()` if the setting has
-   required companions.
-5. Wire the setting into the launcher (`browser/session.rs`), provider scripts,
-   or the reactor if applicable. A provider defines only a setting that is a
-   `Value`, and handles `Off` where it has one.
-6. Add the payload key to `ProfileParams::fingerprint_builder` if a payload can
-   carry it, reading the common words of `Word`.
-7. Document the setting in `docs/tutorials/fingerprint_stealth.md`.
+<Steps>
+
+<Step title="Add the field" icon="code">
+
+Add the field to `Fields` in `src/stealth/fingerprint.rs`, with its default
+in `impl Default for Fields` and `#[serde(skip_serializing_if = "Spoof::is_natural")]`,
+and a read accessor in the `accessors!` list of `Fingerprint`. If its value is
+not a plain type, add the value type to `src/stealth/settings.rs` with a
+conversion from the obvious tuple.
+
+</Step>
+
+<Step title="Add the setter" icon="pen-to-square">
+
+Add its setter to the `setters!` list of `FingerprintBuilder`, and its name to
+`has_random` and `without_random`. Decide whether it has an off state: if not,
+add it to `refuse_useless_off`; and what `Random` draws: add the arm to
+`draw_random` (taking the value from the `Draw` in `randomize.rs`), or make it
+an error there.
+
+</Step>
+
+<Step title="Give it a dimension" icon="layer-group">
+
+Give the dimension it belongs to (or a new `Dimension` variant, which is
+`#[non_exhaustive]`) an arm in `Fingerprint::is_masked`. Providers, launch
+arguments and overrides ask `is_masked`, never a field by hand.
+
+</Step>
+
+<Step title="Validate it" icon="circle-check">
+
+Add coherence validation in `Fingerprint::validate()` if the setting has
+required companions.
+
+</Step>
+
+<Step title="Wire it in" icon="plug">
+
+Wire the setting into the launcher (`browser/session.rs`), provider scripts,
+or the reactor if applicable. A provider defines only a setting that is a
+`Value`, and handles `Off` where it has one.
+
+</Step>
+
+<Step title="Read it from a payload" icon="file-import">
+
+Add the payload key to `ProfileParams::fingerprint_builder` if a payload can
+carry it, reading the common words of `Word`.
+
+</Step>
+
+<Step title="Document it" icon="book">
+
+Document the setting in `docs/tutorials/fingerprint_stealth.md`.
+
+</Step>
+
+</Steps>
 
 For a policy field, add the field, its default and its preset values to
 `StealthPolicy`, a method of the same name, and a builder shortcut
@@ -468,7 +506,7 @@ For a policy field, add the field, its default and its preset values to
 
 Public macros live in `src/macros.rs` and are re-exported at the crate root.
 
-```rust
+```rust src/macros.rs
 #[macro_export]
 macro_rules! sb_focus {
     ($sb:expr, $css:expr) => {{
@@ -479,19 +517,19 @@ macro_rules! sb_focus {
 
 <Steps>
 
-<Step title="Add the macro">
+<Step title="Add the macro" icon="code">
 
 Add the macro with `#[macro_export]`.
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Write a compile-time unit test under the definition.
 
 </Step>
 
-<Step title="Document it">
+<Step title="Document it" icon="book">
 
 Update `docs/tutorials/macros.md` and the macro table in `README.md`.
 
@@ -510,7 +548,7 @@ engines) and `src/mcp/stealth.rs` for how an extra toolset is attached.
 
 <Steps>
 
-<Step title="Declare it">
+<Step title="Declare it" icon="code">
 
 Declare it with `ToolDef::new(name, title, description, effect, schema,
 handler)`. The handler is an `async fn(Ctx<S>, Args) -> Result<Output,
@@ -520,7 +558,7 @@ session idempotently, `Overwrite` writes local files.
 
 </Step>
 
-<Step title="Report failures">
+<Step title="Report failures" icon="triangle-exclamation">
 
 Return `ToolError::Failed(SeleniumBaseError)` for failures: the server turns it
 into a failure report with the page's state, the hint and the next tools to
@@ -529,20 +567,20 @@ try. Files a tool writes go through the output directory
 
 </Step>
 
-<Step title="Register it">
+<Step title="Register it" icon="list-ol">
 
 Register it in the server that offers it (`cdp.rs`, `driver.rs`, `sb.rs`).
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Test it without Chrome first (`tests/mcp_cdp.rs`, `tests/mcp_devtools.rs`),
 then with a real Chrome in a `*_chrome.rs` test if it reads a page.
 
 </Step>
 
-<Step title="Document it">
+<Step title="Document it" icon="book">
 
 Document it in `docs/tutorials/mcp_server.md`, add it to `CHANGELOG.md`, and
 give it an entry in `parity/api.toml` if upstream has the same tool.
@@ -555,14 +593,14 @@ give it an entry in `parity/api.toml` if upstream has the same tool.
 
 <Steps>
 
-<Step title="Add the variant">
+<Step title="Add the variant" icon="code">
 
 Add the new variant to `Commands` in `crates/cli/src/sbrs.rs` with an
 idiomatic `///` description (its first paragraph is the short help).
 
 </Step>
 
-<Step title="Parse the arguments">
+<Step title="Parse the arguments" icon="sliders">
 
 Declare its arguments and flags with `#[usage(...)]` attributes on the fields, as
 the neighbouring variants do (`long`, `short`, `default`, `conflicts(...)`,
@@ -570,20 +608,20 @@ the neighbouring variants do (`long`, `short`, `default`, `conflicts(...)`,
 
 </Step>
 
-<Step title="Handle it">
+<Step title="Handle it" icon="gears">
 
 Add a handler branch in `async fn run`.
 
 </Step>
 
-<Step title="Clean up">
+<Step title="Clean up" icon="broom">
 
 If the command launches a browser, prefer creating a `BaseCase` through
 `run_browser_test()` so cleanup is deterministic.
 
 </Step>
 
-<Step title="Write the generated files">
+<Step title="Write the generated files" icon="arrows-rotate">
 
 Write `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
 `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`;
@@ -591,7 +629,7 @@ the same test fails in CI when they are stale.
 
 </Step>
 
-<Step title="Document it">
+<Step title="Document it" icon="book">
 
 Update `docs/help/commander.md` and `README.md` if the command is user-facing.
 
@@ -605,26 +643,26 @@ External profile payloads are parsed in `src/profile_payloads/profile.rs`.
 
 <Steps>
 
-<Step title="Add the field">
+<Step title="Add the field" icon="code">
 
 Add the field to `ProfileParams` (or the appropriate nested struct).
 
 </Step>
 
-<Step title="Map it">
+<Step title="Map it" icon="arrow-right-arrow-left">
 
 Map it to `BrowserConfig` or `Fingerprint` in `to_browser_config()` and
 `browser()`.
 
 </Step>
 
-<Step title="Test it">
+<Step title="Test it" icon="flask">
 
 Add a unit test for parsing and round-tripping.
 
 </Step>
 
-<Step title="Document it">
+<Step title="Document it" icon="book">
 
 Update `docs/tutorials/browser_profiles.md`.
 
@@ -679,13 +717,13 @@ the result:
 
 <Steps>
 
-<Step title="Branch">
+<Step title="Branch" icon="code-branch">
 
 Branch from `main` unless told otherwise.
 
 </Step>
 
-<Step title="Commit">
+<Step title="Commit" icon="code-commit">
 
 Keep commits focused and atomic, with conventional-commit subjects
 (`feat(scope): ...`, `fix(scope): ...`, `test: ...`, `docs: ...`, `refactor: ...`).
@@ -693,13 +731,13 @@ Commits carry no co-author or tool trailers, and never contain secrets.
 
 </Step>
 
-<Step title="Update tests and docs">
+<Step title="Update tests and docs" icon="file-pen">
 
 Update the tests, `CHANGELOG.md` and the docs in the same change.
 
 </Step>
 
-<Step title="Describe the change">
+<Step title="Describe the change" icon="pen">
 
 Fill out the PR description with:
 
@@ -709,7 +747,7 @@ Fill out the PR description with:
 
 </Step>
 
-<Step title="Check CI">
+<Step title="Check CI" icon="circle-check">
 
 Ensure CI is green.
 
@@ -739,19 +777,19 @@ To publish a change to `main`:
 
 <Steps>
 
-<Step title="Verify the exact commit">
+<Step title="Verify the exact commit" icon="list-check">
 
 Run the full verification matrix on the exact commit you will push.
 
 </Step>
 
-<Step title="Fetch">
+<Step title="Fetch" icon="cloud-arrow-down">
 
 `git fetch`, and confirm `origin/main` has not moved since you started.
 
 </Step>
 
-<Step title="Fast-forward push">
+<Step title="Fast-forward push" icon="forward">
 
 Push as a fast-forward only (for example
 `git push origin <commit>:refs/heads/main`), then check that your local

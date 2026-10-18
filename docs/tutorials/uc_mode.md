@@ -22,9 +22,19 @@ layer additional evasions when a site is still detecting you.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: set `BrowserConfig::default().with_mode(DriverMode::Uc)` (or run `sbrs --uc ...`) with a Chromium-based browser. UC mode starts Chrome with the undetected-Chrome launch arguments, leaves out the `enable-automation` switch and injects a stealth script into every new document. It does not patch chromedriver: use `ChromedriverPatcher` or `sbrs patch-chromedriver`. For a site that still detects you, combine the patched driver, `engine_spoofing_args()`, a coherent `Fingerprint`, a headed run, `native_spoofing` and the pure CDP engine.
+
+</Visibility>
+
 ## Enable UC mode
 
 Set the driver mode to `Uc` in `BrowserConfig`:
+
+<Tabs>
+
+<Tab title="Rust" icon="code">
 
 ```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
@@ -48,12 +58,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 `BrowserConfig::default()` is headless; `with_headless(false)` opens a window.
-On the command line, `sbrs --uc open URL` selects UC mode (a global option, so
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+```bash
+sbrs --uc open URL
+```
+
+On the command line, `--uc` selects UC mode (a global option, so
 it goes before the subcommand; `--cdp` and `--uc` cannot be combined).
+
+</Tab>
+
+</Tabs>
 
 <Warning>
 
-UC mode drives Chrome through CDP, so it needs a Chromium-based browser (Chrome,
+UC mode drives Chrome through <Tooltip tip="Chrome DevTools Protocol: the protocol DevTools uses to control Chrome.">CDP</Tooltip>, so it needs a Chromium-based browser (Chrome,
 Chromium or Edge). With Firefox, `BaseCase::new` returns an
 `InvalidConfig` error.
 
@@ -192,41 +215,41 @@ If a site still flags the browser, combine all layers:
 
 <Steps>
 
-<Step title="Patch chromedriver">
+<Step title="Patch chromedriver" icon="wrench">
 
 Patch `chromedriver` with `ChromedriverPatcher` and verify `needs_patch()`
 returns `false`.
 
 </Step>
 
-<Step title="Add the spoofing arguments">
+<Step title="Add the spoofing arguments" icon="sliders">
 
 Add `engine_spoofing_args()` to the launch flags.
 
 </Step>
 
-<Step title="Use a coherent fingerprint">
+<Step title="Use a coherent fingerprint" icon="fingerprint">
 
 Use a coherent [`Fingerprint`](/tutorials/fingerprint_stealth) with consistent user
 agent, platform, screen size, WebGL vendor, and geolocation.
 
 </Step>
 
-<Step title="Run headful">
+<Step title="Run headful" icon="window-maximize">
 
 Run headful (`with_headless(false)`). A headless session already uses
 `--headless=new`, not the legacy headless implementation.
 
 </Step>
 
-<Step title="Enable native spoofing">
+<Step title="Enable native spoofing" icon="shield">
 
 Enable `native_spoofing` to move spoofing out of JavaScript and into CDP
 where possible.
 
 </Step>
 
-<Step title="Try the pure CDP engine">
+<Step title="Try the pure CDP engine" icon="plug">
 
 Try the [pure CDP engine](/tutorials/pure_cdp), which launches Chrome without
 chromedriver at all.
@@ -252,7 +275,26 @@ patches can make debugging harder and may conflict with some CI environments.
 
 ## Related reading
 
-- [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth)
-- [Binary Patching](/tutorials/binary_patching)
-- [CDP Mode](/tutorials/cdp_mode)
-- [Pure CDP](/tutorials/pure_cdp)
+<Columns cols={2}>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+A coherent `Fingerprint`: user agent, platform, screen size, WebGL vendor and geolocation.
+
+</Card>
+
+<Card title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+
+Backup, restore, and safety notes.
+
+</Card>
+
+<Card title="CDP Mode" icon="bolt" href="/tutorials/cdp_mode" />
+
+<Card title="Pure CDP" icon="plug" href="/tutorials/pure_cdp">
+
+Launches Chrome without chromedriver at all.
+
+</Card>
+
+</Columns>

@@ -13,7 +13,7 @@ It is the engine behind the `cdp` MCP server.
 
 - Launch Chrome and open a page
 - Find elements with a `Locator` that waits for them
-- Fill forms, click, and press keys with trusted input
+- Fill forms, click, and press keys with <Tooltip tip="Input sent through the DevTools Protocol, which the page sees as trusted events, as a person's input is.">trusted input</Tooltip>
 - Wait and assert with retrying expectations
 - Work with frames, cookies, storage and tabs
 - Add scripts and styles to a page, and a script to every document it loads
@@ -22,6 +22,12 @@ It is the engine behind the `cdp` MCP server.
 - Test code that drives pages without launching Chrome
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: `sb_cdp` drives Chrome directly over the DevTools Protocol, with no chromedriver. Launch with `Browser::launch(LaunchOptions::builder()...)`, take `browser.default_page()`, then `page.goto(url)` and `page.locator(sel)` with `click`, `fill`, `type_text` and retrying `expect()` assertions. It also covers frames, cookies, downloads, HAR recording, request interception, isolated contexts, `BrowserPool`, a WebRTC shield, `Fingerprint`, `solve_captcha` and a mocked browser for tests.
+
+</Visibility>
 
 ## Launch and navigate
 
@@ -288,6 +294,15 @@ one. What you pass reaches the page as a string, never spliced into code.
 the first matching `Rule`: block it, serve a made-up response, or send it on
 with changes. Requests no rule matches are untouched, and other tabs are never
 affected.
+
+```mermaid
+graph LR
+  R["A request from the page"] --> M{"First matching Rule"}
+  M -->|block| B["Blocked"]
+  M -->|fulfill| F["A made-up response"]
+  M -->|modify| S["Sent on with changes"]
+  M -->|no rule matches| U["Untouched"]
+```
 
 ```rust,no_run
 use seleniumbase_rs::sb_cdp::{Page, ResourceType, Response, Rule};
@@ -628,6 +643,8 @@ live CAPTCHA.
 
 ## Plugins
 
+<Badge color="purple">Feature `plugins`</Badge>
+
 With the `plugins` feature, `LaunchOptionsBuilder::plugins` takes a set of
 browser plugins: crates whose hooks run before the browser starts, once it runs,
 for every tab and at close, to block resources, add scripts, set preferences or
@@ -635,6 +652,8 @@ load extensions. See [Browser Plugins](/tutorials/plugins). A `Page` is also the
 API's `PageHandle`, so code written for plugins can be given one of your tabs.
 
 ## Testing without Chrome
+
+<Badge color="purple">Feature `test-util`</Badge>
 
 With the `test-util` feature, `Browser::new_mocked()` returns a browser backed by
 a scripted `MockCtrl`. Every protocol command is recorded and answered by the
@@ -658,3 +677,45 @@ The full mapping of every `sb.cdp` method is in the
 [API parity table](/parity).
 
 </Tip>
+
+## Next steps
+
+<Columns cols={2}>
+
+<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+
+Your first test, on either engine.
+
+</Card>
+
+<Card title="MCP servers" icon="robot" href="/tutorials/mcp_server">
+
+The `cdp` server runs on this engine.
+
+</Card>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+What a `Fingerprint` says a browser is.
+
+</Card>
+
+<Card title="Browser Plugins" icon="plug" href="/tutorials/plugins">
+
+Hooks that run before the browser starts, for every tab and at close.
+
+</Card>
+
+<Card title="Testing Pages with a CAPTCHA" icon="shield-halved" href="/tutorials/captcha_testing">
+
+Test your own pages with the vendors' test keys.
+
+</Card>
+
+<Card title="API parity table" icon="table" href="/parity">
+
+The full mapping of every `sb.cdp` method.
+
+</Card>
+
+</Columns>

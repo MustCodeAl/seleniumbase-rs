@@ -179,7 +179,7 @@ An element travels as the W3C <Tooltip tip="Clients read an element only under t
 { "element-6066-11e4-a52e-4f735466cecf": "e1-4fzyo82m" }
 ```
 
-The page script makes the ids (`e`, a counter, `-`, eight random characters)
+The page script makes the ids (`e`, a counter, `-`, up to eight random characters)
 and keeps them for as long as the document lives: the same element always gets
 the same id. An element removed from the page answers `404 stale element
 reference`. Once the window loads another document, the old ids answer

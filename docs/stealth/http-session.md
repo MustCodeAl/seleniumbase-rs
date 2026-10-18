@@ -2,6 +2,8 @@
 title: "HttpSession"
 ---
 
+<Badge color="orange">Experimental</Badge>
+
 `mimic::http_session::HttpSession` sends plain HTTP requests that look like
 the Chrome a browser page came from. A browser spends a second or more on a page;
 a request spends milliseconds. Once a page has earned its cookies (a login, a
@@ -10,6 +12,12 @@ and HTTP/2 start, the header names, order and spelling of that Chrome on that
 system, and the user agent, client hints and `Accept-Language` of the page or
 identity. A browser or system that was not measured is refused, not
 approximated.
+
+<Visibility for="agents">
+
+Summary for AI exports: `HttpSession` (crate `seleniumbase-rs-mimic`) sends plain HTTP requests that carry the cookies, the measured TLS and HTTP/2 start, the header names and order, the user agent, client hints and `Accept-Language` of a Chrome. Build one with `HttpSession::from_page` or `HttpSession::from_identity`; a browser or system that was not measured is refused. It does not run JavaScript or solve a challenge.
+
+</Visibility>
 
 ```rust
 use seleniumbase_rs_mimic::{HttpOptions, HttpSession};
@@ -108,21 +116,42 @@ println!("{}: {}", reply.status(), reply.text()?);
   are dropped when a hop leaves the origin (`Accept` and `Content-Type` stay). A
   redirect is followed where it points, a private address included, so a session
   that fetches URLs for someone else must filter them before it asks.
-- **Limits** are `HttpOptions`, with defaults that are safe on the open web:
 
-  | Setting | Default | Largest accepted |
-  |---|---|---|
-  | `timeout`, the whole request, redirects included | 30 s | 1 hour |
-  | `connect_timeout` | 10 s | |
-  | `max_body_bytes`, the reply after decompression | 64 MiB | 1 GiB |
-  | `max_request_bytes` | 64 MiB | |
-  | `max_redirects`, `follow_redirects` | 10, on | 30 |
-  | `pacing(calls, window)`, per site | off | |
+**Limits** are `HttpOptions`, with defaults that are safe on the open web:
 
-  Also `event_sink`, `trust(CertStore)` for a private root (certificate
-  verification is never turned off), `resolve(host, addr)`, `bypass(host)`,
-  `installed_chrome_major(major)` and `clock(..)`. `HttpOptions::validate`
-  refuses a value out of range before a client exists.
+<ParamField body="timeout" default="30 s">
+
+The whole request, redirects included. Largest accepted: 1 hour.
+
+</ParamField>
+
+<ParamField body="connect_timeout" default="10 s" />
+
+<ParamField body="max_body_bytes" default="64 MiB">
+
+The reply after decompression. Largest accepted: 1 GiB.
+
+</ParamField>
+
+<ParamField body="max_request_bytes" default="64 MiB" />
+
+<ParamField body="max_redirects, follow_redirects" default="10, on">
+
+Largest accepted: 30.
+
+</ParamField>
+
+<ParamField body="pacing(calls, window)" default="off">
+
+Per site.
+
+</ParamField>
+
+Also `event_sink`, `trust(CertStore)` for a private root (certificate
+verification is never turned off), `resolve(host, addr)`, `bypass(host)`,
+`installed_chrome_major(major)` and `clock(..)`. `HttpOptions::validate`
+refuses a value out of range before a client exists.
+
 - **Judging replies.** `reply.detect()` runs the [challenge
   detection](/stealth/identity#challenge-detection-and-mitigation). `session.assess(&reply,
   &Attempt, &Rules, &identity)` adds what the `MitigationPolicy` and the
@@ -194,3 +223,21 @@ refused. The rest of `HttpSession` is tested against loopback sites
 (`tests/impersonate_http.rs`) and a scripted browser, with no Chrome.
 
 </Check>
+
+## Next steps
+
+<Columns cols={2}>
+
+<Card title="Identity" icon="id-card" href="/stealth/identity">
+
+Identity, session policy, the cookie jar and challenge detection.
+
+</Card>
+
+<Card title="StealthSession" icon="shuffle" href="/stealth/stealth-session">
+
+The loop built from `fetch`, `assess` and `preflight`.
+
+</Card>
+
+</Columns>

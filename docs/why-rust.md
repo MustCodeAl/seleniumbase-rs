@@ -26,7 +26,7 @@ be a better fit. It does not claim Rust is universally better.
 ## What this crate is
 
 `seleniumbase-rs` is a Rust port of the Python SeleniumBase framework (it tracks
-4.55.2) and of its MCP server. It keeps the productive `BaseCase` API and
+4.55.2) and of its <Tooltip tip="Model Context Protocol: the way an AI agent calls a tool such as a browser.">MCP</Tooltip> server. It keeps the productive `BaseCase` API and
 anti-detection features, but runs on Rust's async runtime, type system, and
 native distribution model. It has two engines: a WebDriver engine built on
 `thirtyfour`, and a pure Chrome DevTools Protocol engine (`sb_cdp`) that needs
@@ -210,7 +210,7 @@ discipline in every language.
 
 <Tabs>
 
-<Tab title="Python SeleniumBase">
+<Tab title="Python SeleniumBase" icon="python">
 
 Python SeleniumBase has the largest existing example library and the most mature
 upstream ecosystem. It is often the right choice when:
@@ -228,7 +228,7 @@ upstream ecosystem. It is often the right choice when:
 
 </Tab>
 
-<Tab title="JavaScript / TypeScript">
+<Tab title="JavaScript / TypeScript" icon="js">
 
 JavaScript and TypeScript are convenient for frontend teams and have rich
 browser-first tooling. They fit well when:
@@ -257,13 +257,35 @@ Use this checklist:
 - [ ] Do you need anti-detection features that are available in this crate?
 - [ ] Are you willing to invest in porting or writing tests in Rust?
 
+<Callout icon="scale-balanced" color="#8B5CF6">
+
 If most answers are yes, `seleniumbase-rs` is likely a good fit. If your team is
 happy with Python or JavaScript and does not share code with Rust, staying in
 that ecosystem may be more productive.
 
+</Callout>
+
 ## Related reading
 
-- [Security](/security) — how Rust's safety properties affect browser automation.
-- [Reliability](/reliability) — test lifecycle, flaky behavior, and cleanup.
-- [Performance](/performance) — what to measure and what not to expect.
+<Columns cols={3}>
+
+<Card title="Security" icon="shield" horizontal href="/security">
+
+How Rust's safety properties affect browser automation.
+
+</Card>
+
+<Card title="Reliability" icon="circle-check" horizontal href="/reliability">
+
+Test lifecycle, flaky behavior, and cleanup.
+
+</Card>
+
+<Card title="Performance" icon="gauge-high" horizontal href="/performance">
+
+What to measure and what not to expect.
+
+</Card>
+
+</Columns>
 

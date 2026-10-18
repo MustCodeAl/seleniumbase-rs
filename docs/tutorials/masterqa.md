@@ -17,6 +17,12 @@ or sign-off, but the setup and navigation can still be scripted.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: call `sb.start_qa_session(title)`, run automated steps, then `sb.manual_verify(question)` for each manual check. It prompts `[Y/n]` in the terminal; Enter, `y` or `yes` passes, `n` or `no` fails, and closed standard input records a failure. `sb.save_qa_report()` writes `latest_logs/qa_report_<milliseconds>.md`, which lists only the manual steps. A CI job with no standard input records every manual step as failed.
+
+</Visibility>
+
 ## Start a MasterQA session
 
 ```rust,no_run
@@ -78,7 +84,9 @@ only when there is at least one step and every step passed) and
 The generated Markdown report is a title, then a table with one row per manual
 step, then a summary line:
 
-```markdown
+<ResponseExample>
+
+```markdown Report
 # Verify Login Page
 
 | Step | Question | Result | Notes |
@@ -88,6 +96,8 @@ step, then a summary line:
 
 **Summary:** 1 / 2 steps passed.
 ```
+
+</ResponseExample>
 
 <Note>
 

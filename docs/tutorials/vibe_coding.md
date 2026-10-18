@@ -16,6 +16,12 @@ decide whether it is a good test.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: build `sbrs-mcp`, register it with the MCP client (`--server cdp` to start, `--server sb` for the full `BaseCase` toolset), then loop. The agent calls `start_browser`, explores with `inspect_page`, `suggest_selectors` and `diagnose_selector`, acts and asserts, and calls `export_session_as_test`. A person reviews the exported Rust test, runs it with `cargo test`, and reads failures through `get_console_messages`, `get_failed_requests`, `audit_page`, `capture_debug_bundle` and `diagnose_environment`. The exported test is a draft; keep secrets out of prompts and point the agent at a test or staging site.
+
+</Visibility>
+
 ## Set it up once
 
 Build the server and point your MCP client (Claude Code, Claude Desktop, or any
@@ -24,15 +30,15 @@ client that speaks MCP over stdio) at it, as in the
 
 <Steps>
 
-<Step title="Build the server">
+<Step title="Build the server" icon="hammer">
 
-```bash
+```bash Terminal
 cargo build --release --bin sbrs-mcp --features mcp-server
 ```
 
 </Step>
 
-<Step title="Register it with your client">
+<Step title="Register it with your client" icon="plug">
 
 ```json
 {
@@ -60,14 +66,14 @@ last. Anything the tools write (screenshots, bundles) stays inside
 
 <Steps>
 
-<Step title="Say what the test should prove">
+<Step title="Say what the test should prove" icon="comment">
 
 One behaviour, one page. "Log in as the demo user and check the welcome heading
 says Welcome."
 
 </Step>
 
-<Step title="The agent explores">
+<Step title="The agent explores" icon="magnifying-glass">
 
 It opens the page and uses `inspect_page` to see what
 is there, `suggest_selectors` to find selectors that work for an element, and
@@ -75,14 +81,14 @@ is there, `suggest_selectors` to find selectors that work for an element, and
 
 </Step>
 
-<Step title="The agent acts and checks">
+<Step title="The agent acts and checks" icon="computer-mouse">
 
 It clicks, types and asserts through the usual
 tools. Each call that changes the page or checks something is remembered.
 
 </Step>
 
-<Step title="It exports the test">
+<Step title="It exports the test" icon="file-export">
 
 `export_session_as_test` turns the successful steps
 of the session into a `BaseCase` test. Failed calls and read-only lookups are
@@ -91,7 +97,7 @@ comment rather than silently disappearing.
 
 </Step>
 
-<Step title="You run it">
+<Step title="You run it" icon="play">
 
 Put the test in `tests/` and run `cargo test`. Wrapping it in
 `run_browser_test` (see [Reliability](/reliability)) closes the browser
@@ -99,7 +105,7 @@ even when an assertion fails.
 
 </Step>
 
-<Step title="When it fails, read the failure">
+<Step title="When it fails, read the failure" icon="bug">
 
 A failed MCP call comes back with its
 kind, the call, the page's state (URL, title, ready state, script errors,
@@ -112,7 +118,7 @@ the output directory without starting a browser.
 
 </Step>
 
-<Step title="Repeat">
+<Step title="Repeat" icon="rotate">
 
 Repeat until the test fails for the right reason, then passes.
 
@@ -122,14 +128,29 @@ Repeat until the test fails for the right reason, then passes.
 
 ## Prompts that work
 
-- "Open `/simple/login`, log in as demo_user, and export a test that checks the
-  heading. Use selectors that do not depend on page layout."
-- "This selector stopped matching. Diagnose it and suggest one that survives a
-  re-render."
-- "Run the exported test, and if it fails explain why in terms of the page, not
-  the stack trace."
-- "Check this page with the accessibility audit and list what a test should
-  assert."
+<Prompt description="Log in and export a test" icon="file-export" actions={["copy"]}>
+
+Open `/simple/login`, log in as demo_user, and export a test that checks the heading. Use selectors that do not depend on page layout.
+
+</Prompt>
+
+<Prompt description="Fix a selector that stopped matching" icon="crosshairs" actions={["copy"]}>
+
+This selector stopped matching. Diagnose it and suggest one that survives a re-render.
+
+</Prompt>
+
+<Prompt description="Run the exported test and explain a failure" icon="bug" actions={["copy"]}>
+
+Run the exported test, and if it fails explain why in terms of the page, not the stack trace.
+
+</Prompt>
+
+<Prompt description="Audit a page and list what to assert" icon="universal-access" actions={["copy"]}>
+
+Check this page with the accessibility audit and list what a test should assert.
+
+</Prompt>
 
 ## Review before you trust it
 
@@ -177,3 +198,21 @@ shows what worked once. Treat the loop as a fast way to a reviewed test, not as 
 substitute for the review.
 
 </Note>
+
+## Next steps
+
+<Columns cols={2}>
+
+<Card title="MCP servers" icon="robot" href="/tutorials/mcp_server">
+
+The tools the agent calls, and how to register the server.
+
+</Card>
+
+<Card title="Reliability" icon="shield-halved" href="/reliability">
+
+`run_browser_test` closes the browser even when an assertion fails.
+
+</Card>
+
+</Columns>

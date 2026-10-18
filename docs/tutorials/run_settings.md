@@ -24,23 +24,89 @@ lists the limits.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data: `with_demo_mode`, `with_slow_mode`, `with_demo_sleep`, `with_message_duration`, `with_default_timeout`, `with_skip_js_waits`, `with_record_sleep` and `with_visual_baseline_reset` (`with_fast_mode` is deprecated and does nothing). Pass them with `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
+
+</Visibility>
+
 ## The settings
 
 `RunSettings` and `PauseKind` are at the crate root (`seleniumbase_rs::RunSettings`;
 the module is `seleniumbase_rs::api::run_settings`). Every method below is a
 builder that takes and returns `RunSettings`.
 
-| Builder | Python option | Default | Effect |
-|---------|---------------|---------|--------|
-| `with_demo_mode(bool)` | `--demo` (also `--demo-mode`, `--demo_mode`) | off | Outlines the element before the interactive calls, then pauses after them. [Which calls](#which-calls-honour-which-setting) and how long. |
-| `with_slow_mode(bool)` | `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`) | off | The same pauses, without the outline. |
-| `with_fast_mode(bool)` | `--fast` (also `--fast-mode`, `--fast_mode`) | off | Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode. |
-| `with_demo_sleep(Duration)` | `--demo-sleep` (also `--demo_sleep`) | 0.5 s | How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`. |
-| `with_message_duration(Duration)` | `--message-duration` (also `--message_duration`) | 2.55 s | How long `post_message` and its relatives keep a message on the page, to the millisecond. In a headless browser it is cut to 0.75 s, as Python does (`message_duration_headless()`). A zero duration is honoured here; Python treats `0` as unset. |
-| `with_default_timeout(Duration)` | none (Rust only; `SB_TIMEOUT` sets it from the environment) | 10 s | The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (a part of a second rounds up). `BaseCase::new` (and so `run_browser_test` and `Plugins::run_browser_test`) starts with it; `set_run_settings` does not change the timeout, `set_timeout` does. |
-| `with_skip_js_waits(bool)` | `--skip-js-waits` (also `--skip_js_waits`, `--sjw`) | off | Makes `wait_for_ready_state_complete` return at once. |
-| `with_record_sleep(bool)` | `--record-sleep` (also `--rec-sleep`) | off | Puts `BaseCase::sleep` calls into the recording. |
-| `with_visual_baseline_reset(bool)` | `--visual-baseline` (also `--visual_baseline`) | off | Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one. |
+<ParamField body="with_demo_mode" type="bool" default="off">
+
+Python option: `--demo` (also `--demo-mode`, `--demo_mode`).
+
+Outlines the element before the interactive calls, then pauses after them. [Which calls](#which-calls-honour-which-setting) and how long.
+
+</ParamField>
+
+<ParamField body="with_slow_mode" type="bool" default="off">
+
+Python option: `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`).
+
+The same pauses, without the outline.
+
+</ParamField>
+
+<ParamField body="with_fast_mode" type="bool" default="off" deprecated>
+
+Python option: `--fast` (also `--fast-mode`, `--fast_mode`).
+
+Deprecated, does nothing. Python reads `--fast` only in CDP mode, to skip waits this crate never makes; it never cancels demo or slow mode.
+
+</ParamField>
+
+<ParamField body="with_demo_sleep" type="Duration" default="0.5 s">
+
+Python option: `--demo-sleep` (also `--demo_sleep`).
+
+How long the demo and slow pauses last. Python takes a number of seconds; here it is a `Duration`.
+
+</ParamField>
+
+<ParamField body="with_message_duration" type="Duration" default="2.55 s">
+
+Python option: `--message-duration` (also `--message_duration`).
+
+How long `post_message` and its relatives keep a message on the page, to the millisecond. In a headless browser it is cut to 0.75 s, as Python does (`message_duration_headless()`). A zero duration is honoured here; Python treats `0` as unset.
+
+</ParamField>
+
+<ParamField body="with_default_timeout" type="Duration" default="10 s">
+
+Python option: none (Rust only; `SB_TIMEOUT` sets it from the environment).
+
+The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (a part of a second rounds up). `BaseCase::new` (and so `run_browser_test` and `Plugins::run_browser_test`) starts with it; `set_run_settings` does not change the timeout, `set_timeout` does.
+
+</ParamField>
+
+<ParamField body="with_skip_js_waits" type="bool" default="off">
+
+Python option: `--skip-js-waits` (also `--skip_js_waits`, `--sjw`).
+
+Makes `wait_for_ready_state_complete` return at once.
+
+</ParamField>
+
+<ParamField body="with_record_sleep" type="bool" default="off">
+
+Python option: `--record-sleep` (also `--rec-sleep`).
+
+Puts `BaseCase::sleep` calls into the recording.
+
+</ParamField>
+
+<ParamField body="with_visual_baseline_reset" type="bool" default="off">
+
+Python option: `--visual-baseline` (also `--visual_baseline`).
+
+Makes `check_window` save the page's structure as the new baseline instead of comparing with the old one.
+
+</ParamField>
 
 The defaults are `DEFAULT_DEMO_PAUSE` (500 ms, Python's `DEFAULT_DEMO_MODE_TIMEOUT`) and `DEFAULT_MESSAGE_DURATION`
 (2.55 s) in the same module.
@@ -320,12 +386,42 @@ times longer. Keep them off unless a person is watching.
 
 ## Related reading
 
-- [Settings and Configuration](/tutorials/settings_and_config): `BrowserConfig`, the
-  config file and the `SB_*` variables.
-- [Waits and Assertions](/tutorials/waits_assertions): the waits that
-  `with_skip_js_waits` leaves alone.
-- [Recorder Mode](/tutorials/recorder_mode): recording actions and exporting them as
-  a test.
-- [API Guide](/tutorials/api_reference): `check_window`, `post_message` and the rest.
-- [Performance](/performance): the pauses that are there on purpose.
-- [API parity table](/parity): every Python option and its Rust name.
+<Columns cols={2}>
+
+<Card title="Settings and Configuration" icon="gear" href="/tutorials/settings_and_config">
+
+`BrowserConfig`, the config file and the `SB_*` variables.
+
+</Card>
+
+<Card title="Waits and Assertions" icon="clock" href="/tutorials/waits_assertions">
+
+The waits that `with_skip_js_waits` leaves alone.
+
+</Card>
+
+<Card title="Recorder Mode" icon="circle-dot" href="/tutorials/recorder_mode">
+
+Recording actions and exporting them as a test.
+
+</Card>
+
+<Card title="API Guide" icon="code" href="/tutorials/api_reference">
+
+`check_window`, `post_message` and the rest.
+
+</Card>
+
+<Card title="Performance" icon="gauge-high" href="/performance">
+
+The pauses that are there on purpose.
+
+</Card>
+
+<Card title="API parity table" icon="table" href="/parity">
+
+Every Python option and its Rust name.
+
+</Card>
+
+</Columns>

@@ -18,6 +18,12 @@ things you can do for test maintainability.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `::shadow` pierces open shadow roots. `Selector::auto_by` detects the strategy and `Selector::Css(..)` states it.
+
+</Visibility>
+
 ## Supported formats
 
 | Prefix | Meaning | Example |
@@ -25,7 +31,7 @@ things you can do for test maintainability.
 | `#` | ID | `#username` |
 | `.` | Class (first match) | `.btn-primary` |
 | `/`, `//`, `./`, `../`, `(` | XPath | `//div[@class='hero']` |
-| an XPath axis | XPath | `parent::div`, `following-sibling::td` |
+| an <Tooltip tip="The direction an XPath step walks from the current element, as in parent:: or following-sibling::.">XPath axis</Tooltip> | XPath | `parent::div`, `following-sibling::td` |
 | `link=`, `link_text=`, `text=` | Exact link text | `link=Log in` |
 | `partial_link=`, `partial_link_text=`, `partial_text=` | Partial link text | `partial_text=Privacy` |
 | `p_link=`, `p_link_text=`, `p_text=` | Partial link text (short forms) | `p_text=Privacy` |
@@ -166,15 +172,62 @@ other direction is `BaseCase::convert_css_to_xpath`.
 
 ## Selector troubleshooting
 
-| Problem | Likely cause | Fix |
-|---------|--------------|-----|
-| `ElementNotFound` | Selector is wrong or element not yet rendered. | Check the selector; add an explicit wait. |
-| `InvalidSelector` | Malformed XPath or CSS. | Validate syntax; escape quotes properly. |
-| Stale element | DOM was replaced after the element was found. | Re-find the element before each action. |
-| Shadow DOM not pierced | Shadow root is closed or selector format is wrong. | Verify the component uses open shadow DOM; use `::shadow`. |
+<AccordionGroup>
+
+<Accordion title="ElementNotFound" icon="magnifying-glass">
+
+**Likely cause:** Selector is wrong or element not yet rendered.
+
+**Fix:** Check the selector; add an explicit wait.
+
+</Accordion>
+
+<Accordion title="InvalidSelector" icon="triangle-exclamation">
+
+**Likely cause:** Malformed XPath or CSS.
+
+**Fix:** Validate syntax; escape quotes properly.
+
+</Accordion>
+
+<Accordion title="Stale element" icon="clock-rotate-left">
+
+**Likely cause:** DOM was replaced after the element was found.
+
+**Fix:** Re-find the element before each action.
+
+</Accordion>
+
+<Accordion title="Shadow DOM not pierced" icon="layer-group">
+
+**Likely cause:** Shadow root is closed or selector format is wrong.
+
+**Fix:** Verify the component uses open shadow DOM; use `::shadow`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Related reading
 
-- [Waits and Assertions](/tutorials/waits_assertions) — how to wait for elements to be ready.
-- [Shadow DOM](/tutorials/shadow_dom) — deeper coverage of Web Components.
-- [API Reference](/tutorials/api_reference) — all methods that accept selectors.
+<Columns cols={3}>
+
+<Card title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
+
+How to wait for elements to be ready.
+
+</Card>
+
+<Card title="Shadow DOM" icon="layer-group" horizontal href="/tutorials/shadow_dom">
+
+Deeper coverage of Web Components.
+
+</Card>
+
+<Card title="API Reference" icon="code" horizontal href="/tutorials/api_reference">
+
+All methods that accept selectors.
+
+</Card>
+
+</Columns>

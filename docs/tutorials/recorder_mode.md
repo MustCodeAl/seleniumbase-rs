@@ -19,6 +19,12 @@ generated output.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs record URL -o actions.json` captures clicks, typing, `<select>` changes and navigations into an action file that `sbrs replay` runs. From code, `BaseCase` records the actions it performs; `export_recording_as_rust()` returns a Rust program, `save_recording_to_logs()` saves JSON and Rust, and `ActionRecorder::to_rust_test(name)` returns a `#[tokio::test]`. `--rec-sb-cdp` writes pure CDP code instead. `sbrs run-scenario` reads hand-written scenarios, not action files.
+
+</Visibility>
+
 ## Record from the CLI
 
 `sbrs record` opens a browser on a URL, captures your clicks, typing, `<select>`
@@ -26,7 +32,7 @@ changes and page navigations while you use it, and saves them as an action file
 when you press Ctrl-C (or after `--duration SECONDS`, or when you close the
 browser):
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- record https://seleniumbase.io/demo_page -o actions.json
 cargo run --bin sbrs -- replay actions.json
 ```
@@ -164,7 +170,7 @@ The file goes in the `latest_logs` folder (the name must be a plain file name),
 and holds an array of `{ "name", "target", "value", "timestamp_ms" }` objects.
 Replay it with the CLI:
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- replay latest_logs/recorded.json
 ```
 
@@ -176,6 +182,14 @@ hand-written scenario, an object with a `name` and a list of `steps` such as
 parse. See [Recorder CLI](/help/recorder_cli) for both formats.
 
 </Warning>
+
+```mermaid
+graph LR
+  A["sbrs record, or save_recorded_actions"] --> B["Action file: an array of actions"]
+  B --> C["sbrs replay"]
+  D["Hand-written scenario: a name and steps"] --> E["sbrs run-scenario"]
+  B -.->|fails to parse| E
+```
 
 Action files are portable and can be replayed by CI jobs without recompiling a
 test binary. `replay` understands `goto`/`open`, `click`, `type`/`type_text`,
@@ -191,10 +205,46 @@ skips any other action.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Recording is empty | Actions were performed without a `BaseCase` method (e.g. raw JS) | Use `BaseCase` interaction methods so the internal recorder captures them. |
-| Generated selector is brittle | Page uses auto-generated IDs | Replace recorded selectors with stable `data-testid` or class selectors. |
-| Replay fails | Target application changed | Regenerate or hand-edit the action file. |
-| `run-scenario` rejects the saved file | It is an action file, not a scenario | Replay it with `sbrs replay`. |
-| `replay` reports skipped steps | The action is not one replay understands | Use the generated Rust test instead, or hand-edit the file. |
+<AccordionGroup>
+
+<Accordion title="Recording is empty" icon="video-slash">
+
+**Likely cause:** Actions were performed without a `BaseCase` method (e.g. raw JS).
+
+**Fix:** Use `BaseCase` interaction methods so the internal recorder captures them.
+
+</Accordion>
+
+<Accordion title="Generated selector is brittle" icon="link-slash">
+
+**Likely cause:** Page uses auto-generated IDs.
+
+**Fix:** Replace recorded selectors with stable `data-testid` or class selectors.
+
+</Accordion>
+
+<Accordion title="Replay fails" icon="rotate-left">
+
+**Likely cause:** Target application changed.
+
+**Fix:** Regenerate or hand-edit the action file.
+
+</Accordion>
+
+<Accordion title="run-scenario rejects the saved file" icon="file-circle-xmark">
+
+**Likely cause:** It is an action file, not a scenario.
+
+**Fix:** Replay it with `sbrs replay`.
+
+</Accordion>
+
+<Accordion title="replay reports skipped steps" icon="forward-step">
+
+**Likely cause:** The action is not one replay understands.
+
+**Fix:** Use the generated Rust test instead, or hand-edit the file.
+
+</Accordion>
+
+</AccordionGroup>

@@ -9,6 +9,18 @@ its DevTools endpoint. `sbrs devtools` starts such a browser for them, and the
 `sbrs-mcp` Pure CDP server can hand out the endpoint of the browser it drives,
 so a vendor server and this crate's tools can work on the same tabs.
 
+<Frame caption="Several servers, one browser.">
+
+```mermaid
+flowchart LR
+  A["sbrs devtools"] -- "starts" --> B["Chrome with its DevTools endpoint"]
+  E["sbrs-mcp, Pure CDP server"] -- "drives it and hands out its endpoint" --> B
+  C["chrome-devtools-mcp (--browserUrl)"] -- "attaches" --> B
+  D["Playwright MCP (--cdp-endpoint)"] -- "attaches" --> B
+```
+
+</Frame>
+
 | Server | Browser | Attaches with |
 | --- | --- | --- |
 | Google `chrome-devtools-mcp` | Chrome (Edge unofficially) | `--browserUrl http://127.0.0.1:PORT` |
@@ -25,6 +37,12 @@ so a config keeps running the code it was written for; raise the version when
 you want a newer one.
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs devtools` launches Chrome with the Pure CDP engine and its DevTools endpoint on `127.0.0.1:9222`, prints the endpoint and ready-to-paste configs for Google's `chrome-devtools-mcp` (`--browserUrl`) and Microsoft's Playwright MCP (`--cdp-endpoint`), and runs until Ctrl+C. The `get_devtools_endpoint` tool of `sbrs-mcp --server cdp` returns the same for the browser it drives. Firefox and Safari have their own MCP servers and do not use this endpoint. Any program on the machine can drive a browser with an open endpoint, so use a throwaway profile.
+
+</Visibility>
 
 ## `sbrs devtools`
 
@@ -44,28 +62,68 @@ endpoint on `127.0.0.1:9222` and a throwaway profile, and prints:
 The browser keeps running until you press Ctrl+C (or send SIGTERM), which closes
 it and exits with status 0. Closing the browser window ends the command too.
 
-| Option | Meaning |
-| --- | --- |
-| `--port N` | DevTools port on `127.0.0.1` (default 9222). `--port 0` lets Chrome pick a free one; a taken port is refused before Chrome starts. |
-| `--headless` | No window. Without it the browser is headed, except on Linux. |
-| `--user-data-dir DIR` | Keep the profile in `DIR`. Chrome refuses the DevTools endpoint on its own default profile, so use a directory of its own. |
-| `--proxy SPEC` | `SERVER:PORT`, `USER:PASS@SERVER:PORT` or `scheme://SERVER:PORT`. Credentials are answered over the protocol, never put on Chrome's command line. |
-| `--browser-path PATH` | Launch this binary, such as Microsoft Edge or another Chromium browser. |
-| `--url URL` | Open this page once the browser runs. |
-| `--json` | Print the endpoint and the configs as one line of JSON instead of text. |
+<ParamField body="--port" type="N" default="9222">
+
+DevTools port on `127.0.0.1`. `--port 0` lets Chrome pick a free one; a taken port is refused before Chrome starts.
+
+</ParamField>
+
+<ParamField body="--headless">
+
+No window. Without it the browser is headed, except on Linux.
+
+</ParamField>
+
+<ParamField body="--user-data-dir" type="DIR">
+
+Keep the profile in `DIR`. Chrome refuses the DevTools endpoint on its own default profile, so use a directory of its own.
+
+</ParamField>
+
+<ParamField body="--proxy" type="SPEC">
+
+`SERVER:PORT`, `USER:PASS@SERVER:PORT` or `scheme://SERVER:PORT`. Credentials are answered over the protocol, never put on Chrome's command line.
+
+</ParamField>
+
+<ParamField body="--browser-path" type="PATH">
+
+Launch this binary, such as Microsoft Edge or another Chromium browser.
+
+</ParamField>
+
+<ParamField body="--url" type="URL">
+
+Open this page once the browser runs.
+
+</ParamField>
+
+<ParamField body="--json">
+
+Print the endpoint and the configs as one line of JSON instead of text.
+
+</ParamField>
 
 The global options that make sense for a Pure CDP browser apply as well, written
 before `devtools`: `--browser chrome|chromium|edge|brave|...`, `--headed`,
 `--user-agent`, `--locale`, `--ad-block`, `--extension-dir` and `--proxy-list`.
 `--uc` and `--cdp` change nothing here: this engine never uses chromedriver.
 
-```bash
+<RequestExample>
+
+```bash Terminal
 sbrs devtools --headless --port 0 --json
 ```
 
-```json
+</RequestExample>
+
+<ResponseExample>
+
+```json Output
 {"http_url":"http://127.0.0.1:53017","websocket_url":"ws://127.0.0.1:53017/devtools/browser/…","version_url":"http://127.0.0.1:53017/json/version","mcp_configs":{"chrome_devtools_mcp":{…},"playwright_mcp":{…}},"claude_code":["claude mcp add chrome-devtools -- npx …","claude mcp add playwright -- npx …"],"browser":"Google Chrome"}
 ```
+
+</ResponseExample>
 
 The `--json` line is the first line on standard output, so a script can read it
 and start its client.

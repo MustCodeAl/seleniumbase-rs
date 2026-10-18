@@ -14,6 +14,12 @@ real Chrome (a click takes about half a millisecond, a protocol round trip
 about 0.1 ms, and the driving process stays near 9 MiB), see
 [Benchmarks](/benchmarks).
 
+<Visibility for="agents">
+
+Summary for AI exports: Rust speeds up test orchestration, not the costs a browser test is dominated by: page load, rendering, network latency, WebDriver round trips and browser startup. Measure complete, realistic tests, report cold and warm startup separately, and track median, tail (p95/p99), CPU and memory, and failure rate. Control parallelism with `SB_THREADS` or the `-n` flag and increase it only after measuring. Prefer one `wait_for_element_visible` over a manual polling loop, and reuse browsers through `BrowserPool` leases. Measured library costs: a click takes about half a millisecond, a protocol round trip about 0.1 ms, and launching Chrome to a DevTools connection about 0.5 s.
+
+</Visibility>
+
 ## Where Rust helps
 
 - **Test harness overhead**: compiling to native code removes interpreter startup

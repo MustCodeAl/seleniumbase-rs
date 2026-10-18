@@ -10,9 +10,15 @@ or a timeout expires.
 This page explains the waiting model, the available assertion helpers, soft
 assertions, and common mistakes to avoid.
 
+<Visibility for="agents">
+
+Summary for AI exports: `BaseCase` actions wait for their element (visible and enabled for `click`, visible for `type_text`, present for `get_text`) for 10 seconds by default, then fail with `SeleniumBaseError::WaitTimeout`. Use `wait_for_element_present`, `wait_for_element_visible`, `wait_for_element_not_visible`, `wait_for_element_clickable`, `wait_for_element_absent`, `wait_for_ready_state_complete` and `wait_for_text` for explicit waits. The text assertions take the text first and the selector second. Soft assertions (`deferred_assert_*`) are raised by `process_deferred_asserts`. Change the default wait with `set_timeout`, and do not use `tokio::time::sleep` to wait for pages.
+
+</Visibility>
+
 ## Smart waiting in actions
 
-`BaseCase` actions wait for their element before acting, polling until it is
+`BaseCase` actions wait for their element before acting, <Tooltip tip="Checking again at short intervals until the condition holds or the timeout passes.">polling</Tooltip> until it is
 ready or the timeout passes (10 seconds by default; see
 [Default timeout](#default-timeout)):
 
@@ -21,6 +27,18 @@ ready or the timeout passes (10 seconds by default; see
 | `click`, `double_click`, `context_click` | visible and enabled |
 | `type_text`, `send_keys`, `clear`, `hover`, `drag_and_drop` | visible |
 | `get_text`, `get_attribute`, `submit`, `set_value`, `select_option_by_*` | present |
+
+<Frame caption="What an action does while it waits.">
+
+```mermaid
+flowchart LR
+  A["Action: click, type_text, get_text, ..."] --> B{"Element ready?"}
+  B -- "yes" --> C["Act"]
+  B -- "not yet" --> D["Poll again"] --> B
+  B -- "timeout passed (10 s by default)" --> E["SeleniumBaseError::WaitTimeout"]
+```
+
+</Frame>
 
 If the element never gets there, the action fails with
 `SeleniumBaseError::WaitTimeout`, which names the selector and the state it was
@@ -185,5 +203,18 @@ A test that does none of those is not interrupted; wrap the test in
 
 ## Related reading
 
-- [Selectors](/tutorials/selectors) — choosing stable element locators.
-- [API Reference](/tutorials/api_reference) — complete list of wait and assertion methods.
+<Columns cols={2}>
+
+<Card title="Selectors" icon="crosshairs" href="/tutorials/selectors">
+
+Choosing stable element locators.
+
+</Card>
+
+<Card title="API Reference" icon="code" href="/tutorials/api_reference">
+
+Complete list of wait and assertion methods.
+
+</Card>
+
+</Columns>

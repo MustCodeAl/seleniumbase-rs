@@ -64,16 +64,16 @@ Every `*.feature` file under the folder (subfolders included, sorted by path;
 folders whose name starts with a dot, and `target` and `node_modules`, are not
 entered), with its scenarios below it:
 
-<Frame caption="The list the app shows">
+<ResponseExample>
 
-```text
+```text The list the app shows
   [-] features/login.feature => Log in (3 scenarios)
       [x] line 10: valid login
       [ ] line 14: wrong value
       [ ] line 26: undefined step
 ```
 
-</Frame>
+</ResponseExample>
 
 A feature shows `[x]` when all its scenarios are marked, `[-]` when some are.
 An outline is one row, whatever the number of examples.

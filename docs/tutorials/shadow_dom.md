@@ -18,6 +18,12 @@ traditional CSS or XPath search.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: the `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.shadow_click("app-shell ::shadow nav-menu ::shadow a[href='/settings']")`. The methods are `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_find_elements` and `get_shadow_root`. Only open shadow roots can be reached.
+
+</Visibility>
+
 ## Basic usage
 
 The `::shadow` combinator moves the search context into the shadow root of the
@@ -52,6 +58,12 @@ sb.shadow_click("app-shell ::shadow nav-menu ::shadow a[href='/settings']").awai
 
 The first `::shadow` enters `app-shell`; the second enters the `nav-menu`
 component inside it.
+
+```mermaid
+graph LR
+  A["app-shell"] -->|"::shadow"| B["nav-menu"]
+  B -->|"::shadow"| C["a[href='/settings']"]
+```
 
 ## Find elements inside shadow DOM
 
@@ -90,8 +102,30 @@ button.click().await?;
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `NoSuchElement` inside shadow root | Root is closed | Use CDP DOM access if available, or ask the application to use open roots in test builds. |
-| Selector matches parent instead of shadow element | Missing `::shadow` combinator | Add `::shadow` before the nested selector. |
-| Stale element on chained shadow query | Component re-rendered | Re-query the host element before each shadow step. |
+<AccordionGroup>
+
+<Accordion title="NoSuchElement inside shadow root" icon="ban">
+
+**Likely cause:** Root is closed.
+
+**Fix:** Use CDP DOM access if available, or ask the application to use open roots in test builds.
+
+</Accordion>
+
+<Accordion title="Selector matches parent instead of shadow element" icon="arrow-up">
+
+**Likely cause:** Missing `::shadow` combinator.
+
+**Fix:** Add `::shadow` before the nested selector.
+
+</Accordion>
+
+<Accordion title="Stale element on chained shadow query" icon="clock-rotate-left">
+
+**Likely cause:** Component re-rendered.
+
+**Fix:** Re-query the host element before each shadow step.
+
+</Accordion>
+
+</AccordionGroup>

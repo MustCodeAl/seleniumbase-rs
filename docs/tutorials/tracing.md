@@ -19,11 +19,17 @@ tracing in your own tests.
 
 </Info>
 
+<Visibility for="agents">
+
+Summary for AI exports: control verbosity with `RUST_LOG`, for example `RUST_LOG=seleniumbase_rs=debug cargo test`. `sbrs` and `sbrs-mcp` also read `SB_LOG_LEVEL` and `SB_LOG_FORMAT` (`pretty` or `json`); without a valid `SB_LOG_LEVEL` they use `RUST_LOG`, then `info`. In your own program call `init_tracing()`. Error events carry `error.category`, `error.transient` and `error.hint`; `ResultExt::log_err` logs an error and passes it through. `full-tracing` adds timing histograms.
+
+</Visibility>
+
 ## Log levels
 
 Set the `RUST_LOG` environment variable to control verbosity:
 
-```bash
+```bash Terminal
 RUST_LOG=info cargo run --bin sbrs -- open https://example.com
 RUST_LOG=seleniumbase_rs=debug cargo test
 RUST_LOG=warn cargo run --bin sbrs-mcp
@@ -31,7 +37,7 @@ RUST_LOG=warn cargo run --bin sbrs-mcp
 
 `RUST_LOG` follows the standard `env_logger`/`tracing-subscriber` syntax:
 
-```bash
+```bash Terminal
 # Show only errors from everything and debug from this crate.
 RUST_LOG=error,seleniumbase_rs=debug cargo test
 ```
@@ -41,18 +47,59 @@ RUST_LOG=error,seleniumbase_rs=debug cargo test
 Following [Twelve-Factor III (config in the environment)](https://12factor.net/config),
 `sbrs` and the library read runtime settings from `SB_*` variables:
 
-| Variable | Default | Description |
-|---|---|---|
-| `SB_WEBDRIVER_URL` | `http://localhost:4444` | WebDriver endpoint. |
-| `SB_CHROME_BIN` | auto-detect | Explicit Chrome/Chromium binary path. |
-| `SB_PATCH_CACHE_DIR` | platform cache dir | Directory for patched Chrome/Chromedriver copies. |
-| `SB_LOG_LEVEL` | unset | The tracing filter (`debug`, `seleniumbase_rs=debug,info`). Unset, blank or invalid, `sbrs` and `sbrs-mcp` use `RUST_LOG`, then `info`. |
-| `SB_LOG_FORMAT` | `pretty` | `pretty` or `json` output. |
-| `SB_SHUTDOWN_TIMEOUT_SECS` | `30` | Graceful shutdown timeout. |
-| `SB_CHROMEDRIVER_PORT` | `0` | Parsed into `RuntimeConfig::chromedriver_port`; nothing in the crate reads it yet. |
-| `SB_IMPLICIT_WAIT_SECS` | `30` | Parsed into `RuntimeConfig::implicit_wait`; nothing in the crate reads it yet. |
+<ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
 
-```bash
+WebDriver endpoint.
+
+</ParamField>
+
+<ParamField body="SB_CHROME_BIN" type="string" default="auto-detect">
+
+Explicit Chrome/Chromium binary path.
+
+</ParamField>
+
+<ParamField body="SB_PATCH_CACHE_DIR" type="string" default="platform cache dir">
+
+Directory for patched Chrome/Chromedriver copies.
+
+</ParamField>
+
+<ParamField body="SB_LOG_LEVEL" type="string">
+
+The tracing filter (`debug`, `seleniumbase_rs=debug,info`). Unset, blank or invalid, `sbrs` and `sbrs-mcp` use `RUST_LOG`, then `info`.
+
+</ParamField>
+
+<ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
+
+`pretty` or `json` output.
+
+</ParamField>
+
+<ParamField body="SB_SHUTDOWN_TIMEOUT_SECS" type="integer" default="30">
+
+Graceful shutdown timeout.
+
+</ParamField>
+
+<ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
+
+<Badge color="gray">Not read yet</Badge>
+
+Parsed into `RuntimeConfig::chromedriver_port`; nothing in the crate reads it yet.
+
+</ParamField>
+
+<ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
+
+<Badge color="gray">Not read yet</Badge>
+
+Parsed into `RuntimeConfig::implicit_wait`; nothing in the crate reads it yet.
+
+</ParamField>
+
+```bash Terminal
 SB_WEBDRIVER_URL=http://localhost:9515 SB_LOG_LEVEL=debug sbrs open https://example.com
 ```
 
@@ -104,9 +151,23 @@ HTTP requests.
 
 Errors are emitted as structured `tracing::error!` events. Each event includes:
 
-* `error.category` — stable tag such as `element_not_found` or `browser_launch`.
-* `error.transient` — whether the failure is retryable.
-* `error.hint` — a short remediation suggestion.
+<ResponseField name="error.category" type="string">
+
+Stable tag such as `element_not_found` or `browser_launch`.
+
+</ResponseField>
+
+<ResponseField name="error.transient" type="boolean">
+
+Whether the failure is retryable.
+
+</ResponseField>
+
+<ResponseField name="error.hint" type="string">
+
+A short remediation suggestion.
+
+</ResponseField>
 
 Example output:
 
@@ -140,12 +201,14 @@ actor instrumentation.
 
 ## Watching async tasks with tokio-console
 
+<Badge color="blue">Feature: tokio-console</Badge>
+
 When something hangs, [tokio-console](https://github.com/tokio-rs/console) shows
 every async task live: which ones are waiting, for how long, and on what.
 
 <Steps>
 
-<Step title="Run with the instrumentation">
+<Step title="Run with the instrumentation" icon="play">
 
 Build with the `tokio-console` feature and tokio's unstable instrumentation (both are
 for debugging only and make the program bigger):
@@ -156,7 +219,7 @@ RUSTFLAGS="--cfg tokio_unstable" cargo run --features tokio-console --bin sbrs -
 
 </Step>
 
-<Step title="Start the console">
+<Step title="Start the console" icon="terminal">
 
 In another terminal:
 
@@ -174,9 +237,38 @@ It connects to `127.0.0.1:6669`. Your own program gets the same when it calls
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| No log output | Subscriber not initialized | Run through `sbrs`, `sbrs-mcp`, or call `tracing_subscriber::fmt::init()` in your `main()`. |
-| Too much noise from dependencies | `RUST_LOG=debug` includes all crates | Scope to `seleniumbase_rs=debug`. |
-| JSON format not working | `SB_LOG_FORMAT=json` unsupported by default subscriber | Use a custom subscriber or enable the `full-tracing` feature. |
-| Shutdown timeout errors | `SB_SHUTDOWN_TIMEOUT_SECS` too low | Increase it for slow CI agents. |
+<AccordionGroup>
+
+<Accordion title="No log output" icon="eye-slash">
+
+**Likely cause:** Subscriber not initialized.
+
+**Fix:** Run through `sbrs`, `sbrs-mcp`, or call `tracing_subscriber::fmt::init()` in your `main()`.
+
+</Accordion>
+
+<Accordion title="Too much noise from dependencies" icon="volume-high">
+
+**Likely cause:** `RUST_LOG=debug` includes all crates.
+
+**Fix:** Scope to `seleniumbase_rs=debug`.
+
+</Accordion>
+
+<Accordion title="JSON format not working" icon="code">
+
+**Likely cause:** `SB_LOG_FORMAT=json` unsupported by default subscriber.
+
+**Fix:** Use a custom subscriber or enable the `full-tracing` feature.
+
+</Accordion>
+
+<Accordion title="Shutdown timeout errors" icon="hourglass-half">
+
+**Likely cause:** `SB_SHUTDOWN_TIMEOUT_SECS` too low.
+
+**Fix:** Increase it for slow CI agents.
+
+</Accordion>
+
+</AccordionGroup>

@@ -9,14 +9,36 @@ printable documents.
 <Note>
 
 Printing a page to PDF is always available. Reading the text of a PDF needs the
-`pdf` Cargo feature, which pulls in the `pdf-extract` parser (about 34 crates):
-`seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["pdf"] }`. The CLI package
-`seleniumbase-rs-cli` has it on by default
-(`cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli`).
-Built with `--no-default-features`, `sbrs pdf-text` and `sbrs assert-pdf-text`
-exit with status 2 and say how to get it.
+`pdf` Cargo feature, which pulls in the `pdf-extract` parser (about 34 crates).
+The CLI package `seleniumbase-rs-cli` has it on by default. Built with
+`--no-default-features`, `sbrs pdf-text` and `sbrs assert-pdf-text` exit with
+status 2 and say how to get it.
 
 </Note>
+
+<CodeGroup>
+
+```toml Cargo.toml
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["pdf"] }
+```
+
+```bash Install the CLI
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli
+```
+
+</CodeGroup>
+
+<Panel>
+
+<Card title="Quick reference" icon="file-pdf">
+
+`save_as_pdf` and `print_to_pdf` print a page to PDF (always available).
+
+With feature `pdf`: `get_pdf_text`, `assert_pdf_text`, `pdf::extract_text_from_bytes`, `pdf::extract_text_from_url` (refuses downloads over 100 MB) and `PdfReader::open`.
+
+</Card>
+
+</Panel>
 
 <Info>
 
@@ -77,9 +99,38 @@ for (number, page) in reader.pages()?.iter().enumerate() {
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| PDF is blank | Page not fully loaded | Wait for `readyState === 'complete'` before printing. |
-| Text extraction fails | PDF is scanned/image-only | Use OCR or ensure the PDF contains embedded text. |
-| `print_to_pdf` unsupported | Driver is Firefox | Use Chromium-based browsers for CDP print-to-PDF. |
-| `no method named get_pdf_text` | Built without the `pdf` feature | Add `features = ["pdf"]` to the dependency. |
+<AccordionGroup>
+
+<Accordion title="PDF is blank" icon="file">
+
+**Likely cause.** Page not fully loaded.
+
+**Fix.** Wait for `readyState === 'complete'` before printing.
+
+</Accordion>
+
+<Accordion title="Text extraction fails" icon="magnifying-glass">
+
+**Likely cause.** PDF is scanned/image-only.
+
+**Fix.** Use <Tooltip tip="Optical character recognition: reading text out of an image.">OCR</Tooltip> or ensure the PDF contains embedded text.
+
+</Accordion>
+
+<Accordion title="print_to_pdf unsupported" icon="globe">
+
+**Likely cause.** Driver is Firefox.
+
+**Fix.** Use Chromium-based browsers for CDP print-to-PDF.
+
+</Accordion>
+
+<Accordion title="no method named get_pdf_text" icon="puzzle-piece">
+
+**Likely cause.** Built without the `pdf` feature.
+
+**Fix.** Add `features = ["pdf"]` to the dependency.
+
+</Accordion>
+
+</AccordionGroup>

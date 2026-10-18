@@ -5,12 +5,23 @@ sidebarTitle: "Stealth scraping"
 
 <Badge color="orange">Experimental</Badge>
 
-The stealth scraping layer is no longer part of `seleniumbase-rs`. Since version
-0.3.0 (2026-10-15) it lives in its own repository,
+The stealth scraping layer is no longer part of `seleniumbase-rs`.
+
+<Update label="2026-10-15" description="Version 0.3.0" tags={["Moved"]}>
+
+The layer lives in its own repository,
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
 as three crates. The features `scrape` and `impersonate` and the modules
 `seleniumbase_rs::wire`, `seleniumbase_rs::scrape` and
 `seleniumbase_rs::impersonate` are gone from this crate.
+
+</Update>
+
+<Visibility for="agents">
+
+Summary for AI exports: the stealth scraping layer left this crate in 0.3.0 and lives in seleniumbase-rs-stealth, as the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`. They are not on crates.io: depend on them by git next to `seleniumbase-rs`, and write the `seleniumbase-rs` line with the plain git URL so that Cargo resolves one commit. The layer is experimental; only Chrome 155 on macOS is measured.
+
+</Visibility>
 
 <Tip>
 
@@ -21,29 +32,21 @@ The full tutorial is part of this site now, under
 
 <Columns cols={2}>
 
-<Card title="Overview and crates" icon="layer-group" href="/stealth/overview">
+<Tile href="/stealth/overview" title="Overview and crates" description="The three crates, how to depend on them, and how the pieces layer.">
+  <Icon icon="layer-group" size={48} />
+</Tile>
 
-The three crates, how to depend on them, and how the pieces layer.
+<Tile href="/stealth/wire-formats" title="Wire formats" description="Measured tables, JA3, JA4, peetprint, re-measuring when Chrome updates.">
+  <Icon icon="fingerprint" size={48} />
+</Tile>
 
-</Card>
+<Tile href="/stealth/browser-scraper" title="BrowserScraper and HttpSession" description="A real Chrome with challenge detection, and plain requests that continue its session.">
+  <Icon icon="globe" size={48} />
+</Tile>
 
-<Card title="Wire formats" icon="fingerprint" href="/stealth/wire-formats">
-
-Measured tables, JA3, JA4, peetprint, re-measuring when Chrome updates.
-
-</Card>
-
-<Card title="BrowserScraper and HttpSession" icon="globe" href="/stealth/browser-scraper">
-
-A real Chrome with challenge detection, and plain requests that continue its session.
-
-</Card>
-
-<Card title="Limits" icon="triangle-exclamation" href="/stealth/limits">
-
-What is measured, what is refused, and troubleshooting.
-
-</Card>
+<Tile href="/stealth/limits" title="Limits" description="What is measured, what is refused, and troubleshooting.">
+  <Icon icon="triangle-exclamation" size={48} />
+</Tile>
 
 </Columns>
 
@@ -57,7 +60,7 @@ What is measured, what is refused, and troubleshooting.
 
 The crates are not on crates.io. Depend on them by git, next to this crate:
 
-```toml
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs" }
 seleniumbase-rs-scrape = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
@@ -79,10 +82,14 @@ README has the current instructions.
 
 ## Status
 
+<Warning>
+
 **Experimental.** Types and paths may change between commits. Only Chrome 155
 on macOS is measured; on another system or Chrome version the impersonation
 refuses to run instead of guessing. Everything was tested against local servers
 and a local Chrome, never against live services.
+
+</Warning>
 
 The long guide this page used to hold (the wire formats, re-measuring when
 Chrome updates, the identity file, `BrowserScraper`, `HttpSession`, `MitmProxy`,

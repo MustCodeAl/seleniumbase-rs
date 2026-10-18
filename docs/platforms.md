@@ -11,6 +11,12 @@ is the best-trodden path, and Windows 11 was checked by hand (see
 on Linux (arm64, Debian 12, Chromium 154) in a container; what passed, and what
 was not run, is under [Verified on Linux](#verified-on-linux).
 
+<Visibility for="agents">
+
+Summary for AI exports: macOS is the best-trodden path, Linux was verified in a container (arm64, Debian 12, Chromium 154) and Windows 11 was checked by hand. Name a browser with `SB_CHROME_BIN` or `CHROME_BIN`. As root or in a container the pure CDP engine needs `SB_NO_SANDBOX` (the WebDriver engine always passes `--no-sandbox` on Linux). `sbrs doctor` checks Chrome and chromedriver; `sbrs install` fetches the matching chromedriver.
+
+</Visibility>
+
 The packages each system and each feature needs, with the commands that install
 them (Homebrew, apt, dnf, winget), are in
 [Building and installing](/building#what-you-need).
@@ -21,21 +27,21 @@ The library looks in the usual install locations, and you can always name one:
 
 <Tabs>
 
-<Tab title="macOS">
+<Tab title="macOS" icon="apple">
 
 - **Looked at:** `/Applications/Google Chrome.app`, `~/Applications/Google Chrome.app`, Chromium, Chrome Canary
 - **Override:** `SB_CHROME_BIN` or `CHROME_BIN`
 
 </Tab>
 
-<Tab title="Linux">
+<Tab title="Linux" icon="linux">
 
 - **Looked at:** `google-chrome`, `google-chrome-stable`, `chromium` and `chromium-browser` in `/usr/bin` (and `/snap/bin/chromium`), then the same names on the `PATH`
 - **Override:** `SB_CHROME_BIN`, `CHROME_BIN` or `CHROMIUM_BIN`
 
 </Tab>
 
-<Tab title="Windows">
+<Tab title="Windows" icon="windows">
 
 - **Looked at:** `Program Files`, `Program Files (x86)` and the per-user `Google\Chrome\Application\chrome.exe`
 - **Override:** `SB_CHROME_BIN` or `CHROME_BIN`
@@ -58,7 +64,7 @@ published and where to put a driver. A driver from your distribution works the
 same way: link it into that folder, as the repository's `Dockerfile` does, and no
 network is needed:
 
-```bash
+```bash Terminal
 mkdir -p downloaded_drivers && ln -s /usr/bin/chromedriver downloaded_drivers/chromedriver
 ```
 
@@ -94,6 +100,8 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
 
 ## macOS
 
+<Badge color="green">Best-trodden path</Badge>
+
 - **A freshly written or replaced executable is slow the first time.** macOS
   scans it on first run, which can take seconds. The library writes a replaced
   chromedriver as a new file because macOS kills a signed binary that is
@@ -108,6 +116,8 @@ equivalent and are not sent; the session proxy is not passed to Firefox either.
   command at a time.
 
 ## Linux
+
+<Badge color="blue">Run in a container: arm64, Debian 12</Badge>
 
 - **Install a browser from your distribution** (`chromium` and, for the
   WebDriver engine, `chromium-driver` on Debian and Ubuntu) or use Google
@@ -189,6 +199,8 @@ non-root `sbrs` user of the image with the sandbox on was not tried.
 
 ## Windows
 
+<Badge color="blue">Checked by hand: Windows 11</Badge>
+
 **Status:** on Windows 11 x64 (Rust 1.99, Chrome 154 and 155, Edge 155, Firefox
 153) formatting, clippy, the whole test suite and the real-browser tests pass,
 and the Tauri example builds its `.msi` and setup `.exe`. (The stealth layer,
@@ -229,7 +241,7 @@ Selenium Grid (`sbrs grid`) with `BrowserConfig::webdriver_url`.
 
 ## Check the setup on any system
 
-```bash
+```bash Terminal
 sbrs doctor       # Chrome and chromedriver versions, and whether they match
 sbrs install      # fetch the matching chromedriver
 ```
