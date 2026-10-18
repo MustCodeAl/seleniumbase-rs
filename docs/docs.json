@@ -8,171 +8,260 @@
     "thumbsRating": true
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Documentation",
-        "pages": [
-          "README",
-          "tutorials/getting_started",
+        "tab": "Guides",
+        "icon": "book-open",
+        "groups": [
           {
-            "group": "Building and installing",
+            "group": "Get started",
+            "icon": "rocket",
             "pages": [
+              "README",
+              "tutorials/getting_started",
               "building",
-              "deployment",
-              "platforms"
-            ]
-          },
-          "faq",
-          "changelog",
-          {
-            "group": "Why Rust?",
-            "pages": [
-              "why-rust",
-              "comparison",
-              "security",
-              "reliability",
-              "performance",
-              "benchmarks"
+              "platforms",
+              "faq"
             ]
           },
           {
-            "group": "Writing Browser Tests",
+            "group": "Write tests",
+            "icon": "flask",
             "pages": [
+              "tutorials/selectors",
+              "tutorials/waits_assertions",
               "rust-test-tooling",
-              "tutorials/captcha_testing"
+              "tutorials/macros",
+              "tutorials/shadow_dom",
+              "tutorials/mfa_totp",
+              "tutorials/pdf_parsing",
+              "tutorials/captcha_testing",
+              "tutorials/masterqa",
+              "tutorials/behave",
+              "help/syntax_formats"
             ]
           },
           {
-            "group": "Migrate Python Tests",
+            "group": "Record and replay",
+            "icon": "circle-dot",
+            "pages": [
+              "tutorials/recorder_mode",
+              "help/recorder_cli",
+              "tutorials/selenium_ide",
+              "help/html_inspector"
+            ]
+          },
+          {
+            "group": "Configure runs",
+            "icon": "sliders",
+            "pages": [
+              "tutorials/settings_and_config",
+              "tutorials/run_settings",
+              "help/customizing_test_runs",
+              "tutorials/browser_profiles",
+              "tutorials/tracing",
+              "tutorials/results_and_profiles"
+            ]
+          },
+          {
+            "group": "Browser engines",
+            "icon": "globe",
+            "pages": [
+              "tutorials/pure_cdp",
+              "tutorials/cdp_mode",
+              "help/playwright_mode",
+              "tutorials/gui_automation"
+            ]
+          },
+          {
+            "group": "Reports, charts and tours",
+            "icon": "chart-pie",
+            "pages": [
+              "tutorials/charts",
+              "tutorials/tours",
+              "tutorials/translations",
+              "tutorials/cloud_integrations"
+            ]
+          },
+          {
+            "group": "Migrate",
+            "icon": "right-left",
             "pages": [
               "python-migration",
               "playwright-migration",
               "puppeteer-migration"
             ]
           },
-          "tutorials/selectors",
-          "tutorials/waits_assertions",
           {
-            "group": "Settings and Configuration",
+            "group": "Run in production",
+            "icon": "server",
             "pages": [
-              "tutorials/settings_and_config",
-              "tutorials/run_settings"
+              "deployment",
+              "help/docker",
+              "help/common_problems"
             ]
-          },
+          }
+        ]
+      },
+      {
+        "tab": "Stealth",
+        "icon": "user-secret",
+        "groups": [
           {
-            "group": "Stealth and Browser Modes",
+            "group": "Undetected browsing",
+            "icon": "mask",
             "pages": [
               "tutorials/uc_mode",
-              "tutorials/cdp_mode",
-              "tutorials/pure_cdp",
               "help/uc_mode",
-              "help/playwright_mode",
               "tutorials/fingerprint_stealth",
-              "tutorials/stealth_scraping",
               "tutorials/binary_patching"
             ]
           },
-          "tutorials/shadow_dom",
-          "tutorials/recorder_mode",
-          "tutorials/selenium_ide",
-          "tutorials/behave",
-          "help/html_inspector",
-          "help/common_problems",
           {
-            "group": "CLI Usage",
+            "group": "Stealth scraping",
+            "icon": "spider",
+            "pages": [
+              "stealth/overview",
+              "tutorials/stealth_scraping",
+              "stealth/stealth-session",
+              "stealth/browser-scraper",
+              "stealth/http-session",
+              "stealth/mitm-proxy",
+              "stealth/identity",
+              "stealth/wire-formats",
+              "stealth/examples",
+              "stealth/limits"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI and MCP",
+        "icon": "terminal",
+        "groups": [
+          {
+            "group": "Command line",
+            "icon": "terminal",
             "pages": [
               "tutorials/cli_usage",
               "help/cli_reference",
+              "completions/README",
               "help/commander",
               "help/caseplans",
               "help/behave-gui"
             ]
           },
           {
-            "group": "MCP Servers",
+            "group": "MCP servers",
+            "icon": "robot",
             "pages": [
               "tutorials/mcp_server",
               "tutorials/devtools_mcp",
               "tutorials/vibe_coding"
             ]
-          },
-          {
-            "group": "API Guide",
-            "pages": [
-              "tutorials/api_reference",
-              "tutorials/masterqa",
-              "tutorials/mfa_totp",
-              "tutorials/pdf_parsing",
-              "tutorials/translations",
-              "tutorials/remaining_helpers",
-              "help/syntax_formats"
-            ]
-          },
-          "tutorials/macros",
-          "tutorials/browser_profiles",
-          "tutorials/tracing",
-          "tutorials/test_plugins",
-          "tutorials/plugins",
+          }
+        ]
+      },
+      {
+        "tab": "Plugins and ecosystem",
+        "icon": "puzzle-piece",
+        "groups": [
           {
             "group": "Plugins",
+            "icon": "puzzle-piece",
             "pages": [
               "plugins/overview",
-              "plugins/architecture",
               "plugins/selecting",
-              "plugins/writing-your-own",
               "plugins/shield",
               "plugins/block-resources",
               "plugins/crx",
-              "plugins/wasm"
-            ]
-          },
-          {
-            "group": "Stealth scraping",
-            "pages": [
-              "stealth/overview",
-              "stealth/wire-formats",
-              "stealth/identity",
-              "stealth/browser-scraper",
-              "stealth/http-session",
-              "stealth/mitm-proxy",
-              "stealth/stealth-session",
-              "stealth/examples",
-              "stealth/limits"
+              "plugins/wasm",
+              "plugins/writing-your-own",
+              "plugins/architecture",
+              "tutorials/plugins",
+              "tutorials/test_plugins"
             ]
           },
           {
             "group": "Ecosystem",
+            "icon": "cubes",
             "pages": [
               "ecosystem/overview",
-              "ecosystem/tauri",
               "ecosystem/browser-extension",
+              "ecosystem/tauri",
               "ecosystem/homebrew"
             ]
-          },
-          "tutorials/results_and_profiles",
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "icon": "code",
+        "groups": [
           {
-            "group": "Developer Guide",
+            "group": "API",
+            "icon": "code",
             "pages": [
-              "DEVELOPER_GUIDE",
-              "UPSTREAM_SYNC",
+              "tutorials/api_reference",
+              "tutorials/remaining_helpers",
               "parity",
-              "design/stealth_parity_plan",
-              "design/fingerprint-api-v2",
-              "design/usage-cli"
+              "ABI_API"
             ]
           },
-          "ABI_API",
           {
-            "group": "Architecture Decision Records",
+            "group": "Why Rust?",
+            "icon": "gauge-high",
+            "pages": [
+              "why-rust",
+              "comparison",
+              "performance",
+              "benchmarks",
+              "reliability",
+              "security"
+            ]
+          },
+          {
+            "group": "Releases",
+            "icon": "tag",
+            "pages": [
+              "changelog"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "icon": "code-branch",
+        "groups": [
+          {
+            "group": "Contribute",
+            "icon": "hands-helping",
+            "pages": [
+              "CONTRIBUTING",
+              "DEVELOPER_GUIDE",
+              "UPSTREAM_SYNC",
+              "feature-requests"
+            ]
+          },
+          {
+            "group": "Design notes",
+            "icon": "compass-drafting",
+            "pages": [
+              "design/fingerprint-api-v2",
+              "design/usage-cli",
+              "design/stealth_parity_plan"
+            ]
+          },
+          {
+            "group": "Architecture decisions",
+            "icon": "sitemap",
             "pages": [
               "adr/001-stealth-architecture",
               "adr/002-multi-driver-and-playwright",
               "adr/003-stealth-scraping-layout",
               "adr/004-plugin-framework"
             ]
-          },
-          "CONTRIBUTING",
-          "feature-requests"
+          }
         ]
       }
     ]
