@@ -55,15 +55,18 @@ pub(super) fn tools(installer: &Installer) -> Vec<ToolDef<NoBrowser>> {
         ToolDef::new(
             "cli_help",
             "CLI Help",
-            "Explain the `sbrs` command line. With no command: the global flags and every \
-             command with a one-line description. With a command (`open`, `wait-for-text`, \
-             `plugin list`): its usage, arguments, flags with their defaults and choices, and \
-             aliases. It is the reference page of this version, the same text `sbrs --help` \
-             is built from.",
+            "Explain the `sbrs` command line. With no command: the global flags, one line \
+             each, and every command with a one-line description. With a command (`open`, \
+             `wait-for-text`, `plugin list`): its usage, arguments, flags with their defaults \
+             and choices, and aliases. With `global`: the global flags in full. It is the \
+             reference page of this version, the same text `sbrs --help` is built from.",
             Effect::Inspect,
             Schema::new().optional(
                 "command",
-                Prop::string("A command or alias, such as `mkdir`, `install` or `plugin list`"),
+                Prop::string(
+                    "A command or alias, such as `mkdir`, `install` or `plugin list`; `global` \
+                     for the flags that come before the command",
+                ),
             ),
             cli_help,
         ),
@@ -226,16 +229,22 @@ fn overview(sections: &[Section]) -> String {
             root.description,
             root.usage
         ));
-        // The root's flags follow its own facts, under a `## Flags` heading.
+        // The root's flags follow its own facts, under a `## Flags` heading. The overview
+        // keeps the first line of each; their choices, aliases and long help are in
+        // `cli_help global`.
         let flags: Vec<&str> = root
             .lines
             .iter()
             .map(String::as_str)
             .skip_while(|line| *line != "## Flags")
             .skip(1)
+            .filter(|line| line.starts_with("- "))
             .collect();
-        text.push_str("Global flags (they come before the command):\n");
-        text.push_str(flags.join("\n").trim_end());
+        text.push_str(
+            "Global flags (they come before the command; cli_help with command `global` gives \
+             their choices, aliases and long help):\n",
+        );
+        text.push_str(&flags.join("\n"));
         text.push_str("\n\n");
     }
     let commands: Vec<&Section> = sections
@@ -260,15 +269,29 @@ fn overview(sections: &[Section]) -> String {
     text
 }
 
+/// `command` as the reference page names a command: lowercase, with `-` for `_`, and
+/// without a leading `sbrs`. The root (`sbrs`, `global`) is the empty name.
+fn bare(command: &str) -> String {
+    let lower = command.trim().to_lowercase().replace('_', "-");
+    let name = match lower.strip_prefix("sbrs") {
+        Some(rest) if rest.is_empty() || rest.starts_with(' ') => rest.trim(),
+        _ => lower.as_str(),
+    };
+    if matches!(name, "global" | "global flags" | "flags") {
+        String::new()
+    } else {
+        name.to_owned()
+    }
+}
+
 /// The sections `command` names: the command itself (or the command an alias
-/// stands for), and, for a command that only groups others, its subcommands.
+/// stands for), and, for a command that only groups others, its subcommands. The
+/// root, with the global flags, is `sbrs` or `global`.
 fn find_command<'a>(sections: &'a [Section], command: &str) -> Vec<&'a Section> {
-    let wanted = command
-        .trim()
-        .trim_start_matches("sbrs")
-        .trim()
-        .to_lowercase()
-        .replace('_', "-");
+    let wanted = bare(command);
+    if wanted.is_empty() {
+        return sections.first().into_iter().collect();
+    }
     let exact = sections
         .iter()
         .find(|section| section.name != "sbrs" && section.command() == wanted)
@@ -295,7 +318,7 @@ async fn cli_help(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
             .filter(|section| section.name != "sbrs")
             .map(Section::command);
         let mut reason = format!("no command `{command}`; cli_help without a command lists them");
-        if let Some(near) = closest_match(command.trim().trim_start_matches("sbrs").trim(), names) {
+        if let Some(near) = closest_match(&bare(command), names) {
             reason.push_str(&format!("; did you mean `{near}`?"));
         }
         return Err(ToolError::invalid("command", reason));
@@ -479,6 +502,36 @@ mod tests {
                 "{given}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn the_overview_keeps_one_line_for_each_global_flag_and_global_gives_them_in_full() {
+        let overview = call("cli_help", json!({})).await.unwrap();
+        let overview = overview.as_text().unwrap();
+        assert!(overview.contains("--webdriver <URL>"), "{overview}");
+        assert!(!overview.contains("**Choices:**"), "{overview}");
+        assert!(!overview.contains("Adds to the plugins"), "{overview}");
+
+        for given in ["global", "sbrs", "Global Flags"] {
+            let full = call("cli_help", json!({ "command": given })).await.unwrap();
+            let full = full.as_text().unwrap();
+            assert!(full.starts_with("## sbrs"), "{given}: {full}");
+            assert!(full.contains("**Choices:** `chrome`"), "{given}");
+            assert!(
+                full.contains("Adds to the plugins the settings file"),
+                "{given}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_command_is_read_as_the_page_names_it() {
+        assert_eq!(bare("  SBRS Wait_For_Text "), "wait-for-text");
+        assert_eq!(bare("sbrs plugin list"), "plugin list");
+        assert_eq!(bare("sbrs"), "");
+        assert_eq!(bare("global"), "");
+        // Only the word `sbrs` is dropped, not letters a command starts with.
+        assert_eq!(bare("sbrsx"), "sbrsx");
     }
 
     #[tokio::test]

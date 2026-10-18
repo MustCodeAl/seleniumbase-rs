@@ -12,8 +12,10 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use proc_macro2::LineColumn;
+use regex::Regex;
 use syn::spanned::Spanned;
 use syn::{Attribute, Expr, ImplItem, Item, Lit, Meta, Type, Visibility};
 
@@ -104,11 +106,26 @@ fn first_paragraph(attrs: &[Attribute]) -> String {
         .skip_while(|line| line.trim().is_empty())
         .take_while(|line| !line.trim().is_empty())
         .collect();
-    let mut text = paragraph.join(" ");
+    let mut text = without_links(&paragraph.join(" "));
     if text.chars().count() > MAX_DOC {
         text = text.chars().take(MAX_DOC).collect::<String>() + "…";
     }
     text
+}
+
+/// `text` with its links reduced to their words: the target of a rustdoc link
+/// means nothing outside rustdoc, so ``[`open`](Self::open)`` and ``[`Page`]``
+/// become `` `open` `` and `` `Page` ``.
+fn without_links(text: &str) -> String {
+    static LINKS: OnceLock<[Regex; 2]> = OnceLock::new();
+    let [with_target, code_only] = LINKS.get_or_init(|| {
+        [
+            Regex::new(r"\[([^\]]+)\]\([^)]*\)").expect("a valid pattern"),
+            Regex::new(r"\[(`[^`]+`)\]").expect("a valid pattern"),
+        ]
+    });
+    let text = with_target.replace_all(text, "$1");
+    code_only.replace_all(&text, "$1").into_owned()
 }
 
 /// A signature on one line: the whitespace runs of a wrapped one are single
@@ -342,6 +359,20 @@ impl BaseCase {
         let entries = indexed(source, &["BaseCase"]);
         assert_eq!(entries[0].doc, "Clicks the element that matches.");
         assert_eq!(entries[1].doc, "");
+    }
+
+    #[test]
+    fn links_in_the_doc_are_reduced_to_their_words() {
+        assert_eq!(
+            without_links(
+                "Same as [`open`](Self::open), see [`Page`] and [the guide](https://x.test/a)."
+            ),
+            "Same as `open`, see `Page` and the guide."
+        );
+        assert_eq!(
+            without_links("No links; arr[0] and f(x)."),
+            "No links; arr[0] and f(x)."
+        );
     }
 
     #[test]

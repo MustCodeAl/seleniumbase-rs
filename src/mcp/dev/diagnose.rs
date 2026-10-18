@@ -551,7 +551,7 @@ fn explain(message: Option<&str>, category: Option<&str>) -> Value {
         .iter()
         .filter_map(|heading| docs_section(heading))
         .collect();
-    json!({
+    let mut answer = json!({
         "recognized": true,
         "category": name,
         "from": if message.is_some() { "message" } else { "category" },
@@ -565,12 +565,14 @@ fn explain(message: Option<&str>, category: Option<&str>) -> Value {
             .map(|(_, meaning)| *meaning),
         "next_steps_with_a_browser_server": steps,
         "docs": docs,
-        "note": if specific {
-            Value::Null
-        } else {
-            Value::from("This is the general advice for the category. Give the error text as `message` for advice that names your selector, URL or path.")
-        },
-    })
+    });
+    if !specific {
+        answer["note"] = Value::from(
+            "This is the general advice for the category. Give the error text as `message` for \
+             advice that names your selector, URL or path.",
+        );
+    }
+    answer
 }
 
 async fn explain_error(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError> {
