@@ -197,7 +197,7 @@ pub struct Package { /* private: kind, integrity, hosts */ }
 JavaScript or CSS that a plugin loads into pages, returned by
 `Plugin::packages`. Make one with a constructor, then say where it loads with
 `only_on` or `everywhere`: the check refuses a plugin with a package that does
-neither (`one of its packages says neither only_on nor everywhere`), so a
+neither (``one of its packages says neither `only_on` nor `everywhere` ``), so a
 plugin never loads a script into every site by accident. Pin the version in a
 URL and add `integrity` so the browser checks the file.
 

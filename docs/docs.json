@@ -256,6 +256,30 @@
                 ]
               },
               {
+                "product": "Plugin API",
+                "icon": "puzzle-piece",
+                "description": "The browser-plugin API: the Plugin trait, PluginSet, capabilities and the host side",
+                "groups": [
+                  {
+                    "group": "Plugin API",
+                    "pages": [
+                      "plugins/api/overview",
+                      "plugins/api/plugin-trait",
+                      "plugins/api/launch",
+                      "plugins/api/handles",
+                      "plugins/api/plugin-set",
+                      "plugins/api/configuration",
+                      "plugins/api/metadata",
+                      "plugins/api/capabilities",
+                      "plugins/api/requirements",
+                      "plugins/api/host",
+                      "plugins/api/selection",
+                      "plugins/api/testing"
+                    ]
+                  }
+                ]
+              },
+              {
                 "product": "Tauri plugin API",
                 "icon": "window-maximize",
                 "description": "The plugin's WebDriver endpoint",

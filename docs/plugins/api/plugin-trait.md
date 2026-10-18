@@ -287,8 +287,8 @@ JavaScript and CSS to load into every new tab. See
 </ResponseField>
 
 Every package must say where it loads (`only_on` or `everywhere`), or the check
-refuses the plugin with `PluginError::Requirement` (`one of its packages says
-neither only_on nor everywhere`). For each new tab, the set adds the plugin's
+refuses the plugin with `PluginError::Requirement` (``one of its packages says
+neither `only_on` nor `everywhere` ``). For each new tab, the set adds the plugin's
 packages with `PageHandle::add_init_script`, then calls its `on_page_created`.
 A package that fails is reported as `PluginError::Hook` with the hook
 `packages`.

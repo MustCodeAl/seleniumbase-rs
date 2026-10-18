@@ -410,7 +410,7 @@ The checks, in this order:
       `it needs a browser with a window, not a headless one` (`HEADFUL`),
       `it only works with a browser the program starts, not one it attaches to`
       (`LAUNCH_ONLY`), `it needs a Chromium-based browser` (`CHROMIUM_ONLY`),
-      `one of its packages says neither only_on nor everywhere`;
+      ``one of its packages says neither `only_on` nor `everywhere` ``;
    3. each capability in its metadata's `capabilities`: the host supports it
       (`Unsupported`), and the set granted it (`Capability`, `it is required but
       not granted`). Capabilities in `optional` are never checked.

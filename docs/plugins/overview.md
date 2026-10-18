@@ -15,7 +15,7 @@ puppeteer-extra plugins do for Puppeteer. The design is
 
 <Visibility for="agents">
 
-Summary for AI exports: plugins are Rust crates with optional hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`). The official ones are `shield`, `block-resources`, `crx` and `wasm`. The prebuilt `sbrs` and `sbrs-mcp` have them compiled in and switch them on with `--plugin NAME`. Plugins run in seleniumbase-rs 0.3.0 and later behind the `plugins` feature, in the pure CDP engine, and from 0.4.0 in the WebDriver engine too.
+Summary for AI exports: plugins are Rust crates with optional hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`). The official ones are `shield`, `block-resources`, `crx` and `wasm`. The prebuilt `sbrs` and `sbrs-mcp` have `shield`, `block-resources` and `crx` compiled in and switch them on with `--plugin NAME`; `wasm` is a separate crate. Plugins run in seleniumbase-rs 0.3.0 and later behind the `plugins` feature, in the pure CDP engine, and from 0.4.0 in the WebDriver engine too.
 
 </Visibility>
 

@@ -91,9 +91,9 @@ error in a launch or page hook stops that launch or tab.
 | Who | Install | Enable |
 |---|---|---|
 | Rust, built-in | A feature such as `plugin-shield` | Builder call, or a name in `[plugins]` / `SB_PLUGINS` |
-| Rust, third-party | `cargo add` the crate | `.plugin(...)`, or by name through a `Registry` |
+| Rust, third-party | `cargo add` the crate | `PluginSet::with`, `LaunchOptionsBuilder::plugins` or `BrowserConfig::with_plugins`, or by name through a `Registry` |
 | Prebuilt `sbrs` and `sbrs-mcp` | Nothing, built-ins are compiled in | `--plugin NAME`, `--plugin-opt NAME.KEY=<TOML>`; `sbrs plugin list` and `sbrs plugin info NAME` show them |
-| WASM or manifest | `sbrs plugin add` into a content-addressed store | By the name it declares |
+| WASM or manifest (planned) | `sbrs plugin add` into a content-addressed store, not built yet: `sbrs plugin` has only `list` and `info` | By the name it declares |
 
 WASM and manifest plugins are pinned by SHA-256 in a lockfile and their
 capabilities are approved at install. A project's own lock holds pins only,
@@ -125,8 +125,7 @@ Next to the API crate there is the `seleniumbase-rs-plugins-builtin` crate
 for the new API, [shield](/plugins/shield). How a program turns them on is in
 [Choosing plugins](/plugins/selecting).
 
-Not part of this page's claim: the command-line options, the prebuilt
-binaries with built-ins, the store, manifests, WASM ABI 2 and the other six
+Not part of this page's claim: the store, manifests, WASM ABI 2 and the other six
 plugins belong to the later work. The plan, from the ADR:
 
 | Phase | Delivers |
@@ -229,7 +228,6 @@ popups; the plugins' own docs say the same.
   skips the embedded re-check; a set of declared plugins only gets the
   browser's own host. A mixed set therefore finds a declared plugin's missing
   DevTools channel when it calls `send`, not at the check.
-- The `sbrs` and `sbrs-mcp` binaries do not take plugin names yet.
 - The Tauri re-check reads the name `tauri` from the session's capabilities, as
   tauri-plugin-sbrs-automation answers it. Another embedded webview server is
   seen as the browser the configuration names.
