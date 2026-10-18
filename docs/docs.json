@@ -21,47 +21,32 @@
               "tutorials/getting_started",
               "building",
               "platforms",
-              "faq"
+              "faq",
+              "help/common_problems"
             ]
           },
           {
             "group": "Write tests",
             "icon": "flask",
             "pages": [
+              "rust-test-tooling",
               "tutorials/selectors",
               "tutorials/waits_assertions",
-              "rust-test-tooling",
               "tutorials/macros",
               "tutorials/shadow_dom",
-              "tutorials/mfa_totp",
-              "tutorials/pdf_parsing",
-              "tutorials/captcha_testing",
-              "tutorials/masterqa",
-              "tutorials/behave",
-              "help/syntax_formats"
-            ]
-          },
-          {
-            "group": "Record and replay",
-            "icon": "circle-dot",
-            "pages": [
-              "tutorials/recorder_mode",
-              "help/recorder_cli",
-              "tutorials/selenium_ide",
+              "help/syntax_formats",
               "help/html_inspector"
             ]
           },
           {
-            "group": "Configure runs",
-            "icon": "sliders",
+            "group": "Special pages",
+            "icon": "star",
             "pages": [
-              "tutorials/settings_and_config",
-              "tutorials/run_settings",
-              "tutorials/headless",
-              "help/customizing_test_runs",
-              "tutorials/browser_profiles",
-              "tutorials/tracing",
-              "tutorials/results_and_profiles"
+              "tutorials/mfa_totp",
+              "tutorials/captcha_testing",
+              "tutorials/pdf_parsing",
+              "tutorials/masterqa",
+              "tutorials/behave"
             ]
           },
           {
@@ -75,9 +60,32 @@
             ]
           },
           {
-            "group": "Reports, charts and tours",
+            "group": "Configure runs",
+            "icon": "sliders",
+            "pages": [
+              "tutorials/settings_and_config",
+              "help/customizing_test_runs",
+              "tutorials/run_settings",
+              "tutorials/headless",
+              "tutorials/browser_profiles",
+              "tutorials/tracing"
+            ]
+          },
+          {
+            "group": "Record and replay",
+            "icon": "circle-dot",
+            "pages": [
+              "tutorials/recorder_mode",
+              "help/recorder_cli",
+              "tutorials/selenium_ide"
+            ]
+          },
+          {
+            "group": "Results and reports",
             "icon": "chart-pie",
             "pages": [
+              "tutorials/results_and_profiles",
+              "tutorials/test_plugins",
               "tutorials/charts",
               "tutorials/tours",
               "tutorials/translations",
@@ -98,8 +106,7 @@
             "icon": "server",
             "pages": [
               "deployment",
-              "help/docker",
-              "help/common_problems"
+              "help/docker"
             ]
           }
         ]
@@ -127,8 +134,8 @@
               "stealth/stealth-session",
               "stealth/browser-scraper",
               "stealth/http-session",
-              "stealth/mitm-proxy",
               "stealth/identity",
+              "stealth/mitm-proxy",
               "stealth/wire-formats",
               "stealth/examples",
               "stealth/limits"
@@ -147,7 +154,13 @@
               "help/cli_tldr",
               "tutorials/cli_usage",
               "help/cli_reference",
-              "completions/README",
+              "completions/README"
+            ]
+          },
+          {
+            "group": "Terminal apps",
+            "icon": "window-maximize",
+            "pages": [
               "help/commander",
               "help/caseplans",
               "help/behave-gui"
@@ -173,15 +186,20 @@
             "icon": "puzzle-piece",
             "pages": [
               "plugins/overview",
+              "tutorials/plugins",
               "plugins/selecting",
+              "plugins/writing-your-own",
+              "plugins/architecture"
+            ]
+          },
+          {
+            "group": "Built-in plugins",
+            "icon": "box",
+            "pages": [
               "plugins/shield",
               "plugins/block-resources",
               "plugins/crx",
-              "plugins/wasm",
-              "plugins/writing-your-own",
-              "plugins/architecture",
-              "tutorials/plugins",
-              "tutorials/test_plugins"
+              "plugins/wasm"
             ]
           },
           {
@@ -191,25 +209,6 @@
               "ecosystem/overview",
               "ecosystem/browser-extension",
               "ecosystem/tauri",
-              {
-                "group": "Tauri plugin API",
-                "pages": [
-                  "ecosystem/tauri-api/overview",
-                  "ecosystem/tauri-api/status",
-                  "ecosystem/tauri-api/sessions",
-                  "ecosystem/tauri-api/timeouts",
-                  "ecosystem/tauri-api/navigation",
-                  "ecosystem/tauri-api/window",
-                  "ecosystem/tauri-api/frames",
-                  "ecosystem/tauri-api/elements",
-                  "ecosystem/tauri-api/element-state",
-                  "ecosystem/tauri-api/element-interaction",
-                  "ecosystem/tauri-api/scripts",
-                  "ecosystem/tauri-api/actions",
-                  "ecosystem/tauri-api/alerts",
-                  "ecosystem/tauri-api/screenshots"
-                ]
-              },
               "ecosystem/homebrew"
             ]
           }
@@ -225,8 +224,34 @@
             "pages": [
               "tutorials/api_reference",
               "tutorials/remaining_helpers",
-              "parity",
               "ABI_API"
+            ]
+          },
+          {
+            "group": "Tauri plugin API",
+            "icon": "code",
+            "pages": [
+              "ecosystem/tauri-api/overview",
+              "ecosystem/tauri-api/status",
+              "ecosystem/tauri-api/sessions",
+              "ecosystem/tauri-api/timeouts",
+              "ecosystem/tauri-api/navigation",
+              "ecosystem/tauri-api/window",
+              "ecosystem/tauri-api/frames",
+              "ecosystem/tauri-api/elements",
+              "ecosystem/tauri-api/element-state",
+              "ecosystem/tauri-api/element-interaction",
+              "ecosystem/tauri-api/scripts",
+              "ecosystem/tauri-api/actions",
+              "ecosystem/tauri-api/alerts",
+              "ecosystem/tauri-api/screenshots"
+            ]
+          },
+          {
+            "group": "Python parity",
+            "icon": "scale-balanced",
+            "pages": [
+              "parity"
             ]
           },
           {
@@ -259,8 +284,8 @@
             "icon": "hands-helping",
             "pages": [
               "CONTRIBUTING",
-              "DEVELOPER_GUIDE",
               "contributing/from-source",
+              "DEVELOPER_GUIDE",
               "contributing/debugging",
               "contributing/benchmarking",
               "UPSTREAM_SYNC",
