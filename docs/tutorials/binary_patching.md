@@ -12,13 +12,13 @@ This page covers both driver-level patching (`ChromedriverPatcher`) and
 browser-level patching (`ChromeBinaryPatcher`), plus the engine spoofing
 arguments that hide additional automation markers.
 
-<Info>
+<Note>
 
 Nothing here runs by itself for a chromedriver: UC mode does not patch the
 driver, so patch it yourself (or use the [pure CDP engine](/tutorials/pure_cdp), which
 has no driver to patch).
 
-</Info>
+</Note>
 
 <Info>
 
@@ -31,6 +31,12 @@ has no driver to patch).
 - Safety and licensing considerations.
 
 </Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: `ChromedriverPatcher::new(path)` removes the `cdc_` and webdriver markers from a chromedriver binary (`needs_patch()`, then `patch(EnginePatch::balanced())`; `restore()` copies the `.orig` backup back). `ChromeBinaryPatcher` patches a cached copy of the browser and never modifies the original. The CLI has `sbrs patch-chromedriver --path` and `sbrs patch-chrome --path`. Patch only executables you own or may modify.
+
+</Visibility>
 
 ## What is patched
 
@@ -124,7 +130,11 @@ helper `engine_spoofing_args()` returns a list of flags such as
 `--disable-blink-features=AutomationControlled` and disables background
 networking, default apps, and similar telemetry.
 
-Add them to a [`BrowserConfig`](crate::BrowserConfig):
+<Tabs>
+
+<Tab title="BrowserConfig" icon="gear">
+
+Add them to a `BrowserConfig`:
 
 ```rust
 use seleniumbase_rs::{engine_spoofing_args, BrowserConfig, DriverMode};
@@ -134,7 +144,11 @@ let config = BrowserConfig::default()
     .with_extra_args(engine_spoofing_args());
 ```
 
-Or apply them through [`StealthOptions`](crate::stealth::options::StealthOptions):
+</Tab>
+
+<Tab title="StealthOptions" icon="sliders">
+
+Or apply them through `StealthOptions`:
 
 ```rust
 use seleniumbase_rs::stealth::options::StealthOptions;
@@ -152,8 +166,12 @@ assert!(caps.args().contains(&"--disable-blink-features=AutomationControlled".in
 # }
 ```
 
+</Tab>
+
+</Tabs>
+
 For the strongest defense, combine binary patching, engine spoofing args, a
-matching [`Fingerprint`](crate::Fingerprint), and UC mode.
+matching `Fingerprint`, and UC mode.
 
 ## Chrome/Chromium binary patching
 
@@ -193,7 +211,7 @@ from `SB_CHROME_BIN`, or else a Chrome it finds on the system (`CHROME_BIN`,
 
 You can also patch from the CLI. Quote a path that contains spaces:
 
-```bash
+```bash Terminal
 sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 sbrs patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
 ```
@@ -216,10 +234,70 @@ non-production environment first.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `needs_patch()` still true after patching | Driver was replaced by a newer version | Re-run the patcher after driver downloads (`sbrs install` downloads a fresh, unpatched one). |
-| Browser crashes after Chrome binary patch | Patch incompatible with Chromium version | Delete the cached copy under `chrome-patches/` and use the original browser; the original is never modified. |
-| Driver is killed as it starts on macOS | Its signature no longer matches | `patch` signs it again; if it still fails, run `codesign --force --sign - <driver>`. |
-| `restore` fails with "no .orig backup found" | Used `EnginePatch::no_backup()` | Re-download the original binary before patching again. |
-| Bot detection still triggers | TLS or behavioral signals leak | Combine patching with `Fingerprint`, UC mode, and proxy egress alignment. |
+<AccordionGroup>
+
+<Accordion title="needs_patch() still true after patching" icon="rotate">
+
+**Likely cause:** Driver was replaced by a newer version.
+
+**Fix:** Re-run the patcher after driver downloads (`sbrs install` downloads a fresh, unpatched one).
+
+</Accordion>
+
+<Accordion title="Browser crashes after Chrome binary patch" icon="bug">
+
+**Likely cause:** Patch incompatible with Chromium version.
+
+**Fix:** Delete the cached copy under `chrome-patches/` and use the original browser; the original is never modified.
+
+</Accordion>
+
+<Accordion title="Driver is killed as it starts on macOS" icon="apple">
+
+**Likely cause:** Its signature no longer matches.
+
+**Fix:** `patch` signs it again; if it still fails, run `codesign --force --sign - <driver>`.
+
+</Accordion>
+
+<Accordion title='restore fails with "no .orig backup found"' icon="clock-rotate-left">
+
+**Likely cause:** Used `EnginePatch::no_backup()`.
+
+**Fix:** Re-download the original binary before patching again.
+
+</Accordion>
+
+<Accordion title="Bot detection still triggers" icon="user-secret">
+
+**Likely cause:** TLS or behavioral signals leak.
+
+**Fix:** Combine patching with `Fingerprint`, UC mode, and proxy egress alignment.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Next steps
+
+<Columns cols={3}>
+
+<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+
+An engine with no driver to patch.
+
+</Card>
+
+<Card title="Undetected (UC) mode" icon="user-secret" href="/tutorials/uc_mode">
+
+Combine patching with UC mode.
+
+</Card>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+Combine patching with a matching `Fingerprint`.
+
+</Card>
+
+</Columns>

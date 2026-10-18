@@ -11,6 +11,12 @@ mechanical parts and surface the parts that need human review.
 This page explains how to use the importer, what it can and cannot translate,
 and how to validate the generated Rust.
 
+<Visibility for="agents">
+
+Summary for AI exports: `sbrs import-python FILE.py --output FILE.rs` converts a Python SeleniumBase or Selenium WebDriver test into a Rust test that uses `#[tokio::test]` and `run_browser_test`. Options: `--source` (`auto`, `selenium-base`, `selenium`), `--test-name` and `--output`. The output is a first draft: statements it cannot translate become `TODO` comments and diagnostics, and every statement of the file lands in one generated test. Review it, run `cargo fmt` and compile it before trusting it.
+
+</Visibility>
+
 ## When to use the importer
 
 Use `sbrs import-python` when:
@@ -29,7 +35,7 @@ without review. Treat its output as a first draft.
 
 ## Convert a file from the CLI
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- import-python tests/login_test.py --output tests/login_test.rs
 ```
 
@@ -58,18 +64,30 @@ Split the test methods by hand: every statement of the file lands in one generat
 The importer tries to detect the source API automatically, but you can override
 it:
 
-```bash
+```bash Terminal
 cargo run --bin sbrs -- import-python tests/login_test.py \
   --source selenium \
   --test-name user_can_log_in \
   --output tests/login_test.rs
 ```
 
-| CLI option | Values | Purpose |
-|------------|--------|---------|
-| `--source` | `auto`, `selenium-base`, `selenium` | Force the source API interpretation. |
-| `--test-name` | any valid Rust identifier | Name the generated test function. |
-| `--output` | file path | Write generated Rust to a file instead of stdout. |
+<ParamField query="--source" type="auto | selenium-base | selenium">
+
+Force the source API interpretation.
+
+</ParamField>
+
+<ParamField query="--test-name" type="Rust identifier">
+
+Name the generated test function. Any valid Rust identifier.
+
+</ParamField>
+
+<ParamField query="--output" type="file path">
+
+Write generated Rust to a file instead of stdout.
+
+</ParamField>
 
 ## What the importer converts
 
@@ -78,6 +96,10 @@ the arguments must be string (or, for waits and `sleep`, number) literals.
 Arguments are matched with Python's parameters, so `selector="#a"` and
 `timeout=5` work as well as positional ones, and a left-out selector is `body`,
 as in Python.
+
+<Tabs>
+
+<Tab title="SeleniumBase" icon="flask">
 
 SeleniumBase, as `self.` or `sb.` calls:
 
@@ -103,6 +125,10 @@ SeleniumBase, as `self.` or `sb.` calls:
   `wait_for_text` and `wait_for_exact_text` (and their `_visible` names). The
   timeout is the `timeout=` argument and defaults to 10 seconds. And `sleep`.
 
+</Tab>
+
+<Tab title="Selenium WebDriver" icon="globe">
+
 Selenium WebDriver, as `driver.` or `self.driver.` calls:
 
 - Navigation: `driver.get(url)`, `maximize_window()`, `back()`, `forward()`,
@@ -120,6 +146,10 @@ Selenium WebDriver, as `driver.` or `self.driver.` calls:
 - Simple XPath expressions that can be safely approximated as CSS selectors.
 - Title checks: `assert "text" in driver.title` and
   `assert driver.title == "text"`.
+
+</Tab>
+
+</Tabs>
 
 ## What requires manual review
 
@@ -190,31 +220,31 @@ After conversion, run these steps before trusting the test:
 
 <Steps>
 
-<Step title="Resolve the TODOs">
+<Step title="Resolve the TODOs" icon="list-check">
 
 Read the file and resolve every `TODO` comment.
 
 </Step>
 
-<Step title="Format">
+<Step title="Format" icon="broom">
 
 Run `cargo fmt` to normalize formatting.
 
 </Step>
 
-<Step title="Compile">
+<Step title="Compile" icon="hammer">
 
 Compile with `cargo check` or `cargo build`.
 
 </Step>
 
-<Step title="Run it safely">
+<Step title="Run it safely" icon="shield">
 
 Run the test against a safe environment first.
 
 </Step>
 
-<Step title="Review the diagnostics">
+<Step title="Review the diagnostics" icon="magnifying-glass">
 
 Review diagnostics printed by the importer.
 
@@ -263,31 +293,31 @@ realistic approach is:
 
 <Steps>
 
-<Step title="Start small">
+<Step title="Start small" icon="seedling">
 
 Pick a small, stable subset of tests to migrate first.
 
 </Step>
 
-<Step title="Generate drafts">
+<Step title="Generate drafts" icon="wand-magic-sparkles">
 
 Use `sbrs import-python` to generate drafts.
 
 </Step>
 
-<Step title="Refactor">
+<Step title="Refactor" icon="recycle">
 
 Refactor the generated code into helpers and page objects in Rust.
 
 </Step>
 
-<Step title="Run both suites">
+<Step title="Run both suites" icon="code-compare">
 
 Run both Python and Rust suites in parallel until confidence is high.
 
 </Step>
 
-<Step title="Migrate the rest">
+<Step title="Migrate the rest" icon="forward">
 
 Gradually migrate the remaining tests, prioritizing the most valuable ones.
 
@@ -297,7 +327,25 @@ Gradually migrate the remaining tests, prioritizing the most valuable ones.
 
 ## Related reading
 
-- [Writing Browser Tests](/rust-test-tooling) — how to structure Rust tests.
-- [Selectors](/tutorials/selectors) — selector syntax differences.
-- [Waits and Assertions](/tutorials/waits_assertions) — equivalent Rust methods.
+<Columns cols={3}>
+
+<Card title="Writing Browser Tests" icon="flask" horizontal href="/rust-test-tooling">
+
+How to structure Rust tests.
+
+</Card>
+
+<Card title="Selectors" icon="crosshairs" horizontal href="/tutorials/selectors">
+
+Selector syntax differences.
+
+</Card>
+
+<Card title="Waits and Assertions" icon="clock" horizontal href="/tutorials/waits_assertions">
+
+Equivalent Rust methods.
+
+</Card>
+
+</Columns>
 

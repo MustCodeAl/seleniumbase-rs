@@ -2,6 +2,40 @@
 title: "MCP servers"
 ---
 
+export const LayoutTree = ({ children }) => (
+  <div style={{ fontSize: "0.875rem", lineHeight: 1.7, border: "1px solid rgba(127,127,127,0.25)", borderRadius: "0.75rem", padding: "0.75rem 1rem", margin: "1rem 0" }}>
+    {children}
+  </div>
+)
+
+export const LayoutNote = ({ note }) =>
+  note ? <span style={{ opacity: 0.7, marginLeft: "0.75rem" }}>{note}</span> : null
+
+export const LayoutDir = ({ name, note, open = false, children }) =>
+  children ? (
+    <details open={open} style={{ margin: "0.1rem 0" }}>
+      <summary style={{ cursor: "pointer" }}>
+        <Icon icon="folder" size={14} /> <code>{name}/</code>
+        <LayoutNote note={note} />
+      </summary>
+      <div style={{ marginLeft: "0.4rem", paddingLeft: "1rem", borderLeft: "1px solid rgba(127,127,127,0.3)" }}>
+        {children}
+      </div>
+    </details>
+  ) : (
+    <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+      <Icon icon="folder" size={14} /> <code>{name}/</code>
+      <LayoutNote note={note} />
+    </div>
+  )
+
+export const LayoutFile = ({ name, note, highlight = false }) => (
+  <div style={{ margin: "0.1rem 0", paddingLeft: "1.1rem" }}>
+    <Icon icon="file" size={14} /> <code style={highlight ? { fontWeight: 700 } : undefined}>{name}</code>
+    <LayoutNote note={note} />
+  </div>
+)
+
 `sbrs-mcp` exposes a browser to any [Model Context Protocol] client
 (Claude Desktop, Claude Code, ...) over stdio. It serves one of three toolsets,
 the same tools as the Python `seleniumbase-mcp` project, and adds tools of its
@@ -24,9 +58,9 @@ All three keep one browser session for the whole conversation: call
 
 <Steps>
 
-<Step title="Install the binary">
+<Step title="Install the binary" icon="download">
 
-```bash
+```bash Terminal
 cargo install --path crates/cli --bin sbrs-mcp
 ```
 
@@ -36,11 +70,11 @@ Or, without a checkout:
 
 </Step>
 
-<Step title="Register it with your client">
+<Step title="Register it with your client" icon="plug">
 
 For example in `.mcp.json`:
 
-```json
+```json .mcp.json
 {
   "mcpServers": {
     "seleniumbase-cdp": {
@@ -74,7 +108,7 @@ Logs go to stderr; stdout carries only the protocol.
 
 <Tabs>
 
-<Tab title="cdp">
+<Tab title="cdp" icon="chrome">
 
 `cdp` is the lightest and the hardest to detect: no chromedriver, and it
 can pass common CAPTCHA widgets. Chrome or Chromium only
@@ -84,7 +118,7 @@ them (`click_element`, `type_text`, `wait_for_condition`, `manage_tabs`, ...).
 
 </Tab>
 
-<Tab title="driver and sb">
+<Tab title="driver and sb" icon="globe">
 
 `driver` and `sb` use WebDriver, so they also work with Edge and
 Firefox. `sb` has a tool for nearly every `BaseCase` method (`click_link`,
@@ -111,6 +145,24 @@ error when `start_browser` runs.
 - **Defaults.** `start_browser` runs headless on Linux and headed elsewhere unless
   you set `headless`.
 
+Where the files go, under `SB_MCP_OUTPUT_DIR`:
+
+<LayoutTree>
+  <LayoutDir name="mcp_output" open note="SB_MCP_OUTPUT_DIR, default ./mcp_output; screenshots, saved pages, PDFs and downloads are written here">
+    <LayoutDir name="saved_cookies" note="cookie files" />
+    <LayoutDir name="debug_bundles" note="capture_debug_bundle writes one folder here">
+      <LayoutDir name="<name>" open note="a folder labelled by the name argument">
+        <LayoutFile name="screenshot.png" />
+        <LayoutFile name="page.html" note="values of password and hidden inputs replaced" />
+        <LayoutFile name="bundle.json" note="URL, title, viewport, user agent, console messages, failed requests, cookie and storage names, the last tool calls" />
+      </LayoutDir>
+    </LayoutDir>
+    <LayoutDir name="exported_tests">
+      <LayoutFile name="<test_name>.rs" highlight note="export_session_as_test writes the session as a Rust tokio test that uses BaseCase" />
+    </LayoutDir>
+  </LayoutDir>
+</LayoutTree>
+
 ## When a call fails
 
 Every server, `driver` included, answers a failed call with a report: a stable
@@ -123,7 +175,9 @@ and how many elements the selector matched and how many were visible. Reading it
 takes at most two seconds; a page that does not answer is reported as not read,
 and an argument error never touches the page.
 
-```text
+<ResponseExample>
+
+```text Failure report
 click_element failed: element not found: #buy (strategy: css selector)
 kind: element_not_found
 tried: click_element {"selector":"#buy","timeout":0.5}
@@ -137,6 +191,8 @@ next steps:
   2. wait_for_condition {"selector": "#buy", "state": "visible", "timeout": 15}: ...
   3. suggest_selectors {"text": "<the text on the element>"}: ranked selectors, ...
 ```
+
+</ResponseExample>
 
 The same fields come as structured content for clients that read JSON. A
 mistyped choice or tool name is answered with the nearest valid one (`"bakc"`:
@@ -467,19 +523,19 @@ and `sbrs devtools`, which starts such a browser from the command line.
 
 Once the server is registered, these prompts exercise the developer tools.
 
-<Prompt description="Find a selector that survives a redesign" actions={["copy"]}>
+<Prompt description="Find a selector that survives a redesign" icon="crosshairs" actions={["copy"]}>
 
 Open https://example.com with the seleniumbase-cdp server, call inspect_page, then use suggest_selectors to give me a stable selector for the main link. Prefer test attributes and tell me which selectors are marked unstable.
 
 </Prompt>
 
-<Prompt description="Debug a click that does nothing" actions={["copy"]}>
+<Prompt description="Debug a click that does nothing" icon="bug" actions={["copy"]}>
 
 The click on the checkout button failed. Run diagnose_selector on it, then get_console_messages with start set to true, repeat the click, and report any covering element, script error or failed request from get_failed_requests.
 
 </Prompt>
 
-<Prompt description="Turn a session into a test" actions={["copy"]}>
+<Prompt description="Turn a session into a test" icon="file-export" actions={["copy"]}>
 
 Walk through the sign-in flow on the site I name, check it with audit_page, and when it works call export_session_as_test with the test name sign_in_works. Show me the file it wrote and list the steps it skipped.
 
@@ -530,5 +586,35 @@ mcp::serve(Profile::Cdp).await?;
 call directly with `Host::call(name, arguments)`, which is how the test suite
 exercises every tool against a mocked browser. To add a tool, see "Adding an MCP
 tool" in the [developer guide](/DEVELOPER_GUIDE).
+
+## Next steps
+
+<Columns cols={2}>
+
+<Card title="DevTools MCP servers" icon="screwdriver-wrench" href="/tutorials/devtools_mcp">
+
+Attach `chrome-devtools-mcp` or Playwright MCP to the same browser.
+
+</Card>
+
+<Card title="Choosing plugins" icon="plug" href="/plugins/selecting#sbrs-mcp">
+
+Run built-in plugins in every browser the server starts.
+
+</Card>
+
+<Card title="Vibe coding" icon="wand-magic-sparkles" href="/tutorials/vibe_coding">
+
+Describe a test, let an agent drive the browser, review the Rust it hands you.
+
+</Card>
+
+<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+
+The engine behind the `cdp` server.
+
+</Card>
+
+</Columns>
 
 [Model Context Protocol]: https://modelcontextprotocol.io

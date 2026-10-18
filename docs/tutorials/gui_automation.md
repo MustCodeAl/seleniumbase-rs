@@ -7,6 +7,24 @@ instead of the browser. SeleniumBase for Rust exposes GUI automation helpers via
 `enigo`. Use these helpers only when WebDriver cannot reach the target, because
 they move the real cursor and depend on screen state.
 
+<Badge color="purple">Feature `gui`</Badge>
+
+<Info>
+
+**What you will learn**
+
+- Which GUI helpers are available.
+- How to perform keyboard shortcuts and text entry.
+- Common use cases and limitations.
+
+</Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: the GUI helpers need the `gui` Cargo feature (off by default). `BaseCase::gui_click_x_y`, `gui_write`, `gui_press_key`, `gui_press_keys` and the element helpers such as `gui_click_element` drive the operating system's real mouse and keyboard through `enigo`. Use them only when WebDriver cannot reach the target.
+
+</Visibility>
+
 ## Enable the `gui` feature
 
 The helpers exist only when the `gui` Cargo feature is on. It is off by default
@@ -20,7 +38,7 @@ X11 on Linux:
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["gui"] }
 ```
 
-```bash Example
+```bash Terminal
 cargo run --example gui_automation --features gui
 ```
 
@@ -42,16 +60,6 @@ permission (System Settings > Privacy & Security > Accessibility).
 Without the feature, `BaseCase::gui_*`, `seleniumbase_rs::Gui` and the native
 dialog helpers (`show_message`, `show_confirm`, `show_prompt`,
 `choose_file_dialog`, `save_file_dialog`) are not compiled.
-
-<Info>
-
-**What you will learn**
-
-- Which GUI helpers are available.
-- How to perform keyboard shortcuts and text entry.
-- Common use cases and limitations.
-
-</Info>
 
 ## Available helpers
 
@@ -137,10 +145,46 @@ sb.gui_press_key("return")?;
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `gui_*` methods not found | The `gui` feature is off | Build with `--features gui`. |
-| Click misses target | Wrong screen coordinates | Verify resolution and window position; the element helpers ignore the toolbar height. |
-| Shortcut does nothing | Wrong modifier for the OS | `command` and `meta` are the Cmd key on macOS and the Windows key on Windows; use `ctrl` for Ctrl shortcuts. |
-| `unknown key` error | A key name that is not in the list above | Use one of the listed names or a single character. |
-| Works locally but fails in CI | No display server | Use a virtual framebuffer such as Xvfb or prefer WebDriver. |
+<AccordionGroup>
+
+<Accordion title="gui_* methods not found" icon="magnifying-glass">
+
+**Likely cause:** The `gui` feature is off.
+
+**Fix:** Build with `--features gui`.
+
+</Accordion>
+
+<Accordion title="Click misses target" icon="crosshairs">
+
+**Likely cause:** Wrong screen coordinates.
+
+**Fix:** Verify resolution and window position; the element helpers ignore the toolbar height.
+
+</Accordion>
+
+<Accordion title="Shortcut does nothing" icon="keyboard">
+
+**Likely cause:** Wrong modifier for the OS.
+
+**Fix:** `command` and `meta` are the Cmd key on macOS and the Windows key on Windows; use `ctrl` for Ctrl shortcuts.
+
+</Accordion>
+
+<Accordion title="unknown key error" icon="key">
+
+**Likely cause:** A key name that is not in the list above.
+
+**Fix:** Use one of the listed names or a single character.
+
+</Accordion>
+
+<Accordion title="Works locally but fails in CI" icon="display">
+
+**Likely cause:** No display server.
+
+**Fix:** Use a virtual framebuffer such as Xvfb or prefer WebDriver.
+
+</Accordion>
+
+</AccordionGroup>
