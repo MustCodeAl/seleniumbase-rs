@@ -25,7 +25,8 @@ pub use fingerprint::StealthFlags;
 pub use capture::{CapturedFingerprint, ProbeInfo};
 pub use fingerprint::{
     BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Fingerprint,
-    FingerprintError, HumanizeConfig, SpeechVoice, StealthPolicy,
+    FingerprintComparison, FingerprintError, HumanizeConfig, SettingDiff, SpeechVoice,
+    StealthPolicy,
 };
 pub use patcher::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,

@@ -50,7 +50,10 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+mod compare;
 mod file;
+
+pub use compare::{FingerprintComparison, SettingDiff};
 
 use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};

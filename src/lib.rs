@@ -181,11 +181,13 @@ pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 #[allow(deprecated, reason = "the old name stays importable for one release")]
 pub use stealth::fingerprint::StealthFlags;
+pub use stealth::capture::CapturedFingerprint;
 pub use stealth::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
     CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,
-    FingerprintError, Geolocation, HumanizeConfig, MediaDevices, OsType, ProxyConfig, QuicMode,
-    ScreenSize, SpeechVoice, Spoof, StealthPolicy, WebGl, WebRtcAddresses, WebRtcPolicy,
+    FingerprintComparison, FingerprintError, Geolocation, HumanizeConfig, MediaDevices, OsType,
+    ProxyConfig, QuicMode, ScreenSize, SettingDiff, SpeechVoice, Spoof, StealthPolicy, WebGl,
+    WebRtcAddresses, WebRtcPolicy,
 };
 pub use stealth::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
