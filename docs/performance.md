@@ -33,7 +33,7 @@ The following costs are largely independent of the language driving the browser:
 - Network latency and DNS resolution.
 - WebDriver command round trips.
 - Browser process startup and shutdown.
-- Time spent waiting for JavaScript frameworks to hydrate the DOM.
+- Time spent waiting for JavaScript frameworks to <Tooltip tip="Hydrate: the framework attaches its event handlers and state to HTML that is already on the page.">hydrate</Tooltip> the DOM.
 
 <Warning>
 
@@ -61,7 +61,7 @@ helping the right thing.
 | Metric | Why it matters |
 |--------|----------------|
 | Median duration | Typical user-visible test time. |
-| Tail duration (p95/p99) | Worst-case behavior and flaky-test candidates. |
+| Tail duration (<Tooltip tip="The 95th and 99th percentile: 95% (or 99%) of runs finish at or below this time.">p95/p99</Tooltip>) | Worst-case behavior and flaky-test candidates. |
 | CPU and memory | Resource usage per browser and per worker. |
 | Failure rate | Speed is meaningless if tests are flaky. |
 | Driver / browser version | Needed to reproduce results. |
@@ -157,7 +157,7 @@ browser, but their cost has not been benchmarked.
 
 <Tabs>
 
-<Tab title="Pure CDP engine">
+<Tab title="Pure CDP engine" icon="bolt">
 
 The pure CDP engine (`sb_cdp`) has no chromedriver process and no HTTP
 request per command, and the library's own part of a round trip is about 0.1 ms
@@ -167,7 +167,7 @@ measured.
 
 </Tab>
 
-<Tab title="WebDriver engine">
+<Tab title="WebDriver engine" icon="server">
 
 The WebDriver engine is the choice when you need Selenium Grid, Firefox or
 an existing `BaseCase` suite. Match the chromedriver to Chrome's major version

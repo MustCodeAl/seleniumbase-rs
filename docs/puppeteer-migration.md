@@ -29,17 +29,34 @@ cargo run --bin sbrs -- import-pptr __tests__/shop.test.ts
 cargo run --bin sbrs -- import-puppeteer recordings/checkout.json   # a Recorder export
 ```
 
-| Option | Values | Purpose |
-|---|---|---|
-| `--output`, `-o` | file path | Write the Rust there instead of to standard output. |
-| `--language` | `js`, `ts`, `json` | Override the language, which otherwise comes from the extension (`.json` is a Recorder export) or the content. |
-| `--test-name` | any text | Name the test made from a script; the default is the file name. Tests keep their `describe`/`it` titles and a recording its `title`. |
+<ParamField body="--output, -o" type="file path">
 
-The diagnostics and exit statuses are those of `import-playwright`: 0 with
-gaps as warnings, 1 when a statement could not be read, 6 for a file that
-cannot be read, 2 for a source the importer refuses (over 2 MB, or Python,
-which Puppeteer has no API for). From Rust, call
-`seleniumbase_rs::utilities::importer::import_puppeteer`.
+Write the Rust there instead of to standard output.
+
+</ParamField>
+
+<ParamField body="--language" type="js | ts | json">
+
+Override the language, which otherwise comes from the extension (`.json` is a Recorder export) or the content.
+
+</ParamField>
+
+<ParamField body="--test-name" type="any text">
+
+Name the test made from a script; the default is the file name. Tests keep their `describe`/`it` titles and a recording its `title`.
+
+</ParamField>
+
+The diagnostics and exit statuses are those of `import-playwright`:
+
+| Status | Meaning |
+|---|---|
+| 0 | Everything was read, with gaps as warnings. |
+| 1 | A statement could not be read. |
+| 6 | A file that cannot be read. |
+| 2 | A source the importer refuses: over 2 MB, or Python, which Puppeteer has no API for. |
+
+From Rust, call `seleniumbase_rs::utilities::importer::import_puppeteer`.
 
 <Tip>
 

@@ -2,6 +2,8 @@
 title: "Playwright Mode"
 ---
 
+<Badge color="blue">Feature: playwright</Badge>
+
 Playwright Mode uses [`rustwright`](https://github.com/Skyvern-AI/rustwright), a
 native Rust CDP engine, to drive Chromium with a Playwright-compatible API. It
 can bypass bot-detection systems that target WebDriver fingerprints without
@@ -138,9 +140,38 @@ browser.close().await?;
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `activate_playwright_mode` or `PlaywrightSession` not found | Feature not enabled | Build with `--features playwright`. |
-| Chromium download fails | Network restricted | Point `BrowserConfig::browser_binary_path` (or `SB_CHROME_BIN`) at a local Chromium and launch with `PlaywrightSession::launch_with_config`. |
-| A program built with `playwright` cannot load a `libpython` | A dependency of yours turns on `rustwright-core`'s default `python` feature (Python bindings); this crate leaves it off | Depend on `rustwright-core` with `default-features = false` too; nothing here needs Python. |
-| Session methods missing | API mismatch | Check the rustdocs for the installed `rustwright` version. |
+<AccordionGroup>
+
+<Accordion title="`activate_playwright_mode` or `PlaywrightSession` not found" icon="puzzle-piece">
+
+**Likely cause.** Feature not enabled.
+
+**Fix.** Build with `--features playwright`.
+
+</Accordion>
+
+<Accordion title="Chromium download fails" icon="download">
+
+**Likely cause.** Network restricted.
+
+**Fix.** Point `BrowserConfig::browser_binary_path` (or `SB_CHROME_BIN`) at a local Chromium and launch with `PlaywrightSession::launch_with_config`.
+
+</Accordion>
+
+<Accordion title="A program built with `playwright` cannot load a `libpython`" icon="triangle-exclamation">
+
+**Likely cause.** A dependency of yours turns on `rustwright-core`'s default `python` feature (Python bindings); this crate leaves it off.
+
+**Fix.** Depend on `rustwright-core` with `default-features = false` too; nothing here needs Python.
+
+</Accordion>
+
+<Accordion title="Session methods missing" icon="magnifying-glass">
+
+**Likely cause.** API mismatch.
+
+**Fix.** Check the rustdocs for the installed `rustwright` version.
+
+</Accordion>
+
+</AccordionGroup>

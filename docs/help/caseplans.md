@@ -20,6 +20,8 @@ without the Tkinter window.
 
 ## Build and launch
 
+<Badge color="gray">Feature: tui</Badge>
+
 The app is part of the opt-in `tui` feature, with `sbrs commander`:
 
 <CodeGroup>
@@ -91,7 +93,7 @@ test targets.
 
 A new plan is the Python template:
 
-````markdown
+````markdown New plan template
 ``login.rs::valid_login``
 ---
 | # | Step Description | Expected Result |

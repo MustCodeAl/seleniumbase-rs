@@ -14,7 +14,7 @@ runs while the browser does. The module has no imports: no files, network,
 clock or randomness, and it cannot call back into the host. Only pure functions
 cross the boundary.
 
-```sh
+```sh Terminal
 cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
 ```
 
@@ -92,17 +92,26 @@ nothing after it.
 
 ### The values
 
-**`sbrs_name`**: a JSON string of 1 to 64 characters from `a-z`, `0-9`, `-` and
-`_`, starting with a letter or a digit, such as `"my-plugin"`. It must be unique
-in the `PluginSet`, like any plugin name.
+<ParamField body="sbrs_name" type="string" required>
 
-**`sbrs_launch_args`**: at most 256 strings of at most 4096 bytes. Each is a
-switch: it starts with `-`, followed by a name that starts with a letter or a
-digit (`"--lang=de"`), and holds no control characters. A bare `--`, or anything
-that is not a switch, is refused because the browser would take it for a URL.
+A JSON string of 1 to 64 characters from `a-z`, `0-9`, `-` and `_`, starting
+with a letter or a digit, such as `"my-plugin"`. It must be unique in the
+`PluginSet`, like any plugin name.
 
-**`sbrs_scripts`**: at most 64 objects with exactly these two fields and no
-others:
+</ParamField>
+
+<ParamField body="sbrs_launch_args" type="string[]">
+
+At most 256 strings of at most 4096 bytes. Each is a switch: it starts with `-`,
+followed by a name that starts with a letter or a digit (`"--lang=de"`), and
+holds no control characters. A bare `--`, or anything that is not a switch, is
+refused because the browser would take it for a URL.
+
+</ParamField>
+
+<ParamField body="sbrs_scripts" type="object[]">
+
+At most 64 objects with exactly these two fields and no others:
 
 ```json
 [
@@ -111,13 +120,33 @@ others:
 ]
 ```
 
-`code` is non-empty JavaScript, run in every matching document before the
-page's own scripts. `hosts` is either the string `"everywhere"` or a list of 1
-to 64 lower-case host names (`example.com`: the host and its subdomains).
-Saying where a script runs is not optional, as for any `Package`.
+<Expandable title="Fields of a script object" defaultOpen>
 
-**`sbrs_blocked_urls`**: at most 1024 strings of 1 to 2048 bytes, Chrome URL
-patterns where `*` matches anything (`"*.png"`, `"*://ads.example.com/*"`).
+<ResponseField name="code" type="string" required>
+
+Non-empty JavaScript, run in every matching document before the page's own
+scripts.
+
+</ResponseField>
+
+<ResponseField name="hosts" type="string or string[]" required>
+
+Either the string `"everywhere"` or a list of 1 to 64 lower-case host names
+(`example.com`: the host and its subdomains). Saying where a script runs is not
+optional, as for any `Package`.
+
+</ResponseField>
+
+</Expandable>
+
+</ParamField>
+
+<ParamField body="sbrs_blocked_urls" type="string[]">
+
+At most 1024 strings of 1 to 2048 bytes, Chrome URL patterns where `*` matches
+anything (`"*.png"`, `"*://ads.example.com/*"`).
+
+</ParamField>
 
 ### Limits
 
@@ -172,7 +201,7 @@ A module can be written in WAT or in any language that compiles to WebAssembly. 
 
 <Tabs>
 
-<Tab title="WAT">
+<Tab title="WAT" icon="file-code">
 
 [`examples/hello.wat`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/blob/main/plugins/wasm/examples/hello.wat) is a whole plugin: it is named
 `hello` and logs a line on `example.com`. The two strings sit in the data
@@ -204,7 +233,7 @@ in Rust with `wat::parse_str`.
 
 </Tab>
 
-<Tab title="Rust">
+<Tab title="Rust" icon="code">
 
 Compile a plugin to `wasm32-unknown-unknown` as a `cdylib`, with no dependencies
 and no `unsafe`:
@@ -243,7 +272,7 @@ pub extern "C" fn sbrs_scripts() -> i64 {
 }
 ```
 
-```sh
+```sh Terminal
 rustup target add wasm32-unknown-unknown
 cargo build --release --target wasm32-unknown-unknown
 # the plugin: target/wasm32-unknown-unknown/release/<crate_name>.wasm

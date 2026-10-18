@@ -27,7 +27,7 @@ The crate root exposes the following modules:
 | `plugins` | Cloud/logging plugin interfaces. |
 | `resources` | Where downloaded browser drivers live and how a chromedriver is found. |
 | `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
-| `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is **experimental**: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
+| `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
 
@@ -53,11 +53,11 @@ The most common types are re-exported from the crate root for convenience:
 | `Fingerprint`, `StealthPolicy` | yes |
 | `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport` | yes |
 | `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry` | yes |
-| `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, **experimental** (serves the stealth layer) |
+| `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, <Badge color="orange">Experimental</Badge> (serves the stealth layer) |
 | `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `engine_spoofing_args` | yes |
 | `Chart`, `ChartType`, `TourTheme`, `Gui` | yes |
 | `run_browser_test`, `run_cdp_test`, `RunSettings`, `PauseKind`, `Settings`, `SettingsOverrides`, `RuntimeConfig`, `LogFormat` | yes |
-| `run_browser_test_boxed`, `BrowserTestFuture` | yes, deprecated |
+| `run_browser_test_boxed`, `BrowserTestFuture` | yes, <Badge color="red">Deprecated</Badge> |
 | `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi` | yes |
 | `Result<T>`, `SeleniumBaseError`, `ResultExt` | yes |
 | `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource` | yes |
@@ -82,6 +82,13 @@ mentions an engine's own types:
 | `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns a `thirtyfour::WebElement`, a `Page` offers `locator(..)`.) |
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
+
+```mermaid
+flowchart LR
+  A["BaseCase (WebDriver)"] -- implements --> T["BrowserApi, ElementApi, AssertionApi, ScreenshotApi"]
+  B["sb_cdp::Page (Pure CDP)"] -- implements --> T
+  H["your helper"] -- needs --> T
+```
 
 Use these traits when writing helpers that should work with any type exposing
 the same capability, or as a blueprint for adding new cross-cutting concerns:
@@ -181,11 +188,35 @@ dependency as `optional = true` in `Cargo.toml`.
 
 Every error exposes:
 
-* `category()` — a stable snake_case tag for dashboards.
-* `is_transient()` — `true` for retryable network/disconnect/timeout failures.
-* `is_skipped()` — `true` for the `Skipped` variant.
-* `hint()` — a one-sentence remediation hint when available.
-* `log()` / `log_in_context(op)` — structured `tracing::error!` events.
+<ResponseField name="category()" type="&'static str">
+
+A stable snake_case tag for dashboards.
+
+</ResponseField>
+
+<ResponseField name="is_transient()" type="bool">
+
+`true` for retryable network/disconnect/timeout failures.
+
+</ResponseField>
+
+<ResponseField name="is_skipped()" type="bool">
+
+`true` for the `Skipped` variant.
+
+</ResponseField>
+
+<ResponseField name="hint()" type="Option<String>">
+
+A one-sentence remediation hint when available.
+
+</ResponseField>
+
+<ResponseField name="log() / log_in_context(op)">
+
+Structured `tracing::error!` events.
+
+</ResponseField>
 
 Use the `ResultExt` trait to attach context:
 

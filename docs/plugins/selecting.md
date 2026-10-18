@@ -61,7 +61,7 @@ not the trait this crate calls. The compiler then says the trait `Plugin` is not
 implemented and mentions two versions of `seleniumbase_rs_plugin`. Add a plugin
 crate with the same revision:
 
-```sh
+```sh Terminal
 cargo add --git https://github.com/MustCodeAl/seleniumbase-rs-plugins \
     --rev 628991af0e6c5711298e3bd3692dc2974887401a \
     seleniumbase-rs-plugin-foo
@@ -78,7 +78,7 @@ The `[plugins]` table of `sbase_config.toml` (or the `plugins` object of a JSON
 `.sbase_config`) lists the plugins to add, in order, and a table named like a
 plugin holds that plugin's options:
 
-```toml
+```toml sbase_config.toml
 [plugins]
 enable = ["shield", "block-resources"]   # the order is the insertion order
 
@@ -90,6 +90,10 @@ extra_block_hosts = ["tracker.example"]
 Options are the plugin's own; an option it does not know is an error. Load the
 file with `Settings::load`, and `settings.plugins` holds the selection:
 
+<Tabs>
+
+<Tab title="Pure CDP engine" icon="bolt">
+
 ```rust,no_run
 use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::sb_cdp::LaunchOptions;
@@ -100,6 +104,10 @@ let options = LaunchOptions::builder()
     .build()?;
 # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
+
+</Tab>
+
+<Tab title="WebDriver engine" icon="server">
 
 For the WebDriver engine, `BrowserConfig::with_plugin_selection`:
 
@@ -113,11 +121,15 @@ let config = settings
 # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
+</Tab>
+
+</Tabs>
+
 ## With `SB_PLUGINS`
 
 `SB_PLUGINS` is a comma-separated list of names:
 
-```sh
+```sh Terminal
 SB_PLUGINS=shield,block-resources cargo test
 ```
 
@@ -135,12 +147,19 @@ overrides a `[plugins]` table of the file.
 browser they start, and take two options of their own. Both go **before** the
 command, as the other global options of `sbrs` do, and both repeat:
 
-| Option | What it does |
-|---|---|
-| `--plugin NAME` | Turns the plugin on, after the ones the file and `SB_PLUGINS` turn on. A name that is on already stays where it is |
-| `--plugin-opt NAME.KEY=VALUE` | Sets one option of a plugin. `VALUE` is a TOML value, so a string is written with quotes |
+<ParamField body="--plugin NAME">
 
-```sh
+Turns the plugin on, after the ones the file and `SB_PLUGINS` turn on. A name that is on already stays where it is.
+
+</ParamField>
+
+<ParamField body="--plugin-opt NAME.KEY=VALUE">
+
+Sets one option of a plugin. `VALUE` is a TOML value, so a string is written with quotes.
+
+</ParamField>
+
+```sh Terminal
 sbrs --plugin shield open https://example.com
 sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
 sbrs --plugin block-resources --plugin-opt 'block-resources.preset="media"' screenshot
@@ -279,12 +298,12 @@ it runs in, and only that table) and variable, and logs the active plugins as
 three servers (`cdp`, `driver`, `sb`) give every browser they start the plugins,
 in the pure CDP and the WebDriver engine:
 
-```sh
+```sh Terminal
 sbrs-mcp --server cdp --plugin shield
 sbrs-mcp --server driver --plugin shield --plugin-opt 'shield.level="strict"'
 ```
 
-```json
+```json MCP client config
 {
   "mcpServers": {
     "seleniumbase": {

@@ -4,13 +4,15 @@ title: "crx Plugin"
 
 A seleniumbase-rs plugin that loads packed Chrome extensions (`.crx` files).
 
+<Badge color="blue">Chromium only</Badge> <Badge color="blue">Launch only</Badge>
+
 Chrome only loads unpacked extension folders from the command line. This
 plugin takes `.crx` files (CRX3, the current format, and the older CRX2),
 strips the signed header, unpacks the zip into a temporary folder and adds
 the folder to the browser's start-up settings. The folders are deleted when
 the browser closes.
 
-```sh
+```sh Terminal
 cargo add seleniumbase-rs-plugin-crx --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 628991af0e6c5711298e3bd3692dc2974887401a
 ```
 
@@ -38,7 +40,7 @@ Give the set to `LaunchOptionsBuilder::plugins`, as shown in the
 
 <Steps>
 
-<Step title="Before the launch">
+<Step title="Before the launch" icon="file-zipper">
 
 For each file, `before_launch` reads it, makes a temporary folder
 (prefix `sbrs-crx-`), unpacks the zip archive inside the CRX file into it and
@@ -47,14 +49,14 @@ pushes the folder onto the launch settings' `extensions`. Unpacked archives abov
 
 </Step>
 
-<Step title="Loading">
+<Step title="Loading" icon="puzzle-piece">
 
 The pure CDP engine loads the folders as extensions over the protocol, as
 described in the [Browser Plugins guide](/tutorials/plugins#when-the-hooks-run).
 
 </Step>
 
-<Step title="On close">
+<Step title="On close" icon="trash">
 
 `on_close` drops the folders, which deletes them.
 

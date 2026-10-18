@@ -51,7 +51,7 @@ process and an HTTP request per command; that cost was not measured.
 
 ## One tab, one command at a time
 
-| operation | median | p95 |
+| operation | median | <Tooltip tip="95 of every 100 measurements were at or below this time.">p95</Tooltip> |
 |---|---|---|
 | evaluate `1 + 1` | 156 µs | 854 µs |
 | locator count | 123 µs | 185 µs |
@@ -138,6 +138,12 @@ Before this work, a click took **33.4 ms** and eight tabs together managed
   **0.48 ms**, 69 times less, and eight tabs reached **3,223 clicks a second** in
   that run, 13 times more (a later run measured 0.46 ms per click and 1,634
   clicks a second at eight tabs, still about seven times the starting figure).
+
+```mermaid
+flowchart TB
+  A["Before: pointer move"] --> B["wait for the move to be acknowledged (a frame or two, 33 ms)"] --> C["press"] --> D["release"]
+  E["After: pointer move, press and release sent back to back"] --> F["awaited together (0.48 ms)"]
+```
 
 ## What was measured and left alone
 

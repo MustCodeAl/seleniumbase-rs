@@ -46,7 +46,7 @@ harness belongs in Rust.
 Playwright is the benchmark for developer experience: auto-waiting, codegen, a
 trace viewer, bundled browsers, and Chromium, Firefox and WebKit from one API,
 with official bindings for JavaScript/TypeScript, Python, Java and .NET. It has no
-official Rust binding. This crate's pure CDP engine is Chrome and Chromium only
+official Rust binding. This crate's <Tooltip tip="Chrome DevTools Protocol: the engine talks to Chrome directly, with no WebDriver.">pure CDP</Tooltip> engine is Chrome and Chromium only
 and has no trace viewer, but it gives a Rust-native, driver-free API with retrying
 locators and expectations, and a `playwright` feature that offers a
 Playwright-compatible mode through a community Rust implementation. If you need
@@ -132,4 +132,46 @@ Be honest with yourself about these before choosing it:
   live services.
 
 </Warning>
+
+## Next steps
+
+<Columns cols={2}>
+
+<Card title="Why Rust?" icon="gear" href="/why-rust">
+
+When the crate is the right choice, and when another stack fits better.
+
+</Card>
+
+<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+
+Write a first test with `BaseCase`.
+
+</Card>
+
+<Card title="Pure CDP" icon="bolt" href="/tutorials/pure_cdp">
+
+Chrome without a WebDriver.
+
+</Card>
+
+<Card title="Parity table" icon="table" href="/parity">
+
+The recorded status of every upstream API.
+
+</Card>
+
+<Card title="Benchmarks" icon="gauge-high" href="/benchmarks">
+
+What this crate itself costs.
+
+</Card>
+
+<Card title="Stealth scraping" icon="user-secret" href="/tutorials/stealth_scraping">
+
+The separate, experimental seleniumbase-rs-stealth project.
+
+</Card>
+
+</Columns>
 

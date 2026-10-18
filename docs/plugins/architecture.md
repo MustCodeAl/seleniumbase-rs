@@ -2,6 +2,8 @@
 title: "Plugin Architecture"
 ---
 
+<Badge color="orange">Proposed</Badge>
+
 This page summarizes the design of the plugin platform, version 2. The full
 record, with the checks behind each decision, is
 [ADR 0001 in the plugins repository](https://github.com/MustCodeAl/seleniumbase-rs-plugins/blob/main/docs/adr/0001-plugin-architecture.md)
@@ -47,10 +49,10 @@ bit set, because some capabilities carry a scope (hosts, paths).
 
 | Risk | Examples |
 |---|---|
-| Low | `launch.args`, `page.script:<hosts>`, `net.observe`, `test.hooks` |
-| Medium | `launch.prefs`, `launch.headless`, `page.evaluate`, `net.intercept`, `contexts` |
-| High | `page.script:*`, `cookies.*`, `net.bodies`, `launch.proxy`, `launch.extensions`, `host.fs.*` |
-| Critical | `raw:*`, `host.process`, `cdp:Target`, `cdp:Browser` |
+| <Badge color="green">Low</Badge> | `launch.args`, `page.script:<hosts>`, `net.observe`, `test.hooks` |
+| <Badge color="blue">Medium</Badge> | `launch.prefs`, `launch.headless`, `page.evaluate`, `net.intercept`, `contexts` |
+| <Badge color="orange">High</Badge> | `page.script:*`, `cookies.*`, `net.bodies`, `launch.proxy`, `launch.extensions`, `host.fs.*` |
+| <Badge color="red">Critical</Badge> | `raw:*`, `host.process`, `cdp:Target`, `cdp:Browser` |
 
 How a set grants them:
 
@@ -134,28 +136,74 @@ To declare metadata in your own plugin, see
 ## What core does with it
 
 The plugins repository listed seven things seleniumbase-rs had to do before
-the new API was useful. They are done, in both engines unless a row says
+the new API was useful. They are done, in both engines unless an item says
 otherwise:
 
-| # | Follow-up | What core does |
-|---|---|---|
-| 1 | The API enums are `#[non_exhaustive]` | A match on `BrowserFamily`, `PluginError` or a WebRTC policy has a wildcard arm. `PluginError` variants that name a plugin (`Unsupported`, `Capability`, `Undeclared`, `Conflict`, `Sealed`) now carry its name into `SeleniumBaseError::Plugin`, and the hint explains the new refusals |
-| 2 | Pooled browsers shared per-launch state | `PluginSet::for_launch()` runs before every check, so each browser, each attach and each WebDriver session gets a fresh instance of a plugin that offers `per_launch`; a shared set no longer shares state, and `on_close` reaches the instance that started |
-| 3 | The host was always the CDP engine | `check_with(&LaunchContext, &HostInfo)`: `HostInfo::cdp()` for the pure CDP engine, `HostInfo::webdriver(family)` for chromedriver, geckodriver and Safari. A server that answers `browserName: tauri` is re-checked as `HostInfo::embedded()` once the session exists, and a plugin that needs more than a webview gives ends the session |
-| 4 | New `LaunchSettings` fields were dropped | `host_resolver_rules` is one `--host-resolver-rules`; `disable_features` and `enable_features` are one switch each, merged with the library's own `Translate` (and with a switch the configuration already has); `webrtc_policy` is `--force-webrtc-ip-handling-policy`; `disable_quic` is `--disable-quic`. The profile is shown to plugins before they run, as persistent when `user_data_dir` is set. On Firefox and Safari a plugin that sets one of the Chromium-only fields is refused |
-| 5a | `Network.setBlockedURLs` replaced the tab's list | The host keeps one blocklist per tab (per window with chromedriver): the library's ad-block list, the tracker hosts of a fingerprint with `block_trackers`, and every pattern a plugin sent. Each raw send adds to it, and the union goes out. With chromedriver a window keeps its union when the session switches away and back |
-| 5b | The `Fetch` domain had many owners | A plugin's `Fetch.*` command, and the older `Network.setRequestInterception` that pauses requests the same way, are refused, on the browser and on a tab. The library's own `Fetch.enable` for proxy passwords is not a plugin's and stays |
-| 6 | Extension ids were dropped | `Browser::extension_ids()` keeps what `Extensions.loadUnpacked` answered, in load order |
-| 7 | Two lists of refused switches | A test reads `FORBIDDEN_SWITCHES` of `src/stealth/evasions.rs` and fails if one is missing from `seleniumbase_rs_plugin::switch_policy::REFUSED_SWITCHES` |
+<AccordionGroup>
+
+<Accordion title="1. The API enums are `#[non_exhaustive]`" icon="circle-check">
+
+A match on `BrowserFamily`, `PluginError` or a WebRTC policy has a wildcard arm. `PluginError` variants that name a plugin (`Unsupported`, `Capability`, `Undeclared`, `Conflict`, `Sealed`) now carry its name into `SeleniumBaseError::Plugin`, and the hint explains the new refusals.
+
+</Accordion>
+
+<Accordion title="2. Pooled browsers shared per-launch state" icon="circle-check">
+
+`PluginSet::for_launch()` runs before every check, so each browser, each attach and each WebDriver session gets a fresh instance of a plugin that offers `per_launch`; a shared set no longer shares state, and `on_close` reaches the instance that started.
+
+</Accordion>
+
+<Accordion title="3. The host was always the CDP engine" icon="circle-check">
+
+`check_with(&LaunchContext, &HostInfo)`: `HostInfo::cdp()` for the pure CDP engine, `HostInfo::webdriver(family)` for chromedriver, geckodriver and Safari. A server that answers `browserName: tauri` is re-checked as `HostInfo::embedded()` once the session exists, and a plugin that needs more than a webview gives ends the session.
+
+</Accordion>
+
+<Accordion title="4. New `LaunchSettings` fields were dropped" icon="circle-check">
+
+`host_resolver_rules` is one `--host-resolver-rules`; `disable_features` and `enable_features` are one switch each, merged with the library's own `Translate` (and with a switch the configuration already has); `webrtc_policy` is `--force-webrtc-ip-handling-policy`; `disable_quic` is `--disable-quic`. The profile is shown to plugins before they run, as persistent when `user_data_dir` is set. On Firefox and Safari a plugin that sets one of the Chromium-only fields is refused.
+
+</Accordion>
+
+<Accordion title="5a. `Network.setBlockedURLs` replaced the tab's list" icon="circle-check">
+
+The host keeps one blocklist per tab (per window with chromedriver): the library's ad-block list, the tracker hosts of a fingerprint with `block_trackers`, and every pattern a plugin sent. Each raw send adds to it, and the union goes out. With chromedriver a window keeps its union when the session switches away and back.
+
+</Accordion>
+
+<Accordion title="5b. The `Fetch` domain had many owners" icon="circle-check">
+
+A plugin's `Fetch.*` command, and the older `Network.setRequestInterception` that pauses requests the same way, are refused, on the browser and on a tab. The library's own `Fetch.enable` for proxy passwords is not a plugin's and stays.
+
+</Accordion>
+
+<Accordion title="6. Extension ids were dropped" icon="circle-check">
+
+`Browser::extension_ids()` keeps what `Extensions.loadUnpacked` answered, in load order.
+
+</Accordion>
+
+<Accordion title="7. Two lists of refused switches" icon="circle-check">
+
+A test reads `FORBIDDEN_SWITCHES` of `src/stealth/evasions.rs` and fails if one is missing from `seleniumbase_rs_plugin::switch_policy::REFUSED_SWITCHES`.
+
+</Accordion>
+
+</AccordionGroup>
 
 ### How these were checked
 
 On the scripted mock browser of the pure CDP engine (`Browser::launch_mocked`)
 and on a mock WebDriver server. They show which commands the host sends, in
-which order, and what a plugin is refused. **No real Chrome ran in this
-change**, so nothing here shows that Chrome accepts the merged switches or
-enforces a merged blocklist in iframes, workers and popups; the plugins' own
-docs say the same.
+which order, and what a plugin is refused.
+
+<Warning>
+
+**No real Chrome ran in this change**, so nothing here shows that Chrome accepts
+the merged switches or enforces a merged blocklist in iframes, workers and
+popups; the plugins' own docs say the same.
+
+</Warning>
 
 ### Limits
 

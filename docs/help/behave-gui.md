@@ -2,6 +2,8 @@
 title: "Behave Commander"
 ---
 
+<Badge color="blue">Feature: tui</Badge>
+
 `sbrs behave-gui` (also `sbrs gui-behave`) is a terminal app that lists the
 Gherkin feature files of a project, runs the scenarios you mark through this
 crate's behave runner and shows what came of each. It is the Python Behave
@@ -38,11 +40,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 An `sbrs` built without the feature still has the subcommand, but it only
 prints the following message and exits with status 2, as `commander` does.
 
-</Note>
-
 ```text
 this sbrs was built without the terminal UI; reinstall it with `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --features tui`
 ```
+
+</Note>
 
 The folder to look in is the optional argument:
 
@@ -112,10 +114,13 @@ The app has only the built-in steps, listed below.
   be "x"`, which keep and compare one value (each scenario starts with an empty
   value).
 
-A scenario that uses any other step ends as **UNDEF** (undefined), as in
-`behave`, with the step it could not find. A step that failed is **FAIL**, and a
-scenario that the tags left out, or an outline with no example rows, is
-**SKIP**.
+Besides a pass, a scenario ends as one of these:
+
+| Result | When |
+|---|---|
+| **UNDEF** (undefined) | The scenario uses any other step, as in `behave`. The result names the step it could not find. |
+| **FAIL** | A step failed. |
+| **SKIP** | The tags left the scenario out, or an outline has no example rows. |
 
 To run features with your own steps, register them in a
 `seleniumbase_rs::behave::StepRegistry` in a test of your own, as the

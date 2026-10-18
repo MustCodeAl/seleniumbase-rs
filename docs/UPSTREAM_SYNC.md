@@ -23,15 +23,15 @@ The files involved:
 
 <Steps>
 
-<Step title="Update the checkouts">
+<Step title="Update the checkouts" icon="code-branch">
 
 Pull the new release of SeleniumBase and seleniumbase-mcp into two local clones.
 
 </Step>
 
-<Step title="Extract the API">
+<Step title="Extract the API" icon="file-export">
 
-```bash
+```bash Terminal
 just parity-extract ~/src/SeleniumBase ~/src/seleniumbase-mcp
 ```
 
@@ -40,7 +40,7 @@ exactly what upstream added, removed or changed.
 
 </Step>
 
-<Step title="Pin the release">
+<Step title="Pin the release" icon="thumbtack">
 
 Set `version` and `commit` in `parity/upstream.toml` to
 match the extraction, and update `UPSTREAM_SELENIUMBASE_VERSION` in
@@ -48,9 +48,9 @@ match the extraction, and update `UPSTREAM_SELENIUMBASE_VERSION` in
 
 </Step>
 
-<Step title="Classify the new names">
+<Step title="Classify the new names" icon="tags">
 
-```bash
+```bash Terminal
 just parity-seed
 ```
 
@@ -60,7 +60,7 @@ otherwise `planned`. It never changes entries that already exist.
 
 </Step>
 
-<Step title="Run the test">
+<Step title="Run the test" icon="flask">
 
 `just parity-check` lists what is still wrong, as a
 to-do list: names with no entry, entries for names upstream removed, entries
@@ -68,7 +68,7 @@ missing a `rust`, `reason` or `note`, and `rust` paths that do not exist.
 
 </Step>
 
-<Step title="Work the list">
+<Step title="Work the list" icon="list-check">
 
 For each `planned` name, decide:
 
@@ -80,13 +80,13 @@ For each `planned` name, decide:
 
 </Step>
 
-<Step title="Regenerate the docs">
+<Step title="Regenerate the docs" icon="book">
 
 `just parity-docs` rewrites `docs/parity.md`.
 
 </Step>
 
-<Step title="Finish">
+<Step title="Finish" icon="flag-checkered">
 
 Update `ROADMAP.md`, run the quality gate, and commit.
 

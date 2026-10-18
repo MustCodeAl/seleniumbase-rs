@@ -26,33 +26,22 @@ install and check everything.
 Paste this into an AI coding assistant that can run commands on your machine
 (Claude Code, Cursor, Copilot and the like):
 
-```text
-Set up this computer to build and test the Rust library seleniumbase-rs
-(https://github.com/MustCodeAl/seleniumbase-rs). Follow its docs/building.md
-("What you need") for my operating system:
+<Prompt description="Set up this machine to build and test seleniumbase-rs" actions={["copy"]}>
 
-1. Find out which OS and CPU this is. Install what is missing, and only that:
-   Rust through rustup (the repo's rust-toolchain.toml picks 1.99), a C compiler
-   (Xcode command line tools / build-essential / Visual Studio 2022 Build Tools
-   with C++), and Google Chrome. Use Homebrew on macOS, apt or dnf on Linux,
-   winget on Windows. Ask me before anything that needs an administrator
-   password, and don't change system security settings yourself.
-2. Clone the repository (or use this folder if it is the repository) and run:
-   cargo build --bin sbrs, then sbrs doctor (target/debug/sbrs doctor, or
-   target\debug\sbrs.exe doctor on Windows).
-3. Run the checks and say how many tests passed and failed:
-   cargo fmt --all -- --check
-   cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings
-   cargo test --features "mcp-server test-util"
-4. Only if I ask for a feature, install its extras from the "Extras for single
-   features" part of docs/building.md (s3, gui, the Tauri example).
-Don't edit any code. Finish with a short list of what you installed, the
-versions, and anything that failed with its first error line.
-```
+Set up this computer to build and test the Rust library seleniumbase-rs (https://github.com/MustCodeAl/seleniumbase-rs). Follow its docs/building.md ("What you need") for my operating system:
+
+1. Find out which OS and CPU this is. Install what is missing, and only that: Rust through rustup (the repo's rust-toolchain.toml picks 1.99), a C compiler (Xcode command line tools / build-essential / Visual Studio 2022 Build Tools with C++), and Google Chrome. Use Homebrew on macOS, apt or dnf on Linux, winget on Windows. Ask me before anything that needs an administrator password, and don't change system security settings yourself.
+2. Clone the repository (or use this folder if it is the repository) and run `cargo build --bin sbrs`, then `sbrs doctor` (`target/debug/sbrs doctor`, or `target\debug\sbrs.exe doctor` on Windows).
+3. Run the checks and say how many tests passed and failed: `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`.
+4. Only if I ask for a feature, install its extras from the "Extras for single features" part of docs/building.md (s3, gui, the Tauri example).
+
+Don't edit any code. Finish with a short list of what you installed, the versions, and anything that failed with its first error line.
+
+</Prompt>
 
 <Tabs>
 
-<Tab title="macOS">
+<Tab title="macOS" icon="apple" iconType="brands">
 
 ```bash
 xcode-select --install
@@ -76,7 +65,7 @@ sudo safaridriver --enable
 
 </Tab>
 
-<Tab title="Debian and Ubuntu">
+<Tab title="Debian and Ubuntu" icon="linux" iconType="brands">
 
 ```bash
 sudo apt-get update
@@ -105,7 +94,7 @@ sudo apt-get install -y xvfb
 
 </Tab>
 
-<Tab title="Fedora">
+<Tab title="Fedora" icon="linux" iconType="brands">
 
 ```bash
 sudo dnf install -y gcc gcc-c++ make pkgconf-pkg-config curl chromium
@@ -114,7 +103,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 </Tab>
 
-<Tab title="Windows (PowerShell)">
+<Tab title="Windows (PowerShell)" icon="windows" iconType="brands">
 
 ```powershell
 winget install Rustlang.Rustup
@@ -158,7 +147,11 @@ cargo build --bin sbrs
 
 </CodeGroup>
 
+<Check>
+
 The last line prints the browsers it found and whether their drivers match.
+
+</Check>
 
 ### Extras for single features
 
@@ -169,7 +162,7 @@ built-in plugins (`plugin-shield`, `plugin-block-resources`, `plugin-crx`, or
 
 <AccordionGroup>
 
-<Accordion title="s3">
+<Accordion title="s3" icon="cloud" description="OpenSSL on Linux">
 
 `s3` needs OpenSSL on Linux (nothing on macOS and Windows):
 
@@ -179,7 +172,7 @@ sudo apt-get install -y libssl-dev pkg-config
 
 </Accordion>
 
-<Accordion title="gui">
+<Accordion title="gui" icon="window-maximize" description="Desktop input and native dialogs">
 
 `gui` (desktop input and native dialogs). On macOS nothing to install; at
 run time allow the program under System Settings ▸ Privacy & Security ▸
@@ -191,7 +184,7 @@ sudo apt-get install -y libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libx
 
 </Accordion>
 
-<Accordion title="The stealth scraping layer">
+<Accordion title="The stealth scraping layer" icon="user-secret" description="Moved out in 0.3.0">
 
 The stealth scraping layer (the former `scrape` and `impersonate` features)
 moved in 0.3.0 to its own workspace,
@@ -201,7 +194,7 @@ those instructions live in that repository now. This crate needs none of them.
 
 </Accordion>
 
-<Accordion title="The Tauri example">
+<Accordion title="The Tauri example" icon="desktop" description="Node LTS">
 
 The Tauri example (`examples/tauri-profile-manager`) needs Node LTS (`brew
 install node`, `winget install OpenJS.NodeJS.LTS`). On Windows it also uses
@@ -213,7 +206,7 @@ sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev 
 
 </Accordion>
 
-<Accordion title="Repository tools">
+<Accordion title="Repository tools" icon="wrench" description="mdBook, Python, just, cargo-deny">
 
 mdBook for the docs (`brew install mdbook` or `cargo
 install mdbook`), Python 3.10+ for the parity tables in `tools/parity`, and
@@ -227,11 +220,14 @@ Python, Node, mdBook, just and cargo-deny in one step.
 
 ### What has been built where
 
-Everything on macOS (Apple Silicon). The default build and the test features
-on Debian 12 arm64 in Docker. The default build, the test features, the
-real-browser tests and the Tauri example on Windows 11 x64. The Linux `gui` and Tauri
-package lists come from the CI configuration, which has not been able to run
-(see [Operating systems](/platforms)).
+| System | Built and run |
+|---|---|
+| macOS (Apple Silicon) | Everything |
+| Debian 12 arm64, in Docker | The default build and the test features |
+| Windows 11 x64 | The default build, the test features, the real-browser tests and the Tauri example |
+
+The Linux `gui` and Tauri package lists come from the CI configuration, which
+has not been able to run (see [Operating systems](/platforms)).
 
 ## Build
 
@@ -287,6 +283,8 @@ every archive.
 
 ### cargo binstall
 
+<Badge color="orange">No archives yet</Badge>
+
 [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) downloads the
 release archive for your system instead of compiling. `crates/cli/Cargo.toml`
 tells it where the archives are (`[package.metadata.binstall]`). With `--git` it
@@ -305,45 +303,66 @@ completions <shell>` (see [the CLI page](/tutorials/cli_usage)).
 
 ### mise
 
-[mise](https://mise.jdx.dev) has two backends that fit. From the release
-archives (the `github:` backend picks the archive for your system and puts both
-binaries on `PATH`):
+[mise](https://mise.jdx.dev) has two backends that fit.
 
-```bash
+<Tabs>
+
+<Tab title="From release archives" icon="download">
+
+The `github:` backend picks the archive for your system and puts both binaries on `PATH`:
+
+<CodeGroup>
+
+```bash Terminal
 mise use -g github:MustCodeAl/seleniumbase-rs
 ```
 
-or in `mise.toml`:
-
-```toml
+```toml mise.toml
 [tools."github:MustCodeAl/seleniumbase-rs"]
 version = "latest"
 ```
 
-Until the release archives exist, mise reports "No versions found" for it. To
-build from the git tag now, the `cargo:` backend runs `cargo install --git`
+</CodeGroup>
+
+Until the release archives exist, mise reports "No versions found" for it.
+
+</Tab>
+
+<Tab title="Build from the git tag" icon="hammer">
+
+To build from the git tag now, the `cargo:` backend runs `cargo install --git`
 (Rust 1.99 must be on `PATH`, for example with `mise use -g rust@1.99`). The
 repository has one package with binaries, `seleniumbase-rs-cli`, so cargo finds
 it by itself, and it builds `sbrs-mcp` too (`features = ["tui"]` adds the
 terminal UI):
 
-```bash
+<CodeGroup>
+
+```bash Terminal
 mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.2.0'
 ```
 
-```toml
+```toml mise.toml
 [tools."cargo:https://github.com/MustCodeAl/seleniumbase-rs"]
 version = "tag:v0.2.0"
 ```
+
+</CodeGroup>
 
 The binaries moved from the package `seleniumbase-rs` to `seleniumbase-rs-cli`
 after v0.4.0. For a tag up to v0.4.0, add `features = ["mcp-server"]` to get
 `sbrs-mcp`.
 
+</Tab>
+
+</Tabs>
+
 mise installs no completions for these backends either; its per-tool
 `postinstall` option can run `sbrs completions zsh` into your completions folder.
 
 ### Homebrew
+
+<Badge color="green">Works today</Badge>
 
 The tap builds from the release's source and installs the completions and the
 Warp workflows as well (macOS and Linux):
@@ -353,6 +372,8 @@ brew install mustcodeal/tap/sbrs
 ```
 
 ### cargo install from git
+
+<Badge color="green">Works today</Badge>
 
 What the methods above do when there is no archive, by hand:
 
@@ -545,21 +566,39 @@ rebuilds it from `parity/api.toml`.
 
 The same pages also publish as a [Docs7](https://context7.com/docs/docs7/quickstart)
 site. `docs/docs.json` is its configuration, and its navigation follows
-`docs/SUMMARY.md`; regenerate it after changing the table of contents:
+`docs/SUMMARY.md`.
+
+<Steps>
+
+<Step title="Regenerate the navigation" icon="rotate">
+
+Do this after changing the table of contents:
 
 ```bash
 python3 -I tools/docs7_nav.py
 ```
 
-Preview it locally (needs Node), then open http://localhost:4317:
+</Step>
+
+<Step title="Preview it locally" icon="eye">
+
+Needs Node. Run it, then open http://localhost:4317:
 
 ```bash
 npx --yes @upstash/docs7 dev ./docs --port 4317
 ```
 
-To publish, open the Docs7 tab of your Context7 teamspace, choose **Add New
+</Step>
+
+<Step title="Publish" icon="upload">
+
+Open the Docs7 tab of your Context7 teamspace, choose **Add New
 Site**, pick this repository, and set the branch to `main` and the folder to
 `docs`. Every push to `main` then rebuilds the site.
+
+</Step>
+
+</Steps>
 
 ## Platforms
 
@@ -568,3 +607,31 @@ development and the project's own checks run on macOS (Apple silicon). The suite
 was also run on Linux arm64 (Debian 12, Chromium 154) in a container, as above.
 Measured browser fingerprint data is macOS only for now. Per-system notes are in
 [Operating systems](/platforms).
+
+<Columns cols={2}>
+
+<Card title="Getting started" icon="rocket" href="/tutorials/getting_started">
+
+Write and run your first browser test.
+
+</Card>
+
+<Card title="Operating systems" icon="desktop" href="/platforms">
+
+Per-system notes for macOS, Windows and Linux.
+
+</Card>
+
+<Card title="Command line" icon="terminal" href="/tutorials/cli_usage">
+
+One-off commands with `sbrs`, no project needed.
+
+</Card>
+
+<Card title="Docker Guide" icon="box" href="/help/docker">
+
+Containerized configuration.
+
+</Card>
+
+</Columns>

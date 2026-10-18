@@ -72,7 +72,7 @@ commands, the build time and the test results are in
 
 <AccordionGroup>
 
-<Accordion title="Entry point and arguments">
+<Accordion title="Entry point and arguments" icon="terminal">
 
 Because the entry point is `sbrs`, the arguments after the image name are
 `sbrs` arguments. Do not repeat `sbrs`. The browser commands (`open`,
@@ -82,7 +82,7 @@ display, so set one of them.
 
 </Accordion>
 
-<Accordion title="The chromedriver">
+<Accordion title="The chromedriver" icon="gear">
 
 The image links Debian's `chromedriver` as `downloaded_drivers/chromedriver` in
 the working directory, where the WebDriver engine looks first, so it downloads
@@ -91,7 +91,7 @@ driver (`linux64` or `linux-arm64`) on first use.
 
 </Accordion>
 
-<Accordion title="The Chrome sandbox">
+<Accordion title="The Chrome sandbox" icon="shield">
 
 Chrome refuses to start its sandbox in many container setups. The WebDriver
 engine always passes `--no-sandbox` on Linux. For the pure CDP engine,
@@ -107,7 +107,7 @@ and give the container no more privileges than it needs.
 
 </Accordion>
 
-<Accordion title="Shared memory">
+<Accordion title="Shared memory" icon="memory">
 
 Chromium in Docker often needs a larger shared-memory area than the default;
 `docker run --shm-size=1g ...` is the usual remedy for crashes under load.
@@ -115,7 +115,7 @@ This is general Chromium advice, not something this project measured.
 
 </Accordion>
 
-<Accordion title="Readiness check">
+<Accordion title="Readiness check" icon="heart-pulse">
 
 Use `sbrs doctor` as a readiness check: it compares the chromedriver's major
 version with Chrome's.
@@ -139,12 +139,13 @@ cargo test --features "test-util" # tests that need no browser
 cargo test -- --ignored           # the tests that launch Chrome, if you want them
 ```
 
-On a CI runner that is a container, or runs as root, also set `CI=true`: the
-real-browser tests of this repository read it and then pass `--no-sandbox`. Give
-the doc tests `-- --test-threads=2` on a runner with 4 GB or less; with one linker
-per CPU they were killed for lack of memory. The tests that start the
-measurement tools need a headed Chrome, so run those under a virtual display
-(`Xvfb`). `docker/Dockerfile.verify` is a ready-made image for all of this.
+- On a CI runner that is a container, or runs as root, also set `CI=true`: the
+  real-browser tests of this repository read it and then pass `--no-sandbox`.
+- Give the doc tests `-- --test-threads=2` on a runner with 4 GB or less; with one
+  linker per CPU they were killed for lack of memory.
+- The tests that start the measurement tools need a headed Chrome, so run those
+  under a virtual display (<Tooltip tip="A virtual X display: a headed Chrome can run on a machine with no screen.">`Xvfb`</Tooltip>).
+- `docker/Dockerfile.verify` is a ready-made image for all of this.
 
 Run browser tests in a controlled number of parallel workers and keep
 `cargo nextest`'s zero-retry profile: retries hide flaky tests (see

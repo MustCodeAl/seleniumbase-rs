@@ -32,17 +32,33 @@ cargo run --bin sbrs -- import-playwright e2e/login.spec.ts --output tests/login
 cargo run --bin sbrs -- import-pw tests/test_login.py   # prints to stdout
 ```
 
-| Option | Values | Purpose |
-|---|---|---|
-| `--output`, `-o` | file path | Write the Rust there instead of to standard output. |
-| `--language` | `js`, `ts`, `python` | Override the language, which otherwise comes from the extension (`.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.py`) or the content. |
-| `--test-name` | any text | Name the test made from a script that has no test titles (codegen output); the default is the file name. Titled tests keep their titles. |
+<ParamField body="--output, -o" type="file path">
+
+Write the Rust there instead of to standard output.
+
+</ParamField>
+
+<ParamField body="--language" type="js | ts | python">
+
+Override the language, which otherwise comes from the extension (`.js`, `.mjs`, `.cjs`, `.ts`, `.mts`, `.py`) or the content.
+
+</ParamField>
+
+<ParamField body="--test-name" type="any text">
+
+Name the test made from a script that has no test titles (codegen output); the default is the file name. Titled tests keep their titles.
+
+</ParamField>
 
 Diagnostics go to standard error, one line per `TODO`. The exit status is the
-one `sbrs import-python` uses: 0 when everything was read (gaps are
-warnings), 1 when a statement could not be read at all, 6 when the file cannot
-be read, and 2 for a source the importer refuses (larger than 2 MB, or a
-Chrome Recorder export, which is for `sbrs import-puppeteer`).
+one `sbrs import-python` uses:
+
+| Status | Meaning |
+|---|---|
+| 0 | Everything was read (gaps are warnings). |
+| 1 | A statement could not be read at all. |
+| 6 | The file cannot be read. |
+| 2 | A source the importer refuses: larger than 2 MB, or a Chrome Recorder export, which is for `sbrs import-puppeteer`. |
 
 From Rust, call `seleniumbase_rs::utilities::importer::import_playwright`;
 `ScriptImport::is_complete()` is `false` when anything became a `TODO`.
@@ -199,14 +215,21 @@ a `TODO`. `expect.soft` is converted as a normal expectation.
 The pure CDP engine has no accessibility-tree query, so `getByRole` becomes an
 XPath built by `SelectorBuf::role`. An element has the role when its `role`
 attribute says so, or when it has no `role` attribute and is the native
-element for it: `<button>`, `<summary>` and `<input type="submit|button|reset|image">`
-for `button`; `<a href>` and `<area href>` for `link`; `<input type="checkbox">`;
-`<input type="radio">`; `<h1>` to `<h6>` for `heading`; `<input>` (text, email,
-tel, url, password) and `<textarea>` for `textbox`; `<select>` for `combobox`
-or `listbox`; `<li>`, `<ul>`, `<ol>`, `<nav>`, `<main>`, `<table>`, `<tr>`,
-`<td>`, `<th>`, `<img alt>`, `<dialog>`, `<form>`, `<section>` and the other
-common landmarks. The name matches the element's `aria-label`, text, `value`,
-`title`, `alt`, or the text of its `<label>` (by `for` or by wrapping).
+element for it:
+
+- `button`: `<button>`, `<summary>` and `<input type="submit|button|reset|image">`
+- `link`: `<a href>` and `<area href>`
+- `checkbox`: `<input type="checkbox">`
+- `radio`: `<input type="radio">`
+- `heading`: `<h1>` to `<h6>`
+- `textbox`: `<input>` (text, email, tel, url, password) and `<textarea>`
+- `combobox` or `listbox`: `<select>`
+- landmarks and structure: `<li>`, `<ul>`, `<ol>`, `<nav>`, `<main>`, `<table>`,
+  `<tr>`, `<td>`, `<th>`, `<img alt>`, `<dialog>`, `<form>`, `<section>` and the
+  other common landmarks
+
+The name matches the element's `aria-label`, text, `value`, `title`, `alt`, or
+the text of its `<label>` (by `for` or by wrapping).
 
 <Warning>
 

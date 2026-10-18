@@ -23,6 +23,10 @@ you run yourself (below).
 
 Set the driver mode to `Uc` in [`BrowserConfig`](crate::BrowserConfig):
 
+<Tabs>
+
+<Tab title="Rust" icon="code">
+
 ```rust,no_run
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
@@ -39,33 +43,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `BrowserConfig::default()` is headless.
 
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+On the command line, `sbrs --uc open https://example.com` does the same (put
+`--uc` before the subcommand).
+
+```bash
+sbrs --uc open https://example.com
+```
+
+</Tab>
+
+</Tabs>
+
 <Warning>
 
 UC mode needs Chrome, Chromium or Edge.
 
 </Warning>
 
-On the command line, `sbrs --uc open https://example.com` does the same (put
-`--uc` before the subcommand).
-
 ## Binary patching
 
 Even in UC mode, a stock `chromedriver` may inject `cdc_` variables into every
 page.
 
-<Note>
+<Warning>
 
 UC mode does not patch the driver for you.
 
-</Note>
+</Warning>
 
 Patch the executable before launch to strip those signatures:
+
+<Tabs>
+
+<Tab title="Command line" icon="terminal">
 
 ```bash
 cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver
 ```
 
-You can also patch from code:
+</Tab>
+
+<Tab title="From Rust" icon="code">
 
 ```rust,no_run
 use seleniumbase_rs::stealth::patcher::patch_chromedriver;
@@ -75,6 +97,10 @@ patch_chromedriver("/path/to/chromedriver")?;
 # Ok(())
 # }
 ```
+
+</Tab>
+
+</Tabs>
 
 See [Binary Patching](/tutorials/binary_patching) for the full API,
 backup/restore, and safety notes.
@@ -99,39 +125,39 @@ If a site still flags the browser:
 
 <Steps>
 
-<Step title="Patch chromedriver">
+<Step title="Patch chromedriver" icon="wrench">
 
 Patch `chromedriver` and verify `needs_patch()` returns `false`.
 
 </Step>
 
-<Step title="Add the spoofing arguments">
+<Step title="Add the spoofing arguments" icon="flag">
 
 Add `engine_spoofing_args()` to the launch flags.
 
 </Step>
 
-<Step title="Use a coherent fingerprint">
+<Step title="Use a coherent fingerprint" icon="fingerprint">
 
 Use a [`Fingerprint`](/tutorials/fingerprint_stealth) with consistent
 user agent, platform, screen size, WebGL vendor, and geolocation.
 
 </Step>
 
-<Step title="Run headful">
+<Step title="Run headful" icon="window-maximize">
 
 Run headful (`with_headless(false)`). A headless session already starts
 Chrome with `--headless=new`, so there is no newer headless mode to switch to.
 
 </Step>
 
-<Step title="Align the egress IP">
+<Step title="Align the egress IP" icon="globe">
 
 Align egress IP with the spoofed geolocation and timezone.
 
 </Step>
 
-<Step title="Try the pure CDP engine">
+<Step title="Try the pure CDP engine" icon="bolt">
 
 Try the [pure CDP engine](/tutorials/pure_cdp), which needs no
 chromedriver.
@@ -148,3 +174,27 @@ chromedriver.
 | Detection after patching | Missing engine args | Add `engine_spoofing_args()` to launch flags. |
 | Detection only in headless | Headless artifacts | Run headful with `with_headless(false)` (or `sbrs --headed`). |
 | Inconsistent signals | Fingerprint values mismatch | Validate with `Fingerprint::validate()`. |
+
+## Next steps
+
+<Columns cols={3}>
+
+<Card title="Binary Patching" icon="wrench" href="/tutorials/binary_patching">
+
+The full API, backup/restore, and safety notes.
+
+</Card>
+
+<Card title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/tutorials/fingerprint_stealth">
+
+A consistent user agent, platform, screen size, WebGL vendor and geolocation.
+
+</Card>
+
+<Card title="Pure CDP engine" icon="bolt" href="/tutorials/pure_cdp">
+
+Drives Chrome with no chromedriver.
+
+</Card>
+
+</Columns>

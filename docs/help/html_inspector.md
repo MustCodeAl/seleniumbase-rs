@@ -19,6 +19,10 @@ and structural problems before they reach production.
 
 ## Run an inspection
 
+<Tabs>
+
+<Tab title="From a page" icon="globe">
+
 `BaseCase::inspect_html` takes the current page source and inspects it:
 
 ```rust,no_run
@@ -32,6 +36,10 @@ assert!(inspection.is_clean(), "{inspection:?}");
 
 `BaseCase::assert_no_html_issues` does the same and fails with an
 `AssertionFailed` error that lists every `[rule] message`.
+
+</Tab>
+
+<Tab title="From an HTML string" icon="code">
 
 The inspector needs no browser. `HtmlInspector::inspect` takes any HTML string:
 
@@ -47,6 +55,10 @@ assert!(inspection.issues.iter().any(|issue| issue.rule == "image-alt"));
 # }
 ```
 
+</Tab>
+
+</Tabs>
+
 ## Checks performed
 
 Every finding has a stable rule ID and a severity. `is_clean()` is true only
@@ -55,23 +67,23 @@ when at least one finding has `InspectionSeverity::Error`.
 
 | Rule ID | Severity | What it flags |
 |---|---|---|
-| `document-lang` | error | The `html` element has no non-empty `lang`. |
-| `document-title` | error | The document has no non-empty `title`. |
-| `meta-viewport` | warning | No viewport meta tag whose content contains `width=device-width`. |
-| `skip-link` | warning | No link to `#maincontent` or `#content`. |
-| `image-alt` | error | An `img` without an `alt` attribute (use `alt=""` for decoration). |
-| `interactive-name` | error | A link (`a[href]`) or button without a static accessible name (text, `aria-label`, `title`, `alt`, or a valid `aria-labelledby`). |
-| `link-text` | warning | A link with no visible text, or with generic text: "click here", "here", "read more", "more", "link" or "details". |
-| `nested-interactive` | error | A button inside a link. |
-| `form-control-label` | error | A form control without a `label`, wrapping `label`, `aria-label`, or valid `aria-labelledby` reference. |
-| `radio-group-legend` | warning | A named radio group of two or more not inside a `fieldset` with a `legend`. |
-| `duplicate-id` | error | An ID used more than once. |
-| `invalid-aria-reference` | error | `aria-labelledby` or `aria-describedby` naming an ID that does not exist. |
-| `empty-heading` | warning | A heading with no text. |
-| `heading-order` | warning | A heading level that jumps by more than one. |
-| `page-h1` | warning | No `h1`, or more than one. |
-| `table-headers` | warning | A table with no `th` cell. |
-| `main-landmark` | warning | No `main` element or `role="main"`. |
+| `document-lang` | <Badge color="red">error</Badge> | The `html` element has no non-empty `lang`. |
+| `document-title` | <Badge color="red">error</Badge> | The document has no non-empty `title`. |
+| `meta-viewport` | <Badge color="orange">warning</Badge> | No viewport meta tag whose content contains `width=device-width`. |
+| `skip-link` | <Badge color="orange">warning</Badge> | No link to `#maincontent` or `#content`. |
+| `image-alt` | <Badge color="red">error</Badge> | An `img` without an `alt` attribute (use `alt=""` for decoration). |
+| `interactive-name` | <Badge color="red">error</Badge> | A link (`a[href]`) or button without a static accessible name (text, `aria-label`, `title`, `alt`, or a valid `aria-labelledby`). |
+| `link-text` | <Badge color="orange">warning</Badge> | A link with no visible text, or with generic text: "click here", "here", "read more", "more", "link" or "details". |
+| `nested-interactive` | <Badge color="red">error</Badge> | A button inside a link. |
+| `form-control-label` | <Badge color="red">error</Badge> | A form control without a `label`, wrapping `label`, `aria-label`, or valid `aria-labelledby` reference. |
+| `radio-group-legend` | <Badge color="orange">warning</Badge> | A named radio group of two or more not inside a `fieldset` with a `legend`. |
+| `duplicate-id` | <Badge color="red">error</Badge> | An ID used more than once. |
+| `invalid-aria-reference` | <Badge color="red">error</Badge> | `aria-labelledby` or `aria-describedby` naming an ID that does not exist. |
+| `empty-heading` | <Badge color="orange">warning</Badge> | A heading with no text. |
+| `heading-order` | <Badge color="orange">warning</Badge> | A heading level that jumps by more than one. |
+| `page-h1` | <Badge color="orange">warning</Badge> | No `h1`, or more than one. |
+| `table-headers` | <Badge color="orange">warning</Badge> | A table with no `th` cell. |
+| `main-landmark` | <Badge color="orange">warning</Badge> | No `main` element or `role="main"`. |
 
 ## Access results
 

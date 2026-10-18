@@ -90,9 +90,38 @@ let config = BrowserConfig::default().with_headless(true);
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `chromedriver` not found in container | Wrong base image stage | Use the runtime stage produced by the Dockerfile. |
-| Browser crashes with sandbox error | Chrome cannot start its sandbox in the container | Set `SB_NO_SANDBOX=1` (see above). |
-| Browser crashes under load | Small default `/dev/shm` | Start the container with `--shm-size=1g`. |
-| Environment variable ignored | Used `SBASE_` prefix | Use the `SB_` prefix. |
+<AccordionGroup>
+
+<Accordion title="chromedriver not found in container" icon="box">
+
+**Likely cause.** Wrong base image stage.
+
+**Fix.** Use the runtime stage produced by the Dockerfile.
+
+</Accordion>
+
+<Accordion title="Browser crashes with sandbox error" icon="shield">
+
+**Likely cause.** Chrome cannot start its sandbox in the container.
+
+**Fix.** Set `SB_NO_SANDBOX=1` (see above).
+
+</Accordion>
+
+<Accordion title="Browser crashes under load" icon="memory">
+
+**Likely cause.** Small default `/dev/shm`.
+
+**Fix.** Start the container with `--shm-size=1g`.
+
+</Accordion>
+
+<Accordion title="Environment variable ignored" icon="gear">
+
+**Likely cause.** Used `SBASE_` prefix.
+
+**Fix.** Use the `SB_` prefix.
+
+</Accordion>
+
+</AccordionGroup>

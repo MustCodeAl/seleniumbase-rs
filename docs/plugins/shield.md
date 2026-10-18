@@ -9,22 +9,32 @@ limits what your own browser sends about you: it turns off the browser's
 background reporting, keeps WebRTC from leaking the machine's addresses, blocks
 third-party cookies and refuses to keep a profile on disk.
 
+<Note>
+
 It does **not** spoof fingerprints or hide automation. That is the job of
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth).
+
+</Note>
 
 ## Turn it on
 
 shield ships with seleniumbase-rs behind one cargo feature, and is switched on
 by its name. See [Choosing plugins](/plugins/selecting) for every way to do that.
 
-```toml
+```toml Cargo.toml
 [dependencies]
 seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["plugin-shield"] }
 ```
 
-Then, with no code, in `sbase_config.toml`:
+Then switch it on by name:
 
-```toml
+<Tabs>
+
+<Tab title="sbase_config.toml" icon="gear">
+
+With no code, in `sbase_config.toml`:
+
+```toml sbase_config.toml
 [plugins]
 enable = ["shield"]
 
@@ -32,14 +42,28 @@ enable = ["shield"]
 level = "strict"
 ```
 
-or `SB_PLUGINS=shield`, or on the command line of `sbrs` and `sbrs-mcp`, which
-have shield compiled in:
+</Tab>
 
-```sh
+<Tab title="SB_PLUGINS" icon="terminal">
+
+With no code, set `SB_PLUGINS=shield`.
+
+</Tab>
+
+<Tab title="sbrs command line" icon="terminal">
+
+With no code, on the command line of `sbrs` and `sbrs-mcp`, which have shield
+compiled in:
+
+```sh Terminal
 sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
 ```
 
-or in code:
+</Tab>
+
+<Tab title="Rust code" icon="code">
+
+In code:
 
 ```rust
 use seleniumbase_rs::sb_cdp::LaunchOptions;
@@ -51,8 +75,16 @@ let options = LaunchOptions::builder()
 # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
+</Tab>
+
+</Tabs>
+
+<Note>
+
 shield needs a Chromium-based browser. It is refused with Firefox and Safari,
 and it works in both engines (the pure CDP engine and `BaseCase`).
+
+</Note>
 
 ## What it turns off
 
@@ -95,16 +127,53 @@ others.
 `[plugins.shield]` in a settings file. An option that is not listed is an error,
 so a typo cannot turn a protection off without a word.
 
-| Option | Default | Meaning |
-|---|---|---|
-| `level` | `basic` | `strict` also makes the browser unable to resolve a few Google hosts |
-| `webrtc` | `relay-only` | `off`, `policy` or `relay-only` |
-| `block_third_party_cookies` | `true` | `false` leaves the browser's own setting; it never allows them |
-| `ephemeral_profile` | `true` | `false` allows a persistent profile (`user_data_dir`) |
-| `extra_block_hosts` | `[]` | Plain host names, no scheme, port, path or `*` |
-| `safe_browsing` | `true` | `false` sets the preference that turns it off; nothing else does |
-| `sweep_stale_profiles` | `false` | **Not implemented**; `true` is an error |
-| `clear_between_tests` | `false` | **Not implemented**; `true` is an error |
+<ParamField body="level" type="string" default="basic">
+
+`strict` also makes the browser unable to resolve a few Google hosts.
+
+</ParamField>
+
+<ParamField body="webrtc" type="string" default="relay-only">
+
+`off`, `policy` or `relay-only`.
+
+</ParamField>
+
+<ParamField body="block_third_party_cookies" type="boolean" default="true">
+
+`false` leaves the browser's own setting; it never allows them.
+
+</ParamField>
+
+<ParamField body="ephemeral_profile" type="boolean" default="true">
+
+`false` allows a persistent profile (`user_data_dir`).
+
+</ParamField>
+
+<ParamField body="extra_block_hosts" type="string[]" default="[]">
+
+Plain host names, no scheme, port, path or `*`.
+
+</ParamField>
+
+<ParamField body="safe_browsing" type="boolean" default="true">
+
+`false` sets the preference that turns it off; nothing else does.
+
+</ParamField>
+
+<ParamField body="sweep_stale_profiles" type="boolean" default="false">
+
+<Badge color="red">Not implemented</Badge> `true` is an error.
+
+</ParamField>
+
+<ParamField body="clear_between_tests" type="boolean" default="false">
+
+<Badge color="red">Not implemented</Badge> `true` is an error.
+
+</ParamField>
 
 The last two need hooks the plugin API does not have yet. They are refused
 instead of accepted, so no settings file promises a protection that is not
@@ -147,11 +216,16 @@ The plugin only fills in settings. The host applies them:
 
 ## Limits
 
-- **Nothing here has run in a real Chrome.** shield's own tests use the
-  recording fakes of `seleniumbase-rs-plugin-testing`, and the checks in
-  seleniumbase-rs run on its scripted mock browser. The switches, features,
-  hosts and preference names were checked against the Chromium source, not
-  against a running browser. Re-check them against each new Chrome stable.
+<Warning>
+
+**Nothing here has run in a real Chrome.** shield's own tests use the
+recording fakes of `seleniumbase-rs-plugin-testing`, and the checks in
+seleniumbase-rs run on its scripted mock browser. The switches, features,
+hosts and preference names were checked against the Chromium source, not
+against a running browser. Re-check them against each new Chrome stable.
+
+</Warning>
+
 - **`extra_block_hosts` is per tab session.** The block goes out as
   `Network.setBlockedURLs` on each tab's own protocol session. Whether
   cross-site iframes, workers and popups are covered depends on the browser

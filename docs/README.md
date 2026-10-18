@@ -115,7 +115,7 @@ By reading this book you will learn how to:
 
 <Tabs>
 
-<Tab title="New to the crate">
+<Tab title="New to the crate" icon="rocket">
 
 Start with [Getting Started](/tutorials/getting_started)
 and then read [Writing Browser Tests](/rust-test-tooling) and
@@ -123,7 +123,7 @@ and then read [Writing Browser Tests](/rust-test-tooling) and
 
 </Tab>
 
-<Tab title="Migrating from Python">
+<Tab title="Migrating from Python" icon="arrow-right-arrow-left">
 
 Jump to [Migrate Python Tests](/python-migration)
 and then read [Selectors](/tutorials/selectors) for the differences in selector
@@ -131,7 +131,7 @@ syntax and test lifecycle.
 
 </Tab>
 
-<Tab title="Anti-detection">
+<Tab title="Anti-detection" icon="user-secret">
 
 Read [Undetected (UC) Mode](/tutorials/uc_mode),
 [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth), and
@@ -139,7 +139,7 @@ Read [Undetected (UC) Mode](/tutorials/uc_mode),
 
 </Tab>
 
-<Tab title="Day to day">
+<Tab title="Day to day" icon="terminal">
 
 Keep [CLI Usage](/tutorials/cli_usage) and
 [Common Problems](/help/common_problems) handy.
@@ -167,6 +167,8 @@ from a release tag (see [Building and installing](/building)).
 Companion projects live in their own repositories and are documented on this
 site: see the [Ecosystem](/ecosystem/overview) page.
 
+<Columns cols={2}>
+
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
@@ -176,6 +178,8 @@ site: see the [Ecosystem](/ecosystem/overview) page.
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-browser-extension" />
 
 <GitHub.Repo repo="MustCodeAl/homebrew-tap" />
+
+</Columns>
 
 ## Build this book locally
 

@@ -8,13 +8,13 @@ and hint:
 
 <Tabs>
 
-<Tab title="Your own program">
+<Tab title="Your own program" icon="code">
 
 Call `init_tracing()` and run with `RUST_LOG=seleniumbase_rs=debug`.
 
 </Tab>
 
-<Tab title="sbrs and sbrs-mcp">
+<Tab title="sbrs and sbrs-mcp" icon="terminal">
 
 They read `SB_LOG_LEVEL`, for example `SB_LOG_LEVEL=seleniumbase_rs=debug,info`.
 Without it (or with a blank or invalid one) they fall back to `RUST_LOG`, then
@@ -54,7 +54,7 @@ UC mode removes many fingerprints, but detection is layered. Check each defense:
 
 <Steps>
 
-<Step title="Patch the chromedriver binary">
+<Step title="Patch the chromedriver binary" icon="wrench">
 
 Use [`ChromedriverPatcher`](/tutorials/binary_patching) or
 `cargo run --bin sbrs -- patch-chromedriver --path /path/to/chromedriver`.
@@ -62,14 +62,14 @@ Verify with `needs_patch()`.
 
 </Step>
 
-<Step title="Add engine spoofing args">
+<Step title="Add engine spoofing args" icon="flag">
 
 Pass `engine_spoofing_args()` through `BrowserConfig::with_extra_args` or
 `StealthOptions::extra_args`.
 
 </Step>
 
-<Step title="Use a coherent fingerprint">
+<Step title="Use a coherent fingerprint" icon="fingerprint">
 
 A Windows user agent with a macOS WebGL vendor or a mobile screen on a desktop
 platform is suspicious. Build a
@@ -80,21 +80,21 @@ other.
 
 </Step>
 
-<Step title="Check WebGL and geolocation consistency">
+<Step title="Check WebGL and geolocation consistency" icon="location-dot">
 
 Spoofed WebGL vendor/renderer and geolocation should match the IP address and
 timezone.
 
 </Step>
 
-<Step title="Run headed">
+<Step title="Run headed" icon="window-maximize">
 
 A headless session already starts Chrome with `--headless=new`, but some sites
 still tell headless from headed. See [Headless detected](#headless-detected).
 
 </Step>
 
-<Step title="Drop chromedriver altogether">
+<Step title="Drop chromedriver altogether" icon="bolt">
 
 The [pure CDP engine](/tutorials/pure_cdp) (`seleniumbase_rs::sb_cdp`)
 launches Chrome directly, so there is no driver binary to leak markers.
@@ -107,7 +107,22 @@ launches Chrome directly, so there is no driver binary to leak markers.
 
 `BaseCase::new` starts a chromedriver for you when the WebDriver URL is the
 default (`http://localhost:4444`) and `auto_start_driver` is on (it is by
-default). It first tries to connect to a driver already listening there; if
+default).
+
+```mermaid
+flowchart TD
+  A["BaseCase::new"] --> B{"Default URL and auto_start_driver on?"}
+  B -- no --> N["Auto-start is off: nothing is started"]
+  B -- yes --> C{"A driver already listening?"}
+  C -- yes --> U["Connect to it"]
+  C -- no --> V["Run --version on the driver and on Chrome"]
+  V --> M{"Driver missing, or another major version?"}
+  M -- yes --> D["Download the driver of Chrome's milestone into downloaded_drivers/"]
+  M -- no --> L["Launch downloaded_drivers/chromedriver on a free port"]
+  D --> L
+```
+
+`BaseCase::new` first tries to connect to a driver already listening there; if
 none answers, it launches `downloaded_drivers/chromedriver` (`chromedriver.exe`
 on Windows) on a free port. A chromedriver only drives the Chrome of its own
 major version, so before launching it the crate runs `--version` on the driver
@@ -123,13 +138,18 @@ cargo run --bin sbrs -- install
 
 `sbrs install` with no argument fetches chromedriver; `sbrs install geckodriver`
 and `sbrs install edgedriver` fetch the drivers of Firefox and Edge (see the
-[CLI page](/tutorials/cli_usage#install-a-driver)). For Chrome the
-auto-start does not look at your `PATH`
-or at `CHROMEDRIVER_PATH`; those are consulted only by `sbrs doctor`, which
-prints which chromedriver it finds (`CHROMEDRIVER_PATH`, then
-`downloaded_drivers/`, then `PATH`), its major version next to Chrome's
-(`Version: 155 (matches Chrome 155)`, or `Version: 151, but Chrome is 155` with
-a hint to run `sbrs install`), and whether it still has automation markers.
+[CLI page](/tutorials/cli_usage#install-a-driver)).
+
+<Note>
+
+For Chrome the auto-start does not look at your `PATH` or at `CHROMEDRIVER_PATH`;
+those are consulted only by `sbrs doctor`, which prints which chromedriver it
+finds (`CHROMEDRIVER_PATH`, then `downloaded_drivers/`, then `PATH`), its major
+version next to Chrome's (`Version: 155 (matches Chrome 155)`, or
+`Version: 151, but Chrome is 155` with a hint to run `sbrs install`), and whether
+it still has automation markers.
+
+</Note>
 
 To use a driver you run yourself, start it and pass its URL. A URL other than
 the default turns auto-start off:
@@ -283,7 +303,7 @@ hint, and element errors point out a likely mistake in the selector.
 
 <Steps>
 
-<Step title="Check the selector">
+<Step title="Check the selector" icon="crosshairs">
 
 Check the selector in the browser's developer tools; a class that is generated
 on each build, or an element inside an iframe or a shadow root, will not match
@@ -291,14 +311,14 @@ a plain selector.
 
 </Step>
 
-<Step title="Wait for the right condition">
+<Step title="Wait for the right condition" icon="clock">
 
 Wait for the right condition (`wait_for_element_visible`, `wait_for_text`)
 instead of sleeping.
 
 </Step>
 
-<Step title="Remember the built-in wait">
+<Step title="Remember the built-in wait" icon="hourglass-half">
 
 `BaseCase` actions already wait for their element for the default timeout
 (10 seconds; `set_timeout` changes it). A timeout that long usually means the
@@ -306,7 +326,7 @@ selector is wrong, not that the page is slow.
 
 </Step>
 
-<Step title="Ask the agent tools">
+<Step title="Ask the agent tools" icon="robot">
 
 With an AI agent attached, `diagnose_selector` explains why a selector matches
 nothing and `suggest_selectors` proposes ones that work; `inspect_page` shows

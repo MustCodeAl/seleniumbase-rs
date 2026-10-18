@@ -19,6 +19,17 @@ scenario, which is a different, richer format.
 
 </Info>
 
+The three routes at a glance:
+
+```mermaid
+flowchart LR
+    A["sbrs record<br/>(you use a browser)"] --> F["actions.json"]
+    B["BaseCase<br/>(ActionRecorder)"] --> F
+    B --> R["Rust source"]
+    F --> P["sbrs replay"]
+    S["scenario.json<br/>(written by hand)"] --> X["sbrs run-scenario"]
+```
+
 ## Record manual browsing
 
 ```bash
@@ -58,7 +69,7 @@ parentheses): `goto` (`open`, `navigate`), `click`, `type` (`type_text`,
 The file is a JSON array of actions. Each has a `name`, an optional `target`
 and `value`, and a `timestamp_ms`:
 
-```json
+```json actions.json
 [
   { "name": "goto", "target": "https://seleniumbase.io/demo_page", "timestamp_ms": 1760000000000 },
   { "name": "click", "target": "#myButton", "timestamp_ms": 1760000001000 },
@@ -161,7 +172,7 @@ cargo run --bin sbrs -- run-scenario --file scenario.json --dashboard dashboard.
 
 </CodeGroup>
 
-```json
+```json scenario.json
 {
   "name": "demo_page",
   "steps": [

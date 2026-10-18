@@ -2,6 +2,8 @@
 title: "Runnable Examples"
 ---
 
+<Badge color="orange">Experimental</Badge>
+
 Five small programs in `examples/` run the layers on your own machine. None of them
 reaches the outside network or targets a third-party site, and none tries to pass a
 real detection service: each one needs nothing, or starts its own site on
@@ -19,7 +21,7 @@ not any vendor's challenge, and getting past it says nothing about a real servic
 |---|---|---|---|
 | `examples/cookie_jar.rs` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/stealth/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
 | `examples/custom_profile.rs` | `mimic` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `CustomProfileBuilder`, and four inputs the stack [refuses](/stealth/wire-formats#what-is-refused). |
-| `examples/http_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/stealth/http-session#httpsession) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the JA4 the shop saw next to the measured one. |
+| `examples/http_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/stealth/http-session#httpsession) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
 | `examples/stealth_session.rs` | `mimic` | `cmake`; Chrome 155 on macOS, installed | A [`StealthSession`](/stealth/stealth-session#stealthsession) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
 | `examples/browser_scraper.rs` | `scrape` | A Chrome | A [`BrowserScraper`](/stealth/browser-scraper#browserscraper) detecting and solving the same kind of challenge in a headless Chrome. |
 
@@ -114,9 +116,48 @@ Only one Chrome-driving program should run on the machine at a time.
 
 Run `capture_tls`, then `capture_hints`, then `capture_h2` against the new Chrome. They rewrite
 `crates/codec/src/measured/<browser>-<major>-<os>.json` and the raw fixtures next to the wire
-tests; `cargo test -p seleniumbase-rs-codec --test wire_emulation` and
-`cargo test -p seleniumbase-rs-mimic --test impersonate_capture_h2` then check the files
-against each other. The full procedure is in [Re-measuring when Chrome updates](/stealth/wire-formats#re-measuring-when-chrome-updates).
+tests.
+
+<Steps>
+
+<Step title="Run capture_tls" icon="lock">
+
+```sh
+cargo run -p seleniumbase-rs-scrape --example capture_tls
+```
+
+</Step>
+
+<Step title="Run capture_hints" icon="fingerprint">
+
+```sh
+cargo run -p seleniumbase-rs-scrape --example capture_hints
+```
+
+</Step>
+
+<Step title="Run capture_h2" icon="server">
+
+```sh
+cargo run -p seleniumbase-rs-mimic --example capture_h2
+```
+
+</Step>
+
+<Step title="Check the files against each other" icon="circle-check">
+
+These two tests check the files against each other:
+
+```sh
+cargo test -p seleniumbase-rs-codec --test wire_emulation
+cargo test -p seleniumbase-rs-mimic --test impersonate_capture_h2
+```
+
+</Step>
+
+</Steps>
+
+The full procedure is in [Re-measuring when Chrome updates](/stealth/wire-formats#re-measuring-when-chrome-updates).
 
 ### Tests that start a real Chrome
 

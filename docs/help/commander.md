@@ -2,6 +2,8 @@
 title: "SeleniumBase Commander"
 ---
 
+<Badge color="blue">Feature: tui</Badge>
+
 Commander is a terminal UI for browsing and running tests or examples. It is a
 convenient way to explore the project without memorizing every example path.
 
@@ -91,6 +93,20 @@ last 20 lines of the combined standard output and standard error.
 
 ## See also
 
-The same feature builds two more terminal apps: the
-[Case Plans Generator](/help/caseplans) (`sbrs caseplans`) and the
-[Behave Commander](/help/behave-gui) (`sbrs behave-gui`).
+The same feature builds two more terminal apps:
+
+<Columns cols={2}>
+
+<Card title="Case Plans Generator" icon="clipboard-list" href="/help/caseplans">
+
+`sbrs caseplans`
+
+</Card>
+
+<Card title="Behave Commander" icon="terminal" href="/help/behave-gui">
+
+`sbrs behave-gui`
+
+</Card>
+
+</Columns>

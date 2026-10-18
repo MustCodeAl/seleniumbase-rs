@@ -11,11 +11,29 @@ browsers) and Firefox.
 The extension is written in strict TypeScript and built with [Bun](https://bun.sh); the built `dist/` holds
 plain JavaScript for each browser.
 
-| Feature | What it does |
-| --- | --- |
-| **Recorder** | Start and stop recording from the toolbar popup (or the Chrome side panel, or the Firefox sidebar). Clicks, double clicks, typing (one step per field), selects, checkboxes, key presses (Enter, Escape, arrows), file inputs (the file name only) and, if you turn it on, scrolls become steps you can edit, reorder and delete. Export as a seleniumbase-rs **pure CDP** Rust test, a **BaseCase** Rust test, or a **Chrome DevTools Recorder** JSON file (the `@puppeteer/replay` format that `sbrs import-puppeteer` reads). |
-| **Inspector** | Pick an element (hover, click; Escape cancels) and see its selectors, each with the number of elements it matches, and calls to copy for both engines (`page.locator(...).click()`, `sb.click(...)`, ...). The **Page** tab shows what the page sees: `navigator.webdriver`, user agent and client hints, languages, platform, hardware, screen and window sizes, time zone, WebGL vendor and renderer, a canvas hash, plugin counts, permission states and headless markers, and copies, exports and imports it as the JSON of seleniumbase-rs's `Fingerprint` (see [The Page tab](#the-page-tab-capture-copy-export-import)). |
-| **DevTools Recorder export** (Chrome, Edge) | Adds "seleniumbase-rs (pure CDP)" and "seleniumbase-rs (BaseCase)" to the Export menu of the DevTools Recorder panel. |
+<Columns cols={1}>
+
+<Card title="Recorder" icon="circle-dot">
+
+Start and stop recording from the toolbar popup (or the Chrome side panel, or the Firefox sidebar). Clicks, double clicks, typing (one step per field), selects, checkboxes, key presses (Enter, Escape, arrows), file inputs (the file name only) and, if you turn it on, scrolls become steps you can edit, reorder and delete. Export as a seleniumbase-rs **pure CDP** Rust test, a **BaseCase** Rust test, or a **Chrome DevTools Recorder** JSON file (the `@puppeteer/replay` format that `sbrs import-puppeteer` reads).
+
+</Card>
+
+<Card title="Inspector" icon="magnifying-glass">
+
+Pick an element (hover, click; Escape cancels) and see its selectors, each with the number of elements it matches, and calls to copy for both engines (`page.locator(...).click()`, `sb.click(...)`, ...). The **Page** tab shows what the page sees: `navigator.webdriver`, user agent and client hints, languages, platform, hardware, screen and window sizes, time zone, WebGL vendor and renderer, a canvas hash, plugin counts, permission states and headless markers, and copies, exports and imports it as the JSON of seleniumbase-rs's `Fingerprint` (see [The Page tab](#the-page-tab-capture-copy-export-import)).
+
+</Card>
+
+<Card title="DevTools Recorder export" icon="file-export">
+
+<Badge color="blue">Chrome, Edge</Badge>
+
+Adds "seleniumbase-rs (pure CDP)" and "seleniumbase-rs (BaseCase)" to the Export menu of the DevTools Recorder panel.
+
+</Card>
+
+</Columns>
 
 <Info>
 
@@ -57,27 +75,27 @@ You need [Bun](https://bun.sh) (`mise install` sets everything up).
 
 <Steps>
 
-<Step title="Build">
+<Step title="Build" icon="hammer">
 
-```sh
+```sh Terminal
 bun install
 bun run build          # dist/chrome, dist/firefox, and a zip of each
 ```
 
 </Step>
 
-<Step title="Load the extension">
+<Step title="Load the extension" icon="puzzle-piece">
 
 <Tabs>
 
-<Tab title="Chrome / Edge">
+<Tab title="Chrome / Edge" icon="chrome">
 
 Open `chrome://extensions` (or `edge://extensions`), turn on Developer mode, **Load
 unpacked**, choose `dist/chrome`.
 
 </Tab>
 
-<Tab title="Firefox">
+<Tab title="Firefox" icon="firefox-browser">
 
 Open `about:debugging#/runtime/this-firefox`, **Load Temporary Add-on**, choose
 `dist/firefox/manifest.json` (or the zip).
@@ -88,7 +106,7 @@ Open `about:debugging#/runtime/this-firefox`, **Load Temporary Add-on**, choose
 
 </Step>
 
-<Step title="Start recording">
+<Step title="Start recording" icon="circle-dot">
 
 Press the toolbar button, then **Start recording**.
 
@@ -107,7 +125,7 @@ the recording can follow links from page to page; say no and it still records th
 
 Safari is not built or tested: no converter is installed here. The route is Apple's converter, then Xcode:
 
-```sh
+```sh Terminal
 xcrun safari-web-extension-converter dist/chrome --app-name "seleniumbase-rs Companion" --project-location ../safari
 ```
 
@@ -116,7 +134,7 @@ reports: Safari has no `sidePanel` and no DevTools Recorder, and may treat optio
 
 ## Develop
 
-```sh
+```sh Terminal
 mise run build       # or: bun run scripts/build.ts
 mise run test        # bun test: selectors, code generators, steps, manifests, build output
 bun run typecheck    # tsc --noEmit, strict, on the tooling and on the extension sources
@@ -164,7 +182,7 @@ mise run e2e         # a real Chrome driven from Rust (see "End-to-end tests" be
 
 The same layout, with what each part is for:
 
-```
+```text Layout
 src/
   manifest/base.json     manifest keys for every browser; base.json's "chrome" and "firefox" keys are per browser
   shared/                no browser APIs except api.ts: selector generation, code generation, the step model
@@ -224,7 +242,7 @@ Two features are disabled placeholders that wait for their code.
 
 <AccordionGroup>
 
-<Accordion title="bridge: the live bridge to a running seleniumbase-rs process">
+<Accordion title="bridge: the live bridge to a running seleniumbase-rs process" icon="plug">
 
 The live bridge between the extension and a running seleniumbase-rs process. Nothing here yet.
 
@@ -249,7 +267,7 @@ See "Layout and extension points" above for what the build does with each field.
 
 </Accordion>
 
-<Accordion title="converter: the in-browser converter">
+<Accordion title="converter: the in-browser converter" icon="right-left">
 
 The in-browser converter (Selenium IDE, Playwright, Puppeteer and Python SeleniumBase recordings to
 seleniumbase-rs Rust). Nothing here yet.
@@ -292,7 +310,7 @@ the side panel and the DevTools Recorder's Export menu were not).
 A Rust crate (`sbrs-companion-e2e`) that loads the built extension into a real Chrome (and Edge) through
 seleniumbase-rs's pure CDP engine, and a shell check that loads it into a real Firefox in Docker.
 
-```sh
+```sh Terminal
 bun run scripts/build.ts --e2e      # dist/chrome, dist/firefox, dist/chrome-e2e, dist/firefox-e2e
 cd e2e
 export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
@@ -332,17 +350,43 @@ A headless browser has no toolbar and cannot answer the permission prompt. `dist
 
 ### What each test checks
 
-| Test | Browser | Checks |
-| --- | --- | --- |
-| `parity_with_the_action_recorder` | none | `tests/golden/*.rs.txt` equal what `ActionRecorder` writes; the bun tests hold the extension's generators to the same files |
-| `records_exports_and_replays_in_chrome` | Chrome | records a flow with real input (typing, a password, a select, a checkbox, a button, a form submit across two pages, a link); the steps; the password never recorded; the three exports; the exported pure CDP test and the BaseCase test **compile** in a scratch crate; the pure CDP test **runs** against the same pages (headless) and the pages log the same events as during the recording |
-| `inspector_selectors_match_one_element_each` | Chrome | picks 21 awkward elements with the real picker (real clicks); every selector it calls unique matches exactly that element in the page; no generated-looking class or id is used; the page report, parsed into seleniumbase-rs's `Fingerprint`; the build without host access; the DevTools Recorder plugin's `stringify` on a Recorder JSON; hostile text through the bundled generators, and the results **compile** |
-| `edge_loads_the_extension_and_records` | Edge | Edge accepts `Extensions.loadUnpacked`, the background answers, a click is recorded |
-| `firefox/check.sh` | Firefox ESR (Docker) | geckodriver installs `dist/firefox-e2e` as a temporary add-on; the background runs; the recorder starts and records typing and a click made through WebDriver; the export. WebDriver may not open a `moz-extension:` address, so the panel page is shown in an iframe of a loopback page (the e2e build lists it as web-accessible for `127.0.0.1`), and the fixture tab is found by trying small tab ids |
+<AccordionGroup>
+
+<Accordion title="parity_with_the_action_recorder" icon="flask" description="Browser: none">
+
+**Checks:** `tests/golden/*.rs.txt` equal what `ActionRecorder` writes; the bun tests hold the extension's generators to the same files
+
+</Accordion>
+
+<Accordion title="records_exports_and_replays_in_chrome" icon="flask" description="Browser: Chrome">
+
+**Checks:** records a flow with real input (typing, a password, a select, a checkbox, a button, a form submit across two pages, a link); the steps; the password never recorded; the three exports; the exported pure CDP test and the BaseCase test **compile** in a scratch crate; the pure CDP test **runs** against the same pages (headless) and the pages log the same events as during the recording
+
+</Accordion>
+
+<Accordion title="inspector_selectors_match_one_element_each" icon="flask" description="Browser: Chrome">
+
+**Checks:** picks 21 awkward elements with the real picker (real clicks); every selector it calls unique matches exactly that element in the page; no generated-looking class or id is used; the page report, parsed into seleniumbase-rs's `Fingerprint`; the build without host access; the DevTools Recorder plugin's `stringify` on a Recorder JSON; hostile text through the bundled generators, and the results **compile**
+
+</Accordion>
+
+<Accordion title="edge_loads_the_extension_and_records" icon="flask" description="Browser: Edge">
+
+**Checks:** Edge accepts `Extensions.loadUnpacked`, the background answers, a click is recorded
+
+</Accordion>
+
+<Accordion title="firefox/check.sh" icon="flask" description="Browser: Firefox ESR (Docker)">
+
+**Checks:** geckodriver installs `dist/firefox-e2e` as a temporary add-on; the background runs; the recorder starts and records typing and a click made through WebDriver; the export. WebDriver may not open a `moz-extension:` address, so the panel page is shown in an iframe of a loopback page (the e2e build lists it as web-accessible for `127.0.0.1`), and the fixture tab is found by trying small tab ids
+
+</Accordion>
+
+</AccordionGroup>
 
 ### Firefox
 
-```sh
+```sh Terminal
 docker build -t sbrs-firefox-check /path/to/seleniumbase-rs/docker/firefox-check
 docker run --rm --shm-size 512m \
   -v "$PWD/dist/firefox-e2e:/ext:ro" -v "$PWD/e2e/firefox/check.sh:/check.sh:ro" \
