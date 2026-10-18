@@ -50,6 +50,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+mod file;
+
 use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
 use super::randomize;
