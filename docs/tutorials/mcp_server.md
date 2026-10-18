@@ -8,7 +8,11 @@ export const LayoutTree = ({ children }) => (
       .layout-tree summary { list-style: none; }
       .layout-tree summary::-webkit-details-marker { display: none; }
       .layout-tree .lt-row:hover { background-color: var(--surface-subtle); }
-      .layout-tree details:not([open]) summary .lt-chevron { transform: rotate(-90deg); }
+      .layout-tree .lt-fold { color: #d5a910; }
+      .dark .layout-tree .lt-fold { color: #ffd452; }
+      .layout-tree .lt-fold-closed { display: none; }
+      .layout-tree details:not([open]) summary .lt-fold-open { display: none; }
+      .layout-tree details:not([open]) summary .lt-fold-closed { display: flex; }
       .layout-tree .lt-hl { color: var(--primary); background-color: color-mix(in srgb, var(--primary) 8%, transparent); }
       .dark .layout-tree .lt-hl { color: var(--primary-light); }
       .layout-tree .lt-ic-gray { color: #84848a; }
@@ -44,9 +48,21 @@ export const LayoutRow = ({ icon, name, note, highlight = false, button = false 
   </div>
 )
 
-export const LayoutChevron = () => (
-  <svg className="lt-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={{ transition: "transform .15s" }}>
-    <path fill="currentColor" d="M12.4697 5.46973C12.7626 5.17684 13.2374 5.17684 13.5303 5.46973C13.8232 5.76262 13.8232 6.23738 13.5303 6.53028L8.53028 11.5303C8.23738 11.8232 7.76262 11.8232 7.46973 11.5303L2.46973 6.53028C2.17684 6.23738 2.17684 5.76262 2.46973 5.46973C2.76262 5.17684 3.23738 5.17684 3.53028 5.46973L8 9.93946L12.4697 5.46973Z" />
+export const LayoutFolderIcon = ({ kind }) => (
+  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+    {kind === "empty" ? (
+      <path fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" d="M2 4.2A1.2 1.2 0 0 1 3.2 3h3.1c.32 0 .62.13.85.35L8.4 4.6h4.4A1.2 1.2 0 0 1 14 5.8v6a1.2 1.2 0 0 1-1.2 1.2H3.2A1.2 1.2 0 0 1 2 11.8z" />
+    ) : kind === "open" ? (
+      <g fill="currentColor">
+        <path opacity=".5" d="M1.5 4A1.5 1.5 0 0 1 3 2.5h3.38a1.5 1.5 0 0 1 1.06.44L8.5 4H13a1.5 1.5 0 0 1 1.5 1.5V7H4.2a1.5 1.5 0 0 0-1.4.95L1.5 11.3z" />
+        <path d="M4.2 8h10.6a.7.7 0 0 1 .65.95l-1.6 4.1a1.5 1.5 0 0 1-1.4.95H2.2a.7.7 0 0 1-.65-.95l1.25-3.2A1.5 1.5 0 0 1 4.2 8z" />
+      </g>
+    ) : (
+      <g fill="currentColor">
+        <path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h3.38a1.5 1.5 0 0 1 1.06.44L8.5 4H1.5z" />
+        <path opacity=".6" d="M1.5 4.5V12A1.5 1.5 0 0 0 3 13.5h10a1.5 1.5 0 0 0 1.5-1.5V6A1.5 1.5 0 0 0 13 4.5z" />
+      </g>
+    )}
   </svg>
 )
 
@@ -61,14 +77,14 @@ export const LayoutDir = ({ name, note, open = false, highlight = false, childre
   children ? (
     <details open={open}>
       <summary>
-        <LayoutRow icon={<LayoutChevron />} name={name} note={note} highlight={highlight} button />
+        <LayoutRow icon={<span className={highlight ? "" : "lt-fold"} style={{ display: "flex" }}><span className="lt-fold-open" style={{ display: "flex" }}><LayoutFolderIcon kind="open" /></span><span className="lt-fold-closed"><LayoutFolderIcon kind="closed" /></span></span>} name={name} note={note} highlight={highlight} button />
       </summary>
       <div style={{ marginLeft: "17.5px", borderLeft: "1px solid var(--border-subtle)", paddingLeft: "6px" }}>
         {children}
       </div>
     </details>
   ) : (
-    <LayoutRow icon={<span style={{ display: "flex", transform: "rotate(-90deg)" }}><LayoutChevron /></span>} name={name} note={note} highlight={highlight} />
+    <LayoutRow icon={<span className={highlight ? "" : "lt-fold"} style={{ display: "flex" }}><LayoutFolderIcon kind="empty" /></span>} name={name} note={note} highlight={highlight} />
   )
 
 export const layoutIconColor = (name) => {
