@@ -1,6 +1,6 @@
 ---
-title: "Getting Started with SeleniumBase for Rust"
-sidebarTitle: "Getting started"
+title: "Working with SeleniumBase for Rust"
+sidebarTitle: "Working with seleniumbase-rs"
 ---
 
 This guide walks you through your first browser automation test with

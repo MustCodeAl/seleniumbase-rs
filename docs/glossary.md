@@ -965,7 +965,7 @@ See [Headless and Headed Browsers](/tutorials/headless#containers-and-ci).
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Getting Started" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started">
 
 Create a project, add seleniumbase-rs and run your first test.
 

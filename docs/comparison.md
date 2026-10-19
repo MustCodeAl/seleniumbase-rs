@@ -149,7 +149,7 @@ When the crate is the right choice, and when another stack fits better.
 
 </Card>
 
-<Card color="#199f43" title="Getting started" icon="rocket" href="/tutorials/getting_started">
+<Card color="#199f43" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started">
 
 Write a first test with `BaseCase`.
 

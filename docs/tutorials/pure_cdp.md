@@ -682,7 +682,7 @@ The full mapping of every `sb.cdp` method is in the
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Getting started" icon="rocket" href="/tutorials/getting_started">
+<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started">
 
 Your first test, on either engine.
 

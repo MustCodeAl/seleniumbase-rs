@@ -121,7 +121,7 @@ then `sbrs --headless open https://example.com`. See the [CLI TL;DR](/help/cli_t
 
 <Columns cols={2}>
 
-<Card title="Getting started" icon="rocket" color="#1a85d4" href="/tutorials/getting_started">
+<Card title="Working with seleniumbase-rs" icon="rocket" color="#1a85d4" href="/tutorials/getting_started">
   The same steps in depth: configuration, a test with `#[tokio::test]`, startup errors.
 </Card>
 
