@@ -971,7 +971,7 @@ Create a project, add seleniumbase-rs and run your first test.
 
 </Card>
 
-<Card color="#199f43" title="FAQ" icon="circle-question" href="/faq">
+<Card color="#199f43" title="FAQ and common problems" icon="circle-question" href="/help/common_problems">
 
 Short answers about engines, browsers, drivers and stealth.
 
