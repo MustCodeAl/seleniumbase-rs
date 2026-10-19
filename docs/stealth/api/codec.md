@@ -91,7 +91,7 @@ crate has no default features.
 | `tls_spec` | The TLS profile a client must send, and the custom JA3, JA4 and peetprint overlays. | [TlsSpec](/stealth/api/codec-tls-spec) |
 | `h2_spec` | The HTTP/2 profile: SETTINGS, window, PRIORITY, pseudo-header order. | [H2Spec](/stealth/api/codec-h2-spec) |
 | `header_spec` | Header names, order and values per request shape. | [HeaderSpec](/stealth/api/codec-header-spec) |
-| `ids` | IANA names of TLS and HTTP/2 ids, and what BoringSSL can emit. | [Registries](/stealth/api/codec-ids) |
+| `ids` | IANA names of TLS and HTTP/2 ids, and what BoringSSL can emit. | Registries |
 
 ## Re-exports at the root
 
@@ -204,12 +204,6 @@ The HTTP/2 profile and what the wreq stack can send.
 <Card color="#17a5af" title="HeaderSpec" icon="list" href="/stealth/api/codec-header-spec">
 
 Header lists, placeholders and the `priority` table.
-
-</Card>
-
-<Card color="#d52c36" title="Registries" icon="table" href="/stealth/api/codec-ids">
-
-IANA names and the BoringSSL capability lists.
 
 </Card>
 

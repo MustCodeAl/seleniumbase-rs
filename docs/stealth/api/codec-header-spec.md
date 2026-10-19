@@ -391,12 +391,6 @@ caller adds it to the requests that need it.
 
 <Columns cols={2}>
 
-<Card color="#1ca1c7" title="ImpersonationProfile" icon="id-card" href="/stealth/api/mimic-profile">
-
-`headers_for` renders these lists per request, with the cookie and `priority`.
-
-</Card>
-
 <Card color="#1a85d4" title="Emulation" icon="database" href="/stealth/api/codec-emulation">
 
 The measured `headers` of a browser.

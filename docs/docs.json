@@ -310,6 +310,22 @@
             "icon": "puzzle-piece"
           },
           {
+            "group": "Stealth API: codec",
+            "icon": "fingerprint",
+            "pages": [
+              "stealth/api/codec",
+              "stealth/api/codec-tls-spec",
+              "stealth/api/codec-client-hello",
+              "stealth/api/codec-ja3",
+              "stealth/api/codec-ja4",
+              "stealth/api/codec-h2-spec",
+              "stealth/api/codec-h2-frames",
+              "stealth/api/codec-akamai",
+              "stealth/api/codec-header-spec",
+              "stealth/api/codec-emulation"
+            ]
+          },
+          {
             "group": "Tauri plugin API",
             "icon": "code",
             "pages": [

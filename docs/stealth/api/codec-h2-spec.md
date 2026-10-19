@@ -356,10 +356,4 @@ The fingerprint string the spec reads and writes.
 
 </Card>
 
-<Card color="#17a5af" title="Convert to wreq options" icon="right-left" href="/stealth/api/mimic-convert">
-
-`http2_options` in the mimic crate turns a spec into wreq options.
-
-</Card>
-
 </Columns>

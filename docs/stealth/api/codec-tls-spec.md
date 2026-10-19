@@ -564,16 +564,4 @@ Two hellos meant to show one client differ in more than extension order.
 
 <Columns cols={2}>
 
-<Card color="#d52c36" title="Registries" icon="table" href="/stealth/api/codec-ids">
-
-The id lists the check reads.
-
-</Card>
-
-<Card color="#1ca1c7" title="CustomProfileBuilder" icon="sliders" href="/stealth/api/mimic-profile">
-
-The overlays as a builder, in the mimic crate.
-
-</Card>
-
 </Columns>

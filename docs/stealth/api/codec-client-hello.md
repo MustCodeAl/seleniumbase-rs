@@ -349,7 +349,7 @@ pub const fn is_grease(id: u16) -> bool
 ```
 
 Whether `id` is a GREASE value (RFC 8701): both bytes are equal and the low
-nibble is `0xA`. Defined in [`ids`](/stealth/api/codec-ids) and re-exported here.
+nibble is `0xA`. Defined in `ids` and re-exported here.
 
 ## Constants
 
