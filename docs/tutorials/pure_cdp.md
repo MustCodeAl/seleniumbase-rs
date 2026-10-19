@@ -547,7 +547,7 @@ navigates). It works on a tab inside an isolated `BrowserContext` too.
   (user agent, language, window size, WebRTC flag, proxy); one made after it
   replaces it.
 - A fingerprint adds only what it holds and has switched on (see
-  [A value is the switch](/tutorials/fingerprint_stealth#a-value-is-the-switch)): a
+  [One setting, four states](/tutorials/fingerprint_stealth#one-setting-four-states)): a
   fingerprint with no WebRTC policy and no WebRTC masking passes no WebRTC flag,
   and a dimension named `Natural` adds no argument and no override.
 - A fingerprint's proxy password is never sent to the browser as a header, which

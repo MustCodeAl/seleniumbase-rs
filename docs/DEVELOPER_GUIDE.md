@@ -532,7 +532,7 @@ owns the dependencies only they use (the `usage` command-line parser):
   (and `src/report.rs`, `sbrs report`). The usage spec `completions/sbrs.usage.kdl`
   and the page `docs/help/cli_reference.md` are generated from it by a test.
 - `src/fig.rs` — the Fig spec of `sbrs completions fig`, written from the same tables.
-- `src/mcp_server.rs` — `sbrs-mcp`, which starts the Model Context Protocol
+- `crates/cli/src/mcp_server.rs` — `sbrs-mcp`, which starts the Model Context Protocol
   server of `src/mcp/` (the tools are `ToolDef`s there).
 - `tests/` — every test that runs the real `sbrs` or `sbrs-mcp` binary.
 
