@@ -427,8 +427,6 @@ An arrow reads "is used by". The `scrape` crate has no BoringSSL; `mimic`
 depends on it and adds BoringSSL. `StealthSession` moves between `HttpSession`
 and a real Chrome behind `MitmProxy`.
 
-<Frame caption="How the crates and sessions layer">
-
 ```mermaid
 flowchart TD
     NF["seleniumbase_rs_codec<br/>wire formats, measured tables"]
@@ -445,7 +443,7 @@ flowchart TD
     MP --> SS
 ```
 
-</Frame>
+*How the crates and sessions layer*
 
 ## Where to go next
 

@@ -53,8 +53,6 @@ scraper.close().await?;
 
 In short:
 
-<Frame caption="One fetch, and where each answer leads">
-
 ```mermaid
 flowchart TD
     A["fetch(url): load the URL"] --> B["detect, then MitigationPolicy"]
@@ -67,7 +65,7 @@ flowchart TD
     B -->|the attempts run out| G["ScrapeError::Unsolved or ScrapeError::GaveUp"]
 ```
 
-</Frame>
+*One fetch, and where each answer leads*
 
 What each site did is kept in a `StateStore` (successes, challenges, blocks, the
 streak, a cooldown, the egress it last answered through). The default is in

@@ -8,8 +8,6 @@ that ship with the crate save a screenshot and the page source on failure and
 write a report. They are the counterpart of Python SeleniumBase's pytest
 plugins.
 
-<Frame caption="The hooks of a test plugin">
-
 ```mermaid
 flowchart LR
   S["started"] --> T["the test"]
@@ -18,7 +16,7 @@ flowchart LR
   T -- "no error" --> E
 ```
 
-</Frame>
+*The hooks of a test plugin*
 
 <Info>
 

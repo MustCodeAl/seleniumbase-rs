@@ -12,8 +12,6 @@ persona, a set of masking modes, and optional runtime overrides. `seleniumbase-r
 translates the parts it can apply directly into `BrowserConfig`, command-line
 flags, <Tooltip tip="Chrome DevTools Protocol: the protocol DevTools uses to control Chrome.">CDP</Tooltip> calls, and window settings.
 
-<Frame caption="From a payload to a running browser.">
-
 ```mermaid
 flowchart LR
   P["Profile payload (JSON)"] --> S["ProfileParams"]
@@ -23,7 +21,7 @@ flowchart LR
   R --> B
 ```
 
-</Frame>
+*From a payload to a running browser.*
 
 <Info>
 

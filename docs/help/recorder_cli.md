@@ -27,8 +27,6 @@ Summary for AI exports: `sbrs record URL -o actions.json` records manual browsin
 
 The three routes at a glance:
 
-<Frame caption="Record, write by hand, or run a scenario">
-
 ```mermaid
 flowchart LR
     A["sbrs record<br/>(you use a browser)"] --> F["actions.json"]
@@ -38,7 +36,7 @@ flowchart LR
     S["scenario.json<br/>(written by hand)"] --> X["sbrs run-scenario"]
 ```
 
-</Frame>
+*Record, write by hand, or run a scenario*
 
 ## Record manual browsing
 

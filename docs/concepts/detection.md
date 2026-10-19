@@ -27,8 +27,6 @@ signal at the layer where it is read, and keeps the answers consistent.
 
 ## Where seleniumbase-rs answers
 
-<Frame caption="Each layer has its own way to change what the site sees">
-
 ```mermaid
 flowchart BT
     N["Network<br/>proxy, WebRTC policy, TLS and HTTP/2 (stealth crates)"] --> L["Launch<br/>flags, preferences, binary patching"]
@@ -37,7 +35,7 @@ flowchart BT
     J --> B["Behaviour<br/>humanized mouse and keyboard"]
 ```
 
-</Frame>
+*Each layer has its own way to change what the site sees*
 
 <AccordionGroup>
 

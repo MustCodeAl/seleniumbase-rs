@@ -153,15 +153,13 @@ Before this work, a click took **33.4 ms** and eight tabs together managed
   that run, 13 times more (a later run measured 0.46 ms per click and 1,634
   clicks a second at eight tabs, still about seven times the starting figure).
 
-<Frame caption="How a click was sent before and after the change.">
-
 ```mermaid
 flowchart TB
   A["Before: pointer move"] --> B["wait for the move to be acknowledged (a frame or two, 33 ms)"] --> C["press"] --> D["release"]
   E["After: pointer move, press and release sent back to back"] --> F["awaited together (0.48 ms)"]
 ```
 
-</Frame>
+*How a click was sent before and after the change.*
 
 ## What was measured and left alone
 

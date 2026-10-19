@@ -196,8 +196,6 @@ reaches only Chromium browsers. On Firefox and Safari, `send` returns an error.
 The set of plugins checks every plugin before anything starts. Then it calls the
 hooks in order, and each hook gets a handle to what exists at that point:
 
-<Frame caption="The hooks of one browser, from start to close">
-
 ```mermaid
 sequenceDiagram
     participant App as Your program
@@ -221,7 +219,7 @@ sequenceDiagram
     Set->>Plugin: on_close()
 ```
 
-</Frame>
+*The hooks of one browser, from start to close*
 
 | Hook | Receives | Runs | When it fails |
 |---|---|---|---|

@@ -90,8 +90,6 @@ mentions an engine's own types:
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 
-<Frame caption="Both engines implement the capability traits; a helper depends on the traits, not on an engine.">
-
 ```mermaid
 flowchart LR
   A["BaseCase (WebDriver)"] -- implements --> T["BrowserApi, ElementApi, AssertionApi, ScreenshotApi"]
@@ -99,7 +97,7 @@ flowchart LR
   H["your helper"] -- needs --> T
 ```
 
-</Frame>
+*Both engines implement the capability traits; a helper depends on the traits, not on an engine.*
 
 Use these traits when writing helpers that should work with any type exposing
 the same capability, or as a blueprint for adding new cross-cutting concerns:
