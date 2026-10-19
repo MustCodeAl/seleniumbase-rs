@@ -730,7 +730,7 @@ Measured browser fingerprint data is macOS only for now. Per-system notes are in
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Getting started" icon="rocket" href="/tutorials/getting_started" horizontal>
+<Card color="#1a85d4" title="Working with seleniumbase-rs" icon="rocket" href="/tutorials/getting_started" horizontal>
 
 Write and run your first browser test.
 

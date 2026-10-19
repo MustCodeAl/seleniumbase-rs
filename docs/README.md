@@ -14,7 +14,7 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Card title="Getting Started" icon="rocket" color="#d47628" href="/tutorials/getting_started">
+<Card title="Working with seleniumbase-rs" icon="rocket" color="#d47628" href="/tutorials/getting_started">
   Create a Rust project, add seleniumbase-rs, and run your first test.
 </Card>
 
