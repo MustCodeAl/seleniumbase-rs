@@ -348,6 +348,20 @@
             "group": "About the project",
             "products": [
               {
+                "product": "How it works",
+                "icon": "lightbulb",
+                "description": "WebDriver, drivers and the DevTools Protocol explained",
+                "groups": [
+                  {
+                    "group": "How it works",
+                    "pages": [
+                      "concepts/webdriver",
+                      "concepts/cdp"
+                    ]
+                  }
+                ]
+              },
+              {
                 "product": "Glossary",
                 "icon": "book",
                 "description": "Terms used across the docs",
