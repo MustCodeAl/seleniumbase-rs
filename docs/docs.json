@@ -377,22 +377,9 @@
                 ]
               },
               {
-                "product": "Python parity",
-                "icon": "scale-balanced",
-                "description": "The status of every Python SeleniumBase API",
-                "groups": [
-                  {
-                    "group": "Python parity",
-                    "pages": [
-                      "parity"
-                    ]
-                  }
-                ]
-              },
-              {
                 "product": "Why Rust?",
                 "icon": "gauge-high",
-                "description": "Security, reliability, performance and benchmarks",
+                "description": "Security, reliability, performance, benchmarks and Python parity",
                 "groups": [
                   {
                     "group": "Why Rust?",
@@ -403,7 +390,8 @@
                       "performance",
                       "benchmarks",
                       "reliability",
-                      "security"
+                      "security",
+                      "parity"
                     ]
                   }
                 ]
