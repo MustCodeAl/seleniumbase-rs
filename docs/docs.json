@@ -22,11 +22,9 @@
             "group": "Get started",
             "icon": "rocket",
             "pages": [
-              "quickstart",
               "README",
               "tutorials/getting_started",
               "building",
-              "platforms",
               "faq",
               "help/common_problems"
             ]

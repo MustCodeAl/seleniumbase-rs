@@ -765,7 +765,7 @@ crate is in the library's `[dependencies]`: it belongs in
 
 </AccordionGroup>
 
-More system-specific notes are in [Operating systems](/platforms).
+More system-specific notes are in [Operating systems](/building#operating-systems).
 
 ## Next steps
 

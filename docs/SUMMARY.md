@@ -9,7 +9,6 @@ hidden: true
 - [Getting Started](tutorials/getting_started.md)
 - [Building and installing](building.md)
   - [Deployment](deployment.md)
-  - [Operating systems](platforms.md)
 - [FAQ](faq.md)
 - [Changelog](changelog.md)
 - [Why Rust?](why-rust.md)

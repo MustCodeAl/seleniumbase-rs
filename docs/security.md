@@ -182,7 +182,7 @@ Safety and licensing before you patch a driver or a browser.
 
 </Card>
 
-<Card color="#d47628" title="Operating systems" icon="desktop" href="/platforms">
+<Card color="#d47628" title="Operating systems" icon="desktop" href="/building#operating-systems">
 
 Running as root, `--no-sandbox` and containers.
 
