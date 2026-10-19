@@ -357,6 +357,7 @@
                       "concepts/webdriver",
                       "concepts/cdp",
                       "concepts/detection",
+                      "concepts/network",
                       "concepts/sessions-and-state"
                     ]
                   }
