@@ -128,7 +128,7 @@ The crate root re-exports every one of those, plus `AudioNoise`, `BrowserType`,
 `CanvasNoise`, `Dimension`, `FingerprintBuilder`, `Geolocation`,
 `MediaDevices`, `OsType`, `ProxyConfig`, `QuicMode`, `ScreenSize`, `WebGl`,
 `WebRtcAddresses` and `WebRtcPolicy`, so `use seleniumbase_rs::{Fingerprint,
-OsType, Spoof}` works. The [`fingerprint!`](/stealth/api/core-fingerprint#fingerprint-macro)
+OsType, Spoof}` works. The [`fingerprint!`](/stealth/api/core-fingerprint#preset-macro)
 macro is exported at the crate root too. See also [Crate root](/api/crate-root).
 
 ## Pages

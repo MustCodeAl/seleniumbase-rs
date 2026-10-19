@@ -110,15 +110,16 @@ impl<'de> Deserialize<'de> for Fingerprint { /* read the way the builder builds 
 ```
 
 The fields are private: read a fingerprint through its accessors, and change one
-by taking [`to_builder`](#fingerprint-to_builder) and building again. A built
+by taking `to_builder` and building again. A built
 fingerprint holds no `Random`: the builder drew those values.
 
 - **Default.** `Fingerprint::default()` equals `Fingerprint::builder().build()`:
-  every setting `Natural`, the [default policy](/stealth/api/core-policy#stealthpolicy-default),
+  every setting `Natural`, the [default policy](/stealth/api/core-policy#defaults-and-presets),
   and the seed the builder gives it.
 - **Serialize.** The JSON is one object with a key per setting, named as its
-  accessor. A `Natural` setting is left out; `policy` and `humanize` are always
-  written. A setting is the value itself or one of the words `"random"` and
+  accessor, beside `browser_type`, `os_type`, `core_version`, `seed`, `policy`,
+  `humanize`, `local_storage` and `save_service_worker`. A `Natural` setting and
+  an empty `custom_start_urls` or `cmd_params` are left out. A setting is the value itself or one of the words `"random"` and
   `"off"` (see [Spoof](/stealth/api/core-spoof#json)). The `seed` is written, so
   a loaded fingerprint gets the same noise.
 - **Deserialize.** A fingerprint is read the way the builder builds it: a
@@ -291,10 +292,10 @@ pub fn tracker_hosts(&self) -> Vec<String>
 <ResponseField name="return" type="Vec<String>">
 
 The tracker host block list: the policy's
-[`blocked_trackers`](/stealth/api/core-policy#fields), or
+[`blocked_trackers`](/stealth/api/core-policy#stealthpolicy), or
 [`default_tracker_hosts`](#default_tracker_hosts) when that list is empty. It is
-the list whether or not blocking is on; [`is_masked`](#fingerprint-is_masked)
-with `Dimension::Trackers` says whether it is.
+the list whether or not blocking is on; `is_masked(Dimension::Trackers)` says
+whether it is.
 
 </ResponseField>
 
@@ -371,7 +372,7 @@ own. `navigator.platform` is the one given, else the OS persona's.
 
 | Kind | Reported when |
 |---|---|
-| error | `navigator.platform` does not fit the OS persona (`Win…` for Windows, `Mac` for macOS, `Linux` without `arm` for Linux, `arm` or `Linux` for Android, `iPhone` or `iPad` for iOS) |
+| error | `navigator.platform` does not fit the OS persona (starting with `Win` for Windows, `Mac` for macOS, `Linux` without `arm` for Linux, `arm` or `Linux` for Android, `iPhone` or `iPad` for iOS) |
 | error | A given user agent has no token for the OS persona (`windows`, `mac os`, `linux` or `x11`, `android`, `iphone` or `ipad`, any case) |
 | error | A given screen has a zero width or height |
 | error | The WebGL strings name a graphics API another system reports: `Direct3D` or `D3D11` (Windows only), `Metal` or `Apple` (macOS and iOS only), `Mesa` (Linux only), `Adreno`, `Mali` or `PowerVR` (Android only) |
@@ -381,7 +382,7 @@ own. `navigator.platform` is the one given, else the OS persona's.
 | warning | A time zone is given, the position is `Natural`, and the policy grants permissions: a page is then handed the real position next to a made-up time zone |
 | warning | The locale's region is not the country the [table of places](/stealth/api/core-randomize#locales) puts the time zone in |
 
-Every preset and every [`randomized`](#fingerprint-randomized) identity passes
+Every preset and every `randomized` identity passes
 without an error or a warning.
 
 ## Fingerprint::randomized
@@ -417,7 +418,7 @@ for. It is the builder with these settings `Random`: user agent, platform,
 cores, memory, touch points, vendor, locale, languages, `Accept-Language`, time
 zone, position, screen, pixel ratio, colour depth, WebGL, Client Hints, battery,
 network information, speech voices and Bluetooth, with
-[`StealthPolicy::balanced`](/stealth/api/core-policy#stealthpolicy-balanced).
+[`StealthPolicy::balanced`](/stealth/api/core-policy#defaults-and-presets).
 
 - **Graphics.** WebGL strings the system really reports: ANGLE over Direct3D 11
   on Windows, ANGLE over Metal with an Apple chip on macOS, ANGLE over Mesa or
@@ -514,7 +515,7 @@ Linux); on iOS the battery, network information, Bluetooth and Client Hints are
 
 All use the locale `en-US` and the languages `en-US,en;q=0.9`.
 
-## fingerprint! macro
+## Preset macro
 
 <Badge color="yellow">macro</Badge> `seleniumbase_rs::fingerprint!`
 
@@ -541,14 +542,33 @@ A preset by name: `fingerprint!(macos)` is `Fingerprint::macos_desktop()`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Dimension {
-    Navigator, Localization, Timezone, Screen, Graphics, Fonts, MediaDevices,
-    Geolocation, WebRtc, Canvas, Audio, Battery, Connection, Speech, ClientHints,
-    Proxy, Ports, Trackers, Bluetooth, ChromeRuntime, Headless, NativeToString,
+    Navigator,
+    Localization,
+    Timezone,
+    Screen,
+    Graphics,
+    Fonts,
+    MediaDevices,
+    Geolocation,
+    WebRtc,
+    Canvas,
+    Audio,
+    Battery,
+    Connection,
+    Speech,
+    ClientHints,
+    Proxy,
+    Ports,
+    Trackers,
+    Bluetooth,
+    ChromeRuntime,
+    Headless,
+    NativeToString,
 }
 ```
 
 A part of a browser's identity that a fingerprint can mask; the argument of
-[`is_masked`](#fingerprint-is_masked). Also `seleniumbase_rs::Dimension`.
+`Fingerprint::is_masked`. Also `seleniumbase_rs::Dimension`.
 
 <ResponseField name="Dimension" type="enum">
 
@@ -618,7 +638,7 @@ impl CoherenceReport {
 }
 ```
 
-What [`validate`](#fingerprint-validate) found.
+What `Fingerprint::validate` found.
 
 <ResponseField name="errors" type="Vec<String>">
 
