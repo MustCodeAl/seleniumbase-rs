@@ -350,14 +350,15 @@
               {
                 "product": "How it works",
                 "icon": "lightbulb",
-                "description": "WebDriver, drivers, the DevTools Protocol, detection and spoofing",
+                "description": "WebDriver, CDP, detection and spoofing, sessions and cookies",
                 "groups": [
                   {
                     "group": "How it works",
                     "pages": [
                       "concepts/webdriver",
                       "concepts/cdp",
-                      "concepts/detection"
+                      "concepts/detection",
+                      "concepts/sessions-and-state"
                     ]
                   }
                 ]
