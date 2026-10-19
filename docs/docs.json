@@ -350,13 +350,14 @@
               {
                 "product": "How it works",
                 "icon": "lightbulb",
-                "description": "WebDriver, drivers and the DevTools Protocol explained",
+                "description": "WebDriver, drivers, the DevTools Protocol, detection and spoofing",
                 "groups": [
                   {
                     "group": "How it works",
                     "pages": [
                       "concepts/webdriver",
-                      "concepts/cdp"
+                      "concepts/cdp",
+                      "concepts/detection"
                     ]
                   }
                 ]
