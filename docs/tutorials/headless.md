@@ -456,10 +456,550 @@ async fn runs_headed_on_a_server() -> Result<()> {
 
 </Steps>
 
+## Doing things headless
+
+A headless browser does what a headed one does, except draw on a screen, so the
+recipes below run the same in both modes unless they say otherwise. Each recipe
+has a tab for every entry point that can do the task. In the **BaseCase
+(WebDriver)** tabs, `sb` is the `&mut BaseCase` that `run_browser_test` passes to
+the test, as in [Switch between headless and headed](#switch-between-headless-and-headed).
+In the **Pure CDP** tabs, `page` comes from `browser.default_page().await?`. The
+command lines put the global `--headless` before the subcommand.
+
+<Note>
+
+Some `BaseCase` helpers speak the DevTools Protocol: `print_to_pdf`,
+`save_as_pdf_to_logs`, `set_timezone`, `set_geolocation`, `cdp_click`,
+`cdp_type` and `solve_captcha`. They need a Chromium session started with
+`with_mode(DriverMode::Cdp)` (or `DriverMode::Uc`). In plain WebDriver mode they
+fail with "CDP is unavailable for this session".
+
+</Note>
+
+### Set the window and viewport size
+
+A headless browser has no screen to fill, so the page is laid out, and
+screenshots are taken, at the size the browser starts with or is given.
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+A Chromium session starts at 1280 by 720 pixels (390 by 844 with
+`with_mobile(true)`) unless `with_window_size` sets another size.
+`set_window_size` resizes a running browser, and `reset_window_size` goes back to
+1280 by 720.
+
+```rust Window size
+use seleniumbase_rs::browser::options::WindowSize;
+use seleniumbase_rs::BrowserConfig;
+
+let config = BrowserConfig::default().with_window_size(WindowSize::new(1920, 1080));
+
+// Inside the test:
+sb.set_window_size(1366, 768).await?;
+let (width, height) = sb.get_window_size().await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+Without `window_size`, the pure CDP engine passes no size and Chrome keeps its
+own, unless a fingerprint gives a screen size. `page.window()` resizes and reads
+a running window.
+
+```rust Window size
+use seleniumbase_rs::sb_cdp::LaunchOptions;
+
+let options = LaunchOptions::builder()
+    .headless(true)
+    .window_size(1920, 1080)
+    .build()?;
+
+// On a page of the running browser:
+page.window().set_bounds(0, 0, 1366, 768).await?;
+let bounds = page.window().bounds().await?;
+println!("{} by {}", bounds.width, bounds.height);
+```
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+`sbrs` takes the size from `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT`, or from
+`window_width` and `window_height` in the settings file. Set both, or neither.
+`--mobile` gives a 390 by 844 window and an Android user agent.
+
+```bash Terminal
+SB_WINDOW_WIDTH=1920 SB_WINDOW_HEIGHT=1080 sbrs --headless open https://example.com
+sbrs --headless --mobile open https://example.com
+```
+
+</Tab>
+
+</Tabs>
+
+### Take a screenshot
+
+Neither engine has a full-page capture: a page screenshot holds what fits in the
+window, so make the window taller first when you need more of the page.
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+`save_screenshot` and `save_element_as_image_file` write into the logs folder
+(`latest_logs/`) and take a plain file name. `save_screenshot_to_path` writes
+to the path you give, and `screenshot_as_png` returns the bytes.
+
+```rust Screenshots
+let shot = sb.save_screenshot("home.png").await?;
+let heading = sb.save_element_as_image_file("h1", "heading.png").await?;
+sb.save_screenshot_to_path(std::env::temp_dir().join("home.png")).await?;
+let png = sb.screenshot_as_png().await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`page.screenshot()` captures the viewport as PNG bytes. A locator's `screenshot()`
+scrolls the element into view and captures its box at scale 1, also the part
+that reaches past the window.
+
+```rust Screenshots
+std::fs::write("home.png", page.screenshot().await?)?;
+std::fs::write("heading.png", page.locator("h1").screenshot().await?)?;
+```
+
+</Tab>
+
+</Tabs>
+
+`sbrs screenshot` and `sbrs save-source` start a new browser and capture it
+before any page is open, so they do not help with a page. Use one of the code
+tabs.
+
+### Print a page to PDF
+
+Printing needs no window. Both engines ask for the page's backgrounds, and
+`BaseCase` also uses the page's own CSS page size. To read the text back, see
+[PDF parsing](/tutorials/pdf_parsing).
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+Printing goes over the DevTools Protocol, so start the session in
+`DriverMode::Cdp`. `print_to_pdf` writes to a path, and `save_as_pdf_to_logs`
+writes into `latest_logs/` and returns the path.
+
+```rust PDF
+use seleniumbase_rs::{BrowserConfig, DriverMode};
+
+let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
+
+// Inside the test:
+sb.print_to_pdf("example.pdf").await?;
+let pdf = sb.save_as_pdf_to_logs("example.pdf").await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`page.pdf()` returns the PDF bytes.
+
+```rust PDF
+std::fs::write("example.pdf", page.pdf().await?)?;
+```
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+`sbrs print-pdf` opens a URL or a local file and prints it (to `page.pdf`
+without `-o`). On a Chromium browser it turns CDP mode on by itself.
+
+```bash Terminal
+sbrs --headless print-pdf https://example.com -o example.pdf
+```
+
+</Tab>
+
+</Tabs>
+
+### Download a file and wait for it
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+`download_file` opens the address in a new tab, waits up to the given number of
+seconds for the file, and goes back to the first tab. The assertions wait up to
+the default timeout for a file that is still being written. All of them look in
+`get_downloads_folder()`: the system's Downloads folder, or the working
+directory when the system names none.
+
+```rust Downloads
+let path = sb.download_file("https://example.com/report.csv", "report.csv", 30).await?;
+
+sb.click("a#export").await?;
+sb.assert_downloaded_file("export.csv").await?;
+sb.assert_data_in_downloaded_file("id,name", "export.csv").await?;
+println!("downloads go to {}", sb.get_downloads_folder().display());
+```
+
+<Warning>
+
+The WebDriver engine does not tell the browser where to save. If the browser
+saves somewhere other than `get_downloads_folder()`, the wait ends in a timeout.
+The pure CDP engine sets the folder itself.
+
+</Warning>
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`download_file` has the page fetch the address, with its cookies, and
+`download_by_click` clicks a link the server answers with a download. Both tell
+Chrome to save into the folder you give, create it, and wait, up to the page's
+timeout, for the browser to report the file finished. Until a folder is given,
+`assert_downloaded_file` looks in `downloaded_files/`.
+
+```rust Downloads
+use std::time::Duration;
+
+page.goto("https://example.com/reports").await?;
+let report = page
+    .download_file("https://example.com/reports/report.csv", "downloads")
+    .await?;
+let export = page.download_by_click("a#export", "downloads").await?;
+page.assert_downloaded_file("export.csv", Duration::from_secs(10)).await?;
+
+// A slow download needs a longer wait than the default 7 seconds:
+let big = page
+    .with_timeout(Duration::from_secs(120))
+    .download_file("https://example.com/big.zip", "downloads")
+    .await?;
+```
+
+A file of the same name in the folder is replaced, and an address on another
+site needs CORS headers, because the page itself fetches it.
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+`sbrs download-file` downloads with the browser and, when that fails or takes
+longer than `--timeout` seconds (30 by default), over plain HTTP.
+
+```bash Terminal
+sbrs --headless download-file https://example.com/report.csv -o reports/report.csv
+```
+
+</Tab>
+
+</Tabs>
+
+### Upload a file
+
+Neither engine opens a file chooser, so uploads work headless: both put the path
+straight into the `<input type=file>` element.
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+`choose_file` waits up to 10 seconds for the input, and the file must exist on the
+machine that runs the test. A relative path is read from the working directory.
+
+```rust Upload
+sb.choose_file("input[type=file]", "fixtures/report.csv").await?;
+sb.click("button[type=submit]").await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+The pure CDP engine has no upload method. The programs that
+`sbrs import-playwright` and `sbrs import-puppeteer` write add a helper that
+focuses the input and hands it to `DOM.setFileInputFiles` with `page.execute`.
+The same steps, with `serde_json` in your `Cargo.toml`:
+
+```rust Upload
+use serde_json::json;
+
+page.locator("input[type=file]").focus().await?;
+let input = page
+    .execute("Runtime.evaluate", json!({ "expression": "document.activeElement" }))
+    .await?;
+let path = std::fs::canonicalize("fixtures/report.csv")?;
+page.execute(
+    "DOM.setFileInputFiles",
+    json!({ "files": [path.to_string_lossy()], "objectId": input["result"]["objectId"] }),
+)
+.await?;
+```
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+`sbrs choose-file` opens `--url` (or a blank page with a file input) and puts
+the file into the input the selector names.
+
+```bash Terminal
+sbrs --headless choose-file --url https://example.com/upload 'input[type=file]' fixtures/report.csv
+```
+
+</Tab>
+
+</Tabs>
+
+### Handle alerts, confirms and prompts
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+The alert methods work the same headless. Read the text before you answer;
+`dismiss_alert` is the Cancel button.
+
+```rust Dialogs
+sb.click("#delete").await?; // the page calls confirm("Delete?")
+let question = sb.get_alert_text().await?;
+sb.accept_alert().await?;
+
+sb.click("#rename").await?; // the page calls prompt("New name")
+sb.type_alert_text("Ada").await?;
+sb.accept_alert().await?;
+
+sb.click("#later").await?; // the alert opens after a delay
+sb.wait_for_and_accept_alert(5).await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+The pure CDP engine has no dialog methods. Replace the page's dialog functions
+before the step that would open one, so none opens. `add_init_script` covers
+every page the tab loads from now on, and `evaluate` covers the page already
+open.
+
+```rust Dialogs
+let answers = "window.alert = () => {}; \
+               window.confirm = () => true; \
+               window.prompt = () => 'Ada';";
+page.add_init_script(answers).await?;
+page.evaluate(answers).await?;
+page.locator("#delete").click().await?;
+```
+
+</Tab>
+
+</Tabs>
+
+### Run JavaScript and read the result
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+`execute_script` runs the script as the body of a function, so `return` the
+value you want. It comes back as a `serde_json::Value`.
+
+```rust JavaScript
+let title = sb.execute_script("return document.title;").await?;
+let links = sb.execute_script("return document.links.length;").await?;
+println!("{} has {} links", title.as_str().unwrap_or_default(), links);
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`evaluate` takes an expression, waits for a promise, and returns a
+`serde_json::Value`. `evaluate_as` turns the result into a Rust type. A `return`
+at the start of the last line is dropped, so a WebDriver-style script works too.
+
+```rust JavaScript
+let title: String = page.evaluate_as("document.title").await?;
+let links: u64 = page.evaluate_as("document.links.length").await?;
+let status = page.evaluate("fetch('/').then(r => r.status)").await?;
+```
+
+</Tab>
+
+</Tabs>
+
+### Record a HAR
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+The WebDriver engine has no HAR recorder. Use the pure CDP engine.
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`start_har` records the tab's requests, and those of its iframes, from the
+moment it returns, so start it before the navigation. Response bodies are left
+out unless you ask for them with `start_har_with`.
+
+```rust HAR
+use seleniumbase_rs::sb_cdp::HarOptions;
+
+// start_har() keeps no bodies; this keeps each one up to 1 MiB.
+let recorder = page.start_har_with(HarOptions::new().content(true)).await?;
+page.goto("https://example.com").await?;
+let har = recorder.finish().await?;
+println!("{} requests", har.log.entries.len());
+har.save("example.har")?;
+```
+
+</Tab>
+
+</Tabs>
+
+### Read the page source and the console
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+`get_page_source` returns the HTML, and `save_page_source_to_logs` saves it in
+`latest_logs/`. `start_recording_console_logs` wraps `console.log` in the current
+document, so start it after the page loads and read the lines before it
+navigates. `assert_no_js_errors` reads the browser's own log, which only
+Chromium browsers keep, and fails on its `SEVERE` entries.
+
+```rust Source and console
+let html = sb.get_page_source().await?;
+let saved = sb.save_page_source_to_logs().await?;
+
+sb.start_recording_console_logs().await?;
+sb.click("#run").await?;
+let lines = sb.get_recorded_console_logs().await?;
+
+sb.assert_no_js_errors().await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`page.content()` returns the HTML as scripts left it. `js_errors` lists the
+uncaught errors and unhandled promise rejections of the current document. The
+engine has no recorder for `console.log`.
+
+```rust Source and errors
+let html = page.content().await?;
+let errors = page.js_errors().await?;
+page.assert_no_js_errors().await?;
+```
+
+</Tab>
+
+</Tabs>
+
+### Emulate a device, user agent, location or time zone
+
+<Tabs>
+
+<Tab title="BaseCase (WebDriver)" icon="code">
+
+`with_device_metrics` turns on Chrome's phone emulation: the page sees that
+viewport, a touch screen and that pixel ratio, with an Android user agent unless
+`with_user_agent` gives one. `with_mobile(true)` alone only gives a 390 by 844
+window and the Android user agent. `with_locale` sets the language.
+`set_timezone` and `set_geolocation` change a running browser and need CDP mode.
+`BaseCase` has no method that grants the location permission.
+
+```rust Emulation
+use seleniumbase_rs::browser::options::DeviceMetrics;
+use seleniumbase_rs::{BrowserConfig, DriverMode};
+
+let config = BrowserConfig::default()
+    .with_mode(DriverMode::Cdp)
+    .with_device_metrics(DeviceMetrics::new(412, 915, 2.625))
+    .with_locale("de-DE");
+
+// Inside the test:
+sb.set_timezone("Europe/Berlin").await?;
+sb.set_geolocation(52.52, 13.405, 10.0).await?;
+```
+
+</Tab>
+
+<Tab title="Pure CDP" icon="bolt">
+
+`page.emulation()` changes what one tab reports, and the location also needs
+the permission. Replacing `HeadlessChrome` in the user agent hides the most
+visible headless sign. The pure CDP engine has no phone emulation: set the
+window size and user agent, or a fingerprint (see
+[Fingerprints and stealth](/tutorials/fingerprint_stealth)).
+
+```rust Emulation
+use seleniumbase_rs::sb_cdp::Permission;
+
+let emulation = page.emulation();
+emulation.timezone("Europe/Berlin").await?;
+page.browser().grant_permissions(&[Permission::Geolocation]).await?;
+emulation.geolocation(52.52, 13.405, 10.0).await?;
+
+let agent = page.user_agent().await?.replace("HeadlessChrome", "Chrome");
+emulation.user_agent(&agent, None).await?;
+```
+
+For the language, `LaunchOptionsBuilder::lang` sets it at launch, and
+`emulation.locale` from the next page load. `LaunchOptionsBuilder::user_agent`
+sets the user agent at launch.
+
+</Tab>
+
+<Tab title="Command line" icon="terminal">
+
+`--mobile` (a 390 by 844 window and an Android user agent), `--locale` and
+`--user-agent` (or `-a`) are global options. The command line cannot set a time
+zone or a location.
+
+```bash Terminal
+sbrs --headless --mobile --locale de-DE open https://example.com
+```
+
+</Tab>
+
+</Tabs>
+
+### What does not work headless
+
+These need a window on a screen, or a person in front of it:
+
+| What | Why | Instead |
+|---|---|---|
+| `gui_click_x_y`, `gui_write`, `gui_click_element` and the other `gui_*` helpers, and their `uc_gui_*` aliases (feature `gui`) | They move the operating system's own mouse and keyboard, and a headless browser has no window for them to reach | Click and type over DevTools: `cdp_click` and `cdp_type` on `BaseCase` in CDP mode, `Locator::click` and `type_text` in the pure CDP engine. Or run headed on a virtual display. |
+| `Page::gui_click_captcha` and `gui_captcha_plan` (feature `gui`) | They refuse a headless browser: "a headless browser has no window on the screen to click" | `solve_captcha`, which clicks over DevTools: on `Page`, or on `BaseCase` in CDP mode |
+| Demo mode, slow mode and the messages of `post_message` | They still run, but nobody sees them, so they only slow the run; a message stays at most 0.75 s | Screenshots, or a headed run |
+| `with_esc_end(true)` | It ends the test when a person presses ESC in the window | A headed run |
+| Native dialogs (`api::dialog`, `choose_file_dialog`) | They open the desktop's own dialogs and wait for a person | Leave them out of unattended runs |
+| `sbrs record` | It saves the clicks and typing a person does in the window | A headed run |
+| Browser plugins with `Requirements::HEADFUL` | They refuse a headless launch | A headed run, or no such plugin |
+
+On a Linux server, run the headed browser on a virtual display with
+`BrowserConfig::with_virtual_display` (see [Containers and CI](#containers-and-ci)),
+and see [GUI automation](/tutorials/gui_automation) for the `gui` feature.
+
 ## Debugging a headless run
 
 - **Save what the browser shows.** `sb.save_screenshot("step.png")` saves a
-  full-page screenshot in the logs directory (the name must be a plain file name),
+  screenshot of the viewport in the logs directory (the name must be a plain file name),
   and `save_page_source_to_logs()` and `save_as_pdf_to_logs(name)` save the HTML and
   a PDF. In the pure CDP engine, `page.screenshot()` and `page.pdf()` return the
   bytes.
