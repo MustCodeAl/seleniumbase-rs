@@ -60,15 +60,15 @@ and `test-fixtures` of the codec.
 
 | Module | What it holds | Page |
 |---|---|---|
-| `runtime::browser_scraper` | `BrowserScraper`, its builder, `BrowserFetch`, the launcher port. | [BrowserScraper](/stealth/api/scrape-browser-scraper) |
-| `challenge::detect`, `challenge::markers`, `challenge::mitigation` | Challenge detection, the interstitial markers, the mitigation policy. | [Challenges](/stealth/api/scrape-challenge) |
-| `egress::route`, `egress::pool`, `egress::geo`, `egress::redact` | Proxy specs, the rotating pool, countries and locales, URL redaction. | [Egress](/stealth/api/scrape-egress) |
-| `jar::store`, `jar::set_cookie` | The RFC 6265 cookie jar and the `Set-Cookie` parser. | [Cookie jar](/stealth/api/scrape-jar) |
-| `passport::identity`, `passport::policy`, `runtime::identity_file` | `StealthIdentity`, `SessionPolicy`, the identity file. | [Identity](/stealth/api/scrape-identity) |
-| `ledger::state`, `ledger::events`, `runtime::json_store`, `runtime::tracing_sink` | Per-site state and its stores, events and their sinks. | [Ledger](/stealth/api/scrape-ledger) |
-| `runtime::cdp`, `runtime::egress_switch` | CDP helpers and the egress switch. | [Runtime helpers](/stealth/api/scrape-runtime) |
-| `runtime::capture` | The capture tools behind `capture_tls` and `capture_hints`. | [Capture](/stealth/api/scrape-capture) |
-| `error` | `ScrapeError`. | [Errors](/stealth/api/scrape-errors) |
+| `runtime::browser_scraper` | `BrowserScraper`, its builder, `BrowserFetch`, the launcher port. | BrowserScraper |
+| `challenge::detect`, `challenge::markers`, `challenge::mitigation` | Challenge detection, the interstitial markers, the mitigation policy. | Challenges |
+| `egress::route`, `egress::pool`, `egress::geo`, `egress::redact` | Proxy specs, the rotating pool, countries and locales, URL redaction. | Egress |
+| `jar::store`, `jar::set_cookie` | The RFC 6265 cookie jar and the `Set-Cookie` parser. | Cookie jar |
+| `passport::identity`, `passport::policy`, `runtime::identity_file` | `StealthIdentity`, `SessionPolicy`, the identity file. | Identity |
+| `ledger::state`, `ledger::events`, `runtime::json_store`, `runtime::tracing_sink` | Per-site state and its stores, events and their sinks. | Ledger |
+| `runtime::cdp`, `runtime::egress_switch` | CDP helpers and the egress switch. | Runtime helpers |
+| `runtime::capture` | The capture tools behind `capture_tls` and `capture_hints`. | Capture |
+| `error` | `ScrapeError`. | Errors |
 
 ## Re-exports at the root
 
@@ -91,62 +91,8 @@ and `test-fixtures` of the codec.
 | `JsonStateStore` | `runtime::json_store` |
 | `TracingEventSink` | `runtime::tracing_sink` |
 
-## Sub-pages
+## Guides
 
-<Columns cols={2}>
-
-<Card color="#1a85d4" title="BrowserScraper" icon="globe" href="/stealth/api/scrape-browser-scraper">
-
-Fetch, solve, rotate egress and profile, move identities.
-
-</Card>
-
-<Card color="#199f43" title="Challenges" icon="shield-halved" href="/stealth/api/scrape-challenge">
-
-`detect`, `Detection`, `Vendor`, `MitigationPolicy`, `Action`.
-
-</Card>
-
-<Card color="#d47628" title="Egress" icon="route" href="/stealth/api/scrape-egress">
-
-`EgressRef`, `ProxyPool`, `CountryCode`, `GeoResolver`, `RedactedUrl`.
-
-</Card>
-
-<Card color="#a631be" title="Cookie jar" icon="cookie" href="/stealth/api/scrape-jar">
-
-`CookieJar`, `StoredCookie`, `SetCookie`, `site_of`.
-
-</Card>
-
-<Card color="#1ca1c7" title="Identity" icon="id-card" href="/stealth/api/scrape-identity">
-
-`StealthIdentity`, `SessionPolicy`, the identity file.
-
-</Card>
-
-<Card color="#d32a61" title="Ledger" icon="book" href="/stealth/api/scrape-ledger">
-
-`DomainState`, `StateStore`, `JsonStateStore`, `ScraperEvent`, sinks.
-
-</Card>
-
-<Card color="#693acf" title="Runtime helpers" icon="screwdriver-wrench" href="/stealth/api/scrape-runtime">
-
-`goto_with_response`, `EgressLocale`, cookie moves, `EgressSwitch`.
-
-</Card>
-
-<Card color="#d5a910" title="Capture" icon="satellite-dish" href="/stealth/api/scrape-capture">
-
-`measure_tls`, `measure_hints`, `Capture`, `MeasuredFile`.
-
-</Card>
-
-<Card color="#17a5af" title="Errors" icon="triangle-exclamation" href="/stealth/api/scrape-errors">
-
-`ScrapeError` and its mapping to `SeleniumBaseError`.
-
-</Card>
-
-</Columns>
+The item-by-item pages for this crate are still being written. Until then, the
+[BrowserScraper guide](/stealth/browser-scraper) and the
+[runnable examples](/stealth/examples) show it in use.

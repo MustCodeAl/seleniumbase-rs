@@ -297,7 +297,21 @@
                       "stealth/api/codec-h2-frames",
                       "stealth/api/codec-akamai",
                       "stealth/api/codec-header-spec",
-                      "stealth/api/codec-emulation"
+                      "stealth/api/codec-emulation",
+                      "stealth/api/codec-ids"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Stealth API: scrape",
+                "icon": "spider",
+                "description": "BrowserScraper and the scraping crate",
+                "groups": [
+                  {
+                    "group": "Stealth API: scrape",
+                    "pages": [
+                      "stealth/api/scrape"
                     ]
                   }
                 ]
