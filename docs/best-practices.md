@@ -24,6 +24,20 @@ long CSS path or a position (`div > div:nth-child(3)`). Use link text
 (`link=Sign in`) for links whose text is the contract. See
 [Selectors](/tutorials/selectors).
 
+<CodeGroup>
+
+```rust,ignore Stable
+sb.click("#checkout").await?;
+sb.assert_text_visible("$42.00", "[data-testid=\"total\"]").await?;
+```
+
+```rust,ignore Fragile
+sb.click("div.main > div:nth-child(3) > button").await?;
+sb.assert_text_visible("$42.00", "body > div > span.price-2").await?;
+```
+
+</CodeGroup>
+
 </Accordion>
 
 <Accordion title="Wait for the page, never sleep" icon="hourglass-half">
@@ -33,6 +47,20 @@ test slower, or flaky when the page is slower than the sleep. When you need to
 wait for something an action does not cover, use a wait method with a timeout
 (`wait_for_element_visible(selector, timeout_secs)`). See
 [Waits and assertions](/tutorials/waits_assertions).
+
+<CodeGroup>
+
+```rust,ignore Wait for it
+sb.click("#save").await?;
+sb.wait_for_element_visible("#saved-toast", 10).await?; // up to 10 s, no longer than needed
+```
+
+```rust,ignore Sleep (avoid)
+sb.click("#save").await?;
+sb.sleep(3.0).await; // too long when fast, too short when slow
+```
+
+</CodeGroup>
 
 </Accordion>
 
@@ -64,6 +92,62 @@ A test that fails before `sb.quit()` leaves a Chrome running. `sb_test!` and
 A helper written for `BrowserApi` and `ElementApi` runs on both engines, so you
 can switch a suite from WebDriver to pure CDP without rewriting it. See
 [Capability traits](/api/traits).
+
+</Accordion>
+
+</AccordionGroup>
+
+## Structuring tests
+
+<AccordionGroup>
+
+<Accordion title="One behaviour per test" icon="list-check" defaultOpen>
+
+A test that checks one thing fails for one reason, so its name says what broke.
+Keep tests independent: each signs in or loads a saved session itself, rather
+than relying on a test that ran before it.
+
+</Accordion>
+
+<Accordion title="Put page knowledge in one place" icon="cubes">
+
+When several tests touch the same page, keep its selectors and steps in a small
+struct (a page object), so a changed selector is fixed once:
+
+```rust,ignore tests/pages/login.rs
+use seleniumbase_rs::BaseCase;
+
+pub struct LoginPage<'a> {
+    sb: &'a mut BaseCase,
+}
+
+impl<'a> LoginPage<'a> {
+    pub fn new(sb: &'a mut BaseCase) -> Self {
+        Self { sb }
+    }
+
+    pub async fn sign_in(&mut self, user: &str, password: &str) -> seleniumbase_rs::Result<()> {
+        self.sb.open("https://seleniumbase.io/simple/login").await?;
+        self.sb.type_text("#username", user).await?;
+        self.sb.type_text("#password", password).await?;
+        self.sb.click("#log-in").await
+    }
+}
+```
+
+</Accordion>
+
+<Accordion title="Collect several checks, then fail once" icon="clipboard-check">
+
+When a page has many independent things to check, deferred assertions record
+each failure and report them all at the end, instead of stopping at the first:
+
+```rust,ignore tests/dashboard.rs
+sb.deferred_assert_element("#header").await?;
+sb.deferred_assert_text("Total", "#summary").await?;
+sb.deferred_assert_element("#footer").await?;
+sb.process_deferred_asserts().await?; // fails here, listing every miss
+```
 
 </Accordion>
 
@@ -138,6 +222,48 @@ giveaway. See [Detection and spoofing](/concepts/detection).
 </Accordion>
 
 </AccordionGroup>
+
+## Choosing an engine
+
+| Use | When |
+|---|---|
+| Pure CDP (`sb_cdp`) | Chrome only, no driver to manage, many browsers at once, network interception. |
+| BaseCase (WebDriver) | Firefox, Edge or Safari, a Selenium Grid, or the SeleniumBase-style method set. |
+| BaseCase with UC mode | Sites that block ordinary automation. |
+
+Write helpers against the [capability traits](/api/traits) and you can move a
+suite between engines later.
+
+## In CI
+
+<Steps>
+
+<Step title="Pin the version" icon="thumbtack">
+
+Depend on a tag, so a new commit on `main` cannot change your build:
+
+```toml Cargo.toml
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.5.1" }
+```
+
+</Step>
+
+<Step title="Run headless" icon="eye-slash">
+
+```bash Terminal
+SB_HEADLESS=true cargo test
+```
+
+</Step>
+
+<Step title="Keep the evidence" icon="box-archive">
+
+Upload the screenshots and logs your failing tests saved as build artifacts, so
+a red build can be read without running it again.
+
+</Step>
+
+</Steps>
 
 ## Where to go next
 
