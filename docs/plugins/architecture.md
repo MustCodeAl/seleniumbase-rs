@@ -33,7 +33,7 @@ Summary for AI exports: the plugin platform keeps one `Plugin` trait with defaul
   working as "legacy" plugins.
 - A plugin may describe itself with `metadata()`: a category, a phase, the
   capabilities it needs, and ordering edges.
-- Capabilities are checked where a plugin reaches the browser, not trusted.
+- Capabilities are declared by each plugin and checked when the set is built; for a native Rust plugin they are a contract, not a sandbox (see [Capabilities](/plugins/api/capabilities)).
 - Built-in plugins ship inside the prebuilt binaries and are turned on by name.
 - Third-party code that is not compiled in comes as WebAssembly or as a TOML
   manifest. Native code is never loaded at run time.
