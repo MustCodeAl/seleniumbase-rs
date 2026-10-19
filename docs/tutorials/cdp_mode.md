@@ -11,6 +11,17 @@ cookies, or headers.
 This page explains how to enable CDP mode, use the CDP helpers on `BaseCase`,
 send raw CDP commands, and intercept network requests.
 
+<Note>
+
+"CDP mode" means two things in these docs. Here it is `DriverMode::Cdp`: a
+`BaseCase` WebDriver session with a DevTools connection next to it. Python
+SeleniumBase's CDP Mode (`sb.cdp`), which drives Chrome with no driver, is the
+[pure CDP engine](/tutorials/pure_cdp) in this crate; the
+[Python parity table](/parity#cdp-mode-methods) maps its methods there. See
+[The DevTools Protocol](/concepts/cdp) for both.
+
+</Note>
+
 <Info>
 
 **What you will learn**
