@@ -328,9 +328,9 @@ pub struct MediaDeviceSpec {
 ```
 
 One labelled device of [`MediaDevices::labelled`](#mediadevices), as the
-`media_devices` provider lists it: `kind` is `audioinput`, `audiooutput` or
-`videoinput` as `enumerateDevices()` names them. It is not re-exported at the
-crate root.
+`media_devices` provider lists it: the `kind`, `deviceId`, `groupId` and
+`label` of a `MediaDeviceInfo`, such as `kind: "videoinput"`. It is not
+re-exported at the crate root.
 
 ## ProxyConfig
 
@@ -383,7 +383,8 @@ The login. `Debug` never prints the password.
 
 <ResponseField name="save_traffic" type="bool">
 
-Carried for profile tools; nothing in this crate reads it.
+Carried to and from profile payloads (`profile_payloads`); no launch argument
+or override uses it.
 
 </ResponseField>
 
