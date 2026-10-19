@@ -368,6 +368,7 @@
                     "group": "Why Rust?",
                     "pages": [
                       "why-rust",
+                      "rust-advantages",
                       "comparison",
                       "performance",
                       "benchmarks",
