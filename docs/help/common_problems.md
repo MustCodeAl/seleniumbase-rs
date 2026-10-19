@@ -283,7 +283,7 @@ you. See the [macros guide](/tutorials/macros).
 ## Chrome is not found
 
 The library looks in the usual install locations for your system (see
-[Operating systems](/platforms)). If yours is elsewhere, or you want a
+[Operating systems](/building#operating-systems)). If yours is elsewhere, or you want a
 specific build, name it:
 
 ```bash

@@ -163,7 +163,7 @@ See [Deployment](/deployment) and [Docker](/help/docker).
   Security, reliability and performance, with the numbers.
 </Card>
 
-<Card title="Quickstart" icon="rocket" color="#199f43" href="/quickstart">
+<Card title="Quickstart" icon="rocket" color="#199f43" href="/README#quickstart">
   Your first test in five minutes.
 </Card>
 

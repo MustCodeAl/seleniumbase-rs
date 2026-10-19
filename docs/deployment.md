@@ -86,7 +86,7 @@ These four commands exited with status 0 on linux/arm64 (Debian 12, Chromium
 154), and the last one starts a headless Chromium with no network. The full
 commands, the build time and the test results are in
 [Building and installing](/building#container) and
-[Operating systems](/platforms#verified-on-linux).
+[Operating systems](/building#verified-on-linux).
 
 <AccordionGroup>
 

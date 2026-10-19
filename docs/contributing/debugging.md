@@ -244,7 +244,7 @@ SB_HEADLESS=false sbrs open https://example.com
 </Tabs>
 
 On Linux without a display, run under a virtual display such as Xvfb; see
-[Operating systems](/platforms#linux).
+[Operating systems](/building#linux).
 
 ### Slow the run down
 
@@ -470,7 +470,7 @@ Before it starts a driver, the launcher makes the file runnable
 (`browser::driver_access::make_runnable`): it sets a missing execute bit,
 removes the macOS quarantine flag and, after a patch on macOS, signs the binary
 again ad hoc. Firefox and Edge use geckodriver and msedgedriver; see
-[Operating systems](/platforms#firefox-and-edge) and
+[Operating systems](/building#firefox-and-edge) and
 [Common problems](/help/common_problems).
 
 ## The MCP server's logs

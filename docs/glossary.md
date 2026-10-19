@@ -227,7 +227,7 @@ See [Cookies, Identity and Challenges](/stealth/identity#challenge-detection-and
 
 Google's builds of Chrome and chromedriver made for automated testing. The WebDriver engine downloads the chromedriver that matches your Chrome from it, and `--cft` (`Browser::ChromeForTesting`) runs a Chrome for Testing browser, downloaded into `downloaded_drivers/` when missing.
 
-See [Customizing Test Runs](/help/customizing_test_runs#launch-settings) and [Operating systems](/platforms).
+See [Customizing Test Runs](/help/customizing_test_runs#launch-settings) and [Operating systems](/building#operating-systems).
 
 ### chrome-headless-shell
 
@@ -243,7 +243,7 @@ See [Headless and Headed Browsers](/tutorials/headless#new-headless-mode-and-chr
 
 The program that turns [WebDriver](#webdriver) commands into actions in Chrome. Its major version must match Chrome's: `sbrs install` downloads the right one and `sbrs doctor` compares the two. The [pure CDP](#pure-cdp) engine needs none.
 
-See [Operating systems](/platforms).
+See [Operating systems](/building#operating-systems).
 
 ### Clearance
 

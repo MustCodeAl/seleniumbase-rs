@@ -44,7 +44,7 @@ dependency.
 <Accordion title="Does it run on Windows and Linux?" icon="desktop">
 
 CI builds and tests on Linux, macOS and Windows. Development happens on macOS.
-See [Operating systems](/platforms).
+See [Operating systems](/building#operating-systems).
 
 </Accordion>
 
