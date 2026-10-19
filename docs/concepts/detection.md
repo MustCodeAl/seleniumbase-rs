@@ -25,6 +25,133 @@ signal at the layer where it is read, and keeps the answers consistent.
 | Behaviour | Mouse paths, typing rhythm, timing | Instant straight-line moves; perfectly even keystrokes |
 | Coherence | Whether all of the above agree | A Berlin IP with a New York time zone and an English-only locale |
 
+## What detection code looks like
+
+A detection script runs in the page like any other script. It asks the browser
+questions and sends the answers home. These are simplified versions of real
+checks.
+
+<Tabs>
+
+<Tab title="Automation flags" icon="robot">
+
+```javascript detect.js
+const signs = [];
+if (navigator.webdriver) signs.push("webdriver flag");            // true under WebDriver unless hidden
+if (/HeadlessChrome/.test(navigator.userAgent)) signs.push("headless UA");
+if (navigator.plugins.length === 0) signs.push("no plugins");      // real Chrome lists PDF viewers
+if (!window.chrome) signs.push("no window.chrome");
+// chromedriver leaves global variables whose names start with cdc_
+if (Object.keys(window).some((k) => k.startsWith("cdc_"))) signs.push("chromedriver marker");
+```
+
+seleniumbase-rs hides `navigator.webdriver`, replaces `HeadlessChrome` in the
+user agent (UC mode), fills `plugins` and `window.chrome`, and binary patching
+removes the `cdc_` markers.
+
+</Tab>
+
+<Tab title="Patched functions" icon="code">
+
+```javascript detect.js
+// A native function prints "[native code]"; a JavaScript replacement prints its source.
+const getter = Object.getOwnPropertyDescriptor(Navigator.prototype, "webdriver").get;
+const patched = !Function.prototype.toString.call(getter).includes("[native code]");
+```
+
+With native spoofing on, replaced functions keep a native-looking `toString`,
+so the replacement itself does not show.
+
+</Tab>
+
+<Tab title="Coherence" icon="scale-balanced">
+
+```javascript detect.js
+const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;  // e.g. "America/New_York"
+const lang = navigator.language;                              // e.g. "de-DE"
+// The server compares these with the country of the IP address it saw.
+// A German locale, a New York time zone and a Dutch datacenter IP do not fit.
+```
+
+A `Fingerprint` draws random values together (operating system, region,
+locale), so they agree; keep the proxy's country in line with them.
+
+</Tab>
+
+</Tabs>
+
+## How a fingerprint is generated
+
+A fingerprint is not stored in your browser: the site computes it each visit
+from how your device renders and reports things, then hashes the results into
+one identifier that survives clearing cookies.
+
+<Steps>
+
+<Step title="Canvas" icon="paintbrush">
+
+```javascript fingerprint.js
+const c = document.createElement("canvas");
+const ctx = c.getContext("2d");
+ctx.font = "16px Arial";
+ctx.fillText("Cwm fjordbank glyphs vext quiz 😃", 2, 20);
+const canvasData = c.toDataURL(); // the pixels differ slightly by GPU, driver and fonts
+```
+
+</Step>
+
+<Step title="WebGL" icon="microchip">
+
+```javascript fingerprint.js
+const gl = document.createElement("canvas").getContext("webgl");
+const info = gl.getExtension("WEBGL_debug_renderer_info");
+const gpu = gl.getParameter(info.UNMASKED_RENDERER_WEBGL); // e.g. "ANGLE (Apple, Apple M2, ...)"
+```
+
+</Step>
+
+<Step title="Audio" icon="volume-high">
+
+```javascript fingerprint.js
+const ctx = new OfflineAudioContext(1, 44100, 44100);
+const osc = ctx.createOscillator();
+osc.connect(ctx.destination);
+osc.start();
+const samples = (await ctx.startRendering()).getChannelData(0);
+const audioSum = samples.slice(4500, 5000).reduce((a, b) => a + Math.abs(b), 0); // tiny float differences
+```
+
+</Step>
+
+<Step title="Fonts and screen" icon="font">
+
+```javascript fingerprint.js
+// A font is installed if text in it has a different width than in a fallback font.
+const has = (font) => { /* measure "mmmmmlli" in `${font}, monospace` vs monospace */ };
+const screenInfo = [screen.width, screen.height, devicePixelRatio, screen.colorDepth];
+```
+
+</Step>
+
+<Step title="Hash it together" icon="hashtag">
+
+```javascript fingerprint.js
+const raw = [canvasData, gpu, audioSum, screenInfo, navigator.hardwareConcurrency,
+             navigator.deviceMemory, tz, lang].join("|");
+const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+// the hex of `digest` is the visitor id
+```
+
+</Step>
+
+</Steps>
+
+What seleniumbase-rs changes: canvas and audio noise (set in `StealthPolicy`)
+make the canvas and audio results differ per identity; the WebGL vendor and
+renderer, screen size, pixel ratio, hardware values, fonts, time zone and locale
+come from the `Fingerprint`. With `.seed(..)` the same identity gives the same
+results every run, so a site sees one consistent returning visitor instead of a
+new one each time.
 ## Where seleniumbase-rs answers
 
 ```mermaid
