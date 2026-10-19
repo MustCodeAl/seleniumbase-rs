@@ -349,7 +349,7 @@
               {
                 "product": "How it works",
                 "icon": "lightbulb",
-                "description": "WebDriver, CDP, detection and spoofing, sessions and cookies",
+                "description": "WebDriver, CDP, detection, network, sessions, and the glossary",
                 "groups": [
                   {
                     "group": "How it works",
@@ -358,19 +358,7 @@
                       "concepts/cdp",
                       "concepts/detection",
                       "concepts/network",
-                      "concepts/sessions-and-state"
-                    ]
-                  }
-                ]
-              },
-              {
-                "product": "Glossary",
-                "icon": "book",
-                "description": "Terms used across the docs",
-                "groups": [
-                  {
-                    "group": "Glossary",
-                    "pages": [
+                      "concepts/sessions-and-state",
                       "glossary"
                     ]
                   }
