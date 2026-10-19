@@ -33,6 +33,7 @@
             "group": "Write tests",
             "icon": "flask",
             "pages": [
+              "best-practices",
               "rust-test-tooling",
               "tutorials/selectors",
               "tutorials/waits_assertions",
