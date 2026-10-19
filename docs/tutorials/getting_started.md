@@ -421,4 +421,10 @@ One-off commands with `sbrs`, no project needed.
 
 </Card>
 
+<Card color="#693acf" title="Headless and headed browsers" icon="eye-slash" href="/tutorials/headless">
+
+Run without a window in CI, and take screenshots, PDFs and downloads there.
+
+</Card>
+
 </Columns>
