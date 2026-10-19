@@ -18,6 +18,7 @@
         "tab": "Guides",
         "icon": "book-open",
         "pages": [
+          "quickstart",
           "README"
         ],
         "productGroups": [
