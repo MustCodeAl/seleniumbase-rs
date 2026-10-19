@@ -17,142 +17,102 @@
       {
         "tab": "Guides",
         "icon": "book-open",
-        "pages": [
-          "quickstart",
-          "README"
-        ],
-        "productGroups": [
+        "groups": [
           {
-            "group": "Learn",
-            "products": [
-              {
-                "product": "Get started",
-                "icon": "rocket",
-                "description": "Install, first test, FAQ and common problems",
-                "groups": [
-                  {
-                    "group": "Get started",
-                    "icon": "rocket",
-                    "pages": [
-                      "tutorials/getting_started",
-                      "building",
-                      "platforms",
-                      "faq",
-                      "help/common_problems"
-                    ]
-                  }
-                ]
-              },
-              {
-                "product": "Write tests",
-                "icon": "flask",
-                "description": "Selectors, waits, macros and special pages",
-                "groups": [
-                  {
-                    "group": "Write tests",
-                    "icon": "flask",
-                    "pages": [
-                      "rust-test-tooling",
-                      "tutorials/selectors",
-                      "tutorials/waits_assertions",
-                      "tutorials/macros",
-                      "tutorials/shadow_dom",
-                      "help/syntax_formats",
-                      "help/html_inspector"
-                    ]
-                  },
-                  {
-                    "group": "Special pages",
-                    "icon": "star",
-                    "pages": [
-                      "tutorials/mfa_totp",
-                      "tutorials/captcha_testing",
-                      "tutorials/pdf_parsing",
-                      "tutorials/masterqa",
-                      "tutorials/behave"
-                    ]
-                  }
-                ]
-              }
+            "group": "Get started",
+            "icon": "rocket",
+            "pages": [
+              "quickstart",
+              "README",
+              "tutorials/getting_started",
+              "building",
+              "platforms",
+              "faq",
+              "help/common_problems"
             ]
           },
           {
-            "group": "Use",
-            "products": [
-              {
-                "product": "Run and configure",
-                "icon": "sliders",
-                "description": "Engines, settings, headless, recording and reports",
-                "groups": [
-                  {
-                    "group": "Browser engines",
-                    "icon": "globe",
-                    "pages": [
-                      "tutorials/pure_cdp",
-                      "tutorials/cdp_mode",
-                      "help/playwright_mode",
-                      "tutorials/gui_automation"
-                    ]
-                  },
-                  {
-                    "group": "Configure runs",
-                    "icon": "sliders",
-                    "pages": [
-                      "tutorials/settings_and_config",
-                      "help/customizing_test_runs",
-                      "tutorials/run_settings",
-                      "tutorials/headless",
-                      "tutorials/browser_profiles",
-                      "tutorials/tracing"
-                    ]
-                  },
-                  {
-                    "group": "Record and replay",
-                    "icon": "circle-dot",
-                    "pages": [
-                      "tutorials/recorder_mode",
-                      "help/recorder_cli",
-                      "tutorials/selenium_ide"
-                    ]
-                  },
-                  {
-                    "group": "Results and reports",
-                    "icon": "chart-pie",
-                    "pages": [
-                      "tutorials/results_and_profiles",
-                      "tutorials/test_plugins",
-                      "tutorials/charts",
-                      "tutorials/tours",
-                      "tutorials/translations",
-                      "tutorials/cloud_integrations"
-                    ]
-                  }
-                ]
-              },
-              {
-                "product": "Migrate and deploy",
-                "icon": "server",
-                "description": "From Python, Playwright or Puppeteer, and into production",
-                "groups": [
-                  {
-                    "group": "Migrate",
-                    "icon": "right-left",
-                    "pages": [
-                      "python-migration",
-                      "playwright-migration",
-                      "puppeteer-migration"
-                    ]
-                  },
-                  {
-                    "group": "Run in production",
-                    "icon": "server",
-                    "pages": [
-                      "deployment",
-                      "help/docker"
-                    ]
-                  }
-                ]
-              }
+            "group": "Write tests",
+            "icon": "flask",
+            "pages": [
+              "rust-test-tooling",
+              "tutorials/selectors",
+              "tutorials/waits_assertions",
+              "tutorials/macros",
+              "tutorials/shadow_dom",
+              "help/syntax_formats",
+              "help/html_inspector"
+            ]
+          },
+          {
+            "group": "Special pages",
+            "icon": "star",
+            "pages": [
+              "tutorials/mfa_totp",
+              "tutorials/captcha_testing",
+              "tutorials/pdf_parsing",
+              "tutorials/masterqa",
+              "tutorials/behave"
+            ]
+          },
+          {
+            "group": "Browser engines",
+            "icon": "globe",
+            "pages": [
+              "tutorials/pure_cdp",
+              "tutorials/cdp_mode",
+              "help/playwright_mode",
+              "tutorials/gui_automation"
+            ]
+          },
+          {
+            "group": "Configure runs",
+            "icon": "sliders",
+            "pages": [
+              "tutorials/settings_and_config",
+              "help/customizing_test_runs",
+              "tutorials/run_settings",
+              "tutorials/headless",
+              "tutorials/browser_profiles",
+              "tutorials/tracing"
+            ]
+          },
+          {
+            "group": "Record and replay",
+            "icon": "circle-dot",
+            "pages": [
+              "tutorials/recorder_mode",
+              "help/recorder_cli",
+              "tutorials/selenium_ide"
+            ]
+          },
+          {
+            "group": "Results and reports",
+            "icon": "chart-pie",
+            "pages": [
+              "tutorials/results_and_profiles",
+              "tutorials/test_plugins",
+              "tutorials/charts",
+              "tutorials/tours",
+              "tutorials/translations",
+              "tutorials/cloud_integrations"
+            ]
+          },
+          {
+            "group": "Migrate",
+            "icon": "right-left",
+            "pages": [
+              "python-migration",
+              "playwright-migration",
+              "puppeteer-migration"
+            ]
+          },
+          {
+            "group": "Run in production",
+            "icon": "server",
+            "pages": [
+              "deployment",
+              "help/docker"
             ]
           }
         ]
@@ -262,114 +222,174 @@
       {
         "tab": "Reference",
         "icon": "code",
-        "groups": [
+        "pages": [
+          "tutorials/api_reference"
+        ],
+        "productGroups": [
           {
-            "group": "Glossary",
-            "icon": "book",
-            "pages": [
-              "glossary"
+            "group": "API references",
+            "products": [
+              {
+                "product": "BaseCase API",
+                "icon": "code",
+                "description": "Every BaseCase method, by topic",
+                "groups": [
+                  {
+                    "group": "BaseCase API",
+                    "pages": [
+                      "api/lifecycle-navigation",
+                      "api/interaction",
+                      "api/waits-assertions",
+                      "api/queries",
+                      "api/windows-frames",
+                      "api/cookies-storage",
+                      "api/screenshots-scripts",
+                      "api/files",
+                      "api/cdp-uc",
+                      "api/alerts-mfa",
+                      "api/tours-recorder",
+                      "api/traits",
+                      "api/crate-root",
+                      "tutorials/remaining_helpers",
+                      "ABI_API"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Plugin API",
+                "icon": "puzzle-piece",
+                "description": "The Plugin trait, PluginSet, capabilities and the host side",
+                "groups": [
+                  {
+                    "group": "Plugin API",
+                    "pages": [
+                      "plugins/api/overview",
+                      "plugins/api/plugin-trait",
+                      "plugins/api/launch",
+                      "plugins/api/handles",
+                      "plugins/api/plugin-set",
+                      "plugins/api/configuration",
+                      "plugins/api/metadata",
+                      "plugins/api/capabilities",
+                      "plugins/api/requirements",
+                      "plugins/api/host",
+                      "plugins/api/selection",
+                      "plugins/api/testing"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Stealth API: codec",
+                "icon": "fingerprint",
+                "description": "TLS, HTTP/2 and header fingerprints",
+                "groups": [
+                  {
+                    "group": "Stealth API: codec",
+                    "pages": [
+                      "stealth/api/codec",
+                      "stealth/api/codec-tls-spec",
+                      "stealth/api/codec-client-hello",
+                      "stealth/api/codec-ja3",
+                      "stealth/api/codec-ja4",
+                      "stealth/api/codec-h2-spec",
+                      "stealth/api/codec-h2-frames",
+                      "stealth/api/codec-akamai",
+                      "stealth/api/codec-header-spec",
+                      "stealth/api/codec-emulation"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Tauri plugin API",
+                "icon": "window-maximize",
+                "description": "The plugin's WebDriver endpoint",
+                "groups": [
+                  {
+                    "group": "Tauri plugin API",
+                    "pages": [
+                      "ecosystem/tauri-api/overview",
+                      "ecosystem/tauri-api/status",
+                      "ecosystem/tauri-api/sessions",
+                      "ecosystem/tauri-api/timeouts",
+                      "ecosystem/tauri-api/navigation",
+                      "ecosystem/tauri-api/window",
+                      "ecosystem/tauri-api/frames",
+                      "ecosystem/tauri-api/elements",
+                      "ecosystem/tauri-api/element-state",
+                      "ecosystem/tauri-api/element-interaction",
+                      "ecosystem/tauri-api/scripts",
+                      "ecosystem/tauri-api/actions",
+                      "ecosystem/tauri-api/alerts",
+                      "ecosystem/tauri-api/screenshots"
+                    ]
+                  }
+                ]
+              }
             ]
           },
           {
-            "group": "BaseCase API",
-            "pages": [
-              "tutorials/api_reference",
-              "api/lifecycle-navigation",
-              "api/interaction",
-              "api/waits-assertions",
-              "api/queries",
-              "api/windows-frames",
-              "api/cookies-storage",
-              "api/screenshots-scripts",
-              "api/files",
-              "api/cdp-uc",
-              "api/alerts-mfa",
-              "api/tours-recorder",
-              "api/traits",
-              "api/crate-root",
-              "tutorials/remaining_helpers",
-              "ABI_API"
-            ],
-            "icon": "code"
-          },
-          {
-            "group": "Plugin API",
-            "pages": [
-              "plugins/api/overview",
-              "plugins/api/plugin-trait",
-              "plugins/api/launch",
-              "plugins/api/handles",
-              "plugins/api/plugin-set",
-              "plugins/api/configuration",
-              "plugins/api/metadata",
-              "plugins/api/capabilities",
-              "plugins/api/requirements",
-              "plugins/api/host",
-              "plugins/api/selection",
-              "plugins/api/testing"
-            ],
-            "icon": "puzzle-piece"
-          },
-          {
-            "group": "Stealth API: codec",
-            "icon": "fingerprint",
-            "pages": [
-              "stealth/api/codec",
-              "stealth/api/codec-tls-spec",
-              "stealth/api/codec-client-hello",
-              "stealth/api/codec-ja3",
-              "stealth/api/codec-ja4",
-              "stealth/api/codec-h2-spec",
-              "stealth/api/codec-h2-frames",
-              "stealth/api/codec-akamai",
-              "stealth/api/codec-header-spec",
-              "stealth/api/codec-emulation"
-            ]
-          },
-          {
-            "group": "Tauri plugin API",
-            "icon": "code",
-            "pages": [
-              "ecosystem/tauri-api/overview",
-              "ecosystem/tauri-api/status",
-              "ecosystem/tauri-api/sessions",
-              "ecosystem/tauri-api/timeouts",
-              "ecosystem/tauri-api/navigation",
-              "ecosystem/tauri-api/window",
-              "ecosystem/tauri-api/frames",
-              "ecosystem/tauri-api/elements",
-              "ecosystem/tauri-api/element-state",
-              "ecosystem/tauri-api/element-interaction",
-              "ecosystem/tauri-api/scripts",
-              "ecosystem/tauri-api/actions",
-              "ecosystem/tauri-api/alerts",
-              "ecosystem/tauri-api/screenshots"
-            ]
-          },
-          {
-            "group": "Python parity",
-            "icon": "scale-balanced",
-            "pages": [
-              "parity"
-            ]
-          },
-          {
-            "group": "Why Rust?",
-            "icon": "gauge-high",
-            "pages": [
-              "why-rust",
-              "comparison",
-              "performance",
-              "benchmarks",
-              "reliability",
-              "security"
-            ]
-          },
-          {
-            "group": "Releases",
-            "icon": "tag",
-            "pages": [
-              "changelog"
+            "group": "About the project",
+            "products": [
+              {
+                "product": "Glossary",
+                "icon": "book",
+                "description": "Terms used across the docs",
+                "groups": [
+                  {
+                    "group": "Glossary",
+                    "pages": [
+                      "glossary"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Python parity",
+                "icon": "scale-balanced",
+                "description": "The status of every Python SeleniumBase API",
+                "groups": [
+                  {
+                    "group": "Python parity",
+                    "pages": [
+                      "parity"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Why Rust?",
+                "icon": "gauge-high",
+                "description": "Security, reliability, performance and benchmarks",
+                "groups": [
+                  {
+                    "group": "Why Rust?",
+                    "pages": [
+                      "why-rust",
+                      "comparison",
+                      "performance",
+                      "benchmarks",
+                      "reliability",
+                      "security"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Releases",
+                "icon": "tag",
+                "description": "The changelog and downloads",
+                "groups": [
+                  {
+                    "group": "Releases",
+                    "pages": [
+                      "changelog"
+                    ]
+                  }
+                ]
+              }
             ]
           }
         ]
