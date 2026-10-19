@@ -41,15 +41,13 @@ finished page load or a network request, without being asked.
 
 </Steps>
 
-<Frame caption="The pure CDP engine and Chrome">
-
 ```mermaid
 flowchart LR
     T["Your code<br/>Browser, Page, Locator"] -- "JSON over one WebSocket" --> C["Chrome<br/>--remote-debugging-port"]
     C -- "replies and events" --> T
 ```
 
-</Frame>
+*The pure CDP engine and Chrome*
 
 ## CDP compared with WebDriver
 

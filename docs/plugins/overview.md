@@ -147,8 +147,6 @@ plugins, and `requirements` (run last, a visible window, a Chromium browser, a
 browser it starts itself). Errors in the launch and page hooks stop the launch or
 the tab instead of being skipped.
 
-<Frame caption="The hooks, in the order they run">
-
 ```mermaid
 flowchart LR
     A["before_launch<br/>(change the start-up settings)"] --> B["browser starts"]
@@ -157,7 +155,7 @@ flowchart LR
     D --> E["on_close<br/>(once per launch)"]
 ```
 
-</Frame>
+*The hooks, in the order they run*
 
 The details of each hook, and what the pure CDP engine does at each point, are
 in [When the hooks run](/tutorials/plugins#when-the-hooks-run).

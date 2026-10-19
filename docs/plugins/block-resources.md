@@ -59,8 +59,6 @@ The plugin is named `block-resources` and requires a Chromium browser
 and then `Network.setBlockedURLs` with the patterns, to every tab. A failed
 command stops the tab, and the error names the plugin and the hook.
 
-<Frame caption="What block-resources sends to every tab">
-
 ```mermaid
 sequenceDiagram
     participant S as PluginSet
@@ -71,4 +69,4 @@ sequenceDiagram
     P->>T: Network.setBlockedURLs { urls: patterns }
 ```
 
-</Frame>
+*What block-resources sends to every tab*

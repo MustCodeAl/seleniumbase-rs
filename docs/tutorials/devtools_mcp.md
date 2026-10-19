@@ -9,8 +9,6 @@ its DevTools endpoint. `sbrs devtools` starts such a browser for them, and the
 `sbrs-mcp` Pure CDP server can hand out the endpoint of the browser it drives,
 so a vendor server and this crate's tools can work on the same tabs.
 
-<Frame caption="Several servers, one browser.">
-
 ```mermaid
 flowchart LR
   A["sbrs devtools"] -- "starts" --> B["Chrome with its DevTools endpoint"]
@@ -19,7 +17,7 @@ flowchart LR
   D["Playwright MCP (--cdp-endpoint)"] -- "attaches" --> B
 ```
 
-</Frame>
+*Several servers, one browser.*
 
 | Server | Browser | Attaches with |
 | --- | --- | --- |

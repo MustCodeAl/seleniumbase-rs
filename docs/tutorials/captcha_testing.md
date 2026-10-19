@@ -47,8 +47,6 @@ Summary for AI exports: test a CAPTCHA widget against your own application with 
 3. Your server sends the token and its **secret key** to the vendor's
    verification endpoint (`siteverify`) and acts on the answer.
 
-<Frame caption="Who talks to whom.">
-
 ```mermaid
 sequenceDiagram
   participant P as Your page
@@ -62,7 +60,7 @@ sequenceDiagram
   V-->>S: the answer
 ```
 
-</Frame>
+*Who talks to whom.*
 
 With the vendor's test keys, step 1 hands out a token without a real risk check
 and step 3 accepts it (or refuses it, for the keys made to fail). Only the keys

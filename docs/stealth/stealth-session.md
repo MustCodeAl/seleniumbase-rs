@@ -89,8 +89,6 @@ went back to HTTP to use it. A body that is not UTF-8 is read lossily.
 
 In short, the two modes and what moves a session between them:
 
-<Frame caption="The two modes, and what moves a session between them">
-
 ```mermaid
 stateDiagram-v2
     [*] --> Http: preferred mode (default)
@@ -98,7 +96,7 @@ stateDiagram-v2
     Browser --> Http: a clearance earned (demotion, after_fetch)
 ```
 
-</Frame>
+*The two modes, and what moves a session between them*
 
 ## What adapts, and what it presents
 

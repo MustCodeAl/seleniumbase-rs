@@ -175,8 +175,6 @@ The `CdpReactor` connects to a browser's debug WebSocket, enables the `Fetch`
 domain, and continues every paused request with custom headers. This lets you
 mutate requests in real time without blocking the main WebDriver loop.
 
-<Frame caption="What CdpReactor does">
-
 ```mermaid
 sequenceDiagram
     participant R as CdpReactor
@@ -187,7 +185,7 @@ sequenceDiagram
     R->>B: continue it with the custom headers
 ```
 
-</Frame>
+*What CdpReactor does*
 
 ```rust
 use std::collections::HashMap;

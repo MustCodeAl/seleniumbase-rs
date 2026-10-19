@@ -141,15 +141,13 @@ applies them. [`HttpSession`](/stealth/http-session#httpsession) offers `preflig
 caller that runs its own loop, and [`StealthSession`](/stealth/stealth-session#stealthsession) applies
 them for you.
 
-<Frame caption="How SessionPolicy moves a session">
-
 ```mermaid
 flowchart LR
   H["HTTP"] -- "Escalate" --> B["Browser"]
   B -- "Demote after a solve, once the identity holds a clearance" --> H
 ```
 
-</Frame>
+*How SessionPolicy moves a session*
 
 ## Challenge detection and mitigation
 

@@ -116,8 +116,6 @@ launches Chrome directly, so there is no driver binary to leak markers.
 default (`http://localhost:4444`) and `auto_start_driver` is on (it is by
 default).
 
-<Frame caption="How BaseCase::new finds or starts a chromedriver">
-
 ```mermaid
 flowchart TD
   A["BaseCase::new"] --> B{"Default URL and auto_start_driver on?"}
@@ -131,7 +129,7 @@ flowchart TD
   D --> L
 ```
 
-</Frame>
+*How BaseCase::new finds or starts a chromedriver*
 
 `BaseCase::new` first tries to connect to a driver already listening there; if
 none answers, it launches `downloaded_drivers/chromedriver` (`chromedriver.exe`

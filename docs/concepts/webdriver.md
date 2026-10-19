@@ -27,8 +27,6 @@ standard. `BaseCase` uses the `thirtyfour` crate to speak it.
 
 ## One command, end to end
 
-<Frame caption="sb.click(&quot;#go&quot;) in a WebDriver session">
-
 ```mermaid
 sequenceDiagram
     participant T as Test (BaseCase)
@@ -43,7 +41,7 @@ sequenceDiagram
     D-->>T: {"value": null}
 ```
 
-</Frame>
+*sb.click(&quot;#go&quot;) in a WebDriver session*
 
 <Steps>
 

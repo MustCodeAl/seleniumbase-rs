@@ -90,15 +90,13 @@ ones, minus the [known gaps](/stealth/limits#limits)) instead of whatever the in
 would have sent. Both legs then look alike on the wire, and a clearance earned in
 the browser is valid over `HttpSession`.
 
-<Frame caption="One request through MitmProxy.">
-
 ```mermaid
 flowchart LR
   A["Chrome"] -- "CONNECT with the proxy token" --> B["MitmProxy: ends the browser's TLS with an ephemeral-CA leaf"]
   B -- "replays the request through the impersonating client" --> C["Origin"]
 ```
 
-</Frame>
+*One request through MitmProxy.*
 
 ```rust
 use std::sync::Arc;

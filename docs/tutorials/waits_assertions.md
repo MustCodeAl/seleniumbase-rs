@@ -28,8 +28,6 @@ ready or the timeout passes (10 seconds by default; see
 | `type_text`, `send_keys`, `clear`, `hover`, `drag_and_drop` | visible |
 | `get_text`, `get_attribute`, `submit`, `set_value`, `select_option_by_*` | present |
 
-<Frame caption="What an action does while it waits.">
-
 ```mermaid
 flowchart LR
   A["Action: click, type_text, get_text, ..."] --> B{"Element ready?"}
@@ -38,7 +36,7 @@ flowchart LR
   B -- "timeout passed (10 s by default)" --> E["SeleniumBaseError::WaitTimeout"]
 ```
 
-</Frame>
+*What an action does while it waits.*
 
 If the element never gets there, the action fails with
 `SeleniumBaseError::WaitTimeout`, which names the selector and the state it was

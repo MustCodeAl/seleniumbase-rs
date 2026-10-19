@@ -23,8 +23,6 @@ runtime. What they drive is a Chrome or Chromium, so every deployment needs:
 3. configuration through environment variables, and
 4. somewhere for artifacts (screenshots, reports, debug bundles) to go.
 
-<Frame caption="What a deployment is made of.">
-
 ```mermaid
 flowchart LR
   E["SB_* environment variables"] --> B["sbrs or sbrs-mcp"]
@@ -33,7 +31,7 @@ flowchart LR
   B --> A["artifacts: screenshots, reports, debug bundles"]
 ```
 
-</Frame>
+*What a deployment is made of.*
 
 Chrome, not the library, dominates memory and CPU. The process that drives the
 browsers stayed near 9 MiB in the [benchmarks](/benchmarks), so size the machine
