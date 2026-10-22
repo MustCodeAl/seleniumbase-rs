@@ -106,22 +106,35 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 )
 
 `sbrs-mcp` exposes a browser to any [Model Context Protocol] client
-(Claude Desktop, Claude Code, ...) over stdio. It serves one of three toolsets,
-the same tools as the Python `seleniumbase-mcp` project, and adds tools of its
-own for developing, debugging and testing:
+(Claude Desktop, Claude Code, ...) over stdio. It serves one of three browser
+toolsets, the same tools as the Python `seleniumbase-mcp` project with tools of
+our own for developing, debugging and testing, and a fourth server, `dev`, that
+starts no browser and helps with the library, the `sbrs` command line and
+finding out what is wrong:
 
 | `--server` | Engine | Tools |
 | --- | --- | --- |
 | `cdp` | Pure CDP (no WebDriver) | 24 + 9 developer tools + `get_devtools_endpoint` |
-| `driver` | WebDriver, `Driver()` toolset | 26 |
+| `driver` | WebDriver, `Driver()` toolset | 26 + 8 debugging tools |
 | `sb` (default) | WebDriver, `SB()` toolset, plus this crate's stealth tools | 88 + 7 stealth + 9 developer tools |
+| `dev` | None: no browser | 12 tools for the library, the command line and diagnosing problems |
 
 <Info>
 
-All three keep one browser session for the whole conversation: call
-`start_browser` once, use the other tools, then `close_browser`.
+The three browser servers keep one browser session for the whole conversation:
+call `start_browser` once, use the other tools, then `close_browser`. The `dev`
+server has no session.
 
 </Info>
+
+<Tip>
+
+Every tool costs context in each session that loads its server, and some clients
+stop at about 40 tools. Install `dev` plus one browser server (`cdp` is the
+lightest) rather than several browser servers. See [Which server for which
+use](#which-server-for-which-use).
+
+</Tip>
 
 ## Install and configure
 
@@ -155,7 +168,9 @@ For example in `.mcp.json`:
 }
 ```
 
-Use `["--server", "driver"]` or `["--server", "sb"]` for the others.
+Use `["--server", "driver"]` or `["--server", "sb"]` for the others, and add
+`seleniumbase-dev` with `["--server", "dev"]` next to the browser server you chose
+(see [Beyond the browser](#beyond-the-browser-development-library-and-cli-tools)).
 
 To run a built-in plugin in every browser the server starts, add
 `"--plugin", "shield"` to `args` (and `"--plugin-opt", "shield.level=\"strict\""`
@@ -197,7 +212,25 @@ error when `start_browser` runs.
 
 </Tab>
 
+<Tab title="dev" icon="screwdriver-wrench">
+
+`dev` starts no browser. It is for the work around the browser: finding the right
+method, writing Rust tests, using the `sbrs` command line, and finding out what
+is wrong. Load it next to one of the others.
+
+</Tab>
+
 </Tabs>
+
+### Which server for which use
+
+| You want to | Load |
+| --- | --- |
+| Drive Chrome without a driver, hard to detect | `cdp` |
+| Drive Edge or Firefox, or port a Python `Driver()` script | `driver` |
+| A tool for nearly every `BaseCase` method, and the stealth tools | `sb` |
+| Find a method, write or convert a test, read `sbrs --help`, check settings and errors | `dev` |
+| The usual setup for an agent that writes and debugs tests | `dev` plus one of `cdp`, `driver` or `sb` |
 
 ## How tools behave
 
@@ -270,7 +303,10 @@ mistyped choice or tool name is answered with the nearest valid one (`"bakc"`:
 ## Developer tools
 
 `cdp` and `sb` add nine tools that help a model write tests, find out why
-something fails and check a page. They read the page with one self-contained
+something fails and check a page. `driver` has eight of them
+(`get_failed_requests` and `audit_page` stay with `cdp` and `sb`, and it adds
+`get_page_info`), as the same definitions, so a model that drives with `Driver()`
+can inspect the page and the session too. They read the page with one self-contained
 script per call, which leaves nothing behind (except the console recorder, on
 request) and never sends `Runtime.enable`.
 
@@ -588,6 +624,392 @@ the performance traces of `chrome-devtools-mcp`, while this server keeps
 driving the page. [DevTools MCP servers](/tutorials/devtools_mcp) covers those servers
 and `sbrs devtools`, which starts such a browser from the command line.
 
+## Beyond the browser: development, library and CLI tools
+
+The `dev` server (`sbrs-mcp --server dev`) starts no browser, so it has no
+`start_browser`. Its twelve tools answer from the library itself: the API index,
+the Python parity manifest, the `sbrs` CLI reference and the common-problems page
+are embedded in the binary, so the answers match the version you run. Register it
+next to a browser server:
+
+```json
+{
+  "mcpServers": {
+    "seleniumbase-cdp": { "command": "sbrs-mcp", "args": ["--server", "cdp"] },
+    "seleniumbase-dev": { "command": "sbrs-mcp", "args": ["--server", "dev"] }
+  }
+}
+```
+
+| Job | Tools |
+| --- | --- |
+| Find the right method | `find_api`, `parity_lookup` |
+| Write Rust tests | `python_to_rust`, `scaffold` |
+| Use the command line | `cli_help`, `list_plugins`, `plugin_info`, `install_driver` |
+| Find out what is wrong | `explain_error`, `check_config`, `check_fingerprint`, `diagnose_environment` |
+
+Only `install_driver` changes anything. Every other tool is annotated read-only,
+and none of them touches a web page.
+
+### `find_api`
+
+Searches the public API of this version: every public method of `BaseCase` (the
+WebDriver engine) and of the pure CDP engine's `Browser`, `Page`, `Locator` and
+`BrowserContext`. An exact name ranks first, then names that contain the query,
+then methods whose name, type or documentation mention every word. Each match has
+its type, its full signature as written in the source, the first paragraph of its
+documentation, whether it is `async` and whether it is deprecated.
+
+| Argument | Meaning |
+| --- | --- |
+| `query` | A name or words: `screenshot`, `wait for text`, or `Page::click` to search one type |
+| `engine` | `basecase`, `cdp` or `any` (default) |
+| `limit` | 1 to 50, default 10 |
+
+```json
+{ "query": "wait for text", "limit": 2 }
+```
+
+```json
+{
+  "query": "wait for text",
+  "found": 21,
+  "returned": 2,
+  "matches": [
+    {
+      "name": "wait_for_text",
+      "owner": "BaseCase",
+      "engine": "basecase",
+      "signature": "pub async fn wait_for_text(&self, text: &str, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError>",
+      "doc": "Waits up to `timeout_secs` for the element `css` to be displayed and contain `text`. ...",
+      "is_async": true,
+      "deprecated": false,
+      "file": "src/api/base_case.rs"
+    }
+  ],
+  "note": "19 more matches were cut by limit; narrow the query or raise the limit."
+}
+```
+
+The index is generated from the source by a test and committed as
+`src/mcp/dev/api_index.json`; a second test fails when it is out of date, and
+`SB_UPDATE_API_INDEX=1 cargo test --features mcp-server api_index` rewrites it.
+
+When to use it: before writing a call from memory, or to see what the pure CDP
+`Page` can do that `BaseCase` calls differently.
+
+### `parity_lookup`
+
+Looks up a name of Python SeleniumBase 4.55.2 (a `BaseCase` or `sb.cdp` method, a
+`Driver()` method, a command, an option or an upstream MCP tool) in
+`parity/api.toml`. `self.`, `sb.`, `sb.cdp.` and a call's arguments are ignored
+(`sb.cdp.click("#a")` looks up `click` in the CDP methods). The answer gives, for
+each place the name is listed, its status (`implemented`, `composed`,
+`not-applicable` or `planned`), the Rust path, and any note or difference in
+behavior. With no exact match it lists close names and the nearest spelling.
+
+```json
+{ "python_name": "self.assert_text" }
+```
+
+```json
+{
+  "found": true,
+  "matches": [
+    {
+      "python_name": "assert_text",
+      "section": "basecase",
+      "status": "implemented",
+      "rust": "BaseCase::assert_text",
+      "divergence": "Waits up to the default timeout (set_timeout, 10 seconds unless changed), where Python uses SMALL_TIMEOUT (6 seconds); ..."
+    }
+  ]
+}
+```
+
+When to use it: porting a Python script, or when a Python name has no obvious
+Rust twin. [API parity](/parity) lists the same data as a table.
+
+### `python_to_rust`
+
+Converts a Python SeleniumBase or Selenium test to a Rust test with the importer
+of `sbrs import-python`. The Python is read, never run, and at most 256 KiB are
+taken. The answer is text: which API family was detected, the diagnostics with
+their line numbers, then the Rust. A statement the importer cannot translate stays
+in the Rust as a `// TODO` comment.
+
+| Argument | Meaning |
+| --- | --- |
+| `code` | The Python source |
+| `source` | `auto` (default), `seleniumbase` or `selenium` |
+| `test_name` | Name of the Rust function, default `imported_python_test` |
+
+```text
+Detected API: seleniumbase. The conversion is complete: no statement was refused.
+Diagnostics (1):
+- line 6, warning: SeleniumBase method 'do_magic' needs manual migration
+
+=== Rust test example ===
+use seleniumbase_rs::{BrowserConfig, run_browser_test};
+
+#[tokio::test]
+async fn example() -> seleniumbase_rs::Result<()> {
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open("https://example.com").await?;
+        sb.assert_text("Example Domain", "h1").await?;
+        // TODO(source line 6): SeleniumBase method 'do_magic' needs manual migration
+        Ok(())
+    }).await
+}
+```
+
+When to use it: for a Python file to migrate. Follow it with `parity_lookup` for
+each `TODO`.
+
+### `scaffold`
+
+Shows the files `sbrs mkfile` (`kind` `test`) and `sbrs mkdir` (`kind` `suite`)
+would create, as text with each file's path and content, from the same templates
+and the same name checks. It writes nothing: create the files with your own tools.
+`name` is a relative name of letters, digits, `_`, `-` and `.`; `url` (tests only)
+is the page the test opens; `basic` leaves out the example assertions or example
+tests.
+
+```json
+{ "kind": "test", "name": "tests/login", "url": "https://shop.test/login" }
+```
+
+```text
+Scaffold for kind test, name tests/login. Nothing was written; create these 1 file(s) yourself.
+
+=== tests/login.rs ===
+//! Browser test generated by `sbrs mkfile`.
+...
+#[tokio::test]
+async fn login() -> Result<()> {
+    run_browser_test(BrowserConfig::default(), async |sb| {
+        sb.open("https://shop.test/login").await?;
+        sb.assert_element("body").await
+    })
+    .await
+}
+
+Run it with `cargo test --test login` when the file is in your crate's tests/ folder. ...
+```
+
+`sbrs mkchart` and `sbrs mkpres` write an HTML file straight to disk and have no
+renderer, so `scaffold` does not offer them.
+
+### `cli_help`
+
+The `sbrs` command line, from the [CLI reference](/help/cli_reference) of this
+version (generated from the same spec the parser and the shell completions use).
+With no `command`: the global flags, one line each, and every command with a
+one-line description. With a command or an alias (`wait-for-text`, `obfuscate`,
+`plugin list`): its usage, arguments, flags with their defaults and choices, and
+aliases; a group such as `plugin` shows its subcommands too. `global` gives the
+global flags in full. An unknown command is answered with the nearest name.
+
+```json
+{ "command": "wait-for-text" }
+```
+
+```text
+## sbrs wait-for-text
+
+- **Usage:** `sbrs wait-for-text <FLAGS>`
+
+Wait until an element contains the expected text.
+
+### Flags
+- **`--css <CSS>`** — CSS selector for the target element
+- **`--text <TEXT>`** — Expected text substring to wait for
+- **`--timeout <TIMEOUT>`** — Maximum wait time in seconds
+
+  **Default:** `10`
+- **`-h --help`** — Print help
+```
+
+### `list_plugins` and `plugin_info`
+
+`list_plugins` is `sbrs plugin list`: the built-in browser plugins compiled into
+this build, their category, whether the operator turned them on (with `--plugin`,
+`SB_PLUGINS` or the settings file), and a summary. `plugin_info` (argument `name`)
+is `sbrs plugin info NAME`: the version, the capabilities the plugin asks for and
+how risky each is, what it needs from the browser, what it conflicts with and its
+options. Neither turns anything on: the operator chooses the plugins.
+
+A build without the feature `plugins-builtin` says so and names it, instead of
+listing nothing:
+
+```text
+No plugins: this build has no built-in plugin; rebuild with --features plugins-builtin (or one of plugin-shield, plugin-block-resources, plugin-crx).
+```
+
+### `install_driver`
+
+Downloads a driver as `sbrs install` does, through the same code, into the
+`downloaded_drivers` folder of the folder the server runs in (where the library
+looks first). It is the only tool of this server that changes anything: it
+reaches the network, and it replaces a driver of another version already there.
+Its annotations say so: not read-only, destructive, idempotent, open-world.
+
+| Argument | Meaning |
+| --- | --- |
+| `browser` | `chrome` (chromedriver, default), `edge` (msedgedriver) or `firefox` (geckodriver) |
+| `version` | `latest`, a major version such as `155`, or a full version; geckodriver takes `latest` or a release such as `0.36.0`. Default: the driver for the installed browser |
+
+```json
+{ "browser": "chrome" }
+```
+
+```json
+{
+  "driver": "chromedriver",
+  "browser": "chrome",
+  "requested_version": null,
+  "path": "downloaded_drivers/chromedriver",
+  "installed_version": "ChromeDriver 155.0.7100.4 (...)",
+  "cache": "the downloaded_drivers folder of the folder the server runs in",
+  "note": "Installed. diagnose_environment checks that the driver and the browser agree."
+}
+```
+
+The version is what the installed driver prints for `--version`; if it cannot be
+run (macOS may need to allow it first) the result says so. A failed download is an
+error with the reason. Only one install runs at a time.
+
+When to use it: after `diagnose_environment` reports that chromedriver is missing
+or does not match Chrome.
+
+### `explain_error`
+
+Explains an error of this library or of an MCP server. Give the error `message` as
+printed, even wrapped in a failure report (`click_element failed: element not
+found: ...`), or just a `category`. The library's own `SeleniumBaseError` is
+rebuilt from the text and asked for its `category()`, `hint()` and `exit_code()`;
+the answer adds whether the error is transient, what the `sbrs` exit status means,
+the next steps a browser server would suggest, and the sections of the
+[common problems](/help/common_problems) page that apply. The errors a server
+reports itself (`no_browser`, `invalid_argument`, `refused`, `unknown_tool`) are
+explained as the server's. Text that matches nothing is reported as not
+recognized, with the known categories, rather than guessed at.
+
+```json
+{ "message": "click_element failed: element not found: lnk=Home (strategy: css selector)" }
+```
+
+```json
+{
+  "recognized": true,
+  "category": "element_not_found",
+  "from": "message",
+  "specific": true,
+  "hint": "Nothing on the page matched the css selector `lnk=Home` in time. ... Did you mean `link=Home`?",
+  "transient": false,
+  "exit_code": 3,
+  "exit_meaning": "an element could not be found or used, or a wait timed out",
+  "next_steps_with_a_browser_server": ["diagnose_selector {\"selector\": \"lnk=Home\"}: ...", "..."],
+  "docs": [{ "heading": "An element is not found or a wait times out", "text": "..." }]
+}
+```
+
+With only a `category` the advice is the general one for it, and the answer says so
+(`"specific": false`).
+
+### `check_config`
+
+Checks the configuration without starting anything. It reads the settings as
+`sbrs` does (the settings file, then the `SB_*` variables) and reports every
+problem instead of the first: an unreadable or malformed file, each variable that
+does not parse (with its name), an unknown browser or mode, a window size with only
+one side, plugins this build cannot run. It also reads the runtime variables
+(`SB_LOG_LEVEL`, `SB_SHUTDOWN_TIMEOUT_SECS` and the rest), whose mistakes `sbrs`
+ignores with a warning, and summarises what would be launched. The optional `path`
+names a settings file inside the folder the server runs in; without it the file
+`sbase_config.toml` there is used, if there is one.
+
+Secrets are redacted (the user and password of a proxy URL), and an error never
+quotes the lines of the file or the value it refused.
+
+```json
+{
+  "ok": false,
+  "starts_nothing": true,
+  "problems": [
+    {
+      "source": "SB_HEADLESS",
+      "category": "invalid_config",
+      "message": "invalid configuration: cannot parse bool: maybe",
+      "hint": "Review the configuration values ..."
+    }
+  ],
+  "warnings": [
+    {
+      "message": "invalid configuration: SB_SHUTDOWN_TIMEOUT_SECS: invalid digit found in string",
+      "effect": "the variable is ignored and its default is used"
+    }
+  ],
+  "settings": { "browser": "chrome", "proxy": "[redacted]@proxy.test:8080", "...": "..." },
+  "runtime": { "webdriver_url": "http://localhost:4444", "...": "..." },
+  "plugins": { "enabled": [], "check": "ok", "chosen_by_the_server_operator": [] }
+}
+```
+
+### `check_fingerprint`
+
+Parses JSON as a [fingerprint](/tutorials/fingerprint_stealth) of this library, or, when
+it has `parameters` or `browser_type` with `os_type`, as the profile payload of an
+anti-detect browser tool, and returns what `Fingerprint::validate` finds: whether it
+is coherent, the errors (a platform that contradicts the user agent) and the
+warnings (a mobile agent without touch points). It is the same report as
+`validate_fingerprint` of the `sb` server gives for a preset. A document that is
+neither is described, with the reason for each parse, instead of guessed at.
+
+```json
+{ "json": "{\"user_agent\": \"Mozilla/5.0\"}" }
+```
+
+```json
+{
+  "coherent": false,
+  "errors": ["user-agent does not contain a token for OS persona Windows"],
+  "warnings": [],
+  "parsed": true,
+  "format": "fingerprint",
+  "fingerprint": { "os": "Windows", "browser": "Chromium", "user_agent": "Mozilla/5.0", "platform": "Win32", "screen": null }
+}
+```
+
+### `diagnose_environment` on the dev server
+
+The same tool the `cdp`, `driver` and `sb` servers have, here too. Besides what
+[its entry above](#diagnose_environment) lists, the report has `driver_cache` (the
+`downloaded_drivers` folder, whether it is there and what is in it) and `build`
+(the library version and the cargo features this build has and lacks, such as
+`pdf` and `plugins-builtin`). An output folder that does not exist yet is judged
+by the nearest folder above it, since the first tool that writes there makes it.
+
+### Debugging: which tool for which symptom
+
+| Symptom | Call, in this order |
+| --- | --- |
+| An element is not found | `explain_error` on the text; then `diagnose_selector` (hidden, covered, in an iframe or a shadow root, near misses), `suggest_selectors`, `inspect_page` |
+| A wait or a navigation times out | `explain_error` (it tells `wait_timeout` from `navigation`); `get_failed_requests` on `cdp` and `sb`; `get_console_messages` with `start` true, then repeat the step |
+| The page is blank, half loaded or looks wrong | `inspect_page`, `get_console_messages`, `get_failed_requests`, then `capture_debug_bundle` to keep the evidence |
+| The driver and Chrome disagree ("session not created") | `diagnose_environment` (the `versions` field), then `install_driver`, then `diagnose_environment` again |
+| A site blocks or detects the browser | `check_fingerprint` on the fingerprint you use, `audit_page`; for a `stealth` or `patcher` error, `explain_error` |
+| A setting is ignored, or the server stops at start | `check_config` (every problem at once), `list_plugins` for a plugin name |
+| An error text you do not understand | `explain_error` |
+| A flag or a method you do not remember | `cli_help`, `find_api`, `parity_lookup` |
+
+The `driver` server has the browser-side debugging tools too (`inspect_page`,
+`diagnose_selector`, `suggest_selectors`, `get_console_messages`,
+`capture_debug_bundle`, `get_page_info`, `export_session_as_test`,
+`diagnose_environment`). `get_failed_requests` and `audit_page` are on `cdp` and
+`sb`. On `driver` and `sb`, `get_console_messages` records from the moment it is
+asked to (`start` true): WebDriver has no console events of its own to read.
+
 ## Prompts to try
 
 Once the server is registered, these prompts exercise the developer tools.
@@ -612,7 +1034,7 @@ Walk through the sign-in flow on the site I name, check it with audit_page, and 
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs-mcp --server cdp|driver|sb` serves MCP over stdio. Call `start_browser` once, use the tools, then `close_browser`. Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error.
+Summary for AI exports: `sbrs-mcp --server cdp|driver|sb|dev` serves MCP over stdio. On `cdp`, `driver` and `sb`, call `start_browser` once, use the tools, then `close_browser`; `dev` has no browser and helps with the library, the `sbrs` command line and diagnosing problems (`find_api`, `explain_error`, `check_config`, ...). Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error.
 
 </Visibility>
 
@@ -639,6 +1061,12 @@ trust, and prefer a throwaway browser profile.
   personal data; values of password and hidden inputs, cookies and storage, and
   the results of earlier tool calls are left out. `export_session_as_test` writes the text the model typed into the
   test, since the test must type it again.
+- The `dev` server reads and computes: `install_driver` is the one tool that
+  changes anything (it downloads a driver into `downloaded_drivers/` and may
+  replace one of another version), and it says so in its annotations. `scaffold`
+  writes nothing. `check_config` reads one settings file inside the folder the
+  server runs in, redacts secrets, and does not quote the file's lines in its
+  errors.
 
 ## Using the servers from Rust
 
@@ -651,9 +1079,11 @@ mcp::serve(Profile::Cdp).await?;
 # }
 ```
 
-`mcp::cdp::host`, `mcp::driver::host` and `mcp::sb::host` build a `Host` you can
-call directly with `Host::call(name, arguments)`, which is how the test suite
-exercises every tool against a mocked browser. To add a tool, see "Adding an MCP
+`mcp::cdp::host`, `mcp::driver::host`, `mcp::sb::host` and `mcp::dev::host` build
+a `Host` you can call directly with `Host::call(name, arguments)`, which is how
+the test suite exercises every tool against a mocked browser. The `dev` server
+takes its driver downloader as a parameter (`mcp::dev::host_with_installer`), so
+a test can install without the network. To add a tool, see "Adding an MCP
 tool" in the [developer guide](/DEVELOPER_GUIDE).
 
 ## Next steps

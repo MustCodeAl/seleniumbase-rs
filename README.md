@@ -52,7 +52,7 @@ Chrome DevTools engine that needs no driver at all.
 | 🧪 **A familiar test API** | `open`, `click`, `type_text`, assertions, waits, frames, windows, cookies, storage, uploads, PDFs: more than 200 `BaseCase` methods. |
 | ⚡ **No driver needed** | The pure CDP engine (`sb_cdp`) drives Chrome directly, with waiting locators, request interception, per-context proxies, a browser pool and a mock browser for tests. |
 | 🌐 **Every major browser** | Chrome, Edge, Firefox, Safari, Brave and Opera on WebDriver; chromedriver, msedgedriver and geckodriver are downloaded to match your browser. |
-| 🤖 **Built for AI agents** | MCP servers (`cdp`, `driver`, `sb`) with page inspection, selector diagnosis, console and network views, a debug bundle and export to a Rust test. See [Vibe coding](./docs/tutorials/vibe_coding.md). |
+| 🤖 **Built for AI agents** | MCP servers (`cdp`, `driver`, `sb`) with page inspection, selector diagnosis, console and network views, a debug bundle and export to a Rust test, and a browserless `dev` server that finds API methods, converts Python tests, explains `sbrs` commands, errors and settings, and installs drivers. See [Vibe coding](./docs/tutorials/vibe_coding.md). |
 | 🔁 **Bring your old tests** | Importers for Python SeleniumBase and Selenium, Playwright (JS, TS, Python), Puppeteer and Chrome Recorder files, plus a recorder that writes Rust. |
 | 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, fingerprint presets and evasions. Browser-identical TLS and HTTP/2 is a separate, experimental project: [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). |
 | 🛠️ **Batteries included** | The `sbrs` CLI, shell completions, a Docker image, `SB_*` configuration, tracing and cloud artifact uploads. |
@@ -431,8 +431,14 @@ stdio. Pick a toolset with `--server`:
 | `--server` | Engine | Tools |
 |------------|--------|-------|
 | `cdp` | Pure CDP, no WebDriver | 24 |
-| `driver` | WebDriver, the `Driver()` toolset | 26 |
+| `driver` | WebDriver, the `Driver()` toolset | 26 + 8 debugging tools |
 | `sb` (default) | WebDriver, the `SB()` toolset, plus stealth tools | 88 + 7 |
+| `dev` | No browser: the library, the `sbrs` command line and diagnosing problems | 12 |
+
+Load `dev` next to one browser server: `find_api`, `parity_lookup`,
+`python_to_rust`, `scaffold`, `cli_help`, `list_plugins`, `plugin_info`,
+`install_driver`, `explain_error`, `check_config`, `check_fingerprint` and
+`diagnose_environment`.
 
 ```bash
 cargo build --release --bin sbrs-mcp

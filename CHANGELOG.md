@@ -8,6 +8,59 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Added
+
+- **A fourth MCP server, `dev`** (`sbrs-mcp --server dev`, `mcp::Profile::Dev`,
+  `mcp::dev::host`). It starts no browser and helps with developing with the
+  library, using the `sbrs` command line and diagnosing problems, in twelve tools.
+  Load it next to one browser server; the tools are not added to the browser
+  servers, because every tool costs context in every session that loads one.
+  - `find_api`: searches the public methods of `BaseCase` and of the pure CDP
+    engine (`Browser`, `Page`, `Locator`, `BrowserContext`) and returns the type,
+    the full signature, the first paragraph of the documentation, `is_async` and
+    `deprecated`. The index is generated from the source by a test, committed as
+    `src/mcp/dev/api_index.json`, and checked by a second test
+    (`SB_UPDATE_API_INDEX=1` rewrites it).
+  - `parity_lookup`: the status, Rust path and notes of a Python SeleniumBase 4.55.2
+    name, from `parity/api.toml`, with close names when there is no exact match.
+  - `python_to_rust`: the importer of `sbrs import-python`, with its diagnostics.
+  - `scaffold`: the files `sbrs mkfile` and `sbrs mkdir` would create, as text; it
+    writes nothing.
+  - `cli_help`: the `sbrs` command line from the CLI reference page, embedded:
+    commands, flags, defaults, choices and aliases.
+  - `list_plugins` and `plugin_info`: the built-in plugins of the build, or how to
+    get them.
+  - `install_driver`: downloads a driver as `sbrs install` does and returns its path
+    and version. Not read-only, destructive (it replaces a driver of another
+    version) and open-world, which a new `Effect::Fetch` says in the annotations.
+    The downloader is a parameter (`mcp::dev::host_with_installer`), so tests
+    install without the network.
+  - `explain_error`: rebuilds a `SeleniumBaseError` from its text or category and
+    returns its hint, whether it is transient, the `sbrs` exit status, the next steps
+    and the sections of the common-problems page that apply.
+  - `check_config`: the settings file and the `SB_*` variables as `sbrs` reads them,
+    every problem at once, a redacted summary of what would be launched, and the
+    plugin selection. It starts nothing.
+  - `check_fingerprint`: parses a fingerprint or an anti-detect-browser profile
+    payload and returns the coherence report of `Fingerprint::validate`, the same
+    report `validate_fingerprint` gives.
+  - `diagnose_environment`, the tool `cdp` and `sb` have, shared.
+- `Settings::check` and `Settings::check_with` read the settings like
+  `Settings::load_from` but return every problem (`SettingsCheck`,
+  `SettingsProblem`), not only the first, and name the variable of each.
+- `diagnose_environment` reports the driver cache folder and what is in it, the cargo
+  features the build has and lacks, and judges an output folder that does not exist
+  yet by the nearest folder above it.
+
+### Changed
+
+- The `driver` MCP server has eight debugging tools it did not have, the same
+  definitions as on `sb`: `inspect_page`, `suggest_selectors`, `diagnose_selector`,
+  `get_console_messages`, `capture_debug_bundle`, `get_page_info`,
+  `export_session_as_test` and `diagnose_environment`. It is 34 tools now.
+  `get_failed_requests` and `audit_page` stay with `cdp` and `sb`.
+- `Profile::ALL` has a fourth profile, and `sbrs-mcp --server` accepts `dev`.
+
 ## [0.5.1] - 2026-10-17
 
 A patch release of the command line: it refuses again what clap refused in 0.4.0,
