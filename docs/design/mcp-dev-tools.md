@@ -45,16 +45,18 @@ embedded data are read-only and open-world false.
 | `explain_error` | `message`, `category` | category, the library's hint, causes and fix steps, the exit status `sbrs` uses | read-only |
 | `check_config` | `path` | every problem in the settings file and the `SB_*` variables, and what the settings would start | read-only |
 | `check_fingerprint` | `json` | whether a fingerprint or a profile payload parses, and its errors and warnings | read-only |
-| `diagnose_environment` | none | Chrome, driver, versions, output folder, features of this build | read-only |
+| `diagnose_environment` | none | Chrome, driver, their versions, the driver cache, the output folder, the features of this build | read-only |
 
 `diagnose_environment` is the tool the `cdp` and `sb` servers already have; the
 `dev` server registers the same code.
 
 ### Where each answer comes from
 
-- **`find_api`** searches an index generated from the source. A test parses
-  `src/api/base_case.rs`, `src/api/base_case_impls/*.rs` and `src/sb_cdp/*.rs`
-  with `syn` and writes `src/mcp/dev/api_index.json`; the server embeds the file
+- **`find_api`** searches an index generated from the source. A test parses every file
+  under `src/` with `syn`, takes the public methods of the inherent `impl BaseCase`
+  blocks (`src/api/base_case.rs` and `src/api/base_case_impls/*.rs` hold most) and,
+  in `src/sb_cdp/`, of `Browser`, `Page`, `Locator` and `BrowserContext`, and writes
+  `src/mcp/dev/api_index.json`; the server embeds the file
   with `include_str!`. A second test fails when the committed file differs from
   a fresh one, and `SB_UPDATE_API_INDEX=1 cargo test` rewrites it (the same
   scheme as `SB_UPDATE_COMPLETIONS` for the usage spec). Ranking: exact name,
@@ -106,8 +108,8 @@ embedded data are read-only and open-world false.
 - `check_config` reads one file. The path must be relative, inside the folder
   the server runs in, with no `..`. The values it prints are redacted the way
   `diagnose_environment` redacts them (credentials in a proxy URL, anything
-  named like a secret), and a parse error is cut to its first line, since the
-  TOML parser's message quotes the offending line.
+  named like a secret), and a parse error does not quote the offending line of
+  the file or the value it refused, since the TOML parser's message does both.
 - `python_to_rust` and `check_fingerprint` read text the model sends; both bound
   its size and neither runs it.
 - `install_driver` takes the browser and version from a closed set and a parsed

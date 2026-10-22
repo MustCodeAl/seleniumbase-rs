@@ -1032,6 +1032,18 @@ Walk through the sign-in flow on the site I name, check it with audit_page, and 
 
 </Prompt>
 
+<Prompt description="Port a Python test and see what is left" icon="code" actions={["copy"]}>
+
+Convert this Python SeleniumBase test with python_to_rust. For every TODO it leaves, call parity_lookup with the Python method and find_api for the Rust one, then tell me what I still have to write by hand.
+
+</Prompt>
+
+<Prompt description="Find out why the setup fails" icon="stethoscope" actions={["copy"]}>
+
+Run diagnose_environment and check_config on the dev server. Explain the first problem with explain_error, and if chromedriver does not match Chrome, fix it with install_driver and check again.
+
+</Prompt>
+
 <Visibility for="agents">
 
 Summary for AI exports: `sbrs-mcp --server cdp|driver|sb|dev` serves MCP over stdio. On `cdp`, `driver` and `sb`, call `start_browser` once, use the tools, then `close_browser`; `dev` has no browser and helps with the library, the `sbrs` command line and diagnosing problems (`find_api`, `explain_error`, `check_config`, ...). Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error.

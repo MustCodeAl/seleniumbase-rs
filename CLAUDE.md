@@ -64,7 +64,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `sb_cdp/` | The pure CDP engine: `browser`, `page`, `locator`, `context`, `client` (protocol), `launch` (`LaunchOptionsBuilder`), `pool` (`BrowserPool`, `PoolOptions`), `session_store`, `state` (`Cookie`, storage), `identity` (`Identity`), `intercept`, `input`, `human`, `captcha`, `download` (`Page::download_file`, `download_by_click`, `save_file_as`, `assert_downloaded_file`), `proxy_auth`, `webrtc`, `har` (`Page::start_har`, `HarRecorder`, the HAR 1.2 serde types), `expect`, `mock`, `helper.js`. Held to the pedantic lint set. |
 | `stealth/` | `fingerprint.rs` (`Fingerprint`, one `Spoof` per setting, `ProxyConfig`, `ClientHints`), `spoof.rs`, `settings.rs` (value types), `policy.rs` (`StealthPolicy`), `providers/` (`EvasionRegistry`, `default_registry`, `builtin.rs`), `randomize`, `behavior` and `humanize` (human-like input), `patcher` (Chrome/chromedriver binary patching), `reactor`, `uc`, `evasions` (launch flags), `options`, `cdp` (DevTools wrapper for WebDriver), `js/`. |
 | `profile_payloads/` | Parses external browser-profile JSON into a `Fingerprint`. |
-| `mcp/` | MCP server (`tool`, `host`, `webdriver`, `cdp`, `stealth`, `schema`); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
+| `mcp/` | MCP servers `cdp`, `driver`, `sb` and `dev` (`tool`, `host`, `webdriver`, `cdp`, `devtools`, `stealth`, `schema`; `dev/` is the server with no browser: `find_api`, `parity_lookup`, `python_to_rust`, `scaffold`, `cli_help`, plugins, `install_driver`, `explain_error`, `check_config`, `check_fingerprint`); started by `crates/cli/src/mcp_server.rs`. Held to the pedantic lint set. |
 | `cli/` | The library half of the command line, with no parser: `commands.rs`, `devtools.rs`, `plugin_cmd.rs` (`sbrs plugin list|info`, the check of `--plugin` names and options), `prompt.rs`, `scaffold.rs`, `scripts/` (`sb_grid`, `sb_mkdir`, `sb_mkfile`, `sb_recorder`, `sb_commander` needs `tui`, ...). |
 | `crates/cli/` | Package `seleniumbase-rs-cli`: `src/sbrs.rs` (the command line, declared with the `usage` derives `Cli`, `Subcommands`, `Args` and `ValueEnum`), `src/fig.rs` (the Fig spec, written from the usage tables), `src/report.rs`, `src/mcp_server.rs`, and `tests/` for every test that runs the real `sbrs` or `sbrs-mcp` binary. Owns `usage` (the package `usage-rs`) and, for the tests, `usage-lib`. |
 | `behave/` | Gherkin runner and step registry. |
@@ -130,6 +130,10 @@ binaries with `cargo install --path crates/cli`.
   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
   `docs/completions/fig-sbrs.ts` is `sbrs completions fig` through prettier (see the
   README beside it) and is not checked by a test.
+- `src/mcp/dev/api_index.json` (what the `dev` server's `find_api` searches) is generated
+  from the public methods of `BaseCase` and the pure CDP engine; a test fails when it is
+  stale. Write it again with
+  `SB_UPDATE_API_INDEX=1 cargo test -p seleniumbase-rs --features mcp-server api_index`.
 
 ## Gotchas
 

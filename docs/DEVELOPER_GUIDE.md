@@ -743,7 +743,7 @@ Update `docs/tutorials/macros.md` with the macro name, signature, and example.
 
 ## Adding an MCP tool
 
-The `sbrs-mcp` binary (`--server cdp|driver|sb`) is a thin wrapper over
+The `sbrs-mcp` binary (`--server cdp|driver|sb|dev`) is a thin wrapper over
 the `mcp` module, built with the `mcp-server` feature. A server is a
 `Host<S>`: a list of `ToolDef`s and the browser session `S` they share.
 
@@ -753,7 +753,11 @@ the `mcp` module, built with the `mcp-server` feature. A server is a
 
 Pick the server file: `src/mcp/cdp.rs` (the Pure CDP engine),
 `src/mcp/driver.rs` or `src/mcp/sb.rs` (WebDriver, sharing the handlers in
-`src/mcp/webdriver.rs`).
+`src/mcp/webdriver.rs`), or, for a tool that needs no browser, the `dev` server in
+`src/mcp/dev/` (`api.rs`, `author.rs`, `cli.rs`, `diagnose.rs`). Every tool costs
+context in every session that loads its server, so a tool for the library or the
+command line goes to `dev`, not to a browser server. Tools shared by servers are
+defined once in `src/mcp/devtools.rs` and registered by name.
 
 </Step>
 
@@ -784,7 +788,17 @@ keeps them inside the output directory.
 <Step title="Test it" icon="flask">
 
 Test it: `tests/mcp_cdp.rs` shows how to drive a tool against the mock
-browser; `tests/mcp_webdriver.rs` covers the catalogues.
+browser; `tests/mcp_webdriver.rs` covers the catalogues. A `dev` tool is tested in
+its own file with `Host::call`, and `install_driver` through
+`mcp::dev::host_with_installer` with a fake downloader, never the network.
+
+The `dev` tool `find_api` searches `src/mcp/dev/api_index.json`, which a test
+generates from the public methods of `BaseCase` and of the pure CDP `Browser`,
+`Page`, `Locator` and `BrowserContext`. After you add, remove or change the
+signature or the first doc paragraph of such a method, a test fails until you
+write the index again with
+`SB_UPDATE_API_INDEX=1 cargo test -p seleniumbase-rs --features mcp-server api_index`
+and commit it.
 
 </Step>
 
