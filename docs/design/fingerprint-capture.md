@@ -5,7 +5,7 @@ title: "Design: fingerprint capture, export and import"
 # Fingerprint capture, export and import
 
 Status: implemented, listed under `## Unreleased` in `CHANGELOG.md`. It builds on
-[Fingerprint API v2](fingerprint-api-v2.md) and adds no setting to it.
+[Fingerprint API v2](/design/fingerprint-api-v2) and adds no setting to it.
 
 ## Why
 
@@ -18,7 +18,7 @@ the other direction: read what a real browser shows a page, keep it as a
 ## One file format
 
 There is one file format everywhere: the v2 `Fingerprint` JSON of
-[Fingerprint API v2](fingerprint-api-v2.md#json). A capture writes it, `export`
+[Fingerprint API v2](/design/fingerprint-api-v2#json). A capture writes it, `export`
 writes it, `check`, `diff` and `--fingerprint` read it, and the companion
 extension validates it with `schemas/fingerprint.schema.json`. `CapturedFingerprint`
 is a Rust value that carries the readings next to the fingerprint; it is not a
