@@ -349,6 +349,13 @@ struct Cli {
     agent: Option<String>,
     #[usage(long, help = "Locale string for the browser context")]
     locale: Option<String>,
+    /// Page the browser opens first, Python's --start-page (alias --url)
+    ///
+    /// Every command starts its own browser and closes it at the end, so a command that
+    /// acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one:
+    /// `sbrs --url https://example.com get-text --css h1`.
+    #[usage(long = "start-page", visible_aliases = ["url", "start_page"], value_name = "URL")]
+    start_page: Option<String>,
     #[usage(
         long,
         bool_value,
@@ -2471,6 +2478,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     config.mode = mode;
     config.auto_start_driver = true;
+    // `BaseCase::new` opens the start page before the command acts.
+    if let Some(url) = args.start_page {
+        config.start_page = Some(url);
+    }
 
     // The plugins: what the settings file and `SB_PLUGINS` turn on, with `--plugin` and
     // `--plugin-opt` on top. Only a command that starts a browser, and `test`, which passes
@@ -3650,7 +3661,23 @@ mod plugin_cli_tests {
         );
         assert!(matches!(cli.command, Commands::Open { .. }));
         assert!(parse(&["sbrs", "open", "x"]).plugin.is_empty());
+        assert!(parse(&["sbrs", "open", "x"]).start_page.is_none());
         assert!(parse(&["sbrs", "open", "x"]).plugin_opt.is_empty());
+    }
+
+    /// Python's `--start-page`, under each of its names, is the page a command acts on;
+    /// like the other global options it goes before the command.
+    #[test]
+    fn the_start_page_goes_before_the_command_under_any_of_its_names() {
+        for flag in ["--start-page", "--url", "--start_page"] {
+            let cli = parse(&["sbrs", flag, "https://example.test/", "get-title"]);
+            assert_eq!(
+                cli.start_page.as_deref(),
+                Some("https://example.test/"),
+                "{flag}"
+            );
+        }
+        assert!(try_parse(&["sbrs", "get-title", "--url", "https://example.test/"]).is_err());
     }
 
     #[test]
