@@ -34,6 +34,12 @@ build:
 docs:
     mdbook build
 
+# Build every docs page as the Docs7 site does (MDX); fails on undefined names,
+# relative .md links, missing titles and pages that are in no menu (needs Bun)
+mdx:
+    bun install --cwd tools/mdx-check --frozen-lockfile
+    bun tools/mdx-check/check.mjs docs
+
 # Serve the mdBook locally for editing
 serve-docs:
     mdbook serve --open

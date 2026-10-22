@@ -1,0 +1,12 @@
+{
+  "name": "mdx-check",
+  "private": true,
+  "type": "module",
+  "description": "Builds the docs/ pages as the Docs7 site does: just mdx",
+  "dependencies": {
+    "@mdx-js/mdx": "^3.1.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "unist-util-visit": "^5.0.0"
+  }
+}

@@ -578,11 +578,15 @@ Some files are generated. Edit their source, then write them again:
 |---|---|---|
 | `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` | the declarations in `crates/cli/src/sbrs.rs` | `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec` |
 | `docs/parity.md` | `parity/api.toml` | `just parity-docs` |
-| the navigation in `docs/docs.json` | `docs/SUMMARY.md` | `python3 -I tools/docs7_nav.py` |
 | `docs/completions/fig-sbrs.ts` | `sbrs completions fig`, through prettier | see `docs/completions/README.md` |
 
 The `usage_spec` test fails when the first two are stale, and `just parity-docs`
 fails when `docs/parity.md` was out of date. No test checks the Fig spec.
+
+The navigation in `docs/docs.json` is written by hand. `just mdx` (needs Bun)
+builds every page as the Docs7 site does and fails on an undefined name in an
+expression, a relative `.md` link, a page without a title, and a page that is in
+no menu of `docs/docs.json`.
 
 ## Make, just and mise
 

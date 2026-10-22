@@ -12,6 +12,26 @@
   "feedback": {
     "thumbsRating": true
   },
+  "filterSidebar": true,
+  "seo": {
+    "indexing": "navigable",
+    "metatags": {
+      "canonical": "https://mustcodeal-seleniumbase-rs.docs7.io",
+      "robots": "index, follow",
+      "og:site_name": "SeleniumBase for Rust"
+    },
+    "organization": {
+      "name": "seleniumbase-rs",
+      "url": "https://github.com/MustCodeAl/seleniumbase-rs",
+      "sameAs": [
+        "https://github.com/MustCodeAl/seleniumbase-rs",
+        "https://github.com/MustCodeAl/seleniumbase-rs-plugins",
+        "https://github.com/MustCodeAl/seleniumbase-rs-stealth",
+        "https://github.com/MustCodeAl/seleniumbase-rs-browser-extension",
+        "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation"
+      ]
+    }
+  },
   "navigation": {
     "tabs": [
       {

@@ -685,17 +685,20 @@ rebuilds it from `parity/api.toml`.
 ### The Docs7 site
 
 The same pages also publish as a [Docs7](https://context7.com/docs/docs7/quickstart)
-site. `docs/docs.json` is its configuration, and its navigation follows
-`docs/SUMMARY.md`.
+site. `docs/docs.json` is its configuration and its navigation (tabs and groups);
+`docs/SUMMARY.md` is mdBook's table of contents. Add a new page to both.
 
 <Steps>
 
-<Step title="Regenerate the navigation" icon="rotate">
+<Step title="Check the pages" icon="circle-check">
 
-Do this after changing the table of contents:
+Needs Bun. Builds every page as Docs7 does (MDX), and fails on a name an
+expression uses that is not defined, a relative `.md` link (Docs7 serves those
+raw; link to the site route, `/tutorials/selectors`), a page without a title,
+and a page that is in no menu of `docs/docs.json`:
 
 ```bash
-python3 -I tools/docs7_nav.py
+just mdx
 ```
 
 </Step>
