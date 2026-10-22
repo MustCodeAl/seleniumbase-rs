@@ -219,6 +219,8 @@ Do not run two heavy cargo commands at once in the same target directory (cargo
 serialises them with a lock), and do not share one `CARGO_TARGET_DIR` between
 several checkouts of this repository: they overwrite each other's compiled
 library and doctests then fail with "extern location does not exist".
+[mr-boxington](https://mr-boxington.jdx.dev) (below) avoids both problems: each
+checkout gets its own target and they share compiled work through its cache.
 
 </Warning>
 
@@ -246,6 +248,13 @@ rest (`chrome`, `parity-docs`, `docs`, `smoke`).
 
 - [mdBook](https://rust-lang.github.io/mdBook/) for documentation:
   `cargo install mdbook`.
+- [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for Cargo
+  builds: `cargo install mbx --locked && mbx setup`, or with mise
+  `mise use --global --tool-option mr_boxington=true rust mr-boxington`. Keep
+  running `cargo` as usual: every checkout and worktree gets its own managed
+  `target`, compiled work is reused between them (and in CI), and the cache
+  prunes itself. It caches nothing while `RUSTC_WRAPPER` is set (remove
+  sccache), and it leaves a `CARGO_TARGET_DIR` you set alone.
 - [cargo-nextest](https://nexte.st/) for faster test runs
   (`cargo install cargo-nextest`; it does not run doctests, so also run
   `cargo test --doc`). `.config/nextest.toml` has a one-thread `chrome` group

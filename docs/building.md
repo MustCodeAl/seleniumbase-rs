@@ -648,9 +648,13 @@ rebuilds cheap:
 export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 ```
 
-- Install `sccache` and set `[build] rustc-wrapper = "sccache"` in
-  `~/.cargo/config.toml`; it needs `CARGO_INCREMENTAL=0` to cache anything. It
-  adds its own cache directory (limit its size) and does not shrink `target/`.
+- Use [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for
+  Cargo builds: `cargo install mbx --locked && mbx setup` (or, with mise,
+  `mise use --global --tool-option mr_boxington=true rust mr-boxington`), then
+  keep running `cargo`. Each checkout and worktree gets its own managed
+  `target`, compiled work is reused between them, and the cache prunes itself
+  to a size budget (`mbx stats`, `mbx gc --dry-run`). Leave `RUSTC_WRAPPER`
+  unset (it replaces sccache) and do not set `CARGO_TARGET_DIR`.
 - On a machine with little memory, keep `CARGO_BUILD_JOBS` low and run one cargo
   command at a time; cargo serialises builds in the same target directory.
 

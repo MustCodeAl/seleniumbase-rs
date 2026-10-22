@@ -45,7 +45,10 @@ cargo check --features turso --all-targets
 - Do not run two heavy cargo commands at once, and do not share one
   `CARGO_TARGET_DIR` between several checkouts or worktrees: they overwrite each
   other's compiled library and doctests fail. Never `cargo clean` a directory
-  someone else is using.
+  someone else is using. With [mr-boxington](https://mr-boxington.jdx.dev)
+  (`mbx`) each checkout gets its own managed target and compiled work is shared
+  through its cache; keep running plain `cargo` and set neither
+  `CARGO_TARGET_DIR` nor `RUSTC_WRAPPER`.
 
 ## How to work
 
@@ -59,7 +62,8 @@ cargo check --features turso --all-targets
   file reads) and [RTK](https://www.rtk-ai.app/) (run `cargo`, `git` and test
   commands as `rtk cargo test` and so on, to get condensed output with the same
   exit codes). When `.tokensave/` exists, search and read code through TokenSave
-  rather than `grep` or whole-file reads.
+  rather than `grep` or whole-file reads. For builds, mr-boxington (`mbx`)
+  caches compiled work across checkouts and worktrees.
 - **Check external APIs against their documentation**, not memory (crates,
   protocols, browser flags).
 - **Match the neighbours:** `thiserror` errors in the library, no `unwrap()`

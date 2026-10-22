@@ -434,8 +434,8 @@ How many compiler processes run at once. `2` keeps memory low.
 
 <ParamField path="CARGO_INCREMENTAL" type="0 or 1">
 
-`0` turns off the incremental cache in `target/`. `sccache` needs it off to
-cache anything.
+`0` turns off the incremental cache in `target/`, which keeps it smaller.
+mr-boxington (below) manages incremental state itself.
 
 </ParamField>
 
@@ -458,6 +458,18 @@ and doctests then fail with "extern location does not exist". A development
 `target/` with the test, bench and check artifacts grows past 10 GB.
 
 </Warning>
+
+<Tip>
+
+Use [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for
+Cargo builds: `cargo install mbx --locked && mbx setup`, or with mise
+`mise use --global --tool-option mr_boxington=true rust mr-boxington`. Keep
+running `cargo`: each checkout and worktree gets its own managed `target`, so
+worktrees no longer collide, compiled work is reused between them, and the
+cache prunes itself. It caches nothing while `RUSTC_WRAPPER` is set, and it
+leaves a `CARGO_TARGET_DIR` you set alone. `mbx doctor` checks the setup.
+
+</Tip>
 
 ## Run the checks
 

@@ -13,7 +13,10 @@ fix a line here when the code stops matching it. Human contributors want
   search, callers, impact and reads (`tokensave init`, then its MCP tools; when
   `.tokensave/` exists, use it instead of `grep` or whole-file reads), and
   [RTK](https://www.rtk-ai.app/) for condensed command output (`rtk cargo test`,
-  `rtk git log`; exit codes unchanged).
+  `rtk git log`; exit codes unchanged), and
+  [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`) for cached builds: plain
+  `cargo` then gives each worktree its own target and reuses compiled work; do
+  not set `RUSTC_WRAPPER` or `CARGO_TARGET_DIR` with it.
 - Check a change with the commands under *Build and check*; count failures from
   the `test result` lines, never from a filtered search of the output.
 - Tests that start a real browser are `#[ignore]`d `*_chrome.rs` files: run them one
