@@ -190,6 +190,33 @@ impl<T: Serialize> Serialize for Spoof<T> {
     }
 }
 
+/// The JSON Schema of a setting: a keyword, `null`, or the value. Only the library's
+/// own tests write schemas (see `stealth::fingerprint::schema`).
+#[cfg(test)]
+impl<T: schemars::JsonSchema> schemars::JsonSchema for Spoof<T> {
+    fn inline_schema() -> bool {
+        true
+    }
+
+    fn schema_name() -> Cow<'static, str> {
+        format!("Spoof_{}", T::schema_name()).into()
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        format!("{}::Spoof<{}>", module_path!(), T::schema_id()).into()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "anyOf": [
+                { "type": "string", "enum": ["natural", "random", "off"] },
+                { "type": "null" },
+                generator.subschema_for::<T>()
+            ]
+        })
+    }
+}
+
 /// A keyword of the JSON form.
 enum Word {
     Natural,

@@ -52,6 +52,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 mod compare;
 mod file;
+#[cfg(test)]
+mod schema;
 
 pub use compare::{FingerprintComparison, SettingDiff};
 
@@ -63,6 +65,7 @@ pub use super::spoof::Spoof;
 
 /// Browser persona requested by a profile.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum BrowserType {
     /// Chromium-based persona (default).
@@ -79,6 +82,7 @@ pub enum BrowserType {
 
 /// Operating-system persona.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum OsType {
     #[default]
@@ -122,6 +126,7 @@ impl OsType {
 
 /// QUIC mode.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum QuicMode {
     #[default]
@@ -134,6 +139,7 @@ pub enum QuicMode {
 
 /// WebRTC IP-handling policy.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum WebRtcPolicy {
     #[default]
@@ -144,6 +150,7 @@ pub enum WebRtcPolicy {
 
 /// Proxy configuration for a profile.
 #[derive(Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ProxyConfig {
     pub r#type: String,
     pub host: String,
@@ -202,15 +209,18 @@ mod infinite_as_null {
 
 /// Battery Status API profile (`navigator.getBattery()`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct BatteryProfile {
     pub charging: bool,
     /// Battery level in the range `0.0..=1.0`.
     pub level: f64,
     /// Seconds until fully charged (`f64::INFINITY` when unknown; `null` in JSON).
     #[serde(with = "infinite_as_null", default = "infinite_as_null::infinity")]
+    #[cfg_attr(test, schemars(with = "Option<f64>"))]
     pub charging_time: f64,
     /// Seconds until empty (`f64::INFINITY` when charging; `null` in JSON).
     #[serde(with = "infinite_as_null", default = "infinite_as_null::infinity")]
+    #[cfg_attr(test, schemars(with = "Option<f64>"))]
     pub discharging_time: f64,
 }
 
@@ -227,6 +237,7 @@ impl Default for BatteryProfile {
 
 /// Network Information API profile (`navigator.connection`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ConnectionProfile {
     pub effective_type: String,
     pub rtt: u32,
@@ -247,6 +258,7 @@ impl Default for ConnectionProfile {
 
 /// A single synthesized speech voice for `speechSynthesis.getVoices()`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SpeechVoice {
     pub name: String,
     pub lang: String,
@@ -286,6 +298,7 @@ impl SpeechVoice {
 
 /// A `(brand, version)` pair used by the Client Hints `brands` array.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct BrandVersion {
     pub brand: String,
     pub version: String,
@@ -302,6 +315,7 @@ impl BrandVersion {
 
 /// A single labeled media device used by `MediaDevicesProvider`.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct MediaDeviceSpec {
     pub kind: String,
     pub device_id: String,
@@ -311,6 +325,7 @@ pub struct MediaDeviceSpec {
 
 /// User-Agent Client Hints (`navigator.userAgentData`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ClientHints {
     pub brands: Vec<BrandVersion>,
     pub full_version_list: Vec<BrandVersion>,
@@ -331,6 +346,7 @@ pub struct ClientHints {
 
 /// Humanized input-timing configuration.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct HumanizeConfig {
     pub enabled: bool,
     pub min_keystroke_delay_ms: u64,
@@ -494,90 +510,132 @@ pub(crate) const AUDIO_SEED_MASK: u64 = 0x5DEE_CE66;
 
 /// The data of a [`Fingerprint`]: one field per setting.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(default, deny_unknown_fields)]
 struct Fields {
+    /// The browser the identity claims to be. `chromium` by default.
     browser_type: BrowserType,
-    /// `None` until the builder works it out, and for JSON that does not say.
+    /// The operating system the identity claims. Taken from the user agent when
+    /// the file does not say, and Windows when that names none.
     #[serde(skip_serializing_if = "Option::is_none")]
     os_type: Option<OsType>,
+    /// The Chromium major version the identity claims, such as 155.
     #[serde(skip_serializing_if = "Option::is_none")]
     core_version: Option<u32>,
+    /// The seed of the random draws and of the canvas and audio noise.
     #[serde(skip_serializing_if = "Option::is_none")]
     seed: Option<u64>,
 
     // Navigator
+    /// `navigator.userAgent` and the `User-Agent` header.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     user_agent: Spoof<String>,
+    /// `navigator.platform`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     platform: Spoof<String>,
+    /// `navigator.hardwareConcurrency`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     hardware_concurrency: Spoof<u32>,
+    /// `navigator.deviceMemory`, in gigabytes.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     device_memory: Spoof<f64>,
+    /// `navigator.maxTouchPoints`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     max_touch_points: Spoof<u32>,
+    /// `navigator.vendor`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     vendor: Spoof<String>,
+    /// `navigator.oscpu` (Firefox persona).
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     oscpu: Spoof<String>,
+    /// `navigator.productSub`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     product_sub: Spoof<String>,
+    /// `navigator.buildID` (Firefox persona).
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     build_id: Spoof<String>,
+    /// `navigator.appVersion`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     app_version: Spoof<String>,
 
     // Localization and time zone
+    /// `navigator.language`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     locale: Spoof<String>,
+    /// `navigator.languages`, comma-separated; quality values are ignored.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     languages: Spoof<String>,
+    /// The `Accept-Language` header.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     accept_languages: Spoof<String>,
+    /// The IANA time zone, such as `Europe/Berlin`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     timezone: Spoof<String>,
 
     // Screen
+    /// `screen.width` and `screen.height`, in CSS pixels.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     screen: Spoof<ScreenSize>,
+    /// `screen.availWidth` and `screen.availHeight`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     avail_screen: Spoof<ScreenSize>,
+    /// `window.devicePixelRatio`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     pixel_ratio: Spoof<f64>,
+    /// `screen.colorDepth`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     color_depth: Spoof<u32>,
 
     // Everything else a page can probe
+    /// The unmasked WebGL vendor and renderer.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     webgl: Spoof<WebGl>,
+    /// What `enumerateDevices()` lists. `off` lists none.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     media_devices: Spoof<MediaDevices>,
+    /// The position `navigator.geolocation` reports. `off` denies the request.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     geolocation: Spoof<Geolocation>,
+    /// The installed fonts.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     fonts: Spoof<Vec<String>>,
+    /// The proxy the browser is launched with. May hold a login.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     proxy: Spoof<ProxyConfig>,
+    /// The addresses WebRTC reports. `off` makes WebRTC unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     webrtc: Spoof<WebRtcAddresses>,
+    /// The Battery Status API. `off` makes it unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     battery: Spoof<BatteryProfile>,
+    /// The Network Information API. `off` makes it unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     connection: Spoof<ConnectionProfile>,
+    /// `speechSynthesis.getVoices()`. `off` lists none.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     speech_voices: Spoof<Vec<SpeechVoice>>,
+    /// Web Bluetooth: `true` has an adapter, `false` has none, `off` makes the API
+    /// unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     bluetooth: Spoof<bool>,
+    /// User-Agent Client Hints (`navigator.userAgentData`). `off` makes them
+    /// unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     client_hints: Spoof<ClientHints>,
 
     // How the claims are delivered, and the profile's housekeeping
+    /// How the claims are delivered and which protections run beside them.
     policy: StealthPolicy,
+    /// Humanized input timing.
     humanize: HumanizeConfig,
+    /// Whether `localStorage` is kept between sessions of the profile.
     local_storage: bool,
+    /// Whether service workers are kept between sessions of the profile.
     save_service_worker: bool,
+    /// The URLs the profile opens at start.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     custom_start_urls: Vec<String>,
+    /// Extra browser command-line parameters.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     cmd_params: HashMap<String, String>,
 }
@@ -681,6 +739,16 @@ pub type StealthFlags = StealthPolicy;
 /// # Ok::<(), seleniumbase_rs::stealth::fingerprint::FingerprintError>(())
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(
+    test,
+    schemars(
+        title = "Fingerprint",
+        description = "What a browser claims to be, as seleniumbase-rs reads it: one entry per \
+                       setting, each \"natural\" (left out), \"random\", \"off\" or a value. A \
+                       setting that is left out is the browser's own."
+    )
+)]
 #[serde(transparent)]
 pub struct Fingerprint(Fields);
 

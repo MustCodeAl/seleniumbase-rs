@@ -25,6 +25,7 @@ use super::spoof::Spoof;
 
 /// A screen size in CSS pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ScreenSize {
     /// The width, in CSS pixels.
     pub width: u32,
@@ -54,6 +55,7 @@ impl From<(u32, u32)> for Spoof<ScreenSize> {
 
 /// The position `navigator.geolocation` reports.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Geolocation {
     /// Degrees north.
     pub latitude: f64,
@@ -111,6 +113,7 @@ impl From<(f64, f64)> for Spoof<Geolocation> {
 ///
 /// A half that is `None` is the browser's own.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct WebGl {
     /// `UNMASKED_VENDOR_WEBGL`, such as `Google Inc. (NVIDIA)`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -191,6 +194,7 @@ impl<V: Into<String>, R: Into<String>> From<(V, R)> for Spoof<WebGl> {
 /// optional on top of that: one that is given replaces the address the
 /// browser would write into the SDP.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct WebRtcAddresses {
     /// The public address of the candidates.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -225,6 +229,7 @@ impl<P: Into<String>, L: Into<String>> From<(P, L)> for Spoof<WebRtcAddresses> {
 
 /// What `navigator.mediaDevices.enumerateDevices()` lists.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct MediaDevices {
     /// How many microphones are listed.
     #[serde(default)]

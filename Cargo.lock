@@ -5170,6 +5170,7 @@ dependencies = [
  "rust-s3",
  "rustls",
  "rustwright",
+ "schemars",
  "scraper",
  "seleniumbase-rs-plugin",
  "seleniumbase-rs-plugins-builtin",

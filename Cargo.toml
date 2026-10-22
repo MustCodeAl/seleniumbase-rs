@@ -202,4 +202,7 @@ proc-macro2 = { version = "1", features = ["span-locations"] }
 # Lists processes for the tests' leftover-process checks on every system (Windows
 # has no `pgrep`); only its process part.
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+# Writes `schemas/fingerprint.schema.json` from the types. Only the library's own tests
+# derive `JsonSchema` (`cfg_attr(test, ..)`), so nothing of it reaches a user of the crate.
+schemars = "1.2"
 

@@ -1,0 +1,1283 @@
+{
+  "$defs": {
+    "AudioNoise": {
+      "description": "How audio reads (`AudioBuffer`, `AnalyserNode`) are noised.",
+      "oneOf": [
+        {
+          "const": "Natural",
+          "description": "No noise: the browser's own audio.",
+          "type": "string"
+        },
+        {
+          "const": "Persistent",
+          "description": "Deterministic noise from the fingerprint's seed.",
+          "type": "string"
+        },
+        {
+          "const": "Random",
+          "description": "Noise from a fresh seed each time the script is generated.",
+          "type": "string"
+        }
+      ]
+    },
+    "BatteryProfile": {
+      "description": "Battery Status API profile (`navigator.getBattery()`).",
+      "properties": {
+        "charging": {
+          "type": "boolean"
+        },
+        "charging_time": {
+          "default": null,
+          "description": "Seconds until fully charged (`f64::INFINITY` when unknown; `null` in JSON).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "discharging_time": {
+          "default": null,
+          "description": "Seconds until empty (`f64::INFINITY` when charging; `null` in JSON).",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "level": {
+          "description": "Battery level in the range `0.0..=1.0`.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "charging",
+        "level"
+      ],
+      "type": "object"
+    },
+    "BrandVersion": {
+      "description": "A `(brand, version)` pair used by the Client Hints `brands` array.",
+      "properties": {
+        "brand": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "brand",
+        "version"
+      ],
+      "type": "object"
+    },
+    "BrowserType": {
+      "description": "Browser persona requested by a profile.",
+      "oneOf": [
+        {
+          "const": "chromium",
+          "description": "Chromium-based persona (default).",
+          "type": "string"
+        },
+        {
+          "const": "firefox",
+          "description": "Firefox-oriented persona (conceptual; WebDriver mode uses Chromium).",
+          "type": "string"
+        },
+        {
+          "const": "mobile_safari",
+          "description": "Mobile Safari / WebKit persona (iOS).",
+          "type": "string"
+        }
+      ]
+    },
+    "CanvasNoise": {
+      "description": "How canvas reads (`toDataURL`, `toBlob`, `getImageData`) are noised.",
+      "oneOf": [
+        {
+          "const": "Natural",
+          "description": "No noise: the browser's own canvas.",
+          "type": "string"
+        },
+        {
+          "const": "Persistent",
+          "description": "Deterministic noise from the fingerprint's seed, the same on every read and every launch.",
+          "type": "string"
+        },
+        {
+          "const": "Random",
+          "description": "Noise from a fresh seed each time the script is generated, so each browser context gets different noise.",
+          "type": "string"
+        },
+        {
+          "const": "Low",
+          "description": "Seeded noise on about one pixel in eight.",
+          "type": "string"
+        }
+      ]
+    },
+    "ClientHints": {
+      "description": "User-Agent Client Hints (`navigator.userAgentData`).",
+      "properties": {
+        "architecture": {
+          "type": "string"
+        },
+        "bitness": {
+          "type": "string"
+        },
+        "brands": {
+          "items": {
+            "$ref": "#/$defs/BrandVersion"
+          },
+          "type": "array"
+        },
+        "form_factors": {
+          "default": [],
+          "description": "Client Hints form factors, such as `Desktop` or `Mobile` (`Sec-CH-UA-Form-Factors`).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "full_version_list": {
+          "items": {
+            "$ref": "#/$defs/BrandVersion"
+          },
+          "type": "array"
+        },
+        "mobile": {
+          "type": "boolean"
+        },
+        "model": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "platform_version": {
+          "type": "string"
+        },
+        "ua_full_version": {
+          "type": "string"
+        },
+        "wow64": {
+          "default": false,
+          "description": "Whether the browser runs as a 32-bit process on a 64-bit system (`Sec-CH-UA-WoW64`).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "brands",
+        "full_version_list",
+        "platform",
+        "platform_version",
+        "architecture",
+        "bitness",
+        "model",
+        "ua_full_version",
+        "mobile"
+      ],
+      "type": "object"
+    },
+    "ConnectionProfile": {
+      "description": "Network Information API profile (`navigator.connection`).",
+      "properties": {
+        "downlink": {
+          "format": "double",
+          "type": "number"
+        },
+        "effective_type": {
+          "type": "string"
+        },
+        "rtt": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "save_data": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "effective_type",
+        "rtt",
+        "downlink",
+        "save_data"
+      ],
+      "type": "object"
+    },
+    "Fields": {
+      "additionalProperties": false,
+      "description": "The data of a `Fingerprint`: one field per setting.",
+      "properties": {
+        "accept_languages": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "The `Accept-Language` header."
+        },
+        "app_version": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.appVersion`."
+        },
+        "avail_screen": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ScreenSize"
+            }
+          ],
+          "description": "`screen.availWidth` and `screen.availHeight`."
+        },
+        "battery": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/BatteryProfile"
+            }
+          ],
+          "description": "The Battery Status API. `off` makes it unavailable."
+        },
+        "bluetooth": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "description": "Web Bluetooth: `true` has an adapter, `false` has none, `off` makes the API unavailable."
+        },
+        "browser_type": {
+          "$ref": "#/$defs/BrowserType",
+          "default": "chromium",
+          "description": "The browser the identity claims to be. `chromium` by default."
+        },
+        "build_id": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.buildID` (Firefox persona)."
+        },
+        "client_hints": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ClientHints"
+            }
+          ],
+          "description": "User-Agent Client Hints (`navigator.userAgentData`). `off` makes them unavailable."
+        },
+        "cmd_params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Extra browser command-line parameters.",
+          "type": "object"
+        },
+        "color_depth": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "description": "`screen.colorDepth`."
+        },
+        "connection": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ConnectionProfile"
+            }
+          ],
+          "description": "The Network Information API. `off` makes it unavailable."
+        },
+        "core_version": {
+          "description": "The Chromium major version the identity claims, such as 155.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "custom_start_urls": {
+          "description": "The URLs the profile opens at start.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "device_memory": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "double",
+              "type": "number"
+            }
+          ],
+          "description": "`navigator.deviceMemory`, in gigabytes."
+        },
+        "fonts": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "The installed fonts."
+        },
+        "geolocation": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Geolocation"
+            }
+          ],
+          "description": "The position `navigator.geolocation` reports. `off` denies the request."
+        },
+        "hardware_concurrency": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "description": "`navigator.hardwareConcurrency`."
+        },
+        "humanize": {
+          "$ref": "#/$defs/HumanizeConfig",
+          "default": {
+            "enabled": false,
+            "max_keystroke_delay_ms": 180,
+            "min_keystroke_delay_ms": 40,
+            "mouse_steps": 24
+          },
+          "description": "Humanized input timing."
+        },
+        "languages": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.languages`, comma-separated; quality values are ignored."
+        },
+        "local_storage": {
+          "default": false,
+          "description": "Whether `localStorage` is kept between sessions of the profile.",
+          "type": "boolean"
+        },
+        "locale": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.language`."
+        },
+        "max_touch_points": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "description": "`navigator.maxTouchPoints`."
+        },
+        "media_devices": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/MediaDevices"
+            }
+          ],
+          "description": "What `enumerateDevices()` lists. `off` lists none."
+        },
+        "os_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OsType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The operating system the identity claims. Taken from the user agent when the file does not say, and Windows when that names none."
+        },
+        "oscpu": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.oscpu` (Firefox persona)."
+        },
+        "pixel_ratio": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "double",
+              "type": "number"
+            }
+          ],
+          "description": "`window.devicePixelRatio`."
+        },
+        "platform": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.platform`."
+        },
+        "policy": {
+          "$ref": "#/$defs/StealthPolicy",
+          "default": {
+            "audio_noise": "Natural",
+            "block_trackers": false,
+            "blocked_ports": [],
+            "blocked_trackers": [],
+            "canvas_noise": "Natural",
+            "chrome_runtime": false,
+            "disable_csp": false,
+            "grant_permissions": false,
+            "headless_fixes": false,
+            "native_spoofing": false,
+            "native_tostring": true,
+            "open_shadow_roots": true,
+            "quic": "Natural",
+            "webrtc_policy": null
+          },
+          "description": "How the claims are delivered and which protections run beside them."
+        },
+        "product_sub": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.productSub`."
+        },
+        "proxy": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ProxyConfig"
+            }
+          ],
+          "description": "The proxy the browser is launched with. May hold a login."
+        },
+        "save_service_worker": {
+          "default": false,
+          "description": "Whether service workers are kept between sessions of the profile.",
+          "type": "boolean"
+        },
+        "screen": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/ScreenSize"
+            }
+          ],
+          "description": "`screen.width` and `screen.height`, in CSS pixels."
+        },
+        "seed": {
+          "description": "The seed of the random draws and of the canvas and audio noise.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "speech_voices": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/SpeechVoice"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "`speechSynthesis.getVoices()`. `off` lists none."
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "The IANA time zone, such as `Europe/Berlin`."
+        },
+        "user_agent": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.userAgent` and the `User-Agent` header."
+        },
+        "vendor": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "not": {
+                "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
+              },
+              "type": "string"
+            }
+          ],
+          "description": "`navigator.vendor`."
+        },
+        "webgl": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/WebGl"
+            }
+          ],
+          "description": "The unmasked WebGL vendor and renderer."
+        },
+        "webrtc": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/WebRtcAddresses"
+            }
+          ],
+          "description": "The addresses WebRTC reports. `off` makes WebRTC unavailable."
+        }
+      },
+      "type": "object"
+    },
+    "Geolocation": {
+      "description": "The position `navigator.geolocation` reports.",
+      "properties": {
+        "accuracy": {
+          "description": "How far off the position may be, in metres; `100` when absent.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "altitude": {
+          "description": "Metres above sea level; `0` when absent.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "latitude": {
+          "description": "Degrees north.",
+          "format": "double",
+          "type": "number"
+        },
+        "longitude": {
+          "description": "Degrees east.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude"
+      ],
+      "type": "object"
+    },
+    "HumanizeConfig": {
+      "description": "Humanized input-timing configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "max_keystroke_delay_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "min_keystroke_delay_ms": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mouse_steps": {
+          "description": "Number of intermediate points sampled along a mouse path.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "enabled",
+        "min_keystroke_delay_ms",
+        "max_keystroke_delay_ms",
+        "mouse_steps"
+      ],
+      "type": "object"
+    },
+    "MediaDeviceSpec": {
+      "description": "A single labeled media device used by `MediaDevicesProvider`.",
+      "properties": {
+        "device_id": {
+          "type": "string"
+        },
+        "group_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "device_id",
+        "group_id",
+        "label"
+      ],
+      "type": "object"
+    },
+    "MediaDevices": {
+      "description": "What `navigator.mediaDevices.enumerateDevices()` lists.",
+      "properties": {
+        "audio_inputs": {
+          "default": 0,
+          "description": "How many microphones are listed.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "audio_outputs": {
+          "default": 0,
+          "description": "How many speakers are listed.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "labelled": {
+          "description": "Devices with their own ids and labels. When this is not empty, it is the whole list and the counts are not used.",
+          "items": {
+            "$ref": "#/$defs/MediaDeviceSpec"
+          },
+          "type": "array"
+        },
+        "video_inputs": {
+          "default": 0,
+          "description": "How many cameras are listed.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "OsType": {
+      "description": "Operating-system persona.",
+      "oneOf": [
+        {
+          "enum": [
+            "Windows",
+            "Macos",
+            "Linux",
+            "Android"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "ios",
+          "description": "iOS / iPadOS persona.",
+          "type": "string"
+        }
+      ]
+    },
+    "ProxyConfig": {
+      "description": "Proxy configuration for a profile.",
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "password": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "port": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "save_traffic": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string"
+        },
+        "username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "host",
+        "port",
+        "save_traffic"
+      ],
+      "type": "object"
+    },
+    "QuicMode": {
+      "description": "QUIC mode.",
+      "enum": [
+        "Natural",
+        "Disabled",
+        "Enabled",
+        "ForceHttp2",
+        "Auto"
+      ],
+      "type": "string"
+    },
+    "ScreenSize": {
+      "description": "A screen size in CSS pixels.",
+      "properties": {
+        "height": {
+          "description": "The height, in CSS pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "width": {
+          "description": "The width, in CSS pixels.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "type": "object"
+    },
+    "SpeechVoice": {
+      "description": "A single synthesized speech voice for `speechSynthesis.getVoices()`.",
+      "properties": {
+        "default": {
+          "type": "boolean"
+        },
+        "lang": {
+          "type": "string"
+        },
+        "local_service": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "voice_uri": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "lang",
+        "default",
+        "local_service",
+        "voice_uri"
+      ],
+      "type": "object"
+    },
+    "StealthPolicy": {
+      "description": "How a fingerprint's claims are delivered and which protections run with them. See the module documentation.",
+      "properties": {
+        "audio_noise": {
+          "$ref": "#/$defs/AudioNoise",
+          "default": "Natural",
+          "description": "Audio read-back noise."
+        },
+        "block_trackers": {
+          "default": false,
+          "description": "Block the tracker and fingerprinting-script hosts.",
+          "type": "boolean"
+        },
+        "blocked_ports": {
+          "default": [],
+          "description": "Ports the browser may not reach on the loopback names.",
+          "items": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "blocked_trackers": {
+          "default": [],
+          "description": "The hosts to block when `block_trackers` is on. Empty means the crate's default list.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "canvas_noise": {
+          "$ref": "#/$defs/CanvasNoise",
+          "default": "Natural",
+          "description": "Canvas read-back noise."
+        },
+        "chrome_runtime": {
+          "default": false,
+          "description": "Install the `window.chrome` runtime, app, `csi` and `loadTimes` stubs.",
+          "type": "boolean"
+        },
+        "disable_csp": {
+          "default": false,
+          "description": "Bypass Content-Security-Policy for the page context.",
+          "type": "boolean"
+        },
+        "grant_permissions": {
+          "default": false,
+          "description": "Grant common browser permissions at start so permission prompts, a bot-detection signal, do not fire.",
+          "type": "boolean"
+        },
+        "headless_fixes": {
+          "default": false,
+          "description": "Apply the headless fixes: `matchMedia`, permissions consistency, page visibility and the hairline media query.",
+          "type": "boolean"
+        },
+        "native_spoofing": {
+          "default": false,
+          "description": "Apply spoofing through CDP and launch arguments instead of JavaScript where possible. The browser's own implementation then answers with the fake value, so the spoof is invisible to `toString` and `getOwnPropertyNames`.",
+          "type": "boolean"
+        },
+        "native_tostring": {
+          "default": true,
+          "description": "Mask `Function.prototype.toString` so patched natives look native. On by default, because the other evasions rely on it.",
+          "type": "boolean"
+        },
+        "open_shadow_roots": {
+          "default": true,
+          "description": "Force every closed shadow root open, so automation can reach into it. A page can detect this, so turn it off where that matters. On by default.",
+          "type": "boolean"
+        },
+        "quic": {
+          "$ref": "#/$defs/QuicMode",
+          "default": "Natural",
+          "description": "How QUIC is handled."
+        },
+        "webrtc_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WebRtcPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The WebRTC IP-handling policy the browser is launched with. `None` passes no policy flag unless the fingerprint sets WebRTC, which uses `WebRtcPolicy::DisableNonProxiedUdp`."
+        }
+      },
+      "type": "object"
+    },
+    "WebGl": {
+      "description": "The WebGL strings `getParameter` reports for the unmasked vendor and renderer.",
+      "properties": {
+        "renderer": {
+          "description": "`UNMASKED_RENDERER_WEBGL`, such as `ANGLE (NVIDIA, ...)`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "renderer_id": {
+          "description": "The PCI device id of the GPU (`0x1f91`). Kept, never shown to a page.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vendor": {
+          "description": "`UNMASKED_VENDOR_WEBGL`, such as `Google Inc. (NVIDIA)`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vendor_id": {
+          "description": "The PCI vendor id of the GPU (`0x10de`). It is kept for tools that read it and never shown to a page.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "WebRtcAddresses": {
+      "description": "The addresses WebRTC reports, and with them the request that its STUN and TURN servers are filtered.",
+      "properties": {
+        "local_ip": {
+          "description": "The local address of the connection line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "public_ip": {
+          "description": "The public address of the candidates.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "WebRtcPolicy": {
+      "description": "WebRTC IP-handling policy.",
+      "enum": [
+        "DisableNonProxiedUdp",
+        "PublicAndPrivateInterfaces",
+        "PublicInterfaceOnly"
+      ],
+      "type": "string"
+    }
+  },
+  "$ref": "#/$defs/Fields",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What a browser claims to be, as seleniumbase-rs reads it: one entry per setting, each \"natural\" (left out), \"random\", \"off\" or a value. A setting that is left out is the browser's own.",
+  "title": "Fingerprint"
+}

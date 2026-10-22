@@ -26,6 +26,7 @@ use super::fingerprint::{QuicMode, WebRtcPolicy};
 
 /// How canvas reads (`toDataURL`, `toBlob`, `getImageData`) are noised.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum CanvasNoise {
     /// No noise: the browser's own canvas.
@@ -62,6 +63,7 @@ impl CanvasNoise {
 
 /// How audio reads (`AudioBuffer`, `AnalyserNode`) are noised.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum AudioNoise {
     /// No noise: the browser's own audio.
@@ -104,6 +106,7 @@ impl AudioNoise {
 /// assert_eq!(policy.canvas_noise, CanvasNoise::Low);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(default)]
 #[non_exhaustive]
 pub struct StealthPolicy {
