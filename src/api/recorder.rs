@@ -25,7 +25,6 @@
 //! [`to_rstest_test`](ActionRecorder::to_rstest_test) writes the default
 //! output: a test that uses the `sb` fixture.
 
-
 mod cdp;
 mod generate;
 mod process;
