@@ -107,7 +107,7 @@ fn every_subcommand_prints_its_help_and_exits_0() {
         "decrypt",
         "translate",
         "print-pdf",
-        "record",
+        "mkrec",
         "replay",
         "grid-hub",
         "completions",

@@ -71,7 +71,13 @@ fn sbrs(dir: &Path, webdriver: &FakeWebDriver, args: &[&str]) -> Output {
 fn recorded_script(flags: &[&str]) -> String {
     let dir = tempfile::tempdir().expect("temp dir");
     std::fs::write(dir.path().join("scenario.json"), SCENARIO).expect("write scenario");
-    let driver = FakeWebDriver::start();
+    // `--rec-sb-cdp` turns Recorder Mode on, as in Python, and a Recorder session asks the
+    // browser for its windows and runs the page script: a fake that answers those.
+    let driver = if flags.is_empty() {
+        FakeWebDriver::start()
+    } else {
+        FakeWebDriver::start_with_recording("[]")
+    };
     let mut args = flags.to_vec();
     args.extend(["run-scenario", "--file", "scenario.json"]);
 
