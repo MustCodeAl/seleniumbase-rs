@@ -103,7 +103,6 @@ ul.messenger-theme-flat, ul.messenger-theme-future {
 }
 ";
 
-
 /// How long a message stays, when none is given: the 2.55 seconds Python
 /// SeleniumBase uses.
 const DEFAULT_DURATION: Duration = Duration::from_millis(2550);
@@ -768,60 +767,65 @@ mod tests {
 
     #[test]
     fn the_activate_script_names_each_file_python_loads_as_a_string_literal() {
-            let script = activate_script();
-            let files = STYLE_SHEET_URLS
-                .into_iter()
-                .chain(THEME_SCRIPT_URLS)
-                .chain([JQUERY_URL, UNDERSCORE_URL, SPINNER_CSS_URL, MESSENGER_JS_URL]);
-            for url in files {
-                assert!(
-                    script.contains(&format!("\"{url}\"")),
-                    "{url} missing from {script}"
-                );
-            }
-            assert!(script.contains("typeof window.jQuery === 'undefined'"));
-            assert!(script.contains("typeof window.Messenger === 'undefined'"));
-        }
-    
-        #[test]
-        fn every_theme_has_its_style_sheet_and_flat_and_future_their_script() {
-            for theme in ["flat", "future", "block", "air", "ice"] {
-                let sheet = format!("messenger-theme-{theme}.min.css");
-                assert!(
-                    STYLE_SHEET_URLS.iter().any(|url| url.ends_with(&sheet)),
-                    "no style sheet for {theme}"
-                );
-            }
-            for theme in ["flat", "future"] {
-                let file = format!("messenger-theme-{theme}.min.js");
-                assert!(
-                    THEME_SCRIPT_URLS.iter().any(|url| url.ends_with(&file)),
-                    "no script for {theme}"
-                );
-            }
-            assert!(STYLE_SHEET_URLS[0].ends_with("/messenger.min.css"));
-            assert!(SPINNER_CSS_URL.ends_with("/messenger-spinner.min.css"));
-            assert!(UNDERSCORE_URL.contains("1.13.6"));
-        }
-    
-        #[test]
-        fn the_activate_script_starts_with_pythons_theme_and_adds_its_own_style_once() {
-            let script = activate_script();
-            // Python sets `Messenger.options` to the future theme in the bottom
-            // right corner, eight messages at most, once Messenger has loaded.
-            assert!(script.contains("window.Messenger.options = {"), "{script}");
-            assert!(script.contains(r#""theme":"future""#), "{script}");
+        let script = activate_script();
+        let files = STYLE_SHEET_URLS
+            .into_iter()
+            .chain(THEME_SCRIPT_URLS)
+            .chain([
+                JQUERY_URL,
+                UNDERSCORE_URL,
+                SPINNER_CSS_URL,
+                MESSENGER_JS_URL,
+            ]);
+        for url in files {
             assert!(
-                script.contains("messenger-fixed messenger-on-bottom messenger-on-right"),
-                "{script}"
+                script.contains(&format!("\"{url}\"")),
+                "{url} missing from {script}"
             );
-            assert!(script.contains("getElementById('sbcdp-messenger-style')"));
-            assert!(script.contains("messenger-message-inner"), "{script}");
-            // The two theme scripts come after the options, as in Python.
-            let options = script.find("window.Messenger.options").unwrap();
-            let theme_script = script.find("messenger-theme-flat.min.js").unwrap();
-            assert!(options < theme_script, "{script}");
         }
+        assert!(script.contains("typeof window.jQuery === 'undefined'"));
+        assert!(script.contains("typeof window.Messenger === 'undefined'"));
+    }
+
+    #[test]
+    fn every_theme_has_its_style_sheet_and_flat_and_future_their_script() {
+        for theme in ["flat", "future", "block", "air", "ice"] {
+            let sheet = format!("messenger-theme-{theme}.min.css");
+            assert!(
+                STYLE_SHEET_URLS.iter().any(|url| url.ends_with(&sheet)),
+                "no style sheet for {theme}"
+            );
+        }
+        for theme in ["flat", "future"] {
+            let file = format!("messenger-theme-{theme}.min.js");
+            assert!(
+                THEME_SCRIPT_URLS.iter().any(|url| url.ends_with(&file)),
+                "no script for {theme}"
+            );
+        }
+        assert!(STYLE_SHEET_URLS[0].ends_with("/messenger.min.css"));
+        assert!(SPINNER_CSS_URL.ends_with("/messenger-spinner.min.css"));
+        assert!(UNDERSCORE_URL.contains("1.13.6"));
+    }
+
+    #[test]
+    fn the_activate_script_starts_with_pythons_theme_and_adds_its_own_style_once() {
+        let script = activate_script();
+        // Python sets `Messenger.options` to the future theme in the bottom
+        // right corner, eight messages at most, once Messenger has loaded.
+        assert!(script.contains("window.Messenger.options = {"), "{script}");
+        assert!(script.contains(r#""theme":"future""#), "{script}");
+        assert!(
+            script.contains("messenger-fixed messenger-on-bottom messenger-on-right"),
+            "{script}"
+        );
+        assert!(script.contains("getElementById('sbcdp-messenger-style')"));
+        assert!(script.contains("messenger-message-inner"), "{script}");
+        // The two theme scripts come after the options, as in Python.
+        let options = script.find("window.Messenger.options").unwrap();
+        let theme_script = script.find("messenger-theme-flat.min.js").unwrap();
+        assert!(options < theme_script, "{script}");
+    }
 
     #[tokio::test]
     async fn a_page_that_has_messenger_is_posted_to_directly() {

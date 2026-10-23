@@ -128,7 +128,6 @@ impl<'a> IntoFuture for PostMessage<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,4 +189,3 @@ mod tests {
         assert_send(&future);
     }
 }
-

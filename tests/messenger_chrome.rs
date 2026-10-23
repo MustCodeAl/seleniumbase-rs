@@ -89,7 +89,11 @@ async fn a_message_is_shown_by_messenger_in_the_future_theme() {
 
     wait_until(&sb, "!!document.querySelector('.messenger-message')").await;
     // The theme is the future one, in the bottom right corner.
-    wait_until(&sb, "!!document.querySelector('ul.messenger.messenger-theme-future')").await;
+    wait_until(
+        &sb,
+        "!!document.querySelector('ul.messenger.messenger-theme-future')",
+    )
+    .await;
     let classes = ask(&sb, "document.querySelector('ul.messenger').className").await;
     let classes = classes.as_str().expect("class names");
     assert!(classes.contains("messenger-on-bottom"), "{classes}");
@@ -153,7 +157,11 @@ async fn the_theme_and_the_place_can_be_chosen() {
         .await
         .expect("post the message");
 
-    wait_until(&sb, "!!document.querySelector('ul.messenger.messenger-theme-ice')").await;
+    wait_until(
+        &sb,
+        "!!document.querySelector('ul.messenger.messenger-theme-ice')",
+    )
+    .await;
     let classes = ask(&sb, "document.querySelector('ul.messenger').className").await;
     let classes = classes.as_str().expect("class names");
     assert!(classes.contains("messenger-on-top"), "{classes}");
