@@ -364,9 +364,9 @@ impl Browser {
         super::plugin_hooks::on_browser(&self.inner.options.plugins, &self.inner.client).await?;
         // Downloads go to ./downloaded_files until a folder is chosen, as in
         // SeleniumBase; done before the first page loads, which may be a file.
+        let page = self.default_page().await?;
         self.use_default_download_dir(Path::new(DEFAULT_DOWNLOAD_DIR))
             .await;
-        let page = self.default_page().await?;
         if let Some(url) = &self.inner.options.url {
             page.goto(url).await?;
         }

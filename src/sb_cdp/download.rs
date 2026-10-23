@@ -110,7 +110,7 @@ mod default_download_dir_tests {
             .use_default_download_dir(&file.join("downloaded_files"))
             .await;
 
-        assert!(mock.calls_to("Browser.setDownloadBehavior").is_empty());
+        assert_eq!(mock.calls_to("Browser.setDownloadBehavior").len(), 0);
         assert_eq!(browser.download_dir(), PathBuf::from("downloaded_files"));
     }
 }
