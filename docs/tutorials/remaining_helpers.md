@@ -274,14 +274,20 @@ sb.minimize().await?;
 ```rust
 sb.post_success_message("Operation completed").await?;
 sb.post_error_message("Something went wrong").await?;
-sb.post_message_for("Transient message", Duration::from_secs(3)).await?;
+sb.post_message("Transient message")
+    .duration(Duration::from_secs(3))
+    .await?;
+sb.post_message("Quick note").pause(false).style(MessageStyle::Info).await?;
 ```
 
-These helpers inject a visible banner into the page, useful for demos or
-MasterQA reports. The banner replaces the one already showing and goes away
-after the run's message duration (`post_message_for` takes its own); in a headless
-browser that is at most 0.75 s, as in Python. Each call returns 0.15 s after the
-banner has gone, like Python's `pause=True`.
+These helpers show a message with Python's Messenger widget in a corner of the
+page, useful for demos or MasterQA reports. `duration`, `pause` and `style` are
+Python's keyword arguments, written as builder methods. The message is HTML, as
+in Python, and goes away after its duration or, without one, the run's message
+duration; in a headless browser or on a virtual display that is at most 0.75 s.
+Each call returns 0.15 s after the message has gone, like Python's `pause=True`,
+unless `.pause(false)` says not to wait. A page that cannot load Messenger gets
+` * INFO message: text` printed instead.
 
 ## Console logs
 

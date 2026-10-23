@@ -275,12 +275,12 @@ action runs without the outline.
 
 **Message duration** is used by `post_message`, `post_success_message`,
 `post_error_message` and `post_message_and_highlight`. In a headless browser it is
-cut to 0.75 s, as in Python. `post_message_for(message, duration)` takes its own
+cut to 0.75 s, as in Python. `post_message(message).duration(d)` takes its own
 `Duration` (cut the same way) and ignores the setting. Each of them but
 `post_message_and_highlight` then waits for the message to go and 0.15 s more,
-the `pause=True` Python's `post_message` has by default. The messages are plain
-boxes, not Python's Messenger widget; `activate_messenger` and
-`set_messenger_theme` drive the widget itself.
+the `pause=True` Python's `post_message` has by default; `.pause(false)` skips
+the wait. The messages are Python's Messenger widget, and `set_messenger_theme`
+chooses its theme and place.
 
 **Skip JavaScript waits** is read by `wait_for_ready_state_complete`, which
 `check_window` also calls before it reads the page. `open` does not call it, so
