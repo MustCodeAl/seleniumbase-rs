@@ -28,6 +28,7 @@ use crate::browser::options::{
 };
 #[cfg(feature = "plugins")]
 use crate::browser::plugin_hooks::{self, SessionPlugins};
+use crate::browser::proxy_auth::{self, ProxyAuthSidecar};
 use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::{self, XvfbProcess};
 use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
@@ -61,6 +62,9 @@ pub struct BrowserSession {
     /// The port of Chrome's remote debugger, when the configuration asked for
     /// one: the port that was asked for, or the free one taken in its place.
     remote_debug: Option<u16>,
+    /// The DevTools client that answers the proxy's password prompts, when the
+    /// proxy has a login (see `browser::proxy_auth`); closed with the session.
+    proxy_login: Option<ProxyAuthSidecar>,
     /// The browser plugins of the session (feature `plugins`), and the scripts
     /// they added; none without plugins.
     #[cfg(feature = "plugins")]
@@ -102,6 +106,8 @@ impl BrowserSession {
         // Everything that can be refused is, before a browser starts.
         config.validate()?;
         validate_mode_support(&config)?;
+        // A remote grid cannot be given a proxy login: refused before a browser starts.
+        proxy_auth::login_for(&config)?;
         let remote_debug = resolve_remote_debug(&mut config)?;
         // Worked out first, so a list the browser cannot be given is refused
         // before a browser starts.
@@ -125,18 +131,24 @@ impl BrowserSession {
             None
         };
 
-        let session = Self {
+        let mut session = Self {
             driver: Some(driver),
             cdp,
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
             remote_debug,
+            proxy_login: None,
             ad_block,
             reuse: None,
             #[cfg(feature = "plugins")]
             plugins: None,
         };
+        // The proxy must be answerable before the first page loads.
+        if let Err(error) = session.begin_proxy_login(&config).await {
+            let _ = session.quit().await;
+            return Err(error);
+        }
         session.initialize_mode(&config).await?;
         info!("browser session connected");
         Ok(session)
@@ -169,6 +181,7 @@ impl BrowserSession {
             reuse: Some(lease),
             mobile: mobile_commands(config),
             remote_debug: config.launch.remote_debug_port,
+            proxy_login: None,
             #[cfg(feature = "plugins")]
             plugins: None,
         })
@@ -207,6 +220,8 @@ impl BrowserSession {
     /// Lets go of the driver without ending its session: the browser stays
     /// open for the next test.
     fn keep_browser_open(&mut self) {
+        // The next lease starts a login client of its own.
+        self.proxy_login = None;
         self.cdp = None;
         if let Some(driver) = self.driver.take() {
             let _ = driver.leak();
@@ -223,6 +238,53 @@ impl BrowserSession {
         self.remote_debug.map(|port| format!("localhost:{port}"))
     }
 
+    /// [`attached`](Self::attached), then the proxy login of `config`, if it has
+    /// one, read from the `capabilities` the browser was created with.
+    ///
+    /// A browser kept for reuse was set up by the session that started it, but
+    /// the client that answers a proxy's password prompts lives as long as one
+    /// session, so each lease starts its own.
+    pub(crate) async fn attached_with_login(
+        config: &BrowserConfig,
+        driver: WebDriver,
+        lease: Lease,
+        capabilities: &Value,
+    ) -> Result<Self, SeleniumBaseError> {
+        let mut session = Self::attached(config, driver, lease)?;
+        session.begin_proxy_login_with(config, capabilities).await?;
+        Ok(session)
+    }
+
+    /// Starts answering the proxy's password prompts when `config` has a proxy
+    /// with a login, reading the browser's DevTools address from the session's
+    /// capabilities.
+    async fn begin_proxy_login(&mut self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+        let capabilities = self.driver.as_ref().map_or(Value::Null, |driver| {
+            serde_json::to_value(driver.handle().capabilities()).unwrap_or(Value::Null)
+        });
+        self.begin_proxy_login_with(config, &capabilities).await
+    }
+
+    /// [`begin_proxy_login`](Self::begin_proxy_login) with the capabilities
+    /// given.
+    async fn begin_proxy_login_with(
+        &mut self,
+        config: &BrowserConfig,
+        capabilities: &Value,
+    ) -> Result<(), SeleniumBaseError> {
+        let Some(credentials) = proxy_auth::login_for(config)? else {
+            return Ok(());
+        };
+        let address = proxy_auth::debugger_address(capabilities).ok_or_else(|| {
+            SeleniumBaseError::cdp_driver(
+                "the browser did not report a DevTools address (debuggerAddress), so its proxy \
+                 cannot be logged in to",
+            )
+        })?;
+        self.proxy_login = Some(ProxyAuthSidecar::attach(&address, credentials).await?);
+        Ok(())
+    }
+
     /// Creates a disconnected session for test-only use. Any WebDriver call will
     /// panic, so this must only be used when the caller never touches the driver.
     pub fn disconnected() -> Self {
@@ -234,6 +296,7 @@ impl BrowserSession {
             ad_block: Vec::new(),
             mobile: Vec::new(),
             remote_debug: None,
+            proxy_login: None,
             reuse: None,
             #[cfg(feature = "plugins")]
             plugins: None,
@@ -1095,6 +1158,10 @@ impl BrowserSession {
         // Worked out before anything is torn down, so a bad list leaves the
         // session as it was.
         let ad_block = ad_block_commands(config)?;
+        proxy_auth::login_for(config)?;
+        if let Some(sidecar) = self.proxy_login.take() {
+            sidecar.close().await;
+        }
         if let Some(driver) = self.driver.take() {
             driver.quit().await?;
         }
@@ -1121,6 +1188,7 @@ impl BrowserSession {
         };
         self.ad_block = ad_block;
         self.mobile = mobile_commands(config);
+        self.begin_proxy_login(config).await?;
         self.initialize_mode(config).await?;
         Ok(())
     }
@@ -1138,6 +1206,9 @@ impl BrowserSession {
             return Ok(());
         }
         info!("quitting browser session");
+        if let Some(sidecar) = self.proxy_login.take() {
+            sidecar.close().await;
+        }
         // The plugins hear it while the browser still runs.
         #[cfg(feature = "plugins")]
         if let Some(plugins) = self.plugins.take() {

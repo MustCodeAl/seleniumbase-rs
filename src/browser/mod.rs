@@ -15,6 +15,7 @@ pub mod launcher;
 pub mod options;
 #[cfg(feature = "plugins")]
 mod plugin_hooks;
+mod proxy_auth;
 pub mod reuse;
 pub mod session;
 pub mod virtual_display;

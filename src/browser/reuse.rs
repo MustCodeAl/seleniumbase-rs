@@ -659,7 +659,13 @@ pub(crate) async fn connect(config: BrowserConfig) -> Result<BrowserSession, Sel
         match attach(&config, &address).await {
             Ok(driver) => {
                 debug!(session = %address.session_id, "reusing a browser");
-                return BrowserSession::attached(&config, driver, lease);
+                return BrowserSession::attached_with_login(
+                    &config,
+                    driver,
+                    lease,
+                    &address.capabilities,
+                )
+                .await;
             }
             Err(error) => {
                 warn!(
