@@ -124,6 +124,7 @@ hidden: true
 - [Results Database and Encrypted Profiles](tutorials/results_and_profiles.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
   - [Build from source](contributing/from-source.md)
+- [Releasing](contributing/releasing.md)
   - [Debugging](contributing/debugging.md)
   - [Benchmarking](contributing/benchmarking.md)
   - [Syncing with upstream](UPSTREAM_SYNC.md)

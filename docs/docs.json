@@ -444,6 +444,7 @@
               "DEVELOPER_GUIDE",
               "contributing/debugging",
               "contributing/benchmarking",
+              "contributing/releasing",
               "UPSTREAM_SYNC",
               "completions/README",
               "feature-requests"
