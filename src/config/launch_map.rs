@@ -21,10 +21,6 @@ use crate::config::test_settings::TestData;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::LaunchOptions;
 
-/// The default wait of Python SeleniumBase, in seconds, that `timeout_multiplier` multiplies
-/// when no `timeout_seconds` is set.
-const DEFAULT_WAIT_SECONDS: f64 = 10.0;
-
 /// The port Selenium Grid and chromedriver listen on in Python SeleniumBase.
 const DEFAULT_PORT: u16 = 4444;
 
@@ -182,14 +178,6 @@ impl Settings {
         }
         if self.visual_baseline {
             run = run.with_visual_baseline_reset(true);
-        }
-        if let Some(multiplier) = self.timeout_multiplier {
-            let base = self
-                .timeout_seconds
-                .map_or(DEFAULT_WAIT_SECONDS, |seconds| {
-                    Duration::from_secs(seconds).as_secs_f64()
-                });
-            run = run.with_default_timeout(duration("timeout_multiplier", base * multiplier)?);
         }
         config = config.with_run_settings(run);
         // A file can hold any string for `env`; the variable is checked as it is read.
@@ -608,7 +596,6 @@ mod tests {
             demo_sleep: Some(0.5),
             message_duration: Some(3.0),
             timeout_seconds: Some(4),
-            timeout_multiplier: Some(2.5),
             test: crate::config::test_settings::TestSettings {
                 rec_sleep: true,
                 ..Default::default()
@@ -616,7 +603,7 @@ mod tests {
             ..Settings::default()
         };
         let expected = RunSettings::default()
-            .with_default_timeout(Duration::from_secs(10))
+            .with_default_timeout(Duration::from_secs(4))
             .with_demo_mode(true)
             .with_slow_mode(true)
             .with_demo_sleep(Duration::from_millis(500))
@@ -625,21 +612,6 @@ mod tests {
             .with_record_sleep(true)
             .with_visual_baseline_reset(true);
         assert_eq!(settings.to_browser_config().run_settings(), &expected);
-    }
-
-    #[test]
-    fn the_multiplier_alone_multiplies_the_default_wait() {
-        let settings = Settings {
-            timeout_multiplier: Some(3.0),
-            ..Settings::default()
-        };
-        assert_eq!(
-            settings
-                .to_browser_config()
-                .run_settings()
-                .default_timeout(),
-            Some(Duration::from_secs(30))
-        );
     }
 
     #[test]

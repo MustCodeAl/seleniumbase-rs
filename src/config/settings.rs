@@ -258,7 +258,7 @@ pub struct Settings {
     pub wait_for_angularjs: bool,
     /// Remove the beforeunload prompt after a page opens (`SB_DISABLE_BEFOREUNLOAD`); wired by RS-1.
     pub disable_beforeunload: bool,
-    /// Multiplies the default waits (`SB_TIMEOUT_MULTIPLIER`).
+    /// Multiplies the default waits (`SB_TIMEOUT_MULTIPLIER`); wired by RS-1 (`RunSettings::with_timeout_multiplier`).
     pub timeout_multiplier: Option<f64>,
     /// The `[test]` table: test data, debug modes, reruns, evidence and reports.
     pub test: TestSettings,
