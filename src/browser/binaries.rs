@@ -1,10 +1,10 @@
 //! Finding the program of a browser that is not Google Chrome.
 //!
-//! Brave, Comet, Opera, Chrome for Testing and `chrome-headless-shell` are run
+//! Brave, Comet, Opera, Chromium, Chrome for Testing and `chrome-headless-shell` are run
 //! through a driver like Chrome is, but the driver has to be told where the
 //! browser lives. [`locate`] looks in the places each is installed, then on the
-//! `PATH`, and for the two Chrome builds in the `downloaded_drivers` folder
-//! that `sbrs get cft` and `sbrs get chs` fill.
+//! `PATH`, and for the three downloadable builds in the `downloaded_drivers` folder
+//! that `sbrs get chromium`, `sbrs get cft` and `sbrs get chs` fill.
 
 use std::ffi::OsStr;
 use std::fs;
@@ -21,6 +21,9 @@ pub const CHROME_FOR_TESTING_DIR: &str = "cft";
 
 /// The folder a `chrome-headless-shell` download is unpacked into.
 pub const CHROME_HEADLESS_SHELL_DIR: &str = "chs";
+
+/// The folder a Chromium snapshot download is unpacked into.
+pub const CHROMIUM_DIR: &str = "chromium";
 
 /// An operating system whose install locations are known.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -110,6 +113,16 @@ pub fn install_locations(
             "/usr/bin/microsoft-edge-stable",
             "/opt/microsoft/msedge/msedge",
         ]),
+        (Browser::Chromium, Platform::MacOs) => {
+            paths(&["/Applications/Chromium.app/Contents/MacOS/Chromium"])
+        }
+        (Browser::Chromium, Platform::Windows) => windows(r"Chromium\Application\chrome.exe"),
+        (Browser::Chromium, Platform::Linux) => paths(&[
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/snap/bin/chromium",
+        ]),
+
         _ => Vec::new(),
     }
 }
@@ -122,6 +135,8 @@ pub fn path_names(browser: Browser) -> &'static [&'static str] {
         Browser::Opera => &["opera"],
         Browser::Comet => &["comet"],
         Browser::Edge => &["microsoft-edge", "microsoft-edge-stable", "msedge"],
+        Browser::Chromium => &["chromium", "chromium-browser"],
+
         Browser::ChromeHeadlessShell => &["chrome-headless-shell"],
         _ => &[],
     }
@@ -136,6 +151,8 @@ fn downloaded_names(browser: Browser) -> &'static [&'static str] {
             "chrome.exe",
             "Chromium",
         ],
+        Browser::Chromium => &["Chromium", "chrome", "chrome.exe"],
+
         Browser::ChromeHeadlessShell => &["chrome-headless-shell", "chrome-headless-shell.exe"],
         _ => &[],
     }
@@ -225,6 +242,14 @@ pub(crate) fn locate_with(
         Browser::ChromeHeadlessShell => Some(CHROME_HEADLESS_SHELL_DIR),
         _ => None,
     };
+    // A Chromium that `sbrs get chromium` downloaded is the one asked for, so it comes before
+    // the system's.
+    if browser == Browser::Chromium {
+        if let Some(found) = downloaded_executable(browser, &downloads.join(CHROMIUM_DIR)) {
+            return Some(found);
+        }
+    }
+
     if let Some(subfolder) = subfolder {
         return downloaded_executable(browser, &downloads.join(subfolder));
     }
