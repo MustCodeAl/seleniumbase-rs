@@ -307,7 +307,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | Cloud upload | `cargo run --example cloud_upload --features s3` |
 | Playwright mode | `cargo run --example playwright_mode --features playwright` |
 | TOTP | `cargo run --example totp_login` |
-| Behave / Gherkin | `cargo run --example behave_feature` |
+| Gherkin features (rstest-bdd) | `cargo test --features "testing bdd"` (see `tests/bdd_scenarios.rs`) |
 | Settings config | `cargo run --example settings_config` |
 | Selenium IDE parsing | `cargo run --example selenium_ide` |
 | Browser test lifecycle | `cargo run --example browser_test_runner` |
