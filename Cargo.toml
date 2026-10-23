@@ -141,6 +141,11 @@ image-compare = { version = "0.5", optional = true }
 # features: the fixture needs neither the async-timeout nor the crate-rename support
 # (a test crate that uses `#[rstest]` chooses its own).
 rstest = { version = "0.26", default-features = false, optional = true }
+# `bdd`: Gherkin features through rstest-bdd (see the feature below).
+rstest-bdd = { version = "0.6", optional = true }
+rstest-bdd-macros = { version = "0.6", optional = true }
+rstest-bdd-harness = { version = "0.6", optional = true }
+rstest-bdd-harness-tokio = { version = "0.6", optional = true }
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -198,6 +203,10 @@ pdf = ["dep:pdf-extract"]
 # that reads the run configuration (reruns, time limit, evidence on failure, debug
 # prompts) and the test id. See `docs/tutorials/writing_tests.md`.
 testing = ["dep:rstest"]
+# Gherkin features as cargo tests (rstest-bdd; replaces the removed `behave` module):
+# `testing::bdd::{sb, sb_cdp, SbCase, SbCdpCase, SbHarness}`. The four crates are
+# optional and the macros' own dependency tree (i18n, rust-embed, gherkin) comes with them.
+bdd = ["testing", "dep:rstest-bdd", "dep:rstest-bdd-macros", "dep:rstest-bdd-harness", "dep:rstest-bdd-harness-tokio"]
 
 [dev-dependencies]
 # Paused clocks let tests play out human-paced input instantly.
