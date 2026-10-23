@@ -8,6 +8,7 @@ use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::browser::options::{LaunchSettings, LaunchSwitch, WindowSize};
 use crate::browser::reuse::ReuseClass;
 use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
+use crate::config::test_settings::TestSettings;
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 
@@ -17,6 +18,11 @@ pub const FINGERPRINT_ENV: &str = "SB_FINGERPRINT";
 /// The variable that names the page every browser opens first (Python's `--start-page`;
 /// `--start-page`, `--url` and `--start_page` on `sbrs`).
 pub const START_PAGE_ENV: &str = "SB_START_PAGE";
+
+/// The variable that names the settings file to read instead of the global file of the
+/// current folder (Python's `--settings-file`). A relative path is relative to the folder
+/// the program runs in; [`Settings::load`] reads it.
+pub const SETTINGS_FILE_ENV: &str = "SB_SETTINGS_FILE";
 
 /// The `[fingerprint]` table of the settings file: which fingerprint file every browser
 /// of the run presents (`SB_FINGERPRINT`, and `--fingerprint` on `sbrs`).
@@ -72,10 +78,6 @@ pub struct Settings {
     /// (`SB_TIMEOUT`); see [`RunSettings::with_default_timeout`]. `None` keeps
     /// the `BaseCase` default of 10 seconds.
     pub timeout_seconds: Option<u64>,
-    /// Where a person wants screenshots (`SB_SCREENSHOT_DIR`). The library
-    /// reads it nowhere: `BaseCase` saves screenshots under its logs folder, and
-    /// a program that wants this folder passes it to the call that saves one.
-    pub screenshot_dir: String,
     pub proxy: Option<String>,
     pub proxy_pac_url: Option<String>,
     /// The browser window's width in pixels (`SB_WINDOW_WIDTH`). The window
@@ -137,6 +139,129 @@ pub struct Settings {
     /// [`BrowserConfig::start_page`], which `BaseCase::new` opens. `None` opens no page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_page: Option<String>,
+    /// The settings file the run reads (`SB_SETTINGS_FILE`, Python's `--settings-file`).
+    /// It names the file, so it is never read from one.
+    #[serde(skip)]
+    pub settings_file: Option<PathBuf>,
+    /// Run headless with `chrome-headless-shell` (`SB_HEADLESS1`, `--headless1`).
+    pub headless1: bool,
+    /// Do not load images (`SB_BLOCK_IMAGES`, `--block-images`).
+    pub block_images: bool,
+    /// Turn JavaScript off (`SB_DISABLE_JS`, `--disable-js`).
+    pub disable_js: bool,
+    /// Refuse every cookie (`SB_DISABLE_COOKIES`, `--disable-cookies`).
+    pub disable_cookies: bool,
+    /// Send the `DNT: 1` header (`SB_DO_NOT_TRACK`, `--do-not-track`).
+    pub do_not_track: bool,
+    /// Download PDF files instead of showing them (`SB_EXTERNAL_PDF`, `--external-pdf`).
+    pub external_pdf: bool,
+    /// Leave Chrome Sync on (`SB_ENABLE_SYNC`, `--enable-sync`).
+    pub enable_sync: bool,
+    /// Strip the Content Security Policy (`SB_DISABLE_CSP`, `--disable-csp`).
+    pub disable_csp: bool,
+    /// Keep Chrome's automation extension (`SB_USE_AUTO_EXT`, `--use-auto-ext`).
+    pub use_auto_ext: bool,
+    /// Download the driver through the proxy (`SB_PROXY_DRIVER`, `--proxy-driver`).
+    pub proxy_driver: bool,
+    /// Force Chrome's dark theme (`SB_DARK_MODE`, `--dark-mode`).
+    pub dark_mode: bool,
+    /// Open the developer tools with each tab (`SB_DEVTOOLS`, `--devtools`).
+    pub devtools: bool,
+    /// Switch the GPU off (`SB_DISABLE_GPU`, `--disable-gpu`).
+    pub disable_gpu: bool,
+    /// Switch web security off (`SB_DISABLE_WS`, `--disable-ws`).
+    pub disable_ws: bool,
+    /// Open the browser as a guest (`SB_GUEST_MODE`, `--guest-mode`).
+    pub guest_mode: bool,
+    /// Open the browser in an incognito window (`SB_INCOGNITO`, `--incognito`).
+    pub incognito: bool,
+    /// Start Chromium without its sandbox (`SB_NO_SANDBOX`, `--no-sandbox`).
+    pub no_sandbox: bool,
+    /// Render with SwiftShader (`SB_SWIFTSHADER`, `--swiftshader`).
+    pub swiftshader: bool,
+    /// Keep the GPU in a headless session, for WebGL (`SB_ENABLE_3D_APIS`).
+    pub enable_3d_apis: bool,
+    /// Maximize the window (`SB_MAXIMIZE`, `--maximize`).
+    pub maximize: bool,
+    /// Extra Chromium switches, separated by commas (`SB_CHROMIUM_ARG`).
+    pub chromium_arg: Option<String>,
+    /// Chromium features to switch off, separated by commas (`SB_DISABLE_FEATURES`).
+    pub disable_features: Option<String>,
+    /// Chromium host-resolver rules (`SB_HOST_RESOLVER_RULES`).
+    pub host_resolver_rules: Option<String>,
+    /// The Selenium Grid server (`SB_SERVER`, `--server`); see [`to_browser_config`](Self::to_browser_config).
+    pub server: Option<String>,
+    /// The Selenium Grid port (`SB_PORT`, `--port`).
+    pub port: Option<u16>,
+    /// The Selenium Grid protocol (`SB_PROTOCOL`, `--protocol`).
+    pub protocol: Option<String>,
+    /// A language code such as `fr` or `ar_eg` (`SB_LOCALE_CODE`); it wins over `locale`.
+    pub locale_code: Option<String>,
+    /// The window size as `WIDTH,HEIGHT` (`SB_WINDOW_SIZE`); it wins over `window_width` and
+    /// `window_height`.
+    pub window_size: Option<String>,
+    /// The window position as `X,Y` (`SB_WINDOW_POSITION`).
+    pub window_position: Option<String>,
+    /// The phone screen to emulate as `WIDTH,HEIGHT,PIXEL_RATIO` (`SB_DEVICE_METRICS`).
+    pub device_metrics: Option<String>,
+    /// How long a navigation waits: `normal`, `eager` or `none` (`SB_PAGE_LOAD_STRATEGY`).
+    pub page_load_strategy: Option<String>,
+    /// The driver version (`SB_DRIVER_VERSION`).
+    pub driver_version: Option<String>,
+    /// Hosts that skip the proxy, separated by commas or semicolons (`SB_PROXY_BYPASS_LIST`).
+    pub proxy_bypass_list: Option<String>,
+    /// A JSON file of capabilities to add (`SB_CAP_FILE`).
+    pub cap_file: Option<PathBuf>,
+    /// A JSON object of capabilities to add (`SB_CAP_STRING`); it wins over `cap_file`.
+    pub cap_string: Option<String>,
+    /// Extension `.zip` or `.crx` files, separated by commas (`SB_EXTENSION_ZIP`).
+    pub extension_zip: Option<String>,
+    /// Firefox arguments, separated by commas (`SB_FIREFOX_ARG`).
+    pub firefox_arg: Option<String>,
+    /// Firefox preferences as `NAME:VALUE`, separated by commas (`SB_FIREFOX_PREF`).
+    pub firefox_pref: Option<String>,
+    /// Open a virtual display for a headed browser on Linux (`SB_XVFB`).
+    pub xvfb: bool,
+    /// The virtual display size as `WIDTH,HEIGHT` (`SB_XVFB_METRICS`).
+    pub xvfb_metrics: Option<String>,
+    /// Open Chrome's remote debugger on port 9222 (`SB_REMOTE_DEBUG`).
+    pub remote_debug: bool,
+    /// Log the DevTools Protocol events (`SB_LOG_CDP_EVENTS`).
+    pub log_cdp_events: bool,
+    /// Log the DevTools Protocol events in undetected mode only (`SB_UC_CDP_EVENTS`).
+    pub uc_cdp_events: bool,
+    /// Demo mode: highlight and pause after each action (`SB_DEMO`).
+    pub demo: bool,
+    /// Slow mode: pause briefly after each action (`SB_SLOW`).
+    pub slow: bool,
+    /// Do not wait for the page's JavaScript (`SB_SKIP_JS_WAITS`, `--sjw`).
+    pub skip_js_waits: bool,
+    /// Set the visual baselines again (`SB_VISUAL_BASELINE`).
+    pub visual_baseline: bool,
+    /// Delete the cookies of a reused browser (`SB_CRUMBS`); [`to_browser_config`](Self::to_browser_config)
+    /// turns the process-wide switch on, as `browser::reuse::set_crumbs(true)` does.
+    pub crumbs: bool,
+    /// Seconds to pause after an action in demo mode (`SB_DEMO_SLEEP`).
+    pub demo_sleep: Option<f64>,
+    /// Seconds a message stays on the page (`SB_MESSAGE_DURATION`).
+    pub message_duration: Option<f64>,
+    /// How many times to flash a highlighted element (`SB_HIGHLIGHTS`); wired by the run
+    /// settings of the `sb` fixture (RS-1).
+    pub highlights: Option<u32>,
+    /// Seconds between the steps of a tour (`SB_INTERVAL`); wired by RS-1.
+    pub interval: Option<f64>,
+    /// Seconds to wait before a MasterQA verification (`SB_VERIFY_DELAY`); wired by RS-1.
+    pub verify_delay: Option<f64>,
+    /// Check each page for JavaScript errors (`SB_CHECK_JS`); wired by RS-1.
+    pub check_js: bool,
+    /// Wait for AngularJS after opening a page (`SB_WAIT_FOR_ANGULARJS`); wired by RS-1.
+    pub wait_for_angularjs: bool,
+    /// Remove the beforeunload prompt after a page opens (`SB_DISABLE_BEFOREUNLOAD`); wired by RS-1.
+    pub disable_beforeunload: bool,
+    /// Multiplies the default waits (`SB_TIMEOUT_MULTIPLIER`).
+    pub timeout_multiplier: Option<f64>,
+    /// The `[test]` table: test data, debug modes, reruns, evidence and reports.
+    pub test: TestSettings,
 }
 
 /// The settings a command line asked for explicitly, and nothing else.
@@ -362,7 +487,6 @@ impl Default for Settings {
             browser: "chrome".to_owned(),
             headless: false,
             timeout_seconds: None,
-            screenshot_dir: "screenshots".to_owned(),
             proxy: None,
             proxy_pac_url: None,
             window_width: None,
@@ -385,6 +509,65 @@ impl Default for Settings {
             plugins: PluginSelection::default(),
             fingerprint: FingerprintSettings::default(),
             start_page: None,
+            settings_file: None,
+            headless1: false,
+            block_images: false,
+            disable_js: false,
+            disable_cookies: false,
+            do_not_track: false,
+            external_pdf: false,
+            enable_sync: false,
+            disable_csp: false,
+            use_auto_ext: false,
+            proxy_driver: false,
+            dark_mode: false,
+            devtools: false,
+            disable_gpu: false,
+            disable_ws: false,
+            guest_mode: false,
+            incognito: false,
+            no_sandbox: false,
+            swiftshader: false,
+            enable_3d_apis: false,
+            maximize: false,
+            chromium_arg: None,
+            disable_features: None,
+            host_resolver_rules: None,
+            server: None,
+            port: None,
+            protocol: None,
+            locale_code: None,
+            window_size: None,
+            window_position: None,
+            device_metrics: None,
+            page_load_strategy: None,
+            driver_version: None,
+            proxy_bypass_list: None,
+            cap_file: None,
+            cap_string: None,
+            extension_zip: None,
+            firefox_arg: None,
+            firefox_pref: None,
+            xvfb: false,
+            xvfb_metrics: None,
+            remote_debug: false,
+            log_cdp_events: false,
+            uc_cdp_events: false,
+            demo: false,
+            slow: false,
+            skip_js_waits: false,
+            visual_baseline: false,
+            crumbs: false,
+            demo_sleep: None,
+            message_duration: None,
+            highlights: None,
+            interval: None,
+            verify_delay: None,
+            check_js: false,
+            wait_for_angularjs: false,
+            disable_beforeunload: false,
+            timeout_multiplier: None,
+            test: TestSettings::default(),
         }
     }
 }
@@ -446,6 +629,8 @@ impl Settings {
         self.browser
             .parse::<Browser>()
             .map_err(|e| SeleniumBaseError::InvalidConfig(format!("browser: {e}")))?;
+        self.check_launch_values()?;
+
         if let Some(mode) = &self.mode {
             mode.parse::<DriverMode>()
                 .map_err(|e| SeleniumBaseError::InvalidConfig(format!("mode: {e}")))?;
@@ -560,10 +745,20 @@ impl Settings {
     }
 
     /// The global settings file of the current folder, if there is one.
-    fn global_file() -> Option<&'static str> {
+    fn global_file() -> Option<PathBuf> {
+        Self::global_file_with(&|name| std::env::var(name).ok())
+    }
+
+    /// The settings file to read: the one `SB_SETTINGS_FILE` names (when `var` reports it
+    /// and it is not blank), else the global file of the current folder if there is one.
+    pub(super) fn global_file_with(var: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
+        if let Some(path) = var(SETTINGS_FILE_ENV).filter(|path| !path.trim().is_empty()) {
+            return Some(PathBuf::from(path));
+        }
         ["sbase_config.toml", ".sbase_config.toml", ".sbase_config"]
             .into_iter()
             .find(|candidate| Path::new(candidate).is_file())
+            .map(PathBuf::from)
     }
 
     /// Loads the global config file if one exists ([`load_global`](Self::load_global)),
@@ -644,7 +839,7 @@ impl Settings {
         match path {
             Some(path) => parse_plugins_table(path.as_ref()),
             None => match Self::global_file() {
-                Some(candidate) => parse_plugins_table(Path::new(candidate)),
+                Some(candidate) => parse_plugins_table(&candidate),
                 None => Ok(PluginSelection::new()),
             },
         }
@@ -660,7 +855,10 @@ impl Settings {
         // the file's plugins (`SB_PLUGINS=` turns them off) before it runs.
         let settings = match path {
             Some(p) => Self::parse_file(p)?,
-            None => Self::parse_global()?,
+            None => match Self::global_file_with(&var) {
+                Some(file) => Self::parse_file(file)?,
+                None => Self::default(),
+            },
         };
         Self::apply_overrides(settings, var)
     }
@@ -730,6 +928,20 @@ impl Settings {
     /// For one built by hand, call [`validate`](Self::validate) first: an
     /// unknown browser or mode becomes Chrome or WebDriver here.
     pub fn to_browser_config(&self) -> BrowserConfig {
+        let base = self.base_browser_config();
+        self.with_launch_options(base.clone())
+            .unwrap_or_else(|error| {
+                // A `Settings` that was read is checked already; this is one made by hand.
+                tracing::warn!(%error, "the launch options of the settings are ignored");
+                base
+            })
+    }
+
+    /// The configuration of the settings that were there from the first release;
+    /// the launch options of the table are added on top of it.
+    pub(super) fn base_browser_config(&self) -> BrowserConfig {
+        self.apply_process_wide();
+
         let browser = self.browser.parse::<Browser>().unwrap_or_default();
         let mode = self
             .mode
@@ -815,108 +1027,11 @@ impl Settings {
         let mut problems = Vec::new();
         let plugins_variable = var(PLUGINS_ENV);
         let var = |name: &str| var(name).filter(|value| !value.trim().is_empty());
-        if let Some(v) = var("SB_BROWSER") {
-            settings.browser = v;
-        }
-        if let Some(v) = var("SB_HEADLESS") {
-            if let Some(flag) = flag("SB_HEADLESS", &v, &mut problems) {
-                settings.headless = flag;
-            }
-        }
-        if let Some(v) = var("SB_TIMEOUT") {
-            if let Some(seconds) = number("SB_TIMEOUT", &v, &mut problems) {
-                settings.timeout_seconds = Some(seconds);
-            }
-        }
-        if let Some(v) = var("SB_WEBDRIVER_URL") {
-            settings.webdriver_url = Some(v);
-        }
-        if let Some(v) = var("SB_CHROME_BIN") {
-            settings.chrome_bin = Some(PathBuf::from(v));
-        }
-        if let Some(v) = var("SB_REMOTE_WEBDRIVER_TIMEOUT") {
-            if let Some(seconds) = number("SB_REMOTE_WEBDRIVER_TIMEOUT", &v, &mut problems) {
-                settings.remote_webdriver_timeout_seconds = Some(seconds);
-            }
-        }
-        if let Some(v) = var("SB_SCREENSHOT_DIR") {
-            settings.screenshot_dir = v;
-        }
-        if let Some(v) = var("SB_PROXY") {
-            settings.proxy = Some(v);
-        }
-        if let Some(v) = var("SB_WINDOW_WIDTH") {
-            if let Some(width) = number("SB_WINDOW_WIDTH", &v, &mut problems) {
-                settings.window_width = Some(width);
-            }
-        }
-        if let Some(v) = var("SB_WINDOW_HEIGHT") {
-            if let Some(height) = number("SB_WINDOW_HEIGHT", &v, &mut problems) {
-                settings.window_height = Some(height);
-            }
-        }
-        if let Some(v) = var("SB_USER_DATA_DIR") {
-            settings.user_data_dir = Some(v);
-        }
-        if let Some(v) = var("SB_EXTENSION_DIR") {
-            settings.extension_dir = Some(v);
-        }
-        if let Some(v) = var("SB_LOCALE") {
-            settings.locale = Some(v);
-        }
-        if let Some(v) = var("SB_USER_AGENT") {
-            settings.user_agent = Some(v);
-        }
-        if let Some(v) = var("SB_MODE") {
-            settings.mode = Some(v);
-        }
-        if let Some(v) = var("SB_AD_BLOCK") {
-            if let Some(flag) = flag("SB_AD_BLOCK", &v, &mut problems) {
-                settings.ad_block = flag;
-            }
-        }
-        if let Some(v) = var("SB_REUSE_SESSION") {
-            if let Some(flag) = flag("SB_REUSE_SESSION", &v, &mut problems) {
-                settings.reuse_session = flag;
-            }
-        }
-        if let Some(v) = var("SB_REUSE_CLASS_SESSION") {
-            if let Some(flag) = flag("SB_REUSE_CLASS_SESSION", &v, &mut problems) {
-                settings.reuse_class_session = flag;
-            }
-        }
-        if let Some(v) = var("SB_MOBILE") {
-            if let Some(flag) = flag("SB_MOBILE", &v, &mut problems) {
-                settings.mobile = flag;
-            }
-        }
-        if let Some(v) = var("SB_THREADS") {
-            if let Some(threads) = number("SB_THREADS", &v, &mut problems) {
-                settings.threads = Some(threads);
-            }
-        }
-        if let Some(v) = var("SB_PROXY_PAC_URL") {
-            settings.proxy_pac_url = Some(v);
-        }
-        if let Some(v) = var("SB_ESC_END") {
-            if let Some(flag) = flag("SB_ESC_END", &v, &mut problems) {
-                settings.esc_end = flag;
-            }
-        }
+        // The options of the table (`config::test_options`) are read in table order.
+        crate::config::test_options::apply_env(&mut settings, &var, &mut problems);
         if let Some(v) = plugins_variable {
             // The variable names the plugins; the options of the file stay.
             settings.plugins.set_enabled_from_list(&v);
-        }
-        if let Some(v) = var("SB_REC_SB_CDP") {
-            if let Some(flag) = flag("SB_REC_SB_CDP", &v, &mut problems) {
-                settings.rec_sb_cdp = flag;
-            }
-        }
-        if let Some(v) = var(FINGERPRINT_ENV) {
-            settings.fingerprint.file = Some(PathBuf::from(v));
-        }
-        if let Some(v) = var(START_PAGE_ENV) {
-            settings.start_page = Some(v);
         }
         (settings, problems)
     }
@@ -946,39 +1061,7 @@ pub struct SettingsProblem {
     pub error: SeleniumBaseError,
 }
 
-/// `value` of the variable `name` as a flag; a value that is not one goes to `problems`.
-fn flag(name: &str, value: &str, problems: &mut Vec<SettingsProblem>) -> Option<bool> {
-    match parse_bool(value) {
-        Ok(flag) => Some(flag),
-        Err(error) => {
-            problems.push(SettingsProblem {
-                source: name.to_owned(),
-                error,
-            });
-            None
-        }
-    }
-}
-
-/// `value` of the variable `name` as a number; a value that is not one goes to `problems`.
-fn number<T>(name: &str, value: &str, problems: &mut Vec<SettingsProblem>) -> Option<T>
-where
-    T: std::str::FromStr,
-    T::Err: std::fmt::Display,
-{
-    match value.parse() {
-        Ok(number) => Some(number),
-        Err(error) => {
-            problems.push(SettingsProblem {
-                source: name.to_owned(),
-                error: SeleniumBaseError::InvalidConfig(format!("{name}: {error}")),
-            });
-            None
-        }
-    }
-}
-
-fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
+pub(crate) fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
     match value.to_lowercase().as_str() {
         "true" | "1" | "yes" | "on" => Ok(true),
         "false" | "0" | "no" | "off" => Ok(false),
@@ -999,7 +1082,7 @@ mod tests {
         assert_eq!(s.browser, "chrome");
         assert!(!s.headless);
         assert_eq!(s.timeout_seconds, None);
-        assert_eq!(s.screenshot_dir, "screenshots");
+        assert!(!s.dark_mode);
         assert_eq!((s.window_width, s.window_height), (None, None));
         assert!(s.proxy.is_none());
     }
@@ -1139,13 +1222,13 @@ mod tests {
     #[test]
     fn settings_from_file() {
         let mut tmp = tempfile::NamedTempFile::new().unwrap();
-        let json = r#"{"browser":"firefox","headless":true,"timeout_seconds":60,"screenshot_dir":"shots","proxy":"http://proxy:8080","window_width":1280,"window_height":720,"user_data_dir":null}"#;
+        let json = r#"{"browser":"firefox","headless":true,"timeout_seconds":60,"proxy":"http://proxy:8080","window_width":1280,"window_height":720,"user_data_dir":null}"#;
         tmp.write_all(json.as_bytes()).unwrap();
         let s = Settings::from_file(tmp.path()).unwrap();
         assert_eq!(s.browser, "firefox");
         assert!(s.headless);
         assert_eq!(s.timeout_seconds, Some(60));
-        assert_eq!(s.screenshot_dir, "shots");
+        assert!(!s.test.pdb);
         assert_eq!(s.proxy, Some("http://proxy:8080".to_string()));
         assert_eq!(s.window_width, Some(1280));
         assert_eq!(s.window_height, Some(720));

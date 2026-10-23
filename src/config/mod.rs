@@ -1,8 +1,11 @@
 pub mod ad_block_list;
+mod launch_map;
 pub mod plugins;
 pub mod proxy_list;
 pub mod runtime;
 pub mod settings;
+pub mod test_options;
+pub mod test_settings;
 
 pub use runtime::{LogFormat, RuntimeConfig};
 

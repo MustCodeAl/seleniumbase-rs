@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 use crate::api::run_settings::RunSettings;
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
+use crate::config::test_settings::TestData;
 
 mod capabilities;
 mod cdp_events;
@@ -151,6 +152,12 @@ pub struct LaunchSettings {
     /// and they are not written to, or read from, a configuration file.
     #[serde(skip)]
     pub run: RunSettings,
+    /// The data a run hands to its tests (`--env`, `--account`, `--data`, `--var1..3`,
+    /// `--variables`); see [`TestData`]. A `BaseCase` made from the configuration reads it.
+    /// It does not change the browser and is not written to, or read from, a configuration
+    /// file.
+    #[serde(skip)]
+    pub test_data: TestData,
 }
 
 impl LaunchSettings {
