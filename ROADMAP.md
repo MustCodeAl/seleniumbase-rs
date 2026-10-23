@@ -74,10 +74,11 @@ Design rules that apply to everything below:
    rest shifts existing callers, so do it as a deliberate breaking release, not
    quietly.
 4. **Python names with no Rust counterpart (done).** Every one is classified
-   in `parity/api.toml`: `get_jqc_button_input`, `get_jqc_form_inputs`,
-   `get_jqc_text_input` and the unittest harness (`setUp`, `tearDown`,
-   `setUpClass`, `tearDownClass`, `main`, `run`, `skip`, `has_exception`) are not
-   applicable; `get_google_auth_password` and `type` are composed.
+   in `parity/api.toml`: the unittest harness (`setUp`, `tearDown`,
+   `setUpClass`, `tearDownClass`, `main`, `run`, `skip`, `has_exception`) is not
+   applicable; `get_google_auth_password` and `type` are composed. The
+   jquery-confirm dialogs `get_jqc_button_input`, `get_jqc_form_inputs` and
+   `get_jqc_text_input` are implemented as page dialogs (`api::jqc`).
 5. **`sbrs` CLI gaps (done).** `caseplans` and `behave-gui` (and their
    aliases `case-plans` and `gui-behave`) are terminal apps, behind the `tui`
    feature, instead of the Tkinter Case Plans Generator and Behave Commander;
