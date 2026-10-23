@@ -8,7 +8,56 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Breaking
+
+- **A page command needs a page.** `get-text`, `get-title`, `get-attribute`, `screenshot`,
+  `assert-element`, `hover`, `send-keys`, the alert commands and the other commands that act
+  on a page used to act on `about:blank`, which no one wants. Without a start page (`--url`,
+  `SB_START_PAGE` or the settings file) they now stop with `error: NAME acts on a page, and
+  every sbrs command starts a fresh browser; give the page: sbrs --url https://example.com
+  NAME ...` and status 2, before any browser starts. `cdp` needs no page.
+- **A command that changes the profile needs `--user-data-dir`.** `clear-cookies`,
+  `load-cookies`, `set-local-storage-item`, `remove-local-storage-item`,
+  `clear-local-storage` and `cache-clear` changed a profile that a fresh browser throws away
+  at the end; they now stop with `error: NAME changes the profile, which a fresh browser
+  throws away; add --user-data-dir DIR` (status 2) unless the folder is named.
+- **Fifteen commands are removed** because they have no observable effect in a one-shot
+  browser: `go-back`, `go-forward`, `refresh`, `switch-to-window`, `switch-to-frame`,
+  `switch-to-default-content`, `switch-to-parent-frame`, `switch-to-newest-window`,
+  `switch-to-default-window`, `open-new-window`, `open-new-tab`, `close-window`,
+  `set-window-position`, `get-active-element-css` and `throttle3g` (an unrecognised
+  subcommand now). Several steps in one browser are `run-scenario`, `deferred` and the MCP
+  server. `export-recording` stays: it writes a test from an action file and starts no browser.
+- **A command with a URL of its own refuses `--url`.** `open`, `smoke`, `download-file`,
+  `print-pdf`, `pdf-text`, `assert-pdf-text` and `record` stop with `error: NAME opens its
+  own URL; leave out --start-page` when the command line names a start page; one that comes
+  from `SB_START_PAGE` or the file is only a default and is ignored for them.
+- **`devtools`, `choose-file` and `deferred` read the global options.** They no longer have
+  an option of their own for `--headless`, `--user-data-dir`, `--proxy` or `--url`; the
+  global ones of the same names do the same work, and give the page to open (`choose-file`
+  and `deferred` act on the start page, a blank upload page when `choose-file` has none).
+  The same global option on both sides of the command is a repeat and is refused.
+
+
 ### Added
+
+- **The start page: `--start-page`, `--url` and `--start_page`, `SB_START_PAGE`, and the
+  `start_page` key of the settings file.** Every `sbrs` command starts a fresh browser, so
+  a command that acts on a page now acts on this one: `sbrs --url https://example.com
+  get-text --css h1`. The command line wins over `SB_START_PAGE`, which wins over the file;
+  a bare host gets `https://` and a local file becomes a `file://` URL. `sbrs test --url X`
+  hands it on to the tests as `SB_START_PAGE`. The library side is `Settings::start_page`
+  (which `to_browser_config` copies into `BrowserConfig::start_page`),
+  `SettingsOverrides::start_page` and `START_PAGE_ENV`.
+- **`--save-screenshot`** saves a screenshot to `latest_logs/` just before a browser command
+  quits and prints its path (`Saved screenshot: PATH`). A command that changes the page
+  (`click-partial-link-text`, `hover`, `human-click`, `add-text`, ...) also prints where the
+  browser ended up, `Now at: URL (TITLE)`, so a click that navigates shows where it went.
+- **Every option of `sbrs` itself is global.** `sbrs get-title --headless --url
+  https://example.com` works as well as `sbrs --headless --url https://example.com
+  get-title`; the same option on both sides of the command is refused as a repeat (status 2).
+  Every page command now ends with `quit`, where some left the browser to the drop-time
+  cleanup.
 
 - **Fingerprint capture, export and import.** A browser's fingerprint can now be read from
   a real browser and handed back to any launch path, as one file format everywhere: the v2
