@@ -44,7 +44,7 @@ Two numbers say where a message goes.
 
 - An **IP address** names a machine on a network: `93.184.216.34` (IPv4, four
   numbers) or `2606:2800:220:1::1` (IPv6, eight groups). The name
-  `example.com` is turned into one of these by [DNS](/concepts/how-a-page-loads).
+  `example.com` is turned into one of these by [DNS](#dns-names-to-addresses).
   The address `127.0.0.1` (or `::1`) is the **loopback**: it always means "this
   same machine", and the name `localhost` points to it.
 - A **port** is a number from 0 to 65535 that says which program on that machine
