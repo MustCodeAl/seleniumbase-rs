@@ -8,19 +8,11 @@
 
 use std::any::Any;
 use std::panic::{resume_unwind, AssertUnwindSafe};
-use std::{future::Future, pin::Pin};
 
 use futures_util::FutureExt;
 
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
 use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
-
-/// Boxed future returned by a browser test body.
-#[deprecated(
-    since = "0.5.0",
-    note = "pass an async closure to run_browser_test: `async |sb| { .. }`"
-)]
-pub type BrowserTestFuture<'a> = Pin<Box<dyn Future<Output = Result<()>> + 'a>>;
 
 /// Runs a browser test and always attempts to close its browser session.
 ///
@@ -61,27 +53,6 @@ where
     drive(&mut sb, test, no_evidence, close_browser)
         .await
         .finish()
-}
-
-/// [`run_browser_test`] for a test written as a closure that returns a boxed
-/// future, the form it took before async closures.
-///
-/// Migration: `|sb| Box::pin(async move { .. })` becomes `async |sb| { .. }`,
-/// and the call is to [`run_browser_test`].
-///
-/// # Errors
-///
-/// As [`run_browser_test`].
-#[deprecated(
-    since = "0.5.0",
-    note = "use run_browser_test with an async closure: `async |sb| { .. }`"
-)]
-#[allow(deprecated, reason = "the old closure type is this function's bound")]
-pub async fn run_browser_test_boxed<F>(config: BrowserConfig, test: F) -> Result<()>
-where
-    F: for<'a> FnOnce(&'a mut BaseCase) -> BrowserTestFuture<'a>,
-{
-    run_browser_test(config, async move |sb: &mut BaseCase| test(sb).await).await
 }
 
 /// Launches a Pure CDP browser, runs `test` on its first tab and always closes

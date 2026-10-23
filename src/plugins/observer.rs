@@ -39,8 +39,6 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 
-#[allow(deprecated, reason = "the shim keeps the old closure type")]
-use crate::api::runner::BrowserTestFuture;
 use crate::api::runner::{close_browser, drive, CdpCase};
 use crate::error::{Result, SeleniumBaseError};
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
@@ -301,32 +299,6 @@ impl Plugins {
         .await;
         self.finished(name, began.elapsed(), ended.outcome()).await;
         ended.finish()
-    }
-
-    /// [`run_browser_test`](Self::run_browser_test) for a test written as a
-    /// closure that returns a boxed future, the form it took before async
-    /// closures. Migration: `|sb| Box::pin(async move { .. })` becomes
-    /// `async |sb| { .. }`.
-    ///
-    /// # Errors
-    ///
-    /// As [`run_browser_test`](Self::run_browser_test).
-    #[deprecated(
-        since = "0.5.0",
-        note = "use run_browser_test with an async closure: `async |sb| { .. }`"
-    )]
-    #[allow(deprecated, reason = "the old closure type is this function's bound")]
-    pub async fn run_browser_test_boxed<F>(
-        &mut self,
-        name: &str,
-        config: BrowserConfig,
-        test: F,
-    ) -> Result<()>
-    where
-        F: for<'a> FnOnce(&'a mut BaseCase) -> BrowserTestFuture<'a>,
-    {
-        self.run_browser_test(name, config, async move |sb: &mut BaseCase| test(sb).await)
-            .await
     }
 
     /// Runs a test on the first tab of a Pure CDP browser, like
