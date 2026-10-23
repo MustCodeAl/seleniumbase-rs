@@ -59,6 +59,41 @@ const GONE: &[(&str, &str)] = &[
         "--bin sbrs --features mcp-server",
         "the seleniumbase-rs-cli package",
     ),
+    // The deprecated items of 0.5.x, deleted in 0.6.0.
+    (
+        "common::decorators",
+        "utilities::retry::{RetryPolicy, RateLimiter}",
+    ),
+    ("common::exceptions", "SeleniumBaseError"),
+    ("retry_on_exception_async", "RetryPolicy::retry"),
+    ("rate_limited", "utilities::retry::RateLimiter"),
+    ("StealthFlags", "StealthPolicy"),
+    ("mask_all", "StealthPolicy::max"),
+    ("all_custom", "StealthPolicy::max"),
+    ("cdp_overrides", "safe_cdp_overrides"),
+    ("profile_payloads::Flags", "profile_payloads::ProfileFlags"),
+    (
+        "profile_payloads::ProxyConfig",
+        "profile_payloads::ProfileProxy",
+    ),
+    ("PlaywrightSession::launch_headless", "launch_with_config"),
+    ("launch_headless_with_fingerprint", "launch_with_config"),
+    ("launch_with_fingerprint", "launch_with_config"),
+    ("run_browser_test_boxed", "run_browser_test(.., async |sb| ..)"),
+    ("BrowserTestFuture", "an async closure"),
+    ("with_fast_mode", "nothing: Python reads --fast only in CDP mode"),
+    ("pause(tiny: bool)", "pause_for(PauseKind)"),
+    ("RunSettings::pause", "RunSettings::pause_for"),
+    ("message_seconds", "RunSettings::message_duration"),
+    ("DEFAULT_MESSAGE_SECONDS", "DEFAULT_MESSAGE_DURATION"),
+    ("cdp_type_text", "cdp_insert_text"),
+    ("cdp_click_element", "cdp_click"),
+    ("save_saved_cookies", "save_cookies"),
+    ("load_saved_cookies", "load_cookies"),
+    ("qa_report_markdown", "MasterQaSession::to_markdown"),
+    ("Settings::from_toml", "Settings::from_file"),
+    ("Locator::click_at", "click_with_offset(x, y, false)"),
+    ("assert_visible!", "sb_assert_visible!"),
 ];
 
 /// Files and folders that describe the past on purpose.
@@ -68,6 +103,23 @@ const EXEMPT: &[&str] = &[
     "docs/design/",
     "docs/adr/",
 ];
+
+/// Whether `line` names `gone`.
+///
+/// A name made of identifier characters must not be part of a longer
+/// identifier: `cdp_overrides` is gone, `safe_cdp_overrides` is not. An entry
+/// that starts or ends with punctuation, such as `with_flags(`, is plain text.
+fn names(line: &str, gone: &str) -> bool {
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let starts_ident = gone.chars().next().is_some_and(is_ident);
+    let ends_ident = gone.chars().next_back().is_some_and(is_ident);
+    line.match_indices(gone).any(|(at, _)| {
+        let before = line[..at].chars().next_back();
+        let after = line[at + gone.len()..].chars().next();
+        !(starts_ident && before.is_some_and(is_ident))
+            && !(ends_ident && after.is_some_and(is_ident))
+    })
+}
 
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -135,7 +187,7 @@ fn the_docs_name_no_removed_api_crate_feature_or_install_line() {
         let text = fs::read_to_string(&page).unwrap_or_default();
         for (number, line) in text.lines().enumerate() {
             for (gone, now) in GONE {
-                if line.contains(gone) {
+                if names(line, gone) {
                     found.push(format!(
                         "{rel}:{}: `{gone}` is gone; now: {now}",
                         number + 1
@@ -149,6 +201,17 @@ fn the_docs_name_no_removed_api_crate_feature_or_install_line() {
         "outdated names in the docs:\n{}",
         found.join("\n")
     );
+}
+
+#[test]
+fn a_name_is_not_found_inside_a_longer_identifier() {
+    assert!(names("`cdp_overrides` is gone", "cdp_overrides"));
+    assert!(!names("use safe_cdp_overrides;", "cdp_overrides"));
+    assert!(!names("RunSettings::pause_for(kind)", "RunSettings::pause"));
+    assert!(names("RunSettings::pause(true)", "RunSettings::pause"));
+    assert!(names("builder.with_flags(x)", "with_flags("));
+    assert!(names("sb.assert_visible!(a)", "assert_visible!"));
+    assert!(!names("sb_assert_visible!(a)", "assert_visible!"));
 }
 
 #[test]
