@@ -892,6 +892,61 @@ mod tests {
         }
     }
 
+    #[test]
+    fn block_comments_nest_and_a_type_annotation_is_skipped() {
+        let nodes = parse_document("a /* outer /* inner */ still outer */ 1 (u8)2\nb\n").unwrap();
+
+        assert_eq!(nodes[0].args, [text("1"), text("2")]);
+        assert_eq!(nodes[1].name, "b");
+    }
+
+    #[test]
+    fn every_escape_of_a_quoted_string_is_resolved() {
+        let node = one(r#"x "a\sb\tc\u{1F600}\b\f\r\\" "#);
+
+        assert_eq!(node.args, [text("a b\tc\u{1F600}\u{8}\u{c}\r\\")]);
+    }
+
+    #[test]
+    fn the_non_finite_numbers_are_kept_as_text() {
+        let node = one("x #inf #-inf #nan");
+
+        assert_eq!(node.args, [text("#inf"), text("#-inf"), text("#nan")]);
+    }
+
+    #[test]
+    fn more_text_that_is_not_kdl_is_an_error_with_the_line() {
+        for (source, line, reason) in [
+            ("a \\ b\n", 1, "must end its line"),
+            ("a \"\\u12\"\n", 1, "followed by"),
+            ("a \"\\u{110000}\"\n", 1, "not a character"),
+            ("a #\"\"\"x\n", 1, "starts on a new line"),
+            ("#true 1\n", 1, "cannot be a keyword"),
+            ("a #true=1\n", 1, "must be a string"),
+        ] {
+            let error = parse_document(source).unwrap_err();
+            assert!(
+                error.reason.contains(reason),
+                "{source:?}: expected {reason:?}, got {error}"
+            );
+            assert_eq!(error.line, line, "{source:?}: {error}");
+        }
+    }
+
+    #[test]
+    fn choices_may_be_listed_as_arguments_and_conflicts_as_a_child() {
+        let spec = Spec::parse(
+            "bin demo\nflag --mode help=\"m\" {\n    arg <MODE>\n    choices a b\n}\n\
+             flag --other help=\"o\" {\n    conflicts --mode --third\n}\n",
+        )
+        .unwrap();
+        let flags = &spec.root.flags;
+
+        let names: Vec<&str> = flags[0].choices.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["a", "b"]);
+        assert_eq!(flags[1].conflicts, ["--mode", "--third"]);
+    }
+
     const SMALL: &str = r##"name demo
 bin demo
 version "1.2 (demo)"
