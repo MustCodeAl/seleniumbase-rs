@@ -330,6 +330,35 @@ impl TestRun {
     }
 }
 
+/// The names of the tests in what a listing run printed: libtest's
+/// `name: test` lines, or the lines of `cargo nextest list --message-format
+/// oneline`.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::cli::scripts::run::{list_names, Runner};
+///
+/// let printed = "login::valid: test\nlogin::bad: test\n\n2 tests, 0 benchmarks\n";
+/// assert_eq!(
+///     list_names(printed, Runner::Cargo),
+///     ["login::valid", "login::bad"]
+/// );
+/// ```
+#[must_use]
+pub fn list_names(output: &str, runner: Runner) -> Vec<String> {
+    output
+        .lines()
+        .filter_map(|line| match runner {
+            Runner::Cargo => line.strip_suffix(": test").map(str::to_owned),
+            Runner::Nextest => {
+                let line = line.trim();
+                (!line.is_empty()).then(|| line.to_owned())
+            }
+        })
+        .collect()
+}
+
 /// Runs `cargo test` in the current directory and captures the output.
 ///
 /// # Errors
