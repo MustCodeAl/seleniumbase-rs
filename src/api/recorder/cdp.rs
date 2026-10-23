@@ -121,6 +121,18 @@ fn locator(selector: &str) -> String {
 /// action or a missing or malformed argument. An action that exists but has no
 /// pure CDP call says so and quotes the `BaseCase` call it was.
 pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
+    if action
+        .value
+        .as_deref()
+        .is_some_and(|text| text.contains(super::SECRET_PLACEHOLDER))
+    {
+        return Err(format!(
+            "{}: the text is a password; type it with the BaseCase program, which reads {}",
+            action.name,
+            super::SECRET_VARIABLE
+        ));
+    }
+
     let name = canonical_name(&action.name);
     let target = action.target.as_deref();
     let value = action.value.as_deref();

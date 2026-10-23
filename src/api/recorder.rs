@@ -24,6 +24,9 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 
 use crate::api::base_case::BaseCase;
+use crate::browser::config::BrowserConfig;
+use crate::browser::options::CapabilityOverrides;
+
 use crate::SeleniumBaseError;
 
 /// A single recorded browser action.
@@ -311,6 +314,12 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 .as_deref()
                 .ok_or_else(|| format!("{name} has no value"))?;
             // The step's pattern is `Type "(.+?)" into "(.+?)"`: no text, no match.
+            if value.contains(SECRET_PLACEHOLDER) {
+                return Err(format!(
+                    "{name}: the text is a password, which a feature file does not keep"
+                ));
+            }
+
             if value.is_empty() {
                 return Err(format!(
                     "{name}: the text is empty, and the Type step needs at least one character"
@@ -372,7 +381,6 @@ enum Shape {
 const CALLS: &[(&str, &str, Shape)] = &[
     ("open", "open", Shape::Target),
     ("goto_if_not_url", "goto_if_not_url", Shape::Target),
-
     ("click", "click", Shape::Target),
     ("type_text", "type_text", Shape::TargetValue),
     ("clear", "clear", Shape::Target),
@@ -704,7 +712,11 @@ fn rust_call(action: &RecordedAction) -> Result<String, String> {
         Shape::Target | Shape::TargetDiscarded => (*method, literal(need_target()?)),
         Shape::TargetValue => (
             *method,
-            format!("{}, {}", literal(need_target()?), literal(need_value()?)),
+            format!(
+                "{}, {}",
+                literal(need_target()?),
+                text_argument(need_value()?)
+            ),
         ),
         Shape::ValueTarget => (
             *method,
@@ -866,6 +878,63 @@ impl ReplayReport {
     }
 }
 
+/// What a recording holds in place of a password that was typed in the
+/// browser. The password is not written to the file: a generated test reads it
+/// from the `SB_RECORDED_SECRET` environment variable, and so does a replay.
+/// Set `SB_REC_KEEP_SECRETS=true` before recording to keep the typed text.
+pub const SECRET_PLACEHOLDER: &str = "{{SB_RECORDED_SECRET}}";
+
+/// The environment variable that holds the password [`SECRET_PLACEHOLDER`]
+/// stands for.
+pub const SECRET_VARIABLE: &str = "SB_RECORDED_SECRET";
+
+/// Whether `SB_REC_KEEP_SECRETS` asks for typed passwords to be recorded as
+/// typed.
+fn keep_secrets() -> bool {
+    std::env::var("SB_REC_KEEP_SECRETS")
+        .is_ok_and(|value| value.eq_ignore_ascii_case("true") || value == "1")
+}
+
+/// The Rust expression for a recorded text: a string literal, or, for the
+/// placeholder of a typed password, the environment variable that holds it.
+fn text_argument(text: &str) -> String {
+    match text.strip_prefix(SECRET_PLACEHOLDER) {
+        Some("") => format!("&std::env::var({})?", literal(SECRET_VARIABLE)),
+        Some(rest) => format!(
+            "&format!(\"{{}}{{}}\", std::env::var({})?, {})",
+            literal(SECRET_VARIABLE),
+            literal(rest)
+        ),
+        None => literal(text),
+    }
+}
+
+/// The text to type for a recorded `text`: the password in `SB_RECORDED_SECRET`
+/// for the placeholder of a typed password, `text` itself for anything else.
+fn revealed(text: &str) -> Result<String, SeleniumBaseError> {
+    let Some(rest) = text.strip_prefix(SECRET_PLACEHOLDER) else {
+        return Ok(text.to_owned());
+    };
+    let secret = std::env::var(SECRET_VARIABLE).map_err(|_| {
+        SeleniumBaseError::InvalidConfig(format!(
+            "the recording holds a password; set {SECRET_VARIABLE} to type it"
+        ))
+    })?;
+    Ok(format!("{secret}{rest}"))
+}
+
+/// What one look at the browser found; see [`RecorderSession::poll`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Poll {
+    /// The page was read; this many actions were added to the recording.
+    Captured(usize),
+    /// A dialog (`alert`, `confirm`, `prompt`) is open. The page cannot be
+    /// read until the person answers it, and the recorder leaves it alone.
+    Dialog,
+    /// The browser, or its window, is gone.
+    Ended,
+}
+
 /// Live recording session that captures browser interactions while driving a
 /// [`BaseCase`](crate::BaseCase).
 ///
@@ -972,7 +1041,7 @@ impl RecorderSession {
         out
     }
 
-    /// Writes the recording to `path`. A `.yaml`/`.yml` extension selects YAML,
+    /// Writes the recording to `path`. A `.rs` extension writes a Rust test named after the file, a `.yaml`/`.yml` extension selects YAML,
     /// anything else writes JSON.
     pub fn save(&self, path: &Path) -> Result<PathBuf, SeleniumBaseError> {
         if let Some(parent) = path.parent() {
@@ -982,6 +1051,12 @@ impl RecorderSession {
         }
         let data = if is_yaml_path(path) {
             self.to_yaml()
+        } else if is_rust_path(path) {
+            let stem = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or("recorded_test");
+            self.to_action_recorder().to_rust_test(stem)
         } else {
             self.to_json()?
         };
@@ -1139,14 +1214,25 @@ struct Captured {
     timestamp_ms: u64,
     #[serde(default)]
     url: Option<String>,
+    /// Set for text typed into a password field.
+    #[serde(default)]
+    secret: bool,
 }
 
 impl Captured {
     fn action(self) -> RecordedAction {
+        // A typed password stays out of the file, unless asked for.
+        let value = match self.value {
+            Some(typed) if self.secret && !keep_secrets() => {
+                let enter = if typed.ends_with('\n') { "\n" } else { "" };
+                Some(format!("{SECRET_PLACEHOLDER}{enter}"))
+            }
+            other => other,
+        };
         RecordedAction {
             name: self.name,
             target: self.target,
-            value: self.value,
+            value,
             timestamp_ms: u128::from(self.timestamp_ms),
         }
     }
@@ -1221,6 +1307,37 @@ impl RecorderSession {
         Ok(())
     }
 
+    /// Adjusts `config` for a browser that a person works in while it is
+    /// recorded: a dialog the page opens (`alert`, `confirm`, `prompt`) is left
+    /// open for the person, instead of being dismissed by the first command the
+    /// recorder sends while it is up.
+    ///
+    /// A setting the caller already made is kept.
+    pub fn prepare_config(config: &mut BrowserConfig) {
+        let capabilities = &mut config.launch.capabilities;
+        if capabilities.get("unhandledPromptBehavior").is_none() {
+            if let Ok(ignore) =
+                CapabilityOverrides::from_text(r#"{"unhandledPromptBehavior": "ignore"}"#)
+            {
+                capabilities.merge(&ignore);
+            }
+        }
+    }
+
+    /// Looks at the browser once: records what happened on the page since the
+    /// last look ([`drain`](Self::drain)), or says why that was not possible.
+    ///
+    /// A page with a dialog open ([`Poll::Dialog`]) is not the end of the
+    /// session, so a recording loop keeps polling until the person has
+    /// answered it. [`Poll::Ended`] means the browser is gone.
+    pub async fn poll(&mut self, sb: &mut BaseCase) -> Poll {
+        match sb.get_current_url().await {
+            Ok(_) => Poll::Captured(self.drain(sb).await.unwrap_or(0)),
+            Err(error) if is_dialog_error(&error) => Poll::Dialog,
+            Err(_) => Poll::Ended,
+        }
+    }
+
     /// Installs the in-page listeners so manual interactions are captured.
     ///
     /// While installed, [`RecorderSession::click`] and
@@ -1292,16 +1409,17 @@ impl RecorderSession {
     /// Records the page the browser is now on, if it is not the last one the recording
     /// knows: `goto` for the first, `goto_if_not_url` for any later one, as the click that led there opens it.
     fn note_page(&mut self, url: &str) {
-            if self.last_url.as_deref() != Some(url) {
-                let name = if self.last_url.is_none() {
-                    "goto"
-                } else {
-                    "goto_if_not_url"
-                };
-                self.last_url = Some(url.to_owned());
-                self.actions.push(RecordedAction::new(name, Some(url), None));
-            }
+        if self.last_url.as_deref() != Some(url) {
+            let name = if self.last_url.is_none() {
+                "goto"
+            } else {
+                "goto_if_not_url"
+            };
+            self.last_url = Some(url.to_owned());
+            self.actions
+                .push(RecordedAction::new(name, Some(url), None));
         }
+    }
 
     /// Replays `actions` against `sb`.
     ///
@@ -1346,7 +1464,7 @@ impl RecorderSession {
                 "type" | "type_text" | "update_text" => match (target, value) {
                     (Some(css), Some(text)) => (
                         format!("type {text:?} into {css}"),
-                        sb.type_text(css, text).await,
+                        sb.type_text(css, &revealed(text)?).await,
                     ),
                     _ => {
                         report.skipped += 1;
@@ -1413,11 +1531,13 @@ if (window.__sbRecorderInstalled) { return "already-installed"; }
 window.__sbRecorderInstalled = true;
 window.__sbRecordedActions = window.__sbRecordedActions || [];
 var KEY = "__sbRecordedActions";
-var push = function (name, target, value) {
+var push = function (name, target, value, secret) {
     var event = {
         name: name, target: target, value: value,
         timestamp_ms: Date.now(), url: window.location.href
     };
+    // Text typed into a password field: the recorder keeps it out of the file.
+    if (secret) { event.secret = true; }
     // sessionStorage outlives the page: a click that leaves it, or a field
     // changed just before, would be lost with a script variable. A page that
     // forbids storage (about:blank, data: URLs) falls back to the variable.
@@ -1429,26 +1549,66 @@ var push = function (name, target, value) {
         window.__sbRecordedActions.push(event);
     }
 };
+// Whether `selector` finds `el` and nothing else.
+var unique = function (selector, el) {
+    try {
+        var found = document.querySelectorAll(selector);
+        return found.length === 1 && found[0] === el;
+    } catch (e) {
+        return false;
+    }
+};
+var quote = function (text) {
+    return "\"" + String(text).replace(/["\\]/g, function (c) { return "\\" + c; }) + "\"";
+};
+// `tag[attribute="value"]` for the first attribute that finds only `el`.
+var attributeSelector = function (el) {
+    var tag = el.tagName.toLowerCase();
+    var names = ["data-testid", "data-test", "data-cy", "data-qa", "name",
+                 "aria-label", "placeholder", "title", "alt"];
+    for (var i = 0; i < names.length; i += 1) {
+        var value = el.getAttribute(names[i]);
+        if (value && value.length <= 80 && !/[\r\n]/.test(value)) {
+            var selector = tag + "[" + names[i] + "=" + quote(value) + "]";
+            if (unique(selector, el)) { return selector; }
+        }
+    }
+    return null;
+};
+// The tag of `node`, with its place among the siblings of that tag if it has any.
+var segment = function (node) {
+    var part = node.tagName.toLowerCase();
+    var parent = node.parentNode;
+    if (parent && parent.children) {
+        var same = Array.prototype.filter.call(
+            parent.children, function (c) { return c.tagName === node.tagName; }
+        );
+        if (same.length > 1) { part += ":nth-of-type(" + (same.indexOf(node) + 1) + ")"; }
+    }
+    return part;
+};
+// A selector that finds `el` and only `el`: its id, an attribute that sets it
+// apart, or the shortest path up from it that does. Replay clicks the first
+// match, so a selector that also fits another element clicks the wrong one.
 var cssPath = function (el) {
     if (!el || el.nodeType !== 1) { return null; }
-    if (el.id) { return "#" + CSS.escape(el.id); }
+    if (el.id) {
+        var byId = "#" + CSS.escape(el.id);
+        if (unique(byId, el)) { return byId; }
+    }
+    var byAttribute = attributeSelector(el);
+    if (byAttribute) { return byAttribute; }
     var parts = [];
     var node = el;
-    while (node && node.nodeType === 1 && parts.length < 6) {
-        var part = node.tagName.toLowerCase();
-        if (node.id) { parts.unshift("#" + CSS.escape(node.id)); break; }
-        var parent = node.parentNode;
-        if (parent) {
-            var siblings = Array.prototype.filter.call(
-                parent.children, function (c) { return c.tagName === node.tagName; }
-            );
-            if (siblings.length > 1) {
-                part += ":nth-of-type(" + (siblings.indexOf(node) + 1) + ")";
-            }
+    while (node && node.nodeType === 1) {
+        var part = segment(node);
+        if (node.id && document.querySelectorAll("#" + CSS.escape(node.id)).length === 1) {
+            part = "#" + CSS.escape(node.id);
         }
         parts.unshift(part);
+        var path = parts.join(" > ");
+        if (unique(path, el)) { return path; }
         node = node.parentNode;
-        if (!node || node.nodeType !== 1 || node.tagName.toLowerCase() === "html") { break; }
     }
     return parts.join(" > ");
 };
@@ -1460,20 +1620,58 @@ var isTextInput = function (el) {
     var type = (el.getAttribute("type") || "text").toLowerCase();
     return ["text", "search", "email", "url", "tel", "password", "number"].indexOf(type) >= 0;
 };
+var isSecret = function (el) {
+    return !!el && !!el.tagName && el.tagName.toLowerCase() === "input" &&
+        (el.getAttribute("type") || "").toLowerCase() === "password";
+};
+// The label just clicked and the control it passes the click on to.
+var lastLabel = null;
+// The field Enter was just pressed in: its text is recorded with the Enter.
+var enterField = null;
 document.addEventListener("click", function (e) {
-    if (isTextInput(e.target)) { return; }
-    var selector = cssPath(e.target);
+    var el = e.target;
+    if (isTextInput(el)) { return; }
+    var tag = el && el.tagName ? el.tagName.toLowerCase() : "";
+    // Choosing an option is recorded by the change event, not by the clicks
+    // that lead to it.
+    if (tag === "select" || tag === "option") { return; }
+    // The browser clicks the control of a label by itself right after the
+    // label: replaying the label's click does the same, and a second click
+    // would undo the first.
+    if (lastLabel && lastLabel.control === el && Date.now() - lastLabel.time < 300) {
+        lastLabel = null;
+        return;
+    }
+    var label = el && el.closest ? el.closest("label") : null;
+    if (label && label.control && label.control !== el) {
+        lastLabel = { control: label.control, time: Date.now() };
+    }
+    var selector = cssPath(el);
     if (selector) { push("click", selector, null); }
 }, true);
+document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || e.isComposing) { return; }
+    var el = e.target;
+    if (!isTextInput(el) || el.tagName.toLowerCase() === "textarea") { return; }
+    var selector = cssPath(el);
+    if (!selector) { return; }
+    // Enter sends the form: the text goes with it, as one typing that ends in
+    // a new line, and the change event that follows must not record it again.
+    enterField = el;
+    push("type", selector, el.value + "\n", isSecret(el));
+}, true);
+document.addEventListener("input", function () { enterField = null; }, true);
 document.addEventListener("change", function (e) {
     var el = e.target;
+    if (!el || !el.tagName) { return; }
+    if (enterField === el) { enterField = null; return; }
     var selector = cssPath(el);
-    if (!selector || !el || !el.tagName) { return; }
+    if (!selector) { return; }
     var tag = el.tagName.toLowerCase();
     if (tag === "select") {
         push("select_option_by_value", selector, el.value);
     } else if (isTextInput(el)) {
-        push("type", selector, el.value);
+        push("type", selector, el.value, isSecret(el));
     }
 }, true);
 return "installed";
@@ -1493,8 +1691,21 @@ window.__sbRecordedActions = [];
 return JSON.stringify(actions.concat(loose));
 "##;
 
+/// Whether `error` says a command failed because a dialog is open.
+fn is_dialog_error(error: &SeleniumBaseError) -> bool {
+    let text = error.to_string().to_ascii_lowercase();
+    text.contains("unexpected alert") || text.contains("alert open") || text.contains("modal")
+}
+
 fn yaml_scalar(value: &str) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| format!("{value:?}"))
+}
+
+/// Whether `path` names a Rust source file, by its extension.
+fn is_rust_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
 }
 
 /// Whether `path` names a YAML file, by its extension.
@@ -2323,7 +2534,10 @@ mod tests {
         assert!(cdp.contains("page.goto(\"http://x.test/b\")"), "{cdp}");
         assert!(!cdp.contains("skipped"), "{cdp}");
         let feature = recorder.to_gherkin("Two pages");
-        assert!(feature.contains("And Open \"http://x.test/b\""), "{feature}");
+        assert!(
+            feature.contains("And Open \"http://x.test/b\""),
+            "{feature}"
+        );
     }
 
     #[test]
@@ -2336,6 +2550,134 @@ mod tests {
         assert!(drain.contains("sessionStorage.removeItem"));
         // Both read and write the same key.
         assert!(install.contains("__sbRecordedActions") && drain.contains("__sbRecordedActions"));
+    }
+
+    // ---- passwords, dialogs, Rust output -------------------------------------
+
+    #[test]
+    fn a_typed_password_is_kept_out_of_the_recording() {
+        let raw = r##"[
+            {"name":"type","target":"#pw","value":"hunter2","timestamp_ms":1,"secret":true},
+            {"name":"type","target":"#pw2","value":"hunter2\n","timestamp_ms":2,"secret":true},
+            {"name":"type","target":"#user","value":"ada","timestamp_ms":3}
+        ]"##;
+        let actions = RecorderSession::parse_drained(raw);
+        let values: Vec<_> = actions.iter().map(|a| a.value.as_deref()).collect();
+        // `SB_REC_KEEP_SECRETS` asks for the typed text; it is not set in a test run.
+        assert_eq!(
+            values,
+            [
+                Some("{{SB_RECORDED_SECRET}}"),
+                Some("{{SB_RECORDED_SECRET}}\n"),
+                Some("ada")
+            ]
+        );
+        let saved = RecorderSession::from_actions(actions);
+        assert!(!saved.to_json().unwrap().contains("hunter2"));
+        assert!(!saved.to_yaml().contains("hunter2"));
+    }
+
+    #[test]
+    fn a_password_placeholder_is_generated_as_the_environment_variable() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("type", Some("#pw"), Some("{{SB_RECORDED_SECRET}}"));
+        recorder.record("type", Some("#pw2"), Some("{{SB_RECORDED_SECRET}}\n"));
+        let script = recorder.to_rust_script();
+        assert!(
+            script
+                .contains("sb.type_text(\"#pw\", &std::env::var(\"SB_RECORDED_SECRET\")?).await?;"),
+            "{script}"
+        );
+        assert!(
+            script.contains(
+                "sb.type_text(\"#pw2\", &format!(\"{}{}\", std::env::var(\"SB_RECORDED_SECRET\")?, \"\\n\")).await?;"
+            ),
+            "{script}"
+        );
+        assert!(!script.contains("skipped"), "{script}");
+        syn::parse_file(&script).expect("generated script should parse");
+
+        // The other outputs cannot read the variable, and say so.
+        let cdp = recorder.to_cdp_script();
+        assert!(!cdp.contains("{{SB"), "{cdp}");
+        assert!(
+            cdp.contains("// skipped: type: the text is a password"),
+            "{cdp}"
+        );
+        let feature = recorder.to_gherkin("Login");
+        assert!(!feature.contains("{{SB"), "{feature}");
+        assert!(
+            feature.contains("# skipped: type_text: the text is a password"),
+            "{feature}"
+        );
+    }
+
+    #[test]
+    fn a_recorded_password_is_read_from_the_environment_when_replayed() {
+        assert_eq!(revealed("ada").unwrap(), "ada");
+        // Not set here: the replay says what to set.
+        if std::env::var(SECRET_VARIABLE).is_err() {
+            let error = revealed("{{SB_RECORDED_SECRET}}").unwrap_err().to_string();
+            assert!(error.contains("SB_RECORDED_SECRET"), "{error}");
+        }
+    }
+
+    #[test]
+    fn a_recording_saved_with_the_rs_extension_is_a_rust_test() {
+        let dir = tempfile::tempdir().expect("a temporary folder");
+        let path = dir.path().join("tests").join("search_flow.rs");
+        let saved = sample_session().save(&path).expect("saved");
+        let test = std::fs::read_to_string(saved).unwrap();
+        assert!(
+            test.contains("#[tokio::test]\nasync fn search_flow()"),
+            "{test}"
+        );
+        assert!(test.contains("sb.click(\"#submit\").await?;"), "{test}");
+        syn::parse_file(&test).expect("the test should parse");
+    }
+
+    #[test]
+    fn a_dialog_is_not_the_end_of_the_session() {
+        let dialog = SeleniumBaseError::InvalidConfig(
+            "unexpected alert open: {Alert text : hello}".to_owned(),
+        );
+        assert!(is_dialog_error(&dialog));
+        let gone = SeleniumBaseError::InvalidConfig("invalid session id".to_owned());
+        assert!(!is_dialog_error(&gone));
+    }
+
+    #[test]
+    fn the_recorder_asks_the_browser_to_leave_dialogs_open_unless_told_otherwise() {
+        let mut config = BrowserConfig::default();
+        RecorderSession::prepare_config(&mut config);
+        assert_eq!(
+            config.launch.capabilities.get("unhandledPromptBehavior"),
+            Some(&json!("ignore"))
+        );
+
+        let mut chosen = BrowserConfig::default();
+        chosen.launch.capabilities =
+            CapabilityOverrides::from_text(r#"{"unhandledPromptBehavior": "accept"}"#).unwrap();
+        RecorderSession::prepare_config(&mut chosen);
+        assert_eq!(
+            chosen.launch.capabilities.get("unhandledPromptBehavior"),
+            Some(&json!("accept"))
+        );
+    }
+
+    #[test]
+    fn the_listeners_handle_labels_selects_enter_and_passwords() {
+        let install = RecorderSession::install_script();
+        for needle in [
+            "label.control",
+            "\"select\" || tag === \"option\"",
+            "e.key !== \"Enter\"",
+            "el.value + \"\\n\"",
+            "isSecret(el)",
+            "querySelectorAll",
+        ] {
+            assert!(install.contains(needle), "{needle:?} is not in the script");
+        }
     }
 
     // ---- live capture, against a real browser --------------------------------
