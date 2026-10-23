@@ -142,7 +142,7 @@ seleniumbase-rs/
 │   ├── stealth/               # Fingerprint, evasion providers, humanize, patcher, reactor
 │   ├── mcp/                   # MCP servers: cdp, driver, sb; developer tools in devtools.rs
 │   ├── cli/                   # the library half of sbrs: commands.rs, scaffold.rs, scripts/
-│   ├── behave/                # Gherkin/BDD runner
+│   ├── testing/               # the rstest sb fixtures; bdd/: Gherkin through rstest-bdd
 │   ├── plugins/               # Reporting and logging plugins
 │   ├── config/, core/, common/, storage/, utilities/, utils/, profile_payloads/
 │   └── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
@@ -173,7 +173,7 @@ seleniumbase-rs/
    `EvasionProvider`s generate the JavaScript bootstrap; `ChromedriverPatcher`
    mutates the local driver binary; `StealthReactor` intercepts network requests
    via CDP.
-4. **Tooling layer** — `sbrs` CLI, the MCP server, the behave runner, and the
+4. **Tooling layer** — `sbrs` CLI, the MCP server, the test fixtures and Gherkin scenarios, and the
    Python importer.
 
 When adding a feature, try to keep each layer independent. For example, a new

@@ -2974,8 +2974,8 @@ note = "`page.locator(selector).expect().not().to_contain_text(text)` waits for 
 [cli."behave-gui"]
 status = "implemented"
 rust = "sbrs behave-gui"
-note = "Terminal UI instead of Tkinter (feature `tui`): lists the .feature files with their scenarios, runs the ones you mark through the crate's behave runner and shows the results; without `tui` it prints a hint and exits with status 2, as `sbrs commander` does. `--new` keeps the earlier prompt that writes a new feature file."
-divergence = "Python starts `python -m behave` with the browser, session, demo, dashboard, headless, screenshot and extra options. Here the only run option is a tag filter, and the steps are the built-in ones: steps written in Rust cannot be loaded, so a scenario that uses one is reported as undefined."
+note = "Terminal UI instead of Tkinter (feature `tui`): lists the .feature files with their scenarios, runs the ones you mark with `cargo test` (one run per feature, each scenario found by its snake-case title among the test names) and shows the results; without `tui` it prints a hint and exits with status 2, as `sbrs commander` does. `--new` keeps the earlier prompt that writes a new feature file."
+divergence = "Python starts `python -m behave` with the browser, session, demo, dashboard, headless, screenshot and extra options. Here the scenarios run as the project's rstest-bdd tests (feature `bdd`), the only run option is a tag filter read from the feature file, and a scenario no test is named after is reported as undefined."
 
 [cli."behave-options"]
 status = "implemented"

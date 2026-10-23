@@ -157,6 +157,7 @@
               "best-practices",
               "rust-test-tooling",
               "tutorials/writing_tests",
+              "tutorials/behave",
               "tutorials/selectors",
               "tutorials/waits_assertions",
               "tutorials/macros",
@@ -172,8 +173,7 @@
               "tutorials/mfa_totp",
               "tutorials/captcha_testing",
               "tutorials/pdf_parsing",
-              "tutorials/masterqa",
-              "tutorials/behave"
+              "tutorials/masterqa"
             ]
           },
           {

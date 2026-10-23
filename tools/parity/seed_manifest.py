@@ -240,7 +240,7 @@ CLI_COMPOSED = {
 CLI_NOT_APPLICABLE = {
     "methods": "Lists Python methods; use `cargo doc` or docs/parity.md for the Rust API.",
     "options": "Lists pytest options; Rust settings are fields of BrowserConfig and RuntimeConfig.",
-    "behave-options": "Lists behave (Python BDD) options; this crate has its own Gherkin runner.",
+    "behave-options": "Lists behave (Python BDD) options; Gherkin runs through rstest-bdd.",
     "download": (
         "Python's `download server` fetches the Selenium Standalone Server. sbase never downloads it: "
         "`sbase grid-hub` and `sbase grid-node` run a jar you supply."

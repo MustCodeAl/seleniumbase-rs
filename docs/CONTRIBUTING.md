@@ -309,7 +309,7 @@ prompt that runs the checks, is in
 <LayoutDir name="stealth" note="Fingerprint, evasion providers, humanize, patcher, reactor" />
 <LayoutDir name="mcp" note="MCP servers: cdp, driver, sb; developer tools in devtools.rs" />
 <LayoutDir name="cli" note="the library half of sbrs: commands.rs, scaffold.rs, scripts/" />
-<LayoutDir name="behave" note="Gherkin/BDD runner" />
+<LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
 <LayoutDir name="plugins" note="Reporting and logging plugins" />
 <LayoutDir name="config" note="Settings, runtime config, proxy and ad-block lists" />
 <LayoutDir name="core" note="report_helper: test result records" />
@@ -351,7 +351,7 @@ prompt that runs the checks, is in
    `EvasionProvider`s generate the JavaScript bootstrap; `ChromedriverPatcher`
    mutates the local driver binary; `StealthReactor` intercepts network requests
    via CDP.
-4. **Tooling layer** — `sbrs` CLI, the MCP server, the behave runner, and the
+4. **Tooling layer** — `sbrs` CLI, the MCP server, the test fixtures and Gherkin scenarios, and the
    Python importer.
 
 When adding a feature, try to keep each layer independent. For example, a new

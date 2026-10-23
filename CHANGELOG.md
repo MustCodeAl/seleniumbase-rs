@@ -10,6 +10,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **The behave port is removed; Gherkin runs through rstest-bdd.** Module
+  `seleniumbase_rs::behave` (`StepRegistry`, `AsyncStepRegistry`, `CommonSteps`, `run_feature_*`,
+  `RunFilter`) and `examples/behave_feature.rs` are gone: a feature file is now a cargo test with
+  `#[scenario]` and the `bdd::sb` fixture (see Added).
 - **A recorded `goto` is written as `sb.goto(..)`**, its own BaseCase call, not `sb.open(..)`.
 
 - **`Settings::screenshot_dir` and `SB_SCREENSHOT_DIR` are removed.** The library read neither;
@@ -45,6 +49,12 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Gherkin scenarios as cargo tests (feature `bdd`).** `testing::bdd::{sb, sb_cdp, SbCase,
+  SbCdpCase}` run a feature file's scenarios through rstest-bdd 0.6: `#[scenario(path = ..)]` on
+  an async test that takes `#[future(awt)] sb: SbCase`, and `#[given]`/`#[when]`/`#[then]` steps
+  that take `sb: &mut SbCase`. A failed step leaves the screenshot, page source and test info in
+  `latest_logs/<test id>/` with the page still open, and the browser always closes. `sbrs
+  behave-gui` runs the scenarios you mark with `cargo test`.
 - **Recorder Mode pipeline, ported from SeleniumBase 4.56.2.** `api::recorder` now carries
   Python's page script (`RECORDER_JS`, `SHIFT_ESC_JS`, `recorder_injection()`), its rewrite
   passes (`process`, `add_parent_frame_switches`, over `RawAction` rows) and its code generation
