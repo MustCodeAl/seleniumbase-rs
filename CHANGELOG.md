@@ -8,6 +8,26 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Added
+
+- **Shell completion says what each value is.** A selector, text, key, value, attribute, property
+  or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
+  `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
+  file names, and neither does a number, a URL (`open`, `smoke`, `download-file`, `print-pdf`,
+  `pdf-text`, `record`, `mkfile --url`, `--start-page`, `--proxy-pac-url`) or a free-form option.
+  Files complete by the kind a command takes (`.json` or `.yaml` for `export-recording` and
+  `replay`, `.rs` for `mkfile` and the generated tests, `.png` for `screenshot`, `.toml` or
+  `.json` for `--config`, ...), folders for `mkdir`, `--user-data-dir` and `--extension-dir`,
+  programs for `patch-chrome`, `patch-chromedriver` and `devtools --browser-path`.
+  `sbrs translate FILE` offers the language codes, and `sbrs fingerprint export --preset` its
+  presets.
+- **`sbrs install` completes its driver and its version.** The driver is a value enum
+  (`chromedriver`, `geckodriver`, `edgedriver`; `firefoxdriver` and `msedgedriver` still work), and
+  the version offers `browser`, `stable`, `latest`, `beta`, `dev` and `canary`. The Fig spec
+  (`sbrs completions fig`) marks the global options `isPersistent` and keeps the file template of
+  a path limited to extensions, and `docs/help/cli_reference.md` shows each command's examples in
+  a `bash` block titled Examples and says the global options go before or after the command.
+
 ## [0.6.0] - 2026-10-23
 
 ### Breaking
@@ -55,24 +75,6 @@ work, `docs/parity.md` the per-API status).
 
 
 ### Added
-
-- **Shell completion says what each value is.** A selector, text, key, value, attribute, property
-  or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
-  `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
-  file names, and neither does a number, a URL (`open`, `smoke`, `download-file`, `print-pdf`,
-  `pdf-text`, `record`, `mkfile --url`, `--start-page`, `--proxy-pac-url`) or a free-form option.
-  Files complete by the kind a command takes (`.json` or `.yaml` for `export-recording` and
-  `replay`, `.rs` for `mkfile` and the generated tests, `.png` for `screenshot`, `.toml` or
-  `.json` for `--config`, ...), folders for `mkdir`, `--user-data-dir` and `--extension-dir`,
-  programs for `patch-chrome`, `patch-chromedriver` and `devtools --browser-path`.
-  `sbrs translate FILE` offers the language codes, and `sbrs fingerprint export --preset` its
-  presets.
-- **`sbrs install` completes its driver and its version.** The driver is a value enum
-  (`chromedriver`, `geckodriver`, `edgedriver`; `firefoxdriver` and `msedgedriver` still work), and
-  the version offers `browser`, `stable`, `latest`, `beta`, `dev` and `canary`. The Fig spec
-  (`sbrs completions fig`) marks the global options `isPersistent` and keeps the file template of
-  a path limited to extensions, and `docs/help/cli_reference.md` shows each command's examples in
-  a `bash` block titled Examples and says the global options go before or after the command.
 
 - **A debug prompt: `BaseCase::breakpoint`, `sb_cdp::Page::breakpoint` and
   `common::debug_prompt`.** `sb.breakpoint("message").await?` pauses a test with the browser

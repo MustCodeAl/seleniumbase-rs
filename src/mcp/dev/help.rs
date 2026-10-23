@@ -34,7 +34,7 @@ pub(super) fn tools() -> Vec<ToolDef<NoBrowser>> {
             "command",
             Prop::string(
                 "A command or alias, such as `mkdir`, `install` or `plugin list`; `global` for \
-                 the flags that come before the command",
+                 the flags that go before or after the command",
             ),
         ),
         cli_help,
@@ -234,7 +234,7 @@ fn program_header(spec: &Spec) -> String {
 fn overview(spec: &Spec) -> String {
     let mut out = program_header(spec);
     out.push_str(
-        "\nGlobal flags (they come before the command; cli_help with command `global` gives \
+        "\nGlobal flags (they go before or after the command; cli_help with command `global` gives \
          their choices, aliases and long help):\n",
     );
     for flag in &spec.root.flags {
