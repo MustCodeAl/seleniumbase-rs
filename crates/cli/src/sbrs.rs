@@ -46,6 +46,8 @@ use serde_json::{json, Value};
 mod args;
 
 mod completion;
+mod crypto;
+
 mod failure;
 
 mod fig;
@@ -875,6 +877,13 @@ enum Commands {
     /// The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never
     /// from an argument, so it stays out of shell history and process listings.
     /// Python's `sbrs obfuscate` is the same command.
+    ///
+    /// With no TEXT and a terminal on standard input it prompts as Python's `obfuscate`
+    /// does: the text and its verification are read without echo, the token is printed
+    /// with the line that decrypts it in a test, and it asks again until Ctrl-C. When
+    /// SB_ENCRYPTION_KEY is not set it asks once for the passphrase (twice, to catch a
+    /// typo), without echo; the passphrase is never printed or saved.
+
     #[usage(alias = "obfuscate")]
     #[usage(help_heading = "Security", example = "sbrs encrypt 'my secret'")]
     Encrypt {
@@ -884,6 +893,11 @@ enum Commands {
     },
     /// Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted.
     /// Python's `sbrs unobfuscate` is the same command.
+    ///
+    /// With no TOKEN and a terminal on standard input it asks for a token on the screen,
+    /// prints the text and asks again until Ctrl-C, as Python's `unobfuscate` does. When
+    /// SB_ENCRYPTION_KEY is not set it asks once for the passphrase, without echo.
+
     #[usage(alias = "unobfuscate")]
     #[usage(help_heading = "Security", example = "sbrs decrypt TOKEN")]
     Decrypt {
@@ -2629,6 +2643,14 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
         args.command,
         Commands::Record { .. } | Commands::Devtools { .. } | Commands::Proxy(_)
     );
+    // `encrypt` and `decrypt` with no argument on a terminal prompt in a loop and handle
+    // Ctrl-C themselves (`Exiting...`, status 0).
+    let stops_itself = stops_itself
+        || (matches!(
+            args.command,
+            Commands::Encrypt { text: None } | Commands::Decrypt { token: None }
+        ) && crypto::prompts());
+
     // `proxy` stops itself on SIGINT or SIGTERM and ends with 0. `record` stops itself on
     // SIGINT or SIGTERM so that it can save what it
     // captured, and `devtools` so that it can close its browser and exit
@@ -3054,6 +3076,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
         Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
         Commands::Proxy(proxy) => return proxy::run(proxy).await,
+        Commands::Encrypt { text: None } if crypto::prompts() => {
+            return crypto::interactive(crypto::Kind::Encrypt).await;
+        }
+        Commands::Decrypt { token: None } if crypto::prompts() => {
+            return crypto::interactive(crypto::Kind::Decrypt).await;
+        }
 
         Commands::Devtools { .. } => return run_devtools(&args).await,
         Commands::Prompt(options) => return run_prompt(options).await,
