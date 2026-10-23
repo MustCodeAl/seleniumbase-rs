@@ -5751,6 +5751,7 @@ dependencies = [
  "rfd",
  "ring",
  "rmcp",
+ "roxmltree",
  "rstest",
  "rstest-bdd",
  "rstest-bdd-harness",

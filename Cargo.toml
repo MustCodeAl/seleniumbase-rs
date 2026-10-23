@@ -225,4 +225,7 @@ sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 # Writes `schemas/fingerprint.schema.json` from the types. Only the library's own tests
 # derive `JsonSchema` (`cfg_attr(test, ..)`), so nothing of it reaches a user of the crate.
 schemars = "1.2"
+# Parses the JUnit XML the tests write (`src/core/junit.rs`), so a test fails on XML that is not
+# well formed. Test-only; it has no dependencies of its own.
+roxmltree = "0.21"
 
