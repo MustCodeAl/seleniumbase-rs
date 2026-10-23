@@ -182,9 +182,11 @@ impl BaseCase {
         &self.run_settings
     }
 
-    /// Replaces the run-wide settings: demo and slow mode, fast mode, how long
+    /// Replaces the run-wide settings: demo and slow mode, how long
     /// messages last, whether the JavaScript waits are skipped, whether `sleep`
-    /// is recorded and whether `check_window` resets its baseline.
+    /// is recorded, whether `check_window` resets its baseline, the page-load
+    /// hooks (`check_js`, AngularJS, `beforeunload`), the highlight count, the
+    /// tour interval, the MasterQA delay and the timeout multiplier.
     pub fn set_run_settings(&mut self, settings: RunSettings) {
         self.run_settings = settings;
     }
@@ -404,6 +406,10 @@ impl BaseCase {
     /// until either is called), cut to the time the test has left if it has a
     /// [time limit](Self::set_time_limit). Returns at once if the run settings
     /// skip the JavaScript waits.
+    /// The wait is `ceil(multiplier * seconds)` with the run settings'
+    /// [timeout multiplier](RunSettings::with_timeout_multiplier). Once the
+    /// page is ready, the run settings' page-load hooks run (see
+    /// [`open`](Self::open)).
     ///
     /// # Errors
     ///
@@ -426,6 +432,7 @@ impl BaseCase {
             },
         )
         .await?;
+        self.run_page_load_hooks().await?;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -810,6 +817,16 @@ impl BaseCase {
     /// A URL without a scheme is opened over HTTPS, so `"seleniumbase.io"` and
     /// `"https://seleniumbase.io"` are equivalent.
     ///
+    /// Once the page has loaded, the run settings' page-load hooks run, unless
+    /// they skip the JavaScript waits ([`RunSettings::with_skip_js_waits`]): the
+    /// AngularJS wait ([`RunSettings::with_wait_for_angularjs`]), the check of
+    /// the browser log for JavaScript errors ([`RunSettings::with_check_js`])
+    /// and the switch-off of the `beforeunload` dialog
+    /// ([`RunSettings::with_disable_beforeunload`]). The last two apply to
+    /// Chromium-based browsers only. `go_back`, `go_forward`, `refresh` and
+    /// [`wait_for_ready_state_complete`](Self::wait_for_ready_state_complete)
+    /// run them too.
+    ///
     /// # Errors
     ///
     /// Returns an error if `url` is empty or cannot be made into a valid URL.
@@ -820,6 +837,7 @@ impl BaseCase {
         info!(%url, "opening url");
         self.record("open", Some(&url), None);
         self.session.goto(&url).await?;
+        self.run_page_load_hooks().await?;
         self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
@@ -828,6 +846,7 @@ impl BaseCase {
     /// Executes the `refresh` action.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
         self.session.refresh().await?;
+        self.run_page_load_hooks().await?;
         self.arm_esc_end().await;
         Ok(())
     }
@@ -835,6 +854,7 @@ impl BaseCase {
     /// Navigates back in browser history.
     pub async fn go_back(&self) -> Result<(), SeleniumBaseError> {
         self.session.back().await?;
+        self.run_page_load_hooks().await?;
         self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
@@ -843,6 +863,7 @@ impl BaseCase {
     /// Navigates forward in browser history.
     pub async fn go_forward(&self) -> Result<(), SeleniumBaseError> {
         self.session.forward().await?;
+        self.run_page_load_hooks().await?;
         self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
@@ -859,6 +880,7 @@ impl BaseCase {
         self.demo_highlight(css).await?;
         let before = self.demo_page_before().await;
         self.session.click(by).await?;
+        self.wait_for_angularjs_if_asked().await?;
         self.demo_pause_after(before).await;
         self.arm_esc_end().await;
         Ok(())
@@ -2932,10 +2954,12 @@ impl BaseCase {
     /// How long a wait that has no time of its own lasts, in seconds: the
     /// default [`set_timeout`](Self::set_timeout) and
     /// [`set_default_timeout`](Self::set_default_timeout) set (10 until either
-    /// is called), cut to the time the test has left if it has a
+    /// is called), made `ceil(multiplier * seconds)` by the run settings'
+    /// [timeout multiplier](RunSettings::with_timeout_multiplier), then cut
+    /// to the time the test has left if it has a
     /// [time limit](Self::set_time_limit).
     fn default_wait_secs(&self) -> u64 {
-        self.effective_timeout(self.timeout_secs)
+        self.effective_timeout(self.run_settings.scale_timeout(self.timeout_secs))
     }
 
     /// Return whether `text` exactly matches the visible text of the element.

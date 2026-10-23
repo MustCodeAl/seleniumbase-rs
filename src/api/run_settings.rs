@@ -1,6 +1,8 @@
 //! Run-wide settings for a [`BaseCase`](crate::BaseCase): the Python
-//! `--demo`, `--slow`, `--fast`, `--demo-sleep`, `--message-duration`,
-//! `--skip-js-waits`, `--record-sleep` and `--visual-baseline` options.
+//! `--demo`, `--slow`, `--demo-sleep`, `--message-duration`,
+//! `--skip-js-waits`, `--record-sleep`, `--visual-baseline`, `--highlights`,
+//! `--interval`, `--verify-delay`, `--check-js`, `--wfa`,
+//! `--disable-beforeunload` and `--timeout-multiplier` options.
 //!
 //! Python reads these from the pytest command line. Here they are plain data a
 //! test hands to [`BaseCase::set_run_settings`](crate::BaseCase::set_run_settings):
@@ -34,6 +36,24 @@ pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(500);
 /// `DEFAULT_MESSAGE_DURATION`, 2.55 s in 4.55.2).
 pub const DEFAULT_MESSAGE_DURATION: Duration = Duration::from_millis(2550);
 
+/// How many times the highlight calls outline an element unless
+/// [`RunSettings::with_highlights`] says otherwise (Python's
+/// `settings.HIGHLIGHTS`, 4 in 4.55.2).
+pub const DEFAULT_HIGHLIGHT_LOOPS: u32 = 4;
+
+/// How long MasterQA waits before it asks for a verdict unless
+/// [`RunSettings::with_verify_delay`] says otherwise (Python's
+/// `MASTERQA_WAIT_TIME_BEFORE_VERIFY`, 0.5 s in 4.55.2).
+pub const DEFAULT_VERIFY_DELAY: Duration = Duration::from_millis(500);
+
+/// The smallest timeout multiplier: a smaller one is raised to it, as Python
+/// does (`--timeout-multiplier=0.1` waits half as long, not a tenth).
+pub const MIN_TIMEOUT_MULTIPLIER: f64 = 0.5;
+
+/// The longest a default wait lasts after the multiplier, in seconds (one
+/// day), so a multiplier typed with a stray zero cannot overflow a deadline.
+const MAX_SCALED_TIMEOUT_SECS: u64 = 24 * 60 * 60;
+
 /// The longest a message stays in a headless browser, where nobody watches
 /// (Python cuts it to 0.75 s).
 pub(crate) const HEADLESS_MESSAGE_CAP: Duration = Duration::from_millis(750);
@@ -54,7 +74,7 @@ pub enum PauseKind {
 /// The settings that change how a whole test run behaves.
 ///
 /// The default changes nothing.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct RunSettings {
     demo_mode: bool,
     slow_mode: bool,
@@ -64,6 +84,13 @@ pub struct RunSettings {
     skip_js_waits: bool,
     record_sleep: bool,
     reset_visual_baseline: bool,
+    highlights: Option<u32>,
+    interval: Option<Duration>,
+    verify_delay: Option<Duration>,
+    check_js: bool,
+    wait_for_angularjs: bool,
+    disable_beforeunload: bool,
+    timeout_multiplier: Option<f64>,
 }
 
 impl RunSettings {
@@ -143,6 +170,79 @@ impl RunSettings {
         self
     }
 
+    /// How many times a highlight call outlines its element when the call
+    /// names no count (`--highlights`). Zero puts back the default,
+    /// [`DEFAULT_HIGHLIGHT_LOOPS`]. Python lets this setting win over a count
+    /// a call names itself.
+    #[must_use]
+    pub fn with_highlights(mut self, loops: u32) -> Self {
+        self.highlights = (loops > 0).then_some(loops);
+        self
+    }
+
+    /// How long each tour step and presentation slide stays when the tour or
+    /// presentation plays by itself (`--interval`). Zero turns the autoplay
+    /// off, which is the default.
+    #[must_use]
+    pub fn with_interval(mut self, interval: Duration) -> Self {
+        self.interval = (!interval.is_zero()).then_some(interval);
+        self
+    }
+
+    /// How long a MasterQA session waits before it asks for a verdict
+    /// (`--verify-delay`), instead of [`DEFAULT_VERIFY_DELAY`]. Zero asks at
+    /// once.
+    #[must_use]
+    pub fn with_verify_delay(mut self, delay: Duration) -> Self {
+        self.verify_delay = Some(delay);
+        self
+    }
+
+    /// Check the browser's log for JavaScript errors after every page load
+    /// (`--check-js`), as [`BaseCase::assert_no_js_errors`](crate::BaseCase::assert_no_js_errors)
+    /// does. Only Chromium-based browsers have such a log; for the others
+    /// this does nothing.
+    #[must_use]
+    pub fn with_check_js(mut self, on: bool) -> Self {
+        self.check_js = on;
+        self
+    }
+
+    /// Wait for the AngularJS requests of a page to finish after every page
+    /// load and click (`--wfa`, `--wait-for-angularjs`), as
+    /// [`BaseCase::wait_for_angularjs`](crate::BaseCase::wait_for_angularjs)
+    /// does. A page without AngularJS does not wait.
+    #[must_use]
+    pub fn with_wait_for_angularjs(mut self, on: bool) -> Self {
+        self.wait_for_angularjs = on;
+        self
+    }
+
+    /// Switch off the page's `beforeunload` dialog after every page load
+    /// (`--disable-beforeunload`), as
+    /// [`BaseCase::disable_beforeunload`](crate::BaseCase::disable_beforeunload)
+    /// does. Only Chromium-based browsers show that dialog; for the others
+    /// this does nothing.
+    #[must_use]
+    pub fn with_disable_beforeunload(mut self, on: bool) -> Self {
+        self.disable_beforeunload = on;
+        self
+    }
+
+    /// Lengthen or shorten every wait that has no time of its own
+    /// (`--timeout-multiplier`): the default wait becomes `ceil(multiplier *
+    /// seconds)`. A time a call names itself is kept as it is, which is what
+    /// Python does. A multiplier below [`MIN_TIMEOUT_MULTIPLIER`] (0.5) is
+    /// raised to it, as in Python; one that is not a finite number is
+    /// ignored, and any earlier multiplier is cleared.
+    #[must_use]
+    pub fn with_timeout_multiplier(mut self, multiplier: f64) -> Self {
+        self.timeout_multiplier = multiplier
+            .is_finite()
+            .then(|| multiplier.max(MIN_TIMEOUT_MULTIPLIER));
+        self
+    }
+
     /// Whether demo mode is on.
     #[must_use]
     pub fn demo_mode(&self) -> bool {
@@ -184,6 +284,78 @@ impl RunSettings {
     #[must_use]
     pub fn reset_visual_baseline(&self) -> bool {
         self.reset_visual_baseline
+    }
+
+    /// The count [`with_highlights`](Self::with_highlights) set, if any. A
+    /// highlight call without a count of its own uses
+    /// [`DEFAULT_HIGHLIGHT_LOOPS`] when this is `None`.
+    #[must_use]
+    pub fn highlights(&self) -> Option<u32> {
+        self.highlights
+    }
+
+    /// The autoplay time [`with_interval`](Self::with_interval) set, if any.
+    #[must_use]
+    pub fn interval(&self) -> Option<Duration> {
+        self.interval
+    }
+
+    /// How long MasterQA waits before it asks for a verdict: what
+    /// [`with_verify_delay`](Self::with_verify_delay) set, else
+    /// [`DEFAULT_VERIFY_DELAY`].
+    #[must_use]
+    pub fn verify_delay(&self) -> Duration {
+        self.verify_delay.unwrap_or(DEFAULT_VERIFY_DELAY)
+    }
+
+    /// Whether the browser's log is checked for JavaScript errors after every
+    /// page load.
+    #[must_use]
+    pub fn check_js(&self) -> bool {
+        self.check_js
+    }
+
+    /// Whether AngularJS requests are waited for after every page load and
+    /// click.
+    #[must_use]
+    pub fn wait_for_angularjs(&self) -> bool {
+        self.wait_for_angularjs
+    }
+
+    /// Whether the `beforeunload` dialog is switched off after every page
+    /// load.
+    #[must_use]
+    pub fn disable_beforeunload(&self) -> bool {
+        self.disable_beforeunload
+    }
+
+    /// The multiplier [`with_timeout_multiplier`](Self::with_timeout_multiplier)
+    /// set, if any, after it was raised to [`MIN_TIMEOUT_MULTIPLIER`].
+    #[must_use]
+    pub fn timeout_multiplier(&self) -> Option<f64> {
+        self.timeout_multiplier
+    }
+
+    /// `seconds`, the default wait, after the timeout multiplier: rounded up
+    /// to a whole second, and at most one day. Without a multiplier it is
+    /// `seconds` as it is.
+    ///
+    /// ```
+    /// use seleniumbase_rs::api::run_settings::RunSettings;
+    ///
+    /// let settings = RunSettings::default().with_timeout_multiplier(1.5);
+    /// assert_eq!(settings.scale_timeout(10), 15);
+    /// assert_eq!(settings.scale_timeout(3), 5);
+    /// ```
+    #[must_use]
+    pub fn scale_timeout(&self, seconds: u64) -> u64 {
+        match self.timeout_multiplier {
+            Some(multiplier) => {
+                let scaled = (multiplier * seconds as f64).ceil() as u64;
+                scaled.min(MAX_SCALED_TIMEOUT_SECS)
+            }
+            None => seconds,
+        }
     }
 
     /// How long to pause after an action.
@@ -634,6 +806,93 @@ mod tests {
             settings.pause_for(PauseKind::Short),
             Duration::from_secs(10)
         );
+    }
+
+    #[test]
+    fn the_page_and_wait_settings_change_nothing_until_asked_for() {
+        let settings = RunSettings::default();
+        assert_eq!(settings.highlights(), None);
+        assert_eq!(settings.interval(), None);
+        assert_eq!(settings.verify_delay(), DEFAULT_VERIFY_DELAY);
+        assert_eq!(DEFAULT_VERIFY_DELAY, Duration::from_millis(500));
+        assert_eq!(DEFAULT_HIGHLIGHT_LOOPS, 4);
+        assert!(!settings.check_js());
+        assert!(!settings.wait_for_angularjs());
+        assert!(!settings.disable_beforeunload());
+        assert_eq!(settings.timeout_multiplier(), None);
+        assert_eq!(settings.scale_timeout(10), 10);
+    }
+
+    #[test]
+    fn the_page_and_wait_getters_give_back_what_was_set() {
+        let settings = RunSettings::default()
+            .with_highlights(7)
+            .with_interval(Duration::from_millis(1500))
+            .with_verify_delay(Duration::from_secs(2))
+            .with_check_js(true)
+            .with_wait_for_angularjs(true)
+            .with_disable_beforeunload(true)
+            .with_timeout_multiplier(2.0);
+        assert_eq!(settings.highlights(), Some(7));
+        assert_eq!(settings.interval(), Some(Duration::from_millis(1500)));
+        assert_eq!(settings.verify_delay(), Duration::from_secs(2));
+        assert!(settings.check_js());
+        assert!(settings.wait_for_angularjs());
+        assert!(settings.disable_beforeunload());
+        assert_eq!(settings.timeout_multiplier(), Some(2.0));
+    }
+
+    #[test]
+    fn zero_highlights_and_a_zero_interval_put_the_defaults_back() {
+        let settings = RunSettings::default()
+            .with_highlights(7)
+            .with_interval(Duration::from_secs(3))
+            .with_highlights(0)
+            .with_interval(Duration::ZERO);
+        assert_eq!(settings.highlights(), None);
+        assert_eq!(settings.interval(), None);
+    }
+
+    #[test]
+    fn a_zero_verify_delay_asks_at_once_and_is_not_the_default() {
+        let settings = RunSettings::default().with_verify_delay(Duration::ZERO);
+        assert_eq!(settings.verify_delay(), Duration::ZERO);
+    }
+
+    #[test]
+    fn a_multiplier_below_half_is_raised_to_half() {
+        for small in [0.3, 0.0, -2.0, 0.5] {
+            let settings = RunSettings::default().with_timeout_multiplier(small);
+            assert_eq!(settings.timeout_multiplier(), Some(0.5), "{small}");
+            assert_eq!(settings.scale_timeout(10), 5, "{small}");
+        }
+    }
+
+    #[test]
+    fn the_multiplier_scales_the_default_wait_and_rounds_up() {
+        let settings = RunSettings::default().with_timeout_multiplier(1.5);
+        assert_eq!(settings.scale_timeout(10), 15);
+        assert_eq!(settings.scale_timeout(3), 5);
+        assert_eq!(settings.scale_timeout(0), 0);
+        let double = RunSettings::default().with_timeout_multiplier(2.0);
+        assert_eq!(double.scale_timeout(10), 20);
+    }
+
+    #[test]
+    fn a_multiplier_that_is_not_a_finite_number_clears_the_earlier_one() {
+        for odd in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let settings = RunSettings::default()
+                .with_timeout_multiplier(2.0)
+                .with_timeout_multiplier(odd);
+            assert_eq!(settings.timeout_multiplier(), None, "{odd}");
+            assert_eq!(settings.scale_timeout(10), 10, "{odd}");
+        }
+    }
+
+    #[test]
+    fn a_huge_multiplier_stops_at_one_day() {
+        let settings = RunSettings::default().with_timeout_multiplier(1e300);
+        assert_eq!(settings.scale_timeout(10), 24 * 60 * 60);
     }
 
     fn case(settings: RunSettings) -> crate::BaseCase {

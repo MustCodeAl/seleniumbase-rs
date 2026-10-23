@@ -855,3 +855,260 @@ mod tests_ready_state {
         assert_eq!(sb.default_wait_secs(), 25);
     }
 }
+
+// The run settings that hook into a page load or a wait (`--check-js`,
+// `--wfa`, `--disable-beforeunload`, `--skip-js-waits`, `--timeout-multiplier`),
+// against the mock WebDriver.
+mod tests_page_load_hooks {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::*;
+    use crate::browser::config::Browser;
+    use serde_json::{json, Value};
+    use std::time::Instant;
+
+    const LOCAL: &str = "http://localhost/page";
+
+    /// A page that is `complete`, has one element, `#a`, and whose browser
+    /// log holds `log`.
+    fn page(log: Value) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
+            let script = request.body["script"].as_str().unwrap_or_default();
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("a")),
+                ("POST", "/elements") => Reply::Value(json!([element("a")])),
+                ("GET", "/element/a/displayed" | "/element/a/enabled") => {
+                    Reply::Value(json!(true))
+                }
+                ("POST", "/log") => Reply::Value(log.clone()),
+                ("GET", "/url") => Reply::Value(json!(LOCAL)),
+                ("POST", "/execute/sync") if script.contains("readyState") => {
+                    Reply::Value(json!("complete"))
+                }
+                ("POST", "/execute/sync") => Reply::Value(json!(true)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    async fn case(driver: &MockWebDriver, settings: RunSettings) -> BaseCase {
+        let mut sb = driver.base_case().await;
+        sb.set_run_settings(settings);
+        sb
+    }
+
+    /// The settings of `--check-js`, `--wfa` and `--disable-beforeunload`.
+    fn all_three() -> RunSettings {
+        RunSettings::default()
+            .with_check_js(true)
+            .with_wait_for_angularjs(true)
+            .with_disable_beforeunload(true)
+    }
+
+    fn log_reads(driver: &MockWebDriver) -> usize {
+        driver.requests("/log").len()
+    }
+
+    /// Whether a script with `needle` in it ran.
+    fn ran(driver: &MockWebDriver, needle: &str) -> bool {
+        driver
+            .requests("/execute/sync")
+            .iter()
+            .any(|request| request.body["script"].as_str().is_some_and(|s| s.contains(needle)))
+    }
+
+    /// The script of the AngularJS wait, and the one that switches off the
+    /// `beforeunload` dialog.
+    const ANGULAR: &str = "injector";
+    const BEFOREUNLOAD: &str = "onbeforeunload";
+
+    #[tokio::test]
+    async fn a_ready_page_runs_no_hook_unless_asked() {
+        let driver = page(json!([]));
+        let sb = case(&driver, RunSettings::default()).await;
+        sb.wait_for_ready_state_complete().await.unwrap();
+        assert_eq!(log_reads(&driver), 0);
+        assert!(!ran(&driver, ANGULAR) && !ran(&driver, BEFOREUNLOAD));
+    }
+
+    #[tokio::test]
+    async fn check_js_reads_the_browser_log_when_the_page_is_ready() {
+        let driver = page(json!([]));
+        let sb = case(&driver, RunSettings::default().with_check_js(true)).await;
+        sb.wait_for_ready_state_complete().await.unwrap();
+        assert_eq!(log_reads(&driver), 1);
+        assert!(!ran(&driver, ANGULAR) && !ran(&driver, BEFOREUNLOAD));
+    }
+
+    #[tokio::test]
+    async fn check_js_fails_the_wait_on_a_severe_error() {
+        let driver = page(json!([
+            { "level": "SEVERE", "message": "http://localhost/app.js 1:1 Uncaught TypeError: x", "timestamp": 3 },
+        ]));
+        let sb = case(&driver, RunSettings::default().with_check_js(true)).await;
+        let error = sb.wait_for_ready_state_complete().await.unwrap_err();
+        let SeleniumBaseError::AssertionFailed(message) = error else {
+            panic!("expected an assertion failure, got {error:?}");
+        };
+        assert!(message.contains("Uncaught TypeError"), "{message}");
+    }
+
+    #[tokio::test]
+    async fn wait_for_angularjs_asks_the_page_about_its_angular_requests() {
+        let driver = page(json!([]));
+        let sb = case(&driver, RunSettings::default().with_wait_for_angularjs(true)).await;
+        sb.wait_for_ready_state_complete().await.unwrap();
+        assert!(ran(&driver, ANGULAR));
+        assert_eq!(log_reads(&driver), 0);
+        assert!(!ran(&driver, BEFOREUNLOAD));
+    }
+
+    #[tokio::test]
+    async fn disable_beforeunload_runs_its_script_when_the_page_is_ready() {
+        let driver = page(json!([]));
+        let sb = case(&driver, RunSettings::default().with_disable_beforeunload(true)).await;
+        sb.wait_for_ready_state_complete().await.unwrap();
+        assert!(ran(&driver, BEFOREUNLOAD));
+        assert_eq!(log_reads(&driver), 0);
+        assert!(!ran(&driver, ANGULAR));
+    }
+
+    #[tokio::test]
+    async fn skipping_the_js_waits_skips_all_three_hooks() {
+        let driver = page(json!([]));
+        let sb = case(&driver, all_three().with_skip_js_waits(true)).await;
+        sb.wait_for_ready_state_complete().await.unwrap();
+        assert!(driver.requests("/execute/sync").is_empty());
+        assert_eq!(log_reads(&driver), 0);
+    }
+
+    #[tokio::test]
+    async fn a_browser_that_is_not_chromium_has_no_log_and_no_dialog_to_switch_off() {
+        let driver = page(json!([]));
+        let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
+        config.auto_start_driver = false;
+        config.browser = Browser::Firefox;
+        let mut sb = BaseCase::new(config).await.unwrap();
+        sb.set_run_settings(all_three());
+        sb.wait_for_ready_state_complete().await.unwrap();
+        assert_eq!(log_reads(&driver), 0);
+        assert!(!ran(&driver, BEFOREUNLOAD));
+        assert!(ran(&driver, ANGULAR), "AngularJS is not a Chromium matter");
+    }
+
+    #[tokio::test]
+    async fn opening_a_page_runs_the_hooks_after_the_navigation() {
+        let driver = page(json!([]));
+        let mut sb = case(&driver, all_three()).await;
+        sb.open(LOCAL).await.unwrap();
+        let requests = driver.all_requests();
+        let position = |method: &str, path: &str| {
+            requests
+                .iter()
+                .position(|request| request.method == method && request.path == path)
+        };
+        let navigated = position("POST", "/url").expect("the page was opened");
+        let checked = position("POST", "/log").expect("the log was read");
+        assert!(navigated < checked, "{requests:?}");
+        assert!(ran(&driver, ANGULAR) && ran(&driver, BEFOREUNLOAD));
+    }
+
+    #[tokio::test]
+    async fn opening_a_page_runs_no_hook_unless_asked() {
+        let driver = page(json!([]));
+        let mut sb = case(&driver, RunSettings::default()).await;
+        sb.open(LOCAL).await.unwrap();
+        assert!(driver.requests("/execute/sync").is_empty());
+        assert_eq!(log_reads(&driver), 0);
+    }
+
+    #[tokio::test]
+    async fn skipping_the_js_waits_skips_the_hooks_of_an_open_too() {
+        let driver = page(json!([]));
+        let mut sb = case(&driver, all_three().with_skip_js_waits(true)).await;
+        sb.open(LOCAL).await.unwrap();
+        assert!(driver.requests("/execute/sync").is_empty());
+        assert_eq!(log_reads(&driver), 0);
+    }
+
+    #[tokio::test]
+    async fn back_forward_and_refresh_run_the_hooks_too() {
+        let driver = page(json!([]));
+        let sb = case(&driver, RunSettings::default().with_check_js(true)).await;
+        sb.go_back().await.unwrap();
+        assert_eq!(log_reads(&driver), 1);
+        sb.go_forward().await.unwrap();
+        assert_eq!(log_reads(&driver), 2);
+        sb.refresh().await.unwrap();
+        assert_eq!(log_reads(&driver), 3);
+    }
+
+    #[tokio::test]
+    async fn a_click_waits_for_angularjs_only_when_asked() {
+        let driver = page(json!([]));
+        let mut quiet = case(&driver, RunSettings::default()).await;
+        quiet.click("#a").await.unwrap();
+        assert!(!ran(&driver, ANGULAR));
+
+        let mut waiting = case(&driver, RunSettings::default().with_wait_for_angularjs(true)).await;
+        waiting.click("#a").await.unwrap();
+        assert!(ran(&driver, ANGULAR));
+    }
+
+    #[tokio::test]
+    async fn the_multiplier_scales_the_default_wait_but_not_the_time_a_call_names() {
+        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(1.5));
+        assert_eq!(sb.default_wait_secs(), 15);
+        sb.set_timeout(3).await.unwrap();
+        assert_eq!(sb.default_wait_secs(), 5);
+        assert_eq!(sb.timeout_secs(), 3, "the default itself is not changed");
+        assert_eq!(sb.effective_timeout(7), 7, "a time a call names is kept");
+    }
+
+    #[tokio::test]
+    async fn a_multiplier_below_half_waits_half_as_long() {
+        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(0.3));
+        assert_eq!(sb.default_wait_secs(), 5);
+    }
+
+    #[tokio::test]
+    async fn the_time_limit_still_cuts_a_scaled_wait() {
+        let mut sb = BaseCase::without_session(BrowserConfig::default());
+        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(3.0));
+        assert_eq!(sb.default_wait_secs(), 30);
+        sb.set_time_limit(5).unwrap();
+        assert_eq!(sb.default_wait_secs(), 5);
+    }
+
+    #[tokio::test]
+    async fn the_multiplier_of_the_browser_config_reaches_the_case() {
+        let config = BrowserConfig::default()
+            .with_run_settings(RunSettings::default().with_timeout_multiplier(2.0));
+        assert_eq!(BaseCase::without_session(config).default_wait_secs(), 20);
+    }
+
+    #[tokio::test]
+    async fn a_wait_on_a_loading_page_lasts_the_scaled_time() {
+        let driver = MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/execute/sync") => Reply::Value(json!("loading")),
+                _ => Reply::Value(Value::Null),
+            }
+        });
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(1).await.unwrap();
+        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(2.0));
+        let started = Instant::now();
+        let waited = tokio::time::timeout(Duration::from_secs(10), sb.wait_for_ready_state_complete())
+            .await
+            .expect("the wait ran past ten seconds: it ignores the scaled timeout");
+        assert!(matches!(waited, Err(SeleniumBaseError::WaitTimeout(_))), "{waited:?}");
+        assert!(
+            started.elapsed() >= Duration::from_secs(2),
+            "gave up after {:?}",
+            started.elapsed()
+        );
+    }
+}
+
