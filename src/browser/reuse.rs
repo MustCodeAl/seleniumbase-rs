@@ -1262,7 +1262,8 @@ mod tests_with_a_driver {
 
     /// `reset` run by hand on a new session of `driver`, with `crumbs` as given.
     async fn reset_by_hand(driver: &MockWebDriver, config: &BrowserConfig, crumbs: bool) {
-        let url = crate::browser::session::server_url_for_joins(&driver.url());
+        crate::install_tls_provider();
+        let url = crate::browser::session::server_url_for_joins(driver.url());
         let web = thirtyfour::WebDriver::new(url, thirtyfour::DesiredCapabilities::chrome())
             .await
             .unwrap();
