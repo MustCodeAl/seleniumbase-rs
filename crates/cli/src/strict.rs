@@ -5,6 +5,8 @@
 //! - A scalar flag given twice. `args_override_self = false` is a setting of one command:
 //!   the root and an `Args` struct can say it, an inline variant of the command enum
 //!   cannot, so after a subcommand the last value won.
+//!   The same goes for a `global` option of the root written on both sides of the
+//!   subcommand (`sbrs --headless get-title --headless`): it is one flag given twice.
 //! - A value written after a switch. The parser drops it (`--headless=false` would switch
 //!   the option on). A switch declared `bool_value` hands the value over instead, so the
 //!   parser can see it; the derive then accepts `true` and `false`, and clap accepted
