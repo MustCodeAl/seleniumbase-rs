@@ -59,6 +59,13 @@ fn run(dir: &Path, env: &[(&str, &str)], args: &[&str]) -> Output {
     for var in SB_VARS {
         command.env_remove(var);
     }
+    // Every variable of the option table, which the list above does not name one by one.
+    for row in seleniumbase_rs::config::test_options::TEST_OPTIONS {
+        if !row.env.is_empty() {
+            command.env_remove(row.env);
+        }
+    }
+
     for (name, value) in env {
         command.env(name, value);
     }

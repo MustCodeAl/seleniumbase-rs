@@ -155,5 +155,8 @@ fn translate_offers_the_language_codes_after_the_file() {
 
 #[test]
 fn a_global_flag_completes_after_the_command() {
-    assert_eq!(complete("sbrs get-title --hea"), ["--headed", "--headless"]);
+    assert_eq!(
+        complete("sbrs get-title --hea"),
+        ["--headed", "--headless", "--headless1"]
+    );
 }

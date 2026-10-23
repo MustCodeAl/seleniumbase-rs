@@ -57,11 +57,13 @@ mod fig;
 mod fingerprint;
 mod proxy;
 
+mod browser_flags;
 #[cfg(test)]
 mod reference;
 #[cfg(feature = "turso")]
 mod report;
 mod strict;
+
 mod test_args;
 
 use failure::ArgumentError;
@@ -420,9 +422,9 @@ struct Cli {
         help = "Browser engine to launch (default: chrome, or the config file's)"
     )]
     browser: Option<BrowserArg>,
-    #[usage(long, global, bool_value, help = "Run the browser in headed mode")]
+    #[usage(long, global, aliases = ["gui"], bool_value, help = "Run the browser in headed mode")]
     headed: bool,
-    #[usage(long, global, bool_value, help = "Run the browser in headless mode")]
+    #[usage(long, global, aliases = ["headless2"], bool_value, help = "Run the browser in headless mode")]
     headless: bool,
     #[usage(
         long,
@@ -435,6 +437,8 @@ struct Cli {
         long,
         global,
         bool_value,
+        aliases = ["undetected", "undetectable"],
+
         help = "Enable undetected-chromedriver style evasions"
     )]
     uc: bool,
@@ -476,12 +480,16 @@ struct Cli {
         long,
         global,
         bool_value,
+        aliases = ["adblock", "block-ads"],
+
         help = "Refuse the requests of ad and tracker hosts (Chromium WebDriver sessions)"
     )]
     ad_block: bool,
     #[usage(
         long,
         global,
+        aliases = ["proxy-server", "proxy-string"],
+
         value_hint = usage::ValueHint::Other, help = "Proxy (host:port or scheme://host:port); with --proxy-list, a name from the list"
     )]
     proxy: Option<String>,
@@ -492,7 +500,7 @@ struct Cli {
         value_hint = usage::ValueHint::FilePath, help = "File of proxies to choose from; without --proxy a random one is used"
     )]
     proxy_list: Option<String>,
-    #[usage(long, global, value_hint = usage::ValueHint::Url, help = "URL to a proxy auto-config (PAC) file")]
+    #[usage(long, global, aliases = ["pac-url"], value_hint = usage::ValueHint::Url, help = "URL to a proxy auto-config (PAC) file")]
     proxy_pac_url: Option<String>,
     #[usage(
         long,
@@ -522,6 +530,8 @@ struct Cli {
         long,
         global,
         bool_value,
+        aliases = ["mobile-emulator"],
+
         help = "Use a mobile device emulation profile"
     )]
     mobile: bool,
@@ -541,7 +551,7 @@ struct Cli {
         help = "Write recordings as pure CDP code (sb_cdp Page and Locator calls)"
     )]
     rec_sb_cdp: bool,
-    #[usage(short = 'c', long, global, value_hint = usage::ValueHint::FilePath, extensions("toml", "json"), help = "Path to a TOML/JSON settings file")]
+    #[usage(short = 'c', long, global, aliases = ["settings-file", "settings"], value_hint = usage::ValueHint::FilePath, extensions("toml", "json"), help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
     /// Make every browser the command starts present the fingerprint in FILE
     ///
@@ -570,6 +580,11 @@ struct Cli {
     /// the options in the [plugins.NAME] table of the settings file.
     #[usage(long, global, value_name = "NAME.KEY=VALUE", value_hint = usage::ValueHint::Other)]
     plugin_opt: Vec<String>,
+    /// The options of the browser and the page, one flag for each row of the option table
+    /// (`sbrs options` lists them): `--dark`, `--metrics 360,640,2`, `--block-images`, ...
+    #[usage(flatten, next_help_heading = "Browser options")]
+    browser_flags: browser_flags::BrowserFlags,
+
     #[usage(subcommand)]
     command: Commands,
 }
@@ -1336,6 +1351,19 @@ enum Commands {
     /// Print how Python SeleniumBase's behave options map to `sbrs test`.
     #[usage(help_heading = "Tests", example = "sbrs behave-options")]
     BehaveOptions,
+    /// List the browser options: each flag, its `SB_*` variable and its key in the settings file.
+    ///
+    /// The same options can be set in the settings file, in the environment and with these
+    /// flags; the command line wins over the environment, which wins over the file.
+    /// `--markdown` prints the table for the documentation, and `--all` adds the options of
+    /// the test run (`sbrs test`).
+    #[usage(
+        help_heading = "Info and setup",
+        example = "sbrs options",
+        example = "sbrs options --markdown"
+    )]
+    Options(browser_flags::OptionsArgs),
+
     /// Start, stop, restart or check a Selenium Grid hub.
     ///
     /// Needs a Selenium Server jar: --jar, SB_SELENIUM_SERVER_JAR, or the newest one in
@@ -3171,6 +3199,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Devtools { .. } => return run_devtools(&args).await,
+        Commands::Options(options) => {
+            print!("{}", browser_flags::options_listing(options));
+            return Ok(());
+        }
+
         Commands::BehaveOptions => {
             print!("{}", behave_options::render());
             return Ok(());
@@ -3203,6 +3236,28 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
     // The page the command line names, with `https://` or `file://` where it was left out.
     let start_page_flag = args.start_page.as_deref().map(start_page_url).transpose()?;
+    // The flags of the option table that the root does not declare by hand, as the variables
+    // of their rows. They are read as the environment is, after the typed flags.
+    let browser_options = args
+        .browser_flags
+        .options()
+        .map_err(|message| ArgumentError::new(&command_name(&args.command), message))?;
+    let gives = |variable: &str| browser_options.iter().any(|(name, _)| *name == variable);
+    if args.browser.is_some() && gives("SB_BROWSER") {
+        return Err(ArgumentError::new(
+            &command_name(&args.command),
+            "choose --browser or a browser flag such as --firefox, not both",
+        )
+        .into());
+    }
+    if args.webdriver.is_some() && gives("SB_SERVER") {
+        return Err(ArgumentError::new(
+            &command_name(&args.command),
+            "choose --webdriver or --server, not both",
+        )
+        .into());
+    }
+
     let overrides = SettingsOverrides {
         browser: args.browser.map(|browser| browser.name().to_owned()),
         headless: args
@@ -3228,8 +3283,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         rec_sb_cdp: args.rec_sb_cdp.then_some(true),
         fingerprint: args.fingerprint.map(|file| file.display().to_string()),
         start_page: start_page_flag.clone(),
+        options: browser_options,
     };
-    overrides.apply(&mut settings);
+    overrides.try_apply(&mut settings)?;
     // A fingerprint file named on the command line is checked here, like the variable's and
     // the file's: a wrong path is an error, not a browser without the fingerprint.
     settings.check_fingerprint()?;
@@ -3825,6 +3881,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         | Commands::Proxy(_)
         | Commands::Download(_)
         | Commands::BehaveOptions
+        | Commands::Options(_)
         | Commands::Devtools { .. } => {
             unreachable!("these commands return before browser configuration")
         }

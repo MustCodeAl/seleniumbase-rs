@@ -277,7 +277,9 @@ macro_rules! test_options {
 seleniumbase_rs::sb_test_options!(test_options);
 
 /// Refuses two flags that choose different values of one variable.
-fn shorthand_conflict(sets: &[(&'static str, &'static str, &'static str)]) -> Result<(), String> {
+pub(crate) fn shorthand_conflict(
+    sets: &[(&'static str, &'static str, &'static str)],
+) -> Result<(), String> {
     for (at, (env, value, flag)) in sets.iter().enumerate() {
         if let Some((_, _, other)) = sets[..at]
             .iter()
