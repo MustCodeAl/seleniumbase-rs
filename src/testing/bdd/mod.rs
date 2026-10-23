@@ -78,6 +78,7 @@ use crate::sb_cdp::{Browser, Page};
 use crate::BaseCase;
 
 mod session;
+pub mod steps;
 
 use session::{Launch, Scenario};
 
@@ -134,6 +135,11 @@ impl SbCase {
     }
 
     async fn start(settings: &Settings, logs_dir: Option<PathBuf>) -> Result<Self> {
+        // The built-in steps register through `inventory`: referencing them
+        // from here keeps their object files in every test binary that
+        // launches an `SbCase`.
+        steps::link();
+
         let plan = plan_for(settings, "WebDriver", logs_dir)?;
         let test_id = plan.test_id.clone();
         let browser = settings.to_browser_config();
