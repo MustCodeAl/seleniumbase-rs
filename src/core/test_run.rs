@@ -691,6 +691,10 @@ impl TestRun {
             sinks: Mutex::new(Vec::new()),
         });
         run.begin()?;
+        // Allure is a sink like any other; a folder that cannot be used is logged there.
+        #[cfg(feature = "allure")]
+        let _ = crate::core::allure::attach(&run);
+
         Ok(run)
     }
 
