@@ -620,7 +620,8 @@
               "design/fingerprint-capture",
               "design/usage-cli",
               "design/mcp-dev-tools",
-              "design/stealth_parity_plan"
+              "design/stealth_parity_plan",
+              "design/rstest_bdd_spike"
             ]
           },
           {

@@ -1,4 +1,7 @@
-# rstest-bdd 0.6 spike: how a scenario's browser is closed
+---
+title: "Design: rstest-bdd 0.6 spike, how a scenario's browser is closed"
+sidebarTitle: "Gherkin on rstest-bdd"
+---
 
 Written for lane RUN-7 (`bdd-core`), 2026-10-23. It answers the first question of
 the runner spec (section 4.5): teardown mechanism A (a harness that finalizes the

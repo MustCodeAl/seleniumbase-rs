@@ -30,7 +30,7 @@ Summary for AI exports: enable the features `testing` and `bdd`; depend on `rste
 
 ```toml Cargo.toml
 [dev-dependencies]
-seleniumbase-rs = { version = "0.6", features = ["testing", "bdd"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["testing", "bdd"] }
 rstest = "0.26"
 rstest-bdd = "0.6"
 rstest-bdd-macros = "0.6"

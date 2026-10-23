@@ -21,6 +21,14 @@ ignore = [
     # histogram bookkeeping on non-adversarial input.
     "RUSTSEC-2025-0057",
 
+    # RUSTSEC-2026-0374: basic-toml unmaintained. Reached only through
+    # rstest-bdd -> i18n-embed -> i18n-embed-impl (a proc macro) ->
+    # i18n-config, behind the optional `bdd` feature for writing Gherkin
+    # tests: it reads the macro crate's own i18n.toml at build time and never
+    # ships in the library or the binaries. Drop this once rstest-bdd or
+    # i18n-embed moves to the `toml` crate.
+    "RUSTSEC-2026-0374",
+
     # RUSTSEC-2026-0192: ttf-parser unmaintained. Reached through
     # pdf-extract -> lopdf for font handling while parsing PDFs. Revisit if
     # pdf-extract stays on an unmaintained lopdf line.
