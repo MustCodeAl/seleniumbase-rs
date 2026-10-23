@@ -31,7 +31,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New"]}>
+<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
 
 ### Added
 
@@ -105,6 +105,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.5.1 s
   `export_session_as_test` and `diagnose_environment`. It is 34 tools now.
   `get_failed_requests` and `audit_page` stay with `cdp` and `sb`.
 - `Profile::ALL` has a fourth profile, and `sbrs-mcp --server` accepts `dev`.
+
+### Fixed
+
+- zsh completion reaches the second level: `sbrs pl<Tab>` now gives `sbrs plugin ` with
+  a space, so the next Tab offers `info` and `list`, and a completed flag such as
+  `--url` gets its space too. usage 6.12's zsh script told zsh to add no suffix to any
+  word; `sbrs completions zsh` now adds complete words with zsh's own space and keeps no
+  suffix only for words that go on (`--flag=`, a folder `/`, `key:`). Shells installed
+  from Homebrew pick it up with the next release.
 
 </Update>
 

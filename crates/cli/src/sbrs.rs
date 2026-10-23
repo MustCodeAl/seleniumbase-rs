@@ -46,6 +46,7 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
+mod completion;
 mod fig;
 #[cfg(test)]
 mod reference;
@@ -2114,6 +2115,9 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
             let completion = match (shell, shell.shell()) {
+                (_, Some(usage::complete::Shell::Zsh)) => {
+                    completion::zsh(&Cli::completion_script(usage::complete::Shell::Zsh))
+                }
                 (_, Some(shell)) => Cli::completion_script(shell),
                 (CompletionFormat::Usage, None) => USAGE_SPEC.to_owned(),
                 (_, None) => fig::spec(Cli::spec()),

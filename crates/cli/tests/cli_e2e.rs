@@ -619,3 +619,63 @@ fn a_reader_that_goes_away_early_is_not_an_error() {
     );
     assert!(!stderr.contains("error"), "stderr: {stderr}");
 }
+
+#[test]
+fn zsh_completion_ends_a_complete_word_with_a_space() {
+    // usage 6.12's zsh script added every candidate with `compadd -S ''`, so `sbrs pl<Tab>`
+    // stopped at `plugin` with no space and the next Tab never reached `info` and `list`.
+    // The script runs in a real zsh with a stub `compadd` that prints whether zsh would add
+    // its space ("space") or nothing ("none"), and the words it was given.
+    if std::process::Command::new("zsh")
+        .args(["-fc", "true"])
+        .status()
+        .is_err()
+    {
+        eprintln!("skipped: zsh is not installed");
+        return;
+    }
+    let sbrs = std::path::Path::new(env!("CARGO_BIN_EXE_sbrs"));
+    let path = format!(
+        "{}:{}",
+        sbrs.parent().expect("sbrs has a folder").display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let script = r#"
+compadd() {
+    local suffix=space array=
+    while (( $# )); do
+        case $1 in
+            -S) suffix=none; shift 2 ;;
+            -a) array=$2; shift 2 ;;
+            -d) shift 2 ;;
+            *) shift ;;
+        esac
+    done
+    print -r -- "$suffix ${(P)array}"
+}
+compdef() { :; }
+_files() { :; }
+_command_names() { :; }
+typeset -A compstate
+source <(sbrs completions zsh)
+for BUFFER in 'sbrs pl' 'sbrs mkfile x.rs --ur'; do
+    CURSOR=${#BUFFER}
+    _sbrs
+done
+"#;
+    let output = std::process::Command::new("zsh")
+        .args(["-fc", script])
+        .env("PATH", path)
+        .output()
+        .expect("run zsh");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stdout.lines().any(|line| line == "space plugin"),
+        "stdout: {stdout}\nstderr: {stderr}"
+    );
+    assert!(
+        stdout.lines().any(|line| line == "space --url"),
+        "stdout: {stdout}\nstderr: {stderr}"
+    );
+}

@@ -81,6 +81,15 @@ work, `docs/parity.md` the per-API status).
   `get_failed_requests` and `audit_page` stay with `cdp` and `sb`.
 - `Profile::ALL` has a fourth profile, and `sbrs-mcp --server` accepts `dev`.
 
+### Fixed
+
+- zsh completion reaches the second level: `sbrs pl<Tab>` now gives `sbrs plugin ` with
+  a space, so the next Tab offers `info` and `list`, and a completed flag such as
+  `--url` gets its space too. usage 6.12's zsh script told zsh to add no suffix to any
+  word; `sbrs completions zsh` now adds complete words with zsh's own space and keeps no
+  suffix only for words that go on (`--flag=`, a folder `/`, `key:`). Shells installed
+  from Homebrew pick it up with the next release.
+
 ## [0.5.1] - 2026-10-17
 
 A patch release of the command line: it refuses again what clap refused in 0.4.0,
