@@ -589,7 +589,7 @@ impl Chart {
     /// directory part, or if the folder or the file cannot be written.
     pub fn save_in(&self, folder: &Path, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
         check_filename(filename)?;
-        let path = folder.join(filename);
+        let path = crate::artifacts::confined_path(folder, filename)?;
         fs::create_dir_all(folder).map_err(|error| {
             SeleniumBaseError::InvalidConfig(format!(
                 "failed to create the folder '{}' for the chart: {error}",

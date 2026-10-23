@@ -525,7 +525,7 @@ impl Presentation {
         end_marker: bool,
     ) -> Result<PathBuf, SeleniumBaseError> {
         check_filename(filename)?;
-        let path = folder.join(filename);
+        let path = crate::artifacts::confined_path(folder, filename)?;
         fs::create_dir_all(folder).map_err(|error| {
             SeleniumBaseError::InvalidConfig(format!(
                 "failed to create the folder '{}' for the presentation: {error}",
