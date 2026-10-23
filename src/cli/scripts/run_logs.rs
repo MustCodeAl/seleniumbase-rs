@@ -160,7 +160,7 @@ pub fn package_dirs_from_metadata(metadata: &str, cwd: &Path) -> Option<Vec<Path
     };
     let containing = packages
         .iter()
-        .filter_map(|package| dir_of(package))
+        .filter_map(&dir_of)
         .filter(|dir| cwd.starts_with(dir))
         .max_by_key(|dir| dir.components().count());
     if let Some(dir) = containing {

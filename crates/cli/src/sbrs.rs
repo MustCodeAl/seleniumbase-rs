@@ -575,6 +575,10 @@ struct Cli {
 }
 
 #[derive(Debug, usage::Subcommands)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "one command is parsed per process, and `test` has a flag for every row of the option table"
+)]
 enum Commands {
     /// Print the sbrs version, as `sbrs --version` does.
     #[usage(help_heading = "Info and setup", example = "sbrs version")]
