@@ -389,6 +389,12 @@
                       "concepts/browser-extensions",
                       "concepts/mcp",
                       "concepts/modern-web",
+                      "concepts/developer-tools",
+                      "concepts/tcp-and-streams",
+                      "concepts/web-eras-and-p2p",
+                      "concepts/crawlers-and-spiders",
+                      "concepts/containers",
+                      "concepts/version-control-and-deployment",
                       "glossary"
                     ]
                   }
