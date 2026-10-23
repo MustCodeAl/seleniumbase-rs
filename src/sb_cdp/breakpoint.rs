@@ -11,9 +11,9 @@ use serde_json::Value;
 
 use super::Page;
 use crate::common::debug_prompt::{
-    breakpoint_prompt, thread_test_id, DebugPrompt, LineInput, PromptKind, PromptOutcome,
-    PromptPage,
+    breakpoint_prompt, DebugPrompt, LineInput, PromptKind, PromptOutcome, PromptPage,
 };
+use crate::common::test_id::current_test_id;
 use crate::error::SeleniumBaseError;
 
 #[async_trait]
@@ -92,7 +92,10 @@ impl Page {
         I: LineInput,
         W: Write + Send,
     {
-        match prompt.pause(kind, &thread_test_id(), message, self).await? {
+        match prompt
+            .pause(kind, &current_test_id(), message, self)
+            .await?
+        {
             PromptOutcome::Continue => Ok(()),
             PromptOutcome::Quit => Err(SeleniumBaseError::test_lifecycle(
                 "stopped at the debug prompt",

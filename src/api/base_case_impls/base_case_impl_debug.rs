@@ -91,7 +91,7 @@ impl BaseCase {
         let test_id = self
             .test_name
             .clone()
-            .unwrap_or_else(crate::common::debug_prompt::thread_test_id);
+            .unwrap_or_else(crate::common::test_id::current_test_id);
         let started = std::time::Instant::now();
         let outcome = prompt.pause(kind, &test_id, message, &*self).await;
         self.extend_time_limit(started.elapsed());

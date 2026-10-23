@@ -513,7 +513,7 @@ async fn save_numbered(
 
 /// A folder name for `test_id`: letters, digits, `.`, `-` and `_` only, so it
 /// cannot name a place outside `latest_logs`; `test` when nothing is left.
-fn folder_name(test_id: &str) -> String {
+pub(crate) fn folder_name(test_id: &str) -> String {
     let cleaned: String = test_id
         .chars()
         .map(|c| {
@@ -566,24 +566,6 @@ pub(crate) fn breakpoint_prompt() -> Option<DebugPrompt<TerminalInput, io::Stder
         );
     }
     prompt
-}
-
-/// A test id for the running test, from the name of its thread: the module
-/// path and function joined with `.`, as `login.valid_login` for
-/// `login::valid_login`; `test` for a thread with no test name.
-pub(crate) fn thread_test_id() -> String {
-    let thread = std::thread::current();
-    test_id_of_thread(thread.name().unwrap_or_default())
-}
-
-/// [`thread_test_id`] for a thread named `name`.
-fn test_id_of_thread(name: &str) -> String {
-    let parts: Vec<&str> = name.split("::").filter(|part| !part.is_empty()).collect();
-    if name == "main" || parts.is_empty() {
-        "test".to_owned()
-    } else {
-        parts.join(".")
-    }
 }
 
 #[cfg(test)]
@@ -1020,14 +1002,6 @@ mod tests {
         for off in ["0", "false", "FALSE", "no", "off", " 0 "] {
             assert!(!enabled_by(Some(off)), "{off:?}");
         }
-    }
-
-    #[test]
-    fn a_test_id_comes_from_the_thread_name() {
-        assert_eq!(test_id_of_thread("login::valid_login"), "login.valid_login");
-        assert_eq!(test_id_of_thread("a::b::c"), "a.b.c");
-        assert_eq!(test_id_of_thread("main"), "test");
-        assert_eq!(test_id_of_thread(""), "test");
     }
 
     #[test]
