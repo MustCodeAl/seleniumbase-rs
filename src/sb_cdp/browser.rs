@@ -1287,8 +1287,6 @@ impl Browser {
 
 #[cfg(test)]
 mod proxy_login_tests {
-    use std::time::Duration;
-
     use super::*;
     use crate::sb_cdp::mock::{Call, MockCtrl};
 
@@ -1391,10 +1389,13 @@ mod proxy_login_tests {
         settle().await;
 
         let calls = mock.calls();
-        assert!(sent(&calls, "Fetch.enable", "S5").is_empty());
+        assert_eq!(sent(&calls, "Fetch.enable", "S5"), Vec::<usize>::new());
         assert_eq!(sent(&calls, "Fetch.enable", "S9").len(), 1);
-        assert!(sent(&calls, "Fetch.enable", "S10").is_empty());
-        assert!(sent(&calls, "Runtime.runIfWaitingForDebugger", "S5").is_empty());
+        assert_eq!(sent(&calls, "Fetch.enable", "S10"), Vec::<usize>::new());
+        assert_eq!(
+            sent(&calls, "Runtime.runIfWaitingForDebugger", "S5"),
+            Vec::<usize>::new()
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -1405,7 +1406,7 @@ mod proxy_login_tests {
         settle().await;
 
         let calls = mock.calls();
-        assert!(sent(&calls, "Fetch.enable", "S7").is_empty());
+        assert_eq!(sent(&calls, "Fetch.enable", "S7"), Vec::<usize>::new());
         assert_eq!(
             sent(&calls, "Runtime.runIfWaitingForDebugger", "S7").len(),
             1
