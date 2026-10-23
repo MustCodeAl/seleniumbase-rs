@@ -5,7 +5,6 @@
     reason = "thirtyfour has deprecated NetworkConditions, which this API still takes"
 )]
 
-
 use std::path::Path;
 use std::time::Duration;
 

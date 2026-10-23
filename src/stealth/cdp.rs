@@ -11,7 +11,6 @@
     reason = "thirtyfour has deprecated ChromeDevTools and NetworkConditions, which this wrapper exposes"
 )]
 
-
 use std::sync::Arc;
 use thirtyfour::extensions::cdp::ChromeDevTools;
 

@@ -79,9 +79,15 @@ const GONE: &[(&str, &str)] = &[
     ("PlaywrightSession::launch_headless", "launch_with_config"),
     ("launch_headless_with_fingerprint", "launch_with_config"),
     ("launch_with_fingerprint", "launch_with_config"),
-    ("run_browser_test_boxed", "run_browser_test(.., async |sb| ..)"),
+    (
+        "run_browser_test_boxed",
+        "run_browser_test(.., async |sb| ..)",
+    ),
     ("BrowserTestFuture", "an async closure"),
-    ("with_fast_mode", "nothing: Python reads --fast only in CDP mode"),
+    (
+        "with_fast_mode",
+        "nothing: Python reads --fast only in CDP mode",
+    ),
     ("pause(tiny: bool)", "pause_for(PauseKind)"),
     ("RunSettings::pause", "RunSettings::pause_for"),
     ("message_seconds", "RunSettings::message_duration"),

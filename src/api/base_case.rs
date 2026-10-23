@@ -5,7 +5,6 @@
     reason = "thirtyfour has deprecated NetworkConditions, which this API still takes"
 )]
 
-
 use base64::prelude::*;
 use rand::RngExt;
 use std::path::{Path, PathBuf};

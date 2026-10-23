@@ -123,6 +123,9 @@ fn the_scan_catches_each_spelling() {
         hits("#[expect(deprecated, reason = \"thirtyfour\")]").len(),
         0
     );
-    assert_eq!(hits("#[allow(dead_code)]\nfn deprecated_name() {}").len(), 0);
+    assert_eq!(
+        hits("#[allow(dead_code)]\nfn deprecated_name() {}").len(),
+        0
+    );
     assert_eq!(hits("fn fine() {}\n// no marker here").len(), 0);
 }
