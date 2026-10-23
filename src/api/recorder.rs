@@ -3193,8 +3193,8 @@ mod tests {
     #[test]
     fn every_gherkin_step_is_a_step_the_outline_reader_reads() {
         use crate::cli::scripts::gherkin_outline::{parse_feature, Step};
-        // The built-in steps of `testing::bdd` (lane RUN-8) must each match one
-        // of these; this checks the shape of what is written.
+        // This checks the shape of what is written; with the feature `bdd` it
+        // also checks that each step is a built-in step.
         let feature = gherkin_recorder().to_gherkin("Sign up");
         let lines: Vec<String> = feature.lines().map(String::from).collect();
         let parsed = parse_feature(&lines);
@@ -3205,6 +3205,35 @@ mod tests {
             .collect();
         assert_eq!(steps.len(), 4, "{feature}");
         assert!(steps[0].starts_with("Given Open "), "{steps:?}");
+
+        // With the feature `bdd`, every step the recorder writes is read by
+        // exactly one built-in step of `testing::bdd::steps`, whichever
+        // command it records and however the arguments are quoted.
+        #[cfg(feature = "bdd")]
+        {
+            let mut recorder = gherkin_recorder();
+            recorder.record("go_forward", None, None);
+            recorder.record(
+                "goto_if_not_url",
+                Some("https://example.com/?q=\"x\""),
+                None,
+            );
+            recorder.record("click", Some("a[title=\"Go\"]"), None);
+            recorder.record("type_text", Some("#q"), Some("say \"hi\""));
+            let feature = recorder.to_gherkin("Every command");
+            let lines: Vec<String> = feature.lines().map(String::from).collect();
+            let parsed = parse_feature(&lines);
+            assert!(parsed.scenarios[0].steps.len() >= 8, "{feature}");
+            for step in &parsed.scenarios[0].steps {
+                let actions = crate::testing::bdd::steps::matching_actions(&step.text);
+                assert_eq!(
+                    actions.len(),
+                    1,
+                    "{} reads {actions:?}\n{feature}",
+                    step.text
+                );
+            }
+        }
     }
 
     #[test]
