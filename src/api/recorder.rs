@@ -303,7 +303,7 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         .as_deref()
         .ok_or_else(|| format!("{name} has no target"));
     match name {
-        "open" => Ok(format!("Open {}", plain(target?, "URL")?)),
+        "open" | "goto_if_not_url" => Ok(format!("Open {}", plain(target?, "URL")?)),
         "click" => Ok(format!("Click {}", plain(target?, "selector")?)),
         "type_text" => {
             let value = action
@@ -371,6 +371,8 @@ enum Shape {
 /// [`RecorderSession`] captures, and those older recordings use.
 const CALLS: &[(&str, &str, Shape)] = &[
     ("open", "open", Shape::Target),
+    ("goto_if_not_url", "goto_if_not_url", Shape::Target),
+
     ("click", "click", Shape::Target),
     ("type_text", "type_text", Shape::TargetValue),
     ("clear", "clear", Shape::Target),
@@ -1259,7 +1261,7 @@ impl RecorderSession {
     /// Drains buffered in-page events into the recording.
     ///
     /// Also reinstalls the listeners when a navigation wiped them and records a
-    /// `goto` action whenever the page URL changed since the last drain.
+    /// `goto_if_not_url` action whenever the page URL changed since the last drain.
     pub async fn drain(&mut self, sb: &mut BaseCase) -> Result<usize, SeleniumBaseError> {
         let before = self.actions.len();
         let raw = sb.execute_script(Self::drain_script()).await;
@@ -1287,19 +1289,23 @@ impl RecorderSession {
         Ok(self.actions.len() - before)
     }
 
-    /// Records a `goto` if the browser is now on a page other than the last one
-    /// the recording knows.
+    /// Records the page the browser is now on, if it is not the last one the recording
+    /// knows: `goto` for the first, `goto_if_not_url` for any later one, as the click that led there opens it.
     fn note_page(&mut self, url: &str) {
-        if self.last_url.as_deref() != Some(url) {
-            self.last_url = Some(url.to_owned());
-            self.actions
-                .push(RecordedAction::new("goto", Some(url), None));
+            if self.last_url.as_deref() != Some(url) {
+                let name = if self.last_url.is_none() {
+                    "goto"
+                } else {
+                    "goto_if_not_url"
+                };
+                self.last_url = Some(url.to_owned());
+                self.actions.push(RecordedAction::new(name, Some(url), None));
+            }
         }
-    }
 
     /// Replays `actions` against `sb`.
     ///
-    /// Supported action names (with aliases) are `goto`/`open`/`navigate`,
+    /// Supported action names (with aliases) are `goto`/`open`/`navigate`, `goto_if_not_url`,
     /// `click`, `type`/`type_text`/`update_text`, `assert_text`,
     /// `assert_title`, `assert_url`, and `select_option_by_value`. Anything else
     /// is counted as skipped.
@@ -1319,6 +1325,17 @@ impl RecorderSession {
                         continue;
                     }
                 },
+                "goto_if_not_url" => match target {
+                    Some(url) => (
+                        format!("goto {url} unless already there"),
+                        sb.goto_if_not_url(url).await,
+                    ),
+                    None => {
+                        report.skipped += 1;
+                        continue;
+                    }
+                },
+
                 "click" => match target {
                     Some(css) => (format!("click {css}"), sb.click(css).await),
                     None => {
@@ -2266,7 +2283,10 @@ mod tests {
     }
 
     #[test]
-    fn a_goto_is_recorded_once_for_each_new_page() {
+    fn the_first_page_is_a_goto_and_each_later_one_a_goto_if_not_url() {
+        // The page a click led to is already open when the replay has clicked,
+        // so loading it again would run its scripts twice (and could not
+        // reproduce the result of a POST).
         let mut session = RecorderSession::new();
         session.note_page("http://x.test/a");
         session.note_page("http://x.test/a");
@@ -2281,10 +2301,29 @@ mod tests {
             targets,
             [
                 ("goto", Some("http://x.test/a")),
-                ("goto", Some("http://x.test/b")),
-                ("goto", Some("http://x.test/a")),
+                ("goto_if_not_url", Some("http://x.test/b")),
+                ("goto_if_not_url", Some("http://x.test/a")),
             ]
         );
+    }
+
+    #[test]
+    fn goto_if_not_url_is_generated_for_every_output() {
+        let mut recorder = ActionRecorder::default();
+        recorder.record("goto", Some("http://x.test/a"), None);
+        recorder.record("click", Some("#next"), None);
+        recorder.record("goto_if_not_url", Some("http://x.test/b"), None);
+        let script = recorder.to_rust_script();
+        assert!(
+            script.contains("sb.goto_if_not_url(\"http://x.test/b\").await?;"),
+            "{script}"
+        );
+        assert!(!script.contains("skipped"), "{script}");
+        let cdp = recorder.to_cdp_script();
+        assert!(cdp.contains("page.goto(\"http://x.test/b\")"), "{cdp}");
+        assert!(!cdp.contains("skipped"), "{cdp}");
+        let feature = recorder.to_gherkin("Two pages");
+        assert!(feature.contains("And Open \"http://x.test/b\""), "{feature}");
     }
 
     #[test]
@@ -2404,7 +2443,7 @@ mod tests {
                 step("goto", Some(&base), None),
                 step("type", Some("#name"), Some("Ada")),
                 step("click", Some("#next"), None),
-                step("goto", Some(&format!("{base}/b")), None),
+                step("goto_if_not_url", Some(&format!("{base}/b")), None),
                 step("click", Some("#done"), None),
             ]
         );

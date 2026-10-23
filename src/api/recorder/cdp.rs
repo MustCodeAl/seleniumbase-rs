@@ -176,7 +176,7 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
     };
 
     match name {
-        "open" => Ok(CdpCall::statement(format!(
+        "open" | "goto_if_not_url" => Ok(CdpCall::statement(format!(
             "page.goto({}).await?;",
             literal(need_target()?)
         ))),
