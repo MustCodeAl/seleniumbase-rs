@@ -107,6 +107,14 @@ See [Undetected (UC) Mode Guide](/tutorials/uc_mode#what-is-patched-automaticall
 
 ## B
 
+### Backpressure
+
+<Badge color="red">Network</Badge>
+
+The signal that tells a fast producer of data to wait for a slow consumer, so that queues stay small. A stream with a full queue reports it, and TCP does the same with its receive window.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#backpressure).
+
 ### BaseCase
 
 <Badge color="blue">Engine</Badge>
@@ -130,6 +138,30 @@ See [Behave / Gherkin Support](/tutorials/behave).
 Editing a driver or browser executable on disk so that it no longer carries the markers bot checks look for, such as the `cdc_` variables. `ChromedriverPatcher` patches chromedriver and `ChromeBinaryPatcher` patches a cached copy of the browser; UC mode does not patch the driver for you.
 
 See [Binary Patching](/tutorials/binary_patching).
+
+### BitTorrent
+
+<Badge color="red">Network</Badge>
+
+A peer-to-peer protocol that shares a file as hashed pieces among many peers, who are found through trackers or a distributed hash table. The more people hold a file, the faster it downloads.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#bittorrent).
+
+### Blockchain
+
+<Badge color="red">Network</Badge>
+
+A ledger of records grouped into blocks, copied across many computers and chained together by hashes, so that changing old records is evident. Web3 applications read and write one.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+
+### Blue-green deployment
+
+<Badge color="yellow">Project</Badge>
+
+A release method that runs the new version (green) beside the old one (blue) and then switches all traffic at once, so a rollback is a switch back.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
 
 ### BrowserConfig
 
@@ -172,6 +204,14 @@ One of the official plugins that ship inside seleniumbase-rs, one Cargo feature 
 See [Choosing Plugins](/plugins/selecting).
 
 ## C
+
+### Canary deployment
+
+<Badge color="yellow">Project</Badge>
+
+A release method that sends a small share of users to the new version first and widens it while monitoring, to limit the damage of a bad release.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
 
 ### Canvas noise
 
@@ -261,6 +301,22 @@ The program that turns [WebDriver](#webdriver) commands into actions in Chrome. 
 
 See [Operating systems](/building#operating-systems).
 
+### Chunked transfer encoding
+
+<Badge color="red">Network</Badge>
+
+An HTTP/1.1 way to send a response body in pieces, each with its size in front and a piece of size zero at the end, when the total length is not known in advance.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#where-http-puts-a-message-boundary).
+
+### CI/CD
+
+<Badge color="yellow">Project</Badge>
+
+Continuous integration builds and tests every change automatically. Continuous delivery or deployment then moves the tested result to servers or users. Browser tests are one stage of that chain.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#continuous-integration).
+
 ### Clearance
 
 <Badge color="purple">Stealth</Badge>
@@ -293,6 +349,38 @@ A terminal UI for browsing and running tests and examples, behind the Cargo feat
 
 See [SeleniumBase Commander](/help/commander).
 
+### Commit
+
+<Badge color="yellow">Project</Badge>
+
+A Git snapshot of all files with a message and a link to its parent commit. Its id is a hash of its content.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+
+### Console
+
+<Badge color="blue">Engine</Badge>
+
+The developer tools panel that shows the messages of a page by level (verbose, info, warning, error) and runs JavaScript in the page with helpers such as `$0` and `$$`.
+
+See [Developer tools](/concepts/developer-tools#the-console-in-depth).
+
+### Container
+
+<Badge color="yellow">Project</Badge>
+
+A normal process that the Linux kernel isolates, with its own files, network and process list, started from an image. Unlike a virtual machine it shares the host's kernel.
+
+See [Containers](/concepts/containers#containers-and-virtual-machines).
+
+### Container image
+
+<Badge color="yellow">Project</Badge>
+
+A read-only package of layered files plus a start command, built from a Dockerfile and kept in a registry.
+
+See [Containers](/concepts/containers#images-layers-and-registries).
+
 ### Content script
 
 <Badge color="orange">Plugins</Badge>
@@ -317,6 +405,22 @@ The cookie store of the stealth crates. It follows RFC 6265 and the rules Chrome
 
 See [Cookies, Identity and Challenges](/stealth/identity#the-cookie-jar).
 
+### Crawl frontier
+
+<Badge color="green">Testing</Badge>
+
+The queue of URLs that a crawler knows about and has not visited yet.
+
+See [Crawlers and spiders](/concepts/crawlers-and-spiders#how-a-crawler-works).
+
+### Crawler
+
+<Badge color="green">Testing</Badge>
+
+A program that fetches a page, collects its links and visits those, as search engines and link checkers do. Also called a spider. It differs from scraping, which extracts data, and from testing, which checks a site.
+
+See [Crawlers and spiders](/concepts/crawlers-and-spiders#crawling-scraping-and-testing).
+
 ### crx
 
 <Badge color="orange">Plugins</Badge>
@@ -333,7 +437,31 @@ The default kind of [selector](#selector): a string with none of the special pre
 
 See [Selectors Guide](/tutorials/selectors#supported-formats).
 
+### cURL
+
+<Badge color="red">Network</Badge>
+
+A command-line tool for HTTP requests. The browser's Copy as cURL turns a recorded request into a command with its headers and cookies, which are real credentials.
+
+See [Developer tools](/concepts/developer-tools#network-and-copy-as-curl).
+
 ## D
+
+### Dapp
+
+<Badge color="red">Network</Badge>
+
+A web page whose buttons call smart contracts through a wallet.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#how-a-page-talks-to-a-wallet).
+
+### Datagram
+
+<Badge color="red">Network</Badge>
+
+One independent packet sent by UDP, with no connection, no order and no resend.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#udp-and-quic).
 
 ### Deferred assertion
 
@@ -351,6 +479,14 @@ A run setting (`RunSettings::with_demo_mode`) that outlines each element before 
 
 See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
+### Developer tools
+
+<Badge color="blue">Engine</Badge>
+
+The panels built into a browser (Elements, Console, Sources, Network, Application and more). In Chrome they talk to the page over the [CDP](#cdp).
+
+See [Developer tools](/concepts/developer-tools#the-panels).
+
 ### DevTools endpoint
 
 <Badge color="gray">CLI</Badge>
@@ -366,6 +502,22 @@ See [DevTools MCP servers](/tutorials/devtools_mcp).
 The Domain Name System: the lookup that turns a host name such as `shop.example.com` into an IP address before a connection is opened. Answers are cached for the record's time to live. A lookup that bypasses a proxy is called a DNS leak.
 
 See [DNS: names to addresses](/concepts/network#dns-names-to-addresses).
+
+### Docker Compose
+
+<Badge color="yellow">Project</Badge>
+
+A tool that describes several containers in a `compose.yaml` file and starts them together on a private network, where each service reaches the others by name.
+
+See [Containers](/concepts/containers#compose-several-containers-together).
+
+### Dockerfile
+
+<Badge color="yellow">Project</Badge>
+
+The recipe for a container image, with one instruction such as `FROM`, `RUN` or `COPY` for each layer. The one at the root of the repository builds `sbrs` in two stages.
+
+See [Containers](/concepts/containers#the-dockerfile).
 
 ### Docs7
 
@@ -401,6 +553,14 @@ In WebDriver, the opaque id (under the key `element-6066-11e4-a52e-4f735466cecf`
 
 See [Element references](/concepts/webdriver#element-references).
 
+### Environment
+
+<Badge color="yellow">Project</Badge>
+
+A copy of a system with its own purpose, such as development, staging or production. What differs between them is kept in configuration, not in code.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+
 ### Ephemeral CA
 
 <Badge color="red">Network</Badge>
@@ -427,6 +587,14 @@ The loop that runs a page's JavaScript on one thread: it takes one task from a q
 
 See [JavaScript, events and waiting](/concepts/javascript-and-events#the-event-loop).
 
+### Feature flag
+
+<Badge color="yellow">Project</Badge>
+
+A switch that ships code turned off, so that it can be released later or to some users.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+
 ### Fingerprint
 
 <Badge color="purple">Stealth</Badge>
@@ -445,6 +613,22 @@ The plain-language format of `.feature` files, where behaviour is written as sce
 
 See [Behave / Gherkin Support](/tutorials/behave).
 
+### Git
+
+<Badge color="yellow">Project</Badge>
+
+A version control system that keeps the history of a project as commits, branches and tags.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+
+### GitHub Actions
+
+<Badge color="yellow">Project</Badge>
+
+The CI system of GitHub. A workflow file in `.github/workflows` names the events, jobs and steps to run.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#github-actions-as-the-example).
+
 ### GREASE
 
 <Badge color="red">Network</Badge>
@@ -462,6 +646,14 @@ See [Limits and Troubleshooting](/stealth/limits#limits).
 HTTP Archive 1.2: a file format that lists the requests a page made and the answers it got. In the pure CDP engine, `page.start_har()` records a tab and `finish()` returns a `Har` that you can save as a `.har` file, which browser developer tools open.
 
 See [Pure CDP](/tutorials/pure_cdp#recording-a-har).
+
+### Head-of-line blocking
+
+<Badge color="red">Network</Badge>
+
+The delay that follows when one lost TCP packet holds back all the bytes behind it. [QUIC](#quic) avoids it by giving each stream its own order.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
 
 ### Headed
 
@@ -545,6 +737,22 @@ A page shown instead of the content you asked for, such as a check page. A respo
 
 See [Cookies, Identity and Challenges](/stealth/identity#challenge-detection-and-mitigation).
 
+### IP address
+
+<Badge color="red">Network</Badge>
+
+The number that names a machine on a network, such as `127.0.0.1` (this machine) or an IPv6 address. With a port it names one end of a connection.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+
+### IPFS
+
+<Badge color="red">Network</Badge>
+
+The InterPlanetary File System, which names a file by a hash of its content (a CID) instead of by the place where it is stored.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#ipfs-addressing-by-content).
+
 ## J
 
 ### JA3
@@ -581,6 +789,14 @@ See [Syntax Formats](/help/syntax_formats).
 
 ## L
 
+### Layer
+
+<Badge color="yellow">Project</Badge>
+
+One step of a container image build, which stores the files that step changed. Layers are shared between images and re-used by the build cache.
+
+See [Containers](/concepts/containers#images-layers-and-registries).
+
 ### Link text
 
 <Badge color="blue">Engine</Badge>
@@ -605,7 +821,23 @@ The pure CDP engine's handle for finding elements. It remembers how to find them
 
 See [Pure CDP](/tutorials/pure_cdp#locators).
 
+### Loopback
+
+<Badge color="red">Network</Badge>
+
+The address `127.0.0.1` (IPv6 `::1`), also named `localhost`, which always means this same machine.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+
 ## M
+
+### Magnet link
+
+<Badge color="red">Network</Badge>
+
+A link that names a BitTorrent download by the hash of its description, so that peers can be found without a server that holds the file.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#bittorrent).
 
 ### Manifest V3
 
@@ -639,6 +871,14 @@ Wire values copied from a real browser by capture tools and stored as JSON: its 
 
 See [Wire Formats and Impersonation](/stealth/wire-formats#what-is-measured-and-what-is-refused).
 
+### Merge
+
+<Badge color="yellow">Project</Badge>
+
+Joining two Git branches. A fast-forward merge only moves a branch name ahead when there is nothing to combine.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+
 ### MFA
 
 <Badge color="green">Testing</Badge>
@@ -662,6 +902,14 @@ See [TLS Server and MitmProxy](/stealth/mitm-proxy#mitmproxy).
 A pure CDP browser backed by a script instead of Chrome. `Browser::new_mocked()` (Cargo feature `test-util`) records every protocol command and answers it with the handler you register, so you can test what your code sends.
 
 See [Pure CDP](/tutorials/pure_cdp#testing-without-chrome).
+
+### Multi-stage build
+
+<Badge color="yellow">Project</Badge>
+
+A Dockerfile that builds in a large image full of compilers and copies only the result into a small runtime image.
+
+See [Containers](/concepts/containers#the-dockerfile).
 
 ## N
 
@@ -707,6 +955,14 @@ A login credential for the WebAuthn API: a key pair made on a device, where the 
 
 See [Modern web technologies](/concepts/modern-web#passkeys-and-webauthn).
 
+### Peer-to-peer (P2P)
+
+<Badge color="red">Network</Badge>
+
+A design in which computers talk to each other directly and each is client and server for the others. BitTorrent, WebRTC data channels and IPFS are examples.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#peer-to-peer).
+
 ### peetprint
 
 <Badge color="red">Network</Badge>
@@ -747,6 +1003,14 @@ The plugins a program uses, with the [capabilities](#capability) each was grante
 
 See [PluginSet](/plugins/api/plugin-set).
 
+### Port
+
+<Badge color="red">Network</Badge>
+
+A number from 0 to 65535 that says which program on a machine receives a message. HTTPS uses 443, and `sbrs devtools` listens on 9222 by default.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+
 ### Proxy
 
 <Badge color="red">Network</Badge>
@@ -754,6 +1018,14 @@ See [PluginSet](/plugins/api/plugin-set).
 A server that makes requests on your behalf, so the site sees the proxy's IP address instead of yours. HTTP, HTTPS and SOCKS5 proxies differ in what they relay; a proxy may ask for a user name and password (a `407` reply), and a PAC file or a bypass list decides which hosts use it.
 
 See [Proxies](/concepts/network#proxies).
+
+### Pull request
+
+<Badge color="yellow">Project</Badge>
+
+A request to merge a branch into another one, where the change is reviewed and CI runs on it.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
 
 ### Pure CDP
 
@@ -783,6 +1055,14 @@ A tool that captures your clicks, typing and navigations in a browser and turns 
 
 See [Recorder Mode Guide](/tutorials/recorder_mode).
 
+### Registry
+
+<Badge color="yellow">Project</Badge>
+
+A server that stores container images, such as Docker Hub or `ghcr.io`. An image name has the form `registry/owner/name:tag`.
+
+See [Containers](/concepts/containers#images-layers-and-registries).
+
 ### Renderer process
 
 <Badge color="blue">Engine</Badge>
@@ -807,6 +1087,30 @@ A run option (`with_reuse_session(true)`, `--reuse-session` or `SB_REUSE_SESSION
 
 See [Customizing Test Runs](/help/customizing_test_runs#sharing-a-browser-between-tests).
 
+### robots.txt
+
+<Badge color="green">Testing</Badge>
+
+The file at `/robots.txt` in which a site tells crawlers which paths they may fetch. It is a request, not access control.
+
+See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps).
+
+### Rollback
+
+<Badge color="yellow">Project</Badge>
+
+Returning to the last good version after a bad release.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+
+### Rolling deployment
+
+<Badge color="yellow">Project</Badge>
+
+Replacing servers a few at a time so that the service never stops, with the old and new versions running together for a while.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+
 ### RTK
 
 <Badge color="yellow">Project</Badge>
@@ -814,6 +1118,14 @@ See [Customizing Test Runs](/help/customizing_test_runs#sharing-a-browser-betwee
 A command proxy that shortens the output of `cargo`, `git` and test runners before it reaches an AI assistant, for example `rtk cargo test`. Exit codes are unchanged, and it is optional.
 
 See [Build from source](/contributing/from-source#working-with-an-ai-assistant).
+
+### Runner
+
+<Badge color="yellow">Project</Badge>
+
+The machine that runs a CI job, such as `ubuntu-latest` in GitHub Actions.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#github-actions-as-the-example).
 
 ### RunSettings
 
@@ -881,6 +1193,14 @@ The MCP server program. It lets an AI client drive a browser over standard input
 
 See [MCP servers](/tutorials/mcp_server).
 
+### Seed phrase
+
+<Badge color="red">Network</Badge>
+
+The list of recovery words that encodes a wallet's private key. Never put a real one in a test, a script, a log or a repository.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+
 ### Selector
 
 <Badge color="blue">Engine</Badge>
@@ -912,6 +1232,14 @@ See [Deployment](/deployment#selenium-grid).
 The separate, experimental repository that holds the TLS and HTTP/2 layer as three crates: `codec` (wire formats), `scrape` ([BrowserScraper](#browserscraper), identity, challenge detection) and `mimic` ([HttpSession](#httpsession), [MitmProxy](#mitmproxy), [StealthSession](#stealthsession)). It left this crate in 0.3.0.
 
 See [Stealth Scraping](/stealth/overview).
+
+### Semantic versioning
+
+<Badge color="yellow">Project</Badge>
+
+Version numbers of the form MAJOR.MINOR.PATCH, where a major change may break users. While the major number is 0, a minor change may break them too.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
 
 ### Server-Sent Events
 
@@ -969,6 +1297,14 @@ A Chrome security feature that puts pages from different sites into different re
 
 See [How a modern browser is built](/concepts/browser-architecture#site-isolation-and-the-sandbox).
 
+### Sitemap
+
+<Badge color="green">Testing</Badge>
+
+An XML file that lists the URLs a site wants found. It is the best seed list for crawling your own site in a test.
+
+See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps).
+
 ### Slow mode
 
 <Badge color="green">Testing</Badge>
@@ -977,6 +1313,14 @@ A run setting (`RunSettings::with_slow_mode`) that pauses after interactive call
 
 See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
+### Smart contract
+
+<Badge color="red">Network</Badge>
+
+A program stored on a blockchain that runs when a transaction calls it.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+
 ### SNI
 
 <Badge color="red">Network</Badge>
@@ -984,6 +1328,14 @@ See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 Server Name Indication: the host name a client states in its TLS handshake. [MitmProxy](#mitmproxy) refuses a connection whose SNI names a different host from the one the browser asked for.
 
 See [TLS Server and MitmProxy](/stealth/mitm-proxy).
+
+### Socket
+
+<Badge color="red">Network</Badge>
+
+The handle that the operating system gives a program for one end of a network connection.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#sockets).
 
 ### Soft assertion
 
@@ -1025,6 +1377,22 @@ A session in the experimental `mimic` crate that presents one identity in two mo
 
 See [StealthSession](/stealth/stealth-session).
 
+### Streams API
+
+<Badge color="blue">Engine</Badge>
+
+The browser API with `ReadableStream`, `WritableStream` and `TransformStream`, which handles data in pieces and supports [backpressure](#backpressure).
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#the-streams-api).
+
+### STUN and TURN
+
+<Badge color="red">Network</Badge>
+
+Helper servers for WebRTC. STUN tells a browser its public address; TURN relays the data when no direct path exists.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-channels).
+
 ## T
 
 ### Target
@@ -1043,6 +1411,14 @@ A framework for desktop apps that draw their window with the system webview. The
 
 See [Tauri Plugin](/ecosystem/tauri).
 
+### TCP
+
+<Badge color="red">Network</Badge>
+
+The Transmission Control Protocol, which gives two programs a reliable, ordered stream of bytes, opened by a three-way handshake. It has no message boundaries.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
+
 ### Test plugin
 
 <Badge color="green">Testing</Badge>
@@ -1050,6 +1426,14 @@ See [Tauri Plugin](/ecosystem/tauri).
 Code that runs around a test: when it starts, when it fails (with the browser still open, so it can take evidence) and when it finishes. The bundled ones save a screenshot and the page source on failure and write reports; they are not [browser plugins](#plugin).
 
 See [Test Plugins](/tutorials/test_plugins).
+
+### Testnet
+
+<Badge color="red">Network</Badge>
+
+A separate blockchain with worthless coins for trying things out. Tests should use one, with throwaway keys.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
 
 ### Third-party cookie
 
@@ -1066,6 +1450,14 @@ See [First-party and third-party](/concepts/sessions-and-state#first-party-and-t
 The Rust WebDriver client library that the WebDriver engine is built on. Selectors become `thirtyfour::By` values, and elements are `thirtyfour::WebElement` handles.
 
 See [How it compares](/comparison).
+
+### Three-way handshake
+
+<Badge color="red">Network</Badge>
+
+The SYN, SYN-ACK and ACK messages that open a TCP connection, one round trip before any data.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
 
 ### TLS
 
@@ -1117,6 +1509,14 @@ Undetected mode (`DriverMode::Uc`, or `sbrs --uc`): it starts Chromium with unde
 
 See [Undetected (UC) Mode Guide](/tutorials/uc_mode).
 
+### UDP
+
+<Badge color="red">Network</Badge>
+
+The User Datagram Protocol: independent datagrams with no handshake, order or resend. It carries DNS, calls, games and, under [QUIC](#quic), the web.
+
+See [TCP, sockets and streams](/concepts/tcp-and-streams#udp-and-quic).
+
 ### User agent
 
 <Badge color="purple">Stealth</Badge>
@@ -1135,6 +1535,14 @@ See [Profiles, and what is in one](/concepts/sessions-and-state#profiles-and-wha
 
 ## W
 
+### Wallet
+
+<Badge color="red">Network</Badge>
+
+Software that holds a person's keys and signs transactions. In a browser it is usually an extension that adds `window.ethereum` to pages.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#how-a-page-talks-to-a-wallet).
+
 ### wasm plugin
 
 <Badge color="orange">Plugins</Badge>
@@ -1142,6 +1550,22 @@ See [Profiles, and what is in one](/concepts/sessions-and-state#profiles-and-wha
 A [plugin](#plugin) written in any language that compiles to WebAssembly, loaded with the `seleniumbase-rs-plugin-wasm` crate. The host reads its data once (a name, browser switches, page scripts and URL patterns to block), checks every value and drops the module, which has no imports; it is the only kind of plugin that is sandboxed.
 
 See [wasm Plugin Host](/plugins/wasm).
+
+### Web 1.0 and Web 2.0
+
+<Badge color="yellow">Project</Badge>
+
+Labels for the web of documents (static pages) and the web of applications and platforms (JavaScript, accounts, content written by users).
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#three-eras).
+
+### Web3
+
+<Badge color="red">Network</Badge>
+
+A label for applications that use public blockchains and wallets, where a person proves who they are with a key instead of an account.
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
 
 ### WebAssembly
 
@@ -1183,6 +1607,14 @@ The browser's graphics API for the graphics card (WebGPU is its successor). A pa
 
 See [Modern web technologies](/concepts/modern-web#webgl-and-webgpu).
 
+### WebRTC data channel
+
+<Badge color="red">Network</Badge>
+
+The `RTCDataChannel` of WebRTC, which sends any data directly between two browsers once they are connected through signaling, STUN and TURN. See also [WebRTC leak](#webrtc-leak).
+
+See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-channels).
+
 ### WebRTC leak
 
 <Badge color="red">Network</Badge>
@@ -1206,6 +1638,14 @@ See [Connecting](/concepts/cdp#connecting).
 What a site can tell about a client before any page script runs: the TLS [ClientHello](#clienthello), the HTTP/2 connection start, and the order and spelling of the request headers.
 
 See [Stealth Scraping](/stealth/overview).
+
+### Workflow
+
+<Badge color="yellow">Project</Badge>
+
+In GitHub Actions, a YAML file that names the events, jobs and steps of a CI run.
+
+See [Version control and deployment](/concepts/version-control-and-deployment#github-actions-as-the-example).
 
 ## X
 
