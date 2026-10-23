@@ -218,7 +218,10 @@ mod tests {
 
     #[test]
     fn a_plain_config_leaves_nothing_unused() {
-        assert!(unused_settings(&BrowserConfig::default()).is_empty());
+        assert_eq!(
+            unused_settings(&BrowserConfig::default()),
+            Vec::<&str>::new()
+        );
     }
 
     #[test]
@@ -261,8 +264,10 @@ mod tests {
 
     #[test]
     fn a_bad_proxy_in_a_config_fails_the_build_without_echoing_the_password() {
-        let mut config = BrowserConfig::default();
-        config.proxy = Some("user:hunter2@host:notaport".to_owned());
+        let config = BrowserConfig {
+            proxy: Some("user:hunter2@host:notaport".to_owned()),
+            ..BrowserConfig::default()
+        };
         let error = LaunchOptionsBuilder::default()
             .browser_config(&config)
             .build()

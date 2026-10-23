@@ -192,7 +192,7 @@ pub(crate) struct Inner {
     process: Mutex<Option<Child>>,
     _profile: Option<TempDir>,
     /// The virtual screen the window is on, kept until the browser is dropped.
-    _display: StdMutex<Option<XvfbProcess>>,
+    display: StdMutex<Option<XvfbProcess>>,
 
     /// Ends the launched browser if this program ends without closing it.
     _guard: Option<OrphanGuard>,
@@ -323,7 +323,7 @@ impl Browser {
             launched.ws_url,
             options.clone(),
         );
-        *locked(&browser.inner._display) = launched.display;
+        *locked(&browser.inner.display) = launched.display;
 
         browser.start().await?;
         Ok(browser)
@@ -553,7 +553,7 @@ impl Browser {
                 client,
                 process: Mutex::new(process),
                 _profile: profile,
-                _display: StdMutex::new(None),
+                display: StdMutex::new(None),
 
                 _guard: guard,
                 host,

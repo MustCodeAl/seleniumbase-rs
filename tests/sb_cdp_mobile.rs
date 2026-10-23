@@ -307,15 +307,17 @@ async fn a_pac_file_that_asks_for_a_login_is_answered_over_the_protocol() {
 
 /// A config that sets every option the pure CDP engine can use.
 fn full_config() -> BrowserConfig {
-    let mut config = BrowserConfig::default();
-    config.headless = false;
-    config.mobile = true;
-    config.user_agent = Some("Agent/1".to_owned());
-    config.locale = Some("ar_eg".to_owned());
-    config.proxy = Some("user:secret@127.0.0.1:8080".to_owned());
-    config.start_page = Some("https://example.com/".to_owned());
-    config.extra_args = vec!["mute-audio".to_owned(), "--no-pings".to_owned()];
-    config.ad_block = true;
+    let mut config = BrowserConfig {
+        headless: false,
+        mobile: true,
+        user_agent: Some("Agent/1".to_owned()),
+        locale: Some("ar_eg".to_owned()),
+        proxy: Some("user:secret@127.0.0.1:8080".to_owned()),
+        start_page: Some("https://example.com/".to_owned()),
+        extra_args: vec!["mute-audio".to_owned(), "--no-pings".to_owned()],
+        ad_block: true,
+        ..BrowserConfig::default()
+    };
     let launch = &mut config.launch;
     for switch in [
         LaunchSwitch::DarkMode,
@@ -385,8 +387,7 @@ fn a_config_with_every_option_gives_this_command_line() {
 
 #[tokio::test]
 async fn a_config_with_mobile_set_makes_every_tab_a_phone() {
-    let mut config = BrowserConfig::default();
-    config.mobile = true;
+    let mut config = BrowserConfig::default().with_mobile(true);
     config.launch.device_metrics = Some(DeviceMetrics::new(360, 780, 2.0));
     let options = LaunchOptions::builder()
         .browser_config(&config)
@@ -406,9 +407,11 @@ async fn a_config_with_mobile_set_makes_every_tab_a_phone() {
 
 #[test]
 fn a_config_with_a_fingerprint_and_mobile_is_refused() {
-    let mut config = BrowserConfig::default();
-    config.mobile = true;
-    config.fingerprint = Some(Fingerprint::randomized(OsType::Linux, 3));
+    let config = BrowserConfig {
+        mobile: true,
+        fingerprint: Some(Fingerprint::randomized(OsType::Linux, 3)),
+        ..BrowserConfig::default()
+    };
     let error = LaunchOptions::builder()
         .browser_config(&config)
         .build()
@@ -428,8 +431,10 @@ fn a_config_proxy_is_checked_as_python_checks_it() {
         "host:notaport",
         "user:hunter2@:80",
     ] {
-        let mut config = BrowserConfig::default();
-        config.proxy = Some(bad.to_owned());
+        let config = BrowserConfig {
+            proxy: Some(bad.to_owned()),
+            ..BrowserConfig::default()
+        };
         let error = LaunchOptions::builder()
             .browser_config(&config)
             .build()
@@ -437,8 +442,10 @@ fn a_config_proxy_is_checked_as_python_checks_it() {
         assert!(!error.to_string().contains("hunter2"), "{error}");
     }
     // A SOCKS proxy is written the way Chrome reads it.
-    let mut config = BrowserConfig::default();
-    config.proxy = Some("socks5h://10.0.0.1:1080".to_owned());
+    let config = BrowserConfig {
+        proxy: Some("socks5h://10.0.0.1:1080".to_owned()),
+        ..BrowserConfig::default()
+    };
     let arguments = LaunchOptions::builder()
         .browser_config(&config)
         .build()

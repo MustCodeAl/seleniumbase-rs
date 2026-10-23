@@ -105,7 +105,7 @@ impl LaunchOptionsBuilder {
         self.switch(LaunchSwitch::DisableWebSecurity, on)
     }
 
-    /// Renders with SwiftShader, a software WebGL renderer, for a machine with
+    /// Renders with `SwiftShader`, a software WebGL renderer, for a machine with
     /// no GPU.
     #[must_use]
     pub fn swiftshader(self, on: bool) -> Self {
