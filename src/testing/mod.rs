@@ -49,4 +49,4 @@ pub use lifecycle::{AttemptEnd, Finalizer, Outcome};
 /// rstest's attribute for a fixture of your own, so a test file needs one import.
 pub use rstest::fixture;
 
-pub(crate) use deadline::{exceeded_message, Deadline};
+pub(crate) use deadline::Deadline;

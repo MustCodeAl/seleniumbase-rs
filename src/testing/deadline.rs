@@ -78,6 +78,7 @@ impl Deadline {
     }
 
     /// How long the attempt has run without the time it was suspended.
+    #[cfg(test)]
     pub(crate) fn elapsed(&self) -> Duration {
         self.lock().elapsed(Instant::now())
     }

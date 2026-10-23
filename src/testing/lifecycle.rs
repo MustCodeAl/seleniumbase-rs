@@ -109,6 +109,13 @@ pub(crate) struct Plan {
     pub list_fail_page: bool,
     /// Record the browser actions (`--rec`); the recorder installs itself in
     /// [`TestCase::prepare`].
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "read by the recorder's `TestCase::prepare` once it installs itself there"
+        )
+    )]
     pub recorder: bool,
     /// Where the folders of evidence go.
     pub logs_dir: PathBuf,
