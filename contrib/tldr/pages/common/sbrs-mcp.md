@@ -8,9 +8,9 @@
 
 `sbrs-mcp`
 
-- Serve the Pure CDP toolset (Chrome or Chromium, no WebDriver) or the WebDriver `Driver()` toolset:
+- Serve the Pure CDP toolset (no WebDriver), the WebDriver `Driver()` toolset, or the development tools (no browser):
 
-`sbrs-mcp --server {{cdp|driver}}`
+`sbrs-mcp --server {{cdp|driver|dev}}`
 
 - Write screenshots, saved pages, PDFs, and downloads to a directory (default: `./mcp_output`):
 

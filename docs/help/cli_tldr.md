@@ -83,7 +83,9 @@ sbrs --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
 ```bash
 sbrs devtools                     # Chrome on 127.0.0.1:9222, prints configs for DevTools MCP servers
 sbrs devtools --headless --port 0
-sbrs-mcp --server cdp             # the MCP server on stdio: cdp, driver or sb (the default)
+sbrs-mcp --server cdp             # the MCP server on stdio: cdp, driver, sb (the default) or dev
+sbrs-mcp install claude-code      # register the browser and dev servers with a client
+sbrs-mcp clients                  # the clients it knows and what is registered
 ```
 
 See [MCP server](/tutorials/mcp_server) for the client configurations.

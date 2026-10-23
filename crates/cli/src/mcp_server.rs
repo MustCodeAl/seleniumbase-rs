@@ -1,11 +1,13 @@
 //! SeleniumBase MCP server.
 //!
-//! Serves one of three toolsets to an MCP client over stdio:
+//! Serves one of four toolsets to an MCP client over stdio:
 //!
 //! - `cdp`: Chrome over the DevTools Protocol, with no WebDriver.
 //! - `driver`: the `Driver()` toolset over WebDriver.
 //! - `sb`: the broader `SB()` toolset over WebDriver, plus this crate's
 //!   stealth tools (the default).
+//! - `dev`: development, library, command-line and diagnostics tools; it starts
+//!   no browser, so it runs next to one of the others.
 //!
 //! ```bash
 //! cargo run --bin sbrs-mcp --features mcp-server -- --server cdp
@@ -53,7 +55,7 @@ use mcp_install::Command;
     args_conflicts_with_subcommands
 )]
 struct Cli {
-    /// Which toolset to serve: cdp, driver or sb.
+    /// Which toolset to serve: cdp, driver, sb or dev (development tools, no browser).
     #[usage(long, default = "sb")]
     server: Profile,
     /// Give every browser the server starts a built-in plugin (repeatable)
