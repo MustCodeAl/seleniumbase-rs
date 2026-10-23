@@ -61,6 +61,10 @@ pub struct BaseCase {
     playwright_session: Option<PlaywrightSession>,
     /// How long the whole test may run, from [`BaseCase::set_time_limit`].
     time_limit: Option<Duration>,
+    /// The hard stop of the test lifecycle (`testing::Sb::run`), which a prompt
+    /// suspends and [`BaseCase::set_time_limit`] moves.
+    #[cfg(feature = "testing")]
+    deadline: Option<Arc<crate::testing::Deadline>>,
     /// When this test case was created, which is where the time limit counts from.
     started: std::time::Instant,
     /// Default implicit wait timeout used by [`wait_for_element_visible_default`].
@@ -136,6 +140,8 @@ impl BaseCase {
             #[cfg(feature = "playwright")]
             playwright_session: None,
             time_limit: None,
+            #[cfg(feature = "testing")]
+            deadline: None,
             started: std::time::Instant::now(),
             timeout_secs,
             default_timeout_before: None,
@@ -2890,6 +2896,10 @@ impl BaseCase {
     /// Never fails; the `Result` keeps the signature the method always had.
     pub fn set_time_limit(&mut self, seconds: u64) -> Result<(), SeleniumBaseError> {
         self.time_limit = (seconds > 0).then(|| Duration::from_secs(seconds));
+        #[cfg(feature = "testing")]
+        if let Some(deadline) = &self.deadline {
+            deadline.set_limit((seconds > 0).then(|| Duration::from_secs(seconds)));
+        }
         Ok(())
     }
 
@@ -3363,6 +3373,7 @@ include!("base_case_impls/base_case_impl_esc.rs");
 include!("base_case_impls/base_case_impl_rec_cdp.rs");
 include!("base_case_impls/base_case_impl_fingerprint.rs");
 include!("base_case_impls/base_case_impl_debug.rs");
+include!("base_case_impls/base_case_impl_test_data.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]

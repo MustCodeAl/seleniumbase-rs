@@ -93,6 +93,10 @@ impl BaseCase {
             .clone()
             .unwrap_or_else(crate::common::test_id::current_test_id);
         let started = std::time::Instant::now();
+        // The hard time limit of the lifecycle does not run while a person answers.
+        #[cfg(feature = "testing")]
+        let _clock_stopped = self.deadline.as_ref().map(|deadline| deadline.suspend());
+
         let outcome = prompt.pause(kind, &test_id, message, &*self).await;
         self.extend_time_limit(started.elapsed());
         match outcome? {
@@ -105,7 +109,7 @@ impl BaseCase {
 
     /// Makes the time limit longer by `paused`, so the time a person spent at
     /// a prompt does not count against the test. Does nothing without a limit.
-    fn extend_time_limit(&mut self, paused: Duration) {
+    pub(crate) fn extend_time_limit(&mut self, paused: Duration) {
         if let Some(limit) = self.time_limit.as_mut() {
             *limit += paused;
         }
