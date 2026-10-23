@@ -4539,7 +4539,7 @@ note = "Run with chromedriver; the program is found in Comet's install locations
 
 [options_pytest."--crumbs"]
 status = "implemented"
-rust = "reuse::set_crumbs"
+rust = "set_crumbs"
 note = "SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the idle timeout is): with --reuse-session or --rcs, a browser handed to the next test has every cookie deleted (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere). Without it the cookies stay, as in Python; the other windows are still closed, the page's local and session storage cleared and the page set to about:blank. Without reuse every test has a new browser and no cookies; call delete_all_cookies to clear them within a test. Mock WebDriver tests in browser::reuse check both paths, and tests/crumbs_chrome.rs (ignored) checks them in Chrome."
 
 [options_pytest."--crx"]
