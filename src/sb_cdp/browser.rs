@@ -19,7 +19,10 @@ use super::page::{Page, DEFAULT_TIMEOUT};
 use super::proxy_auth::{Credentials, ProxyAuth};
 use super::sync::locked;
 use super::types::{PageInfo, Permission};
+use crate::browser::options::{LaunchSwitch, PacUrl};
+use crate::browser::virtual_display::XvfbProcess;
 use crate::common::orphan_guard::OrphanGuard;
+
 use crate::error::SeleniumBaseError;
 
 /// How long to wait for `Browser.close` to end the process before killing it.
@@ -188,6 +191,9 @@ pub(crate) struct Inner {
     pub(crate) client: Arc<Client>,
     process: Mutex<Option<Child>>,
     _profile: Option<TempDir>,
+    /// The virtual screen the window is on, kept until the browser is dropped.
+    _display: StdMutex<Option<XvfbProcess>>,
+
     /// Ends the launched browser if this program ends without closing it.
     _guard: Option<OrphanGuard>,
     /// The machine the DevTools endpoint is on: this one for a launched
@@ -317,6 +323,8 @@ impl Browser {
             launched.ws_url,
             options.clone(),
         );
+        *locked(&browser.inner._display) = launched.display;
+
         browser.start().await?;
         Ok(browser)
     }
@@ -530,12 +538,23 @@ impl Browser {
             .proxy()
             .and_then(super::launch::Proxy::credentials)
             .map(|(user, pass)| (user.to_owned(), pass.to_owned()));
+        // A PAC file that asks for a login is answered as a proxy that does.
+        let launch_credentials = launch_credentials.or_else(|| {
+            options
+                .proxy_pac_url
+                .as_ref()
+                .and_then(PacUrl::credentials)
+                .map(|(user, pass)| (user.to_owned(), pass.to_owned()))
+        });
+
         Self {
             inner: Arc::new(Inner {
                 auth: Arc::new(ProxyAuth::new(launch_credentials)),
                 client,
                 process: Mutex::new(process),
                 _profile: profile,
+                _display: StdMutex::new(None),
+
                 _guard: guard,
                 host,
                 port,
@@ -905,6 +924,21 @@ impl Browser {
                 }
             }
         }
+        // The phone, in this tab: its screen, its touch input and its agent.
+        if let Some((metrics, user_agent)) = &self.inner.options.device {
+            for (method, params) in metrics.emulation_commands(user_agent.as_deref()) {
+                send(method, params).await?;
+            }
+        }
+        if self
+            .inner
+            .options
+            .switches
+            .contains(&LaunchSwitch::DisableCsp)
+        {
+            send("Page.setBypassCSP", json!({ "enabled": true })).await?;
+        }
+
         if self.inner.options.ad_block {
             send("Network.enable", json!({})).await?;
             add_blocked(&mut blocked, &json!({ "urls": AD_BLOCK_PATTERNS }));

@@ -1,5 +1,7 @@
 //! Describing and starting a Chrome process with a DevTools endpoint.
 
+use std::collections::BTreeSet;
+
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -11,10 +13,19 @@ use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
 use super::identity::Identity;
+use crate::browser::options::{
+    chrome_preferences, emulated_phone, DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList,
+    VirtualDisplay, MOBILE_USER_AGENT,
+};
+use crate::browser::virtual_display::{self, XvfbProcess};
+
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::{Dimension, Fingerprint, ProxyConfig, WebRtcPolicy};
 use crate::stealth::patcher::find_system_chrome;
+
+mod bridge;
+mod builders;
 
 /// How long a freshly launched browser may take to publish its endpoint.
 ///
@@ -202,6 +213,18 @@ pub struct LaunchOptions {
     pub(crate) enable_features: Vec<String>,
     /// Whether to pass `--disable-quic`. Only plugins set it.
     pub(crate) disable_quic: bool,
+    /// The on/off settings that are on (block images, dark mode, devtools, ...).
+    pub(crate) switches: BTreeSet<LaunchSwitch>,
+    /// The phone every tab is made, and the user agent it reports.
+    pub(crate) device: Option<(DeviceMetrics, Option<String>)>,
+    /// Hosts that skip the proxy.
+    pub(crate) proxy_bypass_list: ProxyBypassList,
+    /// The proxy auto-config file; a login it asks for is answered over the
+    /// protocol.
+    pub(crate) proxy_pac_url: Option<PacUrl>,
+    /// The virtual screen a headed browser opens its window on (Linux).
+    pub(crate) virtual_display: Option<VirtualDisplay>,
+
     /// The plugins whose hooks run at launch, for every tab and at close.
     #[cfg(feature = "plugins")]
     pub(crate) plugins: seleniumbase_rs_plugin::PluginSet,
@@ -212,7 +235,7 @@ pub struct LaunchOptions {
 
 impl Default for LaunchOptions {
     fn default() -> Self {
-        LaunchOptionsBuilder::default().assemble(None)
+        LaunchOptionsBuilder::default().assemble(None, None)
     }
 }
 
@@ -259,6 +282,10 @@ impl LaunchOptions {
     /// throwaway temporary one.
     #[must_use]
     pub fn browser_args(&self, profile_dir: &Path) -> Vec<String> {
+        let headless = self.is_headless();
+        // A maximized window takes the screen, so no size is asked for.
+        let maximized = !headless && self.switches.contains(&LaunchSwitch::Maximize);
+
         // Chrome keeps only the last of a switch, so the four that plugins set
         // are folded together with the same switch in `extra_args` (a list
         // switch is joined; the WebRTC policy of the options wins) and left out
@@ -326,18 +353,28 @@ impl LaunchOptions {
             // protocol when the proxy asks for them.
             args.push(format!("--proxy-server={}", proxy.server()));
         }
+        if let Some(hosts) = self.proxy_bypass_list.to_chrome_value() {
+            args.push(format!("--proxy-bypass-list={hosts}"));
+        }
+        if let Some(pac) = &self.proxy_pac_url {
+            // Chrome is never given the login; the protocol answers it.
+            args.push(format!("--proxy-pac-url={}", pac.url()));
+        }
+
         if let Some(user_agent) = &self.user_agent {
             args.push(format!("--user-agent={user_agent}"));
         }
         if let Some(lang) = &self.lang {
             args.push(format!("--lang={lang}"));
         }
-        if let Some((width, height)) = self.window_size {
+        if let Some((width, height)) = self.window_size.filter(|_| !maximized) {
             args.push(format!("--window-size={width},{height}"));
         }
         if let Some((x, y)) = self.window_position {
             args.push(format!("--window-position={x},{y}"));
         }
+        args.extend(self.switch_arguments(headless));
+
         if !self.extensions.is_empty() {
             // Branded Chrome ignores `--load-extension` since version 137; this
             // switch lets `Extensions.loadUnpacked` load them instead.
@@ -443,6 +480,18 @@ pub struct LaunchOptionsBuilder {
     selection: crate::config::plugins::PluginSelection,
     startup_timeout: Duration,
     debugging_port: u16,
+    mobile: bool,
+    device_metrics: Option<DeviceMetrics>,
+    switches: BTreeSet<LaunchSwitch>,
+    host_resolver_rules: Vec<String>,
+    disable_features: Vec<String>,
+    enable_features: Vec<String>,
+    proxy_bypass_list: ProxyBypassList,
+    proxy_pac_url: Option<Redacted>,
+    /// Whether `proxy` came from a `BrowserConfig`, and is checked as Python
+    /// checks a proxy string.
+    checked_proxy: bool,
+    virtual_display: Option<VirtualDisplay>,
 }
 
 impl Default for LaunchOptionsBuilder {
@@ -474,6 +523,16 @@ impl Default for LaunchOptionsBuilder {
             selection: crate::config::plugins::PluginSelection::new(),
             startup_timeout: DEFAULT_STARTUP_TIMEOUT,
             debugging_port: 0,
+            mobile: false,
+            device_metrics: None,
+            switches: BTreeSet::new(),
+            host_resolver_rules: Vec::new(),
+            disable_features: Vec::new(),
+            enable_features: Vec::new(),
+            proxy_bypass_list: ProxyBypassList::default(),
+            proxy_pac_url: None,
+            checked_proxy: false,
+            virtual_display: None,
         }
     }
 }
@@ -832,6 +891,18 @@ impl LaunchOptionsBuilder {
     /// [`plugin_selection`](Self::plugin_selection) is unknown, refuses its
     /// options or is named twice.
     pub fn build(self) -> Result<LaunchOptions, SeleniumBaseError> {
+        if self.identity.is_some() && (self.mobile || self.device_metrics.is_some()) {
+            return Err(SeleniumBaseError::invalid_config(
+                "mobile emulation and a fingerprint both set the screen and the user agent; \
+                 use one of them",
+            ));
+        }
+        let pac = self
+            .proxy_pac_url
+            .as_ref()
+            .map(|text| text.0.parse::<PacUrl>())
+            .transpose()?;
+
         if self.incognito && self.guest {
             return Err(SeleniumBaseError::invalid_config(
                 "incognito and guest mode cannot be combined",
@@ -845,13 +916,13 @@ impl LaunchOptionsBuilder {
         let proxy = self
             .proxy
             .as_ref()
-            .map(|proxy| Proxy::parse(&proxy.0))
+            .map(|proxy| bridge::parse_proxy(&proxy.0, self.checked_proxy))
             .transpose()?;
         #[cfg(feature = "plugins")]
         let this = self.with_named_plugins()?;
         #[cfg(not(feature = "plugins"))]
         let this = self;
-        Ok(this.assemble(proxy))
+        Ok(this.assemble(proxy, pac))
     }
 
     /// Adds the plugins named with `plugins_named` and `plugin_selection` to
@@ -869,7 +940,25 @@ impl LaunchOptionsBuilder {
     }
 
     /// Converts the builder to options without re-checking the combination.
-    fn assemble(self, proxy: Option<Proxy>) -> LaunchOptions {
+    fn assemble(self, proxy: Option<Proxy>, pac: Option<PacUrl>) -> LaunchOptions {
+        // The phone, when one is asked for, and the agent the browser starts with.
+        let device = emulated_phone(self.mobile, self.device_metrics, self.user_agent.as_deref())
+            .map(|(metrics, agent)| (metrics, agent.map(str::to_owned)));
+        let user_agent = self
+            .user_agent
+            .or_else(|| self.mobile.then(|| MOBILE_USER_AGENT.to_owned()));
+        // What the caller sets wins over what a switch implies.
+        let mut prefs = chrome_preferences(&self.switches);
+        prefs.extend(self.prefs);
+        let mut enable_features = self.enable_features;
+        if self.switches.contains(&LaunchSwitch::DarkMode)
+            && !enable_features
+                .iter()
+                .any(|feature| feature == "WebContentsForceDark")
+        {
+            enable_features.push("WebContentsForceDark".to_owned());
+        }
+
         let source = match (self.executable_path, self.use_chromium) {
             (Some(path), _) => BrowserSource::Path(path),
             (None, true) => BrowserSource::Chromium,
@@ -890,7 +979,7 @@ impl LaunchOptionsBuilder {
             ad_block: self.ad_block,
             proxy,
             user_data_dir: self.user_data_dir,
-            user_agent: self.user_agent,
+            user_agent,
             lang: self.lang,
             window_size: self.window_size,
             window_position: self.window_position,
@@ -900,15 +989,20 @@ impl LaunchOptionsBuilder {
             identity: self.identity,
             extra_args: self.extra_args,
             extensions: self.extensions,
-            prefs: self.prefs,
-            host_resolver_rules: Vec::new(),
-            disable_features: Vec::new(),
-            enable_features: Vec::new(),
+            prefs,
+            host_resolver_rules: self.host_resolver_rules,
+            disable_features: self.disable_features,
+            enable_features,
             disable_quic: false,
             #[cfg(feature = "plugins")]
             plugins: self.plugins,
             startup_timeout: self.startup_timeout,
             debugging_port: self.debugging_port,
+            switches: self.switches,
+            device,
+            proxy_bypass_list: self.proxy_bypass_list,
+            proxy_pac_url: pac,
+            virtual_display: self.virtual_display,
         }
     }
 }
@@ -922,6 +1016,8 @@ pub(crate) struct LaunchedBrowser {
     pub(crate) profile: Option<TempDir>,
     /// Ends the browser if this program ends without closing it.
     pub(crate) guard: OrphanGuard,
+    /// The virtual screen the browser's window is on, when one was started.
+    pub(crate) display: Option<XvfbProcess>,
 }
 
 /// Finds a browser binary according to `options`.
@@ -958,6 +1054,28 @@ fn resolve_binary(options: &LaunchOptions) -> Result<PathBuf, SeleniumBaseError>
             )
         }),
     }
+}
+
+/// Starts the virtual screen the options ask for, where it can run: a headed
+/// browser on Linux. Anywhere else the request is left out, and says so.
+async fn start_virtual_display(
+    options: &LaunchOptions,
+) -> Result<Option<XvfbProcess>, SeleniumBaseError> {
+    let Some(screen) = options.virtual_display else {
+        return Ok(None);
+    };
+    if !virtual_display::wanted(
+        Some(screen),
+        options.is_headless(),
+        cfg!(target_os = "linux"),
+    ) {
+        tracing::debug!("no virtual display is started: it needs a headed browser on Linux");
+        return Ok(None);
+    }
+    tokio::task::spawn_blocking(move || XvfbProcess::start(screen))
+        .await
+        .map_err(|error| SeleniumBaseError::browser_launch("Xvfb", error.to_string()))?
+        .map(Some)
 }
 
 /// Starts the browser and waits for it to publish its DevTools endpoint.
@@ -1008,6 +1126,9 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
         None => None,
     };
 
+    // A headed browser on a virtual screen, where the machine has none.
+    let display = start_virtual_display(options).await?;
+
     let guard = OrphanGuard::start();
     let mut command = Command::new(&binary);
     command
@@ -1016,6 +1137,10 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true);
+    if let Some(display) = &display {
+        command.env("DISPLAY", display.display());
+    }
+
     guard.enroll_tokio(&mut command);
     let mut child = command
         .spawn()
@@ -1036,6 +1161,7 @@ pub(crate) async fn launch(options: &LaunchOptions) -> Result<LaunchedBrowser, S
                 ws_url: format!("ws://127.0.0.1:{port}{path}"),
                 profile,
                 guard,
+                display,
             });
         }
         if let Ok(Some(status)) = child.try_wait() {
