@@ -127,7 +127,7 @@ th{color:var(--muted);font-weight:600}\
 td.num{text-align:right;white-space:nowrap}\
 td.links{white-space:nowrap}\
 .scroll{overflow-x:auto}\
-td.test{overflow-wrap:anywhere}\
+td.test{min-width:10rem;overflow-wrap:break-word}\
 td.msg{min-width:16rem;white-space:pre-wrap;overflow-wrap:anywhere}\
 td.msg .kind{font:600 12px/1.6 ui-monospace,monospace;color:var(--muted)}\
 td.msg .error{font-weight:600}\
