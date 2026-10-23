@@ -62,7 +62,7 @@ pub fn fallback_line(style: MessageStyle, message: &str) -> String {
 /// use seleniumbase_rs::sb_cdp::MessageStyle;
 ///
 /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-/// let sb = BaseCase::new(BrowserConfig::default()).await?;
+/// let mut sb = BaseCase::new(BrowserConfig::default()).await?;
 /// sb.open("https://example.com").await?;
 /// sb.post_message("Hello").await?;
 /// sb.post_message("Quick <b>note</b>")
