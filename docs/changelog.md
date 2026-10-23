@@ -35,6 +35,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
+- **An unknown key in the settings file is an error.** `unknown setting "blok_images" in
+  sbase_config.toml` names it (and `sbrs options` lists the options), and two spellings of one
+  key (`dark` and `dark_mode`) are refused; `Settings.chromium_arg` is an `Option<ArgList>`.
 - **Test results carry a status.** `TestResult.passed` is now `status: TestStatus` (passed,
   failed, skipped, untested, unreported) plus `log_dir`; `ReportSummary` counts the new states;
   `render_html_report` and `write_html_report[_async]` moved to `core::dashboard` and take a
@@ -98,6 +101,16 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Added
 
+- **SeleniumBase's built-in Gherkin steps (feature `bdd`).** All 98 step actions of SeleniumBase
+  4.56.2 (its 669 wordings, in double or single quotes, under Given, When and Then) are steps of
+  `testing::bdd::steps`, so a feature file can `Open "..."`, `Type "demo" into "#user"`,
+  `Click "button"` and `Assert text "Welcome" in "h1"` with no step code of its own.
+- **Every browser option in one table, three ways.** Each option of the run table is a settings
+  file key (by any alias, with dashes or underscores), an `SB_*` variable and a global `sbrs`
+  flag (`sbrs --dark --metrics 360,640,2 open URL`), in that order of precedence after the flag;
+  `chromium_arg` takes a TOML array kept unsplit; `sbrs options` (`--markdown`, `--all`) lists
+  them. The run settings `highlights`, `interval`, `verify_delay`, `check_js`,
+  `wait_for_angularjs`, `disable_beforeunload` and `timeout_multiplier` now reach the browser.
 - **A run's results across test binaries (`core::test_run`).** `TestRun` keeps one run's state in
   `<root>/.sbrs_run/` under a file lock, so every test binary of a `cargo test` or nextest run
   adds to the same report (`SB_RUN_ID`, else `NEXTEST_RUN_ID`, else the parent cargo process);
