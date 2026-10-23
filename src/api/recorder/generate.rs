@@ -316,7 +316,7 @@ fn step_text(value: &str) -> String {
 /// The Gherkin step (without its keyword) in Python's `behave_helper`
 /// wording, or why there is none.
 fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
-    let name = super::canonical_name(&action.name);
+    let name = super::calls::canonical_name(&action.name);
     let name = if name == "open" { "goto" } else { name };
     let target = action.target.as_deref();
     let value = action.value.as_deref();

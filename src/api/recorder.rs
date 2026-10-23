@@ -5,10 +5,10 @@
 //! saved test file. It is used by the recorder mode to replay manual browser
 //! sessions as automated tests.
 //!
-//! [`RecorderSession`] adds a live capture/replay layer on top of the recorder:
-//! it injects a small JavaScript listener into the page, drains the captured
-//! navigation/click/type events into an action list, serializes them to JSON or
-//! YAML, and replays them against a [`BaseCase`](crate::BaseCase).
+//! [`RecorderSession`] holds a recorded action list: it saves and loads it as
+//! JSON or YAML, and replays it against a [`BaseCase`](crate::BaseCase). The
+//! replay runs every action the generators write, because both are made from one
+//! table (`calls.rs`).
 //!
 //! A recording of `BaseCase` calls can be written for either engine:
 //! [`to_rust_script`](ActionRecorder::to_rust_script) and
@@ -24,6 +24,8 @@
 //! [`ActionRecorder::from_raw_actions`] runs the last two, and
 //! [`to_rstest_test`](ActionRecorder::to_rstest_test) writes the default
 //! output: a test that uses the `sb` fixture.
+
+mod calls;
 
 mod cdp;
 mod generate;
@@ -61,14 +63,12 @@ pub fn recorder_injection() -> String {
 }
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::path::{Path, PathBuf};
 
 use crate::api::base_case::BaseCase;
-use crate::browser::config::BrowserConfig;
-use crate::browser::options::CapabilityOverrides;
-
 use crate::SeleniumBaseError;
+
+use calls::{gherkin_mark, rust_call, Mark, ALIASES};
 
 /// A single recorded browser action.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -445,10 +445,10 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
         .target
         .as_deref()
         .ok_or_else(|| format!("{name} has no target"));
-    match name {
-        "open" | "goto" | "goto_if_not_url" => Ok(format!("Open {}", plain(target?, "URL")?)),
-        "click" => Ok(format!("Click {}", plain(target?, "selector")?)),
-        "type_text" => {
+    match gherkin_mark(name) {
+        Some(Mark::GherkinOpen) => Ok(format!("Open {}", plain(target?, "URL")?)),
+        Some(Mark::GherkinClick) => Ok(format!("Click {}", plain(target?, "selector")?)),
+        Some(Mark::GherkinType) => {
             let value = action
                 .value
                 .as_deref()
@@ -471,586 +471,20 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 plain(target?, "selector")?
             ))
         }
-        "go_back" => Ok("Go back".to_owned()),
-        "go_forward" => Ok("Go forward".to_owned()),
+        Some(Mark::GherkinBack) => Ok("Go back".to_owned()),
+        Some(Mark::GherkinForward) => Ok("Go forward".to_owned()),
         // The name is whatever was recorded. Written plainly, a line break in it would end the
         // `# skipped:` comment and start a Scenario or a step, so it is escaped.
-        other => Err(format!(
+        _ => Err(format!(
             "{}: no Gherkin step for this action",
-            other.escape_debug()
+            name.escape_debug()
         )),
     }
-}
-
-/// How a recorded action's `target` and `value` become the arguments of the
-/// [`BaseCase`] method it calls.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Shape {
-    /// `sb.method()`
-    NoArgs,
-    /// `sb.method(target)`
-    Target,
-    /// `sb.method(target, value)`
-    TargetValue,
-    /// `sb.method(value, target)`: the method takes the text first.
-    ValueTarget,
-    /// `sb.method(target, 10)`: a wait, with a ten-second timeout.
-    TargetSeconds,
-    /// `sb.method(10)`: a wait for an alert, with a ten-second timeout.
-    Seconds,
-    /// The value is `name=content`: `sb.method(target, "name", "content")`.
-    TargetPair,
-    /// The target is `width,height`: `sb.method(width, height)`.
-    Size,
-    /// The value is `x, y`: `sb.method(target, x, y)`.
-    TargetOffset,
-    /// The value is a whole number: `sb.method(target, n)`.
-    TargetIndex,
-    /// `let _ = sb.method(target).await?;`: the result is not needed.
-    TargetDiscarded,
-    /// `sb.sleep(2.5).await;`: the value is the pause in seconds, and the call
-    /// cannot fail.
-    Sleep,
-}
-
-/// Every action the generator can turn into a call: the recorded name, the
-/// [`BaseCase`] method it calls, and how its arguments are built.
-///
-/// The recorded names are those `BaseCase` records itself, those
-/// [`RecorderSession`] captures, and those older recordings use.
-const CALLS: &[(&str, &str, Shape)] = &[
-    ("open", "open", Shape::Target),
-    ("goto_if_not_url", "goto_if_not_url", Shape::Target),
-    ("click", "click", Shape::Target),
-    ("type_text", "type_text", Shape::TargetValue),
-    ("clear", "clear", Shape::Target),
-    ("click_link_text", "click_link_text", Shape::Target),
-    ("click_link", "click_link", Shape::Target),
-    ("click_partial_link", "click_partial_link", Shape::Target),
-    (
-        "click_partial_link_text",
-        "click_partial_link_text",
-        Shape::Target,
-    ),
-    ("submit", "submit", Shape::Target),
-    ("hover", "hover", Shape::Target),
-    (
-        "select_option_by_text",
-        "select_option_by_text",
-        Shape::TargetValue,
-    ),
-    (
-        "select_option_by_value",
-        "select_option_by_value",
-        Shape::TargetValue,
-    ),
-    (
-        "select_option_by_index",
-        "select_option_by_index",
-        Shape::TargetIndex,
-    ),
-    ("select_all", "select_all", Shape::Target),
-    ("unselect_all", "unselect_all", Shape::Target),
-    ("switch_to_frame", "switch_to_frame", Shape::Target),
-    (
-        "switch_to_default_content",
-        "switch_to_default_content",
-        Shape::NoArgs,
-    ),
-    (
-        "switch_to_parent_frame",
-        "switch_to_parent_frame",
-        Shape::NoArgs,
-    ),
-    ("drag_and_drop", "drag_and_drop", Shape::TargetValue),
-    ("cdp_click", "cdp_click", Shape::Target),
-    (
-        "wait_for_element_visible",
-        "wait_for_element_visible",
-        Shape::TargetSeconds,
-    ),
-    (
-        "wait_for_element_absent",
-        "wait_for_element_absent",
-        Shape::TargetSeconds,
-    ),
-    (
-        "wait_for_element_not_visible",
-        "wait_for_element_not_visible",
-        Shape::TargetSeconds,
-    ),
-    (
-        "wait_for_element_present",
-        "wait_for_element_present",
-        Shape::TargetSeconds,
-    ),
-    (
-        "wait_for_element_clickable",
-        "wait_for_element_clickable",
-        Shape::TargetSeconds,
-    ),
-    (
-        "wait_for_ready_state_complete",
-        "wait_for_ready_state_complete",
-        Shape::NoArgs,
-    ),
-    ("assert_text", "assert_text", Shape::ValueTarget),
-    (
-        "assert_text_visible",
-        "assert_text_visible",
-        Shape::ValueTarget,
-    ),
-    (
-        "assert_text_not_visible",
-        "assert_text_not_visible",
-        Shape::ValueTarget,
-    ),
-    ("assert_exact_text", "assert_exact_text", Shape::ValueTarget),
-    ("assert_attribute", "assert_attribute", Shape::TargetPair),
-    ("assert_title", "assert_title", Shape::Target),
-    (
-        "assert_title_contains",
-        "assert_title_contains",
-        Shape::Target,
-    ),
-    ("assert_link_text", "assert_link_text", Shape::Target),
-    ("maximize_window", "maximize_window", Shape::NoArgs),
-    ("set_window_size", "set_window_size", Shape::Size),
-    ("switch_to_window", "switch_to_window", Shape::Target),
-    (
-        "switch_to_new_window",
-        "switch_to_new_window",
-        Shape::NoArgs,
-    ),
-    (
-        "switch_to_newest_window",
-        "switch_to_newest_window",
-        Shape::NoArgs,
-    ),
-    (
-        "switch_to_default_window",
-        "switch_to_default_window",
-        Shape::NoArgs,
-    ),
-    ("go_back", "go_back", Shape::NoArgs),
-    ("go_forward", "go_forward", Shape::NoArgs),
-    ("refresh", "refresh", Shape::NoArgs),
-    ("delete_all_cookies", "delete_all_cookies", Shape::NoArgs),
-    ("delete_cookie", "delete_cookie", Shape::Target),
-    ("add_cookie", "add_cookie", Shape::TargetValue),
-    ("double_click", "double_click", Shape::Target),
-    ("context_click", "context_click", Shape::Target),
-    (
-        "click_with_offset",
-        "click_with_offset",
-        Shape::TargetOffset,
-    ),
-    (
-        "double_click_with_offset",
-        "double_click_with_offset",
-        Shape::TargetOffset,
-    ),
-    ("scroll_to", "scroll_to", Shape::Target),
-    ("scroll_to_bottom", "scroll_to_bottom", Shape::NoArgs),
-    ("scroll_to_top", "scroll_to_top", Shape::NoArgs),
-    ("scroll_into_view", "scroll_into_view", Shape::Target),
-    ("smooth_scroll_to", "smooth_scroll_to", Shape::Target),
-    ("slow_scroll_to", "slow_scroll_to", Shape::Target),
-    ("check_if_unchecked", "check_if_unchecked", Shape::Target),
-    ("uncheck_if_checked", "uncheck_if_checked", Shape::Target),
-    ("add_text", "add_text", Shape::TargetValue),
-    ("send_keys", "send_keys", Shape::TargetValue),
-    ("js_click", "js_click", Shape::Target),
-    ("js_type", "js_type", Shape::TargetValue),
-    ("js_update_text", "js_update_text", Shape::TargetValue),
-    ("js_click_if_present", "js_click_if_present", Shape::Target),
-    ("js_click_all", "js_click_all", Shape::Target),
-    ("jquery_click", "jquery_click", Shape::Target),
-    ("jquery_click_all", "jquery_click_all", Shape::Target),
-    ("jquery_type", "jquery_type", Shape::TargetValue),
-    (
-        "jquery_update_text",
-        "jquery_update_text",
-        Shape::TargetValue,
-    ),
-    ("set_attribute", "set_attribute", Shape::TargetPair),
-    ("remove_attribute", "remove_attribute", Shape::TargetValue),
-    ("choose_file", "choose_file", Shape::TargetValue),
-    (
-        "wait_for_and_accept_alert",
-        "wait_for_and_accept_alert",
-        Shape::Seconds,
-    ),
-    (
-        "wait_for_and_dismiss_alert",
-        "wait_for_and_dismiss_alert",
-        Shape::Seconds,
-    ),
-    ("accept_alert", "accept_alert", Shape::NoArgs),
-    ("dismiss_alert", "dismiss_alert", Shape::NoArgs),
-    ("type_alert_text", "type_alert_text", Shape::Target),
-    ("clear_local_storage", "clear_local_storage", Shape::NoArgs),
-    (
-        "remove_local_storage_item",
-        "remove_local_storage_item",
-        Shape::Target,
-    ),
-    (
-        "set_local_storage_item",
-        "set_local_storage_item",
-        Shape::TargetValue,
-    ),
-    ("close_window", "close_window", Shape::NoArgs),
-    ("highlight_click", "highlight_click", Shape::Target),
-    ("open_new_window", "open_new_window", Shape::NoArgs),
-    (
-        "click_visible_elements",
-        "click_visible_elements",
-        Shape::Target,
-    ),
-    ("find_element", "find_element", Shape::TargetDiscarded),
-    ("find_elements", "find_elements", Shape::TargetDiscarded),
-    ("get_shadow_root", "get_shadow_root", Shape::TargetDiscarded),
-    ("slow_click", "slow_click", Shape::Target),
-    ("human_type", "human_type", Shape::TargetValue),
-    ("human_click", "human_click", Shape::Target),
-    ("uc_click", "uc_click", Shape::Target),
-    ("uc_type", "uc_type", Shape::TargetValue),
-    ("update_text", "update_text", Shape::TargetValue),
-    ("sleep", "sleep", Shape::Sleep),
-    ("click_xpath", "click_xpath", Shape::Target),
-    // What Python's Recorder Mode writes (`recorder_helper.generate_sbase_code`).
-    ("goto", "goto", Shape::Target),
-    ("highlight", "highlight", Shape::Target),
-    ("press_keys", "press_keys", Shape::TargetValue),
-    ("enter_mfa_code", "enter_mfa_code", Shape::TargetValue),
-    ("hover_and_click", "hover_and_click", Shape::TargetValue),
-    ("set_value", "set_value", Shape::TargetValue),
-    (
-        "set_content_to_frame",
-        "set_content_to_frame",
-        Shape::Target,
-    ),
-    (
-        "set_content_to_default",
-        "set_content_to_default",
-        Shape::NoArgs,
-    ),
-    (
-        "set_content_to_parent",
-        "set_content_to_parent",
-        Shape::NoArgs,
-    ),
-    ("wait_for_element", "wait_for_element", Shape::TargetSeconds),
-    ("assert_element", "assert_element", Shape::Target),
-    (
-        "assert_element_present",
-        "assert_element_present",
-        Shape::Target,
-    ),
-    (
-        "assert_element_not_visible",
-        "assert_element_not_visible",
-        Shape::Target,
-    ),
-    (
-        "assert_non_empty_text",
-        "assert_non_empty_text",
-        Shape::Target,
-    ),
-    (
-        "deferred_assert_element",
-        "deferred_assert_element",
-        Shape::Target,
-    ),
-    (
-        "deferred_assert_element_present",
-        "deferred_assert_element_present",
-        Shape::Target,
-    ),
-    (
-        "deferred_assert_non_empty_text",
-        "deferred_assert_non_empty_text",
-        Shape::Target,
-    ),
-    (
-        "deferred_assert_text",
-        "deferred_assert_text",
-        Shape::ValueTarget,
-    ),
-    (
-        "deferred_assert_exact_text",
-        "deferred_assert_exact_text",
-        Shape::ValueTarget,
-    ),
-    (
-        "assert_exact_text_not_visible",
-        "assert_exact_text_not_visible",
-        Shape::ValueTarget,
-    ),
-    ("set_attributes", "set_attributes", Shape::TargetPair),
-    ("assert_url", "assert_url", Shape::Target),
-    ("assert_url_contains", "assert_url_contains", Shape::Target),
-    (
-        "assert_downloaded_file",
-        "assert_downloaded_file",
-        Shape::Target,
-    ),
-    ("save_screenshot", "save_screenshot", Shape::Target),
-    (
-        "save_screenshot_to_logs",
-        "save_screenshot_to_logs",
-        Shape::NoArgs,
-    ),
-    (
-        "save_page_source_to_logs",
-        "save_page_source_to_logs",
-        Shape::NoArgs,
-    ),
-    ("show_file_choosers", "show_file_choosers", Shape::NoArgs),
-    (
-        "process_deferred_asserts",
-        "process_deferred_asserts",
-        Shape::NoArgs,
-    ),
-    ("activate_demo_mode", "activate_demo_mode", Shape::NoArgs),
-    (
-        "deactivate_demo_mode",
-        "deactivate_demo_mode",
-        Shape::NoArgs,
-    ),
-    (
-        "clear_session_storage",
-        "clear_session_storage",
-        Shape::NoArgs,
-    ),
-    // `open_new_tab` is special: with a URL it is `open_new_tab_url`.
-    ("open_new_tab", "open_new_tab", Shape::NoArgs),
-];
-
-/// Other names for an action in `CALLS`: those `RecorderSession` and older
-/// recordings use.
-const ALIASES: &[(&str, &str)] = &[
-    // `goto` is a call of its own (`BaseCase::goto`, what Python's recorder writes).
-    ("navigate", "open"),
-    ("type", "type_text"),
-    // Deprecated since 0.5.0; older recordings keep the name, and a generated
-    // program must not call a deprecated method.
-    ("cdp_click_element", "cdp_click"),
-];
-
-/// Actions `BaseCase` records without what it takes to run them again.
-const UNEXPORTABLE: &[(&str, &str)] = &[
-    (
-        "drag_and_drop_with_offset",
-        "the recording keeps the two selectors but not the offset",
-    ),
-    (
-        "download_file",
-        "BaseCase::download_file takes a url, a file name and a timeout here, not Python's url and folder",
-    ),
-    (
-        "save_as_pdf_to_logs",
-        "BaseCase::save_as_pdf_to_logs needs a file name, which the recording does not hold",
-    ),
-    (
-        "save_screenshot_to_folder",
-        "BaseCase::save_screenshot takes a file name only, not a folder",
-    ),
-];
-
-/// The known action closest to a mistyped `name`, if one is a small edit away.
-fn closest_action(name: &str) -> Option<&'static str> {
-    let allowed = (name.chars().count() / 3).clamp(1, 3);
-    CALLS
-        .iter()
-        .map(|(known, _, _)| *known)
-        .chain(ALIASES.iter().map(|(alias, _)| *alias))
-        .map(|known| (edit_distance(name, known), known))
-        .filter(|(distance, _)| *distance <= allowed)
-        .min_by_key(|(distance, _)| *distance)
-        .map(|(_, known)| known)
-}
-
-/// The number of single-character insertions, deletions and substitutions that
-/// turn `a` into `b`.
-fn edit_distance(a: &str, b: &str) -> usize {
-    let b: Vec<char> = b.chars().collect();
-    let mut row: Vec<usize> = (0..=b.len()).collect();
-    for (i, ca) in a.chars().enumerate() {
-        let mut diagonal = row[0];
-        row[0] = i + 1;
-        for (j, cb) in b.iter().enumerate() {
-            let above = row[j + 1];
-            row[j + 1] = if ca == *cb {
-                diagonal
-            } else {
-                1 + diagonal.min(above).min(row[j])
-            };
-            diagonal = above;
-        }
-    }
-    row[b.len()]
-}
-
-/// The name `CALLS` knows an action by: `recorded` itself unless it is one of
-/// the `ALIASES`.
-fn canonical_name(recorded: &str) -> &str {
-    ALIASES
-        .iter()
-        .find(|(alias, _)| *alias == recorded)
-        .map_or(recorded, |(_, canonical)| *canonical)
 }
 
 /// A string as a Rust literal.
 fn literal(text: &str) -> String {
     format!("{text:?}")
-}
-
-/// A whole number parsed from recorded text, as a Rust literal.
-fn number<T: std::str::FromStr + std::fmt::Display>(
-    action: &str,
-    what: &str,
-    text: &str,
-) -> Result<String, String> {
-    text.trim()
-        .parse::<T>()
-        .map(|n| n.to_string())
-        .map_err(|_| format!("{action}: {what} {text:?} is not a whole number in range"))
-}
-
-/// The parts of the value of a recorded `click_with_offset`: the offset as
-/// `x, y`, and whether it counts from the centre of the element (`x, y,
-/// center`) instead of from its top-left corner, Python's `center` argument.
-fn offset_parts<'a>(action: &str, offset: &'a str) -> Result<(&'a str, &'a str, bool), String> {
-    let wrong = || format!("{action}: value {offset:?} is not x, y");
-    let mut parts = offset.split(',');
-    let (Some(x), Some(y)) = (parts.next(), parts.next()) else {
-        return Err(wrong());
-    };
-    let center = match parts.next().map(str::trim) {
-        None => false,
-        Some("center") => true,
-        Some(_) => return Err(wrong()),
-    };
-    if parts.next().is_some() {
-        return Err(wrong());
-    }
-    Ok((x, y, center))
-}
-
-/// The line of Rust that replays `action`, or why there is none.
-fn rust_call(action: &RecordedAction) -> Result<String, String> {
-    let name = canonical_name(&action.name);
-    if let Some((_, reason)) = UNEXPORTABLE
-        .iter()
-        .find(|(unexportable, _)| *unexportable == name)
-    {
-        return Err(format!("{name}: {reason}"));
-    }
-    let Some((_, method, shape)) = CALLS.iter().find(|(known, _, _)| *known == name) else {
-        return Err(match closest_action(&action.name) {
-            Some(near) => format!("unknown action {:?}; did you mean {near:?}?", action.name),
-            None => format!("unknown action {:?}", action.name),
-        });
-    };
-
-    let target = action.target.as_deref();
-    let value = action.value.as_deref();
-    let need_target = || target.ok_or_else(|| format!("{name} has no target"));
-    let need_value = || value.ok_or_else(|| format!("{name} has no value"));
-
-    let (method, args) = match shape {
-        Shape::NoArgs => {
-            // `open_new_tab` remembers the page it opened.
-            match (*method, target) {
-                ("open_new_tab", Some(url)) => ("open_new_tab_url", literal(url)),
-                _ => (*method, String::new()),
-            }
-        }
-        Shape::Target | Shape::TargetDiscarded => (*method, literal(need_target()?)),
-        Shape::TargetValue => (
-            *method,
-            format!(
-                "{}, {}",
-                literal(need_target()?),
-                text_argument(need_value()?)
-            ),
-        ),
-        Shape::ValueTarget => (
-            *method,
-            format!("{}, {}", literal(need_value()?), literal(need_target()?)),
-        ),
-        Shape::TargetSeconds => (*method, format!("{}, 10", literal(need_target()?))),
-        Shape::Seconds => (*method, "10".to_owned()),
-        Shape::TargetPair => {
-            let pair = need_value()?;
-            let (key, content) = pair
-                .split_once('=')
-                .ok_or_else(|| format!("{name}: value {pair:?} is not name=content"))?;
-            (
-                *method,
-                format!(
-                    "{}, {}, {}",
-                    literal(need_target()?),
-                    literal(key.trim()),
-                    literal(content.trim())
-                ),
-            )
-        }
-        Shape::Size => {
-            let size = need_target()?;
-            let (width, height) = size
-                .split_once(',')
-                .ok_or_else(|| format!("{name}: target {size:?} is not width,height"))?;
-            (
-                *method,
-                format!(
-                    "{}, {}",
-                    number::<u32>(name, "width", width)?,
-                    number::<u32>(name, "height", height)?
-                ),
-            )
-        }
-        Shape::TargetOffset => {
-            let (x, y, center) = offset_parts(name, need_value()?)?;
-            (
-                *method,
-                format!(
-                    "{}, {}, {}, {center}",
-                    literal(need_target()?),
-                    number::<i64>(name, "x offset", x)?,
-                    number::<i64>(name, "y offset", y)?
-                ),
-            )
-        }
-        Shape::TargetIndex => (
-            *method,
-            format!(
-                "{}, {}",
-                literal(need_target()?),
-                number::<usize>(name, "index", need_value()?)?
-            ),
-        ),
-        Shape::Sleep => {
-            let text = need_value()?;
-            let seconds = text
-                .trim()
-                .parse::<f64>()
-                .ok()
-                .filter(|s| s.is_finite() && *s >= 0.0)
-                .ok_or_else(|| format!("{name}: {text:?} is not a number of seconds"))?;
-            // `sleep` returns nothing, so there is no `?`.
-            return Ok(format!("sb.{method}({seconds:?}).await;"));
-        }
-    };
-
-    let discard = if *shape == Shape::TargetDiscarded {
-        "let _ = "
-    } else {
-        ""
-    };
-    Ok(format!("{discard}sb.{method}({args}).await?;"))
 }
 
 fn line(out: &mut String, content: &str) {
@@ -1116,8 +550,11 @@ impl ReplayStep {
 pub struct ReplayReport {
     /// Per-action results in replay order.
     pub steps: Vec<ReplayStep>,
-    /// Number of actions that were not understood by the replay engine.
+    /// Number of actions the replay has no call for: an unknown name, or an
+    /// action the recording does not hold enough of to run.
     pub skipped: usize,
+    /// The recorded names of the skipped actions, in replay order.
+    pub skipped_names: Vec<String>,
 }
 
 impl ReplayReport {
@@ -1203,26 +640,15 @@ fn revealed(text: &str) -> Result<String, SeleniumBaseError> {
     Ok(format!("{secret}{rest}"))
 }
 
-/// What one look at the browser found; see [`RecorderSession::poll`].
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Poll {
-    /// The page was read; this many actions were added to the recording.
-    Captured(usize),
-    /// A dialog (`alert`, `confirm`, `prompt`) is open. The page cannot be
-    /// read until the person answers it, and the recorder leaves it alone.
-    Dialog,
-    /// The browser, or its window, is gone.
-    Ended,
-}
-
-/// Live recording session that captures browser interactions while driving a
-/// [`BaseCase`](crate::BaseCase).
+/// A list of recorded actions that can be saved, loaded and replayed.
 ///
-/// The session can be driven programmatically (see [`RecorderSession::goto`],
-/// [`RecorderSession::click`], [`RecorderSession::type_text`] and
-/// [`RecorderSession::assert_text`]) or attached to a live page with
-/// [`RecorderSession::install`] + [`RecorderSession::drain`] so that manual user
-/// interactions are captured too.
+/// The actions come from a recording ([`BaseCase::recorder_session`] turns the
+/// `BaseCase` calls of a test into one, and [`ActionRecorder::from_raw_actions`]
+/// the actions of a person in Recorder Mode), from a file
+/// ([`load`](RecorderSession::load)), or from [`push`](RecorderSession::push).
+/// A session is written as JSON or YAML ([`save`](RecorderSession::save)), as a
+/// Rust test ([`to_action_recorder`](RecorderSession::to_action_recorder)), and
+/// run again with [`replay`](RecorderSession::replay).
 ///
 /// ```
 /// use seleniumbase_rs::api::recorder::RecorderSession;
@@ -1237,13 +663,6 @@ pub enum Poll {
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct RecorderSession {
     actions: Vec<RecordedAction>,
-    last_url: Option<String>,
-    #[serde(skip)]
-    installed: bool,
-    /// Whether the listeners are also installed in every document the browser
-    /// loads from now on, not just the current one.
-    #[serde(skip)]
-    on_new_documents: bool,
 }
 
 impl RecorderSession {
@@ -1254,12 +673,7 @@ impl RecorderSession {
 
     /// Creates a session pre-populated with previously recorded actions.
     pub fn from_actions(actions: Vec<RecordedAction>) -> Self {
-        Self {
-            actions,
-            last_url: None,
-            installed: false,
-            on_new_documents: false,
-        }
+        Self { actions }
     }
 
     /// Returns the recorded actions in capture order.
@@ -1451,530 +865,35 @@ impl RecorderSession {
         })?;
         Ok(recorder.actions)
     }
-
-    /// JavaScript that installs the in-page event listeners.
-    ///
-    /// The script is idempotent: running it again on the same page does not
-    /// duplicate the listeners. What the listeners capture is kept in the
-    /// browser's `sessionStorage`, so it survives a navigation to another page
-    /// of the same origin. Events not yet drained when the browser moves to a
-    /// different origin stay behind, as storage is kept per origin.
-    pub fn install_script() -> &'static str {
-        INSTALL_SCRIPT
-    }
-
-    /// JavaScript that returns and clears the captured in-page events.
-    pub fn drain_script() -> &'static str {
-        DRAIN_SCRIPT
-    }
-
-    /// Parses the JSON payload produced by [`Self::drain_script`].
-    pub fn parse_drained(raw: &str) -> Vec<RecordedAction> {
-        Self::parse_captured(raw)
-            .into_iter()
-            .map(|event| event.action())
-            .collect()
-    }
-
-    fn parse_captured(raw: &str) -> Vec<Captured> {
-        serde_json::from_str(raw).unwrap_or_default()
-    }
 }
 
-/// One event as the in-page listeners report it: a [`RecordedAction`] and the
-/// address of the page it happened on.
-#[derive(Deserialize)]
-struct Captured {
-    name: String,
-    #[serde(default)]
-    target: Option<String>,
-    #[serde(default)]
-    value: Option<String>,
-    #[serde(default)]
-    timestamp_ms: u64,
-    #[serde(default)]
-    url: Option<String>,
-    /// Set for text typed into a password field.
-    #[serde(default)]
-    secret: bool,
-}
-
-impl Captured {
-    fn action(self) -> RecordedAction {
-        // A typed password stays out of the file, unless asked for.
-        let value = match self.value {
-            Some(typed) if self.secret && !keep_secrets() => {
-                let enter = if typed.ends_with('\n') { "\n" } else { "" };
-                Some(format!("{SECRET_PLACEHOLDER}{enter}"))
-            }
-            other => other,
-        };
-        RecordedAction {
-            name: self.name,
-            target: self.target,
-            value,
-            timestamp_ms: u128::from(self.timestamp_ms),
-        }
-    }
-}
-
-/// Browser-driving helpers. These require a live [`BaseCase`].
+/// Replaying a recording.
 impl RecorderSession {
-    /// Navigates to `url` and records a `goto` action.
-    pub async fn goto(&mut self, sb: &mut BaseCase, url: &str) -> Result<(), SeleniumBaseError> {
-        // Flush pending in-page events first so the recording stays ordered.
-        if self.installed {
-            let _ = self.drain(sb).await;
-        }
-        sb.open(url).await?;
-        // Remember the address the browser is at, not the one it was asked
-        // for: `https://example.com` becomes `https://example.com/`, and a
-        // redirect changes it altogether. Otherwise the next `drain` sees a
-        // difference and records a second `goto` for the same page.
-        self.last_url = Some(
-            sb.get_current_url()
-                .await
-                .unwrap_or_else(|_| url.to_owned()),
-        );
-        self.push("goto", Some(url), None);
-        if self.installed {
-            let _ = self.install(sb).await;
-        }
-        Ok(())
-    }
-
-    /// Clicks `css` and records a `click` action.
+    /// Replays `actions` against `sb`, one step each, and reports how each went.
     ///
-    /// Skips the local record when in-page capture is active, because the
-    /// installed listeners already observe the click.
-    pub async fn click(&mut self, sb: &mut BaseCase, css: &str) -> Result<(), SeleniumBaseError> {
-        sb.click(css).await?;
-        if !self.installed {
-            self.push("click", Some(css), None);
-        }
-        Ok(())
-    }
-
-    /// Types `text` into `css` and records a `type` action.
-    pub async fn type_text(
-        &mut self,
-        sb: &mut BaseCase,
-        css: &str,
-        text: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        sb.type_text(css, text).await?;
-        if !self.installed {
-            self.push("type", Some(css), Some(text));
-        }
-        Ok(())
-    }
-
-    /// Asserts that `css` contains `text` and records an `assert_text` action.
-    /// The text comes first and the selector second, like
-    /// [`BaseCase::assert_text`].
-    pub async fn assert_text(
-        &mut self,
-        sb: &mut BaseCase,
-        text: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        // Flush pending in-page events first so the recording stays ordered.
-        if self.installed {
-            let _ = self.drain(sb).await;
-        }
-        sb.assert_text(text, css).await?;
-        self.push("assert_text", Some(css), Some(text));
-        Ok(())
-    }
-
-    /// Adjusts `config` for a browser that a person works in while it is
-    /// recorded: a dialog the page opens (`alert`, `confirm`, `prompt`) is left
-    /// open for the person, instead of being dismissed by the first command the
-    /// recorder sends while it is up.
+    /// Every action the recorder can generate a call for is replayed with the
+    /// same `BaseCase` method and arguments (the table behind
+    /// [`ActionRecorder::to_rust_script`] holds both), so a recording of Recorder
+    /// Mode, or of a test's own `BaseCase` calls, replays as it is generated.
+    /// The names `navigate`, `type` and `cdp_click_element` mean what they mean
+    /// in generated code.
     ///
-    /// A setting the caller already made is kept.
-    pub fn prepare_config(config: &mut BrowserConfig) {
-        let capabilities = &mut config.launch.capabilities;
-        if capabilities.get("unhandledPromptBehavior").is_none() {
-            if let Ok(ignore) =
-                CapabilityOverrides::from_text(r#"{"unhandledPromptBehavior": "ignore"}"#)
-            {
-                capabilities.merge(&ignore);
-            }
-        }
-    }
-
-    /// Looks at the browser once: records what happened on the page since the
-    /// last look ([`drain`](Self::drain)), or says why that was not possible.
+    /// An action whose name is not in the table, or has no call to replay
+    /// (`drag_and_drop_with_offset`: the recording does not keep its offset), is
+    /// counted in [`ReplayReport::skipped`] and named in
+    /// [`ReplayReport::skipped_names`]. An action that lacks an argument it needs
+    /// is a failed step that says which. The steps after a failed one still run.
     ///
-    /// A page with a dialog open ([`Poll::Dialog`]) is not the end of the
-    /// session, so a recording loop keeps polling until the person has
-    /// answered it. [`Poll::Ended`] means the browser is gone.
-    pub async fn poll(&mut self, sb: &mut BaseCase) -> Poll {
-        match sb.get_current_url().await {
-            Ok(_) => Poll::Captured(self.drain(sb).await.unwrap_or(0)),
-            Err(error) if is_dialog_error(&error) => Poll::Dialog,
-            Err(_) => Poll::Ended,
-        }
-    }
-
-    /// Installs the in-page listeners so manual interactions are captured.
+    /// # Errors
     ///
-    /// While installed, [`RecorderSession::click`] and
-    /// [`RecorderSession::type_text`] stop recording locally so each
-    /// interaction is captured exactly once.
-    ///
-    /// In CDP mode (`DriverMode::Cdp` or `DriverMode::Uc`) the listeners are
-    /// also registered to be installed in every page the browser loads from
-    /// now on, so an interaction right after a navigation is captured too. In
-    /// any other session that registration is skipped, and a new page gets the
-    /// listeners at the next call to [`drain`](Self::drain): an interaction
-    /// before that is not captured.
-    pub async fn install(&mut self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
-        sb.execute_script(Self::install_script()).await?;
-        if !self.on_new_documents {
-            // A frame has its own document; only the page itself is recorded,
-            // as the selectors are relative to it.
-            let source = format!(
-                "(function () {{\nif (window.top !== window) {{ return; }}\n{INSTALL_SCRIPT}\n}})();"
-            );
-            self.on_new_documents = sb
-                .execute_cdp_with_params(
-                    "Page.addScriptToEvaluateOnNewDocument",
-                    json!({ "source": source }),
-                )
-                .await
-                .is_ok();
-        }
-        self.installed = true;
-        Ok(())
-    }
-
-    /// Returns `true` once the in-page listeners have been installed.
-    pub fn is_installed(&self) -> bool {
-        self.installed
-    }
-
-    /// Drains buffered in-page events into the recording.
-    ///
-    /// Also reinstalls the listeners when a navigation wiped them and records a
-    /// `goto_if_not_url` action whenever the page URL changed since the last drain.
-    pub async fn drain(&mut self, sb: &mut BaseCase) -> Result<usize, SeleniumBaseError> {
-        let before = self.actions.len();
-        let raw = sb.execute_script(Self::drain_script()).await;
-        let captured = match raw {
-            Ok(value) => Self::parse_captured(value.as_str().unwrap_or_default()),
-            Err(_) => Vec::new(),
-        };
-
-        // Each event knows the page it happened on. Seeing a new address means
-        // the browser went there first, so the `goto` goes before the event.
-        for event in captured {
-            if let Some(url) = event.url.clone() {
-                self.note_page(&url);
-            }
-            self.actions.push(event.action());
-        }
-
-        // A navigation with no event after it still needs its `goto`, and the
-        // page needs the listeners again.
-        if let Ok(url) = sb.get_current_url().await {
-            self.note_page(&url);
-        }
-        let _ = self.install(sb).await;
-
-        Ok(self.actions.len() - before)
-    }
-
-    /// Records the page the browser is now on, if it is not the last one the recording
-    /// knows: `goto` for the first, `goto_if_not_url` for any later one, as the click that led there opens it.
-    fn note_page(&mut self, url: &str) {
-        if self.last_url.as_deref() != Some(url) {
-            let name = if self.last_url.is_none() {
-                "goto"
-            } else {
-                "goto_if_not_url"
-            };
-            self.last_url = Some(url.to_owned());
-            self.actions
-                .push(RecordedAction::new(name, Some(url), None));
-        }
-    }
-
-    /// Replays `actions` against `sb`.
-    ///
-    /// Supported action names (with aliases) are `goto`/`open`/`navigate`, `goto_if_not_url`,
-    /// `click`, `type`/`type_text`/`update_text`, `assert_text`,
-    /// `assert_title`, `assert_url`, and `select_option_by_value`. Anything else
-    /// is counted as skipped.
+    /// Returns [`SeleniumBaseError::InvalidConfig`], before anything runs, when
+    /// the recording types a password and `SB_RECORDED_SECRET` is not set.
     pub async fn replay(
         sb: &mut BaseCase,
         actions: &[RecordedAction],
     ) -> Result<ReplayReport, SeleniumBaseError> {
-        let mut report = ReplayReport::default();
-        for action in actions {
-            let target = action.target.as_deref();
-            let value = action.value.as_deref();
-            let (description, result) = match action.name.as_str() {
-                "goto" | "open" | "navigate" => match target {
-                    Some(url) => (format!("goto {url}"), sb.open(url).await),
-                    None => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                "goto_if_not_url" => match target {
-                    Some(url) => (
-                        format!("goto {url} unless already there"),
-                        sb.goto_if_not_url(url).await,
-                    ),
-                    None => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-
-                "click" => match target {
-                    Some(css) => (format!("click {css}"), sb.click(css).await),
-                    None => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                "type" | "type_text" | "update_text" => match (target, value) {
-                    (Some(css), Some(text)) => (
-                        format!("type {text:?} into {css}"),
-                        sb.type_text(css, &revealed(text)?).await,
-                    ),
-                    _ => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                "select_option_by_value" => match (target, value) {
-                    (Some(css), Some(val)) => (
-                        format!("select {val:?} in {css}"),
-                        sb.select_option_by_value(css, val).await,
-                    ),
-                    _ => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                "assert_text" => match (target, value) {
-                    (Some(css), Some(text)) => (
-                        format!("assert_text {text:?} in {css}"),
-                        sb.assert_text(text, css).await,
-                    ),
-                    _ => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                "assert_title" => match target {
-                    Some(title) => (
-                        format!("assert_title {title:?}"),
-                        sb.assert_title_contains(title).await,
-                    ),
-                    None => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                "assert_url" => match target {
-                    Some(url) => (
-                        format!("assert_url {url:?}"),
-                        sb.assert_url_contains(url).await,
-                    ),
-                    None => {
-                        report.skipped += 1;
-                        continue;
-                    }
-                },
-                _ => {
-                    report.skipped += 1;
-                    continue;
-                }
-            };
-            report.steps.push(ReplayStep {
-                name: action.name.clone(),
-                description,
-                error: result.err().map(|e| e.to_string()),
-            });
-        }
-        Ok(report)
+        calls::replay(sb, actions).await
     }
-}
-
-const INSTALL_SCRIPT: &str = r##"
-if (window.__sbRecorderInstalled) { return "already-installed"; }
-window.__sbRecorderInstalled = true;
-window.__sbRecordedActions = window.__sbRecordedActions || [];
-var KEY = "__sbRecordedActions";
-var push = function (name, target, value, secret) {
-    var event = {
-        name: name, target: target, value: value,
-        timestamp_ms: Date.now(), url: window.location.href
-    };
-    // Text typed into a password field: the recorder keeps it out of the file.
-    if (secret) { event.secret = true; }
-    // sessionStorage outlives the page: a click that leaves it, or a field
-    // changed just before, would be lost with a script variable. A page that
-    // forbids storage (about:blank, data: URLs) falls back to the variable.
-    try {
-        var stored = JSON.parse(window.sessionStorage.getItem(KEY) || "[]");
-        stored.push(event);
-        window.sessionStorage.setItem(KEY, JSON.stringify(stored));
-    } catch (e) {
-        window.__sbRecordedActions.push(event);
-    }
-};
-// Whether `selector` finds `el` and nothing else.
-var unique = function (selector, el) {
-    try {
-        var found = document.querySelectorAll(selector);
-        return found.length === 1 && found[0] === el;
-    } catch (e) {
-        return false;
-    }
-};
-var quote = function (text) {
-    return "\"" + String(text).replace(/["\\]/g, function (c) { return "\\" + c; }) + "\"";
-};
-// `tag[attribute="value"]` for the first attribute that finds only `el`.
-var attributeSelector = function (el) {
-    var tag = el.tagName.toLowerCase();
-    var names = ["data-testid", "data-test", "data-cy", "data-qa", "name",
-                 "aria-label", "placeholder", "title", "alt"];
-    for (var i = 0; i < names.length; i += 1) {
-        var value = el.getAttribute(names[i]);
-        if (value && value.length <= 80 && !/[\r\n]/.test(value)) {
-            var selector = tag + "[" + names[i] + "=" + quote(value) + "]";
-            if (unique(selector, el)) { return selector; }
-        }
-    }
-    return null;
-};
-// The tag of `node`, with its place among the siblings of that tag if it has any.
-var segment = function (node) {
-    var part = node.tagName.toLowerCase();
-    var parent = node.parentNode;
-    if (parent && parent.children) {
-        var same = Array.prototype.filter.call(
-            parent.children, function (c) { return c.tagName === node.tagName; }
-        );
-        if (same.length > 1) { part += ":nth-of-type(" + (same.indexOf(node) + 1) + ")"; }
-    }
-    return part;
-};
-// A selector that finds `el` and only `el`: its id, an attribute that sets it
-// apart, or the shortest path up from it that does. Replay clicks the first
-// match, so a selector that also fits another element clicks the wrong one.
-var cssPath = function (el) {
-    if (!el || el.nodeType !== 1) { return null; }
-    if (el.id) {
-        var byId = "#" + CSS.escape(el.id);
-        if (unique(byId, el)) { return byId; }
-    }
-    var byAttribute = attributeSelector(el);
-    if (byAttribute) { return byAttribute; }
-    var parts = [];
-    var node = el;
-    while (node && node.nodeType === 1) {
-        var part = segment(node);
-        if (node.id && document.querySelectorAll("#" + CSS.escape(node.id)).length === 1) {
-            part = "#" + CSS.escape(node.id);
-        }
-        parts.unshift(part);
-        var path = parts.join(" > ");
-        if (unique(path, el)) { return path; }
-        node = node.parentNode;
-    }
-    return parts.join(" > ");
-};
-var isTextInput = function (el) {
-    if (!el || !el.tagName) { return false; }
-    var tag = el.tagName.toLowerCase();
-    if (tag === "textarea") { return true; }
-    if (tag !== "input") { return false; }
-    var type = (el.getAttribute("type") || "text").toLowerCase();
-    return ["text", "search", "email", "url", "tel", "password", "number"].indexOf(type) >= 0;
-};
-var isSecret = function (el) {
-    return !!el && !!el.tagName && el.tagName.toLowerCase() === "input" &&
-        (el.getAttribute("type") || "").toLowerCase() === "password";
-};
-// The label just clicked and the control it passes the click on to.
-var lastLabel = null;
-// The field Enter was just pressed in: its text is recorded with the Enter.
-var enterField = null;
-document.addEventListener("click", function (e) {
-    var el = e.target;
-    if (isTextInput(el)) { return; }
-    var tag = el && el.tagName ? el.tagName.toLowerCase() : "";
-    // Choosing an option is recorded by the change event, not by the clicks
-    // that lead to it.
-    if (tag === "select" || tag === "option") { return; }
-    // The browser clicks the control of a label by itself right after the
-    // label: replaying the label's click does the same, and a second click
-    // would undo the first.
-    if (lastLabel && lastLabel.control === el && Date.now() - lastLabel.time < 300) {
-        lastLabel = null;
-        return;
-    }
-    var label = el && el.closest ? el.closest("label") : null;
-    if (label && label.control && label.control !== el) {
-        lastLabel = { control: label.control, time: Date.now() };
-    }
-    var selector = cssPath(el);
-    if (selector) { push("click", selector, null); }
-}, true);
-document.addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" || e.isComposing) { return; }
-    var el = e.target;
-    if (!isTextInput(el) || el.tagName.toLowerCase() === "textarea") { return; }
-    var selector = cssPath(el);
-    if (!selector) { return; }
-    // Enter sends the form: the text goes with it, as one typing that ends in
-    // a new line, and the change event that follows must not record it again.
-    enterField = el;
-    push("type", selector, el.value + "\n", isSecret(el));
-}, true);
-document.addEventListener("input", function () { enterField = null; }, true);
-document.addEventListener("change", function (e) {
-    var el = e.target;
-    if (!el || !el.tagName) { return; }
-    if (enterField === el) { enterField = null; return; }
-    var selector = cssPath(el);
-    if (!selector) { return; }
-    var tag = el.tagName.toLowerCase();
-    if (tag === "select") {
-        push("select_option_by_value", selector, el.value);
-    } else if (isTextInput(el)) {
-        push("type", selector, el.value, isSecret(el));
-    }
-}, true);
-return "installed";
-"##;
-
-const DRAIN_SCRIPT: &str = r##"
-var KEY = "__sbRecordedActions";
-var actions = [];
-try {
-    actions = JSON.parse(window.sessionStorage.getItem(KEY) || "[]");
-    window.sessionStorage.removeItem(KEY);
-} catch (e) {
-    actions = [];
-}
-var loose = window.__sbRecordedActions || [];
-window.__sbRecordedActions = [];
-return JSON.stringify(actions.concat(loose));
-"##;
-
-/// Whether `error` says a command failed because a dialog is open.
-fn is_dialog_error(error: &SeleniumBaseError) -> bool {
-    let text = error.to_string().to_ascii_lowercase();
-    text.contains("unexpected alert") || text.contains("alert open") || text.contains("modal")
 }
 
 fn yaml_scalar(value: &str) -> String {
@@ -1997,6 +916,7 @@ fn is_yaml_path(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::calls::{Shape, CALLS, UNEXPORTABLE};
     use super::*;
 
     fn sample_recorder() -> ActionRecorder {
@@ -2234,22 +1154,6 @@ mod tests {
     }
 
     #[test]
-    fn drained_payload_is_parsed() {
-        let raw = r##"[{"name":"click","target":"#a","value":null,"timestamp_ms":7}]"##;
-        let actions = RecorderSession::parse_drained(raw);
-        assert_eq!(actions.len(), 1);
-        assert_eq!(actions[0].timestamp_ms, 7);
-        assert!(RecorderSession::parse_drained("boom").is_empty());
-    }
-
-    #[test]
-    fn injection_scripts_are_present() {
-        assert!(RecorderSession::install_script().contains("__sbRecorderInstalled"));
-        assert!(RecorderSession::install_script().contains("addEventListener(\"click\""));
-        assert!(RecorderSession::drain_script().contains("__sbRecordedActions"));
-    }
-
-    #[test]
     fn replay_report_counts_results() {
         let report = ReplayReport {
             steps: vec![
@@ -2265,6 +1169,7 @@ mod tests {
                 },
             ],
             skipped: 1,
+            skipped_names: vec!["levitate".to_owned()],
         };
         assert_eq!(report.passed(), 1);
         assert_eq!(report.failed(), 1);
@@ -2345,7 +1250,7 @@ mod tests {
     /// The `target` and `value` that make `shape` generate a call.
     fn sample_for(shape: Shape) -> (Option<&'static str>, Option<&'static str>) {
         match shape {
-            Shape::NoArgs | Shape::Seconds => (None, None),
+            Shape::NoArgs | Shape::Seconds | Shape::TabUrl => (None, None),
             Shape::Target | Shape::TargetDiscarded | Shape::TargetSeconds => (Some("#t"), None),
             Shape::TargetValue | Shape::ValueTarget => (Some("#t"), Some("v")),
             Shape::TargetPair => (Some("#t"), Some("name=content")),
@@ -2763,43 +1668,6 @@ mod tests {
     }
 
     #[test]
-    fn a_drained_event_remembers_the_page_it_happened_on_but_the_recording_does_not_keep_it() {
-        let raw = r##"[{"name":"click","target":"#a","value":null,"timestamp_ms":7,"url":"http://x.test/a"}]"##;
-        let captured = RecorderSession::parse_captured(raw);
-        assert_eq!(captured[0].url.as_deref(), Some("http://x.test/a"));
-
-        let actions = RecorderSession::parse_drained(raw);
-        assert_eq!(actions[0].timestamp_ms, 7);
-        let saved = serde_json::to_string(&actions).unwrap();
-        assert!(!saved.contains("x.test"), "{saved}");
-    }
-
-    #[test]
-    fn the_first_page_is_a_goto_and_each_later_one_a_goto_if_not_url() {
-        // The page a click led to is already open when the replay has clicked,
-        // so loading it again would run its scripts twice (and could not
-        // reproduce the result of a POST).
-        let mut session = RecorderSession::new();
-        session.note_page("http://x.test/a");
-        session.note_page("http://x.test/a");
-        session.note_page("http://x.test/b");
-        session.note_page("http://x.test/a");
-        let targets: Vec<_> = session
-            .actions()
-            .iter()
-            .map(|action| (action.name.as_str(), action.target.as_deref()))
-            .collect();
-        assert_eq!(
-            targets,
-            [
-                ("goto", Some("http://x.test/a")),
-                ("goto_if_not_url", Some("http://x.test/b")),
-                ("goto_if_not_url", Some("http://x.test/a")),
-            ]
-        );
-    }
-
-    #[test]
     fn goto_if_not_url_is_generated_for_every_output() {
         let mut recorder = ActionRecorder::default();
         recorder.record("goto", Some("http://x.test/a"), None);
@@ -2821,42 +1689,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn the_listeners_keep_what_they_capture_where_a_navigation_cannot_erase_it() {
-        let install = RecorderSession::install_script();
-        assert!(install.contains("sessionStorage.setItem"));
-        assert!(install.contains("url: window.location.href"));
-        let drain = RecorderSession::drain_script();
-        assert!(drain.contains("sessionStorage.getItem"));
-        assert!(drain.contains("sessionStorage.removeItem"));
-        // Both read and write the same key.
-        assert!(install.contains("__sbRecordedActions") && drain.contains("__sbRecordedActions"));
-    }
-
-    // ---- passwords, dialogs, Rust output -------------------------------------
-
-    #[test]
-    fn a_typed_password_is_kept_out_of_the_recording() {
-        let raw = r##"[
-            {"name":"type","target":"#pw","value":"hunter2","timestamp_ms":1,"secret":true},
-            {"name":"type","target":"#pw2","value":"hunter2\n","timestamp_ms":2,"secret":true},
-            {"name":"type","target":"#user","value":"ada","timestamp_ms":3}
-        ]"##;
-        let actions = RecorderSession::parse_drained(raw);
-        let values: Vec<_> = actions.iter().map(|a| a.value.as_deref()).collect();
-        // `SB_REC_KEEP_SECRETS` asks for the typed text; it is not set in a test run.
-        assert_eq!(
-            values,
-            [
-                Some("{{SB_RECORDED_SECRET}}"),
-                Some("{{SB_RECORDED_SECRET}}\n"),
-                Some("ada")
-            ]
-        );
-        let saved = RecorderSession::from_actions(actions);
-        assert!(!saved.to_json().unwrap().contains("hunter2"));
-        assert!(!saved.to_yaml().contains("hunter2"));
-    }
+    // ---- passwords and Rust output -------------------------------------------
 
     #[test]
     fn a_password_placeholder_is_generated_as_the_environment_variable() {
@@ -2917,173 +1750,9 @@ mod tests {
         syn::parse_file(&test).expect("the test should parse");
     }
 
-    #[test]
-    fn a_dialog_is_not_the_end_of_the_session() {
-        let dialog = SeleniumBaseError::InvalidConfig(
-            "unexpected alert open: {Alert text : hello}".to_owned(),
-        );
-        assert!(is_dialog_error(&dialog));
-        let gone = SeleniumBaseError::InvalidConfig("invalid session id".to_owned());
-        assert!(!is_dialog_error(&gone));
-    }
+    // ---- Gherkin -------------------------------------------------------------
 
-    #[test]
-    fn the_recorder_asks_the_browser_to_leave_dialogs_open_unless_told_otherwise() {
-        let mut config = BrowserConfig::default();
-        RecorderSession::prepare_config(&mut config);
-        assert_eq!(
-            config.launch.capabilities.get("unhandledPromptBehavior"),
-            Some(&json!("ignore"))
-        );
-
-        let mut chosen = BrowserConfig::default();
-        chosen.launch.capabilities =
-            CapabilityOverrides::from_text(r#"{"unhandledPromptBehavior": "accept"}"#).unwrap();
-        RecorderSession::prepare_config(&mut chosen);
-        assert_eq!(
-            chosen.launch.capabilities.get("unhandledPromptBehavior"),
-            Some(&json!("accept"))
-        );
-    }
-
-    #[test]
-    fn the_listeners_handle_labels_selects_enter_and_passwords() {
-        let install = RecorderSession::install_script();
-        for needle in [
-            "label.control",
-            "\"select\" || tag === \"option\"",
-            "e.key !== \"Enter\"",
-            "el.value + \"\\n\"",
-            "isSecret(el)",
-            "querySelectorAll",
-        ] {
-            assert!(install.contains(needle), "{needle:?} is not in the script");
-        }
-    }
-
-    // ---- live capture, against a real browser --------------------------------
-
-    use crate::browser::config::{BrowserConfig, DriverMode};
-
-    /// Serves a page with a field and a link, and a second page with a button,
-    /// on a loopback port. Returns the address.
-    fn serve_pages() -> String {
-        use std::io::{Read, Write};
-        const FIRST: &str =
-            r#"<!doctype html><title>A</title><input id="name"><a id="next" href="/b">Next</a>"#;
-        const SECOND: &str =
-            r#"<!doctype html><title>B</title><button id="done" type="button">Done</button>"#;
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                let Ok(mut stream) = stream else { continue };
-                let mut buffer = [0_u8; 2048];
-                let read = stream.read(&mut buffer).unwrap_or(0);
-                let request = String::from_utf8_lossy(&buffer[..read]);
-                let body = if request.starts_with("GET /b") {
-                    SECOND
-                } else {
-                    FIRST
-                };
-                let _ = stream.write_all(
-                    format!(
-                        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                        body.len()
-                    )
-                    .as_bytes(),
-                );
-            }
-        });
-        format!("http://{address}")
-    }
-
-    /// What a recording holds, as `(name, target, value)`.
-    fn steps(session: &RecorderSession) -> Vec<(String, Option<String>, Option<String>)> {
-        session
-            .actions()
-            .iter()
-            .map(|a| (a.name.clone(), a.target.clone(), a.value.clone()))
-            .collect()
-    }
-
-    fn step(
-        name: &str,
-        target: Option<&str>,
-        value: Option<&str>,
-    ) -> (String, Option<String>, Option<String>) {
-        (
-            name.to_owned(),
-            target.map(ToOwned::to_owned),
-            value.map(ToOwned::to_owned),
-        )
-    }
-
-    /// Records the typing and clicks of a visit to two pages, with a navigation
-    /// between them, and checks what the recording holds.
-    ///
-    /// Only a session in CDP mode can have the listeners installed in every page
-    /// the browser loads later. Any other session gets them on the new page when
-    /// the recording is next drained, so `drain_on_the_new_page` drains once
-    /// there before the first click.
-    async fn record_across_a_navigation(mode: DriverMode, drain_on_the_new_page: bool) {
-        let base = serve_pages();
-        let mut sb = BaseCase::new(BrowserConfig {
-            headless: true,
-            mode,
-            ..BrowserConfig::default()
-        })
-        .await
-        .expect("Chrome starts");
-        let mut session = RecorderSession::new();
-
-        // A URL the browser normalizes (`http://host:port` becomes
-        // `http://host:port/`) must not be recorded a second time on the next
-        // drain.
-        session.goto(&mut sb, &base).await.unwrap();
-        session.install(&sb).await.unwrap();
-        session.drain(&mut sb).await.unwrap();
-        assert_eq!(
-            steps(&session),
-            [step("goto", Some(&base), None)],
-            "a drain with nothing new adds nothing"
-        );
-
-        sb.type_text("#name", "Ada").await.unwrap();
-        // Leaving the page must not lose the typing or the click itself.
-        sb.click("#next").await.unwrap();
-        sb.wait_for_element_visible("#done", 5).await.unwrap();
-        if drain_on_the_new_page {
-            session.drain(&mut sb).await.unwrap();
-        }
-        sb.click("#done").await.unwrap();
-        session.drain(&mut sb).await.unwrap();
-        sb.quit().await.unwrap();
-
-        assert_eq!(
-            steps(&session),
-            [
-                step("goto", Some(&base), None),
-                step("type", Some("#name"), Some("Ada")),
-                step("click", Some("#next"), None),
-                step("goto_if_not_url", Some(&format!("{base}/b")), None),
-                step("click", Some("#done"), None),
-            ]
-        );
-    }
-
-    /// Run with `cargo test --lib recorder -- --ignored`.
-    #[tokio::test]
-    #[ignore = "launches a real Chrome through chromedriver"]
-    async fn a_live_recording_keeps_what_happened_either_side_of_a_navigation() {
-        record_across_a_navigation(DriverMode::WebDriver, true).await;
-    }
-
-    #[tokio::test]
-    #[ignore = "launches a real Chrome through chromedriver"]
-    async fn in_cdp_mode_a_new_page_records_from_its_first_moment() {
-        record_across_a_navigation(DriverMode::Cdp, false).await;
-    }
+    use crate::browser::config::BrowserConfig;
 
     fn gherkin_recorder() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();

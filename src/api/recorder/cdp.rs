@@ -13,7 +13,8 @@
 
 use std::collections::BTreeSet;
 
-use super::{canonical_name, line, literal, number, offset_parts, rust_call, RecordedAction};
+use super::calls::{canonical_name, number, offset_parts, rust_call};
+use super::{line, literal, RecordedAction};
 
 /// A recorded action as pure CDP code.
 #[derive(Debug, PartialEq, Eq)]
@@ -47,72 +48,6 @@ impl CdpCall {
         }
     }
 }
-
-/// Every recorded action name that has a pure CDP call (the aliases in
-/// `ALIASES` are accepted too). The tests hold `cdp_call` to this list.
-#[cfg(test)]
-const CDP_ACTIONS: &[&str] = &[
-    "open",
-    "click",
-    "cdp_click",
-    "slow_click",
-    "hover",
-    "double_click",
-    "context_click",
-    "clear",
-    "submit",
-    "scroll_into_view",
-    "scroll_to",
-    "slow_scroll_to",
-    "smooth_scroll_to",
-    "check_if_unchecked",
-    "uncheck_if_checked",
-    "type_text",
-    "update_text",
-    "add_text",
-    "send_keys",
-    "click_link_text",
-    "click_link",
-    "click_partial_link_text",
-    "click_partial_link",
-    "select_option_by_text",
-    "select_option_by_value",
-    "select_option_by_index",
-    "drag_and_drop",
-    "wait_for_element_visible",
-    "wait_for_element_present",
-    "wait_for_element_not_visible",
-    "wait_for_element_absent",
-    "wait_for_ready_state_complete",
-    "assert_text",
-    "assert_text_visible",
-    "assert_text_not_visible",
-    "assert_exact_text",
-    "assert_attribute",
-    "assert_title",
-    "assert_title_contains",
-    "go_back",
-    "go_forward",
-    "refresh",
-    "maximize_window",
-    "scroll_to_bottom",
-    "scroll_to_top",
-    "delete_all_cookies",
-    "set_local_storage_item",
-    "remove_local_storage_item",
-    "clear_local_storage",
-    "click_with_offset",
-    "sleep",
-    "goto",
-    "press_keys",
-    "wait_for_element",
-    "assert_element",
-    "assert_element_present",
-    "assert_element_not_visible",
-    "assert_exact_text_not_visible",
-    "assert_url",
-    "assert_url_contains",
-];
 
 /// The longest pause a generated `sleep` is allowed: `Duration::from_secs_f64`
 /// panics on a value it cannot hold, and a recording is not a place to find
@@ -375,7 +310,8 @@ pub(super) fn program(actions: &[RecordedAction], entry: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::recorder::{ActionRecorder, ALIASES, CALLS};
+    use crate::api::recorder::calls::{marks, Mark, ALIASES, CALLS};
+    use crate::api::recorder::ActionRecorder;
 
     fn action(name: &str, target: Option<&str>, value: Option<&str>) -> RecordedAction {
         RecordedAction::new(name, target, value)
@@ -823,25 +759,27 @@ mod tests {
     #[test]
     fn every_supported_action_is_listed_and_is_one_the_webdriver_generator_knows() {
         let listed: Vec<&str> = expected().iter().map(|(name, ..)| *name).collect();
+        // The table marks the actions that have a pure CDP call.
+        let supported: Vec<&str> = CALLS
+            .iter()
+            .map(|(name, _, _)| *name)
+            .filter(|name| marks(name).contains(&Mark::Cdp))
+            .collect();
         for name in &listed {
             assert!(
-                CDP_ACTIONS.contains(name),
-                "{name} is missing from CDP_ACTIONS"
+                supported.contains(name),
+                "{name} is not marked Cdp in the table"
             );
         }
-        for name in CDP_ACTIONS {
+        for name in &supported {
             assert!(
                 listed.contains(name),
                 "{name} has no expected lines in this test"
             );
-            assert!(
-                CALLS.iter().any(|(known, _, _)| known == name),
-                "{name} is not an action the recorder generates for BaseCase"
-            );
         }
         for (alias, canonical) in ALIASES {
             assert!(
-                CDP_ACTIONS.contains(canonical),
+                supported.contains(canonical),
                 "the alias {alias} points at {canonical}, which has no pure CDP call"
             );
         }
