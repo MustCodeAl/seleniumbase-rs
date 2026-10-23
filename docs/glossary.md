@@ -57,6 +57,14 @@ Summary for AI exports: an alphabetical glossary of the terms used across the se
 
 ## A
 
+### Actionability
+
+<Badge color="green">Testing</Badge>
+
+The state an element must be in before a tool acts on it: it exists, is visible, is not covered, is enabled and has stopped moving. A pure CDP `Locator` waits for the element to be visible and scrolls it into view before it clicks, and fails with `ElementNotFound` or `ElementNotInteractable` if it never is.
+
+See [JavaScript, events and waiting](/concepts/javascript-and-events#auto-waiting-and-actionability).
+
 ### ADR
 
 <Badge color="yellow">Project</Badge>
@@ -285,6 +293,14 @@ A terminal UI for browsing and running tests and examples, behind the Cargo feat
 
 See [SeleniumBase Commander](/help/commander).
 
+### Content script
+
+<Badge color="orange">Plugins</Badge>
+
+JavaScript that a browser extension runs inside a web page. It sees the page's DOM but runs in an isolated world, with its own variables, so it cannot read the page's JavaScript objects and the page cannot read its.
+
+See [How browser extensions work](/concepts/browser-extensions#the-parts).
+
 ### Cookie
 
 <Badge color="red">Network</Badge>
@@ -403,6 +419,14 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#provider-arc
 
 ## F
 
+### Event loop
+
+<Badge color="blue">Engine</Badge>
+
+The loop that runs a page's JavaScript on one thread: it takes one task from a queue (a click, a timer, a network answer), runs it to the end, runs the promise callbacks it queued, and may repaint before the next task. It is why an action's effect on a page arrives after the action has returned.
+
+See [JavaScript, events and waiting](/concepts/javascript-and-events#the-event-loop).
+
 ### Fingerprint
 
 <Badge color="purple">Stealth</Badge>
@@ -481,6 +505,14 @@ See [Pure CDP](/tutorials/pure_cdp#human-paced-input).
 
 ## I
 
+### Hydration
+
+<Badge color="blue">Engine</Badge>
+
+The step in which a framework such as React or Vue attaches its event handlers to HTML that the server already drew. Until it finishes, the page looks ready and ignores clicks, which is a common cause of a click that works nine times in ten.
+
+See [Modern web technologies](/concepts/modern-web#single-page-apps-and-frameworks).
+
 ### Identity
 
 <Badge color="purple">Stealth</Badge>
@@ -531,6 +563,14 @@ A newer fingerprint of a client's [ClientHello](#clienthello), written in three 
 
 See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-formats).
 
+### JSON-RPC
+
+<Badge color="gray">CLI</Badge>
+
+The small request and reply format, in JSON, that MCP uses for its messages. A request has an `id` and a `method`; the reply repeats the `id` and carries a `result` or an `error`; a notification has no `id`.
+
+See [The Model Context Protocol](/concepts/mcp#how-the-messages-travel).
+
 ### JSON scenario
 
 <Badge color="gray">CLI</Badge>
@@ -566,6 +606,14 @@ The pure CDP engine's handle for finding elements. It remembers how to find them
 See [Pure CDP](/tutorials/pure_cdp#locators).
 
 ## M
+
+### Manifest V3
+
+<Badge color="orange">Plugins</Badge>
+
+The current format of a Chromium browser extension's `manifest.json`. Its background code is a service worker that the browser starts and stops, remote code is not allowed, and network rules are handed to the browser as data.
+
+See [How browser extensions work](/concepts/browser-extensions#manifest-v3).
 
 ### MasterQA
 
@@ -643,6 +691,22 @@ The page that records, for every API of Python SeleniumBase 4.55.2, how this cra
 
 See [API parity with Python SeleniumBase](/parity).
 
+### Partitioned cookie
+
+<Badge color="red">Network</Badge>
+
+A third-party cookie marked `Partitioned` (the CHIPS feature), stored under the embedded site together with the top-level site you are on, so the same widget on two sites gets two separate cookies. It must also be `Secure`.
+
+See [Modern web technologies](/concepts/modern-web#the-privacy-sandbox-changes).
+
+### Passkey
+
+<Badge color="green">Testing</Badge>
+
+A login credential for the WebAuthn API: a key pair made on a device, where the private key stays on the device and signs a challenge from the site. A test cannot click the system dialog that confirms it, so it uses a virtual authenticator.
+
+See [Modern web technologies](/concepts/modern-web#passkeys-and-webauthn).
+
 ### peetprint
 
 <Badge color="red">Network</Badge>
@@ -718,6 +782,14 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#the-policy).
 A tool that captures your clicks, typing and navigations in a browser and turns them into a JSON action file or a Rust test. `sbrs record URL -o actions.json` records and `sbrs replay` runs the file again; from code, `BaseCase` records the actions it performs.
 
 See [Recorder Mode Guide](/tutorials/recorder_mode).
+
+### Renderer process
+
+<Badge color="blue">Engine</Badge>
+
+The browser process that runs one site's pages: it parses the HTML and CSS, builds the DOM and runs the JavaScript, inside a sandbox. Chrome starts a separate one for each site.
+
+See [How a modern browser is built](/concepts/browser-architecture#many-processes-one-browser).
 
 ### Request interception
 
@@ -841,6 +913,22 @@ The separate, experimental repository that holds the TLS and HTTP/2 layer as thr
 
 See [Stealth Scraping](/stealth/overview).
 
+### Server-Sent Events
+
+<Badge color="red">Network</Badge>
+
+A one-way channel in which a server keeps an HTTP response open (`text/event-stream`) and writes events into it, and the browser's `EventSource` reads them. Unlike a WebSocket, the page cannot send on it.
+
+See [Modern web technologies](/concepts/modern-web#websockets-and-server-sent-events).
+
+### Service worker
+
+<Badge color="red">Network</Badge>
+
+A script a page registers with the browser that runs on its own thread, outlives the tab and answers the page's requests, from a cache or from the network. It makes offline pages possible, and it can answer a request that never reaches the network.
+
+See [Modern web technologies](/concepts/modern-web#service-workers-and-pwas).
+
 ### sessionStorage
 
 <Badge color="blue">Engine</Badge>
@@ -864,6 +952,22 @@ See [Settings and Global Configuration](/tutorials/settings_and_config).
 A tree of elements hidden inside a web component. `BaseCase` searches inside open shadow roots with the `::shadow` combinator, as in `my-app ::shadow button`; only open shadow roots can be reached.
 
 See [Shadow DOM Guide](/tutorials/shadow_dom).
+
+### Single-page application
+
+<Badge color="blue">Engine</Badge>
+
+A web app that loads once and then rewrites its own DOM with JavaScript instead of loading a new page for each screen. After the first load there is no load event, the address changes without a navigation, and elements are replaced often.
+
+See [Modern web technologies](/concepts/modern-web#single-page-apps-and-frameworks).
+
+### Site isolation
+
+<Badge color="blue">Engine</Badge>
+
+A Chrome security feature that puts pages from different sites into different renderer processes. It is why a cross-site iframe is its own target for a tool that attaches to the browser.
+
+See [How a modern browser is built](/concepts/browser-architecture#site-isolation-and-the-sandbox).
 
 ### Slow mode
 
@@ -1039,6 +1143,22 @@ A [plugin](#plugin) written in any language that compiles to WebAssembly, loaded
 
 See [wasm Plugin Host](/plugins/wasm).
 
+### WebAssembly
+
+<Badge color="blue">Engine</Badge>
+
+A compact binary format that a browser runs at close to native speed in the same sandbox as JavaScript. Code written in Rust or C++ is compiled to it. It changes nothing about how a page is driven, but its logic cannot be read in the page source.
+
+See [Modern web technologies](/concepts/modern-web#webassembly).
+
+### WebAuthn
+
+<Badge color="green">Testing</Badge>
+
+The browser API behind passkeys and security keys (`navigator.credentials.create` and `get`). The DevTools Protocol has a `WebAuthn` domain with virtual authenticators so that a test can register and log in without a dialog.
+
+See [Modern web technologies](/concepts/modern-web#passkeys-and-webauthn).
+
 ### WebDriver
 
 <Badge color="blue">Engine</Badge>
@@ -1054,6 +1174,14 @@ See [Performance](/performance#choosing-the-engine).
 The bidirectional part of the W3C WebDriver standard: a WebSocket on which the browser can push events (console messages, network activity, page loads) as well as answer commands. seleniumbase-rs does not use it; the CDP engine covers the same ground for Chromium.
 
 See [WebDriver BiDi](/concepts/webdriver#webdriver-bidi).
+
+### WebGL
+
+<Badge color="purple">Stealth</Badge>
+
+The browser's graphics API for the graphics card (WebGPU is its successor). A page can read the card's vendor and renderer strings and the pixels of a test scene, which makes it a fingerprint; a machine with no graphics card reports a software renderer.
+
+See [Modern web technologies](/concepts/modern-web#webgl-and-webgpu).
 
 ### WebRTC leak
 

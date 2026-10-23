@@ -368,17 +368,26 @@
               {
                 "product": "How it works",
                 "icon": "lightbulb",
-                "description": "How a page loads, WebDriver, CDP, sessions, detection, network, and the glossary",
+                "description": "How a page loads, how a browser is built, selectors and the DOM, JavaScript and events, WebDriver, CDP, detection, network, sessions, extensions, MCP, modern web technologies, and the glossary",
                 "groups": [
                   {
                     "group": "How it works",
                     "pages": [
                       "concepts/how-a-page-loads",
+                      "concepts/browser-architecture",
+                      "concepts/selectors-and-the-dom",
+                      "concepts/javascript-and-events",
                       "concepts/webdriver",
                       "concepts/cdp",
                       "concepts/detection",
                       "concepts/network",
                       "concepts/sessions-and-state",
+                      "concepts/frontends-backends-and-apis",
+                      "concepts/frameworks-and-the-dom",
+                      "concepts/captchas",
+                      "concepts/browser-extensions",
+                      "concepts/mcp",
+                      "concepts/modern-web",
                       "glossary"
                     ]
                   }
