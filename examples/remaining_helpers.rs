@@ -84,16 +84,17 @@ async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
 
     // A chart with a second series, saved as a Chart.js page. Open it online
     // to see it drawn, because the page loads Chart.js from a CDN.
-    sb.create_bar_chart("Sample Chart").await?;
-    sb.add_data_point("Jan", 100).await?;
-    sb.add_data_point("Feb", 150).await?;
-    sb.add_series_to_chart(
-        "Revenue",
-        &[("Jan".to_owned(), 80), ("Feb".to_owned(), 120)],
-    )
-    .await?;
-    let chart = ensure_latest_logs_dir()?.join("remaining_helpers_chart.html");
-    sb.save_chart(&chart.to_string_lossy()).await?;
+    sb.create_bar_chart().title("Sample Chart").await?;
+    sb.add_data_point("Jan", 100.0).await?;
+    sb.add_data_point("Feb", 150.0).await?;
+    sb.add_series_to_chart().data_name("Revenue").await?;
+    sb.add_data_point("Jan", 80.0).await?;
+    sb.add_data_point("Feb", 120.0).await?;
+    let chart = sb
+        .save_chart()
+        .folder(&ensure_latest_logs_dir()?)
+        .filename("remaining_helpers_chart.html")
+        .await?;
     println!("Chart saved to {}", chart.display());
     Ok(())
 }

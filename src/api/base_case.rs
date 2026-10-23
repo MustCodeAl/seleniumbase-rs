@@ -12,14 +12,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{debug, info, instrument};
 
-use crate::api::chart::{Chart, ChartSeries, ChartType};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
 use crate::api::pdf;
-use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction, RecorderSession};
 use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
 use crate::api::tour::{Tour, TourTheme};
@@ -54,8 +52,10 @@ pub struct BaseCase {
     recording_start: Option<usize>,
     tour: Option<Tour>,
     deferred: DeferredAsserts,
-    presentation: Option<Presentation>,
-    chart: Option<Chart>,
+    /// The presentations, by name (`default` when none is given).
+    presentations: std::collections::BTreeMap<String, crate::api::presentation::Presentation>,
+    /// The charts, by name (`default` when none is given).
+    charts: std::collections::BTreeMap<String, crate::api::chart::Chart>,
     qa_session: Option<MasterQaSession>,
     #[cfg(feature = "playwright")]
     playwright_session: Option<PlaywrightSession>,
@@ -134,8 +134,8 @@ impl BaseCase {
             recording_start: None,
             tour: None,
             deferred: DeferredAsserts::default(),
-            presentation: None,
-            chart: None,
+            presentations: std::collections::BTreeMap::new(),
+            charts: std::collections::BTreeMap::new(),
             qa_session: None,
             #[cfg(feature = "playwright")]
             playwright_session: None,
@@ -2502,88 +2502,6 @@ impl BaseCase {
         let result = deferred.process(self).await;
         self.deferred = deferred;
         result
-    }
-
-    // --- Dashboards and Charts ---
-
-    pub async fn create_presentation(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.presentation = Some(Presentation::new(title));
-        Ok(())
-    }
-
-    pub async fn add_presentation_slide(&mut self, content: &str) -> Result<(), SeleniumBaseError> {
-        match self.presentation.as_mut() {
-            Some(presentation) => {
-                presentation.add_slide(content);
-                Ok(())
-            }
-            None => Err(SeleniumBaseError::InvalidConfig(
-                "No presentation created. Call create_presentation first.".to_owned(),
-            )),
-        }
-    }
-
-    pub async fn save_presentation(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        match self.presentation.as_ref() {
-            Some(presentation) => presentation.save(filename),
-            None => Err(SeleniumBaseError::InvalidConfig(
-                "No presentation created.".to_owned(),
-            )),
-        }
-    }
-
-    pub async fn create_pie_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.chart = Some(Chart::new(title, ChartType::Pie));
-        Ok(())
-    }
-
-    pub async fn create_bar_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.chart = Some(Chart::new(title, ChartType::Bar));
-        Ok(())
-    }
-
-    pub async fn create_line_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.chart = Some(Chart::new(title, ChartType::Line));
-        Ok(())
-    }
-
-    pub async fn create_area_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.chart = Some(Chart::new(title, ChartType::Area));
-        Ok(())
-    }
-
-    pub async fn create_column_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.chart = Some(Chart::new(title, ChartType::Column));
-        Ok(())
-    }
-
-    pub async fn add_data_point(
-        &mut self,
-        label: &str,
-        value: i32,
-    ) -> Result<(), SeleniumBaseError> {
-        match self.chart.as_mut() {
-            Some(chart) => {
-                chart.add_data_point(label, value);
-                Ok(())
-            }
-            None => Err(SeleniumBaseError::InvalidConfig(
-                "No chart created. Call create_pie_chart first.".to_owned(),
-            )),
-        }
-    }
-
-    pub async fn save_pie_chart(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        self.save_chart(filename).await
-    }
-
-    pub async fn save_chart(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        match self.chart.as_ref() {
-            Some(chart) => chart.save(filename),
-            None => Err(SeleniumBaseError::InvalidConfig(
-                "No chart created.".to_owned(),
-            )),
-        }
     }
 
     // --- Additional Python parity methods ---

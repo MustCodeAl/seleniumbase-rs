@@ -128,9 +128,9 @@ sb.add_tour_step("Fill the form", None).await?;
 sb.play_tour().await?;
 
 // Create and save charts
-sb.create_bar_chart("Sales").await?;
-sb.add_data_point("Q1", 100).await?;
-sb.save_chart("sales.html").await?;
+sb.create_bar_chart().title("Sales").await?;
+sb.add_data_point("Q1", 100.0).await?;
+sb.save_chart().filename("sales.html").await?;
 ```
 
 ---
