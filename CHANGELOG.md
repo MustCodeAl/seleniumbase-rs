@@ -123,6 +123,17 @@ work, `docs/parity.md` the per-API status).
   that names no time of its own, `set_timeout` included; a time a call names is kept, as in
   Python. A multiplier below 0.5 is raised to 0.5 and one that is not a finite number is ignored.
   `RunSettings::scale_timeout` gives the scaled time.
+- **`api::call::CallFuture` is the future of the call builders:** an async method that takes
+  Python's keyword arguments will return a builder whose methods set the keywords and whose
+  `.await` runs the call, so `sb.method(arg).await?` keeps working. The empty modules
+  `api::demo`, `api::messages` and `api::jqc` are where the demo mode, Messenger and
+  jquery-confirm work will go.
+
+### Fixed
+
+- **A message stays at most 0.75 s on a virtual display too:** `post_message` and its relatives
+  cut the time when nobody watches, which is a headless browser or a headed one on Xvfb (Python:
+  `self.headless or self.xvfb`); a headed browser on Xvfb kept the long time before.
 
 
 ## [0.6.0] - 2026-10-23
