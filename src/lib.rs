@@ -45,7 +45,7 @@ pub const UPSTREAM_SELENIUMBASE_VERSION: &str = "4.55.2";
 
 pub mod api;
 pub mod artifacts;
-pub mod behave;
+
 pub mod browser;
 pub mod cli;
 pub mod common;
