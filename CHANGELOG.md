@@ -108,6 +108,29 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- The recorder writes a test that runs. A page reached by a click or a key is recorded as
+  `goto_if_not_url` (the first page stays `goto`), so the generated test no longer loads
+  every page twice; the Rust, pure CDP and Gherkin outputs and `sbrs replay` understand it.
+- `sbrs record` no longer loses what is done right after a page loads: it runs in a session
+  with a DevTools connection, which installs the listeners in every page from its first
+  moment, and looks at the page every 300 ms.
+- An `alert`, `confirm` or `prompt` no longer ends `sbrs record` or gets dismissed by it:
+  `RecorderSession::poll` tells an open dialog from a closed browser, and
+  `RecorderSession::prepare_config` leaves dialogs open for the person.
+- A click on the label of a checkbox is recorded once, not twice (the replay used to
+  toggle the box twice); a click on a `<select>` is no longer recorded before its change.
+- Enter in a field is recorded with the text (`type_text("#q", "text\n")`), so the replay
+  sends the form again, instead of a typing and a `goto` of the page the form led to.
+- The recorder's selectors find the element and nothing else: the id, then `data-testid`,
+  `name`, `aria-label`, `placeholder` and the like, then the shortest path up from the
+  element that is unique. A path cut after six levels used to fit other elements too.
+- A password typed while recording is no longer written to the file in clear text: it is
+  `{{SB_RECORDED_SECRET}}`, the generated test and `sbrs replay` read `SB_RECORDED_SECRET`
+  from the environment, and `SB_REC_KEEP_SECRETS=true` keeps the typed text.
+- `sbrs export-recording ACTIONS.json [-o TEST.rs]` writes a Rust test from an action file
+  (it used to start a browser and export an empty recording). `sbrs record URL -o test.rs`
+  and `sbrs mkrec --file test.rs --url URL` write the Rust test of what was done directly.
+
 - zsh completion reaches the second level: `sbrs pl<Tab>` now gives `sbrs plugin ` with
   a space, so the next Tab offers `info` and `list`, and a completed flag such as
   `--url` gets its space too. usage 6.12's zsh script told zsh to add no suffix to any
