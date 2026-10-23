@@ -1,7 +1,7 @@
 # rstest-bdd 0.6 spike: how a scenario's browser is closed
 
 Written for lane RUN-7 (`bdd-core`), 2026-10-23. It answers the first question of
-`docs/..` runner spec 4.5: teardown mechanism A (a harness that finalizes the
+the runner spec (section 4.5): teardown mechanism A (a harness that finalizes the
 fixtures) or B (a helper thread that re-attaches), and what the spike showed
 instead. Crates: `rstest-bdd`, `-macros`, `-harness`, `-harness-tokio`, all 0.6.0
 (the newest on crates.io), rstest 0.26.
