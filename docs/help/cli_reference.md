@@ -349,6 +349,10 @@ Accept the alert that the page opens when it loads.
 sbrs accept-alert
 ```
 
+```
+sbrs --url https://example.com accept-alert
+```
+
 ## sbrs add-text
 
 Append text to an input or textarea.
@@ -370,6 +374,10 @@ CSS selector for the target element
 Text to append to the element
 
 </ParamField>
+
+```
+sbrs --url https://example.com add-text --css '#name' --text hello
+```
 
 ## sbrs assert-attribute
 
@@ -399,6 +407,10 @@ Expected attribute value
 
 </ParamField>
 
+```
+sbrs --url https://example.com assert-attribute --css a --attribute href --value https://iana.org/domains/example
+```
+
 ## sbrs assert-element
 
 Assert that an element exists.
@@ -415,6 +427,10 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com assert-element --css h1
+```
+
 ## sbrs assert-link-text
 
 Assert a link with the given text is visible.
@@ -430,6 +446,10 @@ sbrs assert-link-text <--text <TEXT>>
 Exact link text to assert
 
 </ParamField>
+
+```
+sbrs --url https://example.com assert-link-text --text 'More information...'
+```
 
 ## sbrs assert-pdf-text
 
@@ -461,6 +481,10 @@ Also keep the intermediate PDF at this path
 
 </ParamField>
 
+```
+sbrs assert-pdf-text https://example.com/report.pdf --text Total
+```
+
 ## sbrs assert-text-not-visible
 
 Assert that an element does not contain the given text.
@@ -482,6 +506,10 @@ CSS selector for the target element
 Text that should not be visible
 
 </ParamField>
+
+```
+sbrs --url https://example.com assert-text-not-visible --css h1 --text Error
+```
 
 ## sbrs assert-text-visible
 
@@ -505,6 +533,10 @@ Expected visible text
 
 </ParamField>
 
+```
+sbrs --url https://example.com assert-text-visible --css h1 --text 'Example Domain'
+```
+
 ## sbrs assert-title
 
 Assert the page title contains the expected text.
@@ -520,6 +552,10 @@ sbrs assert-title <--text <TEXT>>
 Expected page title substring
 
 </ParamField>
+
+```
+sbrs --url https://example.com assert-title --text Example
+```
 
 ## sbrs behave-gui
 
@@ -551,12 +587,20 @@ Prompt for a name, a title and scenarios and write a new feature file instead; t
 
 </ParamField>
 
+```
+sbrs behave-gui features
+```
+
 ## sbrs cache-clear
 
 Clear the browser cache via CDP.
 
 ```bash Usage
 sbrs cache-clear
+```
+
+```
+sbrs --url https://example.com --user-data-dir ./profile cache-clear
 ```
 
 ## sbrs caseplans
@@ -589,6 +633,10 @@ Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature
 
 </ParamField>
 
+```
+sbrs caseplans --starter
+```
+
 ## sbrs cdp
 
 Execute a Chrome DevTools Protocol command.
@@ -611,6 +659,10 @@ JSON object of CDP parameters
 
 </ParamField>
 
+```
+sbrs cdp --cmd Browser.getVersion
+```
+
 ## sbrs cdp-click-element
 
 Click an element using CDP.
@@ -626,6 +678,10 @@ sbrs cdp-click-element <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --url https://example.com cdp-click-element --css a
+```
 
 ## sbrs cdp-type-text
 
@@ -643,6 +699,10 @@ Text to inject via CDP
 
 </ParamField>
 
+```
+sbrs --url https://example.com cdp-type-text --text hello
+```
+
 ## sbrs check-if-unchecked
 
 Check a checkbox only if it is unchecked.
@@ -658,6 +718,10 @@ sbrs check-if-unchecked <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --url https://example.com check-if-unchecked --css '#agree'
+```
 
 ## sbrs choose-file
 
@@ -681,6 +745,10 @@ Local file to upload
 
 </ParamField>
 
+```
+sbrs --url https://example.com/upload choose-file 'input[type=file]' ./photo.png
+```
+
 ## sbrs clear-cookies
 
 Delete all browser cookies.
@@ -689,12 +757,20 @@ Delete all browser cookies.
 sbrs clear-cookies
 ```
 
+```
+sbrs --url https://example.com --user-data-dir ./profile clear-cookies
+```
+
 ## sbrs clear-local-storage
 
 Clear the page local storage.
 
 ```bash Usage
 sbrs clear-local-storage
+```
+
+```
+sbrs --url https://example.com --user-data-dir ./profile clear-local-storage
 ```
 
 ## sbrs click-partial-link-text
@@ -713,6 +789,10 @@ Link text substring to click
 
 </ParamField>
 
+```
+sbrs --url https://example.com click-partial-link-text --text 'More info'
+```
+
 ## sbrs click-visible-elements
 
 Click all visible elements matching a selector.
@@ -729,11 +809,19 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com click-visible-elements --css button
+```
+
 ## sbrs commander
 
 Launch the interactive commander (needs a build with the `tui` feature).
 
 ```bash Usage
+sbrs commander
+```
+
+```
 sbrs commander
 ```
 
@@ -755,6 +843,10 @@ One of: `bash`, `zsh`, `fish`, `elvish`, `powershell`, `fig`, `usage`
 
 </ParamField>
 
+```
+sbrs completions zsh
+```
+
 ## sbrs decrypt
 
 Also: `unobfuscate`
@@ -772,6 +864,10 @@ sbrs decrypt [TOKEN]
 The token to decrypt.
 
 </ParamField>
+
+```
+sbrs decrypt TOKEN
+```
 
 ## sbrs deferred
 
@@ -796,6 +892,10 @@ Assertion spec: element=&lt;css>, text=&lt;css>:&lt;text>, title=&lt;text>, or u
 JSON file containing an array of assertion specs
 
 </ParamField>
+
+```
+sbrs --url https://example.com deferred --assert element=h1 --assert 'text=h1:Example Domain'
+```
 
 ## sbrs devtools
 
@@ -827,6 +927,10 @@ Print the endpoint and configs as one line of JSON instead of text
 
 </ParamField>
 
+```
+sbrs devtools --port 9222
+```
+
 ## sbrs dismiss-alert
 
 Dismiss the alert that the page opens when it loads.
@@ -835,11 +939,19 @@ Dismiss the alert that the page opens when it loads.
 sbrs dismiss-alert
 ```
 
+```
+sbrs --url https://example.com dismiss-alert
+```
+
 ## sbrs doctor
 
 Run a diagnostic check on the environment and configuration.
 
 ```bash Usage
+sbrs doctor
+```
+
+```
 sbrs doctor
 ```
 
@@ -875,6 +987,10 @@ Seconds to wait for the browser download before falling back to HTTP
 
 </ParamField>
 
+```
+sbrs download-file https://example.com/report.pdf --output report.pdf
+```
+
 ## sbrs drag-and-drop
 
 Drag one element onto another.
@@ -897,6 +1013,10 @@ CSS selector of the drop target
 
 </ParamField>
 
+```
+sbrs --url https://example.com drag-and-drop --source-css '#a' --target-css '#b'
+```
+
 ## sbrs encrypt
 
 Also: `obfuscate`
@@ -916,6 +1036,10 @@ sbrs encrypt [TEXT]
 The text to encrypt.
 
 </ParamField>
+
+```
+sbrs encrypt 'my secret'
+```
 
 ## sbrs export-recording
 
@@ -943,6 +1067,10 @@ Also: `-o`
 
 </ParamField>
 
+```
+sbrs export-recording actions.json --output tests/login.rs
+```
+
 ## sbrs fingerprint
 
 Capture, write, check and compare browser fingerprints.
@@ -951,6 +1079,10 @@ A fingerprint file is what a browser claims to be: the user agent, the screen, t
 
 ```bash Usage
 sbrs fingerprint <SUBCOMMAND>
+```
+
+```
+sbrs fingerprint presets
 ```
 
 ### sbrs fingerprint capture
@@ -987,6 +1119,10 @@ Also write the readings that no setting holds, and where the capture was taken, 
 
 </ParamField>
 
+```
+sbrs fingerprint capture https://example.com --output seen.json
+```
+
 ### sbrs fingerprint check
 
 Check that a fingerprint file loads and is coherent.
@@ -1004,6 +1140,10 @@ sbrs fingerprint check <FILE>
 The fingerprint file to check.
 
 </ParamField>
+
+```
+sbrs fingerprint check windows.json
+```
 
 ### sbrs fingerprint diff
 
@@ -1030,6 +1170,10 @@ The file with what is expected.
 The file with what is found.
 
 </ParamField>
+
+```
+sbrs fingerprint diff windows.json seen.json
+```
 
 ### sbrs fingerprint export
 
@@ -1077,11 +1221,19 @@ Also: `-o`
 
 </ParamField>
 
+```
+sbrs fingerprint export --preset windows --output windows.json
+```
+
 ### sbrs fingerprint presets
 
 List the presets and what each claims.
 
 ```bash Usage
+sbrs fingerprint presets
+```
+
+```
 sbrs fingerprint presets
 ```
 
@@ -1091,6 +1243,10 @@ Print the text of the alert that the page opens when it loads.
 
 ```bash Usage
 sbrs get-alert-text
+```
+
+```
+sbrs --url https://example.com get-alert-text
 ```
 
 ## sbrs get-attribute
@@ -1115,6 +1271,10 @@ Attribute name to read or assert
 
 </ParamField>
 
+```
+sbrs --url https://example.com get-attribute --css a --attribute href
+```
+
 ## sbrs get-cookies
 
 Print all browser cookies as JSON.
@@ -1123,12 +1283,20 @@ Print all browser cookies as JSON.
 sbrs get-cookies
 ```
 
+```
+sbrs --url https://example.com get-cookies
+```
+
 ## sbrs get-current-url
 
 Print the current URL.
 
 ```bash Usage
 sbrs get-current-url
+```
+
+```
+sbrs --url https://example.com get-current-url
 ```
 
 ## sbrs get-local-storage-item
@@ -1146,6 +1314,10 @@ sbrs get-local-storage-item <--key <KEY>>
 Storage key
 
 </ParamField>
+
+```
+sbrs --url https://example.com get-local-storage-item --key theme
+```
 
 ## sbrs get-property
 
@@ -1169,6 +1341,10 @@ Property name to read
 
 </ParamField>
 
+```
+sbrs --url https://example.com get-property --css input --property value
+```
+
 ## sbrs get-text
 
 Print the visible text of an element.
@@ -1185,12 +1361,20 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com get-text --css h1
+```
+
 ## sbrs get-title
 
 Print the page title.
 
 ```bash Usage
 sbrs get-title
+```
+
+```
+sbrs --url https://example.com get-title
 ```
 
 ## sbrs get-value
@@ -1209,12 +1393,20 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com get-value --css '#name'
+```
+
 ## sbrs get-window-position
 
 Print the browser window position.
 
 ```bash Usage
 sbrs get-window-position
+```
+
+```
+sbrs --url https://example.com get-window-position
 ```
 
 ## sbrs grid-hub
@@ -1299,6 +1491,10 @@ Start even if something already accepts connections on the port.
 
 </ParamField>
 
+```
+sbrs grid-hub start
+```
+
 ## sbrs grid-node
 
 Start, stop, restart or check a Selenium Grid node.
@@ -1381,6 +1577,10 @@ Start even if something already accepts connections on the port.
 
 </ParamField>
 
+```
+sbrs grid-node start
+```
+
 ## sbrs highlight-click
 
 Highlight an element, then click it.
@@ -1397,6 +1597,10 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com highlight-click --css a
+```
+
 ## sbrs hover
 
 Hover over an element.
@@ -1412,6 +1616,10 @@ sbrs hover <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --url https://example.com hover --css h1
+```
 
 ## sbrs hover-and-click
 
@@ -1435,6 +1643,10 @@ CSS selector to click
 
 </ParamField>
 
+```
+sbrs --url https://example.com hover-and-click --hover-css nav --click-css 'nav a'
+```
+
 ## sbrs human-click
 
 Click an element with human-like timing and noise.
@@ -1450,6 +1662,10 @@ sbrs human-click <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --url https://example.com human-click --css a
+```
 
 ## sbrs human-type
 
@@ -1472,6 +1688,10 @@ CSS selector for the target element
 Text to type with humanized timing
 
 </ParamField>
+
+```
+sbrs --url https://example.com human-type --css '#q' --text hello
+```
 
 ## sbrs import-playwright
 
@@ -1515,6 +1735,10 @@ Name of the test generated for a script without test titles (default: the file n
 
 </ParamField>
 
+```
+sbrs import-playwright login.spec.ts --output tests/login.rs
+```
+
 ## sbrs import-puppeteer
 
 Also: `import-pptr`
@@ -1557,6 +1781,10 @@ Name of the test generated for a script without test titles (default: the file n
 
 </ParamField>
 
+```
+sbrs import-puppeteer login.js --output tests/login.rs
+```
+
 ## sbrs import-python
 
 Convert common SeleniumBase or Selenium Python code into a Rust test.
@@ -1597,6 +1825,10 @@ Name of the generated test function
 
 </ParamField>
 
+```
+sbrs import-python login.py --output tests/login.rs
+```
+
 ## sbrs install
 
 Also: `get`
@@ -1623,6 +1855,10 @@ The driver: chromedriver, geckodriver (or firefoxdriver), edgedriver (or msedged
 
 </ParamField>
 
+```
+sbrs install chromedriver latest
+```
+
 ## sbrs is-checked
 
 Print whether a checkbox is checked.
@@ -1638,6 +1874,10 @@ sbrs is-checked <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --url https://example.com is-checked --css '#agree'
+```
 
 ## sbrs is-element-visible
 
@@ -1655,6 +1895,10 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com is-element-visible --css h1
+```
+
 ## sbrs is-link-text-visible
 
 Print whether a link with the given text is visible.
@@ -1671,6 +1915,10 @@ Exact link text to check
 
 </ParamField>
 
+```
+sbrs --url https://example.com is-link-text-visible --text 'More information...'
+```
+
 ## sbrs is-partial-link-text-visible
 
 Print whether a link containing the given text is visible.
@@ -1686,6 +1934,10 @@ sbrs is-partial-link-text-visible <--text <TEXT>>
 Link text substring to check
 
 </ParamField>
+
+```
+sbrs --url https://example.com is-partial-link-text-visible --text 'More info'
+```
 
 ## sbrs is-text-visible
 
@@ -1709,6 +1961,10 @@ Expected text to check
 
 </ParamField>
 
+```
+sbrs --url https://example.com is-text-visible --css h1 --text Example
+```
+
 ## sbrs load-cookies
 
 Load browser cookies from a JSON file.
@@ -1725,6 +1981,10 @@ JSON file to load cookies from
 
 </ParamField>
 
+```
+sbrs --url https://example.com --user-data-dir ./profile load-cookies --file cookies.json
+```
+
 ## sbrs mkchart
 
 Create an HTML chart.
@@ -1740,6 +2000,10 @@ sbrs mkchart <--file <FILE>>
 Output HTML chart path
 
 </ParamField>
+
+```
+sbrs mkchart --file chart.html
+```
 
 ## sbrs mkdir
 
@@ -1774,6 +2038,10 @@ Also: `-b`
 Replace generated files that already exist.
 
 </ParamField>
+
+```
+sbrs mkdir ui_tests
+```
 
 ## sbrs mkfile
 
@@ -1817,6 +2085,10 @@ Replace the file if it already exists.
 
 </ParamField>
 
+```
+sbrs mkfile tests/login.rs
+```
+
 ## sbrs mkpres
 
 Create an HTML presentation.
@@ -1832,6 +2104,10 @@ sbrs mkpres <--file <FILE>>
 Output HTML presentation path
 
 </ParamField>
+
+```
+sbrs mkpres --file deck.html
+```
 
 ## sbrs mkrec
 
@@ -1861,11 +2137,19 @@ Output recording scaffold path
 
 </ParamField>
 
+```
+sbrs mkrec --url https://example.com --file tests/recorded.rs --duration 60
+```
+
 ## sbrs objectify
 
 Objectify a test recording.
 
 ```bash Usage
+sbrs objectify
+```
+
+```
 sbrs objectify
 ```
 
@@ -1884,6 +2168,10 @@ sbrs open <URL>
 URL to open in the browser.
 
 </ParamField>
+
+```
+sbrs open https://example.com
+```
 
 ## sbrs patch-chrome
 
@@ -1907,6 +2195,10 @@ Directory where patched binaries are cached
 
 </ParamField>
 
+```
+sbrs patch-chrome --path ./chrome --cache-dir ./patched
+```
+
 ## sbrs patch-chromedriver
 
 Patch a chromedriver binary to reduce detection surface.
@@ -1922,6 +2214,10 @@ sbrs patch-chromedriver <--path <PATH>>
 Path to the chromedriver binary
 
 </ParamField>
+
+```
+sbrs patch-chromedriver --path ./chromedriver
+```
 
 ## sbrs pdf-text
 
@@ -1947,6 +2243,10 @@ Also keep the intermediate PDF at this path
 
 </ParamField>
 
+```
+sbrs pdf-text https://example.com/report.pdf
+```
+
 ## sbrs plugin
 
 List the built-in plugins, or show what one declares.
@@ -1955,6 +2255,10 @@ Plugins run inside the browsers a command starts. Turn them on by name with the 
 
 ```bash Usage
 sbrs plugin <SUBCOMMAND>
+```
+
+```
+sbrs plugin list
 ```
 
 ### sbrs plugin info
@@ -1975,6 +2279,10 @@ The plugin's name, as `sbrs plugin list` shows it.
 
 </ParamField>
 
+```
+sbrs plugin info shield
+```
+
 ### sbrs plugin list
 
 List the built-in plugins of this build, and whether they are on.
@@ -1982,6 +2290,10 @@ List the built-in plugins of this build, and whether they are on.
 Prints each plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global --plugin option turns it on. A build without built-in plugins says so; rebuild it with --features plugins-builtin.
 
 ```bash Usage
+sbrs plugin list
+```
+
+```
 sbrs plugin list
 ```
 
@@ -2000,6 +2312,10 @@ sbrs print <--file <FILE>>
 File path to print
 
 </ParamField>
+
+```
+sbrs print --file tests/login.rs
+```
 
 ## sbrs print-pdf
 
@@ -2026,6 +2342,10 @@ Output PDF file path
 Also: `-o`
 
 </ParamField>
+
+```
+sbrs print-pdf https://example.com --output page.pdf
+```
 
 ## sbrs prompt
 
@@ -2069,6 +2389,10 @@ Explain on standard error what was found and how
 
 </ParamField>
 
+```
+sbrs prompt
+```
+
 ## sbrs record
 
 Record browser interactions into a replayable action file.
@@ -2101,6 +2425,10 @@ Stop recording after this many seconds (default: run until Ctrl-C)
 
 </ParamField>
 
+```
+sbrs record https://example.com --output actions.json --duration 30
+```
+
 ## sbrs remove-local-storage-item
 
 Remove a local storage entry by key.
@@ -2117,6 +2445,10 @@ Storage key
 
 </ParamField>
 
+```
+sbrs --url https://example.com --user-data-dir ./profile remove-local-storage-item --key theme
+```
+
 ## sbrs replay
 
 Replay a recorded action file against a fresh browser session.
@@ -2132,6 +2464,10 @@ sbrs replay <FILE>
 JSON action file produced by `sbrs record`
 
 </ParamField>
+
+```
+sbrs replay actions.json
+```
 
 ## sbrs run-scenario
 
@@ -2155,6 +2491,10 @@ Optional path to write a scenario dashboard
 
 </ParamField>
 
+```
+sbrs run-scenario --file scenario.json
+```
+
 ## sbrs save-cookies
 
 Save browser cookies to a JSON file.
@@ -2170,6 +2510,10 @@ sbrs save-cookies <--file <FILE>>
 JSON file to save cookies to
 
 </ParamField>
+
+```
+sbrs --url https://example.com save-cookies --file cookies.json
+```
 
 ## sbrs save-source
 
@@ -2187,6 +2531,10 @@ Output HTML file path (default: a new file in latest_logs/)
 
 </ParamField>
 
+```
+sbrs --url https://example.com save-source --path page.html
+```
+
 ## sbrs screenshot
 
 Capture a screenshot of the current page.
@@ -2202,6 +2550,10 @@ sbrs screenshot [--path <PATH>]
 Output image file path (default: a new file in latest_logs/)
 
 </ParamField>
+
+```
+sbrs --url https://example.com screenshot --path page.png
+```
 
 ## sbrs select-option
 
@@ -2231,6 +2583,10 @@ Option value attribute
 
 </ParamField>
 
+```
+sbrs --url https://example.com select-option --css select --text Two
+```
+
 ## sbrs send-keys
 
 Send keystrokes to an element.
@@ -2253,6 +2609,10 @@ Keys to send to the element
 
 </ParamField>
 
+```
+sbrs --url https://example.com send-keys --css '#name' --text hello
+```
+
 ## sbrs set-local-storage-item
 
 Set a local storage key/value pair.
@@ -2274,6 +2634,10 @@ Storage key
 Value to store in local storage
 
 </ParamField>
+
+```
+sbrs --url https://example.com --user-data-dir ./profile set-local-storage-item --key theme --value dark
+```
 
 ## sbrs smoke
 
@@ -2299,6 +2663,10 @@ Expected substring in the page title
 
 </ParamField>
 
+```
+sbrs smoke https://example.com --title-contains Example
+```
+
 ## sbrs smooth-scroll-to
 
 Smoothly scroll an element into view.
@@ -2314,6 +2682,10 @@ sbrs smooth-scroll-to <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --url https://example.com smooth-scroll-to --css footer
+```
 
 ## sbrs test
 
@@ -2365,6 +2737,10 @@ Cargo features to enable, separated by commas.
 
 </ParamField>
 
+```
+sbrs test login
+```
+
 ## sbrs translate
 
 Write the actions of a JSON scenario in another language.
@@ -2415,6 +2791,10 @@ Also: `-c`
 
 </ParamField>
 
+```
+sbrs translate scenario.json zh --print
+```
+
 ## sbrs type-alert-text
 
 Type text into the prompt that the page opens when it loads.
@@ -2431,6 +2811,10 @@ Text to type into the alert prompt
 
 </ParamField>
 
+```
+sbrs --url https://example.com type-alert-text --text hello
+```
+
 ## sbrs uc-click
 
 Perform a UC-mode click on an element.
@@ -2446,6 +2830,10 @@ sbrs uc-click <--css <CSS>>
 CSS selector for the target element
 
 </ParamField>
+
+```
+sbrs --uc --url https://example.com uc-click --css a
+```
 
 ## sbrs uc-type
 
@@ -2469,6 +2857,10 @@ Text to type in UC mode
 
 </ParamField>
 
+```
+sbrs --uc --url https://example.com uc-type --css '#q' --text hello
+```
+
 ## sbrs uncheck-if-checked
 
 Uncheck a checkbox only if it is checked.
@@ -2485,11 +2877,19 @@ CSS selector for the target element
 
 </ParamField>
 
+```
+sbrs --url https://example.com uncheck-if-checked --css '#agree'
+```
+
 ## sbrs version
 
 Print the sbrs version, as `sbrs --version` does.
 
 ```bash Usage
+sbrs version
+```
+
+```
 sbrs version
 ```
 
@@ -2509,6 +2909,10 @@ Maximum wait time in seconds
 
 </ParamField>
 
+```
+sbrs --url https://example.com wait-for-and-accept-alert --timeout 5
+```
+
 ## sbrs wait-for-and-dismiss-alert
 
 Wait for an alert that the page opens, then dismiss it.
@@ -2524,6 +2928,10 @@ sbrs wait-for-and-dismiss-alert [--timeout <TIMEOUT>]
 Maximum wait time in seconds
 
 </ParamField>
+
+```
+sbrs --url https://example.com wait-for-and-dismiss-alert --timeout 5
+```
 
 ## sbrs wait-for-element-not-visible
 
@@ -2547,6 +2955,10 @@ Maximum wait time in seconds
 
 </ParamField>
 
+```
+sbrs --url https://example.com wait-for-element-not-visible --css '#spinner' --timeout 5
+```
+
 ## sbrs wait-for-element-present
 
 Wait until an element is present in the DOM.
@@ -2569,12 +2981,20 @@ Maximum wait time in seconds
 
 </ParamField>
 
+```
+sbrs --url https://example.com wait-for-element-present --css h1 --timeout 5
+```
+
 ## sbrs wait-for-ready-state-complete
 
 Wait until the document readyState is complete.
 
 ```bash Usage
 sbrs wait-for-ready-state-complete
+```
+
+```
+sbrs --url https://example.com wait-for-ready-state-complete
 ```
 
 ## sbrs wait-for-text
@@ -2604,4 +3024,8 @@ Expected text substring to wait for
 Maximum wait time in seconds
 
 </ParamField>
+
+```
+sbrs --url https://example.com wait-for-text --css h1 --text 'Example Domain' --timeout 5
+```
 
