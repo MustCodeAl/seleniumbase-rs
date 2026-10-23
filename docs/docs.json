@@ -395,6 +395,12 @@
                       "concepts/crawlers-and-spiders",
                       "concepts/containers",
                       "concepts/version-control-and-deployment",
+                      "concepts/sandboxing",
+                      "concepts/security-policies",
+                      "concepts/web-security",
+                      "concepts/encryption",
+                      "concepts/authentication",
+                      "concepts/forms",
                       "glossary"
                     ]
                   }
