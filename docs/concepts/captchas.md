@@ -258,7 +258,6 @@ for an API, a feed or an allowlist.
   Where the edge proxy that shows a challenge sits.
 </Card>
 
-
 <Card title="Glossary" icon="book" color="#1a85d4" href="/glossary">
   Challenge, clearance, interstitial and more.
 </Card>

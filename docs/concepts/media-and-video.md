@@ -199,7 +199,7 @@ Chrome can fail on a minimal Chromium in a container, with a video that simply
 does not start and `video.error` set to a "format not supported" code.
 
 Check the browser, not the page: run `canPlayType` for the formats your site
-needs. See [Browser engines](/concepts/browser-engines) for how the builds relate.
+needs. See [Browser engines](/concepts/browser-architecture#what-an-engine-is) for how the builds relate.
 
 ## Controlling and checking playback from tests
 
@@ -314,7 +314,7 @@ a tool outside the library.
   The event model that the video element's events belong to.
 </Card>
 
-<Card title="Browser engines" icon="microchip" color="#a631be" href="/concepts/browser-engines">
+<Card title="Browser architecture" icon="microchip" color="#a631be" href="/concepts/browser-architecture">
   Chrome, Chromium, Firefox and WebKit, and what each ships.
 </Card>
 

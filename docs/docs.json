@@ -32,6 +32,108 @@
       ]
     }
   },
+  "redirects": [
+    {
+      "source": "/concepts/rendering-and-performance",
+      "destination": "/concepts/how-a-page-loads",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/browser-engines",
+      "destination": "/concepts/browser-architecture",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/sandboxing",
+      "destination": "/concepts/browser-architecture",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/developer-tools",
+      "destination": "/concepts/cdp",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/ai-and-machine-learning",
+      "destination": "/concepts/mcp",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/frameworks-and-the-dom",
+      "destination": "/concepts/selectors-and-the-dom",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/web-apis",
+      "destination": "/concepts/javascript-and-events",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/tcp-and-streams",
+      "destination": "/concepts/network",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/compression-and-caching",
+      "destination": "/concepts/bundling-and-caching",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/bundling-and-build-tools",
+      "destination": "/concepts/bundling-and-caching",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/authentication",
+      "destination": "/concepts/sessions-and-state",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/security-policies",
+      "destination": "/concepts/web-security",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/backend-patterns",
+      "destination": "/concepts/frontends-backends-and-apis",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/containers",
+      "destination": "/concepts/containers-and-deployment",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/version-control-and-deployment",
+      "destination": "/concepts/containers-and-deployment",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/web-eras-and-p2p",
+      "destination": "/concepts/modern-web",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/mobile-web",
+      "destination": "/concepts/mobile-and-accessibility",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/accessibility",
+      "destination": "/concepts/mobile-and-accessibility",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/crawlers-and-spiders",
+      "destination": "/concepts/crawlers-and-seo",
+      "permanent": true
+    },
+    {
+      "source": "/concepts/seo",
+      "destination": "/concepts/crawlers-and-seo",
+      "permanent": true
+    }
+  ],
   "navigation": {
     "tabs": [
       {
@@ -369,50 +471,86 @@
               {
                 "product": "How it works",
                 "icon": "lightbulb",
-                "description": "How a page loads, how a browser is built, selectors and the DOM, JavaScript and events, WebDriver, CDP, detection, network, sessions, extensions, MCP, modern web technologies, and the glossary",
+                "description": "How a page loads and how a browser is built, driving it with WebDriver, CDP and MCP, the DOM and JavaScript, the network, sessions and logins, security, building and shipping web apps, mobile, accessibility, SEO and media, and the glossary",
                 "groups": [
                   {
                     "group": "How it works",
+                    "icon": "lightbulb",
+                    "expanded": true,
                     "pages": [
-                      "concepts/how-a-page-loads",
-                      "concepts/browser-architecture",
-                      "concepts/selectors-and-the-dom",
-                      "concepts/javascript-and-events",
-                      "concepts/webdriver",
-                      "concepts/cdp",
-                      "concepts/detection",
-                      "concepts/network",
-                      "concepts/sessions-and-state",
-                      "concepts/frontends-backends-and-apis",
-                      "concepts/frameworks-and-the-dom",
-                      "concepts/captchas",
-                      "concepts/browser-engines",
-                      "concepts/browser-extensions",
-                      "concepts/mcp",
-                      "concepts/modern-web",
-                      "concepts/developer-tools",
-                      "concepts/tcp-and-streams",
-                      "concepts/web-eras-and-p2p",
-                      "concepts/crawlers-and-spiders",
-                      "concepts/containers",
-                      "concepts/version-control-and-deployment",
-                      "concepts/sandboxing",
-                      "concepts/security-policies",
-                      "concepts/web-security",
-                      "concepts/encryption",
-                      "concepts/authentication",
-                      "concepts/forms",
-                      "concepts/rendering-and-performance",
-                      "concepts/web-apis",
-                      "concepts/accessibility",
-                      "concepts/compression-and-caching",
-                      "concepts/mobile-web",
-                      "concepts/seo",
-                      "concepts/bundling-and-build-tools",
-                      "concepts/backend-patterns",
-                      "concepts/ai-and-machine-learning",
-                      "concepts/telemetry-and-observability",
-                      "concepts/media-and-video",
+                      "concepts/overview",
+                      {
+                        "group": "Start here",
+                        "icon": "rocket",
+                        "expanded": true,
+                        "pages": [
+                          "concepts/how-a-page-loads",
+                          "concepts/browser-architecture"
+                        ]
+                      },
+                      {
+                        "group": "Automating a browser",
+                        "icon": "robot",
+                        "pages": [
+                          "concepts/webdriver",
+                          "concepts/cdp",
+                          "concepts/mcp",
+                          "concepts/detection",
+                          "concepts/captchas",
+                          "concepts/browser-extensions"
+                        ]
+                      },
+                      {
+                        "group": "Pages and the DOM",
+                        "icon": "sitemap",
+                        "pages": [
+                          "concepts/selectors-and-the-dom",
+                          "concepts/javascript-and-events"
+                        ]
+                      },
+                      {
+                        "group": "Network and the wire",
+                        "icon": "network-wired",
+                        "pages": [
+                          "concepts/network",
+                          "concepts/bundling-and-caching"
+                        ]
+                      },
+                      {
+                        "group": "State, identity and forms",
+                        "icon": "cookie-bite",
+                        "pages": [
+                          "concepts/sessions-and-state",
+                          "concepts/forms"
+                        ]
+                      },
+                      {
+                        "group": "Security",
+                        "icon": "shield-halved",
+                        "pages": [
+                          "concepts/web-security",
+                          "concepts/encryption"
+                        ]
+                      },
+                      {
+                        "group": "Building and shipping web apps",
+                        "icon": "server",
+                        "pages": [
+                          "concepts/frontends-backends-and-apis",
+                          "concepts/containers-and-deployment",
+                          "concepts/modern-web",
+                          "concepts/telemetry-and-observability"
+                        ]
+                      },
+                      {
+                        "group": "Reach: mobile, accessibility, SEO and media",
+                        "icon": "universal-access",
+                        "pages": [
+                          "concepts/mobile-and-accessibility",
+                          "concepts/crawlers-and-seo",
+                          "concepts/media-and-video"
+                        ]
+                      },
                       "glossary"
                     ]
                   }

@@ -199,7 +199,7 @@ Many sites replace the native controls with their own.
   later. Type, then *wait* for the list, then click.
 
 The hardest case is the **framework-controlled input**. In React, Vue, Angular and
-similar frameworks (see [frameworks and the DOM](/concepts/frameworks-and-the-dom))
+similar frameworks (see [frameworks and the DOM](/concepts/selectors-and-the-dom#one-page-three-doms))
 the field's value lives in the framework's **state**; the framework draws it into
 the field and listens for `input` and `change` events to learn about edits.
 
@@ -310,10 +310,6 @@ depend on the profile, so use a fresh one.
 
 <Card title="JavaScript and events" icon="bolt" color="#d47628" href="/concepts/javascript-and-events">
   Why a page reacts to events, and how waiting works.
-</Card>
-
-<Card title="Frameworks and the DOM" icon="layer-group" color="#a631be" href="/concepts/frameworks-and-the-dom">
-  Why React and Vue inputs need real events.
 </Card>
 
 <Card title="Glossary" icon="book" color="#199f43" href="/glossary">

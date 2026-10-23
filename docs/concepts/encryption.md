@@ -257,7 +257,7 @@ afford to leak.
 
 <Columns cols={2}>
 
-<Card title="Authentication" icon="key" color="#1a85d4" href="/concepts/authentication">
+<Card title="Sessions and logging in" icon="key" color="#1a85d4" href="/concepts/sessions-and-state">
   Logins, tokens, JWTs and one-time codes.
 </Card>
 

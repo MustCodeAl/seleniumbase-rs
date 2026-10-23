@@ -63,7 +63,7 @@ Summary for AI exports: an alphabetical glossary of the terms used across the se
 
 The browser's second view of a page for assistive technology: a filtered tree of nodes built from the DOM, each with a role, an accessible name and states. A screen reader reads it, not the pixels. The pure CDP engine has no query on it; `SelectorBuf::role` approximates one in XPath.
 
-See [The accessibility tree](/concepts/accessibility#the-accessibility-tree).
+See [The accessibility tree](/concepts/mobile-and-accessibility#the-accessibility-tree).
 
 ### Actionability
 
@@ -127,7 +127,7 @@ See [Symmetric and asymmetric encryption](/concepts/encryption#symmetric-and-asy
 
 Accessible Rich Internet Applications: attributes such as `role`, `aria-label` and `aria-expanded` that tell assistive technology what a custom control is. They change what is announced, never what the element does, so a native element is better whenever one exists.
 
-See [Roles, names and states](/concepts/accessibility#roles-names-and-states).
+See [Roles, names and states](/concepts/mobile-and-accessibility#roles-names-and-states).
 
 ### Audio noise
 
@@ -153,7 +153,7 @@ See [Undetected (UC) Mode Guide](/tutorials/uc_mode#what-is-patched-automaticall
 
 The signal that tells a fast producer of data to wait for a slow consumer, so that queues stay small. A stream with a full queue reports it, and TCP does the same with its receive window.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#backpressure).
+See [Network and proxies](/concepts/network#backpressure).
 
 ### Base64
 
@@ -193,7 +193,7 @@ See [Binary Patching](/tutorials/binary_patching).
 
 A peer-to-peer protocol that shares a file as hashed pieces among many peers, who are found through trackers or a distributed hash table. The more people hold a file, the faster it downloads.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#bittorrent).
+See [Modern web technologies](/concepts/modern-web#bittorrent).
 
 ### Blockchain
 
@@ -201,7 +201,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#bittorrent).
 
 A ledger of records grouped into blocks, copied across many computers and chained together by hashes, so that changing old records is evident. Web3 applications read and write one.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+See [Modern web technologies](/concepts/modern-web#web3-keys-and-shared-ledgers).
 
 ### Blue-green deployment
 
@@ -209,7 +209,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-
 
 A release method that runs the new version (green) beside the old one (blue) and then switches all traffic at once, so a rollback is a switch back.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+See [Containers and deployment](/concepts/containers-and-deployment#environments-and-deployment).
 
 ### Brotli
 
@@ -217,7 +217,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#en
 
 A compression method for text, sent as `Content-Encoding: br` when the client lists `br` in `Accept-Encoding`. It usually beats gzip on HTML, CSS and JavaScript, and browsers use it on HTTPS only.
 
-See [Compression](/concepts/compression-and-caching#compression).
+See [Compression](/concepts/bundling-and-caching#compression).
 
 ### BrowserConfig
 
@@ -265,7 +265,7 @@ See [Choosing Plugins](/plugins/selecting).
 
 A build tool that follows the imports of a project's source files and joins them into a few files for the browser, usually also transpiling, minifying and splitting them. webpack, Rollup, esbuild, Vite and Turbopack are bundlers. A test meets their output as hashed file names and generated class names.
 
-See [Bundlers](/concepts/bundling-and-build-tools#bundlers).
+See [Bundlers](/concepts/bundling-and-caching#bundlers).
 
 ## C
 
@@ -275,7 +275,7 @@ See [Bundlers](/concepts/bundling-and-build-tools#bundlers).
 
 A release method that sends a small share of users to the new version first and widens it while monitoring, to limit the damage of a bad release.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+See [Containers and deployment](/concepts/containers-and-deployment#environments-and-deployment).
 
 ### Cache-Control
 
@@ -283,7 +283,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#en
 
 The response header that says how long and by whom a response may be reused: `max-age`, `no-cache` (store it, but check first), `no-store` (never keep it), `public`, `private` and `immutable`. A wrong value is a common cause of stale content in tests.
 
-See [Cache-Control](/concepts/compression-and-caching#cache-control).
+See [Cache-Control](/concepts/bundling-and-caching#cache-control).
 
 ### Canonical URL
 
@@ -291,7 +291,7 @@ See [Cache-Control](/concepts/compression-and-caching#cache-control).
 
 The preferred address for content that can be reached at several, named in a `link rel="canonical"` element. A search engine takes it as a strong hint when it merges duplicate pages.
 
-See [Canonical URLs](/concepts/seo#canonical-urls).
+See [Canonical URLs](/concepts/crawlers-and-seo#canonical-urls).
 
 ### Canvas noise
 
@@ -395,7 +395,7 @@ See [Operating systems](/building#operating-systems).
 
 An HTTP/1.1 way to send a response body in pieces, each with its size in front and a piece of size zero at the end, when the total length is not known in advance.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#where-http-puts-a-message-boundary).
+See [Network and proxies](/concepts/network#where-http-puts-a-message-boundary).
 
 ### CI/CD
 
@@ -403,7 +403,7 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#where-http-puts-a-messa
 
 Continuous integration builds and tests every change automatically. Continuous delivery or deployment then moves the tested result to servers or users. Browser tests are one stage of that chain.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#continuous-integration).
+See [Containers and deployment](/concepts/containers-and-deployment#continuous-integration).
 
 ### Clearance
 
@@ -459,7 +459,7 @@ See [SeleniumBase Commander](/help/commander).
 
 A Git snapshot of all files with a message and a link to its parent commit. Its id is a hash of its content.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+See [Containers and deployment](/concepts/containers-and-deployment#git-in-five-ideas).
 
 ### Console
 
@@ -467,7 +467,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#gi
 
 The developer tools panel that shows the messages of a page by level (verbose, info, warning, error) and runs JavaScript in the page with helpers such as `$0` and `$$`.
 
-See [Developer tools](/concepts/developer-tools#the-console-in-depth).
+See [DevTools and CDP](/concepts/cdp#the-console-in-depth).
 
 ### Container
 
@@ -475,7 +475,7 @@ See [Developer tools](/concepts/developer-tools#the-console-in-depth).
 
 A normal process that the Linux kernel isolates, with its own files, network and process list, started from an image. Unlike a virtual machine it shares the host's kernel.
 
-See [Containers](/concepts/containers#containers-and-virtual-machines).
+See [Containers and deployment](/concepts/containers-and-deployment#containers-and-virtual-machines).
 
 ### Container image
 
@@ -483,7 +483,7 @@ See [Containers](/concepts/containers#containers-and-virtual-machines).
 
 A read-only package of layered files plus a start command, built from a Dockerfile and kept in a registry.
 
-See [Containers](/concepts/containers#images-layers-and-registries).
+See [Containers and deployment](/concepts/containers-and-deployment#images-layers-and-registries).
 
 ### Constraint validation
 
@@ -507,7 +507,7 @@ See [How browser extensions work](/concepts/browser-extensions#the-parts).
 
 A response header that lists where a page may load and run content from. It blocks injected scripts, which is why a helper that adds an inline script can fail on such a page. `BrowserConfig::with_disable_csp` removes it for a session.
 
-See [Content Security Policy](/concepts/security-policies#content-security-policy).
+See [Content Security Policy](/concepts/web-security#content-security-policy).
 
 ### Controlled input
 
@@ -539,7 +539,7 @@ See [Cookies, Identity and Challenges](/stealth/identity#the-cookie-jar).
 
 The queue of URLs that a crawler knows about and has not visited yet.
 
-See [Crawlers and spiders](/concepts/crawlers-and-spiders#how-a-crawler-works).
+See [Crawlers and SEO](/concepts/crawlers-and-seo#how-a-crawler-works).
 
 ### Crawler
 
@@ -547,7 +547,7 @@ See [Crawlers and spiders](/concepts/crawlers-and-spiders#how-a-crawler-works).
 
 A program that fetches a page, collects its links and visits those, as search engines and link checkers do. Also called a spider. It differs from scraping, which extracts data, and from testing, which checks a site.
 
-See [Crawlers and spiders](/concepts/crawlers-and-spiders#crawling-scraping-and-testing).
+See [Crawlers and SEO](/concepts/crawlers-and-seo#crawling-scraping-and-testing).
 
 ### COOP, COEP and CORP
 
@@ -555,7 +555,7 @@ See [Crawlers and spiders](/concepts/crawlers-and-spiders#crawling-scraping-and-
 
 Three headers that put a page in its own cross-origin isolated group: Cross-Origin-Opener-Policy cuts the link to windows from other origins, Cross-Origin-Embedder-Policy refuses resources that have not opted in, and Cross-Origin-Resource-Policy says who may load a file.
 
-See [Security policies](/concepts/security-policies).
+See [Web security](/concepts/web-security#browser-security-policies).
 
 ### CORS
 
@@ -563,7 +563,7 @@ See [Security policies](/concepts/security-policies).
 
 Cross-Origin Resource Sharing: response headers with which a server lets another origin read its answers. Browsers enforce it; command-line HTTP clients do not.
 
-See [Security policies](/concepts/security-policies).
+See [Web security](/concepts/web-security#browser-security-policies).
 
 ### Core Web Vitals
 
@@ -571,7 +571,7 @@ See [Security policies](/concepts/security-policies).
 
 Three user-centred page metrics: LCP (Largest Contentful Paint, loading, good at 2.5 s or less), INP (Interaction to Next Paint, responsiveness, 200 ms or less) and CLS (Cumulative Layout Shift, visual stability, 0.1 or less). Search engines use them as a ranking signal.
 
-See [Core Web Vitals](/concepts/rendering-and-performance#core-web-vitals).
+See [Core Web Vitals](/concepts/how-a-page-loads#core-web-vitals).
 
 ### crx
 
@@ -603,7 +603,7 @@ See [Selectors Guide](/tutorials/selectors#supported-formats).
 
 A command-line tool for HTTP requests. The browser's Copy as cURL turns a recorded request into a command with its headers and cookies, which are real credentials.
 
-See [Developer tools](/concepts/developer-tools#network-and-copy-as-curl).
+See [DevTools and CDP](/concepts/cdp#network-and-copy-as-curl).
 
 ## D
 
@@ -613,7 +613,7 @@ See [Developer tools](/concepts/developer-tools#network-and-copy-as-curl).
 
 A web page whose buttons call smart contracts through a wallet.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#how-a-page-talks-to-a-wallet).
+See [Modern web technologies](/concepts/modern-web#how-a-page-talks-to-a-wallet).
 
 ### Datagram
 
@@ -621,7 +621,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#how-a-page-talks-to-a
 
 One independent packet sent by UDP, with no connection, no order and no resend.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#udp-and-quic).
+See [Network and proxies](/concepts/network#udp-and-quic).
 
 ### Deferred assertion
 
@@ -645,7 +645,7 @@ See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
 The panels built into a browser (Elements, Console, Sources, Network, Application and more). In Chrome they talk to the page over the [CDP](#cdp).
 
-See [Developer tools](/concepts/developer-tools#the-panels).
+See [DevTools and CDP](/concepts/cdp#the-panels).
 
 ### Device pixel ratio
 
@@ -653,7 +653,7 @@ See [Developer tools](/concepts/developer-tools#the-panels).
 
 How many physical screen pixels make one CSS pixel (`window.devicePixelRatio`). A phone that is 390 CSS pixels wide at a ratio of 3 has 1170 physical pixels. `DeviceMetrics` carries it as `pixel_ratio`.
 
-See [CSS pixels and the pixel ratio](/concepts/mobile-web#css-pixels-and-the-pixel-ratio).
+See [CSS pixels and the pixel ratio](/concepts/mobile-and-accessibility#css-pixels-and-the-pixel-ratio).
 
 ### DevTools endpoint
 
@@ -685,7 +685,7 @@ See [DNS: names to addresses](/concepts/network#dns-names-to-addresses).
 
 A tool that describes several containers in a `compose.yaml` file and starts them together on a private network, where each service reaches the others by name.
 
-See [Containers](/concepts/containers#compose-several-containers-together).
+See [Containers and deployment](/concepts/containers-and-deployment#compose-several-containers-together).
 
 ### Dockerfile
 
@@ -693,7 +693,7 @@ See [Containers](/concepts/containers#compose-several-containers-together).
 
 The recipe for a container image, with one instruction such as `FROM`, `RUN` or `COPY` for each layer. The one at the root of the repository builds `sbrs` in two stages.
 
-See [Containers](/concepts/containers#the-dockerfile).
+See [Containers and deployment](/concepts/containers-and-deployment#the-dockerfile).
 
 ### Docs7
 
@@ -735,7 +735,7 @@ See [Element references](/concepts/webdriver#element-references).
 
 A copy of a system with its own purpose, such as development, staging or production. What differs between them is kept in configuration, not in code.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+See [Containers and deployment](/concepts/containers-and-deployment#environments-and-deployment).
 
 ### EME
 
@@ -759,7 +759,7 @@ See [TLS Server and MitmProxy](/stealth/mitm-proxy#the-ephemeral-ca-tls-server).
 
 A response header holding an identifier of the content. The browser sends it back as `If-None-Match`, and the server answers `304 Not Modified` with no body when nothing changed.
 
-See [Revalidation](/concepts/compression-and-caching#revalidation).
+See [Revalidation](/concepts/bundling-and-caching#revalidation).
 
 ### Evasion provider
 
@@ -785,7 +785,7 @@ See [JavaScript, events and waiting](/concepts/javascript-and-events#the-event-l
 
 A switch that ships code turned off, so that it can be released later or to some users.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+See [Containers and deployment](/concepts/containers-and-deployment#environments-and-deployment).
 
 ### Fingerprint
 
@@ -811,7 +811,7 @@ See [Behave / Gherkin Support](/tutorials/behave).
 
 A version control system that keeps the history of a project as commits, branches and tags.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+See [Containers and deployment](/concepts/containers-and-deployment#git-in-five-ideas).
 
 ### GitHub Actions
 
@@ -819,7 +819,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#gi
 
 The CI system of GitHub. A workflow file in `.github/workflows` names the events, jobs and steps to run.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#github-actions-as-the-example).
+See [Containers and deployment](/concepts/containers-and-deployment#github-actions-as-the-example).
 
 ### GREASE
 
@@ -845,7 +845,7 @@ See [Pure CDP](/tutorials/pure_cdp#recording-a-har).
 
 The delay that follows when one lost TCP packet holds back all the bytes behind it. [QUIC](#quic) avoids it by giving each stream its own order.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
+See [Network and proxies](/concepts/network#tcp-a-reliable-pipe).
 
 ### Hash function
 
@@ -885,7 +885,7 @@ See [Encryption and certificates](/concepts/encryption).
 
 HTTP Strict Transport Security: a header that tells the browser to use only https for a host for a set time. It also removes the click-through on certificate errors.
 
-See [Mixed content and HSTS](/concepts/security-policies#mixed-content-and-hsts).
+See [Mixed content and HSTS](/concepts/web-security#mixed-content-and-hsts).
 
 ### HLS
 
@@ -901,7 +901,7 @@ See [Adaptive streaming: HLS and DASH](/concepts/media-and-video#adaptive-stream
 
 A dev-server feature (HMR) that sends a changed module to the open page over a WebSocket and swaps it in without a reload. A page served by a dev server therefore holds a connection open, so a wait for no network activity never finishes.
 
-See [Dev servers and hot reload](/concepts/bundling-and-build-tools#dev-servers-and-hot-reload).
+See [Dev servers and hot reload](/concepts/bundling-and-caching#dev-servers-and-hot-reload).
 
 ### HttpOnly
 
@@ -983,7 +983,7 @@ See [Cookies, Identity and Challenges](/stealth/identity#challenge-detection-and
 
 The number that names a machine on a network, such as `127.0.0.1` (this machine) or an IPv6 address. With a port it names one end of a connection.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+See [Network and proxies](/concepts/network#addresses-and-ports).
 
 ### IPFS
 
@@ -991,7 +991,7 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
 
 The InterPlanetary File System, which names a file by a hash of its content (a CID) instead of by the place where it is stored.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#ipfs-addressing-by-content).
+See [Modern web technologies](/concepts/modern-web#ipfs-addressing-by-content).
 
 ## J
 
@@ -1017,7 +1017,7 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-form
 
 A format for structured data: JSON inside a `script type="application/ld+json"` block, using the schema.org vocabulary, that tells a search engine what a page is (a product, an article, a recipe). It can earn rich results.
 
-See [Structured data](/concepts/seo#structured-data-json-ld).
+See [Structured data](/concepts/crawlers-and-seo#structured-data-json-ld).
 
 ### JSON-RPC
 
@@ -1025,7 +1025,7 @@ See [Structured data](/concepts/seo#structured-data-json-ld).
 
 The small request and reply format, in JSON, that MCP uses for its messages. A request has an `id` and a `method`; the reply repeats the `id` and carries a `result` or an `error`; a notification has no `id`.
 
-See [The Model Context Protocol](/concepts/mcp#how-the-messages-travel).
+See [The Model Context Protocol](/concepts/mcp#how-mcp-messages-travel).
 
 ### JSON scenario
 
@@ -1043,7 +1043,7 @@ See [Syntax Formats](/help/syntax_formats).
 
 One step of a container image build, which stores the files that step changed. Layers are shared between images and re-used by the build cache.
 
-See [Containers](/concepts/containers#images-layers-and-registries).
+See [Containers and deployment](/concepts/containers-and-deployment#images-layers-and-registries).
 
 ### JWT
 
@@ -1051,7 +1051,7 @@ See [Containers](/concepts/containers#images-layers-and-registries).
 
 JSON Web Token: a signed note of three Base64URL parts (header, payload and signature). It is signed, not encrypted, so anyone can read its claims.
 
-See [JWTs](/concepts/authentication#jwts).
+See [JWTs](/concepts/sessions-and-state#jwts).
 
 ### Layout viewport
 
@@ -1059,7 +1059,7 @@ See [JWTs](/concepts/authentication#jwts).
 
 The area that CSS lays a page out against. With `meta name="viewport"` set to `width=device-width`, a phone gives the real screen width; without it the browser pretends to be about 980 pixels wide. The visual viewport is the part you currently see.
 
-See [The viewport meta tag](/concepts/mobile-web#the-viewport-meta-tag).
+See [The viewport meta tag](/concepts/mobile-and-accessibility#the-viewport-meta-tag).
 
 ### Lighthouse
 
@@ -1067,7 +1067,7 @@ See [The viewport meta tag](/concepts/mobile-web#the-viewport-meta-tag).
 
 Google's audit tool, in Chrome DevTools and on the command line. It loads a page under throttling and scores performance, accessibility, best practices and SEO. It drives Chrome through the DevTools Protocol; seleniumbase-rs has no built-in Lighthouse run.
 
-See [Lighthouse](/concepts/rendering-and-performance#lighthouse).
+See [Lighthouse](/concepts/how-a-page-loads#lighthouse).
 
 ### Link text
 
@@ -1083,7 +1083,7 @@ See [Selectors Guide](/tutorials/selectors#supported-formats).
 
 Large language model: a neural network trained to predict the next token of text, used to write text and code and to choose the tool calls of an AI agent. The same prompt can give different replies, so a test of a site that uses one checks properties, not exact wording. `sbrs-mcp` lets an assistant drive a browser.
 
-See [Large language models](/concepts/ai-and-machine-learning#large-language-models).
+See [Large language models](/concepts/mcp#large-language-models).
 
 ### localStorage
 
@@ -1107,7 +1107,7 @@ See [Pure CDP](/tutorials/pure_cdp#locators).
 
 The address `127.0.0.1` (IPv6 `::1`), also named `localhost`, which always means this same machine.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+See [Network and proxies](/concepts/network#addresses-and-ports).
 
 ## M
 
@@ -1117,7 +1117,7 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
 
 A link that names a BitTorrent download by the hash of its description, so that peers can be found without a server that holds the file.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#bittorrent).
+See [Modern web technologies](/concepts/modern-web#bittorrent).
 
 ### Manifest V3
 
@@ -1157,7 +1157,7 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#what-is-measured-and-
 
 Joining two Git branches. A fast-forward merge only moves a branch name ahead when there is nothing to combine.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+See [Containers and deployment](/concepts/containers-and-deployment#git-in-five-ideas).
 
 ### Media query
 
@@ -1165,7 +1165,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#gi
 
 A CSS condition on the device, such as `@media (min-width: 768px)`, `(hover: none)` or `(prefers-color-scheme: dark)`. Emulating a phone changes the width and touch values that media queries see.
 
-See [Media queries](/concepts/mobile-web#media-queries).
+See [Media queries](/concepts/mobile-and-accessibility#media-queries).
 
 ### MFA
 
@@ -1181,7 +1181,7 @@ See [MFA / TOTP Guide](/tutorials/mfa_totp).
 
 A step in the chain a server runs around each request: logging, rate limiting, authentication, parsing, validation. A step can end the request early, so a 401, 429 or 422 may come from a step that runs before the handler.
 
-See [Middleware](/concepts/backend-patterns#middleware-a-pipeline-around-every-request).
+See [Middleware](/concepts/frontends-backends-and-apis#middleware-a-pipeline-around-every-request).
 
 ### Minification
 
@@ -1189,7 +1189,7 @@ See [Middleware](/concepts/backend-patterns#middleware-a-pipeline-around-every-r
 
 Shrinking JavaScript and CSS by removing whitespace and comments and shortening local names. The output is hard to read, which is why a [source map](#source-map) exists.
 
-See [What happens to your code](/concepts/bundling-and-build-tools#what-happens-to-your-code).
+See [What happens to your code](/concepts/bundling-and-caching#what-happens-to-your-code).
 
 ### MitmProxy
 
@@ -1205,7 +1205,7 @@ See [TLS Server and MitmProxy](/stealth/mitm-proxy#mitmproxy).
 
 An https page that loads something over plain http. Browsers block active mixed content such as scripts, frames and fetches.
 
-See [Mixed content and HSTS](/concepts/security-policies#mixed-content-and-hsts).
+See [Mixed content and HSTS](/concepts/web-security#mixed-content-and-hsts).
 
 ### Mock browser
 
@@ -1221,7 +1221,7 @@ See [Pure CDP](/tutorials/pure_cdp#testing-without-chrome).
 
 A Dockerfile that builds in a large image full of compilers and copies only the result into a small runtime image.
 
-See [Containers](/concepts/containers#the-dockerfile).
+See [Containers and deployment](/concepts/containers-and-deployment#the-dockerfile).
 
 ### MutationObserver
 
@@ -1229,7 +1229,7 @@ See [Containers](/concepts/containers#the-dockerfile).
 
 A browser API that calls a function when the DOM changes: children added or removed, attributes or text changed. A script run from a test can use it to wait for a change without polling.
 
-See [Web APIs](/concepts/web-apis).
+See [JavaScript and Web APIs](/concepts/javascript-and-events#javascript-and-the-browser-are-two-things).
 
 ## N
 
@@ -1257,7 +1257,7 @@ See [Fingerprint & Stealth Profiles](/tutorials/fingerprint_stealth#native-level
 
 A number used once. AES-GCM needs a unique one for every message under a key; a Content Security Policy uses a fresh random one per response to mark the page's own inline scripts as allowed.
 
-See [Encryption and certificates](/concepts/encryption) and [Content Security Policy](/concepts/security-policies#content-security-policy).
+See [Encryption and certificates](/concepts/encryption) and [Content Security Policy](/concepts/web-security#content-security-policy).
 
 ### OAuth 2.0
 
@@ -1265,7 +1265,7 @@ See [Encryption and certificates](/concepts/encryption) and [Content Security Po
 
 A standard that lets an app get limited access to an account without seeing the password. A "sign in with" button uses the authorization code flow: a redirect to the provider and back with a one-time code.
 
-See [Authentication](/concepts/authentication).
+See [Sessions and logging in](/concepts/sessions-and-state#sessions-and-tokens).
 
 ### OpenID Connect
 
@@ -1273,7 +1273,7 @@ See [Authentication](/concepts/authentication).
 
 A layer on top of OAuth 2.0 that adds an ID token, a JWT that tells the app who signed in.
 
-See [Authentication](/concepts/authentication).
+See [Sessions and logging in](/concepts/sessions-and-state#sessions-and-tokens).
 
 ### OWASP Top 10
 
@@ -1321,7 +1321,7 @@ See [Modern web technologies](/concepts/modern-web#passkeys-and-webauthn).
 
 A design in which computers talk to each other directly and each is client and server for the others. BitTorrent, WebRTC data channels and IPFS are examples.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#peer-to-peer).
+See [Modern web technologies](/concepts/modern-web#peer-to-peer).
 
 ### Password hashing
 
@@ -1353,7 +1353,7 @@ See [Wire Formats and Impersonation](/stealth/wire-formats#reading-the-wire-form
 
 A header that switches browser features such as the camera, geolocation and microphone on or off for a page and its frames. It decides whether a permission prompt may appear at all.
 
-See [Permissions-Policy](/concepts/security-policies#permissions-policy).
+See [Permissions-Policy](/concepts/web-security#permissions-policy).
 
 ### Persona
 
@@ -1393,7 +1393,7 @@ See [PluginSet](/plugins/api/plugin-set).
 
 A number from 0 to 65535 that says which program on a machine receives a message. HTTPS uses 443, and `sbrs devtools` listens on 9222 by default.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
+See [Network and proxies](/concepts/network#addresses-and-ports).
 
 ### Preflight request
 
@@ -1401,7 +1401,7 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#addresses-and-ports).
 
 An `OPTIONS` request the browser sends before a cross-origin request that is not simple (a `PUT`, a JSON body or a custom header), to ask whether the server allows it.
 
-See [Preflighted requests](/concepts/security-policies#preflighted-requests).
+See [Preflighted requests](/concepts/web-security#preflighted-requests).
 
 ### Prompt injection
 
@@ -1409,7 +1409,7 @@ See [Preflighted requests](/concepts/security-policies#preflighted-requests).
 
 Text in a page or in a tool result that is written to look like an instruction to an AI assistant. A model can be fooled by it, so a tool's output is treated as data and not as orders, and safety decisions (which plugins load, where files go) belong to the operator who starts the server.
 
-See [AI agents that drive a browser](/concepts/ai-and-machine-learning#ai-agents-that-drive-a-browser).
+See [AI agents that drive a browser](/concepts/mcp#ai-agents-that-drive-a-browser).
 
 ### Proxy
 
@@ -1425,7 +1425,7 @@ See [Proxies](/concepts/network#proxies).
 
 A request to merge a branch into another one, where the change is reviewed and CI runs on it.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+See [Containers and deployment](/concepts/containers-and-deployment#git-in-five-ideas).
 
 ### Pure CDP
 
@@ -1461,7 +1461,7 @@ See [Recorder Mode Guide](/tutorials/recorder_mode).
 
 A server that stores container images, such as Docker Hub or `ghcr.io`. An image name has the form `registry/owner/name:tag`.
 
-See [Containers](/concepts/containers#images-layers-and-registries).
+See [Containers and deployment](/concepts/containers-and-deployment#images-layers-and-registries).
 
 ### Referrer-Policy
 
@@ -1469,7 +1469,7 @@ See [Containers](/concepts/containers#images-layers-and-registries).
 
 A header that controls how much of the previous page's address is sent in the `Referer` header when a link is followed.
 
-See [Referrer-Policy](/concepts/security-policies#referrer-policy).
+See [Referrer-Policy](/concepts/web-security#referrer-policy).
 
 ### Reflow
 
@@ -1477,7 +1477,7 @@ See [Referrer-Policy](/concepts/security-policies#referrer-policy).
 
 The browser redoing layout, the step that works out the size and position of every box, after a change such as an added element or a new width. It is costly and can move content, which is why a late reflow can shift a button just as a test clicks it.
 
-See [Reflow and repaint](/concepts/rendering-and-performance#reflow-and-repaint).
+See [Reflow and repaint](/concepts/how-a-page-loads#reflow-and-repaint).
 
 ### Renderer process
 
@@ -1509,7 +1509,7 @@ See [Customizing Test Runs](/help/customizing_test_runs#sharing-a-browser-betwee
 
 The file at `/robots.txt` in which a site tells crawlers which paths they may fetch. It is a request, not access control.
 
-See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps).
+See [Crawlers and SEO](/concepts/crawlers-and-seo#robotstxt-and-sitemaps).
 
 ### Rollback
 
@@ -1517,7 +1517,7 @@ See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps
 
 Returning to the last good version after a bad release.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+See [Containers and deployment](/concepts/containers-and-deployment#environments-and-deployment).
 
 ### Rolling deployment
 
@@ -1525,7 +1525,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#en
 
 Replacing servers a few at a time so that the service never stops, with the old and new versions running together for a while.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#environments-and-deployment).
+See [Containers and deployment](/concepts/containers-and-deployment#environments-and-deployment).
 
 ### robots.txt
 
@@ -1533,7 +1533,7 @@ See [Version control and deployment](/concepts/version-control-and-deployment#en
 
 A file at the root of a site that tells crawlers which paths they may fetch. It controls crawling, not indexing: a blocked page can still be listed from links to it, and `noindex` only works on a page the crawler is allowed to fetch.
 
-See [Robots, sitemaps and status codes](/concepts/seo#robots-sitemaps-and-status-codes).
+See [Robots, sitemaps and status codes](/concepts/crawlers-and-seo#robots-sitemaps-and-status-codes).
 
 ### RTK
 
@@ -1549,7 +1549,7 @@ See [Build from source](/contributing/from-source#working-with-an-ai-assistant).
 
 The machine that runs a CI job, such as `ubuntu-latest` in GitHub Actions.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#github-actions-as-the-example).
+See [Containers and deployment](/concepts/containers-and-deployment#github-actions-as-the-example).
 
 ### RunSettings
 
@@ -1591,7 +1591,7 @@ See [Cookies, in depth](/concepts/sessions-and-state#cookies-in-depth).
 
 An operating-system cage around the part of a browser that handles web content, so a bug there cannot read files or start programs. The switch `--no-sandbox` removes it.
 
-See [Sandboxing and isolation](/concepts/sandboxing).
+See [Browser architecture](/concepts/browser-architecture#site-isolation-and-the-sandbox).
 
 ### sbrs
 
@@ -1631,7 +1631,7 @@ See [MCP servers](/tutorials/mcp_server).
 
 The list of recovery words that encodes a wallet's private key. Never put a real one in a test, a script, a log or a repository.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+See [Modern web technologies](/concepts/modern-web#web3-keys-and-shared-ledgers).
 
 ### Screen reader
 
@@ -1639,7 +1639,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-
 
 Software that speaks a page, or sends it to a braille display, working from the accessibility tree. NVDA, JAWS, VoiceOver, TalkBack and Orca are examples.
 
-See [Screen readers and the keyboard](/concepts/accessibility#screen-readers-and-the-keyboard).
+See [Screen readers and the keyboard](/concepts/mobile-and-accessibility#screen-readers-and-the-keyboard).
 
 ### Selector
 
@@ -1679,7 +1679,7 @@ See [Stealth Scraping](/stealth/overview).
 
 Version numbers of the form MAJOR.MINOR.PATCH, where a major change may break users. While the major number is 0, a minor change may break them too.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#git-in-five-ideas).
+See [Containers and deployment](/concepts/containers-and-deployment#git-in-five-ideas).
 
 ### Server-Sent Events
 
@@ -1695,7 +1695,7 @@ See [Modern web technologies](/concepts/modern-web#websockets-and-server-sent-ev
 
 Code that a platform starts when a request arrives and may stop afterwards. The first call after a quiet period is slow (a cold start), and nothing kept in the function's memory is there for the next call, so state lives in a database or travels in a cookie or token.
 
-See [Serverless and edge functions](/concepts/backend-patterns#serverless-and-edge-functions).
+See [Serverless and edge functions](/concepts/frontends-backends-and-apis#serverless-and-edge-functions).
 
 ### Service worker
 
@@ -1751,7 +1751,7 @@ See [How a modern browser is built](/concepts/browser-architecture#site-isolatio
 
 An XML file that lists the URLs a site wants found. It is the best seed list for crawling your own site in a test.
 
-See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps).
+See [Crawlers and SEO](/concepts/crawlers-and-seo#robotstxt-and-sitemaps).
 
 ### Sitemap
 
@@ -1759,7 +1759,7 @@ See [Crawlers and spiders](/concepts/crawlers-and-spiders#robotstxt-and-sitemaps
 
 An XML file, usually `/sitemap.xml`, that lists the URLs a site wants search engines to find, often with their last change date. It helps discovery; it does not guarantee indexing.
 
-See [Robots, sitemaps and status codes](/concepts/seo#robots-sitemaps-and-status-codes).
+See [Robots, sitemaps and status codes](/concepts/crawlers-and-seo#robots-sitemaps-and-status-codes).
 
 ### Slow mode
 
@@ -1775,7 +1775,7 @@ See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
 A program stored on a blockchain that runs when a transaction calls it.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+See [Modern web technologies](/concepts/modern-web#web3-keys-and-shared-ledgers).
 
 ### SNI
 
@@ -1791,7 +1791,7 @@ See [TLS Server and MitmProxy](/stealth/mitm-proxy).
 
 The handle that the operating system gives a program for one end of a network connection.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#sockets).
+See [Network and proxies](/concepts/network#sockets).
 
 ### Soft assertion
 
@@ -1807,7 +1807,7 @@ See [Waits and Assertions](/tutorials/waits_assertions#soft-assertions).
 
 A file (such as `app.js.map`) that maps positions in minified output back to the original source, so developer tools can show real names. Production sites often leave it out, so a stack trace from a test can read `a.js:1:48213`.
 
-See [Source maps](/concepts/bundling-and-build-tools#source-maps).
+See [Source maps](/concepts/bundling-and-caching#source-maps).
 
 ### Spoof
 
@@ -1855,7 +1855,7 @@ See [StealthSession](/stealth/stealth-session).
 
 The browser API with `ReadableStream`, `WritableStream` and `TransformStream`, which handles data in pieces and supports [backpressure](#backpressure).
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#the-streams-api).
+See [Network and proxies](/concepts/network#the-streams-api).
 
 ### STUN and TURN
 
@@ -1863,7 +1863,7 @@ See [TCP, sockets and streams](/concepts/tcp-and-streams#the-streams-api).
 
 Helper servers for WebRTC. STUN tells a browser its public address; TURN relays the data when no direct path exists.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-channels).
+See [Modern web technologies](/concepts/modern-web#webrtc-and-data-channels).
 
 ### Structured data
 
@@ -1871,7 +1871,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-chann
 
 Facts about a page written in a form that machines read, usually as [JSON-LD](#json-ld) with the schema.org vocabulary, so that a search engine can show rich results for it.
 
-See [Structured data](/concepts/seo#structured-data-json-ld).
+See [Structured data](/concepts/crawlers-and-seo#structured-data-json-ld).
 
 ### Structured logging
 
@@ -1921,7 +1921,7 @@ See [Tauri Plugin](/ecosystem/tauri).
 
 The Transmission Control Protocol, which gives two programs a reliable, ordered stream of bytes, opened by a three-way handshake. It has no message boundaries.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
+See [Network and proxies](/concepts/network#tcp-a-reliable-pipe).
 
 ### Telemetry
 
@@ -1945,7 +1945,7 @@ See [Test Plugins](/tutorials/test_plugins).
 
 A separate blockchain with worthless coins for trying things out. Tests should use one, with throwaway keys.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+See [Modern web technologies](/concepts/modern-web#web3-keys-and-shared-ledgers).
 
 ### Third-party cookie
 
@@ -1969,7 +1969,7 @@ See [How it compares](/comparison).
 
 The SYN, SYN-ACK and ACK messages that open a TCP connection, one round trip before any data.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#tcp-a-reliable-pipe).
+See [Network and proxies](/concepts/network#tcp-a-reliable-pipe).
 
 ### TLS
 
@@ -2025,7 +2025,7 @@ See [The library's own logs](/concepts/telemetry-and-observability#the-librarys-
 
 A build step that drops exports which nothing imports, so unused parts of a library do not ship. It relies on ES modules, whose imports can be read without running the code.
 
-See [What happens to your code](/concepts/bundling-and-build-tools#what-happens-to-your-code).
+See [What happens to your code](/concepts/bundling-and-caching#what-happens-to-your-code).
 
 ### Trusted input
 
@@ -2051,7 +2051,7 @@ See [Undetected (UC) Mode Guide](/tutorials/uc_mode).
 
 The User Datagram Protocol: independent datagrams with no handshake, order or resend. It carries DNS, calls, games and, under [QUIC](#quic), the web.
 
-See [TCP, sockets and streams](/concepts/tcp-and-streams#udp-and-quic).
+See [Network and proxies](/concepts/network#udp-and-quic).
 
 ### User agent
 
@@ -2077,7 +2077,7 @@ See [Profiles, and what is in one](/concepts/sessions-and-state#profiles-and-wha
 
 Software that holds a person's keys and signs transactions. In a browser it is usually an extension that adds `window.ethereum` to pages.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#how-a-page-talks-to-a-wallet).
+See [Modern web technologies](/concepts/modern-web#how-a-page-talks-to-a-wallet).
 
 ### wasm plugin
 
@@ -2093,7 +2093,7 @@ See [wasm Plugin Host](/plugins/wasm).
 
 Labels for the web of documents (static pages) and the web of applications and platforms (JavaScript, accounts, content written by users).
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#three-eras).
+See [Modern web technologies](/concepts/modern-web#three-eras).
 
 ### Web3
 
@@ -2101,7 +2101,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#three-eras).
 
 A label for applications that use public blockchains and wallets, where a person proves who they are with a key instead of an account.
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-ledgers).
+See [Modern web technologies](/concepts/modern-web#web3-keys-and-shared-ledgers).
 
 ### WCAG
 
@@ -2109,7 +2109,7 @@ See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#web3-keys-and-shared-
 
 The Web Content Accessibility Guidelines, the standard behind most accessibility law. Requirements have levels A, AA and AAA and fall under four principles: perceivable, operable, understandable and robust. AA is the usual target.
 
-See [WCAG in one table](/concepts/accessibility#wcag-in-one-table).
+See [WCAG in one table](/concepts/mobile-and-accessibility#wcag-in-one-table).
 
 ### Web API
 
@@ -2117,7 +2117,7 @@ See [WCAG in one table](/concepts/accessibility#wcag-in-one-table).
 
 A feature the browser offers to the JavaScript of a page, such as the DOM, Fetch, Storage, Geolocation or Clipboard. Standards define them and MDN documents them; they are not part of the JavaScript language. A test uses them by running JavaScript in the page.
 
-See [The APIs you meet most](/concepts/web-apis#the-apis-you-meet-most).
+See [The APIs you meet most](/concepts/javascript-and-events#the-apis-you-meet-most).
 
 ### WebAssembly
 
@@ -2165,7 +2165,7 @@ See [Modern web technologies](/concepts/modern-web#webgl-and-webgpu).
 
 The `RTCDataChannel` of WebRTC, which sends any data directly between two browsers once they are connected through signaling, STUN and TURN. See also [WebRTC leak](#webrtc-leak).
 
-See [Web eras and peer-to-peer](/concepts/web-eras-and-p2p#webrtc-and-data-channels).
+See [Modern web technologies](/concepts/modern-web#webrtc-and-data-channels).
 
 ### WebRTC leak
 
@@ -2213,7 +2213,7 @@ See [Stealth Scraping](/stealth/overview).
 
 In GitHub Actions, a YAML file that names the events, jobs and steps of a CI run.
 
-See [Version control and deployment](/concepts/version-control-and-deployment#github-actions-as-the-example).
+See [Containers and deployment](/concepts/containers-and-deployment#github-actions-as-the-example).
 
 ## X
 

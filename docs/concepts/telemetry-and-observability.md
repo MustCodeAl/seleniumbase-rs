@@ -277,7 +277,7 @@ server's debug bundle leaves out typed text and scripts for the same reason.
   Where a consent choice and a visitor id are kept.
 </Card>
 
-<Card title="Common backend patterns" icon="server" color="#a631be" href="/concepts/backend-patterns">
+<Card title="Frontends, backends and APIs" icon="server" color="#a631be" href="/concepts/frontends-backends-and-apis">
   The server side that these logs and traces describe.
 </Card>
 
