@@ -407,6 +407,11 @@
                       "concepts/compression-and-caching",
                       "concepts/mobile-web",
                       "concepts/seo",
+                      "concepts/bundling-and-build-tools",
+                      "concepts/backend-patterns",
+                      "concepts/ai-and-machine-learning",
+                      "concepts/telemetry-and-observability",
+                      "concepts/media-and-video",
                       "glossary"
                     ]
                   }
