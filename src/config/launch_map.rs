@@ -73,8 +73,8 @@ impl Settings {
         if self.headless1 {
             config = config.with_headless1(true);
         }
-        if let Some(text) = &self.chromium_arg {
-            config = config.with_chromium_arg(text);
+        if let Some(list) = &self.chromium_arg {
+            config = with_chromium_items(config, list.items());
         }
         if let Some(text) = &self.disable_features {
             config = config.with_disable_features(list(text));
@@ -173,6 +173,28 @@ impl Settings {
         if self.skip_js_waits {
             run = run.with_skip_js_waits(true);
         }
+        if let Some(loops) = self.highlights {
+            run = run.with_highlights(loops);
+        }
+        if let Some(seconds) = self.interval {
+            run = run.with_interval(duration("interval", seconds)?);
+        }
+        if let Some(seconds) = self.verify_delay {
+            run = run.with_verify_delay(duration("verify_delay", seconds)?);
+        }
+        if self.check_js {
+            run = run.with_check_js(true);
+        }
+        if self.wait_for_angularjs {
+            run = run.with_wait_for_angularjs(true);
+        }
+        if self.disable_beforeunload {
+            run = run.with_disable_beforeunload(true);
+        }
+        if let Some(multiplier) = self.timeout_multiplier {
+            run = run.with_timeout_multiplier(multiplier);
+        }
+
         if self.test.rec_sleep {
             run = run.with_record_sleep(true);
         }
@@ -313,6 +335,29 @@ impl Settings {
     }
 }
 
+/// Adds the items of a `chromium_arg` list to `config`, each item one switch, written as
+/// [`BrowserConfig::with_chromium_arg`] reads one item (a `disable-features=` item joins the
+/// features to disable). Unlike that method it does not split an item at commas, which is
+/// what the array form of the settings file is for.
+fn with_chromium_items(mut config: BrowserConfig, items: &[String]) -> BrowserConfig {
+    let mut features = Vec::new();
+    for item in items.iter().map(|item| item.trim()) {
+        if item.len() < 3 {
+            continue;
+        }
+        let switch = item.trim_start_matches('-');
+        if let Some(feature) = switch.strip_prefix("disable-features=") {
+            let feature = feature.trim();
+            if !feature.is_empty() {
+                features.push(feature.to_owned());
+            }
+        } else if !switch.is_empty() {
+            config.extra_args.push(format!("--{switch}"));
+        }
+    }
+    config.with_disable_features(features)
+}
+
 /// The items of a comma-separated list, trimmed, without the empty ones.
 fn list(text: &str) -> impl Iterator<Item = &str> {
     text.split(',')
@@ -443,7 +488,7 @@ mod tests {
     #[test]
     fn chromium_text_options_reach_the_arguments() {
         let settings = Settings {
-            chromium_arg: Some("--mute-audio, lang=fr, disable-features=Foo".to_owned()),
+            chromium_arg: Some("--mute-audio, lang=fr, disable-features=Foo".into()),
             disable_features: Some("Bar, Baz,".to_owned()),
             host_resolver_rules: Some("MAP example.test 127.0.0.1".to_owned()),
             ..Settings::default()
@@ -615,6 +660,65 @@ mod tests {
     }
 
     #[test]
+    fn the_run_settings_of_the_fixture_come_from_the_settings() {
+        let settings = Settings {
+            highlights: Some(3),
+            interval: Some(1.5),
+            verify_delay: Some(0.0),
+            check_js: true,
+            wait_for_angularjs: true,
+            disable_beforeunload: true,
+            timeout_multiplier: Some(2.0),
+            timeout_seconds: Some(10),
+            ..Settings::default()
+        };
+        let expected = RunSettings::default()
+            .with_default_timeout(Duration::from_secs(10))
+            .with_highlights(3)
+            .with_interval(Duration::from_millis(1500))
+            .with_verify_delay(Duration::ZERO)
+            .with_check_js(true)
+            .with_wait_for_angularjs(true)
+            .with_disable_beforeunload(true)
+            .with_timeout_multiplier(2.0);
+        let config = settings.to_browser_config();
+        assert_eq!(config.run_settings(), &expected);
+        assert_eq!(config.run_settings().scale_timeout(10), 20);
+    }
+
+    #[test]
+    fn a_multiplier_below_the_minimum_is_raised_and_a_negative_pause_is_refused() {
+        let slow = Settings {
+            timeout_multiplier: Some(0.1),
+            ..Settings::default()
+        };
+        let config = slow.to_browser_config();
+        assert_eq!(config.run_settings().timeout_multiplier(), Some(0.5));
+        let wrong = Settings {
+            interval: Some(-1.0),
+            ..Settings::default()
+        };
+        assert!(wrong.validate().is_err());
+    }
+
+    #[test]
+    fn an_array_item_of_chromium_arg_keeps_its_commas() {
+        let rules = "--host-resolver-rules=MAP a 1.2.3.4,EXCLUDE b";
+        let settings = Settings {
+            chromium_arg: Some(vec![rules.to_owned(), "disable-features=Foo".to_owned()].into()),
+            ..Settings::default()
+        };
+        let args = args_of(&settings);
+        assert!(args.iter().any(|arg| arg == rules), "{args:?}");
+        assert!(
+            args.iter()
+                .any(|arg| arg == "--disable-features=Translate,Foo"),
+            "{args:?}"
+        );
+    }
+
+    #[test]
+
     fn test_data_reaches_the_launch_settings() {
         let mut settings = Settings::default();
         settings.test.data.env = Some("qa".to_owned());
@@ -633,7 +737,7 @@ mod tests {
             disable_ws: true,
             host_resolver_rules: Some("MAP a.test 127.0.0.1".to_owned()),
             disable_features: Some("Foo".to_owned()),
-            chromium_arg: Some("--mute-audio".to_owned()),
+            chromium_arg: Some("--mute-audio".into()),
             start_page: Some("https://example.test/".to_owned()),
             proxy: Some("proxy.test:8080".to_owned()),
             user_agent: Some("tests/1.0".to_owned()),

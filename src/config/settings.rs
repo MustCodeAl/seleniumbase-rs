@@ -186,7 +186,7 @@ pub struct Settings {
     /// Maximize the window (`SB_MAXIMIZE`, `--maximize`).
     pub maximize: bool,
     /// Extra Chromium switches, separated by commas (`SB_CHROMIUM_ARG`).
-    pub chromium_arg: Option<String>,
+    pub chromium_arg: Option<crate::config::browser_options::ArgList>,
     /// Chromium features to switch off, separated by commas (`SB_DISABLE_FEATURES`).
     pub disable_features: Option<String>,
     /// Chromium host-resolver rules (`SB_HOST_RESOLVER_RULES`).
@@ -336,6 +336,12 @@ pub struct SettingsOverrides {
     pub esc_end: Option<bool>,
     /// Write recordings as pure CDP code (`SB_REC_SB_CDP`).
     pub rec_sb_cdp: Option<bool>,
+    /// The other options of the option table, each as its `SB_*` variable and the text of its
+    /// value (`--dark` is `("SB_DARK_MODE", "true")`). [`try_apply`](Self::try_apply) reads
+    /// them as the environment is read, and [`env`](Self::env) hands them on unchanged; a
+    /// later pair for one variable wins.
+    pub options: Vec<(&'static str, String)>,
+
     /// The page every browser opens first (`SB_START_PAGE`).
     pub start_page: Option<String>,
 }
@@ -399,6 +405,39 @@ impl SettingsOverrides {
         }
     }
 
+    /// [`apply`](Self::apply), then the `options` as the environment is read, then the checks
+    /// of [`Settings::validate`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for a value that does not parse (naming
+    /// its variable) and for a result that is not valid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
+    ///
+    /// let overrides = SettingsOverrides {
+    ///     options: vec![("SB_DARK_MODE", "true".to_owned())],
+    ///     ..SettingsOverrides::default()
+    /// };
+    /// let mut settings = Settings::default();
+    /// overrides.try_apply(&mut settings)?;
+    /// assert!(settings.dark_mode);
+    ///
+    /// let wrong = SettingsOverrides {
+    ///     options: vec![("SB_DEVICE_METRICS", "1,2".to_owned())],
+    ///     ..SettingsOverrides::default()
+    /// };
+    /// assert!(wrong.try_apply(&mut Settings::default()).is_err());
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    pub fn try_apply(&self, settings: &mut Settings) -> Result<(), SeleniumBaseError> {
+        self.apply(settings);
+        settings.apply_options(&self.options)
+    }
+
     /// The `SB_*` environment variables that carry these options to a child
     /// process, one for each option that is set.
     ///
@@ -410,30 +449,34 @@ impl SettingsOverrides {
     pub fn env(&self) -> Vec<(&'static str, String)> {
         let text = |name, value: &Option<String>| value.clone().map(|value| (name, value));
         let flag = |name, value: Option<bool>| value.map(|value| (name, value.to_string()));
-        [
-            text("SB_BROWSER", &self.browser),
-            flag("SB_HEADLESS", self.headless),
-            text("SB_MODE", &self.mode),
-            text("SB_USER_AGENT", &self.user_agent),
-            text("SB_LOCALE", &self.locale),
-            flag("SB_AD_BLOCK", self.ad_block),
-            text("SB_PROXY", &self.proxy),
-            text("SB_PROXY_PAC_URL", &self.proxy_pac_url),
-            text(FINGERPRINT_ENV, &self.fingerprint),
-            text("SB_USER_DATA_DIR", &self.user_data_dir),
-            text("SB_EXTENSION_DIR", &self.extension_dir),
-            flag("SB_REUSE_SESSION", self.reuse_session),
-            flag("SB_REUSE_CLASS_SESSION", self.reuse_class_session),
-            flag("SB_MOBILE", self.mobile),
-            self.threads
-                .map(|threads| ("SB_THREADS", threads.to_string())),
-            flag("SB_ESC_END", self.esc_end),
-            flag("SB_REC_SB_CDP", self.rec_sb_cdp),
-            text(START_PAGE_ENV, &self.start_page),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
+        {
+            let mut pairs: Vec<(&'static str, String)> = [
+                text("SB_BROWSER", &self.browser),
+                flag("SB_HEADLESS", self.headless),
+                text("SB_MODE", &self.mode),
+                text("SB_USER_AGENT", &self.user_agent),
+                text("SB_LOCALE", &self.locale),
+                flag("SB_AD_BLOCK", self.ad_block),
+                text("SB_PROXY", &self.proxy),
+                text("SB_PROXY_PAC_URL", &self.proxy_pac_url),
+                text(FINGERPRINT_ENV, &self.fingerprint),
+                text("SB_USER_DATA_DIR", &self.user_data_dir),
+                text("SB_EXTENSION_DIR", &self.extension_dir),
+                flag("SB_REUSE_SESSION", self.reuse_session),
+                flag("SB_REUSE_CLASS_SESSION", self.reuse_class_session),
+                flag("SB_MOBILE", self.mobile),
+                self.threads
+                    .map(|threads| ("SB_THREADS", threads.to_string())),
+                flag("SB_ESC_END", self.esc_end),
+                flag("SB_REC_SB_CDP", self.rec_sb_cdp),
+                text(START_PAGE_ENV, &self.start_page),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            pairs.extend(self.options.iter().cloned());
+            pairs
+        }
     }
 }
 
@@ -606,15 +649,7 @@ impl Settings {
         let content = fs::read_to_string(path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
         })?;
-        let settings: Self = if path.extension().is_some_and(|ext| ext == "toml") {
-            toml::from_str(&content).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
-            })?
-        } else {
-            serde_json::from_str(&content).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
-            })?
-        };
+        let settings = crate::config::browser_options::parse_settings(path, &content)?;
         Ok(settings)
     }
 
@@ -1024,6 +1059,51 @@ impl Settings {
         Ok(settings)
     }
 
+    /// Writes options given as `SB_*` variables and the text of their values, the way
+    /// [`load`](Self::load) writes the environment: the pairs of the same variable are read
+    /// last one first, a blank value counts as unset, and a pair whose variable no option of
+    /// the table reads (the shorthands, `SB_PLUGINS`) is ignored. The result is checked with
+    /// [`validate`](Self::validate).
+    ///
+    /// This is how the flags of `sbrs` that have no field of their own in
+    /// [`SettingsOverrides`] reach the settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] for a value that does not parse (naming
+    /// its variable) and for a result that is not valid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::Settings;
+    ///
+    /// let mut settings = Settings::default();
+    /// settings.apply_options(&[
+    ///     ("SB_DEVICE_METRICS", "360,640,2".to_owned()),
+    ///     ("SB_BLOCK_IMAGES", "true".to_owned()),
+    /// ])?;
+    /// assert!(settings.block_images);
+    /// assert_eq!(settings.device_metrics.as_deref(), Some("360,640,2"));
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    pub fn apply_options(&mut self, options: &[(&str, String)]) -> Result<(), SeleniumBaseError> {
+        let var = |name: &str| {
+            options
+                .iter()
+                .rev()
+                .find(|(variable, _)| *variable == name)
+                .map(|(_, value)| value.clone())
+                .filter(|value| !value.trim().is_empty())
+        };
+        let mut problems = Vec::new();
+        crate::config::test_options::apply_env(self, &var, &mut problems);
+        if let Some(problem) = problems.into_iter().next() {
+            return Err(problem.error);
+        }
+        self.validate()
+    }
+
     /// [`apply_overrides`](Self::apply_overrides) up to the checks: a variable that does
     /// not parse is left out and comes back in the list, in the order the variables are
     /// read, instead of ending the function. Nothing is validated.
@@ -1316,6 +1396,7 @@ threads = 4
             esc_end: Some(true),
             rec_sb_cdp: Some(true),
             start_page: Some("https://example.test/".to_owned()),
+            options: Vec::new(),
         }
     }
 

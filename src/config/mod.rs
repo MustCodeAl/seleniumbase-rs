@@ -1,4 +1,6 @@
 pub mod ad_block_list;
+pub mod browser_options;
+
 mod launch_map;
 pub mod plugins;
 pub mod proxy_list;
