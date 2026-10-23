@@ -37,13 +37,14 @@ pub enum Output {
         /// The same result as a JSON object.
         data: Value,
     },
-
 }
 
 impl Output {
     pub(crate) fn render(&self) -> String {
         match self {
-            Self::Text(text) | Self::Structured { text, .. } | Self::Json(Value::String(text)) => text.clone(),
+            Self::Text(text) | Self::Structured { text, .. } | Self::Json(Value::String(text)) => {
+                text.clone()
+            }
             Self::Json(value) => {
                 serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
             }
@@ -58,7 +59,10 @@ impl Output {
     pub(crate) fn structured(&self) -> Option<&Value> {
         match self {
             Self::Json(value @ Value::Object(_))
-            | Self::Structured { data: value @ Value::Object(_), .. } => Some(value),
+            | Self::Structured {
+                data: value @ Value::Object(_),
+                ..
+            } => Some(value),
             Self::Json(_) | Self::Text(_) | Self::Structured { .. } => None,
         }
     }

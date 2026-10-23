@@ -157,7 +157,6 @@ pub struct Ctx<S> {
     journal: Arc<std::sync::Mutex<Journal>>,
     progress: Progress,
     refs: Arc<std::sync::Mutex<RefTable>>,
-
 }
 
 impl<S> Clone for Ctx<S> {
@@ -168,7 +167,6 @@ impl<S> Clone for Ctx<S> {
             journal: Arc::clone(&self.journal),
             progress: self.progress.clone(),
             refs: Arc::clone(&self.refs),
-
         }
     }
 }
@@ -191,7 +189,6 @@ impl<S: Send + 'static> Ctx<S> {
             journal: Arc::default(),
             progress: Progress::default(),
             refs: Arc::default(),
-
         }
     }
 
@@ -217,7 +214,6 @@ impl<S: Send + 'static> Ctx<S> {
     pub(crate) fn refs(&self) -> std::sync::MutexGuard<'_, RefTable> {
         self.refs.lock().unwrap_or_else(PoisonError::into_inner)
     }
-
 
     /// Where this call reports its progress.
     ///
@@ -275,14 +271,12 @@ impl<S: Send + 'static> Ctx<S> {
         }
         *slot = Some(create.await?);
         self.refs().clear();
-
         Ok(Started::Created)
     }
 
     /// Removes the session from the slot, leaving the server without one.
     pub async fn take(&self) -> Option<S> {
         self.refs().clear();
-
         self.slot.lock().await.take()
     }
 }
@@ -378,11 +372,13 @@ impl<S: Send + 'static> Host<S> {
         if let Some(shared) = Arc::get_mut(&mut self.shared) {
             shared.refs_verify = Some(verify);
         } else {
-            tracing::warn!(server = self.shared.name, "a shared host keeps its ref check");
+            tracing::warn!(
+                server = self.shared.name,
+                "a shared host keeps its ref check"
+            );
         }
         self
     }
-
 
     /// Offers `resources` to clients: read-only data next to the tools.
     ///
@@ -620,7 +616,6 @@ impl<S: Send + 'static> Host<S> {
             .await
             .unwrap_or(arguments)
     }
-
 
     /// Whether the server offers a tool called `name`.
     #[must_use]

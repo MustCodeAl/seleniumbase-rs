@@ -52,7 +52,6 @@ impl RefTable {
 
     /// The number of the last snapshot; 0 before the first.
     #[cfg(test)]
-
     pub(crate) fn snapshot(&self) -> u64 {
         self.snapshot
     }
@@ -84,7 +83,13 @@ impl RefTable {
     /// Adds one element to the table, after the ones it has, and returns its
     /// ref. Tools that list elements without a snapshot use it, so their refs
     /// work until the next `page_snapshot`.
-    pub(crate) fn push(&mut self, url: &str, selector: String, role: String, name: String) -> String {
+    pub(crate) fn push(
+        &mut self,
+        url: &str,
+        selector: String,
+        role: String,
+        name: String,
+    ) -> String {
         if self.snapshot == 0 {
             self.snapshot = 1;
             url.clone_into(&mut self.url);
@@ -98,7 +103,6 @@ impl RefTable {
         });
         id
     }
-
 
     /// The text of the last `page_snapshot`.
     pub(crate) fn snapshot_text(&self) -> Option<&str> {
@@ -246,7 +250,10 @@ mod tests {
         let mut table = RefTable::default();
         table.replace(
             "https://a.test/".to_owned(),
-            vec![entry("e1", "form", "Login"), entry("e2", "textbox", "Email")],
+            vec![
+                entry("e1", "form", "Login"),
+                entry("e2", "textbox", "Email"),
+            ],
             |n| format!("snapshot {n}"),
         );
         table
@@ -258,9 +265,11 @@ mod tests {
         assert_eq!(table.snapshot(), 1);
         assert_eq!(table.get("e2").unwrap().name, "Email");
 
-        let text = table.replace("https://b.test/".to_owned(), vec![entry("e1", "link", "Home")], |n| {
-            format!("snapshot {n}")
-        });
+        let text = table.replace(
+            "https://b.test/".to_owned(),
+            vec![entry("e1", "link", "Home")],
+            |n| format!("snapshot {n}"),
+        );
 
         assert_eq!(text, "snapshot 2");
         assert_eq!(table.snapshot_text(), Some("snapshot 2"));
@@ -352,7 +361,9 @@ mod tests {
         gone.url = "https://a.test/next".to_owned();
         let message = problem(&entry, &gone, "https://a.test/").unwrap();
         assert!(
-            message.contains("the page is now https://a.test/next, the snapshot was of https://a.test/"),
+            message.contains(
+                "the page is now https://a.test/next, the snapshot was of https://a.test/"
+            ),
             "{message}"
         );
     }

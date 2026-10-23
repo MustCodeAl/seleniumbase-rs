@@ -558,7 +558,11 @@ fn node_data(node: &Map<String, Value>) -> Value {
 fn snapshot_output<S: Send + 'static>(ctx: &Ctx<S>, page: &Value, outline: bool) -> Output {
     let mut nodes: Vec<Map<String, Value>> = page["nodes"]
         .as_array()
-        .map(|list| list.iter().filter_map(|node| node.as_object().cloned()).collect())
+        .map(|list| {
+            list.iter()
+                .filter_map(|node| node.as_object().cloned())
+                .collect()
+        })
         .unwrap_or_default();
     let mut entries = Vec::new();
     for node in &mut nodes {
@@ -708,7 +712,9 @@ fn tables_text(page: &Value) -> String {
     }
     let more = page["more_tables"].as_u64().unwrap_or(0);
     if more > 0 {
-        blocks.push(format!("... {more} more tables (raise limit or pass scope)"));
+        blocks.push(format!(
+            "... {more} more tables (raise limit or pass scope)"
+        ));
     }
     blocks.join("\n\n")
 }
@@ -972,10 +978,16 @@ mod tests {
         );
 
         let heading = object(&json!({ "role": "heading", "name": "Sign in", "level": 1 }));
-        assert_eq!(accessibility_line(&heading), r#"- heading "Sign in" [level=1]"#);
+        assert_eq!(
+            accessibility_line(&heading),
+            r#"- heading "Sign in" [level=1]"#
+        );
 
         let mixed = object(&json!({ "role": "checkbox", "name": "All", "checked": "mixed" }));
-        assert_eq!(accessibility_line(&mixed), r#"- checkbox "All" [checked=mixed]"#);
+        assert_eq!(
+            accessibility_line(&mixed),
+            r#"- checkbox "All" [checked=mixed]"#
+        );
     }
 
     #[test]
@@ -990,7 +1002,15 @@ mod tests {
         .map(object)
         .collect();
 
-        let text = render_snapshot("Sign in", "https://example.test/login", 4, false, &nodes, 132, None);
+        let text = render_snapshot(
+            "Sign in",
+            "https://example.test/login",
+            4,
+            false,
+            &nodes,
+            132,
+            None,
+        );
 
         assert_eq!(
             text,
@@ -1013,7 +1033,8 @@ mod tests {
             outline_line(&node),
             r#"- button#buy.btn.primary [ref=e3] children=1 text=7 (button "Buy now")"#
         );
-        let plain = object(&json!({ "tag": "div", "children": 3, "text_len": 20, "role": "generic" }));
+        let plain =
+            object(&json!({ "tag": "div", "children": 3, "text_len": 20, "role": "generic" }));
         assert_eq!(outline_line(&plain), "- div children=3 text=20");
     }
 
@@ -1041,7 +1062,10 @@ mod tests {
         assign_refs(&mut table, "https://a.test/", &mut page, false);
 
         assert_eq!(page["links"][0]["ref"], "e2");
-        assert!(page["links"][0].get("selector").is_none(), "links drop the selector");
+        assert!(
+            page["links"][0].get("selector").is_none(),
+            "links drop the selector"
+        );
         assert!(page["links"][0].get("ref_role").is_none());
         assert!(page["links"][1].get("ref").is_none());
         assert_eq!(table.get("e2").unwrap().selector, "a.docs");

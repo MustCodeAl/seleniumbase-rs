@@ -110,7 +110,12 @@ pub(super) async fn page_op<S: DevSession>(
 }
 
 /// A whole-number argument between 1 and `max`, or `default`.
-pub(super) fn bounded(args: &Args, name: &str, default: usize, max: usize) -> Result<usize, ToolError> {
+pub(super) fn bounded(
+    args: &Args,
+    name: &str,
+    default: usize,
+    max: usize,
+) -> Result<usize, ToolError> {
     match args.opt_usize(name)? {
         None => Ok(default),
         Some(n) if (1..=max).contains(&n) => Ok(n),

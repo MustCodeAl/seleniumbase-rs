@@ -160,6 +160,10 @@ fn text<'a>(arguments: &'a Map<String, Value>, name: &str, fallback: &'a str) ->
 ///
 /// They name only tools all three have.
 #[must_use]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the prompt table reads best as one list"
+)]
 pub(crate) fn browser() -> Vec<PromptDef> {
     vec![
         PromptDef::new(

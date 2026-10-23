@@ -307,7 +307,6 @@ pub(crate) fn standard<S: DevSession>() -> Vec<ResourceDef<S>> {
             "text/plain",
             |ctx: Ctx<S>| async move { page_text(&ctx, PAGE_TEXT_URI) },
         ),
-
         ResourceDef::template(
             OUTPUT_TEMPLATE,
             "output",
@@ -346,7 +345,6 @@ fn page_text<S: Send + 'static>(ctx: &Ctx<S>, uri: &str) -> Result<ResourceBody,
             ))
         })
 }
-
 
 /// `sbrs://session`.
 async fn session<S: DevSession>(ctx: &Ctx<S>) -> Value {

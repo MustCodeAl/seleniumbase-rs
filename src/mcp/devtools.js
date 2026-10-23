@@ -1284,6 +1284,7 @@
   function fieldType(el) {
     if (el.localName === "input") return inputType(el);
     if (el.localName === "select") return el.multiple ? "select-multiple" : "select";
+    if (el.localName === "button") return el.type || "submit";
     return el.localName;
   }
 
