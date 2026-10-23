@@ -214,12 +214,12 @@ step 2.
 5. **Integration (done).**
    - `LaunchOptionsBuilder::fingerprint(&Fingerprint)` and
      `Page::apply_fingerprint` make tabs match a fingerprint through the
-     existing `evasions::{bootstrap_script, cdp_overrides}`. The proxy-password
+     existing `evasions::{bootstrap_script, safe_cdp_overrides}`. The proxy-password
      header is never sent, permissions go to the tab's own context, and the
      fingerprint's `cmd_params` are not passed to Chrome (flags can run
      commands). Verified on real Chrome 155: a page reads the fingerprint's user
      agent, platform, language, time zone, cores, screen and WebGL renderer.
-   - Found on the way: `evasions::cdp_overrides` granted `clipboardRead` and
+   - Found on the way: the CDP overrides granted `clipboardRead` and
      `clipboardWrite`, which Chrome rejects (the name is `clipboardReadWrite`),
      and the WebDriver path swallowed the error, so those permissions were never
      granted. Fixed and tested against Chrome.
@@ -345,9 +345,8 @@ The first-wave agents' finished work is all merged and gated: artifacts, shadow
 DOM and the report; the CLI scaffolding; the `sbrs test`, `grid-hub` and
 `grid-node` commands with the config and resources work; the graceful shutdown
 handler (SIGTERM and SIGINT close browsers); and the one retry/polling API in
-`utilities::retry`. That last one replaced `common::{decorators,exceptions}`;
-those two public modules are kept as `#[deprecated]` shims, so nothing breaks.
-Merging the shutdown
+`utilities::retry`. That last one replaced `common::{decorators,exceptions}`,
+which are deleted (0.6.0 removed every deprecated item). Merging the shutdown
 handler also exposed a stack overflow in `sbrs` (its large `run` future was
 copied on the 8 MiB main stack in debug builds); the future is now boxed.
 

@@ -166,6 +166,35 @@ work, `docs/parity.md` the per-API status).
   `export_session_as_test` and `diagnose_environment`. It is 34 tools now.
   `get_failed_requests` and `audit_page` stay with `cdp` and `sb`.
 - `Profile::ALL` has a fourth profile, and `sbrs-mcp --server` accepts `dev`.
+- `find_api` no longer returns a `deprecated` field: no method can carry one now.
+
+### Removed
+
+Every deprecated item is gone, with no shim, and nothing in `src/` is marked
+`#[deprecated]` (`tests/no_deprecated.rs` keeps it so). Each one had a replacement since
+0.5.0, or 0.1.0 for the `common` modules.
+
+- `common::decorators` (`retry_on_exception`, `retry_on_exception_async`, `rate_limited`)
+  and `common::exceptions` (`Exception`): use `utilities::retry::{RetryPolicy, RateLimiter}`
+  and `SeleniumBaseError`.
+- `StealthFlags`: use `StealthPolicy`. `StealthPolicy::{mask_all, all_custom}`: use
+  `StealthPolicy::max`. `evasions::cdp_overrides`: use `safe_cdp_overrides`, which leaves out
+  the `Proxy-Authorization` header.
+- `profile_payloads::{Flags, Fingerprint, ProxyConfig}`: use `ProfileFlags`,
+  `ProfileFingerprint` and `ProfileProxy`.
+- `PlaywrightSession::{launch_headless, launch_with_fingerprint,
+  launch_headless_with_fingerprint}`: use `launch_with_config` with a `BrowserConfig`.
+- `run_browser_test_boxed`, `Plugins::run_browser_test_boxed` and `BrowserTestFuture`: pass
+  an async closure, `async |sb| { .. }`, to `run_browser_test`.
+- `RunSettings::{with_fast_mode, pause, message_seconds}` and `DEFAULT_MESSAGE_SECONDS`:
+  `--fast` has no effect here, so there is no replacement; use `pause_for(PauseKind)`,
+  `message_duration()` and `DEFAULT_MESSAGE_DURATION`.
+- `BaseCase::{cdp_type_text, cdp_click_element, save_saved_cookies, load_saved_cookies,
+  qa_report_markdown}`: use `cdp_insert_text`, `cdp_click`, `save_cookies`, `load_cookies`
+  and `MasterQaSession::to_markdown`.
+- `sb_cdp::Locator::click_at`: use `click_with_offset(x, y, false)`.
+- `Settings::from_toml`: use `Settings::from_file`.
+- The `assert_visible!` macro: use `sb_assert_visible!`.
 
 ### Fixed
 

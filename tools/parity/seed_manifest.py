@@ -168,7 +168,7 @@ CDP_COMPOSED.update({
     "get_endpoint_url": "Browser::http_url", "get_websocket_url": "Browser::websocket_url",
     "grant_all_permissions": "Browser::grant_all_permissions",
     "set_download_path": "Browser::set_download_dir",
-    "click_with_offset": "Locator::click_at",
+    "click_with_offset": "Locator::click_with_offset",
     "get_gui_element_rect": "Locator::screen_rect",
     "get_gui_element_center": "Locator::screen_rect",
     "get_all_urls": "Locator::urls",

@@ -72,7 +72,7 @@ public API of this crate: keep items it imports public (`stealth::randomize`,
 | `config/` | Settings, runtime config, `proxy_list`, `ad_block_list`. |
 | `utilities/` | `retry.rs` (`RetryPolicy`, `RateLimiter`), `grid_server.rs` (`GridProcess::start/state/stop/ended`), `selenium_grid`, `selenium_ide`, `python_importer`. |
 | `utils/` | `selectors`, `shadow`, `urls`, `geometry`, `extensions/` (bundled browser extensions), `translate/` (language dictionaries). |
-| `common/` | `shutdown` (graceful shutdown registry), `encryption`, `obfuscate`/`unobfuscate`, `exceptions`, `decorators`. |
+| `common/` | `shutdown` (graceful shutdown registry), `encryption`, `obfuscate`/`unobfuscate`. |
 | `storage/` | `turso` feature: `ResultStore`, `ProfileVault`. |
 | `visual.rs` | `visual` feature: `VisualBaseline` (screenshot baselines compared by SSIM, `check`, `check_page`), behind `BaseCase::assert_visual_match`. Not `check_window`, which compares the HTML layout. |
 | rest | `error.rs` (`SeleniumBaseError`), `macros.rs`, `artifacts.rs`, `core/report_helper.rs`, `js_code`, `resources/`, `tracing_util.rs` (the crate logs with `tracing`). |

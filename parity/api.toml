@@ -2098,7 +2098,7 @@ note = "`page.locator(selector).visible()` narrows the Locator to the displayed 
 [cdp."click_with_offset"]
 status = "implemented"
 rust = "Locator::click_with_offset"
-note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python. `click_at(Point)` is the same call with `center` false and is deprecated."
+note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
 divergence = "Always scrolls the element into view (Python's `scroll=True`, its default)."
 
 [cdp."close_active_tab"]
@@ -4824,15 +4824,15 @@ note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disab
 
 [options_pytest."--fast"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_pytest."--fast-mode"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_pytest."--fast_mode"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
+reason = "Python 4.55.2 reads --fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_pytest."--fdebug"]
 status = "not-applicable"
@@ -5805,7 +5805,7 @@ note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disab
 
 [options_sb."fast"]
 status = "not-applicable"
-reason = "Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip. RunSettings::with_fast_mode is kept, deprecated, and does nothing."
+reason = "Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wait after a click and the wait after opening a page; demo mode never checks it. This crate's CDP engine makes neither wait, so there is nothing to skip, so RunSettings has no setting for it."
 
 [options_sb."firefox_arg"]
 status = "implemented"
