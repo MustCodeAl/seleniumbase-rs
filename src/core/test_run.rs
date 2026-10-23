@@ -833,7 +833,7 @@ impl TestRun {
         let options = |path: &Path| PageOptions {
             title: snapshot.title.clone(),
             live: false,
-            pie: false,
+            pie: self.settings.dashboard,
             page_dir: path
                 .parent()
                 .map_or_else(|| self.root.clone(), Path::to_path_buf),
@@ -865,7 +865,10 @@ impl TestRun {
                 &mut dashboard,
             );
         }
-        if let Some(file) = &settings.html {
+        // When the report is the dashboard's file, the dashboard stays: it becomes the final page.
+        if let Some(file) = settings.html.as_ref().filter(|file| {
+            !settings.dashboard || self.root.join(file) != self.root.join(DASHBOARD_FILE)
+        }) {
             let path = self.root.join(file);
             let page = options(&path);
             put(
