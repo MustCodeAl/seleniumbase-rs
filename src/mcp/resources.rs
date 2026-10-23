@@ -377,15 +377,15 @@ fn percent_decode(path: &str) -> Result<String, ResourceError> {
             if !hex.iter().all(u8::is_ascii_hexdigit) {
                 return Err(invalid());
             }
-            let hex = std::str::from_utf8(hex).map_err(|_| invalid())?;
-            decoded.push(u8::from_str_radix(hex, 16).map_err(|_| invalid())?);
+            let hex = std::str::from_utf8(hex).ok().ok_or_else(invalid)?;
+            decoded.push(u8::from_str_radix(hex, 16).ok().ok_or_else(invalid)?);
             at += 3;
         } else {
             decoded.push(bytes[at]);
             at += 1;
         }
     }
-    String::from_utf8(decoded).map_err(|_| invalid())
+    String::from_utf8(decoded).ok().ok_or_else(invalid)
 }
 
 /// Reads the file `path` (percent-encoded) under the output directory of
@@ -408,7 +408,8 @@ async fn read_output(
         || ResourceError::NotFound(format!("no file {decoded:?} in the output directory"));
     let root = tokio::fs::canonicalize(settings.output_dir())
         .await
-        .map_err(|_| not_found())?;
+        .ok()
+        .ok_or_else(not_found)?;
     let real = tokio::fs::canonicalize(&wanted)
         .await
         .map_err(|error| match error.kind() {

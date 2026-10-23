@@ -515,7 +515,7 @@ impl<S> ToolDef<S> {
     pub(crate) fn describe(&self) -> Tool {
         let mut tool = Tool::new(self.name, self.description, Arc::clone(&self.schema))
             .with_annotations(self.effect.annotations(self.title));
-        tool.output_schema = self.output_schema.clone();
+        tool.output_schema.clone_from(&self.output_schema);
         tool
     }
 

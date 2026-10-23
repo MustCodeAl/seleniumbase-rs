@@ -266,6 +266,10 @@ mod tests {
 
     use super::*;
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "callers pass `json!` temporaries"
+    )]
     fn arguments(value: Value) -> Map<String, Value> {
         value.as_object().cloned().expect("an object")
     }

@@ -688,7 +688,7 @@ impl<S: Send + 'static> Host<S> {
         let untrusted = self.find_tool(tool).is_some_and(ToolDef::is_untrusted);
         let mut text = output.render();
         if untrusted {
-            text.insert_str(0, "\n");
+            text.insert(0, '\n');
             text.insert_str(0, UNTRUSTED_NOTICE);
         }
         let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
