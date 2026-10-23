@@ -35,40 +35,26 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.6.0 s
 
 ### Breaking
 
-- **`Browser` and `DriverVersion` have new variants.** `Browser::Remote` (`--browser=remote`) and
-  `DriverVersion::{Keep, Previous}`: a `match` on either needs the new arms.
-  `BrowserConfig::with_grid` returns a `Result`, because an empty server name is an error.
-- **Chrome is no longer given a proxy login.** `--proxy=user:pass@host:port` used to put
-  `user:pass@host:port` in `--proxy-server`, where Chrome reads no login and the process list
-  shows it; Chrome now gets `--proxy-server=host:port`. A WebDriver session still does not answer
-  the proxy's login (the pure CDP engine does).
+- **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
+  floating-point number; `PartialEq` stays.
 
 ### Added
 
-- **Proxies are checked the way Python checks them.** `browser::options::ProxyAddress`
-  (`[scheme://][user:pass@]host:port`, schemes `http`, `https`, `socks4`, `socks5`, `socks5h`),
-  `ProxyScheme` and `PacUrl` (`[user:pass@]URL`, which must end in `.pac`) refuse a bad string
-  with the password hidden (`user:***@`), and so do their `Debug` and `Display`. Firefox gets
-  `network.proxy.*` preferences from a proxy, a PAC file and the bypass list; a login on a Firefox
-  proxy, or on a SOCKS proxy, is refused with Python's message. `BrowserConfig::validate()` runs
-  these checks (and the `--browser=remote` ones) before a browser starts; `BrowserSession::connect`
-  calls it.
-- **Selenium Grid addresses.** `browser::options::grid_url` and `GridProtocol` build the WebDriver
-  URL Python's `get_remote_driver` builds (`USER:KEY@hub.browserstack.com` stays in the URL, an
-  `https://` server forces https, `/wd/hub` is added, a port the protocol already uses is left
-  out), and `BrowserConfig::with_grid(protocol, servername, port)` sets it (`localhost` keeps the
-  local driver). `BrowserConfig::with_binary_location` is Python's `binary_location`.
-- **`Browser::Remote`** (`--browser=remote`) sends the WebDriver server nothing but the
-  capabilities of `--cap-file` and `--cap-string`; mobile mode, switches and window geometry do not
-  apply to it.
-- **`DriverVersion` keywords `keep`, `previous` (`latest-1`) and `mlatest`.** `keep` runs a
-  chromedriver or msedgedriver that is already in `downloaded_drivers/` or on the `PATH` and
-  downloads one only when there is none; `previous` is the newest driver of the major version
-  before the stable one; `mlatest` is the newest build of the browser's own major version, which
-  `browser` already was.
-- **The remote debugger gives way.** `with_remote_debug(true)` takes a free port, and logs it, when
-  9222 is in use; a port named with `with_remote_debug_port` that is in use is an error
-  (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
+- **The Python page and wait options are in `RunSettings`:** `with_highlights` (`--highlights`,
+  zero is unset, `DEFAULT_HIGHLIGHT_LOOPS` is 4), `with_interval` (`--interval`, zero is unset),
+  `with_verify_delay` (`--verify-delay`, `DEFAULT_VERIFY_DELAY` is 500 ms), `with_check_js`
+  (`--check-js`), `with_wait_for_angularjs` (`--wfa`), `with_disable_beforeunload`
+  (`--disable-beforeunload`) and `with_timeout_multiplier` (`--timeout-multiplier`), each with a
+  getter. The highlight count, the interval and the verify delay are held for the highlight
+  calls, the tours and presentations, and MasterQA, which do not read them yet.
+- **`open`, `go_back`, `go_forward`, `refresh` and `wait_for_ready_state_complete` run the page-load
+  hooks the settings ask for:** the AngularJS wait, the check of the browser log for severe
+  JavaScript errors and the switch-off of the `beforeunload` dialog (the last two on Chromium
+  browsers only). `--skip-js-waits` skips all three. A click waits for AngularJS too under `--wfa`.
+- **`--timeout-multiplier` scales the default wait:** `ceil(multiplier * seconds)` for every wait
+  that names no time of its own, `set_timeout` included; a time a call names is kept, as in
+  Python. A multiplier below 0.5 is raised to 0.5 and one that is not a finite number is ignored.
+  `RunSettings::scale_timeout` gives the scaled time.
 
 </Update>
 

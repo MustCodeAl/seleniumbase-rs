@@ -101,6 +101,30 @@ work, `docs/parity.md` the per-API status).
   (`port N is already in use`). `BrowserSession::remote_debug_address()` says where it listens.
 
 
+### Breaking
+
+- **`RunSettings` no longer implements `Eq`.** It now holds the timeout multiplier, a
+  floating-point number; `PartialEq` stays.
+
+### Added
+
+- **The Python page and wait options are in `RunSettings`:** `with_highlights` (`--highlights`,
+  zero is unset, `DEFAULT_HIGHLIGHT_LOOPS` is 4), `with_interval` (`--interval`, zero is unset),
+  `with_verify_delay` (`--verify-delay`, `DEFAULT_VERIFY_DELAY` is 500 ms), `with_check_js`
+  (`--check-js`), `with_wait_for_angularjs` (`--wfa`), `with_disable_beforeunload`
+  (`--disable-beforeunload`) and `with_timeout_multiplier` (`--timeout-multiplier`), each with a
+  getter. The highlight count, the interval and the verify delay are held for the highlight
+  calls, the tours and presentations, and MasterQA, which do not read them yet.
+- **`open`, `go_back`, `go_forward`, `refresh` and `wait_for_ready_state_complete` run the page-load
+  hooks the settings ask for:** the AngularJS wait, the check of the browser log for severe
+  JavaScript errors and the switch-off of the `beforeunload` dialog (the last two on Chromium
+  browsers only). `--skip-js-waits` skips all three. A click waits for AngularJS too under `--wfa`.
+- **`--timeout-multiplier` scales the default wait:** `ceil(multiplier * seconds)` for every wait
+  that names no time of its own, `set_timeout` included; a time a call names is kept, as in
+  Python. A multiplier below 0.5 is raised to 0.5 and one that is not a finite number is ignored.
+  `RunSettings::scale_timeout` gives the scaled time.
+
+
 ## [0.6.0] - 2026-10-23
 
 ### Breaking

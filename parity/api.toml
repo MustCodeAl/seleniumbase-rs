@@ -4480,14 +4480,14 @@ rust = "BrowserConfig::browser"
 note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing; the driver follows its version."
 
 [options_pytest."--check-js"]
-status = "composed"
-rust = "BaseCase::assert_no_js_errors"
-note = "Call it after the page loads."
+status = "implemented"
+rust = "RunSettings::with_check_js"
+note = "After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits."
 
 [options_pytest."--check_js"]
-status = "composed"
-rust = "BaseCase::assert_no_js_errors"
-note = "Call it after the page loads."
+status = "implemented"
+rust = "RunSettings::with_check_js"
+note = "After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits."
 
 [options_pytest."--chrome"]
 status = "composed"
@@ -4615,9 +4615,9 @@ status = "implemented"
 rust = "BrowserConfig::with_devtools"
 
 [options_pytest."--disable-beforeunload"]
-status = "composed"
-rust = "BaseCase::disable_beforeunload"
-note = "Call it after each navigation."
+status = "implemented"
+rust = "RunSettings::with_disable_beforeunload"
+note = "After every page load the beforeunload dialog is switched off (BaseCase::disable_beforeunload), on a Chromium browser. Skipped by skip-js-waits."
 
 [options_pytest."--disable-cookies"]
 status = "implemented"
@@ -4651,9 +4651,9 @@ status = "implemented"
 rust = "BrowserConfig::with_disable_ws"
 
 [options_pytest."--disable_beforeunload"]
-status = "composed"
-rust = "BaseCase::disable_beforeunload"
-note = "Call it after each navigation."
+status = "implemented"
+rust = "RunSettings::with_disable_beforeunload"
+note = "After every page load the beforeunload dialog is switched off (BaseCase::disable_beforeunload), on a Chromium browser. Skipped by skip-js-waits."
 
 [options_pytest."--disable_cookies"]
 status = "implemented"
@@ -4888,8 +4888,8 @@ rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_pytest."--highlights"]
-status = "not-applicable"
-reason = "BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a --highlights option to override."
+status = "planned"
+note = "RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet."
 
 [options_pytest."--host-resolver-rules"]
 status = "implemented"
@@ -4917,8 +4917,8 @@ status = "implemented"
 rust = "BrowserConfig::with_incognito"
 
 [options_pytest."--interval"]
-status = "not-applicable"
-reason = "Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override."
+status = "planned"
+note = "RunSettings::with_interval holds the time (zero is unset), but Tour and Presentation do not play by themselves yet."
 
 [options_pytest."--is-pytest"]
 status = "not-applicable"
@@ -5365,14 +5365,14 @@ rust = "BaseCase::set_time_limit"
 note = "Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop."
 
 [options_pytest."--timeout-multiplier"]
-status = "composed"
-rust = "BaseCase::set_timeout"
-note = "Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
+status = "implemented"
+rust = "RunSettings::with_timeout_multiplier"
+note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
 
 [options_pytest."--timeout_multiplier"]
-status = "composed"
-rust = "BaseCase::set_timeout"
-note = "Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
+status = "implemented"
+rust = "RunSettings::with_timeout_multiplier"
+note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
 
 [options_pytest."--uc"]
 status = "composed"
@@ -5472,12 +5472,12 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_pytest."--verify-delay"]
-status = "not-applicable"
-reason = "MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override."
+status = "planned"
+note = "RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet."
 
 [options_pytest."--verify_delay"]
-status = "not-applicable"
-reason = "MasterQaSession::verify prompts on the terminal, not in a browser pop-up, so there is no pop-up delay to override."
+status = "planned"
+note = "RunSettings::with_verify_delay holds the delay (500 ms by default), but MasterQaSession::verify does not wait for it yet."
 
 [options_pytest."--visual-baseline"]
 status = "implemented"
@@ -5490,19 +5490,19 @@ rust = "RunSettings::with_visual_baseline_reset"
 note = "check_window saves the page's structure as the new baseline instead of comparing."
 
 [options_pytest."--wait-for-angularjs"]
-status = "composed"
-rust = "BaseCase::wait_for_angularjs"
-note = "Both default to no waiting; call it where a page needs it."
+status = "implemented"
+rust = "RunSettings::with_wait_for_angularjs"
+note = "After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads."
 
 [options_pytest."--wait_for_angularjs"]
-status = "composed"
-rust = "BaseCase::wait_for_angularjs"
-note = "Both default to no waiting; call it where a page needs it."
+status = "implemented"
+rust = "RunSettings::with_wait_for_angularjs"
+note = "After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads."
 
 [options_pytest."--wfa"]
-status = "composed"
-rust = "BaseCase::wait_for_angularjs"
-note = "Both default to no waiting; call it where a page needs it."
+status = "implemented"
+rust = "RunSettings::with_wait_for_angularjs"
+note = "After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads."
 
 [options_pytest."--window-position"]
 status = "implemented"
@@ -5686,9 +5686,9 @@ status = "implemented"
 rust = "BrowserConfig::with_devtools"
 
 [options_sb."disable_beforeunload"]
-status = "composed"
-rust = "BaseCase::disable_beforeunload"
-note = "Call it after each navigation."
+status = "implemented"
+rust = "RunSettings::with_disable_beforeunload"
+note = "After every page load the beforeunload dialog is switched off (BaseCase::disable_beforeunload), on a Chromium browser. Skipped by skip-js-waits."
 
 [options_sb."disable_cookies"]
 status = "implemented"
@@ -5797,8 +5797,8 @@ rust = "BrowserConfig::with_headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_sb."highlights"]
-status = "not-applicable"
-reason = "BaseCase::highlight outlines the element once and restores it after about a second; it has no loop count for a highlights argument to override."
+status = "planned"
+note = "RunSettings::with_highlights holds the count (zero is unset, 4 is the default), but BaseCase::highlight does not read it yet."
 
 [options_sb."host_resolver_rules"]
 status = "implemented"
@@ -5809,8 +5809,8 @@ status = "implemented"
 rust = "BrowserConfig::with_incognito"
 
 [options_sb."interval"]
-status = "not-applicable"
-reason = "Tour and Presentation here advance only when told, with no autoplay, so there is no interval to override."
+status = "planned"
+note = "RunSettings::with_interval holds the time (zero is unset), but Tour and Presentation do not play by themselves yet."
 
 [options_sb."is_mobile"]
 status = "composed"
@@ -5818,9 +5818,9 @@ rust = "BrowserConfig::mobile"
 note = "Give the screen with `with_device_metrics`."
 
 [options_sb."js_checking_on"]
-status = "composed"
-rust = "BaseCase::assert_no_js_errors"
-note = "Call it after the page loads."
+status = "implemented"
+rust = "RunSettings::with_check_js"
+note = "After every page load (open, go_back, go_forward, refresh, wait_for_ready_state_complete) the browser log is checked for severe JavaScript errors, on a Chromium browser. Skipped by skip-js-waits."
 
 [options_sb."locale"]
 status = "implemented"
@@ -6006,9 +6006,9 @@ rust = "BaseCase::set_time_limit"
 note = "Once the test has run longer than the limit (counted from creating the BaseCase), its next open, readiness wait or element action fails with a time-limit error; waits are cut to the time left. A test that does none of those is not interrupted: wrap it in `tokio::time::timeout` for a hard stop."
 
 [options_sb."timeout_multiplier"]
-status = "composed"
-rust = "BaseCase::set_timeout"
-note = "Call `set_timeout(10 * multiplier)`: the default wait is 10 seconds. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
+status = "implemented"
+rust = "RunSettings::with_timeout_multiplier"
+note = "The default wait becomes ceil(multiplier * seconds); a multiplier below 0.5 is raised to 0.5, as in Python. A timeout passed to a method explicitly is not multiplied, which matches Python, where only the default timeouts are."
 
 [options_sb."uc"]
 status = "composed"
@@ -6076,14 +6076,14 @@ status = "not-applicable"
 reason = "pytest and unittest plumbing; the Rust test runner (api::runner) and RuntimeConfig replace it."
 
 [options_sb."wait_for_angularjs"]
-status = "composed"
-rust = "BaseCase::wait_for_angularjs"
-note = "Both default to no waiting; call it where a page needs it."
+status = "implemented"
+rust = "RunSettings::with_wait_for_angularjs"
+note = "After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads."
 
 [options_sb."wfa"]
-status = "composed"
-rust = "BaseCase::wait_for_angularjs"
-note = "Both default to no waiting; call it where a page needs it."
+status = "implemented"
+rust = "RunSettings::with_wait_for_angularjs"
+note = "After every page load and after BaseCase::click the page is waited on for up to 2 s while AngularJS has requests in flight; a page without AngularJS does not wait. Skipped by skip-js-waits on page loads."
 
 [options_sb."window_position"]
 status = "implemented"
