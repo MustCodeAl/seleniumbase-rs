@@ -84,6 +84,21 @@ work, `docs/parity.md` the per-API status).
   ends the tooltip, `zero` starts a line or area chart at zero, `legend` and `labels` show or
   hide the legend and the values, and `libs` leaves the `<script src>` out of `extract_chart`.
 
+- **The MCP servers offer resources, prompts, structured results and progress.** The `cdp`,
+  `driver` and `sb` servers answer `resources/list`, `resources/templates/list` and
+  `resources/read` for `sbrs://journal` (the calls so far, with typed text, scripts and results
+  left out), `sbrs://session` (engine, URL, title, ready state) and `sbrs://output/{+path}` (a
+  file under `SB_MCP_OUTPUT_DIR`: text as text, anything else as base64; `..`, an absolute path,
+  an escape or a link that leaves the folder is refused), and `prompts/list` and `prompts/get`
+  for `write_test`, `debug_failure` and `extract_data`. An object result of a tool is also sent
+  as `structuredContent` next to its text, and a `tools/call` with `_meta.progressToken` gets
+  `notifications/progress` from the tools that report (`Ctx::progress`). The tools that return
+  page text (`get_content`, `get_attributes`, `get_text`, `get_page_source`, ...) start with a
+  notice that the text is data and carry `_meta: {"sbrs/untrusted_content": true}`. For hosts
+  built on the library: `ToolDef::with_output_schema` and `untrusted`, `Host::with_resources`,
+  `with_prompts` and `call_with`, and the types `ResourceDef`, `PromptDef`, `Progress` and
+  `ProgressSink`.
+
 - **Shell completion says what each value is.** A selector, text, key, value, attribute, property
   or CDP method (`--css`, `--text`, `--key`, `--value`, `--attribute`, `--property`, `--cmd`,
   `--params`, `--hover-css`, `--click-css`, `--source-css`, `--target-css`) no longer completes
